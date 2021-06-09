@@ -5,6 +5,7 @@
     import MultiChoice from "../../types/choices/multiChoice";
 
     export let choice: MultiChoice;
+    export let id: string;
     let collapse: boolean = false;
 </script>
 
@@ -21,7 +22,7 @@
 
     {#if !collapse}
         <div class="nestedChoiceList">
-            <ChoiceList bind:choices={choice.choices} />
+            <ChoiceList type={id} bind:choices={choice.choices} />
         </div>
     {/if}
 </div>
