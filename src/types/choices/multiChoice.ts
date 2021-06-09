@@ -1,5 +1,5 @@
-import type {Choice} from "./choice";
+import type Choice from "./choice";
 
-export interface MultiChoice extends Choice {
+export default interface MultiChoice extends Choice {
     choices: Choice[];
 }

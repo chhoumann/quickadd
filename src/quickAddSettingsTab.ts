@@ -1,6 +1,7 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
 import type QuickAdd from "./main";
-import type {Choice} from "./types/choices/choice";
+import type Choice from "./types/choices/choice";
+import ChoiceList from "./gui/choiceList/ChoiceView.svelte"
 
 export interface QuickAddSettings {
     choices: Choice[];
@@ -11,7 +12,8 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 }
 
 export class QuickAddSettingsTab extends PluginSettingTab {
-    plugin: QuickAdd;
+    public plugin: QuickAdd;
+    private choiceList: ChoiceList;
 
     constructor(app: App, plugin: QuickAdd) {
         super(app, plugin);
@@ -23,5 +25,16 @@ export class QuickAddSettingsTab extends PluginSettingTab {
         containerEl.empty();
 
         containerEl.createEl('h2', {text: 'QuickAdd Settings'});
+        const choicesDiv = containerEl.createDiv('choices');
+
+
+        this.choiceList = new ChoiceList({
+            target: choicesDiv,
+            // props: {}
+        })
+    }
+
+    hide(): any {
+        this.choiceList.$destroy();
     }
 }

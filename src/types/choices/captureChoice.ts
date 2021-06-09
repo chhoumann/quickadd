@@ -1,6 +1,6 @@
-import type {Choice} from "./choice";
+import type Choice from "./choice";
 
-export interface CaptureChoice extends Choice {
+export default interface CaptureChoice extends Choice {
     captureTo: string;
     format: { enabled: boolean, format: string };
     prepend: boolean;
