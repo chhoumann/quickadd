@@ -1,23 +1,42 @@
 {
-  "name": "obsidian-sample-plugin",
-  "version": "0.12.0",
-  "description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+  "name": "quickadd",
+  "version": "0.0.0",
+  "description": "Quickly add new pages or content to your vault.",
   "main": "main.js",
   "scripts": {
     "dev": "rollup --config rollup.config.js -w",
-    "build": "rollup --config rollup.config.js --environment BUILD:production"
+    "build": "rollup --config rollup.config.js --environment BUILD:production",
+    "test": "jest"
   },
   "keywords": [],
-  "author": "",
+  "author": "Christian B. B. Houmann",
   "license": "MIT",
   "devDependencies": {
+    "@babel/core": "7.14.3",
+    "@babel/preset-env": "7.14.2",
+    "@babel/preset-typescript": "7.13.0",
     "@rollup/plugin-commonjs": "^18.0.0",
     "@rollup/plugin-node-resolve": "^11.2.1",
     "@rollup/plugin-typescript": "^8.2.1",
-    "@types/node": "^14.14.37",
+    "@tsconfig/svelte": "1.0.10",
+    "@types/jest": "26.0.23",
+    "@types/node": "14.17.1",
+    "babel-core": "6.26.3",
+    "babel-jest": "27.0.1",
+    "jest": "27.0.1",
+    "jest-environment-node": "27.0.1",
     "obsidian": "^0.12.0",
     "rollup": "^2.32.1",
+    "rollup-plugin-strip-code": "0.2.7",
+    "rollup-plugin-svelte": "^7.1.0",
+    "svelte": "^3.37.0",
+    "svelte-check": "^1.3.0",
+    "svelte-preprocess": "^4.7.0",
+    "ts-jest": "27.0.0",
     "tslib": "^2.2.0",
     "typescript": "^4.2.4"
+  },
+  "dependencies": {
+    "@popperjs/core": "^2.9.2"
   }
 }

@@ -1,0 +1,6 @@
+{
+  "clearMocks": true,
+  "testEnvironment": "node",
+  "maxConcurrency": 1,
+  "maxWorkers": 1
+}
