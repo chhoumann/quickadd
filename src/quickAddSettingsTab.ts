@@ -1,11 +1,13 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
 import type QuickAdd from "./main";
+import type {Choice} from "./types/choices/choice";
 
 export interface QuickAddSettings {
-
+    choices: Choice[];
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
+    choices: []
 }
 
 export class QuickAddSettingsTab extends PluginSettingTab {
