@@ -6,20 +6,30 @@
     import {DndEvent, dndzone} from "svelte-dnd-action";
 
     export let choices: Choice[];
-    export let type: string;
+    let collapseId: string;
+    
+    function handleConsider(e: CustomEvent<DndEvent>) {
+        let {items: newItems, info: {id}} = e.detail;
+        collapseId = id;
+
+        choices = newItems as Choice[];
+    }
 
     function handleSort(e: CustomEvent<DndEvent>) {
-        choices = e.detail.items as Choice[];
+        let {items: newItems} = e.detail;
+        collapseId = "";
+
+        choices = newItems as Choice[];
     }
 
 </script>
 
-<div use:dndzone={{items: choices, dropTargetStyle: {"border": "1px solid black"}}} on:consider={handleSort} on:finalize={handleSort} class="choiceList">
+<div use:dndzone={{items: choices, dropTargetStyle: {"border": "1px solid black"}}} on:consider={handleConsider} on:finalize={handleSort} class="choiceList">
     {#each choices as choice(choice.id)}
         {#if choice.type !== ChoiceType.Multi}
             <ChoiceListItem bind:choice />
         {:else}
-            <MultiChoiceListItem id={choice.id} bind:choice />
+            <MultiChoiceListItem bind:collapseId bind:choice />
         {/if}
     {/each}
 </div>
@@ -27,7 +37,7 @@
 <style>
 .choiceList {
     width: auto;
-    border: 0px solid black;
+    border: 0 solid black;
     overflow-y: auto;
     padding-bottom: 0.5rem;
     height: auto;

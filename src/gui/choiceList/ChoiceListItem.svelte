@@ -4,14 +4,14 @@
     export let choice: Choice;
 </script>
 
-<div class="choiceListItem">
-    <span class="choiceListItemName">{choice.name}</span>
+<div class="multiChoiceListItem">
+    <span class="multiChoiceListItemName">{choice.name}</span>
     <button>Configure</button>
-    <span class="choiceListItemDelete">❌</span>
+    <span class="multiChoiceListItemDelete">❌</span>
 </div>
 
 <style>
-    .choiceListItem {
+    .multiChoiceListItem {
         display: flex;
         font-size: 16px;
         align-items: center;
@@ -19,11 +19,11 @@
         transition: 1000ms ease-in-out;
     }
 
-    .choiceListItemName {
+    .multiChoiceListItemName {
         flex: 1 0 0;
     }
 
-    .choiceListItemDelete:hover {
+    .multiChoiceListItemDelete:hover {
         cursor: pointer;
     }
 </style>

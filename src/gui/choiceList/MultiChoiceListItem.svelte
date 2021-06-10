@@ -5,46 +5,45 @@
     import MultiChoice from "../../types/choices/multiChoice";
 
     export let choice: MultiChoice;
-    export let id: string;
-    let collapse: boolean = false;
+    export let collapseId: string;
 </script>
 
 <div>
-    <div class="choiceListItem">
-        <div class="choiceListItemName clickable" on:click={() => collapse = !collapse}>
-            <Icon data={faChevronDown} style={`transform:rotate(${collapse ? -180 : 0}deg)`} />
+    <div class="multiChoiceListItem">
+        <div class="multiChoiceListItemName clickable" on:click={() => choice.collapsed = !choice.collapsed}>
+            <Icon data={faChevronDown} style={`transform:rotate(${choice.collapsed ? -180 : 0}deg)`} />
             <span>{choice.name}</span>
         </div>
 
         <button>Configure</button>
-        <span class="choiceListItemDelete">❌</span>
+        <span class="multiChoiceListItemDelete">❌</span>
     </div>
 
-    {#if !collapse}
+    {#if (!collapseId && choice.id !== collapseId) && !choice.collapsed}
         <div class="nestedChoiceList">
-            <ChoiceList type={id} bind:choices={choice.choices} />
+            <ChoiceList bind:multiChoice={choice} bind:choices={choice.choices} />
         </div>
     {/if}
 </div>
 
 <style>
-    .choiceListItem {
+    .multiChoiceListItem {
         display: flex;
         font-size: 16px;
         align-items: center;
-        margin: 12px 0;
+        margin: 12px 0 0 0;
     }
 
     .clickable:hover {
         cursor: pointer;
     }
 
-    .choiceListItemName {
+    .multiChoiceListItemName {
         flex: 1 0 0;
         margin-left: 5px;
     }
 
-    .choiceListItemDelete:hover {
+    .multiChoiceListItemDelete:hover {
         cursor: pointer;
     }
 
