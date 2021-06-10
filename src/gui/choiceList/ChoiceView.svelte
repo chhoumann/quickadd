@@ -51,16 +51,15 @@
             `Confirm deletion of choice`, `Please confirm that you wish to delete '${choiceName}.'`);
 
         if (userConfirmed) {
-            choices = choices.filter((value, index, array) => deleteChoiceHelper(id, value, index, array));
+            choices = choices.filter((value, index, array) => deleteChoiceHelper(id, value));
             saveChoices(choices);
         }
     }
 
-    function deleteChoiceHelper(id: string, value: IChoice, index: number, array: IChoice[]): boolean {
-        if (value instanceof MultiChoice) {
-            value.choices = value.choices.filter(this);
-
-            return true;
+    function deleteChoiceHelper(id: string, value: IChoice): boolean {
+        if (value.type === ChoiceType.Multi) {
+            (value as IMultiChoice).choices = (value as IMultiChoice).choices
+                .filter((value) => deleteChoiceHelper(id, value));
         }
 
         return value.id !== id;
@@ -68,7 +67,6 @@
 </script>
 
 <div>
-    <h3>Choices</h3>
     <ChoiceList type="main" bind:choices on:deleteChoice={deleteChoice} />
     <AddChoiceBox on:addChoice={addChoiceToList} />
 </div>

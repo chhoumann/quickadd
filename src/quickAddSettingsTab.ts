@@ -23,12 +23,23 @@ export class QuickAddSettingsTab extends PluginSettingTab {
     display(): void {
         let {containerEl} = this;
         containerEl.empty();
-
         containerEl.createEl('h2', {text: 'QuickAdd Settings'});
-        const choicesDiv = containerEl.createDiv('choices');
+
+        this.addChoicesSetting();
+    }
+
+    hide(): any {
+        if (this.choiceList)
+            this.choiceList.$destroy();
+    }
+
+    private addChoicesSetting(): void {
+        const setting = new Setting(this.containerEl);
+        setting.infoEl.remove();
+        setting.settingEl.style.display = "";
 
         this.choiceList = new ChoiceList({
-            target: choicesDiv,
+            target: setting.settingEl,
             props: {
                 app: this.app,
                 choices: this.plugin.settings.choices,
@@ -38,9 +49,5 @@ export class QuickAddSettingsTab extends PluginSettingTab {
                 }
             }
         })
-    }
-
-    hide(): any {
-        this.choiceList.$destroy();
     }
 }

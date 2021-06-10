@@ -38,7 +38,11 @@
     {#if !collapseId || (collapseId && choice.id !== collapseId)}
         {#if !choice.collapsed}
             <div class="nestedChoiceList">
-                <ChoiceList bind:multiChoice={choice} bind:choices={choice.choices} />
+                <ChoiceList
+                        on:deleteChoice
+                        bind:multiChoice={choice}
+                        bind:choices={choice.choices}
+                />
             </div>
         {/if}
     {/if}

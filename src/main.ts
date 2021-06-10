@@ -1,8 +1,10 @@
 import {Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, QuickAddSettings, QuickAddSettingsTab} from "./quickAddSettingsTab";
-import {ChoiceType} from "./types/choices/choiceType";
-import type IMultiChoice from "./types/choices/IMultiChoice";
-import {v4 as uuidv4} from "uuid";
+import {TemplateChoice} from "./types/choices/TemplateChoice";
+import {MultiChoice} from "./types/choices/MultiChoice";
+import {CaptureChoice} from "./types/choices/CaptureChoice";
+import {MacroChoice} from "./types/choices/MacroChoice";
+import ChoiceSuggester from "./gui/choiceSuggester";
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 
@@ -15,7 +17,7 @@ export default class QuickAdd extends Plugin {
 			id: 'runQuickAdd',
 			name: 'Run QuickAdd',
 			callback: () => {
-
+				ChoiceSuggester.Open(this, this.settings.choices);
 			}
 		})
 
@@ -36,25 +38,19 @@ export default class QuickAdd extends Plugin {
 			name: 'Give Dev Choices',
 			callback: () => {
 				this.settings.choices = [
-					{name: '🚶‍♂️ Journal', type: ChoiceType.Template, id: uuidv4()},
-					{name: '📖 Log Book to Daily Journal', type: ChoiceType.Template, id: uuidv4()},
-					<IMultiChoice>{
-						name: '📥 Add...', type: ChoiceType.Multi, id: uuidv4(), collapsed: false, choices: [
-							{name: '💭 Add a Thought', type: ChoiceType.Capture, id: uuidv4()},
-							{name: '📥 Add an Inbox Item', type: ChoiceType.Template, id: uuidv4()},
-							{name: '📕 Add Book Notes', type: ChoiceType.Template, id: uuidv4()},
-						]
-					},
-					{name: "✍ Quick Capture", type: ChoiceType.Capture, id: uuidv4()},
-					{name: '💬 Add Quote Page', type: ChoiceType.Template, id: uuidv4()},
-					<IMultiChoice>{
-						name: '🌀 Task Manager', type: ChoiceType.Multi, id: uuidv4(), collapsed: false, choices: [
-							{name: '✔ Add a Task', type: ChoiceType.Macro, id: uuidv4()},
-							{name: '✔ Quick Capture Task', type: ChoiceType.Capture, id: uuidv4()},
-							{name: '✔ Add MetaEdit Backlog Task', type: ChoiceType.Capture, id: uuidv4()},
-						]
-					},
-					{name: '💸 Add Purchase', type: ChoiceType.Capture, id: uuidv4()}
+					new TemplateChoice("🚶‍♂️ Journal"),
+					new TemplateChoice('📖 Log Book to Daily Journal'),
+					new MultiChoice('📥 Add...')
+						.addChoice(new CaptureChoice('💭 Add a Thought'))
+						.addChoice(new CaptureChoice('📥 Add an Inbox Item'))
+						.addChoice(new TemplateChoice('📕 Add Book Notes')),
+                    new CaptureChoice("✍ Quick Capture"),
+                    new TemplateChoice('💬 Add Quote Page'),
+					new MultiChoice('🌀 Task Manager')
+						.addChoice(new MacroChoice('✔ Add a Task'))
+						.addChoice(new CaptureChoice('✔ Quick Capture Task'))
+						.addChoice(new CaptureChoice('✔ Add MetaEdit Backlog Task')),
+                    new CaptureChoice('💸 Add Purchase'),
 				];
 
 				this.saveSettings();
