@@ -51,7 +51,7 @@
             `Confirm deletion of choice`, `Please confirm that you wish to delete '${choiceName}.'`);
 
         if (userConfirmed) {
-            choices = choices.filter((value, index, array) => deleteChoiceHelper(id, value));
+            choices = choices.filter((value) => deleteChoiceHelper(id, value));
             saveChoices(choices);
         }
     }
