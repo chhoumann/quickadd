@@ -10,11 +10,15 @@
     function emitDeleteChoice() {
         dispatcher('deleteChoice');
     }
+
+    function emitConfigureChoice() {
+        dispatcher('configureChoice');
+    }
 </script>
 
 <div class="rightButtonsContainer">
     {#if showConfigureButton}
-        <button>Configure</button>
+        <button on:click={emitConfigureChoice}>Configure</button>
     {/if}
 
     <div aria-label="Delete choice" class="alignIconInDivInMiddle deleteChoiceButton" on:click={emitDeleteChoice}>

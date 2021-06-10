@@ -17,6 +17,9 @@
         dispatcher('deleteChoice', {choiceId: choice.id, choiceName: choice.name});
     }
 
+    function configureChoice() {
+        dispatcher('configureChoice', {choice});
+    }
 </script>
 
 <div>
@@ -30,6 +33,7 @@
             on:mousedown
             on:touchstart
             on:deleteChoice={deleteChoice}
+            on:configureChoice={configureChoice}
             bind:showConfigureButton
             bind:dragDisabled
         />
@@ -40,6 +44,7 @@
             <div class="nestedChoiceList">
                 <ChoiceList
                         on:deleteChoice
+                        on:configureChoice
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}
                 />

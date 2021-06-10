@@ -36,7 +36,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
     private addChoicesSetting(): void {
         const setting = new Setting(this.containerEl);
         setting.infoEl.remove();
-        setting.settingEl.style.display = "";
+        setting.settingEl.style.display = "block";
 
         this.choiceList = new ChoiceList({
             target: setting.settingEl,

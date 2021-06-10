@@ -46,6 +46,7 @@
                     on:mousedown={startDrag}
                     on:touchstart={startDrag}
                     on:deleteChoice
+                    on:configureChoice
                     bind:choice
             />
         {:else}
@@ -54,6 +55,7 @@
                     on:mousedown={startDrag}
                     on:touchstart={startDrag}
                     on:deleteChoice
+                    on:configureChoice
                     bind:collapseId
                     bind:choice
             />

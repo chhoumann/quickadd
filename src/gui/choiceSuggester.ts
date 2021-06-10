@@ -29,26 +29,26 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
         switch (item.type) {
             case ChoiceType.Multi:
                 const multiChoice: IMultiChoice = item as IMultiChoice;
-                this.chooseMultiType(multiChoice);
+                this.onChooseMultiType(multiChoice);
                 break;
             case ChoiceType.Template:
                 const templateChoice: ITemplateChoice = item as ITemplateChoice;
-                this.chooseTemplateType(templateChoice);
+                this.onChooseTemplateType(templateChoice);
                 break;
             case ChoiceType.Capture:
                 const captureChoice: ICaptureChoice = item as ICaptureChoice;
-                this.chooseCaptureType(captureChoice);
+                this.onChooseCaptureType(captureChoice);
                 break;
             case ChoiceType.Macro:
                 const macroChoice: IMacroChoice = item as IMacroChoice;
-                this.chooseMacroType(macroChoice);
+                this.onChooseMacroType(macroChoice);
                 break;
             default:
                 break;
         }
     }
 
-    private chooseMultiType(multi: IMultiChoice) {
+    private onChooseMultiType(multi: IMultiChoice) {
         const choices = [...multi.choices];
 
         if (multi.name != "← Back")
@@ -57,15 +57,21 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
         ChoiceSuggester.Open(this.plugin, choices);
     }
 
-    private chooseTemplateType(templateChoice: ITemplateChoice) {
-        if (!templateChoice.templatePath) return;
+    private onChooseTemplateType(templateChoice: ITemplateChoice) {
+        // if (!templateChoice.templatePath) return;
+
+        // @ts-ignore
+        const useTemplater: boolean = this.app.plugins.plugins["templater-obsidian"];
+
+        // @ts-ignore
+        console.log(useTemplater.templater.create_new_note_from_template);
     }
 
-    private chooseCaptureType(captureChoice: ICaptureChoice) {
+    private onChooseCaptureType(captureChoice: ICaptureChoice) {
         if (!captureChoice.captureTo) return;
     }
 
-    private chooseMacroType(macroChoice: IMacroChoice) {
+    private onChooseMacroType(macroChoice: IMacroChoice) {
         if (macroChoice.macro.commands.length === 0) return;
     }
 }

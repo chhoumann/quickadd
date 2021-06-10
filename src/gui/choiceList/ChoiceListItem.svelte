@@ -11,6 +11,10 @@
     function deleteChoice() {
         dispatcher('deleteChoice', {choiceId: choice.id, choiceName: choice.name});
     }
+
+    function configureChoice() {
+        dispatcher('configureChoice', {choice});
+    }
 </script>
 
 <div class="choiceListItem">
@@ -20,6 +24,7 @@
             on:mousedown
             on:touchstart
             on:deleteChoice={deleteChoice}
+            on:configureChoice={configureChoice}
             bind:showConfigureButton
             bind:dragDisabled
     />

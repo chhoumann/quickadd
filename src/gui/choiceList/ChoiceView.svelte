@@ -13,6 +13,7 @@
     import {MultiChoice} from "../../types/choices/MultiChoice";
     import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
     import {App} from "obsidian";
+    import {TemplateChoiceBuilder} from "../ChoiceBuilder/templateChoiceBuilder";
 
     export let choices: IChoice[] = [];
 
@@ -59,14 +60,51 @@
     function deleteChoiceHelper(id: string, value: IChoice): boolean {
         if (value.type === ChoiceType.Multi) {
             (value as IMultiChoice).choices = (value as IMultiChoice).choices
-                .filter((value) => deleteChoiceHelper(id, value));
+                .filter((v) => deleteChoiceHelper(id, v));
         }
 
         return value.id !== id;
     }
+
+    async function configureChoice(e: any) {
+        const {choice: oldChoice} = e.detail;
+        const updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
+        if (!updatedChoice) return;
+
+        choices = choices.map(choice => updateChoiceHelper(choice, updatedChoice));
+        saveChoices(choices);
+    }
+
+    function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice) {
+        if (oldChoice.id === newChoice.id)
+                return newChoice;
+
+        if (oldChoice.type === ChoiceType.Multi) {
+            (oldChoice as IMultiChoice).choices.map(c => updateChoiceHelper(c, newChoice))
+        }
+
+        return oldChoice;
+    }
+
+    function getChoiceBuilder(choice: IChoice) {
+        switch (choice.type) {
+            case ChoiceType.Template:
+                return new TemplateChoiceBuilder(app, choice as ITemplateChoice);
+            case ChoiceType.Capture:
+            case ChoiceType.Macro:
+            case ChoiceType.Multi:
+                break;
+            default:
+                break;
+        }
+    }
 </script>
 
 <div>
-    <ChoiceList type="main" bind:choices on:deleteChoice={deleteChoice} />
+    <ChoiceList
+            type="main"
+            bind:choices
+            on:deleteChoice={deleteChoice}
+            on:configureChoice={configureChoice}/>
     <AddChoiceBox on:addChoice={addChoiceToList} />
 </div>
