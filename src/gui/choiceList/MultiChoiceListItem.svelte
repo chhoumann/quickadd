@@ -19,10 +19,12 @@
         <span class="multiChoiceListItemDelete">❌</span>
     </div>
 
-    {#if (!collapseId && choice.id !== collapseId) && !choice.collapsed}
-        <div class="nestedChoiceList">
-            <ChoiceList bind:multiChoice={choice} bind:choices={choice.choices} />
-        </div>
+    {#if !collapseId || (collapseId && choice.id !== collapseId)}
+        {#if !choice.collapsed}
+            <div class="nestedChoiceList">
+                <ChoiceList bind:multiChoice={choice} bind:choices={choice.choices} />
+            </div>
+        {/if}
     {/if}
 </div>
 
