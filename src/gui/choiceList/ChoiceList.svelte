@@ -45,6 +45,7 @@
                     bind:dragDisabled={dragDisabled}
                     on:mousedown={startDrag}
                     on:touchstart={startDrag}
+                    on:deleteChoice
                     bind:choice
             />
         {:else}
@@ -52,6 +53,7 @@
                     bind:dragDisabled={dragDisabled}
                     on:mousedown={startDrag}
                     on:touchstart={startDrag}
+                    on:deleteChoice
                     bind:collapseId
                     bind:choice
             />

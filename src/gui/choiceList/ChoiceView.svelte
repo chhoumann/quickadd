@@ -3,7 +3,6 @@
     import {ChoiceType} from "../../types/choices/choiceType";
     import ChoiceList from "./ChoiceList.svelte";
     import IMultiChoice from "../../types/choices/IMultiChoice";
-    import {v4 as uuidv4} from "uuid";
     import AddChoiceBox from "./AddChoiceBox.svelte";
     import type ITemplateChoice from "../../types/choices/ITemplateChoice";
     import {TemplateChoice} from "../../types/choices/TemplateChoice";
@@ -12,30 +11,13 @@
     import type ICaptureChoice from "../../types/choices/ICaptureChoice";
     import {CaptureChoice} from "../../types/choices/CaptureChoice";
     import {MultiChoice} from "../../types/choices/MultiChoice";
+    import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+    import {App} from "obsidian";
 
-    export let choices: IChoice[] = [
-        {name: '🚶‍♂️ Journal', type: ChoiceType.Template, id: uuidv4()},
-        {name: '📖 Log Book to Daily Journal', type: ChoiceType.Template, id: uuidv4()},
-        <IMultiChoice>{
-            name: '📥 Add...', type: ChoiceType.Multi, id: uuidv4(), collapsed: false, choices: [
-                {name: '💭 Add a Thought', type: ChoiceType.Capture, id: uuidv4()},
-                {name: '📥 Add an Inbox Item', type: ChoiceType.Template, id: uuidv4()},
-                {name: '📕 Add Book Notes', type: ChoiceType.Template, id: uuidv4()},
-            ]
-        },
-        {name: "✍ Quick Capture", type: ChoiceType.Capture, id: uuidv4()},
-        {name: '💬 Add Quote Page', type: ChoiceType.Template, id: uuidv4()},
-        <IMultiChoice>{
-            name: '🌀 Task Manager', type: ChoiceType.Multi, id: uuidv4(), collapsed: false, choices: [
-                {name: '✔ Add a Task', type: ChoiceType.Macro, id: uuidv4()},
-                {name: '✔ Quick Capture Task', type: ChoiceType.Capture, id: uuidv4()},
-                {name: '✔ Add MetaEdit Backlog Task', type: ChoiceType.Capture, id: uuidv4()},
-            ]
-        },
-        {name: '💸 Add Purchase', type: ChoiceType.Capture, id: uuidv4()}
-    ];
+    export let choices: IChoice[] = [];
 
     export let saveChoices: (choices: IChoice[]) => void;
+    export let app: App;
 
     function addChoiceToList(event: any): void {
         const {name, type} = event.detail;
@@ -58,10 +40,20 @@
                 choices = [...choices, multiChoice];
                 break;
         }
+
+        saveChoices(choices);
     }
 
-    function deleteChoice(id: string) {
+    async function deleteChoice(e: any) {
+        const {choiceId: id, choiceName} = e.detail;
+
+        const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(app,
+            `Confirm deletion of choice`, `Please confirm that you wish to delete '${choiceName}.'`);
+
+        if (userConfirmed) {
             choices = choices.filter((value, index, array) => deleteChoiceHelper(id, value, index, array));
+            saveChoices(choices);
+        }
     }
 
     function deleteChoiceHelper(id: string, value: IChoice, index: number, array: IChoice[]): boolean {
@@ -72,13 +64,11 @@
         }
 
         return value.id !== id;
-
-
     }
 </script>
 
 <div>
     <h3>Choices</h3>
-    <ChoiceList type="main" bind:choices />
+    <ChoiceList type="main" bind:choices on:deleteChoice={deleteChoice} />
     <AddChoiceBox on:addChoice={addChoiceToList} />
 </div>

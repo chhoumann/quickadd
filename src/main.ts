@@ -1,9 +1,10 @@
 import {Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, QuickAddSettingsTab} from "./quickAddSettingsTab";
-
-
+import {DEFAULT_SETTINGS, QuickAddSettings, QuickAddSettingsTab} from "./quickAddSettingsTab";
+import {ChoiceType} from "./types/choices/choiceType";
+import type IMultiChoice from "./types/choices/IMultiChoice";
+import {v4 as uuidv4} from "uuid";
 export default class QuickAdd extends Plugin {
-	settings: QuickAddSettingsTab;
+	settings: QuickAddSettings;
 
 	async onload() {
 		console.log('Loading QuickAdd');
@@ -27,6 +28,38 @@ export default class QuickAdd extends Plugin {
 				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
 		});
+		/*END.DEVCMD*/
+
+		/*START.DEVCMD*/
+		this.addCommand({
+			id: 'giveDivChoices',
+			name: 'Give Dev Choices',
+			callback: () => {
+				this.settings.choices = [
+					{name: '🚶‍♂️ Journal', type: ChoiceType.Template, id: uuidv4()},
+					{name: '📖 Log Book to Daily Journal', type: ChoiceType.Template, id: uuidv4()},
+					<IMultiChoice>{
+						name: '📥 Add...', type: ChoiceType.Multi, id: uuidv4(), collapsed: false, choices: [
+							{name: '💭 Add a Thought', type: ChoiceType.Capture, id: uuidv4()},
+							{name: '📥 Add an Inbox Item', type: ChoiceType.Template, id: uuidv4()},
+							{name: '📕 Add Book Notes', type: ChoiceType.Template, id: uuidv4()},
+						]
+					},
+					{name: "✍ Quick Capture", type: ChoiceType.Capture, id: uuidv4()},
+					{name: '💬 Add Quote Page', type: ChoiceType.Template, id: uuidv4()},
+					<IMultiChoice>{
+						name: '🌀 Task Manager', type: ChoiceType.Multi, id: uuidv4(), collapsed: false, choices: [
+							{name: '✔ Add a Task', type: ChoiceType.Macro, id: uuidv4()},
+							{name: '✔ Quick Capture Task', type: ChoiceType.Capture, id: uuidv4()},
+							{name: '✔ Add MetaEdit Backlog Task', type: ChoiceType.Capture, id: uuidv4()},
+						]
+					},
+					{name: '💸 Add Purchase', type: ChoiceType.Capture, id: uuidv4()}
+				];
+
+				this.saveSettings();
+			}
+		})
 		/*END.DEVCMD*/
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));

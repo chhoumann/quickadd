@@ -3,11 +3,20 @@
     import {faChevronDown} from "@fortawesome/free-solid-svg-icons";
     import ChoiceList from "./ChoiceList.svelte";
     import IMultiChoice from "../../types/choices/IMultiChoice";
-    import RightButtons from "./RightButtons.svelte";
+    import RightButtons from "./ChoiceItemRightButtons.svelte";
+    import {createEventDispatcher} from "svelte";
 
     export let choice: IMultiChoice;
     export let collapseId: string;
     export let dragDisabled: boolean;
+    let showConfigureButton: boolean = false;
+
+    const dispatcher = createEventDispatcher();
+
+    function deleteChoice(e: any) {
+        dispatcher('deleteChoice', {choiceId: choice.id, choiceName: choice.name});
+    }
+
 </script>
 
 <div>
@@ -20,6 +29,8 @@
         <RightButtons
             on:mousedown
             on:touchstart
+            on:deleteChoice={deleteChoice}
+            bind:showConfigureButton
             bind:dragDisabled
         />
     </div>

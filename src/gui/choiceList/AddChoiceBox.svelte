@@ -7,6 +7,7 @@
     let type: ChoiceType;
 
     const dispatch = createEventDispatcher();
+
     function addChoice() {
         if (!name) {
             new Notice("Choice name is invalid.");

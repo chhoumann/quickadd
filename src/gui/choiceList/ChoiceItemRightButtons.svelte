@@ -1,14 +1,23 @@
 <script lang="ts">
     import {faTrash, faBars} from "@fortawesome/free-solid-svg-icons";
     import Icon from "svelte-awesome/components/Icon.svelte";
+    import {createEventDispatcher} from "svelte";
 
-    export let dragDisabled;
+    export let dragDisabled: boolean;
+    export let showConfigureButton: boolean = true;
+    const dispatcher = createEventDispatcher();
+
+    function emitDeleteChoice() {
+        dispatcher('deleteChoice');
+    }
 </script>
 
 <div class="rightButtonsContainer">
-    <button>Configure</button>
+    {#if showConfigureButton}
+        <button>Configure</button>
+    {/if}
 
-    <div aria-label="Delete choice" class="alignIconInDivInMiddle">
+    <div aria-label="Delete choice" class="alignIconInDivInMiddle deleteChoiceButton" on:click={emitDeleteChoice}>
         <Icon style="margin-right: 5px" data={faTrash} />
     </div>
 
@@ -27,6 +36,10 @@
 .rightButtonsContainer {
     display: flex;
     align-items: center;
+}
+
+.deleteChoiceButton:hover {
+    cursor: pointer;
 }
 
 .alignIconInDivInMiddle {

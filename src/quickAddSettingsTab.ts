@@ -27,10 +27,16 @@ export class QuickAddSettingsTab extends PluginSettingTab {
         containerEl.createEl('h2', {text: 'QuickAdd Settings'});
         const choicesDiv = containerEl.createDiv('choices');
 
-
         this.choiceList = new ChoiceList({
             target: choicesDiv,
-            // props: {}
+            props: {
+                app: this.app,
+                choices: this.plugin.settings.choices,
+                saveChoices: async (choices: IChoice[]) => {
+                    this.plugin.settings.choices = choices;
+                    await this.plugin.saveSettings();
+                }
+            }
         })
     }
 

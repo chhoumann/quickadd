@@ -1,9 +1,16 @@
 <script lang="ts">
     import IChoice from "../../types/choices/IChoice";
-    import RightButtons from "./RightButtons.svelte";
+    import RightButtons from "./ChoiceItemRightButtons.svelte";
+    import {createEventDispatcher} from "svelte";
 
     export let choice: IChoice;
     export let dragDisabled: boolean;
+    let showConfigureButton: boolean = true;
+    const dispatcher = createEventDispatcher();
+
+    function deleteChoice() {
+        dispatcher('deleteChoice', {choiceId: choice.id, choiceName: choice.name});
+    }
 </script>
 
 <div class="choiceListItem">
@@ -12,6 +19,8 @@
     <RightButtons
             on:mousedown
             on:touchstart
+            on:deleteChoice={deleteChoice}
+            bind:showConfigureButton
             bind:dragDisabled
     />
 </div>
