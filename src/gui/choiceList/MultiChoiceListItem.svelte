@@ -3,9 +3,11 @@
     import {faChevronDown} from "@fortawesome/free-solid-svg-icons";
     import ChoiceList from "./ChoiceList.svelte";
     import IMultiChoice from "../../types/choices/IMultiChoice";
+    import RightButtons from "./RightButtons.svelte";
 
     export let choice: IMultiChoice;
     export let collapseId: string;
+    export let dragDisabled: boolean;
 </script>
 
 <div>
@@ -15,8 +17,11 @@
             <span>{choice.name}</span>
         </div>
 
-        <button>Configure</button>
-        <span class="multiChoiceListItemDelete">❌</span>
+        <RightButtons
+            on:mousedown
+            on:touchstart
+            bind:dragDisabled
+        />
     </div>
 
     {#if !collapseId || (collapseId && choice.id !== collapseId)}
@@ -43,10 +48,6 @@
     .multiChoiceListItemName {
         flex: 1 0 0;
         margin-left: 5px;
-    }
-
-    .multiChoiceListItemDelete:hover {
-        cursor: pointer;
     }
 
     .nestedChoiceList {

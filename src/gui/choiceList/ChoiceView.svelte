@@ -37,7 +37,7 @@
 
     export let saveChoices: (choices: IChoice[]) => void;
 
-    const addChoiceToList: (event: any) => void = (event: any) => {
+    function addChoiceToList(event: any): void {
         const {name, type} = event.detail;
 
         switch (type) {
@@ -58,7 +58,23 @@
                 choices = [...choices, multiChoice];
                 break;
         }
-    };
+    }
+
+    function deleteChoice(id: string) {
+            choices = choices.filter((value, index, array) => deleteChoiceHelper(id, value, index, array));
+    }
+
+    function deleteChoiceHelper(id: string, value: IChoice, index: number, array: IChoice[]): boolean {
+        if (value instanceof MultiChoice) {
+            value.choices = value.choices.filter(this);
+
+            return true;
+        }
+
+        return value.id !== id;
+
+
+    }
 </script>
 
 <div>

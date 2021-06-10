@@ -1,17 +1,23 @@
 <script lang="ts">
     import IChoice from "../../types/choices/IChoice";
+    import RightButtons from "./RightButtons.svelte";
 
     export let choice: IChoice;
+    export let dragDisabled: boolean;
 </script>
 
-<div class="multiChoiceListItem">
-    <span class="multiChoiceListItemName">{choice.name}</span>
-    <button>Configure</button>
-    <span class="multiChoiceListItemDelete">❌</span>
+<div class="choiceListItem">
+    <span class="choiceListItemName">{choice.name}</span>
+
+    <RightButtons
+            on:mousedown
+            on:touchstart
+            bind:dragDisabled
+    />
 </div>
 
 <style>
-    .multiChoiceListItem {
+    .choiceListItem {
         display: flex;
         font-size: 16px;
         align-items: center;
@@ -19,11 +25,7 @@
         transition: 1000ms ease-in-out;
     }
 
-    .multiChoiceListItemName {
+    .choiceListItemName {
         flex: 1 0 0;
-    }
-
-    .multiChoiceListItemDelete:hover {
-        cursor: pointer;
     }
 </style>
