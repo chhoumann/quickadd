@@ -15,7 +15,7 @@
         display: flex;
         font-size: 16px;
         align-items: center;
-        margin: 12px 0;
+        margin: 12px 0 0 0;
         transition: 1000ms ease-in-out;
     }
 

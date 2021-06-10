@@ -24,7 +24,12 @@
 
 </script>
 
-<div use:dndzone={{items: choices, dropTargetStyle: {"border": "1px solid black"}}} on:consider={handleConsider} on:finalize={handleSort} class="choiceList">
+<div
+        use:dndzone={{items: choices, dropTargetStyle: {"border": "1px solid black"}}}
+        on:consider={handleConsider}
+        on:finalize={handleSort}
+        class="choiceList"
+        style="{choices.length === 0 ? 'padding-bottom: 0.5rem' : ''}">
     {#each choices.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as choice(choice.id)}
         {#if choice.type !== ChoiceType.Multi}
             <ChoiceListItem bind:choice />
@@ -39,7 +44,6 @@
     width: auto;
     border: 0 solid black;
     overflow-y: auto;
-    padding-bottom: 0.5rem;
     height: auto;
     background-color: rgba(100, 100, 100, 0.01);
 }
