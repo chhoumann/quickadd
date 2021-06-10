@@ -1,6 +1,6 @@
-import type Choice from "./choice";
+import type IChoice from "./IChoice";
 
-export default interface TemplateChoice extends Choice {
+export default interface ITemplateChoice extends IChoice {
     templatePath: string;
     startSymbol: { enabled: boolean, symbol: string };
     folder: { enabled: boolean, folders: string[] }
@@ -8,5 +8,5 @@ export default interface TemplateChoice extends Choice {
     appendLink: boolean;
     incrementFileName: boolean;
     noOpen: boolean;
-    newTab: "vertical" | "horizontal";
+    newTab: {enabled: boolean, direction: "vertical" | "horizontal"};
 }

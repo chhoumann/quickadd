@@ -1,7 +1,7 @@
 <script lang="ts">
-    import Choice from "../../types/choices/choice";
+    import IChoice from "../../types/choices/IChoice";
 
-    export let choice: Choice;
+    export let choice: IChoice;
 </script>
 
 <div class="multiChoiceListItem">

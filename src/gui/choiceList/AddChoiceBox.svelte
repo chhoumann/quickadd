@@ -1,8 +1,22 @@
 <script lang="ts">
     import {ChoiceType} from "../../types/choices/choiceType";
+    import {createEventDispatcher} from "svelte";
+    import {Notice} from "obsidian";
 
     let name: string;
     let type: ChoiceType;
+
+    const dispatch = createEventDispatcher();
+    function addChoice() {
+        if (!name) {
+            new Notice("Choice name is invalid.");
+            return;
+        }
+
+        dispatch('addChoice', {name, type});
+    }
+
+
 </script>
 
 <div class="addChoiceBox">
@@ -13,7 +27,7 @@
         <option value={ChoiceType.Macro}>{ChoiceType.Macro}</option>
         <option value={ChoiceType.Multi}>{ChoiceType.Multi}</option>
     </select>
-    <button>Add Choice</button>
+    <button on:click={addChoice}>Add Choice</button>
 </div>
 
 <style>

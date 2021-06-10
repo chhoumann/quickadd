@@ -2,9 +2,9 @@
     import Icon from "svelte-awesome/components/Icon.svelte";
     import {faChevronDown} from "@fortawesome/free-solid-svg-icons";
     import ChoiceList from "./ChoiceList.svelte";
-    import MultiChoice from "../../types/choices/multiChoice";
+    import IMultiChoice from "../../types/choices/IMultiChoice";
 
-    export let choice: MultiChoice;
+    export let choice: IMultiChoice;
     export let collapseId: string;
 </script>
 

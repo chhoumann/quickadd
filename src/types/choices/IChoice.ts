@@ -1,6 +1,6 @@
 import type {ChoiceType} from "./choiceType";
 
-export default interface Choice {
+export default interface IChoice {
     name: string;
     id: string;
     type: ChoiceType;

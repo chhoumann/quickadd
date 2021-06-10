@@ -1,10 +1,10 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
 import type QuickAdd from "./main";
-import type Choice from "./types/choices/choice";
+import type IChoice from "./types/choices/IChoice";
 import ChoiceList from "./gui/choiceList/ChoiceView.svelte"
 
 export interface QuickAddSettings {
-    choices: Choice[];
+    choices: IChoice[];
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {

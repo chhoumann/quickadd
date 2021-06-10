@@ -1,25 +1,25 @@
 <script lang="ts">
-    import Choice from "../../types/choices/choice";
+    import IChoice from "../../types/choices/IChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import {ChoiceType} from "../../types/choices/choiceType";
     import {DndEvent, dndzone, SHADOW_PLACEHOLDER_ITEM_ID} from "svelte-dnd-action";
 
-    export let choices: Choice[];
+    export let choices: IChoice[] = [];
     let collapseId: string;
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         let {items: newItems, info: {id}} = e.detail;
         collapseId = id;
 
-        choices = newItems as Choice[];
+        choices = newItems as IChoice[];
     }
 
     function handleSort(e: CustomEvent<DndEvent>) {
         let {items: newItems} = e.detail;
         collapseId = "";
 
-        choices = newItems as Choice[];
+        choices = newItems as IChoice[];
     }
 
 </script>
