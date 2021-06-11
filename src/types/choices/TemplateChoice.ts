@@ -9,10 +9,20 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
     incrementFileName: boolean;
     newTab: { enabled: boolean; direction: "vertical" | "horizontal" };
     noOpen: boolean;
-    startSymbol: { enabled: boolean; symbol: string };
     templatePath: string;
 
     constructor(name: string) {
         super(name, ChoiceType.Template);
+
+        this.fileNameFormat = {enabled: false, format: ""};
+        this.folder = {enabled: false, folders: []};
+        this.newTab = {enabled: false, direction: "vertical"};
+        this.appendLink = false;
+        this.incrementFileName = false;
+        this.noOpen = false;
+    }
+
+    public static Load(choice: ITemplateChoice): TemplateChoice {
+        return choice as TemplateChoice;
     }
 }

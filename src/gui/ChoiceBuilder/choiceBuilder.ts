@@ -24,6 +24,12 @@ export abstract class ChoiceBuilder extends Modal {
 
     protected abstract display();
 
+    protected addCenteredHeader(header: string): void {
+        const headerEl = this.contentEl.createEl('h2');
+        headerEl.style.textAlign = "center";
+        headerEl.setText(header);
+    }
+
     onClose() {
         super.onClose();
         this.resolvePromise(this.choice);
