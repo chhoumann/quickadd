@@ -7,6 +7,9 @@ import {MultiChoice} from "../types/choices/MultiChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
+import {TemplateChoiceEngine} from "../engine/TemplateChoiceEngine";
+import {log} from "../logger/logManager";
+import {CaptureChoiceEngine} from "../engine/CaptureChoiceEngine";
 
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
     public static Open(plugin: QuickAdd, choices: IChoice[]) {
@@ -25,7 +28,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
         return this.choices;
     }
 
-    onChooseItem(item: IChoice, evt: MouseEvent | KeyboardEvent): void {
+    async onChooseItem(item: IChoice, evt: MouseEvent | KeyboardEvent): Promise<void> {
         switch (item.type) {
             case ChoiceType.Multi:
                 const multiChoice: IMultiChoice = item as IMultiChoice;
@@ -33,11 +36,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
                 break;
             case ChoiceType.Template:
                 const templateChoice: ITemplateChoice = item as ITemplateChoice;
-                this.onChooseTemplateType(templateChoice);
+                await this.onChooseTemplateType(templateChoice);
                 break;
             case ChoiceType.Capture:
                 const captureChoice: ICaptureChoice = item as ICaptureChoice;
-                this.onChooseCaptureType(captureChoice);
+                await this.onChooseCaptureType(captureChoice);
                 break;
             case ChoiceType.Macro:
                 const macroChoice: IMacroChoice = item as IMacroChoice;
@@ -57,18 +60,22 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
         ChoiceSuggester.Open(this.plugin, choices);
     }
 
-    private onChooseTemplateType(templateChoice: ITemplateChoice) {
-        // if (!templateChoice.templatePath) return;
+    private async onChooseTemplateType(templateChoice: ITemplateChoice): Promise<void> {
+        if (!templateChoice.templatePath) {
+            log.logError(`please provide a template path for ${templateChoice.name}`);
+            return;
+        }
 
-        // @ts-ignore
-        const useTemplater: boolean = this.app.plugins.plugins["templater-obsidian"];
-
-        // @ts-ignore
-        console.log(useTemplater.templater.create_new_note_from_template);
+        await new TemplateChoiceEngine(this.app, templateChoice).run();
     }
 
-    private onChooseCaptureType(captureChoice: ICaptureChoice) {
-        if (!captureChoice.captureTo) return;
+    private async onChooseCaptureType(captureChoice: ICaptureChoice) {
+        if (!captureChoice.captureTo) {
+            log.logError(`please provide a template path for ${captureChoice.name}`);
+            return;
+        }
+
+        await new CaptureChoiceEngine(this.app, captureChoice).run();
     }
 
     private onChooseMacroType(macroChoice: IMacroChoice) {

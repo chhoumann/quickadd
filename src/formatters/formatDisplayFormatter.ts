@@ -6,7 +6,8 @@ export class FormatDisplayFormatter extends Formatter {
     constructor(private app: App) {
         super();
     }
-    async format(input: string): Promise<string> {
+
+    public async format(input: string): Promise<string> {
         let output: string = input;
 
         output = this.replaceDateInString(output);

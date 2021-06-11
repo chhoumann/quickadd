@@ -5,6 +5,10 @@ import {MultiChoice} from "./types/choices/MultiChoice";
 import {CaptureChoice} from "./types/choices/CaptureChoice";
 import {MacroChoice} from "./types/choices/MacroChoice";
 import ChoiceSuggester from "./gui/choiceSuggester";
+import {log} from "./logger/logManager";
+import {QuickAddLogger} from "./logger/quickAddLogger";
+import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
+import {GuiLogger} from "./logger/guiLogger";
 
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
@@ -58,6 +62,9 @@ export default class QuickAdd extends Plugin {
 			}
 		})
 		/*END.DEVCMD*/
+
+		log.register(new ConsoleErrorLogger())
+			.register(new GuiLogger(this));
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 	}

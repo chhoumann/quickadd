@@ -6,7 +6,8 @@ export class FileNameDisplayFormatter extends Formatter {
     constructor(private app: App) {
         super();
     }
-    async format(input: string): Promise<string> {
+
+    public async format(input: string): Promise<string> {
         let output: string = input;
 
         output = this.replaceDateInString(output);
@@ -17,7 +18,7 @@ export class FileNameDisplayFormatter extends Formatter {
         return `File Name: ${output}`;
     }
     protected promptForValue(header?: string): string {
-        return "FileName";
+        return `FileName`;
     }
 
     protected getVariableValue(variableName: string): string {

@@ -9,16 +9,18 @@ import {getDate} from "../utility";
 
 export abstract class Formatter {
     protected value: string;
-    private variables: Map<string, string> = new Map<string, string>();
+    protected variables: Map<string, string> = new Map<string, string>();
 
-    public abstract format(input: string): Promise<string>;
+    protected abstract format(input: string): Promise<string>;
 
     protected replaceDateInString(input: string) {
         let output: string = input;
 
         while (DATE_REGEX.test(output)) {
             const dateMatch = DATE_REGEX.exec(output);
-            const offset: string = dateMatch[1].replace('+', '');
+            let offset: string = dateMatch[1]
+            if (offset)
+                offset = offset.replace('+', '');
 
             output = output.replace(DATE_REGEX, getDate({offset: offset}));
         }
@@ -34,7 +36,7 @@ export abstract class Formatter {
         return output;
     }
 
-    protected abstract promptForValue(header?: string): string;
+    protected abstract promptForValue(header?: string): Promise<string> | string;
 
     protected async replaceValueInString(input: string): Promise<string> {
         this.value = await this.promptForValue();
@@ -74,9 +76,9 @@ export abstract class Formatter {
                     const suggestedValues = variableName.split(",");
 
                     if (suggestedValues.length === 1)
-                        this.variables[variableName] = await this.promptForValue(variableName);
+                        this.variables.set(variableName, await this.promptForValue(variableName));
                     else
-                        this.variables[variableName] = await this.suggestForValue(suggestedValues);
+                        this.variables.set(variableName, await this.suggestForValue(suggestedValues));
                 }
 
                 output = output.replace(VARIABLE_REGEX, this.getVariableValue(variableName));

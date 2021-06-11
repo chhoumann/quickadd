@@ -15,6 +15,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
     constructor(name: string) {
         super(name, ChoiceType.Template);
 
+        this.templatePath = "";
         this.fileNameFormat = {enabled: false, format: ""};
         this.folder = {enabled: false, folders: []};
         this.openFileInNewTab = {enabled: false, direction: NewTabDirection.vertical};
