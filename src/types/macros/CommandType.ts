@@ -1,3 +1,3 @@
 export enum CommandType {
-    Obsidian, UserScript
+    Obsidian = "Obsidian", UserScript = "UserScript"
 }
