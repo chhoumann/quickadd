@@ -1,6 +1,7 @@
-import {App, Modal} from "obsidian";
+import {App, Modal, Setting} from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type {SvelteComponent} from "svelte";
+import {GenericTextSuggester} from "../genericTextSuggester";
 
 export abstract class ChoiceBuilder extends Modal {
     private resolvePromise: (input: IChoice) => void;
@@ -25,9 +26,22 @@ export abstract class ChoiceBuilder extends Modal {
     }
 
     protected abstract display();
+
     protected reload() {
         this.contentEl.empty();
         this.display();
+    }
+
+    protected addFileSearchInputToSetting(setting: Setting, value: string, onChangeCallback: (value: string) => void) {
+        setting.addSearch(searchComponent => {
+           searchComponent.setValue(value);
+           searchComponent.setPlaceholder("File path");
+
+           const markdownFiles: string[] = this.app.vault.getMarkdownFiles().map(f => f.path);
+           new GenericTextSuggester(this.app, searchComponent.inputEl, markdownFiles);
+
+           searchComponent.onChange(onChangeCallback);
+        });
     }
 
     protected addCenteredHeader(header: string): void {

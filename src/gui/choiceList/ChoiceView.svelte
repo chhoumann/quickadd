@@ -14,6 +14,7 @@
     import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
     import {App} from "obsidian";
     import {TemplateChoiceBuilder} from "../ChoiceBuilder/templateChoiceBuilder";
+    import {CaptureChoiceBuilder} from "../ChoiceBuilder/captureChoiceBuilder";
 
     export let choices: IChoice[] = [];
 
@@ -91,6 +92,7 @@
             case ChoiceType.Template:
                 return new TemplateChoiceBuilder(app, choice as ITemplateChoice);
             case ChoiceType.Capture:
+                return new CaptureChoiceBuilder(app, choice as ICaptureChoice);
             case ChoiceType.Macro:
             case ChoiceType.Multi:
                 break;

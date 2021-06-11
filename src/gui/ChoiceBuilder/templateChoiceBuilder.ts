@@ -1,5 +1,5 @@
 import {ChoiceBuilder} from "./choiceBuilder";
-import {App, SearchComponent, Setting, TextComponent, TFolder} from "obsidian";
+import {App, Setting, TextComponent, TFolder} from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
@@ -32,19 +32,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     }
 
     private addTemplatePathSetting(): void {
-        new Setting(this.contentEl)
+        const templatePathSetting = new Setting(this.contentEl)
             .setName('Template Path')
-            .setDesc('Path to the Template.')
-            .addSearch(searchComponent => {
-                searchComponent.setValue(this.choice.templatePath);
+            .setDesc('Path to the Template.');
 
-                const markdownFiles = this.app.vault.getMarkdownFiles().map(f => f.path)
-                new GenericTextSuggester(this.app, searchComponent.inputEl, markdownFiles);
-
-                searchComponent.onChange(value => {
-                    this.choice.templatePath = value;
-                })
-            });
+        this.addFileSearchInputToSetting(templatePathSetting, this.choice.templatePath, value => {
+           this.choice.templatePath = value;
+        });
     }
 
     private addFileNameFormatSetting(): void {

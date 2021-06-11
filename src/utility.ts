@@ -10,13 +10,15 @@ export function getNaturalLanguageDates(app: App) {
     return app.plugins.plugins["nldates-obsidian"];
 }
 
-export function getDate(format: string = "YYYY-MM-DD", offset?: number|string) {
+export function getDate(input?: {format?: string, offset?: number|string}) {
     let duration;
 
-    if (typeof offset === "string")
-        duration = window.moment.duration(offset);
-    else if (typeof offset === "number")
-        duration = window.moment.duration(offset, "days");
+    if (input.offset) {
+        if(typeof input.offset === "string")
+            duration = window.moment.duration(input.offset);
+        else if (typeof input.offset === "number")
+            duration = window.moment.duration(input.offset, "days");
+    }
 
-    return window.moment().add(duration).format(format);
+    return input.format ? window.moment().add(duration).format(input.format) : window.moment().add(duration).format("YYYY-MM-DD");
 }

@@ -1,5 +1,5 @@
 import {
-    DATE_REGEX,
+    DATE_REGEX, DATE_REGEX_FORMATTED,
     DATE_VARIABLE_REGEX,
     LINK_TO_CURRENT_FILE_REGEX,
     NAME_VALUE_REGEX,
@@ -18,13 +18,17 @@ export abstract class Formatter {
 
         while (DATE_REGEX.test(output)) {
             const dateMatch = DATE_REGEX.exec(output);
-            const dateFormat: string = dateMatch[1];
+            const offset: string = dateMatch[1].replace('+', '');
 
-            if (dateFormat) {
-                output = output.replace(DATE_REGEX, getDate(dateFormat));
-            } else {
-                output = output.replace(DATE_REGEX, getDate());
-            }
+            output = output.replace(DATE_REGEX, getDate({offset: offset}));
+        }
+
+        while (DATE_REGEX_FORMATTED.test(output)) {
+            const dateMatch = DATE_REGEX_FORMATTED.exec(output);
+            const format = dateMatch[1].replace('+', '');
+            const offset = parseInt(dateMatch[2]);
+
+            output = output.replace(DATE_REGEX_FORMATTED, getDate({format, offset}));
         }
 
         return output;
@@ -44,7 +48,10 @@ export abstract class Formatter {
     }
 
     protected async replaceLinkToCurrentFileInString(input) {
-        const currentFilePathLink = `[[${await this.getCurrentFilePath()}]]`;
+        const currentFilePath = await this.getCurrentFilePath();
+        if (!currentFilePath) return input;
+
+        const currentFilePathLink = `[[${currentFilePath}]]`;
         let output = input;
 
         while (LINK_TO_CURRENT_FILE_REGEX.test(output))
