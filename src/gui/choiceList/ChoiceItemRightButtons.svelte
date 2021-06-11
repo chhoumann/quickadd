@@ -1,5 +1,5 @@
 <script lang="ts">
-    import {faTrash, faBars} from "@fortawesome/free-solid-svg-icons";
+    import {faTrash, faBars, faCog} from "@fortawesome/free-solid-svg-icons";
     import Icon from "svelte-awesome/components/Icon.svelte";
     import {createEventDispatcher} from "svelte";
 
@@ -18,11 +18,13 @@
 
 <div class="rightButtonsContainer">
     {#if showConfigureButton}
-        <button on:click={emitConfigureChoice}>Configure</button>
+        <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label="Configure">
+            <Icon data={faCog} />
+        </div>
     {/if}
 
-    <div aria-label="Delete choice" class="alignIconInDivInMiddle deleteChoiceButton" on:click={emitDeleteChoice}>
-        <Icon style="margin-right: 5px" data={faTrash} />
+    <div aria-label="Delete choice" class="alignIconInDivInMiddle clickable" on:click={emitDeleteChoice}>
+        <Icon data={faTrash} />
     </div>
 
     <div tabindex={dragDisabled ? 0 : -1}
@@ -40,9 +42,10 @@
 .rightButtonsContainer {
     display: flex;
     align-items: center;
+    gap: 8px;
 }
 
-.deleteChoiceButton:hover {
+.clickable:hover {
     cursor: pointer;
 }
 
