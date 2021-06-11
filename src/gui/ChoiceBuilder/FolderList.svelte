@@ -9,7 +9,7 @@
     }
 </script>
 
-<div class="quickAddFolderList">
+<div class="quickAddFolderListGrid quickAddFolderList">
     {#each folders as folder, i}
         <div class="quickAddFolderListItem">
             <span>{folder}</span>
@@ -27,10 +27,19 @@
     justify-content: space-between;
 }
 
+@media (min-width: 768px) {
+     .quickAddFolderListGrid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        column-gap: 20px;
+    }
+}
+
 .quickAddFolderList {
     max-width: 50%;
     margin: 12px auto;
 }
+
 
 .clickable {
     cursor: pointer;
