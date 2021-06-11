@@ -15,6 +15,7 @@
     import {App} from "obsidian";
     import {TemplateChoiceBuilder} from "../ChoiceBuilder/templateChoiceBuilder";
     import {CaptureChoiceBuilder} from "../ChoiceBuilder/captureChoiceBuilder";
+    import {MacroChoiceBuilder} from "../ChoiceBuilder/macroChoiceBuilder";
 
     export let choices: IChoice[] = [];
 
@@ -94,8 +95,8 @@
             case ChoiceType.Capture:
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice);
             case ChoiceType.Macro:
+                return new MacroChoiceBuilder(app, choice as IMacroChoice);
             case ChoiceType.Multi:
-                break;
             default:
                 break;
         }

@@ -9,9 +9,9 @@
     }
 </script>
 
-<div class="quickAddFolderListGrid quickAddFolderList">
+<div class="quickAddFolderListGrid quickAddCommandList">
     {#each folders as folder, i}
-        <div class="quickAddFolderListItem">
+        <div class="quickAddCommandListItem">
             <span>{folder}</span>
             <span on:click={() => deleteFolder(folder)} class="clickable">
                 <Icon data="{faTrash}" />
@@ -21,7 +21,7 @@
 </div>
 
 <style>
-.quickAddFolderListItem {
+.quickAddCommandListItem {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -35,7 +35,7 @@
     }
 }
 
-.quickAddFolderList {
+.quickAddCommandList {
     max-width: 50%;
     margin: 12px auto;
 }

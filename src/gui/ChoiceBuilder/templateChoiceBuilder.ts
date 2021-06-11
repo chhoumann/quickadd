@@ -1,7 +1,6 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import {App, Setting, TextComponent, TFolder} from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import {GenericTextSuggester} from "../genericTextSuggester";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX} from "../../constants";
 import {NewTabDirection} from "../../types/newTabDirection";
