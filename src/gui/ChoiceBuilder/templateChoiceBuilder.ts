@@ -16,7 +16,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
-        this.contentEl.style.width = "3/3";
         this.addCenteredHeader(this.choice.name);
         this.addTemplatePathSetting();
         this.addFileNameFormatSetting();
