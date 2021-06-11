@@ -105,6 +105,8 @@
             type="main"
             bind:choices
             on:deleteChoice={deleteChoice}
-            on:configureChoice={configureChoice}/>
+            on:configureChoice={configureChoice}
+            on:reorderChoices={e => saveChoices(e.detail.choices)}
+    />
     <AddChoiceBox on:addChoice={addChoiceToList} />
 </div>

@@ -4,10 +4,17 @@
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import {ChoiceType} from "../../types/choices/choiceType";
     import {DndEvent, dndzone, SHADOW_PLACEHOLDER_ITEM_ID, SOURCES} from "svelte-dnd-action";
+    import {createEventDispatcher} from "svelte";
 
     export let choices: IChoice[] = [];
     let collapseId: string;
     let dragDisabled: boolean = true;
+
+    const dispatcher = createEventDispatcher();
+
+    function emitChoicesReordered() {
+        dispatcher('reorderChoices', {choices});
+    }
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         let {items: newItems, info: {id}} = e.detail;
@@ -25,6 +32,8 @@
         if (source === SOURCES.POINTER) {
             dragDisabled = true;
         }
+
+        emitChoicesReordered();
     }
 
     function startDrag(e: CustomEvent<DndEvent>) {

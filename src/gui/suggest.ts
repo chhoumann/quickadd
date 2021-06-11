@@ -187,7 +187,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
         (<any>this.app).keymap.popScope(this.scope);
 
         this.suggest.setSuggestions([]);
-        this.popper.destroy();
+        if (this.popper)
+            this.popper.destroy();
         this.suggestEl.detach();
     }
 

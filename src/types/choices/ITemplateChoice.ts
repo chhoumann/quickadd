@@ -1,4 +1,5 @@
 import type IChoice from "./IChoice";
+import type {NewTabDirection} from "../newTabDirection";
 
 export default interface ITemplateChoice extends IChoice {
     templatePath: string;
@@ -6,6 +7,6 @@ export default interface ITemplateChoice extends IChoice {
     fileNameFormat: { enabled: boolean, format: string };
     appendLink: boolean;
     incrementFileName: boolean;
-    noOpen: boolean;
-    newTab: {enabled: boolean, direction: "vertical" | "horizontal"};
+    openFile: boolean;
+    openFileInNewTab: {enabled: boolean, direction: NewTabDirection};
 }

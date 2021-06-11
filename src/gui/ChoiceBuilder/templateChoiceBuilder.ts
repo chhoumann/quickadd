@@ -1,9 +1,11 @@
 import {ChoiceBuilder} from "./choiceBuilder";
-import {App, Setting, TextAreaComponent, TextComponent} from "obsidian";
+import {App, SearchComponent, Setting, TextComponent, TFolder} from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX} from "../../constants";
+import {NewTabDirection} from "../../types/newTabDirection";
+import FolderList from "./FolderList.svelte";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;
@@ -22,8 +24,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
         this.addFolderSetting();
         this.addAppendLinkSetting();
         this.addIncrementFileNameSetting();
-        this.addNoOpenSetting();
-        this.addNewTabSetting();
+        this.addOpenFileSetting();
+        if (this.choice.openFile)
+            this.addOpenFileInNewTabSetting();
     }
 
     private addTemplatePathSetting(): void {
@@ -56,8 +59,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
             });
 
         const formatInput = new TextComponent(this.contentEl);
+        formatInput.setPlaceholder("File name format");
         textField = formatInput;
         formatInput.inputEl.style.width = "100%";
+        formatInput.inputEl.style.marginBottom = "8px";
         formatInput.setValue(this.choice.fileNameFormat.format)
                 .setDisabled(!this.choice.fileNameFormat.enabled)
                 .onChange(value => this.choice.fileNameFormat.format = value);
@@ -65,13 +70,97 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
         new FormatSyntaxSuggester(this.app, textField.inputEl, FILE_NAME_FORMAT_SYNTAX);
     }
 
-    private addFolderSetting(): void {}
+    private addFolderSetting(): void {
+        const folderSetting: Setting = new Setting(this.contentEl);
+        folderSetting.setName("Create in folder")
+            .setDesc("Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice.folder.enabled);
+                toggle.onChange(value => this.choice.folder.enabled = value);
+            });
 
-    private addAppendLinkSetting(): void {}
+        const folderList: HTMLDivElement = this.contentEl.createDiv('folderList');
 
-    private addIncrementFileNameSetting(): void {}
+        const folderListEl = new FolderList({
+            target: folderList,
+            props: {
+                folders: this.choice.folder.folders,
+                deleteFolder: (folder: string) => {
+                    this.choice.folder.folders = this.choice.folder.folders.filter(f => f !== folder);
+                    folderListEl.updateFolders(this.choice.folder.folders);
+                }
+            }
+        });
 
-    private addNoOpenSetting(): void {}
+        this.svelteElements.push(folderListEl);
 
-    private addNewTabSetting(): void {}
+        const folderInput = new TextComponent(this.contentEl);
+        folderInput.setPlaceholder("Folder path");
+        folderInput.inputEl.style.width = "100%";
+        folderInput.inputEl.style.marginBottom = "8px";
+        const folders: string[] = this.app.vault.getAllLoadedFiles()
+            .filter(f => f instanceof TFolder)
+            .map(folder => folder.path);
+
+        new GenericTextSuggester(this.app, folderInput.inputEl, folders);
+
+        folderInput.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
+            const input = folderInput.inputEl.value.trim();
+            if (e.key === 'Enter' && !this.choice.folder.folders.some(folder => folder === input)) {
+                this.choice.folder.folders.push(input);
+                folderListEl.updateFolders(this.choice.folder.folders);
+                folderInput.inputEl.value = "";
+            }
+        })
+    }
+
+    private addAppendLinkSetting(): void {
+        const appendLinkSetting: Setting = new Setting(this.contentEl);
+        appendLinkSetting.setName("Append link")
+            .setDesc("Append link to created file to current file.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice.appendLink);
+                toggle.onChange(value => this.choice.appendLink = value);
+            })
+    }
+
+    private addIncrementFileNameSetting(): void {
+        const incrementFileNameSetting: Setting = new Setting(this.contentEl);
+        incrementFileNameSetting.setName("Increment file name")
+            .setDesc("If the file already exists, increment the file name.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice.incrementFileName);
+                toggle.onChange(value => this.choice.incrementFileName = value);
+            })
+    }
+
+    private addOpenFileSetting(): void {
+        const noOpenSetting: Setting = new Setting(this.contentEl);
+        noOpenSetting.setName("Open")
+            .setDesc("Open the created file.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice.openFile);
+                toggle.onChange(value => {
+                    this.choice.openFile = value;
+                    this.reload();
+                });
+            })
+    }
+
+    private addOpenFileInNewTabSetting(): void {
+        const newTabSetting = new Setting(this.contentEl);
+        newTabSetting.setName("New Tab")
+            .setDesc("Open created file in a new tab.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice.openFileInNewTab.enabled);
+                toggle.onChange(value => this.choice.openFileInNewTab.enabled = value);
+            })
+            .addDropdown(dropdown => {
+                dropdown.selectEl.style.marginLeft = "10px";
+                dropdown.addOption(NewTabDirection.vertical, "Vertical");
+                dropdown.addOption(NewTabDirection.horizontal, "Horizontal");
+                dropdown.setValue(this.choice.openFileInNewTab.direction);
+                dropdown.onChange(value => this.choice.openFileInNewTab.direction = <NewTabDirection>value);
+            });
+    }
 }
