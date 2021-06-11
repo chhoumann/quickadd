@@ -5,6 +5,7 @@ import {MultiChoice} from "./types/choices/MultiChoice";
 import {CaptureChoice} from "./types/choices/CaptureChoice";
 import {MacroChoice} from "./types/choices/MacroChoice";
 import ChoiceSuggester from "./gui/choiceSuggester";
+
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 

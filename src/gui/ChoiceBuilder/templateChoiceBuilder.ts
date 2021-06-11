@@ -6,6 +6,8 @@ import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX} from "../../constants";
 import {NewTabDirection} from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
+import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
+import {ExclusiveSuggester} from "../exclusiveSuggester";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;
@@ -58,6 +60,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                     })
             });
 
+        const formatDisplay: HTMLSpanElement = this.contentEl.createEl('span');
+        const displayFormatter: FileNameDisplayFormatter = new FileNameDisplayFormatter(this.app);
+        (async () => formatDisplay.textContent = await displayFormatter.format(this.choice.fileNameFormat.format))();
+
         const formatInput = new TextComponent(this.contentEl);
         formatInput.setPlaceholder("File name format");
         textField = formatInput;
@@ -65,7 +71,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
         formatInput.inputEl.style.marginBottom = "8px";
         formatInput.setValue(this.choice.fileNameFormat.format)
                 .setDisabled(!this.choice.fileNameFormat.enabled)
-                .onChange(value => this.choice.fileNameFormat.format = value);
+                .onChange(async value => {
+                    this.choice.fileNameFormat.format = value;
+                    formatDisplay.textContent = await displayFormatter.format(value);
+                });
 
         new FormatSyntaxSuggester(this.app, textField.inputEl, FILE_NAME_FORMAT_SYNTAX);
     }
@@ -88,6 +97,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                 deleteFolder: (folder: string) => {
                     this.choice.folder.folders = this.choice.folder.folders.filter(f => f !== folder);
                     folderListEl.updateFolders(this.choice.folder.folders);
+                    suggester.updateCurrentItems(this.choice.folder.folders);
                 }
             }
         });
@@ -102,7 +112,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
             .filter(f => f instanceof TFolder)
             .map(folder => folder.path);
 
-        new GenericTextSuggester(this.app, folderInput.inputEl, folders);
+        const suggester = new ExclusiveSuggester(this.app, folderInput.inputEl, folders, this.choice.folder.folders);
 
         folderInput.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
             const input = folderInput.inputEl.value.trim();
@@ -110,6 +120,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                 this.choice.folder.folders.push(input);
                 folderListEl.updateFolders(this.choice.folder.folders);
                 folderInput.inputEl.value = "";
+
+                suggester.updateCurrentItems(this.choice.folder.folders);
             }
         })
     }
