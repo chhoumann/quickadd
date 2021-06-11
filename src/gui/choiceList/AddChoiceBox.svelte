@@ -28,7 +28,7 @@
         <option value={ChoiceType.Macro}>{ChoiceType.Macro}</option>
         <option value={ChoiceType.Multi}>{ChoiceType.Multi}</option>
     </select>
-    <button on:click={addChoice}>Add Choice</button>
+    <button class="mod-cta" on:click={addChoice}>Add Choice</button>
 </div>
 
 <style>
@@ -36,11 +36,13 @@
         margin-top: 1em;
         display: flex;
         align-items: center;
-        justify-content: space-around;
+        gap: 10px;
+        justify-content: center;
     }
 
     #addChoiceTypeSelector {
         font-size: 16px;
         padding: 3px;
+        border-radius: 3px;
     }
 </style>
