@@ -9,6 +9,6 @@ export class MacroChoice extends Choice implements IMacroChoice {
     constructor(name: string) {
         super(name, ChoiceType.Macro);
 
-        this.macro = { commands: [] };
+        this.macro = null;
     }
 }

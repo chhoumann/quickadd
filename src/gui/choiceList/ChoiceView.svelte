@@ -16,10 +16,14 @@
     import {TemplateChoiceBuilder} from "../ChoiceBuilder/templateChoiceBuilder";
     import {CaptureChoiceBuilder} from "../ChoiceBuilder/captureChoiceBuilder";
     import {MacroChoiceBuilder} from "../ChoiceBuilder/macroChoiceBuilder";
+    import {MacrosManager} from "../../MacrosManager";
+    import type {IMacro} from "../../types/macros/IMacro";
 
     export let choices: IChoice[] = [];
+    export let macros: IMacro[] = [];
 
     export let saveChoices: (choices: IChoice[]) => void;
+    export let saveMacros: (macros: IMacro[]) => void;
     export let app: App;
 
     function addChoiceToList(event: any): void {
@@ -95,10 +99,19 @@
             case ChoiceType.Capture:
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice);
             case ChoiceType.Macro:
-                return new MacroChoiceBuilder(app, choice as IMacroChoice);
+                return new MacroChoiceBuilder(app, choice as IMacroChoice, macros);
             case ChoiceType.Multi:
             default:
                 break;
+        }
+    }
+
+    async function openMacroManager() {
+        const newMacros: IMacro[] = await new MacrosManager(app, macros).waitForClose;
+
+        if (newMacros) {
+            saveMacros(newMacros);
+            macros = newMacros;
         }
     }
 </script>
@@ -111,5 +124,17 @@
             on:configureChoice={configureChoice}
             on:reorderChoices={e => saveChoices(e.detail.choices)}
     />
-    <AddChoiceBox on:addChoice={addChoiceToList} />
+    <div class="choiceViewBottomBar">
+        <button class="mod-cta" on:click={openMacroManager}>Manage Macros</button>
+        <AddChoiceBox on:addChoice={addChoiceToList} />
+    </div>
 </div>
+
+<style>
+    .choiceViewBottomBar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1rem;
+    }
+</style>

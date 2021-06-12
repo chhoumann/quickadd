@@ -10,6 +10,7 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import {TemplateChoiceEngine} from "../engine/TemplateChoiceEngine";
 import {log} from "../logger/logManager";
 import {CaptureChoiceEngine} from "../engine/CaptureChoiceEngine";
+import {MacroChoiceEngine} from "../engine/MacroChoiceEngine";
 
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
     public static Open(plugin: QuickAdd, choices: IChoice[]) {
@@ -44,7 +45,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
                 break;
             case ChoiceType.Macro:
                 const macroChoice: IMacroChoice = item as IMacroChoice;
-                this.onChooseMacroType(macroChoice);
+                await this.onChooseMacroType(macroChoice);
                 break;
             default:
                 break;
@@ -78,7 +79,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
         await new CaptureChoiceEngine(this.app, captureChoice).run();
     }
 
-    private onChooseMacroType(macroChoice: IMacroChoice) {
+    private async onChooseMacroType(macroChoice: IMacroChoice) {
         if (macroChoice.macro.commands.length === 0) return;
+
+        await new MacroChoiceEngine(this.app, macroChoice, this.plugin).run();
     }
 }

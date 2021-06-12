@@ -87,7 +87,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
             target: folderList,
             props: {
                 folders: this.choice.folder.folders,
-                deleteFolder: (folder: string) => {
+                deleteCommand: (folder: string) => {
                     this.choice.folder.folders = this.choice.folder.folders.filter(f => f !== folder);
                     folderListEl.updateFolders(this.choice.folder.folders);
                     suggester.updateCurrentItems(this.choice.folder.folders);

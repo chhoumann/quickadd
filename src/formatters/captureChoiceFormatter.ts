@@ -28,7 +28,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
             return `${this.fileContent}\n${input}`
 
         if (this.choice.insertAfter.enabled) {
-            const targetRegex = new RegExp(`\s*${this.choice.insertAfter}\s*`)
+            const targetRegex = new RegExp(`\s*${this.choice.insertAfter.after}\s*`)
             const targetPosition = this.fileContent.split("\n").findIndex(line => targetRegex.test(line));
             if (!targetPosition) {
                 log.logError(`unable to find insert after line in file.`);

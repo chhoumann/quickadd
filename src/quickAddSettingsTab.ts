@@ -1,19 +1,22 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
-import ChoiceList from "./gui/choiceList/ChoiceView.svelte"
+import ChoiceView from "./gui/choiceList/ChoiceView.svelte"
+import type {IMacro} from "./types/macros/IMacro";
 
 export interface QuickAddSettings {
     choices: IChoice[];
+    macros: IMacro[];
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
-    choices: []
+    choices: [],
+    macros: []
 }
 
 export class QuickAddSettingsTab extends PluginSettingTab {
     public plugin: QuickAdd;
-    private choiceList: ChoiceList;
+    private choiceView: ChoiceView;
 
     constructor(app: App, plugin: QuickAdd) {
         super(app, plugin);
@@ -29,8 +32,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
     }
 
     hide(): any {
-        if (this.choiceList)
-            this.choiceList.$destroy();
+        if (this.choiceView)
+            this.choiceView.$destroy();
     }
 
     private addChoicesSetting(): void {
@@ -38,7 +41,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
         setting.infoEl.remove();
         setting.settingEl.style.display = "block";
 
-        this.choiceList = new ChoiceList({
+        this.choiceView = new ChoiceView({
             target: setting.settingEl,
             props: {
                 app: this.app,
@@ -46,8 +49,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
                 saveChoices: async (choices: IChoice[]) => {
                     this.plugin.settings.choices = choices;
                     await this.plugin.saveSettings();
+                },
+                macros: this.plugin.settings.macros,
+                saveMacros: async (macros: IMacro[]) => {
+                    this.plugin.settings.macros = macros;
+                    console.log(1);
+                    await this.plugin.saveSettings();
                 }
             }
-        })
+        });
     }
 }

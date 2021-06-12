@@ -1,7 +1,7 @@
 <script lang="ts">
     import {faTrash} from "@fortawesome/free-solid-svg-icons";
     import Icon from "svelte-awesome/components/Icon.svelte";
-    import type {ICommand} from "../../types/macros/ICommand";
+    import type {ICommand} from "../types/macros/ICommand";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => void;

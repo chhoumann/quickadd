@@ -6,7 +6,6 @@ import {CaptureChoice} from "./types/choices/CaptureChoice";
 import {MacroChoice} from "./types/choices/MacroChoice";
 import ChoiceSuggester from "./gui/choiceSuggester";
 import {log} from "./logger/logManager";
-import {QuickAddLogger} from "./logger/quickAddLogger";
 import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
 import {GuiLogger} from "./logger/guiLogger";
 
