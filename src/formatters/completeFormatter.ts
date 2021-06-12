@@ -1,15 +1,17 @@
 import {Formatter} from "./formatter";
 import type {App, TFile} from "obsidian";
-import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
+import {MACRO_REGEX, MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {getNaturalLanguageDates} from "../utility";
 import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import {log} from "../logger/logManager";
+import type QuickAdd from "../main";
+import {SingleMacroEngine} from "../engine/SingleMacroEngine";
 
 export class CompleteFormatter extends Formatter {
     private valueHeader: string;
 
-    constructor(protected app: App) {
+    constructor(protected app: App, private plugin: QuickAdd) {
         super();
     }
 
@@ -21,12 +23,27 @@ export class CompleteFormatter extends Formatter {
             output = await this.replaceValueInString(output);
             output = await this.replaceDateVariableInString(output);
             output = await this.replaceVariableInString(output);
+            output = await this.replaceMacrosInString(output);
 
             return output;
         }
         catch (e) {
             log.logError(e);
         }
+    }
+
+    private async replaceMacrosInString(input: string): Promise<string> {
+        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros);
+        let output: string = input;
+
+        while(MACRO_REGEX.test(output)) {
+            const macroName = MACRO_REGEX.exec(output)[1];
+            const macroOutput = await macroEngine.runAndGetOutput(macroName);
+
+            output.replace(MACRO_REGEX, macroOutput.toString());
+        }
+
+        return output;
     }
 
     async formatFileName(input: string, valueHeader: string): Promise<string> {
@@ -68,5 +85,4 @@ export class CompleteFormatter extends Formatter {
     protected async suggestForValue(suggestedValues: string[]) {
         return await GenericSuggester.Suggest(this.app, suggestedValues, suggestedValues);
     }
-
 }

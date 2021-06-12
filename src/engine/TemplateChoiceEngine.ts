@@ -7,17 +7,18 @@ import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import {QuickAddEngine} from "./QuickAddEngine";
 import {log} from "../logger/logManager";
+import type QuickAdd from "../main";
 
 export class TemplateChoiceEngine extends QuickAddEngine {
     public choice: ITemplateChoice;
     private formatter: CompleteFormatter;
     private readonly templater;
 
-    constructor(app: App, choice: ITemplateChoice) {
+    constructor(app: App, private plugin: QuickAdd, choice: ITemplateChoice) {
         super(app);
         this.choice = choice;
         this.templater = getTemplater(app);
-        this.formatter = new CompleteFormatter(app);
+        this.formatter = new CompleteFormatter(app, plugin);
     }
 
     public async run(): Promise<void> {

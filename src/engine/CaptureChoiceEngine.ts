@@ -6,15 +6,16 @@ import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
 import {appendToCurrentLine} from "../utility";
 import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
+import type QuickAdd from "../main";
 
 export class CaptureChoiceEngine extends QuickAddEngine {
     choice: ICaptureChoice;
     private formatter: CaptureChoiceFormatter;
 
-    constructor(app: App, choice: ICaptureChoice) {
+    constructor(app: App, plugin: QuickAdd, choice: ICaptureChoice) {
         super(app);
         this.choice = choice;
-        this.formatter = new CaptureChoiceFormatter(app);
+        this.formatter = new CaptureChoiceFormatter(app, plugin);
     }
 
     async run(): Promise<void> {

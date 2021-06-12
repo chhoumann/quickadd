@@ -67,7 +67,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
             return;
         }
 
-        await new TemplateChoiceEngine(this.app, templateChoice).run();
+        await new TemplateChoiceEngine(this.app, this.plugin, templateChoice).run();
     }
 
     private async onChooseCaptureType(captureChoice: ICaptureChoice) {
@@ -76,7 +76,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
             return;
         }
 
-        await new CaptureChoiceEngine(this.app, captureChoice).run();
+        await new CaptureChoiceEngine(this.app, this.plugin, captureChoice).run();
     }
 
     private async onChooseMacroType(macroChoice: IMacroChoice) {

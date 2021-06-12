@@ -11,6 +11,7 @@ import type {ICommand} from "../types/macros/ICommand";
 
 export class MacroChoiceEngine extends QuickAddEngine {
     choice: IMacroChoice;
+    protected output: string;
 
     constructor(app: App, choice: IMacroChoice) {
         super(app);
@@ -55,7 +56,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
                 return;
             }
 
-            await userScript.default({app: this.app, quickAddApi: QuickAddApi.GetApi(this.app)});
+            this.output = await userScript.default({app: this.app, quickAddApi: QuickAddApi.GetApi(this.app)});
         }
     }
 
@@ -64,3 +65,4 @@ export class MacroChoiceEngine extends QuickAddEngine {
         this.app.commands.executeCommandById(command.id);
     }
 }
+
