@@ -42,4 +42,8 @@ export class FormatDisplayFormatter extends Formatter {
     protected getMacroValue(macroName: string) {
         return `_macro: ${macroName}_`;
     }
+
+    protected promptForVariable(variableName: string): Promise<string> {
+        return Promise.resolve(`${variableName}_`);
+    }
 }

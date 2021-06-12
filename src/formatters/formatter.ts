@@ -76,7 +76,7 @@ export abstract class Formatter {
                     const suggestedValues = variableName.split(",");
 
                     if (suggestedValues.length === 1)
-                        this.variables.set(variableName, await this.promptForValue(variableName));
+                        this.variables.set(variableName, await this.promptForVariable(variableName));
                     else
                         this.variables.set(variableName, await this.suggestForValue(suggestedValues));
                 }
@@ -116,12 +116,12 @@ export abstract class Formatter {
 
             if (variableName && dateFormat) {
                 if (!this.variables[variableName]) {
-                    this.variables[variableName] = await this.promptForValue(variableName);
+                    this.variables[variableName] = await this.promptForVariable(variableName);
 
                     const parseAttempt = this.getNaturalLanguageDates().parseDate(this.variables[variableName]);
 
                     if (parseAttempt)
-                        this.variables[variableName] = window.moment().format(dateFormat);
+                        this.variables[variableName] = parseAttempt.moment.format(dateFormat);
                     else
                         throw new Error(`unable to parse date variable ${this.variables[variableName]}`);
                 }
@@ -137,5 +137,7 @@ export abstract class Formatter {
 
     protected abstract getNaturalLanguageDates();
 
-    protected abstract getMacroValue(macroName: string): string;
+    protected abstract getMacroValue(macroName: string): Promise<string> | string;
+
+    protected abstract promptForVariable(variableName: string): Promise<string>;
 }

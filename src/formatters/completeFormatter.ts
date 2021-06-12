@@ -68,11 +68,15 @@ export class CompleteFormatter extends Formatter {
         return this.value;
     }
 
+    protected async promptForVariable(header?: string): Promise<string> {
+        return await GenericInputPrompt.Prompt(this.app, header);
+    }
+
     protected async suggestForValue(suggestedValues: string[]) {
         return await GenericSuggester.Suggest(this.app, suggestedValues, suggestedValues);
     }
 
-    protected async getMacroValue(macroName: string) {
+    protected async getMacroValue(macroName: string): Promise<string> {
         const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros);
         return await macroEngine.runAndGetOutput(macroName);
     }

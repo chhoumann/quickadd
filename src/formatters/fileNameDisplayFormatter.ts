@@ -40,4 +40,8 @@ export class FileNameDisplayFormatter extends Formatter {
     protected getMacroValue(macroName: string) {
         return `_macro: ${macroName}`;
     }
+
+    protected async promptForVariable(variableName: string): Promise<string> {
+        return `_${variableName}_`;
+    }
 }
