@@ -85,3 +85,23 @@ Multi-choices are pretty simple. They're like folders for other choices. Here ar
 
 ![image](https://user-images.githubusercontent.com/29108628/121774481-e39f7f80-cb82-11eb-92bf-6d265529ba06.png)
 
+### `format` syntax
+| Template                                   | Description                                                                                                                                                                                                                                                                         |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{{DATE}}`                                 | Outputs the current date in `YYYY-MM-DD` format.                                                                                                                                                                                                                                    |
+| `{{DATE:<DATEFORMAT>}}`                    | Replace `<DATEFORMAT>` with a [Moment.js date format](https://momentjs.com/docs/#/displaying/format/).                                                                                                                                                                              |
+| `{{VDATE:<variable name>, <date format>}}` | You'll get prompted to enter a date and it'll be parsed to the given date format. You could write 'today' or 'in two weeks' and it'll give you the date for that. Works like variables, so you can use the date in multiple places. **REQUIRES THE NATURAL LANGUAGE DATES PLUGIN!** |
+| `{{VALUE}}` or `{{NAME}}`                  | Interchangeable. Represents the value given in an input prompt.                                                                                                                                                                                                                     |
+| `{{VALUE:<variable name>`                  | You can now use variable names in values. They'll get saved and inserted just like values, but the difference is that you can have as many of them as you want. Use comma separation to get a suggester rather than a prompt.                                                       |
+| `{{LINKCURRENT}}`                          | A link to the file from which the template is activated from. `[[link]]` format.                                                                                                                                                                                                    |
+| `{{MACRO:<MACRONAME>}}`                    | Execute a macro and get the write the return value here.                                                                                                                                                                                                                                                                                    |
+
+### QuickAdd API
+#### `inputPrompt(header: string, placeholder?: string, value?: string): string`
+Opens a prompt that asks for an input. Returns a string with the input.
+
+#### `yesNoPrompt: (header: string, text?: string): boolean`
+Opens a prompt asking for confirmation. Returns `true` or `false` based on answer.
+
+#### `suggester: (displayItems: string[], actualItems: string[])`
+Opens a suggester. Displays the `displayItems`, but you map these the other values with `actualItems`.
