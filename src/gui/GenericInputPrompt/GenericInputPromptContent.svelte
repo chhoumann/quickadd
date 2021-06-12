@@ -1,6 +1,4 @@
 <script lang="ts">
-    import type {App} from "obsidian";
-    export let app: App;
     export let header: string = "";
     export let placeholder: string = "";
     export let value: string = "";

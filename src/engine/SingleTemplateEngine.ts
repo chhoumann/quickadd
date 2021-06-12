@@ -7,9 +7,13 @@ export class SingleTemplateEngine extends TemplateEngine {
         super(app, plugin);
     }
     public async run(): Promise<string> {
-        const templateContent: string = await this.getTemplateContent(this.templatePath);
+        let templateContent: string = await this.getTemplateContent(this.templatePath);
         if (!templateContent) {
             throw new Error(`Template ${this.templatePath} not found.`);
+        }
+
+        if (this.templater) {
+            templateContent = this.templater.templater.parser.parseTemplates(templateContent);
         }
 
         return await this.formatter.formatFileContent(templateContent);

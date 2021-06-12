@@ -8,7 +8,6 @@ import {
     VARIABLE_REGEX
 } from "../constants";
 import {getDate} from "../utility";
-import {template} from "@babel/core";
 
 export abstract class Formatter {
     protected value: string;
@@ -140,14 +139,6 @@ export abstract class Formatter {
     return output;
     }
 
-    protected abstract getNaturalLanguageDates();
-
-    protected abstract getMacroValue(macroName: string): Promise<string> | string;
-
-    protected abstract promptForVariable(variableName: string): Promise<string>;
-
-    protected abstract getTemplateContent(templatePath: string): Promise<string>;
-
     protected async replaceTemplateInString(input: string): Promise<string> {
         let output: string = input;
 
@@ -160,4 +151,12 @@ export abstract class Formatter {
 
         return output;
     }
+
+    protected abstract getNaturalLanguageDates();
+
+    protected abstract getMacroValue(macroName: string): Promise<string> | string;
+
+    protected abstract promptForVariable(variableName: string): Promise<string>;
+
+    protected abstract getTemplateContent(templatePath: string): Promise<string>;
 }

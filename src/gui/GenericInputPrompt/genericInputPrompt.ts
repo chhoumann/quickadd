@@ -20,7 +20,6 @@ export default class GenericInputPrompt extends Modal {
         this.modalContent = new GenericInputPromptContent({
             target: this.contentEl,
             props: {
-                app,
                 header,
                 placeholder,
                 value,
