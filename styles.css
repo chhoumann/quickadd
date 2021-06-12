@@ -1,6 +1,7 @@
 .configureMacroDiv {
     display: grid;
     grid-template-rows: 1fr;
+    min-width: 12rem;
 }
 
 .configureMacroDivItem {
@@ -19,8 +20,20 @@
 
 .macroContainer {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: repeat(auto-fill, 120px);
     grid-gap: 40px;
+}
+
+.macroContainer1 {
+    grid-template-columns: repeat(1, 1fr);
+}
+
+.macroContainer2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.macroContainer3 {
+    grid-template-columns: repeat(3, 1fr);
 }
 
 .addMacroBarContainer {

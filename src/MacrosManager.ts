@@ -7,6 +7,7 @@ export class MacrosManager extends Modal {
     public waitForClose: Promise<IMacro[]>;
     private resolvePromise: (macros: IMacro[]) => void;
     private rejectPromise: (reason?: any) => void;
+    private updateMacroContainer: () => void;
 
     constructor(public app: App, private macros: IMacro[]) {
         super(app)
@@ -30,8 +31,18 @@ export class MacrosManager extends Modal {
 
     private addMacroSettings() {
         const macroContainer: HTMLDivElement = this.contentEl.createDiv();
-        macroContainer.addClass('macroContainer');
+        this.updateMacroContainer = () => {
+            if (this.macros.length <= 1)
+                macroContainer.className = "macroContainer macroContainer1";
+            if (this.macros.length === 2)
+                macroContainer.className = "macroContainer macroContainer2";
+            if (this.macros.length > 2)
+                macroContainer.className = "macroContainer macroContainer3";
+        }
+
         this.macros.forEach(macro => this.addMacroSetting(macro, macroContainer));
+
+        this.updateMacroContainer();
     }
 
     private addMacroSetting(macro: IMacro, container: HTMLDivElement) {
@@ -42,7 +53,7 @@ export class MacrosManager extends Modal {
         macroSetting.infoEl.style.fontWeight = "bold";
 
         this.addMacroConfigurationItem(configureMacroContainer, itemContainerEl => {
-            this.addSpanWithText(itemContainerEl, "Run on Startup");
+            this.addSpanWithText(itemContainerEl, "Run on plugin load");
 
             const toggle: ToggleComponent = new ToggleComponent(itemContainerEl);
             toggle.setValue(macro.runOnStartup);
@@ -56,6 +67,15 @@ export class MacrosManager extends Modal {
 
         configureMacroContainer.addClass("configureMacroDiv");
         this.addMacroConfigurationItem(configureMacroContainer, itemContainerEl => {
+            const deleteButton: ButtonComponent = new ButtonComponent(itemContainerEl);
+            deleteButton.setClass('mod-warning');
+            deleteButton.buttonEl.style.marginRight = "0";
+
+            deleteButton.setButtonText("Delete").onClick(evt => {
+                this.macros = this.macros.filter(m => m.id !== macro.id);
+                this.reload();
+            });
+
             const configureButton: ButtonComponent = new ButtonComponent(itemContainerEl);
             configureButton.setClass('mod-cta');
             configureButton.buttonEl.style.marginRight = "0";
@@ -67,15 +87,6 @@ export class MacrosManager extends Modal {
                     this.updateMacro(newMacro);
                     this.reload();
                 }
-            });
-
-            const deleteButton: ButtonComponent = new ButtonComponent(itemContainerEl);
-            deleteButton.setClass('mod-danger');
-            deleteButton.buttonEl.style.marginRight = "0";
-
-            deleteButton.setButtonText("Delete").onClick(evt => {
-                this.macros = this.macros.filter(m => m.id !== macro.id);
-                this.reload();
             });
         });
 
@@ -96,6 +107,10 @@ export class MacrosManager extends Modal {
     private updateMacro(macro: IMacro) {
         const index = this.macros.findIndex(v => v.id === macro.id);
         this.macros[index] = macro;
+
+        if (this.updateMacroContainer)
+            this.updateMacroContainer();
+
         this.reload();
     }
 

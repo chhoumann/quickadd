@@ -53,7 +53,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
                 macros: this.plugin.settings.macros,
                 saveMacros: async (macros: IMacro[]) => {
                     this.plugin.settings.macros = macros;
-                    console.log(1);
                     await this.plugin.saveSettings();
                 }
             }
