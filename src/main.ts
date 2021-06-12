@@ -1,9 +1,17 @@
 import {Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, QuickAddSettingsTab} from "./quickAddSettingsTab";
-
+import {DEFAULT_SETTINGS, QuickAddSettings, QuickAddSettingsTab} from "./quickAddSettingsTab";
+import {TemplateChoice} from "./types/choices/TemplateChoice";
+import {MultiChoice} from "./types/choices/MultiChoice";
+import {CaptureChoice} from "./types/choices/CaptureChoice";
+import {MacroChoice} from "./types/choices/MacroChoice";
+import ChoiceSuggester from "./gui/choiceSuggester";
+import {log} from "./logger/logManager";
+import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
+import {GuiLogger} from "./logger/guiLogger";
+import {StartupMacroEngine} from "./engine/StartupMacroEngine";
 
 export default class QuickAdd extends Plugin {
-	settings: QuickAddSettingsTab;
+	settings: QuickAddSettings;
 
 	async onload() {
 		console.log('Loading QuickAdd');
@@ -14,7 +22,7 @@ export default class QuickAdd extends Plugin {
 			id: 'runQuickAdd',
 			name: 'Run QuickAdd',
 			callback: () => {
-
+				ChoiceSuggester.Open(this, this.settings.choices);
 			}
 		})
 
@@ -29,7 +37,38 @@ export default class QuickAdd extends Plugin {
 		});
 		/*END.DEVCMD*/
 
+		/*START.DEVCMD*/
+		this.addCommand({
+			id: 'giveDivChoices',
+			name: 'Give Dev Choices',
+			callback: () => {
+				this.settings.choices = [
+					new TemplateChoice("🚶‍♂️ Journal"),
+					new TemplateChoice('📖 Log Book to Daily Journal'),
+					new MultiChoice('📥 Add...')
+						.addChoice(new CaptureChoice('💭 Add a Thought'))
+						.addChoice(new CaptureChoice('📥 Add an Inbox Item'))
+						.addChoice(new TemplateChoice('📕 Add Book Notes')),
+                    new CaptureChoice("✍ Quick Capture"),
+                    new TemplateChoice('💬 Add Quote Page'),
+					new MultiChoice('🌀 Task Manager')
+						.addChoice(new MacroChoice('✔ Add a Task'))
+						.addChoice(new CaptureChoice('✔ Quick Capture Task'))
+						.addChoice(new CaptureChoice('✔ Add MetaEdit Backlog Task')),
+                    new CaptureChoice('💸 Add Purchase'),
+				];
+
+				this.saveSettings();
+			}
+		})
+		/*END.DEVCMD*/
+
+		log.register(new ConsoleErrorLogger())
+			.register(new GuiLogger(this));
+
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
+
+		await new StartupMacroEngine(this.app, this.settings.macros).run();
 	}
 
 	onunload() {
