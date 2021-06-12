@@ -15,6 +15,7 @@ export class FormatDisplayFormatter extends Formatter {
         output = await this.replaceDateVariableInString(output);
         output = await this.replaceVariableInString(output);
         output = await this.replaceLinkToCurrentFileInString(output);
+        output = await this.replaceMacrosInString(output);
 
         return output;
     }
@@ -36,5 +37,9 @@ export class FormatDisplayFormatter extends Formatter {
 
     protected suggestForValue(suggestedValues: string[]) {
         return "_suggest_";
+    }
+
+    protected getMacroValue(macroName: string) {
+        return `_macro: ${macroName}_`;
     }
 }

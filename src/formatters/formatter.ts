@@ -1,7 +1,7 @@
 import {
     DATE_REGEX, DATE_REGEX_FORMATTED,
     DATE_VARIABLE_REGEX,
-    LINK_TO_CURRENT_FILE_REGEX,
+    LINK_TO_CURRENT_FILE_REGEX, MACRO_REGEX,
     NAME_VALUE_REGEX,
     VARIABLE_REGEX
 } from "../constants";
@@ -89,6 +89,18 @@ export abstract class Formatter {
 
         return output;
     }
+    protected async replaceMacrosInString(input: string): Promise<string> {
+        let output: string = input;
+
+        while(MACRO_REGEX.test(output)) {
+            const macroName = MACRO_REGEX.exec(output)[1];
+            const macroOutput = await this.getMacroValue(macroName);
+
+            output = output.replace(MACRO_REGEX, macroOutput.toString());
+        }
+
+        return output;
+    }
 
     protected abstract getVariableValue(variableName: string): string;
 
@@ -125,4 +137,5 @@ export abstract class Formatter {
 
     protected abstract getNaturalLanguageDates();
 
+    protected abstract getMacroValue(macroName: string): string;
 }

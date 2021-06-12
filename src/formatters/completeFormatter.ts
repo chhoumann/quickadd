@@ -32,20 +32,6 @@ export class CompleteFormatter extends Formatter {
         }
     }
 
-    private async replaceMacrosInString(input: string): Promise<string> {
-        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros);
-        let output: string = input;
-
-        while(MACRO_REGEX.test(output)) {
-            const macroName = MACRO_REGEX.exec(output)[1];
-            const macroOutput = await macroEngine.runAndGetOutput(macroName);
-
-            output.replace(MACRO_REGEX, macroOutput.toString());
-        }
-
-        return output;
-    }
-
     async formatFileName(input: string, valueHeader: string): Promise<string> {
         this.valueHeader = valueHeader;
         return await this.format(input);
@@ -84,5 +70,10 @@ export class CompleteFormatter extends Formatter {
 
     protected async suggestForValue(suggestedValues: string[]) {
         return await GenericSuggester.Suggest(this.app, suggestedValues, suggestedValues);
+    }
+
+    protected async getMacroValue(macroName: string) {
+        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros);
+        return await macroEngine.runAndGetOutput(macroName);
     }
 }

@@ -36,4 +36,8 @@ export class FileNameDisplayFormatter extends Formatter {
     protected suggestForValue(suggestedValues: string[]) {
         return "_suggest_";
     }
+
+    protected getMacroValue(macroName: string) {
+        return `_macro: ${macroName}`;
+    }
 }
