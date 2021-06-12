@@ -1,12 +1,21 @@
-## QuickAdd
+# QuickAdd
 Quickly add new pages or content to your vault.
 ### Demo
 ![zApIWkHrKP](https://user-images.githubusercontent.com/29108628/121762835-bb8b2e80-cb38-11eb-8ef6-b65700526caf.gif)
 
-### Getting started
+## Installation
+This plugin is not in the community plugin browser in Obsidian (yet).
+
+### Manual Installation
+1. Go to [Releases](https://github.com/chhoumann/quickadd/releases) and download the ZIP file from the latest release. The one that looks like `quickadd-x.x.x.zip`.
+2. This ZIP file should be extracted in your Obsidian plugins folder. If you don't know where that is, you can go to `Community Plugins` inside Obsidian. There is a folder icon on the right of `Installed Plugins`. Click that and it opens your plugins folder.
+3. Extract the contents of the ZIP file there.
+4. Now you should have a folder in plugins called 'quickadd' containing a `main.js` file, `manifest.json` file, and a `styles.css` file.
+
+## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
 
-#### Template
+### Template
 You first need to specify a _template path_. This is a path to the template you wish to insert.
 
 The remaining settings are useful, but optional. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.
@@ -22,7 +31,7 @@ _Increment file name_ will, if a file with that name already exists, increment t
 _Open_ will open the file you've created. By default, it opens in the active pane. If you enable _New tab_, it'll open in a new tab in the direction you specified.
 ![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)
 
-#### Capture
+### Capture
 _Capture To_ is the name of the file you are capturing to. This also supports the format syntax, which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`. This automatically finds the file for the day, and whatever I enter will be captured to it.
 
@@ -37,7 +46,7 @@ In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inser
 
 ![image](https://user-images.githubusercontent.com/29108628/121774039-4d6a5a00-cb80-11eb-89be-0aceefaa658b.png)
 
-#### Macro
+### Macro
 Macros are powerful tools that allow you to execute any sequence of Obsidian commands and user scripts.
 User scripts are Javascript scripts that you can write to do something in Obsidian.
 
@@ -80,12 +89,12 @@ module.exports = async (params) => {
 }
 ```
 
-#### Multi
+### Multi
 Multi-choices are pretty simple. They're like folders for other choices. Here are mine. They're the ones which you can 'open' and 'close'.
 
 ![image](https://user-images.githubusercontent.com/29108628/121774481-e39f7f80-cb82-11eb-92bf-6d265529ba06.png)
 
-### `format` syntax
+## `format` syntax
 | Template                                   | Description                                                                                                                                                                                                                                                                         |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `{{DATE}}`                                 | Outputs the current date in `YYYY-MM-DD` format.                                                                                                                                                                                                                                    |
@@ -96,7 +105,7 @@ Multi-choices are pretty simple. They're like folders for other choices. Here ar
 | `{{LINKCURRENT}}`                          | A link to the file from which the template is activated from. `[[link]]` format.                                                                                                                                                                                                    |
 | `{{MACRO:<MACRONAME>}}`                    | Execute a macro and get the write the return value here.                                                                                                                                                                                                                                                                                    |
 
-### QuickAdd API
+## QuickAdd API
 #### `inputPrompt(header: string, placeholder?: string, value?: string): string`
 Opens a prompt that asks for an input. Returns a string with the input.
 
