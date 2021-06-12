@@ -82,6 +82,6 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
     private async onChooseMacroType(macroChoice: IMacroChoice) {
         if (macroChoice.macro.commands.length === 0) return;
 
-        await new MacroChoiceEngine(this.app, macroChoice, this.plugin).run();
+        await new MacroChoiceEngine(this.app, macroChoice).run();
     }
 }

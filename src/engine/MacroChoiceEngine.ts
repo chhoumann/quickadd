@@ -6,19 +6,23 @@ import type {IUserScript} from "../types/macros/IUserScript";
 import type {IObsidianCommand} from "../types/macros/IObsidianCommand";
 import {log} from "../logger/logManager";
 import {CommandType} from "../types/macros/CommandType";
-import type QuickAdd from "../main";
 import {QuickAddApi} from "../quickAddApi";
+import type {ICommand} from "../types/macros/ICommand";
 
 export class MacroChoiceEngine extends QuickAddEngine {
     choice: IMacroChoice;
 
-    constructor(app: App, choice: IMacroChoice, private quickAdd: QuickAdd) {
+    constructor(app: App, choice: IMacroChoice) {
         super(app);
         this.choice = choice;
     }
 
     async run(): Promise<void> {
-        for (const command of this.choice.macro.commands) {
+        await this.executeCommands(this.choice.macro.commands);
+    }
+
+    protected async executeCommands(commands: ICommand[]) {
+        for (const command of commands) {
             if (command.type === CommandType.Obsidian)
                 await this.executeObsidianCommand(command as IObsidianCommand);
             if (command.type === CommandType.UserScript)
@@ -28,7 +32,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
 
     // Slightly modified from Templater's user script engine:
     // https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
-    private async executeUserScript(command: IUserScript) {
+    protected async executeUserScript(command: IUserScript) {
         // @ts-ignore
         const vaultPath = this.app.vault.adapter.getBasePath();
         const file: TAbstractFile = this.app.vault.getAbstractFileByPath(command.path);
@@ -55,7 +59,7 @@ export class MacroChoiceEngine extends QuickAddEngine {
         }
     }
 
-    private executeObsidianCommand(command: IObsidianCommand) {
+    protected executeObsidianCommand(command: IObsidianCommand) {
         // @ts-ignore
         this.app.commands.executeCommandById(command.id);
     }

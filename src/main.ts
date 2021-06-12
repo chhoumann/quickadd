@@ -8,6 +8,7 @@ import ChoiceSuggester from "./gui/choiceSuggester";
 import {log} from "./logger/logManager";
 import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
 import {GuiLogger} from "./logger/guiLogger";
+import {StartupMacroEngine} from "./engine/StartupMacroEngine";
 
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
@@ -66,6 +67,8 @@ export default class QuickAdd extends Plugin {
 			.register(new GuiLogger(this));
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
+
+		await new StartupMacroEngine(this.app, this.settings.macros).run();
 	}
 
 	onunload() {
