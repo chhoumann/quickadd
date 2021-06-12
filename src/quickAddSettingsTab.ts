@@ -45,6 +45,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
             target: setting.settingEl,
             props: {
                 app: this.app,
+                plugin: this.plugin,
                 choices: this.plugin.settings.choices,
                 saveChoices: async (choices: IChoice[]) => {
                     this.plugin.settings.choices = choices;

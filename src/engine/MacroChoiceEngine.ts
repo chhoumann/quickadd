@@ -1,4 +1,3 @@
-import {QuickAddEngine} from "./QuickAddEngine";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type {App, TAbstractFile} from "obsidian";
 import {TFile} from "obsidian";
@@ -8,8 +7,9 @@ import {log} from "../logger/logManager";
 import {CommandType} from "../types/macros/CommandType";
 import {QuickAddApi} from "../quickAddApi";
 import type {ICommand} from "../types/macros/ICommand";
+import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 
-export class MacroChoiceEngine extends QuickAddEngine {
+export class MacroChoiceEngine extends QuickAddChoiceEngine {
     choice: IMacroChoice;
     protected output: string;
 

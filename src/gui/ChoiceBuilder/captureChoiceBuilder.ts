@@ -5,11 +5,12 @@ import {Setting, TextAreaComponent} from "obsidian";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FORMAT_SYNTAX} from "../../constants";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
+import type QuickAdd from "../../main";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
 
-    constructor(app: App, choice: ICaptureChoice) {
+    constructor(app: App, choice: ICaptureChoice, private plugin: QuickAdd) {
         super(app);
         this.choice = choice;
 
@@ -111,7 +112,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         new FormatSyntaxSuggester(this.app, textField.inputEl, FORMAT_SYNTAX);
 
         const formatDisplay: HTMLSpanElement = this.contentEl.createEl('span');
-        const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(this.app);
+        const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(this.app, this.plugin);
         (async () => formatDisplay.innerText = await displayFormatter.format(this.choice.format.format))();
     }
 }

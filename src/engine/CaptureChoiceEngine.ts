@@ -1,4 +1,3 @@
-import {QuickAddEngine} from "./QuickAddEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
@@ -7,8 +6,9 @@ import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
 import {appendToCurrentLine} from "../utility";
 import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import type QuickAdd from "../main";
+import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 
-export class CaptureChoiceEngine extends QuickAddEngine {
+export class CaptureChoiceEngine extends QuickAddChoiceEngine {
     choice: ICaptureChoice;
     private formatter: CaptureChoiceFormatter;
 

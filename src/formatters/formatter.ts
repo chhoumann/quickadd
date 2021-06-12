@@ -1,11 +1,14 @@
 import {
-    DATE_REGEX, DATE_REGEX_FORMATTED,
+    DATE_REGEX,
+    DATE_REGEX_FORMATTED,
     DATE_VARIABLE_REGEX,
-    LINK_TO_CURRENT_FILE_REGEX, MACRO_REGEX,
-    NAME_VALUE_REGEX,
+    LINK_TO_CURRENT_FILE_REGEX,
+    MACRO_REGEX,
+    NAME_VALUE_REGEX, TEMPLATE_REGEX,
     VARIABLE_REGEX
 } from "../constants";
 import {getDate} from "../utility";
+import {template} from "@babel/core";
 
 export abstract class Formatter {
     protected value: string;
@@ -39,10 +42,12 @@ export abstract class Formatter {
     protected abstract promptForValue(header?: string): Promise<string> | string;
 
     protected async replaceValueInString(input: string): Promise<string> {
-        this.value = await this.promptForValue();
         let output: string = input;
 
         while (NAME_VALUE_REGEX.test(output)) {
+            if (!this.value)
+                this.value = await this.promptForValue();
+
             output = output.replace(NAME_VALUE_REGEX, this.value);
         }
 
@@ -140,4 +145,19 @@ export abstract class Formatter {
     protected abstract getMacroValue(macroName: string): Promise<string> | string;
 
     protected abstract promptForVariable(variableName: string): Promise<string>;
+
+    protected abstract getTemplateContent(templatePath: string): Promise<string>;
+
+    protected async replaceTemplateInString(input: string): Promise<string> {
+        let output: string = input;
+
+        while (TEMPLATE_REGEX.test(output)) {
+            const templatePath = TEMPLATE_REGEX.exec(output)[1];
+            const templateContent = await this.getTemplateContent(templatePath);
+
+            output = output.replace(TEMPLATE_REGEX, templateContent);
+        }
+
+        return output;
+    }
 }

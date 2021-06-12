@@ -18,3 +18,4 @@ export const LINK_TO_CURRENT_FILE_REGEX: RegExp = new RegExp(/{{LINKCURRENT}}/);
 export const MARKDOWN_FILE_EXTENSION_REGEX: RegExp = new RegExp(/\.md$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX: RegExp = new RegExp(/\.js$/);
 export const MACRO_REGEX: RegExp = new RegExp(/{{MACRO:([^\n\r}]*)}}/);
+export const TEMPLATE_REGEX: RegExp = new RegExp(/{{MACRO:([^\n\r}]*.md$)}}/);

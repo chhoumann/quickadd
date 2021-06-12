@@ -1,11 +1,9 @@
-import type IChoice from "../types/choices/IChoice";
 import type {App} from "obsidian";
-import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {TAbstractFile, TFile, TFolder} from "obsidian";
+import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {log} from "../logger/logManager";
 
 export abstract class QuickAddEngine {
-    abstract choice: IChoice;
     public app: App;
 
     protected constructor(app: App) {

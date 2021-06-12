@@ -1,9 +1,12 @@
 import {Formatter} from "./formatter";
 import type {App} from "obsidian";
 import {getNaturalLanguageDates} from "../utility";
+import type QuickAdd from "../main";
+import {SingleTemplateEngine} from "../engine/SingleTemplateEngine";
+import {template} from "@babel/core";
 
 export class FormatDisplayFormatter extends Formatter {
-    constructor(private app: App) {
+    constructor(private app: App, private plugin: QuickAdd) {
         super();
     }
 
@@ -45,5 +48,11 @@ export class FormatDisplayFormatter extends Formatter {
 
     protected promptForVariable(variableName: string): Promise<string> {
         return Promise.resolve(`${variableName}_`);
+    }
+
+    protected async getTemplateContent(templatePath: string): Promise<string> {
+        const templateContent: string = await new SingleTemplateEngine(this.app, this.plugin, templatePath).run();
+        if (!templateContent) return `Template (not found): ${templatePath}`;
+        return templateContent;
     }
 }

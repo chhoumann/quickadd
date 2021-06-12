@@ -18,6 +18,7 @@
     import {MacroChoiceBuilder} from "../ChoiceBuilder/macroChoiceBuilder";
     import {MacrosManager} from "../../MacrosManager";
     import type {IMacro} from "../../types/macros/IMacro";
+    import QuickAdd from "../../main";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];
@@ -25,6 +26,7 @@
     export let saveChoices: (choices: IChoice[]) => void;
     export let saveMacros: (macros: IMacro[]) => void;
     export let app: App;
+    export let plugin: QuickAdd;
 
     function addChoiceToList(event: any): void {
         const {name, type} = event.detail;
@@ -97,7 +99,7 @@
             case ChoiceType.Template:
                 return new TemplateChoiceBuilder(app, choice as ITemplateChoice);
             case ChoiceType.Capture:
-                return new CaptureChoiceBuilder(app, choice as ICaptureChoice);
+                return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
             case ChoiceType.Macro:
                 return new MacroChoiceBuilder(app, choice as IMacroChoice, macros);
             case ChoiceType.Multi:

@@ -44,4 +44,8 @@ export class FileNameDisplayFormatter extends Formatter {
     protected async promptForVariable(variableName: string): Promise<string> {
         return `_${variableName}_`;
     }
+
+    protected async getTemplateContent(templatePath: string): Promise<string> {
+        return `/${templatePath}/`;
+    }
 }
