@@ -33,7 +33,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
         const formatted = await super.formatFileContent(input);
 
         if (this.choice.prepend)
-            return `${this.fileContent}\n${input}`
+            return `${this.fileContent}\n${formatted}`
 
         if (this.choice.insertAfter.enabled) {
             const targetRegex = new RegExp(`\s*${this.choice.insertAfter.after}\s*`)
