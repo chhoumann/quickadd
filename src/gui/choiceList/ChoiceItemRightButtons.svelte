@@ -5,6 +5,7 @@
 
     export let dragDisabled: boolean;
     export let showConfigureButton: boolean = true;
+    export let choiceName: string = "";
     const dispatcher = createEventDispatcher();
 
     function emitDeleteChoice() {
@@ -18,12 +19,12 @@
 
 <div class="rightButtonsContainer">
     {#if showConfigureButton}
-        <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label="Configure">
+        <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label={`Configure${choiceName ? " " + choiceName : ""}`}>
             <Icon data={faCog} />
         </div>
     {/if}
 
-    <div aria-label="Delete choice" class="alignIconInDivInMiddle clickable" on:click={emitDeleteChoice}>
+    <div aria-label={`Delete${choiceName ? " " + choiceName : ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDeleteChoice}>
         <Icon data={faTrash} />
     </div>
 

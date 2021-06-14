@@ -36,6 +36,7 @@
             on:configureChoice={configureChoice}
             bind:showConfigureButton
             bind:dragDisabled
+            bind:choiceName={choice.name}
         />
     </div>
 

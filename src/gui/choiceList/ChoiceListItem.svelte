@@ -25,6 +25,7 @@
             on:touchstart
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
+            bind:choiceName={choice.name}
             bind:showConfigureButton
             bind:dragDisabled
     />
