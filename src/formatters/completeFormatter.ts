@@ -4,7 +4,6 @@ import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {getNaturalLanguageDates} from "../utility";
 import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import {SingleMacroEngine} from "../engine/SingleMacroEngine";
 import {SingleTemplateEngine} from "../engine/SingleTemplateEngine";
@@ -17,21 +16,16 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async format(input: string): Promise<string> {
-        try {
-            let output: string = input;
+        let output: string = input;
 
-            output = this.replaceDateInString(output);
-            output = await this.replaceValueInString(output);
-            output = await this.replaceDateVariableInString(output);
-            output = await this.replaceVariableInString(output);
-            output = await this.replaceMacrosInString(output);
-            output = await this.replaceTemplateInString(output);
+        output = this.replaceDateInString(output);
+        output = await this.replaceValueInString(output);
+        output = await this.replaceDateVariableInString(output);
+        output = await this.replaceVariableInString(output);
+        output = await this.replaceMacrosInString(output);
+        output = await this.replaceTemplateInString(output);
 
-            return output;
-        }
-        catch (e) {
-            log.logError(e);
-        }
+        return output;
     }
 
     async formatFileName(input: string, valueHeader: string): Promise<string> {
@@ -65,7 +59,7 @@ export class CompleteFormatter extends Formatter {
 
     protected async promptForValue(header?: string): Promise<string> {
         if (!this.value)
-            this.value = await GenericInputPrompt.Prompt(this.app, this.valueHeader ?? `Enter value`);
+            this.value = await GenericInputPrompt.Prompt(this.app, this.valueHeader ?? `Enter value`)
 
         return this.value;
     }

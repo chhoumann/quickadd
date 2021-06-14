@@ -1,7 +1,7 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type {App} from "obsidian";
-import {SearchComponent, Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
+import {Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX, FORMAT_SYNTAX} from "../../constants";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";

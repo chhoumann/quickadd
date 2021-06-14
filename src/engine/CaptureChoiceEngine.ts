@@ -44,6 +44,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                 await this.app.vault.modify(file, newFileContent);
             } else {
                 const formattedContent = await this.formatter.formatContent(content, this.choice);
+                if (!formattedContent) return;
+
                 const createdFile = await this.createFileWithInput(filePath, formattedContent);
 
                 if (!createdFile) {
@@ -56,7 +58,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                 appendToCurrentLine(`[[${filePath.replace(MARKDOWN_FILE_EXTENSION_REGEX, '')}]]`, this.app);
         }
         catch (e) {
-            log.logError(e);
+            log.logMessage(e);
         }
     }
 
@@ -86,6 +88,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
             content = await this.formatter.formatContent(content, this.choice);
         }
 
+        if (!content) return;
         appendToCurrentLine(content, this.app);
     }
 }
