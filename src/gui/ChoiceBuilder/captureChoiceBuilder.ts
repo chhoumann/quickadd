@@ -1,11 +1,13 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type {App} from "obsidian";
-import {Setting, TextAreaComponent} from "obsidian";
+import {SearchComponent, Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
-import {FORMAT_SYNTAX} from "../../constants";
+import {FILE_NAME_FORMAT_SYNTAX, FORMAT_SYNTAX} from "../../constants";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
+import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
+import {GenericTextSuggester} from "../genericTextSuggester";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
@@ -18,23 +20,62 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
+        this.contentEl.empty();
+
         this.addCenteredHeader(this.choice.name);
         this.addCapturedToSetting();
-        this.addPrependSetting();
         this.addTaskSetting();
-        this.addAppendLinkSetting();
-        this.addInsertAfterSetting();
+
+        if (!this.choice.captureToActiveFile) {
+            this.addPrependSetting();
+            this.addAppendLinkSetting();
+            this.addInsertAfterSetting();
+        }
+
         this.addFormatSetting();
     }
 
     private addCapturedToSetting() {
+        let textField: TextComponent;
         const captureToSetting: Setting = new Setting(this.contentEl)
             .setName('Capture To')
             .setDesc('File to capture to. Supports some format syntax.');
 
-        this.addFileSearchInputToSetting(captureToSetting, this.choice.captureTo, value => {
-            this.choice.captureTo = value;
+        const captureToContainer: HTMLDivElement = this.contentEl.createDiv('captureToContainer');
+
+        const captureToActiveFileContainer: HTMLDivElement = captureToContainer.createDiv('captureToActiveFileContainer');
+        const captureToActiveFileText: HTMLSpanElement = captureToActiveFileContainer.createEl('span');
+        captureToActiveFileText.textContent = "Capture to active file";
+        const captureToActiveFileToggle: ToggleComponent = new ToggleComponent(captureToActiveFileContainer);
+        captureToActiveFileToggle.setValue(this.choice?.captureToActiveFile);
+        captureToActiveFileToggle.onChange(value => {
+            this.choice.captureToActiveFile = value;
+
+            this.display();
         });
+
+        if (!this.choice?.captureToActiveFile) {
+            const captureToFileContainer: HTMLDivElement = captureToContainer.createDiv('captureToFileContainer');
+
+            const formatDisplay: HTMLSpanElement = captureToFileContainer.createEl('span');
+            const displayFormatter: FileNameDisplayFormatter = new FileNameDisplayFormatter(this.app);
+            (async () => formatDisplay.textContent = await displayFormatter.format(this.choice.captureTo))();
+
+            const formatInput = new TextComponent(captureToFileContainer);
+            formatInput.setPlaceholder("File name format");
+            textField = formatInput;
+            formatInput.inputEl.style.width = "100%";
+            formatInput.inputEl.style.marginBottom = "8px";
+            formatInput.setValue(this.choice.captureTo)
+                .setDisabled(this.choice?.captureToActiveFile)
+                .onChange(async value => {
+                    this.choice.captureTo = value;
+                    formatDisplay.textContent = await displayFormatter.format(value);
+                });
+
+            const markdownFilesAndFormatSyntax = [...this.app.vault.getMarkdownFiles().map(f => f.path), ...FILE_NAME_FORMAT_SYNTAX];
+            new GenericTextSuggester(this.app, textField.inputEl, markdownFilesAndFormatSyntax);
+        }
     }
 
     private addPrependSetting() {

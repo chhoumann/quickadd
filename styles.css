@@ -42,3 +42,10 @@
     justify-content: space-around;
     margin-top: 20px;
 }
+
+.captureToActiveFileContainer {
+    display: flex;
+    align-content: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}

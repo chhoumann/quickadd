@@ -20,6 +20,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
     async run(): Promise<void> {
         try {
+            if (this.choice?.captureToActiveFile) {
+                await this.captureToActiveFile();
+                return;
+            }
+
             const captureTo = this.choice.captureTo;
             if (!captureTo) {
                 log.logError(`Invalid capture to for ${this.choice.name}`);
@@ -27,15 +32,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
             }
 
             const filePath = await this.getFilePath(captureTo);
-            let content: string;
-
-            if (!this.choice.format.enabled)
-                content = await GenericInputPrompt.Prompt(this.app, this.choice.name);
-            else
-                content = this.choice.format.format;
-
-            if (this.choice.task)
-                content = `- [ ] ${content}`;
+            let content = await this.getCaptureContent();
 
             if (await this.fileExists(filePath)) {
                 const file: TFile = await this.getFileByPath(filePath);
@@ -63,9 +60,32 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
         }
     }
 
+    private async getCaptureContent(): Promise<string> {
+        let content: string;
+
+        if (!this.choice.format.enabled)
+            content = await GenericInputPrompt.Prompt(this.app, this.choice.name);
+        else
+            content = this.choice.format.format;
+
+        if (this.choice.task)
+            content = `- [ ] ${content}\n`;
+
+        return content;
+    }
+
     private async getFilePath(captureTo: string) {
         const formattedCaptureTo: string = await this.formatter.formatFileName(captureTo, this.choice.name);
         return this.formatFilePath("", formattedCaptureTo);
     }
 
+    private async captureToActiveFile() {
+        let content: string = await this.getCaptureContent();
+
+        if (this.choice.format.enabled) {
+            content = await this.formatter.formatContent(content, this.choice);
+        }
+
+        appendToCurrentLine(content, this.app);
+    }
 }

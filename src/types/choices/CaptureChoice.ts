@@ -5,6 +5,7 @@ import type ICaptureChoice from "./ICaptureChoice";
 export class CaptureChoice extends Choice implements ICaptureChoice {
     appendLink: boolean;
     captureTo: string;
+    captureToActiveFile: boolean;
     format: { enabled: boolean; format: string };
     insertAfter: { enabled: boolean; after: string };
     prepend: boolean;
@@ -15,6 +16,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 
         this.appendLink = false;
         this.captureTo = "";
+        this.captureToActiveFile = false;
         this.format = {enabled: false, format: ""};
         this.insertAfter = {enabled: false, after: ""};
         this.prepend = false;

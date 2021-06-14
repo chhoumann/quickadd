@@ -1,4 +1,4 @@
-import {App, Modal, Setting} from "obsidian";
+import {App, Modal, SearchComponent, Setting} from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type {SvelteComponent} from "svelte";
 import {GenericTextSuggester} from "../genericTextSuggester";
@@ -32,8 +32,11 @@ export abstract class ChoiceBuilder extends Modal {
         this.display();
     }
 
-    protected addFileSearchInputToSetting(setting: Setting, value: string, onChangeCallback: (value: string) => void) {
+    protected addFileSearchInputToSetting(setting: Setting, value: string, onChangeCallback: (value: string) => void): SearchComponent {
+        let component: SearchComponent;
+
         setting.addSearch(searchComponent => {
+            component = searchComponent;
            searchComponent.setValue(value);
            searchComponent.setPlaceholder("File path");
 
@@ -42,6 +45,8 @@ export abstract class ChoiceBuilder extends Modal {
 
            searchComponent.onChange(onChangeCallback);
         });
+
+        return component;
     }
 
     protected addCenteredHeader(header: string): void {

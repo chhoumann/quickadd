@@ -71,8 +71,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
     }
 
     private async onChooseCaptureType(captureChoice: ICaptureChoice) {
-        if (!captureChoice.captureTo) {
-            log.logError(`please provide a template path for ${captureChoice.name}`);
+        if (!captureChoice.captureTo && !captureChoice?.captureToActiveFile) {
+            log.logError(`please provide a capture path for ${captureChoice.name}`);
             return;
         }
 
