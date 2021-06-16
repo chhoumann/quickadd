@@ -22,7 +22,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
                 filePath = await this.getFormattedFilePath(folderPath, this.choice.fileNameFormat.format, this.choice.name);
             } else {
                 const fileNameValueFormat: string = "{{VALUE}}";
-                filePath = this.getFormattedFilePath(folderPath, fileNameValueFormat, this.choice.name);
+                filePath = await this.getFormattedFilePath(folderPath, fileNameValueFormat, this.choice.name);
             }
             if (this.choice.incrementFileName)
                 filePath = await this.incrementFileName(filePath);
