@@ -48,4 +48,8 @@ export class FileNameDisplayFormatter extends Formatter {
     protected async getTemplateContent(templatePath: string): Promise<string> {
         return `/${templatePath}/`;
     }
+
+    protected async getSelectedText(): Promise<string> {
+        return "_selected_";
+    }
 }

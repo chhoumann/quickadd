@@ -7,6 +7,7 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type QuickAdd from "../main";
 import {SingleMacroEngine} from "../engine/SingleMacroEngine";
 import {SingleTemplateEngine} from "../engine/SingleTemplateEngine";
+import {MarkdownView} from "obsidian";
 
 export class CompleteFormatter extends Formatter {
     private valueHeader: string;
@@ -58,8 +59,11 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async promptForValue(header?: string): Promise<string> {
-        if (!this.value)
-            this.value = await GenericInputPrompt.Prompt(this.app, this.valueHeader ?? `Enter value`)
+        if (!this.value) {
+            const selectedText: string = await this.getSelectedText();
+            this.value = selectedText ? selectedText :
+                await GenericInputPrompt.Prompt(this.app, this.valueHeader ?? `Enter value`)
+        }
 
         return this.value;
     }
@@ -79,5 +83,12 @@ export class CompleteFormatter extends Formatter {
 
     protected async getTemplateContent(templatePath: string): Promise<string> {
         return await new SingleTemplateEngine(this.app, this.plugin, templatePath).run();
+    }
+
+    protected async getSelectedText(): Promise<string> {
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!activeView) return;
+
+        return activeView.editor.getSelection();
     }
 }

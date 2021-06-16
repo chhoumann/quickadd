@@ -58,4 +58,8 @@ export class FormatDisplayFormatter extends Formatter {
             return `Template (not found): ${templatePath}`;
         }
     }
+
+    protected async getSelectedText(): Promise<string> {
+        return "_selected_";
+    }
 }

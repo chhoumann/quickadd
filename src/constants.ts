@@ -1,12 +1,14 @@
+export const VALUE_SYNTAX: string = "{{VALUE}}";
+
 export const FORMAT_SYNTAX: string[] = [
     "{{DATE}}", "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
-    "{{VALUE}}", "{{NAME}}", "{{VALUE:<VARIABLE NAME>}}", "{{LINKCURRENT}}", "{{MACRO:<MACRONAME>}}",
+    VALUE_SYNTAX, "{{NAME}}", "{{VALUE:<VARIABLE NAME>}}", "{{LINKCURRENT}}", "{{MACRO:<MACRONAME>}}",
     "{{TEMPLATE:<TEMPLATEPATH>}}"
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
     "{{DATE}}", "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
-    "{{VALUE}}", "{{NAME}}", "{{VALUE:<VARIABLE NAME>}}",
+    VALUE_SYNTAX, "{{NAME}}", "{{VALUE:<VARIABLE NAME>}}",
 ]
 
 export const FILE_NUMBER_REGEX: RegExp = new RegExp(/([0-9]*)\.md$/);
