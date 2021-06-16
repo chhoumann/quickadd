@@ -4,7 +4,7 @@ import {log} from "../logger/logManager";
 import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
 import {appendToCurrentLine} from "../utility";
-import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
+import {MARKDOWN_FILE_EXTENSION_REGEX, VALUE_SYNTAX} from "../constants";
 import type QuickAdd from "../main";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 
@@ -66,7 +66,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
         let content: string;
 
         if (!this.choice.format.enabled)
-            content = await GenericInputPrompt.Prompt(this.app, this.choice.name);
+            content = VALUE_SYNTAX;
         else
             content = this.choice.format.format;
 

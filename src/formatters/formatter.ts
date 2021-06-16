@@ -159,4 +159,6 @@ export abstract class Formatter {
     protected abstract promptForVariable(variableName: string): Promise<string>;
 
     protected abstract getTemplateContent(templatePath: string): Promise<string>;
+
+    protected abstract getSelectedText(): Promise<string>;
 }
