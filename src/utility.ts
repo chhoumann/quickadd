@@ -36,3 +36,17 @@ export function appendToCurrentLine(toAppend: string, app: App) {
        log.logError(`unable to append '${toAppend}' to current line.`);
     }
 }
+
+export function findObsidianCommand(commandId: string) {
+    // @ts-ignore
+    return app.commands.findCommand(commandId);
+}
+
+export function deleteObsidianCommand(commandId: string) {
+    if (findObsidianCommand(commandId)) {
+        // @ts-ignore
+        delete app.commands.commands[commandId];
+        // @ts-ignore
+        delete app.commands.editorCommands[commandId];
+    }
+}

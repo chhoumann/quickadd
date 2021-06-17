@@ -54,13 +54,14 @@
     }
 
     async function deleteChoice(e: any) {
-        const {choiceId: id, choiceName} = e.detail;
+        const choice: IChoice = e.detail.choice;
 
         const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(app,
-            `Confirm deletion of choice`, `Please confirm that you wish to delete '${choiceName}.'`);
+            `Confirm deletion of choice`, `Please confirm that you wish to delete '${choice.name}.'`);
 
         if (userConfirmed) {
-            choices = choices.filter((value) => deleteChoiceHelper(id, value));
+            choices = choices.filter((value) => deleteChoiceHelper(choice.id, value));
+            plugin.removeCommandForChoice(choice);
             saveChoices(choices);
         }
     }
@@ -78,6 +79,18 @@
         const {choice: oldChoice} = e.detail;
         const updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
         if (!updatedChoice) return;
+
+        choices = choices.map(choice => updateChoiceHelper(choice, updatedChoice));
+        saveChoices(choices);
+    }
+
+    async function toggleCommandForChoice(e: any) {
+        const {choice: oldChoice} = e.detail;
+        const updatedChoice = {...oldChoice, command: !oldChoice.command};
+
+        updatedChoice.command ?
+            plugin.addCommandForChoice(updatedChoice) :
+            plugin.removeCommandForChoice(updatedChoice);
 
         choices = choices.map(choice => updateChoiceHelper(choice, updatedChoice));
         saveChoices(choices);
@@ -124,6 +137,7 @@
             bind:choices
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
+            on:toggleCommand={toggleCommandForChoice}
             on:reorderChoices={e => saveChoices(e.detail.choices)}
     />
     <div class="choiceViewBottomBar">
