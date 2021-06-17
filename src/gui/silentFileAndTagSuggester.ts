@@ -52,17 +52,21 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
         const cursorPosition: number = this.inputEl.selectionStart;
         const lastInputLength: number = this.lastInput.length;
         const currentInputValue: string = this.inputEl.value;
+        let insertedEndPosition: number = 0;
 
         if (this.lastInputType === TagOrFile.File) {
             this.inputEl.value = this.getNewInputValueForFileName(currentInputValue, item, cursorPosition, lastInputLength);
+            insertedEndPosition = cursorPosition - lastInputLength + item.length + 2;
         }
 
         if (this.lastInputType === TagOrFile.Tag) {
             this.inputEl.value = this.getNewInputValueForTag(currentInputValue, item, cursorPosition, lastInputLength);
+            insertedEndPosition = cursorPosition - lastInputLength + item.length - 1;
         }
 
         this.inputEl.trigger("input");
         this.close();
+        this.inputEl.setSelectionRange(insertedEndPosition, insertedEndPosition);
     }
 
     private getNewInputValueForFileName(currentInputElValue: string, selectedItem: string, cursorPosition: number, lastInputLength: number): string {
