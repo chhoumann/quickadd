@@ -1,10 +1,21 @@
 <script lang="ts">
+    import {GenericTextSuggester} from "../genericTextSuggester";
+    import {onMount} from "svelte";
+    import {App} from "obsidian";
+    import {SilentFileAndTagSuggester} from "../silentFileAndTagSuggester";
+
     export let header: string = "";
     export let placeholder: string = "";
     export let value: string = "";
     export let onSubmit: (value: string) => void;
+    export let app: App;
 
     let inputEl: HTMLInputElement;
+    let suggester: SilentFileAndTagSuggester;
+
+    onMount(() => {
+        suggester = new SilentFileAndTagSuggester(app, inputEl);
+    });
 
     function submit(evt: KeyboardEvent) {
         if (evt.key === "Enter") {
