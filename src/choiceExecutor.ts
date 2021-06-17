@@ -18,10 +18,6 @@ export class ChoiceExecutor {
 
     public async execute(): Promise<void> {
         switch (this.choice.type) {
-            case ChoiceType.Multi:
-                const multiChoice: IMultiChoice = this.choice as IMultiChoice;
-                this.onChooseMultiType(multiChoice);
-                break;
             case ChoiceType.Template:
                 const templateChoice: ITemplateChoice = this.choice as ITemplateChoice;
                 await this.onChooseTemplateType(templateChoice);
@@ -37,15 +33,6 @@ export class ChoiceExecutor {
             default:
                 break;
         }
-    }
-
-    private onChooseMultiType(multi: IMultiChoice) {
-        const choices = [...multi.choices];
-
-        if (multi.name != "← Back")
-            choices.push(new MultiChoice("← Back").addChoices(choices))
-
-        ChoiceSuggester.Open(this.plugin, choices);
     }
 
     private async onChooseTemplateType(templateChoice: ITemplateChoice): Promise<void> {
