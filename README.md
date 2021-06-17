@@ -183,8 +183,6 @@ module.exports = async function moveFilesWithTag(params) {
         if (hasFrontmatterCacheTag || hasTag) filesToMove.push(key);
     });
 
-    console.log(filesToMove);
-
     const folders = app.vault.getAllLoadedFiles().filter(f => f.children).map(f => f.path);
     const targetFolder = await suggester(folders, folders);
     if (!targetFolder) return;
