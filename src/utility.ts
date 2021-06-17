@@ -1,5 +1,5 @@
 import type {App} from "obsidian";
-import {Notice} from "obsidian";
+import {MarkdownView, Notice} from "obsidian";
 import {log} from "./logger/logManager";
 
 export function getTemplater(app: App) {
@@ -27,23 +27,28 @@ export function getDate(input?: {format?: string, offset?: number|string}) {
 
 export function appendToCurrentLine(toAppend: string, app: App) {
     try {
-        // @ts-ignore
-        const editor = app.workspace.activeLeaf.view.editor;
-        const selected = editor.getSelection();
+        const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 
-        editor.replaceSelection(`${selected}${toAppend}`);
+        if (!activeView) {
+            log.logError(`unable to append '${toAppend}' to current line.`);
+            return;
+        }
+
+        const selected = activeView.editor.getSelection();
+
+        activeView.editor.replaceSelection(`${selected}${toAppend}`);
     } catch {
        log.logError(`unable to append '${toAppend}' to current line.`);
     }
 }
 
-export function findObsidianCommand(commandId: string) {
+export function findObsidianCommand(app: App, commandId: string) {
     // @ts-ignore
     return app.commands.findCommand(commandId);
 }
 
-export function deleteObsidianCommand(commandId: string) {
-    if (findObsidianCommand(commandId)) {
+export function deleteObsidianCommand(app: App, commandId: string) {
+    if (findObsidianCommand(app, commandId)) {
         // @ts-ignore
         delete app.commands.commands[commandId];
         // @ts-ignore

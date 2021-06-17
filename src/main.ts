@@ -73,7 +73,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
-		await new StartupMacroEngine(this.app, this.settings.macros).run();
+		this.app.workspace.on('layout-ready', () => new StartupMacroEngine(this.app, this.settings.macros).run());
 		this.addCommandsForChoices(this.settings.choices);
 	}
 
@@ -110,7 +110,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	public removeCommandForChoice(choice: IChoice) {
-		deleteObsidianCommand(`quickadd:choice:${choice.id}`);
+		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
 	}
 }
 
