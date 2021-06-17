@@ -23,6 +23,7 @@ export default class GenericInputPrompt extends Modal {
                 header,
                 placeholder,
                 value,
+                app,
                 onSubmit: (input: string) => {
                     this.input = input;
                     this.didSubmit = true;
