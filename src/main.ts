@@ -9,6 +9,11 @@ import {log} from "./logger/logManager";
 import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
 import {GuiLogger} from "./logger/guiLogger";
 import {StartupMacroEngine} from "./engine/StartupMacroEngine";
+import {ChoiceType} from "./types/choices/choiceType";
+import {ChoiceExecutor} from "./choiceExecutor";
+import type IChoice from "./types/choices/IChoice";
+import type IMultiChoice from "./types/choices/IMultiChoice";
+import {deleteObsidianCommand} from "./utility";
 
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
@@ -69,6 +74,7 @@ export default class QuickAdd extends Plugin {
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
 		await new StartupMacroEngine(this.app, this.settings.macros).run();
+		this.addCommandsForChoices(this.settings.choices);
 	}
 
 	onunload() {
@@ -81,6 +87,30 @@ export default class QuickAdd extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	private addCommandsForChoices(choices: IChoice[]) {
+		choices.forEach(choice => this.addCommandForChoice(choice));
+	}
+
+	public addCommandForChoice(choice: IChoice) {
+		if (choice.type === ChoiceType.Multi) {
+		    this.addCommandsForChoices((<IMultiChoice>choice).choices);
+		}
+
+		if (choice.command) {
+			this.addCommand({
+				id: `choice:${choice.id}`,
+				name: choice.name,
+				callback: async () => {
+					await new ChoiceExecutor(this.app, this, choice).execute();
+				}
+			});
+		}
+	}
+
+	public removeCommandForChoice(choice: IChoice) {
+		deleteObsidianCommand(`quickadd:choice:${choice.id}`);
 	}
 }
 

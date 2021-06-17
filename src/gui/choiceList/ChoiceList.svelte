@@ -56,6 +56,7 @@
                     on:touchstart={startDrag}
                     on:deleteChoice
                     on:configureChoice
+                    on:toggleCommand
                     bind:choice
             />
         {:else}
@@ -65,6 +66,7 @@
                     on:touchstart={startDrag}
                     on:deleteChoice
                     on:configureChoice
+                    on:toggleCommand
                     bind:collapseId
                     bind:choice
             />

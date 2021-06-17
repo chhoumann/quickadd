@@ -14,11 +14,15 @@
     const dispatcher = createEventDispatcher();
 
     function deleteChoice(e: any) {
-        dispatcher('deleteChoice', {choiceId: choice.id, choiceName: choice.name});
+        dispatcher('deleteChoice', {choice});
     }
 
     function configureChoice() {
         dispatcher('configureChoice', {choice});
+    }
+
+    function toggleCommandForChoice() {
+        dispatcher('toggleCommand', {choice});
     }
 </script>
 
@@ -34,9 +38,11 @@
             on:touchstart
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
+            on:toggleCommand={toggleCommandForChoice}
             bind:showConfigureButton
             bind:dragDisabled
             bind:choiceName={choice.name}
+            bind:commandEnabled={choice.command}
         />
     </div>
 
@@ -46,6 +52,7 @@
                 <ChoiceList
                         on:deleteChoice
                         on:configureChoice
+                        on:toggleCommand
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}
                 />

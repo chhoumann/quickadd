@@ -1,10 +1,11 @@
 <script lang="ts">
-    import {faTrash, faBars, faCog} from "@fortawesome/free-solid-svg-icons";
+    import {faTrash, faBars, faCog, faBolt} from "@fortawesome/free-solid-svg-icons";
     import Icon from "svelte-awesome/components/Icon.svelte";
     import {createEventDispatcher} from "svelte";
 
     export let dragDisabled: boolean;
     export let showConfigureButton: boolean = true;
+    export let commandEnabled: boolean = false;
     export let choiceName: string = "";
     const dispatcher = createEventDispatcher();
 
@@ -15,10 +16,17 @@
     function emitConfigureChoice() {
         dispatcher('configureChoice');
     }
+
+    function emitToggleCommand() {
+        dispatcher('toggleCommand');
+    }
 </script>
 
 <div class="rightButtonsContainer">
     {#if showConfigureButton}
+        <div on:click={emitToggleCommand} class="alignIconInDivInMiddle clickable" aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} style={commandEnabled ? "color: #FDD023;" : ""}>
+            <Icon data={faBolt} />
+        </div>
         <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label={`Configure${choiceName ? " " + choiceName : ""}`}>
             <Icon data={faCog} />
         </div>
