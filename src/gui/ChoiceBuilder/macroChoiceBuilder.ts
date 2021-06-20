@@ -8,12 +8,11 @@ import type {IMacro} from "../../types/macros/IMacro";
 export class MacroChoiceBuilder extends ChoiceBuilder {
     choice: IMacroChoice;
     selectedMacro: IMacro;
-    private updateSelectedMacro: (macro: IMacro) => void;
+    private updateSelectedMacro: () => void;
 
     constructor(app: App, choice: IMacroChoice, private macros: IMacro[]) {
         super(app);
         this.choice = choice;
-        this.selectedMacro = this.macros.find(m => m.id === this.choice.macroId);
 
         this.display();
     }
@@ -25,15 +24,17 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
     }
 
     private addSelectedMacroElement() {
-        const selectedMacro = this.contentEl.createEl('h3');
-        selectedMacro.style.textAlign = "center";
+        const selectedMacroEl = this.contentEl.createEl('h3');
+        selectedMacroEl.style.textAlign = "center";
 
-        this.updateSelectedMacro = (macro => {
-            if (macro)
-               selectedMacro.textContent = `Selected macro: ${macro.name}`;
+        this.updateSelectedMacro = (() => {
+            this.selectedMacro = this.macros.find(m => m.id === this.choice.macroId);
+
+            if (this.selectedMacro)
+                selectedMacroEl.textContent = `Selected macro: ${this.selectedMacro.name}`;
         });
 
-        this.updateSelectedMacro(this.choice.macro);
+        this.updateSelectedMacro();
     }
 
     private addSelectMacroSearch() {
@@ -50,7 +51,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
                         if (!macro) return;
 
                         this.choice.macroId = macro.id;
-                        this.updateSelectedMacro(this.choice.macro);
+                        this.updateSelectedMacro();
 
                         searchComponent.setValue("");
                     }
