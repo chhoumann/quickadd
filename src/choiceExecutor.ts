@@ -2,12 +2,9 @@ import type {App} from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import {ChoiceType} from "./types/choices/choiceType";
-import type IMultiChoice from "./types/choices/IMultiChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
-import {MultiChoice} from "./types/choices/MultiChoice";
-import ChoiceSuggester from "./gui/choiceSuggester";
 import {log} from "./logger/logManager";
 import {TemplateChoiceEngine} from "./engine/TemplateChoiceEngine";
 import {CaptureChoiceEngine} from "./engine/CaptureChoiceEngine";
@@ -54,8 +51,6 @@ export class ChoiceExecutor {
     }
 
     private async onChooseMacroType(macroChoice: IMacroChoice) {
-        if (macroChoice.macro.commands.length === 0) return;
-
-        await new MacroChoiceEngine(this.app, macroChoice).run();
+        await new MacroChoiceEngine(this.app, macroChoice, this.plugin.settings.macros).run();
     }
 }

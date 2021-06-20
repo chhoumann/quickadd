@@ -2,6 +2,7 @@ import type {IMacro} from "./types/macros/IMacro";
 import {App, ButtonComponent, Modal, Setting, TextComponent, ToggleComponent} from "obsidian";
 import {MacroBuilder} from "./gui/MacroBuilder";
 import {QuickAddMacro} from "./types/macros/QuickAddMacro";
+import {log} from "./logger/logManager";
 
 export class MacrosManager extends Modal {
     public waitForClose: Promise<IMacro[]>;
@@ -133,7 +134,14 @@ export class MacrosManager extends Modal {
                 const inputValue = nameInput.getValue();
 
                 if (inputValue !== "" && !this.macros.find(m => m.name === inputValue)) {
-                    this.macros.push(new QuickAddMacro(inputValue));
+                    const macro = new QuickAddMacro(inputValue);
+                    if (!macro) {
+                        log.logError("macro invalid - will not be added");
+                        return;
+                    }
+
+
+                    this.macros.push(macro);
                     this.reload();
                 }
             })

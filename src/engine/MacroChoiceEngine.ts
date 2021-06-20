@@ -8,25 +8,29 @@ import {CommandType} from "../types/macros/CommandType";
 import {QuickAddApi} from "../quickAddApi";
 import type {ICommand} from "../types/macros/ICommand";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
+import type {IMacro} from "../types/macros/IMacro";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     choice: IMacroChoice;
     protected output: string;
 
-    constructor(app: App, choice: IMacroChoice) {
+    constructor(app: App, choice: IMacroChoice, protected macros: IMacro[]) {
         super(app);
         this.choice = choice;
     }
 
     async run(): Promise<void> {
-        await this.executeCommands(this.choice.macro.commands);
+        const macroId: string = this.choice.macroId ?? this.choice.macro.id;
+        const macro: IMacro = this.macros.find(m => m.id === macroId);
+
+        await this.executeCommands(macro.commands);
     }
 
     protected async executeCommands(commands: ICommand[]) {
         for (const command of commands) {
-            if (command.type === CommandType.Obsidian)
+            if (command?.type === CommandType.Obsidian)
                 await this.executeObsidianCommand(command as IObsidianCommand);
-            if (command.type === CommandType.UserScript)
+            if (command?.type === CommandType.UserScript)
                 await this.executeUserScript(command as IUserScript);
         }
     }
@@ -62,7 +66,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
     protected executeObsidianCommand(command: IObsidianCommand) {
         // @ts-ignore
-        this.app.commands.executeCommandById(command.id);
+        this.app.commands.executeCommandById(command.commandId);
     }
 }
 

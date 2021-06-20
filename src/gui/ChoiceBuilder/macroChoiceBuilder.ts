@@ -7,11 +7,13 @@ import type {IMacro} from "../../types/macros/IMacro";
 
 export class MacroChoiceBuilder extends ChoiceBuilder {
     choice: IMacroChoice;
+    selectedMacro: IMacro;
     private updateSelectedMacro: (macro: IMacro) => void;
 
     constructor(app: App, choice: IMacroChoice, private macros: IMacro[]) {
         super(app);
         this.choice = choice;
+        this.selectedMacro = this.macros.find(m => m.id === this.choice.macroId);
 
         this.display();
     }
@@ -47,7 +49,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
                         const macro = this.macros.find(m => m.name === value);
                         if (!macro) return;
 
-                        this.choice.macro = macro;
+                        this.choice.macroId = macro.id;
                         this.updateSelectedMacro(this.choice.macro);
 
                         searchComponent.setValue("");

@@ -3,8 +3,8 @@ import type {IMacro} from "../types/macros/IMacro";
 import {MacroChoiceEngine} from "./MacroChoiceEngine";
 
 export class SingleMacroEngine extends MacroChoiceEngine {
-    constructor(app: App, private macros: IMacro[]) {
-        super(app, null);
+    constructor(app: App, macros: IMacro[]) {
+        super(app, null, macros);
     }
 
     public async runAndGetOutput(macroName: string): Promise<string> {

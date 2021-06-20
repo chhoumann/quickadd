@@ -14,6 +14,7 @@ import {ChoiceExecutor} from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import {deleteObsidianCommand} from "./utility";
+import type IMacroChoice from "./types/choices/IMacroChoice";
 
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
@@ -75,6 +76,8 @@ export default class QuickAdd extends Plugin {
 
 		this.app.workspace.on('layout-ready', () => new StartupMacroEngine(this.app, this.settings.macros).run());
 		this.addCommandsForChoices(this.settings.choices);
+
+		await this.convertMacroChoicesMacroToId();
 	}
 
 	onunload() {
@@ -112,5 +115,32 @@ export default class QuickAdd extends Plugin {
 	public removeCommandForChoice(choice: IChoice) {
 		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
 	}
+
+	// Did not make sense to have copies of macros in the choices when they are maintained for themselves.
+	// Instead we reference by id now. Have to port this over for all users.
+	private async convertMacroChoicesMacroToId() {
+	    function convertMacroChoiceMacroToIdHelper(choice: IChoice): IChoice {
+	    	if (choice.type === ChoiceType.Multi) {
+	    		 (choice as IMultiChoice).choices.map(convertMacroChoiceMacroToIdHelper);
+	    		 return choice;
+	    	}
+
+			if (choice.type !== ChoiceType.Macro) return choice;
+			const macroChoice = choice as IMacroChoice;
+
+			if (macroChoice.macro) {
+				macroChoice.macroId = macroChoice.macro.id;
+				delete macroChoice.macro;
+			}
+
+			return macroChoice;
+		}
+
+		this.settings.choices = this.settings.choices.map(convertMacroChoiceMacroToIdHelper);
+
+		await this.saveSettings();
+	}
+
+
 }
 
