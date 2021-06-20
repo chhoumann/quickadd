@@ -11,7 +11,7 @@ import {MarkdownView} from "obsidian";
 
 export class CompleteFormatter extends Formatter {
     private valueHeader: string;
-    private file: TFile;
+    protected file: TFile;
 
     constructor(protected app: App, private plugin: QuickAdd) {
         super();
@@ -80,7 +80,7 @@ export class CompleteFormatter extends Formatter {
 
     protected async getMacroValue(macroName: string): Promise<string> {
         const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros, this.file);
-        const macroOutput = await macroEngine.runAndGetOutput(macroName);
+        const macroOutput = await macroEngine.runAndGetOutput(macroName) ?? "";
 
         Object.keys(macroEngine.params.variables).forEach(key => {
             this.variables.set(key, macroEngine.params.variables[key]);

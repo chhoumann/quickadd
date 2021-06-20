@@ -17,33 +17,41 @@ export class TemplateChoiceEngine extends TemplateEngine {
     public async run(): Promise<void> {
         try {
             const folderPath = await this.getOrCreateFolder(this.choice.folder.folders);
+
             let filePath;
+
             if (this.choice.fileNameFormat.enabled) {
                 filePath = await this.getFormattedFilePath(folderPath, this.choice.fileNameFormat.format, this.choice.name);
             } else {
                 const fileNameValueFormat: string = "{{VALUE}}";
                 filePath = await this.getFormattedFilePath(folderPath, fileNameValueFormat, this.choice.name);
             }
+
             if (this.choice.incrementFileName)
                 filePath = await this.incrementFileName(filePath);
+
             const createdFile: TFile = await this.createFileWithTemplate(filePath, this.choice.templatePath);
             if (!createdFile) {
-                log.logError(`Could not create file '${filePath}'.`);
+                log.logWarning(`Could not create file '${filePath}'.`);
                 return;
             }
+
             if (this.choice.appendLink) {
                 const linkString = `[[${createdFile.path.replace(MARKDOWN_FILE_EXTENSION_REGEX, '')}]]`;
                 appendToCurrentLine(linkString, this.app);
             }
+
             if (this.choice.openFile) {
                 if (!this.choice.openFileInNewTab.enabled) {
                     await this.app.workspace.activeLeaf.openFile(createdFile);
                 } else {
-                    await this.app.workspace.splitActiveLeaf(this.choice.openFileInNewTab.direction)
+                    await this.app.workspace
+                        .splitActiveLeaf(this.choice.openFileInNewTab.direction)
                         .openFile(createdFile);
                 }
             }
-        } catch (e) {
+        }
+        catch (e) {
             log.logError(e.message);
         }
     }

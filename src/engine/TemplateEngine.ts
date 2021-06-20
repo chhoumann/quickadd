@@ -5,7 +5,7 @@ import type QuickAdd from "../main";
 import {getTemplater} from "../utility";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import {FILE_NUMBER_REGEX} from "../constants";
-import {create} from "domain";
+import {log} from "../logger/logManager";
 
 export abstract class TemplateEngine extends QuickAddEngine {
     protected formatter: CompleteFormatter;
@@ -69,6 +69,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
         try {
             const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent, createdFile);
+            if (!formattedTemplateContent && typeof formattedTemplateContent !== 'string') {
+                log.logError("failed to format file content. Deleting file.");
+                if (await this.app.vault.adapter.exists(createdFile.path))
+                    await this.app.vault.delete(createdFile);
+                return null;
+            }
+
             await this.app.vault.modify(createdFile, formattedTemplateContent);
 
             if (this.templater) {
@@ -78,7 +85,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
             return createdFile;
         }
         catch (e) {
-            await this.app.vault.delete(createdFile);
+            log.logError(e);
+
+            if (await this.app.vault.adapter.exists(createdFile.path))
+                await this.app.vault.delete(createdFile);
+
+            return null;
         }
     }
 

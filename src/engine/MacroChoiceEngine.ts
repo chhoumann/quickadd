@@ -46,21 +46,25 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             return;
         }
 
-        switch (typeof userScript.default) {
+        await this.userScriptDelegator(userScript.default);
+    }
+
+    private async userScriptDelegator(userScript: any) {
+        switch (typeof userScript) {
             case "function":
-                await this.onExportIsFunction(userScript.default);
+                await this.onExportIsFunction(userScript);
                 break;
             case "object":
-                await this.onExportIsObject(userScript.default);
+                await this.onExportIsObject(userScript);
                 break;
             case "bigint":
             case "boolean":
             case "number":
             case "string":
-                this.output = userScript.default;
+                this.output = userScript.toString();
                 break;
             default:
-                log.logError(`user script '${command.path}' is invalid`);
+                log.logError(`user script in macro for '${this.choice.name}' is invalid`);
         }
     }
 
@@ -69,19 +73,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     protected async onExportIsObject(obj: object) {
-        const selectFunctionInObject = async (obj: object) => {
-            const keys = Object.keys(obj);
-            const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
-            const newFunc = obj[selected];
+        const keys = Object.keys(obj);
+        const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
 
-            if (typeof newFunc === 'object')
-                await selectFunctionInObject(obj);
-            if (typeof newFunc === 'function')
-                return newFunc;
-        }
-
-        const func = await selectFunctionInObject(obj);
-        this.output = await func(this.params);
+        await this.userScriptDelegator(obj[selected]);
     }
 
     protected async getUserScript(command: IUserScript) {
