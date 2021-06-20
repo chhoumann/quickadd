@@ -5,6 +5,7 @@ import type QuickAdd from "../main";
 import {getTemplater} from "../utility";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import {FILE_NUMBER_REGEX} from "../constants";
+import {create} from "domain";
 
 export abstract class TemplateEngine extends QuickAddEngine {
     protected formatter: CompleteFormatter;
@@ -64,15 +65,21 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
     protected async createFileWithTemplate(filePath: string, templatePath: string) {
         const templateContent: string = await this.getTemplateContent(templatePath);
-        const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
+        const createdFile: TFile = await this.app.vault.create(filePath, templateContent);
 
-        const createdFile: TFile = await this.app.vault.create(filePath, formattedTemplateContent);
+        try {
+            const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent, createdFile);
+            await this.app.vault.modify(createdFile, formattedTemplateContent);
 
-        if (this.templater && !this.templater.settings["trigger_on_file_creation"]) {
-            await this.templater.templater.overwrite_file_templates(createdFile);
+            if (this.templater) {
+                await this.templater.templater.overwrite_file_templates(createdFile);
+            }
+
+            return createdFile;
         }
-
-        return createdFile;
+        catch (e) {
+            await this.app.vault.delete(createdFile);
+        }
     }
 
     protected async getTemplateContent(templatePath: string): Promise<string> {
