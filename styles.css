@@ -65,3 +65,9 @@
     margin-bottom: 8px;
     gap: 4px;
 }
+
+.selectMacroDropdownContainer {
+    display: flex;
+    align-content: center;
+    justify-content: center;
+}
