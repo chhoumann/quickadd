@@ -1,14 +1,13 @@
-import type {App, TFile} from "obsidian";
+import type {App} from "obsidian";
 import type {IMacro} from "../types/macros/IMacro";
 import {MacroChoiceEngine} from "./MacroChoiceEngine";
-import {log} from "../logger/logManager";
 import {QuickAddApi} from "../quickAddApi";
 
 export class SingleMacroEngine extends MacroChoiceEngine {
-    public readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), file: this.file, variables: {}};
+    public readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
     private memberAccess: string[];
 
-    constructor(app: App, macros: IMacro[], private file?: TFile) {
+    constructor(app: App, macros: IMacro[]) {
         super(app, null, macros);
     }
 
