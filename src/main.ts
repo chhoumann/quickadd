@@ -44,7 +44,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
-		this.app.workspace.on('layout-ready', () => new StartupMacroEngine(this.app, this.settings.macros).run());
+		this.app.workspace.onLayoutReady( () => new StartupMacroEngine(this.app, this.settings.macros).run());
 		this.addCommandsForChoices(this.settings.choices);
 
 		await this.convertMacroChoicesMacroToId();
