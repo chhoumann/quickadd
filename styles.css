@@ -73,6 +73,7 @@
 }
 
 .choiceBuilderModal .modal {
+    min-width: 35%;
     overflow-y: auto;
     max-height: 70%;
 }
