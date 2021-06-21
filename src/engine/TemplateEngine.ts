@@ -64,19 +64,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
     }
 
     protected async createFileWithTemplate(filePath: string, templatePath: string) {
-        const templateContent: string = await this.getTemplateContent(templatePath);
-        const createdFile: TFile = await this.app.vault.create(filePath, templateContent);
-
         try {
-            const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent, createdFile);
-            if (!formattedTemplateContent && typeof formattedTemplateContent !== 'string') {
-                log.logError("failed to format file content. Deleting file.");
-                if (await this.app.vault.adapter.exists(createdFile.path))
-                    await this.app.vault.delete(createdFile);
-                return null;
-            }
+            const templateContent: string = await this.getTemplateContent(templatePath);
 
-            await this.app.vault.modify(createdFile, formattedTemplateContent);
+            const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
+            const createdFile: TFile = await this.app.vault.create(filePath, formattedTemplateContent);
 
             if (this.templater) {
                 await this.templater.templater.overwrite_file_templates(createdFile);
@@ -86,10 +78,6 @@ export abstract class TemplateEngine extends QuickAddEngine {
         }
         catch (e) {
             log.logError(e);
-
-            if (await this.app.vault.adapter.exists(createdFile.path))
-                await this.app.vault.delete(createdFile);
-
             return null;
         }
     }

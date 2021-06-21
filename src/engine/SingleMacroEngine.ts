@@ -26,17 +26,12 @@ export class SingleMacroEngine extends MacroChoiceEngine {
     }
 
     protected override async onExportIsObject(obj: any): Promise<void> {
-        if (!this.memberAccess) return await super.onExportIsObject(obj);
-        let func = obj;
+        if (!this.memberAccess) return await this.userScriptDelegator(obj);
+        let newObj = obj;
         this.memberAccess.forEach(key => {
-           func = func[key];
+           newObj = newObj[key];
         });
 
-        if (typeof func === 'function') {
-            this.output = await func(this.params);
-        }
-        else {
-            log.logError(`function '${this.memberAccess.join('.')}' is invalid.`)
-        }
+        await this.userScriptDelegator(newObj);
     }
 }

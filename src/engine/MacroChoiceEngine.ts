@@ -49,7 +49,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         await this.userScriptDelegator(userScript.default);
     }
 
-    private async userScriptDelegator(userScript: any) {
+    protected async userScriptDelegator(userScript: any) {
         switch (typeof userScript) {
             case "function":
                 await this.onExportIsFunction(userScript);
@@ -69,7 +69,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     private async onExportIsFunction(userScript: any) {
-        this.output = await userScript.default(this.params);
+        this.output = await userScript(this.params);
     }
 
     protected async onExportIsObject(obj: object) {

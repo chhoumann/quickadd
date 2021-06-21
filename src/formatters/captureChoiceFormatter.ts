@@ -6,6 +6,7 @@ import type QuickAdd from "../main";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
+    private file: TFile = null;
     private fileContent: string = "";
 
     constructor(app: App, plugin: QuickAdd) {
@@ -14,8 +15,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
     public async formatContentWithFile(input: string, choice: ICaptureChoice, fileContent: string, file: TFile): Promise<string> {
         this.choice = choice;
-        this.fileContent = fileContent;
         this.file = file;
+        this.fileContent = fileContent;
         if (!choice || !file || fileContent === null) return input;
 
         return await this.formatFileContent(input);
@@ -29,7 +30,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
     }
 
     async formatFileContent(input: string): Promise<string> {
-        const formatted = await super.formatFileContent(input, this.file);
+        const formatted = await super.formatFileContent(input);
 
         if (this.choice.prepend)
             return `${this.fileContent}\n${formatted}`
