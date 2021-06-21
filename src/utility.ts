@@ -1,10 +1,39 @@
 import type {App} from "obsidian";
-import {MarkdownView, Notice} from "obsidian";
+import {MarkdownView} from "obsidian";
 import {log} from "./logger/logManager";
 
 export function getTemplater(app: App) {
     // @ts-ignore
     return app.plugins.plugins["templater-obsidian"]
+}
+
+export function getTemplatesFolderPath(app: App): string {
+    let path: string = "";
+    // @ts-ignore
+    const internalTemplatePlugin = app.internalPlugins.plugins.templates;
+    if (internalTemplatePlugin) {
+        const templateFolderPath = internalTemplatePlugin.instance.options.folder;
+        if (templateFolderPath)
+            path = templateFolderPath;
+    }
+
+    const templater = getTemplater(app);
+    if (templater) {
+        const templateFolderPath = templater.settings["template_folder"];
+        if (templateFolderPath)
+            path = templateFolderPath;
+    }
+
+    return path;
+}
+
+export function getTemplatePaths(app: App): string[] {
+    const markdownFiles = app.vault.getMarkdownFiles();
+    const templatePath = getTemplatesFolderPath(app);
+    return markdownFiles.filter(file => {
+        if (file.path.contains(templatePath))
+            return file;
+    }).map(file => file.path);
 }
 
 export function getNaturalLanguageDates(app: App) {

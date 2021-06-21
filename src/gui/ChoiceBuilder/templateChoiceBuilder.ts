@@ -8,6 +8,8 @@ import FolderList from "./FolderList.svelte";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {ExclusiveSuggester} from "../exclusiveSuggester";
 import {log} from "../../logger/logManager";
+import {getTemplatePaths} from "../../utility";
+import {GenericTextSuggester} from "../genericTextSuggester";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;
@@ -34,11 +36,19 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     private addTemplatePathSetting(): void {
         const templatePathSetting = new Setting(this.contentEl)
             .setName('Template Path')
-            .setDesc('Path to the Template.');
+            .setDesc('Path to the Template.')
+            .addSearch(search => {
+                const templates: string[] = getTemplatePaths(this.app);
+                search.setValue(this.choice.templatePath);
+                search.setPlaceholder("Template path");
 
-        this.addFileSearchInputToSetting(templatePathSetting, this.choice.templatePath, value => {
-           this.choice.templatePath = value;
-        });
+                new GenericTextSuggester(this.app, search.inputEl, templates);
+
+                search.onChange(value => {
+                    this.choice.templatePath = value;
+                })
+
+            })
     }
 
     private addFileNameFormatSetting(): void {
