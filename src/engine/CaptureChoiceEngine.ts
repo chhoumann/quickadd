@@ -36,9 +36,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
             const filePath = await this.getFilePath(captureTo);
             let content = await this.getCaptureContent();
+            let file: TFile;
 
             if (await this.fileExists(filePath)) {
-                const file: TFile = await this.getFileByPath(filePath);
+                file = await this.getFileByPath(filePath);
                 if (!file) return;
 
                 const fileContent: string = await this.app.vault.read(file);
@@ -50,28 +51,28 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                     new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
 
                 const fileContent: string = await singleTemplateEngine.run();
-                const createdFile: TFile = await this.createFileWithInput(filePath, fileContent);
-                if (!createdFile) {
+                file = await this.createFileWithInput(filePath, fileContent);
+                if (!file) {
                     log.logError(`could not create '${filePath}.'`);
                     return;
                 }
 
-                const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, createdFile);
-                await this.app.vault.modify(createdFile, newFileContent);
+                const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, file);
+                await this.app.vault.modify(file, newFileContent);
             } else {
                 const formattedContent = await this.formatter.formatContent(content, this.choice);
                 if (!formattedContent) return;
 
-                const createdFile = await this.createFileWithInput(filePath, formattedContent);
+                file = await this.createFileWithInput(filePath, formattedContent);
 
-                if (!createdFile) {
+                if (!file) {
                     log.logError(`could not create '${filePath}.'`);
                     return;
                 }
             }
 
             if (this.choice.appendLink)
-                appendToCurrentLine(`[[${filePath.replace(MARKDOWN_FILE_EXTENSION_REGEX, '')}]]`, this.app);
+                appendToCurrentLine(this.app.fileManager.generateMarkdownLink(file, ''), this.app);
         }
         catch (e) {
             log.logMessage(e);

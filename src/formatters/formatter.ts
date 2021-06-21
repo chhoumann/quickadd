@@ -1,7 +1,7 @@
 import {
     DATE_REGEX,
     DATE_REGEX_FORMATTED,
-    DATE_VARIABLE_REGEX,
+    DATE_VARIABLE_REGEX, LINEBREAK_REGEX,
     LINK_TO_CURRENT_FILE_REGEX,
     MACRO_REGEX,
     NAME_VALUE_REGEX, TEMPLATE_REGEX,
@@ -54,10 +54,7 @@ export abstract class Formatter {
     }
 
     protected async replaceLinkToCurrentFileInString(input) {
-        const currentFilePath = await this.getCurrentFilePath();
-        if (!currentFilePath) return input;
-
-        const currentFilePathLink = `[[${currentFilePath}]]`;
+        const currentFilePathLink = this.getCurrentFileLink();
         let output = input;
 
         while (LINK_TO_CURRENT_FILE_REGEX.test(output))
@@ -66,7 +63,7 @@ export abstract class Formatter {
         return output;
     }
 
-    protected abstract getCurrentFilePath();
+    protected abstract getCurrentFileLink();
 
     protected async replaceVariableInString(input: string) {
         let output: string = input;
@@ -147,6 +144,16 @@ export abstract class Formatter {
             const templateContent = await this.getTemplateContent(templatePath);
 
             output = output.replace(TEMPLATE_REGEX, templateContent);
+        }
+
+        return output;
+    }
+
+    protected replaceLinebreakInString(input: string): string {
+        let output: string = input;
+
+        while (LINEBREAK_REGEX.test(output)) {
+            output = output.replace(LINEBREAK_REGEX, `\n`);
         }
 
         return output;

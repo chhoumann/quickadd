@@ -87,7 +87,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
     private addPrependSetting() {
         const prependSetting: Setting = new Setting(this.contentEl);
-        prependSetting.setName("Prepend")
+        prependSetting.setName("Write to bottom of file")
             .setDesc("Put value at the bottom of the file - otherwise at the top.")
             .addToggle(toggle => {
                 toggle.setValue(this.choice.prepend);
@@ -108,7 +108,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     private addAppendLinkSetting() {
         const appendLinkSetting: Setting = new Setting(this.contentEl);
         appendLinkSetting.setName("Append link")
-            .setDesc("Append a link to the open file in the capture.")
+            .setDesc("Add a link on your current cursor position, linking to the file you're capturing to.")
             .addToggle(toggle => {
                 toggle.setValue(this.choice.appendLink);
                 toggle.onChange(value => this.choice.appendLink = value);

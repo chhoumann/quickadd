@@ -19,6 +19,7 @@ export class FormatDisplayFormatter extends Formatter {
         output = await this.replaceLinkToCurrentFileInString(output);
         output = await this.replaceMacrosInString(output);
         output = await this.replaceTemplateInString(output);
+        output = this.replaceLinebreakInString(output);
 
         return output;
     }
@@ -30,7 +31,7 @@ export class FormatDisplayFormatter extends Formatter {
         return variableName;
     }
 
-    protected getCurrentFilePath() {
+    protected getCurrentFileLink() {
         return this.app.workspace.getActiveFile()?.path ?? "_noPageOpen_";
     }
 

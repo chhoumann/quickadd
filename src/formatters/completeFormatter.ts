@@ -26,6 +26,7 @@ export class CompleteFormatter extends Formatter {
         output = await this.replaceValueInString(output);
         output = await this.replaceDateVariableInString(output);
         output = await this.replaceVariableInString(output);
+        output = this.replaceLinebreakInString(output);
 
         return output;
     }
@@ -44,11 +45,11 @@ export class CompleteFormatter extends Formatter {
         return output;
     }
 
-    protected getCurrentFilePath() {
+    protected getCurrentFileLink() {
         const currentFile: TFile = this.app.workspace.getActiveFile();
         if (!currentFile) return null;
 
-        return currentFile.path.replace(MARKDOWN_FILE_EXTENSION_REGEX, '');
+        return this.app.fileManager.generateMarkdownLink(currentFile, '');
     }
 
     protected getNaturalLanguageDates() {

@@ -26,7 +26,7 @@ export class FileNameDisplayFormatter extends Formatter {
         return variableName;
     }
 
-    protected getCurrentFilePath() {
+    protected getCurrentFileLink() {
         return this.app.workspace.getActiveFile().path ?? "";
     }
 
