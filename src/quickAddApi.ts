@@ -13,14 +13,26 @@ export class QuickAddApi {
     }
 
     public static async inputPrompt(app: App, header: string, placeholder?: string, value?: string) {
-        return await GenericInputPrompt.Prompt(app, header, placeholder, value);
+        try {
+            return await GenericInputPrompt.Prompt(app, header, placeholder, value);
+        } catch {
+            return undefined;
+        }
     }
 
     public static async yesNoPrompt(app: App, header: string, text?: string) {
-        return await GenericYesNoPrompt.Prompt(app, header, text);
+        try {
+            return await GenericYesNoPrompt.Prompt(app, header, text);
+        } catch {
+            return undefined;
+        }
     }
 
     public static async suggester(app: App, displayItems: string[], actualItems: string[]) {
-        return await GenericSuggester.Suggest(app, displayItems, actualItems);
+        try {
+            return await GenericSuggester.Suggest(app, displayItems, actualItems);
+        } catch {
+            return undefined;
+        }
     }
 }
