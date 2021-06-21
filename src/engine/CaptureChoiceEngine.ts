@@ -1,20 +1,22 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
-import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
 import {appendToCurrentLine} from "../utility";
 import {MARKDOWN_FILE_EXTENSION_REGEX, VALUE_SYNTAX} from "../constants";
 import type QuickAdd from "../main";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
+import {SingleTemplateEngine} from "./SingleTemplateEngine";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
     choice: ICaptureChoice;
     private formatter: CaptureChoiceFormatter;
+    private readonly plugin: QuickAdd;
 
     constructor(app: App, plugin: QuickAdd, choice: ICaptureChoice) {
         super(app);
         this.choice = choice;
+        this.plugin = plugin;
         this.formatter = new CaptureChoiceFormatter(app, plugin);
     }
 
@@ -42,6 +44,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                 const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, file);
 
                 await this.app.vault.modify(file, newFileContent);
+            } else if (this.choice?.createFileIfItDoesntExist?.enabled) {
+                const singleTemplateEngine: SingleTemplateEngine =
+                    new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template);
+
+                const fileContent: string = await singleTemplateEngine.run();
+                const createdFile: TFile = await this.createFileWithInput(filePath, fileContent);
+                if (!createdFile) {
+                    log.logError(`could not create '${filePath}.'`);
+                    return;
+                }
+
+                const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, createdFile);
+                await this.app.vault.modify(createdFile, newFileContent);
             } else {
                 const formattedContent = await this.formatter.formatContent(content, this.choice);
                 if (!formattedContent) return;

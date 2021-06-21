@@ -12,10 +12,12 @@ export class SingleTemplateEngine extends TemplateEngine {
             throw new Error(`Template ${this.templatePath} not found.`);
         }
 
+        templateContent = await this.formatter.formatFileContent(templateContent);
+
         if (this.templater) {
             templateContent = this.templater.templater.parser.parseTemplates(templateContent);
         }
 
-        return await this.formatter.formatFileContent(templateContent);
+        return templateContent;
     }
 }

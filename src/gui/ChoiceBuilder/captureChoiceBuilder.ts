@@ -26,6 +26,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         this.addCenteredChoiceNameHeader(this.choice);
         this.addCapturedToSetting();
         this.addCreateIfNotExistsSetting();
+        if (this.choice?.createFileIfItDoesntExist?.enabled)
+            this.addCreateWithTemplateSetting();
+
         this.addTaskSetting();
 
         if (!this.choice.captureToActiveFile) {
@@ -160,28 +163,36 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     }
 
     private addCreateIfNotExistsSetting() {
-        let templateSelector: TextComponent;
-
         if (!this.choice.createFileIfItDoesntExist)
-            this.choice.createFileIfItDoesntExist = {enabled: false, template: ""};
+            this.choice.createFileIfItDoesntExist = {enabled: false, createWithTemplate: false, template: ""};
 
         const createFileIfItDoesntExist: Setting = new Setting(this.contentEl);
         createFileIfItDoesntExist
             .setName("Create file if it doesn't exist")
-            .setDesc("Specify a template to create it with. If no template is given, it'll be created as an empty file.")
             .addToggle(toggle => toggle
                 .setValue(this.choice?.createFileIfItDoesntExist?.enabled)
                 .setTooltip("Create file if it doesn't exist")
                 .onChange(value => {
                     this.choice.createFileIfItDoesntExist.enabled = value
-                    templateSelector.setDisabled(!value);
+                    this.reload();
                 })
             );
+    }
+
+    private addCreateWithTemplateSetting() {
+        let templateSelector: TextComponent;
+        const createWithTemplateSetting = new Setting(this.contentEl);
+        createWithTemplateSetting.setName("Create file with given template.")
+            .addToggle(toggle => toggle.setValue(this.choice.createFileIfItDoesntExist?.createWithTemplate)
+                .onChange(value => {
+                    this.choice.createFileIfItDoesntExist.createWithTemplate = value
+                    templateSelector.setDisabled(!value);
+                }));
 
         templateSelector = new TextComponent(this.contentEl);
         templateSelector.setValue(this.choice?.createFileIfItDoesntExist?.template ?? "")
             .setPlaceholder("Template path")
-            .setDisabled(!this.choice?.createFileIfItDoesntExist?.enabled);
+            .setDisabled(!this.choice?.createFileIfItDoesntExist?.createWithTemplate);
 
         templateSelector.inputEl.style.width = "100%";
         templateSelector.inputEl.style.marginBottom = "8px";

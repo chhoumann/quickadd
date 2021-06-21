@@ -47,7 +47,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                 search.onChange(value => {
                     this.choice.templatePath = value;
                 })
-
             })
     }
 
