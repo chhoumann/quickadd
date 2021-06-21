@@ -57,3 +57,11 @@
 .choiceNameHeader:hover {
     cursor: pointer;
 }
+
+.folderInputContainer {
+    display: flex;
+    align-content: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 4px;
+}
