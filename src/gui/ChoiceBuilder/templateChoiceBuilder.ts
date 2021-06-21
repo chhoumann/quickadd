@@ -96,7 +96,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
         if (this.choice.folder.enabled) {
             const chooseFolderWhenCreatingNoteContainer: HTMLDivElement = this.contentEl.createDiv('chooseFolderWhenCreatingNoteContainer');
-            chooseFolderWhenCreatingNoteContainer.createEl('span', {text: "Choose folder when creating then note"});
+            chooseFolderWhenCreatingNoteContainer.createEl('span', {text: "Choose folder when creating a new note"});
             const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(chooseFolderWhenCreatingNoteContainer);
             chooseFolderWhenCreatingNote.setValue(this.choice.folder?.chooseWhenCreatingNote)
                 .onChange(value => {
