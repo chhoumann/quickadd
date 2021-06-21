@@ -5,12 +5,13 @@ import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import {TemplateEngine} from "./TemplateEngine";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export class TemplateChoiceEngine extends TemplateEngine {
     public choice: ITemplateChoice;
 
-    constructor(app: App, plugin: QuickAdd, choice: ITemplateChoice) {
-        super(app, plugin);
+    constructor(app: App, plugin: QuickAdd, choice: ITemplateChoice, choiceExecutor: IChoiceExecutor) {
+        super(app, plugin, choiceExecutor);
         this.choice = choice;
     }
 

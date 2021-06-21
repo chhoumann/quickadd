@@ -8,11 +8,12 @@ import type QuickAdd from "../main";
 import {SingleMacroEngine} from "../engine/SingleMacroEngine";
 import {SingleTemplateEngine} from "../engine/SingleTemplateEngine";
 import {MarkdownView} from "obsidian";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export class CompleteFormatter extends Formatter {
     private valueHeader: string;
 
-    constructor(protected app: App, private plugin: QuickAdd) {
+    constructor(protected app: App, private plugin: QuickAdd, protected choiceExecutor: IChoiceExecutor) {
         super();
     }
 
@@ -77,7 +78,7 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async getMacroValue(macroName: string): Promise<string> {
-        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros, this.variables);
+        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin, this.plugin.settings.macros, this.choiceExecutor, this.variables);
         const macroOutput = await macroEngine.runAndGetOutput(macroName) ?? "";
 
         Object.keys(macroEngine.params.variables).forEach(key => {
@@ -88,7 +89,7 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async getTemplateContent(templatePath: string): Promise<string> {
-        return await new SingleTemplateEngine(this.app, this.plugin, templatePath).run();
+        return await new SingleTemplateEngine(this.app, this.plugin, templatePath, this.choiceExecutor).run();
     }
 
     protected async getSelectedText(): Promise<string> {

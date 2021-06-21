@@ -6,15 +6,16 @@ import {getTemplater} from "../utility";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import {FILE_NUMBER_REGEX} from "../constants";
 import {log} from "../logger/logManager";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export abstract class TemplateEngine extends QuickAddEngine {
     protected formatter: CompleteFormatter;
     protected readonly templater;
 
-    protected constructor(app: App, protected plugin: QuickAdd) {
+    protected constructor(app: App, protected plugin: QuickAdd, choiceFormatter: IChoiceExecutor) {
         super(app);
         this.templater = getTemplater(app);
-        this.formatter = new CompleteFormatter(app, plugin);
+        this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
     }
 
     public abstract run(): Promise<void> | Promise<string>;

@@ -2,17 +2,15 @@ import type {App} from "obsidian";
 import type {IMacro} from "../types/macros/IMacro";
 import {MacroChoiceEngine} from "./MacroChoiceEngine";
 import {QuickAddApi} from "../quickAddApi";
+import type QuickAdd from "../main";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export class SingleMacroEngine extends MacroChoiceEngine {
     public readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
     private memberAccess: string[];
 
-    constructor(app: App, macros: IMacro[], private variables: Map<string, string>) {
-        super(app, null, macros);
-
-        variables.forEach(((value, key) => {
-            this.params.variables[key] = value;
-        }));
+    constructor(app: App, plugin: QuickAdd, macros: IMacro[], choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
+        super(app, plugin, null, macros, choiceExecutor, variables);
     }
 
     public async runAndGetOutput(macroName: string): Promise<string> {
