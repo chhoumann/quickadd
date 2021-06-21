@@ -7,8 +7,12 @@ export class SingleMacroEngine extends MacroChoiceEngine {
     public readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
     private memberAccess: string[];
 
-    constructor(app: App, macros: IMacro[]) {
+    constructor(app: App, macros: IMacro[], private variables: Map<string, string>) {
         super(app, null, macros);
+
+        variables.forEach(((value, key) => {
+            this.params.variables[key] = value;
+        }));
     }
 
     public async runAndGetOutput(macroName: string): Promise<string> {

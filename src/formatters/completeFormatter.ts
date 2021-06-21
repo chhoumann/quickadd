@@ -77,7 +77,7 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async getMacroValue(macroName: string): Promise<string> {
-        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros);
+        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros, this.variables);
         const macroOutput = await macroEngine.runAndGetOutput(macroName) ?? "";
 
         Object.keys(macroEngine.params.variables).forEach(key => {
