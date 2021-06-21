@@ -49,3 +49,11 @@
     justify-content: space-between;
     margin-bottom: 10px;
 }
+
+.choiceNameHeader {
+    text-align: center;
+}
+
+.choiceNameHeader:hover {
+    cursor: pointer;
+}

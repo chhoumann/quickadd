@@ -2,6 +2,8 @@ import {App, Modal, SearchComponent, Setting} from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type {SvelteComponent} from "svelte";
 import {GenericTextSuggester} from "../genericTextSuggester";
+import GenericInputPrompt from "../GenericInputPrompt/genericInputPrompt";
+import {log} from "../../logger/logManager";
 
 export abstract class ChoiceBuilder extends Modal {
     private resolvePromise: (input: IChoice) => void;
@@ -49,10 +51,22 @@ export abstract class ChoiceBuilder extends Modal {
         return component;
     }
 
-    protected addCenteredHeader(header: string): void {
-        const headerEl = this.contentEl.createEl('h2');
-        headerEl.style.textAlign = "center";
-        headerEl.setText(header);
+    protected addCenteredChoiceNameHeader(choice: IChoice): void {
+        const headerEl: HTMLHeadingElement = this.contentEl.createEl('h2', {cls: "choiceNameHeader"});
+        headerEl.setText(choice.name);
+
+        headerEl.addEventListener('click', async ev => {
+            try {
+                const newName: string = await GenericInputPrompt.Prompt(this.app, choice.name, "Choice name", choice.name);
+                if (newName !== choice.name) {
+                    choice.name = newName;
+                    headerEl.setText(newName);
+                }
+            }
+            catch (e) {
+                log.logMessage(`No new name given for ${choice.name}`);
+            }
+        });
     }
 
     onClose() {

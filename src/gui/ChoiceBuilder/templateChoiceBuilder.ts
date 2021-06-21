@@ -19,7 +19,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
-        this.addCenteredHeader(this.choice.name);
+        this.addCenteredChoiceNameHeader(this.choice);
         this.addTemplatePathSetting();
         this.addFileNameFormatSetting();
         this.addFolderSetting();

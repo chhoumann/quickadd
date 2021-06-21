@@ -22,7 +22,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     protected display() {
         this.contentEl.empty();
 
-        this.addCenteredHeader(this.choice.name);
+        this.addCenteredChoiceNameHeader(this.choice);
         this.addCapturedToSetting();
         this.addTaskSetting();
 

@@ -18,7 +18,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
-        this.addCenteredHeader(this.choice.name);
+        this.addCenteredChoiceNameHeader(this.choice);
         this.addSelectedMacroElement();
         this.addSelectMacroSearch();
     }
