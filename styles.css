@@ -71,3 +71,8 @@
     align-content: center;
     justify-content: center;
 }
+
+.choiceBuilderModal .modal {
+    overflow-y: auto;
+    max-height: 70%;
+}
