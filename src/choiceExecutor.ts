@@ -54,6 +54,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
     }
 
     private async onChooseMacroType(macroChoice: IMacroChoice) {
-        await new MacroChoiceEngine(this.app, this.plugin, macroChoice, this.plugin.settings.macros, this, this.variables).run();
+        const macroEngine = await new MacroChoiceEngine(this.app, this.plugin, macroChoice, this.plugin.settings.macros, this, this.variables);
+        await macroEngine.run();
+
+        Object.keys(macroEngine.params.variables).forEach(key => {
+            this.variables.set(key, macroEngine.params.variables[key]);
+        });
     }
 }

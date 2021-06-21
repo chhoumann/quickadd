@@ -20,7 +20,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     protected output: string;
     protected macros: IMacro[];
     protected choiceExecutor: IChoiceExecutor;
-    protected readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
+    public params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
     protected readonly plugin: QuickAdd;
 
     constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, macros: IMacro[], choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
