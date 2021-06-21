@@ -8,20 +8,25 @@ import {JAVASCRIPT_FILE_EXTENSION_REGEX} from "../constants";
 import type {ICommand} from "../types/macros/ICommand";
 import type {SvelteComponent} from "svelte";
 import CommandList from "./CommandList.svelte"
+import type IChoice from "../types/choices/IChoice";
+import {Choice} from "../types/choices/Choice";
+import {ChoiceCommand} from "../types/macros/ChoiceCommand";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
     public waitForClose: Promise<IMacro>;
     private commands: IObsidianCommand[] = [];
     private javascriptFiles: TFile[] = [];
+    private readonly choices: IChoice[] = [];
     private commandListEl: CommandList;
     private svelteElements: SvelteComponent[];
     private resolvePromise: (macro: IMacro) => void;
 
-    constructor(app: App, macro: IMacro) {
+    constructor(app: App, macro: IMacro, choices: IChoice[]) {
         super(app);
         this.macro = macro;
         this.svelteElements = [];
+        this.choices = choices;
 
         this.waitForClose = new Promise<IMacro>(resolve => (this.resolvePromise = resolve));
 
@@ -37,6 +42,7 @@ export class MacroBuilder extends Modal {
         this.addCommandList();
         this.addAddObsidianCommandSetting();
         this.addAddUserScriptSetting();
+        this.addAddChoiceSetting();
     }
 
     protected addCenteredHeader(header: string): void {
@@ -89,6 +95,29 @@ export class MacroBuilder extends Modal {
                     }
                 })
             })
+    }
+
+    private addAddChoiceSetting() {
+        new Setting(this.contentEl)
+            .setName("Choices")
+            .setDesc("Add choice")
+            .addSearch(searchComponent => {
+               searchComponent.setPlaceholder("Choice");
+               new GenericTextSuggester(this.app, searchComponent.inputEl, this.choices.map(c => c.name));
+
+               searchComponent.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
+                   if (e.key === 'Enter') {
+                       const value: string = searchComponent.getValue();
+                       const choice = this.choices.find(c => c.name === value);
+                       if (!choice) return;
+
+                       this.macro.commands.push(new ChoiceCommand(choice.name, choice.id));
+                       this.commandListEl.updateCommandList(this.macro.commands);
+
+                       searchComponent.setValue("");
+                   }
+               })
+            });
     }
 
     private getObsidianCommands(): void {

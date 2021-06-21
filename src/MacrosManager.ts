@@ -3,6 +3,9 @@ import {App, ButtonComponent, Modal, Setting, TextComponent, ToggleComponent} fr
 import {MacroBuilder} from "./gui/MacroBuilder";
 import {QuickAddMacro} from "./types/macros/QuickAddMacro";
 import {log} from "./logger/logManager";
+import type IChoice from "./types/choices/IChoice";
+import {ChoiceType} from "./types/choices/choiceType";
+import type IMultiChoice from "./types/choices/IMultiChoice";
 
 export class MacrosManager extends Modal {
     public waitForClose: Promise<IMacro[]>;
@@ -10,7 +13,7 @@ export class MacrosManager extends Modal {
     private rejectPromise: (reason?: any) => void;
     private updateMacroContainer: () => void;
 
-    constructor(public app: App, private macros: IMacro[]) {
+    constructor(public app: App, private macros: IMacro[], private choices: IChoice[]) {
         super(app)
 
         this.waitForClose = new Promise<IMacro[]>(
@@ -82,7 +85,20 @@ export class MacrosManager extends Modal {
             configureButton.buttonEl.style.marginRight = "0";
 
             configureButton.setButtonText("Configure").onClick(async evt => {
-                const newMacro = await new MacroBuilder(this.app, macro).waitForClose;
+                const getReachableChoices = (choices: IChoice[]) => {
+                    let reachableChoices: IChoice[] = [];
+                    choices.forEach(choice => {
+                        if (choice.type === ChoiceType.Multi)
+                            reachableChoices.push(...getReachableChoices((<IMultiChoice>choice).choices));
+
+                        if (choice.type !== ChoiceType.Multi)
+                            reachableChoices.push(choice);
+                    })
+                    return reachableChoices;
+                }
+
+                const reachableChoices = getReachableChoices(this.choices);
+                const newMacro = await new MacroBuilder(this.app, macro, reachableChoices).waitForClose;
 
                 if (newMacro) {
                     this.updateMacro(newMacro);

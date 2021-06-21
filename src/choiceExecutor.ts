@@ -9,22 +9,25 @@ import {log} from "./logger/logManager";
 import {TemplateChoiceEngine} from "./engine/TemplateChoiceEngine";
 import {CaptureChoiceEngine} from "./engine/CaptureChoiceEngine";
 import {MacroChoiceEngine} from "./engine/MacroChoiceEngine";
+import type {IChoiceExecutor} from "./IChoiceExecutor";
 
-export class ChoiceExecutor {
-    constructor(private app: App, private plugin: QuickAdd, private choice: IChoice) { }
+export class ChoiceExecutor implements IChoiceExecutor {
+    private variables: Map<string, string> = new Map<string, string>();
 
-    public async execute(): Promise<void> {
-        switch (this.choice.type) {
+    constructor(private app: App, private plugin: QuickAdd) { }
+
+    async execute(choice: IChoice): Promise<void> {
+        switch (choice.type) {
             case ChoiceType.Template:
-                const templateChoice: ITemplateChoice = this.choice as ITemplateChoice;
+                const templateChoice: ITemplateChoice = choice as ITemplateChoice;
                 await this.onChooseTemplateType(templateChoice);
                 break;
             case ChoiceType.Capture:
-                const captureChoice: ICaptureChoice = this.choice as ICaptureChoice;
+                const captureChoice: ICaptureChoice = choice as ICaptureChoice;
                 await this.onChooseCaptureType(captureChoice);
                 break;
             case ChoiceType.Macro:
-                const macroChoice: IMacroChoice = this.choice as IMacroChoice;
+                const macroChoice: IMacroChoice = choice as IMacroChoice;
                 await this.onChooseMacroType(macroChoice);
                 break;
             default:
@@ -38,7 +41,7 @@ export class ChoiceExecutor {
             return;
         }
 
-        await new TemplateChoiceEngine(this.app, this.plugin, templateChoice).run();
+        await new TemplateChoiceEngine(this.app, this.plugin, templateChoice, this).run();
     }
 
     private async onChooseCaptureType(captureChoice: ICaptureChoice) {
@@ -47,10 +50,15 @@ export class ChoiceExecutor {
             return;
         }
 
-        await new CaptureChoiceEngine(this.app, this.plugin, captureChoice).run();
+        await new CaptureChoiceEngine(this.app, this.plugin, captureChoice, this).run();
     }
 
     private async onChooseMacroType(macroChoice: IMacroChoice) {
-        await new MacroChoiceEngine(this.app, macroChoice, this.plugin.settings.macros).run();
+        const macroEngine = await new MacroChoiceEngine(this.app, this.plugin, macroChoice, this.plugin.settings.macros, this, this.variables);
+        await macroEngine.run();
+
+        Object.keys(macroEngine.params.variables).forEach(key => {
+            this.variables.set(key, macroEngine.params.variables[key]);
+        });
     }
 }

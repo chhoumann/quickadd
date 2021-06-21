@@ -7,17 +7,18 @@ import {MARKDOWN_FILE_EXTENSION_REGEX, VALUE_SYNTAX} from "../constants";
 import type QuickAdd from "../main";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 import {SingleTemplateEngine} from "./SingleTemplateEngine";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
     choice: ICaptureChoice;
     private formatter: CaptureChoiceFormatter;
     private readonly plugin: QuickAdd;
 
-    constructor(app: App, plugin: QuickAdd, choice: ICaptureChoice) {
+    constructor(app: App, plugin: QuickAdd, choice: ICaptureChoice, private choiceExecutor: IChoiceExecutor) {
         super(app);
         this.choice = choice;
         this.plugin = plugin;
-        this.formatter = new CaptureChoiceFormatter(app, plugin);
+        this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
     }
 
     async run(): Promise<void> {
@@ -46,7 +47,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                 await this.app.vault.modify(file, newFileContent);
             } else if (this.choice?.createFileIfItDoesntExist?.enabled) {
                 const singleTemplateEngine: SingleTemplateEngine =
-                    new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template);
+                    new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
 
                 const fileContent: string = await singleTemplateEngine.run();
                 const createdFile: TFile = await this.createFileWithInput(filePath, fileContent);

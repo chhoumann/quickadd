@@ -3,14 +3,15 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
     private file: TFile = null;
     private fileContent: string = "";
 
-    constructor(app: App, plugin: QuickAdd) {
-        super(app, plugin);
+    constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
+        super(app, plugin, choiceExecutor);
     }
 
     public async formatContentWithFile(input: string, choice: ICaptureChoice, fileContent: string, file: TFile): Promise<string> {

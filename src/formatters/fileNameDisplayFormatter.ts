@@ -10,6 +10,7 @@ export class FileNameDisplayFormatter extends Formatter {
     public async format(input: string): Promise<string> {
         let output: string = input;
 
+        output = await this.replaceMacrosInString(output);
         output = this.replaceDateInString(output);
         output = await this.replaceValueInString(output);
         output = await this.replaceDateVariableInString(output);

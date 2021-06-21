@@ -10,15 +10,31 @@ import type {ICommand} from "../types/macros/ICommand";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 import type {IMacro} from "../types/macros/IMacro";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import type {IChoiceCommand} from "../types/macros/IChoiceCommand";
+import type IChoice from "../types/choices/IChoice";
+import type QuickAdd from "../main";
+import type {IChoiceExecutor} from "../IChoiceExecutor";
+import {ChoiceType} from "../types/choices/choiceType";
+import type IMultiChoice from "../types/choices/IMultiChoice";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
     protected output: string;
-    protected readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app)};
+    protected macros: IMacro[];
+    protected choiceExecutor: IChoiceExecutor;
+    public params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
+    protected readonly plugin: QuickAdd;
 
-    constructor(app: App, choice: IMacroChoice, protected macros: IMacro[]) {
+    constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, macros: IMacro[], choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
         super(app);
         this.choice = choice;
+        this.plugin = plugin;
+        this.macros = macros;
+        this.choiceExecutor = choiceExecutor;
+
+        variables?.forEach(((value, key) => {
+            this.params.variables[key] = value;
+        }));
     }
 
     async run(): Promise<void> {
@@ -34,6 +50,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
                 await this.executeObsidianCommand(command as IObsidianCommand);
             if (command?.type === CommandType.UserScript)
                 await this.executeUserScript(command as IUserScript);
+            if (command?.type === CommandType.Choice)
+                await this.executeChoice(command as IChoiceCommand);
         }
     }
 
@@ -108,5 +126,29 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         // @ts-ignore
         this.app.commands.executeCommandById(command.commandId);
     }
-}
 
+    protected async executeChoice(command: IChoiceCommand) {
+        const choices: IChoice[] = this.plugin.settings.choices;
+
+        const findChoice = (choiceArr: IChoice[]) => {
+            let tempChoice: IChoice;
+            for (const choice of choiceArr) {
+                tempChoice = choice;
+
+                if (choice.type === ChoiceType.Multi)
+                    tempChoice = findChoice((<IMultiChoice> choice).choices);
+
+                if (tempChoice.id === command.choiceId)
+                    return tempChoice;
+            }
+        }
+
+        const targetChoice = findChoice(choices);
+        if (!targetChoice) {
+            log.logError("choice could not be found.");
+            return;
+        }
+
+        await this.choiceExecutor.execute(targetChoice);
+    }
+}
