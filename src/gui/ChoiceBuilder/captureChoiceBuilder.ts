@@ -1,13 +1,14 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type {App} from "obsidian";
-import {Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
+import {SearchComponent, Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX, FORMAT_SYNTAX} from "../../constants";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {GenericTextSuggester} from "../genericTextSuggester";
+import {getTemplatePaths, getTemplatesFolderPath} from "../../utility";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
@@ -24,6 +25,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
         this.addCenteredChoiceNameHeader(this.choice);
         this.addCapturedToSetting();
+        this.addCreateIfNotExistsSetting();
         this.addTaskSetting();
 
         if (!this.choice.captureToActiveFile) {
@@ -155,5 +157,40 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         const formatDisplay: HTMLSpanElement = this.contentEl.createEl('span');
         const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(this.app, this.plugin);
         (async () => formatDisplay.innerText = await displayFormatter.format(this.choice.format.format))();
+    }
+
+    private addCreateIfNotExistsSetting() {
+        let templateSelector: TextComponent;
+
+        if (!this.choice.createFileIfItDoesntExist)
+            this.choice.createFileIfItDoesntExist = {enabled: false, template: ""};
+
+        const createFileIfItDoesntExist: Setting = new Setting(this.contentEl);
+        createFileIfItDoesntExist
+            .setName("Create file if it doesn't exist")
+            .setDesc("Specify a template to create it with. If no template is given, it'll be created as an empty file.")
+            .addToggle(toggle => toggle
+                .setValue(this.choice?.createFileIfItDoesntExist?.enabled)
+                .setTooltip("Create file if it doesn't exist")
+                .onChange(value => {
+                    this.choice.createFileIfItDoesntExist.enabled = value
+                    templateSelector.setDisabled(!value);
+                })
+            );
+
+        templateSelector = new TextComponent(this.contentEl);
+        templateSelector.setValue(this.choice?.createFileIfItDoesntExist?.template ?? "")
+            .setPlaceholder("Template path")
+            .setDisabled(!this.choice?.createFileIfItDoesntExist?.enabled);
+
+        templateSelector.inputEl.style.width = "100%";
+        templateSelector.inputEl.style.marginBottom = "8px";
+
+        const markdownFiles: string[] = getTemplatePaths(this.app);
+        new GenericTextSuggester(this.app, templateSelector.inputEl, markdownFiles);
+
+        templateSelector.onChange(value => {
+            this.choice.createFileIfItDoesntExist.template = value;
+        });
     }
 }
