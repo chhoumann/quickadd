@@ -1,6 +1,6 @@
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type {App, TFile} from "obsidian";
-import {appendToCurrentLine} from "../utility";
+import {appendToCurrentLine, getAllFolders} from "../utility";
 import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
@@ -17,7 +17,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
     public async run(): Promise<void> {
         try {
-            const folderPath = await this.getOrCreateFolder(this.choice.folder.folders);
+            let folderPath: string = "";
+
+            if (this.choice.folder.enabled) {
+                let folders: string[] = this.choice.folder.folders;
+
+                if (this.choice.folder?.chooseWhenCreatingNote) {
+                    folders = await getAllFolders(this.app);
+                }
+
+                folderPath = await this.getOrCreateFolder(folders);
+            }
 
             let filePath;
 

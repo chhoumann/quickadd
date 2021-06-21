@@ -1,5 +1,5 @@
 import type {App} from "obsidian";
-import {MarkdownView} from "obsidian";
+import {MarkdownView, TFolder} from "obsidian";
 import {log} from "./logger/logManager";
 
 export function getTemplater(app: App) {
@@ -83,4 +83,10 @@ export function deleteObsidianCommand(app: App, commandId: string) {
         // @ts-ignore
         delete app.commands.editorCommands[commandId];
     }
+}
+
+export function getAllFolders(app: App): string[] {
+    return app.vault.getAllLoadedFiles()
+        .filter(f => f instanceof TFolder)
+        .map(folder => folder.path);
 }
