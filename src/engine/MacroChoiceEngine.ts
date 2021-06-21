@@ -14,6 +14,8 @@ import type {IChoiceCommand} from "../types/macros/IChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
+import {ChoiceType} from "../types/choices/choiceType";
+import type IMultiChoice from "../types/choices/IMultiChoice";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
@@ -127,7 +129,25 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
     protected async executeChoice(command: IChoiceCommand) {
         const choices: IChoice[] = this.plugin.settings.choices;
-        const targetChoice: IChoice = choices.find(c => c.id === command.choiceId);
+
+        const findChoice = (choiceArr: IChoice[]) => {
+            let tempChoice: IChoice;
+            for (const choice of choiceArr) {
+                tempChoice = choice;
+
+                if (choice.type === ChoiceType.Multi)
+                    tempChoice = findChoice((<IMultiChoice> choice).choices);
+
+                if (tempChoice.id === command.choiceId)
+                    return tempChoice;
+            }
+        }
+
+        const targetChoice = findChoice(choices);
+        if (!targetChoice) {
+            log.logError("choice could not be found.");
+            return;
+        }
 
         await this.choiceExecutor.execute(targetChoice);
     }
