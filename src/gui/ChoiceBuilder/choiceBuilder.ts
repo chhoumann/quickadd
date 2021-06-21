@@ -24,7 +24,7 @@ export abstract class ChoiceBuilder extends Modal {
             }
         );
 
-        this.containerEl.addClass('choiceBuilderModal');
+        this.containerEl.addClass('quickAddModal');
         this.open();
     }
 

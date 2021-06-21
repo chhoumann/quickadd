@@ -2,13 +2,15 @@ import GenericInputPrompt from "./gui/GenericInputPrompt/genericInputPrompt";
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import type {App} from "obsidian";
+import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 
 export class QuickAddApi {
     public static GetApi(app: App) {
         return {
             inputPrompt: (header: string, placeholder?: string, value?: string) => {return this.inputPrompt(app, header, placeholder, value)},
             yesNoPrompt: (header: string, text?: string) => {return this.yesNoPrompt(app, header, text)},
-            suggester: (displayItems: string[], actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)}
+            suggester: (displayItems: string[], actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
+            checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)}
         };
     }
 
@@ -31,6 +33,14 @@ export class QuickAddApi {
     public static async suggester(app: App, displayItems: string[], actualItems: string[]) {
         try {
             return await GenericSuggester.Suggest(app, displayItems, actualItems);
+        } catch {
+            return undefined;
+        }
+    }
+
+    public static async checkboxPrompt(app: App, items: string[], selectedItems?: string[]) {
+        try {
+            return await GenericCheckboxPrompt.Open(app, items, selectedItems);
         } catch {
             return undefined;
         }

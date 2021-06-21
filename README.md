@@ -169,6 +169,13 @@ Opens a prompt asking for confirmation. Returns `true` or `false` based on answe
 ### `suggester: (displayItems: string[], actualItems: string[])`
 Opens a suggester. Displays the `displayItems`, but you map these the other values with `actualItems`.
 
+Returns the selected value.
+
+### `checkboxPrompt: (items: string[], selectedItems: string[])`
+Opens a checkbox prompt with the items given. Items in the `selectedItems` array will be selected by default.
+
+Returns an array of the selected items.
+
 ## Examples
 ### Capture: Add journal entry
 ![image](https://user-images.githubusercontent.com/29108628/121774877-c2d82980-cb84-11eb-99c4-a20a14e41856.png)
