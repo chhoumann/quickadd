@@ -7,8 +7,6 @@ import type {IMacro} from "../../types/macros/IMacro";
 
 export class MacroChoiceBuilder extends ChoiceBuilder {
     choice: IMacroChoice;
-    selectedMacro: IMacro;
-    private updateSelectedMacro: () => void;
 
     constructor(app: App, choice: IMacroChoice, private macros: IMacro[]) {
         super(app);
