@@ -4,7 +4,7 @@ Quickly add new pages or content to your vault.
 ![zApIWkHrKP](https://user-images.githubusercontent.com/29108628/121762835-bb8b2e80-cb38-11eb-8ef6-b65700526caf.gif)
 
 ## Installation
-This plugin is not in the community plugin browser in Obsidian (yet).
+**This plugin is in the community plugin browser in Obsidian**. You can search for it there and install it.
 
 ### Manual Installation
 1. Go to [Releases](https://github.com/chhoumann/quickadd/releases) and download the ZIP file from the latest release. The one that looks like `quickadd-x.x.x.zip`.
