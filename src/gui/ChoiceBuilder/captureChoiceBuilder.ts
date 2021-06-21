@@ -8,6 +8,7 @@ import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {GenericTextSuggester} from "../genericTextSuggester";
+import {getTemplatePaths} from "../../utility";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
@@ -22,8 +23,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     protected display() {
         this.contentEl.empty();
 
-        this.addCenteredHeader(this.choice.name);
+        this.addCenteredChoiceNameHeader(this.choice);
         this.addCapturedToSetting();
+        if (!this.choice?.captureToActiveFile) {
+            this.addCreateIfNotExistsSetting();
+            if (this.choice?.createFileIfItDoesntExist?.enabled)
+                this.addCreateWithTemplateSetting();
+        }
+
         this.addTaskSetting();
 
         if (!this.choice.captureToActiveFile) {
@@ -51,7 +58,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         captureToActiveFileToggle.onChange(value => {
             this.choice.captureToActiveFile = value;
 
-            this.display();
+            this.reload();
         });
 
         if (!this.choice?.captureToActiveFile) {
@@ -155,5 +162,48 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         const formatDisplay: HTMLSpanElement = this.contentEl.createEl('span');
         const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(this.app, this.plugin);
         (async () => formatDisplay.innerText = await displayFormatter.format(this.choice.format.format))();
+    }
+
+    private addCreateIfNotExistsSetting() {
+        if (!this.choice.createFileIfItDoesntExist)
+            this.choice.createFileIfItDoesntExist = {enabled: false, createWithTemplate: false, template: ""};
+
+        const createFileIfItDoesntExist: Setting = new Setting(this.contentEl);
+        createFileIfItDoesntExist
+            .setName("Create file if it doesn't exist")
+            .addToggle(toggle => toggle
+                .setValue(this.choice?.createFileIfItDoesntExist?.enabled)
+                .setTooltip("Create file if it doesn't exist")
+                .onChange(value => {
+                    this.choice.createFileIfItDoesntExist.enabled = value
+                    this.reload();
+                })
+            );
+    }
+
+    private addCreateWithTemplateSetting() {
+        let templateSelector: TextComponent;
+        const createWithTemplateSetting = new Setting(this.contentEl);
+        createWithTemplateSetting.setName("Create file with given template.")
+            .addToggle(toggle => toggle.setValue(this.choice.createFileIfItDoesntExist?.createWithTemplate)
+                .onChange(value => {
+                    this.choice.createFileIfItDoesntExist.createWithTemplate = value
+                    templateSelector.setDisabled(!value);
+                }));
+
+        templateSelector = new TextComponent(this.contentEl);
+        templateSelector.setValue(this.choice?.createFileIfItDoesntExist?.template ?? "")
+            .setPlaceholder("Template path")
+            .setDisabled(!this.choice?.createFileIfItDoesntExist?.createWithTemplate);
+
+        templateSelector.inputEl.style.width = "100%";
+        templateSelector.inputEl.style.marginBottom = "8px";
+
+        const markdownFiles: string[] = getTemplatePaths(this.app);
+        new GenericTextSuggester(this.app, templateSelector.inputEl, markdownFiles);
+
+        templateSelector.onChange(value => {
+            this.choice.createFileIfItDoesntExist.template = value;
+        });
     }
 }

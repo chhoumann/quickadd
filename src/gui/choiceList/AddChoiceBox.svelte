@@ -15,6 +15,7 @@
         }
 
         dispatch('addChoice', {name, type});
+        name = "";
     }
 
 

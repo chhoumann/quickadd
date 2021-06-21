@@ -1,5 +1,5 @@
 import {ChoiceBuilder} from "./choiceBuilder";
-import {App, Setting, TextComponent, TFolder} from "obsidian";
+import {App, ButtonComponent, Setting, TextComponent, TFolder} from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX} from "../../constants";
@@ -7,6 +7,9 @@ import {NewTabDirection} from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {ExclusiveSuggester} from "../exclusiveSuggester";
+import {log} from "../../logger/logManager";
+import {getTemplatePaths} from "../../utility";
+import {GenericTextSuggester} from "../genericTextSuggester";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;
@@ -19,7 +22,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
-        this.addCenteredHeader(this.choice.name);
+        this.addCenteredChoiceNameHeader(this.choice);
         this.addTemplatePathSetting();
         this.addFileNameFormatSetting();
         this.addFolderSetting();
@@ -33,11 +36,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     private addTemplatePathSetting(): void {
         const templatePathSetting = new Setting(this.contentEl)
             .setName('Template Path')
-            .setDesc('Path to the Template.');
+            .setDesc('Path to the Template.')
+            .addSearch(search => {
+                const templates: string[] = getTemplatePaths(this.app);
+                search.setValue(this.choice.templatePath);
+                search.setPlaceholder("Template path");
 
-        this.addFileSearchInputToSetting(templatePathSetting, this.choice.templatePath, value => {
-           this.choice.templatePath = value;
-        });
+                new GenericTextSuggester(this.app, search.inputEl, templates);
+
+                search.onChange(value => {
+                    this.choice.templatePath = value;
+                })
+            })
     }
 
     private addFileNameFormatSetting(): void {
@@ -97,26 +107,41 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
         this.svelteElements.push(folderListEl);
 
-        const folderInput = new TextComponent(this.contentEl);
-        folderInput.setPlaceholder("Folder path");
+        const inputContainer = this.contentEl.createDiv('folderInputContainer');
+        const folderInput = new TextComponent(inputContainer);
         folderInput.inputEl.style.width = "100%";
-        folderInput.inputEl.style.marginBottom = "8px";
+        folderInput.setPlaceholder("Folder path");
         const folders: string[] = this.app.vault.getAllLoadedFiles()
             .filter(f => f instanceof TFolder)
             .map(folder => folder.path);
 
         const suggester = new ExclusiveSuggester(this.app, folderInput.inputEl, folders, this.choice.folder.folders);
 
-        folderInput.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
+        const addFolder = () => {
             const input = folderInput.inputEl.value.trim();
-            if (e.key === 'Enter' && !this.choice.folder.folders.some(folder => folder === input)) {
-                this.choice.folder.folders.push(input);
-                folderListEl.updateFolders(this.choice.folder.folders);
-                folderInput.inputEl.value = "";
 
-                suggester.updateCurrentItems(this.choice.folder.folders);
+            if (this.choice.folder.folders.some(folder => folder === input)) {
+                log.logWarning("cannot add same folder twice.");
+                return;
             }
-        })
+
+            this.choice.folder.folders.push(input);
+            folderListEl.updateFolders(this.choice.folder.folders);
+            folderInput.inputEl.value = "";
+
+            suggester.updateCurrentItems(this.choice.folder.folders);
+        }
+
+        folderInput.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                addFolder();
+            }
+        });
+
+        const addButton: ButtonComponent = new ButtonComponent(inputContainer);
+        addButton.setCta().setButtonText("Add").onClick(evt => {
+            addFolder();
+        });
     }
 
     private addAppendLinkSetting(): void {

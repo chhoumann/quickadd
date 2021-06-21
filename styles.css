@@ -49,3 +49,31 @@
     justify-content: space-between;
     margin-bottom: 10px;
 }
+
+.choiceNameHeader {
+    text-align: center;
+}
+
+.choiceNameHeader:hover {
+    cursor: pointer;
+}
+
+.folderInputContainer {
+    display: flex;
+    align-content: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 4px;
+}
+
+.selectMacroDropdownContainer {
+    display: flex;
+    align-content: center;
+    justify-content: center;
+}
+
+.choiceBuilderModal .modal {
+    min-width: 35%;
+    overflow-y: auto;
+    max-height: 70%;
+}
