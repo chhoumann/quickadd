@@ -9,10 +9,12 @@ import {QuickAddApi} from "../quickAddApi";
 import type {ICommand} from "../types/macros/ICommand";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 import type {IMacro} from "../types/macros/IMacro";
+import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
-    choice: IMacroChoice;
+    public choice: IMacroChoice;
     protected output: string;
+    protected readonly params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app)};
 
     constructor(app: App, choice: IMacroChoice, protected macros: IMacro[]) {
         super(app);
@@ -38,6 +40,50 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     // Slightly modified from Templater's user script engine:
     // https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
     protected async executeUserScript(command: IUserScript) {
+        const userScript = await this.getUserScript(command);
+        if (!userScript || !userScript.default) {
+            log.logError(`failed to load user script ${command.path}.`);
+            return;
+        }
+
+        await this.userScriptDelegator(userScript.default);
+    }
+
+    protected async userScriptDelegator(userScript: any) {
+        switch (typeof userScript) {
+            case "function":
+                await this.onExportIsFunction(userScript);
+                break;
+            case "object":
+                await this.onExportIsObject(userScript);
+                break;
+            case "bigint":
+            case "boolean":
+            case "number":
+            case "string":
+                this.output = userScript.toString();
+                break;
+            default:
+                log.logError(`user script in macro for '${this.choice.name}' is invalid`);
+        }
+    }
+
+    private async onExportIsFunction(userScript: any) {
+        this.output = await userScript(this.params);
+    }
+
+    protected async onExportIsObject(obj: object) {
+        try {
+            const keys = Object.keys(obj);
+            const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
+
+            await this.userScriptDelegator(obj[selected]);
+        } catch (e) {
+            log.logMessage(e);
+        }
+    }
+
+    protected async getUserScript(command: IUserScript) {
         // @ts-ignore
         const vaultPath = this.app.vault.adapter.getBasePath();
         const file: TAbstractFile = this.app.vault.getAbstractFileByPath(command.path);
@@ -54,13 +100,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             }
 
             // @ts-ignore
-            const userScript = await import(filePath);
-            if (!userScript.default || !(userScript.default instanceof Function)) {
-                log.logError(`failed to load user script ${filePath}.`);
-                return;
-            }
-
-            this.output = await userScript.default({app: this.app, quickAddApi: QuickAddApi.GetApi(this.app)});
+            return await import(filePath);
         }
     }
 

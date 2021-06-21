@@ -100,7 +100,7 @@ export abstract class Formatter {
             const macroName = MACRO_REGEX.exec(output)[1];
             const macroOutput = await this.getMacroValue(macroName);
 
-            output = output.replace(MACRO_REGEX, macroOutput.toString());
+            output = output.replace(MACRO_REGEX, macroOutput ? macroOutput.toString() : "");
         }
 
         return output;

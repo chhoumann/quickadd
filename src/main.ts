@@ -1,9 +1,5 @@
 import {Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, QuickAddSettings, QuickAddSettingsTab} from "./quickAddSettingsTab";
-import {TemplateChoice} from "./types/choices/TemplateChoice";
-import {MultiChoice} from "./types/choices/MultiChoice";
-import {CaptureChoice} from "./types/choices/CaptureChoice";
-import {MacroChoice} from "./types/choices/MacroChoice";
 import ChoiceSuggester from "./gui/choiceSuggester";
 import {log} from "./logger/logManager";
 import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
@@ -41,32 +37,6 @@ export default class QuickAdd extends Plugin {
 				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
 		});
-		/*END.DEVCMD*/
-
-		/*START.DEVCMD*/
-		this.addCommand({
-			id: 'giveDivChoices',
-			name: 'Give Dev Choices',
-			callback: () => {
-				this.settings.choices = [
-					new TemplateChoice("🚶‍♂️ Journal"),
-					new TemplateChoice('📖 Log Book to Daily Journal'),
-					new MultiChoice('📥 Add...')
-						.addChoice(new CaptureChoice('💭 Add a Thought'))
-						.addChoice(new CaptureChoice('📥 Add an Inbox Item'))
-						.addChoice(new TemplateChoice('📕 Add Book Notes')),
-                    new CaptureChoice("✍ Quick Capture"),
-                    new TemplateChoice('💬 Add Quote Page'),
-					new MultiChoice('🌀 Task Manager')
-						.addChoice(new MacroChoice('✔ Add a Task'))
-						.addChoice(new CaptureChoice('✔ Quick Capture Task'))
-						.addChoice(new CaptureChoice('✔ Add MetaEdit Backlog Task')),
-                    new CaptureChoice('💸 Add Purchase'),
-				];
-
-				this.saveSettings();
-			}
-		})
 		/*END.DEVCMD*/
 
 		log.register(new ConsoleErrorLogger())
@@ -140,7 +110,5 @@ export default class QuickAdd extends Plugin {
 
 		await this.saveSettings();
 	}
-
-
 }
 

@@ -19,12 +19,12 @@ export class CompleteFormatter extends Formatter {
     protected async format(input: string): Promise<string> {
         let output: string = input;
 
+        output = await this.replaceMacrosInString(output);
+        output = await this.replaceTemplateInString(output);
         output = this.replaceDateInString(output);
         output = await this.replaceValueInString(output);
         output = await this.replaceDateVariableInString(output);
         output = await this.replaceVariableInString(output);
-        output = await this.replaceMacrosInString(output);
-        output = await this.replaceTemplateInString(output);
 
         return output;
     }
@@ -77,8 +77,14 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async getMacroValue(macroName: string): Promise<string> {
-        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros);
-        return await macroEngine.runAndGetOutput(macroName);
+        const macroEngine: SingleMacroEngine = new SingleMacroEngine(this.app, this.plugin.settings.macros, this.variables);
+        const macroOutput = await macroEngine.runAndGetOutput(macroName) ?? "";
+
+        Object.keys(macroEngine.params.variables).forEach(key => {
+            this.variables.set(key, macroEngine.params.variables[key]);
+        })
+
+        return macroOutput;
     }
 
     protected async getTemplateContent(templatePath: string): Promise<string> {

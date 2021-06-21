@@ -16,6 +16,9 @@ This plugin is not in the community plugin browser in Obsidian (yet).
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
 
 ### Template
+The template choice type is not meant to be a replacement for Templater or core Templates. It's meant to augment them. You can use both QuickAdd format syntax in a Templater template - and both will work.
+That's one thing. But there's also all the other options: dynamic template names, adding to folders, appending links, incrementing file names, opening the file when it's created (or not), etc.
+
 You first need to specify a _template path_. This is a path to the template you wish to insert.
 
 The remaining settings are useful, but optional. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.
@@ -68,7 +71,7 @@ This is what my `logBook` macro looks like. It's pretty plain - it just executes
 ![image](https://user-images.githubusercontent.com/29108628/121774245-cfa74e00-cb81-11eb-9977-3ddac04dc8bd.png)
 
 The `logBook` user script simply updates the book in my daily page to something I specify in a prompt.
-Here it is - with some comments that explain the code.
+Here it is - with some comments that explain the code. [How-to-install guide](https://github.com/chhoumann/quickadd/issues/15#issuecomment-864553251).
 
 ```js
 // You have to export the function you wish to run.
@@ -89,6 +92,56 @@ module.exports = async (params) => {
 }
 ```
 
+Any function executed by QuickAdd will be passed an object as the first (and only) parameter.
+The object contains
+- A reference to the Obsidian `app`.
+- A reference to the QuickAddApi - which allows you to use the functions below.
+- A reference to `variables`, an object which, if you assign values to it, you can use in your format syntax.
+
+Let's talk a bit more about `variables`. If you assign a value to a key in `variables`, you can access that variable by its key name.
+This can be accessed both in subsequent macros, and the format syntax `{{VALUE:<variable name>}}`.
+
+For example, say you assign `myVar` to `variables`.
+Then you can access the value of `myVar` in subsequent macros, as well as through the format syntax`{{VALUE:myVar}}`.
+You can also access it through `<parametername>.variables["myVar"]`.
+
+````js
+// MACRO 1
+module.exports = (params) => {
+    params.variables["myVar"] = "test";
+}
+
+// MACRO 2
+module.exports = (params) => {
+    console.log(params.variables["myVar"]);
+}
+````
+
+You can use variables to pass parameters between user scripts.
+
+In your user scripts for your macros, you can have use ``module.exports`` to export a function, which will be executed as expected.
+
+You can, however, export much more than functions. You can also export variables - and more functions!
+
+````js
+// Macro called 'MyMacro'
+module.exports = {
+    myVar: "test",
+    plus: (params) => params.variables["a"] + params.variables["b"],
+    start
+}
+
+async function start(params) {
+    params.app.vault.doSomething();
+    const input = await params.quickAddApi.suggester(["DisplayValue1", "DisplayValue2", "DisplayValue3"], ["ActualValue1", "ActualValue2", "ActualValue3"]);
+    return input;
+}
+````
+
+If you select the macro that contains a user script with the above code, you'll be prompted to choose between one of the three exported items.
+
+However, if you want to skip that, you can access nested members using this syntax: `{{MACRO:MyMacro::Start}}`. This will just instantly execute `start`.
+
 ### Multi
 Multi-choices are pretty simple. They're like folders for other choices. Here are mine. They're the ones which you can 'open' and 'close'.
 
@@ -107,13 +160,13 @@ Multi-choices are pretty simple. They're like folders for other choices. Here ar
 | `{{TEMPLATE:<TEMPLATEPATH>}}`              | Include templates in your `format`. Supports Templater syntax.                                                                                                                                                                                                                                                                                    |
 
 ## QuickAdd API
-#### `inputPrompt(header: string, placeholder?: string, value?: string): string`
+### `inputPrompt(header: string, placeholder?: string, value?: string): string`
 Opens a prompt that asks for an input. Returns a string with the input.
 
-#### `yesNoPrompt: (header: string, text?: string): boolean`
+### `yesNoPrompt: (header: string, text?: string): boolean`
 Opens a prompt asking for confirmation. Returns `true` or `false` based on answer.
 
-#### `suggester: (displayItems: string[], actualItems: string[])`
+### `suggester: (displayItems: string[], actualItems: string[])`
 Opens a suggester. Displays the `displayItems`, but you map these the other values with `actualItems`.
 
 ## Examples
