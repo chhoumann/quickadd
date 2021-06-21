@@ -73,10 +73,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     protected async onExportIsObject(obj: object) {
-        const keys = Object.keys(obj);
-        const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
+        try {
+            const keys = Object.keys(obj);
+            const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
 
-        await this.userScriptDelegator(obj[selected]);
+            await this.userScriptDelegator(obj[selected]);
+        } catch (e) {
+            log.logMessage(e);
+        }
     }
 
     protected async getUserScript(command: IUserScript) {
