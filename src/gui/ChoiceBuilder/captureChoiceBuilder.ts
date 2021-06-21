@@ -1,14 +1,14 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type {App} from "obsidian";
-import {SearchComponent, Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
+import {Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {FILE_NAME_FORMAT_SYNTAX, FORMAT_SYNTAX} from "../../constants";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {GenericTextSuggester} from "../genericTextSuggester";
-import {getTemplatePaths, getTemplatesFolderPath} from "../../utility";
+import {getTemplatePaths} from "../../utility";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
@@ -25,9 +25,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
         this.addCenteredChoiceNameHeader(this.choice);
         this.addCapturedToSetting();
-        this.addCreateIfNotExistsSetting();
-        if (this.choice?.createFileIfItDoesntExist?.enabled)
-            this.addCreateWithTemplateSetting();
+        if (!this.choice?.captureToActiveFile) {
+            this.addCreateIfNotExistsSetting();
+            if (this.choice?.createFileIfItDoesntExist?.enabled)
+                this.addCreateWithTemplateSetting();
+        }
 
         this.addTaskSetting();
 
@@ -56,7 +58,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         captureToActiveFileToggle.onChange(value => {
             this.choice.captureToActiveFile = value;
 
-            this.display();
+            this.reload();
         });
 
         if (!this.choice?.captureToActiveFile) {
