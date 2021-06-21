@@ -29,7 +29,7 @@ export class SingleMacroEngine extends MacroChoiceEngine {
     }
 
     protected override async onExportIsObject(obj: any): Promise<void> {
-        if (!this.memberAccess) return await this.userScriptDelegator(obj);
+        if (!this.memberAccess) return await super.onExportIsObject(obj);
         let newObj = obj;
         this.memberAccess.forEach(key => {
            newObj = newObj[key];
