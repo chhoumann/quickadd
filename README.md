@@ -9,8 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.2.7
+### 0.2.7 - 0.2.8
 - Linebreak formatting no longer occurs in Template choices - it only activates for Capture choices. It caused unnecessary conflicts.
+- Fix bug where some Templater functions are activated twice.
 
 ### 0.2.6
 - Throw error if insert after line can't be found - #22
