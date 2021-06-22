@@ -71,7 +71,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
             const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
             const createdFile: TFile = await this.app.vault.create(filePath, formattedTemplateContent);
 
-            if (this.templater) {
+            if (this.templater && !this.templater?.settings["trigger_on_file_creation"]) {
                 await this.templater.templater.overwrite_file_templates(createdFile);
             }
 
