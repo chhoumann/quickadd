@@ -9,10 +9,18 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 22/06/2021
+### 0.2.6
 - Throw error if insert after line can't be found - #22
 - Add drag & drop to macro commands
 - Support user script member access in macros
+
+### 0.2.4-5
+- Add option for Template choices to be prompted for folder when creating a new note.
+
+### 0.2.3
+- Support \n linebreaks in format syntax
+- Reword choice options - clarify
+- Use Obsidian link generator
 
 ## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
