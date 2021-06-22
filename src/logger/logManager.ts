@@ -11,6 +11,7 @@ class LogManager {
 
     logError(message: string) {
         LogManager.loggers.forEach(logger => logger.logError(message));
+        throw new Error();
     }
 
     logWarning(message: string) {

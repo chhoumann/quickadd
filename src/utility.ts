@@ -90,3 +90,11 @@ export function getAllFolders(app: App): string[] {
         .filter(f => f instanceof TFolder)
         .map(folder => folder.path);
 }
+
+export function getUserScriptMemberAccess(fullMemberPath: string): {basename: string | undefined, memberAccess: string[] | undefined} {
+    const fullMemberArray: string[] = fullMemberPath.split("::");
+    return {
+        basename: fullMemberArray[0],
+        memberAccess: fullMemberArray.slice(1)
+    }
+}

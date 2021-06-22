@@ -16,13 +16,14 @@ import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {ChoiceType} from "../types/choices/choiceType";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import {getUserScriptMemberAccess} from "../utility";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
+    public params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
     protected output: string;
     protected macros: IMacro[];
     protected choiceExecutor: IChoiceExecutor;
-    public params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
     protected readonly plugin: QuickAdd;
 
     constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, macros: IMacro[], choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
@@ -59,12 +60,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     // https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
     protected async executeUserScript(command: IUserScript) {
         const userScript = await this.getUserScript(command);
-        if (!userScript || !userScript.default) {
+        if (!userScript) {
             log.logError(`failed to load user script ${command.path}.`);
             return;
         }
 
-        await this.userScriptDelegator(userScript.default);
+        await this.userScriptDelegator(userScript);
     }
 
     protected async userScriptDelegator(userScript: any) {
@@ -118,7 +119,20 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             }
 
             // @ts-ignore
-            return await import(filePath);
+            const userScript = await import(filePath);
+            if (!userScript || !userScript.default) return;
+
+            let script = userScript.default;
+
+            const {memberAccess} = getUserScriptMemberAccess(command.name);
+            if (memberAccess && memberAccess.length > 0) {
+                let member: string;
+                while(member = memberAccess.shift()) {
+                    script = script[member];
+                }
+            }
+
+            return script;
         }
     }
 

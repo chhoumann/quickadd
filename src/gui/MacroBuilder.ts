@@ -11,6 +11,7 @@ import CommandList from "./CommandList.svelte"
 import type IChoice from "../types/choices/IChoice";
 import {Choice} from "../types/choices/Choice";
 import {ChoiceCommand} from "../types/macros/ChoiceCommand";
+import {getUserScriptMemberAccess} from "../utility";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
@@ -85,7 +86,9 @@ export class MacroBuilder extends Modal {
                 searchComponent.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
                     if (e.key === 'Enter') {
                         const value: string = searchComponent.getValue();
-                        const file = this.javascriptFiles.find(f => f.basename === value);
+                        const scriptBasename = getUserScriptMemberAccess(value).basename;
+
+                        const file = this.javascriptFiles.find(f => f.basename === scriptBasename);
                         if (!file) return;
 
                         this.macro.commands.push(new UserScript(value, file.path));

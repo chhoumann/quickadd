@@ -3,6 +3,7 @@ import type {IMacro} from "../types/macros/IMacro";
 import {MacroChoiceEngine} from "./MacroChoiceEngine";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
+import {getUserScriptMemberAccess} from "../utility";
 
 export class SingleMacroEngine extends MacroChoiceEngine {
     private memberAccess: string[];
@@ -12,12 +13,12 @@ export class SingleMacroEngine extends MacroChoiceEngine {
     }
 
     public async runAndGetOutput(macroName: string): Promise<string> {
-        const splitName: string[] = macroName.split('::');
-        const macro = this.macros.find(macro => macro.name === splitName[0]);
+        const {basename, memberAccess} = getUserScriptMemberAccess(macroName);
+        const macro = this.macros.find(macro => macro.name === basename);
         if (!macro) return;
 
-        if (splitName.length > 1) {
-            this.memberAccess = splitName.slice(1);
+        if (memberAccess && memberAccess.length > 0) {
+            this.memberAccess = memberAccess;
         }
 
         await this.executeCommands(macro.commands)
