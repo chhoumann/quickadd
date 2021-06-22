@@ -37,7 +37,7 @@ Take a look at some of the examples!
 - [Macro: Move all notes with a tag to a certain folder](docs/Examples/Macro_MoveNotesWithATagToAFolder.md)
 - [Template: Automatically create a new book note with notes & highlights from Readwise](docs/Examples/Template_AutomaticBookNotesFromReadwise.md)
 
-#### Create powerful scripts
+#### Create powerful scripts and macros to automate my workflow
 Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), and [macros](docs/Choices/MacroChoice.md).
 
 #### Use QuickAdd even when Obsidian is minimized / in the background
