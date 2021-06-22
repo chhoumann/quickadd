@@ -1,0 +1,14 @@
+### Capture
+_Capture To_ is the name of the file you are capturing to. This also supports the format syntax, which allows you to use dynamic file names.
+I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`. This automatically finds the file for the day, and whatever I enter will be captured to it.
+
+_Prepend_ will put whatever you enter at the bottom of the file.
+_Task_ will format it as a task.
+_Append link_ will append a link to the file you have open in the file you're capturing to.
+_Insert after_ will allow you to insert the text after some line with the specified text. I use this in my journal capture, where I insert after the line `## What did I do today?`.
+
+_Capture format_ lets you specify the exact format that you want what you're capturing to be inserted as. You can do practically anything here. Think of it as a mini template.
+See the format syntax further down on this page for inspiration.
+In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.
+
+![image](https://user-images.githubusercontent.com/29108628/121774039-4d6a5a00-cb80-11eb-89be-0aceefaa658b.png)
