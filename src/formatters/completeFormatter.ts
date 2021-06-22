@@ -26,7 +26,6 @@ export class CompleteFormatter extends Formatter {
         output = await this.replaceValueInString(output);
         output = await this.replaceDateVariableInString(output);
         output = await this.replaceVariableInString(output);
-        output = this.replaceLinebreakInString(output);
 
         return output;
     }

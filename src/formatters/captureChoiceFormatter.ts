@@ -31,7 +31,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
     }
 
     async formatFileContent(input: string): Promise<string> {
-        const formatted = await super.formatFileContent(input);
+        let formatted = await super.formatFileContent(input);
+        formatted = this.replaceLinebreakInString(formatted);
 
         if (this.choice.prepend)
             return `${this.fileContent}\n${formatted}`
