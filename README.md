@@ -30,7 +30,7 @@ That's the spirit. What do you want to do?
 
 ### I want to...
 #### Be inspired
-Take a look at some of the examples!
+Take a look at some examples...
 - [Capture: Add Journal Entry](docs/Examples/Capture_AddJournalEntry.md)
 - [Macro: Log book to daily journal](docs/Examples/Macro_LogBookToDailyJournal.md)
 - [Template: Add an Inbox Item](docs/Examples/Template_AddAnInboxItem.md)
