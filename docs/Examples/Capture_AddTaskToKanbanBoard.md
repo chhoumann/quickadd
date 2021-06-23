@@ -17,5 +17,3 @@ To add a date for a task, you could just write ``{{VALUE}} @{{{DATE}}}`` in the 
 You could also use ``{{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}`` to get asked which date you want to input - but do note that this requires the Natural Language Dates plugin.
 
 Read more about [format syntax here](docs/FormatSyntax.md).
-
-![Add task to kanban board](docs/Images/Capture_AddTaskToKanbanBoard.png)
