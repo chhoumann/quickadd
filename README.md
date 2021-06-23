@@ -48,6 +48,7 @@ Take a look at some examples...
 - [Template: Add an Inbox Item](docs/Examples/Template_AddAnInboxItem.md)
 - [Macro: Move all notes with a tag to a certain folder](docs/Examples/Macro_MoveNotesWithATagToAFolder.md)
 - [Template: Automatically create a new book note with notes & highlights from Readwise](docs/Examples/Template_AutomaticBookNotesFromReadwise.md)
+- [Capture: Add a task to a Kanban board](docs/Examples/Capture_AddTaskToKanbanBoard.md)
 
 #### Create powerful scripts and macros to automate my workflow
 Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), and [macros](docs/Choices/MacroChoice.md).
