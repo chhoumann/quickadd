@@ -39,7 +39,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     async run(): Promise<void> {
-        const macroId: string = this.choice.macroId ?? this.choice.macro.id;
+        const macroId: string = this.choice.macroId ?? this.choice?.macro?.id;
         const macro: IMacro = this.macros.find(m => m.id === macroId);
 
         await this.executeCommands(macro.commands);

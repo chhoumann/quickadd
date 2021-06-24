@@ -1,10 +1,18 @@
-import type {App} from "obsidian";
+import type {App, TFile} from "obsidian";
 import {MarkdownView, TFolder} from "obsidian";
 import {log} from "./logger/logManager";
 
 export function getTemplater(app: App) {
     // @ts-ignore
     return app.plugins.plugins["templater-obsidian"]
+}
+
+export async function replaceTemplaterTemplatesInCreatedFile(app: App, file: TFile) {
+    const templater = getTemplater(app);
+
+    if (templater && !templater?.settings["trigger_on_file_creation"]) {
+        await templater.templater.overwrite_file_templates(file);
+    }
 }
 
 export function getTemplatesFolderPath(app: App): string {

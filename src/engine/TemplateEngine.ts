@@ -2,7 +2,7 @@ import {QuickAddEngine} from "./QuickAddEngine";
 import {CompleteFormatter} from "../formatters/completeFormatter";
 import {App, TAbstractFile, TFile} from "obsidian";
 import type QuickAdd from "../main";
-import {getTemplater} from "../utility";
+import {getTemplater, replaceTemplaterTemplatesInCreatedFile} from "../utility";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import {FILE_NUMBER_REGEX} from "../constants";
 import {log} from "../logger/logManager";
@@ -18,7 +18,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
         this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
     }
 
-    public abstract run(): Promise<void> | Promise<string>;
+    public abstract run(): Promise<void> | Promise<string> | Promise<{file: TFile, content: string}>;
 
     protected async getOrCreateFolder(folders: string[]): Promise<string> {
         let folderPath: string;
@@ -71,9 +71,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
             const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
             const createdFile: TFile = await this.app.vault.create(filePath, formattedTemplateContent);
 
-            if (this.templater && !this.templater?.settings["trigger_on_file_creation"]) {
-                await this.templater.templater.overwrite_file_templates(createdFile);
-            }
+            await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile);
 
             return createdFile;
         }

@@ -32,9 +32,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         }
 
         this.addTaskSetting();
+        this.addPrependSetting();
 
         if (!this.choice.captureToActiveFile) {
-            this.addPrependSetting();
             this.addAppendLinkSetting();
             this.addInsertAfterSetting();
         }
@@ -88,7 +88,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     private addPrependSetting() {
         const prependSetting: Setting = new Setting(this.contentEl);
         prependSetting.setName("Write to bottom of file")
-            .setDesc("Put value at the bottom of the file - otherwise at the top.")
+            .setDesc(`Put value at the bottom of the file - otherwise at the ${this.choice?.captureToActiveFile ? "active cursor location" : "top"}.`)
             .addToggle(toggle => {
                 toggle.setValue(this.choice.prepend);
                 toggle.onChange(value => this.choice.prepend = value);

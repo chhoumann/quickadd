@@ -15,10 +15,6 @@ export class SingleTemplateEngine extends TemplateEngine {
 
         templateContent = await this.formatter.formatFileContent(templateContent);
 
-        if (this.templater) {
-            templateContent = this.templater.templater.parser.parseTemplates(templateContent);
-        }
-
         return templateContent;
     }
 }
