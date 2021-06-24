@@ -92,8 +92,10 @@ export default class QuickAdd extends Plugin {
 	private async convertMacroChoicesMacroToId() {
 	    function convertMacroChoiceMacroToIdHelper(choice: IChoice): IChoice {
 	    	if (choice.type === ChoiceType.Multi) {
-	    		 (choice as IMultiChoice).choices.map(convertMacroChoiceMacroToIdHelper);
-	    		 return choice;
+	    		let multiChoice = (choice as IMultiChoice);
+	    		const multiChoices = multiChoice.choices.map(convertMacroChoiceMacroToIdHelper);
+	    		multiChoice = {...multiChoice, choices: multiChoices};
+	    		return multiChoice;
 	    	}
 
 			if (choice.type !== ChoiceType.Macro) return choice;
