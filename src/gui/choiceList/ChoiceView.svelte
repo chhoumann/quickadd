@@ -97,11 +97,15 @@
     }
 
     function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice) {
-        if (oldChoice.id === newChoice.id)
-                return newChoice;
+        if (oldChoice.id === newChoice.id) {
+            oldChoice = {...oldChoice, ...newChoice};
+            return oldChoice;
+        }
 
         if (oldChoice.type === ChoiceType.Multi) {
-            (oldChoice as IMultiChoice).choices.map(c => updateChoiceHelper(c, newChoice))
+            const multiChoice = (oldChoice as IMultiChoice);
+            const multiChoiceChoices = multiChoice.choices.map(c => updateChoiceHelper(c, newChoice))
+            return {...multiChoice, choices: multiChoiceChoices} as IChoice;
         }
 
         return oldChoice;
