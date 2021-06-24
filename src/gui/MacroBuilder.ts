@@ -12,6 +12,7 @@ import type IChoice from "../types/choices/IChoice";
 import {Choice} from "../types/choices/Choice";
 import {ChoiceCommand} from "../types/macros/ChoiceCommand";
 import {getUserScriptMemberAccess} from "../utility";
+import GenericInputPrompt from "./GenericInputPrompt/genericInputPrompt";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
@@ -39,6 +40,7 @@ export class MacroBuilder extends Modal {
     }
 
     protected display() {
+        this.contentEl.empty();
         this.addCenteredHeader(this.macro.name);
         this.addCommandList();
         this.addAddObsidianCommandSetting();
@@ -46,10 +48,23 @@ export class MacroBuilder extends Modal {
         this.addAddChoiceSetting();
     }
 
+    private reload() {
+        this.display();
+    }
+
     protected addCenteredHeader(header: string): void {
         const headerEl = this.contentEl.createEl('h2');
         headerEl.style.textAlign = "center";
         headerEl.setText(header);
+        headerEl.addClass('clickable');
+
+        headerEl.addEventListener('click', async () => {
+            const newMacroName: string = await GenericInputPrompt.Prompt(this.app, `Update name for ${this.macro.name}`, this.macro.name);
+            if (!newMacroName) return;
+
+            this.macro.name = newMacroName;
+            this.reload();
+        });
     }
 
 
