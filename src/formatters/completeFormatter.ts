@@ -1,6 +1,5 @@
 import {Formatter} from "./formatter";
 import type {App, TFile} from "obsidian";
-import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {getNaturalLanguageDates} from "../utility";
 import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
