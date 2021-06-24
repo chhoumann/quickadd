@@ -5,6 +5,7 @@ export default interface ICaptureChoice extends IChoice {
     captureToActiveFile: boolean;
     createFileIfItDoesntExist: {enabled: boolean, createWithTemplate: boolean, template: string};
     format: { enabled: boolean, format: string };
+    /** Capture to bottom of file (after current file content). */
     prepend: boolean;
     appendLink: boolean;
     task: boolean;

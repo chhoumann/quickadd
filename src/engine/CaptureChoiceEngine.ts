@@ -3,7 +3,7 @@ import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
 import {appendToCurrentLine, replaceTemplaterTemplatesInCreatedFile} from "../utility";
-import {MARKDOWN_FILE_EXTENSION_REGEX, VALUE_SYNTAX} from "../constants";
+import {VALUE_SYNTAX} from "../constants";
 import type QuickAdd from "../main";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 import {SingleTemplateEngine} from "./SingleTemplateEngine";
@@ -105,6 +105,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
         }
 
         if (!content) return;
-        appendToCurrentLine(content, this.app);
+
+        if (this.choice.prepend) {
+            const activeFile: TFile = this.app.workspace.getActiveFile();
+            if (!activeFile) {
+                log.logError("Cannot capture to active file - no active file.")
+            }
+
+            const fileContent: string = await this.app.vault.cachedRead(activeFile);
+            const newFileContent: string = `${fileContent}${content}`
+
+            await this.app.vault.modify(activeFile, newFileContent);
+        } else {
+            appendToCurrentLine(content, this.app);
+        }
     }
 }
