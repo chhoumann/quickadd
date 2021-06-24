@@ -9,6 +9,12 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.2.9
+- Fix Capture 'Create file if it doesn't exist' bug where some Templater functions did not activate
+- Address #28 - choices in multis were not able to be added as commands
+- Implement #29 - you can now capture to the bottom of a file
+- Fix macro ID conversion
+
 ### 0.2.7 - 0.2.8
 - Linebreak formatting no longer occurs in Template choices - it only activates for Capture choices. It caused unnecessary conflicts.
 - Fix bug where some Templater functions are activated twice.
@@ -17,14 +23,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 - Throw error if insert after line can't be found - #22
 - Add drag & drop to macro commands
 - Support user script member access in macros
-
-### 0.2.4-5
-- Add option for Template choices to be prompted for folder when creating a new note.
-
-### 0.2.3
-- Support \n linebreaks in format syntax
-- Reword choice options - clarify
-- Use Obsidian link generator
 
 ## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
