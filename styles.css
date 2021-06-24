@@ -58,6 +58,7 @@
     }
 }
 
+/* Everything else */
 @media screen and (min-width: 781px){
     .macroContainer1 {
         grid-template-columns: repeat(1, 1fr);
@@ -146,4 +147,8 @@
     align-content: center;
     justify-content: space-between;
     margin-bottom: 10px;
+}
+
+.clickable:hover {
+    cursor: pointer;
 }
