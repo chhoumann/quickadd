@@ -35,8 +35,6 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
             this.selectMacro(value);
         });
 
-        console.log(dropdown.getValue());
-
         const selectedMacro: IMacro = this.macros.find(m => m.id === this.choice.macroId);
         if (selectedMacro) {
             dropdown.setValue(selectedMacro.name);
