@@ -23,7 +23,7 @@
     grid-template-rows: repeat(auto-fill, 120px);
     grid-gap: 40px;
 
-    overflow-y: scroll;
+    overflow-y: auto;
     max-height: 30em;
     padding: 2em;
 }
