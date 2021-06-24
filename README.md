@@ -9,11 +9,12 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.2.9
+### 0.2.9 - 0.2.10
 - Fix Capture 'Create file if it doesn't exist' bug where some Templater functions did not activate
 - Address #28 - choices in multis were not able to be added as commands
 - Implement #29 - you can now capture to the bottom of a file
 - Fix macro ID conversion
+- Fix select macro bug for users with 0-1 macros
 
 ### 0.2.7 - 0.2.8
 - Linebreak formatting no longer occurs in Template choices - it only activates for Capture choices. It caused unnecessary conflicts.
