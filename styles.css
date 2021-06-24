@@ -22,18 +22,54 @@
     display: grid;
     grid-template-rows: repeat(auto-fill, 120px);
     grid-gap: 40px;
+
+    overflow-y: scroll;
+    max-height: 30em;
+    padding: 2em;
 }
 
-.macroContainer1 {
-    grid-template-columns: repeat(1, 1fr);
+/* Mobile */
+@media screen and (max-width: 540px){
+    .macroContainer1 {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .macroContainer2 {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .macroContainer3 {
+        grid-template-columns: repeat(1, 1fr);
+    }
 }
 
-.macroContainer2 {
-    grid-template-columns: repeat(2, 1fr);
+/* Tablet */
+@media screen and (max-width: 540px) and (max-width: 780px) {
+    .macroContainer1 {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .macroContainer2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .macroContainer3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
-.macroContainer3 {
-    grid-template-columns: repeat(3, 1fr);
+@media screen and (min-width: 781px){
+    .macroContainer1 {
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .macroContainer2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .macroContainer3 {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 .addMacroBarContainer {

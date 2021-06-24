@@ -13,6 +13,8 @@ export class MacrosManager extends Modal {
     private rejectPromise: (reason?: any) => void;
     private updateMacroContainer: () => void;
 
+    private macroContainer: HTMLDivElement;
+
     constructor(public app: App, private macros: IMacro[], private choices: IChoice[]) {
         super(app)
 
@@ -34,17 +36,17 @@ export class MacrosManager extends Modal {
     }
 
     private addMacroSettings() {
-        const macroContainer: HTMLDivElement = this.contentEl.createDiv();
+        this.macroContainer = this.contentEl.createDiv();
         this.updateMacroContainer = () => {
             if (this.macros.length <= 1)
-                macroContainer.className = "macroContainer macroContainer1";
+                this.macroContainer.className = "macroContainer macroContainer1";
             if (this.macros.length === 2)
-                macroContainer.className = "macroContainer macroContainer2";
+                this.macroContainer.className = "macroContainer macroContainer2";
             if (this.macros.length > 2)
-                macroContainer.className = "macroContainer macroContainer3";
+                this.macroContainer.className = "macroContainer macroContainer3";
         }
 
-        this.macros.forEach(macro => this.addMacroSetting(macro, macroContainer));
+        this.macros.forEach(macro => this.addMacroSetting(macro, this.macroContainer));
 
         this.updateMacroContainer();
     }
@@ -77,7 +79,11 @@ export class MacrosManager extends Modal {
 
             deleteButton.setButtonText("Delete").onClick(evt => {
                 this.macros = this.macros.filter(m => m.id !== macro.id);
+                const scroll: number = this.macroContainer.scrollTop;
+
                 this.reload();
+
+                this.macroContainer.scrollTop = scroll;
             });
 
             const configureButton: ButtonComponent = new ButtonComponent(itemContainerEl);
@@ -159,6 +165,7 @@ export class MacrosManager extends Modal {
 
                     this.macros.push(macro);
                     this.reload();
+                    this.macroContainer.scrollTo(0, this.macroContainer.scrollHeight);
                 }
             })
     }
