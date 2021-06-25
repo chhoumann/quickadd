@@ -47,10 +47,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
                 await this.app.vault.modify(file, newFileContent);
             } else if (this.choice?.createFileIfItDoesntExist?.enabled) {
-                const singleTemplateEngine: SingleTemplateEngine =
-                    new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
+                let fileContent: string = "";
 
-                const fileContent: string = await singleTemplateEngine.run();
+                if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
+                    const singleTemplateEngine: SingleTemplateEngine =
+                        new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
+
+                    fileContent = await singleTemplateEngine.run();
+                }
+
                 const file: TFile = await this.createFileWithInput(filePath, fileContent);
                 await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
