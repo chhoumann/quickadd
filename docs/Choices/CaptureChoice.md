@@ -11,4 +11,5 @@ _Capture format_ lets you specify the exact format that you want what you're cap
 See the format syntax further down on this page for inspiration.
 In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.
 
-![image](https://user-images.githubusercontent.com/29108628/121774039-4d6a5a00-cb80-11eb-89be-0aceefaa658b.png)
+![image](https://user-images.githubusercontent.com/29108628/123451366-e025e280-d5dd-11eb-81b6-c21f3ad1823d.png)
+![image](https://user-images.githubusercontent.com/29108628/123451469-e61bc380-d5dd-11eb-80d1-7667427656f3.png)
