@@ -16,7 +16,7 @@ import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {ChoiceType} from "../types/choices/choiceType";
 import type IMultiChoice from "../types/choices/IMultiChoice";
-import {getUserScriptMemberAccess} from "../utility";
+import {getUserScriptMemberAccess, waitFor} from "../utility";
 import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
@@ -46,7 +46,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         await this.executeCommands(macro.commands);
     }
 
-    private timer = ms => new Promise(res => setTimeout(res, ms));
 
     protected async executeCommands(commands: ICommand[]) {
         for (const command of commands) {
@@ -59,9 +58,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
                 await this.executeChoice(command as IChoiceCommand);
             if (command?.type === CommandType.Wait) {
                 const waitCommand: IWaitCommand = (command as IWaitCommand);
-                console.log(`Waiting for ${waitCommand.time} ms`)
-                await this.timer(waitCommand.time);
-                console.log(`Done waiting.`);
+                await waitFor(waitCommand.time);
             }
         }
     }

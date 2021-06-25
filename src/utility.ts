@@ -106,3 +106,7 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {basename: st
         memberAccess: fullMemberArray.slice(1)
     }
 }
+
+export function waitFor(ms: number): Promise<unknown> {
+    return new Promise(res => setTimeout(res, ms));
+}

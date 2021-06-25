@@ -1,4 +1,3 @@
 export enum CommandType {
-    Obsidian = "Obsidian", UserScript = "UserScript", Choice = "Choice",
-    Wait = "Wait"
+    Obsidian = "Obsidian", UserScript = "UserScript", Choice = "Choice", Wait = "Wait"
 }

@@ -184,7 +184,9 @@ export class MacroBuilder extends Modal {
     }
 
     private addAddWaitCommandButton() {
-        const button: ButtonComponent = new ButtonComponent(this.contentEl);
+        const quickCommandContainer: HTMLDivElement = this.contentEl.createDiv('quickCommandContainer');
+
+        const button: ButtonComponent = new ButtonComponent(quickCommandContainer);
         button.setIcon('clock').setTooltip("Add wait command").onClick(() => {
             this.macro.commands.push(new WaitCommand(100));
             this.commandListEl.updateCommandList(this.macro.commands);

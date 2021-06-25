@@ -159,3 +159,10 @@
     align-items: center;
     justify-content: space-between;
 }
+
+.quickCommandContainer {
+    display: flex;
+    justify-content: flex-end;
+    align-content: center;
+    margin-bottom: 1em;
+}

@@ -2,6 +2,8 @@
     import type {ICommand} from "../../types/macros/ICommand";
     import {DndEvent, dndzone, SOURCES, SHADOW_PLACEHOLDER_ITEM_ID} from "svelte-dnd-action";
     import StandardCommand from "./Components/StandardCommand.svelte";
+    import {CommandType} from "../../types/macros/CommandType";
+    import WaitCommand from "./Components/WaitCommand.svelte";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => void;
@@ -30,9 +32,17 @@
     }
 
     let startDrag = (e: CustomEvent<DndEvent>) => {
-        console.log(e);
         e.preventDefault()
         dragDisabled = false;
+    }
+
+    function updateCommand(e: any) {
+        const command: ICommand = e.detail;
+
+        const index = commands.findIndex(c => c.id === command.id);
+        commands[index] = command;
+        
+        saveCommands(commands);
     }
 </script>
 
@@ -42,7 +52,11 @@
     on:finalize={handleSort}
 >
     {#each commands.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command(command.id)}
-        <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} />
+        {#if command.type === CommandType.Wait}
+            <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommand} />
+        {:else}
+            <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} on:updateCommand={updateCommand} />
+        {/if}
     {/each}
 </ol>
 
