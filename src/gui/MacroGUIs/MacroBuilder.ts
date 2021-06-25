@@ -164,8 +164,9 @@ export class MacroBuilder extends Modal {
                 commands: this.macro.commands,
                 deleteCommand: (commandId: string) => {
                     this.macro.commands = this.macro.commands.filter(c => c.id !== commandId);
+                    this.commandListEl.updateCommandList(this.macro.commands);
                 },
-                updateCommandList: (commands: ICommand[]) => {
+                saveCommands: (commands: ICommand[]) => {
                     this.macro.commands = commands;
                 },
             }

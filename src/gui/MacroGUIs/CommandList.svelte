@@ -5,9 +5,12 @@
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => void;
+    export let saveCommands: (commands: ICommand[]) => void;
     let dragDisabled: boolean = true;
 
-    export let updateCommandList: (commands: ICommand[]) => void;
+    export const updateCommandList: (newCommands: ICommand[]) => void = (newCommands: ICommand[]) => {
+        commands = newCommands;
+    };
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         let {items: newItems} = e.detail;
@@ -23,10 +26,11 @@
             dragDisabled = true;
         }
 
-        updateCommandList(commands);
+        saveCommands(commands);
     }
 
-    function startDrag(e: CustomEvent<DndEvent>) {
+    let startDrag = (e: CustomEvent<DndEvent>) => {
+        console.log(e);
         e.preventDefault()
         dragDisabled = false;
     }
@@ -38,18 +42,11 @@
     on:finalize={handleSort}
 >
     {#each commands.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command(command.id)}
-        <StandardCommand bind:command bind:dragDisabled bind:startDrag on:deleteCommand={(e) => deleteCommand(e.detail.commandId)} />
+        <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} />
     {/each}
 </ol>
 
 <style>
-    .quickAddCommandListItem {
-        display: flex;
-        flex: 1 1 auto;
-        align-items: center;
-        justify-content: space-between;
-    }
-
     .quickAddCommandList {
         display: grid;
         grid-template-columns: auto;
@@ -59,9 +56,5 @@
         height: auto;
         margin-bottom: 8px;
         padding: 20px;
-    }
-
-    .clickable {
-        cursor: pointer;
     }
 </style>
