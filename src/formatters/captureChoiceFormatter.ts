@@ -34,6 +34,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
         let formatted = await super.formatFileContent(input);
         formatted = this.replaceLinebreakInString(formatted);
 
+        const formattedContentIsEmpty = formatted.trim() === "";
+        if (formattedContentIsEmpty) return this.fileContent;
+
         if (this.choice.prepend)
             return `${this.fileContent}\n${formatted}`
 

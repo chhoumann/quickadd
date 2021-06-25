@@ -64,15 +64,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                 await this.app.vault.modify(file, newFileContent);
 
             } else {
-                const formattedContent = await this.formatter.formatContent(content, this.choice);
-                if (!formattedContent) return;
-
-                file = await this.createFileWithInput(filePath, formattedContent);
-
-                if (!file) {
-                    log.logError(`could not create '${filePath}.'`);
-                    return;
-                }
+                log.logWarning(`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`);
+                return;
             }
 
             if (this.choice.appendLink)

@@ -49,7 +49,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
     protected async executeCommands(commands: ICommand[]) {
         for (const command of commands) {
-            console.log(command.name);
             if (command?.type === CommandType.Obsidian)
                 await this.executeObsidianCommand(command as IObsidianCommand);
             if (command?.type === CommandType.UserScript)
