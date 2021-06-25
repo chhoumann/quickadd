@@ -9,11 +9,14 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.2.11
+### 0.2.11 - 0.2.12
 - Implement Quick Commands - ironically, starting with a Wait command. With this command, you can add a delay to your macros. Useful for commands that may take a while to finish.
 - Fix a bug where the command sequence did not save.
 - Fix bug where 'Create file if it doesn't exist' did not work as intended when no template was given.
 - Updated the documentation with new examples and changes to settings.
+- Remove (missed) `console.log`.
+- If formatted content is empty, don't add anything.
+- Capture: Don't create file if setting is disabled.
 
 ### 0.2.9 - 0.2.10
 - Fix Capture 'Create file if it doesn't exist' bug where some Templater functions did not activate
