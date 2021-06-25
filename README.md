@@ -9,6 +9,12 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.2.11
+- Implement Quick Commands - ironically, starting with a Wait command. With this command, you can add a delay to your macros. Useful for commands that may take a while to finish.
+- Fix a bug where the command sequence did not save.
+- Fix bug where 'Create file if it doesn't exist' did not work as intended when no template was given.
+- Updated the documentation with new examples and changes to settings.
+
 ### 0.2.9 - 0.2.10
 - Fix Capture 'Create file if it doesn't exist' bug where some Templater functions did not activate
 - Address #28 - choices in multis were not able to be added as commands
@@ -49,6 +55,7 @@ Take a look at some examples...
 - [Template: Automatically create a new book note with notes & highlights from Readwise](docs/Examples/Template_AutomaticBookNotesFromReadwise.md)
 - [Capture: Add a task to a Kanban board](docs/Examples/Capture_AddTaskToKanbanBoard.md)
 - [Macro: Easily change properties in your daily note (requires MetaEdit)](docs/Examples/Macro_ChangePropertyInDailyNotes.md)
+- [Capture: Fetch tasks from Todoist and capture to a file](docs/Examples/Capture_FetchTasksFromTodoist.md)
 
 #### Create powerful scripts and macros to automate my workflow
 Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), and [macros](docs/Choices/MacroChoice.md).
