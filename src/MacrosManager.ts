@@ -1,6 +1,6 @@
 import type {IMacro} from "./types/macros/IMacro";
 import {App, ButtonComponent, Modal, Setting, TextComponent, ToggleComponent} from "obsidian";
-import {MacroBuilder} from "./gui/MacroBuilder";
+import {MacroBuilder} from "./gui/MacroGUIs/MacroBuilder";
 import {QuickAddMacro} from "./types/macros/QuickAddMacro";
 import {log} from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";

@@ -1,16 +1,13 @@
 <script lang="ts">
-    import {faTrash, faBars} from "@fortawesome/free-solid-svg-icons";
-    import Icon from "svelte-awesome/components/Icon.svelte";
-    import type {ICommand} from "../types/macros/ICommand";
+    import type {ICommand} from "../../types/macros/ICommand";
     import {DndEvent, dndzone, SOURCES, SHADOW_PLACEHOLDER_ITEM_ID} from "svelte-dnd-action";
+    import StandardCommand from "./Components/StandardCommand.svelte";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => void;
     let dragDisabled: boolean = true;
 
-    export const updateCommandList = (newCommands: ICommand[]) => {
-        commands = newCommands;
-    }
+    export let updateCommandList: (commands: ICommand[]) => void;
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         let {items: newItems} = e.detail;
@@ -25,6 +22,8 @@
         if (source === SOURCES.POINTER) {
             dragDisabled = true;
         }
+
+        updateCommandList(commands);
     }
 
     function startDrag(e: CustomEvent<DndEvent>) {
@@ -39,21 +38,7 @@
     on:finalize={handleSort}
 >
     {#each commands.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command(command.id)}
-        <div class="quickAddCommandListItem">
-            <li>{command.name}</li>
-            <div>
-                <span on:click={() => deleteCommand(command)} class="clickable">
-                    <Icon data="{faTrash}" />
-                </span>
-                <span on:mousedown={startDrag} on:touchstart={startDrag}
-                      aria-label="Drag-handle"
-                      style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
-                      tabindex={dragDisabled ? 0 : -1}
-                >
-                    <Icon data={faBars} />
-                </span>
-            </div>
-        </div>
+        <StandardCommand bind:command bind:dragDisabled bind:startDrag on:deleteCommand={(e) => deleteCommand(e.detail.commandId)} />
     {/each}
 </ol>
 
