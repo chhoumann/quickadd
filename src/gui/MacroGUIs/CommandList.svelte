@@ -1,16 +1,18 @@
 <script lang="ts">
-    import {faTrash, faBars} from "@fortawesome/free-solid-svg-icons";
-    import Icon from "svelte-awesome/components/Icon.svelte";
-    import type {ICommand} from "../types/macros/ICommand";
+    import type {ICommand} from "../../types/macros/ICommand";
     import {DndEvent, dndzone, SOURCES, SHADOW_PLACEHOLDER_ITEM_ID} from "svelte-dnd-action";
+    import StandardCommand from "./Components/StandardCommand.svelte";
+    import {CommandType} from "../../types/macros/CommandType";
+    import WaitCommand from "./Components/WaitCommand.svelte";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => void;
+    export let saveCommands: (commands: ICommand[]) => void;
     let dragDisabled: boolean = true;
 
-    export const updateCommandList = (newCommands: ICommand[]) => {
+    export const updateCommandList: (newCommands: ICommand[]) => void = (newCommands: ICommand[]) => {
         commands = newCommands;
-    }
+    };
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         let {items: newItems} = e.detail;
@@ -25,11 +27,22 @@
         if (source === SOURCES.POINTER) {
             dragDisabled = true;
         }
+
+        saveCommands(commands);
     }
 
-    function startDrag(e: CustomEvent<DndEvent>) {
+    let startDrag = (e: CustomEvent<DndEvent>) => {
         e.preventDefault()
         dragDisabled = false;
+    }
+
+    function updateCommand(e: any) {
+        const command: ICommand = e.detail;
+
+        const index = commands.findIndex(c => c.id === command.id);
+        commands[index] = command;
+        
+        saveCommands(commands);
     }
 </script>
 
@@ -39,32 +52,15 @@
     on:finalize={handleSort}
 >
     {#each commands.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command(command.id)}
-        <div class="quickAddCommandListItem">
-            <li>{command.name}</li>
-            <div>
-                <span on:click={() => deleteCommand(command)} class="clickable">
-                    <Icon data="{faTrash}" />
-                </span>
-                <span on:mousedown={startDrag} on:touchstart={startDrag}
-                      aria-label="Drag-handle"
-                      style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
-                      tabindex={dragDisabled ? 0 : -1}
-                >
-                    <Icon data={faBars} />
-                </span>
-            </div>
-        </div>
+        {#if command.type === CommandType.Wait}
+            <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommand} />
+        {:else}
+            <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} on:updateCommand={updateCommand} />
+        {/if}
     {/each}
 </ol>
 
 <style>
-    .quickAddCommandListItem {
-        display: flex;
-        flex: 1 1 auto;
-        align-items: center;
-        justify-content: space-between;
-    }
-
     .quickAddCommandList {
         display: grid;
         grid-template-columns: auto;
@@ -74,9 +70,5 @@
         height: auto;
         margin-bottom: 8px;
         padding: 20px;
-    }
-
-    .clickable {
-        cursor: pointer;
     }
 </style>

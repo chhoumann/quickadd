@@ -1,18 +1,19 @@
-import type {IMacro} from "../types/macros/IMacro";
-import {App, Modal, Setting, TFile} from "obsidian";
-import type {IObsidianCommand} from "../types/macros/IObsidianCommand";
-import {GenericTextSuggester} from "./genericTextSuggester";
-import {UserScript} from "../types/macros/UserScript";
-import {ObsidianCommand} from "../types/macros/ObsidianCommand";
-import {JAVASCRIPT_FILE_EXTENSION_REGEX} from "../constants";
-import type {ICommand} from "../types/macros/ICommand";
+import type {IMacro} from "../../types/macros/IMacro";
+import {App, ButtonComponent, Modal, Setting, TFile} from "obsidian";
+import type {IObsidianCommand} from "../../types/macros/IObsidianCommand";
+import {GenericTextSuggester} from "../genericTextSuggester";
+import {UserScript} from "../../types/macros/UserScript";
+import {ObsidianCommand} from "../../types/macros/ObsidianCommand";
+import {JAVASCRIPT_FILE_EXTENSION_REGEX} from "../../constants";
+import type {ICommand} from "../../types/macros/ICommand";
 import type {SvelteComponent} from "svelte";
 import CommandList from "./CommandList.svelte"
-import type IChoice from "../types/choices/IChoice";
-import {Choice} from "../types/choices/Choice";
-import {ChoiceCommand} from "../types/macros/ChoiceCommand";
-import {getUserScriptMemberAccess} from "../utility";
-import GenericInputPrompt from "./GenericInputPrompt/genericInputPrompt";
+import type IChoice from "../../types/choices/IChoice";
+import {Choice} from "../../types/choices/Choice";
+import {ChoiceCommand} from "../../types/macros/ChoiceCommand";
+import {getUserScriptMemberAccess} from "../../utility";
+import GenericInputPrompt from "../GenericInputPrompt/genericInputPrompt";
+import {WaitCommand} from "../../types/macros/QuickCommands/WaitCommand";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
@@ -43,6 +44,7 @@ export class MacroBuilder extends Modal {
         this.contentEl.empty();
         this.addCenteredHeader(this.macro.name);
         this.addCommandList();
+        this.addAddWaitCommandButton();
         this.addAddObsidianCommandSetting();
         this.addAddUserScriptSetting();
         this.addAddChoiceSetting();
@@ -160,10 +162,13 @@ export class MacroBuilder extends Modal {
             target: commandList,
             props: {
                 commands: this.macro.commands,
-                deleteCommand: (command: ICommand) => {
-                    this.macro.commands = this.macro.commands.filter(c => c.id !== command.id);
+                deleteCommand: (commandId: string) => {
+                    this.macro.commands = this.macro.commands.filter(c => c.id !== commandId);
                     this.commandListEl.updateCommandList(this.macro.commands);
-                }
+                },
+                saveCommands: (commands: ICommand[]) => {
+                    this.macro.commands = commands;
+                },
             }
         });
 
@@ -176,5 +181,15 @@ export class MacroBuilder extends Modal {
         this.svelteElements.forEach(el => {
             if (el && el.$destroy) el.$destroy();
         })
+    }
+
+    private addAddWaitCommandButton() {
+        const quickCommandContainer: HTMLDivElement = this.contentEl.createDiv('quickCommandContainer');
+
+        const button: ButtonComponent = new ButtonComponent(quickCommandContainer);
+        button.setIcon('clock').setTooltip("Add wait command").onClick(() => {
+            this.macro.commands.push(new WaitCommand(100));
+            this.commandListEl.updateCommandList(this.macro.commands);
+        });
     }
 }

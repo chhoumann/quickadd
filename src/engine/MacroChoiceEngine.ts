@@ -16,7 +16,8 @@ import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {ChoiceType} from "../types/choices/choiceType";
 import type IMultiChoice from "../types/choices/IMultiChoice";
-import {getUserScriptMemberAccess} from "../utility";
+import {getUserScriptMemberAccess, waitFor} from "../utility";
+import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
@@ -45,14 +46,20 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         await this.executeCommands(macro.commands);
     }
 
+
     protected async executeCommands(commands: ICommand[]) {
         for (const command of commands) {
+            console.log(command.name);
             if (command?.type === CommandType.Obsidian)
                 await this.executeObsidianCommand(command as IObsidianCommand);
             if (command?.type === CommandType.UserScript)
                 await this.executeUserScript(command as IUserScript);
             if (command?.type === CommandType.Choice)
                 await this.executeChoice(command as IChoiceCommand);
+            if (command?.type === CommandType.Wait) {
+                const waitCommand: IWaitCommand = (command as IWaitCommand);
+                await waitFor(waitCommand.time);
+            }
         }
     }
 

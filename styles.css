@@ -152,3 +152,17 @@
 .clickable:hover {
     cursor: pointer;
 }
+
+.quickAddCommandListItem {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.quickCommandContainer {
+    display: flex;
+    justify-content: flex-end;
+    align-content: center;
+    margin-bottom: 1em;
+}
