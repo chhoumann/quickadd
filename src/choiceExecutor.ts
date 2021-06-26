@@ -10,6 +10,8 @@ import {TemplateChoiceEngine} from "./engine/TemplateChoiceEngine";
 import {CaptureChoiceEngine} from "./engine/CaptureChoiceEngine";
 import {MacroChoiceEngine} from "./engine/MacroChoiceEngine";
 import type {IChoiceExecutor} from "./IChoiceExecutor";
+import type IMultiChoice from "./types/choices/IMultiChoice";
+import ChoiceSuggester from "./gui/choiceSuggester";
 
 export class ChoiceExecutor implements IChoiceExecutor {
     private variables: Map<string, string> = new Map<string, string>();
@@ -30,6 +32,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
                 const macroChoice: IMacroChoice = choice as IMacroChoice;
                 await this.onChooseMacroType(macroChoice);
                 break;
+            case ChoiceType.Multi:
+                const multiChoice: IMultiChoice = choice as IMultiChoice;
+                await this.onChooseMultiType(multiChoice);
+                break
             default:
                 break;
         }
@@ -60,5 +66,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
         Object.keys(macroEngine.params.variables).forEach(key => {
             this.variables.set(key, macroEngine.params.variables[key]);
         });
+    }
+
+    private async onChooseMultiType(multiChoice: IMultiChoice) {
+        ChoiceSuggester.Open(this.plugin, multiChoice.choices, this);
     }
 }
