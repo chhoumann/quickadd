@@ -60,3 +60,6 @@ This task will be recognized by the Tasks plugin for Obsidian, as well.
 
 ![GKkCNWZHLv](https://user-images.githubusercontent.com/29108628/123500983-26ad2880-d642-11eb-9e45-b537271312d1.gif)
 
+### Installation video
+https://user-images.githubusercontent.com/29108628/123511101-bde4a100-d67f-11eb-90c1-5bd146c5d0f2.mp4
+
