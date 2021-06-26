@@ -4,7 +4,7 @@ You will also need to set it up with your API key.
 
 This is very useful for capturing tasks on the go with your phone, and then adding them to Obsidian when you get back to your computer.
 
-You will need to set up a [macro](docs/Choices/MacroChoice.md) with the following script.
+You will need to set up a [macro](../Choices/MacroChoice.md) with the following script.
 
 **IMPORTANT:** If you do _NOT_ want this script to complete tasks in Todoist that you put into your vault, remove the function call to ``closeSelectedTasks`` by removing the line `await closeSelectedTasks(params.app, selectedTasks);` in `start`.
 
