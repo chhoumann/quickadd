@@ -31,7 +31,7 @@ async function closeSelectedTasks(app, selectedTasks) {
 }
 
 function formatTasksToTasksPluginTask(selectedTasks) {
-    return selectedTasks.map(task => `- [ ] ${task.content} 📅 ${task.rawDatetime.format("DD-MM-YYYY")}`).join("\n");
+    return selectedTasks.map(task => `- [ ] ${task.content} 📅 ${task.rawDatetime.format("YYYY-MM-DD")}`).join("\n");
 }
 
 async function start(params) {
