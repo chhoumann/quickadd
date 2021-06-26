@@ -52,3 +52,11 @@ The tasks are written in this format:
 Which equals: ``- [ ] Buy groceries 📆 25/06/2021``
 
 This task will be recognized by the Tasks plugin for Obsidian, as well.
+
+### Steps
+1. Set up the Todoist plugin - grab the API key from your Todoist account. There's a link in the plugin's settings.
+2. Grab the code block from the example and add it to your vault as a javascript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
+3. Follow along with what I do in the gif below
+
+![GKkCNWZHLv](https://user-images.githubusercontent.com/29108628/123500983-26ad2880-d642-11eb-9e45-b537271312d1.gif)
+
