@@ -1,7 +1,7 @@
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type {App, TFile} from "obsidian";
 import {appendToCurrentLine, getAllFolders} from "../utility";
-import {MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
+import {MARKDOWN_FILE_EXTENSION_REGEX, VALUE_SYNTAX} from "../constants";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import {TemplateEngine} from "./TemplateEngine";
@@ -34,8 +34,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
             if (this.choice.fileNameFormat.enabled) {
                 filePath = await this.getFormattedFilePath(folderPath, this.choice.fileNameFormat.format, this.choice.name);
             } else {
-                const fileNameValueFormat: string = "{{VALUE}}";
-                filePath = await this.getFormattedFilePath(folderPath, fileNameValueFormat, this.choice.name);
+                filePath = await this.getFormattedFilePath(folderPath, VALUE_SYNTAX, this.choice.name);
             }
 
             if (this.choice.incrementFileName)

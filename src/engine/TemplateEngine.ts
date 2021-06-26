@@ -35,7 +35,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
         else
             folderPath = "";
 
-        return folderPath;
+        return `/${folderPath}`;
     }
 
     protected async getFormattedFilePath(folderPath: string, format: string, promptHeader: string): Promise<string> {
