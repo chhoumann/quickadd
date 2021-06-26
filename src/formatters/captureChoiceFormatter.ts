@@ -4,6 +4,7 @@ import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
+import {templaterParseTemplate} from "../utility";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
@@ -20,7 +21,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
         this.fileContent = fileContent;
         if (!choice || !file || fileContent === null) return input;
 
-        return await this.formatFileContent(input);
+        const formatted = await this.formatFileContent(input);
+        const templaterFormatted = templaterParseTemplate(this.app, formatted, this.file);
+        if (!templaterFormatted) return formatted;
+
+        return templaterFormatted;
     }
 
     public async formatContent(input: string, choice: ICaptureChoice): Promise<string> {

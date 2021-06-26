@@ -15,6 +15,13 @@ export async function replaceTemplaterTemplatesInCreatedFile(app: App, file: TFi
     }
 }
 
+export async function templaterParseTemplate(app: App, templateContent: string, targetFile: TFile) {
+    const templater = getTemplater(app);
+    if (!templater) return templateContent;
+
+    return await templater.templater.parse_template({target_file: targetFile, run_mode: 4}, templateContent);
+}
+
 export function getTemplatesFolderPath(app: App): string {
     let path: string = "";
     // @ts-ignore
