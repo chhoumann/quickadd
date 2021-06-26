@@ -23,10 +23,10 @@
 </script>
 
 <div class="rightButtonsContainer">
+    <div on:click={emitToggleCommand} class="alignIconInDivInMiddle clickable" aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} style={commandEnabled ? "color: #FDD023;" : ""}>
+        <Icon data={faBolt} />
+    </div>
     {#if showConfigureButton}
-        <div on:click={emitToggleCommand} class="alignIconInDivInMiddle clickable" aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} style={commandEnabled ? "color: #FDD023;" : ""}>
-            <Icon data={faBolt} />
-        </div>
         <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label={`Configure${choiceName ? " " + choiceName : ""}`}>
             <Icon data={faCog} />
         </div>

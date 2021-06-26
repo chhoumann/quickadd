@@ -43,6 +43,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         const macroId: string = this.choice.macroId ?? this.choice?.macro?.id;
         const macro: IMacro = this.macros.find(m => m.id === macroId);
 
+        if (!macro || !macro?.commands) {
+            log.logError(`No commands in the selected macro. Did you select a macro for '${this.choice.name}'?`)
+        }
+
         await this.executeCommands(macro.commands);
     }
 

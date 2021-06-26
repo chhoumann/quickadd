@@ -15,33 +15,49 @@ export async function replaceTemplaterTemplatesInCreatedFile(app: App, file: TFi
     }
 }
 
-export function getTemplatesFolderPath(app: App): string {
-    let path: string = "";
+export async function templaterParseTemplate(app: App, templateContent: string, targetFile: TFile) {
+    const templater = getTemplater(app);
+    if (!templater) return templateContent;
+
+    return await templater.templater.parse_template({target_file: targetFile, run_mode: 4}, templateContent);
+}
+
+function getCoreTemplatesPath(app: App) {
     // @ts-ignore
     const internalTemplatePlugin = app.internalPlugins.plugins.templates;
     if (internalTemplatePlugin) {
         const templateFolderPath = internalTemplatePlugin.instance.options.folder;
         if (templateFolderPath)
-            path = templateFolderPath;
+            return templateFolderPath;
     }
+}
 
+function getTemplaterTemplatesPath(app: App) {
     const templater = getTemplater(app);
     if (templater) {
         const templateFolderPath = templater.settings["template_folder"];
         if (templateFolderPath)
-            path = templateFolderPath;
+            return templateFolderPath;
     }
+}
 
-    return path;
+export function getTemplateFiles(app: App): TFile[] {
+    let templateFiles: Set<TFile> = new Set<TFile>();
+    const markdownFiles = app.vault.getMarkdownFiles();
+
+    const coreTemplatesPath = getCoreTemplatesPath(app);
+    const templaterTemplatesPath = getTemplaterTemplatesPath(app);
+
+    markdownFiles.forEach(file => {
+        if (file.path.contains(coreTemplatesPath) || file.path.contains(templaterTemplatesPath))
+            templateFiles.add(file);
+    });
+
+    return [...templateFiles];
 }
 
 export function getTemplatePaths(app: App): string[] {
-    const markdownFiles = app.vault.getMarkdownFiles();
-    const templatePath = getTemplatesFolderPath(app);
-    return markdownFiles.filter(file => {
-        if (file.path.contains(templatePath))
-            return file;
-    }).map(file => file.path);
+    return getTemplateFiles(app).map(file => file.path);
 }
 
 export function getNaturalLanguageDates(app: App) {

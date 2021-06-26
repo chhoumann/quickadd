@@ -10,12 +10,13 @@ import {ChoiceExecutor} from "../choiceExecutor";
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
     private choiceExecutor: IChoiceExecutor = new ChoiceExecutor(this.app, this.plugin);
 
-    public static Open(plugin: QuickAdd, choices: IChoice[]) {
-        new ChoiceSuggester(plugin, choices).open();
+    public static Open(plugin: QuickAdd, choices: IChoice[], choiceExecutor?: IChoiceExecutor) {
+        new ChoiceSuggester(plugin, choices, choiceExecutor).open();
     }
 
-    constructor(private plugin: QuickAdd, private choices: IChoice[]) {
+    constructor(private plugin: QuickAdd, private choices: IChoice[], choiceExecutor?: IChoiceExecutor) {
         super(plugin.app);
+        if (choiceExecutor) this.choiceExecutor = choiceExecutor;
     }
 
     getItemText(item: IChoice): string {

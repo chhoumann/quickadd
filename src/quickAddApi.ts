@@ -9,8 +9,12 @@ export class QuickAddApi {
         return {
             inputPrompt: (header: string, placeholder?: string, value?: string) => {return this.inputPrompt(app, header, placeholder, value)},
             yesNoPrompt: (header: string, text?: string) => {return this.yesNoPrompt(app, header, text)},
-            suggester: (displayItems: string[], actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
-            checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)}
+            suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
+            checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)},
+            utility: {
+                getClipboard: async () => {return await navigator.clipboard.readText()},
+                setClipboard: async (text: string) => {return await navigator.clipboard.writeText(text)}
+            }
         };
     }
 
@@ -30,9 +34,17 @@ export class QuickAddApi {
         }
     }
 
-    public static async suggester(app: App, displayItems: string[], actualItems: string[]) {
+    public static async suggester(app: App, displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]) {
         try {
-            return await GenericSuggester.Suggest(app, displayItems, actualItems);
+            let displayedItems;
+
+            if (typeof displayItems === "function") {
+                displayedItems = actualItems.map(displayItems);
+            } else {
+                displayedItems = displayItems;
+            }
+
+            return await GenericSuggester.Suggest(app, displayedItems, actualItems);
         } catch {
             return undefined;
         }
