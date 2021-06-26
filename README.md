@@ -9,6 +9,12 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.2.13
+- Add error logging for when no macro is in the choice
+- Add 'Add' buttons to Macro Builder
+- Multi choices can now have commands & hotkeys
+- Attempted to address #39 - capture not creating template
+
 ### 0.2.11 - 0.2.12
 - Implement Quick Commands - ironically, starting with a Wait command. With this command, you can add a delay to your macros. Useful for commands that may take a while to finish.
 - Fix a bug where the command sequence did not save.
@@ -28,11 +34,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 ### 0.2.7 - 0.2.8
 - Linebreak formatting no longer occurs in Template choices - it only activates for Capture choices. It caused unnecessary conflicts.
 - Fix bug where some Templater functions are activated twice.
-
-### 0.2.6
-- Throw error if insert after line can't be found - #22
-- Add drag & drop to macro commands
-- Support user script member access in macros
 
 ## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
