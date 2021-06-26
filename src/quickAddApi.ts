@@ -10,7 +10,11 @@ export class QuickAddApi {
             inputPrompt: (header: string, placeholder?: string, value?: string) => {return this.inputPrompt(app, header, placeholder, value)},
             yesNoPrompt: (header: string, text?: string) => {return this.yesNoPrompt(app, header, text)},
             suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
-            checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)}
+            checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)},
+            utility: {
+                getClipboard: async () => {return await navigator.clipboard.readText()},
+                setClipboard: async (text: string) => {return await navigator.clipboard.writeText(text)}
+            }
         };
     }
 
