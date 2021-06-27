@@ -4,42 +4,19 @@ You will also need to set it up with your API key.
 
 This is very useful for capturing tasks on the go with your phone, and then adding them to Obsidian when you get back to your computer.
 
-You will need to set up a [macro](../Choices/MacroChoice.md) with the following script.
+You will need to set up a [macro](../Choices/MacroChoice.md) with the [Todoist Script](./Attachments/TodoistScript.js).
 
-**IMPORTANT:** If you do _NOT_ want this script to complete tasks in Todoist that you put into your vault, remove the function call to ``closeSelectedTasks`` by removing the line `await closeSelectedTasks(params.app, selectedTasks);` in `start`.
+The script has three exports, ``SelectFromAllTasks``, ``GetAllTasksFromProject``, and ``GetAllTasksFromSection``.
+- ``SelectFromAllTasks`` will prompt you to select tasks from all tasks on your Todoist account,
+- ``GetAllTasksFromProject`` will prompt you for a project and get all tasks from that project, and
+- ``GetAllTasksFromSection`` will prompt you for a section and get all tasks from that section.
 
-````js
-module.exports = start;
+I personally set up three macros, one for each of these exports.
+When you are entering the user script in the macro, you can add ``::GetAllTasksFromProject`` (or, `::` followed by any of the other exports) to directly call one of the exported functions.
 
-const getTodoistPluginApi = (app) => app.plugins.plugins["todoist-sync-plugin"].api;
+![Get all tasks from project](../Images/Todoist-GetAllTasksFromProject.png)
 
-async function getTasks(params) {
-    const api = getTodoistPluginApi(params.app);
-    const {ok: tasks} = await api.getTasks();
-    return tasks;
-}
-
-async function selectTasks(params) {
-    const tasks = await getTasks(params);
-    const selectedTaskNames = await params.quickAddApi.checkboxPrompt(tasks.map(task => task.content));
-    return tasks.filter(task => selectedTaskNames.some(t => t.contains(task.content)));
-}
-
-async function closeSelectedTasks(app, selectedTasks) {
-    const api = getTodoistPluginApi(app);
-    selectedTasks.forEach(async task => await api.closeTask(task.id));
-}
-
-function formatTasksToTasksPluginTask(selectedTasks) {
-    return selectedTasks.map(task => `- [ ] ${task.content} 📅 ${task.rawDatetime.format("YYYY-MM-DD")}`).join("\n");
-}
-
-async function start(params) {
-    const selectedTasks = await selectTasks(params);
-    await closeSelectedTasks(params.app, selectedTasks);
-    return formatTasksToTasksPluginTask(selectedTasks);
-}
-````
+**IMPORTANT:** If you do _NOT_ want this script to complete tasks in Todoist that you put into your vault, remove the function call to ``closeSelectedTasks``.
 
 Now, you will need a [Capture choice](docs/Choices/CaptureChoice.md) with the following settings.
 
@@ -47,13 +24,18 @@ Now, you will need a [Capture choice](docs/Choices/CaptureChoice.md) with the fo
 - _Capture format:_ Enabled - and in the format, write``{{MACRO:<MACRONAME>}}`` where `MACRONAME` is the name of the macro that you made earlier.
 
 The tasks are written in this format:
-``- [ ] <Task Content> 📆 <DD-MM-YYYY>``
+``- [ ] <Task Content> 📆 <YYYY-MM-DD>``
 
-Which equals: ``- [ ] Buy groceries 📆 25/06/2021``
+Which equals: ``- [ ] Buy groceries 📆 2021-06-27``
 
 This task will be recognized by the Tasks plugin for Obsidian, as well.
+If there isn't a date set for the task, they'll simply be entered as ``- [ ] Buy groceries``.
 
 ### Steps
+_NOTE:_ The installation process has slightly changed due to the multiple exports. If you simply follow the process below, you will be asked which export to execute each time.
+That is fine - if you want to be asked - but you can also make separate [Capture choices](../Choices/CaptureChoice.md) for each exported function.
+Just set up the macro as I did in the image above, and you should be fine.
+
 1. Set up the Todoist plugin - grab the API key from your Todoist account. There's a link in the plugin's settings.
 2. Grab the code block from the example and add it to your vault as a javascript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
 3. Follow along with what I do in the gif below
