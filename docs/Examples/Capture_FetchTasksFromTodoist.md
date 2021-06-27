@@ -18,7 +18,7 @@ When you are entering the user script in the macro, you can add ``::GetAllTasksF
 
 **IMPORTANT:** If you do _NOT_ want this script to complete tasks in Todoist that you put into your vault, remove the function call to ``closeSelectedTasks``.
 
-Now, you will need a [Capture choice](docs/Choices/CaptureChoice.md) with the following settings.
+Now, you will need a [Capture choice](../Choices/CaptureChoice.md) with the following settings.
 
 - _Capture To File Name:_ the path to the file where you want to store the tasks.
 - _Capture format:_ Enabled - and in the format, write``{{MACRO:<MACRONAME>}}`` where `MACRONAME` is the name of the macro that you made earlier.
