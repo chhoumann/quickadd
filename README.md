@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.2.14
+- Add 'Insert at the end of section' feature to Captures.
+
 ### 0.2.13
 - Add error logging for when no macro is in the choice.
 - Add 'Add' buttons to Macro Builder.
