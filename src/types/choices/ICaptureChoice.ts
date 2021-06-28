@@ -9,6 +9,6 @@ export default interface ICaptureChoice extends IChoice {
     prepend: boolean;
     appendLink: boolean;
     task: boolean;
-    insertAfter: { enabled: boolean, after: string };
+    insertAfter: { enabled: boolean, after: string, insertAtEnd: boolean };
 }
 

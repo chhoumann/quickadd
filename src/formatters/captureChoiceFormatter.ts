@@ -4,7 +4,7 @@ import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
-import {templaterParseTemplate} from "../utility";
+import {getLinesInString, templaterParseTemplate} from "../utility";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
@@ -47,9 +47,35 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
         if (this.choice.insertAfter.enabled) {
             const targetRegex = new RegExp(`\s*${this.choice.insertAfter.after}\s*`)
-            const targetPosition = this.fileContent.split("\n").findIndex(line => targetRegex.test(line));
+            let fileContentLines: string[] = getLinesInString(this.fileContent);
+
+            const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));
             if (targetPosition === -1) {
                 log.logError("unable to find insert after line in file.")
+            }
+
+            if (this.choice.insertAfter?.insertAtEnd) {
+                const nextHeaderPositionAfterTargetPosition = fileContentLines.slice(targetPosition + 1).findIndex(line => (/^#+ |---/).test(line))
+                const foundNextHeader = nextHeaderPositionAfterTargetPosition !== -1;
+
+                if (foundNextHeader) {
+                    let endOfSectionIndex: number;
+
+                    for (let i = nextHeaderPositionAfterTargetPosition + targetPosition; i > targetPosition; i--) {
+                        const lineIsNewline: boolean = (/^[\s\n ]*$/).test(fileContentLines[i]);
+
+                        if (!lineIsNewline) {
+                            endOfSectionIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (!endOfSectionIndex) endOfSectionIndex = targetPosition;
+
+                    return this.insertTextAfterPositionInBody(formatted, this.fileContent, endOfSectionIndex);
+                } else {
+                    return this.insertTextAfterPositionInBody(formatted, this.fileContent, fileContentLines.length - 1);
+                }
             }
 
             return this.insertTextAfterPositionInBody(formatted, this.fileContent, targetPosition);

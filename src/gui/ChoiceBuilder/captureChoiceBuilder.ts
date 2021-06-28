@@ -121,7 +121,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
             .setDesc("Insert capture after specified line.")
             .addToggle(toggle => {
                 toggle.setValue(this.choice.insertAfter.enabled);
-                toggle.onChange(value => this.choice.insertAfter.enabled = value);
+                toggle.onChange(value => {
+                    this.choice.insertAfter.enabled = value;
+                    this.reload();
+                });
             })
             .addText(textEl => {
                 textEl.setPlaceholder("Line text");
@@ -129,6 +132,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                 textEl.setValue(this.choice.insertAfter.after);
                 textEl.onChange(value => this.choice.insertAfter.after = value);
             });
+
+        if (this.choice.insertAfter.enabled) {
+            const insertAtEndSetting: Setting = new Setting(this.contentEl);
+            insertAtEndSetting.setName("Insert at end of section")
+                .setDesc("Insert the text at the end of the section, rather than at the top.")
+                .addToggle(toggle => toggle
+                    .setValue(this.choice.insertAfter?.insertAtEnd)
+                    .onChange(value => this.choice.insertAfter.insertAtEnd = value)
+                );
+        }
     }
 
     private addFormatSetting() {
