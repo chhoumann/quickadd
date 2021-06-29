@@ -79,7 +79,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                     formatDisplay.textContent = await displayFormatter.format(value);
                 });
 
-        new FormatSyntaxSuggester(this.app, textField.inputEl, FILE_NAME_FORMAT_SYNTAX);
+        //new FormatSyntaxSuggester(this.app, textField.inputEl, FILE_NAME_FORMAT_SYNTAX);
     }
 
     private addFolderSetting(): void {
