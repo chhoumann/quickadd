@@ -71,6 +71,13 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
                 this.inputEl.value = insert(item);
                 this.lastInputType = type;
                 insertedEndPosition = cursorPosition - lastInputLength + item.length;
+
+                if (this.lastInputType === FormatSyntaxToken.VariableDate ||
+                    this.lastInputType === FormatSyntaxToken.Variable ||
+                    this.lastInputType === FormatSyntaxToken.DateFormat)
+                {
+                    insertedEndPosition -= 2;
+                }
             }
         }));
 
@@ -88,7 +95,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
                          callback: ((match: RegExpMatchArray, type: FormatSyntaxToken, suggestion: string) => void))
     {
         const dateFormatMatch = DATE_FORMAT_SYNTAX_SUGGEST_REGEX.exec(input);
-        if (dateFormatMatch) callback(dateFormatMatch, FormatSyntaxToken.DateFormat, "{{DATE:");
+        if (dateFormatMatch) callback(dateFormatMatch, FormatSyntaxToken.DateFormat, "{{DATE:}}");
 
         const dateMatch = DATE_SYNTAX_SUGGEST_REGEX.exec(input);
         if (dateMatch) callback(dateMatch, FormatSyntaxToken.Date, DATE_SYNTAX);
@@ -100,10 +107,10 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
         if (valueMatch) callback(valueMatch, FormatSyntaxToken.Value, VALUE_SYNTAX);
 
         const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(input);
-        if (variableMatch) callback(variableMatch, FormatSyntaxToken.Variable, "{{VALUE:");
+        if (variableMatch) callback(variableMatch, FormatSyntaxToken.Variable, "{{VALUE:}}");
 
         const variableDateMatch = VARIABLE_DATE_SYNTAX_SUGGEST_REGEX.exec(input);
-        if (variableDateMatch) callback(variableDateMatch, FormatSyntaxToken.VariableDate, "{{VDATE:")
+        if (variableDateMatch) callback(variableDateMatch, FormatSyntaxToken.VariableDate, "{{VDATE:}}")
 
         const linkCurrentMatch = LINKCURRENT_SYNTAX_SUGGEST_REGEX.exec(input);
         if (linkCurrentMatch) callback(linkCurrentMatch, FormatSyntaxToken.LinkCurrent, LINKCURRENT_SYNTAX);
