@@ -35,14 +35,14 @@ export const TAG_REGEX: RegExp = new RegExp(/#([^ ]*)$/);
 
 
 // == Format Syntax Suggestion == //
-export const DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{D[A]?[T]?[E]?/);
-export const DATE_FORMAT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{D[A]?[T]?[E]?[:]?/);
-export const NAME_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{N[A]?[M]?[E]?/);
-export const VALUE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{V[A]?[L]?[U]?[E]?/);
-export const VARIABLE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{V[A]?[L]?[U]?[E]?[:]?/);
-export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{V[D]?[A]?[T]?[E]?[:]?/);
-export const LINKCURRENT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{L[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?/);
-export const TEMPLATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{T[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?/);
-export const MACRO_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{M[A]?[C]?[R]?[O]?[:]?/);
+export const DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{D[A]?[T]?[E]?[}]?[}]?$/);
+export const DATE_FORMAT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{D[A]?[T]?[E]?[:]?[}]?[}]?$/);
+export const NAME_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{N[A]?[M]?[E]?[}]?[}]?$/);
+export const VALUE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{V[A]?[L]?[U]?[E]?[}]?[}]?$/);
+export const VARIABLE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{V[A]?[L]?[U]?[E]?[:]?$/);
+export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{V[D]?[A]?[T]?[E]?[:]?$/);
+export const LINKCURRENT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{L[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/);
+export const TEMPLATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{T[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?[^\n\r]*[}]?[}]?$/);
+export const MACRO_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{M[A]?[C]?[R]?[O]?[:]?[^\n\r]*[}]?[}]?$/);
 
 

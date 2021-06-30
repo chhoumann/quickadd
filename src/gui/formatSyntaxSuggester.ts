@@ -9,7 +9,7 @@ import {
     NAME_SYNTAX_SUGGEST_REGEX,
     TEMPLATE_SYNTAX_SUGGEST_REGEX, VALUE_SYNTAX,
     VALUE_SYNTAX_SUGGEST_REGEX,
-    VARIABLE_DATE_SYNTAX_SUGGEST_REGEX, VARIABLE_SYNTAX,
+    VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
     VARIABLE_SYNTAX_SUGGEST_REGEX
 } from "../constants";
 import {getTemplatePaths} from "../utility";
@@ -35,13 +35,22 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 
     getSuggestions(inputStr: string): string[] {
         const cursorPosition: number = this.inputEl.selectionStart;
-        const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
+        const lookbehind: number = 15;
+        const inputBeforeCursor: string = inputStr.substr(cursorPosition - lookbehind, lookbehind);
         let suggestions: string[] = [];
 
         this.processToken(inputBeforeCursor, (match: RegExpMatchArray, type: FormatSyntaxToken, suggestion: string) => {
             this.lastInput = match[0];
             this.lastInputType = type;
             suggestions.push(suggestion);
+
+            if (this.lastInputType === FormatSyntaxToken.Template) {
+                suggestions.push(...this.templatePaths.map(templatePath => `{{TEMPLATE:${templatePath}}}`));
+            }
+
+            if (this.lastInputType === FormatSyntaxToken.Macro) {
+                suggestions.push(...this.macroNames.map(macroName => `{{MACRO:${macroName}}}`));
+            }
         })
 
         return suggestions;
@@ -56,13 +65,11 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
         const insert = (text: string, offset: number = 0) => {
             return `${currentInputValue.substr(0, cursorPosition - lastInputLength + offset)}${text}${currentInputValue.substr(cursorPosition)}`;
         }
-        console.log(this.lastInputType);
-        console.log(cursorPosition)
-        console.log(lastInputLength)
 
         this.processToken(item, ((match, type, suggestion) => {
-            if (item === suggestion) {
-                this.inputEl.value = insert(suggestion);
+            if (item.contains(suggestion)) {
+                this.inputEl.value = insert(item);
+                this.lastInputType = type;
                 insertedEndPosition = cursorPosition - lastInputLength + item.length;
             }
         }));
