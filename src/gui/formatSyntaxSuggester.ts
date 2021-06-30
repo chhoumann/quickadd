@@ -36,8 +36,15 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
     getSuggestions(inputStr: string): string[] {
         const cursorPosition: number = this.inputEl.selectionStart;
         const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
+        let suggestions: string[] = [];
 
-        return this.parseInputAndGetSuggestions(inputBeforeCursor);
+        this.processToken(inputBeforeCursor, (match: RegExpMatchArray, type: FormatSyntaxToken, suggestion: string) => {
+            this.lastInput = match[0];
+            this.lastInputType = type;
+            suggestions.push(suggestion);
+        })
+
+        return suggestions;
     }
 
     selectSuggestion(item: string): void {
@@ -53,10 +60,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
         console.log(cursorPosition)
         console.log(lastInputLength)
 
-        if (this.lastInputType === FormatSyntaxToken.Date) {
-            this.inputEl.value = insert(DATE_SYNTAX);
-            insertedEndPosition = cursorPosition - lastInputLength + item.length + 2;
-        }
+        this.processToken(item, ((match, type, suggestion) => {
+            if (item === suggestion) {
+                this.inputEl.value = insert(suggestion);
+                insertedEndPosition = cursorPosition - lastInputLength + item.length;
+            }
+        }));
 
         this.inputEl.trigger("input");
         this.close();
@@ -68,43 +77,34 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
     }
 
 
-    private parseInputAndGetSuggestions(inputBeforeCursor: string) {
-        let suggestions: string[] = [];
+    private processToken(input: string,
+                         callback: ((match: RegExpMatchArray, type: FormatSyntaxToken, suggestion: string) => void))
+    {
+        const dateFormatMatch = DATE_FORMAT_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (dateFormatMatch) callback(dateFormatMatch, FormatSyntaxToken.DateFormat, "{{DATE:");
 
-        const processMatch = (match: RegExpMatchArray, type: FormatSyntaxToken, suggestion: string) => {
-            console.log(match);
-            this.lastInput = match[0];
-            this.lastInputType = type;
-            suggestions.push(suggestion);
-        }
+        const dateMatch = DATE_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (dateMatch) callback(dateMatch, FormatSyntaxToken.Date, DATE_SYNTAX);
 
-        const dateFormatMatch = DATE_FORMAT_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (dateFormatMatch) processMatch(dateFormatMatch, FormatSyntaxToken.DateFormat, "{{DATE:");
+        const nameMatch = NAME_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (nameMatch) callback(nameMatch, FormatSyntaxToken.Name, NAME_SYNTAX);
 
-        const dateMatch = DATE_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (dateMatch) processMatch(dateMatch, FormatSyntaxToken.Date, DATE_SYNTAX);
+        const valueMatch = VALUE_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (valueMatch) callback(valueMatch, FormatSyntaxToken.Value, VALUE_SYNTAX);
 
-        const nameMatch = NAME_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (nameMatch) processMatch(nameMatch, FormatSyntaxToken.Name, NAME_SYNTAX);
+        const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (variableMatch) callback(variableMatch, FormatSyntaxToken.Variable, "{{VALUE:");
 
-        const valueMatch = VALUE_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (valueMatch) processMatch(valueMatch, FormatSyntaxToken.Value, VALUE_SYNTAX);
+        const variableDateMatch = VARIABLE_DATE_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (variableDateMatch) callback(variableDateMatch, FormatSyntaxToken.VariableDate, "{{VDATE:")
 
-        const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (variableMatch) processMatch(variableMatch, FormatSyntaxToken.Variable, "{{VALUE:");
+        const linkCurrentMatch = LINKCURRENT_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (linkCurrentMatch) callback(linkCurrentMatch, FormatSyntaxToken.LinkCurrent, LINKCURRENT_SYNTAX);
 
-        const variableDateMatch = VARIABLE_DATE_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (variableDateMatch) processMatch(variableDateMatch, FormatSyntaxToken.VariableDate, "{{VDATE:")
+        const templateMatch = TEMPLATE_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (templateMatch) callback(templateMatch, FormatSyntaxToken.Template, "{{TEMPLATE:");
 
-        const linkCurrentMatch = LINKCURRENT_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (linkCurrentMatch) processMatch(linkCurrentMatch, FormatSyntaxToken.LinkCurrent, LINKCURRENT_SYNTAX);
-
-        const templateMatch = TEMPLATE_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (templateMatch) processMatch(templateMatch, FormatSyntaxToken.Template, "{{TEMPLATE:");
-
-        const macroMatch = MACRO_SYNTAX_SUGGEST_REGEX.exec(inputBeforeCursor);
-        if (macroMatch) processMatch(macroMatch, FormatSyntaxToken.Macro, "{{MACRO:");
-
-        return suggestions;
+        const macroMatch = MACRO_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (macroMatch) callback(macroMatch, FormatSyntaxToken.Macro, "{{MACRO:");
     }
 }
