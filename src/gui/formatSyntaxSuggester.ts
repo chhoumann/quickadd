@@ -25,7 +25,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
     private readonly macroNames: string[];
     private readonly templatePaths: string[];
 
-     constructor(public app: App, public inputEl: HTMLInputElement | HTMLTextAreaElement, private plugin: QuickAdd) {
+     constructor(public app: App, public inputEl: HTMLInputElement | HTMLTextAreaElement, private plugin: QuickAdd, private suggestForFileNames: boolean = false) {
         super(app, inputEl);
 
         this.macroNames = this.plugin.settings.macros.map(macro => macro.name);
@@ -112,13 +112,15 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
         const variableDateMatch = VARIABLE_DATE_SYNTAX_SUGGEST_REGEX.exec(input);
         if (variableDateMatch) callback(variableDateMatch, FormatSyntaxToken.VariableDate, "{{VDATE:}}")
 
-        const linkCurrentMatch = LINKCURRENT_SYNTAX_SUGGEST_REGEX.exec(input);
-        if (linkCurrentMatch) callback(linkCurrentMatch, FormatSyntaxToken.LinkCurrent, LINKCURRENT_SYNTAX);
+        if (!this.suggestForFileNames) {
+            const linkCurrentMatch = LINKCURRENT_SYNTAX_SUGGEST_REGEX.exec(input);
+            if (linkCurrentMatch) callback(linkCurrentMatch, FormatSyntaxToken.LinkCurrent, LINKCURRENT_SYNTAX);
 
-        const templateMatch = TEMPLATE_SYNTAX_SUGGEST_REGEX.exec(input);
-        if (templateMatch) callback(templateMatch, FormatSyntaxToken.Template, "{{TEMPLATE:");
+            const templateMatch = TEMPLATE_SYNTAX_SUGGEST_REGEX.exec(input);
+            if (templateMatch) callback(templateMatch, FormatSyntaxToken.Template, "{{TEMPLATE:");
 
-        const macroMatch = MACRO_SYNTAX_SUGGEST_REGEX.exec(input);
-        if (macroMatch) callback(macroMatch, FormatSyntaxToken.Macro, "{{MACRO:");
+            const macroMatch = MACRO_SYNTAX_SUGGEST_REGEX.exec(input);
+            if (macroMatch) callback(macroMatch, FormatSyntaxToken.Macro, "{{MACRO:");
+        }
     }
 }
