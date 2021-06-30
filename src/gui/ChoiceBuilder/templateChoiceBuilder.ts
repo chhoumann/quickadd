@@ -1,8 +1,7 @@
 import {ChoiceBuilder} from "./choiceBuilder";
-import {App, ButtonComponent, Setting, TextComponent, TFolder, ToggleComponent} from "obsidian";
+import {App, ButtonComponent, Setting, TextComponent, ToggleComponent} from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
-import {FILE_NAME_FORMAT_SYNTAX} from "../../constants";
 import {NewTabDirection} from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
@@ -10,11 +9,12 @@ import {ExclusiveSuggester} from "../exclusiveSuggester";
 import {log} from "../../logger/logManager";
 import {getAllFolders, getTemplatePaths} from "../../utility";
 import {GenericTextSuggester} from "../genericTextSuggester";
+import type QuickAdd from "../../main";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;
 
-    constructor(app: App, choice: ITemplateChoice) {
+    constructor(app: App, choice: ITemplateChoice, private plugin: QuickAdd) {
         super(app);
         this.choice = choice;
 
@@ -79,7 +79,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                     formatDisplay.textContent = await displayFormatter.format(value);
                 });
 
-        new FormatSyntaxSuggester(this.app, textField.inputEl, FILE_NAME_FORMAT_SYNTAX);
+        new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin, true);
     }
 
     private addFolderSetting(): void {

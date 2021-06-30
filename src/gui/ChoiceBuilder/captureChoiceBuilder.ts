@@ -170,7 +170,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                 formatDisplay.innerText = await displayFormatter.format(value);
             });
 
-        new FormatSyntaxSuggester(this.app, textField.inputEl, FORMAT_SYNTAX);
+        new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin);
 
         const formatDisplay: HTMLSpanElement = this.contentEl.createEl('span');
         const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(this.app, this.plugin);

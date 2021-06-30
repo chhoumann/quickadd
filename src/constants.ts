@@ -1,14 +1,18 @@
 export const VALUE_SYNTAX: string = "{{VALUE}}";
+export const DATE_SYNTAX = "{{DATE}}";
+export const NAME_SYNTAX = "{{NAME}}";
+export const VARIABLE_SYNTAX = "{{VALUE:<VARIABLE NAME>}}";
+export const LINKCURRENT_SYNTAX = "{{LINKCURRENT}}";
 
 export const FORMAT_SYNTAX: string[] = [
-    "{{DATE}}", "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
-    VALUE_SYNTAX, "{{NAME}}", "{{VALUE:<VARIABLE NAME>}}", "{{LINKCURRENT}}", "{{MACRO:<MACRONAME>}}",
+    DATE_SYNTAX, "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
+    VALUE_SYNTAX, NAME_SYNTAX, VARIABLE_SYNTAX, LINKCURRENT_SYNTAX, "{{MACRO:<MACRONAME>}}",
     "{{TEMPLATE:<TEMPLATEPATH>}}"
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
-    "{{DATE}}", "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
-    VALUE_SYNTAX, "{{NAME}}", "{{VALUE:<VARIABLE NAME>}}",
+    DATE_SYNTAX, "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
+    VALUE_SYNTAX, NAME_SYNTAX, VARIABLE_SYNTAX,
 ]
 
 export const FILE_NUMBER_REGEX: RegExp = new RegExp(/([0-9]*)\.md$/);
@@ -27,3 +31,18 @@ export const LINEBREAK_REGEX: RegExp = new RegExp(/\\n/);
 
 export const FILE_LINK_REGEX: RegExp = new RegExp(/\[\[([^\]]*)$/);
 export const TAG_REGEX: RegExp = new RegExp(/#([^ ]*)$/);
+
+
+
+// == Format Syntax Suggestion == //
+export const DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[D]?[A]?[T]?[E]?[}]?[}]?$/i);
+export const DATE_FORMAT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[D]?[A]?[T]?[E]?[:]?$|{{DATE:[^\n\r}]*}}$/i);
+export const NAME_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[N]?[A]?[M]?[E]?[}]?[}]?$/i);
+export const VALUE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[V]?[A]?[L]?[U]?[E]?[}]?[}]?$/i);
+export const VARIABLE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[V]?[A]?[L]?[U]?[E]?[:]?$|{{VALUE:[^\n\r}]*}}$/i);
+export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[V]?[D]?[A]?[T]?[E]?[:]?$|{{VDATE:[^\n\r}]*}}$/i);
+export const LINKCURRENT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[L]?[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i);
+export const TEMPLATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i);
+export const MACRO_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[M]?[A]?[C]?[R]?[O]?[:]?$|{{MACRO:[^\n\r}]*}}$/i);
+
+

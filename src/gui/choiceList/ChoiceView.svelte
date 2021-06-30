@@ -114,7 +114,7 @@
     function getChoiceBuilder(choice: IChoice) {
         switch (choice.type) {
             case ChoiceType.Template:
-                return new TemplateChoiceBuilder(app, choice as ITemplateChoice);
+                return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
             case ChoiceType.Capture:
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
             case ChoiceType.Macro:
