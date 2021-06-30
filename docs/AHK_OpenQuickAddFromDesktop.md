@@ -21,7 +21,7 @@ Here's a guide to what the `!^+` mean, and how you can customize it: https://www
 If you are willing to install the ``Obsidian Advanced URI`` plugin, this script is much easier for you to use.
 
 ````ahk
-endMode Input
+SendMode Input
 SetWorkingDir, %A_ScriptDir%
 SetTitleMatchMode, RegEx
 
