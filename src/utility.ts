@@ -65,17 +65,16 @@ export function getNaturalLanguageDates(app: App) {
     return app.plugins.plugins["nldates-obsidian"];
 }
 
-export function getDate(input?: {format?: string, offset?: number|string}) {
+export function getDate(input?: {format?: string, offset?: number}) {
     let duration;
 
-    if (input.offset) {
-        if(typeof input.offset === "string")
-            duration = window.moment.duration(input.offset);
-        else if (typeof input.offset === "number")
-            duration = window.moment.duration(input.offset, "days");
+    console.log(input.offset);
+    if (input.offset !== null && input.offset !== undefined && typeof input.offset === "number") {
+        duration = window.moment.duration(input.offset, "days");
     }
 
-    return input.format ? window.moment().add(duration).format(input.format) : window.moment().add(duration).format("YYYY-MM-DD");
+    return input.format ? window.moment().add(duration).format(input.format)
+                        : window.moment().add(duration).format("YYYY-MM-DD");
 }
 
 export function appendToCurrentLine(toAppend: string, app: App) {
