@@ -1,7 +1,7 @@
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type {App, TFile} from "obsidian";
 import {appendToCurrentLine, getAllFolders} from "../utility";
-import {MARKDOWN_FILE_EXTENSION_REGEX, VALUE_SYNTAX} from "../constants";
+import {VALUE_SYNTAX} from "../constants";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import {TemplateEngine} from "./TemplateEngine";
@@ -47,8 +47,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
             }
 
             if (this.choice.appendLink) {
-                const linkString = `[[${createdFile.path.replace(MARKDOWN_FILE_EXTENSION_REGEX, '')}]]`;
-                appendToCurrentLine(linkString, this.app);
+                appendToCurrentLine(this.app.fileManager.generateMarkdownLink(createdFile, ''), this.app);
             }
 
             if (this.choice.openFile) {
