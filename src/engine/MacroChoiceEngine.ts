@@ -153,22 +153,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     protected async executeChoice(command: IChoiceCommand) {
-        const choices: IChoice[] = this.plugin.settings.choices;
-
-        const findChoice = (choiceArr: IChoice[]) => {
-            let tempChoice: IChoice;
-            for (const choice of choiceArr) {
-                tempChoice = choice;
-
-                if (choice.type === ChoiceType.Multi)
-                    tempChoice = findChoice((<IMultiChoice> choice).choices);
-
-                if (tempChoice.id === command.choiceId)
-                    return tempChoice;
-            }
-        }
-
-        const targetChoice = findChoice(choices);
+        const targetChoice = this.plugin.getChoiceById(command.choiceId);
         if (!targetChoice) {
             log.logError("choice could not be found.");
             return;

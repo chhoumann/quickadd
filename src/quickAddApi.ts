@@ -16,7 +16,7 @@ export class QuickAddApi {
             suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
             checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)},
             executeChoice: async (choiceName: string) => {
-                const choice: IChoice = plugin.getChoice(choiceName);
+                const choice: IChoice = plugin.getChoiceByName(choiceName);
                 if (!choice) log.logError(`choice named '${choiceName}' not found`);
 
                 await choiceExecutor.execute(choice);

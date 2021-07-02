@@ -83,20 +83,29 @@ export default class QuickAdd extends Plugin {
 		}
 	}
 
-	public getChoice(choiceName: string): IChoice {
-		return this.settings.choices.find((choice) => this.getChoiceHelper(choiceName, choice));
+	public getChoiceById(choiceId: string): IChoice {
+		return this.getChoice("id", choiceId);
 	}
 
-	private getChoiceHelper(targetChoiceName: string, currentChoice: IChoice) {
-		if (currentChoice.type === ChoiceType.Multi) {
-			let foundChoice: IChoice = (currentChoice as IMultiChoice).choices
-				.find((choice) => this.getChoiceHelper(targetChoiceName, choice));
+	public getChoiceByName(choiceName: string): IChoice {
+		return this.getChoice("name", choiceName);
+	}
 
-			if (foundChoice) return foundChoice;
+	private getChoice(by: "name" | "id", targetPropertyValue: string): IChoice {
+		let tempChoice: IChoice;
+
+		const findChoice = (choice: IChoice) => {
+			if (choice[by] === targetPropertyValue) {
+				tempChoice = choice;
+				return tempChoice;
+			}
+
+			if (choice.type === ChoiceType.Multi) (choice as IMultiChoice).choices.forEach(findChoice);
 		}
 
-		if (currentChoice.name === targetChoiceName)
-			return currentChoice;
+		this.settings.choices.forEach(findChoice);
+
+		return tempChoice;
 	}
 
 	public removeCommandForChoice(choice: IChoice) {
