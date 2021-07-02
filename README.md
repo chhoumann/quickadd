@@ -9,9 +9,10 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.2.14 - 0.2.15
+### 0.2.14 - 0.2.16
 - Add 'Insert at the end of section' feature to Captures.
 - Revamped the Capture & Template format suggesters. They're now more like smart-autocompleters.
+- Template choices now also use the Obsidian method for creating links to files.
 
 ### 0.2.13
 - Add error logging for when no macro is in the choice.
