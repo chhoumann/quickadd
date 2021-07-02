@@ -9,6 +9,14 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.3.0
+- Link suggestion in the input prompt now uses your Obsidian link settings by default.
+- Add error handling for using ``{{MACRO}}`` to execute a macro that does not exist.
+- Input prompt can now also suggest unresolved links.
+- Capped input prompt at 50 suggestions for performance in larger vaults.
+- You can now offset dates with ``{{DATE+3}}`` or ``{{DATE:<format>+3}}``. `+3` gives you the date in three days, while `+-3` gives you the date three days ago.
+- Added a new API feature which allows you to execute choices from within user scripts. These keep the current variables for the execution, so you can 'transfer' variables.
+
 ### 0.2.14 - 0.2.16
 - Add 'Insert at the end of section' feature to Captures.
 - Revamped the Capture & Template format suggesters. They're now more like smart-autocompleters.
