@@ -83,6 +83,22 @@ export default class QuickAdd extends Plugin {
 		}
 	}
 
+	public getChoice(choiceName: string): IChoice {
+		return this.settings.choices.find((choice) => this.getChoiceHelper(choiceName, choice));
+	}
+
+	private getChoiceHelper(targetChoiceName: string, currentChoice: IChoice) {
+		if (currentChoice.type === ChoiceType.Multi) {
+			let foundChoice: IChoice = (currentChoice as IMultiChoice).choices
+				.find((choice) => this.getChoiceHelper(targetChoiceName, choice));
+
+			if (foundChoice) return foundChoice;
+		}
+
+		if (currentChoice.name === targetChoiceName)
+			return currentChoice;
+	}
+
 	public removeCommandForChoice(choice: IChoice) {
 		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
 	}

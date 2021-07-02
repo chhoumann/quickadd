@@ -33,6 +33,11 @@ Returns an array of the selected items.
 
 This function is asynchronous. You should ``await`` it.
 
+### ``executeChoice(choiceName: string)``
+Executes choice with the given name.
+
+This function is asynchronous. You should ``await`` it.
+
 ## Utility module
 ### ``getClipboard()``
 Returns the contents of your clipboard.

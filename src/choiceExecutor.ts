@@ -14,7 +14,7 @@ import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/choiceSuggester";
 
 export class ChoiceExecutor implements IChoiceExecutor {
-    private variables: Map<string, string> = new Map<string, string>();
+    public variables: Map<string, string> = new Map<string, string>();
 
     constructor(private app: App, private plugin: QuickAdd) { }
 

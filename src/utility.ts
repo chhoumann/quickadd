@@ -68,7 +68,6 @@ export function getNaturalLanguageDates(app: App) {
 export function getDate(input?: {format?: string, offset?: number}) {
     let duration;
 
-    console.log(input.offset);
     if (input.offset !== null && input.offset !== undefined && typeof input.offset === "number") {
         duration = window.moment.duration(input.offset, "days");
     }
