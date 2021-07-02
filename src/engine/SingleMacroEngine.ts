@@ -4,6 +4,7 @@ import {MacroChoiceEngine} from "./MacroChoiceEngine";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {getUserScriptMemberAccess} from "../utility";
+import {log} from "../logger/logManager";
 
 export class SingleMacroEngine extends MacroChoiceEngine {
     private memberAccess: string[];
@@ -15,7 +16,10 @@ export class SingleMacroEngine extends MacroChoiceEngine {
     public async runAndGetOutput(macroName: string): Promise<string> {
         const {basename, memberAccess} = getUserScriptMemberAccess(macroName);
         const macro = this.macros.find(macro => macro.name === basename);
-        if (!macro) return;
+        if (!macro) {
+            log.logError(`macro '${macroName}' does not exist.`)
+            return;
+        }
 
         if (memberAccess && memberAccess.length > 0) {
             this.memberAccess = memberAccess;

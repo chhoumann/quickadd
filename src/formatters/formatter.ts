@@ -4,10 +4,11 @@ import {
     DATE_VARIABLE_REGEX, LINEBREAK_REGEX,
     LINK_TO_CURRENT_FILE_REGEX,
     MACRO_REGEX,
-    NAME_VALUE_REGEX, TEMPLATE_REGEX,
+    NAME_VALUE_REGEX, NUMBER_REGEX, TEMPLATE_REGEX,
     VARIABLE_REGEX
 } from "../constants";
 import {getDate} from "../utility";
+import {match} from "assert";
 
 export abstract class Formatter {
     protected value: string;
@@ -20,17 +21,26 @@ export abstract class Formatter {
 
         while (DATE_REGEX.test(output)) {
             const dateMatch = DATE_REGEX.exec(output);
-            let offset: string = dateMatch[1]
-            if (offset)
-                offset = offset.replace('+', '');
+            let offset: number;
 
+            if (dateMatch[1]) {
+                const offsetString = dateMatch[1].replace('+', '').trim();
+                const offsetIsInt = NUMBER_REGEX.test(offsetString);
+                if (offsetIsInt) offset = parseInt(offsetString);
+        }
             output = output.replace(DATE_REGEX, getDate({offset: offset}));
         }
 
         while (DATE_REGEX_FORMATTED.test(output)) {
             const dateMatch = DATE_REGEX_FORMATTED.exec(output);
-            const format = dateMatch[1].replace('+', '');
-            const offset = parseInt(dateMatch[2]);
+            const format = dateMatch[1]
+            let offset: number;
+
+            if (dateMatch[2]) {
+                const offsetString = dateMatch[2].replace('+', '').trim();
+                const offsetIsInt = NUMBER_REGEX.test(offsetString);
+                if (offsetIsInt) offset = parseInt(offsetString);
+            }
 
             output = output.replace(DATE_REGEX_FORMATTED, getDate({format, offset}));
         }

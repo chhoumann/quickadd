@@ -21,7 +21,7 @@ import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
-    public params = {app: this.app, quickAddApi: QuickAddApi.GetApi(this.app), variables: {}};
+    public params;
     protected output: string;
     protected macros: IMacro[];
     protected choiceExecutor: IChoiceExecutor;
@@ -33,6 +33,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         this.plugin = plugin;
         this.macros = macros;
         this.choiceExecutor = choiceExecutor;
+        this.params = {app: this.app, quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor), variables: {}};
 
         variables?.forEach(((value, key) => {
             this.params.variables[key] = value;

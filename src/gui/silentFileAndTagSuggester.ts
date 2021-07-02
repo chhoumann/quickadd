@@ -1,5 +1,6 @@
 import {TextInputSuggest} from "./suggest";
-import type {App} from "obsidian";
+import type {App, TAbstractFile} from "obsidian";
+import {TFile} from "obsidian";
 import {FILE_LINK_REGEX, TAG_REGEX} from "../constants";
 
 enum TagOrFile {
@@ -9,12 +10,15 @@ enum TagOrFile {
 export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
     private lastInput: string = "";
     private lastInputType: TagOrFile;
-    private fileNames: string[];
+    private files: TFile[];
+    private unresolvedLinkNames: string[];
     private tags: string[];
 
     constructor(public app: App, public inputEl: HTMLInputElement) {
         super(app, inputEl);
-        this.fileNames = app.vault.getMarkdownFiles().map(f => f.basename);
+        this.files = app.vault.getMarkdownFiles();
+        this.unresolvedLinkNames = this.getUnresolvedLinkNames(app);
+
         // @ts-ignore
         this.tags = Object.keys(app.metadataCache.getTags());
     }
@@ -38,10 +42,13 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
             const fileNameInput: string = fileLinkMatch[1];
             this.lastInput = fileNameInput;
             this.lastInputType = TagOrFile.File;
-            suggestions = this.fileNames.filter(filePath => filePath.toLowerCase().contains(fileNameInput.toLowerCase()));
+            suggestions = this.files
+                .filter(file => file.path.toLowerCase().contains(fileNameInput.toLowerCase()))
+                .map(file => file.path);
+            suggestions.push(...this.unresolvedLinkNames.filter(name => name.toLowerCase().contains(fileNameInput.toLowerCase())));
         }
 
-        return suggestions;
+        return suggestions.slice(0, 50);
     }
 
     renderSuggestion(item: string, el: HTMLElement): void {
@@ -55,8 +62,14 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
         let insertedEndPosition: number = 0;
 
         if (this.lastInputType === TagOrFile.File) {
-            this.inputEl.value = this.getNewInputValueForFileName(currentInputValue, item, cursorPosition, lastInputLength);
-            insertedEndPosition = cursorPosition - lastInputLength + item.length + 2;
+            const linkFile: TAbstractFile = this.app.vault.getAbstractFileByPath(item);
+
+            if (linkFile instanceof TFile) {
+                insertedEndPosition = this.makeLinkObsidianMethod(linkFile, currentInputValue, cursorPosition, lastInputLength);
+            } else {
+                insertedEndPosition = this.makeLinkManually(currentInputValue, item.replace(/.md$/, ''), cursorPosition, lastInputLength);
+            }
+
         }
 
         if (this.lastInputType === TagOrFile.Tag) {
@@ -69,11 +82,39 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
         this.inputEl.setSelectionRange(insertedEndPosition, insertedEndPosition);
     }
 
+    private makeLinkObsidianMethod(linkFile: TFile, currentInputValue: string, cursorPosition: number, lastInputLength: number) {
+        const link = this.app.fileManager.generateMarkdownLink(linkFile, '');
+        this.inputEl.value = this.getNewInputValueForFileLink(currentInputValue, link, cursorPosition, lastInputLength);
+        return cursorPosition - lastInputLength + link.length + 2;
+    }
+
+    private makeLinkManually(currentInputValue: string, item: string, cursorPosition: number, lastInputLength: number) {
+        this.inputEl.value = this.getNewInputValueForFileName(currentInputValue, item, cursorPosition, lastInputLength);
+        return cursorPosition - lastInputLength + item.length + 2;
+    }
+
+    private getNewInputValueForFileLink(currentInputElValue: string, selectedItem: string, cursorPosition: number, lastInputLength: number): string {
+        return `${currentInputElValue.substr(0, cursorPosition - lastInputLength - 2)}${selectedItem}${currentInputElValue.substr(cursorPosition)}`;
+    }
+
     private getNewInputValueForFileName(currentInputElValue: string, selectedItem: string, cursorPosition: number, lastInputLength: number): string {
         return `${currentInputElValue.substr(0, cursorPosition - lastInputLength)}${selectedItem}]]${currentInputElValue.substr(cursorPosition)}`;
     }
 
     private getNewInputValueForTag(currentInputElValue: string, selectedItem: string, cursorPosition: number, lastInputLength: number) {
         return `${currentInputElValue.substr(0, cursorPosition - lastInputLength - 1)}${selectedItem}${currentInputElValue.substr(cursorPosition)}`;
+    }
+
+    private getUnresolvedLinkNames(app: App): string[] {
+        const unresolvedLinks: Record<string, Record<string, number>> = app.metadataCache.unresolvedLinks;
+        const unresolvedLinkNames: Set<string> = new Set<string>();
+
+        for (const sourceFileName in unresolvedLinks) {
+            for (const unresolvedLink in unresolvedLinks[sourceFileName]) {
+                unresolvedLinkNames.add(unresolvedLink);
+            }
+        }
+
+        return Array.from(unresolvedLinkNames);
     }
 }
