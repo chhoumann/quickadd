@@ -11,11 +11,14 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
     private lastInput: string = "";
     private lastInputType: TagOrFile;
     private files: TFile[];
+    private unresolvedLinkNames: string[];
     private tags: string[];
 
     constructor(public app: App, public inputEl: HTMLInputElement) {
         super(app, inputEl);
         this.files = app.vault.getMarkdownFiles();
+        this.unresolvedLinkNames = this.getUnresolvedLinkNames(app);
+
         // @ts-ignore
         this.tags = Object.keys(app.metadataCache.getTags());
     }
@@ -42,9 +45,10 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
             suggestions = this.files
                 .filter(file => file.path.toLowerCase().contains(fileNameInput.toLowerCase()))
                 .map(file => file.path);
+            suggestions.push(...this.unresolvedLinkNames.filter(name => name.toLowerCase().contains(fileNameInput.toLowerCase())));
         }
 
-        return suggestions;
+        return suggestions.slice(0, 50);
     }
 
     renderSuggestion(item: string, el: HTMLElement): void {
@@ -99,5 +103,18 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
 
     private getNewInputValueForTag(currentInputElValue: string, selectedItem: string, cursorPosition: number, lastInputLength: number) {
         return `${currentInputElValue.substr(0, cursorPosition - lastInputLength - 1)}${selectedItem}${currentInputElValue.substr(cursorPosition)}`;
+    }
+
+    private getUnresolvedLinkNames(app: App): string[] {
+        const unresolvedLinks: Record<string, Record<string, number>> = app.metadataCache.unresolvedLinks;
+        const unresolvedLinkNames: Set<string> = new Set<string>();
+
+        for (const sourceFileName in unresolvedLinks) {
+            for (const unresolvedLink in unresolvedLinks[sourceFileName]) {
+                unresolvedLinkNames.add(unresolvedLink);
+            }
+        }
+
+        return Array.from(unresolvedLinkNames);
     }
 }
