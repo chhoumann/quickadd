@@ -85,9 +85,7 @@ export function appendToCurrentLine(toAppend: string, app: App) {
             return;
         }
 
-        const selected = activeView.editor.getSelection();
-
-        activeView.editor.replaceSelection(`${selected}${toAppend}`);
+        activeView.editor.replaceSelection(toAppend);
     } catch {
        log.logError(`unable to append '${toAppend}' to current line.`);
     }
