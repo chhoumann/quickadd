@@ -9,6 +9,11 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.3.3
+- Fix 'undefined' error when canceling template choices.
+- Insert after in captures now allow format syntax for dynamic insertion.
+- Appending to active file now replaces the selected text instead of inserting after it.
+
 ### 0.3.0 - 0.3.1
 - Link suggestion in the input prompt now uses your Obsidian link settings by default.
 - Add error handling for using ``{{MACRO}}`` to execute a macro that does not exist.
@@ -32,7 +37,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 - Fix bug where, if there is an emoji in the folder name, the file sometimes doesn't get created
 - Update the API. The suggester can now take a map function for the `displayItems`, which will be executed on the `actualItems`. There is also a utility module now, which currently allows you to set or get your clipboard.
 
-
 ### 0.2.11 - 0.2.12
 - Implement Quick Commands - ironically, starting with a Wait command. With this command, you can add a delay to your macros. Useful for commands that may take a while to finish.
 - Fix a bug where the command sequence did not save.
@@ -41,17 +45,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 - Remove (missed) `console.log`.
 - If formatted content is empty, don't add anything.
 - Capture: Don't create file if setting is disabled.
-
-### 0.2.9 - 0.2.10
-- Fix Capture 'Create file if it doesn't exist' bug where some Templater functions did not activate
-- Address #28 - choices in multis were not able to be added as commands
-- Implement #29 - you can now capture to the bottom of a file
-- Fix macro ID conversion
-- Fix select macro bug for users with 0-1 macros
-
-### 0.2.7 - 0.2.8
-- Linebreak formatting no longer occurs in Template choices - it only activates for Capture choices. It caused unnecessary conflicts.
-- Fix bug where some Templater functions are activated twice.
 
 ## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
