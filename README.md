@@ -10,7 +10,7 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
 ### 0.3.3
-- Fix 'undefined' error when canceling template choices.
+- Fix 'undefined' error when cancelling template choices.
 - Insert after in captures now allow format syntax for dynamic insertion.
 - Appending to active file now replaces the selected text instead of inserting after it.
 
