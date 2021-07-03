@@ -46,7 +46,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
             return `${this.fileContent}\n${formatted}`
 
         if (this.choice.insertAfter.enabled) {
-            const targetRegex = new RegExp(`\s*${this.choice.insertAfter.after}\s*`)
+            const target: string = await this.format(this.choice.insertAfter.after);
+            const targetRegex = new RegExp(`\s*${target}\s*`)
             let fileContentLines: string[] = getLinesInString(this.fileContent);
 
             const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));

@@ -116,22 +116,36 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     }
 
     private addInsertAfterSetting() {
+        let insertAfterInput: TextComponent;
         const insertAfterSetting: Setting = new Setting(this.contentEl);
         insertAfterSetting.setName("Insert after")
-            .setDesc("Insert capture after specified line.")
+            .setDesc("Insert capture after specified line. Accepts format syntax.")
             .addToggle(toggle => {
                 toggle.setValue(this.choice.insertAfter.enabled);
                 toggle.onChange(value => {
                     this.choice.insertAfter.enabled = value;
+                    insertAfterInput.setDisabled(!value);
                     this.reload();
                 });
             })
-            .addText(textEl => {
-                textEl.setPlaceholder("Line text");
-                textEl.inputEl.style.marginLeft = "10px";
-                textEl.setValue(this.choice.insertAfter.after);
-                textEl.onChange(value => this.choice.insertAfter.after = value);
+
+
+        const insertAfterFormatDisplay: HTMLSpanElement = this.contentEl.createEl('span');
+        const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(this.app, this.plugin);
+        (async () => insertAfterFormatDisplay.innerText = await displayFormatter.format(this.choice.insertAfter.after))();
+
+        insertAfterInput = new TextComponent(this.contentEl);
+        insertAfterInput.setPlaceholder("Insert after");
+        insertAfterInput.inputEl.style.width = "100%";
+        insertAfterInput.inputEl.style.marginBottom = "8px";
+        insertAfterInput.setValue(this.choice.insertAfter.after)
+            .setDisabled(!this.choice.insertAfter.enabled)
+            .onChange(async value => {
+                this.choice.insertAfter.after = value;
+                insertAfterFormatDisplay.innerText = await displayFormatter.format(value);
             });
+
+        new FormatSyntaxSuggester(this.app, insertAfterInput.inputEl, this.plugin);
 
         if (this.choice.insertAfter.enabled) {
             const insertAtEndSetting: Setting = new Setting(this.contentEl);
