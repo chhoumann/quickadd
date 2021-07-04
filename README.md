@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.3.4
+- When creating a new file with a template, and the file already exists, you will be asked what you want to do. You can append the template to the top, bottom, overwrite the file with the template, or do nothing.
+
 ### 0.3.3
 - Fix 'undefined' error when cancelling template choices.
 - Insert after in captures now allow format syntax for dynamic insertion.

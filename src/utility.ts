@@ -7,10 +7,10 @@ export function getTemplater(app: App) {
     return app.plugins.plugins["templater-obsidian"]
 }
 
-export async function replaceTemplaterTemplatesInCreatedFile(app: App, file: TFile) {
+export async function replaceTemplaterTemplatesInCreatedFile(app: App, file: TFile, force: boolean = false) {
     const templater = getTemplater(app);
 
-    if (templater && !templater?.settings["trigger_on_file_creation"]) {
+    if (templater && (force || !templater?.settings["trigger_on_file_creation"])) {
         await templater.templater.overwrite_file_templates(file);
     }
 }

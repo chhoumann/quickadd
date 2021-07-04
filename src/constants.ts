@@ -1,3 +1,5 @@
+import exp from "constants";
+
 export const VALUE_SYNTAX: string = "{{VALUE}}";
 export const DATE_SYNTAX = "{{DATE}}";
 export const NAME_SYNTAX = "{{NAME}}";
@@ -48,3 +50,9 @@ export const TEMPLATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[T]?[E]?[M]?[
 export const MACRO_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[M]?[A]?[C]?[R]?[O]?[:]?$|{{MACRO:[^\n\r}]*}}$/i);
 
 
+// == File Exists (Template Choice) == //
+export const fileExistsAppendToBottom: string = "Append to the bottom of the file";
+export const fileExistsAppendToTop: string = "Append to the top of the file";
+export const fileExistsOverwriteFile: string = "Overwrite the file";
+export const fileExistsDoNothing: string = "Nothing";
+export const fileExistsChoices: string[] = [fileExistsAppendToBottom, fileExistsAppendToTop, fileExistsOverwriteFile, fileExistsDoNothing];

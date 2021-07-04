@@ -81,6 +81,44 @@ export abstract class TemplateEngine extends QuickAddEngine {
         }
     }
 
+    protected async overwriteFileWithTemplate(file: TFile, templatePath: string) {
+        try {
+            const templateContent: string = await this.getTemplateContent(templatePath);
+
+            const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
+            await this.app.vault.modify(file, formattedTemplateContent);
+
+            await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+
+            return file;
+        }
+        catch (e) {
+            log.logError(e);
+            return null;
+        }
+    }
+
+    protected async appendToFileWithTemplate(file: TFile, templatePath: string, section: 'top' | 'bottom') {
+        try {
+            const templateContent: string = await this.getTemplateContent(templatePath);
+
+            const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
+            const fileContent: string = await this.app.vault.cachedRead(file);
+            const newFileContent: string = section === "top" ?
+                `${formattedTemplateContent}\n${fileContent}`  :
+                `${fileContent}\n${formattedTemplateContent}`
+            await this.app.vault.modify(file, newFileContent);
+
+            await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+
+            return file;
+        }
+        catch (e) {
+            log.logError(e);
+            return null;
+        }
+    }
+
     protected async getTemplateContent(templatePath: string): Promise<string> {
         const templateFile: TAbstractFile = this.app.vault.getAbstractFileByPath(templatePath);
         if (!(templateFile instanceof TFile)) return;
