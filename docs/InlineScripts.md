@@ -13,3 +13,5 @@ return `Input given: ${input}`;
 ````
 
 When you are making an inline script, remember to write ``js quickadd`` and not just ``js`` when denoting the language - otherwise you're just inserting a code snippet.
+
+If you want to insert something, simply ``return`` it. The return type __must__ be a string
