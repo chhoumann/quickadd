@@ -20,6 +20,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 export const FILE_NUMBER_REGEX: RegExp = new RegExp(/([0-9]*)\.md$/);
 export const NUMBER_REGEX: RegExp = new RegExp(/^-?[0-9]*$/);
 
+// == Format Syntax == //
 export const DATE_REGEX: RegExp = new RegExp(/{{DATE(\+-?[0-9]+)?}}/);
 export const DATE_REGEX_FORMATTED: RegExp = new RegExp(/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/);
 export const NAME_VALUE_REGEX: RegExp = new RegExp(/{{NAME}}|{{VALUE}}/);
@@ -31,6 +32,7 @@ export const JAVASCRIPT_FILE_EXTENSION_REGEX: RegExp = new RegExp(/\.js$/);
 export const MACRO_REGEX: RegExp = new RegExp(/{{MACRO:([^\n\r}]*)}}/);
 export const TEMPLATE_REGEX: RegExp = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/);
 export const LINEBREAK_REGEX: RegExp = new RegExp(/\\n/);
+export const INLINE_JAVASCRIPT_REGEX: RegExp = new RegExp(/`{3,}js quickadd([\s\S]*?)`{3,}/);
 
 
 export const FILE_LINK_REGEX: RegExp = new RegExp(/\[\[([^\]]*)$/);

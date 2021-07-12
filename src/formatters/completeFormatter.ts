@@ -8,6 +8,8 @@ import {SingleMacroEngine} from "../engine/SingleMacroEngine";
 import {SingleTemplateEngine} from "../engine/SingleTemplateEngine";
 import {MarkdownView} from "obsidian";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
+import {INLINE_JAVASCRIPT_REGEX} from "../constants";
+import {SingleInlineScriptEngine} from "../engine/SingleInlineScriptEngine";
 
 export class CompleteFormatter extends Formatter {
     private valueHeader: string;
@@ -20,6 +22,7 @@ export class CompleteFormatter extends Formatter {
     protected async format(input: string): Promise<string> {
         let output: string = input;
 
+        output = await this.replaceInlineJavascriptInString(output);
         output = await this.replaceMacrosInString(output);
         output = await this.replaceTemplateInString(output);
         output = this.replaceDateInString(output);
@@ -97,5 +100,29 @@ export class CompleteFormatter extends Formatter {
         if (!activeView) return;
 
         return activeView.editor.getSelection();
+    }
+
+    protected async replaceInlineJavascriptInString(input: string) {
+        let output: string = input;
+
+        while (INLINE_JAVASCRIPT_REGEX.test(output)) {
+            const match: RegExpMatchArray = INLINE_JAVASCRIPT_REGEX.exec(output);
+            const code: string = match[1]?.trim();
+
+            if (code) {
+                const executor = new SingleInlineScriptEngine(this.app, this.plugin, this.choiceExecutor, this.variables);
+                const outVal: any = await executor.runAndGetOutput(code);
+
+                for (let key in executor.params.variables) {
+                    this.variables.set(key, executor.params.variables[key]);
+                }
+
+                output = typeof outVal === "string" ?
+                    output.replace(INLINE_JAVASCRIPT_REGEX, outVal) :
+                    output.replace(INLINE_JAVASCRIPT_REGEX, "");
+            }
+        }
+
+        return output;
     }
 }

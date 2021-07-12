@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### o.3.5
+- You can now execute inline JavaScript in templates or captures.
+
 ### 0.3.4
 - When creating a new file with a template, and the file already exists, you will be asked what you want to do. You can append the template to the top, bottom, overwrite the file with the template, or do nothing.
 
@@ -25,29 +28,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 - You can now offset dates with ``{{DATE+3}}`` or ``{{DATE:<format>+3}}``. `+3` gives you the date in three days, while `+-3` gives you the date three days ago.
 - Added a new API feature which allows you to execute choices from within user scripts. These keep the current variables for the execution, so you can 'transfer' variables.
 - (0.3.1 HOTFIX) Fix choice finding algorithm.
-
-### 0.2.14 - 0.2.16
-- Add 'Insert at the end of section' feature to Captures.
-- Revamped the Capture & Template format suggesters. They're now more like smart-autocompleters.
-- Template choices now also use the Obsidian method for creating links to files.
-
-### 0.2.13
-- Add error logging for when no macro is in the choice.
-- Add 'Add' buttons to Macro Builder.
-- Multi choices can now have commands & hotkeys.
-- Attempted to address #39 - capture not creating template.
-- Suggest files from both core templates folder and templater templates folder when creating a Template choice.
-- Fix bug where, if there is an emoji in the folder name, the file sometimes doesn't get created
-- Update the API. The suggester can now take a map function for the `displayItems`, which will be executed on the `actualItems`. There is also a utility module now, which currently allows you to set or get your clipboard.
-
-### 0.2.11 - 0.2.12
-- Implement Quick Commands - ironically, starting with a Wait command. With this command, you can add a delay to your macros. Useful for commands that may take a while to finish.
-- Fix a bug where the command sequence did not save.
-- Fix bug where 'Create file if it doesn't exist' did not work as intended when no template was given.
-- Updated the documentation with new examples and changes to settings.
-- Remove (missed) `console.log`.
-- If formatted content is empty, don't add anything.
-- Capture: Don't create file if setting is disabled.
 
 ## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.

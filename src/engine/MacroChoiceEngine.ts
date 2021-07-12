@@ -11,11 +11,8 @@ import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
 import type {IMacro} from "../types/macros/IMacro";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type {IChoiceCommand} from "../types/macros/IChoiceCommand";
-import type IChoice from "../types/choices/IChoice";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
-import {ChoiceType} from "../types/choices/choiceType";
-import type IMultiChoice from "../types/choices/IMultiChoice";
 import {getUserScriptMemberAccess, waitFor} from "../utility";
 import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 
