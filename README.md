@@ -10,7 +10,7 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
 ### o.3.5
-- You can now execute inline JavaScript in templates or captures.
+- You can now execute [inline JavaScript](docs/InlineScripts.md) in templates or captures.
 
 ### 0.3.4
 - When creating a new file with a template, and the file already exists, you will be asked what you want to do. You can append the template to the top, bottom, overwrite the file with the template, or do nothing.
@@ -56,7 +56,7 @@ Take a look at some examples...
 - [Capture: Fetch tasks from Todoist and capture to a file](docs/Examples/Capture_FetchTasksFromTodoist.md)
 
 #### Create powerful scripts and macros to automate my workflow
-Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), and [macros](docs/Choices/MacroChoice.md).
+Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), [inline scripts](docs/InlineScripts.md), and [macros](docs/Choices/MacroChoice.md).
 
 #### Use QuickAdd even when Obsidian is minimized / in the background
 You got it. Take a look at [this AutoHotKey script](docs/AHK_OpenQuickAddFromDesktop.md).
