@@ -9,7 +9,7 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### o.3.5
+### 0.3.5
 - You can now execute [inline JavaScript](docs/InlineScripts.md) in templates or captures.
 
 ### 0.3.4
