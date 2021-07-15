@@ -17,7 +17,8 @@ The template path should be the path the template made based on the one here.
 
 Notably, the book's name would be the one selected. I have chosen to write prepend a ``{ `` before it, as I use this to denote literature notes in my vault.
 
-The remaining settings are up to you.
+The remaining settings are up to you. Activating this choice will open a menu which allows you to choose a book, and the book notes will be used appended to the template.
+You can customize the template as much as you like, but make sure to keep the ``{{MACRO:Readwise::instaFetchBook}}``, as that is what gets the highlights (and where they'll be inserted).
 
 
 #### Script
