@@ -8,9 +8,17 @@ Basically, you'll want to create a new JavaScript file (file extension is `.js`)
 
 Now you need to create a new macro. To do so, open the Macro Manager, enter a name for it (I use `Readwise`), and then click `Add`. Then click `Configure` on that macro. Once a modal opens, select the user script you've created and click `Add`.
 
-Lastly, create a Macro Choice by going to the main menu, giving it a name, and selecting Macro besides the `Add Choice` button. When that's done, add it, and click the gear button to the right of it. There you'll want to select the macro you created before.
-
 Once that's done, you can use the [template provided below](https://github.com/chhoumann/quickadd/blob/master/docs/Examples/Template_AutomaticBookNotesFromReadwise.md#template). If you have your own, then you can just use the `{{MACRO:Readwise::instaFetchBook}}` to insert the highlights. If you called your macro something else than `Readwise`, replace `Readwise` with that.
+
+This template should be added to a [Template choice](../Choices/TemplateChoice.md), and should be given values that resemble this:
+![Template choice setup](../Images/readwise_template_choice.png)
+
+The template path should be the path the template made based on the one here.
+
+Notably, the book's name would be the one selected. I have chosen to write prepend a ``{ `` before it, as I use this to denote literature notes in my vault.
+
+The remaining settings are up to you.
+
 
 #### Script
 Most of the setup is shown in the gif.
