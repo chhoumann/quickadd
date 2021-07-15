@@ -5,4 +5,6 @@ Here is a [guide to installing user scripts](./Capture_FetchTasksFromTodoist.md)
 
 It adds a YAML property to the active file called ``location`` with `[lat, long]` as its value given the address you enter.
 
+**Important:** Requires MetaEdit
+
 ![Demo](../Images/longLatDemo.gif)
