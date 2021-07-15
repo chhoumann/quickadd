@@ -4,7 +4,7 @@ import {App, TAbstractFile, TFile} from "obsidian";
 import type QuickAdd from "../main";
 import {getTemplater, replaceTemplaterTemplatesInCreatedFile} from "../utility";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import {FILE_NUMBER_REGEX} from "../constants";
+import {FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX} from "../constants";
 import {log} from "../logger/logManager";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 
@@ -120,7 +120,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
     }
 
     protected async getTemplateContent(templatePath: string): Promise<string> {
-        const templateFile: TAbstractFile = this.app.vault.getAbstractFileByPath(templatePath);
+        let correctTemplatePath: string = templatePath;
+        if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath))
+            correctTemplatePath += ".md";
+
+        const templateFile: TAbstractFile = this.app.vault.getAbstractFileByPath(correctTemplatePath);
         if (!(templateFile instanceof TFile)) return;
 
         return await this.app.vault.cachedRead(templateFile);
