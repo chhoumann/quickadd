@@ -5,6 +5,7 @@ import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {getLinesInString, templaterParseTemplate} from "../utility";
+import {CREATE_IF_NOT_FOUND_TOP} from "../constants";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
@@ -52,6 +53,18 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
             const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));
             if (targetPosition === -1) {
+                if (this.choice.insertAfter?.createIfNotFound) {
+                    const insertAfterLineAndFormatted: string = `${await this.format(this.choice.insertAfter.after)}\n${formatted}`;
+
+                    if (this.choice.insertAfter?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_TOP) {
+                        const frontmatterEndPosition = this.file ? await this.getFrontmatterEndPosition(this.file) : 0;
+                        return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, frontmatterEndPosition - 1);
+                    }
+                    else {
+                        return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, fileContentLines.length - 1);
+                    }
+                }
+
                 log.logError("unable to find insert after line in file.")
             }
 
@@ -104,6 +117,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
     }
 
     private insertTextAfterPositionInBody(text: string, body: string, pos: number): string {
+        if (pos === -1) {
+            return `${text}\n${body}`;
+        }
+
         const splitContent = body.split("\n");
         const pre = splitContent.slice(0, pos + 1).join("\n");
         const post = splitContent.slice(pos + 1).join("\n");

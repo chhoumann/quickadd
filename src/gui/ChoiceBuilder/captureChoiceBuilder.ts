@@ -3,7 +3,12 @@ import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type {App} from "obsidian";
 import {Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
 import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
-import {FILE_NAME_FORMAT_SYNTAX, FORMAT_SYNTAX} from "../../constants";
+import {
+    CREATE_IF_NOT_FOUND_BOTTOM,
+    CREATE_IF_NOT_FOUND_TOP,
+    FILE_NAME_FORMAT_SYNTAX,
+    FORMAT_SYNTAX
+} from "../../constants";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
@@ -155,6 +160,31 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                     .setValue(this.choice.insertAfter?.insertAtEnd)
                     .onChange(value => this.choice.insertAfter.insertAtEnd = value)
                 );
+
+            const createLineIfNotFound: Setting = new Setting(this.contentEl);
+            createLineIfNotFound.setName("Create line if not found")
+                .setDesc("Creates the 'insert after' line if it is not found.")
+                .addToggle(toggle => {
+                    if (!this.choice.insertAfter?.createIfNotFound)
+                        this.choice.insertAfter.createIfNotFound = false; // Set to default
+
+                    toggle
+                            .setValue(this.choice.insertAfter?.createIfNotFound)
+                            .onChange(value => this.choice.insertAfter.createIfNotFound = value)
+                            .toggleEl.style.marginRight = "1em"
+                    }
+                )
+                .addDropdown(dropdown => {
+                    if (!this.choice.insertAfter?.createIfNotFoundLocation)
+                        this.choice.insertAfter.createIfNotFoundLocation = CREATE_IF_NOT_FOUND_TOP; // Set to default
+
+                    dropdown
+                            .setValue(this.choice.insertAfter?.createIfNotFoundLocation)
+                            .onChange(value => this.choice.insertAfter.createIfNotFoundLocation = value)
+                            .addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
+                            .addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
+                    }
+                )
         }
     }
 

@@ -20,6 +20,9 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 export const FILE_NUMBER_REGEX: RegExp = new RegExp(/([0-9]*)\.md$/);
 export const NUMBER_REGEX: RegExp = new RegExp(/^-?[0-9]*$/);
 
+export const CREATE_IF_NOT_FOUND_TOP: string = "top";
+export const CREATE_IF_NOT_FOUND_BOTTOM: string = "bottom";
+
 // == Format Syntax == //
 export const DATE_REGEX: RegExp = new RegExp(/{{DATE(\+-?[0-9]+)?}}/);
 export const DATE_REGEX_FORMATTED: RegExp = new RegExp(/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/);

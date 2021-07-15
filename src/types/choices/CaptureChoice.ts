@@ -8,7 +8,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
     captureToActiveFile: boolean;
     createFileIfItDoesntExist: { enabled: boolean, createWithTemplate: boolean, template: string };
     format: { enabled: boolean; format: string };
-    insertAfter: { enabled: boolean; after: string, insertAtEnd: boolean };
+    insertAfter: { enabled: boolean; after: string, insertAtEnd: boolean, createIfNotFound: boolean, createIfNotFoundLocation: string };
     prepend: boolean;
     task: boolean;
 
@@ -20,7 +20,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
         this.captureToActiveFile = false;
         this.createFileIfItDoesntExist = {enabled: false, createWithTemplate: false, template: ""};
         this.format = {enabled: false, format: ""};
-        this.insertAfter = {enabled: false, after: "", insertAtEnd: false};
+        this.insertAfter = {enabled: false, after: "", insertAtEnd: false, createIfNotFound: false, createIfNotFoundLocation: "top"};
         this.prepend = false;
         this.task = false;
     }
