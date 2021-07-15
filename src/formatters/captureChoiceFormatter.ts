@@ -54,11 +54,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
             const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));
             if (targetPosition === -1) {
                 if (this.choice.insertAfter?.createIfNotFound) {
-                    const insertAfterLineAndFormatted: string = `${await this.format(this.choice.insertAfter.after)}\n${formatted}`;
+                    const insertAfterLine: string = this.replaceLinebreakInString(await this.format(this.choice.insertAfter.after));
+                    const insertAfterLineAndFormatted: string = `${insertAfterLine}\n${formatted}`;
 
                     if (this.choice.insertAfter?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_TOP) {
                         const frontmatterEndPosition = this.file ? await this.getFrontmatterEndPosition(this.file) : 0;
-                        return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, frontmatterEndPosition - 1);
+                        return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, frontmatterEndPosition);
                     }
                     else {
                         return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, fileContentLines.length - 1);

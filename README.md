@@ -9,9 +9,10 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.3.6 - 0.3.7
+### 0.3.6 - 0.3.8
 - Added setting to create the 'Insert After' line if it isn't found.
 - (HOTFIX) Escape regular expression special characters in Insert After when searching for it
+- (HOTFIX) Insert _after_ frontmatter
 
 ### 0.3.5
 - You can now execute [inline JavaScript](docs/InlineScripts.md) in templates or captures.
