@@ -4,7 +4,7 @@ import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
-import {getLinesInString, templaterParseTemplate} from "../utility";
+import {escapeRegExp, getLinesInString, templaterParseTemplate} from "../utility";
 import {CREATE_IF_NOT_FOUND_TOP} from "../constants";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
@@ -48,7 +48,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
         if (this.choice.insertAfter.enabled) {
             const target: string = await this.format(this.choice.insertAfter.after);
-            const targetRegex = new RegExp(`\s*${target}\s*`)
+            const targetRegex = new RegExp(`\s*${escapeRegExp(target)}\s*`)
             let fileContentLines: string[] = getLinesInString(this.fileContent);
 
             const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));
