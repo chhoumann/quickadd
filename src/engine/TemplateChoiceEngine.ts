@@ -1,7 +1,7 @@
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type {App} from "obsidian";
 import {TFile} from "obsidian";
-import {appendToCurrentLine, getAllFolders} from "../utility";
+import {appendToCurrentLine, getAllFolderPathsInVault} from "../utility";
 import {
     fileExistsAppendToBottom,
     fileExistsAppendToTop,
@@ -95,7 +95,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
         let folders: string[] = [...this.choice.folder.folders];
 
         if (this.choice.folder?.chooseWhenCreatingNote) {
-            return await this.getOrCreateFolder(await getAllFolders(this.app));
+            const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
+            return await this.getOrCreateFolder(allFoldersInVault);
         }
 
         if (this.choice.folder?.createInSameFolderAsActiveFile) {

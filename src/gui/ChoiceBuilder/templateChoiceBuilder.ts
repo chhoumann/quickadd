@@ -7,7 +7,7 @@ import FolderList from "./FolderList.svelte";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {ExclusiveSuggester} from "../exclusiveSuggester";
 import {log} from "../../logger/logManager";
-import {getAllFolders, getTemplatePaths} from "../../utility";
+import {getAllFolderPathsInVault, getTemplatePaths} from "../../utility";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import type QuickAdd from "../../main";
 
@@ -147,7 +147,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
         const folderInput = new TextComponent(inputContainer);
         folderInput.inputEl.style.width = "100%";
         folderInput.setPlaceholder("Folder path");
-        const allFolders: string[] = getAllFolders(this.app);
+        const allFolders: string[] = getAllFolderPathsInVault(this.app);
 
         const suggester = new ExclusiveSuggester(this.app, folderInput.inputEl, allFolders, this.choice.folder.folders);
 

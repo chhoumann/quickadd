@@ -105,7 +105,7 @@ export function deleteObsidianCommand(app: App, commandId: string) {
     }
 }
 
-export function getAllFolders(app: App): string[] {
+export function getAllFolderPathsInVault(app: App): string[] {
     return app.vault.getAllLoadedFiles()
         .filter(f => f instanceof TFolder)
         .map(folder => folder.path);
