@@ -44,7 +44,11 @@ Returns the contents of your clipboard.
 
 This function is asynchronous. You should ``await`` it.
 
+Syntax: `await quickAddApi.utility.getClipboard();`
+
 ### ``setClipboard(text: string)``
 Sets the contents of your clipboard to the given input.
 
 This function is asynchronous. You should ``await`` it.
+
+Syntax: `await quickAddApi.utility.setClipboard();`
