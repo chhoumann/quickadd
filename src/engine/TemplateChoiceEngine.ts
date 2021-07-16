@@ -28,22 +28,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
         let folderPath: string = "";
 
         if (this.choice.folder.enabled) {
-            let folders: string[] = this.choice.folder.folders;
-
-            if (this.choice.folder?.chooseWhenCreatingNote) {
-                folders = await getAllFolders(this.app);
-            }
-
-            if (this.choice.folder?.createInSameFolderAsActiveFile) {
-                const activeFile: TFile = this.app.workspace.getActiveFile();
-
-                if (!activeFile)
-                    log.logError("No active file. Cannot create new file.");
-
-                folders.push(activeFile.parent.path);
-            }
-
-            folderPath = await this.getOrCreateFolder(folders);
+            folderPath = await this.getFolderPath();
         }
 
         let filePath;
@@ -104,5 +89,24 @@ export class TemplateChoiceEngine extends TemplateEngine {
                     .openFile(createdFile);
             }
         }
+    }
+
+    private async getFolderPath() {
+        let folders: string[] = [...this.choice.folder.folders];
+
+        if (this.choice.folder?.chooseWhenCreatingNote) {
+            return await this.getOrCreateFolder(await getAllFolders(this.app));
+        }
+
+        if (this.choice.folder?.createInSameFolderAsActiveFile) {
+            const activeFile: TFile = this.app.workspace.getActiveFile();
+
+            if (!activeFile)
+                log.logError("No active file. Cannot create new file.");
+
+            return this.getOrCreateFolder([activeFile.parent.path]);
+        }
+
+        return await this.getOrCreateFolder(folders);
     }
 }
