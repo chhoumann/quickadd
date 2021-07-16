@@ -95,68 +95,87 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
             });
 
         if (this.choice.folder.enabled) {
-            const chooseFolderWhenCreatingNoteContainer: HTMLDivElement = this.contentEl.createDiv('chooseFolderWhenCreatingNoteContainer');
-            chooseFolderWhenCreatingNoteContainer.createEl('span', {text: "Choose folder when creating a new note"});
-            const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(chooseFolderWhenCreatingNoteContainer);
-            chooseFolderWhenCreatingNote.setValue(this.choice.folder?.chooseWhenCreatingNote)
-                .onChange(value => {
-                    this.choice.folder.chooseWhenCreatingNote = value;
-                    this.reload();
-                });
+            if (!this.choice.folder?.createInSameFolderAsActiveFile) {
+                const chooseFolderWhenCreatingNoteContainer: HTMLDivElement = this.contentEl.createDiv('chooseFolderWhenCreatingNoteContainer');
+                chooseFolderWhenCreatingNoteContainer.createEl('span', {text: "Choose folder when creating a new note"});
+                const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(chooseFolderWhenCreatingNoteContainer);
+                chooseFolderWhenCreatingNote.setValue(this.choice.folder?.chooseWhenCreatingNote)
+                    .onChange(value => {
+                        this.choice.folder.chooseWhenCreatingNote = value;
+                        this.reload();
+                    });
+
+                if (!this.choice.folder?.chooseWhenCreatingNote) {
+                    this.addFolderSelector();
+                }
+            }
 
             if (!this.choice.folder?.chooseWhenCreatingNote) {
-                const folderSelectionContainer: HTMLDivElement = this.contentEl.createDiv('folderSelectionContainer');
-                const folderList: HTMLDivElement = folderSelectionContainer.createDiv('folderList');
-
-                const folderListEl = new FolderList({
-                    target: folderList,
-                    props: {
-                        folders: this.choice.folder.folders,
-                        deleteFolder: (folder: string) => {
-                            this.choice.folder.folders = this.choice.folder.folders.filter(f => f !== folder);
-                            folderListEl.updateFolders(this.choice.folder.folders);
-                            suggester.updateCurrentItems(this.choice.folder.folders);
-                        }
-                    }
-                });
-
-                this.svelteElements.push(folderListEl);
-
-                const inputContainer = folderSelectionContainer.createDiv('folderInputContainer');
-                const folderInput = new TextComponent(inputContainer);
-                folderInput.inputEl.style.width = "100%";
-                folderInput.setPlaceholder("Folder path");
-                const allFolders: string[] = getAllFolders(this.app);
-
-                const suggester = new ExclusiveSuggester(this.app, folderInput.inputEl, allFolders, this.choice.folder.folders);
-
-                const addFolder = () => {
-                    const input = folderInput.inputEl.value.trim();
-
-                    if (this.choice.folder.folders.some(folder => folder === input)) {
-                        log.logWarning("cannot add same folder twice.");
-                        return;
-                    }
-
-                    this.choice.folder.folders.push(input);
-                    folderListEl.updateFolders(this.choice.folder.folders);
-                    folderInput.inputEl.value = "";
-
-                    suggester.updateCurrentItems(this.choice.folder.folders);
-                }
-
-                folderInput.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
-                    if (e.key === 'Enter') {
-                        addFolder();
-                    }
-                });
-
-                const addButton: ButtonComponent = new ButtonComponent(inputContainer);
-                addButton.setCta().setButtonText("Add").onClick(evt => {
-                    addFolder();
-                });
+                const createInSameFolderAsActiveFileSetting: Setting = new Setting(this.contentEl);
+                createInSameFolderAsActiveFileSetting.setName("Create in same folder as active file")
+                    .setDesc("Creates the file in the same folder as the currently active file. Will not create the file if there is no active file.")
+                    .addToggle(toggle => toggle
+                        .setValue(this.choice.folder?.createInSameFolderAsActiveFile)
+                        .onChange(value => {
+                            this.choice.folder.createInSameFolderAsActiveFile = value;
+                            this.reload();
+                        })
+                    )
             }
         }
+    }
+
+    private addFolderSelector() {
+        const folderSelectionContainer: HTMLDivElement = this.contentEl.createDiv('folderSelectionContainer');
+        const folderList: HTMLDivElement = folderSelectionContainer.createDiv('folderList');
+
+        const folderListEl = new FolderList({
+            target: folderList,
+            props: {
+                folders: this.choice.folder.folders,
+                deleteFolder: (folder: string) => {
+                    this.choice.folder.folders = this.choice.folder.folders.filter(f => f !== folder);
+                    folderListEl.updateFolders(this.choice.folder.folders);
+                    suggester.updateCurrentItems(this.choice.folder.folders);
+                }
+            }
+        });
+
+        this.svelteElements.push(folderListEl);
+
+        const inputContainer = folderSelectionContainer.createDiv('folderInputContainer');
+        const folderInput = new TextComponent(inputContainer);
+        folderInput.inputEl.style.width = "100%";
+        folderInput.setPlaceholder("Folder path");
+        const allFolders: string[] = getAllFolders(this.app);
+
+        const suggester = new ExclusiveSuggester(this.app, folderInput.inputEl, allFolders, this.choice.folder.folders);
+
+        const addFolder = () => {
+            const input = folderInput.inputEl.value.trim();
+
+            if (this.choice.folder.folders.some(folder => folder === input)) {
+                log.logWarning("cannot add same folder twice.");
+                return;
+            }
+
+            this.choice.folder.folders.push(input);
+            folderListEl.updateFolders(this.choice.folder.folders);
+            folderInput.inputEl.value = "";
+
+            suggester.updateCurrentItems(this.choice.folder.folders);
+        }
+
+        folderInput.inputEl.addEventListener('keypress', (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                addFolder();
+            }
+        });
+
+        const addButton: ButtonComponent = new ButtonComponent(inputContainer);
+        addButton.setCta().setButtonText("Add").onClick(evt => {
+            addFolder();
+        });
     }
 
     private addAppendLinkSetting(): void {

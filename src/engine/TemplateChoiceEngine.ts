@@ -34,6 +34,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
                 folders = await getAllFolders(this.app);
             }
 
+            if (this.choice.folder?.createInSameFolderAsActiveFile) {
+                const activeFile: TFile = this.app.workspace.getActiveFile();
+
+                if (!activeFile)
+                    log.logError("No active file. Cannot create new file.");
+
+                folders.push(activeFile.parent.path);
+            }
+
             folderPath = await this.getOrCreateFolder(folders);
         }
 

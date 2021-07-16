@@ -6,7 +6,7 @@ import {NewTabDirection} from "../newTabDirection";
 export class TemplateChoice extends Choice implements ITemplateChoice {
     appendLink: boolean;
     fileNameFormat: { enabled: boolean; format: string };
-    folder: { enabled: boolean; folders: string[], chooseWhenCreatingNote: boolean };
+    folder: { enabled: boolean; folders: string[], chooseWhenCreatingNote: boolean, createInSameFolderAsActiveFile: boolean };
     incrementFileName: boolean;
     openFileInNewTab: { enabled: boolean; direction: NewTabDirection };
     openFile: boolean;
@@ -17,7 +17,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 
         this.templatePath = "";
         this.fileNameFormat = {enabled: false, format: ""};
-        this.folder = {enabled: false, folders: [], chooseWhenCreatingNote: false};
+        this.folder = {enabled: false, folders: [], chooseWhenCreatingNote: false, createInSameFolderAsActiveFile: false};
         this.openFileInNewTab = {enabled: false, direction: NewTabDirection.vertical};
         this.appendLink = false;
         this.incrementFileName = false;
