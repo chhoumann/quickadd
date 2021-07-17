@@ -5,7 +5,7 @@ import {log} from "../logger/logManager";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {escapeRegExp, getLinesInString, templaterParseTemplate} from "../utility";
-import {CREATE_IF_NOT_FOUND_TOP} from "../constants";
+import {CREATE_IF_NOT_FOUND_BOTTOM, CREATE_IF_NOT_FOUND_TOP} from "../constants";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
@@ -47,53 +47,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
             return `${this.fileContent}\n${formatted}`
 
         if (this.choice.insertAfter.enabled) {
-            const target: string = await this.format(this.choice.insertAfter.after);
-            const targetRegex = new RegExp(`\s*${escapeRegExp(target)}\s*`)
-            let fileContentLines: string[] = getLinesInString(this.fileContent);
-
-            const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));
-            if (targetPosition === -1) {
-                if (this.choice.insertAfter?.createIfNotFound) {
-                    const insertAfterLine: string = this.replaceLinebreakInString(await this.format(this.choice.insertAfter.after));
-                    const insertAfterLineAndFormatted: string = `${insertAfterLine}\n${formatted}`;
-
-                    if (this.choice.insertAfter?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_TOP) {
-                        const frontmatterEndPosition = this.file ? await this.getFrontmatterEndPosition(this.file) : 0;
-                        return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, frontmatterEndPosition);
-                    }
-                    else {
-                        return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, fileContentLines.length - 1);
-                    }
-                }
-
-                log.logError("unable to find insert after line in file.")
-            }
-
-            if (this.choice.insertAfter?.insertAtEnd) {
-                const nextHeaderPositionAfterTargetPosition = fileContentLines.slice(targetPosition + 1).findIndex(line => (/^#+ |---/).test(line))
-                const foundNextHeader = nextHeaderPositionAfterTargetPosition !== -1;
-
-                if (foundNextHeader) {
-                    let endOfSectionIndex: number;
-
-                    for (let i = nextHeaderPositionAfterTargetPosition + targetPosition; i > targetPosition; i--) {
-                        const lineIsNewline: boolean = (/^[\s\n ]*$/).test(fileContentLines[i]);
-
-                        if (!lineIsNewline) {
-                            endOfSectionIndex = i;
-                            break;
-                        }
-                    }
-
-                    if (!endOfSectionIndex) endOfSectionIndex = targetPosition;
-
-                    return this.insertTextAfterPositionInBody(formatted, this.fileContent, endOfSectionIndex);
-                } else {
-                    return this.insertTextAfterPositionInBody(formatted, this.fileContent, fileContentLines.length - 1);
-                }
-            }
-
-            return this.insertTextAfterPositionInBody(formatted, this.fileContent, targetPosition);
+            return await this.insertAfterHandler(formatted);
         }
 
         const frontmatterEndPosition = this.file ? await this.getFrontmatterEndPosition(this.file) : null;
@@ -103,18 +57,76 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
         return this.insertTextAfterPositionInBody(formatted, this.fileContent, frontmatterEndPosition);
     }
 
+    private async insertAfterHandler(formatted: string) {
+        const targetString: string = await this.format(this.choice.insertAfter.after);
+        const targetRegex = new RegExp(`\s*${escapeRegExp(targetString.replace('\\n', ''))}\s*`);
+        let fileContentLines: string[] = getLinesInString(this.fileContent);
+
+        const targetPosition = fileContentLines.findIndex(line => targetRegex.test(line));
+        const targetNotFound = targetPosition === -1;
+        if (targetNotFound) {
+            if (this.choice.insertAfter?.createIfNotFound) {
+                return await this.createInsertAfterIfNotFound(formatted);
+            }
+
+            log.logError("unable to find insert after line in file.")
+        }
+
+        if (this.choice.insertAfter?.insertAtEnd) {
+            const nextHeaderPositionAfterTargetPosition = fileContentLines
+                .slice(targetPosition + 1)
+                .findIndex(line => (/^#+ |---/).test(line))
+            const foundNextHeader = nextHeaderPositionAfterTargetPosition !== -1;
+
+            if (foundNextHeader) {
+                let endOfSectionIndex: number;
+
+                for (let i = nextHeaderPositionAfterTargetPosition + targetPosition; i > targetPosition; i--) {
+                    const lineIsNewline: boolean = (/^[\s\n ]*$/).test(fileContentLines[i]);
+
+                    if (!lineIsNewline) {
+                        endOfSectionIndex = i;
+                        break;
+                    }
+                }
+
+                if (!endOfSectionIndex) endOfSectionIndex = targetPosition;
+
+                return this.insertTextAfterPositionInBody(formatted, this.fileContent, endOfSectionIndex);
+            } else {
+                return this.insertTextAfterPositionInBody(formatted, this.fileContent, fileContentLines.length - 1);
+            }
+        }
+
+        return this.insertTextAfterPositionInBody(formatted, this.fileContent, targetPosition);
+    }
+
+    private async createInsertAfterIfNotFound(formatted: string) {
+        const insertAfterLine: string = this.replaceLinebreakInString(await this.format(this.choice.insertAfter.after));
+        const insertAfterLineAndFormatted: string = `${insertAfterLine}\n${formatted}`;
+
+        if (this.choice.insertAfter?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_TOP) {
+            const frontmatterEndPosition = this.file ? await this.getFrontmatterEndPosition(this.file) : -1;
+            return this.insertTextAfterPositionInBody(insertAfterLineAndFormatted, this.fileContent, frontmatterEndPosition);
+        }
+
+        if (this.choice.insertAfter?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_BOTTOM) {
+            return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
+        }
+    }
+
     private async getFrontmatterEndPosition(file: TFile) {
         const fileCache = await this.app.metadataCache.getFileCache(file);
 
         if (!fileCache || !fileCache.frontmatter) {
             log.logMessage("could not get frontmatter. Maybe there isn't any.")
-            return 0;
+            return -1;
         }
 
         if (fileCache.frontmatter.position)
             return fileCache.frontmatter.position.end.line;
 
-        return 0;
+        return -1;
     }
 
     private insertTextAfterPositionInBody(text: string, body: string, pos: number): string {
