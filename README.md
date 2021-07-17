@@ -9,7 +9,7 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 3.6.10
+### 0.3.10
 - Added a warning when deleting a Multi choice that you will delete all choices within.
 - Fix #51 - Templater syntax is now processed when appending to the current file.
 - Fix "Template (not found)" for templates that exist.
