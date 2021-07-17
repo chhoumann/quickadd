@@ -179,10 +179,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                         this.choice.insertAfter.createIfNotFoundLocation = CREATE_IF_NOT_FOUND_TOP; // Set to default
 
                     dropdown
-                            .setValue(this.choice.insertAfter?.createIfNotFoundLocation)
-                            .onChange(value => this.choice.insertAfter.createIfNotFoundLocation = value)
                             .addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
                             .addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
+                            .setValue(this.choice.insertAfter?.createIfNotFoundLocation)
+                            .onChange(value => this.choice.insertAfter.createIfNotFoundLocation = value)
                     }
                 )
         }

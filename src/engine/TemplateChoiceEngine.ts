@@ -1,7 +1,7 @@
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type {App} from "obsidian";
 import {TFile} from "obsidian";
-import {appendToCurrentLine, getAllFolders} from "../utility";
+import {appendToCurrentLine, getAllFolderPathsInVault} from "../utility";
 import {
     fileExistsAppendToBottom,
     fileExistsAppendToTop,
@@ -28,13 +28,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
         let folderPath: string = "";
 
         if (this.choice.folder.enabled) {
-            let folders: string[] = this.choice.folder.folders;
-
-            if (this.choice.folder?.chooseWhenCreatingNote) {
-                folders = await getAllFolders(this.app);
-            }
-
-            folderPath = await this.getOrCreateFolder(folders);
+            folderPath = await this.getFolderPath();
         }
 
         let filePath;
@@ -95,5 +89,25 @@ export class TemplateChoiceEngine extends TemplateEngine {
                     .openFile(createdFile);
             }
         }
+    }
+
+    private async getFolderPath() {
+        let folders: string[] = [...this.choice.folder.folders];
+
+        if (this.choice.folder?.chooseWhenCreatingNote) {
+            const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
+            return await this.getOrCreateFolder(allFoldersInVault);
+        }
+
+        if (this.choice.folder?.createInSameFolderAsActiveFile) {
+            const activeFile: TFile = this.app.workspace.getActiveFile();
+
+            if (!activeFile)
+                log.logError("No active file. Cannot create new file.");
+
+            return this.getOrCreateFolder([activeFile.parent.path]);
+        }
+
+        return await this.getOrCreateFolder(folders);
     }
 }

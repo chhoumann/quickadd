@@ -57,7 +57,11 @@
         const choice: IChoice = e.detail.choice;
 
         const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(app,
-            `Confirm deletion of choice`, `Please confirm that you wish to delete '${choice.name}.'`);
+            `Confirm deletion of choice`, `Please confirm that you wish to delete '${choice.name}'.
+            ${choice.type === ChoiceType.Multi
+                ? "Deleting this choice will delete all (" + (choice as IMultiChoice).choices.length + ") choices inside it!"
+                : ""}
+            `);
 
         if (userConfirmed) {
             choices = choices.filter((value) => deleteChoiceHelper(choice.id, value));

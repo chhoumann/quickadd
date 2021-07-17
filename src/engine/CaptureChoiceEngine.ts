@@ -2,7 +2,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
-import {appendToCurrentLine, replaceTemplaterTemplatesInCreatedFile} from "../utility";
+import {appendToCurrentLine, replaceTemplaterTemplatesInCreatedFile, templaterParseTemplate} from "../utility";
 import {VALUE_SYNTAX} from "../constants";
 import type QuickAdd from "../main";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
@@ -96,20 +96,21 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
     }
 
     private async captureToActiveFile() {
+        const activeFile: TFile = this.app.workspace.getActiveFile();
+        if (!activeFile) {
+            log.logError("Cannot capture to active file - no active file.")
+        }
+
         let content: string = await this.getCaptureContent();
 
         if (this.choice.format.enabled) {
             content = await this.formatter.formatContent(content, this.choice);
+            content = await templaterParseTemplate(this.app, content, activeFile);
         }
 
         if (!content) return;
 
         if (this.choice.prepend) {
-            const activeFile: TFile = this.app.workspace.getActiveFile();
-            if (!activeFile) {
-                log.logError("Cannot capture to active file - no active file.")
-            }
-
             const fileContent: string = await this.app.vault.cachedRead(activeFile);
             const newFileContent: string = `${fileContent}${content}`
 

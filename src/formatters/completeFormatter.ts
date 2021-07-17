@@ -16,7 +16,7 @@ export class CompleteFormatter extends Formatter {
 
     constructor(protected app: App, private plugin: QuickAdd, protected choiceExecutor: IChoiceExecutor) {
         super();
-        this.variables = choiceExecutor.variables;
+        this.variables = choiceExecutor?.variables;
     }
 
     protected async format(input: string): Promise<string> {
