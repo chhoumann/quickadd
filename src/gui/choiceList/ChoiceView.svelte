@@ -157,8 +157,15 @@
 <style>
     .choiceViewBottomBar {
         display: flex;
+        flex-direction: row;
         align-items: center;
         justify-content: space-between;
         margin-top: 1rem;
+    }
+
+    @media (max-width: 800px) {
+        .choiceViewBottomBar {
+            flex-direction: column;
+        }
     }
 </style>

@@ -36,9 +36,16 @@
     .addChoiceBox {
         margin-top: 1em;
         display: flex;
+        flex-direction: row;
         align-items: center;
         gap: 10px;
         justify-content: center;
+    }
+
+    @media (max-width: 800px) {
+        .addChoiceBox {
+            flex-direction: column;
+        }
     }
 
     #addChoiceTypeSelector {
