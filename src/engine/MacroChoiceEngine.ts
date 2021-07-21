@@ -17,6 +17,13 @@ import {getUserScriptMemberAccess, waitFor} from "../utility";
 import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 import type {INestedChoiceCommand} from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
+import type {IEditorCommand} from "../types/macros/EditorCommands/IEditorCommand";
+import {EditorCommandType} from "../types/macros/EditorCommands/EditorCommandType";
+import {CutCommand} from "../types/macros/EditorCommands/CutCommand";
+import {CopyCommand} from "../types/macros/EditorCommands/CopyCommand";
+import {PasteCommand} from "../types/macros/EditorCommands/PasteCommand";
+import {SelectActiveLineCommand} from "../types/macros/EditorCommands/SelectActiveLineCommand";
+import {SelectLinkOnActiveLineCommand} from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
@@ -66,6 +73,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             }
             if (command?.type === CommandType.NestedChoice) {
                 await this.executeNestedChoice(command as INestedChoiceCommand);
+            }
+            if (command?.type === CommandType.EditorCommand) {
+                await this.executeEditorCommand(command as IEditorCommand);
             }
 
             Object.keys(this.params.variables).forEach(key => {
@@ -177,5 +187,25 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         }
 
         await this.choiceExecutor.execute(choice);
+    }
+
+    private async executeEditorCommand(command: IEditorCommand) {
+        switch (command.editorCommandType) {
+            case EditorCommandType.Cut:
+                await CutCommand.run(this.app);
+                break;
+            case EditorCommandType.Copy:
+                await CopyCommand.run(this.app);
+                break;
+            case EditorCommandType.Paste:
+                await PasteCommand.run(this.app);
+                break;
+            case EditorCommandType.SelectActiveLine:
+                await SelectActiveLineCommand.run(this.app);
+                break;
+            case EditorCommandType.SelectLinkOnActiveLine:
+                await SelectLinkOnActiveLineCommand.run(this.app);
+                break;
+        }
     }
 }

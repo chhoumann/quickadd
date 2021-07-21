@@ -1,4 +1,4 @@
 export enum CommandType {
     Obsidian = "Obsidian", UserScript = "UserScript", Choice = "Choice", Wait = "Wait",
-    NestedChoice = "NestedChoice"
+    NestedChoice = "NestedChoice", EditorCommand = "EditorCommand"
 }

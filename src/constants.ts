@@ -1,5 +1,3 @@
-import exp from "constants";
-
 export const VALUE_SYNTAX: string = "{{VALUE}}";
 export const DATE_SYNTAX = "{{DATE}}";
 export const NAME_SYNTAX = "{{NAME}}";
@@ -37,11 +35,9 @@ export const TEMPLATE_REGEX: RegExp = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/);
 export const LINEBREAK_REGEX: RegExp = new RegExp(/\\n/);
 export const INLINE_JAVASCRIPT_REGEX: RegExp = new RegExp(/`{3,}js quickadd([\s\S]*?)`{3,}/);
 
-
+// This is not an accurate wikilink regex - but works for its intended purpose.
 export const FILE_LINK_REGEX: RegExp = new RegExp(/\[\[([^\]]*)$/);
 export const TAG_REGEX: RegExp = new RegExp(/#([^ ]*)$/);
-
-
 
 // == Format Syntax Suggestion == //
 export const DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[D]?[A]?[T]?[E]?[}]?[}]?$/i);
@@ -61,3 +57,6 @@ export const fileExistsAppendToTop: string = "Append to the top of the file";
 export const fileExistsOverwriteFile: string = "Overwrite the file";
 export const fileExistsDoNothing: string = "Nothing";
 export const fileExistsChoices: string[] = [fileExistsAppendToBottom, fileExistsAppendToTop, fileExistsOverwriteFile, fileExistsDoNothing];
+
+// == MISC == //
+export const WIKI_LINK_REGEX: RegExp = new RegExp(/\[\[([^\]]*)\]\]/);

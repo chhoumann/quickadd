@@ -1,5 +1,5 @@
 import type {IMacro} from "../../types/macros/IMacro";
-import {App, ButtonComponent, Modal, Setting, TextComponent, TFile} from "obsidian";
+import {App, ButtonComponent, DropdownComponent, Modal, Setting, TextComponent, TFile} from "obsidian";
 import type {IObsidianCommand} from "../../types/macros/IObsidianCommand";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import {UserScript} from "../../types/macros/UserScript";
@@ -18,6 +18,15 @@ import {CaptureChoice} from "../../types/choices/CaptureChoice";
 import {NestedChoiceCommand} from "../../types/macros/QuickCommands/NestedChoiceCommand";
 import {TemplateChoice} from "../../types/choices/TemplateChoice";
 import type QuickAdd from "../../main";
+import type {IEditorCommand} from "../../types/macros/EditorCommands/IEditorCommand";
+import {EditorCommandType} from "../../types/macros/EditorCommands/EditorCommandType";
+import {CopyCommand} from "../../types/macros/EditorCommands/CopyCommand";
+import {CutCommand} from "../../types/macros/EditorCommands/CutCommand";
+import {PasteCommand} from "../../types/macros/EditorCommands/PasteCommand";
+import {log} from "../../logger/logManager";
+import {EditorCommand} from "../../types/macros/EditorCommands/EditorCommand";
+import {SelectActiveLineCommand} from "../../types/macros/EditorCommands/SelectActiveLineCommand";
+import {SelectLinkOnActiveLineCommand} from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
@@ -60,6 +69,7 @@ export class MacroBuilder extends Modal {
         this.addCommandList();
         this.addCommandBar();
         this.addAddObsidianCommandSetting();
+        this.addAddEditorCommandsSetting();
         this.addAddUserScriptSetting();
         this.addAddChoiceSetting();
     }
@@ -111,6 +121,51 @@ export class MacroBuilder extends Modal {
                 });
             })
             .addButton(button => button.setCta().setButtonText("Add").onClick(addObsidianCommandFromInput));
+    }
+    
+    private addAddEditorCommandsSetting() {
+        let dropdownComponent: DropdownComponent;
+
+        const addEditorCommandFromDropdown = () => {
+            const type: EditorCommandType = dropdownComponent.getValue() as EditorCommandType;
+            let command: IEditorCommand;
+
+            switch (type) {
+                case EditorCommandType.Copy:
+                    command = new CopyCommand();
+                    break;
+                case EditorCommandType.Cut:
+                    command = new CutCommand();
+                    break;
+                case EditorCommandType.Paste:
+                    command = new PasteCommand();
+                    break;
+                case EditorCommandType.SelectActiveLine:
+                    command = new SelectActiveLineCommand();
+                    break;
+                case EditorCommandType.SelectLinkOnActiveLine:
+                    command = new SelectLinkOnActiveLineCommand();
+                    break;
+                default:
+                    log.logError("invalid editor command type");
+            }
+
+            this.addCommandToMacro(command);
+        }
+
+        new Setting(this.contentEl)
+            .setName("Editor commands")
+            .setDesc("Add editor command")
+            .addDropdown(dropdown => {
+                dropdownComponent = dropdown;
+                dropdown.selectEl.style.marginRight = "1em";
+                dropdown.addOption(EditorCommandType.Copy, EditorCommandType.Copy)
+                    .addOption(EditorCommandType.Cut, EditorCommandType.Cut)
+                    .addOption(EditorCommandType.Paste, EditorCommandType.Paste)
+                    .addOption(EditorCommandType.SelectActiveLine, EditorCommandType.SelectActiveLine)
+                    .addOption(EditorCommandType.SelectLinkOnActiveLine, EditorCommandType.SelectLinkOnActiveLine);
+            })
+            .addButton(button => button.setCta().setButtonText("Add").onClick(addEditorCommandFromDropdown));
     }
 
     private addAddUserScriptSetting() {
