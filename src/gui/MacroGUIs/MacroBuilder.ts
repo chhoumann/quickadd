@@ -27,6 +27,7 @@ import {log} from "../../logger/logManager";
 import {EditorCommand} from "../../types/macros/EditorCommands/EditorCommand";
 import {SelectActiveLineCommand} from "../../types/macros/EditorCommands/SelectActiveLineCommand";
 import {SelectLinkOnActiveLineCommand} from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
+import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
@@ -263,7 +264,11 @@ export class MacroBuilder extends Modal {
                 app: this.app,
                 plugin: this.plugin,
                 commands: this.macro.commands,
-                deleteCommand: (commandId: string) => {
+                deleteCommand: async (commandId: string) => {
+                    const command: ICommand = this.macro.commands.find(c => c.id === commandId);
+                    const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(this.app, "Are you sure you wish to delete this command?", `If you click yes, you will delete '${command.name}'.`);
+                    if (!promptAnswer) return;
+
                     this.macro.commands = this.macro.commands.filter(c => c.id !== commandId);
                     this.commandListEl.updateCommandList(this.macro.commands);
                 },

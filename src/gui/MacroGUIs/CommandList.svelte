@@ -15,7 +15,7 @@
     import QuickAdd from "../../main";
 
     export let commands: ICommand[];
-    export let deleteCommand: (command: ICommand) => void;
+    export let deleteCommand: (command: ICommand) => Promise<void>;
     export let saveCommands: (commands: ICommand[]) => void;
     export let app: App;
     export let plugin: QuickAdd;
@@ -90,11 +90,11 @@
 >
     {#each commands.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command(command.id)}
         {#if command.type === CommandType.Wait}
-            <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
+            <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
         {:else if command.type === CommandType.NestedChoice}
-            <NestedChoiceCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} on:configureChoice={configureChoice} />
+            <NestedChoiceCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} on:configureChoice={configureChoice} />
         {:else}
-            <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
+            <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
         {/if}
     {/each}
 </ol>

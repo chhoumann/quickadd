@@ -17,6 +17,7 @@ You can also do a [manual installation](docs/ManualInstallation.md).
   - Select active line
   - Select link in active line
 - You can now add Template and Capture choices to macros without having them in your main settings.
+- You will now be prompted when attempting to delete a command from a macro.
 
 ### 0.3.10 - 0.3.11
 - Added a warning when deleting a Multi choice that you will delete all choices within.
