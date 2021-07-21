@@ -15,6 +15,8 @@ import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {getUserScriptMemberAccess, waitFor} from "../utility";
 import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
+import type {INestedChoiceCommand} from "../types/macros/QuickCommands/INestedChoiceCommand";
+import type IChoice from "../types/choices/IChoice";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
     public choice: IMacroChoice;
@@ -50,6 +52,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 
     protected async executeCommands(commands: ICommand[]) {
+        let i = 1;
         for (const command of commands) {
             if (command?.type === CommandType.Obsidian)
                 await this.executeObsidianCommand(command as IObsidianCommand);
@@ -61,6 +64,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
                 const waitCommand: IWaitCommand = (command as IWaitCommand);
                 await waitFor(waitCommand.time);
             }
+            if (command?.type === CommandType.NestedChoice) {
+                await this.executeNestedChoice(command as INestedChoiceCommand);
+            }
+
+            Object.keys(this.params.variables).forEach(key => {
+                this.choiceExecutor.variables.set(key, this.params.variables[key]);
+            });
         }
     }
 
@@ -150,12 +160,22 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     protected async executeChoice(command: IChoiceCommand) {
-        const targetChoice = this.plugin.getChoiceById(command.choiceId);
+        const targetChoice: IChoice = this.plugin.getChoiceById(command.choiceId);
         if (!targetChoice) {
             log.logError("choice could not be found.");
             return;
         }
 
         await this.choiceExecutor.execute(targetChoice);
+    }
+
+    private async executeNestedChoice(command: INestedChoiceCommand) {
+        const choice: IChoice = command.choice;
+        if (!choice) {
+            log.logError(`choice in ${command.name} is invalid`);
+            return;
+        }
+
+        await this.choiceExecutor.execute(choice);
     }
 }

@@ -1,5 +1,5 @@
 import type {IMacro} from "../../types/macros/IMacro";
-import {App, ButtonComponent, Modal, SearchComponent, Setting, TextComponent, TFile} from "obsidian";
+import {App, ButtonComponent, Modal, Setting, TextComponent, TFile} from "obsidian";
 import type {IObsidianCommand} from "../../types/macros/IObsidianCommand";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import {UserScript} from "../../types/macros/UserScript";
@@ -14,6 +14,10 @@ import {ChoiceCommand} from "../../types/macros/ChoiceCommand";
 import {getUserScriptMemberAccess} from "../../utility";
 import GenericInputPrompt from "../GenericInputPrompt/genericInputPrompt";
 import {WaitCommand} from "../../types/macros/QuickCommands/WaitCommand";
+import {CaptureChoice} from "../../types/choices/CaptureChoice";
+import {NestedChoiceCommand} from "../../types/macros/QuickCommands/NestedChoiceCommand";
+import {TemplateChoice} from "../../types/choices/TemplateChoice";
+import type QuickAdd from "../../main";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;
@@ -24,12 +28,14 @@ export class MacroBuilder extends Modal {
     private commandListEl: CommandList;
     private svelteElements: SvelteComponent[];
     private resolvePromise: (macro: IMacro) => void;
+    private plugin: QuickAdd;
 
-    constructor(app: App, macro: IMacro, choices: IChoice[]) {
+    constructor(app: App, plugin: QuickAdd, macro: IMacro, choices: IChoice[]) {
         super(app);
         this.macro = macro;
         this.svelteElements = [];
         this.choices = choices;
+        this.plugin = plugin;
 
         this.waitForClose = new Promise<IMacro>(resolve => (this.resolvePromise = resolve));
 
@@ -52,7 +58,7 @@ export class MacroBuilder extends Modal {
         this.contentEl.empty();
         this.addCenteredHeader(this.macro.name);
         this.addCommandList();
-        this.addAddWaitCommandButton();
+        this.addCommandBar();
         this.addAddObsidianCommandSetting();
         this.addAddUserScriptSetting();
         this.addAddChoiceSetting();
@@ -159,7 +165,7 @@ export class MacroBuilder extends Modal {
 
         new Setting(this.contentEl)
             .setName("Choices")
-            .setDesc("Add choice")
+            .setDesc("Add existing choice")
             .addText(textComponent => {
                input = textComponent;
                textComponent.inputEl.style.marginRight = "1em";
@@ -199,6 +205,8 @@ export class MacroBuilder extends Modal {
         this.commandListEl = new CommandList({
             target: commandList,
             props: {
+                app: this.app,
+                plugin: this.plugin,
                 commands: this.macro.commands,
                 deleteCommand: (commandId: string) => {
                     this.macro.commands = this.macro.commands.filter(c => c.id !== commandId);
@@ -213,13 +221,27 @@ export class MacroBuilder extends Modal {
         this.svelteElements.push(this.commandListEl);
     }
 
-    private addAddWaitCommandButton() {
+    private addCommandBar() {
         const quickCommandContainer: HTMLDivElement = this.contentEl.createDiv('quickCommandContainer');
 
+        this.newChoiceButton(quickCommandContainer, "Capture", CaptureChoice);
+        this.newChoiceButton(quickCommandContainer, "Template", TemplateChoice);
+        this.addAddWaitCommandButton(quickCommandContainer);
+    }
+
+    private addAddWaitCommandButton(quickCommandContainer: HTMLDivElement) {
         const button: ButtonComponent = new ButtonComponent(quickCommandContainer);
         button.setIcon('clock').setTooltip("Add wait command").onClick(() => {
             this.addCommandToMacro(new WaitCommand(100));
         });
+    }
+
+    private newChoiceButton(container: HTMLDivElement, typeName: string, type: any) {
+        const button: ButtonComponent = new ButtonComponent(container);
+        button.setButtonText(typeName).setTooltip(`Add ${typeName} Choice`).onClick(() => {
+            const captureChoice: IChoice = new type(`Untitled ${typeName} Choice`);
+            this.addCommandToMacro(new NestedChoiceCommand(captureChoice));
+        })
     }
 
     private addCommandToMacro(command: ICommand) {

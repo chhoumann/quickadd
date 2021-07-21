@@ -6,6 +6,7 @@ import {log} from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";
 import {ChoiceType} from "./types/choices/choiceType";
 import type IMultiChoice from "./types/choices/IMultiChoice";
+import type QuickAdd from "./main";
 
 export class MacrosManager extends Modal {
     public waitForClose: Promise<IMacro[]>;
@@ -14,9 +15,11 @@ export class MacrosManager extends Modal {
     private updateMacroContainer: () => void;
 
     private macroContainer: HTMLDivElement;
+    private plugin: QuickAdd;
 
-    constructor(public app: App, private macros: IMacro[], private choices: IChoice[]) {
+    constructor(public app: App, plugin: QuickAdd, private macros: IMacro[], private choices: IChoice[]) {
         super(app)
+        this.plugin = plugin;
 
         this.waitForClose = new Promise<IMacro[]>(
             ((resolve, reject) => {
@@ -104,7 +107,7 @@ export class MacrosManager extends Modal {
                 }
 
                 const reachableChoices = getReachableChoices(this.choices);
-                const newMacro = await new MacroBuilder(this.app, macro, reachableChoices).waitForClose;
+                const newMacro = await new MacroBuilder(this.app, this.plugin, macro, reachableChoices).waitForClose;
 
                 if (newMacro) {
                     this.updateMacro(newMacro);

@@ -130,7 +130,7 @@
     }
 
     async function openMacroManager() {
-        const newMacros: IMacro[] = await new MacrosManager(app, macros, choices).waitForClose;
+        const newMacros: IMacro[] = await new MacrosManager(app, plugin, macros, choices).waitForClose;
 
         if (newMacros) {
             saveMacros(newMacros);

@@ -4,10 +4,21 @@
     import StandardCommand from "./Components/StandardCommand.svelte";
     import {CommandType} from "../../types/macros/CommandType";
     import WaitCommand from "./Components/WaitCommand.svelte";
+    import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
+    import {ChoiceType} from "../../types/choices/choiceType";
+    import {TemplateChoiceBuilder} from "../ChoiceBuilder/templateChoiceBuilder";
+    import {CaptureChoiceBuilder} from "../ChoiceBuilder/captureChoiceBuilder";
+    import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+    import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+    import type IChoice from "../../types/choices/IChoice";
+    import {App} from "obsidian";
+    import QuickAdd from "../../main";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => void;
     export let saveCommands: (commands: ICommand[]) => void;
+    export let app: App;
+    export let plugin: QuickAdd;
     let dragDisabled: boolean = true;
 
     export const updateCommandList: (newCommands: ICommand[]) => void = (newCommands: ICommand[]) => {
@@ -36,13 +47,39 @@
         dragDisabled = false;
     }
 
-    function updateCommand(e: any) {
+    function updateCommandFromEvent(e: CustomEvent) {
         const command: ICommand = e.detail;
+        updateCommand(command);
+    }
 
+    function updateCommand(command: ICommand) {
         const index = commands.findIndex(c => c.id === command.id);
         commands[index] = command;
-        
+
         saveCommands(commands);
+    }
+
+    async function configureChoice(e: CustomEvent) {
+        const command = e.detail;
+        const newChoice = await getChoiceBuilder(command.choice).waitForClose;
+        if (!newChoice) return;
+
+        command.choice = newChoice;
+        command.name = newChoice.name;
+        updateCommand(command);
+    }
+
+    function getChoiceBuilder(choice: IChoice) {
+        switch (choice.type) {
+            case ChoiceType.Template:
+                return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
+            case ChoiceType.Capture:
+                return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
+            case ChoiceType.Macro:
+            case ChoiceType.Multi:
+            default:
+                break;
+        }
     }
 </script>
 
@@ -53,9 +90,11 @@
 >
     {#each commands.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command(command.id)}
         {#if command.type === CommandType.Wait}
-            <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommand} />
+            <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
+        {:else if command.type === CommandType.NestedChoice}
+            <NestedChoiceCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={e => deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} on:configureChoice={configureChoice} />
         {:else}
-            <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} on:updateCommand={updateCommand} />
+            <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={(e) => deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
         {/if}
     {/each}
 </ol>
