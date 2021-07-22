@@ -15,11 +15,18 @@ export class QuickAddApi {
             yesNoPrompt: (header: string, text?: string) => {return this.yesNoPrompt(app, header, text)},
             suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
             checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)},
-            executeChoice: async (choiceName: string) => {
+            executeChoice: async (choiceName: string, variables?: {[key: string]: any}) => {
                 const choice: IChoice = plugin.getChoiceByName(choiceName);
                 if (!choice) log.logError(`choice named '${choiceName}' not found`);
 
+                if (variables) {
+                    Object.keys(variables).forEach(key => {
+                        choiceExecutor.variables.set(key, variables[key]);
+                    });
+                }
+
                 await choiceExecutor.execute(choice);
+                choiceExecutor.variables.clear();
             },
             utility: {
                 getClipboard: async () => {return await navigator.clipboard.readText()},

@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.0
+- You can now pass variables to the choice being executed with ``executeChoice``.
+
 ### 0.3.12
 - Added a bunch of new commands to macros
   - Copy

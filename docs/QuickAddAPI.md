@@ -33,8 +33,13 @@ Returns an array of the selected items.
 
 This function is asynchronous. You should ``await`` it.
 
-### ``executeChoice(choiceName: string)``
+### ``executeChoice(choiceName: string, variables?: {[key: string]: any})``
 Executes choice with the given name.
+
+You can also pass an optional parameter, ``variables``.
+
+The object will be read as variables for the choice to be executed. These variables do _not_ affect the currently set variables.
+You should view the execution as a new branch, separate from the one executing the macro.
 
 This function is asynchronous. You should ``await`` it.
 
