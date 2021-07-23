@@ -9,10 +9,11 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.4.0
+### 0.3.14
 - You can now pass variables to the choice being executed with ``executeChoice``.
+- Fixed bug where ``{{VALUE}}`` would not be registered in capture to active file
 
-### 0.3.12
+### 0.3.12-13
 - Added a bunch of new commands to macros
   - Copy
   - Cut
