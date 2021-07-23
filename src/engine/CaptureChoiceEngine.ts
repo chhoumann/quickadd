@@ -102,9 +102,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
         }
 
         let content: string = await this.getCaptureContent();
+        content = await this.formatter.formatContent(content, this.choice);
 
         if (this.choice.format.enabled) {
-            content = await this.formatter.formatContent(content, this.choice);
             content = await templaterParseTemplate(this.app, content, activeFile);
         }
 
