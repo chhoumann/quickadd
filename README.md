@@ -1,7 +1,7 @@
 # QuickAdd
 Quickly add new pages or content to your vault.
-### Demo
-![zApIWkHrKP](https://user-images.githubusercontent.com/29108628/121762835-bb8b2e80-cb38-11eb-8ef6-b65700526caf.gif)
+### Demo video
+[![Demo video](https://img.youtube.com/vi/gYK3VDQsZJo/0.jpg)](https://www.youtube.com/watch?v=gYK3VDQsZJo)
 
 ## Installation
 **This plugin is in the community plugin browser in Obsidian**. You can search for it and install it there .
