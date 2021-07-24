@@ -43,8 +43,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
         const formattedContentIsEmpty = formatted.trim() === "";
         if (formattedContentIsEmpty) return this.fileContent;
 
-        if (this.choice.prepend)
-            return `${this.fileContent}\n${formatted}`
+        if (this.choice.prepend) {
+            const shouldInsertLinebreak = !this.choice.task;
+            return `${this.fileContent}${shouldInsertLinebreak ? "\n" : ""}${formatted}`
+        }
 
         if (this.choice.insertAfter.enabled) {
             return await this.insertAfterHandler(formatted);
