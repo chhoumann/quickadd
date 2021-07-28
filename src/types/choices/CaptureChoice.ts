@@ -1,6 +1,7 @@
 import {Choice} from "./Choice";
 import {ChoiceType} from "./choiceType";
 import type ICaptureChoice from "./ICaptureChoice";
+import type {NewTabDirection} from "../newTabDirection";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
     appendLink: boolean;
@@ -11,6 +12,8 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
     insertAfter: { enabled: boolean; after: string, insertAtEnd: boolean, createIfNotFound: boolean, createIfNotFoundLocation: string };
     prepend: boolean;
     task: boolean;
+    openFileInNewTab: { enabled: boolean; direction: NewTabDirection };
+    openFile: boolean;
 
     constructor(name: string) {
         super(name, ChoiceType.Capture);

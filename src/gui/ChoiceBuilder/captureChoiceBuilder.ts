@@ -14,6 +14,7 @@ import type QuickAdd from "../../main";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import {getTemplatePaths} from "../../utility";
+import {NewTabDirection} from "../../types/newTabDirection";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
@@ -43,6 +44,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
             this.addAppendLinkSetting();
             this.addInsertAfterSetting();
         }
+
+        this.addOpenFileSetting();
+        if (this.choice.openFile)
+            this.addOpenFileInNewTabSetting();
 
         this.addFormatSetting();
     }
@@ -262,5 +267,40 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         templateSelector.onChange(value => {
             this.choice.createFileIfItDoesntExist.template = value;
         });
+    }
+
+
+    private addOpenFileSetting(): void {
+        const noOpenSetting: Setting = new Setting(this.contentEl);
+        noOpenSetting.setName("Open")
+            .setDesc("Open the file that is captured to.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice.openFile);
+                toggle.onChange(value => {
+                    this.choice.openFile = value;
+                    this.reload();
+                });
+            })
+    }
+
+    private addOpenFileInNewTabSetting(): void {
+        const newTabSetting = new Setting(this.contentEl);
+        newTabSetting.setName("New Tab")
+            .setDesc("Open the file that is captured to in a new tab.")
+            .addToggle(toggle => {
+                toggle.setValue(this.choice?.openFileInNewTab?.enabled);
+                toggle.onChange(value => this.choice.openFileInNewTab.enabled = value);
+            })
+            .addDropdown(dropdown => {
+                if (!this.choice?.openFileInNewTab) {
+                    this.choice.openFileInNewTab = {enabled: false, direction: NewTabDirection.vertical};
+                }
+
+                dropdown.selectEl.style.marginLeft = "10px";
+                dropdown.addOption(NewTabDirection.vertical, "Vertical");
+                dropdown.addOption(NewTabDirection.horizontal, "Horizontal");
+                dropdown.setValue(this.choice?.openFileInNewTab?.direction);
+                dropdown.onChange(value => this.choice.openFileInNewTab.direction = <NewTabDirection>value);
+            });
     }
 }
