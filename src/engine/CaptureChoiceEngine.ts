@@ -2,7 +2,12 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type {App, TFile} from "obsidian";
 import {log} from "../logger/logManager";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
-import {appendToCurrentLine, replaceTemplaterTemplatesInCreatedFile, templaterParseTemplate} from "../utility";
+import {
+    appendToCurrentLine,
+    openFile,
+    replaceTemplaterTemplatesInCreatedFile,
+    templaterParseTemplate
+} from "../utility";
 import {VALUE_SYNTAX} from "../constants";
 import type QuickAdd from "../main";
 import {QuickAddChoiceEngine} from "./QuickAddChoiceEngine";
@@ -56,7 +61,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                     fileContent = await singleTemplateEngine.run();
                 }
 
-                const file: TFile = await this.createFileWithInput(filePath, fileContent);
+                file = await this.createFileWithInput(filePath, fileContent);
                 await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
                 const updatedFileContent: string = await this.app.vault.cachedRead(file);
@@ -70,6 +75,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
             if (this.choice.appendLink)
                 appendToCurrentLine(this.app.fileManager.generateMarkdownLink(file, ''), this.app);
+
+            if (this.choice?.openFile) {
+                if (this.choice?.openFileInNewTab.enabled) {
+                    await openFile(this.app, file, this.choice.openFileInNewTab.direction);
+                } else {
+                    await openFile(this.app, file);
+                }
+            }
         }
         catch (e) {
             log.logMessage(e);

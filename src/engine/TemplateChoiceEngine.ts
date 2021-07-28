@@ -1,7 +1,7 @@
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type {App} from "obsidian";
 import {TFile} from "obsidian";
-import {appendToCurrentLine, getAllFolderPathsInVault} from "../utility";
+import {appendToCurrentLine, getAllFolderPathsInVault, openFile} from "../utility";
 import {
     fileExistsAppendToBottom,
     fileExistsAppendToTop,
@@ -82,11 +82,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
         if (this.choice.openFile) {
             if (!this.choice.openFileInNewTab.enabled) {
-                await this.app.workspace.activeLeaf.openFile(createdFile);
+                await openFile(this.app, createdFile);
             } else {
-                await this.app.workspace
-                    .splitActiveLeaf(this.choice.openFileInNewTab.direction)
-                    .openFile(createdFile);
+                await openFile(this.app, createdFile, this.choice.openFileInNewTab.direction);
             }
         }
     }

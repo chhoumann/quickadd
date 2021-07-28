@@ -1,6 +1,7 @@
 import type {App, TFile} from "obsidian";
 import {MarkdownView, TFolder} from "obsidian";
 import {log} from "./logger/logManager";
+import type {NewTabDirection} from "./types/newTabDirection";
 
 export function getTemplater(app: App) {
     // @ts-ignore
@@ -141,4 +142,14 @@ export function getLinesInString(input: string) {
 // https://stackoverflow.com/questions/3115150/how-to-escape-regular-expression-special-characters-using-javascript
 export function escapeRegExp(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
+export async function openFile(app: App, file: TFile, direction?: NewTabDirection) {
+    if (!direction) {
+        await app.workspace.activeLeaf.openFile(file);
+    } else {
+        await app.workspace
+            .splitActiveLeaf(direction)
+            .openFile(file);
+    }
 }

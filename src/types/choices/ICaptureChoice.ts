@@ -1,4 +1,5 @@
 import type IChoice from "./IChoice";
+import type {NewTabDirection} from "../newTabDirection";
 
 export default interface ICaptureChoice extends IChoice {
     captureTo: string;
@@ -10,5 +11,7 @@ export default interface ICaptureChoice extends IChoice {
     appendLink: boolean;
     task: boolean;
     insertAfter: { enabled: boolean; after: string, insertAtEnd: boolean, createIfNotFound: boolean, createIfNotFoundLocation: string };
+    openFile: boolean;
+    openFileInNewTab: {enabled: boolean, direction: NewTabDirection};
 }
 
