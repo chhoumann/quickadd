@@ -43,11 +43,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
         if (!this.choice.captureToActiveFile) {
             this.addAppendLinkSetting();
             this.addInsertAfterSetting();
+            this.addOpenFileSetting();
+            if (this.choice.openFile)
+                this.addOpenFileInNewTabSetting();
         }
-
-        this.addOpenFileSetting();
-        if (this.choice.openFile)
-            this.addOpenFileInNewTabSetting();
 
         this.addFormatSetting();
     }
