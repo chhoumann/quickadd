@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### o.3.17
+- Captures can now also open the file captured to (to current pane / split pane).
+
 ### 0.3.14-16
 - You can now pass variables to the choice being executed with ``executeChoice``.
 - Fixed bug where ``{{VALUE}}`` would not be registered in capture to active file

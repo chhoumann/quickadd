@@ -295,7 +295,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                 if (!this.choice?.openFileInNewTab) {
                     this.choice.openFileInNewTab = {enabled: false, direction: NewTabDirection.vertical};
                 }
-                
+
                 dropdown.selectEl.style.marginLeft = "10px";
                 dropdown.addOption(NewTabDirection.vertical, "Vertical");
                 dropdown.addOption(NewTabDirection.horizontal, "Horizontal");
