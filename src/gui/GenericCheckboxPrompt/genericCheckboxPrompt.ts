@@ -51,8 +51,10 @@ export default class GenericCheckboxPrompt extends Modal{
         checkbox.setTooltip(`Toggle ${item}`).onChange(value => {
             if (value)
                 this.selectedItems.push(item);
-            else
-                this.selectedItems.remove(item);
+            else {
+                const index = this.selectedItems.findIndex(value => item === value);
+                this.selectedItems.splice(index, 1);
+            }
         }).setValue(this.selectedItems.contains(item));
     }
 
