@@ -9,7 +9,10 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### o.3.17
+### 0.3.21
+- Added a better search algorithm for input prompts.
+
+### 0.3.17
 - Captures can now also open the file captured to (to current pane / split pane).
 
 ### 0.3.14-16

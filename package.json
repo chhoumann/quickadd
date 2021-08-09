@@ -1,6 +1,6 @@
 {
   "name": "quickadd",
-  "version": "0.3.20",
+  "version": "0.3.21",
   "description": "Quickly add new pages or content to your vault.",
   "main": "main.js",
   "scripts": {
@@ -42,5 +42,8 @@
     "tslib": "^2.2.0",
     "typescript": "^4.2.4",
     "uuid": "8.3.2"
+  },
+  "dependencies": {
+    "fuse.js": "6.4.6"
   }
 }

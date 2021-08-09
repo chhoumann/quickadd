@@ -2,6 +2,7 @@ import {TextInputSuggest} from "./suggest";
 import type {App, TAbstractFile} from "obsidian";
 import {TFile} from "obsidian";
 import {FILE_LINK_REGEX, TAG_REGEX} from "../constants";
+import Fuse from "fuse.js";
 
 enum TagOrFile {
     Tag, File
@@ -48,7 +49,8 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
             suggestions.push(...this.unresolvedLinkNames.filter(name => name.toLowerCase().contains(fileNameInput.toLowerCase())));
         }
 
-        return suggestions.slice(0, 50);
+        const fuse = new Fuse(suggestions, {findAllMatches: true, threshold: 0.8});
+        return fuse.search(inputStr).map(value => value.item);
     }
 
     renderSuggestion(item: string, el: HTMLElement): void {
