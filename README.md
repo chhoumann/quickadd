@@ -9,7 +9,7 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.3.21
+### 0.3.21-2
 - Added a better search algorithm for input prompts.
 
 ### 0.3.17

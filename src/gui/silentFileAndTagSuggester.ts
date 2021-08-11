@@ -50,7 +50,7 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
         }
 
         const fuse = new Fuse(suggestions, {findAllMatches: true, threshold: 0.8});
-        return fuse.search(inputStr).map(value => value.item);
+        return fuse.search(this.lastInput).map(value => value.item);
     }
 
     renderSuggestion(item: string, el: HTMLElement): void {
