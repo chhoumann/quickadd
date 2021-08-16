@@ -7,6 +7,7 @@ import type {IChoiceExecutor} from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import {log} from "./logger/logManager";
+import {CompleteFormatter} from "./formatters/completeFormatter";
 
 export class QuickAddApi {
     public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
@@ -27,6 +28,9 @@ export class QuickAddApi {
 
                 await choiceExecutor.execute(choice);
                 choiceExecutor.variables.clear();
+            },
+            format: async (input: string) => {
+                return new CompleteFormatter(app, plugin, choiceExecutor).formatFileContent(input);
             },
             utility: {
                 getClipboard: async () => {return await navigator.clipboard.readText()},
