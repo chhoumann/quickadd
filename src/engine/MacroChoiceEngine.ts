@@ -92,7 +92,21 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             return;
         }
 
-        await this.userScriptDelegator(userScript);
+        if (userScript.settings) {
+            await this.runScriptWithSettings(userScript, command);
+        } else {
+            await this.userScriptDelegator(userScript);
+        }
+    }
+
+    private async runScriptWithSettings(userScript, command: IUserScript) {
+        if (!userScript.entry) {
+            log.logError(`user script '${command.name}' does not have an entry function.`);
+            return;
+        }
+
+        await this.onExportIsFunction(userScript.entry, command.settings);
+        return;
     }
 
     protected async userScriptDelegator(userScript: any) {
@@ -114,8 +128,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         }
     }
 
-    private async onExportIsFunction(userScript: any) {
-        this.output = await userScript(this.params);
+    private async onExportIsFunction(userScript: any, settings?: {[key: string]: any}) {
+        this.output = await userScript(this.params, settings);
     }
 
     protected async onExportIsObject(obj: object) {
