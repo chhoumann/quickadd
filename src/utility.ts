@@ -1,7 +1,9 @@
-import type {App, TFile} from "obsidian";
+import type {App, TAbstractFile} from "obsidian";
+import {TFile} from "obsidian";
 import {MarkdownView, TFolder} from "obsidian";
 import {log} from "./logger/logManager";
 import type {NewTabDirection} from "./types/newTabDirection";
+import type {IUserScript} from "./types/macros/IUserScript";
 
 export function getTemplater(app: App) {
     // @ts-ignore
@@ -151,5 +153,39 @@ export async function openFile(app: App, file: TFile, direction?: NewTabDirectio
         await app.workspace
             .splitActiveLeaf(direction)
             .openFile(file);
+    }
+}
+
+export async function getUserScript(command: IUserScript, app: App) {
+    // @ts-ignore
+    const vaultPath = app.vault.adapter.getBasePath();
+    const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
+    if (!file) {
+        log.logError(`failed to load file ${command.path}.`);
+        return;
+    }
+
+    if (file instanceof TFile) {
+        const filePath = `${vaultPath}/${file.path}`;
+
+        if (window.require.cache[window.require.resolve(filePath)]) {
+            delete window.require.cache[window.require.resolve(filePath)];
+        }
+
+        // @ts-ignore
+        const userScript = await import(filePath);
+        if (!userScript || !userScript.default) return;
+
+        let script = userScript.default;
+
+        const {memberAccess} = getUserScriptMemberAccess(command.name);
+        if (memberAccess && memberAccess.length > 0) {
+            let member: string;
+            while(member = memberAccess.shift()) {
+                script = script[member];
+            }
+        }
+
+        return script;
     }
 }

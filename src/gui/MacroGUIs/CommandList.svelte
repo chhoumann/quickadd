@@ -13,6 +13,10 @@
     import type IChoice from "../../types/choices/IChoice";
     import {App} from "obsidian";
     import QuickAdd from "../../main";
+    import UserScriptCommand from "./Components/UserScriptCommand.svelte";
+    import type {IUserScript} from "../../types/macros/IUserScript";
+    import {UserScriptSettingsModal} from "./UserScriptSettingsModal";
+    import {getUserScript} from "../../utility";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => Promise<void>;
@@ -81,6 +85,16 @@
                 break;
         }
     }
+
+    async function configureScript(e: CustomEvent) {
+        const command: IUserScript = e.detail;
+        console.log(`Configure script '${command.name}'`);
+
+        const userScript = await getUserScript(command, app);
+        if (!userScript.settings) return;
+
+        new UserScriptSettingsModal(app, command, userScript.settings).open();
+    }
 </script>
 
 <ol class="quickAddCommandList"
@@ -93,6 +107,8 @@
             <WaitCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
         {:else if command.type === CommandType.NestedChoice}
             <NestedChoiceCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} on:configureChoice={configureChoice} />
+        {:else if command.type === CommandType.UserScript}
+            <UserScriptCommand bind:command bind:dragDisabled bind:startDrag on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} on:configureScript={configureScript} />
         {:else}
             <StandardCommand bind:command bind:dragDisabled bind:startDrag={startDrag} on:deleteCommand={async e => await deleteCommand(e.detail)} on:updateCommand={updateCommandFromEvent} />
         {/if}
