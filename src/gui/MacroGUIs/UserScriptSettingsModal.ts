@@ -1,5 +1,8 @@
-import {App, Modal, Setting} from "obsidian";
+import {App, Modal, Setting, TextComponent} from "obsidian";
 import type {IUserScript} from "../../types/macros/IUserScript";
+import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
+import QuickAdd from "../../main";
+import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 
 export class UserScriptSettingsModal extends Modal {
     constructor(app: App, private command: IUserScript, private settings: {[key: string]: any}) {
@@ -18,7 +21,7 @@ export class UserScriptSettingsModal extends Modal {
     protected display() {
         this.contentEl.empty();
 
-        this.titleEl.innerText = `${this.settings?.name} by ${this.settings?.author}`;
+        this.titleEl.innerText = `${this.settings?.name}${this.settings?.author ? " by " + this.settings?.author : ""}`;
         const options = this.settings.options;
 
         Object.keys(options).forEach(option => {
@@ -29,10 +32,10 @@ export class UserScriptSettingsModal extends Modal {
                 value = this.command.settings[option];
             }
 
-            switch (options[option].type.toLowerCase()) {
+            switch (options[option]?.type?.toLowerCase()) {
                 case "text":
                 case "input":
-                    this.addInputBox(option, value, entry?.placeholder);
+                    this.addInputBox(option, value, entry?.placeholder, entry?.secret);
                     break;
                 case "checkbox":
                 case "toggle":
@@ -42,19 +45,37 @@ export class UserScriptSettingsModal extends Modal {
                 case "select":
                     this.addDropdown(option, entry.options, value);
                     break;
+                case "format":
+                    this.addFormatInput(option, value, entry?.placeholder);
+                    break;
                 default:
                     break;
             }
         });
     }
+    private setPasswordOnBlur(el: HTMLInputElement) {
+        el.addEventListener('focus', () => {
+            el.type = "text";
+        });
 
-    private addInputBox(name: string, value: string, placeholder?: string) {
+        el.addEventListener('blur', () => {
+            el.type = "password";
+        });
+
+        el.type = "password";
+    }
+
+    private addInputBox(name: string, value: string, placeholder?: string, passwordOnBlur?: boolean) {
         new Setting(this.contentEl)
             .setName(name)
             .addText(input => {
                 input.setValue(value)
                     .onChange(value => this.command.settings[name] = value)
                     .setPlaceholder(placeholder ?? "")
+
+                if (passwordOnBlur) {
+                    this.setPasswordOnBlur(input.inputEl);
+                }
             });
     }
 
@@ -75,5 +96,26 @@ export class UserScriptSettingsModal extends Modal {
                 dropdown.setValue(value);
                 dropdown.onChange(value => this.command.settings[name] = value);
             })
+    }
+
+    private addFormatInput(name: string, value: string, placeholder?: string) {
+        new Setting(this.contentEl).setName(name);
+
+        const formatDisplay = this.contentEl.createEl("span");
+        const input = new TextComponent(this.contentEl);
+        new FormatSyntaxSuggester(this.app, input.inputEl, QuickAdd.instance);
+        const displayFormatter = new FormatDisplayFormatter(this.app, QuickAdd.instance);
+
+        input.setValue(value)
+            .onChange(async value => {
+                this.command.settings[name] = value
+                formatDisplay.innerText = await displayFormatter.format(value);
+            })
+            .setPlaceholder(placeholder ?? "")
+
+        input.inputEl.style.width = "100%";
+        input.inputEl.style.marginBottom = "1em";
+
+        (async () => formatDisplay.innerText = await displayFormatter.format(value))();
     }
 }
