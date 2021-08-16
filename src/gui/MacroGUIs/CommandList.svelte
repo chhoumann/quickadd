@@ -17,6 +17,7 @@
     import type {IUserScript} from "../../types/macros/IUserScript";
     import {UserScriptSettingsModal} from "./UserScriptSettingsModal";
     import {getUserScript} from "../../utility";
+    import {log} from "../../logger/logManager";
 
     export let commands: ICommand[];
     export let deleteCommand: (command: ICommand) => Promise<void>;
@@ -88,10 +89,12 @@
 
     async function configureScript(e: CustomEvent) {
         const command: IUserScript = e.detail;
-        console.log(`Configure script '${command.name}'`);
 
         const userScript = await getUserScript(command, app);
-        if (!userScript.settings) return;
+        if (!userScript.settings) {
+            log.logWarning(`${command.name} has no settings.`);
+            return;
+        }
 
         new UserScriptSettingsModal(app, command, userScript.settings).open();
     }

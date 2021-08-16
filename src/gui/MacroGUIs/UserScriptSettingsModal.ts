@@ -19,7 +19,6 @@ export class UserScriptSettingsModal extends Modal {
         this.contentEl.empty();
 
         this.titleEl.innerText = `${this.settings?.name} by ${this.settings?.author}`;
-        console.log(this.settings);
         const options = this.settings.options;
 
         Object.keys(options).forEach(option => {
@@ -31,12 +30,15 @@ export class UserScriptSettingsModal extends Modal {
             }
 
             switch (options[option].type.toLowerCase()) {
+                case "text":
                 case "input":
                     this.addInputBox(option, value, entry?.placeholder);
                     break;
+                case "checkbox":
                 case "toggle":
                     this.addToggle(option, value);
                     break;
+                case "dropdown":
                 case "select":
                     this.addDropdown(option, entry.options, value);
                     break;
@@ -70,7 +72,6 @@ export class UserScriptSettingsModal extends Modal {
             .setName(name)
             .addDropdown(dropdown => {
                 options.forEach(item => dropdown.addOption(item, item));
-                console.log(value);
                 dropdown.setValue(value);
                 dropdown.onChange(value => this.command.settings[name] = value);
             })
