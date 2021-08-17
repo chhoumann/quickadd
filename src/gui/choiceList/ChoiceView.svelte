@@ -19,6 +19,7 @@
     import {MacrosManager} from "../../MacrosManager";
     import type {IMacro} from "../../types/macros/IMacro";
     import QuickAdd from "../../main";
+    import GenericInputPrompt from "../GenericInputPrompt/genericInputPrompt";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];
@@ -81,7 +82,19 @@
 
     async function configureChoice(e: any) {
         const {choice: oldChoice} = e.detail;
-        const updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
+
+        let updatedChoice;
+        if (oldChoice.type === ChoiceType.Multi) {
+            updatedChoice = oldChoice;
+
+            const name = await GenericInputPrompt.Prompt(app, `Rename ${oldChoice.name}`, '', oldChoice.name);
+            if (!name) return;
+            
+            updatedChoice.name = name;
+        } else {
+            updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
+        }
+
         if (!updatedChoice) return;
 
         choices = choices.map(choice => updateChoiceHelper(choice, updatedChoice));
