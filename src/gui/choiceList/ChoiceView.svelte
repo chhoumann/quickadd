@@ -89,7 +89,7 @@
 
             const name = await GenericInputPrompt.Prompt(app, `Rename ${oldChoice.name}`, '', oldChoice.name);
             if (!name) return;
-            
+
             updatedChoice.name = name;
         } else {
             updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
