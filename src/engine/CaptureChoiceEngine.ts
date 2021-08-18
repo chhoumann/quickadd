@@ -78,7 +78,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
             if (this.choice?.openFile) {
                 if (this.choice?.openFileInNewTab.enabled) {
-                    await openFile(this.app, file, this.choice.openFileInNewTab.direction);
+                    await openFile(this.app, file, {direction: this.choice.openFileInNewTab.direction});
                 } else {
                     await openFile(this.app, file);
                 }

@@ -84,7 +84,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
             if (!this.choice.openFileInNewTab.enabled) {
                 await openFile(this.app, createdFile);
             } else {
-                await openFile(this.app, createdFile, this.choice.openFileInNewTab.direction);
+                await openFile(this.app, createdFile, {direction: this.choice.openFileInNewTab.direction});
             }
         }
     }
