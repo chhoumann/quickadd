@@ -18,9 +18,13 @@ You can find the script [here](./Attachments/togglManager.js).
 5. Go back out to your QuickAdd main menu and add a new Macro choice. Again, you decide the name. I named mine ``⏳ Toggl Manager``. This is what activates the macro.
 6. Attach the Macro to the Macro Choice you just created. Do so by clicking the cog ⚙ icon and selecting it.
 
-Your Macro should look like this: ![TogglManager Macro](../Images/TogglManagerMacro.png)
+Your Macro should look like this:
 
-Your Macro Choice should look like this: ![Toggl Manager Macro Choice](../Images/TogglManagerMacroChoice.png)
+![TogglManager Macro](../Images/TogglManagerMacro.png)
+
+Your Macro Choice should look like this: 
+
+![Toggl Manager Macro Choice](../Images/TogglManagerMacroChoice.png)
 
 ## Configuration
 You will need to configure your script to match your own settings. I have included some example settings from my own setup, but you'll likely want to make it match your own preferences.
