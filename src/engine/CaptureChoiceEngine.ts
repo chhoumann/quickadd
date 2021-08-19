@@ -77,11 +77,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                 appendToCurrentLine(this.app.fileManager.generateMarkdownLink(file, ''), this.app);
 
             if (this.choice?.openFile) {
-                if (this.choice?.openFileInNewTab.enabled) {
-                    await openFile(this.app, file, {direction: this.choice.openFileInNewTab.direction});
-                } else {
-                    await openFile(this.app, file);
-                }
+                await openFile(this.app, file, {
+                    openInNewTab: this.choice.openFileInNewTab.enabled,
+                    direction: this.choice.openFileInNewTab.direction,
+                    focus: this.choice.openFileInNewTab.focus,
+                    mode: this.choice.openFileInMode
+                });
             }
         }
         catch (e) {

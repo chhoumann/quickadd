@@ -1,8 +1,9 @@
 import type {App, TAbstractFile, ViewState} from "obsidian";
-import {MarkdownEditView, MarkdownPreviewView, MarkdownView, TFile, TFolder, WorkspaceLeaf} from "obsidian";
+import {MarkdownView, TFile, TFolder, WorkspaceLeaf} from "obsidian";
 import {log} from "./logger/logManager";
 import type {NewTabDirection} from "./types/newTabDirection";
 import type {IUserScript} from "./types/macros/IUserScript";
+import type {FileViewMode} from "./types/fileViewMode";
 
 export function getTemplater(app: App) {
     // @ts-ignore
@@ -145,23 +146,23 @@ export function escapeRegExp(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }
 
-export async function openFile(app: App, file: TFile, optional?: {direction?: NewTabDirection, mode?: 'source' | 'preview', focus?: boolean}) {
+export async function openFile(app: App, file: TFile, optional?: {openInNewTab?: boolean, direction?: NewTabDirection, mode?: FileViewMode, focus?: boolean}) {
     let leaf: WorkspaceLeaf;
 
-    if (!optional.direction) {
-        leaf = await app.workspace.activeLeaf;
+    if (optional?.openInNewTab && optional?.direction) {
+        leaf = app.workspace.splitActiveLeaf(optional.direction);
     } else {
-        leaf = await app.workspace.splitActiveLeaf(optional.direction);
+        leaf = app.workspace.activeLeaf;
     }
 
     await leaf.openFile(file)
 
-    if (optional) {
+    if (optional?.mode || optional?.focus) {
         await leaf.setViewState({
             ...leaf.getViewState(),
-            state: optional.mode ? {...leaf.view.getState(), mode: optional.mode} : leaf.view.getState(),
+            state: optional.mode && optional.mode !== 'default' ? {...leaf.view.getState(), mode: optional.mode} : leaf.view.getState(),
             popstate: true,
-        } as ViewState, { focus: optional.focus });
+        } as ViewState, { focus: optional?.focus });
     }
 }
 

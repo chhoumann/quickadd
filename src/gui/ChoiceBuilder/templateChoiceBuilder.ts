@@ -10,6 +10,7 @@ import {log} from "../../logger/logManager";
 import {getAllFolderPathsInVault, getTemplatePaths} from "../../utility";
 import {GenericTextSuggester} from "../genericTextSuggester";
 import type QuickAdd from "../../main";
+import type {FileViewMode} from "../../types/fileViewMode";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;
@@ -209,6 +210,20 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                     this.reload();
                 });
             })
+            .addDropdown(dropdown => {
+                dropdown.selectEl.style.marginLeft = "10px";
+
+                if (!this.choice.openFileInMode)
+                    this.choice.openFileInMode = 'default';
+
+                dropdown
+                    .addOption('source', 'Source')
+                    .addOption('preview', 'Preview')
+                    .addOption('default', 'Default')
+                    .setValue(this.choice.openFileInMode)
+                    .onChange(value => this.choice.openFileInMode = (value as FileViewMode))
+                }
+            );
     }
 
     private addOpenFileInNewTabSetting(): void {
@@ -226,5 +241,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
                 dropdown.setValue(this.choice.openFileInNewTab.direction);
                 dropdown.onChange(value => this.choice.openFileInNewTab.direction = <NewTabDirection>value);
             });
+
+        new Setting(this.contentEl)
+            .setName("Focus new pane")
+            .setDesc("Focus the opened tab immediately")
+            .addToggle(toggle => toggle
+                .setValue(this.choice.openFileInNewTab.focus)
+                .onChange(value => this.choice.openFileInNewTab.focus = value)
+            );
     }
 }
