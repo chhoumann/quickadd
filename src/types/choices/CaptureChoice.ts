@@ -1,7 +1,8 @@
 import {Choice} from "./Choice";
 import {ChoiceType} from "./choiceType";
 import type ICaptureChoice from "./ICaptureChoice";
-import type {NewTabDirection} from "../newTabDirection";
+import {NewTabDirection} from "../newTabDirection";
+import type {FileViewMode} from "../fileViewMode";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
     appendLink: boolean;
@@ -12,8 +13,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
     insertAfter: { enabled: boolean; after: string, insertAtEnd: boolean, createIfNotFound: boolean, createIfNotFoundLocation: string };
     prepend: boolean;
     task: boolean;
-    openFileInNewTab: { enabled: boolean; direction: NewTabDirection };
+    openFileInNewTab: { enabled: boolean; direction: NewTabDirection, focus: boolean };
     openFile: boolean;
+    openFileInMode: FileViewMode;
 
     constructor(name: string) {
         super(name, ChoiceType.Capture);
@@ -26,6 +28,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
         this.insertAfter = {enabled: false, after: "", insertAtEnd: false, createIfNotFound: false, createIfNotFoundLocation: "top"};
         this.prepend = false;
         this.task = false;
+        this.openFileInNewTab = {enabled: false, direction: NewTabDirection.vertical, focus: true};
+        this.openFile = false;
+        this.openFileInMode = 'default';
     }
 
     public static Load(choice: ICaptureChoice): CaptureChoice {

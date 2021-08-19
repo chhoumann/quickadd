@@ -1,7 +1,9 @@
-import type {App, TFile} from "obsidian";
-import {MarkdownView, TFolder} from "obsidian";
+import type {App, TAbstractFile, ViewState} from "obsidian";
+import {MarkdownView, TFile, TFolder, WorkspaceLeaf} from "obsidian";
 import {log} from "./logger/logManager";
 import type {NewTabDirection} from "./types/newTabDirection";
+import type {IUserScript} from "./types/macros/IUserScript";
+import type {FileViewMode} from "./types/fileViewMode";
 
 export function getTemplater(app: App) {
     // @ts-ignore
@@ -144,12 +146,56 @@ export function escapeRegExp(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }
 
-export async function openFile(app: App, file: TFile, direction?: NewTabDirection) {
-    if (!direction) {
-        await app.workspace.activeLeaf.openFile(file);
+export async function openFile(app: App, file: TFile, optional?: {openInNewTab?: boolean, direction?: NewTabDirection, mode?: FileViewMode, focus?: boolean}) {
+    let leaf: WorkspaceLeaf;
+
+    if (optional?.openInNewTab && optional?.direction) {
+        leaf = app.workspace.splitActiveLeaf(optional.direction);
     } else {
-        await app.workspace
-            .splitActiveLeaf(direction)
-            .openFile(file);
+        leaf = app.workspace.activeLeaf;
+    }
+
+    await leaf.openFile(file)
+
+    if (optional?.mode || optional?.focus) {
+        await leaf.setViewState({
+            ...leaf.getViewState(),
+            state: optional.mode && optional.mode !== 'default' ? {...leaf.view.getState(), mode: optional.mode} : leaf.view.getState(),
+            popstate: true,
+        } as ViewState, { focus: optional?.focus });
+    }
+}
+
+export async function getUserScript(command: IUserScript, app: App) {
+    // @ts-ignore
+    const vaultPath = app.vault.adapter.getBasePath();
+    const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
+    if (!file) {
+        log.logError(`failed to load file ${command.path}.`);
+        return;
+    }
+
+    if (file instanceof TFile) {
+        const filePath = `${vaultPath}/${file.path}`;
+
+        if (window.require.cache[window.require.resolve(filePath)]) {
+            delete window.require.cache[window.require.resolve(filePath)];
+        }
+
+        // @ts-ignore
+        const userScript = await import(filePath);
+        if (!userScript || !userScript.default) return;
+
+        let script = userScript.default;
+
+        const {memberAccess} = getUserScriptMemberAccess(command.name);
+        if (memberAccess && memberAccess.length > 0) {
+            let member: string;
+            while(member = memberAccess.shift()) {
+                script = script[member];
+            }
+        }
+
+        return script;
     }
 }

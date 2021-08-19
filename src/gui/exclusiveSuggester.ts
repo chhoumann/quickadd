@@ -16,7 +16,7 @@ export class ExclusiveSuggester extends TextInputSuggest<string> {
     }
 
     getSuggestions(inputStr: string): string[] {
-        return this.suggestItems.filter(item => !this.currentItems.contains(item));
+        return this.suggestItems.filter(item => item.contains(inputStr));
     }
 
     selectSuggestion(item: string): void {

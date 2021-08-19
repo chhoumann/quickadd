@@ -13,10 +13,12 @@ import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 
 export default class QuickAdd extends Plugin {
+	static instance;
 	settings: QuickAddSettings;
 
 	async onload() {
 		console.log('Loading QuickAdd');
+		QuickAdd.instance = this;
 
 		await this.loadSettings();
 

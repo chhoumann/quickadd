@@ -24,7 +24,6 @@ import {CopyCommand} from "../../types/macros/EditorCommands/CopyCommand";
 import {CutCommand} from "../../types/macros/EditorCommands/CutCommand";
 import {PasteCommand} from "../../types/macros/EditorCommands/PasteCommand";
 import {log} from "../../logger/logManager";
-import {EditorCommand} from "../../types/macros/EditorCommands/EditorCommand";
 import {SelectActiveLineCommand} from "../../types/macros/EditorCommands/SelectActiveLineCommand";
 import {SelectLinkOnActiveLineCommand} from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";

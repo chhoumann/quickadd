@@ -15,6 +15,7 @@ import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatte
 import {GenericTextSuggester} from "../genericTextSuggester";
 import {getTemplatePaths} from "../../utility";
 import {NewTabDirection} from "../../types/newTabDirection";
+import type {FileViewMode} from "../../types/fileViewMode";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;
@@ -280,6 +281,20 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                     this.reload();
                 });
             })
+            .addDropdown(dropdown => {
+                    dropdown.selectEl.style.marginLeft = "10px";
+
+                    if (!this.choice.openFileInMode)
+                        this.choice.openFileInMode = 'default';
+
+                    dropdown
+                        .addOption('source', 'Source')
+                        .addOption('preview', 'Preview')
+                        .addOption('default', 'Default')
+                        .setValue(this.choice.openFileInMode)
+                        .onChange(value => this.choice.openFileInMode = (value as FileViewMode))
+                }
+            );
     }
 
     private addOpenFileInNewTabSetting(): void {
@@ -292,7 +307,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
             })
             .addDropdown(dropdown => {
                 if (!this.choice?.openFileInNewTab) {
-                    this.choice.openFileInNewTab = {enabled: false, direction: NewTabDirection.vertical};
+                    this.choice.openFileInNewTab = { enabled: false, direction: NewTabDirection.vertical, focus: true };
                 }
 
                 dropdown.selectEl.style.marginLeft = "10px";
@@ -301,5 +316,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
                 dropdown.setValue(this.choice?.openFileInNewTab?.direction);
                 dropdown.onChange(value => this.choice.openFileInNewTab.direction = <NewTabDirection>value);
             });
+
+        new Setting(this.contentEl)
+            .setName("Focus new pane")
+            .setDesc("Focus the opened tab immediately")
+            .addToggle(toggle => toggle
+                .setValue(this.choice.openFileInNewTab.focus)
+                .onChange(value => this.choice.openFileInNewTab.focus = value)
+            );
     }
 }

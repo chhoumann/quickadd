@@ -81,11 +81,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
         }
 
         if (this.choice.openFile) {
-            if (!this.choice.openFileInNewTab.enabled) {
-                await openFile(this.app, createdFile);
-            } else {
-                await openFile(this.app, createdFile, this.choice.openFileInNewTab.direction);
-            }
+            await openFile(this.app, createdFile, {
+                openInNewTab: this.choice.openFileInNewTab.enabled,
+                direction: this.choice.openFileInNewTab.direction,
+                focus: this.choice.openFileInNewTab.focus,
+                mode: this.choice.openFileInMode
+            });
         }
     }
 

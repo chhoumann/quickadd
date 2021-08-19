@@ -13,7 +13,7 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type {IChoiceCommand} from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
-import {getUserScriptMemberAccess, waitFor} from "../utility";
+import {getUserScript, getUserScriptMemberAccess, waitFor} from "../utility";
 import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 import type {INestedChoiceCommand} from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -59,7 +59,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 
     protected async executeCommands(commands: ICommand[]) {
-        let i = 1;
         for (const command of commands) {
             if (command?.type === CommandType.Obsidian)
                 await this.executeObsidianCommand(command as IObsidianCommand);
@@ -87,13 +86,27 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     // Slightly modified from Templater's user script engine:
     // https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
     protected async executeUserScript(command: IUserScript) {
-        const userScript = await this.getUserScript(command);
+        const userScript = await getUserScript(command, this.app);
         if (!userScript) {
             log.logError(`failed to load user script ${command.path}.`);
             return;
         }
 
-        await this.userScriptDelegator(userScript);
+        if (userScript.settings) {
+            await this.runScriptWithSettings(userScript, command);
+        } else {
+            await this.userScriptDelegator(userScript);
+        }
+    }
+
+    private async runScriptWithSettings(userScript, command: IUserScript) {
+        if (!userScript.entry) {
+            log.logError(`user script '${command.name}' does not have an entry function.`);
+            return;
+        }
+
+        await this.onExportIsFunction(userScript.entry, command.settings);
+        return;
     }
 
     protected async userScriptDelegator(userScript: any) {
@@ -115,8 +128,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         }
     }
 
-    private async onExportIsFunction(userScript: any) {
-        this.output = await userScript(this.params);
+    private async onExportIsFunction(userScript: any, settings?: {[key: string]: any}) {
+        this.output = await userScript(this.params, settings);
     }
 
     protected async onExportIsObject(obj: object) {
@@ -127,40 +140,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             await this.userScriptDelegator(obj[selected]);
         } catch (e) {
             log.logMessage(e);
-        }
-    }
-
-    protected async getUserScript(command: IUserScript) {
-        // @ts-ignore
-        const vaultPath = this.app.vault.adapter.getBasePath();
-        const file: TAbstractFile = this.app.vault.getAbstractFileByPath(command.path);
-        if (!file) {
-            log.logError(`failed to load file ${command.path}.`);
-            return;
-        }
-
-        if (file instanceof TFile) {
-            const filePath = `${vaultPath}/${file.path}`;
-
-            if (window.require.cache[window.require.resolve(filePath)]) {
-                delete window.require.cache[window.require.resolve(filePath)];
-            }
-
-            // @ts-ignore
-            const userScript = await import(filePath);
-            if (!userScript || !userScript.default) return;
-
-            let script = userScript.default;
-
-            const {memberAccess} = getUserScriptMemberAccess(command.name);
-            if (memberAccess && memberAccess.length > 0) {
-                let member: string;
-                while(member = memberAccess.shift()) {
-                    script = script[member];
-                }
-            }
-
-            return script;
         }
     }
 

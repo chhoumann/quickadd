@@ -7,6 +7,8 @@ import type {IChoiceExecutor} from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import {log} from "./logger/logManager";
+import {CompleteFormatter} from "./formatters/completeFormatter";
+import {getDate} from "./utility";
 
 export class QuickAddApi {
     public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
@@ -28,9 +30,23 @@ export class QuickAddApi {
                 await choiceExecutor.execute(choice);
                 choiceExecutor.variables.clear();
             },
+            format: async (input: string) => {
+                return new CompleteFormatter(app, plugin, choiceExecutor).formatFileContent(input);
+            },
             utility: {
                 getClipboard: async () => {return await navigator.clipboard.readText()},
                 setClipboard: async (text: string) => {return await navigator.clipboard.writeText(text)}
+            },
+            date: {
+                now: (format?: string, offset?: number) => {
+                    return getDate({format, offset});
+                },
+                tomorrow: (format?: string) => {
+                    return getDate({format, offset: 1});
+                },
+                yesterday: (format?: string) => {
+                    return getDate({format, offset: -1});
+                }
             }
         };
     }

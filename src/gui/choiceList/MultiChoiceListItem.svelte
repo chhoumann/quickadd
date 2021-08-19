@@ -9,7 +9,7 @@
     export let choice: IMultiChoice;
     export let collapseId: string;
     export let dragDisabled: boolean;
-    let showConfigureButton: boolean = false;
+    let showConfigureButton: boolean = true;
 
     const dispatcher = createEventDispatcher();
 
