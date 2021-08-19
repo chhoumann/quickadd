@@ -9,6 +9,16 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.0
+- Massive improvements to user scripts and the API:
+  - You can now define settings for user scripts, which can be configured in Obsidian.
+  - Exposed ``format`` in the API, which will evaluate format syntax like `{{DATE}}`, `{{VALUE}}`, and so on.
+  - Exposed a new date module in the API with methods for retrieving and formatting dates.
+- Added settings for opening files in edit or preview mode.
+- Added settings for automatically focusing the opened file.
+- Improved the folder selector search in Template choices.
+- You can now rename Multis.
+
 ### 0.3.21-2
 - Added a better search algorithm for input prompts.
 
