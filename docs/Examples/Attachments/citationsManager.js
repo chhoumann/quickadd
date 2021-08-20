@@ -28,7 +28,11 @@ async function start(params, settings) {
 async function handleCitationsPlugin(params, citationsPlugin, settings) {
     // Open suggester with library
     const library = citationsPlugin.library.entries;
-    const selectedLibraryEntryKey = await params.quickAddApi.suggester(entry => library[entry].title, Object.keys(library));
+    const selectedLibraryEntryKey = await params.quickAddApi.suggester(entry => {
+        const item = library[entry];
+        if (item.title) return item.title;
+        return entry;
+    }, Object.keys(library));
     const entry = library[selectedLibraryEntryKey];
 
     if (!entry && !selectedLibraryEntryKey) {
