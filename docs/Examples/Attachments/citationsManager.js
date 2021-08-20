@@ -31,6 +31,14 @@ async function handleCitationsPlugin(params, citationsPlugin, settings) {
     const selectedLibraryEntryKey = await params.quickAddApi.suggester(entry => library[entry].title, Object.keys(library));
     const entry = library[selectedLibraryEntryKey];
 
+    if (!entry && !selectedLibraryEntryKey) {
+        new Notice("No library entry selected.", 5000);
+        throw new Error("No library entry selected.");
+    } else if (!entry) {
+        new Notice("Invalid entry. Selected library entry: " + selectedLibraryEntryKey, 5000);
+        throw new Error("Invalid entry. Selected library entry: " + selectedLibraryEntryKey);
+    }
+
     params.variables = {
         ...params.variables,
         fileName: replaceIllegalFileNameCharactersInString(entry.title),
