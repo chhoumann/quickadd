@@ -45,7 +45,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
         let createdFile: TFile;
         if (await this.app.vault.adapter.exists(filePath)) {
             const file = this.app.vault.getAbstractFileByPath(filePath);
-            if (!(file instanceof TFile && file.extension === 'md')) {
+            if (!(file instanceof TFile) || file.extension !== 'md') {
                 log.logError(`'${filePath}' already exists and is not a valid markdown file.`);
                 return;
             }

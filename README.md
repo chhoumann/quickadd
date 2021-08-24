@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.1
+- Bugfix: Template Choices now correctly detects if the file it's trying to create already exists. If it does, you will be prompted to append, prepend, overwrite, or do nothing - and it'll open the file for you.
+
 ### 0.4.0
 - Massive improvements to user scripts and the API:
   - You can now define settings for user scripts, which can be configured in Obsidian.
