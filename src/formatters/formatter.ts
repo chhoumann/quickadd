@@ -15,6 +15,10 @@ export abstract class Formatter {
     protected variables: Map<string, string> = new Map<string, string>();
 
     protected abstract format(input: string): Promise<string>;
+    
+    protected replacer(str: string, reg: RegExp, replaceValue) {
+        return str.replace(reg, function () { return replaceValue });
+    }
 
     protected replaceDateInString(input: string) {
         let output: string = input;
@@ -28,7 +32,7 @@ export abstract class Formatter {
                 const offsetIsInt = NUMBER_REGEX.test(offsetString);
                 if (offsetIsInt) offset = parseInt(offsetString);
         }
-            output = output.replace(DATE_REGEX, getDate({offset: offset}));
+            output = this.replacer(output, DATE_REGEX, getDate({offset: offset}));
         }
 
         while (DATE_REGEX_FORMATTED.test(output)) {
@@ -42,7 +46,7 @@ export abstract class Formatter {
                 if (offsetIsInt) offset = parseInt(offsetString);
             }
 
-            output = output.replace(DATE_REGEX_FORMATTED, getDate({format, offset}));
+            output = this.replacer(output, DATE_REGEX_FORMATTED, getDate({format, offset}));
         }
 
         return output;
@@ -57,7 +61,7 @@ export abstract class Formatter {
             if (!this.value)
                 this.value = await this.promptForValue();
 
-            output = output.replace(NAME_VALUE_REGEX, this.value);
+            output = this.replacer(output, NAME_VALUE_REGEX, this.value);
         }
 
         return output;
@@ -68,7 +72,7 @@ export abstract class Formatter {
         let output = input;
 
         while (LINK_TO_CURRENT_FILE_REGEX.test(output))
-            output = output.replace(LINK_TO_CURRENT_FILE_REGEX, currentFilePathLink);
+            output = this.replacer(output, LINK_TO_CURRENT_FILE_REGEX, currentFilePathLink);
 
         return output;
     }
@@ -92,7 +96,7 @@ export abstract class Formatter {
                         this.variables.set(variableName, await this.suggestForValue(suggestedValues));
                 }
 
-                output = output.replace(VARIABLE_REGEX, this.getVariableValue(variableName));
+                output = this.replacer(output, VARIABLE_REGEX, this.getVariableValue(variableName));
             } else {
                 break;
             }
@@ -107,7 +111,7 @@ export abstract class Formatter {
             const macroName = MACRO_REGEX.exec(output)[1];
             const macroOutput = await this.getMacroValue(macroName);
 
-            output = output.replace(MACRO_REGEX, macroOutput ? macroOutput.toString() : "");
+            output = this.replacer(output, MACRO_REGEX, macroOutput ? macroOutput.toString() : "");
         }
 
         return output;
@@ -137,7 +141,7 @@ export abstract class Formatter {
                         throw new Error(`unable to parse date variable ${this.variables[variableName]}`);
                 }
 
-                output = output.replace(DATE_VARIABLE_REGEX, this.variables[variableName]);
+                output = this.replacer(output, DATE_VARIABLE_REGEX, this.variables[variableName]);
             } else {
                 break;
             }
@@ -153,7 +157,7 @@ export abstract class Formatter {
             const templatePath = TEMPLATE_REGEX.exec(output)[1];
             const templateContent = await this.getTemplateContent(templatePath);
 
-            output = output.replace(TEMPLATE_REGEX, templateContent);
+            output = this.replacer(output, TEMPLATE_REGEX, templateContent);
         }
 
         return output;
@@ -163,7 +167,7 @@ export abstract class Formatter {
         let output: string = input;
 
         while (LINEBREAK_REGEX.test(output)) {
-            output = output.replace(LINEBREAK_REGEX, `\n`);
+            output = this.replacer(output, LINEBREAK_REGEX, `\n`);
         }
 
         return output;

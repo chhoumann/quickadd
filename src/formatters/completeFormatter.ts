@@ -118,8 +118,8 @@ export class CompleteFormatter extends Formatter {
                 }
 
                 output = typeof outVal === "string" ?
-                    output.replace(INLINE_JAVASCRIPT_REGEX, outVal) :
-                    output.replace(INLINE_JAVASCRIPT_REGEX, "");
+                    this.replacer(output, INLINE_JAVASCRIPT_REGEX, outVal) :
+                    this.replacer(output, INLINE_JAVASCRIPT_REGEX, "");
             }
         }
 
