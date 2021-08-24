@@ -76,7 +76,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
             return createdFile;
         }
         catch (e) {
-            log.logError(e);
+            log.logError(`Could not create file with template. Maybe '${templatePath}' is an invalid template path?`);
             return null;
         }
     }
