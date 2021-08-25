@@ -9,8 +9,11 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.4.1
+### 0.4.1 - 2
 - Bugfix: Template Choices now correctly detects if the file it's trying to create already exists. If it does, you will be prompted to append, prepend, overwrite, or do nothing - and it'll open the file for you.
+- Update error message when failing to create note to make it more understandable
+- Fix RegExp bug
+- User scripts with settings are now not forced to use ``entry`` function
 
 ### 0.4.0
 - Massive improvements to user scripts and the API:
