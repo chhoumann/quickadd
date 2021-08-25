@@ -32,6 +32,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     protected macros: IMacro[];
     protected choiceExecutor: IChoiceExecutor;
     protected readonly plugin: QuickAdd;
+    private userScriptCommand: any;
 
     constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, macros: IMacro[], choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
         super(app);
@@ -93,26 +94,29 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         }
 
         if (userScript.settings) {
-            await this.runScriptWithSettings(userScript, command);
-        } else {
-            await this.userScriptDelegator(userScript);
+            this.userScriptCommand = command;
         }
+
+        await this.userScriptDelegator(userScript);
+
+        if (this.userScriptCommand) this.userScriptCommand = null;
     }
 
     private async runScriptWithSettings(userScript, command: IUserScript) {
-        if (!userScript.entry) {
-            log.logError(`user script '${command.name}' does not have an entry function.`);
-            return;
+        if (userScript.entry) {
+            await this.onExportIsFunction(userScript.entry, command.settings);
+        } else {
+            await this.onExportIsFunction(userScript, command.settings);
         }
-
-        await this.onExportIsFunction(userScript.entry, command.settings);
-        return;
     }
 
     protected async userScriptDelegator(userScript: any) {
         switch (typeof userScript) {
             case "function":
-                await this.onExportIsFunction(userScript);
+                if (this.userScriptCommand)
+                    await this.runScriptWithSettings(userScript, this.userScriptCommand)
+                else
+                    await this.onExportIsFunction(userScript);
                 break;
             case "object":
                 await this.onExportIsObject(userScript);
