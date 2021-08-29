@@ -111,12 +111,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     protected async userScriptDelegator(userScript: any) {
+        if (this.userScriptCommand)
+            await this.runScriptWithSettings(userScript, this.userScriptCommand)
+
         switch (typeof userScript) {
             case "function":
-                if (this.userScriptCommand)
-                    await this.runScriptWithSettings(userScript, this.userScriptCommand)
-                else
-                    await this.onExportIsFunction(userScript);
+                await this.onExportIsFunction(userScript);
                 break;
             case "object":
                 await this.onExportIsObject(userScript);
