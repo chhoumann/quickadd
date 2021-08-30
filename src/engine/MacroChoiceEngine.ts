@@ -111,12 +111,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
     }
 
     protected async userScriptDelegator(userScript: any) {
-        if (this.userScriptCommand)
-            await this.runScriptWithSettings(userScript, this.userScriptCommand)
-
         switch (typeof userScript) {
             case "function":
-                await this.onExportIsFunction(userScript);
+                if (this.userScriptCommand)
+                    await this.runScriptWithSettings(userScript, this.userScriptCommand)
+                else
+                    await this.onExportIsFunction(userScript);
                 break;
             case "object":
                 await this.onExportIsObject(userScript);
@@ -136,7 +136,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         this.output = await userScript(this.params, settings);
     }
 
-    protected async onExportIsObject(obj: object) {
+    protected async onExportIsObject(obj: any) {
+        if (this.userScriptCommand && obj.entry !== null)
+            await this.runScriptWithSettings(obj, this.userScriptCommand)
+
         try {
             const keys = Object.keys(obj);
             const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
