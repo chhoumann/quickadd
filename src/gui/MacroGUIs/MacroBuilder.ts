@@ -98,7 +98,9 @@ export class MacroBuilder extends Modal {
 
         const addObsidianCommandFromInput = () => {
             const value: string = input.getValue();
-            const command: IObsidianCommand = this.commands.find(v => v.name === value);
+            const obsidianCommand: IObsidianCommand = this.commands.find(v => v.name === value);
+            const command = new ObsidianCommand(obsidianCommand.name, obsidianCommand.commandId);
+            command.generateId();
 
             this.addCommandToMacro(command);
 
@@ -256,6 +258,7 @@ export class MacroBuilder extends Modal {
 
     private addCommandList() {
         const commandList = this.contentEl.createDiv('commandList');
+        console.log(this.macro.commands);
 
         this.commandListEl = new CommandList({
             target: commandList,
