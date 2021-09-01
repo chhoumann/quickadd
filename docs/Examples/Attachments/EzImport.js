@@ -132,7 +132,12 @@ async function getReadwiseHighlights(type) {
 }
 
 async function handleAddToExistingFile(file, item) {
-    const { update } = QuickAdd.app.plugins.plugins["metaedit"].api;
+    const metaEdit = QuickAdd.app.plugins.plugins["metaedit"];
+    if (!metaEdit) {
+        LogAndThrowError("MetaEdit not found. Please install it to add highlights to existing files.");
+    }
+
+    const { update } = metaEdit.api;
     const lastHighlightAt = QuickAdd.app.metadataCache.getFileCache(file).frontmatter["lastHighlightAt"];
     if (!lastHighlightAt) {
         LogAndThrowError("File does not have a lastHighlightAt property.");
