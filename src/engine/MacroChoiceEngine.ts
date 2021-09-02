@@ -141,10 +141,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             await this.runScriptWithSettings(obj, this.userScriptCommand)
 
         try {
-            const keys = Object.keys(obj);
-            const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
+            const keys = Object.keys(obj).filter(k => k !== 'entry' && k !== 'settings');
+            if (keys.length > 0) {
+                const selected: string = await GenericSuggester.Suggest(this.app, keys, keys);
 
-            await this.userScriptDelegator(obj[selected]);
+                await this.userScriptDelegator(obj[selected]);
+            }
         } catch (e) {
             log.logMessage(e);
         }
