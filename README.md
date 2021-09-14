@@ -9,6 +9,10 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.6
+- Bugfix: user scripts with settings are no longer repeated.
+- Add ``getSelectedText`` to the QuickAdd API under `utility`.
+
 ### 0.4.1 - 5
 - Bugfix: Template Choices now correctly detects if the file it's trying to create already exists. If it does, you will be prompted to append, prepend, overwrite, or do nothing - and it'll open the file for you.
 - Update error message when failing to create note to make it more understandable
