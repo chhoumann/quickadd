@@ -9,6 +9,7 @@ import type IChoice from "./types/choices/IChoice";
 import {log} from "./logger/logManager";
 import {CompleteFormatter} from "./formatters/completeFormatter";
 import {getDate} from "./utility";
+import {MarkdownView} from "obsidian";
 
 export class QuickAddApi {
     public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
@@ -35,7 +36,22 @@ export class QuickAddApi {
             },
             utility: {
                 getClipboard: async () => {return await navigator.clipboard.readText()},
-                setClipboard: async (text: string) => {return await navigator.clipboard.writeText(text)}
+                setClipboard: async (text: string) => {return await navigator.clipboard.writeText(text)},
+                getSelectedText: () => {
+                    const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+
+                    if (!activeView) {
+                        log.logError("no active view - could not get selected text.");
+                        return;
+                    }
+
+                    if (!activeView.editor.somethingSelected()) {
+                        log.logError("no text selected.")
+                        return;
+                    }
+
+                    return activeView.editor.getSelection();
+                }
             },
             date: {
                 now: (format?: string, offset?: number) => {
