@@ -67,6 +67,8 @@ async function handleCitationsPlugin(params, citationsPlugin, settings) {
         URL: entry.URL,
         year: entry.year?.toString(),
         zoteroSelectURI: entry.zoteroSelectURI,
+        type: entry.type,
+        issuedDate: entry.issuedDate,
     };
 
     if (settings[ignoreEmpty]) {
