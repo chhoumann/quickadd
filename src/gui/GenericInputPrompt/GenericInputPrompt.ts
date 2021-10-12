@@ -49,8 +49,8 @@ export default class GenericInputPrompt extends Modal {
         const textComponent = new TextComponent(container);
 
         textComponent.inputEl.style.width = "100%";
-        textComponent.setPlaceholder(placeholder)
-            .setValue(value)
+        textComponent.setPlaceholder(placeholder ?? "")
+            .setValue(value ?? "")
             .onChange(value => this.input = value)
             .inputEl.addEventListener('keydown', this.submitEnterCallback);
 
