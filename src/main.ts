@@ -11,6 +11,7 @@ import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
+import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
 
 export default class QuickAdd extends Plugin {
 	static instance;
@@ -39,6 +40,15 @@ export default class QuickAdd extends Plugin {
 				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
 		});
+
+		this.addCommand({
+			id: 'testQuickAdd',
+			name: 'Test QuickAdd (dev)',
+			callback: async () => {
+				const p = await GenericInputPrompt.Prompt(this.app, "Header", "placeholder", "valueset");
+				console.log(p)
+			}
+		})
 		/*END.DEVCMD*/
 
 		log.register(new ConsoleErrorLogger())

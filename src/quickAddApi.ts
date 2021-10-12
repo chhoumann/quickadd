@@ -1,4 +1,4 @@
-import GenericInputPrompt from "./gui/GenericInputPrompt/genericInputPrompt";
+import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import type {App} from "obsidian";

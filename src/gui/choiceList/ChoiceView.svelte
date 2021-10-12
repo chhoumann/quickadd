@@ -19,7 +19,7 @@
     import {MacrosManager} from "../../MacrosManager";
     import type {IMacro} from "../../types/macros/IMacro";
     import QuickAdd from "../../main";
-    import GenericInputPrompt from "../GenericInputPrompt/genericInputPrompt";
+    import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];

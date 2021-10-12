@@ -1,7 +1,7 @@
 import {Formatter} from "./formatter";
 import type {App, TFile} from "obsidian";
 import {getNaturalLanguageDates} from "../utility";
-import GenericInputPrompt from "../gui/GenericInputPrompt/genericInputPrompt";
+import GenericInputPrompt from "../gui/GenericInputPrompt/GenericInputPrompt";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type QuickAdd from "../main";
 import {SingleMacroEngine} from "../engine/SingleMacroEngine";
