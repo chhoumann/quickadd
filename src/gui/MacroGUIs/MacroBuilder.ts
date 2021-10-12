@@ -12,7 +12,7 @@ import type IChoice from "../../types/choices/IChoice";
 import {Choice} from "../../types/choices/Choice";
 import {ChoiceCommand} from "../../types/macros/ChoiceCommand";
 import {getUserScriptMemberAccess} from "../../utility";
-import GenericInputPrompt from "../GenericInputPrompt/genericInputPrompt";
+import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import {WaitCommand} from "../../types/macros/QuickCommands/WaitCommand";
 import {CaptureChoice} from "../../types/choices/CaptureChoice";
 import {NestedChoiceCommand} from "../../types/macros/QuickCommands/NestedChoiceCommand";
