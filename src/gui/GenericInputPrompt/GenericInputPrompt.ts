@@ -1,4 +1,5 @@
 import {App, ButtonComponent, Modal, TextComponent} from "obsidian";
+import {SilentFileAndTagSuggester} from "../silentFileAndTagSuggester";
 
 export default class GenericInputPrompt extends Modal {
     public waitForClose: Promise<string>;
@@ -6,9 +7,10 @@ export default class GenericInputPrompt extends Modal {
     private resolvePromise: (input: string) => void;
     private rejectPromise: (reason?: any) => void;
     private didSubmit: boolean = false;
-    private inputEl: TextComponent;
+    private inputComponent: TextComponent;
     private input: string;
     private readonly placeholder: string;
+    private suggester: SilentFileAndTagSuggester;
 
 
     public static Prompt(app: App, header: string, placeholder?: string, value?: string): Promise<string> {
@@ -30,6 +32,8 @@ export default class GenericInputPrompt extends Modal {
 
         this.display();
         this.open();
+
+        this.suggester = new SilentFileAndTagSuggester(app, this.inputComponent.inputEl);
     }
 
     private display() {
@@ -37,7 +41,7 @@ export default class GenericInputPrompt extends Modal {
         this.titleEl.textContent = this.header;
 
         const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
-        this.inputEl = this.createInputField(mainContentContainer, this.placeholder, this.input);
+        this.inputComponent = this.createInputField(mainContentContainer, this.placeholder, this.input);
         this.createButtonBar(mainContentContainer);
     }
 
@@ -99,14 +103,14 @@ export default class GenericInputPrompt extends Modal {
     }
 
     private removeInputListener() {
-        this.inputEl.inputEl.removeEventListener('keydown', this.submitEnterCallback)
+        this.inputComponent.inputEl.removeEventListener('keydown', this.submitEnterCallback)
     }
 
     onOpen() {
         super.onOpen();
 
-        this.inputEl.inputEl.focus();
-        this.inputEl.inputEl.select();
+        this.inputComponent.inputEl.focus();
+        this.inputComponent.inputEl.select();
     }
 
     onClose() {
