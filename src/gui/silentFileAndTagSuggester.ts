@@ -44,7 +44,7 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
             this.lastInput = fileNameInput;
             this.lastInputType = TagOrFile.File;
             suggestions = this.files
-                .filter(file => file.path.toLowerCase().contains(fileNameInput.toLowerCase()))
+                .filter(file => file.basename.toLowerCase().contains(fileNameInput.toLowerCase()))
                 .map(file => file.path);
             suggestions.push(...this.unresolvedLinkNames.filter(name => name.toLowerCase().contains(fileNameInput.toLowerCase())));
         }
