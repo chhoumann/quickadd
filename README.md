@@ -9,6 +9,11 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.9
+- Implement Math Modals - a WYSIWYG LaTeX formula prompt
+- Input prompt file name search is now based on file names, rather than file paths.
+- Input prompt is now closer to Obsidian UI (uses Obsidian API)
+
 ### 0.4.6
 - Bugfix: user scripts with settings are no longer repeated.
 - Add ``getSelectedText`` to the QuickAdd API under `utility`.
@@ -29,36 +34,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 - Added settings for automatically focusing the opened file.
 - Improved the folder selector search in Template choices.
 - You can now rename Multis.
-
-### 0.3.21-2
-- Added a better search algorithm for input prompts.
-
-### 0.3.17
-- Captures can now also open the file captured to (to current pane / split pane).
-
-### 0.3.14-16
-- You can now pass variables to the choice being executed with ``executeChoice``.
-- Fixed bug where ``{{VALUE}}`` would not be registered in capture to active file
-- Fix #55
-
-### 0.3.12-13
-- Added a bunch of new commands to macros
-  - Copy
-  - Cut
-  - Paste
-  - Select active line
-  - Select link in active line
-- You can now add Template and Capture choices to macros without having them in your main settings.
-- You will now be prompted when attempting to delete a command from a macro.
-
-### 0.3.10 - 0.3.11
-- Added a warning when deleting a Multi choice that you will delete all choices within.
-- Fix #51 - Templater syntax is now processed when appending to the current file.
-- Fix "Template (not found)" for templates that exist.
-- Fix #46 - Error if adding a template that doesn't exist.
-- Template: Create file in same folder as current file.
-- Fix bug with insertion and creation of 'Insert After' line (if it does not exist).
-- Mobile friendly UX for adding choices.
 
 ## Getting started
 The first thing you'll want to do is add a new choice. A choice can be one of four types.
