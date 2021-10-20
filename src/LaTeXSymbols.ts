@@ -1,4 +1,4 @@
-export const LATEX_CURSOR_MOVE_HERE = "%C";
+export const LATEX_CURSOR_MOVE_HERE = "\u261A";
 
 // Modified from https://github.com/echaos/BetterLatexForObsidian (MIT License).
 const commands = [
@@ -15,6 +15,8 @@ const commands = [
     "\_",
     "\{ \}",
     "\|",
+    `\^{${LATEX_CURSOR_MOVE_HERE}}${LATEX_CURSOR_MOVE_HERE}`,
+    `\[${LATEX_CURSOR_MOVE_HERE}]${LATEX_CURSOR_MOVE_HERE}`,
     "\\above",
     "\\abovewithdelims",
     "\\acute",
