@@ -1,4 +1,4 @@
-import {ButtonComponent, debounce, loadMathJax, Modal, TextAreaComponent} from "obsidian";
+import {ButtonComponent, debounce, finishRenderMath, loadMathJax, Modal, renderMath, TextAreaComponent} from "obsidian";
 import QuickAdd from "../main";
 import {LaTeXSuggester} from "./LaTeXSuggester";
 import {LATEX_CURSOR_MOVE_HERE} from "../LaTeXSymbols";
@@ -29,8 +29,8 @@ export class MathModal extends Modal {
     constructor() {
         super(QuickAdd.instance.app);
 
-        this.display();
         this.open();
+        this.display();
 
         this.waitForClose = new Promise<string>(
             (resolve, reject) => {
@@ -70,14 +70,11 @@ export class MathModal extends Modal {
     }
 
     private async mathjaxLoop(container: HTMLDivElement, value: string) {
-        // @ts-ignore
-        const html = await MathJax.tex2chtmlPromise(value);
+        const html = renderMath(value, true);
+        await finishRenderMath()
 
         container.empty();
         container.append(html);
-
-        // @ts-ignore
-        MathJax.chtmlStylesheet(); // This fixes the math rendering. I have no idea why.)
     }
 
     private cursorToGoTo() {

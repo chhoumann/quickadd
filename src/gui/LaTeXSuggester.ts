@@ -2,6 +2,7 @@ import {TextInputSuggest} from "./suggest";
 import {LATEX_CURSOR_MOVE_HERE, LaTeXSymbols} from "../LaTeXSymbols";
 import QuickAdd from "../main";
 import Fuse from "fuse.js";
+import {renderMath} from "obsidian";
 
 const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 
@@ -16,8 +17,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
         this.elementsRendered = this.symbols.reduce((elements, symbol) => {
             try {
-                // @ts-ignore
-                elements[symbol.toString()] = MathJax.tex2chtml(symbol);
+                elements[symbol.toString()] = renderMath(symbol, true);
             } catch {} // Ignoring symbols that we can't use
 
             return elements;
