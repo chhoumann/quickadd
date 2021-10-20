@@ -2,7 +2,7 @@ import {TextInputSuggest} from "./suggest";
 import type {App} from "obsidian";
 
 export class GenericTextSuggester extends TextInputSuggest<string> {
-    constructor(public app: App, public inputEl: HTMLInputElement, private items: string[]) {
+    constructor(public app: App, public inputEl: HTMLInputElement | HTMLTextAreaElement, private items: string[]) {
         super(app, inputEl);
     }
 

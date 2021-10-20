@@ -3,12 +3,11 @@ import {
     DATE_REGEX_FORMATTED,
     DATE_VARIABLE_REGEX, LINEBREAK_REGEX,
     LINK_TO_CURRENT_FILE_REGEX,
-    MACRO_REGEX,
+    MACRO_REGEX, MATH_VALUE_REGEX,
     NAME_VALUE_REGEX, NUMBER_REGEX, TEMPLATE_REGEX,
     VARIABLE_REGEX
 } from "../constants";
 import {getDate} from "../utility";
-import {match} from "assert";
 
 export abstract class Formatter {
     protected value: string;
@@ -104,6 +103,20 @@ export abstract class Formatter {
 
         return output;
     }
+
+    protected abstract promptForMathValue(): Promise<string>;
+
+    protected async replaceMathValueInString(input: string) {
+        let output: string = input;
+
+        while (MATH_VALUE_REGEX.test(output)) {
+            const mathstr = await this.promptForMathValue();
+            output = this.replacer(output, MATH_VALUE_REGEX, mathstr);
+        }
+
+        return output;
+    }
+
     protected async replaceMacrosInString(input: string): Promise<string> {
         let output: string = input;
 

@@ -2,12 +2,13 @@ export const VALUE_SYNTAX: string = "{{VALUE}}";
 export const DATE_SYNTAX = "{{DATE}}";
 export const NAME_SYNTAX = "{{NAME}}";
 export const VARIABLE_SYNTAX = "{{VALUE:<VARIABLE NAME>}}";
+export const MATH_VALUE_SYNTAX = "{{MVALUE}}"
 export const LINKCURRENT_SYNTAX = "{{LINKCURRENT}}";
 
 export const FORMAT_SYNTAX: string[] = [
     DATE_SYNTAX, "{{DATE:<DATEFORMAT>}}", "{{VDATE:<VARIABLE NAME>, <DATE FORMAT>}}",
     VALUE_SYNTAX, NAME_SYNTAX, VARIABLE_SYNTAX, LINKCURRENT_SYNTAX, "{{MACRO:<MACRONAME>}}",
-    "{{TEMPLATE:<TEMPLATEPATH>}}"
+    "{{TEMPLATE:<TEMPLATEPATH>}}", MATH_VALUE_SYNTAX
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
@@ -34,6 +35,7 @@ export const MACRO_REGEX: RegExp = new RegExp(/{{MACRO:([^\n\r}]*)}}/);
 export const TEMPLATE_REGEX: RegExp = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/);
 export const LINEBREAK_REGEX: RegExp = new RegExp(/\\n/);
 export const INLINE_JAVASCRIPT_REGEX: RegExp = new RegExp(/`{3,}js quickadd([\s\S]*?)`{3,}/);
+export const MATH_VALUE_REGEX: RegExp = new RegExp(/{{MVALUE}}/);
 
 // This is not an accurate wikilink regex - but works for its intended purpose.
 export const FILE_LINK_REGEX: RegExp = new RegExp(/\[\[([^\]]*)$/);
@@ -49,6 +51,7 @@ export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[V]?[D]?
 export const LINKCURRENT_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[L]?[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i);
 export const TEMPLATE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i);
 export const MACRO_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[M]?[A]?[C]?[R]?[O]?[:]?$|{{MACRO:[^\n\r}]*}}$/i);
+export const MATH_VALUE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(/{{[M]?[V]?[A]?[L]?[U]?[E]?[}]?[}]?/i)
 
 
 // == File Exists (Template Choice) == //

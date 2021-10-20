@@ -5,7 +5,7 @@ import {
     DATE_FORMAT_SYNTAX_SUGGEST_REGEX, DATE_SYNTAX,
     DATE_SYNTAX_SUGGEST_REGEX, LINKCURRENT_SYNTAX,
     LINKCURRENT_SYNTAX_SUGGEST_REGEX,
-    MACRO_SYNTAX_SUGGEST_REGEX, NAME_SYNTAX,
+    MACRO_SYNTAX_SUGGEST_REGEX, MATH_VALUE_SYNTAX, MATH_VALUE_SYNTAX_SUGGEST_REGEX, NAME_SYNTAX,
     NAME_SYNTAX_SUGGEST_REGEX,
     TEMPLATE_SYNTAX_SUGGEST_REGEX, VALUE_SYNTAX,
     VALUE_SYNTAX_SUGGEST_REGEX,
@@ -16,7 +16,7 @@ import {getTemplatePaths} from "../utility";
 
 enum FormatSyntaxToken {
     Date, DateFormat, VariableDate, Value, Name,
-    Variable, LinkCurrent, Macro, Template
+    Variable, LinkCurrent, Macro, Template, MathValue
 }
 
 export class FormatSyntaxSuggester extends TextInputSuggest<string> {
@@ -105,6 +105,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 
         const valueMatch = VALUE_SYNTAX_SUGGEST_REGEX.exec(input);
         if (valueMatch) callback(valueMatch, FormatSyntaxToken.Value, VALUE_SYNTAX);
+
+        const mathValueMatch = MATH_VALUE_SYNTAX_SUGGEST_REGEX.exec(input);
+        if (mathValueMatch) callback(mathValueMatch, FormatSyntaxToken.MathValue, MATH_VALUE_SYNTAX);
 
         const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(input);
         if (variableMatch) callback(variableMatch, FormatSyntaxToken.Variable, "{{VALUE:}}");

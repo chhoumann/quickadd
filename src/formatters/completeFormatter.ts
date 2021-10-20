@@ -10,6 +10,7 @@ import {MarkdownView} from "obsidian";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
 import {INLINE_JAVASCRIPT_REGEX} from "../constants";
 import {SingleInlineScriptEngine} from "../engine/SingleInlineScriptEngine";
+import {MathModal} from "../gui/MathModal";
 
 export class CompleteFormatter extends Formatter {
     private valueHeader: string;
@@ -29,6 +30,7 @@ export class CompleteFormatter extends Formatter {
         output = await this.replaceValueInString(output);
         output = await this.replaceDateVariableInString(output);
         output = await this.replaceVariableInString(output);
+        output = await this.replaceMathValueInString(output);
 
         return output;
     }
@@ -74,6 +76,10 @@ export class CompleteFormatter extends Formatter {
 
     protected async promptForVariable(header?: string): Promise<string> {
         return await GenericInputPrompt.Prompt(this.app, header);
+    }
+
+    protected async promptForMathValue(): Promise<string> {
+        return await MathModal.Prompt();
     }
 
     protected async suggestForValue(suggestedValues: string[]) {
