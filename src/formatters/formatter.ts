@@ -179,8 +179,6 @@ export abstract class Formatter {
     protected replaceLinebreakInString(input: string): string {
         let output: string = input;
         let match = LINEBREAK_REGEX.exec(output);
-        console.log(!!match);
-        console.log(input);
 
         while (match && input[match.index - 1] !== "\\") {
             output = this.replacer(output, LINEBREAK_REGEX, `\n`);
