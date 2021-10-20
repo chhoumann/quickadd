@@ -113,8 +113,9 @@ export class MathModal extends Modal {
     }
 
     private resolveInput() {
+        const output = this.inputEl.value.replace("\\n", `\\\\n`);
         if(!this.didSubmit) this.rejectPromise("No input given.");
-        else this.resolvePromise(this.inputEl.value.replace("\n", "\\n"));
+        else this.resolvePromise(output);
     }
 
     private submit() {
