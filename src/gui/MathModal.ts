@@ -113,7 +113,7 @@ export class MathModal extends Modal {
     }
 
     private resolveInput() {
-        const output = this.inputEl.value.replace("\\n", `\\\\n`);
+        const output = this.inputEl.value.replace("\\n", `\\\\n`).replace(LATEX_CURSOR_MOVE_HERE, '');
         if(!this.didSubmit) this.rejectPromise("No input given.");
         else this.resolvePromise(output);
     }
