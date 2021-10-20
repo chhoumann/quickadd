@@ -1,6 +1,6 @@
 {
   "name": "quickadd",
-  "version": "0.4.10",
+  "version": "0.4.11",
   "description": "Quickly add new pages or content to your vault.",
   "main": "main.js",
   "scripts": {
@@ -29,7 +29,7 @@
     "babel-jest": "27.0.1",
     "jest": "27.0.1",
     "jest-environment-node": "27.0.1",
-    "obsidian": "0.12.5",
+    "obsidian": "0.12.17",
     "rollup": "^2.32.1",
     "rollup-plugin-strip-code": "0.2.7",
     "rollup-plugin-svelte": "^7.1.0",

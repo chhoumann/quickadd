@@ -22,8 +22,6 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
             return elements;
         }, {});
-
-        console.log(this.elementsRendered)
     }
 
     getSuggestions(inputStr: string): string[] {

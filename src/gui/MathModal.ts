@@ -1,4 +1,4 @@
-import {ButtonComponent, debounce, Modal, TextAreaComponent} from "obsidian";
+import {ButtonComponent, debounce, loadMathJax, Modal, TextAreaComponent} from "obsidian";
 import QuickAdd from "../main";
 import {LaTeXSuggester} from "./LaTeXSuggester";
 import {LATEX_CURSOR_MOVE_HERE} from "../LaTeXSymbols";
@@ -64,6 +64,11 @@ export class MathModal extends Modal {
         this.createButtonBar(this.contentEl.createDiv());
     }
 
+    async onOpen() {
+        super.onOpen();
+        await loadMathJax();
+    }
+
     private async mathjaxLoop(container: HTMLDivElement, value: string) {
         // @ts-ignore
         const html = await MathJax.tex2chtmlPromise(value);
@@ -111,7 +116,6 @@ export class MathModal extends Modal {
     }
 
     private resolveInput() {
-        console.log(this.inputEl.value);
         if(!this.didSubmit) this.rejectPromise("No input given.");
         else this.resolvePromise(this.inputEl.value.replace("\n", "\\n"));
     }
