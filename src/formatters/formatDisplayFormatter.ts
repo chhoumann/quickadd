@@ -47,6 +47,10 @@ export class FormatDisplayFormatter extends Formatter {
         return `_macro: ${macroName}_`;
     }
 
+    protected promptForMathValue(): Promise<string> {
+        return Promise.resolve("_math_");
+    }
+
     protected promptForVariable(variableName: string): Promise<string> {
         return Promise.resolve(`${variableName}_`);
     }

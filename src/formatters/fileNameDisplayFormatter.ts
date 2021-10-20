@@ -38,6 +38,10 @@ export class FileNameDisplayFormatter extends Formatter {
         return "_suggest_";
     }
 
+    protected promptForMathValue(): Promise<string> {
+        return Promise.resolve("_math_");
+    }
+
     protected getMacroValue(macroName: string) {
         return `_macro: ${macroName}`;
     }

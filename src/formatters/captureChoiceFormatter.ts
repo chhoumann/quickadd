@@ -142,5 +142,4 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
         return `${pre}\n${text}${post}`;
     }
-
 }
