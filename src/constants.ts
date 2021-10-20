@@ -33,7 +33,7 @@ export const MARKDOWN_FILE_EXTENSION_REGEX: RegExp = new RegExp(/\.md$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX: RegExp = new RegExp(/\.js$/);
 export const MACRO_REGEX: RegExp = new RegExp(/{{MACRO:([^\n\r}]*)}}/);
 export const TEMPLATE_REGEX: RegExp = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/);
-export const LINEBREAK_REGEX: RegExp = new RegExp(/\\n/);
+export const LINEBREAK_REGEX: RegExp = new RegExp(/^[\\]\\n/);
 export const INLINE_JAVASCRIPT_REGEX: RegExp = new RegExp(/`{3,}js quickadd([\s\S]*?)`{3,}/);
 export const MATH_VALUE_REGEX: RegExp = new RegExp(/{{MVALUE}}/);
 

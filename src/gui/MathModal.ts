@@ -1,4 +1,4 @@
-import {debounce, Modal, TextAreaComponent} from "obsidian";
+import {ButtonComponent, debounce, Modal, TextAreaComponent} from "obsidian";
 import QuickAdd from "../main";
 import {LaTeXSuggester} from "./LaTeXSuggester";
 import {LATEX_CURSOR_MOVE_HERE} from "../LaTeXSymbols";
@@ -49,7 +49,7 @@ export class MathModal extends Modal {
         this.contentEl.empty();
 
         const mathDiv = this.contentEl.createDiv();
-        mathDiv.className = "math math-block";
+        mathDiv.className = "math math-block is-loaded";
 
         const tc = new TextAreaComponent(this.contentEl);
         tc.inputEl.style.width = "100%";
@@ -60,6 +60,8 @@ export class MathModal extends Modal {
         tc.onChange(debounce(async value => await this.mathjaxLoop(mathDiv, value), 50));
 
         tc.inputEl.addEventListener('keydown', this.keybindListener);
+
+        this.createButtonBar(this.contentEl.createDiv());
     }
 
     private async mathjaxLoop(container: HTMLDivElement, value: string) {
@@ -70,7 +72,7 @@ export class MathModal extends Modal {
         container.append(html);
 
         // @ts-ignore
-        MathJax.chtmlStylesheet(); // This fixes the math rendering. I have no idea why.
+        MathJax.chtmlStylesheet(); // This fixes the math rendering. I have no idea why.)
     }
 
     private cursorToGoTo() {
@@ -81,17 +83,45 @@ export class MathModal extends Modal {
         }
     }
 
+    private createButton(container: HTMLElement, text: string, callback: (evt: MouseEvent) => any) {
+        const btn = new ButtonComponent(container);
+        btn.setButtonText(text)
+            .onClick(callback);
+
+        return btn;
+    }
+
+    private createButtonBar(mainContentContainer: HTMLDivElement) {
+        const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv();
+        this.createButton(buttonBarContainer, "Ok", this.submitClickCallback)
+            .setCta().buttonEl.style.marginRight = '0';
+        this.createButton(buttonBarContainer, "Cancel", this.cancelClickCallback);
+
+        buttonBarContainer.style.display = 'flex';
+        buttonBarContainer.style.flexDirection = 'row-reverse';
+        buttonBarContainer.style.justifyContent = 'flex-start';
+        buttonBarContainer.style.marginTop = '1rem';
+    }
+
+    private submitClickCallback = (evt: MouseEvent) => this.submit();
+    private cancelClickCallback = (evt: MouseEvent) => this.cancel();
+
     private removeInputListeners() {
         this.inputEl.removeEventListener('keydown', this.keybindListener);
     }
 
     private resolveInput() {
+        console.log(this.inputEl.value);
         if(!this.didSubmit) this.rejectPromise("No input given.");
-        else this.resolvePromise(this.inputEl.value);
+        else this.resolvePromise(this.inputEl.value.replace("\n", "\\n"));
     }
 
     private submit() {
         this.didSubmit = true;
+        this.close();
+    }
+
+    private cancel() {
         this.close();
     }
 
