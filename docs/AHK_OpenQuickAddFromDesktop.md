@@ -1,5 +1,5 @@
 ### Bonus - Open QuickAdd from your Desktop
-This is an AutoHotkey script which unminimizes/focuses Obsidian and sends some keypresses to it.
+This is an [AutoHotkey](https://www.autohotkey.com/) script which unminimizes/focuses Obsidian and sends some keypresses to it.
 
 I've bound this to my QuickAdd activation hotkey, so this script automatically brings Obsidian to the front of my screen with QuickAdd open.
 
