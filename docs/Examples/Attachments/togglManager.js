@@ -36,7 +36,7 @@ const menu = {
 };
 
 module.exports = async function togglManager(params) {
-    togglApi = params.app.plugins.plugins["obsidian-toggl-integration"].toggl;
+    togglApi = params.app.plugins.plugins["obsidian-toggl-integration"].toggl._apiManager;
     quickAddApi = params.quickAddApi;
     projects = await togglApi.getProjects();
 
