@@ -1,7 +1,5 @@
 # Movie & Series Script
 
-Omer post: https://discord.com/channels/686053708261228577/694233507500916796/869152774636589056
-
 This script allows you to easily insert a movie or TV show note into your vault.
 
 We use OMDb api to get the movie or TV show information. You can get an API key on the website [here](https://www.omdbapi.com/). This will be needed to use this script.
