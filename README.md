@@ -65,6 +65,7 @@ Take a look at some examples...
 - [Macro: Toggl Manager - set preset Toggl Track time entries and start them from Obsidian](docs/Examples/Macro_TogglManager.md)
 - [How I Read Research Papers with Obsidian and Zotero](https://bagerbach.com/blog/how-i-read-research-papers-with-obsidian-and-zotero/)
 - [How I Import Literature Notes into Obsidian](https://bagerbach.com/blog/how-i-import-literature-notes-into-obsidian/)
+- [Macro: Fetching movies and TV shows into your vault](docs/Examples/Macro_MovieAndSeriesScript.md)
 
 #### Create powerful scripts and macros to automate my workflow
 Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), [inline scripts](docs/InlineScripts.md), and [macros](docs/Choices/MacroChoice.md).
