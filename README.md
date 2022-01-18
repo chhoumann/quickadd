@@ -64,7 +64,7 @@ Take a look at some examples...
 - [Macro: Obsidian Map View plugin helper - insert location from address](docs/Examples/Macro_AddLocationLongLatFromAddress.md)
 - [Macro: Toggl Manager - set preset Toggl Track time entries and start them from Obsidian](docs/Examples/Macro_TogglManager.md)
 - [How I Read Research Papers with Obsidian and Zotero](https://bagerbach.com/blog/how-i-read-research-papers-with-obsidian-and-zotero/)
-- [How I Import Literature Notes into Obsidian](https://bagerbach.com/blog/how-i-import-literature-notes-into-obsidian/)
+- [How I Import Literature Notes into Obsidian](https://bagerbach.com/blog/importing-source-notes-to-obsidian)
 - [Macro: Fetching movies and TV shows into your vault](docs/Examples/Macro_MovieAndSeriesScript.md)
 
 #### Create powerful scripts and macros to automate my workflow
