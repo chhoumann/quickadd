@@ -16,8 +16,8 @@
     <p>{text}</p>
 
     <div class="yesNoPromptButtonContainer">
-        <button class="mod-warning" on:click={() => submit(false)}>No</button>
-        <button class="mod-cta" on:click={() => submit(true)}>Yes</button>
+        <button class="mod-cta" on:click={() => submit(false)}>No</button>
+        <button class="mod-warning" on:click={() => submit(true)}>Yes</button>
     </div>
 </div>
 
