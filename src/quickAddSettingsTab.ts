@@ -7,11 +7,13 @@ import type {IMacro} from "./types/macros/IMacro";
 export interface QuickAddSettings {
     choices: IChoice[];
     macros: IMacro[];
+    inputPrompt: "multi-line" | "single-line";
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
     choices: [],
-    macros: []
+    macros: [],
+    inputPrompt: "single-line"
 }
 
 export class QuickAddSettingsTab extends PluginSettingTab {
@@ -29,6 +31,22 @@ export class QuickAddSettingsTab extends PluginSettingTab {
         containerEl.createEl('h2', {text: 'QuickAdd Settings'});
 
         this.addChoicesSetting();
+        new Setting(this.containerEl)
+            .setName('Use Multi-line Input Prompt')
+            .setDesc('Use multi-line input prompt instead of single-line input prompt')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.inputPrompt === "multi-line")
+                .setTooltip("Use multi-line input prompt")
+                .onChange(value => {
+                    if (value) {
+                        this.plugin.settings.inputPrompt = "multi-line";
+                    } else {
+                        this.plugin.settings.inputPrompt = "single-line";
+                    }
+
+                    this.plugin.saveSettings();
+                })
+        )
     }
 
     hide(): any {

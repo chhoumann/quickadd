@@ -14,7 +14,7 @@ import type IMacroChoice from "./types/choices/IMacroChoice";
 import {MathModal} from "./gui/MathModal";
 
 export default class QuickAdd extends Plugin {
-	static instance;
+	static instance: QuickAdd;
 	settings: QuickAddSettings;
 
 	async onload() {
