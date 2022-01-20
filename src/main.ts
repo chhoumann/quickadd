@@ -11,7 +11,6 @@ import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
-import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
 import {MathModal} from "./gui/MathModal";
 
 export default class QuickAdd extends Plugin {
