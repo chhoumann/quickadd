@@ -1,4 +1,4 @@
-import {App, ButtonComponent, Modal, TextComponent} from "obsidian";
+import {App, ButtonComponent, Modal, TextAreaComponent} from "obsidian";
 import {SilentFileAndTagSuggester} from "../silentFileAndTagSuggester";
 
 export default class GenericInputPrompt extends Modal {
@@ -7,7 +7,7 @@ export default class GenericInputPrompt extends Modal {
     private resolvePromise: (input: string) => void;
     private rejectPromise: (reason?: any) => void;
     private didSubmit: boolean = false;
-    private inputComponent: TextComponent;
+    private inputComponent: TextAreaComponent;
     private input: string;
     private readonly placeholder: string;
     private suggester: SilentFileAndTagSuggester;
@@ -46,15 +46,16 @@ export default class GenericInputPrompt extends Modal {
     }
 
     protected createInputField(container: HTMLElement, placeholder?: string, value?: string) {
-        const textComponent = new TextComponent(container);
+        const textAreaComponent = new TextAreaComponent(container);
 
-        textComponent.inputEl.style.width = "100%";
-        textComponent.setPlaceholder(placeholder ?? "")
+        textAreaComponent.inputEl.style.width = "100%";
+        textAreaComponent.inputEl.rows = 6;
+        textAreaComponent.setPlaceholder(placeholder ?? "")
             .setValue(value ?? "")
             .onChange(value => this.input = value)
             .inputEl.addEventListener('keydown', this.submitEnterCallback);
 
-        return textComponent;
+        return textAreaComponent;
     }
 
     private createButton(container: HTMLElement, text: string, callback: (evt: MouseEvent) => any) {
@@ -81,7 +82,7 @@ export default class GenericInputPrompt extends Modal {
     private cancelClickCallback = (evt: MouseEvent) => this.cancel();
 
     private submitEnterCallback = (evt: KeyboardEvent) => {
-        if (evt.key === "Enter") {
+        if ((evt.ctrlKey || evt.metaKey) && evt.key === "Enter") {
             evt.preventDefault();
             this.submit();
         }

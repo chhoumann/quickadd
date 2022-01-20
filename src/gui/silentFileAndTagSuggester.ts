@@ -15,7 +15,7 @@ export class SilentFileAndTagSuggester extends TextInputSuggest<string> {
     private unresolvedLinkNames: string[];
     private tags: string[];
 
-    constructor(public app: App, public inputEl: HTMLInputElement) {
+    constructor(public app: App, public inputEl: HTMLTextAreaElement) {
         super(app, inputEl);
         this.files = app.vault.getMarkdownFiles();
         this.unresolvedLinkNames = this.getUnresolvedLinkNames(app);
