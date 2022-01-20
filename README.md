@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.18
+- Add multi-line input prompt
+
 ### 0.4.9
 - Implement Math Modals - a WYSIWYG LaTeX formula prompt
 - Input prompt file name search is now based on file names, rather than file paths.
