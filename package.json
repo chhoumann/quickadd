@@ -29,7 +29,7 @@
     "babel-jest": "27.0.1",
     "jest": "27.0.1",
     "jest-environment-node": "27.0.1",
-    "obsidian": "0.12.17",
+    "obsidian": "^0.13.21",
     "rollup": "^2.32.1",
     "rollup-plugin-strip-code": "0.2.7",
     "rollup-plugin-svelte": "^7.1.0",
