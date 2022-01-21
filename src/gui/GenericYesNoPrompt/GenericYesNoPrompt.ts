@@ -6,7 +6,6 @@ export default class GenericYesNoPrompt extends Modal {
     private input: boolean;
     public waitForClose: Promise<boolean>;
     private didSubmit: boolean = false;
-    private eventListeners: any[];
 
     public static Prompt(app: App, header: string, text?: string): Promise<boolean> {
         const newPromptModal = new GenericYesNoPrompt(app, header, text);
