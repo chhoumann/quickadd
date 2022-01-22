@@ -46,7 +46,7 @@ export class MathModal extends Modal {
     }
 
     private display() {
-        this.containerEl.addClass('quickAddModal qaMathModal')
+        this.containerEl.addClass('quickAddModal', 'qaMathModal')
         this.contentEl.empty();
 
         const mathDiv = this.contentEl.createDiv();
