@@ -28,6 +28,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
+        this.containerEl.addClass("captureChoiceBuilder");
         this.contentEl.empty();
 
         this.addCenteredChoiceNameHeader(this.choice);

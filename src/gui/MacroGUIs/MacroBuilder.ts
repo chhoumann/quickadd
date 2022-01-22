@@ -64,6 +64,7 @@ export class MacroBuilder extends Modal {
     }
 
     protected display() {
+        this.containerEl.addClass('quickAddModal macroBuilder');
         this.contentEl.empty();
         this.addCenteredHeader(this.macro.name);
         this.addCommandList();
