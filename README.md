@@ -9,6 +9,11 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.4.19
+- Fix issues preventing the creation of folders with Template choices.
+- Allow format syntax in folder names in Template Choices.
+- Add CSS classes to all modals to indicate they're QuickAdd modals.
+
 ### 0.4.18
 - Add multi-line input prompt
 
