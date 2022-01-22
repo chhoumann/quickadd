@@ -90,8 +90,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
         }
     }
 
+    private async formatFolderPaths(folders: string[]) {
+        const folderPaths = await Promise.all(folders.map(async (folder) => {
+            return await this.formatter.formatFolderPath(folder);
+        }));
+
+        return folderPaths;
+    }
+
     private async getFolderPath() {
-        let folders: string[] = [...this.choice.folder.folders];
+        let folders: string[] = await this.formatFolderPaths([...this.choice.folder.folders]);
 
         if (this.choice.folder?.chooseWhenCreatingNote) {
             const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
