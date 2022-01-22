@@ -50,6 +50,10 @@ export class CompleteFormatter extends Formatter {
         return output;
     }
 
+    async formatFolderPath(folderName: string): Promise<string> {
+        return await this.format(folderName);
+    }
+
     protected getCurrentFileLink() {
         const currentFile: TFile = this.app.workspace.getActiveFile();
         if (!currentFile) return null;

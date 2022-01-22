@@ -23,6 +23,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
     }
 
     protected display() {
+        this.containerEl.addClass("templateChoiceBuilder");
         this.addCenteredChoiceNameHeader(this.choice);
         this.addTemplatePathSetting();
         this.addFileNameFormatSetting();
