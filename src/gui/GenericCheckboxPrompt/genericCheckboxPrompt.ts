@@ -28,7 +28,7 @@ export default class GenericCheckboxPrompt extends Modal{
 
     private display() {
         this.contentEl.empty();
-        this.containerEl.addClass('quickAddModal')
+        this.containerEl.addClass('quickAddModal', 'checkboxPrompt')
         this.addCheckboxRows();
         this.addSubmitButton();
     }

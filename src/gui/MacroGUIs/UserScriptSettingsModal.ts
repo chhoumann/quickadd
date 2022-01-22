@@ -19,7 +19,7 @@ export class UserScriptSettingsModal extends Modal {
     }
 
     protected display() {
-        this.containerEl.addClass('quickAddModal userScriptSettingsModal');
+        this.containerEl.addClass('quickAddModal', 'userScriptSettingsModal');
         this.contentEl.empty();
 
         this.titleEl.innerText = `${this.settings?.name}${this.settings?.author ? " by " + this.settings?.author : ""}`;

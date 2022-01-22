@@ -37,7 +37,7 @@ export default class GenericWideInputPrompt extends Modal {
     }
 
     private display() {
-        this.containerEl.addClass('quickAddModal qaWideInputPrompt')
+        this.containerEl.addClass('quickAddModal', 'qaWideInputPrompt')
         this.contentEl.empty();
         this.titleEl.textContent = this.header;
 
