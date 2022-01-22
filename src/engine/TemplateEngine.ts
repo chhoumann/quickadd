@@ -69,7 +69,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
             const templateContent: string = await this.getTemplateContent(templatePath);
 
             const formattedTemplateContent: string = await this.formatter.formatFileContent(templateContent);
-            const createdFile: TFile = await this.app.vault.create(filePath, formattedTemplateContent);
+            const createdFile: TFile = await this.createFileWithInput(filePath, formattedTemplateContent);
 
             await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile);
 
