@@ -108,7 +108,7 @@ function linkifyList(list) {
 }
 
 function replaceIllegalFileNameCharactersInString(string) {
-  return string.replace(/[\\,#%&\{\}\/*<>$\'\":@]*/g, "");
+  return string.replace(/[\\,#%&\{\}\/*<>?$\'\":@]*/g, "");
 }
 
 async function apiGet(url, data) {
