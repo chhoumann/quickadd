@@ -16,7 +16,7 @@ export class QuickAddApi {
     public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
         return {
             inputPrompt: (header: string, placeholder?: string, value?: string) => {return this.inputPrompt(app, header, placeholder, value)},
-            wideInputPrompt: (header: string, placeholder?: string, value?: string) => {return this.inputPrompt(app, header, placeholder, value)},
+            wideInputPrompt: (header: string, placeholder?: string, value?: string) => {return this.wideInputPrompt(app, header, placeholder, value)},
             yesNoPrompt: (header: string, text?: string) => {return this.yesNoPrompt(app, header, text)},
             suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]) => {return this.suggester(app, displayItems, actualItems)},
             checkboxPrompt: (items: string[], selectedItems?: string[]) => {return this.checkboxPrompt(app, items, selectedItems)},
