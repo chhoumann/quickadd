@@ -1,0 +1,33 @@
+module.exports = async function moveCurrentFileToArchive({ app }) {
+    const noticeLength = 5000;
+
+    const activeFile = app.workspace.getActiveFile();
+    const activeFilePath = activeFile?.path;
+
+    if (!activeFile || !activeFilePath) {
+        new Notice("No active file", noticeLength);
+        return;
+    }
+
+    let targetFolder = 'Archive';
+
+    // /** If you want to select folder to move your note into, uncomment these lines */
+    // const folders = app.vault.getAllLoadedFiles().filter(f => f.children).map(f => f.path);
+    // targetFolder = await suggester(folders, folders);
+
+    if (!targetFolder) {
+        new Notice("No target folder selected", noticeLength);
+        return;
+    }
+
+    const tfile = app.vault.getAbstractFileByPath(activeFilePath);
+
+    try {
+        await app.fileManager.renameFile(tfile, `${targetFolder}/${tfile.name}`);
+    } catch {
+        const msg = `Failed moving file ${activeFilePath} to ${targetFolder}`;
+        console.error(msg, activeFile);
+
+        new Notice(msg);
+    }
+}
