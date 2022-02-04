@@ -93,6 +93,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
             return;
         }
 
+        // @ts-ignore
         if (userScript.settings) {
             this.userScriptCommand = command;
         }
