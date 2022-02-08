@@ -70,3 +70,12 @@ Same as ``now`` but with offset set to 1.
 
 ### ``yesterday(format?: string)``
 Again, same as ``now`` but with offset set to -1.
+
+## Obsidian
+The Obsidian API is exposed as well.
+Accessible through the first parameter in your scripts. For example:
+````js
+module.exports = ({obsidian}) => {
+    // obsidian is the API
+}
+````

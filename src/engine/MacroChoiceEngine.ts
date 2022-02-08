@@ -1,6 +1,6 @@
 import type IMacroChoice from "../types/choices/IMacroChoice";
-import type {App, TAbstractFile} from "obsidian";
-import {TFile} from "obsidian";
+import type {App} from "obsidian";
+import * as obsidian from "obsidian";
 import type {IUserScript} from "../types/macros/IUserScript";
 import type {IObsidianCommand} from "../types/macros/IObsidianCommand";
 import {log} from "../logger/logManager";
@@ -13,7 +13,7 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type {IChoiceCommand} from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import type {IChoiceExecutor} from "../IChoiceExecutor";
-import {getUserScript, getUserScriptMemberAccess, waitFor} from "../utility";
+import {getUserScript, waitFor} from "../utility";
 import type {IWaitCommand} from "../types/macros/QuickCommands/IWaitCommand";
 import type {INestedChoiceCommand} from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -40,7 +40,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
         this.plugin = plugin;
         this.macros = macros;
         this.choiceExecutor = choiceExecutor;
-        this.params = {app: this.app, quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor), variables: {}};
+        this.params = {app: this.app, quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor), variables: {}, obsidian};
 
         variables?.forEach(((value, key) => {
             this.params.variables[key] = value;

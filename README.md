@@ -9,8 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.5.0
+### 0.5.0 - 0.5.1
 - Added support for scripts on mobile devices.
+- (0.5.1) Exposed Obsidian API for scripts. Only works for desktop usage.
 
 ### 0.4.19 - 0.4.22
 - Fix issues preventing the creation of folders with Template choices.
