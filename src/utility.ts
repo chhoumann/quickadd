@@ -153,7 +153,7 @@ export async function openFile(app: App, file: TFile, optional?: {openInNewTab?:
     if (optional?.openInNewTab && optional?.direction) {
         leaf = app.workspace.splitActiveLeaf(optional.direction);
     } else {
-        leaf = app.workspace.activeLeaf;
+        leaf = app.workspace.getUnpinnedLeaf();
     }
 
     await leaf.openFile(file)
