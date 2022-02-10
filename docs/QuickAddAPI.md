@@ -4,6 +4,11 @@ Opens a prompt that asks for an input. Returns a string with the input.
 
 This function is asynchronous. You should ``await`` it.
 
+### `wideInputPrompt: (header: string, placeholder?: string, value?: string)`
+Opens a wide prompt that asks for an input. Returns a string with the input.
+
+This function is asynchronous. You should ``await`` it.
+
 ### `yesNoPrompt: (header: string, text?: string): boolean`
 Opens a prompt asking for confirmation. Returns `true` or `false` based on answer.
 
