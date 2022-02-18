@@ -48,6 +48,24 @@ You should view the execution as a new branch, separate from the one executing t
 
 This function is asynchronous. You should ``await`` it.
 
+#### Example use case for `executeChoice`
+Say you have added a [Capture Choice](./Choices/CaptureChoice.md). Now you want to call it from within a script / macro, because you want to execute it repeatedly with different parameters.
+
+Then you'd be able to do something like this:
+```js
+const massiveDataArray = [/* ... */];
+massiveDataArray.forEach(async (data) => {
+    await params.quickAddApi.executeChoice('Capture Choice', {
+        X: data.x,
+        Y: data.y,
+        Z: data.z,
+        // ...
+    });
+});
+```
+
+This would execute the choice for each item in the array, passing the data as a variable. This means you can access the variables from within your Capture with `{{VALUE:X}}` (and so on, for each key-value pair in the object).
+
 ## Utility module
 ### ``getClipboard()``
 Returns the contents of your clipboard.
