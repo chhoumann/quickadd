@@ -69,6 +69,7 @@ async function handleCitationsPlugin(params, citationsPlugin, settings) {
         zoteroSelectURI: entry.zoteroSelectURI,
         type: entry.type,
         issuedDate: entry.issuedDate,
+        keywords:  importAllKeywordsAsTags(entry.data.fields.keywords),
     };
 
     if (settings[ignoreEmpty]) {
@@ -81,5 +82,10 @@ async function handleCitationsPlugin(params, citationsPlugin, settings) {
 }
 
 function replaceIllegalFileNameCharactersInString(string) {
-    return string.replace(/[\\,#%&\{\}\/*<>$\'\":@]*/g, '');
+    return string.replace(/[\\,#%&\{\}\/*<>$\'\":@]/g, '');
+}
+
+function importAllKeywordsAsTags(keywords) {
+    keywords.forEach((element , index) => keywords[index] = (" #" + element.replace(" ","_")))
+    return(keywords)
 }
