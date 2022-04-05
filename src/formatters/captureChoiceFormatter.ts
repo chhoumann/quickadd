@@ -133,7 +133,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
     private insertTextAfterPositionInBody(text: string, body: string, pos: number): string {
         if (pos === -1) {
-            return `${text}\n${body}`;
+            // For the case that there is no frontmatter and we're adding to the top of the file.
+            // We already add a linebreak for the task in CaptureChoiceEngine.tsx in getCapturedContent.
+            const shouldAddLinebreak = !this.choice.task;
+            return `${text}${shouldAddLinebreak ? "\n" : ""}${body}`;
         }
 
         const splitContent = body.split("\n");
