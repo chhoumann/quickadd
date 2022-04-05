@@ -40,41 +40,25 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
             }
 
             const filePath = await this.getFilePath(captureTo);
-            let content = await this.getCaptureContent();
-            let file: TFile;
+            const content = await this.getCaptureContent();
 
+            let getFileAndAddContentFn: (fileContent: string, content: string) => Promise<{file: TFile, content: string}>;
+            
             if (await this.fileExists(filePath)) {
-                file = await this.getFileByPath(filePath);
-                if (!file) return;
-
-                const fileContent: string = await this.app.vault.read(file);
-                const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, file);
-
-                await this.app.vault.modify(file, newFileContent);
+                getFileAndAddContentFn = this.onFileExists;
             } else if (this.choice?.createFileIfItDoesntExist?.enabled) {
-                let fileContent: string = "";
-
-                if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
-                    const singleTemplateEngine: SingleTemplateEngine =
-                        new SingleTemplateEngine(this.app, this.plugin, this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
-
-                    fileContent = await singleTemplateEngine.run();
-                }
-
-                file = await this.createFileWithInput(filePath, fileContent);
-                await replaceTemplaterTemplatesInCreatedFile(this.app, file);
-
-                const updatedFileContent: string = await this.app.vault.cachedRead(file);
-                const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, updatedFileContent, file);
-                await this.app.vault.modify(file, newFileContent);
-
+                getFileAndAddContentFn = this.onCreateFileIfItDoesntExist;
             } else {
                 log.logWarning(`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`);
                 return;
             }
 
-            if (this.choice.appendLink)
-                appendToCurrentLine(this.app.fileManager.generateMarkdownLink(file, ''), this.app);
+            const { file, content: newFileContent } = await getFileAndAddContentFn.bind(this)(filePath, content);
+
+            if (this.choice.appendLink) {
+                const markdownLink = this.app.fileManager.generateMarkdownLink(file, '');
+                appendToCurrentLine(markdownLink, this.app);
+            }
 
             if (this.choice?.openFile) {
                 await openFile(this.app, file, {
@@ -84,6 +68,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
                     mode: this.choice.openFileInMode
                 });
             }
+
+            await this.app.vault.modify(file, newFileContent);
         }
         catch (e) {
             log.logMessage(e);
@@ -102,6 +88,49 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
             content = `- [ ] ${content}\n`;
 
         return content;
+    }
+
+    private async onFileExists(filePath: string, content: string)
+        : Promise<{ file: TFile, content: string }>
+    {
+        const file: TFile = await this.getFileByPath(filePath);
+        if (!file) return;
+
+        const fileContent: string = await this.app.vault.read(file);
+        const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, file);
+
+        return {file, content: newFileContent};
+    }
+
+
+    private async onCreateFileIfItDoesntExist(filePath: string, content: string)
+        : Promise<{ file: TFile, content: string }>
+    { 
+        let fileContent: string = "";
+
+        if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
+            const singleTemplateEngine: SingleTemplateEngine = new SingleTemplateEngine(
+                this.app,
+                this.plugin,
+                this.choice.createFileIfItDoesntExist.template,
+                this.choiceExecutor
+            );
+
+            fileContent = await singleTemplateEngine.run();
+        }
+
+        const file: TFile = await this.createFileWithInput(filePath, fileContent);
+        await replaceTemplaterTemplatesInCreatedFile(this.app, file);
+
+        const updatedFileContent: string = await this.app.vault.cachedRead(file);
+        const newFileContent: string = await this.formatter.formatContentWithFile(
+            content,
+            this.choice,
+            updatedFileContent,
+            file
+        );
+
+        return {file, content: newFileContent};
     }
 
     private async getFilePath(captureTo: string) {
