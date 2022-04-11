@@ -9,7 +9,7 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
-### 0.5.4
+### 0.5.4 - 0.5.5
 - Improved the file suggester: now suggests by alias and has a better display.
 
 ### 0.5.0 - 0.5.3

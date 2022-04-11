@@ -161,7 +161,9 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
     }
 
     private makeLinkObsidianMethod(linkFile: TFile, currentInputValue: string, cursorPosition: number, lastInputLength: number, alias?: string): number {
-        const link = this.app.fileManager.generateMarkdownLink(linkFile, '', '',  alias ?? '');
+        // Need to get file again, otherwise it won't be recognized by the link generator. (hotfix, but not a good solution)
+        const file = this.app.vault.getAbstractFileByPath(linkFile.path) as TFile;
+        const link = this.app.fileManager.generateMarkdownLink(file, '', '',  alias ?? '');
         this.inputEl.value = this.getNewInputValueForFileLink(currentInputValue, link, cursorPosition, lastInputLength);
         return cursorPosition - lastInputLength + link.length + 2;
     }
