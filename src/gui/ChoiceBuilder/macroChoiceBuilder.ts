@@ -1,8 +1,7 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import type {App} from "obsidian";
-import {DropdownComponent, Setting} from "obsidian";
-import {GenericTextSuggester} from "../genericTextSuggester";
+import {DropdownComponent} from "obsidian";
 import type {IMacro} from "../../types/macros/IMacro";
 
 export class MacroChoiceBuilder extends ChoiceBuilder {

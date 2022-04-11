@@ -1,7 +1,6 @@
 import type {IMacro} from "../../types/macros/IMacro";
 import {App, ButtonComponent, DropdownComponent, Modal, Setting, TextComponent, TFile} from "obsidian";
 import type {IObsidianCommand} from "../../types/macros/IObsidianCommand";
-import {GenericTextSuggester} from "../genericTextSuggester";
 import {UserScript} from "../../types/macros/UserScript";
 import {ObsidianCommand} from "../../types/macros/ObsidianCommand";
 import {JAVASCRIPT_FILE_EXTENSION_REGEX} from "../../constants";
@@ -27,6 +26,7 @@ import {log} from "../../logger/logManager";
 import {SelectActiveLineCommand} from "../../types/macros/EditorCommands/SelectActiveLineCommand";
 import {SelectLinkOnActiveLineCommand} from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import {GenericTextSuggester} from "../suggesters/genericTextSuggester";
 
 export class MacroBuilder extends Modal {
     public macro: IMacro;

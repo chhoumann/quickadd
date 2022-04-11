@@ -1,7 +1,7 @@
 import {ButtonComponent, debounce, finishRenderMath, loadMathJax, Modal, renderMath, TextAreaComponent} from "obsidian";
 import QuickAdd from "../main";
-import {LaTeXSuggester} from "./LaTeXSuggester";
 import {LATEX_CURSOR_MOVE_HERE} from "../LaTeXSymbols";
+import {LaTeXSuggester} from "./suggesters/LaTeXSuggester";
 
 export class MathModal extends Modal {
     public waitForClose: Promise<string>;

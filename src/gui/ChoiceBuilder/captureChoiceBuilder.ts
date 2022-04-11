@@ -2,7 +2,6 @@ import {ChoiceBuilder} from "./choiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type {App} from "obsidian";
 import {Setting, TextAreaComponent, TextComponent, ToggleComponent} from "obsidian";
-import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {
     CREATE_IF_NOT_FOUND_BOTTOM,
     CREATE_IF_NOT_FOUND_TOP,
@@ -12,10 +11,11 @@ import {
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
-import {GenericTextSuggester} from "../genericTextSuggester";
 import {getTemplatePaths} from "../../utility";
 import {NewTabDirection} from "../../types/newTabDirection";
 import type {FileViewMode} from "../../types/fileViewMode";
+import {GenericTextSuggester} from "../suggesters/genericTextSuggester";
+import {FormatSyntaxSuggester} from "../suggesters/formatSyntaxSuggester";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
     choice: ICaptureChoice;

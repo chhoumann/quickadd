@@ -1,18 +1,21 @@
 import {TextInputSuggest} from "./suggest";
 import type {App} from "obsidian";
-import type QuickAdd from "../main";
 import {
-    DATE_FORMAT_SYNTAX_SUGGEST_REGEX, DATE_SYNTAX,
-    DATE_SYNTAX_SUGGEST_REGEX, LINKCURRENT_SYNTAX,
-    LINKCURRENT_SYNTAX_SUGGEST_REGEX,
-    MACRO_SYNTAX_SUGGEST_REGEX, MATH_VALUE_SYNTAX, MATH_VALUE_SYNTAX_SUGGEST_REGEX, NAME_SYNTAX,
+    DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
+    DATE_SYNTAX, DATE_SYNTAX_SUGGEST_REGEX,
+    LINKCURRENT_SYNTAX,
+    LINKCURRENT_SYNTAX_SUGGEST_REGEX, MACRO_SYNTAX_SUGGEST_REGEX, MATH_VALUE_SYNTAX,
+    MATH_VALUE_SYNTAX_SUGGEST_REGEX,
+    NAME_SYNTAX,
     NAME_SYNTAX_SUGGEST_REGEX,
-    TEMPLATE_SYNTAX_SUGGEST_REGEX, VALUE_SYNTAX,
+    TEMPLATE_SYNTAX_SUGGEST_REGEX,
+    VALUE_SYNTAX,
     VALUE_SYNTAX_SUGGEST_REGEX,
     VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
     VARIABLE_SYNTAX_SUGGEST_REGEX
-} from "../constants";
-import {getTemplatePaths} from "../utility";
+} from "../../constants";
+import {getTemplatePaths} from "../../utility";
+import type QuickAdd from "../../main";
 
 enum FormatSyntaxToken {
     Date, DateFormat, VariableDate, Value, Name,

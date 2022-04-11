@@ -1,16 +1,16 @@
 import {ChoiceBuilder} from "./choiceBuilder";
 import {App, ButtonComponent, Setting, TextComponent, ToggleComponent} from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import {NewTabDirection} from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import {FileNameDisplayFormatter} from "../../formatters/fileNameDisplayFormatter";
-import {ExclusiveSuggester} from "../exclusiveSuggester";
 import {log} from "../../logger/logManager";
 import {getAllFolderPathsInVault, getTemplatePaths} from "../../utility";
-import {GenericTextSuggester} from "../genericTextSuggester";
 import type QuickAdd from "../../main";
 import type {FileViewMode} from "../../types/fileViewMode";
+import {GenericTextSuggester} from "../suggesters/genericTextSuggester";
+import {FormatSyntaxSuggester} from "../suggesters/formatSyntaxSuggester";
+import {ExclusiveSuggester} from "../suggesters/exclusiveSuggester";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
     choice: ITemplateChoice;

@@ -1,8 +1,8 @@
 import {TextInputSuggest} from "./suggest";
-import {LATEX_CURSOR_MOVE_HERE, LaTeXSymbols} from "../LaTeXSymbols";
-import QuickAdd from "../main";
 import Fuse from "fuse.js";
 import {renderMath} from "obsidian";
+import {LATEX_CURSOR_MOVE_HERE, LaTeXSymbols} from "../../LaTeXSymbols";
+import QuickAdd from "../../main";
 
 const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 

@@ -1,9 +1,9 @@
 import {App, Modal, SearchComponent, Setting} from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type {SvelteComponent} from "svelte";
-import {GenericTextSuggester} from "../genericTextSuggester";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import {log} from "../../logger/logManager";
+import {GenericTextSuggester} from "../suggesters/genericTextSuggester";
 
 export abstract class ChoiceBuilder extends Modal {
     private resolvePromise: (input: IChoice) => void;

@@ -1,11 +1,11 @@
 import {FuzzySuggestModal} from "obsidian";
-import type IChoice from "../types/choices/IChoice";
-import type QuickAdd from "../main";
-import type IMultiChoice from "../types/choices/IMultiChoice";
-import {MultiChoice} from "../types/choices/MultiChoice";
-import {ChoiceType} from "../types/choices/choiceType";
-import type {IChoiceExecutor} from "../IChoiceExecutor";
-import {ChoiceExecutor} from "../choiceExecutor";
+import type IChoice from "../../types/choices/IChoice";
+import {ChoiceExecutor} from "../../choiceExecutor";
+import {ChoiceType} from "../../types/choices/choiceType";
+import {MultiChoice} from "../../types/choices/MultiChoice";
+import type IMultiChoice from "../../types/choices/IMultiChoice";
+import type QuickAdd from "../../main";
+import type {IChoiceExecutor} from "../../IChoiceExecutor";
 
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
     private choiceExecutor: IChoiceExecutor = new ChoiceExecutor(this.app, this.plugin);

@@ -1,6 +1,5 @@
 import {Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, QuickAddSettings, QuickAddSettingsTab} from "./quickAddSettingsTab";
-import ChoiceSuggester from "./gui/choiceSuggester";
 import {log} from "./logger/logManager";
 import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
 import {GuiLogger} from "./logger/guiLogger";
@@ -12,6 +11,7 @@ import type IMultiChoice from "./types/choices/IMultiChoice";
 import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import {MathModal} from "./gui/MathModal";
+import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;

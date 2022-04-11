@@ -9,6 +9,9 @@ Quickly add new pages or content to your vault.
 You can also do a [manual installation](docs/ManualInstallation.md).
 
 ## What's new?
+### 0.5.4
+- Improved the file suggester: now suggests by alias and has a better display.
+
 ### 0.5.0 - 0.5.3
 - Added support for scripts on mobile devices.
 - (0.5.1) Exposed Obsidian API for scripts. Only works for desktop usage.

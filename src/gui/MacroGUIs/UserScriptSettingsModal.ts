@@ -1,8 +1,8 @@
 import {App, Modal, Setting, TextComponent} from "obsidian";
 import type {IUserScript} from "../../types/macros/IUserScript";
-import {FormatSyntaxSuggester} from "../formatSyntaxSuggester";
 import QuickAdd from "../../main";
 import {FormatDisplayFormatter} from "../../formatters/formatDisplayFormatter";
+import {FormatSyntaxSuggester} from "../suggesters/formatSyntaxSuggester";
 
 export class UserScriptSettingsModal extends Modal {
     constructor(app: App, private command: IUserScript, private settings: {[key: string]: any}) {

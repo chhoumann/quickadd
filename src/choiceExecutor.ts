@@ -11,7 +11,7 @@ import {CaptureChoiceEngine} from "./engine/CaptureChoiceEngine";
 import {MacroChoiceEngine} from "./engine/MacroChoiceEngine";
 import type {IChoiceExecutor} from "./IChoiceExecutor";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import ChoiceSuggester from "./gui/choiceSuggester";
+import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 
 export class ChoiceExecutor implements IChoiceExecutor {
     public variables: Map<string, string> = new Map<string, string>();
