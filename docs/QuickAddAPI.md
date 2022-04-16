@@ -1,20 +1,20 @@
 # QuickAdd API
-### `inputPrompt(header: string, placeholder?: string, value?: string): string`
+### `inputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
 Opens a prompt that asks for an input. Returns a string with the input.
 
 This function is asynchronous. You should ``await`` it.
 
-### `wideInputPrompt: (header: string, placeholder?: string, value?: string)`
+### `wideInputPrompt: (header: string, placeholder?: string, value?): Promise<string>`
 Opens a wide prompt that asks for an input. Returns a string with the input.
 
 This function is asynchronous. You should ``await`` it.
 
-### `yesNoPrompt: (header: string, text?: string): boolean`
+### `yesNoPrompt: (header: string, text?: string): Promise<boolean>`
 Opens a prompt asking for confirmation. Returns `true` or `false` based on answer.
 
 This function is asynchronous. You should ``await`` it.
 
-### `suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[])`
+### `suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]): Promise<string>`
 Opens a suggester. Displays the `displayItems`, but you map these the other values with `actualItems`.
 
 The ``displayItems`` can either be an array of strings, or a map function that will be executed on the actual items.
@@ -31,14 +31,14 @@ Returns the selected value.
 
 This function is asynchronous. You should ``await`` it.
 
-### `checkboxPrompt: (items: string[], selectedItems: string[])`
+### `checkboxPrompt: (items: string[], selectedItems: string[]): Promise<string[]>`
 Opens a checkbox prompt with the items given. Items in the `selectedItems` array will be selected by default.
 
 Returns an array of the selected items.
 
 This function is asynchronous. You should ``await`` it.
 
-### ``executeChoice(choiceName: string, variables?: {[key: string]: any})``
+### ``executeChoice(choiceName: string, variables?: {[key: string]: any}): Promise``
 Executes choice with the given name.
 
 You can also pass an optional parameter, ``variables``.
@@ -67,14 +67,14 @@ massiveDataArray.forEach(async (data) => {
 This would execute the choice for each item in the array, passing the data as a variable. This means you can access the variables from within your Capture with `{{VALUE:X}}` (and so on, for each key-value pair in the object).
 
 ## Utility module
-### ``getClipboard()``
+### ``getClipboard(): Promise<string>``
 Returns the contents of your clipboard.
 
 This function is asynchronous. You should ``await`` it.
 
 Syntax: `await quickAddApi.utility.getClipboard();`
 
-### ``setClipboard(text: string)``
+### ``setClipboard(text: string): Promise``
 Sets the contents of your clipboard to the given input.
 
 This function is asynchronous. You should ``await`` it.
