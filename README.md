@@ -1,10 +1,23 @@
 # QuickAdd
 Quickly add new pages or content to your vault.
+
+QuickAdd is a powerful combination of four tools (called choices): templates, captures, macros, and multis.
+
+A [**Template**](docs/Choices/TemplateChoice.md) is a definition of how to create a new note, and composes with Obsidian's own Templates core plugin or community template plugins. For example, it would allow you to define a quick action to create a new note in a particular location, with a templatized title, and templated content.
+
+A [**Capture**](docs/Choices/CaptureChoice.md) allows you to quickly add content to predefined files. For example, you could set up a quick action to add a link to the open file to your daily note under a specific section.
+
+[**Macros**](docs/Choices/MacroChoice.md) will allow you to compound these two together into powerful chained workflows. Imagine pressing one hotkey to automatically create a new note to track a chess match with a specific template, while automatically adding a reference to it in your "list of matches" note and in your daily note.
+
+[Multi choices](docs/Choices/MultiChoice.md) are purely organisational: folders of other choices.
+
+Throughout your choices, you can use the [QuickAdd format syntax](docs/FormatSyntax.md), which is similar to the Obsidian template syntax. You could, for example, use ``{{DATE}}`` to insert the current date in a filename.
+
 ### Demo video
 [![Demo video](https://img.youtube.com/vi/gYK3VDQsZJo/0.jpg)](https://www.youtube.com/watch?v=gYK3VDQsZJo)
 
 ## Installation
-**This plugin is in the community plugin browser in Obsidian**. You can search for it and install it there .
+**This plugin is in the community plugin browser in Obsidian**. You can search for it and install it there.
 
 You can also do a [manual installation](docs/ManualInstallation.md).
 
@@ -52,17 +65,6 @@ You can also do a [manual installation](docs/ManualInstallation.md).
 - Added settings for automatically focusing the opened file.
 - Improved the folder selector search in Template choices.
 - You can now rename Multis.
-
-## Getting started
-The first thing you'll want to do is add a new choice. A choice can be one of four types.
-- [Template Choice](docs/Choices/TemplateChoice.md) - A powerful way to insert templates into your vault.
-- [Capture Choice](docs/Choices/CaptureChoice.md) - Quick capture anything, anywhere.
-- [Macro Choice](docs/Choices/MacroChoice.md) - Macros to augment your workflow. Do more, faster.
-- [Multi Choice](docs/Choices/MultiChoice.md) - Organize your choices in folders.
-
-In your choices, you can use [format syntax](docs/FormatSyntax.md), which is similar to the Obsidian template syntax.
-
-You could, for example, use ``{{DATE}}`` to get the current date.
 
 ## I'm ready to _augment my workflow_ 🚀
 That's the spirit. What do you want to do?
