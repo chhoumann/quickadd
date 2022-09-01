@@ -58,7 +58,7 @@ async function start(params, settings) {
     actorLinks: linkifyList(selectedShow.Actors.split(",")),
     genreLinks: linkifyList(selectedShow.Genre.split(",")),
     directorLink:
-      selectedShow.Director === "N/A" ? " " : `[[${selectedShow.Director}]]`,
+      selectedShow.Director === "N/A" ? " " : linkifyList(selectedShow.Director.split(",")),
     fileName: replaceIllegalFileNameCharactersInString(selectedShow.Title),
     typeLink: `[[${selectedShow.Type === "movie" ? "Movies" : "Series"}]]`,
   };
