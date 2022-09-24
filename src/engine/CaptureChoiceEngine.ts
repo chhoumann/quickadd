@@ -145,20 +145,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
         }
 
         let content: string = await this.getCaptureContent();
-        content = await this.formatter.formatContent(content, this.choice);
-
-        if (this.choice.format.enabled) {
-            content = await templaterParseTemplate(this.app, content, activeFile);
-        }
-
         if (!content) return;
 
-        if (this.choice.prepend) {
+        if (this.choice.prepend || this.choice?.insertAfter?.enabled) {
             const fileContent: string = await this.app.vault.cachedRead(activeFile);
-            const newFileContent: string = `${fileContent}${content}`
-
+            const newFileContent = await this.formatter.formatContentWithFile(content, this.choice, fileContent, activeFile);
             await this.app.vault.modify(activeFile, newFileContent);
         } else {
+            content = await this.formatter.formatContent(content, this.choice);
+            if (this.choice.format.enabled) {
+                content = await templaterParseTemplate(this.app, content, activeFile);
+            }
             appendToCurrentLine(content, this.app);
         }
     }
