@@ -115,6 +115,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
             return this.getOrCreateFolder([activeFile.parent.path]);
         }
 
+		if (this.choice.folder?.chooseFromSubfolders)
+		{
+            const allSubfolders: string[] = getAllFolderPathsInVault(this.app).filter(folder => {
+				return folders.some(choiceFolder => folder.startsWith(choiceFolder));
+			});
+			return await this.getOrCreateFolder(allSubfolders);
+		}
         return await this.getOrCreateFolder(folders);
     }
 }

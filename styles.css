@@ -167,6 +167,13 @@
     margin-bottom: 10px;
 }
 
+.chooseFolderFromSubfolderContainer {
+    display: flex;
+    align-content: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
 .clickable:hover {
     cursor: pointer;
 }

@@ -4,7 +4,7 @@ import type {FileViewMode} from "../fileViewMode";
 
 export default interface ITemplateChoice extends IChoice {
     templatePath: string;
-    folder: { enabled: boolean, folders: string[], chooseWhenCreatingNote: boolean, createInSameFolderAsActiveFile: boolean }
+    folder: { enabled: boolean, folders: string[], chooseWhenCreatingNote: boolean, createInSameFolderAsActiveFile: boolean, chooseFromSubfolders: boolean}
     fileNameFormat: { enabled: boolean, format: string };
     appendLink: boolean;
     incrementFileName: boolean;
