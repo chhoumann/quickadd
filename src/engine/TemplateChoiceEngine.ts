@@ -50,7 +50,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
                 return;
             }
 
-            await this.app.workspace.splitActiveLeaf('vertical').openFile(file);
+            await this.app.workspace.getLeaf('tab').openFile(file);
             const userChoice: string = await GenericSuggester.Suggest(this.app, fileExistsChoices, fileExistsChoices);
 
             switch (userChoice) {
