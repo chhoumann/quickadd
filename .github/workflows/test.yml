@@ -24,7 +24,6 @@ jobs:
             - name: Install dependencies
               run: |
                   pnpm install
-                  pnpm run build --if-present
             - name: Run tests
               run: |
                   pnpm run test
