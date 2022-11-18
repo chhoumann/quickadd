@@ -37,7 +37,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
     }
 
     getSuggestions(inputStr: string): string[] {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const lookbehind: number = 15;
         const inputBeforeCursor: string = inputStr.substr(cursorPosition - lookbehind, lookbehind);
         let suggestions: string[] = [];
@@ -60,7 +60,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
     }
 
     selectSuggestion(item: string): void {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const lastInputLength: number = this.lastInput.length;
         const currentInputValue: string = this.inputEl.value;
         let insertedEndPosition: number = 0;

@@ -5,7 +5,7 @@ import {MacroChoiceEngine} from "./MacroChoiceEngine";
 
 export class SingleInlineScriptEngine extends MacroChoiceEngine {
     constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
-        super(app, plugin, null, null, choiceExecutor, variables);
+        super(app, plugin, null!, null!, choiceExecutor, variables);
     }
 
     public async runAndGetOutput(code: string): Promise<any> {

@@ -6,7 +6,7 @@ import type {IChoiceExecutor} from "../IChoiceExecutor";
 
 export class StartupMacroEngine extends MacroChoiceEngine {
     constructor(app: App, plugin: QuickAdd, macros: IMacro[], choiceExecutor: IChoiceExecutor) {
-        super(app, plugin, null, macros, choiceExecutor, null);
+        super(app, plugin, null!, macros, choiceExecutor, null!);
     }
 
     async run(): Promise<void> {

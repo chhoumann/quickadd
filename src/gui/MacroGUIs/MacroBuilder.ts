@@ -99,7 +99,7 @@ export class MacroBuilder extends Modal {
 
         const addObsidianCommandFromInput = () => {
             const value: string = input.getValue();
-            const obsidianCommand: IObsidianCommand = this.commands.find(v => v.name === value);
+            const obsidianCommand: IObsidianCommand = this.commands.find(v => v.name === value)!;
             const command = new ObsidianCommand(obsidianCommand.name, obsidianCommand.commandId);
             command.generateId();
 
@@ -153,7 +153,7 @@ export class MacroBuilder extends Modal {
                     log.logError("invalid editor command type");
             }
 
-            this.addCommandToMacro(command);
+            this.addCommandToMacro(command!);
         }
 
         new Setting(this.contentEl)
@@ -268,11 +268,12 @@ export class MacroBuilder extends Modal {
                 plugin: this.plugin,
                 commands: this.macro.commands,
                 deleteCommand: async (commandId: string) => {
-                    const command: ICommand = this.macro.commands.find(c => c.id === commandId);
+                    const command: ICommand = this.macro.commands.find(c => c.id === commandId)!;
                     const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(this.app, "Are you sure you wish to delete this command?", `If you click yes, you will delete '${command.name}'.`);
                     if (!promptAnswer) return;
 
                     this.macro.commands = this.macro.commands.filter(c => c.id !== commandId);
+                    //@ts-ignore
                     this.commandListEl.updateCommandList(this.macro.commands);
                 },
                 saveCommands: (commands: ICommand[]) => {
@@ -309,6 +310,7 @@ export class MacroBuilder extends Modal {
 
     private addCommandToMacro(command: ICommand) {
         this.macro.commands.push(command);
+        //@ts-ignore
         this.commandListEl.updateCommandList(this.macro.commands);
     }
 }

@@ -10,7 +10,7 @@ export class SingleMacroEngine extends MacroChoiceEngine {
     private memberAccess: string[];
 
     constructor(app: App, plugin: QuickAdd, macros: IMacro[], choiceExecutor: IChoiceExecutor, variables: Map<string, string>) {
-        super(app, plugin, null, macros, choiceExecutor, variables);
+        super(app, plugin, null!, macros, choiceExecutor, variables);
     }
 
     public async runAndGetOutput(macroName: string): Promise<string> {
@@ -18,7 +18,7 @@ export class SingleMacroEngine extends MacroChoiceEngine {
         const macro = this.macros.find(macro => macro.name === basename);
         if (!macro) {
             log.logError(`macro '${macroName}' does not exist.`)
-            return;
+            throw new Error(`macro '${macroName}' does not exist.`);
         }
 
         if (memberAccess && memberAccess.length > 0) {

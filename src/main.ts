@@ -148,7 +148,7 @@ export default class QuickAdd extends Plugin {
 
 		this.settings.choices.forEach(findChoice);
 
-		return tempChoice;
+		return tempChoice!;
 	}
 
 	public removeCommandForChoice(choice: IChoice) {

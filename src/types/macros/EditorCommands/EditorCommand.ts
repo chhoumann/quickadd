@@ -24,7 +24,7 @@ export abstract class EditorCommand extends Command implements IEditorCommand {
 
         if (!activeView) {
             log.logError("no active markdown view.");
-            return;
+            throw new Error("no active markdown view.");
         }
 
         return activeView;

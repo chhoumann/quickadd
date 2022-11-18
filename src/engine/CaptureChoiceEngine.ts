@@ -1,5 +1,6 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import type {App, TFile} from "obsidian";
+import {TFile} from "obsidian";
+import type {App} from "obsidian";
 import {log} from "../logger/logManager";
 import {CaptureChoiceFormatter} from "../formatters/captureChoiceFormatter";
 import {
@@ -94,7 +95,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
         : Promise<{ file: TFile, content: string }>
     {
         const file: TFile = await this.getFileByPath(filePath);
-        if (!file) return;
+        if (!file) throw new Error('File not found');
 
         const fileContent: string = await this.app.vault.read(file);
         const newFileContent: string = await this.formatter.formatContentWithFile(content, this.choice, fileContent, file);
@@ -139,9 +140,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
     }
 
     private async captureToActiveFile() {
-        const activeFile: TFile = this.app.workspace.getActiveFile();
+        const activeFile = this.app.workspace.getActiveFile();
+        
         if (!activeFile) {
             log.logError("Cannot capture to active file - no active file.")
+            return;
         }
 
         let content: string = await this.getCaptureContent();

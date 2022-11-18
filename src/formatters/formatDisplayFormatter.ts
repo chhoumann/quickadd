@@ -57,7 +57,7 @@ export class FormatDisplayFormatter extends Formatter {
 
     protected async getTemplateContent(templatePath: string): Promise<string> {
         try {
-            return await new SingleTemplateEngine(this.app, this.plugin, templatePath, null).run();
+            return await new SingleTemplateEngine(this.app, this.plugin, templatePath, null!).run();
         }
         catch (e) {
             return `Template (not found): ${templatePath}`;

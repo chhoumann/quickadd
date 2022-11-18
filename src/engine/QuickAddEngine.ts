@@ -31,20 +31,22 @@ export abstract class QuickAddEngine {
     }
 
     protected async getFileByPath(filePath: string): Promise<TFile> {
-        const file: TAbstractFile = await this.app.vault.getAbstractFileByPath(filePath);
+        const file = await this.app.vault.getAbstractFileByPath(filePath);
 
         if (!file) {
             log.logError(`${filePath} not found`);
-            return null;
+            throw new Error(`${filePath} not found`);
         }
 
         if (file instanceof TFolder) {
             log.logError(`${filePath} found but it's a folder`);
-            return null;
+            throw new Error(`${filePath} found but it's a folder`);
         }
 
-        if (file instanceof TFile)
-            return file;
+        if (!(file instanceof TFile))
+            throw new Error(`${filePath} is not a file`);
+
+        return file;
     }
 
     protected async createFileWithInput(filePath: string, fileContent: string): Promise<TFile> {

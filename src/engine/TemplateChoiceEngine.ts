@@ -42,7 +42,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
         if (this.choice.incrementFileName)
             filePath = await this.incrementFileName(filePath);
 
-        let createdFile: TFile;
+        let createdFile: TFile | null;
         if (await this.app.vault.adapter.exists(filePath)) {
             const file = this.app.vault.getAbstractFileByPath(filePath);
             if (!(file instanceof TFile) || file.extension !== 'md') {
@@ -77,11 +77,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
         }
 
         if (this.choice.appendLink) {
-            appendToCurrentLine(this.app.fileManager.generateMarkdownLink(createdFile, ''), this.app);
+            appendToCurrentLine(this.app.fileManager.generateMarkdownLink(createdFile!, ''), this.app);
         }
 
         if (this.choice.openFile) {
-            await openFile(this.app, createdFile, {
+            await openFile(this.app, createdFile!, {
                 openInNewTab: this.choice.openFileInNewTab.enabled,
                 direction: this.choice.openFileInNewTab.direction,
                 focus: this.choice.openFileInNewTab.focus,
@@ -107,12 +107,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
         }
 
         if (this.choice.folder?.createInSameFolderAsActiveFile) {
-            const activeFile: TFile = this.app.workspace.getActiveFile();
+            const activeFile = this.app.workspace.getActiveFile();
 
             if (!activeFile)
                 log.logError("No active file. Cannot create new file.");
 
-            return this.getOrCreateFolder([activeFile.parent.path]);
+            return this.getOrCreateFolder([activeFile!.parent.path]);
         }
 
         return await this.getOrCreateFolder(folders);
