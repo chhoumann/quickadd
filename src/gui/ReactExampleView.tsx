@@ -3,6 +3,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import ReactView from "./ReactView";
 import { createRoot, Root } from "react-dom/client";
+import { AppContext } from "./context";
 
 class ReactExampleView extends ItemView {
 	private root: Root;
@@ -27,14 +28,16 @@ class ReactExampleView extends ItemView {
 		this.root = createRoot(this.containerEl.children[1]);
 		this.root.render(
 			<React.StrictMode>
-				<ReactView />
+				<AppContext.Provider value={this.app}>
+					<ReactView />
+				</AppContext.Provider>
 			</React.StrictMode>
 		);
 	}
 
-    async onClose() {
+	async onClose() {
 		this.root.unmount();
-    }
+	}
 }
 
 export default ReactExampleView;
