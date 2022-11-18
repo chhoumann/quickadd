@@ -8,12 +8,14 @@ export interface QuickAddSettings {
     choices: IChoice[];
     macros: IMacro[];
     inputPrompt: "multi-line" | "single-line";
+    devMode: boolean;
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
     choices: [],
     macros: [],
-    inputPrompt: "single-line"
+    inputPrompt: "single-line",
+    devMode: false
 }
 
 export class QuickAddSettingsTab extends PluginSettingTab {

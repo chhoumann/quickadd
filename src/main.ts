@@ -1,4 +1,4 @@
-import {Plugin} from 'obsidian';
+import {MarkdownView, Plugin} from 'obsidian';
 import {DEFAULT_SETTINGS, QuickAddSettingsTab} from "./quickAddSettingsTab";
 import type { QuickAddSettings } from "./quickAddSettingsTab";
 import {log} from "./logger/logManager";
@@ -33,11 +33,15 @@ export default class QuickAdd extends Plugin {
 			}
 		})
 
-		/*START.DEVCMD*/
 		this.addCommand({
 			id: 'reloadQuickAdd',
 			name: 'Reload QuickAdd (dev)',
-			callback: () => { // @ts-ignore - for this.app.plugins
+			checkCallback: (checking) => {
+				if (checking) {
+					return this.settings.devMode;
+				}
+				
+				// @ts-ignore - for this.app.plugins
 				const id: string = this.manifest.id, plugins = this.app.plugins;
 				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
@@ -46,19 +50,34 @@ export default class QuickAdd extends Plugin {
 		this.addCommand({
 			id: 'testQuickAdd',
 			name: 'Test QuickAdd (dev)',
-			callback: async () => {
-				console.log(`Test QuickAdd (dev)`);
-				await this.app.workspace.getRightLeaf(false).setViewState({
-					type: "react-example",
-					active: true,
-				});
+			checkCallback: (checking) => {
+				if (checking) {
+					return this.settings.devMode;
+				}
 
-				this.app.workspace.revealLeaf(
-					this.app.workspace.getLeavesOfType("react-example")[0]
-				)
+				console.log(`Test QuickAdd (dev)`);
+
+				const fn = async () => {
+					const activeView = await this.app.workspace.getActiveViewOfType(MarkdownView);
+					if (!activeView) return false;
+				
+					const x = this.app.workspace.getLeaf('tab');
+					x.openFile(activeView.file);
+				}
+
+				fn();
+				
+
+				// await this.app.workspace.getRightLeaf(false).setViewState({
+				// 	type: "react-example",
+				// 	active: true,
+				// });
+
+				// this.app.workspace.revealLeaf(
+				// 	this.app.workspace.getLeavesOfType("react-example")[0]
+				// )
 			}
 		})
-		/*END.DEVCMD*/
 
 		this.registerView("react-example", leaf => new ReactExampleView(leaf));
 
