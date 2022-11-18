@@ -18,6 +18,7 @@
     "@fortawesome/free-solid-svg-icons": "6.2.1",
     "@popperjs/core": "^2.11.6",
     "@semantic-release/git": "^10.0.1",
+    "@testing-library/react": "^13.4.0",
     "@types/jest": "29.2.3",
     "@types/node": "18.11.9",
     "@types/react": "^18.0.25",
