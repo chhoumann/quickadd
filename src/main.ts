@@ -13,6 +13,7 @@ import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import {MathModal} from "./gui/MathModal";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import ReactExampleView from './gui/ReactExampleView';
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
@@ -46,11 +47,20 @@ export default class QuickAdd extends Plugin {
 			id: 'testQuickAdd',
 			name: 'Test QuickAdd (dev)',
 			callback: async () => {
-				const p = new MathModal();
-				console.log(p)
+				console.log(`Test QuickAdd (dev)`);
+				await this.app.workspace.getRightLeaf(false).setViewState({
+					type: "react-example",
+					active: true,
+				});
+
+				this.app.workspace.revealLeaf(
+					this.app.workspace.getLeavesOfType("react-example")[0]
+				)
 			}
 		})
 		/*END.DEVCMD*/
+
+		this.registerView("react-example", leaf => new ReactExampleView(leaf));
 
 		log.register(new ConsoleErrorLogger())
 			.register(new GuiLogger(this));
@@ -66,6 +76,7 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		console.log('Unloading QuickAdd');
+		this.app.workspace.detachLeavesOfType("react-example");
 	}
 
 	async loadSettings() {
