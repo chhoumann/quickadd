@@ -1,5 +1,6 @@
 import {Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, QuickAddSettings, QuickAddSettingsTab} from "./quickAddSettingsTab";
+import {DEFAULT_SETTINGS, QuickAddSettingsTab} from "./quickAddSettingsTab";
+import type { QuickAddSettings } from "./quickAddSettingsTab";
 import {log} from "./logger/logManager";
 import {ConsoleErrorLogger} from "./logger/consoleErrorLogger";
 import {GuiLogger} from "./logger/guiLogger";
