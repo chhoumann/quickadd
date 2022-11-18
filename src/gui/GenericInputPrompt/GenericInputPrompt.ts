@@ -22,8 +22,8 @@ export default class GenericInputPrompt extends Modal {
 
     protected constructor(app: App, private header: string, placeholder?: string, value?: string) {
         super(app);
-        this.placeholder = placeholder;
-        this.input = value;
+        this.placeholder = placeholder!;
+        this.input = value!;
 
         this.waitForClose = new Promise<string>(
             (resolve, reject) => {

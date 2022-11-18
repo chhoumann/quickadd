@@ -28,7 +28,7 @@ export abstract class ChoiceBuilder extends Modal {
         this.open();
     }
 
-    protected abstract display();
+    protected abstract display(): any;
 
     protected reload() {
         this.contentEl.empty();
@@ -49,7 +49,7 @@ export abstract class ChoiceBuilder extends Modal {
            searchComponent.onChange(onChangeCallback);
         });
 
-        return component;
+        return component!;
     }
 
     protected addCenteredChoiceNameHeader(choice: IChoice): void {

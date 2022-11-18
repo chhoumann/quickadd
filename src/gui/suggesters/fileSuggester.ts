@@ -79,7 +79,7 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
     }
 
     getSuggestions(inputStr: string): string[] {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
         const fileLinkMatch = FILE_LINK_REGEX.exec(inputBeforeCursor);
 
@@ -107,19 +107,19 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
     }
 
     renderSuggestion(item: string, el: HTMLElement): void {
-        const suggestionItem: SuggestionMapItem = this.fileMap.get(item);
+        const suggestionItem: SuggestionMapItem = this.fileMap.get(item)!;
         
         switch (suggestionItem.type) {
             case FileSuggestionType.File:
                 el.innerHTML = `
-                    <span class="suggestion-main-text">${suggestionItem.file.basename}</span>
-                    <span class="suggestion-sub-text">${suggestionItem.file.path}</span>
+                    <span class="suggestion-main-text">${suggestionItem?.file?.basename}</span>
+                    <span class="suggestion-sub-text">${suggestionItem?.file?.path}</span>
                 `;
                 break;
             case FileSuggestionType.Alias:
                 el.innerHTML = `
                     <span class="suggestion-main-text">${item}</span>
-                    <span class="suggestion-sub-text">${suggestionItem.file.path}</span>
+                    <span class="suggestion-sub-text">${suggestionItem?.file?.path}</span>
                 `;
                 break;
             case FileSuggestionType.Unresolved:
@@ -140,17 +140,17 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
     }
 
     selectSuggestion(item: string): void {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const lastInputLength: number = this.lastInput.length;
         const currentInputValue: string = this.inputEl.value;
         let insertedEndPosition: number = 0;
 
-        const suggestionItem: SuggestionMapItem = this.fileMap.get(item);
+        const suggestionItem: SuggestionMapItem = this.fileMap.get(item)!;
 
         if (suggestionItem.type === FileSuggestionType.File) {
-            insertedEndPosition = this.makeLinkObsidianMethod(suggestionItem.file, currentInputValue, cursorPosition, lastInputLength);
+            insertedEndPosition = this.makeLinkObsidianMethod(suggestionItem?.file!, currentInputValue, cursorPosition, lastInputLength);
         } else if (suggestionItem.type === FileSuggestionType.Alias) {
-            insertedEndPosition = this.makeLinkObsidianMethod(suggestionItem.file, currentInputValue, cursorPosition, lastInputLength, item);
+            insertedEndPosition = this.makeLinkObsidianMethod(suggestionItem?.file!, currentInputValue, cursorPosition, lastInputLength, item);
         } else {
             insertedEndPosition = this.makeLinkManually(currentInputValue, item.replace(/.md$/, ''), cursorPosition, lastInputLength);
         }

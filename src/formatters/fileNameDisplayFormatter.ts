@@ -27,7 +27,7 @@ export class FileNameDisplayFormatter extends Formatter {
     }
 
     protected getCurrentFileLink() {
-        return this.app.workspace.getActiveFile().path ?? "";
+        return this.app.workspace.getActiveFile()?.path ?? "";
     }
 
     protected getNaturalLanguageDates() {

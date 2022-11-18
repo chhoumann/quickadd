@@ -103,7 +103,7 @@ export class QuickAddApi {
                 displayedItems = displayItems;
             }
 
-            return await GenericSuggester.Suggest(app, displayedItems, actualItems);
+            return await GenericSuggester.Suggest(app, displayedItems as string[], actualItems);
         } catch {
             return undefined;
         }

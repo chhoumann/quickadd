@@ -229,8 +229,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
     private addOpenFileInNewTabSetting(): void {
         const newTabSetting = new Setting(this.contentEl);
-        newTabSetting.setName("New Tab")
-            .setDesc("Open created file in a new tab.")
+        newTabSetting.setName("New split")
+            .setDesc("Split your editor and open file in new split.")
             .addToggle(toggle => {
                 toggle.setValue(this.choice.openFileInNewTab.enabled);
                 toggle.onChange(value => this.choice.openFileInNewTab.enabled = value);
@@ -245,7 +245,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
         new Setting(this.contentEl)
             .setName("Focus new pane")
-            .setDesc("Focus the opened tab immediately")
+            .setDesc("Focus the opened tab immediately after opening")
             .addToggle(toggle => toggle
                 .setValue(this.choice.openFileInNewTab.focus)
                 .onChange(value => this.choice.openFileInNewTab.focus = value)

@@ -15,7 +15,7 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
     }
 
     getSuggestions(inputStr: string): string[] {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
         const tagMatch = TAG_REGEX.exec(inputBeforeCursor);
 
@@ -38,7 +38,7 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
     }
 
     selectSuggestion(item: string): void {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const lastInputLength: number = this.lastInput.length;
         const currentInputValue: string = this.inputEl.value;
         let insertedEndPosition: number = 0;

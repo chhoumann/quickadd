@@ -20,7 +20,7 @@
     import {log} from "../../logger/logManager";
 
     export let commands: ICommand[];
-    export let deleteCommand: (command: ICommand) => Promise<void>;
+    export let deleteCommand: (commandId: string) => Promise<void>;
     export let saveCommands: (commands: ICommand[]) => void;
     export let app: App;
     export let plugin: QuickAdd;
@@ -66,7 +66,7 @@
 
     async function configureChoice(e: CustomEvent) {
         const command = e.detail;
-        const newChoice = await getChoiceBuilder(command.choice).waitForClose;
+        const newChoice = await getChoiceBuilder(command.choice)?.waitForClose;
         if (!newChoice) return;
 
         command.choice = newChoice;
@@ -91,7 +91,7 @@
         const command: IUserScript = e.detail;
 
         const userScript = await getUserScript(command, app);
-        if (!userScript.settings) {
+        if (!userScript?.settings) {
             log.logWarning(`${command.name} has no settings.`);
             return;
         }

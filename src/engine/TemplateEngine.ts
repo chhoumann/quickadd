@@ -25,7 +25,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
         if (folders.length > 1) {
             folderPath = await GenericSuggester.Suggest(this.app, folders, folders);
-            if (!folderPath) return null;
+            if (!folderPath) throw new Error("No folder selected.");
         } else {
             folderPath = folders[0];
         }
@@ -44,7 +44,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
     }
 
     protected async incrementFileName(fileName: string) {
-        const numStr = FILE_NUMBER_REGEX.exec(fileName)[1];
+        const numStr = FILE_NUMBER_REGEX.exec(fileName)![1];
         const fileExists = await this.app.vault.adapter.exists(fileName);
         let newFileName = fileName;
 
@@ -124,8 +124,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
         if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath))
             correctTemplatePath += ".md";
 
-        const templateFile: TAbstractFile = this.app.vault.getAbstractFileByPath(correctTemplatePath);
-        if (!(templateFile instanceof TFile)) return;
+        const templateFile = this.app.vault.getAbstractFileByPath(correctTemplatePath);
+        if (!(templateFile instanceof TFile)) throw new Error("Template file not found.");
 
         return await this.app.vault.cachedRead(templateFile);
     }

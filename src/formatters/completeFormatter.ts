@@ -55,7 +55,7 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected getCurrentFileLink() {
-        const currentFile: TFile = this.app.workspace.getActiveFile();
+        const currentFile = this.app.workspace.getActiveFile();
         if (!currentFile) return null;
 
         return this.app.fileManager.generateMarkdownLink(currentFile, '');
@@ -66,7 +66,7 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected getVariableValue(variableName: string): string {
-        return this.variables.get(variableName);
+        return this.variables.get(variableName)!;
     }
 
     protected async promptForValue(header?: string): Promise<string> {
@@ -80,7 +80,7 @@ export class CompleteFormatter extends Formatter {
     }
 
     protected async promptForVariable(header?: string): Promise<string> {
-        return await new InputPrompt().factory().Prompt(this.app, header);
+        return await new InputPrompt().factory().Prompt(this.app, header!);
     }
 
     protected async promptForMathValue(): Promise<string> {
@@ -108,7 +108,7 @@ export class CompleteFormatter extends Formatter {
 
     protected async getSelectedText(): Promise<string> {
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!activeView) return;
+        if (!activeView) throw new Error("No active view");
 
         return activeView.editor.getSelection();
     }
@@ -117,7 +117,7 @@ export class CompleteFormatter extends Formatter {
         let output: string = input;
 
         while (INLINE_JAVASCRIPT_REGEX.test(output)) {
-            const match: RegExpMatchArray = INLINE_JAVASCRIPT_REGEX.exec(output);
+            const match = INLINE_JAVASCRIPT_REGEX.exec(output)!;
             const code: string = match[1]?.trim();
 
             if (code) {

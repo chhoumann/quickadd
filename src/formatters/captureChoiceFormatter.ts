@@ -9,7 +9,7 @@ import {CREATE_IF_NOT_FOUND_BOTTOM, CREATE_IF_NOT_FOUND_TOP} from "../constants"
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
     private choice: ICaptureChoice;
-    private file: TFile = null;
+    private file: TFile = null!;
     private fileContent: string = "";
 
     constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
@@ -49,7 +49,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
         }
 
         if (this.choice.insertAfter.enabled) {
-            return await this.insertAfterHandler(formatted);
+            return await this.insertAfterHandler(formatted) as string;
         }
 
         const frontmatterEndPosition = this.file ? await this.getFrontmatterEndPosition(this.file) : null;
@@ -92,7 +92,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
                     }
                 }
 
-                if (!endOfSectionIndex) endOfSectionIndex = targetPosition;
+                if (!endOfSectionIndex!) endOfSectionIndex = targetPosition;
 
                 return this.insertTextAfterPositionInBody(formatted, this.fileContent, endOfSectionIndex);
             } else {

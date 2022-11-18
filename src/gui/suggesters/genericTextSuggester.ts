@@ -16,6 +16,8 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 
         if (!filtered) this.close();
         if (filtered?.length > 0) return filtered;
+
+        return [];
     }
 
     selectSuggestion(item: string): void {

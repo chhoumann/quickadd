@@ -17,6 +17,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
         this.elementsRendered = this.symbols.reduce((elements, symbol) => {
             try {
+                //@ts-ignore
                 elements[symbol.toString()] = renderMath(symbol, true);
             } catch {} // Ignoring symbols that we can't use
 
@@ -25,7 +26,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
     }
 
     getSuggestions(inputStr: string): string[] {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
         const lastBackslashPos: number = inputBeforeCursor.lastIndexOf("\\");
         const commandText = inputBeforeCursor.substr(lastBackslashPos);
@@ -36,6 +37,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
         if (match) {
             this.lastInput = match[1];
+            //@ts-ignore
             suggestions = this.symbols.filter(val => val.toLowerCase().contains(this.lastInput));
         }
 
@@ -47,12 +49,13 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
     renderSuggestion(item: string, el: HTMLElement): void {
         if (item) {
             el.setText(item);
+            //@ts-ignore
             el.append(this.elementsRendered[item]);
         }
     }
 
     selectSuggestion(item: string): void {
-        const cursorPosition: number = this.inputEl.selectionStart;
+        const cursorPosition: number = this.inputEl.selectionStart!;
         const lastInputLength: number = this.lastInput.length;
         const currentInputValue: string = this.inputEl.value;
         let insertedEndPosition: number = 0;

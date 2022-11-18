@@ -15,7 +15,7 @@ export abstract class Formatter {
 
     protected abstract format(input: string): Promise<string>;
     
-    protected replacer(str: string, reg: RegExp, replaceValue) {
+    protected replacer(str: string, reg: RegExp, replaceValue: string) {
         return str.replace(reg, function () { return replaceValue });
     }
 
@@ -26,16 +26,18 @@ export abstract class Formatter {
             const dateMatch = DATE_REGEX.exec(output);
             let offset: number;
 
-            if (dateMatch[1]) {
+            if (dateMatch && dateMatch[1]) {
                 const offsetString = dateMatch[1].replace('+', '').trim();
                 const offsetIsInt = NUMBER_REGEX.test(offsetString);
                 if (offsetIsInt) offset = parseInt(offsetString);
         }
-            output = this.replacer(output, DATE_REGEX, getDate({offset: offset}));
+            output = this.replacer(output, DATE_REGEX, getDate({offset: offset!}));
         }
 
         while (DATE_REGEX_FORMATTED.test(output)) {
             const dateMatch = DATE_REGEX_FORMATTED.exec(output);
+            if (!dateMatch) throw new Error("unable to parse date");
+
             const format = dateMatch[1]
             let offset: number;
 
@@ -45,7 +47,7 @@ export abstract class Formatter {
                 if (offsetIsInt) offset = parseInt(offsetString);
             }
 
-            output = this.replacer(output, DATE_REGEX_FORMATTED, getDate({format, offset}));
+            output = this.replacer(output, DATE_REGEX_FORMATTED, getDate({format, offset: offset!}));
         }
 
         return output;
@@ -66,7 +68,7 @@ export abstract class Formatter {
         return output;
     }
 
-    protected async replaceLinkToCurrentFileInString(input) {
+    protected async replaceLinkToCurrentFileInString(input: string): Promise<string> {
         const currentFilePathLink = this.getCurrentFileLink();
         let output = input;
 
@@ -76,13 +78,15 @@ export abstract class Formatter {
         return output;
     }
 
-    protected abstract getCurrentFileLink();
+    protected abstract getCurrentFileLink(): any;
 
     protected async replaceVariableInString(input: string) {
         let output: string = input;
 
         while (VARIABLE_REGEX.test(output)) {
             const match = VARIABLE_REGEX.exec(output);
+            if (!match) throw new Error("unable to parse variable");
+
             const variableName = match[1];
 
             if (variableName) {
@@ -121,7 +125,7 @@ export abstract class Formatter {
         let output: string = input;
 
         while(MACRO_REGEX.test(output)) {
-            const macroName = MACRO_REGEX.exec(output)[1];
+            const macroName = MACRO_REGEX.exec(output)![1];
             const macroOutput = await this.getMacroValue(macroName);
 
             output = this.replacer(output, MACRO_REGEX, macroOutput ? macroOutput.toString() : "");
@@ -132,29 +136,29 @@ export abstract class Formatter {
 
     protected abstract getVariableValue(variableName: string): string;
 
-    protected abstract suggestForValue(suggestedValues: string[]);
+    protected abstract suggestForValue(suggestedValues: string[]): any;
 
     protected async replaceDateVariableInString(input: string) {
         let output: string = input;
 
         while (DATE_VARIABLE_REGEX.test(output)) {
             const match = DATE_VARIABLE_REGEX.exec(output);
-            const variableName = match[1];
-            const dateFormat = match[2];
+            const variableName = match![1];
+            const dateFormat = match![2];
 
             if (variableName && dateFormat) {
-                if (!this.variables[variableName]) {
-                    this.variables[variableName] = await this.promptForVariable(variableName);
+                if (!this.variables.get(variableName)) {
+                    this.variables.set(variableName, await this.promptForVariable(variableName));
 
-                    const parseAttempt = this.getNaturalLanguageDates().parseDate(this.variables[variableName]);
+                    const parseAttempt = this.getNaturalLanguageDates().parseDate(this.variables.get(variableName));
 
                     if (parseAttempt)
-                        this.variables[variableName] = parseAttempt.moment.format(dateFormat);
+                        this.variables.set(variableName, parseAttempt.moment.format(dateFormat));
                     else
-                        throw new Error(`unable to parse date variable ${this.variables[variableName]}`);
+                        throw new Error(`unable to parse date variable ${this.variables.get(variableName)}`);
                 }
 
-                output = this.replacer(output, DATE_VARIABLE_REGEX, this.variables[variableName]);
+                output = this.replacer(output, DATE_VARIABLE_REGEX, this.variables.get(variableName)!);
             } else {
                 break;
             }
@@ -167,7 +171,7 @@ export abstract class Formatter {
         let output: string = input;
 
         while (TEMPLATE_REGEX.test(output)) {
-            const templatePath = TEMPLATE_REGEX.exec(output)[1];
+            const templatePath = TEMPLATE_REGEX.exec(output)![1];
             const templateContent = await this.getTemplateContent(templatePath);
 
             output = this.replacer(output, TEMPLATE_REGEX, templateContent);
@@ -193,7 +197,7 @@ export abstract class Formatter {
         return output;
     }
 
-    protected abstract getNaturalLanguageDates();
+    protected abstract getNaturalLanguageDates(): any;
 
     protected abstract getMacroValue(macroName: string): Promise<string> | string;
 
