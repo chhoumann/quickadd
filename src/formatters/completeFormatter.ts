@@ -108,7 +108,7 @@ export class CompleteFormatter extends Formatter {
 
     protected async getSelectedText(): Promise<string> {
         const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!activeView) throw new Error("No active view");
+        if (!activeView) return '';
 
         return activeView.editor.getSelection();
     }
