@@ -13,7 +13,6 @@ import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import {MathModal} from "./gui/MathModal";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
-import ReactExampleView from './gui/ReactExampleView';
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
@@ -78,8 +77,6 @@ export default class QuickAdd extends Plugin {
 				// )
 			}
 		})
-
-		this.registerView("react-example", leaf => new ReactExampleView(leaf));
 
 		log.register(new ConsoleErrorLogger())
 			.register(new GuiLogger(this));
