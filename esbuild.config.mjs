@@ -56,7 +56,7 @@ esbuild.build({
 	],
 	format: 'cjs',
 	watch: !prod,
-	target: 'es2016',
+	target: 'esnext',
 	logLevel: "info",
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
