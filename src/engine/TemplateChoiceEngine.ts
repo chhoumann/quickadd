@@ -109,10 +109,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
         if (this.choice.folder?.createInSameFolderAsActiveFile) {
             const activeFile = this.app.workspace.getActiveFile();
 
-            if (!activeFile)
-                log.logError("No active file. Cannot create new file.");
+            if (!activeFile) {
+                log.logWarning("No active file. Cannot create file in same folder as active file. Creating in root folder.");
+                return "";
+            }
 
-            return this.getOrCreateFolder([activeFile!.parent.path]);
+            return this.getOrCreateFolder([activeFile.parent.path]);
         }
 
         return await this.getOrCreateFolder(folders);
