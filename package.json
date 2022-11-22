@@ -46,7 +46,8 @@
     "builtin-modules": "^3.3.0",
     "fuse.js": "6.6.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "zustand": "^4.1.4"
   },
   "repository": {
     "type": "git",

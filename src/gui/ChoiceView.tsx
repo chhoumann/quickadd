@@ -1,67 +1,84 @@
 import {
 	DndContext,
 	DragEndEvent,
-	DragOverEvent,
 	useDraggable,
 	useDroppable,
 } from "@dnd-kit/core";
 import * as React from "react";
+import useActionStore from "src/store/actionStore";
 import { Choice } from "src/types/choices/Choice";
-import { ChoiceType } from "src/types/choices/choiceType";
-import IMultiChoice from "src/types/choices/IMultiChoice";
 import { AppContext } from "./context";
+import { IsActionFolder } from "../utility/IsActionFolder";
 import Icon from "./obsidian/icon";
 
-type Props = {
-	choices: Choice[];
-};
-
-function isMultiChoice(choice: Choice): choice is IMultiChoice {
-	return choice.type === ChoiceType.Multi;
-}
-
-function ChoiceView({ choices }: Props) {
-	const choicesById = React.useMemo(() => {
-		const map = new Map<string, Choice>();
-		for (const choice of choices) {
-			map.set(choice.id, choice);
-		}
-		return map;
-	}, [choices]);
+function ActionsView() {
+	const actionStore = useActionStore();
+	// const choicesById = React.useMemo(() => {
+	// 	const map = new Map<string, Choice>();
+	// 	for (const choice of choices) {
+	// 		map.set(choice.id, choice);
+	// 	}
+	// 	return map;
+	// }, [choices]);
 
 	const app = React.useContext(AppContext);
-	const [isDragging, setIsDragging] = React.useState(
-		false
-	);
+	const [isDragging, setIsDragging] = React.useState(false);
 
 	return (
 		<DndContext
 			onDragEnd={(evt: DragEndEvent) => {
-				console.log(`Drag ended, over:`, evt);
-				console.log(
-					"Dragged",
-					choicesById.get(evt.active.id.toString())
-				);
-				console.log("To", choicesById.get(evt.over?.id?.toString()!));
-				
 				setIsDragging(false);
+
+				const { active, over, collisions } = evt;
+				console.log(collisions);
+				if (active.id === over?.id) {
+					return;
+				}
+
+				if (
+					typeof active.id === "string" &&
+					typeof over?.id === "string"
+				) {
+					actionStore.moveActionIntoFolder(active.id, over.id);
+				}
 			}}
 			onDragStart={() => {
 				setIsDragging(true);
 			}}
 		>
+			<ActionList choices={actionStore.actions} isDragging={isDragging} />
+		</DndContext>
+	);
+}
+
+function ActionList({
+	choices,
+	isDragging,
+}: {
+	choices: Choice[];
+	isDragging: boolean;
+}) {
+	const app = React.useContext(AppContext);
+
+	return (
+		<React.Fragment>
 			{choices.map((choice) => {
-				if (isMultiChoice(choice)) {
+				if (IsActionFolder(choice)) {
 					return (
 						<React.Fragment key={choice.id}>
-							<MultiChoice choice={choice} expand={isDragging} />
+							<ActionFolder
+								name={choice.name}
+								id={choice.id}
+								elements={choice.choices}
+								expand={isDragging}
+							/>
 						</React.Fragment>
 					);
 				}
 
 				return (
 					<React.Fragment key={choice.id}>
-						<DraggableChoice id={choice.id}>
+						<Draggable id={choice.id}>
 							<div style={{ display: "flex", gap: "10px" }}>
 								<Icon
 									clickable={false}
@@ -71,23 +88,27 @@ function ChoiceView({ choices }: Props) {
 								/>
 								{choice.name}
 							</div>
-						</DraggableChoice>
+						</Draggable>
 					</React.Fragment>
 				);
 			})}
-		</DndContext>
+		</React.Fragment>
 	);
 }
 
-export function MultiChoice({
-	choice,
+function ActionFolder({
+	name,
+	id,
+	elements,
 	expand,
 }: {
-	choice: IMultiChoice;
+	name: string;
+	id: string;
+	elements: Choice[];
 	expand: boolean;
 }) {
 	const { isOver, setNodeRef } = useDroppable({
-		id: choice.id,
+		id,
 	});
 	const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -122,7 +143,7 @@ export function MultiChoice({
 						onClick={() => setIsExpanded(!isExpanded)}
 						label="Expand"
 					/>
-					{choice.name}
+					{name}
 				</div>
 				{expanded ? (
 					<div
@@ -132,7 +153,7 @@ export function MultiChoice({
 							marginLeft: "3em",
 						}}
 					>
-						<ChoiceView choices={choice.choices} />
+						<ActionList choices={elements} isDragging={expand} />
 					</div>
 				) : null}
 			</div>
@@ -140,7 +161,7 @@ export function MultiChoice({
 	);
 }
 
-function DraggableChoice(props: { id: string; children: React.ReactNode }) {
+function Draggable(props: { id: string; children: React.ReactNode }) {
 	const { attributes, listeners, setNodeRef, transform, isDragging } =
 		useDraggable({
 			id: props.id,
@@ -159,4 +180,4 @@ function DraggableChoice(props: { id: string; children: React.ReactNode }) {
 	);
 }
 
-export default ChoiceView;
+export default ActionsView;

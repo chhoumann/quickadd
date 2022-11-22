@@ -13,16 +13,25 @@ import {deleteObsidianCommand} from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import {MathModal} from "./gui/MathModal";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import useActionStore from "./store/actionStore";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
+	private unsubscribeToActionStore: () => void;
 
 	async onload() {
 		console.log('Loading QuickAdd');
 		QuickAdd.instance = this;
 
 		await this.loadSettings();
+		
+		useActionStore.setState({ actions: this.settings.choices });
+		this.unsubscribeToActionStore = useActionStore.subscribe(() => {
+			console.log("Action store changed, saving...");
+			this.settings.choices = useActionStore.getState().actions;
+			this.saveSettings();
+		});
 
 		this.addCommand({
 			id: 'runQuickAdd',
@@ -92,6 +101,7 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		console.log('Unloading QuickAdd');
+		this.unsubscribeToActionStore();
 		this.app.workspace.detachLeavesOfType("react-example");
 	}
 
@@ -100,6 +110,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async saveSettings() {
+		console.log("Saving settings...");
 		await this.saveData(this.settings);
 	}
 
