@@ -41,7 +41,6 @@ export default class QuickAdd extends Plugin {
 					return this.settings.devMode;
 				}
 				
-				// @ts-ignore - for this.app.plugins
 				const id: string = this.manifest.id, plugins = this.app.plugins;
 				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},

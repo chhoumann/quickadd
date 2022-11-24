@@ -6,7 +6,6 @@ import type { IUserScript } from "./types/macros/IUserScript";
 import type { FileViewMode } from "./types/fileViewMode";
 
 export function getTemplater(app: App) {
-	// @ts-ignore
 	return app.plugins.plugins["templater-obsidian"];
 }
 
@@ -22,7 +21,10 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 		(force || !templater?.settings["trigger_on_file_creation"])
 	) {
 		const active_file = app.workspace.getActiveFile();
-		await templater.templater.overwrite_file_commands(file);
+		
+		if (templater?.templater?.overwrite_file_commands) {
+			await templater.templater.overwrite_file_commands(file);
+		}
 	}
 }
 
