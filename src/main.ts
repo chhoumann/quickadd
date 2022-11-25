@@ -14,14 +14,18 @@ import type IMacroChoice from "./types/choices/IMacroChoice";
 import {MathModal} from "./gui/MathModal";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import ReactExampleView from './gui/ReactExampleView';
+import { QuickAddApi } from './quickAddApi';
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
+	api: ReturnType<typeof QuickAddApi.GetApi>;
 
 	async onload() {
 		console.log('Loading QuickAdd');
 		QuickAdd.instance = this;
+
+		this.api = QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
 
 		await this.loadSettings();
 
