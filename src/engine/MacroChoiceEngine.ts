@@ -27,12 +27,12 @@ import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/Se
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
-    public params: {
-        app: App,
-        quickAddApi: QuickAddApi,
-        variables: { [key: string]: string; },
-        obsidian: typeof obsidian
-    };
+	public params: {
+		app: App;
+		quickAddApi: QuickAddApi;
+		variables: { [key: string]: string };
+		obsidian: typeof obsidian;
+	};
 	protected output: string;
 	protected macros: IMacro[];
 	protected choiceExecutor: IChoiceExecutor;
@@ -72,7 +72,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			log.logError(
 				`No commands in the selected macro. Did you select a macro for '${this.choice.name}'?`
 			);
-            return;
+			return;
 		}
 
 		await this.executeCommands(macro.commands);

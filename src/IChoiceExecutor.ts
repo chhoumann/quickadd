@@ -1,6 +1,6 @@
 import type IChoice from "./types/choices/IChoice";
 
 export interface IChoiceExecutor {
-    execute(choice: IChoice): Promise<void>;
-    variables: Map<string, string>;
+	execute(choice: IChoice): Promise<void>;
+	variables: Map<string, string>;
 }

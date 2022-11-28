@@ -1,7 +1,6 @@
-import type {ICommand} from "./ICommand";
+import type { ICommand } from "./ICommand";
 
 export interface IUserScript extends ICommand {
-    path: string;
-    settings: {[key: string]: any}
+	path: string;
+	settings: { [key: string]: any };
 }
-

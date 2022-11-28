@@ -21,7 +21,7 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 		(force || !templater?.settings["trigger_on_file_creation"])
 	) {
 		const active_file = app.workspace.getActiveFile();
-		
+
 		if (templater?.templater?.overwrite_file_commands) {
 			await templater.templater.overwrite_file_commands(file);
 		}

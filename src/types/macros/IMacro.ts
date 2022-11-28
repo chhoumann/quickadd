@@ -1,9 +1,8 @@
-import type {ICommand} from "./ICommand";
+import type { ICommand } from "./ICommand";
 
 export interface IMacro {
-    name: string;
-    id: string;
-    commands: ICommand[];
-    runOnStartup: boolean;
+	name: string;
+	id: string;
+	commands: ICommand[];
+	runOnStartup: boolean;
 }
-
