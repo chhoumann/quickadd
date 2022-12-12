@@ -13,10 +13,15 @@ import { deleteObsidianCommand } from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import ReactExampleView from "./gui/ReactExampleView";
+import { QuickAddApi } from "./quickAddApi";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
+	
+	get api(): ReturnType<typeof QuickAddApi.GetApi> {
+		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
+	}
 
 	async onload() {
 		console.log("Loading QuickAdd");
@@ -40,6 +45,7 @@ export default class QuickAdd extends Plugin {
 					return this.settings.devMode;
 				}
 
+				// @ts-ignore - for this.app.plugins
 				const id: string = this.manifest.id,
 					plugins = this.app.plugins;
 				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
