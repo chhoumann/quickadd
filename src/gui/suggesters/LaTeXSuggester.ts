@@ -7,7 +7,7 @@ import QuickAdd from "../../main";
 const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 
 export class LaTeXSuggester extends TextInputSuggest<string> {
-	private lastInput: string = "";
+	private lastInput = "";
 	private symbols;
 	private elementsRendered;
 
@@ -37,8 +37,8 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
 		if (match) {
 			this.lastInput = match[1];
-			//@ts-ignore
 			suggestions = this.symbols.filter((val) =>
+				//@ts-ignore
 				val.toLowerCase().contains(this.lastInput)
 			);
 		}
