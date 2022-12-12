@@ -1,4 +1,10 @@
 # QuickAdd API
+
+The API is an interface accessible from scripts, macros and choices.
+
+As of v0.8.0, the API is available for public consumption from just `app.plugins.plugins.quickadd.api`.<br/>
+This means you can use the API methods found below in your Dataviewjs scripts, Templater scripts, and so on.
+
 ### `inputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
 Opens a prompt that asks for an input. Returns a string with the input.
 
