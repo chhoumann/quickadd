@@ -28,9 +28,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VARIABLE_SYNTAX,
 ];
 
-export const TEMPLATE_FORMAT_SYNTAX: string[] = [
-    TITLE_SYNTAX,
-];
+export const TEMPLATE_FORMAT_SYNTAX: string[] = [TITLE_SYNTAX];
 
 export const FILE_NUMBER_REGEX: RegExp = new RegExp(/([0-9]*)\.md$/);
 export const NUMBER_REGEX: RegExp = new RegExp(/^-?[0-9]*$/);

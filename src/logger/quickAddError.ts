@@ -1,7 +1,7 @@
-import type {ErrorLevel} from "./errorLevel";
+import type { ErrorLevel } from "./errorLevel";
 
 export interface QuickAddError {
-    message: string,
-    level: ErrorLevel,
-    time: number
+	message: string;
+	level: ErrorLevel;
+	time: number;
 }

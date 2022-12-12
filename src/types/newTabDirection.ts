@@ -1,3 +1,4 @@
 export enum NewTabDirection {
-    vertical = "vertical", horizontal = "horizontal"
+	vertical = "vertical",
+	horizontal = "horizontal",
 }

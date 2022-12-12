@@ -1,6 +1,5 @@
-import type {ICommand} from "../ICommand";
+import type { ICommand } from "../ICommand";
 
 export interface IWaitCommand extends ICommand {
-    time: number;
+	time: number;
 }
-

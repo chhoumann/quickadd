@@ -1,8 +1,7 @@
 import type IChoice from "./IChoice";
-import type {IMacro} from "../macros/IMacro";
+import type { IMacro } from "../macros/IMacro";
 
 export default interface IMacroChoice extends IChoice {
-    macro?: IMacro;
-    macroId: string;
+	macro?: IMacro;
+	macroId: string;
 }
-

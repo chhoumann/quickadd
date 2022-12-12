@@ -1,55 +1,60 @@
-import {ChoiceBuilder} from "./choiceBuilder";
+import { ChoiceBuilder } from "./choiceBuilder";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
-import type {App} from "obsidian";
-import {DropdownComponent} from "obsidian";
-import type {IMacro} from "../../types/macros/IMacro";
+import type { App } from "obsidian";
+import { DropdownComponent } from "obsidian";
+import type { IMacro } from "../../types/macros/IMacro";
 
 export class MacroChoiceBuilder extends ChoiceBuilder {
-    choice: IMacroChoice;
+	choice: IMacroChoice;
 
-    constructor(app: App, choice: IMacroChoice, private macros: IMacro[]) {
-        super(app);
-        this.choice = choice;
+	constructor(app: App, choice: IMacroChoice, private macros: IMacro[]) {
+		super(app);
+		this.choice = choice;
 
-        this.display();
-    }
+		this.display();
+	}
 
-    protected display() {
-        this.containerEl.addClass("macroChoiceBuilder");
-        this.addCenteredChoiceNameHeader(this.choice);
-        this.addSelectMacroSearch();
-    }
+	protected display() {
+		this.containerEl.addClass("macroChoiceBuilder");
+		this.addCenteredChoiceNameHeader(this.choice);
+		this.addSelectMacroSearch();
+	}
 
-    private addSelectMacroSearch() {
-        const selectMacroDropdownContainer: HTMLDivElement = this.contentEl.createDiv('selectMacroDropdownContainer');
-        const dropdown: DropdownComponent = new DropdownComponent(selectMacroDropdownContainer);
+	private addSelectMacroSearch() {
+		const selectMacroDropdownContainer: HTMLDivElement =
+			this.contentEl.createDiv("selectMacroDropdownContainer");
+		const dropdown: DropdownComponent = new DropdownComponent(
+			selectMacroDropdownContainer
+		);
 
-        let macroOptions: Record<string, string> = {};
+		let macroOptions: Record<string, string> = {};
 
-        this.macros.forEach(macro => {
-            macroOptions[macro.name] = macro.name;
-        });
+		this.macros.forEach((macro) => {
+			macroOptions[macro.name] = macro.name;
+		});
 
-        dropdown.addOptions(macroOptions);
-        dropdown.onChange(value => {
-            this.selectMacro(value);
-        });
+		dropdown.addOptions(macroOptions);
+		dropdown.onChange((value) => {
+			this.selectMacro(value);
+		});
 
-        const selectedMacro: IMacro = this.macros.find(m => m.id === this.choice.macroId)!;
-        if (selectedMacro) {
-            dropdown.setValue(selectedMacro.name);
-        } else {
-            const value = dropdown.getValue();
-            if (value) {
-                this.selectMacro(value);
-            }
-        }
-    }
+		const selectedMacro: IMacro = this.macros.find(
+			(m) => m.id === this.choice.macroId
+		)!;
+		if (selectedMacro) {
+			dropdown.setValue(selectedMacro.name);
+		} else {
+			const value = dropdown.getValue();
+			if (value) {
+				this.selectMacro(value);
+			}
+		}
+	}
 
-    private selectMacro(value: string) {
-        const targetMacro: IMacro = this.macros.find(m => m.name === value)!;
-        if (!targetMacro) return;
+	private selectMacro(value: string) {
+		const targetMacro: IMacro = this.macros.find((m) => m.name === value)!;
+		if (!targetMacro) return;
 
-        this.choice.macroId = targetMacro.id;
-    }
+		this.choice.macroId = targetMacro.id;
+	}
 }

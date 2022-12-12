@@ -1,209 +1,265 @@
 import {
-    DATE_REGEX,
-    DATE_REGEX_FORMATTED,
-    DATE_VARIABLE_REGEX, LINEBREAK_REGEX,
-    LINK_TO_CURRENT_FILE_REGEX,
-    MACRO_REGEX, MATH_VALUE_REGEX,
-    NAME_VALUE_REGEX, NUMBER_REGEX, TEMPLATE_REGEX,
-    VARIABLE_REGEX
+	DATE_REGEX,
+	DATE_REGEX_FORMATTED,
+	DATE_VARIABLE_REGEX,
+	LINEBREAK_REGEX,
+	LINK_TO_CURRENT_FILE_REGEX,
+	MACRO_REGEX,
+	MATH_VALUE_REGEX,
+	NAME_VALUE_REGEX,
+	NUMBER_REGEX,
+	TEMPLATE_REGEX,
+	VARIABLE_REGEX,
 } from "../constants";
-import {getDate} from "../utility";
+import { getDate } from "../utility";
 
 export abstract class Formatter {
-    protected value: string;
-    protected variables: Map<string, string> = new Map<string, string>();
+	protected value: string;
+	protected variables: Map<string, string> = new Map<string, string>();
 
-    protected abstract format(input: string): Promise<string>;
-    
-    protected replacer(str: string, reg: RegExp, replaceValue: string) {
-        return str.replace(reg, function () { return replaceValue });
-    }
+	protected abstract format(input: string): Promise<string>;
 
-    protected replaceDateInString(input: string) {
-        let output: string = input;
+	protected replacer(str: string, reg: RegExp, replaceValue: string) {
+		return str.replace(reg, function () {
+			return replaceValue;
+		});
+	}
 
-        while (DATE_REGEX.test(output)) {
-            const dateMatch = DATE_REGEX.exec(output);
-            let offset: number;
+	protected replaceDateInString(input: string) {
+		let output: string = input;
 
-            if (dateMatch && dateMatch[1]) {
-                const offsetString = dateMatch[1].replace('+', '').trim();
-                const offsetIsInt = NUMBER_REGEX.test(offsetString);
-                if (offsetIsInt) offset = parseInt(offsetString);
-        }
-            output = this.replacer(output, DATE_REGEX, getDate({offset: offset!}));
-        }
+		while (DATE_REGEX.test(output)) {
+			const dateMatch = DATE_REGEX.exec(output);
+			let offset: number;
 
-        while (DATE_REGEX_FORMATTED.test(output)) {
-            const dateMatch = DATE_REGEX_FORMATTED.exec(output);
-            if (!dateMatch) throw new Error("unable to parse date");
+			if (dateMatch && dateMatch[1]) {
+				const offsetString = dateMatch[1].replace("+", "").trim();
+				const offsetIsInt = NUMBER_REGEX.test(offsetString);
+				if (offsetIsInt) offset = parseInt(offsetString);
+			}
+			output = this.replacer(
+				output,
+				DATE_REGEX,
+				getDate({ offset: offset! })
+			);
+		}
 
-            const format = dateMatch[1]
-            let offset: number;
+		while (DATE_REGEX_FORMATTED.test(output)) {
+			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
+			if (!dateMatch) throw new Error("unable to parse date");
 
-            if (dateMatch[2]) {
-                const offsetString = dateMatch[2].replace('+', '').trim();
-                const offsetIsInt = NUMBER_REGEX.test(offsetString);
-                if (offsetIsInt) offset = parseInt(offsetString);
-            }
+			const format = dateMatch[1];
+			let offset: number;
 
-            output = this.replacer(output, DATE_REGEX_FORMATTED, getDate({format, offset: offset!}));
-        }
+			if (dateMatch[2]) {
+				const offsetString = dateMatch[2].replace("+", "").trim();
+				const offsetIsInt = NUMBER_REGEX.test(offsetString);
+				if (offsetIsInt) offset = parseInt(offsetString);
+			}
 
-        return output;
-    }
+			output = this.replacer(
+				output,
+				DATE_REGEX_FORMATTED,
+				getDate({ format, offset: offset! })
+			);
+		}
 
-    protected abstract promptForValue(header?: string): Promise<string> | string;
+		return output;
+	}
 
-    protected async replaceValueInString(input: string): Promise<string> {
-        let output: string = input;
+	protected abstract promptForValue(
+		header?: string
+	): Promise<string> | string;
 
-        while (NAME_VALUE_REGEX.test(output)) {
-            if (!this.value)
-                this.value = await this.promptForValue();
+	protected async replaceValueInString(input: string): Promise<string> {
+		let output: string = input;
 
-            output = this.replacer(output, NAME_VALUE_REGEX, this.value);
-        }
+		while (NAME_VALUE_REGEX.test(output)) {
+			if (!this.value) this.value = await this.promptForValue();
 
-        return output;
-    }
+			output = this.replacer(output, NAME_VALUE_REGEX, this.value);
+		}
 
-    protected async replaceLinkToCurrentFileInString(input: string): Promise<string> {
-        const currentFilePathLink = this.getCurrentFileLink();
-        let output = input;
+		return output;
+	}
 
-        while (LINK_TO_CURRENT_FILE_REGEX.test(output))
-            output = this.replacer(output, LINK_TO_CURRENT_FILE_REGEX, currentFilePathLink);
+	protected async replaceLinkToCurrentFileInString(
+		input: string
+	): Promise<string> {
+		const currentFilePathLink = this.getCurrentFileLink();
+		let output = input;
 
-        return output;
-    }
+		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
+			output = this.replacer(
+				output,
+				LINK_TO_CURRENT_FILE_REGEX,
+				currentFilePathLink
+			);
 
-    protected abstract getCurrentFileLink(): any;
+		return output;
+	}
 
-    protected async replaceVariableInString(input: string) {
-        let output: string = input;
+	protected abstract getCurrentFileLink(): any;
 
-        while (VARIABLE_REGEX.test(output)) {
-            const match = VARIABLE_REGEX.exec(output);
-            if (!match) throw new Error("unable to parse variable");
+	protected async replaceVariableInString(input: string) {
+		let output: string = input;
 
-            const variableName = match[1];
+		while (VARIABLE_REGEX.test(output)) {
+			const match = VARIABLE_REGEX.exec(output);
+			if (!match) throw new Error("unable to parse variable");
 
-            if (variableName) {
-                if (!this.getVariableValue(variableName)) {
-                    const suggestedValues = variableName.split(",");
+			const variableName = match[1];
 
-                    if (suggestedValues.length === 1)
-                        this.variables.set(variableName, await this.promptForVariable(variableName));
-                    else
-                        this.variables.set(variableName, await this.suggestForValue(suggestedValues));
-                }
+			if (variableName) {
+				if (!this.getVariableValue(variableName)) {
+					const suggestedValues = variableName.split(",");
 
-                output = this.replacer(output, VARIABLE_REGEX, this.getVariableValue(variableName));
-            } else {
-                break;
-            }
-        }
+					if (suggestedValues.length === 1)
+						this.variables.set(
+							variableName,
+							await this.promptForVariable(variableName)
+						);
+					else
+						this.variables.set(
+							variableName,
+							await this.suggestForValue(suggestedValues)
+						);
+				}
 
-        return output;
-    }
+				output = this.replacer(
+					output,
+					VARIABLE_REGEX,
+					this.getVariableValue(variableName)
+				);
+			} else {
+				break;
+			}
+		}
 
-    protected abstract promptForMathValue(): Promise<string>;
+		return output;
+	}
 
-    protected async replaceMathValueInString(input: string) {
-        let output: string = input;
+	protected abstract promptForMathValue(): Promise<string>;
 
-        while (MATH_VALUE_REGEX.test(output)) {
-            const mathstr = await this.promptForMathValue();
-            output = this.replacer(output, MATH_VALUE_REGEX, mathstr);
-        }
+	protected async replaceMathValueInString(input: string) {
+		let output: string = input;
 
-        return output;
-    }
+		while (MATH_VALUE_REGEX.test(output)) {
+			const mathstr = await this.promptForMathValue();
+			output = this.replacer(output, MATH_VALUE_REGEX, mathstr);
+		}
 
-    protected async replaceMacrosInString(input: string): Promise<string> {
-        let output: string = input;
+		return output;
+	}
 
-        while(MACRO_REGEX.test(output)) {
-            const macroName = MACRO_REGEX.exec(output)![1];
-            const macroOutput = await this.getMacroValue(macroName);
+	protected async replaceMacrosInString(input: string): Promise<string> {
+		let output: string = input;
 
-            output = this.replacer(output, MACRO_REGEX, macroOutput ? macroOutput.toString() : "");
-        }
+		while (MACRO_REGEX.test(output)) {
+			const macroName = MACRO_REGEX.exec(output)![1];
+			const macroOutput = await this.getMacroValue(macroName);
 
-        return output;
-    }
+			output = this.replacer(
+				output,
+				MACRO_REGEX,
+				macroOutput ? macroOutput.toString() : ""
+			);
+		}
 
-    protected abstract getVariableValue(variableName: string): string;
+		return output;
+	}
 
-    protected abstract suggestForValue(suggestedValues: string[]): any;
+	protected abstract getVariableValue(variableName: string): string;
 
-    protected async replaceDateVariableInString(input: string) {
-        let output: string = input;
+	protected abstract suggestForValue(suggestedValues: string[]): any;
 
-        while (DATE_VARIABLE_REGEX.test(output)) {
-            const match = DATE_VARIABLE_REGEX.exec(output);
-            const variableName = match![1];
-            const dateFormat = match![2];
+	protected async replaceDateVariableInString(input: string) {
+		let output: string = input;
 
-            if (variableName && dateFormat) {
-                if (!this.variables.get(variableName)) {
-                    this.variables.set(variableName, await this.promptForVariable(variableName));
+		while (DATE_VARIABLE_REGEX.test(output)) {
+			const match = DATE_VARIABLE_REGEX.exec(output);
+			const variableName = match![1];
+			const dateFormat = match![2];
 
-                    const parseAttempt = this.getNaturalLanguageDates().parseDate(this.variables.get(variableName));
+			if (variableName && dateFormat) {
+				if (!this.variables.get(variableName)) {
+					this.variables.set(
+						variableName,
+						await this.promptForVariable(variableName)
+					);
 
-                    if (parseAttempt)
-                        this.variables.set(variableName, parseAttempt.moment.format(dateFormat));
-                    else
-                        throw new Error(`unable to parse date variable ${this.variables.get(variableName)}`);
-                }
+					const parseAttempt =
+						this.getNaturalLanguageDates().parseDate(
+							this.variables.get(variableName)
+						);
 
-                output = this.replacer(output, DATE_VARIABLE_REGEX, this.variables.get(variableName)!);
-            } else {
-                break;
-            }
-        }
+					if (parseAttempt)
+						this.variables.set(
+							variableName,
+							parseAttempt.moment.format(dateFormat)
+						);
+					else
+						throw new Error(
+							`unable to parse date variable ${this.variables.get(
+								variableName
+							)}`
+						);
+				}
 
-    return output;
-    }
+				output = this.replacer(
+					output,
+					DATE_VARIABLE_REGEX,
+					this.variables.get(variableName)!
+				);
+			} else {
+				break;
+			}
+		}
 
-    protected async replaceTemplateInString(input: string): Promise<string> {
-        let output: string = input;
+		return output;
+	}
 
-        while (TEMPLATE_REGEX.test(output)) {
-            const templatePath = TEMPLATE_REGEX.exec(output)![1];
-            const templateContent = await this.getTemplateContent(templatePath);
+	protected async replaceTemplateInString(input: string): Promise<string> {
+		let output: string = input;
 
-            output = this.replacer(output, TEMPLATE_REGEX, templateContent);
-        }
+		while (TEMPLATE_REGEX.test(output)) {
+			const templatePath = TEMPLATE_REGEX.exec(output)![1];
+			const templateContent = await this.getTemplateContent(templatePath);
 
-        return output;
-    }
+			output = this.replacer(output, TEMPLATE_REGEX, templateContent);
+		}
 
-    protected replaceLinebreakInString(input: string): string {
-        let output: string = input;
-        let match = LINEBREAK_REGEX.exec(output);
+		return output;
+	}
 
-        while (match && input[match.index - 1] !== "\\") {
-            output = this.replacer(output, LINEBREAK_REGEX, `\n`);
-            match = LINEBREAK_REGEX.exec(output);
-        }
+	protected replaceLinebreakInString(input: string): string {
+		let output: string = input;
+		let match = LINEBREAK_REGEX.exec(output);
 
-        const EscapedLinebreakRegex = /\\\\n/;
-        while (EscapedLinebreakRegex.test(output)) {
-            output = this.replacer(output, EscapedLinebreakRegex, `\\n`);
-        }
+		while (match && input[match.index - 1] !== "\\") {
+			output = this.replacer(output, LINEBREAK_REGEX, `\n`);
+			match = LINEBREAK_REGEX.exec(output);
+		}
 
-        return output;
-    }
+		const EscapedLinebreakRegex = /\\\\n/;
+		while (EscapedLinebreakRegex.test(output)) {
+			output = this.replacer(output, EscapedLinebreakRegex, `\\n`);
+		}
 
-    protected abstract getNaturalLanguageDates(): any;
+		return output;
+	}
 
-    protected abstract getMacroValue(macroName: string): Promise<string> | string;
+	protected abstract getNaturalLanguageDates(): any;
 
-    protected abstract promptForVariable(variableName: string): Promise<string>;
+	protected abstract getMacroValue(
+		macroName: string
+	): Promise<string> | string;
 
-    protected abstract getTemplateContent(templatePath: string): Promise<string>;
+	protected abstract promptForVariable(variableName: string): Promise<string>;
 
-    protected abstract getSelectedText(): Promise<string>;
+	protected abstract getTemplateContent(
+		templatePath: string
+	): Promise<string>;
+
+	protected abstract getSelectedText(): Promise<string>;
 }

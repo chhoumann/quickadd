@@ -1,14 +1,17 @@
-import {CommandType} from "../CommandType";
-import {Command} from "../Command";
+import { CommandType } from "../CommandType";
+import { Command } from "../Command";
 import type IChoice from "../../choices/IChoice";
-import type {INestedChoiceCommand} from "./INestedChoiceCommand";
+import type { INestedChoiceCommand } from "./INestedChoiceCommand";
 
-export class NestedChoiceCommand extends Command implements INestedChoiceCommand {
-    choice: IChoice;
+export class NestedChoiceCommand
+	extends Command
+	implements INestedChoiceCommand
+{
+	choice: IChoice;
 
-    constructor(choice: IChoice) {
-        super(choice.name, CommandType.NestedChoice);
+	constructor(choice: IChoice) {
+		super(choice.name, CommandType.NestedChoice);
 
-        this.choice = choice;
-    }
+		this.choice = choice;
+	}
 }
