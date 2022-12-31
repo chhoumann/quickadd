@@ -123,7 +123,7 @@ export default class GenericInputPrompt extends Modal {
 	private cancelClickCallback = (evt: MouseEvent) => this.cancel();
 
 	private submitEnterCallback = (evt: KeyboardEvent) => {
-		if (evt.key === "Enter") {
+		if (!evt.isComposing && evt.key === "Enter") {
 			evt.preventDefault();
 			this.submit();
 		}
