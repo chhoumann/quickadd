@@ -138,9 +138,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
                 if (!this.choice.folder?.chooseWhenCreatingNote) {
 					const chooseFolderFromSubfolderContainer: HTMLDivElement = this.contentEl.createDiv('chooseFolderFromSubfolderContainer');
-					chooseFolderFromSubfolderContainer.createEl('span', {text: "Be prompt in which subfolder you want the new note to be create"});
+					chooseFolderFromSubfolderContainer.createEl('span', {text: "choose from subfolder for new note"});
 					const chooseFolderFromSubfolder: ToggleComponent = new ToggleComponent(chooseFolderFromSubfolderContainer);
-					chooseFolderFromSubfolder.setValue(this.choice.folder?.chooseFromSubfolders!)
+					chooseFolderFromSubfolder.setValue(this.choice.folder?.chooseFromSubfolders)
 						.onChange(value => {
 							this.choice.folder.chooseFromSubfolders = value;
 							this.reload();

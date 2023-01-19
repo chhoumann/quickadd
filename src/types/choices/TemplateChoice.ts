@@ -14,6 +14,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		chooseWhenCreatingNote: boolean;
     chooseFromSubfolders: boolean;
 		createInSameFolderAsActiveFile: boolean;
+    chooseFromSubfolders: boolean;
 	};
 	incrementFileName: boolean;
 	openFileInNewTab: {
@@ -36,6 +37,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 			folders: [],
 			chooseWhenCreatingNote: false,
 			createInSameFolderAsActiveFile: false,
+      chooseFromSubfolders: false,
 		};
 		this.appendLink = false;
 		this.incrementFileName = false;
