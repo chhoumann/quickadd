@@ -22,12 +22,13 @@
 <div class="quickAddCommandListItem">
     <li>{command.name}</li>
     <div>
-        <span on:click={() => configureChoice()} class="clickable">
+        <span on:click={() => configureChoice()} on:keypress={() => configureChoice()} class="clickable">
             <Icon data="{faCog}" />
         </span>
-        <span on:click={() => deleteCommand()} class="clickable">
+        <span on:click={() => deleteCommand()} on:keypress={() => configureChoice()} class="clickable">
             <Icon data="{faTrash}" />
         </span>
+        <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
         <span on:mousedown={startDrag} on:touchstart={startDrag}
               aria-label="Drag-handle"
               style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
