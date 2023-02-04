@@ -38,7 +38,7 @@
     {/if}
 
     {#if showDuplicateButton}
-        <div aria-label={`Duplicate${choiceName ?? ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDuplicateChoice}>
+        <div aria-label={`Duplicate ${choiceName ?? ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDuplicateChoice}>
             <Icon data={faClone} />
         </div>
     {/if}
