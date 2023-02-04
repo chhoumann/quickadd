@@ -19,6 +19,10 @@
     function toggleCommandForChoice() {
         dispatcher('toggleCommand', {choice});
     }
+
+    function duplicateChoice() {
+        dispatcher('duplicateChoice', {choice});
+    }
 </script>
 
 <div class="choiceListItem">
@@ -30,10 +34,12 @@
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
             on:toggleCommand={toggleCommandForChoice}
+            on:duplicateChoice={duplicateChoice}
             bind:choiceName={choice.name}
             bind:commandEnabled={choice.command}
             bind:showConfigureButton
             bind:dragDisabled
+            showDuplicateButton={true}
     />
 </div>
 

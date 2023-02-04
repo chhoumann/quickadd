@@ -24,6 +24,10 @@
     function toggleCommandForChoice() {
         dispatcher('toggleCommand', {choice});
     }
+
+    function duplicateChoice() {
+        dispatcher('duplicateChoice', {choice});
+    }
 </script>
 
 <div>
@@ -39,10 +43,12 @@
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
             on:toggleCommand={toggleCommandForChoice}
+            on:duplicateChoice={duplicateChoice}
             bind:showConfigureButton
             bind:dragDisabled
             bind:choiceName={choice.name}
             bind:commandEnabled={choice.command}
+            showDuplicateButton={true}
         />
     </div>
 
@@ -53,6 +59,7 @@
                         on:deleteChoice
                         on:configureChoice
                         on:toggleCommand
+                        on:duplicateChoice
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}
                 />

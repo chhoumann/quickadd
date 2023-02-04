@@ -1,10 +1,11 @@
 <script lang="ts">
-    import {faTrash, faBars, faCog, faBolt} from "@fortawesome/free-solid-svg-icons";
+    import {faTrash, faBars, faCog, faBolt, faClone} from "@fortawesome/free-solid-svg-icons";
     import Icon from "svelte-awesome/components/Icon.svelte";
     import {createEventDispatcher} from "svelte";
 
     export let dragDisabled: boolean;
     export let showConfigureButton: boolean = true;
+    export let showDuplicateButton: boolean = true;
     export let commandEnabled: boolean = false;
     export let choiceName: string = "";
     const dispatcher = createEventDispatcher();
@@ -20,6 +21,10 @@
     function emitToggleCommand() {
         dispatcher('toggleCommand');
     }
+
+    function emitDuplicateChoice() {
+        dispatcher('duplicateChoice');
+    }
 </script>
 
 <div class="rightButtonsContainer">
@@ -29,6 +34,12 @@
     {#if showConfigureButton}
         <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label={`Configure${choiceName ? " " + choiceName : ""}`}>
             <Icon data={faCog} />
+        </div>
+    {/if}
+
+    {#if showDuplicateButton}
+        <div aria-label={`Duplicate${choiceName ?? ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDuplicateChoice}>
+            <Icon data={faClone} />
         </div>
     {/if}
 

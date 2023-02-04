@@ -20,6 +20,7 @@
     import type {IMacro} from "../../types/macros/IMacro";
     import QuickAdd from "../../main";
     import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
+	import { excludeKeys, getChoiceType } from "src/utility";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];
@@ -111,6 +112,44 @@
 
         choices = choices.map(choice => updateChoiceHelper(choice, updatedChoice));
         saveChoices(choices);
+    } 
+
+    async function handleDuplicateChoice(e: any) {
+        const {choice: sourceChoice} = e.detail;
+
+        const newChoice = duplicateChoice(sourceChoice);
+
+        choices = [...choices, newChoice];
+        saveChoices(choices);
+    }
+
+    function duplicateChoice(choice: IChoice) {
+        if (!getChoiceType(choice)) throw new Error('Invalid choice type');
+
+        let newChoice;
+
+        switch ((choice as IChoice).type) {
+            case ChoiceType.Template:
+                newChoice = new TemplateChoice(`${choice.name} (copy)`);
+                break;
+            case ChoiceType.Capture:
+                newChoice = new CaptureChoice(`${choice.name} (copy)`);
+                break;
+            case ChoiceType.Macro:
+                newChoice = new MacroChoice(`${choice.name} (copy)`);
+                break;
+            case ChoiceType.Multi:
+                newChoice = new MultiChoice(`${choice.name} (copy)`);
+                break;
+        }
+
+        if (choice.type !== ChoiceType.Multi) {
+            Object.assign(newChoice, excludeKeys(choice, ['id', 'name']));
+        } else {
+            (newChoice as IMultiChoice).choices = (choice as IMultiChoice).choices.map(c => duplicateChoice(c));
+        }
+
+        return newChoice;
     }
 
     function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice) {
@@ -159,6 +198,7 @@
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
             on:toggleCommand={toggleCommandForChoice}
+            on:duplicateChoice={handleDuplicateChoice}
             on:reorderChoices={e => saveChoices(e.detail.choices)}
     />
     <div class="choiceViewBottomBar">

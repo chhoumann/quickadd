@@ -4,6 +4,12 @@ import { log } from "./logger/logManager";
 import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
 import type { FileViewMode } from "./types/fileViewMode";
+import { TemplateChoice } from "./types/choices/TemplateChoice";
+import { MultiChoice } from "./types/choices/MultiChoice";
+import { CaptureChoice } from "./types/choices/CaptureChoice";
+import { MacroChoice } from "./types/choices/MacroChoice";
+import IChoice from "./types/choices/IChoice";
+import { ChoiceType } from "./types/choices/choiceType";
 
 export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
@@ -249,4 +255,37 @@ export async function getUserScript(command: IUserScript, app: App) {
 
 		return script;
 	}
+}
+
+export function excludeKeys<T extends object, K extends keyof T>(
+	sourceObj: T,
+	except: K[]
+): Omit<T, K> {
+	const obj = structuredClone(sourceObj);
+
+	for (const key of except) {
+		delete obj[key];
+	}
+
+	return obj;
+}
+
+export function getChoiceType<
+	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice
+>(choice: IChoice): choice is T {
+	const isTemplate = (choice: IChoice): choice is TemplateChoice =>
+		choice.type === ChoiceType.Template;
+	const isMacro = (choice: IChoice): choice is MacroChoice =>
+		choice.type === ChoiceType.Macro;
+	const isCapture = (choice: IChoice): choice is CaptureChoice =>
+		choice.type === ChoiceType.Capture;
+	const isMulti = (choice: IChoice): choice is MultiChoice =>
+		choice.type === ChoiceType.Multi;
+
+	return (
+		isTemplate(choice) ||
+		isMacro(choice) ||
+		isCapture(choice) ||
+		isMulti(choice)
+	);
 }

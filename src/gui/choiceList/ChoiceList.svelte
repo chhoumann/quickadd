@@ -57,6 +57,7 @@
                     on:deleteChoice
                     on:configureChoice
                     on:toggleCommand
+                    on:duplicateChoice
                     bind:choice
             />
         {:else}
@@ -67,6 +68,7 @@
                     on:deleteChoice
                     on:configureChoice
                     on:toggleCommand
+                    on:duplicateChoice
                     bind:collapseId
                     bind:choice
             />
