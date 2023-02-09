@@ -8,6 +8,7 @@ export default interface ITemplateChoice extends IChoice {
 		enabled: boolean;
 		folders: string[];
 		chooseWhenCreatingNote: boolean;
+    chooseFromSubfolders: boolean;
 		createInSameFolderAsActiveFile: boolean;
 	};
 	fileNameFormat: { enabled: boolean; format: string };
@@ -20,4 +21,5 @@ export default interface ITemplateChoice extends IChoice {
 		focus: boolean;
 	};
 	openFileInMode: FileViewMode;
+  chooseFromSubfolders:boolean;
 }

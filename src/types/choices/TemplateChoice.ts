@@ -6,11 +6,13 @@ import type { FileViewMode } from "../fileViewMode";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean;
+  chooseFromSubfolders: boolean;
 	fileNameFormat: { enabled: boolean; format: string };
 	folder: {
 		enabled: boolean;
 		folders: string[];
 		chooseWhenCreatingNote: boolean;
+    chooseFromSubfolders: boolean;
 		createInSameFolderAsActiveFile: boolean;
 	};
 	incrementFileName: boolean;
@@ -30,6 +32,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		this.fileNameFormat = { enabled: false, format: "" };
 		this.folder = {
 			enabled: false,
+      chooseFromSubfolders: false,
 			folders: [],
 			chooseWhenCreatingNote: false,
 			createInSameFolderAsActiveFile: false,
