@@ -18,7 +18,7 @@ import { QuickAddApi } from "./quickAddApi";
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
-	
+
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
 	}
@@ -153,22 +153,28 @@ export default class QuickAdd extends Plugin {
 		return this.getChoice("name", choiceName);
 	}
 
-	private getChoice(by: "name" | "id", targetPropertyValue: string): IChoice {
-		let tempChoice: IChoice;
-
-		const findChoice = (choice: IChoice) => {
+	private getChoice(
+		by: "name" | "id",
+		targetPropertyValue: string,
+		choices: IChoice[] = this.settings.choices
+	): IChoice {
+		for (const choice of choices) {
 			if (choice[by] === targetPropertyValue) {
-				tempChoice = choice;
-				return tempChoice;
+				return choice;
 			}
+			if (choice.type === ChoiceType.Multi) {
+				const subChoice = this.getChoice(
+					by,
+					targetPropertyValue,
+					(choice as IMultiChoice).choices
+				);
+				if (subChoice) {
+					return subChoice;
+				}
+			}
+		}
 
-			if (choice.type === ChoiceType.Multi)
-				(choice as IMultiChoice).choices.forEach(findChoice);
-		};
-
-		this.settings.choices.forEach(findChoice);
-
-		return tempChoice!;
+		throw new Error("Choice not found");
 	}
 
 	public removeCommandForChoice(choice: IChoice) {
