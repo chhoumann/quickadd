@@ -12,7 +12,6 @@ import type IMultiChoice from "./types/choices/IMultiChoice";
 import { deleteObsidianCommand } from "./utility";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
-import ReactExampleView from "./gui/ReactExampleView";
 import { QuickAddApi } from "./quickAddApi";
 
 export default class QuickAdd extends Plugin {
@@ -74,22 +73,8 @@ export default class QuickAdd extends Plugin {
 				};
 
 				fn();
-
-				// await this.app.workspace.getRightLeaf(false).setViewState({
-				// 	type: "react-example",
-				// 	active: true,
-				// });
-
-				// this.app.workspace.revealLeaf(
-				// 	this.app.workspace.getLeavesOfType("react-example")[0]
-				// )
 			},
 		});
-
-		this.registerView(
-			"react-example",
-			(leaf) => new ReactExampleView(leaf)
-		);
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
 
@@ -110,7 +95,6 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		console.log("Unloading QuickAdd");
-		this.app.workspace.detachLeavesOfType("react-example");
 	}
 
 	async loadSettings() {
