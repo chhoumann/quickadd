@@ -13,6 +13,7 @@
     {#each folders as folder, i}
         <div class="quickAddCommandListItem">
             <span>{folder}</span>
+            <!-- svelte-ignore a11y-click-events-have-key-events -->
             <span on:click={() => deleteFolder(folder)} class="clickable">
                 <Icon data="{faTrash}" />
             </span>

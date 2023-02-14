@@ -10,7 +10,7 @@
     export let dragDisabled: boolean;
     const dispatch = createEventDispatcher();
 
-    let inputEl;
+    let inputEl: HTMLInputElement;
 
     function deleteCommand(commandId: string) {
         dispatch('deleteCommand', commandId);
@@ -27,9 +27,11 @@
 <div class="quickAddCommandListItem">
     <li>{command.name} for <input bind:this={inputEl} on:keyup={resizeInput} type="number" placeholder="   " bind:value={command.time} class="dotInput">ms</li>
     <div>
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <span on:click={() => deleteCommand(command.id)} class="clickable">
             <Icon data="{faTrash}" />
         </span>
+        <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
         <span on:mousedown={startDrag} on:touchstart={startDrag}
               aria-label="Drag-handle"
               style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"

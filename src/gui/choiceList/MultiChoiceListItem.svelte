@@ -32,6 +32,7 @@
 
 <div>
     <div class="multiChoiceListItem">
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="multiChoiceListItemName clickable" on:click={() => choice.collapsed = !choice.collapsed}>
             <Icon data={faChevronDown} style={`transform:rotate(${choice.collapsed ? -180 : 0}deg)`} />
             <span>{choice.name}</span>

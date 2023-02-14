@@ -18,9 +18,11 @@
 <div class="quickAddCommandListItem">
     <li>{command.name}</li>
     <div>
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <span on:click={() => deleteCommand(command.id)} class="clickable">
             <Icon data="{faTrash}" />
         </span>
+        <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
         <span on:mousedown={startDrag} on:touchstart={startDrag}
               aria-label="Drag-handle"
               style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
