@@ -1,14 +1,14 @@
-import type { App, TAbstractFile, ViewState } from "obsidian";
+import type { App, TAbstractFile } from "obsidian";
 import { MarkdownView, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import { log } from "./logger/logManager";
 import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
 import type { FileViewMode } from "./types/fileViewMode";
-import { TemplateChoice } from "./types/choices/TemplateChoice";
-import { MultiChoice } from "./types/choices/MultiChoice";
-import { CaptureChoice } from "./types/choices/CaptureChoice";
-import { MacroChoice } from "./types/choices/MacroChoice";
-import IChoice from "./types/choices/IChoice";
+import type { TemplateChoice } from "./types/choices/TemplateChoice";
+import type { MultiChoice } from "./types/choices/MultiChoice";
+import type { CaptureChoice } from "./types/choices/CaptureChoice";
+import type { MacroChoice } from "./types/choices/MacroChoice";
+import type IChoice from "./types/choices/IChoice";
 import { ChoiceType } from "./types/choices/choiceType";
 
 export function getTemplater(app: App) {
@@ -18,7 +18,7 @@ export function getTemplater(app: App) {
 export async function replaceTemplaterTemplatesInCreatedFile(
 	app: App,
 	file: TFile,
-	force: boolean = false
+	force = false
 ) {
 	const templater = getTemplater(app);
 
@@ -26,8 +26,6 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 		templater &&
 		(force || !templater?.settings["trigger_on_file_creation"])
 	) {
-		const active_file = app.workspace.getActiveFile();
-
 		if (templater?.templater?.overwrite_file_commands) {
 			await templater.templater.overwrite_file_commands(file);
 		}
@@ -67,7 +65,7 @@ function getTemplaterTemplatesPath(app: App) {
 }
 
 export function getTemplateFiles(app: App): TFile[] {
-	let templateFiles: Set<TFile> = new Set<TFile>();
+	const templateFiles: Set<TFile> = new Set<TFile>();
 	const markdownFiles = app.vault.getMarkdownFiles();
 
 	const coreTemplatesPath = getCoreTemplatesPath(app);
@@ -161,7 +159,7 @@ export function waitFor(ms: number): Promise<unknown> {
 }
 
 export function getLinesInString(input: string) {
-	let lines: string[] = [];
+	const lines: string[] = [];
 	let tempString = input;
 
 	while (tempString.contains("\n")) {
@@ -228,9 +226,9 @@ export async function getUserScript(command: IUserScript, app: App) {
 	}
 
 	if (file instanceof TFile) {
-		let req = (s: string) => window.require && window.require(s);
-		let exp: Record<string, unknown> = {};
-		let mod = { exports: exp };
+		const req = (s: string) => window.require && window.require(s);
+		const exp: Record<string, unknown> = {};
+		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
 		const fn = window.eval(

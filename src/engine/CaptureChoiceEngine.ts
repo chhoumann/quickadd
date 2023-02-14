@@ -1,5 +1,5 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { TFile } from "obsidian";
+import type { TFile } from "obsidian";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
