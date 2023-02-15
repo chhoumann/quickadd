@@ -24,10 +24,15 @@
     function toggleCommandForChoice() {
         dispatcher('toggleCommand', {choice});
     }
+
+    function duplicateChoice() {
+        dispatcher('duplicateChoice', {choice});
+    }
 </script>
 
 <div>
     <div class="multiChoiceListItem">
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="multiChoiceListItemName clickable" on:click={() => choice.collapsed = !choice.collapsed}>
             <Icon data={faChevronDown} style={`transform:rotate(${choice.collapsed ? -180 : 0}deg)`} />
             <span>{choice.name}</span>
@@ -39,10 +44,12 @@
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
             on:toggleCommand={toggleCommandForChoice}
+            on:duplicateChoice={duplicateChoice}
             bind:showConfigureButton
             bind:dragDisabled
             bind:choiceName={choice.name}
             bind:commandEnabled={choice.command}
+            showDuplicateButton={true}
         />
     </div>
 
@@ -53,6 +60,7 @@
                         on:deleteChoice
                         on:configureChoice
                         on:toggleCommand
+                        on:duplicateChoice
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}
                 />

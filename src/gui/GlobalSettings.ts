@@ -1,5 +1,3 @@
-import { Modal } from 'obsidian';
+import { Modal } from "obsidian";
 
-export default class GlobalSettingsGUI extends Modal {
-    
-}
+export default class GlobalSettingsGUI extends Modal {}

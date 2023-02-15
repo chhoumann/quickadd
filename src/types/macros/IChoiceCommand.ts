@@ -1,6 +1,5 @@
-import type {ICommand} from "./ICommand";
+import type { ICommand } from "./ICommand";
 
 export interface IChoiceCommand extends ICommand {
-    choiceId: string;
+	choiceId: string;
 }
-

@@ -1,1 +1,1 @@
-export type FileViewMode = 'source' | 'preview' | 'default';
+export type FileViewMode = "source" | "preview" | "default";

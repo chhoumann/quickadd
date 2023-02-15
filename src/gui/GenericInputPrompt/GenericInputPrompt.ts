@@ -1,126 +1,166 @@
-import {App, ButtonComponent, Modal, TextComponent} from "obsidian";
+import { App, ButtonComponent, Modal, TextComponent } from "obsidian";
 import { SilentFileSuggester } from "../suggesters/fileSuggester";
 import { SilentTagSuggester } from "../suggesters/tagSuggester";
 
 export default class GenericInputPrompt extends Modal {
-    public waitForClose: Promise<string>;
+	public waitForClose: Promise<string>;
 
-    private resolvePromise: (input: string) => void;
-    private rejectPromise: (reason?: any) => void;
-    private didSubmit: boolean = false;
-    private inputComponent: TextComponent;
-    private input: string;
-    private readonly placeholder: string;
-    private fileSuggester: SilentFileSuggester;
-    private tagSuggester: SilentTagSuggester;
+	private resolvePromise: (input: string) => void;
+	private rejectPromise: (reason?: any) => void;
+	private didSubmit: boolean = false;
+	private inputComponent: TextComponent;
+	private input: string;
+	private readonly placeholder: string;
+	private fileSuggester: SilentFileSuggester;
+	private tagSuggester: SilentTagSuggester;
 
+	public static Prompt(
+		app: App,
+		header: string,
+		placeholder?: string,
+		value?: string
+	): Promise<string> {
+		const newPromptModal = new GenericInputPrompt(
+			app,
+			header,
+			placeholder,
+			value
+		);
+		return newPromptModal.waitForClose;
+	}
 
-    public static Prompt(app: App, header: string, placeholder?: string, value?: string): Promise<string> {
-        const newPromptModal = new GenericInputPrompt(app, header, placeholder, value);
-        return newPromptModal.waitForClose;
-    }
+	protected constructor(
+		app: App,
+		private header: string,
+		placeholder?: string,
+		value?: string
+	) {
+		super(app);
+		this.placeholder = placeholder!;
+		this.input = value!;
 
-    protected constructor(app: App, private header: string, placeholder?: string, value?: string) {
-        super(app);
-        this.placeholder = placeholder;
-        this.input = value;
+		this.waitForClose = new Promise<string>((resolve, reject) => {
+			this.resolvePromise = resolve;
+			this.rejectPromise = reject;
+		});
 
-        this.waitForClose = new Promise<string>(
-            (resolve, reject) => {
-                this.resolvePromise = resolve;
-                this.rejectPromise = reject;
-            }
-        );
+		this.display();
+		this.open();
 
-        this.display();
-        this.open();
+		this.fileSuggester = new SilentFileSuggester(
+			app,
+			this.inputComponent.inputEl
+		);
+		this.tagSuggester = new SilentTagSuggester(
+			app,
+			this.inputComponent.inputEl
+		);
+	}
 
-        this.fileSuggester = new SilentFileSuggester(app, this.inputComponent.inputEl);
-        this.tagSuggester = new SilentTagSuggester(app, this.inputComponent.inputEl);
+	private display() {
+		this.containerEl.addClass("quickAddModal", "qaInputPrompt");
+		this.contentEl.empty();
+		this.titleEl.textContent = this.header;
 
-    }
+		const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
+		this.inputComponent = this.createInputField(
+			mainContentContainer,
+			this.placeholder,
+			this.input
+		);
+		this.createButtonBar(mainContentContainer);
+	}
 
-    private display() {
-        this.containerEl.addClass('quickAddModal', 'qaInputPrompt')
-        this.contentEl.empty();
-        this.titleEl.textContent = this.header;
+	protected createInputField(
+		container: HTMLElement,
+		placeholder?: string,
+		value?: string
+	) {
+		const textComponent = new TextComponent(container);
 
-        const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
-        this.inputComponent = this.createInputField(mainContentContainer, this.placeholder, this.input);
-        this.createButtonBar(mainContentContainer);
-    }
+		textComponent.inputEl.style.width = "100%";
+		textComponent
+			.setPlaceholder(placeholder ?? "")
+			.setValue(value ?? "")
+			.onChange((value) => (this.input = value))
+			.inputEl.addEventListener("keydown", this.submitEnterCallback);
 
-    protected createInputField(container: HTMLElement, placeholder?: string, value?: string) {
-        const textComponent = new TextComponent(container);
+		return textComponent;
+	}
 
-        textComponent.inputEl.style.width = "100%";
-        textComponent.setPlaceholder(placeholder ?? "")
-            .setValue(value ?? "")
-            .onChange(value => this.input = value)
-            .inputEl.addEventListener('keydown', this.submitEnterCallback);
+	private createButton(
+		container: HTMLElement,
+		text: string,
+		callback: (evt: MouseEvent) => any
+	) {
+		const btn = new ButtonComponent(container);
+		btn.setButtonText(text).onClick(callback);
 
-        return textComponent;
-    }
+		return btn;
+	}
 
-    private createButton(container: HTMLElement, text: string, callback: (evt: MouseEvent) => any) {
-        const btn = new ButtonComponent(container);
-        btn.setButtonText(text)
-            .onClick(callback);
+	private createButtonBar(mainContentContainer: HTMLDivElement) {
+		const buttonBarContainer: HTMLDivElement =
+			mainContentContainer.createDiv();
+		this.createButton(
+			buttonBarContainer,
+			"Ok",
+			this.submitClickCallback
+		).setCta().buttonEl.style.marginRight = "0";
+		this.createButton(
+			buttonBarContainer,
+			"Cancel",
+			this.cancelClickCallback
+		);
 
-        return btn;
-    }
+		buttonBarContainer.style.display = "flex";
+		buttonBarContainer.style.flexDirection = "row-reverse";
+		buttonBarContainer.style.justifyContent = "flex-start";
+		buttonBarContainer.style.marginTop = "1rem";
+	}
 
-    private createButtonBar(mainContentContainer: HTMLDivElement) {
-        const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv();
-        this.createButton(buttonBarContainer, "Ok", this.submitClickCallback)
-            .setCta().buttonEl.style.marginRight = '0';
-        this.createButton(buttonBarContainer, "Cancel", this.cancelClickCallback);
+	private submitClickCallback = (evt: MouseEvent) => this.submit();
+	private cancelClickCallback = (evt: MouseEvent) => this.cancel();
 
-        buttonBarContainer.style.display = 'flex';
-        buttonBarContainer.style.flexDirection = 'row-reverse';
-        buttonBarContainer.style.justifyContent = 'flex-start';
-        buttonBarContainer.style.marginTop = '1rem';
-    }
+	private submitEnterCallback = (evt: KeyboardEvent) => {
+		if (!evt.isComposing && evt.key === "Enter") {
+			evt.preventDefault();
+			this.submit();
+		}
+	};
 
-    private submitClickCallback = (evt: MouseEvent) => this.submit();
-    private cancelClickCallback = (evt: MouseEvent) => this.cancel();
+	private submit() {
+		this.didSubmit = true;
 
-    private submitEnterCallback = (evt: KeyboardEvent) => {
-        if (evt.key === "Enter") {
-            evt.preventDefault();
-            this.submit();
-        }
-    }
+		this.close();
+	}
 
-    private submit() {
-        this.didSubmit = true;
+	private cancel() {
+		this.close();
+	}
 
-        this.close();
-    }
+	private resolveInput() {
+		if (!this.didSubmit) this.rejectPromise("No input given.");
+		else this.resolvePromise(this.input);
+	}
 
-    private cancel() {
-        this.close();
-    }
+	private removeInputListener() {
+		this.inputComponent.inputEl.removeEventListener(
+			"keydown",
+			this.submitEnterCallback
+		);
+	}
 
-    private resolveInput() {
-        if(!this.didSubmit) this.rejectPromise("No input given.");
-        else this.resolvePromise(this.input);
-    }
+	onOpen() {
+		super.onOpen();
 
-    private removeInputListener() {
-        this.inputComponent.inputEl.removeEventListener('keydown', this.submitEnterCallback)
-    }
+		this.inputComponent.inputEl.focus();
+		this.inputComponent.inputEl.select();
+	}
 
-    onOpen() {
-        super.onOpen();
-
-        this.inputComponent.inputEl.focus();
-        this.inputComponent.inputEl.select();
-    }
-
-    onClose() {
-        super.onClose();
-        this.resolveInput();
-        this.removeInputListener();
-    }
+	onClose() {
+		super.onClose();
+		this.resolveInput();
+		this.removeInputListener();
+	}
 }

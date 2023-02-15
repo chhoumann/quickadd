@@ -1,0 +1,29 @@
+name: Test
+on: push
+
+jobs:
+    test:
+        name: Test
+        runs-on: ubuntu-latest
+        strategy:
+          matrix:
+            node-version: [16]
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 0
+            - uses: pnpm/action-setup@v2.2.4
+              with:
+                version: 7
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+                  cache: 'pnpm'
+            - name: Install dependencies
+              run: |
+                  pnpm install
+            - name: Run tests
+              run: |
+                  pnpm run test
