@@ -5,7 +5,7 @@ title: Capture
 _Capture To_ is the name of the file you are capturing to.
 You can choose to either enable _Capture to active file_, or you can enter a file name in the _File Name_ input field.
 
-This field also supports the format syntax, which allows you to use dynamic file names.
+This field also supports the [format syntax](/FormatSyntax.md), which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
 
