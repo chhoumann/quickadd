@@ -167,6 +167,10 @@
 	margin-bottom: 10px;
 }
 
+.chooseFolderFromSubfolderContainer {
+    margin: 20px 0 0 0;
+}
+
 .clickable:hover {
 	cursor: pointer;
 }

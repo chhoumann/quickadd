@@ -145,6 +145,24 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			...this.choice.folder.folders,
 		]);
 
+		if (
+			this.choice.folder?.chooseFromSubfolders &&
+			!(
+				this.choice.folder?.chooseWhenCreatingNote ||
+				this.choice.folder?.createInSameFolderAsActiveFile
+			)
+		) {
+			const allFoldersInVault: string[] = getAllFolderPathsInVault(
+				this.app
+			);
+
+			const subfolders = allFoldersInVault.filter((folder) => {
+				return folders.some((f) => folder.startsWith(f));
+			});
+
+			return await this.getOrCreateFolder(subfolders);
+		}
+
 		if (this.choice.folder?.chooseWhenCreatingNote) {
 			const allFoldersInVault: string[] = getAllFolderPathsInVault(
 				this.app

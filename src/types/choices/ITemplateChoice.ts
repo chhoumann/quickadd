@@ -9,6 +9,7 @@ export default interface ITemplateChoice extends IChoice {
 		folders: string[];
 		chooseWhenCreatingNote: boolean;
 		createInSameFolderAsActiveFile: boolean;
+		chooseFromSubfolders: boolean;
 	};
 	fileNameFormat: { enabled: boolean; format: string };
 	appendLink: boolean;

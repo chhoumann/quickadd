@@ -118,50 +118,66 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				});
 			});
 
-		if (this.choice.folder.enabled) {
-			if (!this.choice.folder?.createInSameFolderAsActiveFile) {
-				const chooseFolderWhenCreatingNoteContainer: HTMLDivElement =
-					this.contentEl.createDiv(
-						"chooseFolderWhenCreatingNoteContainer"
-					);
-				chooseFolderWhenCreatingNoteContainer.createEl("span", {
-					text: "Choose folder when creating a new note",
-				});
-				const chooseFolderWhenCreatingNote: ToggleComponent =
-					new ToggleComponent(chooseFolderWhenCreatingNoteContainer);
-				chooseFolderWhenCreatingNote
-					.setValue(this.choice.folder?.chooseWhenCreatingNote)
-					.onChange((value) => {
-						this.choice.folder.chooseWhenCreatingNote = value;
-						this.reload();
-					});
+		if (!this.choice.folder.enabled) {
+			return;
+		}
 
-				if (!this.choice.folder?.chooseWhenCreatingNote) {
-					this.addFolderSelector();
-				}
-			}
+		if (!this.choice.folder?.createInSameFolderAsActiveFile) {
+			const chooseFolderWhenCreatingNoteContainer =
+				this.contentEl.createDiv(
+					"chooseFolderWhenCreatingNoteContainer"
+				);
+			chooseFolderWhenCreatingNoteContainer.createEl("span", {
+				text: "Choose folder when creating a new note",
+			});
+			const chooseFolderWhenCreatingNote: ToggleComponent =
+				new ToggleComponent(chooseFolderWhenCreatingNoteContainer);
+			chooseFolderWhenCreatingNote
+				.setValue(this.choice.folder?.chooseWhenCreatingNote)
+				.onChange((value) => {
+					this.choice.folder.chooseWhenCreatingNote = value;
+					this.reload();
+				});
 
 			if (!this.choice.folder?.chooseWhenCreatingNote) {
-				const createInSameFolderAsActiveFileSetting: Setting =
-					new Setting(this.contentEl);
-				createInSameFolderAsActiveFileSetting
-					.setName("Create in same folder as active file")
-					.setDesc(
-						"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file."
-					)
-					.addToggle((toggle) =>
-						toggle
-							.setValue(
-								this.choice.folder
-									?.createInSameFolderAsActiveFile
-							)
-							.onChange((value) => {
-								this.choice.folder.createInSameFolderAsActiveFile =
-									value;
-								this.reload();
-							})
-					);
+				this.addFolderSelector();
 			}
+
+			const chooseFolderFromSubfolderContainer: HTMLDivElement =
+				this.contentEl.createDiv("chooseFolderFromSubfolderContainer");
+
+			const stn = new Setting(chooseFolderFromSubfolderContainer);
+			stn.setName("Include subfolders")
+				.setDesc("Get prompted to choose from both the selected folders and their subfolders when creating the note.")
+				.addToggle((toggle) => toggle
+					.setValue(this.choice.folder?.chooseFromSubfolders)
+					.onChange((value) => {
+						this.choice.folder.chooseFromSubfolders = value;
+						this.reload();
+					})
+				);
+		}
+
+		if (!this.choice.folder?.chooseWhenCreatingNote) {
+			const createInSameFolderAsActiveFileSetting: Setting = new Setting(
+				this.contentEl
+			);
+			createInSameFolderAsActiveFileSetting
+				.setName("Create in same folder as active file")
+				.setDesc(
+					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file."
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.choice.folder?.createInSameFolderAsActiveFile
+						)
+						.onChange((value) => {
+							this.choice.folder.createInSameFolderAsActiveFile =
+								value;
+							this.reload();
+						})
+				);
 		}
 	}
 
