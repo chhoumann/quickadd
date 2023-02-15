@@ -14,7 +14,6 @@ This automatically finds the file for the day, and whatever I enter will be capt
 -   _Task_ will format it as a task.
 -   _Append link_ will append a link to the file you have open in the file you're capturing to.
 -   _Insert after_ will allow you to insert the text after some line with the specified text. I use this in my journal capture, where I insert after the line `## What did I do today?`.
-
 _Capture format_ lets you specify the exact format that you want what you're capturing to be inserted as. You can do practically anything here. Think of it as a mini template.
 See the format syntax further down on this page for inspiration.
 In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.
