@@ -22,10 +22,6 @@ QuickAdd can be installed through the community plugin browser in Obsidian, or t
 
 For detailed instructions and examples on using QuickAdd, see the [QuickAdd documentation](https://quickadd.obsidian.guide/).
 
-## Demo Video
-
-[![Demo video](https://img.youtube.com/vi/gYK3VDQsZJo/0.jpg)](https://www.youtube.com/watch?v=gYK3VDQsZJo)
-
 ## Support
 
 If you have any questions or encounter any problems while using QuickAdd, you can use the [community discussions](https://github.com/chhoumann/quickadd/discussions) for support.
