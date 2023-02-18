@@ -3,6 +3,8 @@ hidden: true
 title: Open QuickAdd from your Desktop
 ---
 
+**UPDATE: A more reliable method is to use the [Global Hotkeys](https://github.com/mjessome/obsidian-global-hotkeys) plugin for Obsidian.**
+
 This is an [AutoHotkey](https://www.autohotkey.com/) script which unminimizes/focuses Obsidian and sends some keypresses to it.
 
 I've bound this to my QuickAdd activation hotkey, so this script automatically brings Obsidian to the front of my screen with QuickAdd open.
