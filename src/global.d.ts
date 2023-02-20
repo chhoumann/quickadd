@@ -11,5 +11,14 @@ declare module "obsidian" {
 			enablePlugin: (id: string) => Promise<void>;
 			disablePlugin: (id: string) => Promise<void>;
 		};
+		internalPlugins: {
+			plugins: {
+				[pluginId: string]: Plugin & {
+					[pluginImplementations: string]: any;
+				};
+			};
+			enablePlugin: (id: string) => Promise<void>;
+			disablePlugin: (id: string) => Promise<void>;
+		};
 	}
 }
