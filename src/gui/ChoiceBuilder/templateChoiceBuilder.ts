@@ -17,7 +17,14 @@ import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
-import { fileExistsAppendToBottom, fileExistsAppendToTop, fileExistsDoNothing, fileExistsOverwriteFile } from "src/constants";
+import {
+	fileExistsAppendToBottom,
+	fileExistsAppendToTop,
+	fileExistsChoices,
+	fileExistsDoNothing,
+	fileExistsIncrement,
+	fileExistsOverwriteFile,
+} from "src/constants";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -36,7 +43,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addFileNameFormatSetting();
 		this.addFolderSetting();
 		this.addAppendLinkSetting();
-		this.addIncrementFileNameSetting();
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting();
 		if (this.choice.openFile) this.addOpenFileInNewTabSetting();
@@ -47,7 +53,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.setName("Template Path")
 			.setDesc("Path to the Template.")
 			.addSearch((search) => {
-				const templates: string[] = this.plugin.getTemplateFiles().map(f => f.path);
+				const templates: string[] = this.plugin
+					.getTemplateFiles()
+					.map((f) => f.path);
 				search.setValue(this.choice.templatePath);
 				search.setPlaceholder("Template path");
 
@@ -263,24 +271,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			});
 	}
 
-	private addIncrementFileNameSetting(): void {
-		const incrementFileNameSetting: Setting = new Setting(this.contentEl);
-		incrementFileNameSetting
-			.setName("Increment file name")
-			.setDesc("If the file already exists, increment the file name.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.incrementFileName);
-				toggle.onChange(
-					(value) => (this.choice.incrementFileName = value)
-				);
-			});
-	}
-
 	private addFileAlreadyExistsSetting(): void {
 		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
 		fileAlreadyExistsSetting
 			.setName("Set default behavior if file already exists")
-			.setDesc("Set default behavior rather then prompting what to do if a file already exists set the default behavior.")
+			.setDesc(
+				"Set default behavior rather then prompting what to do if a file already exists set the default behavior."
+			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
 				toggle.onChange((value) => {
@@ -294,14 +291,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.fileExistsMode = fileExistsDoNothing;
 
 				dropdown
-					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
+					.addOption(
+						fileExistsAppendToBottom,
+						fileExistsAppendToBottom
+					)
 					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
 					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
 					.addOption(fileExistsDoNothing, fileExistsDoNothing)
+					.addOption(fileExistsIncrement, fileExistsIncrement)
 					.setValue(this.choice.fileExistsMode)
 					.onChange(
-						(value) =>
-							(this.choice.fileExistsMode = value as string)
+						(value: typeof fileExistsChoices[number]) =>
+							(this.choice.fileExistsMode = value)
 					);
 			});
 	}
