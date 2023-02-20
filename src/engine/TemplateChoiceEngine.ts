@@ -70,11 +70,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			await this.app.workspace.getLeaf("tab").openFile(file);
-			const userChoice: string = await GenericSuggester.Suggest(
-				this.app,
-				fileExistsChoices,
-				fileExistsChoices
-			);
+
+			let userChoice = this.choice.fileExistsMode;
+
+			if(!this.choice.setFileExistsBehavior) {
+
+				userChoice = await GenericSuggester.Suggest(
+					this.app,
+					fileExistsChoices,
+					fileExistsChoices
+				);
+			}
 
 			switch (userChoice) {
 				case fileExistsAppendToTop:

@@ -17,6 +17,7 @@ import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
+import { fileExistsAppendToBottom, fileExistsAppendToTop, fileExistsDoNothing, fileExistsOverwriteFile } from "src/constants";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -36,6 +37,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addFolderSetting();
 		this.addAppendLinkSetting();
 		this.addIncrementFileNameSetting();
+		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting();
 		if (this.choice.openFile) this.addOpenFileInNewTabSetting();
 	}
@@ -268,6 +270,36 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				toggle.onChange(
 					(value) => (this.choice.incrementFileName = value)
 				);
+			});
+	}
+
+	private addFileAlreadyExistsSetting(): void {
+		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
+		fileAlreadyExistsSetting
+			.setName("Set default behavior if file already exists")
+			.setDesc("Set default behavior rather then prompting what to do if a file already exists set the default behavior.")
+			.addToggle((toggle) => {
+				toggle.setValue(this.choice.setFileExistsBehavior);
+				toggle.onChange((value) => {
+					this.choice.setFileExistsBehavior = value;
+				});
+			})
+			.addDropdown((dropdown) => {
+				dropdown.selectEl.style.marginLeft = "10px";
+
+				if (!this.choice.fileExistsMode)
+					this.choice.fileExistsMode = fileExistsDoNothing;
+
+				dropdown
+					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
+					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
+					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
+					.addOption(fileExistsDoNothing, fileExistsDoNothing)
+					.setValue(this.choice.fileExistsMode)
+					.onChange(
+						(value) =>
+							(this.choice.fileExistsMode = value as string)
+					);
 			});
 	}
 
