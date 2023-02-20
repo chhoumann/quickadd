@@ -74,7 +74,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let userChoice = this.choice.fileExistsMode;
 
 			if(!this.choice.setFileExistsBehavior) {
-
 				userChoice = await GenericSuggester.Suggest(
 					this.app,
 					fileExistsChoices,
