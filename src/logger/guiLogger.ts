@@ -10,7 +10,7 @@ export class GuiLogger extends QuickAddLogger {
 
 	logError(msg: string): void {
 		const error = this.getQuickAddError(msg, ErrorLevel.Error);
-		new Notice(this.formatOutputString(error));
+		new Notice(this.formatOutputString(error), 15000);
 	}
 
 	logWarning(msg: string): void {
