@@ -13,6 +13,7 @@ import {
 	fileExistsChoices,
 	fileExistsOverwriteFile,
 	VALUE_SYNTAX,
+	fileExistsIncrement,
 } from "../constants";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
@@ -56,7 +57,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			);
 		}
 
-		if (this.choice.incrementFileName)
+		if (this.choice.fileExistsMode === fileExistsIncrement)
 			filePath = await this.incrementFileName(filePath);
 
 		let createdFile: TFile | null;
@@ -71,14 +72,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			await this.app.workspace.getLeaf("tab").openFile(file);
 
-			let userChoice = this.choice.fileExistsMode;
+			let userChoice: typeof fileExistsChoices[number] =
+				this.choice.fileExistsMode;
 
-			if(!this.choice.setFileExistsBehavior) {
-				userChoice = await GenericSuggester.Suggest(
+			if (!this.choice.setFileExistsBehavior) {
+				userChoice = (await GenericSuggester.Suggest(
 					this.app,
-					fileExistsChoices,
-					fileExistsChoices
-				);
+					[...fileExistsChoices],
+					[...fileExistsChoices]
+				)) as typeof fileExistsChoices[number];
 			}
 
 			switch (userChoice) {

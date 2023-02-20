@@ -1,7 +1,7 @@
 import type IChoice from "./IChoice";
 import type { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
-import {fileExistsAppendToBottom} from "../../constants";
+import { fileExistsChoices } from "src/constants";
 
 export default interface ITemplateChoice extends IChoice {
 	templatePath: string;
@@ -14,7 +14,6 @@ export default interface ITemplateChoice extends IChoice {
 	};
 	fileNameFormat: { enabled: boolean; format: string };
 	appendLink: boolean;
-	incrementFileName: boolean;
 	openFile: boolean;
 	openFileInNewTab: {
 		enabled: boolean;
@@ -22,6 +21,6 @@ export default interface ITemplateChoice extends IChoice {
 		focus: boolean;
 	};
 	openFileInMode: FileViewMode;
-	fileExistsMode: string;
+	fileExistsMode: typeof fileExistsChoices[number];
 	setFileExistsBehavior: boolean;
 }
