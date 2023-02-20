@@ -17,7 +17,6 @@ import {
 	VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
-import { getTemplatePaths } from "../../utility";
 import type QuickAdd from "../../main";
 
 enum FormatSyntaxToken {
@@ -50,7 +49,8 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		this.macroNames = this.plugin.settings.macros.map(
 			(macro) => macro.name
 		);
-		this.templatePaths = getTemplatePaths(this.app);
+		
+		this.templatePaths = this.plugin.getTemplateFiles().map((file) => file.path);
 	}
 
 	getSuggestions(inputStr: string): string[] {

@@ -10,6 +10,7 @@ import { CaptureChoice } from "./types/choices/CaptureChoice";
 import { MacroChoice } from "./types/choices/MacroChoice";
 import IChoice from "./types/choices/IChoice";
 import { ChoiceType } from "./types/choices/choiceType";
+import QuickAdd from "./main";
 
 export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
@@ -46,46 +47,6 @@ export async function templaterParseTemplate(
 		{ target_file: targetFile, run_mode: 4 },
 		templateContent
 	);
-}
-
-function getCoreTemplatesPath(app: App) {
-	// @ts-ignore
-	const internalTemplatePlugin = app.internalPlugins.plugins.templates;
-	if (internalTemplatePlugin) {
-		const templateFolderPath =
-			internalTemplatePlugin.instance.options.folder;
-		if (templateFolderPath) return templateFolderPath;
-	}
-}
-
-function getTemplaterTemplatesPath(app: App) {
-	const templater = getTemplater(app);
-	if (templater) {
-		const templateFolderPath = templater.settings["template_folder"];
-		if (templateFolderPath) return templateFolderPath;
-	}
-}
-
-export function getTemplateFiles(app: App): TFile[] {
-	let templateFiles: Set<TFile> = new Set<TFile>();
-	const markdownFiles = app.vault.getMarkdownFiles();
-
-	const coreTemplatesPath = getCoreTemplatesPath(app);
-	const templaterTemplatesPath = getTemplaterTemplatesPath(app);
-
-	markdownFiles.forEach((file) => {
-		if (
-			file.path.contains(coreTemplatesPath) ||
-			file.path.contains(templaterTemplatesPath)
-		)
-			templateFiles.add(file);
-	});
-
-	return [...templateFiles];
-}
-
-export function getTemplatePaths(app: App): string[] {
-	return getTemplateFiles(app).map((file) => file.path);
 }
 
 export function getNaturalLanguageDates(app: App) {

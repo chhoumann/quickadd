@@ -11,12 +11,10 @@ import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_TOP,
 	FILE_NAME_FORMAT_SYNTAX,
-	FORMAT_SYNTAX,
 } from "../../constants";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
-import { getTemplatePaths } from "../../utility";
 import { NewTabDirection } from "../../types/newTabDirection";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -350,11 +348,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		templateSelector.inputEl.style.width = "100%";
 		templateSelector.inputEl.style.marginBottom = "8px";
 
-		const markdownFiles: string[] = getTemplatePaths(this.app);
+		const templateFilePaths: string[] = this.plugin.getTemplateFiles().map(f => f.path);
 		new GenericTextSuggester(
 			this.app,
 			templateSelector.inputEl,
-			markdownFiles
+			templateFilePaths
 		);
 
 		templateSelector.onChange((value) => {

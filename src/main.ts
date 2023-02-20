@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin } from "obsidian";
+import { MarkdownView, Plugin, TFile } from "obsidian";
 import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log } from "./logger/logManager";
@@ -163,5 +163,13 @@ export default class QuickAdd extends Plugin {
 
 	public removeCommandForChoice(choice: IChoice) {
 		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
+	}
+
+	public getTemplateFiles(): TFile[] {
+		if (!String.isString(this.settings.templateFolderPath)) return [];
+		
+		return this.app.vault.getFiles().filter((file) =>
+			file.path.startsWith(this.settings.templateFolderPath)
+		);
 	}
 }

@@ -11,7 +11,7 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault, getTemplatePaths } from "../../utility";
+import { getAllFolderPathsInVault } from "../../utility";
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -45,7 +45,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.setName("Template Path")
 			.setDesc("Path to the Template.")
 			.addSearch((search) => {
-				const templates: string[] = getTemplatePaths(this.app);
+				const templates: string[] = this.plugin.getTemplateFiles().map(f => f.path);
 				search.setValue(this.choice.templatePath);
 				search.setPlaceholder("Template path");
 
@@ -148,13 +148,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 			const stn = new Setting(chooseFolderFromSubfolderContainer);
 			stn.setName("Include subfolders")
-				.setDesc("Get prompted to choose from both the selected folders and their subfolders when creating the note.")
-				.addToggle((toggle) => toggle
-					.setValue(this.choice.folder?.chooseFromSubfolders)
-					.onChange((value) => {
-						this.choice.folder.chooseFromSubfolders = value;
-						this.reload();
-					})
+				.setDesc(
+					"Get prompted to choose from both the selected folders and their subfolders when creating the note."
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.choice.folder?.chooseFromSubfolders)
+						.onChange((value) => {
+							this.choice.folder.chooseFromSubfolders = value;
+							this.reload();
+						})
 				);
 		}
 

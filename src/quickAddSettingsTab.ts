@@ -108,12 +108,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		setting.setName("Template Folder Path");
 		setting.setDesc(
-			"Path to the folder where templates are stored."
+			"Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd."
 		);
 
 		setting.addText((text) => {
 			text.setPlaceholder(
-				"Leave blank to use default Obsidian templates folder"
+				"templates/"
 			)
 				.setValue(this.plugin.settings.templateFolderPath)
 				.onChange(async (value) => {
