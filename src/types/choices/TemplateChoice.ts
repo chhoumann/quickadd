@@ -23,6 +23,9 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 	openFile: boolean;
 	openFileInMode: FileViewMode;
 	templatePath: string;
+	fileExistsMode: string;
+	setFileExistsBehavior: boolean;
+
 
 	constructor(name: string) {
 		super(name, ChoiceType.Template);
