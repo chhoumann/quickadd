@@ -19,6 +19,7 @@ export interface QuickAddSettings {
 	migrations: {
 		migrateToMacroIDFromEmbeddedMacro: boolean,
 		useQuickAddTemplateFolder: boolean,
+		incrementFileNameSettingMoveToDefaultBehavior: boolean;
 	}
 }
 
@@ -31,6 +32,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	migrations: {
 		migrateToMacroIDFromEmbeddedMacro: false,
 		useQuickAddTemplateFolder: false,
+		incrementFileNameSettingMoveToDefaultBehavior: false,
 	}
 };
 

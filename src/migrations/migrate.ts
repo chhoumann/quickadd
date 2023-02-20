@@ -1,19 +1,14 @@
 import { log } from "src/logger/logManager";
 import QuickAdd from "src/main";
-import type { QuickAddSettings } from "src/quickAddSettingsTab";
+import { Migrations } from "./Migrations";
 import migrateToMacroIDFromEmbeddedMacro from "./migrateToMacroIDFromEmbeddedMacro";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
+import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 
-type Migrations = {
-	[key in keyof QuickAddSettings["migrations"]]: {
-		description: string;
-		migrate: (plugin: QuickAdd) => Promise<boolean>;
-	};
-};
-
-const migrations = {
+const migrations: Migrations = {
 	migrateToMacroIDFromEmbeddedMacro,
 	useQuickAddTemplateFolder,
+	incrementFileNameSettingMoveToDefaultBehavior
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {
