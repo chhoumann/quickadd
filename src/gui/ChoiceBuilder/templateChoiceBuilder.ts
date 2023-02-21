@@ -275,9 +275,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
 		fileAlreadyExistsSetting
 			.setName("Set default behavior if file already exists")
-			.setDesc(
-				"Set default behavior rather then prompting what to do if a file already exists set the default behavior."
-			)
+			.setDesc("Set default behavior rather then prompting user on what to do if a file already exists.")
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
 				toggle.onChange((value) => {
