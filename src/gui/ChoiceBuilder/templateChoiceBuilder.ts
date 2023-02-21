@@ -296,9 +296,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						fileExistsAppendToBottom
 					)
 					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
+					.addOption(fileExistsIncrement, fileExistsIncrement)
 					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
 					.addOption(fileExistsDoNothing, fileExistsDoNothing)
-					.addOption(fileExistsIncrement, fileExistsIncrement)
 					.setValue(this.choice.fileExistsMode)
 					.onChange(
 						(value: typeof fileExistsChoices[number]) =>
