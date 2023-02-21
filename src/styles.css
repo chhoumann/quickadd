@@ -134,9 +134,11 @@
 }
 
 .checkboxRowContainer {
+	margin: 30px 0px;
 	display: grid;
 	grid-template-rows: auto;
 	align-content: center;
+	gap: 5px;
 }
 
 .checkboxRow {
