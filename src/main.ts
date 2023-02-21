@@ -130,18 +130,30 @@ export default class QuickAdd extends Plugin {
 	}
 
 	public getChoiceById(choiceId: string): IChoice {
-		return this.getChoice("id", choiceId);
+		const choice = this.getChoice("id", choiceId);
+
+		if (!choice) {
+			throw new Error(`Choice ${choiceId} not found`);
+		}
+
+		return choice;
 	}
 
 	public getChoiceByName(choiceName: string): IChoice {
-		return this.getChoice("name", choiceName);
+		const choice = this.getChoice("name", choiceName);
+
+		if (!choice) {
+			throw new Error(`Choice ${choiceName} not found`);
+		}
+
+		return choice;
 	}
 
 	private getChoice(
 		by: "name" | "id",
 		targetPropertyValue: string,
 		choices: IChoice[] = this.settings.choices
-	): IChoice {
+	): IChoice | null {
 		for (const choice of choices) {
 			if (choice[by] === targetPropertyValue) {
 				return choice;
@@ -158,7 +170,7 @@ export default class QuickAdd extends Plugin {
 			}
 		}
 
-		throw new Error("Choice not found");
+		return null;
 	}
 
 	public removeCommandForChoice(choice: IChoice) {
@@ -167,9 +179,11 @@ export default class QuickAdd extends Plugin {
 
 	public getTemplateFiles(): TFile[] {
 		if (!String.isString(this.settings.templateFolderPath)) return [];
-		
-		return this.app.vault.getFiles().filter((file) =>
-			file.path.startsWith(this.settings.templateFolderPath)
-		);
+
+		return this.app.vault
+			.getFiles()
+			.filter((file) =>
+				file.path.startsWith(this.settings.templateFolderPath)
+			);
 	}
 }
