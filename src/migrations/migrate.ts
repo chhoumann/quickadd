@@ -5,11 +5,13 @@ import migrateToMacroIDFromEmbeddedMacro from "./migrateToMacroIDFromEmbeddedMac
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 import { moment } from "obsidian";
+import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionInsertAfterAndWriteToBottomOfFile";
 
 const migrations: Migrations = {
 	migrateToMacroIDFromEmbeddedMacro,
 	useQuickAddTemplateFolder,
 	incrementFileNameSettingMoveToDefaultBehavior,
+	mutualExclusionInsertAfterAndWriteToBottomOfFile,
 };
 
 const backupFolderPath = ".obsidian/plugins/quickadd/backup";

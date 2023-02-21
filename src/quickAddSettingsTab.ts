@@ -20,6 +20,7 @@ export interface QuickAddSettings {
 		migrateToMacroIDFromEmbeddedMacro: boolean,
 		useQuickAddTemplateFolder: boolean,
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
+		mutualExclusionInsertAfterAndWriteToBottomOfFile: boolean;
 	}
 }
 
@@ -33,6 +34,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateToMacroIDFromEmbeddedMacro: false,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
+		mutualExclusionInsertAfterAndWriteToBottomOfFile: false
 	}
 };
 

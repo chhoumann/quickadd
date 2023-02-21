@@ -43,6 +43,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		}
 
 		this.addTaskSetting();
+
 		this.addPrependSetting();
 
 		if (!this.choice.captureToActiveFile) {
@@ -132,7 +133,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.prepend);
-				toggle.onChange((value) => (this.choice.prepend = value));
+				toggle.onChange((value) => {
+					this.choice.prepend = value;
+
+					if (this.choice.prepend && this.choice.insertAfter.enabled) {
+						this.choice.insertAfter.enabled = false;
+						this.reload();
+					}
+				});
 			});
 	}
 
@@ -173,6 +181,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				toggle.onChange((value) => {
 					this.choice.insertAfter.enabled = value;
 					insertAfterInput.setDisabled(!value);
+					
+					if (this.choice.insertAfter.enabled && this.choice.prepend) {
+						this.choice.prepend = false;
+					}
+
 					this.reload();
 				});
 			});
@@ -348,7 +361,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		templateSelector.inputEl.style.width = "100%";
 		templateSelector.inputEl.style.marginBottom = "8px";
 
-		const templateFilePaths: string[] = this.plugin.getTemplateFiles().map(f => f.path);
+		const templateFilePaths: string[] = this.plugin
+			.getTemplateFiles()
+			.map((f) => f.path);
 		new GenericTextSuggester(
 			this.app,
 			templateSelector.inputEl,
