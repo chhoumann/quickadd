@@ -102,17 +102,19 @@ export const TITLE_SYNTAX_SUGGEST_REGEX: RegExp = new RegExp(
 );
 
 // == File Exists (Template Choice) == //
-export const fileExistsAppendToBottom: string =
-	"Append to the bottom of the file";
-export const fileExistsAppendToTop: string = "Append to the top of the file";
-export const fileExistsOverwriteFile: string = "Overwrite the file";
-export const fileExistsDoNothing: string = "Nothing";
-export const fileExistsChoices: string[] = [
+export const fileExistsIncrement = "Increment the file name" as const;
+export const fileExistsAppendToBottom =
+	"Append to the bottom of the file" as const;
+export const fileExistsAppendToTop = "Append to the top of the file" as const;
+export const fileExistsOverwriteFile = "Overwrite the file" as const;
+export const fileExistsDoNothing = "Nothing" as const;
+export const fileExistsChoices = [
 	fileExistsAppendToBottom,
 	fileExistsAppendToTop,
 	fileExistsOverwriteFile,
+	fileExistsIncrement,
 	fileExistsDoNothing,
-];
+] as const;
 
 // == MISC == //
 export const WIKI_LINK_REGEX: RegExp = new RegExp(/\[\[([^\]]*)\]\]/);

@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin } from "obsidian";
+import { MarkdownView, Plugin, TFile } from "obsidian";
 import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log } from "./logger/logManager";
@@ -10,9 +10,9 @@ import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import { deleteObsidianCommand } from "./utility";
-import type IMacroChoice from "./types/choices/IMacroChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { QuickAddApi } from "./quickAddApi";
+import migrate from "./migrations/migrate";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
@@ -90,7 +90,7 @@ export default class QuickAdd extends Plugin {
 		);
 		this.addCommandsForChoices(this.settings.choices);
 
-		await this.convertMacroChoicesMacroToId();
+		migrate(this);
 	}
 
 	onunload() {
@@ -165,34 +165,11 @@ export default class QuickAdd extends Plugin {
 		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
 	}
 
-	// Did not make sense to have copies of macros in the choices when they are maintained for themselves.
-	// Instead we reference by id now. Have to port this over for all users.
-	private async convertMacroChoicesMacroToId() {
-		function convertMacroChoiceMacroToIdHelper(choice: IChoice): IChoice {
-			if (choice.type === ChoiceType.Multi) {
-				let multiChoice = choice as IMultiChoice;
-				const multiChoices = multiChoice.choices.map(
-					convertMacroChoiceMacroToIdHelper
-				);
-				multiChoice = { ...multiChoice, choices: multiChoices };
-				return multiChoice;
-			}
-
-			if (choice.type !== ChoiceType.Macro) return choice;
-			const macroChoice = choice as IMacroChoice;
-
-			if (macroChoice.macro) {
-				macroChoice.macroId = macroChoice.macro.id;
-				delete macroChoice.macro;
-			}
-
-			return macroChoice;
-		}
-
-		this.settings.choices = this.settings.choices.map(
-			convertMacroChoiceMacroToIdHelper
+	public getTemplateFiles(): TFile[] {
+		if (!String.isString(this.settings.templateFolderPath)) return [];
+		
+		return this.app.vault.getFiles().filter((file) =>
+			file.path.startsWith(this.settings.templateFolderPath)
 		);
-
-		await this.saveSettings();
 	}
 }

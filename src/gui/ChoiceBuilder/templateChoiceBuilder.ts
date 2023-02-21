@@ -11,13 +11,20 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault, getTemplatePaths } from "../../utility";
+import { getAllFolderPathsInVault } from "../../utility";
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
-import { fileExistsAppendToBottom, fileExistsAppendToTop, fileExistsDoNothing, fileExistsOverwriteFile } from "src/constants";
+import {
+	fileExistsAppendToBottom,
+	fileExistsAppendToTop,
+	fileExistsChoices,
+	fileExistsDoNothing,
+	fileExistsIncrement,
+	fileExistsOverwriteFile,
+} from "src/constants";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -36,7 +43,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addFileNameFormatSetting();
 		this.addFolderSetting();
 		this.addAppendLinkSetting();
-		this.addIncrementFileNameSetting();
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting();
 		if (this.choice.openFile) this.addOpenFileInNewTabSetting();
@@ -47,7 +53,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.setName("Template Path")
 			.setDesc("Path to the Template.")
 			.addSearch((search) => {
-				const templates: string[] = getTemplatePaths(this.app);
+				const templates: string[] = this.plugin
+					.getTemplateFiles()
+					.map((f) => f.path);
 				search.setValue(this.choice.templatePath);
 				search.setPlaceholder("Template path");
 
@@ -150,13 +158,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 			const stn = new Setting(chooseFolderFromSubfolderContainer);
 			stn.setName("Include subfolders")
-				.setDesc("Get prompted to choose from both the selected folders and their subfolders when creating the note.")
-				.addToggle((toggle) => toggle
-					.setValue(this.choice.folder?.chooseFromSubfolders)
-					.onChange((value) => {
-						this.choice.folder.chooseFromSubfolders = value;
-						this.reload();
-					})
+				.setDesc(
+					"Get prompted to choose from both the selected folders and their subfolders when creating the note."
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.choice.folder?.chooseFromSubfolders)
+						.onChange((value) => {
+							this.choice.folder.chooseFromSubfolders = value;
+							this.reload();
+						})
 				);
 		}
 
@@ -260,19 +271,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			});
 	}
 
-	private addIncrementFileNameSetting(): void {
-		const incrementFileNameSetting: Setting = new Setting(this.contentEl);
-		incrementFileNameSetting
-			.setName("Increment file name")
-			.setDesc("If the file already exists, increment the file name.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.incrementFileName);
-				toggle.onChange(
-					(value) => (this.choice.incrementFileName = value)
-				);
-			});
-	}
-
 	private addFileAlreadyExistsSetting(): void {
 		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
 		fileAlreadyExistsSetting
@@ -291,14 +289,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.fileExistsMode = fileExistsDoNothing;
 
 				dropdown
-					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
+					.addOption(
+						fileExistsAppendToBottom,
+						fileExistsAppendToBottom
+					)
 					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
+					.addOption(fileExistsIncrement, fileExistsIncrement)
 					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
 					.addOption(fileExistsDoNothing, fileExistsDoNothing)
 					.setValue(this.choice.fileExistsMode)
 					.onChange(
-						(value) =>
-							(this.choice.fileExistsMode = value as string)
+						(value: typeof fileExistsChoices[number]) =>
+							(this.choice.fileExistsMode = value)
 					);
 			});
 	}

@@ -3,6 +3,7 @@ import type ITemplateChoice from "./ITemplateChoice";
 import { Choice } from "./Choice";
 import { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
+import { fileExistsChoices } from "src/constants";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean;
@@ -14,7 +15,6 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		createInSameFolderAsActiveFile: boolean;
 		chooseFromSubfolders: boolean;
 	};
-	incrementFileName: boolean;
 	openFileInNewTab: {
 		enabled: boolean;
 		direction: NewTabDirection;
@@ -23,9 +23,8 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 	openFile: boolean;
 	openFileInMode: FileViewMode;
 	templatePath: string;
-	fileExistsMode: string;
+	fileExistsMode: typeof fileExistsChoices[number];
 	setFileExistsBehavior: boolean;
-
 
 	constructor(name: string) {
 		super(name, ChoiceType.Template);
@@ -40,7 +39,6 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 			chooseFromSubfolders: false,
 		};
 		this.appendLink = false;
-		this.incrementFileName = false;
 		this.openFileInNewTab = {
 			enabled: false,
 			direction: NewTabDirection.vertical,
@@ -48,6 +46,8 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		};
 		this.openFile = false;
 		this.openFileInMode = "default";
+		this.fileExistsMode = "Increment the file name";
+		this.setFileExistsBehavior = false;
 	}
 
 	public static Load(choice: ITemplateChoice): TemplateChoice {

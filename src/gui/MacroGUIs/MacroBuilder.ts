@@ -320,7 +320,6 @@ export class MacroBuilder extends Modal {
 
 	private addCommandList() {
 		const commandList = this.contentEl.createDiv("commandList");
-		console.log(this.macro.commands);
 
 		this.commandListEl = new CommandList({
 			target: commandList,

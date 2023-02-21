@@ -108,7 +108,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return createdFile;
 		} catch (e) {
 			log.logError(
-				`Could not create file with template. Maybe '${templatePath}' is an invalid template path?`
+				`Could not create file with template: \n\n${e.message}`
 			);
 			return null;
 		}
@@ -171,8 +171,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 		const templateFile =
 			this.app.vault.getAbstractFileByPath(correctTemplatePath);
+
 		if (!(templateFile instanceof TFile))
-			throw new Error("Template file not found.");
+			throw new Error(
+				`Template file not found at path "${correctTemplatePath}".`
+			);
 
 		return await this.app.vault.cachedRead(templateFile);
 	}

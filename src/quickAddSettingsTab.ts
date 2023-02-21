@@ -1,14 +1,26 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import {
+	App,
+	PluginSettingTab,
+	Setting,
+	TFolder,
+} from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import type { IMacro } from "./types/macros/IMacro";
+import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 
 export interface QuickAddSettings {
 	choices: IChoice[];
 	macros: IMacro[];
 	inputPrompt: "multi-line" | "single-line";
 	devMode: boolean;
+	templateFolderPath: string;
+	migrations: {
+		migrateToMacroIDFromEmbeddedMacro: boolean,
+		useQuickAddTemplateFolder: boolean,
+		incrementFileNameSettingMoveToDefaultBehavior: boolean;
+	}
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
@@ -16,6 +28,12 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	macros: [],
 	inputPrompt: "single-line",
 	devMode: false,
+	templateFolderPath: "",
+	migrations: {
+		migrateToMacroIDFromEmbeddedMacro: false,
+		useQuickAddTemplateFolder: false,
+		incrementFileNameSettingMoveToDefaultBehavior: false,
+	}
 };
 
 export class QuickAddSettingsTab extends PluginSettingTab {
@@ -33,25 +51,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		containerEl.createEl("h2", { text: "QuickAdd Settings" });
 
 		this.addChoicesSetting();
-		new Setting(this.containerEl)
-			.setName("Use Multi-line Input Prompt")
-			.setDesc(
-				"Use multi-line input prompt instead of single-line input prompt"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.inputPrompt === "multi-line")
-					.setTooltip("Use multi-line input prompt")
-					.onChange((value) => {
-						if (value) {
-							this.plugin.settings.inputPrompt = "multi-line";
-						} else {
-							this.plugin.settings.inputPrompt = "single-line";
-						}
-
-						this.plugin.saveSettings();
-					})
-			);
+		this.addUseMultiLineInputPromptSetting();
+		this.addTemplateFolderPathSetting();
 	}
 
 	hide(): any {
@@ -79,6 +80,57 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				},
 			},
+		});
+	}
+
+	private addUseMultiLineInputPromptSetting() {
+		new Setting(this.containerEl)
+			.setName("Use Multi-line Input Prompt")
+			.setDesc(
+				"Use multi-line input prompt instead of single-line input prompt"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.inputPrompt === "multi-line")
+					.setTooltip("Use multi-line input prompt")
+					.onChange((value) => {
+						if (value) {
+							this.plugin.settings.inputPrompt = "multi-line";
+						} else {
+							this.plugin.settings.inputPrompt = "single-line";
+						}
+
+						this.plugin.saveSettings();
+					})
+			);
+	}
+
+	private addTemplateFolderPathSetting() {
+		const setting = new Setting(this.containerEl);
+
+		setting.setName("Template Folder Path");
+		setting.setDesc(
+			"Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd."
+		);
+
+		setting.addText((text) => {
+			text.setPlaceholder(
+				"templates/"
+			)
+				.setValue(this.plugin.settings.templateFolderPath)
+				.onChange(async (value) => {
+					this.plugin.settings.templateFolderPath = value;
+					await this.plugin.saveSettings();
+				});
+
+			new GenericTextSuggester(
+				app,
+				text.inputEl,
+				app.vault
+					.getAllLoadedFiles()
+					.filter((f) => f instanceof TFolder && f.path !== '/')
+					.map((f) => f.path)
+			);
 		});
 	}
 }
