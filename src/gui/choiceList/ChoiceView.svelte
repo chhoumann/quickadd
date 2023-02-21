@@ -99,6 +99,8 @@
         if (!updatedChoice) return;
 
         choices = choices.map(choice => updateChoiceHelper(choice, updatedChoice));
+        plugin.removeCommandForChoice(oldChoice);
+        plugin.addCommandForChoice(updatedChoice);
         saveChoices(choices);
     }
 
