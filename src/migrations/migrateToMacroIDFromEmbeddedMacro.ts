@@ -35,7 +35,5 @@ export default {
 		);
 
 		await plugin.saveSettings();
-
-		return true;
 	},
 };

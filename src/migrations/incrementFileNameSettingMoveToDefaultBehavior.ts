@@ -72,7 +72,7 @@ function removeIncrementFileName(
 const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
-	migrate: async (plugin: QuickAdd): Promise<boolean> => {
+	migrate: async (plugin: QuickAdd): Promise<void> => {
         const choicesCopy = structuredClone(plugin.settings.choices);
         const choices = recursiveRemoveIncrementFileName(choicesCopy);
 
@@ -81,8 +81,6 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 
         plugin.settings.choices = structuredClone(choices);
         plugin.settings.macros = structuredClone(macros);
-
-		return true;
 	},
 };
 

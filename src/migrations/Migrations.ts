@@ -3,7 +3,7 @@ import { QuickAddSettings } from "src/quickAddSettingsTab";
 
 export type Migration = {
 	description: string;
-	migrate: (plugin: QuickAdd) => Promise<boolean>;
+	migrate: (plugin: QuickAdd) => Promise<void>;
 };
 
 export type Migrations = {

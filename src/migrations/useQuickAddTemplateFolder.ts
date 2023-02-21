@@ -4,7 +4,7 @@ import QuickAdd from "src/main";
 export default {
 	description:
 		"Use QuickAdd template folder instead of Obsidian templates plugin folder / Templater templates folder.",
-	migrate: async (plugin: QuickAdd): Promise<boolean> => {
+	migrate: async (plugin: QuickAdd): Promise<void> => {
 		try {
 			const templaterPlugin = app.plugins.plugins["templater"];
 			const obsidianTemplatesPlugin =
@@ -12,7 +12,8 @@ export default {
 
 			if (!templaterPlugin && !obsidianTemplatesPlugin) {
 				log.logMessage("No template plugin found. Skipping migration.");
-				return true;
+
+				return;
 			}
 
 			if (obsidianTemplatesPlugin) {
@@ -35,12 +36,10 @@ export default {
 					log.logMessage("Migrated template folder path to Templaters setting.");
 				}
 			}
-
-			return true;
 		} catch (error) {
 			log.logError("Failed to migrate template folder path.");
 
-			return false;
+			throw error;
 		}
 	},
 };
