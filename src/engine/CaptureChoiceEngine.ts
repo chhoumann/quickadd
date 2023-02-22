@@ -14,6 +14,7 @@ import type QuickAdd from "../main";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import invariant from "src/utils/invariant";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -44,10 +45,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			const captureTo = this.choice.captureTo;
-			if (!captureTo) {
-				log.logError(`Invalid capture to for ${this.choice.name}`);
-				return;
-			}
+			invariant(captureTo, () => {
+				return `Invalid capture to for ${this.choice.name}. ${
+					captureTo.length === 0
+						? "Capture path is empty."
+						: `Capture path is not valid: ${captureTo}`
+				}`;
+			});
 
 			const filePath = await this.getFilePath(captureTo);
 			const content = await this.getCaptureContent();
@@ -90,7 +94,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			await this.app.vault.modify(file, newFileContent);
 		} catch (e) {
-			log.logMessage(e);
+			log.logError(e);
 		}
 	}
 

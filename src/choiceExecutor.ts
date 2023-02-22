@@ -45,13 +45,6 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private async onChooseTemplateType(
 		templateChoice: ITemplateChoice
 	): Promise<void> {
-		if (!templateChoice.templatePath) {
-			log.logError(
-				`please provide a template path for ${templateChoice.name}`
-			);
-			return;
-		}
-
 		await new TemplateChoiceEngine(
 			this.app,
 			this.plugin,
@@ -61,13 +54,6 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async onChooseCaptureType(captureChoice: ICaptureChoice) {
-		if (!captureChoice.captureTo && !captureChoice?.captureToActiveFile) {
-			log.logError(
-				`please provide a capture path for ${captureChoice.name}`
-			);
-			return;
-		}
-
 		await new CaptureChoiceEngine(
 			this.app,
 			this.plugin,
