@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { TAbstractFile, TFile, TFolder } from "obsidian";
+import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
 
@@ -20,7 +20,10 @@ export abstract class QuickAddEngine {
 		}
 	}
 
-	protected formatFilePath(folderPath: string, fileName: string): string {
+	protected normalizeMarkdownFilePath(
+		folderPath: string,
+		fileName: string
+	): string {
 		const actualFolderPath: string = folderPath ? `${folderPath}/` : "";
 		const formattedFileName: string = fileName.replace(
 			MARKDOWN_FILE_EXTENSION_REGEX,

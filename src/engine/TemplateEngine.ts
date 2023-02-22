@@ -59,7 +59,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			format,
 			promptHeader
 		);
-		return this.formatFilePath(folderPath, formattedName);
+		return this.normalizeMarkdownFilePath(folderPath, formattedName);
 	}
 
 	protected async incrementFileName(fileName: string) {

@@ -53,7 +53,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}`;
 			});
 
-			const filePath = await this.getFilePath(captureTo);
+			const filePath = await this.formatFilePath(captureTo);
 			const content = await this.getCaptureContent();
 
 			let getFileAndAddContentFn: (
@@ -166,12 +166,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		return { file, content: newFileContent };
 	}
 
-	private async getFilePath(captureTo: string) {
+	private async formatFilePath(captureTo: string) {
 		const formattedCaptureTo: string = await this.formatter.formatFileName(
 			captureTo,
 			this.choice.name
 		);
-		return this.formatFilePath("", formattedCaptureTo);
+
+		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
 	}
 
 	private async captureToActiveFile() {
