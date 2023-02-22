@@ -35,6 +35,7 @@
     "svelte-check": "^2.10.3",
     "svelte-dnd-action": "0.9.22",
     "svelte-preprocess": "^4.10.7",
+    "three-way-merge": "^0.1.0",
     "tslib": "^2.5.0",
     "typescript": "^4.9.5",
     "uuid": "9.0.0",

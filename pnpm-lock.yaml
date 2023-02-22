@@ -24,6 +24,7 @@ specifiers:
   svelte-check: ^2.10.3
   svelte-dnd-action: 0.9.22
   svelte-preprocess: ^4.10.7
+  three-way-merge: ^0.1.0
   tslib: ^2.5.0
   typescript: ^4.9.5
   uuid: 9.0.0
@@ -56,6 +57,7 @@ devDependencies:
   svelte-check: 2.10.3_svelte@3.55.1
   svelte-dnd-action: 0.9.22_svelte@3.55.1
   svelte-preprocess: 4.10.7_4x7phaipmicbaooxtnresslofa
+  three-way-merge: 0.1.0
   tslib: 2.5.0
   typescript: 4.9.5
   uuid: 9.0.0
@@ -4510,6 +4512,12 @@ packages:
     engines: {node: '>=0.10'}
     dev: true
 
+  /three-way-merge/0.1.0:
+    resolution: {integrity: sha512-FzQCDf2No6a1bYop4B4WWAlI9FcnV9+WCXRENaae1fZMRobxj92JDA/W1pc6eV7QQoDyUdoud2tCyZYolP6DYg==}
+    dependencies:
+      ts-std: 0.6.2
+    dev: true
+
   /through/2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
     dev: true
@@ -4616,6 +4624,10 @@ packages:
       yn: 3.1.1
     dev: true
     optional: true
+
+  /ts-std/0.6.2:
+    resolution: {integrity: sha512-mhlyyOBvF7r+Xh8Ut4Fa3qe3BxjQMTWxHLb7NBSkOmxOe1V5Oc5+PpUl/y7tpBOL2sJZwLL1r5T8hqmc0SAFTw==}
+    dev: true
 
   /tslib/2.5.0:
     resolution: {integrity: sha512-336iVw3rtn2BUK7ORdIAHTyxHGRIHVReokCR3XjbckJMK7ms8FysBfhLR8IXnAgy7T0PTPNBWKiH514FOW/WSg==}

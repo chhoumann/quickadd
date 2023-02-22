@@ -85,6 +85,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 	}
 
+	async formatContentOnly(input: string): Promise<string> {
+		let formatted = await super.formatFileContent(input);
+		formatted = this.replaceLinebreakInString(formatted);
+
+		const formattedContentIsEmpty = formatted.trim() === "";
+		if (formattedContentIsEmpty) return this.fileContent;
+
+		return formatted;
+	}
+
 	private async insertAfterHandler(formatted: string) {
 		const targetString: string = await this.format(
 			this.choice.insertAfter.after

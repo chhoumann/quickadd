@@ -15,6 +15,7 @@ import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import invariant from "src/utils/invariant";
+import merge from "three-way-merge";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -56,10 +57,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const filePath = await this.formatFilePath(captureTo);
 			const content = await this.getCaptureContent();
 
-			let getFileAndAddContentFn: (
-				fileContent: string,
-				content: string
-			) => Promise<{ file: TFile; content: string }>;
+			let getFileAndAddContentFn: typeof this.onFileExists;
 
 			if (await this.fileExists(filePath)) {
 				getFileAndAddContentFn = this.onFileExists;
@@ -74,6 +72,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			const { file, content: newFileContent } =
 				await getFileAndAddContentFn.bind(this)(filePath, content);
+
+			await this.app.vault.modify(file, newFileContent);
 
 			if (this.choice.appendLink) {
 				const markdownLink = this.app.fileManager.generateMarkdownLink(
@@ -91,8 +91,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					mode: this.choice.openFileInMode,
 				});
 			}
-
-			await this.app.vault.modify(file, newFileContent);
 		} catch (e) {
 			log.logError(e);
 		}
@@ -116,14 +114,39 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const file: TFile = await this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
+		// First format pass...
+		const formatted = await this.formatter.formatContentOnly(content);
+
 		const fileContent: string = await this.app.vault.read(file);
-		const newFileContent: string =
+		// Second format pass, with the file content... User input (long running) should have been captured during first pass
+		// So this pass is to insert the formatted capture value into the file content, depending on the user's settings
+		const formattedFileContent: string =
 			await this.formatter.formatContentWithFile(
-				content,
+				formatted,
 				this.choice,
 				fileContent,
 				file
 			);
+
+		const secondReadFileContent: string = await this.app.vault.read(file);
+
+		let newFileContent = formattedFileContent;
+		if (secondReadFileContent !== fileContent) {
+			const res = merge(
+				secondReadFileContent,
+				fileContent,
+				formattedFileContent
+			);
+			invariant(
+				!res.isSuccess,
+				() =>
+					`The file ${filePath} has been modified since the last read.` +
+					`\nQuickAdd could not merge the versions two without conflicts, and will not modify the file.` +
+					`\nThis is in order to prevent data loss.`
+			);
+
+			newFileContent = res.joinedResults();
+		}
 
 		return { file, content: newFileContent };
 	}
