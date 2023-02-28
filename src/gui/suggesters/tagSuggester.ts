@@ -4,7 +4,7 @@ import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
 
 export class SilentTagSuggester extends TextInputSuggest<string> {
-	private lastInput: string = "";
+	private lastInput = "";
 	private tags: string[];
 
 	constructor(
@@ -49,7 +49,7 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		const cursorPosition: number = this.inputEl.selectionStart!;
 		const lastInputLength: number = this.lastInput.length;
 		const currentInputValue: string = this.inputEl.value;
-		let insertedEndPosition: number = 0;
+		let insertedEndPosition = 0;
 
 		this.inputEl.value = this.getNewInputValueForTag(
 			currentInputValue,

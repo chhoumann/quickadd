@@ -11,7 +11,7 @@ export abstract class ChoiceBuilder extends Modal {
 	private input: IChoice;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
-	private didSubmit: boolean = false;
+	private didSubmit = false;
 	protected svelteElements: SvelteComponent[] = [];
 
 	protected constructor(app: App) {

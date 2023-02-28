@@ -5,7 +5,7 @@ export default class GenericYesNoPrompt extends Modal {
 	private rejectPromise: (reason?: any) => void;
 	private input: boolean;
 	public waitForClose: Promise<boolean>;
-	private didSubmit: boolean = false;
+	private didSubmit = false;
 
 	public static Prompt(
 		app: App,

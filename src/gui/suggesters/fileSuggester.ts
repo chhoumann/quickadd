@@ -55,7 +55,7 @@ function getAliasesForFile(file: TFile, app: App): AliasArrTFile {
 		fileMetadata?.frontmatter?.alias ??
 		fileMetadata?.frontmatter?.aliases ??
 		"";
-	let aliases: string[] = [];
+	const aliases: string[] = [];
 
 	if (typeof fileMetaAlias === "string" && fileMetaAlias) {
 		aliases.push(fileMetaAlias);
@@ -73,7 +73,7 @@ function getAliasesForFile(file: TFile, app: App): AliasArrTFile {
 }
 
 export class SilentFileSuggester extends TextInputSuggest<string> {
-	private lastInput: string = "";
+	private lastInput = "";
 	private fileNames: string[];
 	private fileMap: SuggestionMap;
 
@@ -162,7 +162,7 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 		const cursorPosition: number = this.inputEl.selectionStart!;
 		const lastInputLength: number = this.lastInput.length;
 		const currentInputValue: string = this.inputEl.value;
-		let insertedEndPosition: number = 0;
+		let insertedEndPosition = 0;
 
 		const suggestionItem: SuggestionMapItem = this.fileMap.get(item)!;
 

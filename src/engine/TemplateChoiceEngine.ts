@@ -45,7 +45,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}`;
 			});
 
-			let folderPath: string = "";
+			let folderPath = "";
 
 			if (this.choice.folder.enabled) {
 				folderPath = await this.getFolderPath();
@@ -161,7 +161,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	private async getFolderPath() {
-		let folders: string[] = await this.formatFolderPaths([
+		const folders: string[] = await this.formatFolderPaths([
 			...this.choice.folder.folders,
 		]);
 

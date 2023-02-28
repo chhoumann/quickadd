@@ -63,7 +63,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		const cursorPosition: number = this.inputEl.selectionStart!;
 		const lastInputLength: number = this.lastInput.length;
 		const currentInputValue: string = this.inputEl.value;
-		let insertedEndPosition: number = 0;
+		let insertedEndPosition = 0;
 
 		const textToInsert = item.replace(/\\\\/g, "\\");
 
