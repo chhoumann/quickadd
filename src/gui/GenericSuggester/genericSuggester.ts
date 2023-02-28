@@ -24,6 +24,22 @@ export default class GenericSuggester extends FuzzySuggestModal<string> {
 			this.rejectPromise = reject;
 		});
 
+        this.inputEl.addEventListener('keydown', (event :KeyboardEvent) => {
+            if (event.code == 'Tab') {
+                let complete = ""
+                // @ts-ignore
+                const divNode = this.chooser.suggestions[this.chooser.selectedItem]
+                for (const node of divNode.childNodes) {
+                    if (node.nodeName == '#text') {
+                        complete += node.textContent
+                    } else if (node.nodeName == 'SPAN') {
+                        complete += node.innerText
+                    }
+                }
+                this.inputEl.value = complete
+            }
+        })
+
 		this.open();
 	}
 

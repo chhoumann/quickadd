@@ -8,7 +8,7 @@ import { SingleMacroEngine } from "../engine/SingleMacroEngine";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { INLINE_JAVASCRIPT_REGEX } from "../constants";
+import { FIELD_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
 import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
@@ -35,6 +35,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceValueInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
+        output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
 
 		return output;
@@ -101,6 +102,23 @@ export class CompleteFormatter extends Formatter {
 			suggestedValues
 		);
 	}
+
+    protected async suggestForField(variableName: string) {
+        
+        const suggestedValues: string[] = [];
+        for (const file of this.app.vault.getMarkdownFiles()) {
+            const cache = this.app.metadataCache.getFileCache(file);
+            const value = cache?.frontmatter?.[variableName];
+            if(!value || typeof value == 'object') continue;
+            suggestedValues.push(value);
+        }
+
+        return await GenericSuggester.Suggest(
+            this.app,
+            suggestedValues,
+            suggestedValues
+        )
+    }
 
 	protected async getMacroValue(macroName: string): Promise<string> {
 		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
