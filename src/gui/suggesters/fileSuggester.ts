@@ -97,7 +97,9 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		const cursorPosition: number = this.inputEl.selectionStart!;
+		if (this.inputEl.selectionStart === null) return [];
+
+		const cursorPosition: number = this.inputEl.selectionStart;
 		const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
 		const fileLinkMatch = FILE_LINK_REGEX.exec(inputBeforeCursor);
 
@@ -126,61 +128,68 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
-		const suggestionItem: SuggestionMapItem = this.fileMap.get(item)!;
+		const suggestionItem = this.fileMap.get(item);
 
-		switch (suggestionItem.type) {
-			case FileSuggestionType.File:
-				el.innerHTML = `
+		if (suggestionItem === undefined) {
+			el.innerHTML = `
+				<span class="suggestion-main-text">${item}</span>
+				<span class="suggestion-sub-text">Unknown</span>
+			`;
+		} else {
+			switch (suggestionItem.type) {
+				case FileSuggestionType.File:
+					el.innerHTML = `
                     <span class="suggestion-main-text">${suggestionItem?.file?.basename}</span>
                     <span class="suggestion-sub-text">${suggestionItem?.file?.path}</span>
                 `;
-				break;
-			case FileSuggestionType.Alias:
-				el.innerHTML = `
+					break;
+				case FileSuggestionType.Alias:
+					el.innerHTML = `
                     <span class="suggestion-main-text">${item}</span>
                     <span class="suggestion-sub-text">${suggestionItem?.file?.path}</span>
                 `;
-				break;
-			case FileSuggestionType.Unresolved:
-				el.innerHTML = `
+					break;
+				case FileSuggestionType.Unresolved:
+					el.innerHTML = `
                     <span class="suggestion-main-text">${item}</span>
                     <span class="suggestion-sub-text">Unresolved link</span>
                 `;
-				break;
-			default:
-				el.innerHTML = `
-                    <span class="suggestion-main-text">${item}</span>
-                    <span class="suggestion-sub-text">Unknown</span>
-                `;
-				break;
+					break;
+				default:
+					break;
+			}
 		}
 
 		el.classList.add("qaFileSuggestionItem");
 	}
 
 	selectSuggestion(item: string): void {
-		const cursorPosition: number = this.inputEl.selectionStart!;
+		if (this.inputEl.selectionStart === null) return;
+
+		const cursorPosition: number = this.inputEl.selectionStart;
 		const lastInputLength: number = this.lastInput.length;
 		const currentInputValue: string = this.inputEl.value;
 		let insertedEndPosition = 0;
 
-		const suggestionItem: SuggestionMapItem = this.fileMap.get(item)!;
+		const suggestionItem = this.fileMap.get(item);
 
-		if (suggestionItem.type === FileSuggestionType.File) {
-			insertedEndPosition = this.makeLinkObsidianMethod(
-				suggestionItem?.file!,
-				currentInputValue,
-				cursorPosition,
-				lastInputLength
-			);
-		} else if (suggestionItem.type === FileSuggestionType.Alias) {
-			insertedEndPosition = this.makeLinkObsidianMethod(
-				suggestionItem?.file!,
-				currentInputValue,
-				cursorPosition,
-				lastInputLength,
-				item
-			);
+		if (suggestionItem !== undefined && suggestionItem.file !== undefined) {
+			if (suggestionItem.type === FileSuggestionType.File) {
+				insertedEndPosition = this.makeLinkObsidianMethod(
+					suggestionItem.file,
+					currentInputValue,
+					cursorPosition,
+					lastInputLength
+				);
+			} else if (suggestionItem.type === FileSuggestionType.Alias) {
+				insertedEndPosition = this.makeLinkObsidianMethod(
+					suggestionItem.file,
+					currentInputValue,
+					cursorPosition,
+					lastInputLength,
+					item
+				);
+			}
 		} else {
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,

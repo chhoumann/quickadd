@@ -3,7 +3,7 @@ import type { FuzzyMatch } from "obsidian";
 
 export default class GenericSuggester extends FuzzySuggestModal<string> {
 	private resolvePromise: (value: string) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	public promise: Promise<string>;
 	private resolved: boolean;
 

@@ -130,15 +130,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 
-			if (this.choice.appendLink) {
+			if (this.choice.appendLink && createdFile) {
 				appendToCurrentLine(
-					this.app.fileManager.generateMarkdownLink(createdFile!, ""),
+					this.app.fileManager.generateMarkdownLink(createdFile, ""),
 					this.app
 				);
 			}
 
-			if (this.choice.openFile) {
-				await openFile(this.app, createdFile!, {
+			if (this.choice.openFile && createdFile) {
+				await openFile(this.app, createdFile, {
 					openInNewTab: this.choice.openFileInNewTab.enabled,
 					direction: this.choice.openFileInNewTab.direction,
 					focus: this.choice.openFileInNewTab.focus,

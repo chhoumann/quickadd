@@ -5,7 +5,6 @@ import { ChoiceType } from "./types/choices/choiceType";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
-import { log } from "./logger/logManager";
 import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
 import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
@@ -14,29 +13,33 @@ import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 
 export class ChoiceExecutor implements IChoiceExecutor {
-	public variables: Map<string, string> = new Map<string, string>();
+	public variables: Map<string, unknown> = new Map<string, unknown>();
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
 	async execute(choice: IChoice): Promise<void> {
 		switch (choice.type) {
-			case ChoiceType.Template:
+			case ChoiceType.Template: {
 				const templateChoice: ITemplateChoice =
 					choice as ITemplateChoice;
 				await this.onChooseTemplateType(templateChoice);
 				break;
-			case ChoiceType.Capture:
+			}
+			case ChoiceType.Capture: {
 				const captureChoice: ICaptureChoice = choice as ICaptureChoice;
 				await this.onChooseCaptureType(captureChoice);
 				break;
-			case ChoiceType.Macro:
+			}
+			case ChoiceType.Macro: {
 				const macroChoice: IMacroChoice = choice as IMacroChoice;
 				await this.onChooseMacroType(macroChoice);
 				break;
-			case ChoiceType.Multi:
+			}
+			case ChoiceType.Multi: {
 				const multiChoice: IMultiChoice = choice as IMultiChoice;
 				await this.onChooseMultiType(multiChoice);
 				break;
+			}
 			default:
 				break;
 		}

@@ -9,7 +9,7 @@ export class SingleTemplateEngine extends TemplateEngine {
 		app: App,
 		plugin: QuickAdd,
 		private templatePath: string,
-		choiceExecutor: IChoiceExecutor
+		choiceExecutor?: IChoiceExecutor
 	) {
 		super(app, plugin, choiceExecutor);
 	}

@@ -1,7 +1,6 @@
 import { Formatter } from "./formatter";
-import type { App, TFile } from "obsidian";
+import type { App } from "obsidian";
 import { getNaturalLanguageDates } from "../utility";
-import GenericInputPrompt from "../gui/GenericInputPrompt/GenericInputPrompt";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type QuickAdd from "../main";
 import { SingleMacroEngine } from "../engine/SingleMacroEngine";
@@ -19,10 +18,12 @@ export class CompleteFormatter extends Formatter {
 	constructor(
 		protected app: App,
 		private plugin: QuickAdd,
-		protected choiceExecutor: IChoiceExecutor
+		protected choiceExecutor?: IChoiceExecutor
 	) {
 		super();
-		this.variables = choiceExecutor?.variables;
+		if (choiceExecutor) {
+			this.variables = choiceExecutor?.variables;
+		}
 	}
 
 	protected async format(input: string): Promise<string> {
@@ -58,7 +59,7 @@ export class CompleteFormatter extends Formatter {
 		return await this.format(folderName);
 	}
 
-	protected getCurrentFileLink() {
+	protected getCurrentFileLink(): string | null {
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;
 
@@ -70,7 +71,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		return this.variables.get(variableName)!;
+		return this.variables.get(variableName) as string;
 	}
 
 	protected async promptForValue(header?: string): Promise<string> {
@@ -87,7 +88,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async promptForVariable(header?: string): Promise<string> {
-		return await new InputPrompt().factory().Prompt(this.app, header!);
+		return await new InputPrompt().factory().Prompt(this.app, header as string);
 	}
 
 	protected async promptForMathValue(): Promise<string> {
@@ -107,6 +108,7 @@ export class CompleteFormatter extends Formatter {
 			this.app,
 			this.plugin,
 			this.plugin.settings.macros,
+			//@ts-ignore
 			this.choiceExecutor,
 			this.variables
 		);
@@ -140,17 +142,18 @@ export class CompleteFormatter extends Formatter {
 		let output: string = input;
 
 		while (INLINE_JAVASCRIPT_REGEX.test(output)) {
-			const match = INLINE_JAVASCRIPT_REGEX.exec(output)!;
-			const code: string = match[1]?.trim();
+			const match = INLINE_JAVASCRIPT_REGEX.exec(output);
+			const code = match?.at(1)?.trim();
 
 			if (code) {
 				const executor = new SingleInlineScriptEngine(
 					this.app,
 					this.plugin,
+					//@ts-ignore
 					this.choiceExecutor,
 					this.variables
 				);
-				const outVal: any = await executor.runAndGetOutput(code);
+				const outVal: unknown = await executor.runAndGetOutput(code);
 
 				for (const key in executor.params.variables) {
 					this.variables.set(key, executor.params.variables[key]);

@@ -14,8 +14,9 @@ export class SingleMacroEngine extends MacroChoiceEngine {
 		plugin: QuickAdd,
 		macros: IMacro[],
 		choiceExecutor: IChoiceExecutor,
-		variables: Map<string, string>
+		variables: Map<string, unknown>
 	) {
+		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		super(app, plugin, null!, macros, choiceExecutor, variables);
 	}
 
@@ -32,9 +33,10 @@ export class SingleMacroEngine extends MacroChoiceEngine {
 		}
 
 		await this.executeCommands(macro.commands);
-		return this.output;
+		return this.output as string;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	protected override async onExportIsObject(obj: any): Promise<void> {
 		if (!this.memberAccess) return await super.onExportIsObject(obj);
 		let newObj = obj;

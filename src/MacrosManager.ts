@@ -18,7 +18,7 @@ import type QuickAdd from "./main";
 export class MacrosManager extends Modal {
 	public waitForClose: Promise<IMacro[]>;
 	private resolvePromise: (macros: IMacro[]) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	private updateMacroContainer: () => void;
 
 	private macroContainer: HTMLDivElement;

@@ -16,7 +16,6 @@ import type { ICommand } from "../../types/macros/ICommand";
 import type { SvelteComponent } from "svelte";
 import CommandList from "./CommandList.svelte";
 import type IChoice from "../../types/choices/IChoice";
-import { Choice } from "../../types/choices/Choice";
 import { ChoiceCommand } from "../../types/macros/ChoiceCommand";
 import { getUserScriptMemberAccess } from "../../utility";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
@@ -113,9 +112,17 @@ export class MacroBuilder extends Modal {
 
 		const addObsidianCommandFromInput = () => {
 			const value: string = input.getValue();
-			const obsidianCommand: IObsidianCommand = this.commands.find(
+			const obsidianCommand = this.commands.find(
 				(v) => v.name === value
-			)!;
+			);
+			
+			if (!obsidianCommand) {
+				log.logError(
+					`Could not find Obsidian command with name "${value}"`
+				);
+				return;
+			}
+
 			const command = new ObsidianCommand(
 				obsidianCommand.name,
 				obsidianCommand.commandId
@@ -183,9 +190,10 @@ export class MacroBuilder extends Modal {
 					break;
 				default:
 					log.logError("invalid editor command type");
+					throw new Error("invalid editor command type");
 			}
 
-			this.addCommandToMacro(command!);
+			this.addCommandToMacro(command);
 		};
 
 		new Setting(this.contentEl)
@@ -328,9 +336,15 @@ export class MacroBuilder extends Modal {
 				plugin: this.plugin,
 				commands: this.macro.commands,
 				deleteCommand: async (commandId: string) => {
-					const command: ICommand = this.macro.commands.find(
+					const command = this.macro.commands.find(
 						(c) => c.id === commandId
-					)!;
+					);
+
+					if (!command) {
+						log.logError("command not found");
+						throw new Error("command not found");
+					}
+
 					const promptAnswer: boolean =
 						await GenericYesNoPrompt.Prompt(
 							this.app,
@@ -379,7 +393,7 @@ export class MacroBuilder extends Modal {
 	private newChoiceButton(
 		container: HTMLDivElement,
 		typeName: string,
-		type: any
+		type: typeof TemplateChoice | typeof CaptureChoice
 	) {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button

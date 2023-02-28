@@ -6,7 +6,7 @@ export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
 
 	private resolvePromise: (input: string) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	private didSubmit = false;
 	private inputComponent: TextAreaComponent;
 	private input: string;
@@ -36,8 +36,8 @@ export default class GenericWideInputPrompt extends Modal {
 		value?: string
 	) {
 		super(app);
-		this.placeholder = placeholder!;
-		this.input = value!;
+		this.placeholder = placeholder ?? "";
+		this.input = value ?? "";
 
 		this.waitForClose = new Promise<string>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -91,7 +91,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private createButton(
 		container: HTMLElement,
 		text: string,
-		callback: (evt: MouseEvent) => any
+		callback: (evt: MouseEvent) => unknown
 	) {
 		const btn = new ButtonComponent(container);
 		btn.setButtonText(text).onClick(callback);

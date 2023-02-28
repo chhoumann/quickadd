@@ -30,14 +30,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public params: {
 		app: App;
 		quickAddApi: QuickAddApi;
-		variables: { [key: string]: string };
+		variables: Record<string, unknown>;
 		obsidian: typeof obsidian;
 	};
-	protected output: string;
+	protected output: unknown;
 	protected macros: IMacro[];
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
-	private userScriptCommand: any;
+	private userScriptCommand: IUserScript | null;
 
 	constructor(
 		app: App,
@@ -45,7 +45,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		choice: IMacroChoice,
 		macros: IMacro[],
 		choiceExecutor: IChoiceExecutor,
-		variables: Map<string, string>
+		variables: Map<string, unknown>
 	) {
 		super(app);
 		this.choice = choice;
@@ -125,14 +125,20 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		if (this.userScriptCommand) this.userScriptCommand = null;
 	}
 
-	private async runScriptWithSettings(userScript: any, command: IUserScript) {
-		if (userScript.entry) {
-			await this.onExportIsFunction(userScript.entry, command.settings);
-		} else {
-			await this.onExportIsFunction(userScript, command.settings);
+	private async runScriptWithSettings(
+		userScript: ((params: typeof this.params, settings: Record<string, unknown>) => Promise<void>) | { entry: (params: typeof this.params, settings: Record<string, unknown>) => Promise<void> },
+		command: IUserScript
+	) {
+		if (typeof userScript !== "function" && userScript.entry && typeof userScript.entry === "function") {
+			return await this.onExportIsFunction(userScript.entry, command.settings);
+		} 
+
+		if (typeof userScript === "function") {
+			return await this.onExportIsFunction(userScript, command.settings);
 		}
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	protected async userScriptDelegator(userScript: any) {
 		switch (typeof userScript) {
 			case "function":
@@ -162,15 +168,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async onExportIsFunction(
-		userScript: any,
-		settings?: { [key: string]: any }
+		userScript: (params: typeof this.params, settings: Record<string, unknown>) => Promise<unknown>,
+		settings?: { [key: string]: unknown }
 	) {
-		this.output = await userScript(this.params, settings);
+		this.output = await userScript(this.params, settings || {});
 	}
 
-	protected async onExportIsObject(obj: any) {
+	protected async onExportIsObject(obj: Record<string, unknown>) {
 		if (this.userScriptCommand && obj.entry !== null) {
-			await this.runScriptWithSettings(obj, this.userScriptCommand);
+			await this.runScriptWithSettings(obj as {entry: (params: typeof this.params, settings: Record<string, unknown>) => Promise<void>}, this.userScriptCommand);
 			return;
 		}
 

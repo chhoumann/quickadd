@@ -15,7 +15,7 @@ export class MathModal extends Modal {
 	public waitForClose: Promise<string>;
 
 	private resolvePromise: (input: string) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	private inputEl: HTMLTextAreaElement;
 	private didSubmit = false;
 
@@ -105,7 +105,7 @@ export class MathModal extends Modal {
 	private createButton(
 		container: HTMLElement,
 		text: string,
-		callback: (evt: MouseEvent) => any
+		callback: (evt: MouseEvent) => unknown
 	) {
 		const btn = new ButtonComponent(container);
 		btn.setButtonText(text).onClick(callback);

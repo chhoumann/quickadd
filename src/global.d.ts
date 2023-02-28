@@ -1,11 +1,11 @@
-import { App as OApp, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
 
 declare module "obsidian" {
 	interface App {
 		plugins: {
 			plugins: {
 				[pluginId: string]: Plugin & {
-					[pluginImplementations: string]: any;
+					[pluginImplementations: string]: unknown;
 				};
 			};
 			enablePlugin: (id: string) => Promise<void>;
@@ -14,7 +14,7 @@ declare module "obsidian" {
 		internalPlugins: {
 			plugins: {
 				[pluginId: string]: Plugin & {
-					[pluginImplementations: string]: any;
+					[pluginImplementations: string]: unknown;
 				};
 			};
 			enablePlugin: (id: string) => Promise<void>;

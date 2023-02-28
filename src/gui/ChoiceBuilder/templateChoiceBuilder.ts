@@ -49,7 +49,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addTemplatePathSetting(): void {
-		const templatePathSetting = new Setting(this.contentEl)
+		new Setting(this.contentEl)
 			.setName("Template Path")
 			.setDesc("Path to the Template.")
 			.addSearch((search) => {
@@ -68,6 +68,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFileNameFormatSetting(): void {
+		// eslint-disable-next-line prefer-const
 		let textField: TextComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
@@ -275,7 +276,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
 		fileAlreadyExistsSetting
 			.setName("Set default behavior if file already exists")
-			.setDesc("Set default behavior rather then prompting user on what to do if a file already exists.")
+			.setDesc(
+				"Set default behavior rather then prompting user on what to do if a file already exists."
+			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
 				toggle.onChange((value) => {

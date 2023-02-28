@@ -16,7 +16,7 @@ import {
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
-	private file: TFile = null!;
+	private file: TFile | null = null;
 	private fileContent = "";
 
 	constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
@@ -100,7 +100,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter.after
 		);
 		const targetRegex = new RegExp(
-			`\s*${escapeRegExp(targetString.replace("\\n", ""))}\s*`
+			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`
 		);
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 
@@ -123,9 +123,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			const foundNextHeader =
 				nextHeaderPositionAfterTargetPosition !== -1;
 
+			let endOfSectionIndex: number | null = null;
 			if (foundNextHeader) {
-				let endOfSectionIndex: number;
-
 				for (
 					let i =
 						nextHeaderPositionAfterTargetPosition + targetPosition;
@@ -142,7 +141,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 					}
 				}
 
-				if (!endOfSectionIndex!) endOfSectionIndex = targetPosition;
+				if (!endOfSectionIndex) endOfSectionIndex = targetPosition;
 
 				return this.insertTextAfterPositionInBody(
 					formatted,

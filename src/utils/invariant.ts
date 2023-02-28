@@ -1,5 +1,5 @@
 export default function invariant(
-	condition: any,
+	condition: unknown,
 	message?: string | (() => string)
 ): void {
 	if (!condition) {

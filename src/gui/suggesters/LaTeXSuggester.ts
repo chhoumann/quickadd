@@ -19,14 +19,20 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 			try {
 				//@ts-ignore
 				elements[symbol.toString()] = renderMath(symbol, true);
-			} catch {} // Ignoring symbols that we can't use
+			
+						// Ignoring symbols that we can't use
+			} catch {} 	//eslint-disable-line no-empty
 
 			return elements;
 		}, {});
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		const cursorPosition: number = this.inputEl.selectionStart!;
+		if (this.inputEl.selectionStart === null) {
+			return [];
+		}
+
+		const cursorPosition: number = this.inputEl.selectionStart;
 		const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
 		const lastBackslashPos: number = inputBeforeCursor.lastIndexOf("\\");
 		const commandText = inputBeforeCursor.substr(lastBackslashPos);
@@ -60,7 +66,9 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 	}
 
 	selectSuggestion(item: string): void {
-		const cursorPosition: number = this.inputEl.selectionStart!;
+		if (this.inputEl.selectionStart === null) return;
+
+		const cursorPosition: number = this.inputEl.selectionStart;
 		const lastInputLength: number = this.lastInput.length;
 		const currentInputValue: string = this.inputEl.value;
 		let insertedEndPosition = 0;

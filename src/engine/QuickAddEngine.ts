@@ -59,7 +59,7 @@ export abstract class QuickAddEngine {
 		filePath: string,
 		fileContent: string
 	): Promise<TFile> {
-		const dirMatch = filePath.match(/(.*)[\/\\]/);
+		const dirMatch = filePath.match(/(.*)[/\\]/);
 		let dirName = "";
 		if (dirMatch) dirName = dirMatch[1];
 

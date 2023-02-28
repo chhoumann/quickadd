@@ -5,11 +5,9 @@ import type { IMacro } from "../macros/IMacro";
 
 export class MacroChoice extends Choice implements IMacroChoice {
 	macro?: IMacro;
-	macroId: string;
+	macroId = "";
 
 	constructor(name: string) {
 		super(name, ChoiceType.Macro);
-
-		this.macroId = null!;
 	}
 }

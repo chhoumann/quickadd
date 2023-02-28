@@ -1,6 +1,6 @@
 import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
-import { App, TAbstractFile, TFile } from "obsidian";
+import { App, TFile } from "obsidian";
 import type QuickAdd from "../main";
 import {
 	getTemplater,
@@ -18,7 +18,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	protected constructor(
 		app: App,
 		protected plugin: QuickAdd,
-		choiceFormatter: IChoiceExecutor
+		choiceFormatter?: IChoiceExecutor
 	) {
 		super(app);
 		this.templater = getTemplater(app);
@@ -63,7 +63,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected async incrementFileName(fileName: string) {
-		const numStr = FILE_NUMBER_REGEX.exec(fileName)![1];
+		const exec = FILE_NUMBER_REGEX.exec(fileName);
+		const numStr = exec?.at(1);
 		const fileExists = await this.app.vault.adapter.exists(fileName);
 		let newFileName = fileName;
 

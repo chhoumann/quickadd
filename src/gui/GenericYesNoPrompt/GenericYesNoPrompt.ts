@@ -2,7 +2,7 @@ import { App, ButtonComponent, Modal } from "obsidian";
 
 export default class GenericYesNoPrompt extends Modal {
 	private resolvePromise: (input: boolean) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	private input: boolean;
 	public waitForClose: Promise<boolean>;
 	private didSubmit = false;
@@ -42,7 +42,7 @@ export default class GenericYesNoPrompt extends Modal {
 			cls: "yesNoPromptButtonContainer",
 		});
 
-		const noButton = new ButtonComponent(buttonsDiv)
+		new ButtonComponent(buttonsDiv)
 			.setButtonText("No")
 			.onClick(() => this.submit(false));
 

@@ -15,7 +15,7 @@ import { getDate } from "../utility";
 
 export abstract class Formatter {
 	protected value: string;
-	protected variables: Map<string, string> = new Map<string, string>();
+	protected variables: Map<string, unknown> = new Map<string, string>();
 
 	protected abstract format(input: string): Promise<string>;
 
@@ -30,7 +30,7 @@ export abstract class Formatter {
 
 		while (DATE_REGEX.test(output)) {
 			const dateMatch = DATE_REGEX.exec(output);
-			let offset: number;
+			let offset: number | undefined;
 
 			if (dateMatch && dateMatch[1]) {
 				const offsetString = dateMatch[1].replace("+", "").trim();
@@ -40,7 +40,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				DATE_REGEX,
-				getDate({ offset: offset! })
+				getDate({ offset: offset })
 			);
 		}
 
@@ -49,7 +49,7 @@ export abstract class Formatter {
 			if (!dateMatch) throw new Error("unable to parse date");
 
 			const format = dateMatch[1];
-			let offset: number;
+			let offset: number | undefined;
 
 			if (dateMatch[2]) {
 				const offsetString = dateMatch[2].replace("+", "").trim();
@@ -60,7 +60,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset: offset! })
+				getDate({ format, offset: offset })
 			);
 		}
 
@@ -89,6 +89,10 @@ export abstract class Formatter {
 		const currentFilePathLink = this.getCurrentFileLink();
 		let output = input;
 
+		if (!currentFilePathLink) {
+			throw new Error("unable to get current file path");
+		}
+
 		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
 			output = this.replacer(
 				output,
@@ -99,7 +103,7 @@ export abstract class Formatter {
 		return output;
 	}
 
-	protected abstract getCurrentFileLink(): any;
+	protected abstract getCurrentFileLink(): string | null; 
 
 	protected async replaceVariableInString(input: string) {
 		let output: string = input;
@@ -156,7 +160,10 @@ export abstract class Formatter {
 		let output: string = input;
 
 		while (MACRO_REGEX.test(output)) {
-			const macroName = MACRO_REGEX.exec(output)![1];
+			const exec = MACRO_REGEX.exec(output);
+			if (!exec || !exec[1]) continue;
+
+			const macroName = exec[1];
 			const macroOutput = await this.getMacroValue(macroName);
 
 			output = this.replacer(
@@ -171,15 +178,17 @@ export abstract class Formatter {
 
 	protected abstract getVariableValue(variableName: string): string;
 
-	protected abstract suggestForValue(suggestedValues: string[]): any;
+	protected abstract suggestForValue(suggestedValues: string[]): Promise<string> | string;
 
 	protected async replaceDateVariableInString(input: string) {
 		let output: string = input;
 
 		while (DATE_VARIABLE_REGEX.test(output)) {
 			const match = DATE_VARIABLE_REGEX.exec(output);
-			const variableName = match![1];
-			const dateFormat = match![2];
+			if (!match || !match[1] || !match[2]) continue;
+
+			const variableName = match[1];
+			const dateFormat = match[2];
 
 			if (variableName && dateFormat) {
 				if (!this.variables.get(variableName)) {
@@ -188,9 +197,12 @@ export abstract class Formatter {
 						await this.promptForVariable(variableName)
 					);
 
+					const nld = this.getNaturalLanguageDates();
+					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function") continue;
+
 					const parseAttempt =
-						this.getNaturalLanguageDates().parseDate(
-							this.variables.get(variableName)
+						(nld.parseDate as (s: string | undefined) => { moment: { format: (s: string) => string}})(
+							this.variables.get(variableName) as string
 						);
 
 					if (parseAttempt)
@@ -209,7 +221,7 @@ export abstract class Formatter {
 				output = this.replacer(
 					output,
 					DATE_VARIABLE_REGEX,
-					this.variables.get(variableName)!
+					this.variables.get(variableName) as string // literally setting it above / throwing error if not set
 				);
 			} else {
 				break;
@@ -223,7 +235,10 @@ export abstract class Formatter {
 		let output: string = input;
 
 		while (TEMPLATE_REGEX.test(output)) {
-			const templatePath = TEMPLATE_REGEX.exec(output)![1];
+			const exec = TEMPLATE_REGEX.exec(output);
+			if (!exec || !exec[1]) continue;
+
+			const templatePath = exec[1];
 			const templateContent = await this.getTemplateContent(templatePath);
 
 			output = this.replacer(output, TEMPLATE_REGEX, templateContent);
@@ -249,6 +264,7 @@ export abstract class Formatter {
 		return output;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	protected abstract getNaturalLanguageDates(): any;
 
 	protected abstract getMacroValue(

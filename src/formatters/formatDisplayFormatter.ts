@@ -61,7 +61,7 @@ export class FormatDisplayFormatter extends Formatter {
 				this.app,
 				this.plugin,
 				templatePath,
-				null!
+				undefined
 			).run();
 		} catch (e) {
 			return `Template (not found): ${templatePath}`;

@@ -43,7 +43,7 @@ export class QuickAddApi {
 							value: string,
 							index?: number,
 							arr?: string[]
-					  ) => string[]),
+					) => string[]),
 				actualItems: string[]
 			) => {
 				return this.suggester(app, displayItems, actualItems);
@@ -53,7 +53,7 @@ export class QuickAddApi {
 			},
 			executeChoice: async (
 				choiceName: string,
-				variables?: { [key: string]: any }
+				variables?: Record<string, unknown>
 			) => {
 				const choice: IChoice = plugin.getChoiceByName(choiceName);
 				if (!choice)

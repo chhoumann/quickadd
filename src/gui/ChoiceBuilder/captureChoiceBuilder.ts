@@ -58,7 +58,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addCapturedToSetting() {
 		let textField: TextComponent;
-		const captureToSetting: Setting = new Setting(this.contentEl)
+		new Setting(this.contentEl)
 			.setName("Capture To")
 			.setDesc("File to capture to. Supports some format syntax.");
 
@@ -169,6 +169,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addInsertAfterSetting() {
+		// eslint-disable-next-line prefer-const
 		let insertAfterInput: TextComponent;
 		const insertAfterSetting: Setting = new Setting(this.contentEl);
 		insertAfterSetting
@@ -271,6 +272,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFormatSetting() {
+		// eslint-disable-next-line prefer-const
 		let textField: TextAreaComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
@@ -333,6 +335,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addCreateWithTemplateSetting() {
+		// eslint-disable-next-line prefer-const
 		let templateSelector: TextComponent;
 		const createWithTemplateSetting = new Setting(this.contentEl);
 		createWithTemplateSetting

@@ -4,23 +4,56 @@ import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 
+type Option = {
+	type: "text" | "input";
+	value: string;
+	placeholder?: string;
+	secret?: boolean;
+	defaultValue: string;
+} | {
+	type: "checkbox" | "toggle";
+	value: boolean;
+	defaultValue: boolean;
+} | {
+	type: "dropdown" | "select";
+	value: string;
+	options: string[];
+	defaultValue: string;
+} | {
+	type: "format";
+	value: string;
+	placeholder?: string;
+	defaultValue: string;
+};
+
 export class UserScriptSettingsModal extends Modal {
 	constructor(
 		app: App,
 		private command: IUserScript,
-		private settings: { [key: string]: any }
+		private settings: { [key: string]: unknown, options?: { [key: string]: Option; }; }
 	) {
 		super(app);
 
 		this.display();
 		if (!this.command.settings) this.command.settings = {};
 
-		Object.keys(this.settings.options).forEach((setting) => {
-			if (this.command.settings[setting] === undefined) {
-				this.command.settings[setting] =
-					this.settings.options[setting]?.defaultValue;
+		if (this.settings.options) {
+			for (const setting in this.settings.options) {
+				if (
+					this.command.settings[setting] === undefined &&
+					// Checking that the setting is an object & getting the default value...
+					typeof this.settings.options === "object" &&
+					this.settings.options &&
+					"setting" in this.settings.options &&
+					typeof this.settings.options.setting === "object" &&
+					this.settings.options.setting &&
+					"defaultValue" in this.settings.options.setting
+				) {
+					this.command.settings[setting] =
+						this.settings.options.setting.defaultValue;
+				}
 			}
-		});
+		}
 	}
 
 	protected display() {
@@ -32,40 +65,39 @@ export class UserScriptSettingsModal extends Modal {
 		}`;
 		const options = this.settings.options;
 
-		Object.keys(options).forEach((option) => {
+		if (!options) {
+			return;
+		}
+		
+		// If there are options, add them to the modal
+		for (const option in options) {
+			if (!options.hasOwnProperty(option)) continue;
 			const entry = options[option];
+
 			let value = entry.defaultValue;
 
 			if (this.command.settings[option] !== undefined) {
-				value = this.command.settings[option];
+				value = this.command.settings[option] as string | boolean;
 			}
 
-			switch (options[option]?.type?.toLowerCase()) {
-				case "text":
-				case "input":
-					this.addInputBox(
-						option,
-						value,
-						entry?.placeholder,
-						entry?.secret
-					);
-					break;
-				case "checkbox":
-				case "toggle":
-					this.addToggle(option, value);
-					break;
-				case "dropdown":
-				case "select":
-					this.addDropdown(option, entry.options, value);
-					break;
-				case "format":
-					this.addFormatInput(option, value, entry?.placeholder);
-					break;
-				default:
-					break;
+			const type = entry.type;
+			if (type === "text" || type === "input") {
+				this.addInputBox(
+					option,
+					value as string,
+					entry?.placeholder,
+					entry.secret
+				);
+			} else if (type === "checkbox" || type === "toggle") {
+				this.addToggle(option, value as boolean);
+			} else if (type === "dropdown" || type === "select") {
+				this.addDropdown(option, entry.options, value as string);
+			} else if (type === "format") {
+				this.addFormatInput(option, value as string, entry.placeholder);
 			}
-		});
+		}
 	}
+
 	private setPasswordOnBlur(el: HTMLInputElement) {
 		el.addEventListener("focus", () => {
 			el.type = "text";

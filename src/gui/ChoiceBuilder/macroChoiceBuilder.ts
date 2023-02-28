@@ -38,9 +38,9 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 			this.selectMacro(value);
 		});
 
-		const selectedMacro: IMacro = this.macros.find(
+		const selectedMacro = this.macros.find(
 			(m) => m.id === this.choice.macroId
-		)!;
+		);
 		if (selectedMacro) {
 			dropdown.setValue(selectedMacro.name);
 		} else {
@@ -52,7 +52,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private selectMacro(value: string) {
-		const targetMacro: IMacro = this.macros.find((m) => m.name === value)!;
+		const targetMacro = this.macros.find((m) => m.name === value);
 		if (!targetMacro) return;
 
 		this.choice.macroId = targetMacro.id;

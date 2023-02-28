@@ -57,7 +57,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 	}
 
-	hide(): any {
+	hide(): void {
 		if (this.choiceView) this.choiceView.$destroy();
 	}
 

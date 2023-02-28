@@ -11,7 +11,8 @@ export class StartupMacroEngine extends MacroChoiceEngine {
 		macros: IMacro[],
 		choiceExecutor: IChoiceExecutor
 	) {
-		super(app, plugin, null!, macros, choiceExecutor, null!);
+		//@ts-ignore
+		super(app, plugin, null, macros, choiceExecutor, null);
 	}
 
 	async run(): Promise<void> {

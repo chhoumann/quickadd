@@ -1,4 +1,4 @@
-import type { App, TAbstractFile, ViewState } from "obsidian";
+import type { App, TAbstractFile } from "obsidian";
 import { MarkdownView, TFile, TFolder, WorkspaceLeaf } from "obsidian";
 import { log } from "./logger/logManager";
 import type { NewTabDirection } from "./types/newTabDirection";
@@ -10,7 +10,6 @@ import { CaptureChoice } from "./types/choices/CaptureChoice";
 import { MacroChoice } from "./types/choices/MacroChoice";
 import IChoice from "./types/choices/IChoice";
 import { ChoiceType } from "./types/choices/choiceType";
-import QuickAdd from "./main";
 
 export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
@@ -25,12 +24,11 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 
 	if (
 		templater &&
-		(force || !templater?.settings["trigger_on_file_creation"])
+		(force || !(templater.settings as Record<string, unknown>)["trigger_on_file_creation"])
 	) {
-		const active_file = app.workspace.getActiveFile();
-
-		if (templater?.templater?.overwrite_file_commands) {
-			await templater.templater.overwrite_file_commands(file);
+		const impl = (templater?.templater as { overwrite_file_commands?: (file: TFile) => Promise<void>; });
+		if (impl?.overwrite_file_commands) {
+			await impl.overwrite_file_commands(file);
 		}
 	}
 }
@@ -43,7 +41,7 @@ export async function templaterParseTemplate(
 	const templater = getTemplater(app);
 	if (!templater) return templateContent;
 
-	return await templater.templater.parse_template(
+	return await (templater.templater as { parse_template: (opt: { target_file: TFile, run_mode: number}, content: string) => Promise<string>}).parse_template(
 		{ target_file: targetFile, run_mode: 4 },
 		templateContent
 	);

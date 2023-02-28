@@ -2,7 +2,7 @@ import { App, ButtonComponent, Modal, ToggleComponent } from "obsidian";
 
 export default class GenericCheckboxPrompt extends Modal {
 	private resolvePromise: (value: string[]) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	public promise: Promise<string[]>;
 	private resolved: boolean;
 	private _selectedItems: string[];
@@ -58,7 +58,7 @@ export default class GenericCheckboxPrompt extends Modal {
 	private addCheckboxRow(item: string, container: HTMLDivElement) {
 		const checkboxRow: HTMLDivElement = container.createDiv("checkboxRow");
 
-		const text: HTMLSpanElement = checkboxRow.createEl("span", {
+		checkboxRow.createEl("span", {
 			text: item,
 		});
 		const checkbox: ToggleComponent = new ToggleComponent(checkboxRow);

@@ -1,4 +1,4 @@
-import { App, Modal, SearchComponent, Setting } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type { SvelteComponent } from "svelte";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
@@ -7,7 +7,7 @@ import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
-	private rejectPromise: (reason?: any) => void;
+	private rejectPromise: (reason?: unknown) => void;
 	private input: IChoice;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
@@ -26,7 +26,7 @@ export abstract class ChoiceBuilder extends Modal {
 		this.open();
 	}
 
-	protected abstract display(): any;
+	protected abstract display(): unknown;
 
 	protected reload() {
 		this.contentEl.empty();
@@ -37,11 +37,8 @@ export abstract class ChoiceBuilder extends Modal {
 		setting: Setting,
 		value: string,
 		onChangeCallback: (value: string) => void
-	): SearchComponent {
-		let component: SearchComponent;
-
+	): void {
 		setting.addSearch((searchComponent) => {
-			component = searchComponent;
 			searchComponent.setValue(value);
 			searchComponent.setPlaceholder("File path");
 
@@ -57,7 +54,7 @@ export abstract class ChoiceBuilder extends Modal {
 			searchComponent.onChange(onChangeCallback);
 		});
 
-		return component!;
+		return;
 	}
 
 	protected addCenteredChoiceNameHeader(choice: IChoice): void {

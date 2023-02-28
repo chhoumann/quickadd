@@ -10,9 +10,11 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, string>
 	) {
-		super(app, plugin, null!, null!, choiceExecutor, variables);
+		//@ts-ignore
+		super(app, plugin, null, null, choiceExecutor, variables);
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public async runAndGetOutput(code: string): Promise<any> {
 		const AsyncFunction = Object.getPrototypeOf(
 			async function () {}
