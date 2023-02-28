@@ -17,7 +17,7 @@ import {
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
 	private file: TFile = null!;
-	private fileContent: string = "";
+	private fileContent = "";
 
 	constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
 		super(app, plugin, choiceExecutor);
@@ -102,7 +102,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const targetRegex = new RegExp(
 			`\s*${escapeRegExp(targetString.replace("\\n", ""))}\s*`
 		);
-		let fileContentLines: string[] = getLinesInString(this.fileContent);
+		const fileContentLines: string[] = getLinesInString(this.fileContent);
 
 		const targetPosition = fileContentLines.findIndex((line) =>
 			targetRegex.test(line)
@@ -169,7 +169,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const insertAfterLine: string = this.replaceLinebreakInString(
 			await this.format(this.choice.insertAfter.after)
 		);
-		const insertAfterLineAndFormatted: string = `${insertAfterLine}\n${formatted}`;
+		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
 		if (
 			this.choice.insertAfter?.createIfNotFoundLocation ===

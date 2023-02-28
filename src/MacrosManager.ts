@@ -125,7 +125,7 @@ export class MacrosManager extends Modal {
 					.setButtonText("Configure")
 					.onClick(async (evt) => {
 						const getReachableChoices = (choices: IChoice[]) => {
-							let reachableChoices: IChoice[] = [];
+							const reachableChoices: IChoice[] = [];
 							choices.forEach((choice) => {
 								if (choice.type === ChoiceType.Multi)
 									reachableChoices.push(
@@ -162,7 +162,7 @@ export class MacrosManager extends Modal {
 	private addMacroConfigurationItem(
 		container: HTMLDivElement,
 		callback: (itemContainerEl: HTMLDivElement) => void,
-		classString: string = "configureMacroDivItem"
+		classString = "configureMacroDivItem"
 	) {
 		const item: HTMLDivElement = container.createDiv();
 		item.addClass(classString);

@@ -17,7 +17,7 @@ export class MathModal extends Modal {
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: any) => void;
 	private inputEl: HTMLTextAreaElement;
-	private didSubmit: boolean = false;
+	private didSubmit = false;
 
 	private keybindListener = (evt: KeyboardEvent) => {
 		if (evt.ctrlKey && evt.key === "Enter") {

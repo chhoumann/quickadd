@@ -33,7 +33,7 @@ enum FormatSyntaxToken {
 }
 
 export class FormatSyntaxSuggester extends TextInputSuggest<string> {
-	private lastInput: string = "";
+	private lastInput = "";
 	private lastInputType: FormatSyntaxToken;
 	private readonly macroNames: string[];
 	private readonly templatePaths: string[];
@@ -55,12 +55,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 
 	getSuggestions(inputStr: string): string[] {
 		const cursorPosition: number = this.inputEl.selectionStart!;
-		const lookbehind: number = 15;
+		const lookbehind = 15;
 		const inputBeforeCursor: string = inputStr.substr(
 			cursorPosition - lookbehind,
 			lookbehind
 		);
-		let suggestions: string[] = [];
+		const suggestions: string[] = [];
 
 		this.processToken(
 			inputBeforeCursor,
@@ -98,9 +98,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		const cursorPosition: number = this.inputEl.selectionStart!;
 		const lastInputLength: number = this.lastInput.length;
 		const currentInputValue: string = this.inputEl.value;
-		let insertedEndPosition: number = 0;
+		let insertedEndPosition = 0;
 
-		const insert = (text: string, offset: number = 0) => {
+		const insert = (text: string, offset = 0) => {
 			return `${currentInputValue.substr(
 				0,
 				cursorPosition - lastInputLength + offset

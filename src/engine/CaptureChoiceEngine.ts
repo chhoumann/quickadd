@@ -155,7 +155,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		filePath: string,
 		content: string
 	): Promise<{ file: TFile; content: string }> {
-		let fileContent: string = "";
+		let fileContent = "";
 
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
 			const singleTemplateEngine: SingleTemplateEngine =
@@ -223,7 +223,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const fileContent: string = await this.app.vault.cachedRead(
 				activeFile
 			);
-			const newFileContent: string = `${fileContent}${content}`;
+			const newFileContent = `${fileContent}${content}`;
 
 			await this.app.vault.modify(activeFile, newFileContent);
 		} else {

@@ -7,7 +7,7 @@ export default class GenericWideInputPrompt extends Modal {
 
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: any) => void;
-	private didSubmit: boolean = false;
+	private didSubmit = false;
 	private inputComponent: TextAreaComponent;
 	private input: string;
 	private readonly placeholder: string;

@@ -152,7 +152,7 @@ export class CompleteFormatter extends Formatter {
 				);
 				const outVal: any = await executor.runAndGetOutput(code);
 
-				for (let key in executor.params.variables) {
+				for (const key in executor.params.variables) {
 					this.variables.set(key, executor.params.variables[key]);
 				}
 

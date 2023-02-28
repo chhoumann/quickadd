@@ -48,7 +48,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		let { containerEl } = this;
+		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.createEl("h2", { text: "QuickAdd Settings" });
 

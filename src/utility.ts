@@ -19,7 +19,7 @@ export function getTemplater(app: App) {
 export async function replaceTemplaterTemplatesInCreatedFile(
 	app: App,
 	file: TFile,
-	force: boolean = false
+	force = false
 ) {
 	const templater = getTemplater(app);
 
@@ -122,7 +122,7 @@ export function waitFor(ms: number): Promise<unknown> {
 }
 
 export function getLinesInString(input: string) {
-	let lines: string[] = [];
+	const lines: string[] = [];
 	let tempString = input;
 
 	while (tempString.contains("\n")) {
@@ -189,9 +189,9 @@ export async function getUserScript(command: IUserScript, app: App) {
 	}
 
 	if (file instanceof TFile) {
-		let req = (s: string) => window.require && window.require(s);
-		let exp: Record<string, unknown> = {};
-		let mod = { exports: exp };
+		const req = (s: string) => window.require && window.require(s);
+		const exp: Record<string, unknown> = {};
+		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
 		const fn = window.eval(

@@ -27,7 +27,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 			selectMacroDropdownContainer
 		);
 
-		let macroOptions: Record<string, string> = {};
+		const macroOptions: Record<string, string> = {};
 
 		this.macros.forEach((macro) => {
 			macroOptions[macro.name] = macro.name;
