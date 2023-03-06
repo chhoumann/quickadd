@@ -20,6 +20,11 @@ Opens a prompt asking for confirmation. Returns `true` or `false` based on answe
 
 This function is asynchronous. You should ``await`` it.
 
+### `infoDialog: (header: string, lines: string[]): Promise<void>`
+Opens a dialog. Displays a set of lines.
+
+This function is asynchronous. You should ``await`` it.
+
 ### `suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]): Promise<string>`
 Opens a suggester. Displays the `displayItems`, but you map these the other values with `actualItems`.
 
