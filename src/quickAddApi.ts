@@ -68,12 +68,22 @@ export class QuickAddApi {
 				await choiceExecutor.execute(choice);
 				choiceExecutor.variables.clear();
 			},
-			format: async (input: string) => {
-				return new CompleteFormatter(
+			format: async (
+				input: string,
+				variables?: { [key: string]: any }
+			) => {
+				if (variables) {
+					Object.keys(variables).forEach((key) => {
+						choiceExecutor.variables.set(key, variables[key]);
+					});
+				}
+
+				await new CompleteFormatter(
 					app,
 					plugin,
 					choiceExecutor
 				).formatFileContent(input);
+				choiceExecutor.variables.clear();
 			},
 			utility: {
 				getClipboard: async () => {
