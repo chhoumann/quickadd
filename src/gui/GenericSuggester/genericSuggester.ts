@@ -24,6 +24,25 @@ export default class GenericSuggester extends FuzzySuggestModal<string> {
 			this.rejectPromise = reject;
 		});
 
+		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
+			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
+			if (event.code !== "Tab" || !("chooser" in this)) {
+				return;
+			}
+
+			const { values, selectedItem } = this.chooser as {
+				values: {
+					item: string;
+					match: { score: number; matches: unknown[]; };
+				}[];
+				selectedItem: number;
+				[key: string]: unknown;
+			};
+
+			const { value } = this.inputEl;
+			this.inputEl.value = values[selectedItem].item ?? value;
+		});
+
 		this.open();
 	}
 

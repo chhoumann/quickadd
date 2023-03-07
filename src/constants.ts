@@ -2,6 +2,7 @@ export const VALUE_SYNTAX: string = "{{value}}";
 export const DATE_SYNTAX = "{{date}}";
 export const NAME_SYNTAX = "{{name}}";
 export const VARIABLE_SYNTAX = "{{value:<variable name>}}";
+export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const TITLE_SYNTAX = "{{title}}";
@@ -13,6 +14,7 @@ export const FORMAT_SYNTAX: string[] = [
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
+    FIELD_VAR_SYNTAX,
 	LINKCURRENT_SYNTAX,
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
@@ -26,6 +28,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
+    FIELD_VAR_SYNTAX,
 ];
 
 export const TEMPLATE_FORMAT_SYNTAX: string[] = [TITLE_SYNTAX];
@@ -43,6 +46,7 @@ export const DATE_REGEX_FORMATTED: RegExp = new RegExp(
 );
 export const NAME_VALUE_REGEX: RegExp = new RegExp(/{{NAME}}|{{VALUE}}/i);
 export const VARIABLE_REGEX: RegExp = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
+export const FIELD_VAR_REGEX: RegExp = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
 export const DATE_VARIABLE_REGEX: RegExp = new RegExp(
 	/{{VDATE:([^\n\r},]*),\s*([^\n\r},]*)}}/i
 );

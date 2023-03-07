@@ -10,6 +10,7 @@ import {
 	NUMBER_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
+    FIELD_VAR_REGEX,
 } from "../constants";
 import { getDate } from "../utility";
 
@@ -138,6 +139,37 @@ export abstract class Formatter {
 
 		return output;
 	}
+    
+    protected async replaceFieldVarInString(input: string) {
+		let output: string = input;
+
+		while (FIELD_VAR_REGEX.test(output)) {
+			const match = FIELD_VAR_REGEX.exec(output);
+			if (!match) throw new Error("unable to parse variable");
+
+			const variableName = match[1];
+
+			if (variableName) {
+				if (!this.getVariableValue(variableName)) {
+
+                    this.variables.set(
+                        variableName,
+                        await this.suggestForField(variableName)
+                    );
+				}
+
+				output = this.replacer(
+					output,
+					FIELD_VAR_REGEX,
+					this.getVariableValue(variableName)
+				);
+			} else {
+				break;
+			}
+		}
+
+		return output;
+    }
 
 	protected abstract promptForMathValue(): Promise<string>;
 
@@ -172,6 +204,8 @@ export abstract class Formatter {
 	protected abstract getVariableValue(variableName: string): string;
 
 	protected abstract suggestForValue(suggestedValues: string[]): any;
+
+	protected abstract suggestForField(variableName: string): any;
 
 	protected async replaceDateVariableInString(input: string) {
 		let output: string = input;
