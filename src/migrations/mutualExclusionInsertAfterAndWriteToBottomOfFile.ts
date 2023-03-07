@@ -23,6 +23,8 @@ function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 
 function migrateSettingsInMacros(macros: IMacro[]): IMacro[] {
 	for (const macro of macros) {
+		if (!Array.isArray(macro.commands)) continue;
+
 		for (const command of macro.commands) {
 			if (
 				isNestedChoiceCommand(command) &&
