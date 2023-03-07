@@ -104,7 +104,6 @@ export class CompleteFormatter extends Formatter {
 	}
 
     protected async suggestForField(variableName: string) {
-        
         const suggestedValues: string[] = [];
         for (const file of this.app.vault.getMarkdownFiles()) {
             const cache = this.app.metadataCache.getFileCache(file);
@@ -112,6 +111,10 @@ export class CompleteFormatter extends Formatter {
             if(!value || typeof value == 'object') continue;
             suggestedValues.push(value);
         }
+		
+		if (suggestedValues.length === 0) {
+			return await GenericInputPrompt.Prompt(app, `Enter value for ${variableName}`, `No existing values were found in your vault.`);
+		}
 
         return await GenericSuggester.Suggest(
             this.app,
