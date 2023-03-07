@@ -113,7 +113,7 @@ export class CompleteFormatter extends Formatter {
 			const cache = this.app.metadataCache.getFileCache(file);
 			const value = cache?.frontmatter?.[variableName];
 			if (!value || typeof value == "object") continue;
-			suggestedValues.push(value);
+			suggestedValues.push(value.toString());
 		}
 
 		if (suggestedValues.length === 0) {
