@@ -117,6 +117,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						);
 						break;
 					case fileExistsDoNothing:
+						createdFile = file;
+						break;
 					default:
 						log.logWarning("File not written to.");
 						return;
