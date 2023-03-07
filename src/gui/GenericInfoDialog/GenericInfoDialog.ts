@@ -7,16 +7,16 @@ export default class GenericInfoDialog extends Modal {
 	public static Show(
 		app: App,
 		header: string,
-		lines: string[]
+		text: string[] | string
 	): Promise<void> {
-		const newPromptModal = new GenericInfoDialog(app, header, lines);
+		const newPromptModal = new GenericInfoDialog(app, header, text);
 		return newPromptModal.waitForClose;
 	}
 
 	private constructor(
 		app: App,
 		private header: string,
-		private lines: string[]
+		private text: string[] | string
 	) {
 		super(app);
 
@@ -32,7 +32,10 @@ export default class GenericInfoDialog extends Modal {
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
 
-		this.lines.forEach((line) => this.contentEl.createEl("p", { text: line }));
+		if (String.isString(this.text))
+			this.contentEl.createEl("p", { text: this.text });
+		else if (Array.isArray(this.text))
+			this.text.forEach((line) => this.contentEl.createEl("p", { text: line }));
 
 		const buttonsDiv = this.contentEl.createDiv();
 

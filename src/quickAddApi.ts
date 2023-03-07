@@ -37,8 +37,8 @@ export class QuickAddApi {
 			yesNoPrompt: (header: string, text?: string) => {
 				return this.yesNoPrompt(app, header, text);
 			},
-			infoDialog: (header: string, lines: string[]) => {
-				return this.infoDialog(app, header, lines);
+			infoDialog: (header: string, text: string[] | string) => {
+				return this.infoDialog(app, header, text);
 			},
 			suggester: (
 				displayItems:
@@ -47,7 +47,7 @@ export class QuickAddApi {
 							value: string,
 							index?: number,
 							arr?: string[]
-					  ) => string[]),
+					) => string[]),
 				actualItems: string[]
 			) => {
 				return this.suggester(app, displayItems, actualItems);
@@ -163,9 +163,9 @@ export class QuickAddApi {
 		}
 	}
 
-	public static async infoDialog(app: App, header: string, lines: string[]) {
+	public static async infoDialog(app: App, header: string, text: string[] | string) {
 		try {
-			return await GenericInfoDialog.Show(app, header, lines);
+			return await GenericInfoDialog.Show(app, header, text);
 		} catch {
 			return undefined;
 		}

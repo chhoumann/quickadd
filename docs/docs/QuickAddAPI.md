@@ -20,8 +20,9 @@ Opens a prompt asking for confirmation. Returns `true` or `false` based on answe
 
 This function is asynchronous. You should ``await`` it.
 
-### `infoDialog: (header: string, lines: string[]): Promise<void>`
-Opens a dialog. Displays a set of lines.
+### `infoDialog: (header: string, text: string[] | string): Promise<void>`
+Opens a dialog showing information the text and an `OK` button.
+You can pass a single string, which results in a single line, or an array of strings, which will be displayed as multiple lines.
 
 This function is asynchronous. You should ``await`` it.
 
