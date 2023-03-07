@@ -90,9 +90,9 @@ export abstract class Formatter {
 		const currentFilePathLink = this.getCurrentFileLink();
 		let output = input;
 
-		if (!currentFilePathLink) {
+		if (!currentFilePathLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
 			throw new Error("unable to get current file path");
-		}
+		} else if (!currentFilePathLink) return output; // No need to throw, there's no {{LINKCURRENT}} + we can skip while loop.
 
 		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
 			output = this.replacer(
