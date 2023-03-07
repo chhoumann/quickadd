@@ -43,6 +43,11 @@ export default class GenericInfoDialog extends Modal {
 			.setButtonText("OK")
 			.onClick(() => this.close());
 
+		Object.assign(buttonsDiv.style, ({
+			"display": "flex",
+			"justifyContent": "flex-end"
+		} as Partial<typeof buttonsDiv["style"]>));
+
 		noButton.buttonEl.focus();
 	}
 
