@@ -1,5 +1,6 @@
 import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import type { App } from "obsidian";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
@@ -36,6 +37,9 @@ export class QuickAddApi {
 			yesNoPrompt: (header: string, text?: string) => {
 				return this.yesNoPrompt(app, header, text);
 			},
+			infoDialog: (header: string, text: string[] | string) => {
+				return this.infoDialog(app, header, text);
+			},
 			suggester: (
 				displayItems:
 					| string[]
@@ -43,7 +47,7 @@ export class QuickAddApi {
 							value: string,
 							index?: number,
 							arr?: string[]
-					  ) => string[]),
+					) => string[]),
 				actualItems: string[]
 			) => {
 				return this.suggester(app, displayItems, actualItems);
@@ -164,6 +168,14 @@ export class QuickAddApi {
 	public static async yesNoPrompt(app: App, header: string, text?: string) {
 		try {
 			return await GenericYesNoPrompt.Prompt(app, header, text);
+		} catch {
+			return undefined;
+		}
+	}
+
+	public static async infoDialog(app: App, header: string, text: string[] | string) {
+		try {
+			return await GenericInfoDialog.Show(app, header, text);
 		} catch {
 			return undefined;
 		}
