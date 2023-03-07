@@ -18,22 +18,29 @@ export default {
 
 			if (obsidianTemplatesPlugin) {
 				const obsidianTemplatesSettings =
+					//@ts-ignore
 					obsidianTemplatesPlugin.instance.options;
 				if (obsidianTemplatesSettings["folder"]) {
 					plugin.settings.templateFolderPath =
 						obsidianTemplatesSettings["folder"];
 
-					log.logMessage("Migrated template folder path to Obsidian Templates' setting.");
+					log.logMessage(
+						"Migrated template folder path to Obsidian Templates' setting."
+					);
 				}
 			}
 
 			if (templaterPlugin) {
 				const templaterSettings = templaterPlugin.settings;
+					//@ts-ignore
 				if (templaterSettings["template_folder"]) {
 					plugin.settings.templateFolderPath =
+						//@ts-ignore
 						templaterSettings["template_folder"];
 
-					log.logMessage("Migrated template folder path to Templaters setting.");
+					log.logMessage(
+						"Migrated template folder path to Templaters setting."
+					);
 				}
 			}
 		} catch (error) {

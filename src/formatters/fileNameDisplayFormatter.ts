@@ -15,6 +15,7 @@ export class FileNameDisplayFormatter extends Formatter {
 		output = await this.replaceValueInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
+		output = await this.replaceFieldVarInString(output);
 
 		return `File Name: ${output}`;
 	}
@@ -56,5 +57,13 @@ export class FileNameDisplayFormatter extends Formatter {
 
 	protected async getSelectedText(): Promise<string> {
 		return "_selected_";
+	}
+
+	protected async suggestForField(variableName: string) {
+		return Promise.resolve(``);
+	}
+
+	protected async replaceFieldVarInString(input: string): Promise<string> {
+		return Promise.resolve(`_field_`);
 	}
 }

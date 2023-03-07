@@ -19,6 +19,7 @@ export class FormatDisplayFormatter extends Formatter {
 		output = await this.replaceLinkToCurrentFileInString(output);
 		output = await this.replaceMacrosInString(output);
 		output = await this.replaceTemplateInString(output);
+		output = await this.replaceFieldVarInString(output);
 		output = this.replaceLinebreakInString(output);
 
 		return output;
@@ -70,5 +71,13 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected async getSelectedText(): Promise<string> {
 		return "_selected_";
+	}
+
+	protected async suggestForField(variableName: string) {
+		return Promise.resolve(``);
+	}
+
+	protected async replaceFieldVarInString(input: string): Promise<string> {
+		return Promise.resolve(`_field_`);
 	}
 }
