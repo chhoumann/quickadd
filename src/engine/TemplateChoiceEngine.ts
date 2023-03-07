@@ -80,10 +80,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					return;
 				}
 
-				if(this.choice.openFile) {
-					await this.app.workspace.getLeaf("tab").openFile(file);
-				}
-
 				let userChoice: typeof fileExistsChoices[number] =
 					this.choice.fileExistsMode;
 
