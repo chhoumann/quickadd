@@ -82,12 +82,15 @@ export class QuickAddApi {
 					});
 				}
 
-				await new CompleteFormatter(
+				const output = await new CompleteFormatter(
 					app,
 					plugin,
 					choiceExecutor
 				).formatFileContent(input);
+
 				choiceExecutor.variables.clear();
+
+				return output;
 			},
 			utility: {
 				getClipboard: async () => {
