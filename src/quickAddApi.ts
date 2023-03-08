@@ -74,7 +74,7 @@ export class QuickAddApi {
 			},
 			format: async (
 				input: string,
-				variables?: { [key: string]: any }
+				variables?: Record<string, unknown>
 			) => {
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -82,12 +82,13 @@ export class QuickAddApi {
 					});
 				}
 
-				await new CompleteFormatter(
+				const formatted = await new CompleteFormatter(
 					app,
 					plugin,
 					choiceExecutor
 				).formatFileContent(input);
 				choiceExecutor.variables.clear();
+				return formatted;
 			},
 			utility: {
 				getClipboard: async () => {
