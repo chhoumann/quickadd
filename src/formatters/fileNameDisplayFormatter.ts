@@ -59,11 +59,7 @@ export class FileNameDisplayFormatter extends Formatter {
 		return "_selected_";
 	}
 
-	protected async suggestForField(variableName: string) {
-		return Promise.resolve(``);
-	}
-
-	protected async replaceFieldVarInString(input: string): Promise<string> {
-		return Promise.resolve(`_field_`);
+	protected suggestForField(variableName: string) {
+		return `_field: ${variableName}_`;
 	}
 }
