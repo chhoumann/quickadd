@@ -1,4 +1,4 @@
-import { App, Modal, Setting, TextAreaComponent, TextComponent } from "obsidian";
+import { App, Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
