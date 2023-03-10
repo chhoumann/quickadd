@@ -12,6 +12,7 @@ import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
+import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -109,6 +110,7 @@ export class CompleteFormatter extends Formatter {
 
 	protected async suggestForField(variableName: string) {
 		const suggestedValues = new Set<string>()
+
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			const value = cache?.frontmatter?.[variableName];
@@ -127,7 +129,7 @@ export class CompleteFormatter extends Formatter {
 
 		const suggestedValuesArr = Array.from(suggestedValues);
 
-		return await GenericSuggester.Suggest(
+		return await InputSuggester.Suggest(
 			this.app,
 			suggestedValuesArr,
 			suggestedValuesArr

@@ -155,7 +155,6 @@ export abstract class Formatter {
 
 			if (variableName) {
 				if (!this.getVariableValue(variableName)) {
-
                     this.variables.set(
                         variableName,
                         await this.suggestForField(variableName)
