@@ -115,6 +115,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					case fileExistsDoNothing:
 						createdFile = file;
 						break;
+					case fileExistsIncrement: {
+						const incrementFileName = await this.incrementFileName(
+							filePath
+						);
+						createdFile = await this.createFileWithTemplate(
+							incrementFileName,
+							this.choice.templatePath
+						);
+						break;
+					}
 					default:
 						log.logWarning("File not written to.");
 						return;
