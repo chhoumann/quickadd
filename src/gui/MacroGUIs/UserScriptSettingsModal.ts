@@ -1,4 +1,4 @@
-import { App, Modal, Setting, TextComponent } from "obsidian";
+import { App, Modal, Setting, TextAreaComponent, TextComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
@@ -150,7 +150,7 @@ export class UserScriptSettingsModal extends Modal {
 		new Setting(this.contentEl).setName(name);
 
 		const formatDisplay = this.contentEl.createEl("span");
-		const input = new TextComponent(this.contentEl);
+		const input = new TextAreaComponent(this.contentEl);
 		new FormatSyntaxSuggester(this.app, input.inputEl, QuickAdd.instance);
 		const displayFormatter = new FormatDisplayFormatter(
 			this.app,
@@ -166,6 +166,7 @@ export class UserScriptSettingsModal extends Modal {
 			.setPlaceholder(placeholder ?? "");
 
 		input.inputEl.style.width = "100%";
+		input.inputEl.style.height = "100px";
 		input.inputEl.style.marginBottom = "1em";
 
 		(async () =>
