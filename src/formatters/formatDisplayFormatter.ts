@@ -74,10 +74,6 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected async suggestForField(variableName: string) {
-		return Promise.resolve(``);
-	}
-
-	protected async replaceFieldVarInString(input: string): Promise<string> {
-		return Promise.resolve(`_field_`);
+		return Promise.resolve(`_field: ${variableName}_`);
 	}
 }
