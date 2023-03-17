@@ -5,6 +5,7 @@
     import IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import {createEventDispatcher} from "svelte";
+	import { Component, htmlToMarkdown, MarkdownRenderer } from "obsidian";
 
     export let choice: IMultiChoice;
     export let collapseId: string;
@@ -28,6 +29,21 @@
     function duplicateChoice() {
         dispatcher('duplicateChoice', {choice});
     }
+
+	let nameElement: HTMLSpanElement;
+
+	$: {
+		if (nameElement) {
+			nameElement.innerHTML = "";
+			const nameHTML = htmlToMarkdown(choice.name);
+			MarkdownRenderer.renderMarkdown(
+				nameHTML,
+				nameElement,
+				"/",
+				null as unknown as Component
+			);
+		}
+	}
 </script>
 
 <div>
@@ -35,7 +51,7 @@
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div class="multiChoiceListItemName clickable" on:click={() => choice.collapsed = !choice.collapsed}>
             <Icon data={faChevronDown} style={`transform:rotate(${choice.collapsed ? -180 : 0}deg)`} />
-            <span>{choice.name}</span>
+            <span class="choiceListItemName" bind:this={nameElement} />
         </div>
 
         <RightButtons
