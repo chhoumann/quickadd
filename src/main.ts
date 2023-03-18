@@ -13,10 +13,13 @@ import { deleteObsidianCommand } from "./utility";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
+import { settingsStore } from "./settingsStore";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
+
+	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
@@ -27,6 +30,11 @@ export default class QuickAdd extends Plugin {
 		QuickAdd.instance = this;
 
 		await this.loadSettings();
+		settingsStore.setState(this.settings);
+		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {	
+			this.settings = settings;
+			this.saveSettings();
+		});
 
 		this.addCommand({
 			id: "runQuickAdd",
@@ -94,6 +102,7 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		console.log("Unloading QuickAdd");
+		this.unsubscribeSettingsStore?.call(this);
 	}
 
 	async loadSettings() {

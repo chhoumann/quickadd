@@ -21,6 +21,8 @@
     import QuickAdd from "../../main";
     import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 	import { excludeKeys, getChoiceType } from "src/utility";
+	import { settingsStore } from "src/settingsStore";
+	import { onMount } from "svelte";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];
@@ -29,6 +31,17 @@
     export let saveMacros: (macros: IMacro[]) => void;
     export let app: App;
     export let plugin: QuickAdd;
+
+    onMount(() => {
+        const unsubSettingsStore = settingsStore.subscribe(settings => {
+            choices = settings.choices;
+            macros = settings.macros;
+        });
+
+        return () => {
+            unsubSettingsStore();
+        }
+    });
 
     function addChoiceToList(event: any): void {
         const {name, type} = event.detail;
@@ -58,18 +71,29 @@
     async function deleteChoice(e: any) {
         const choice: IChoice = e.detail.choice;
 
+        const hasOwnMacro = choice.type === ChoiceType.Macro && macros.some(macro => macro.name === (choice as MacroChoice).name);
+        const isMulti = choice.type === ChoiceType.Multi;
+
         const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(app,
             `Confirm deletion of choice`, `Please confirm that you wish to delete '${choice.name}'.
-            ${choice.type === ChoiceType.Multi
+            ${isMulti
                 ? "Deleting this choice will delete all (" + (choice as IMultiChoice).choices.length + ") choices inside it!"
+                : ""}
+            ${hasOwnMacro
+                ? "Deleting this choice will delete the macro associated with it!"
                 : ""}
             `);
 
-        if (userConfirmed) {
-            choices = choices.filter((value) => deleteChoiceHelper(choice.id, value));
-            plugin.removeCommandForChoice(choice);
-            saveChoices(choices);
+        if (!userConfirmed) return;
+        
+        if (hasOwnMacro) {
+            macros = macros.filter(macro => macro.id !== (choice as MacroChoice).macroId);
+            saveMacros(macros);
         }
+
+        choices = choices.filter((value) => deleteChoiceHelper(choice.id, value));
+        plugin.removeCommandForChoice(choice);
+        saveChoices(choices);
     }
 
     function deleteChoiceHelper(id: string, value: IChoice): boolean {
@@ -84,7 +108,7 @@
     async function configureChoice(e: any) {
         const {choice: oldChoice} = e.detail;
 
-        let updatedChoice;
+        let updatedChoice: MultiChoice | TemplateChoice | CaptureChoice | MacroChoice;
         if (oldChoice.type === ChoiceType.Multi) {
             updatedChoice = oldChoice;
 
@@ -93,7 +117,12 @@
 
             updatedChoice.name = name;
         } else {
-            updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
+            const builder = getChoiceBuilder(oldChoice);
+            if (!builder) {
+                throw new Error('Invalid choice type');
+            }
+            
+            updatedChoice = await builder.waitForClose as typeof updatedChoice;
         }
 
         if (!updatedChoice) return;
@@ -176,7 +205,7 @@
             case ChoiceType.Capture:
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
             case ChoiceType.Macro:
-                return new MacroChoiceBuilder(app, choice as IMacroChoice, macros);
+                return new MacroChoiceBuilder(app, choice as IMacroChoice, macros, settingsStore.getState().choices);
             case ChoiceType.Multi:
             default:
                 break;

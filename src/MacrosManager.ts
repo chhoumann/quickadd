@@ -8,18 +8,19 @@ import {
 	ToggleComponent,
 } from "obsidian";
 import { MacroBuilder } from "./gui/MacroGUIs/MacroBuilder";
-import { QuickAddMacro } from "./types/macros/QuickAddMacro";
 import { log } from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";
 import { ChoiceType } from "./types/choices/choiceType";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import type QuickAdd from "./main";
+import { settingsStore } from "./settingsStore";
 
 export class MacrosManager extends Modal {
 	public waitForClose: Promise<IMacro[]>;
 	private resolvePromise: (macros: IMacro[]) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private updateMacroContainer: () => void;
+	private unsubscribe: () => void;
 
 	private macroContainer: HTMLDivElement;
 	private plugin: QuickAdd;
@@ -36,6 +37,13 @@ export class MacrosManager extends Modal {
 		this.waitForClose = new Promise<IMacro[]>((resolve, reject) => {
 			this.rejectPromise = reject;
 			this.resolvePromise = resolve;
+		});
+
+		this.unsubscribe = settingsStore.subscribe((newSettings) => {
+			this.macros = newSettings.macros;
+			this.choices = newSettings.choices;
+
+			this.reload();
 		});
 
 		this.open();
@@ -207,28 +215,22 @@ export class MacrosManager extends Modal {
 			.onClick(() => {
 				const inputValue = nameInput.getValue();
 
-				if (
-					inputValue !== "" &&
-					!this.macros.find((m) => m.name === inputValue)
-				) {
-					const macro = new QuickAddMacro(inputValue);
-					if (!macro) {
-						log.logError("macro invalid - will not be added");
-						return;
-					}
-
-					this.macros.push(macro);
+				try {
+					settingsStore.createMacro(inputValue);
 					this.reload();
 					this.macroContainer.scrollTo(
 						0,
 						this.macroContainer.scrollHeight
 					);
+				} catch (error) {
+					log.logError(error);
 				}
 			});
 	}
 
 	onClose() {
 		super.onClose();
+		this.unsubscribe();
 		this.resolvePromise(this.macros);
 	}
 }
