@@ -4,7 +4,7 @@
 		"inlineSourceMap": true,
 		"inlineSources": true,
 		"module": "ESNext",
-		"target": "ES6",
+		"target": "ES2020",
 		"allowJs": true,
 		"noImplicitAny": true,
 		"moduleResolution": "node",

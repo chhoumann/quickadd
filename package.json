@@ -48,7 +48,8 @@
   },
   "dependencies": {
     "builtin-modules": "^3.3.0",
-    "fuse.js": "6.6.2"
+    "fuse.js": "6.6.2",
+    "zustand": "^4.3.6"
   },
   "repository": {
     "type": "git",
