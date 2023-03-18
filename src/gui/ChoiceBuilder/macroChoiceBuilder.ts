@@ -14,13 +14,31 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 	private macros: IMacro[];
 	private choices: IChoice[];
 
-	constructor(app: App, choice: IMacroChoice, macros: IMacro[], choices: IChoice[]) {
+	private unsubscribe: () => void;
+
+	constructor(
+		app: App,
+		choice: IMacroChoice,
+		macros: IMacro[],
+		choices: IChoice[]
+	) {
 		super(app);
 		this.choice = choice;
 		this.macros = macros;
 		this.choices = choices;
 
+		this.unsubscribe = settingsStore.subscribe((newSettings) => {
+			this.macros = newSettings.macros;
+			this.choices = newSettings.choices;
+
+			this.reload();
+		});
+
 		this.display();
+	}
+
+	onClose(): void {
+		this.unsubscribe();
 	}
 
 	protected display() {
@@ -28,8 +46,40 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 		this.addCenteredChoiceNameHeader(this.choice);
 		const macroDropdownContainer = this.contentEl.createDiv();
 		macroDropdownContainer.addClass("macroDropdownContainer");
+
 		this.addSelectMacroSearch(macroDropdownContainer);
-		this.addConfigureMacroButton(macroDropdownContainer);
+
+		const buttonsContainer = macroDropdownContainer.createDiv();
+		buttonsContainer.addClass("macro-choice-buttonsContainer");
+
+		this.addConfigureMacroButton(buttonsContainer);
+		this.addCreateMacroButton(buttonsContainer);
+	}
+
+	addCreateMacroButton(container: HTMLElement) {
+		const hasOwnMacro =
+			settingsStore.getMacro(this.choice.macroId)?.name ===
+			this.choice.name;
+
+		if (hasOwnMacro) return;
+
+		const createMacroButtonContainer = container.createDiv();
+		const createMacroButton = new ButtonComponent(
+			createMacroButtonContainer
+		);
+		createMacroButton
+			.setIcon("plus")
+			.setCta()
+			.setTooltip("Create Macro")
+			.onClick(async () => {
+				try {
+					const macro = settingsStore.createMacro(this.choice.name);
+					this.choice.macroId = macro.id;
+					this.reload();
+				} catch (error) {
+					log.logError(error);
+				}
+			});
 	}
 
 	private addConfigureMacroButton(container: HTMLElement) {
@@ -37,12 +87,22 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 		const configureMacroButton = new ButtonComponent(
 			configureMacroButtonContainer
 		);
-		configureMacroButton.setIcon("cog")
-			.onClick(async () => { 
-				const macro = this.macros.find((m) => m.id === this.choice.macroId);
-				if (!macro) return log.logError("Could not find macro to configure");
+		configureMacroButton
+			.setIcon("cog")
+			.setTooltip("Configure Macro")
+			.onClick(async () => {
+				const macro = this.macros.find(
+					(m) => m.id === this.choice.macroId
+				);
+				if (!macro)
+					return log.logError("Could not find macro to configure");
 
-				const builder = new MacroBuilder(app, QuickAdd.instance, macro, this.choices);
+				const builder = new MacroBuilder(
+					app,
+					QuickAdd.instance,
+					macro,
+					this.choices
+				);
 				const newMacro = await builder.waitForClose;
 
 				settingsStore.setMacro(this.choice.macroId, newMacro);
