@@ -71,18 +71,29 @@
     async function deleteChoice(e: any) {
         const choice: IChoice = e.detail.choice;
 
+        const hasOwnMacro = choice.type === ChoiceType.Macro && macros.some(macro => macro.name === (choice as MacroChoice).name);
+        const isMulti = choice.type === ChoiceType.Multi;
+
         const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(app,
             `Confirm deletion of choice`, `Please confirm that you wish to delete '${choice.name}'.
-            ${choice.type === ChoiceType.Multi
+            ${isMulti
                 ? "Deleting this choice will delete all (" + (choice as IMultiChoice).choices.length + ") choices inside it!"
+                : ""}
+            ${hasOwnMacro
+                ? "Deleting this choice will delete the macro associated with it!"
                 : ""}
             `);
 
-        if (userConfirmed) {
-            choices = choices.filter((value) => deleteChoiceHelper(choice.id, value));
-            plugin.removeCommandForChoice(choice);
-            saveChoices(choices);
+        if (!userConfirmed) return;
+        
+        if (hasOwnMacro) {
+            macros = macros.filter(macro => macro.id !== (choice as MacroChoice).macroId);
+            saveMacros(macros);
         }
+
+        choices = choices.filter((value) => deleteChoiceHelper(choice.id, value));
+        plugin.removeCommandForChoice(choice);
+        saveChoices(choices);
     }
 
     function deleteChoiceHelper(id: string, value: IChoice): boolean {

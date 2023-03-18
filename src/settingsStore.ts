@@ -46,12 +46,10 @@ export const settingsStore = (function () {
 			}
 
 			const macro = new QuickAddMacro(name);
-			console.log("macros length", getState().macros.length);
 			setState((state) => ({
 				...state,
 				macros: [...state.macros, macro],
 			}));
-			console.log("macros length", getState().macros.length);
 
 			return macro;
 		},
