@@ -21,6 +21,7 @@
     import QuickAdd from "../../main";
     import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 	import { excludeKeys, getChoiceType } from "src/utility";
+	import { settingsStore } from "src/settingsStore";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];
@@ -176,7 +177,7 @@
             case ChoiceType.Capture:
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
             case ChoiceType.Macro:
-                return new MacroChoiceBuilder(app, choice as IMacroChoice, macros);
+                return new MacroChoiceBuilder(app, choice as IMacroChoice, macros, settingsStore.getState().choices);
             case ChoiceType.Multi:
             default:
                 break;
