@@ -20,6 +20,7 @@ export class MacrosManager extends Modal {
 	private resolvePromise: (macros: IMacro[]) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private updateMacroContainer: () => void;
+	private unsubscribe: () => void;
 
 	private macroContainer: HTMLDivElement;
 	private plugin: QuickAdd;
@@ -36,6 +37,13 @@ export class MacrosManager extends Modal {
 		this.waitForClose = new Promise<IMacro[]>((resolve, reject) => {
 			this.rejectPromise = reject;
 			this.resolvePromise = resolve;
+		});
+
+		this.unsubscribe = settingsStore.subscribe((newSettings) => {
+			this.macros = newSettings.macros;
+			this.choices = newSettings.choices;
+
+			this.reload();
 		});
 
 		this.open();
@@ -222,6 +230,7 @@ export class MacrosManager extends Modal {
 
 	onClose() {
 		super.onClose();
+		this.unsubscribe();
 		this.resolvePromise(this.macros);
 	}
 }
