@@ -22,6 +22,7 @@
     import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 	import { excludeKeys, getChoiceType } from "src/utility";
 	import { settingsStore } from "src/settingsStore";
+	import { onMount } from "svelte";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];
@@ -30,6 +31,17 @@
     export let saveMacros: (macros: IMacro[]) => void;
     export let app: App;
     export let plugin: QuickAdd;
+
+    onMount(() => {
+        const unsubSettingsStore = settingsStore.subscribe(settings => {
+            choices = settings.choices;
+            macros = settings.macros;
+        });
+
+        return () => {
+            unsubSettingsStore();
+        }
+    });
 
     function addChoiceToList(event: any): void {
         const {name, type} = event.detail;
