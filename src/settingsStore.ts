@@ -29,6 +29,7 @@ export const settingsStore = (function () {
 					if (m.id === macroId) {
 						return macro;
 					}
+					
 					return m;
 				});
 

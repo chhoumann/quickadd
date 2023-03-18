@@ -1,14 +1,10 @@
-import {
-	App,
-	PluginSettingTab,
-	Setting,
-	TFolder,
-} from "obsidian";
+import { App, PluginSettingTab, Setting, TFolder } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import type { IMacro } from "./types/macros/IMacro";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
+import { settingsStore } from "./settingsStore";
 
 export interface QuickAddSettings {
 	choices: IChoice[];
@@ -17,11 +13,11 @@ export interface QuickAddSettings {
 	devMode: boolean;
 	templateFolderPath: string;
 	migrations: {
-		migrateToMacroIDFromEmbeddedMacro: boolean,
-		useQuickAddTemplateFolder: boolean,
+		migrateToMacroIDFromEmbeddedMacro: boolean;
+		useQuickAddTemplateFolder: boolean;
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: boolean;
-	}
+	};
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
@@ -34,8 +30,8 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateToMacroIDFromEmbeddedMacro: false,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
-		mutualExclusionInsertAfterAndWriteToBottomOfFile: false
-	}
+		mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
+	},
 };
 
 export class QuickAddSettingsTab extends PluginSettingTab {
@@ -71,15 +67,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			props: {
 				app: this.app,
 				plugin: this.plugin,
-				choices: this.plugin.settings.choices,
+				choices: settingsStore.getState().choices,
 				saveChoices: async (choices: IChoice[]) => {
-					this.plugin.settings.choices = choices;
-					await this.plugin.saveSettings();
+					settingsStore.setState({ choices });
 				},
-				macros: this.plugin.settings.macros,
+				macros: settingsStore.getState().macros,
 				saveMacros: async (macros: IMacro[]) => {
-					this.plugin.settings.macros = macros;
-					await this.plugin.saveSettings();
+					settingsStore.setState({ macros });
 				},
 			},
 		});
@@ -97,12 +91,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					.setTooltip("Use multi-line input prompt")
 					.onChange((value) => {
 						if (value) {
-							this.plugin.settings.inputPrompt = "multi-line";
+							settingsStore.setState({
+								inputPrompt: "multi-line",
+							});
 						} else {
-							this.plugin.settings.inputPrompt = "single-line";
+							settingsStore.setState({
+								inputPrompt: "single-line",
+							});
 						}
-
-						this.plugin.saveSettings();
 					})
 			);
 	}
@@ -116,13 +112,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		);
 
 		setting.addText((text) => {
-			text.setPlaceholder(
-				"templates/"
-			)
-				.setValue(this.plugin.settings.templateFolderPath)
+			text.setPlaceholder("templates/")
+				.setValue(settingsStore.getState().templateFolderPath)
 				.onChange(async (value) => {
-					this.plugin.settings.templateFolderPath = value;
-					await this.plugin.saveSettings();
+					settingsStore.setState({ templateFolderPath: value });
 				});
 
 			new GenericTextSuggester(
@@ -130,7 +123,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				text.inputEl,
 				app.vault
 					.getAllLoadedFiles()
-					.filter((f) => f instanceof TFolder && f.path !== '/')
+					.filter((f) => f instanceof TFolder && f.path !== "/")
 					.map((f) => f.path)
 			);
 		});
