@@ -21,19 +21,23 @@ export const settingsStore = (function () {
 		getState,
 		setState,
 		subscribe,
-		getChoices: () => {
-			return getState().choices;
-		},
 		setMacro: (macroId: IMacro["id"], macro: IMacro) => {
 			setState((state) => {
-				const macroIdx = state.macros.findIndex((m) => m.id === macroId);
+				const macroIdx = state.macros.findIndex(
+					(m) => m.id === macroId
+				);
 				if (macroIdx === -1) {
 					throw new Error("Macro not found");
 				}
 
-				state.macros[macroIdx] = macro;
+				const newState = {
+					...state,
+					macros: [...state.macros],
+				};
 
-				return state;
+				newState.macros[macroIdx] = macro;
+
+				return newState;
 			});
 		},
 		createMacro: (name: string) => {
@@ -41,12 +45,18 @@ export const settingsStore = (function () {
 				throw new Error("Invalid macro name");
 			}
 
-			setState((state) => {
-				const macro = new QuickAddMacro(name);
-				state.macros.push(macro);
+			const macro = new QuickAddMacro(name);
+			console.log("macros length", getState().macros.length);
+			setState((state) => ({
+				...state,
+				macros: [...state.macros, macro],
+			}));
+			console.log("macros length", getState().macros.length);
 
-				return state;
-			});
+			return macro;
+		},
+		getMacro: (macroId: IMacro["id"]) => {
+			return getState().macros.find((m) => m.id === macroId);
 		},
 	};
 })();
