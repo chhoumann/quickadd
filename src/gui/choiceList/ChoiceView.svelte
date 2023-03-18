@@ -97,7 +97,7 @@
     async function configureChoice(e: any) {
         const {choice: oldChoice} = e.detail;
 
-        let updatedChoice;
+        let updatedChoice: MultiChoice | TemplateChoice | CaptureChoice | MacroChoice;
         if (oldChoice.type === ChoiceType.Multi) {
             updatedChoice = oldChoice;
 
@@ -106,7 +106,12 @@
 
             updatedChoice.name = name;
         } else {
-            updatedChoice = await getChoiceBuilder(oldChoice).waitForClose;
+            const builder = getChoiceBuilder(oldChoice);
+            if (!builder) {
+                throw new Error('Invalid choice type');
+            }
+            
+            updatedChoice = await builder.waitForClose as typeof updatedChoice;
         }
 
         if (!updatedChoice) return;
