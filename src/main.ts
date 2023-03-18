@@ -19,6 +19,8 @@ export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
 
+	private unsubscribeSettingsStore: () => void;
+
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
 	}
@@ -29,7 +31,7 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.setState(this.settings);
-		settingsStore.subscribe((settings) => {	
+		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {	
 			this.settings = settings;
 			this.saveSettings();
 		});
@@ -100,6 +102,7 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		console.log("Unloading QuickAdd");
+		this.unsubscribeSettingsStore?.call(this);
 	}
 
 	async loadSettings() {
