@@ -1,6 +1,7 @@
 import { createStore } from "zustand/vanilla";
 import { DEFAULT_SETTINGS, QuickAddSettings } from "./quickAddSettingsTab";
 import { IMacro } from "./types/macros/IMacro";
+import { QuickAddMacro } from "./types/macros/QuickAddMacro";
 
 // Define the state shape and actions for your store.
 type SettingsState = QuickAddSettings & {
@@ -25,15 +26,26 @@ export const settingsStore = (function () {
 		},
 		setMacro: (macroId: IMacro["id"], macro: IMacro) => {
 			setState((state) => {
-				const macros = state.macros.map((m) => {
-					if (m.id === macroId) {
-						return macro;
-					}
-					
-					return m;
-				});
+				const macroIdx = state.macros.findIndex((m) => m.id === macroId);
+				if (macroIdx === -1) {
+					throw new Error("Macro not found");
+				}
 
-				return { ...state, macros };
+				state.macros[macroIdx] = macro;
+
+				return state;
+			});
+		},
+		createMacro: (name: string) => {
+			if (name === "" || getState().macros.some((m) => m.name === name)) {
+				throw new Error("Invalid macro name");
+			}
+
+			setState((state) => {
+				const macro = new QuickAddMacro(name);
+				state.macros.push(macro);
+
+				return state;
 			});
 		},
 	};
