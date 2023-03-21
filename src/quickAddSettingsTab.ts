@@ -12,11 +12,14 @@ export interface QuickAddSettings {
 	inputPrompt: "multi-line" | "single-line";
 	devMode: boolean;
 	templateFolderPath: string;
+	announceUpdates: boolean;
+	version: string;
 	migrations: {
 		migrateToMacroIDFromEmbeddedMacro: boolean;
 		useQuickAddTemplateFolder: boolean;
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: boolean;
+		setVersionAfterUpdateModalRelease: boolean;
 	};
 }
 
@@ -26,11 +29,14 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	inputPrompt: "single-line",
 	devMode: false,
 	templateFolderPath: "",
+	announceUpdates: true,
+	version: "0.0.0",
 	migrations: {
 		migrateToMacroIDFromEmbeddedMacro: false,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
+		setVersionAfterUpdateModalRelease: false,
 	},
 };
 
@@ -51,6 +57,19 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addChoicesSetting();
 		this.addUseMultiLineInputPromptSetting();
 		this.addTemplateFolderPathSetting();
+		this.addAnnounceUpdatesSetting();
+	}
+
+	addAnnounceUpdatesSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Announce Updates");
+		setting.setDesc("Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.");
+		setting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().announceUpdates);
+			toggle.onChange(async (value) => {
+				settingsStore.setState({ announceUpdates: value });
+			});
+		});
 	}
 
 	hide(): void {

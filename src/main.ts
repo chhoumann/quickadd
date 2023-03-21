@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin, TFile } from "obsidian";
+import { Plugin, TFile } from "obsidian";
 import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log } from "./logger/logManager";
@@ -14,6 +14,7 @@ import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
+import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
@@ -31,7 +32,7 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.setState(this.settings);
-		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {	
+		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
 			this.saveSettings();
 		});
@@ -69,14 +70,7 @@ export default class QuickAdd extends Plugin {
 				console.log(`Test QuickAdd (dev)`);
 
 				const fn = async () => {
-					const activeView =
-						await this.app.workspace.getActiveViewOfType(
-							MarkdownView
-						);
-					if (!activeView) return false;
-
-					const x = this.app.workspace.getLeaf("tab");
-					x.openFile(activeView.file);
+					new UpdateModal("0.12.0").open();
 				};
 
 				fn();
@@ -97,7 +91,8 @@ export default class QuickAdd extends Plugin {
 		);
 		this.addCommandsForChoices(this.settings.choices);
 
-		migrate(this);
+		await migrate(this);
+		this.announceUpdate();
 	}
 
 	onunload() {
@@ -193,5 +188,20 @@ export default class QuickAdd extends Plugin {
 			.filter((file) =>
 				file.path.startsWith(this.settings.templateFolderPath)
 			);
+	}
+
+	private announceUpdate() {
+		const currentVersion = this.manifest.version;
+		const knownVersion = this.settings.version;
+		
+		if (currentVersion === knownVersion) return;
+
+		this.settings.version = currentVersion;
+		this.saveSettings();
+
+		if (this.settings.announceUpdates === false) return;
+
+		const updateModal = new UpdateModal(knownVersion);
+		updateModal.open();
 	}
 }

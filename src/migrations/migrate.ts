@@ -5,12 +5,14 @@ import migrateToMacroIDFromEmbeddedMacro from "./migrateToMacroIDFromEmbeddedMac
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionInsertAfterAndWriteToBottomOfFile";
+import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelease";
 
 const migrations: Migrations = {
 	migrateToMacroIDFromEmbeddedMacro,
 	useQuickAddTemplateFolder,
 	incrementFileNameSettingMoveToDefaultBehavior,
 	mutualExclusionInsertAfterAndWriteToBottomOfFile,
+	setVersionAfterUpdateModalRelease
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {
