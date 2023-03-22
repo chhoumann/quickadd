@@ -132,7 +132,10 @@ export class CompleteFormatter extends Formatter {
 		return await InputSuggester.Suggest(
 			this.app,
 			suggestedValuesArr,
-			suggestedValuesArr
+			suggestedValuesArr,
+			{
+				placeholder: `Enter value for ${variableName}`
+			}
 		);
 	}
 
