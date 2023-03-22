@@ -1,6 +1,16 @@
 import { App, FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch } from "obsidian";
 
+type Options = {
+	limit: FuzzySuggestModal<string>["limit"];
+	emptyStateText: FuzzySuggestModal<string>["emptyStateText"];
+	placeholder: Parameters<
+		FuzzySuggestModal<string>["setPlaceholder"]
+	>[0] extends string
+		? string
+		: never;
+};
+
 /**
  * Similar to GenericSuggester, except users can write their own input, and it gets added to the list of suggestions.
  */
@@ -10,15 +20,26 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	public promise: Promise<string>;
 	private resolved: boolean;
 
-	public static Suggest(app: App, displayItems: string[], items: string[]) {
-		const newSuggester = new InputSuggester(app, displayItems, items);
+	public static Suggest(
+		app: App,
+		displayItems: string[],
+		items: string[],
+		options: Partial<Options> = {}
+	) {
+		const newSuggester = new InputSuggester(
+			app,
+			displayItems,
+			items,
+			options
+		);
 		return newSuggester.promise;
 	}
 
 	public constructor(
 		app: App,
 		private displayItems: string[],
-		private items: string[]
+		private items: string[],
+		options: Partial<Options> = {}
 	) {
 		super(app);
 
@@ -36,7 +57,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			const { values, selectedItem } = this.chooser as {
 				values: {
 					item: string;
-					match: { score: number; matches: unknown[]; };
+					match: { score: number; matches: unknown[] };
 				}[];
 				selectedItem: number;
 				[key: string]: unknown;
@@ -46,18 +67,23 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			this.inputEl.value = values[selectedItem].item ?? value;
 		});
 
+		if (options.placeholder) this.setPlaceholder(options.placeholder);
+		if (options.limit) this.limit = options.limit;
+		if (options.emptyStateText)
+			this.emptyStateText = options.emptyStateText;
+
 		this.open();
 	}
 
 	getItemText(item: string): string {
-        if (item === this.inputEl.value) return item;
-        
+		if (item === this.inputEl.value) return item;
+
 		return this.displayItems[this.items.indexOf(item)];
 	}
 
 	getItems(): string[] {
-        if (this.inputEl.value === "") return this.items;
-		return [this.inputEl.value,...this.items];
+		if (this.inputEl.value === "") return this.items;
+		return [this.inputEl.value, ...this.items];
 	}
 
 	selectSuggestion(
