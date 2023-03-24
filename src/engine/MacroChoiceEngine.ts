@@ -120,18 +120,41 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			this.userScriptCommand = command;
 		}
 
-		await this.userScriptDelegator(userScript);
+		try {
+			await this.userScriptDelegator(userScript);
+		} catch (error) {
+			log.logError(
+				`failed to run user script ${command.name}. Error:\n\n${error.message}`
+			);
+		}
 
 		if (this.userScriptCommand) this.userScriptCommand = null;
 	}
 
 	private async runScriptWithSettings(
-		userScript: ((params: typeof this.params, settings: Record<string, unknown>) => Promise<void>) | { entry: (params: typeof this.params, settings: Record<string, unknown>) => Promise<void> },
+		userScript:
+			| ((
+					params: typeof this.params,
+					settings: Record<string, unknown>
+			  ) => Promise<void>)
+			| {
+					entry: (
+						params: typeof this.params,
+						settings: Record<string, unknown>
+					) => Promise<void>;
+			  },
 		command: IUserScript
 	) {
-		if (typeof userScript !== "function" && userScript.entry && typeof userScript.entry === "function") {
-			return await this.onExportIsFunction(userScript.entry, command.settings);
-		} 
+		if (
+			typeof userScript !== "function" &&
+			userScript.entry &&
+			typeof userScript.entry === "function"
+		) {
+			return await this.onExportIsFunction(
+				userScript.entry,
+				command.settings
+			);
+		}
 
 		if (typeof userScript === "function") {
 			return await this.onExportIsFunction(userScript, command.settings);
@@ -168,15 +191,32 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async onExportIsFunction(
-		userScript: (params: typeof this.params, settings: Record<string, unknown>) => Promise<unknown>,
+		userScript: (
+			params: typeof this.params,
+			settings: Record<string, unknown>
+		) => Promise<unknown>,
 		settings?: { [key: string]: unknown }
 	) {
 		this.output = await userScript(this.params, settings || {});
 	}
 
 	protected async onExportIsObject(obj: Record<string, unknown>) {
+		if (Object.keys(obj).length === 0) {
+			throw new Error(
+				`user script in macro for '${this.choice.name}' is an empty object`
+			);
+		}
+
 		if (this.userScriptCommand && obj.entry !== null) {
-			await this.runScriptWithSettings(obj as {entry: (params: typeof this.params, settings: Record<string, unknown>) => Promise<void>}, this.userScriptCommand);
+			await this.runScriptWithSettings(
+				obj as {
+					entry: (
+						params: typeof this.params,
+						settings: Record<string, unknown>
+					) => Promise<void>;
+				},
+				this.userScriptCommand
+			);
 			return;
 		}
 
