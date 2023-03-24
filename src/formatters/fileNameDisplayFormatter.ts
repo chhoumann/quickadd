@@ -1,6 +1,6 @@
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utility";
+import { getNaturalLanguageDates } from "../utilityObsidian";
 
 export class FileNameDisplayFormatter extends Formatter {
 	constructor(private app: App) {

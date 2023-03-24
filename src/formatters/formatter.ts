@@ -10,9 +10,9 @@ import {
 	NUMBER_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
-    FIELD_VAR_REGEX,
+	FIELD_VAR_REGEX,
 } from "../constants";
-import { getDate } from "../utility";
+import { getDate } from "../utilityObsidian";
 
 export abstract class Formatter {
 	protected value: string;
@@ -104,7 +104,7 @@ export abstract class Formatter {
 		return output;
 	}
 
-	protected abstract getCurrentFileLink(): string | null; 
+	protected abstract getCurrentFileLink(): string | null;
 
 	protected async replaceVariableInString(input: string) {
 		let output: string = input;
@@ -143,8 +143,8 @@ export abstract class Formatter {
 
 		return output;
 	}
-    
-    protected async replaceFieldVarInString(input: string) {
+
+	protected async replaceFieldVarInString(input: string) {
 		let output: string = input;
 
 		while (FIELD_VAR_REGEX.test(output)) {
@@ -155,10 +155,10 @@ export abstract class Formatter {
 
 			if (variableName) {
 				if (!this.getVariableValue(variableName)) {
-                    this.variables.set(
-                        variableName,
-                        await this.suggestForField(variableName)
-                    );
+					this.variables.set(
+						variableName,
+						await this.suggestForField(variableName)
+					);
 				}
 
 				output = this.replacer(
@@ -172,7 +172,7 @@ export abstract class Formatter {
 		}
 
 		return output;
-    }
+	}
 
 	protected abstract promptForMathValue(): Promise<string>;
 
@@ -209,7 +209,9 @@ export abstract class Formatter {
 
 	protected abstract getVariableValue(variableName: string): string;
 
-	protected abstract suggestForValue(suggestedValues: string[]): Promise<string> | string;
+	protected abstract suggestForValue(
+		suggestedValues: string[]
+	): Promise<string> | string;
 
 	protected abstract suggestForField(variableName: string): any;
 
@@ -231,12 +233,18 @@ export abstract class Formatter {
 					);
 
 					const nld = this.getNaturalLanguageDates();
-					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function") continue;
+					if (
+						!nld ||
+						!nld.parseDate ||
+						typeof nld.parseDate !== "function"
+					)
+						continue;
 
-					const parseAttempt =
-						(nld.parseDate as (s: string | undefined) => { moment: { format: (s: string) => string}})(
-							this.variables.get(variableName) as string
-						);
+					const parseAttempt = (
+						nld.parseDate as (s: string | undefined) => {
+							moment: { format: (s: string) => string };
+						}
+					)(this.variables.get(variableName) as string);
 
 					if (parseAttempt)
 						this.variables.set(

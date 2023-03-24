@@ -1,5 +1,5 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { TFile } from "obsidian";
+import type { TFile } from "obsidian";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
@@ -8,7 +8,7 @@ import {
 	openFile,
 	replaceTemplaterTemplatesInCreatedFile,
 	templaterParseTemplate,
-} from "../utility";
+} from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -55,14 +55,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 
 			const filePath = await this.formatFilePath(captureTo);
-			const content = await this.getCaptureContent();
+			const content = this.getCaptureContent();
 
 			let getFileAndAddContentFn: typeof this.onFileExists;
 
 			if (await this.fileExists(filePath)) {
-				getFileAndAddContentFn = this.onFileExists;
+				getFileAndAddContentFn = this.onFileExists.bind(
+					this
+				) as typeof this.onFileExists;
 			} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
-				getFileAndAddContentFn = this.onCreateFileIfItDoesntExist;
+				getFileAndAddContentFn = this.onCreateFileIfItDoesntExist.bind(
+					this
+				) as typeof this.onCreateFileIfItDoesntExist;
 			} else {
 				log.logWarning(
 					`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`
@@ -71,7 +75,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			const { file, content: newFileContent } =
-				await getFileAndAddContentFn.bind(this)(filePath, content);
+				await getFileAndAddContentFn(filePath, content);
 
 			await this.app.vault.modify(file, newFileContent);
 
@@ -92,11 +96,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 		} catch (e) {
-			log.logError(e);
+			log.logError(e as string);
 		}
 	}
 
-	private async getCaptureContent(): Promise<string> {
+	private getCaptureContent(): string {
 		let content: string;
 
 		if (!this.choice.format.enabled) content = VALUE_SYNTAX;
@@ -145,7 +149,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					`\nThis is in order to prevent data loss.`
 			);
 
-			newFileContent = res.joinedResults();
+			newFileContent = res.joinedResults() as string;
 		}
 
 		return { file, content: newFileContent };
@@ -206,7 +210,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		let content: string = await this.getCaptureContent();
+		let content: string = this.getCaptureContent();
 		content = await this.formatter.formatContent(content, this.choice);
 
 		if (this.choice.format.enabled) {

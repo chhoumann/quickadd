@@ -3,7 +3,7 @@ import type { IMacro } from "../types/macros/IMacro";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { getUserScriptMemberAccess } from "../utility";
+import { getUserScriptMemberAccess } from "../utilityObsidian";
 import { log } from "../logger/logManager";
 
 export class SingleMacroEngine extends MacroChoiceEngine {

@@ -11,7 +11,7 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault } from "../../utility";
+import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";

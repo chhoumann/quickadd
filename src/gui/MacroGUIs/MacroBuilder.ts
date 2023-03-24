@@ -17,7 +17,7 @@ import type { SvelteComponent } from "svelte";
 import CommandList from "./CommandList.svelte";
 import type IChoice from "../../types/choices/IChoice";
 import { ChoiceCommand } from "../../types/macros/ChoiceCommand";
-import { getUserScriptMemberAccess } from "../../utility";
+import { getUserScriptMemberAccess } from "../../utilityObsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
@@ -112,10 +112,8 @@ export class MacroBuilder extends Modal {
 
 		const addObsidianCommandFromInput = () => {
 			const value: string = input.getValue();
-			const obsidianCommand = this.commands.find(
-				(v) => v.name === value
-			);
-			
+			const obsidianCommand = this.commands.find((v) => v.name === value);
+
 			if (!obsidianCommand) {
 				log.logError(
 					`Could not find Obsidian command with name "${value}"`

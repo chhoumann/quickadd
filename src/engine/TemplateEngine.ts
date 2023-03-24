@@ -5,7 +5,7 @@ import type QuickAdd from "../main";
 import {
 	getTemplater,
 	replaceTemplaterTemplatesInCreatedFile,
-} from "../utility";
+} from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";

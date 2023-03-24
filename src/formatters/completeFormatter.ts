@@ -1,6 +1,6 @@
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utility";
+import { getNaturalLanguageDates } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type QuickAdd from "../main";
 import { SingleMacroEngine } from "../engine/SingleMacroEngine";
@@ -109,13 +109,13 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async suggestForField(variableName: string) {
-		const suggestedValues = new Set<string>()
+		const suggestedValues = new Set<string>();
 
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			const value = cache?.frontmatter?.[variableName];
 			if (!value || typeof value == "object") continue;
-			
+
 			suggestedValues.add(value.toString());
 		}
 
@@ -134,7 +134,7 @@ export class CompleteFormatter extends Formatter {
 			suggestedValuesArr,
 			suggestedValuesArr,
 			{
-				placeholder: `Enter value for ${variableName}`
+				placeholder: `Enter value for ${variableName}`,
 			}
 		);
 	}

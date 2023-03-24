@@ -13,7 +13,7 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { getUserScript, waitFor } from "../utility";
+import { getUserScript, waitFor } from "../utilityObsidian";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";

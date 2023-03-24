@@ -5,14 +5,14 @@ import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
-	escapeRegExp,
-	getLinesInString,
 	templaterParseTemplate,
-} from "../utility";
+} from "../utilityObsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
+import insertAfter from "./helpers/insertAfter";
+import { escapeRegExp, getLinesInString } from "src/utility";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
@@ -40,7 +40,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			formatted,
 			this.file
 		);
-		if (!templaterFormatted) return formatted;
+		if (!(await templaterFormatted)) return formatted;
 
 		return templaterFormatted;
 	}
@@ -74,7 +74,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const frontmatterEndPosition = this.file
-			? await this.getFrontmatterEndPosition(this.file)
+			? this.getFrontmatterEndPosition(this.file)
 			: null;
 		if (!frontmatterEndPosition) return `${formatted}${this.fileContent}`;
 
@@ -99,6 +99,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const targetString: string = await this.format(
 			this.choice.insertAfter.after
 		);
+
+		const target = targetString;
+		const value = formatted;
+		const body = this.fileContent;
+		insertAfter(target, value, body, {
+			insertAtEndOfSection: this.choice.insertAfter.insertAtEnd,
+		});
+
 		const targetRegex = new RegExp(
 			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`
 		);
@@ -175,7 +183,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			CREATE_IF_NOT_FOUND_TOP
 		) {
 			const frontmatterEndPosition = this.file
-				? await this.getFrontmatterEndPosition(this.file)
+				? this.getFrontmatterEndPosition(this.file)
 				: -1;
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
@@ -192,8 +200,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private async getFrontmatterEndPosition(file: TFile) {
-		const fileCache = await this.app.metadataCache.getFileCache(file);
+	private getFrontmatterEndPosition(file: TFile) {
+		const fileCache = this.app.metadataCache.getFileCache(file);
 
 		if (!fileCache || !fileCache.frontmatter) {
 			log.logMessage("could not get frontmatter. Maybe there isn't any.");
