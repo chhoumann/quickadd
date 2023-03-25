@@ -13,7 +13,7 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { getUserScript, waitFor } from "../utilityObsidian";
+import { getUserScript  } from "../utilityObsidian";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -24,6 +24,7 @@ import { CopyCommand } from "../types/macros/EditorCommands/CopyCommand";
 import { PasteCommand } from "../types/macros/EditorCommands/PasteCommand";
 import { SelectActiveLineCommand } from "../types/macros/EditorCommands/SelectActiveLineCommand";
 import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
+import { waitFor } from "src/utility";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;

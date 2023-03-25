@@ -16,8 +16,8 @@
     import UserScriptCommand from "./Components/UserScriptCommand.svelte";
     import type {IUserScript} from "../../types/macros/IUserScript";
     import {UserScriptSettingsModal} from "./UserScriptSettingsModal";
-    import {getUserScript} from "../../utility";
     import {log} from "../../logger/logManager";
+	import { getUserScript } from "src/utilityObsidian";
 
     export let commands: ICommand[];
     export let deleteCommand: (commandId: string) => Promise<void>;
