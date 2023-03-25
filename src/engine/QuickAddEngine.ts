@@ -63,11 +63,13 @@ export abstract class QuickAddEngine {
 		let dirName = "";
 		if (dirMatch) dirName = dirMatch[1];
 
-		if (await this.app.vault.adapter.exists(dirName)) {
-			return await this.app.vault.create(filePath, fileContent);
-		} else {
+		const dir = app.vault.getAbstractFileByPath(dirName);
+
+		if (!dir || !(dir instanceof TFolder)) {
 			await this.createFolder(dirName);
-			return await this.app.vault.create(filePath, fileContent);
+
 		}
+
+		return await this.app.vault.create(filePath, fileContent);
 	}
 }
