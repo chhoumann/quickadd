@@ -1,7 +1,22 @@
 import insertAfter from "./insertAfter";
 import { test, expect } from "vitest";
 
-test("inserts value after target", () => {
+test("inserts value after target, at the beginning of the section", () => {
+	const target = "# Meeting Notes";
+	const value = "## Topic C\n";
+	const body = `# Meeting Notes
+${value}
+
+## Topic A
+
+## Topic B`;
+	const result = insertAfter(target, value, body, {
+		insertAtEndOfSection: false,
+	});
+	expect(result.success).toBeTruthy();
+});
+
+test("inserts value after target, at the end of the section", () => {
 	const target = "# Meeting Notes";
 	const value = "## Topic C\n";
 	const body = `# Meeting Notes
@@ -10,7 +25,7 @@ test("inserts value after target", () => {
 
 ## Topic B`;
 
-    const expected = `# Meeting Notes
+	const expected = `# Meeting Notes
 
 ## Topic A
 
@@ -18,6 +33,6 @@ test("inserts value after target", () => {
 
 ${value}`;
 	const result = insertAfter(target, value, body);
-    expect(result.success).toBeTruthy();
-    if (result.success) expect(result.value).toBe(expected);
+	expect(result.success).toBeTruthy();
+	if (result.success) expect(result.value).toBe(expected);
 });
