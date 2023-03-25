@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import type { Plugin } from "obsidian";
 
 declare module "obsidian" {
 	interface App {
@@ -20,5 +20,14 @@ declare module "obsidian" {
 			enablePlugin: (id: string) => Promise<void>;
 			disablePlugin: (id: string) => Promise<void>;
 		};
+		commands: {
+			commands: {
+				[commandName: string]: (...args: unknown[]) => Promise<void>;
+			},
+			editorCommands: {
+				[commandName: string]: (...args: unknown[]) => Promise<void>;
+			},
+			findCommand: (commandId: string) => Command;
+		}
 	}
 }

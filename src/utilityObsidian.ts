@@ -84,15 +84,12 @@ export function appendToCurrentLine(toAppend: string, app: App) {
 }
 
 export function findObsidianCommand(app: App, commandId: string) {
-	// @ts-ignore
 	return app.commands.findCommand(commandId);
 }
 
 export function deleteObsidianCommand(app: App, commandId: string) {
 	if (findObsidianCommand(app, commandId)) {
-		// @ts-ignore
 		delete app.commands.commands[commandId];
-		// @ts-ignore
 		delete app.commands.editorCommands[commandId];
 	}
 }
@@ -142,8 +139,9 @@ export async function openFile(
 	if (optional?.mode) {
 		const leafViewState = leaf.getViewState();
 
-		leaf.setViewState({
+		await leaf.setViewState({
 			...leafViewState,
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			state: {
 				...leafViewState.state,
 				mode: optional.mode,
@@ -163,14 +161,17 @@ export async function getUserScript(command: IUserScript, app: App) {
 	}
 
 	if (file instanceof TFile) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 		const req = (s: string) => window.require && window.require(s);
 		const exp: Record<string, unknown> = {};
 		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		const fn = window.eval(
 			`(function(require, module, exports) { ${fileContent} \n})`
 		);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		fn(req, mod, exp);
 
 		// @ts-ignore
@@ -184,6 +185,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 			let member: string;
 			while ((member = memberAccess.shift() as string)) {
 				//@ts-ignore
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 				script = script[member];
 			}
 		}
