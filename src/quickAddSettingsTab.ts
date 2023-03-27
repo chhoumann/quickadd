@@ -1,4 +1,5 @@
-import { App, PluginSettingTab, Setting, TFolder } from "obsidian";
+import type { App } from "obsidian";
+import { PluginSettingTab, Setting, TFolder } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
@@ -63,10 +64,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	addAnnounceUpdatesSetting() {
 		const setting = new Setting(this.containerEl);
 		setting.setName("Announce Updates");
-		setting.setDesc("Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.");
+		setting.setDesc(
+			"Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes."
+		);
 		setting.addToggle((toggle) => {
 			toggle.setValue(settingsStore.getState().announceUpdates);
-			toggle.onChange(async (value) => {
+			toggle.onChange((value) => {
 				settingsStore.setState({ announceUpdates: value });
 			});
 		});
@@ -87,11 +90,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				app: this.app,
 				plugin: this.plugin,
 				choices: settingsStore.getState().choices,
-				saveChoices: async (choices: IChoice[]) => {
+				saveChoices: (choices: IChoice[]) => {
 					settingsStore.setState({ choices });
 				},
 				macros: settingsStore.getState().macros,
-				saveMacros: async (macros: IMacro[]) => {
+				saveMacros: (macros: IMacro[]) => {
 					settingsStore.setState({ macros });
 				},
 			},
@@ -133,7 +136,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.addText((text) => {
 			text.setPlaceholder("templates/")
 				.setValue(settingsStore.getState().templateFolderPath)
-				.onChange(async (value) => {
+				.onChange((value) => {
 					settingsStore.setState({ templateFolderPath: value });
 				});
 

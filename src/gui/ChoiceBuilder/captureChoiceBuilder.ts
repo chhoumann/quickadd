@@ -88,7 +88,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				captureToFileContainer.createEl("span");
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app);
-			(async () =>
+			void (async () =>
 				(formatDisplay.textContent = await displayFormatter.format(
 					this.choice.captureTo
 				)))();
@@ -195,7 +195,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter =
 			new FormatDisplayFormatter(this.app, this.plugin);
-		(async () =>
+		void (async () =>
 			(insertAfterFormatDisplay.innerText = await displayFormatter.format(
 				this.choice.insertAfter.after
 			)))();
@@ -306,7 +306,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter =
 			new FormatDisplayFormatter(this.app, this.plugin);
-		(async () =>
+		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(
 				this.choice.format.format
 			)))();
