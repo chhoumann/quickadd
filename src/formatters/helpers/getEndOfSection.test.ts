@@ -6,8 +6,8 @@ test("getEndOfSection - find the end of a section", () => {
 		"# Title",
 		"",
 		"## Section 1", // target (2)
-		"Content 1",
-		"", // result (4)
+		"Content 1", // result (3)
+		"", 
 		"## Section 2",
 		"Content 2",
 		"",
@@ -15,8 +15,8 @@ test("getEndOfSection - find the end of a section", () => {
 	];
 	const targetLine = 2;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(4);
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(3);
 });
 
 test("getEndOfSection - find the end of the last section", () => {
@@ -29,21 +29,21 @@ test("getEndOfSection - find the end of the last section", () => {
 		"## Section 2",
 		"Content 2",
 		"",
-		"# Title 2", // target (8)
-		"", // result (9)
+		"# Title 2", // target & result (8)
+		"",
 	];
 	const targetLine = 8;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(9);
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(8);
 });
 
 test("getEndOfSection - find end of section with multiple empty lines", () => {
 	const lines = [
 		"# Title",
 		"",
-		"## Section 1",
-		"Content 1",
+		"## Section 1", // target (2)
+		"Content 1", // result (4)
 		"",
 		"",
 		"## Section 2",
@@ -53,16 +53,16 @@ test("getEndOfSection - find end of section with multiple empty lines", () => {
 	];
 	const targetLine = 2;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(4);
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(3);
 });
 
 test("getEndOfSection - find end of section without a higher level section", () => {
 	const lines = [
 		"# Title",
 		"",
-		"## Section 1",
-		"Content 1",
+		"## Section 1", // target (2)
+		"Content 1", // result (3)
 		"",
 		"## Section 2",
 		"Content 2",
@@ -72,35 +72,42 @@ test("getEndOfSection - find end of section without a higher level section", () 
 	];
 	const targetLine = 2;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(4);
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(3);
 });
 
 test("getEndOfSection - find end of section with higher level section", () => {
 	const lines = [
-		"# Title",
+		"# Title", // target (0)
 		"",
 		"## Section 1",
 		"Content 1",
 		"",
 		"## Section 2",
-		"Content 2",
-		"",
+		"Content 2", // result (6)
+		"", 
 		"# Title 2",
 		"Content 3",
 	];
 	const targetLine = 0;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(7);
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(6);
 });
 
 test("getEndOfSection - find end of section with no headings", () => {
-	const lines = ["Content 1", "", "Content 2", "Content 3", "", "Content 4"];
+    const lines = [
+        "Content 1",
+        "",
+        "Content 2", // target (2)
+        "Content 3", // result (3)
+        "", 
+        "Content 4"
+    ];
 	const targetLine = 2;
 
 	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(4);
+	expect(result).toBe(3);
 });
 
 test("getEndOfSection - find end of section with top level heading and only sub headings", () => {
@@ -119,15 +126,15 @@ test("getEndOfSection - find end of section with top level heading and only sub 
 		"3",
 		"",
 		"## Topic B",
-		"content b1",
-		"", // result (15)
+		"content b1", // result (14)
+		"", 
 		"",
 	];
 
 	const targetLine = 0;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(15);
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(14);
 });
 
 test("getEndOfSection - target isn't heading", () => {
@@ -137,8 +144,8 @@ test("getEndOfSection - target isn't heading", () => {
 		"## Topic A",
 		"content a1", // target (3)
 		"content a2",
-		"content a3",
-		"", // result (6)
+		"content a3", // result (5)
+		"", 
 		"---",
 		"Thematic break",
 		"1",
@@ -153,6 +160,6 @@ test("getEndOfSection - target isn't heading", () => {
 
 	const targetLine = 3;
 
-	const result = getEndOfSection(lines, targetLine);
-	expect(result).toBe(6);
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(5);
 });

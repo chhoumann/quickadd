@@ -121,7 +121,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 			const endOfSectionIndex = getEndOfSection(
 				fileContentLines,
-				targetPosition
+				targetPosition,
+				!!this.choice.insertAfter.considerSubsections
 			);
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
 		}

@@ -45,15 +45,15 @@ export default function getEndOfSection(
         );
     }
 
-	if (targetIsNotHeading) {
+	if (targetIsNotHeading || !shouldConsiderSubsections) {
 		const nextEmptyStringIdx = findNextIdx(
 			lines,
 			targetLine,
 			(str: string) => str.trim() === ""
 		);
 
-		if (nextEmptyStringIdx !== null) {
-			return nextEmptyStringIdx;
+		if (nextEmptyStringIdx !== null && nextEmptyStringIdx > targetLine) {
+			return nextEmptyStringIdx - 1;
 		}
 
 		return targetLine;
@@ -73,7 +73,7 @@ export default function getEndOfSection(
 	);
 
 	if (lastNonEmptyLineInSectionIdx !== null) {
-		return lastNonEmptyLineInSectionIdx + 1;
+		return lastNonEmptyLineInSectionIdx;
 	}
 
 	return endOfSectionLineIdx;
