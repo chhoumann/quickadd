@@ -20,3 +20,34 @@ In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inser
 
 ![image](https://user-images.githubusercontent.com/29108628/123451366-e025e280-d5dd-11eb-81b6-c21f3ad1823d.png)
 ![image](https://user-images.githubusercontent.com/29108628/123451469-e61bc380-d5dd-11eb-80d1-7667427656f3.png)
+
+## Consider subsections
+Behavior with `Insert after` & `Insert at end`, but not `Consider subsections` enabled:
+```markdown
+## Heading # Insert after here
+- content 1
+- content 2
+- content 3 # captures to after this = same behavior as before. Enabled by default.
+
+### Nested heading 1
+Content
+
+## Another heading
+Content
+
+```
+
+New behavior with `Insert after`, `Insert at end`, AND `Consider subsections` enabled:
+```markdown
+## Heading # Insert after here
+- content 1
+- content 2
+- content 3
+
+### Nested heading 1
+Content # captures to after this, as it's considered part of the "## Heading" section
+
+## Another heading
+Content
+
+```
