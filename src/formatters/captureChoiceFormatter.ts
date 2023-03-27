@@ -118,15 +118,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (this.choice.insertAfter?.insertAtEnd) {
 			if (!this.file)
 				throw new Error("Tried to get sections without file.");
-			const headings = (
-				app.metadataCache.getFileCache(this.file)?.headings ?? []
-			).map((heading) => ({
-				level: heading.level,
-				line: heading.position.end.line,
-			}));
 
 			const endOfSectionIndex = getEndOfSection(
-				headings,
 				fileContentLines,
 				targetPosition
 			);

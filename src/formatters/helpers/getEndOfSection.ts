@@ -3,84 +3,158 @@ type Heading = {
 	line: number;
 };
 
+function getMarkdownHeadings(bodyLines: string[]): Heading[] {
+	const headers: Heading[] = [];
+
+	bodyLines.forEach((line, index) => {
+		const match = line.match(/^(#+)/);
+
+		if (!match) return;
+
+		headers.push({
+			level: match[0].length,
+			line: index,
+		});
+	});
+
+	return headers;
+}
+
+/**
+ *
+ * @param lines Lines in body to find end of section
+ * @param targetLine Target line to find end of section
+ * @param shouldConsiderSubsections Whether to consider subsections as part of the section
+ * @returns index of end of section
+ */
 export default function getEndOfSection(
-	headings: Heading[],
 	lines: string[],
-	targetLine: number
+	targetLine: number,
+	shouldConsiderSubsections = false
 ): number {
-	const targetSectionIndex = headings.findIndex(
+	const headings = getMarkdownHeadings(lines);
+
+	const targetHeading = headings.find(
 		(heading) => heading.line === targetLine
 	);
+	const targetIsNotHeading = !targetHeading;
 
-	const lastLineIdx = lines.length - 1;
+    if (targetIsNotHeading && shouldConsiderSubsections) {
+        throw new Error(
+            `Target line ${targetLine} is not a heading, but we are trying to find the end of its section.`
+        );
+    }
 
-	if (
-		targetSectionIndex === -1 ||
-		targetSectionIndex === headings.length - 1
-	) {
-		// If there's no target section or it's the last section, return the last line in the body.
-		return lastLineIdx;
+	if (targetIsNotHeading) {
+		const nextEmptyStringIdx = findNextIdx(
+			lines,
+			targetLine,
+			(str: string) => str.trim() === ""
+		);
+
+		if (nextEmptyStringIdx !== null) {
+			return nextEmptyStringIdx;
+		}
+
+		return targetLine;
 	}
 
-	let endOfSectionLine = targetLine;
-
-	const targetSectionLevel = headings[targetSectionIndex].level;
-
-	const [nextHigherLevelIndex, foundHigherLevelSection] = findNextHigherOrSameLevelHeading(
-		targetSectionIndex,
-		targetSectionLevel,
-		headings
+	const lastLineInBodyIdx = lines.length - 1;
+	const endOfSectionLineIdx = getEndOfSectionLineByHeadings(
+		targetHeading,
+		headings,
+		lastLineInBodyIdx
 	);
 
-    const higherLevelSectionIsLastSection = nextHigherLevelIndex === headings.length;
-	if (foundHigherLevelSection && higherLevelSectionIsLastSection) {
-		// If the target section is the last section of its level or there are no higher level sections, return the end line of the file.
-		endOfSectionLine = lastLineIdx;
-	} else if (foundHigherLevelSection) {
-		// If the target section is the last section of its level, and there are higher level sections,
-		const nextHigherLevelSection = headings[nextHigherLevelIndex].line;
-		endOfSectionLine = nextHigherLevelSection - 1;
-	} else {
-		// End line of the section before the next section at same level as target.
-		// There are no higher level sections, but there are more sections.
-        endOfSectionLine = lastLineIdx;
-	}
-
-	const nonEmptyLineIdx = findNonEmptyStringIndexPriorToGivenIndex(
+	const lastNonEmptyLineInSectionIdx = findPriorIdx(
 		lines,
-		endOfSectionLine
+		endOfSectionLineIdx,
+		(str: string) => str.trim() !== ""
 	);
 
-	if (nonEmptyLineIdx !== null) {
-		endOfSectionLine = nonEmptyLineIdx + 1;
+	if (lastNonEmptyLineInSectionIdx !== null) {
+		return lastNonEmptyLineInSectionIdx + 1;
 	}
 
-	return endOfSectionLine;
+	return endOfSectionLineIdx;
+}
+
+function getEndOfSectionLineByHeadings(
+	targetHeading: Heading,
+	headings: Heading[],
+	lastLineInBodyIdx: number
+): number {
+	const targetHeadingIsLastHeading = targetHeading.line === headings.length - 1;
+
+	if (targetHeadingIsLastHeading) {
+		return lastLineInBodyIdx;
+	}
+
+	const [nextHigherLevelHeadingIndex, foundHigherLevelHeading] =
+		findNextHigherOrSameLevelHeading(
+            targetHeading,
+			headings
+		);
+
+	const higherLevelSectionIsLastHeading =
+		foundHigherLevelHeading &&
+		nextHigherLevelHeadingIndex === headings.length;
+
+	if (foundHigherLevelHeading && !higherLevelSectionIsLastHeading) {
+		// If the target section is the last section of its level, and there are higher level sections,
+		const nextHigherLevelHeadingLineIdx =
+			headings[nextHigherLevelHeadingIndex].line;
+		return nextHigherLevelHeadingLineIdx - 1;
+	}
+
+	// End line of the section before the next section at same level as target.
+	// There are no higher level sections, but there are more sections.
+	return lastLineInBodyIdx;
 }
 
 function findNextHigherOrSameLevelHeading(
-	targetSectionIndex: number,
-	targetSectionLevel: number,
+    targetHeading: Heading,
 	headings: Heading[]
 ): readonly [number, boolean] {
-	for (let i = targetSectionIndex + 1; i < headings.length; i++) {
-		if (headings[i].level <= targetSectionLevel) {
-			return [i, true];
-		}
-	}
+    const targetHeadingIdx = headings.findIndex(
+        (heading) => heading.level === targetHeading.level && heading.line === targetHeading.line
+    );
 
-	return [-1, false];
+    const nextSameOrHigherLevelHeadingIdx = findNextIdx(headings, targetHeadingIdx, (heading) => {
+        return heading.level <= targetHeading.level;
+    });
+
+    if (nextSameOrHigherLevelHeadingIdx === null) {
+        return [-1, false];
+    }
+
+    return [nextSameOrHigherLevelHeadingIdx, true];
 }
 
-function findNonEmptyStringIndexPriorToGivenIndex(
-	strings: string[],
-	givenIndex: number
+function findPriorIdx<T>(
+	items: T[],
+	fromIdx: number,
+	condition: (item: T) => boolean
 ): number | null {
-	for (let i = givenIndex - 1; i >= 0; i--) {
-		if (strings[i].trim() !== "") {
+	for (let i = fromIdx - 1; i >= 0; i--) {
+		if (condition(items[i])) {
 			return i;
 		}
 	}
 
 	return null; // If no non-empty string is found before the given index
+}
+
+function findNextIdx<T>(
+	items: T[],
+	fromIdx: number,
+	condition: (item: T) => boolean
+): number | null {
+	for (let i = fromIdx + 1; i < items.length; i++) {
+		if (condition(items[i])) {
+			return i;
+		}
+	}
+
+	return null;
 }
