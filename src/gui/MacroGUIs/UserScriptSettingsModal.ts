@@ -1,4 +1,7 @@
-import { App, Modal, Setting, TextAreaComponent } from "obsidian";
+/* eslint-disable @typescript-eslint/restrict-plus-operands */
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+import type { App} from "obsidian";
+import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
@@ -140,7 +143,7 @@ export class UserScriptSettingsModal extends Modal {
 
 	private addDropdown(name: string, options: string[], value: string) {
 		new Setting(this.contentEl).setName(name).addDropdown((dropdown) => {
-			options.forEach((item) => dropdown.addOption(item, item));
+			options.forEach((item) => void dropdown.addOption(item, item));
 			dropdown.setValue(value);
 			dropdown.onChange((value) => (this.command.settings[name] = value));
 		});
@@ -169,7 +172,7 @@ export class UserScriptSettingsModal extends Modal {
 		input.inputEl.style.height = "100px";
 		input.inputEl.style.marginBottom = "1em";
 
-		(async () =>
+		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(value)))();
 	}
 }

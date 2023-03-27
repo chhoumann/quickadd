@@ -69,6 +69,7 @@ export class FormatDisplayFormatter extends Formatter {
 		}
 	}
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	protected async getSelectedText(): Promise<string> {
 		return "_selected_";
 	}

@@ -37,7 +37,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			}
 			case ChoiceType.Multi: {
 				const multiChoice: IMultiChoice = choice as IMultiChoice;
-				await this.onChooseMultiType(multiChoice);
+				this.onChooseMultiType(multiChoice);
 				break;
 			}
 			default:
@@ -66,7 +66,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async onChooseMacroType(macroChoice: IMacroChoice) {
-		const macroEngine = await new MacroChoiceEngine(
+		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
 			macroChoice,
@@ -81,7 +81,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		});
 	}
 
-	private async onChooseMultiType(multiChoice: IMultiChoice) {
+	private onChooseMultiType(multiChoice: IMultiChoice) {
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, this);
 	}
 }

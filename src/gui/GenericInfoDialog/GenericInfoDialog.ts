@@ -1,4 +1,5 @@
-import { App, ButtonComponent, Modal } from "obsidian";
+import type { App } from "obsidian";
+import { ButtonComponent, Modal } from "obsidian";
 
 export default class GenericInfoDialog extends Modal {
 	private resolvePromise: () => void;
@@ -35,7 +36,9 @@ export default class GenericInfoDialog extends Modal {
 		if (String.isString(this.text))
 			this.contentEl.createEl("p", { text: this.text });
 		else if (Array.isArray(this.text))
-			this.text.forEach((line) => this.contentEl.createEl("p", { text: line }));
+			this.text.forEach((line) =>
+				this.contentEl.createEl("p", { text: line })
+			);
 
 		const buttonsDiv = this.contentEl.createDiv();
 
@@ -43,10 +46,10 @@ export default class GenericInfoDialog extends Modal {
 			.setButtonText("OK")
 			.onClick(() => this.close());
 
-		Object.assign(buttonsDiv.style, ({
-			"display": "flex",
-			"justifyContent": "flex-end"
-		} as Partial<typeof buttonsDiv["style"]>));
+		Object.assign(buttonsDiv.style, {
+			display: "flex",
+			justifyContent: "flex-end",
+		} as Partial<typeof buttonsDiv["style"]>);
 
 		noButton.buttonEl.focus();
 	}

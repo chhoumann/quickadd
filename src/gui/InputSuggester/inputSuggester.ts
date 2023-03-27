@@ -1,5 +1,5 @@
-import { App, FuzzySuggestModal } from "obsidian";
-import type { FuzzyMatch } from "obsidian";
+import { FuzzySuggestModal } from "obsidian";
+import type { FuzzyMatch , App} from "obsidian";
 
 type Options = {
 	limit: FuzzySuggestModal<string>["limit"];

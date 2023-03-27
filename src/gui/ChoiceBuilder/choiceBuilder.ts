@@ -1,4 +1,5 @@
-import { App, Modal, Setting } from "obsidian";
+import type { App, Setting } from "obsidian";
+import { Modal } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type { SvelteComponent } from "svelte";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
@@ -63,6 +64,7 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 		headerEl.setText(choice.name);
 
+		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		headerEl.addEventListener("click", async (ev) => {
 			try {
 				const newName: string = await GenericInputPrompt.Prompt(

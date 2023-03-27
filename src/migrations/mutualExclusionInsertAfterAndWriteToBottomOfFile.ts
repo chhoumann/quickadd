@@ -1,9 +1,9 @@
-import IChoice from "src/types/choices/IChoice";
-import { IMacro } from "src/types/macros/IMacro";
+import type IChoice from "src/types/choices/IChoice";
+import type { IMacro } from "src/types/macros/IMacro";
 import { isCaptureChoice } from "./isCaptureChoice";
 import { isMultiChoice } from "./isMultiChoice";
 import { isNestedChoiceCommand } from "./isNestedChoiceCommand";
-import { Migration } from "./Migrations";
+import type { Migration } from "./Migrations";
 
 function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
@@ -46,6 +46,7 @@ function migrateSettingsInMacros(macros: IMacro[]): IMacro[] {
 const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 	description:
 		"Mutual exclusion of insertAfter and writeToBottomOfFile settings. If insertAfter is enabled, writeToBottomOfFile is disabled. To support changes in settings UI.",
+	// eslint-disable-next-line @typescript-eslint/require-await
 	migrate: async (plugin) => {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveMigrateSettingInChoices(choicesCopy);

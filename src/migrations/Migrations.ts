@@ -1,5 +1,5 @@
-import QuickAdd from "src/main";
-import { QuickAddSettings } from "src/quickAddSettingsTab";
+import type QuickAdd from "src/main";
+import type { QuickAddSettings } from "src/quickAddSettingsTab";
 
 export type Migration = {
 	description: string;

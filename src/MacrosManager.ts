@@ -1,6 +1,6 @@
 import type { IMacro } from "./types/macros/IMacro";
+import type { App } from "obsidian";
 import {
-	App,
 	ButtonComponent,
 	Modal,
 	Setting,
@@ -223,7 +223,7 @@ export class MacrosManager extends Modal {
 						this.macroContainer.scrollHeight
 					);
 				} catch (error) {
-					log.logError(error);
+					log.logError(error as string);
 				}
 			});
 	}

@@ -1,7 +1,7 @@
 import type IChoice from "./IChoice";
 import type { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
-import { fileExistsChoices } from "src/constants";
+import type { fileExistsChoices } from "src/constants";
 
 export default interface ITemplateChoice extends IChoice {
 	templatePath: string;

@@ -1,4 +1,5 @@
-import { App, ButtonComponent, Modal, TextAreaComponent } from "obsidian";
+import type { App} from "obsidian";
+import { ButtonComponent, Modal, TextAreaComponent } from "obsidian";
 import { SilentFileSuggester } from "../suggesters/fileSuggester";
 import { SilentTagSuggester } from "../suggesters/tagSuggester";
 

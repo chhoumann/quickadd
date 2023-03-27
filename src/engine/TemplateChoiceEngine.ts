@@ -156,7 +156,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				});
 			}
 		} catch (error) {
-			log.logError(error);
+			log.logError(error as string);
 		}
 	}
 

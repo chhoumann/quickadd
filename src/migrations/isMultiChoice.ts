@@ -1,5 +1,5 @@
 import { ChoiceType } from "src/types/choices/choiceType";
-import { MultiChoice } from "src/types/choices/MultiChoice";
+import type { MultiChoice } from "src/types/choices/MultiChoice";
 
 export function isMultiChoice(choice: unknown): choice is MultiChoice {
 	if (

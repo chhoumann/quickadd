@@ -1,4 +1,5 @@
-import { Plugin, TFile } from "obsidian";
+import type { TFile } from "obsidian";
+import { Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log } from "./logger/logManager";
@@ -34,7 +35,7 @@ export default class QuickAdd extends Plugin {
 		settingsStore.setState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
-			this.saveSettings();
+			void this.saveSettings();
 		});
 
 		this.addCommand({
@@ -55,7 +56,7 @@ export default class QuickAdd extends Plugin {
 
 				const id: string = this.manifest.id,
 					plugins = this.app.plugins;
-				plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
+				void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
 		});
 
@@ -69,11 +70,11 @@ export default class QuickAdd extends Plugin {
 
 				console.log(`Test QuickAdd (dev)`);
 
-				const fn = async () => {
+				const fn = () => {
 					new UpdateModal("0.12.0").open();
 				};
 
-				fn();
+				void fn();
 			},
 		});
 
@@ -101,6 +102,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async loadSettings() {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
@@ -197,7 +199,7 @@ export default class QuickAdd extends Plugin {
 		if (currentVersion === knownVersion) return;
 
 		this.settings.version = currentVersion;
-		this.saveSettings();
+		void this.saveSettings();
 
 		if (this.settings.announceUpdates === false) return;
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
 import { getNaturalLanguageDates } from "../utilityObsidian";

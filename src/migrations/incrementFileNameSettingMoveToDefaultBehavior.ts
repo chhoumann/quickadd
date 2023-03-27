@@ -1,10 +1,10 @@
-import QuickAdd from "src/main";
-import IChoice from "src/types/choices/IChoice";
-import { IMacro } from "src/types/macros/IMacro";
+import type QuickAdd from "src/main";
+import type IChoice from "src/types/choices/IChoice";
+import type { IMacro } from "src/types/macros/IMacro";
 import { isMultiChoice } from "./isMultiChoice";
 import { isNestedChoiceCommand } from "./isNestedChoiceCommand";
 import { isOldTemplateChoice } from "./isOldTemplateChoice";
-import { Migration } from "./Migrations";
+import type { Migration } from "./Migrations";
 
 function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
@@ -46,6 +46,7 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
+	// eslint-disable-next-line @typescript-eslint/require-await
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveRemoveIncrementFileName(choicesCopy);

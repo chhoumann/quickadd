@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { TextInputSuggest } from "./suggest";
 import type { App, TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";

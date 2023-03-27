@@ -1,6 +1,7 @@
 import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
-import { App, TFile } from "obsidian";
+import type { App } from "obsidian";
+import { TFile } from "obsidian";
 import type QuickAdd from "../main";
 import {
 	getTemplater,
@@ -109,7 +110,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return createdFile;
 		} catch (e) {
 			log.logError(
-				`Could not create file with template: \n\n${e.message}`
+				`Could not create file with template: \n\n${(e as {message: string}).message}`
 			);
 			return null;
 		}
@@ -132,7 +133,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return file;
 		} catch (e) {
-			log.logError(e);
+			log.logError(e as string);
 			return null;
 		}
 	}
@@ -160,7 +161,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return file;
 		} catch (e) {
-			log.logError(e);
+			log.logError(e as string);
 			return null;
 		}
 	}

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
 	DATE_REGEX,
 	DATE_REGEX_FORMATTED,
@@ -84,6 +86,7 @@ export abstract class Formatter {
 		return output;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	protected async replaceLinkToCurrentFileInString(
 		input: string
 	): Promise<string> {
@@ -213,6 +216,7 @@ export abstract class Formatter {
 		suggestedValues: string[]
 	): Promise<string> | string;
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	protected abstract suggestForField(variableName: string): any;
 
 	protected async replaceDateVariableInString(input: string) {
@@ -232,6 +236,7 @@ export abstract class Formatter {
 						await this.promptForVariable(variableName)
 					);
 
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const nld = this.getNaturalLanguageDates();
 					if (
 						!nld ||

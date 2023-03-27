@@ -1,4 +1,5 @@
-import { App, ButtonComponent, Modal } from "obsidian";
+import type { App} from "obsidian";
+import { ButtonComponent, Modal } from "obsidian";
 
 export default class GenericYesNoPrompt extends Modal {
 	private resolvePromise: (input: boolean) => void;

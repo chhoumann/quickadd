@@ -36,8 +36,8 @@ export abstract class QuickAddEngine {
 		return await this.app.vault.adapter.exists(filePath);
 	}
 
-	protected async getFileByPath(filePath: string): Promise<TFile> {
-		const file = await this.app.vault.getAbstractFileByPath(filePath);
+	protected getFileByPath(filePath: string): TFile {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
 
 		if (!file) {
 			log.logError(`${filePath} not found`);

@@ -74,7 +74,7 @@ export class QuickAddApi {
 			},
 			format: async (
 				input: string,
-				variables?: { [key: string]: any }
+				variables?: { [key: string]: unknown }
 			) => {
 				if (variables) {
 					Object.keys(variables).forEach((key) => {

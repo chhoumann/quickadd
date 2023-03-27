@@ -115,7 +115,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		filePath: string,
 		content: string
 	): Promise<{ file: TFile; content: string }> {
-		const file: TFile = await this.getFileByPath(filePath);
+		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
 		// First format pass...

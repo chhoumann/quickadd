@@ -1,4 +1,5 @@
-import { FuzzyMatch, FuzzySuggestModal, MarkdownRenderer } from "obsidian";
+import type { FuzzyMatch} from "obsidian";
+import { FuzzySuggestModal, MarkdownRenderer } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import { ChoiceExecutor } from "../../choiceExecutor";
 import { ChoiceType } from "../../types/choices/choiceType";
@@ -32,7 +33,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	renderSuggestion(item: FuzzyMatch<IChoice>, el: HTMLElement): void {
 		el.empty();
-		MarkdownRenderer.renderMarkdown(item.item.name, el, '', this.plugin);
+		void MarkdownRenderer.renderMarkdown(item.item.name, el, '', this.plugin);
 		el.classList.add("quickadd-choice-suggestion");
 	}
 

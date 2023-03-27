@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 // Credits go to Liam's Periodic Notes Plugin: https://github.com/liamcain/obsidian-periodic-notes
 
-import { App, Scope } from "obsidian";
-import type { ISuggestOwner } from "obsidian";
+import { Scope } from "obsidian";
+import type { ISuggestOwner , App} from "obsidian";
 import { createPopper } from "@popperjs/core";
 import type { Instance as PopperInstance } from "@popperjs/core";
 
@@ -27,11 +30,13 @@ class Suggest<T> {
 		containerEl.on(
 			"click",
 			".suggestion-item",
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 			this.onSuggestionClick.bind(this)
 		);
 		containerEl.on(
 			"mousemove",
 			".suggestion-item",
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 			this.onSuggestionMouseover.bind(this)
 		);
 
@@ -182,7 +187,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 							return;
 						}
 						state.styles.popper.width = targetWidth;
-						instance.update();
+						void instance.update();
 					},
 					phase: "beforeWrite",
 					requires: ["computeStyles"],

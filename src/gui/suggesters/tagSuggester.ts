@@ -14,6 +14,7 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		super(app, inputEl);
 
 		// @ts-expect-error
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call
 		this.tags = Object.keys(app.metadataCache.getTags());
 	}
 

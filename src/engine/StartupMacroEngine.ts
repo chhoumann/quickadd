@@ -15,10 +15,11 @@ export class StartupMacroEngine extends MacroChoiceEngine {
 		super(app, plugin, null, macros, choiceExecutor, null);
 	}
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	async run(): Promise<void> {
 		this.macros.forEach((macro) => {
 			if (macro.runOnStartup) {
-				this.executeCommands(macro.commands);
+				void this.executeCommands(macro.commands);
 			}
 		});
 	}

@@ -1,6 +1,6 @@
 import { ChoiceBuilder } from "./choiceBuilder";
+import type { App } from "obsidian";
 import {
-	App,
 	ButtonComponent,
 	Setting,
 	TextComponent,
@@ -17,10 +17,10 @@ import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
+import type { fileExistsChoices } from "src/constants";
 import {
 	fileExistsAppendToBottom,
 	fileExistsAppendToTop,
-	fileExistsChoices,
 	fileExistsDoNothing,
 	fileExistsIncrement,
 	fileExistsOverwriteFile,
@@ -86,7 +86,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
 		const displayFormatter: FileNameDisplayFormatter =
 			new FileNameDisplayFormatter(this.app);
-		(async () =>
+		void (async () =>
 			(formatDisplay.textContent = await displayFormatter.format(
 				this.choice.fileNameFormat.format
 			)))();
@@ -208,6 +208,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				deleteFolder: (folder: string) => {
 					this.choice.folder.folders =
 						this.choice.folder.folders.filter((f) => f !== folder);
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 					folderListEl.updateFolders(this.choice.folder.folders);
 					suggester.updateCurrentItems(this.choice.folder.folders);
 				},
@@ -240,6 +241,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 
 			this.choice.folder.folders.push(input);
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 			folderListEl.updateFolders(this.choice.folder.folders);
 			folderInput.inputEl.value = "";
 

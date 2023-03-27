@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
 import { getNaturalLanguageDates } from "../utilityObsidian";
@@ -113,6 +116,7 @@ export class CompleteFormatter extends Formatter {
 
 		for (const file of this.app.vault.getMarkdownFiles()) {
 			const cache = this.app.metadataCache.getFileCache(file);
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			const value = cache?.frontmatter?.[variableName];
 			if (!value || typeof value == "object") continue;
 
@@ -167,6 +171,7 @@ export class CompleteFormatter extends Formatter {
 		).run();
 	}
 
+	// eslint-disable-next-line @typescript-eslint/require-await
 	protected async getSelectedText(): Promise<string> {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) return "";

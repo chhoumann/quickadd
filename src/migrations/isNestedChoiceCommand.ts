@@ -1,4 +1,4 @@
-import { NestedChoiceCommand } from "src/types/macros/QuickCommands/NestedChoiceCommand";
+import type { NestedChoiceCommand } from "src/types/macros/QuickCommands/NestedChoiceCommand";
 
 export function isNestedChoiceCommand(
 	command: unknown

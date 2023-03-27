@@ -1,4 +1,5 @@
-import { App, ButtonComponent, Modal, ToggleComponent } from "obsidian";
+import type { App } from "obsidian";
+import { ButtonComponent, Modal, ToggleComponent } from "obsidian";
 
 export default class GenericCheckboxPrompt extends Modal {
 	private resolvePromise: (value: string[]) => void;

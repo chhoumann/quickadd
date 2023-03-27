@@ -9,7 +9,7 @@ export class SelectLinkOnActiveLineCommand extends EditorCommand {
 		super(EditorCommandType.SelectLinkOnActiveLine);
 	}
 
-	static async run(app: App) {
+	static run(app: App) {
 		const activeView = EditorCommand.getActiveMarkdownView(app);
 
 		const { line: lineNumber } = activeView.editor.getCursor();

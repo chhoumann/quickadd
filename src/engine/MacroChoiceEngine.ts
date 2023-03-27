@@ -82,7 +82,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async executeCommands(commands: ICommand[]) {
 		for (const command of commands) {
 			if (command?.type === CommandType.Obsidian)
-				await this.executeObsidianCommand(command as IObsidianCommand);
+				this.executeObsidianCommand(command as IObsidianCommand);
 			if (command?.type === CommandType.UserScript)
 				await this.executeUserScript(command as IUserScript);
 			if (command?.type === CommandType.Choice)
@@ -125,7 +125,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			await this.userScriptDelegator(userScript);
 		} catch (error) {
 			log.logError(
-				`failed to run user script ${command.name}. Error:\n\n${error.message}`
+				`failed to run user script ${command.name}. Error:\n\n${(error as {message: string}).message}`
 			);
 		}
 
@@ -168,14 +168,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			case "function":
 				if (this.userScriptCommand) {
 					await this.runScriptWithSettings(
+						// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 						userScript,
 						this.userScriptCommand
 					);
 				} else {
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 					await this.onExportIsFunction(userScript);
 				}
 				break;
 			case "object":
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 				await this.onExportIsObject(userScript);
 				break;
 			case "bigint":
@@ -231,12 +234,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			await this.userScriptDelegator(obj[selected]);
 		} catch (e) {
-			log.logMessage(e);
+			log.logMessage(e as string);
 		}
 	}
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
 		// @ts-ignore
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		this.app.commands.executeCommandById(command.commandId);
 	}
 
@@ -274,10 +278,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				await PasteCommand.run(this.app);
 				break;
 			case EditorCommandType.SelectActiveLine:
-				await SelectActiveLineCommand.run(this.app);
+				SelectActiveLineCommand.run(this.app);
 				break;
 			case EditorCommandType.SelectLinkOnActiveLine:
-				await SelectLinkOnActiveLineCommand.run(this.app);
+				SelectLinkOnActiveLineCommand.run(this.app);
 				break;
 		}
 	}

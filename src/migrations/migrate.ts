@@ -1,6 +1,6 @@
 import { log } from "src/logger/logManager";
-import QuickAdd from "src/main";
-import { Migrations } from "./Migrations";
+import type QuickAdd from "src/main";
+import type { Migrations } from "./Migrations";
 import migrateToMacroIDFromEmbeddedMacro from "./migrateToMacroIDFromEmbeddedMacro";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
@@ -42,14 +42,14 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 			log.logMessage(`Migration ${migration} successful.`);
 		} catch (error) {
 			log.logError(
-				`Migration '${migration}' was unsuccessful. Please create an issue with the following error message: \n\n${error}\n\nQuickAdd will now revert to backup.`
+				`Migration '${migration}' was unsuccessful. Please create an issue with the following error message: \n\n${error as string}\n\nQuickAdd will now revert to backup.`
 			);
 
 			plugin.settings = backup;
 		}
 	}
 
-	plugin.saveSettings();
+	void plugin.saveSettings();
 }
 
 export default migrate;

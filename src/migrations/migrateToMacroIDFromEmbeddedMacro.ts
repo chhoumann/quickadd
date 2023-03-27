@@ -1,8 +1,8 @@
-import QuickAdd from "src/main";
+import type QuickAdd from "src/main";
 import { ChoiceType } from "src/types/choices/choiceType";
-import IChoice from "src/types/choices/IChoice";
-import IMacroChoice from "src/types/choices/IMacroChoice";
-import IMultiChoice from "src/types/choices/IMultiChoice";
+import type IChoice from "src/types/choices/IChoice";
+import type IMacroChoice from "src/types/choices/IMacroChoice";
+import type IMultiChoice from "src/types/choices/IMultiChoice";
 
 export default {
 	description: "Migrate to macro ID from embedded macro in macro choices.",

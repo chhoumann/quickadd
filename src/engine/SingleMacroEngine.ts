@@ -38,9 +38,12 @@ export class SingleMacroEngine extends MacroChoiceEngine {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	protected override async onExportIsObject(obj: any): Promise<void> {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 		if (!this.memberAccess) return await super.onExportIsObject(obj);
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		let newObj = obj;
 		this.memberAccess.forEach((key) => {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
 			newObj = newObj[key];
 		});
 

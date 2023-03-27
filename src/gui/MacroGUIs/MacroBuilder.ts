@@ -1,12 +1,13 @@
 import type { IMacro } from "../../types/macros/IMacro";
-import {
+import type {
 	App,
-	ButtonComponent,
 	DropdownComponent,
-	Modal,
-	Setting,
 	TextComponent,
-	TFile,
+	TFile} from "obsidian";
+import {
+	ButtonComponent,
+	Modal,
+	Setting
 } from "obsidian";
 import type { IObsidianCommand } from "../../types/macros/IObsidianCommand";
 import { UserScript } from "../../types/macros/UserScript";
@@ -90,6 +91,7 @@ export class MacroBuilder extends Modal {
 		headerEl.setText(header);
 		headerEl.addClass("clickable");
 
+		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		headerEl.addEventListener("click", async () => {
 			const newMacroName: string = await GenericInputPrompt.Prompt(
 				this.app,
@@ -312,7 +314,7 @@ export class MacroBuilder extends Modal {
 		// @ts-ignore
 		Object.keys(this.app.commands.commands).forEach((key) => {
 			// @ts-ignore
-			const command = this.app.commands.commands[key];
+			const command: {name: string, id: string} = this.app.commands.commands[key];
 
 			this.commands.push(new ObsidianCommand(command.name, command.id));
 		});
@@ -355,6 +357,7 @@ export class MacroBuilder extends Modal {
 						(c) => c.id !== commandId
 					);
 					//@ts-ignore
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 					this.commandListEl.updateCommandList(this.macro.commands);
 				},
 				saveCommands: (commands: ICommand[]) => {
@@ -408,6 +411,7 @@ export class MacroBuilder extends Modal {
 	private addCommandToMacro(command: ICommand) {
 		this.macro.commands.push(command);
 		//@ts-ignore
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		this.commandListEl.updateCommandList(this.macro.commands);
 	}
 }

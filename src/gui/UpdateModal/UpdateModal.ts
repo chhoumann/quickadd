@@ -1,4 +1,5 @@
-import { Component, MarkdownRenderer, Modal } from "obsidian";
+import type { Component} from "obsidian";
+import { MarkdownRenderer, Modal } from "obsidian";
 import { log } from "src/logger/logManager";
 
 type Release = {
@@ -27,6 +28,7 @@ async function getReleaseNotesAfter(
 	const response = await fetch(
 		`https://api.github.com/repos/${repoOwner}/${repoName}/releases`
 	);
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 	const releases: Release[] | { message: string } = await response.json();
 
 	if ((!response.ok && "message" in releases) || !Array.isArray(releases)) {
@@ -93,7 +95,7 @@ export class UpdateModal extends Modal {
 				this.display();
 			})
 			.catch((err) => {
-				log.logError(`Failed to fetch release notes: ${err}`);
+				log.logError(`Failed to fetch release notes: ${err as string}`);
 			});
 	}
 
@@ -130,7 +132,7 @@ export class UpdateModal extends Modal {
 			releaseNotes
 		)}`;
 
-		MarkdownRenderer.renderMarkdown(
+		void MarkdownRenderer.renderMarkdown(
 			markdownStr,
 			contentDiv,
 			app.vault.getRoot().path,

@@ -3,7 +3,7 @@ import type ITemplateChoice from "./ITemplateChoice";
 import { Choice } from "./Choice";
 import { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
-import { fileExistsChoices } from "src/constants";
+import type { fileExistsChoices } from "src/constants";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean;

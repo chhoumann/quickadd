@@ -1,12 +1,13 @@
 import { ChoiceBuilder } from "./choiceBuilder";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
-import { App, ButtonComponent } from "obsidian";
+import type { App } from "obsidian";
+import { ButtonComponent } from "obsidian";
 import { DropdownComponent } from "obsidian";
 import type { IMacro } from "../../types/macros/IMacro";
 import { MacroBuilder } from "../MacroGUIs/MacroBuilder";
 import QuickAdd from "src/main";
 import { settingsStore } from "src/settingsStore";
-import IChoice from "src/types/choices/IChoice";
+import type IChoice from "src/types/choices/IChoice";
 import { log } from "src/logger/logManager";
 
 export class MacroChoiceBuilder extends ChoiceBuilder {
@@ -71,13 +72,13 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 			.setIcon("plus")
 			.setCta()
 			.setTooltip("Create Macro")
-			.onClick(async () => {
+			.onClick(() => {
 				try {
 					const macro = settingsStore.createMacro(this.choice.name);
 					this.choice.macroId = macro.id;
 					this.reload();
 				} catch (error) {
-					log.logError(error);
+					log.logError(error as string);
 				}
 			});
 	}
