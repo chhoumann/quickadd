@@ -20,9 +20,9 @@
     import type {IMacro} from "../../types/macros/IMacro";
     import QuickAdd from "../../main";
     import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
-	import { excludeKeys, getChoiceType } from "src/utility";
 	import { settingsStore } from "src/settingsStore";
 	import { onMount } from "svelte";
+	import { excludeKeys, getChoiceType } from "src/utilityObsidian";
 
     export let choices: IChoice[] = [];
     export let macros: IMacro[] = [];

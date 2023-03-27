@@ -18,6 +18,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		enabled: boolean;
 		after: string;
 		insertAtEnd: boolean;
+		considerSubsections: boolean;
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
 	};
@@ -47,6 +48,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			enabled: false,
 			after: "",
 			insertAtEnd: false,
+			considerSubsections: false,
 			createIfNotFound: false,
 			createIfNotFoundLocation: "top",
 		};

@@ -5,7 +5,7 @@ import {
 	appendToCurrentLine,
 	getAllFolderPathsInVault,
 	openFile,
-} from "../utility";
+} from "../utilityObsidian";
 import {
 	fileExistsAppendToBottom,
 	fileExistsAppendToTop,

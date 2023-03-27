@@ -4,15 +4,13 @@ import type { App, TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import {
-	escapeRegExp,
-	getLinesInString,
-	templaterParseTemplate,
-} from "../utility";
+import { templaterParseTemplate } from "../utilityObsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
+import { escapeRegExp, getLinesInString } from "src/utility";
+import getEndOfSection from "./helpers/getEndOfSection";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
@@ -40,7 +38,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			formatted,
 			this.file
 		);
-		if (!templaterFormatted) return formatted;
+		if (!(await templaterFormatted)) return formatted;
 
 		return templaterFormatted;
 	}
@@ -74,7 +72,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const frontmatterEndPosition = this.file
-			? await this.getFrontmatterEndPosition(this.file)
+			? this.getFrontmatterEndPosition(this.file)
 			: null;
 		if (!frontmatterEndPosition) return `${formatted}${this.fileContent}`;
 
@@ -99,12 +97,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const targetString: string = await this.format(
 			this.choice.insertAfter.after
 		);
+
 		const targetRegex = new RegExp(
 			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`
 		);
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 
-		const targetPosition = fileContentLines.findIndex((line) =>
+		let targetPosition = fileContentLines.findIndex((line) =>
 			targetRegex.test(line)
 		);
 		const targetNotFound = targetPosition === -1;
@@ -117,44 +116,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
-			const nextHeaderPositionAfterTargetPosition = fileContentLines
-				.slice(targetPosition + 1)
-				.findIndex((line) => /^#+ |---/.test(line));
-			const foundNextHeader =
-				nextHeaderPositionAfterTargetPosition !== -1;
+			if (!this.file)
+				throw new Error("Tried to get sections without file.");
 
-			let endOfSectionIndex: number | null = null;
-			if (foundNextHeader) {
-				for (
-					let i =
-						nextHeaderPositionAfterTargetPosition + targetPosition;
-					i > targetPosition;
-					i--
-				) {
-					const lineIsNewline: boolean = /^[\s\n ]*$/.test(
-						fileContentLines[i]
-					);
-
-					if (!lineIsNewline) {
-						endOfSectionIndex = i;
-						break;
-					}
-				}
-
-				if (!endOfSectionIndex) endOfSectionIndex = targetPosition;
-
-				return this.insertTextAfterPositionInBody(
-					formatted,
-					this.fileContent,
-					endOfSectionIndex
-				);
-			} else {
-				return this.insertTextAfterPositionInBody(
-					formatted,
-					this.fileContent,
-					fileContentLines.length - 1
-				);
-			}
+			const endOfSectionIndex = getEndOfSection(
+				fileContentLines,
+				targetPosition,
+				!!this.choice.insertAfter.considerSubsections
+			);
+			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
 		}
 
 		return this.insertTextAfterPositionInBody(
@@ -175,7 +145,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			CREATE_IF_NOT_FOUND_TOP
 		) {
 			const frontmatterEndPosition = this.file
-				? await this.getFrontmatterEndPosition(this.file)
+				? this.getFrontmatterEndPosition(this.file)
 				: -1;
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
@@ -192,8 +162,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private async getFrontmatterEndPosition(file: TFile) {
-		const fileCache = await this.app.metadataCache.getFileCache(file);
+	private getFrontmatterEndPosition(file: TFile) {
+		const fileCache = this.app.metadataCache.getFileCache(file);
 
 		if (!fileCache || !fileCache.frontmatter) {
 			log.logMessage("could not get frontmatter. Maybe there isn't any.");

@@ -19,6 +19,7 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { log } from "src/logger/logManager";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
@@ -88,7 +89,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				captureToFileContainer.createEl("span");
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app);
-			(async () =>
+			void (async () =>
 				(formatDisplay.textContent = await displayFormatter.format(
 					this.choice.captureTo
 				)))();
@@ -136,7 +137,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				toggle.onChange((value) => {
 					this.choice.prepend = value;
 
-					if (this.choice.prepend && this.choice.insertAfter.enabled) {
+					if (
+						this.choice.prepend &&
+						this.choice.insertAfter.enabled
+					) {
 						this.choice.insertAfter.enabled = false;
 						this.reload();
 					}
@@ -182,8 +186,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				toggle.onChange((value) => {
 					this.choice.insertAfter.enabled = value;
 					insertAfterInput.setDisabled(!value);
-					
-					if (this.choice.insertAfter.enabled && this.choice.prepend) {
+
+					if (
+						this.choice.insertAfter.enabled &&
+						this.choice.prepend
+					) {
 						this.choice.prepend = false;
 					}
 
@@ -195,7 +202,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter =
 			new FormatDisplayFormatter(this.app, this.plugin);
-		(async () =>
+		void (async () =>
 			(insertAfterFormatDisplay.innerText = await displayFormatter.format(
 				this.choice.insertAfter.after
 			)))();
@@ -232,6 +239,39 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						.onChange(
 							(value) =>
 								(this.choice.insertAfter.insertAtEnd = value)
+						)
+				);
+
+			const considerSubsectionsSetting: Setting = new Setting(
+				this.contentEl
+			);
+			considerSubsectionsSetting
+				.setName("Consider subsections")
+				.setDesc(
+					"Enabling this will insert the text at the end of the section & its subsections, rather than just at the end of the target section." +
+						"A section is defined by a heading, and its subsections are all the headings inside that section."
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.choice.insertAfter?.considerSubsections)
+						.onChange(
+							(value) => {
+								// Trying to disable
+								if (!value) {
+									this.choice.insertAfter.considerSubsections = false;
+									return;
+								}
+								
+								// Trying to enable but `after` is not a heading
+								const targetIsHeading = this.choice.insertAfter.after.startsWith("#");
+								if (targetIsHeading) {
+									this.choice.insertAfter.considerSubsections = value;
+								} else {
+									this.choice.insertAfter.considerSubsections = false;
+									log.logError("'Consider subsections' can only be enabled if the insert after line starts with a # (heading).");
+									this.display();
+								}
+							}
 						)
 				);
 
@@ -306,7 +346,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter =
 			new FormatDisplayFormatter(this.app, this.plugin);
-		(async () =>
+		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(
 				this.choice.format.format
 			)))();

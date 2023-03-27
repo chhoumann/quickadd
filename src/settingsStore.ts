@@ -1,6 +1,7 @@
 import { createStore } from "zustand/vanilla";
-import { DEFAULT_SETTINGS, QuickAddSettings } from "./quickAddSettingsTab";
-import { IMacro } from "./types/macros/IMacro";
+import type { QuickAddSettings } from "./quickAddSettingsTab";
+import { DEFAULT_SETTINGS } from "./quickAddSettingsTab";
+import type { IMacro } from "./types/macros/IMacro";
 import { QuickAddMacro } from "./types/macros/QuickAddMacro";
 
 // Define the state shape and actions for your store.

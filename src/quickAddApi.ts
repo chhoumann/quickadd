@@ -9,7 +9,7 @@ import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
 import { CompleteFormatter } from "./formatters/completeFormatter";
-import { getDate } from "./utility";
+import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
 
@@ -47,7 +47,7 @@ export class QuickAddApi {
 							value: string,
 							index?: number,
 							arr?: string[]
-					) => string[]),
+					  ) => string[]),
 				actualItems: string[]
 			) => {
 				return this.suggester(app, displayItems, actualItems);
@@ -176,7 +176,11 @@ export class QuickAddApi {
 		}
 	}
 
-	public static async infoDialog(app: App, header: string, text: string[] | string) {
+	public static async infoDialog(
+		app: App,
+		header: string,
+		text: string[] | string
+	) {
 		try {
 			return await GenericInfoDialog.Show(app, header, text);
 		} catch {

@@ -9,7 +9,7 @@ import { ChoiceType } from "./types/choices/choiceType";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import { deleteObsidianCommand } from "./utility";
+import { deleteObsidianCommand } from "./utilityObsidian";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
@@ -193,7 +193,7 @@ export default class QuickAdd extends Plugin {
 	private announceUpdate() {
 		const currentVersion = this.manifest.version;
 		const knownVersion = this.settings.version;
-		
+
 		if (currentVersion === knownVersion) return;
 
 		this.settings.version = currentVersion;
