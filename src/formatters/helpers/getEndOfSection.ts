@@ -69,7 +69,7 @@ export default function getEndOfSection(
 	const endOfSectionLineIdx = getEndOfSectionLineByHeadings(
 		targetHeading as Heading,
 		headings,
-		lastLineInBodyIdx,
+		lines,
 		shouldConsiderSubsections
 	);
 
@@ -78,11 +78,16 @@ export default function getEndOfSection(
 		endOfSectionLineIdx,
 		(str: string) => str.trim() !== ""
 	);
-    
+
 	if (lastNonEmptyLineInSectionIdx !== null) {
-        if (lastNonEmptyLineInSectionIdx + 1 === lastLineInBodyIdx) {
-            return endOfSectionLineIdx;
-        }
+		if (lastNonEmptyLineInSectionIdx + 1 === lastLineInBodyIdx) {
+			return endOfSectionLineIdx;
+		}
+
+		if (lastNonEmptyLineInSectionIdx === 0) {
+			return lastNonEmptyLineInSectionIdx + 1;
+		}
+
 		return lastNonEmptyLineInSectionIdx;
 	}
 
@@ -92,13 +97,14 @@ export default function getEndOfSection(
 function getEndOfSectionLineByHeadings(
 	targetHeading: Heading,
 	headings: Heading[],
-	lastLineInBodyIdx: number,
+	lines: string[],
 	shouldConsiderSubsections: boolean
 ): number {
 	const targetHeadingIdx = headings.findIndex((heading) =>
 		isSameHeading(heading, targetHeading)
 	);
 	const targetHeadingIsLastHeading = targetHeadingIdx === headings.length - 1;
+	const lastLineInBodyIdx = lines.length - 1;
 
 	if (targetHeadingIsLastHeading) {
 		return lastLineInBodyIdx;
@@ -126,6 +132,15 @@ function getEndOfSectionLineByHeadings(
 		return headings[targetHeadingIdx + 1].line;
 	}
 
+	if (!shouldConsiderSubsections && !foundHigherOrSameLevelHeading) {
+		const nextHeading = findNextHeading(targetHeading.line, headings);
+		if (nextHeading === null) {
+			return lastLineInBodyIdx;
+		}
+
+		return nextHeading;
+	}
+
 	// There are no higher level sections, but there may be more sections.
 	return lastLineInBodyIdx;
 }
@@ -149,6 +164,17 @@ function findNextHigherOrSameLevelHeading(
 	}
 
 	return [nextSameOrHigherLevelHeadingIdx, true];
+}
+
+function findNextHeading(
+	fromIdxInBody: number,
+	headings: Heading[]
+): number | null {
+	const nextheading = headings.findIndex(
+		(heading) => heading.line > fromIdxInBody
+	);
+
+	return nextheading === -1 ? null : nextheading;
 }
 
 function findPriorIdx<T>(
