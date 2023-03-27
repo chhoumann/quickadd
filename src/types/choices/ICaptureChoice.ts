@@ -19,6 +19,7 @@ export default interface ICaptureChoice extends IChoice {
 		enabled: boolean;
 		after: string;
 		insertAtEnd: boolean;
+		considerSubsections: boolean;
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
 	};
