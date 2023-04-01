@@ -80,6 +80,11 @@ export default function getEndOfSection(
 	);
 
 	if (lastNonEmptyLineInSectionIdx !== null) {
+		// Since we're finding the end, it doesn't make sense to go above the target line
+		if (lastNonEmptyLineInSectionIdx < targetLine) {
+			return targetLine;
+		}
+
 		if (lastNonEmptyLineInSectionIdx + 1 === lastLineInBodyIdx) {
 			return endOfSectionLineIdx;
 		}

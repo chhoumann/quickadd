@@ -124,6 +124,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				targetPosition,
 				!!this.choice.insertAfter.considerSubsections
 			);
+
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
 		}
 
