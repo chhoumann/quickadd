@@ -47,11 +47,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		this.addPrependSetting();
 
+		this.addAppendLinkSetting();
+		this.addInsertAfterSetting();
 		if (!this.choice.captureToActiveFile) {
-			this.addAppendLinkSetting();
-			this.addInsertAfterSetting();
 			this.addOpenFileSetting();
-			if (this.choice.openFile) this.addOpenFileInNewTabSetting();
+			
+			if (this.choice.openFile) {
+				this.addOpenFileInNewTabSetting();
+			}
 		}
 
 		this.addFormatSetting();
@@ -254,25 +257,29 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.choice.insertAfter?.considerSubsections)
-						.onChange(
-							(value) => {
-								// Trying to disable
-								if (!value) {
-									this.choice.insertAfter.considerSubsections = false;
-									return;
-								}
-								
-								// Trying to enable but `after` is not a heading
-								const targetIsHeading = this.choice.insertAfter.after.startsWith("#");
-								if (targetIsHeading) {
-									this.choice.insertAfter.considerSubsections = value;
-								} else {
-									this.choice.insertAfter.considerSubsections = false;
-									log.logError("'Consider subsections' can only be enabled if the insert after line starts with a # (heading).");
-									this.display();
-								}
+						.onChange((value) => {
+							// Trying to disable
+							if (!value) {
+								this.choice.insertAfter.considerSubsections =
+									false;
+								return;
 							}
-						)
+
+							// Trying to enable but `after` is not a heading
+							const targetIsHeading =
+								this.choice.insertAfter.after.startsWith("#");
+							if (targetIsHeading) {
+								this.choice.insertAfter.considerSubsections =
+									value;
+							} else {
+								this.choice.insertAfter.considerSubsections =
+									false;
+								log.logError(
+									"'Consider subsections' can only be enabled if the insert after line starts with a # (heading)."
+								);
+								this.display();
+							}
+						})
 				);
 
 			const createLineIfNotFound: Setting = new Setting(this.contentEl);
