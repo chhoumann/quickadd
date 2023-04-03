@@ -24,10 +24,10 @@
 <div class="addChoiceBox">
     <input type="text" placeholder="Name" bind:value={name}>
     <select id="addChoiceTypeSelector" bind:value={type}>
-        <option value={ChoiceType.Template}>{ChoiceType.Template}</option>
-        <option value={ChoiceType.Capture}>{ChoiceType.Capture}</option>
-        <option value={ChoiceType.Macro}>{ChoiceType.Macro}</option>
-        <option value={ChoiceType.Multi}>{ChoiceType.Multi}</option>
+        <option value={"Template"}>{"Template"}</option>
+        <option value={"Capture"}>{"Capture"}</option>
+        <option value={"Macro"}>{"Macro"}</option>
+        <option value={"Multi"}>{"Multi"}</option>
     </select>
     <button class="mod-cta" on:click={addChoice}>Add Choice</button>
 </div>

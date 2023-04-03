@@ -2,7 +2,6 @@
     import IChoice from "../../types/choices/IChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
-    import {ChoiceType} from "../../types/choices/choiceType";
     import {DndEvent, dndzone, SHADOW_PLACEHOLDER_ITEM_ID, SOURCES} from "svelte-dnd-action";
     import {createEventDispatcher} from "svelte";
 
@@ -49,7 +48,7 @@
         class="choiceList"
         style="{choices.length === 0 ? 'padding-bottom: 0.5rem' : ''}">
     {#each choices.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as choice(choice.id)}
-        {#if choice.type !== ChoiceType.Multi}
+        {#if choice.type !== "Multi"}
             <ChoiceListItem
                     bind:dragDisabled={dragDisabled}
                     on:mousedown={startDrag}

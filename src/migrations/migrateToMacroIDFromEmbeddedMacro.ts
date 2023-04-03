@@ -1,5 +1,4 @@
 import type QuickAdd from "src/main";
-import { ChoiceType } from "src/types/choices/choiceType";
 import type IChoice from "src/types/choices/IChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
@@ -10,7 +9,7 @@ export default {
 		// Did not make sense to have copies of macros in the choices when they are maintained for themselves.
 		// Instead we reference by id now. Have to port this over for all users.
 		function convertMacroChoiceMacroToIdHelper(choice: IChoice): IChoice {
-			if (choice.type === ChoiceType.Multi) {
+			if (choice.type === "Multi") {
 				let multiChoice = choice as IMultiChoice;
 				const multiChoices = multiChoice.choices.map(
 					convertMacroChoiceMacroToIdHelper
@@ -19,7 +18,7 @@ export default {
 				return multiChoice;
 			}
 
-			if (choice.type !== ChoiceType.Macro) return choice;
+			if (choice.type !== "Macro") return choice;
 			const macroChoice = choice as IMacroChoice;
 
 			if (macroChoice.macro) {

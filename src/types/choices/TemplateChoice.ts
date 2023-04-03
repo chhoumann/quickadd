@@ -1,4 +1,3 @@
-import { ChoiceType } from "./choiceType";
 import type ITemplateChoice from "./ITemplateChoice";
 import { Choice } from "./Choice";
 import { NewTabDirection } from "../newTabDirection";
@@ -27,7 +26,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 	setFileExistsBehavior: boolean;
 
 	constructor(name: string) {
-		super(name, ChoiceType.Template);
+		super(name, "Template");
 
 		this.templatePath = "";
 		this.fileNameFormat = { enabled: false, format: "" };

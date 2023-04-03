@@ -1,4 +1,3 @@
-import { ChoiceType } from "src/types/choices/choiceType";
 import type { MultiChoice } from "src/types/choices/MultiChoice";
 
 export function isMultiChoice(choice: unknown): choice is MultiChoice {
@@ -11,5 +10,5 @@ export function isMultiChoice(choice: unknown): choice is MultiChoice {
 		return false;
 	}
 
-	return choice.type === ChoiceType.Multi && choice.choices !== undefined;
+	return choice.type === "Multi" && choice.choices !== undefined;
 }

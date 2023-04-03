@@ -8,7 +8,6 @@ import type { MultiChoice } from "./types/choices/MultiChoice";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
 import type { MacroChoice } from "./types/choices/MacroChoice";
 import type IChoice from "./types/choices/IChoice";
-import { ChoiceType } from "./types/choices/choiceType";
 import { log } from "./logger/logManager";
 
 export function getTemplater(app: App) {
@@ -211,13 +210,13 @@ export function getChoiceType<
 	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice
 >(choice: IChoice): choice is T {
 	const isTemplate = (choice: IChoice): choice is TemplateChoice =>
-		choice.type === ChoiceType.Template;
+		choice.type === "Template";
 	const isMacro = (choice: IChoice): choice is MacroChoice =>
-		choice.type === ChoiceType.Macro;
+		choice.type === "Macro";
 	const isCapture = (choice: IChoice): choice is CaptureChoice =>
-		choice.type === ChoiceType.Capture;
+		choice.type === "Capture";
 	const isMulti = (choice: IChoice): choice is MultiChoice =>
-		choice.type === ChoiceType.Multi;
+		choice.type === "Multi";
 
 	return (
 		isTemplate(choice) ||

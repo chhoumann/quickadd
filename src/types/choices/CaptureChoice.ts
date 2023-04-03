@@ -1,5 +1,4 @@
 import { Choice } from "./Choice";
-import { ChoiceType } from "./choiceType";
 import type ICaptureChoice from "./ICaptureChoice";
 import { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
@@ -33,7 +32,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	openFileInMode: FileViewMode;
 
 	constructor(name: string) {
-		super(name, ChoiceType.Capture);
+		super(name, "Capture");
 
 		this.appendLink = false;
 		this.captureTo = "";

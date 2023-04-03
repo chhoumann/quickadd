@@ -10,8 +10,6 @@ import {
 import { MacroBuilder } from "./gui/MacroGUIs/MacroBuilder";
 import { log } from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";
-import { ChoiceType } from "./types/choices/choiceType";
-import type IMultiChoice from "./types/choices/IMultiChoice";
 import type QuickAdd from "./main";
 import { settingsStore } from "./settingsStore";
 
@@ -132,30 +130,11 @@ export class MacrosManager extends Modal {
 				configureButton
 					.setButtonText("Configure")
 					.onClick(async (evt) => {
-						const getReachableChoices = (choices: IChoice[]) => {
-							const reachableChoices: IChoice[] = [];
-							choices.forEach((choice) => {
-								if (choice.type === ChoiceType.Multi)
-									reachableChoices.push(
-										...getReachableChoices(
-											(<IMultiChoice>choice).choices
-										)
-									);
-
-								if (choice.type !== ChoiceType.Multi)
-									reachableChoices.push(choice);
-							});
-							return reachableChoices;
-						};
-
-						const reachableChoices = getReachableChoices(
-							this.choices
-						);
 						const newMacro = await new MacroBuilder(
 							this.app,
 							this.plugin,
 							macro,
-							reachableChoices
+							this.choices
 						).waitForClose;
 
 						if (newMacro) {

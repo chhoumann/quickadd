@@ -2,7 +2,6 @@ import type { FuzzyMatch} from "obsidian";
 import { FuzzySuggestModal, MarkdownRenderer } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import { ChoiceExecutor } from "../../choiceExecutor";
-import { ChoiceType } from "../../types/choices/choiceType";
 import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
@@ -49,7 +48,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		item: IChoice,
 		evt: MouseEvent | KeyboardEvent
 	): Promise<void> {
-		if (item.type === ChoiceType.Multi)
+		if (item.type === "Multi")
 			this.onChooseMultiType(<IMultiChoice>item);
 		else await this.choiceExecutor.execute(item);
 	}

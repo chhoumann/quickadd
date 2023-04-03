@@ -1,6 +1,5 @@
 <script lang="ts">
     import IChoice from "../../types/choices/IChoice";
-    import {ChoiceType} from "../../types/choices/choiceType";
     import ChoiceList from "./ChoiceList.svelte";
     import IMultiChoice from "../../types/choices/IMultiChoice";
     import AddChoiceBox from "./AddChoiceBox.svelte";
@@ -47,19 +46,19 @@
         const {name, type} = event.detail;
 
         switch (type) {
-            case ChoiceType.Template:
+            case "Template":
                 const templateChoice: ITemplateChoice = new TemplateChoice(name);
                 choices = [...choices, templateChoice];
                 break;
-            case ChoiceType.Capture:
+            case "Capture":
                 const captureChoice: ICaptureChoice = new CaptureChoice(name);
                 choices = [...choices, captureChoice];
                 break;
-            case ChoiceType.Macro:
+            case "Macro":
                 const macroChoice: IMacroChoice = new MacroChoice(name);
                 choices = [...choices, macroChoice];
                 break;
-            case ChoiceType.Multi:
+            case "Multi":
                 const multiChoice: IMultiChoice = new MultiChoice(name);
                 choices = [...choices, multiChoice];
                 break;
@@ -71,8 +70,8 @@
     async function deleteChoice(e: any) {
         const choice: IChoice = e.detail.choice;
 
-        const hasOwnMacro = choice.type === ChoiceType.Macro && macros.some(macro => macro.name === (choice as MacroChoice).name);
-        const isMulti = choice.type === ChoiceType.Multi;
+        const hasOwnMacro = choice.type === "Macro" && macros.some(macro => macro.name === (choice as MacroChoice).name);
+        const isMulti = choice.type === "Multi";
 
         const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(app,
             `Confirm deletion of choice`, `Please confirm that you wish to delete '${choice.name}'.
@@ -97,7 +96,7 @@
     }
 
     function deleteChoiceHelper(id: string, value: IChoice): boolean {
-        if (value.type === ChoiceType.Multi) {
+        if (value.type === "Multi") {
             (value as IMultiChoice).choices = (value as IMultiChoice).choices
                 .filter((v) => deleteChoiceHelper(id, v));
         }
@@ -109,7 +108,7 @@
         const {choice: oldChoice} = e.detail;
 
         let updatedChoice: MultiChoice | TemplateChoice | CaptureChoice | MacroChoice;
-        if (oldChoice.type === ChoiceType.Multi) {
+        if (oldChoice.type === "Multi") {
             updatedChoice = oldChoice;
 
             const name = await GenericInputPrompt.Prompt(app, `Rename ${oldChoice.name}`, '', oldChoice.name);
@@ -160,21 +159,21 @@
         let newChoice;
 
         switch ((choice as IChoice).type) {
-            case ChoiceType.Template:
+            case "Template":
                 newChoice = new TemplateChoice(`${choice.name} (copy)`);
                 break;
-            case ChoiceType.Capture:
+            case "Capture":
                 newChoice = new CaptureChoice(`${choice.name} (copy)`);
                 break;
-            case ChoiceType.Macro:
+            case "Macro":
                 newChoice = new MacroChoice(`${choice.name} (copy)`);
                 break;
-            case ChoiceType.Multi:
+            case "Multi":
                 newChoice = new MultiChoice(`${choice.name} (copy)`);
                 break;
         }
 
-        if (choice.type !== ChoiceType.Multi) {
+        if (choice.type !== "Multi") {
             Object.assign(newChoice, excludeKeys(choice, ['id', 'name']));
         } else {
             (newChoice as IMultiChoice).choices = (choice as IMultiChoice).choices.map(c => duplicateChoice(c));
@@ -189,7 +188,7 @@
             return oldChoice;
         }
 
-        if (oldChoice.type === ChoiceType.Multi) {
+        if (oldChoice.type === "Multi") {
             const multiChoice = (oldChoice as IMultiChoice);
             const multiChoiceChoices = multiChoice.choices.map(c => updateChoiceHelper(c, newChoice))
             return {...multiChoice, choices: multiChoiceChoices} as IChoice;
@@ -200,13 +199,13 @@
 
     function getChoiceBuilder(choice: IChoice) {
         switch (choice.type) {
-            case ChoiceType.Template:
+            case "Template":
                 return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
-            case ChoiceType.Capture:
+            case "Capture":
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
-            case ChoiceType.Macro:
+            case "Macro":
                 return new MacroChoiceBuilder(app, choice as IMacroChoice, macros, settingsStore.getState().choices);
-            case ChoiceType.Multi:
+            case "Multi":
             default:
                 break;
         }

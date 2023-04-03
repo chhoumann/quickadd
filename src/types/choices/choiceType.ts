@@ -1,6 +1,1 @@
-export enum ChoiceType {
-	Capture = "Capture",
-	Macro = "Macro",
-	Multi = "Multi",
-	Template = "Template",
-}
+export type ChoiceType = "Capture" | "Macro" | "Multi" | "Template";

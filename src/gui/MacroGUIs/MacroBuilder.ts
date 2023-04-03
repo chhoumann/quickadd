@@ -35,6 +35,25 @@ import { SelectActiveLineCommand } from "../../types/macros/EditorCommands/Selec
 import { SelectLinkOnActiveLineCommand } from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import type { MultiChoice } from "src/types/choices/MultiChoice";
+
+function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
+	const arr: IChoice[] = [];
+
+	const recursive = (choices: IChoice[]) => {
+		choices.forEach((choice) => {
+			if (choice.type === "Multi") {
+				recursive((choice as MultiChoice).choices);
+			} else {
+				arr.push(choice);
+			}
+		});
+	}
+
+	recursive(nestedChoices);
+
+	return arr;
+}
 
 export class MacroBuilder extends Modal {
 	public macro: IMacro;
@@ -51,7 +70,7 @@ export class MacroBuilder extends Modal {
 		super(app);
 		this.macro = macro;
 		this.svelteElements = [];
-		this.choices = choices;
+		this.choices = getChoicesAsList(choices);
 		this.plugin = plugin;
 
 		this.waitForClose = new Promise<IMacro>(

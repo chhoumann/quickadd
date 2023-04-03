@@ -1,6 +1,5 @@
 import { Choice } from "./Choice";
 import type IChoice from "./IChoice";
-import { ChoiceType } from "./choiceType";
 import type IMultiChoice from "./IMultiChoice";
 
 export class MultiChoice extends Choice implements IMultiChoice {
@@ -8,7 +7,7 @@ export class MultiChoice extends Choice implements IMultiChoice {
 	collapsed: boolean;
 
 	constructor(name: string) {
-		super(name, ChoiceType.Multi);
+		super(name, "Multi");
 	}
 
 	public addChoice(choice: IChoice): MultiChoice {

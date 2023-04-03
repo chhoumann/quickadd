@@ -5,7 +5,6 @@
     import {CommandType} from "../../types/macros/CommandType";
     import WaitCommand from "./Components/WaitCommand.svelte";
     import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
-    import {ChoiceType} from "../../types/choices/choiceType";
     import {TemplateChoiceBuilder} from "../ChoiceBuilder/templateChoiceBuilder";
     import {CaptureChoiceBuilder} from "../ChoiceBuilder/captureChoiceBuilder";
     import type ICaptureChoice from "../../types/choices/ICaptureChoice";
@@ -76,12 +75,12 @@
 
     function getChoiceBuilder(choice: IChoice) {
         switch (choice.type) {
-            case ChoiceType.Template:
+            case "Template":
                 return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
-            case ChoiceType.Capture:
+            case "Capture":
                 return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
-            case ChoiceType.Macro:
-            case ChoiceType.Multi:
+            case "Macro":
+            case "Multi":
             default:
                 break;
         }

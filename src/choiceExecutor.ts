@@ -1,7 +1,6 @@
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
-import { ChoiceType } from "./types/choices/choiceType";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
@@ -19,23 +18,23 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async execute(choice: IChoice): Promise<void> {
 		switch (choice.type) {
-			case ChoiceType.Template: {
+			case "Template": {
 				const templateChoice: ITemplateChoice =
 					choice as ITemplateChoice;
 				await this.onChooseTemplateType(templateChoice);
 				break;
 			}
-			case ChoiceType.Capture: {
+			case "Capture": {
 				const captureChoice: ICaptureChoice = choice as ICaptureChoice;
 				await this.onChooseCaptureType(captureChoice);
 				break;
 			}
-			case ChoiceType.Macro: {
+			case "Macro": {
 				const macroChoice: IMacroChoice = choice as IMacroChoice;
 				await this.onChooseMacroType(macroChoice);
 				break;
 			}
-			case ChoiceType.Multi: {
+			case "Multi": {
 				const multiChoice: IMultiChoice = choice as IMultiChoice;
 				this.onChooseMultiType(multiChoice);
 				break;

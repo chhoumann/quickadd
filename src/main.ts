@@ -6,7 +6,6 @@ import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
-import { ChoiceType } from "./types/choices/choiceType";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
@@ -119,7 +118,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	public addCommandForChoice(choice: IChoice) {
-		if (choice.type === ChoiceType.Multi) {
+		if (choice.type === "Multi") {
 			this.addCommandsForChoices((<IMultiChoice>choice).choices);
 		}
 
@@ -163,7 +162,7 @@ export default class QuickAdd extends Plugin {
 			if (choice[by] === targetPropertyValue) {
 				return choice;
 			}
-			if (choice.type === ChoiceType.Multi) {
+			if (choice.type === "Multi") {
 				const subChoice = this.getChoice(
 					by,
 					targetPropertyValue,
