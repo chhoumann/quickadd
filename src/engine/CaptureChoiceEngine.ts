@@ -7,7 +7,6 @@ import {
 	appendToCurrentLine,
 	openFile,
 	replaceTemplaterTemplatesInCreatedFile,
-	templaterParseTemplate,
 } from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
@@ -40,21 +39,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	async run(): Promise<void> {
 		try {
-			if (this.choice?.captureToActiveFile) {
-				await this.captureToActiveFile();
-				return;
-			}
-
-			const captureTo = this.choice.captureTo;
-			invariant(captureTo, () => {
-				return `Invalid capture to for ${this.choice.name}. ${
-					captureTo.length === 0
-						? "Capture path is empty."
-						: `Capture path is not valid: ${captureTo}`
-				}`;
-			});
-
-			const filePath = await this.formatFilePath(captureTo);
+			const filePath = await this.getFormattedPathToCaptureTo();
 			const content = this.getCaptureContent();
 
 			let getFileAndAddContentFn: typeof this.onFileExists;
@@ -109,6 +94,29 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		if (this.choice.task) content = `- [ ] ${content}\n`;
 
 		return content;
+	}
+
+	private async getFormattedPathToCaptureTo(): Promise<string> {
+		if (this.choice.captureToActiveFile) {
+			const activeFile = this.app.workspace.getActiveFile();
+			invariant(
+				activeFile,
+				`Cannot capture to active file - no active file.`
+			);
+
+			return activeFile.path;
+		}
+
+		const captureTo = this.choice.captureTo;
+		invariant(captureTo, () => {
+			return `Invalid capture to for ${this.choice.name}. ${
+				captureTo.length === 0
+					? "Capture path is empty."
+					: `Capture path is not valid: ${captureTo}`
+			}`;
+		});
+
+		return await this.formatFilePath(captureTo);
 	}
 
 	private async onFileExists(
@@ -200,38 +208,5 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
-	}
-
-	private async captureToActiveFile() {
-		const activeFile = this.app.workspace.getActiveFile();
-
-		if (!activeFile) {
-			log.logError("Cannot capture to active file - no active file.");
-			return;
-		}
-
-		let content: string = this.getCaptureContent();
-		content = await this.formatter.formatContent(content, this.choice);
-
-		if (this.choice.format.enabled) {
-			content = await templaterParseTemplate(
-				this.app,
-				content,
-				activeFile
-			);
-		}
-
-		if (!content) return;
-
-		if (this.choice.prepend) {
-			const fileContent: string = await this.app.vault.cachedRead(
-				activeFile
-			);
-			const newFileContent = `${fileContent}${content}`;
-
-			await this.app.vault.modify(activeFile, newFileContent);
-		} else {
-			appendToCurrentLine(content, this.app);
-		}
 	}
 }

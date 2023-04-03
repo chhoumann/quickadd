@@ -205,7 +205,7 @@ test("getEndOfSection - target is heading, should consider subsections", () => {
 	expect(result).toBe(10);
 });
 
-test("getEndOfSection - Capture to first line, shoudlConsiderSubsections ON", () => {
+test("getEndOfSection - Capture to first line, shouldConsiderSubsections ON", () => {
 	const lines = [
 		"# Meeting Notes", // target (0)
 		"",
@@ -222,7 +222,7 @@ test("getEndOfSection - Capture to first line, shoudlConsiderSubsections ON", ()
 	expect(result).toBe(6);
 });
 
-test("getEndOfSection - Capture to first line, shoudlConsiderSubsections OFF", () => {
+test("getEndOfSection - Capture to first line, shouldConsiderSubsections OFF", () => {
 	const lines = [
 		"# Meeting Notes", // target (0)
 		"", // result (1)
@@ -238,3 +238,41 @@ test("getEndOfSection - Capture to first line, shoudlConsiderSubsections OFF", (
 	const result = getEndOfSection(lines, targetLine, false);
 	expect(result).toBe(1);
 });
+
+test("getEndOfSection - capture to last line, shouldConsiderSubsections OFF", () => {
+	const lines = [
+    "",
+    "## Heading",
+    "",
+    "## Todos",
+    "- [ ] test",
+    "- [ ] asd",
+    "- [ ] d",
+    "",
+    "## Schedule" // target (8) & result (8)
+]
+
+	const targetLine = 8;
+
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(8);
+})
+
+test("getEndOfSection - capture to last line, shouldConsiderSubsections ON", () => {
+	const lines = [
+    "",
+    "## Heading",
+    "",
+    "## Todos",
+    "- [ ] test",
+    "- [ ] asd",
+    "- [ ] d",
+    "",
+    "## Schedule" // target (8) & result (8)
+]
+
+	const targetLine = 8;
+
+	const result = getEndOfSection(lines, targetLine, true);
+	expect(result).toBe(8);
+})
