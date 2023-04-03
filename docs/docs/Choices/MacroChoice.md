@@ -99,3 +99,6 @@ async function start(params) {
 If you select the macro that contains a user script with the above code, you'll be prompted to choose between one of the three exported items.
 
 However, if you want to skip that, you can access nested members using this syntax: `{{MACRO:MyMacro::Start}}`. This will just instantly execute `start`.
+
+## Troubleshooting
+Getting `Syntax error: unexpected identifier`? Please see this [issue](https://github.com/chhoumann/quickadd/issues/417) for a solution.
