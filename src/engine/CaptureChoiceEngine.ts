@@ -59,10 +59,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				return;
 			}
 
-			const { file, content: newFileContent } =
+			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-			await this.app.vault.modify(file, newFileContent);
+
+			if (this.choice.captureToActiveFile && !this.choice.prepend) {
+				appendToCurrentLine(captureContent, this.app);
+			} else {
+				await this.app.vault.modify(file, newFileContent);
+			}
 
 			if (this.choice.appendLink) {
 				const markdownLink = this.app.fileManager.generateMarkdownLink(
@@ -122,7 +127,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async onFileExists(
 		filePath: string,
 		content: string
-	): Promise<{ file: TFile; content: string }> {
+	): Promise<{ file: TFile; newFileContent: string, captureContent: string }> {
 		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
@@ -160,13 +165,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			newFileContent = res.joinedResults() as string;
 		}
 
-		return { file, content: newFileContent };
+		return { file, newFileContent, captureContent: formatted };
 	}
 
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
-		content: string
-	): Promise<{ file: TFile; content: string }> {
+		captureContent: string
+	): Promise<{ file: TFile; newFileContent: string, captureContent: string }> {
 		let fileContent = "";
 
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
@@ -192,13 +197,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const newFileContent: string =
 			await this.formatter.formatContentWithFile(
-				content,
+				captureContent,
 				this.choice,
 				updatedFileContent,
 				file
 			);
 
-		return { file, content: newFileContent };
+		return { file, newFileContent, captureContent };
 	}
 
 	private async formatFilePath(captureTo: string) {
