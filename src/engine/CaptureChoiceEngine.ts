@@ -10,6 +10,7 @@ import {
 	templaterParseTemplate,
 	isFolder,
 	getMarkdownFilesInFolder,
+	getMarkdownFilesWithTag,
 } from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
@@ -19,6 +20,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -143,14 +145,23 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// Removing the trailing slash from the capture to path because otherwise isFolder will fail
 		// to get the folder.
-		const folderPath = formattedCaptureTo.replace(/^\/$|\/\.md$|^\.md$/, "");
+		const folderPath = formattedCaptureTo.replace(
+			/^\/$|\/\.md$|^\.md$/,
+			""
+		);
 		// Empty string means we suggest to capture anywhere in the vault.
 		const captureAnywhereInVault = folderPath === "";
 		const shouldCaptureToFolder =
 			captureAnywhereInVault || isFolder(folderPath);
+		const shouldCaptureWithTag = formattedCaptureTo.startsWith("#");
 
 		if (shouldCaptureToFolder) {
 			return this.selectFileInFolder(folderPath, captureAnywhereInVault);
+		}
+
+		if (shouldCaptureWithTag) {
+			const tag = formattedCaptureTo.replace(/\.md$/, "");
+			return this.selectFileWithTag(tag);
 		}
 
 		return formattedCaptureTo;
@@ -190,6 +201,27 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			: `${folderPathSlash}/${targetFilePath}`;
 
 		return await this.formatFilePath(filePath);
+	}
+
+	private async selectFileWithTag(tag: string): Promise<string> {
+		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
+		const filesWithTag = getMarkdownFilesWithTag(tagWithHash);
+
+		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
+
+		const filePaths = filesWithTag.map((f) => f.path);
+		const targetFilePath = await GenericSuggester.Suggest(
+			app,
+			filePaths,
+			filePaths
+		);
+
+		invariant(
+			!!targetFilePath && targetFilePath.length > 0,
+			`No file selected for capture.`
+		);
+
+		return await this.formatFilePath(targetFilePath);
 	}
 
 	private async onFileExists(
