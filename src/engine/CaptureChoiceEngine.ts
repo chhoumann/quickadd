@@ -70,7 +70,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-			if (this.choice.captureToActiveFile && !this.choice.prepend) {
+			if (this.choice.captureToActiveFile && !this.choice.prepend && !this.choice.insertAfter.enabled) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
