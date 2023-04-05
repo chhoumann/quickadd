@@ -85,7 +85,8 @@ export default function getEndOfSection(
 			return targetLine;
 		}
 
-		if (lastNonEmptyLineInSectionIdx + 1 === lastLineInBodyIdx) {
+		const lineIsEmpty = lines[lastNonEmptyLineInSectionIdx + 1].trim() === "";
+		if (lastNonEmptyLineInSectionIdx + 1 === lastLineInBodyIdx && !lineIsEmpty) {
 			return endOfSectionLineIdx;
 		}
 

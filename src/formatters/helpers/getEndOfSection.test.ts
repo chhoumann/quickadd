@@ -29,13 +29,13 @@ test("getEndOfSection - find the end of the last section", () => {
 		"## Section 2",
 		"Content 2",
 		"",
-		"# Title 2", // target (8)
-		"", // result (9)
+		"# Title 2", // target (8) & result (8)
+		"",
 	];
 	const targetLine = 8;
 
 	const result = getEndOfSection(lines, targetLine, true);
-	expect(result).toBe(9);
+	expect(result).toBe(8);
 });
 
 test("getEndOfSection - find end of section with multiple empty lines", () => {
@@ -241,38 +241,52 @@ test("getEndOfSection - Capture to first line, shouldConsiderSubsections OFF", (
 
 test("getEndOfSection - capture to last line, shouldConsiderSubsections OFF", () => {
 	const lines = [
-    "",
-    "## Heading",
-    "",
-    "## Todos",
-    "- [ ] test",
-    "- [ ] asd",
-    "- [ ] d",
-    "",
-    "## Schedule" // target (8) & result (8)
-]
+		"",
+		"## Heading",
+		"",
+		"## Todos",
+		"- [ ] test",
+		"- [ ] asd",
+		"- [ ] d",
+		"",
+		"## Schedule", // target (8) & result (8)
+	];
 
 	const targetLine = 8;
 
 	const result = getEndOfSection(lines, targetLine, false);
 	expect(result).toBe(8);
-})
+});
 
 test("getEndOfSection - capture to last line, shouldConsiderSubsections ON", () => {
 	const lines = [
-    "",
-    "## Heading",
-    "",
-    "## Todos",
-    "- [ ] test",
-    "- [ ] asd",
-    "- [ ] d",
-    "",
-    "## Schedule" // target (8) & result (8)
-]
+		"",
+		"## Heading",
+		"",
+		"## Todos",
+		"- [ ] test",
+		"- [ ] asd",
+		"- [ ] d",
+		"",
+		"## Schedule", // target (8) & result (8)
+	];
 
 	const targetLine = 8;
 
 	const result = getEndOfSection(lines, targetLine, true);
 	expect(result).toBe(8);
-})
+});
+
+test("getEndOfSection - capture to last line, shouldConsiderSubsections OFF", () => {
+	const lines = [
+		"",
+		"",
+		"## Delivered", // target (2) & result (2)
+		"",
+	];
+
+	const targetLine = 2;
+
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(2);
+});
