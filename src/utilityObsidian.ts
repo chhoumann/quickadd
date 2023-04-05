@@ -270,10 +270,22 @@ export function getMarkdownFilesWithTag(tag: string): TFile[] {
 		);
 	};
 
+	const hasFrontmatterTag = (
+		fileCache: CachedMetadata
+	): fileCache is CachedMetadata & { frontmatter: { tag: string } } => {
+		return (
+			fileCache.frontmatter !== undefined &&
+			fileCache.frontmatter.tag !== undefined &&
+			typeof fileCache.frontmatter.tag === "string" &&
+			fileCache.frontmatter.tag.length > 0
+		);
+	};
+
 	return app.vault.getMarkdownFiles().filter((f) => {
 		const fileCache = app.metadataCache.getFileCache(f);
 		if (!fileCache) return false;
 
+		// tag is #tag in file
 		if (hasTags(fileCache)) {
 			const tagInTags = fileCache.tags.find((item) => item.tag === tag);
 
@@ -282,6 +294,7 @@ export function getMarkdownFilesWithTag(tag: string): TFile[] {
 			}
 		}
 
+		// frontmattter 'tags' property is set - alias for 'tag'
 		if (hasFrontmatterTags(fileCache)) {
 			const tagWithoutHash = tag.replace(/^\#/, "");
 			const tagInFrontmatterTags = fileCache.frontmatter.tags
@@ -289,6 +302,18 @@ export function getMarkdownFilesWithTag(tag: string): TFile[] {
 				.find((item) => item === tagWithoutHash);
 
 			if (tagInFrontmatterTags) {
+				return true;
+			}
+		}
+
+		// frontmater 'tag' property is set
+		if (hasFrontmatterTag(fileCache)) {
+			const tagWithoutHash = tag.replace(/^\#/, "");
+			const tagInFrontmatterTag = fileCache.frontmatter.tag
+				.split(" ")
+				.find((item) => item === tagWithoutHash);
+
+			if (tagInFrontmatterTag) {
 				return true;
 			}
 		}
