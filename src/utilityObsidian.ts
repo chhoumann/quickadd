@@ -225,3 +225,14 @@ export function getChoiceType<
 		isMulti(choice)
 	);
 }
+
+export function isFolder(path: string): boolean {
+	const abstractItem = app.vault.getAbstractFileByPath(path);
+
+	return !!abstractItem && abstractItem instanceof TFolder;
+} 
+
+export function getMarkdownFilesInFolder(folderPath: string): TFile[] {
+	return app.vault.getMarkdownFiles().filter((f) => f.path.startsWith(folderPath));
+}
+
