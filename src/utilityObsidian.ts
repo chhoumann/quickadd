@@ -259,11 +259,40 @@ export function getMarkdownFilesWithTag(tag: string): TFile[] {
 	): fileCache is CachedMetadata & { tags: TagCache[] } =>
 		fileCache.tags !== undefined && Array.isArray(fileCache.tags);
 
+	const hasFrontmatterTags = (
+		fileCache: CachedMetadata
+	): fileCache is CachedMetadata & { frontmatter: { tags: string } } => {
+		return (
+			fileCache.frontmatter !== undefined &&
+			fileCache.frontmatter.tags !== undefined &&
+			typeof fileCache.frontmatter.tags === "string" &&
+			fileCache.frontmatter.tags.length > 0
+		);
+	};
+
 	return app.vault.getMarkdownFiles().filter((f) => {
 		const fileCache = app.metadataCache.getFileCache(f);
+		if (!fileCache) return false;
 
-		if (!fileCache || !hasTags(fileCache)) return false;
+		if (hasTags(fileCache)) {
+			const tagInTags = fileCache.tags.find((item) => item.tag === tag);
 
-		return fileCache.tags.find((item) => item.tag === tag);
+			if (tagInTags) {
+				return true;
+			}
+		}
+
+		if (hasFrontmatterTags(fileCache)) {
+			const tagWithoutHash = tag.replace(/^\#/, "");
+			const tagInFrontmatterTags = fileCache.frontmatter.tags
+				.split(" ")
+				.find((item) => item === tagWithoutHash);
+
+			if (tagInFrontmatterTags) {
+				return true;
+			}
+		}
+
+		return false;
 	});
 }
