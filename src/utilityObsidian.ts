@@ -1,4 +1,10 @@
-import type { App, TAbstractFile, WorkspaceLeaf } from "obsidian";
+import type {
+	App,
+	CachedMetadata,
+	TAbstractFile,
+	TagCache,
+	WorkspaceLeaf,
+} from "obsidian";
 import { MarkdownView, TFile, TFolder } from "obsidian";
 import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
@@ -23,9 +29,14 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 
 	if (
 		templater &&
-		(force || !(templater.settings as Record<string, unknown>)["trigger_on_file_creation"])
+		(force ||
+			!(templater.settings as Record<string, unknown>)[
+				"trigger_on_file_creation"
+			])
 	) {
-		const impl = (templater?.templater as { overwrite_file_commands?: (file: TFile) => Promise<void>; });
+		const impl = templater?.templater as {
+			overwrite_file_commands?: (file: TFile) => Promise<void>;
+		};
 		if (impl?.overwrite_file_commands) {
 			await impl.overwrite_file_commands(file);
 		}
@@ -40,10 +51,14 @@ export async function templaterParseTemplate(
 	const templater = getTemplater(app);
 	if (!templater) return templateContent;
 
-	return await (templater.templater as { parse_template: (opt: { target_file: TFile, run_mode: number}, content: string) => Promise<string>}).parse_template(
-		{ target_file: targetFile, run_mode: 4 },
-		templateContent
-	);
+	return await (
+		templater.templater as {
+			parse_template: (
+				opt: { target_file: TFile; run_mode: number },
+				content: string
+			) => Promise<string>;
+		}
+	).parse_template({ target_file: targetFile, run_mode: 4 }, templateContent);
 }
 
 export function getNaturalLanguageDates(app: App) {
@@ -224,4 +239,31 @@ export function getChoiceType<
 		isCapture(choice) ||
 		isMulti(choice)
 	);
+}
+
+export function isFolder(path: string): boolean {
+	const abstractItem = app.vault.getAbstractFileByPath(path);
+
+	return !!abstractItem && abstractItem instanceof TFolder;
+}
+
+export function getMarkdownFilesInFolder(folderPath: string): TFile[] {
+	return app.vault
+		.getMarkdownFiles()
+		.filter((f) => f.path.startsWith(folderPath));
+}
+
+export function getMarkdownFilesWithTag(tag: string): TFile[] {
+	const hasTags = (
+		fileCache: CachedMetadata
+	): fileCache is CachedMetadata & { tags: TagCache[] } =>
+		fileCache.tags !== undefined && Array.isArray(fileCache.tags);
+
+	return app.vault.getMarkdownFiles().filter((f) => {
+		const fileCache = app.metadataCache.getFileCache(f);
+
+		if (!fileCache || !hasTags(fileCache)) return false;
+
+		return fileCache.tags.find((item) => item.tag === tag);
+	});
 }
