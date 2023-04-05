@@ -7,6 +7,7 @@ import {
 	appendToCurrentLine,
 	openFile,
 	replaceTemplaterTemplatesInCreatedFile,
+	templaterParseTemplate,
 } from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
@@ -64,7 +65,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 
 			if (this.choice.captureToActiveFile && !this.choice.prepend) {
-				appendToCurrentLine(captureContent, this.app);
+				// Parse Templater syntax in the capture content.
+				// If Templater isn't installed, it just returns the capture content.
+				const content = await templaterParseTemplate(app, captureContent, file);
+
+				appendToCurrentLine(content, this.app);
+
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 			}
@@ -74,6 +80,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					file,
 					""
 				);
+				
 				appendToCurrentLine(markdownLink, this.app);
 			}
 
