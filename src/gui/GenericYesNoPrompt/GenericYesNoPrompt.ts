@@ -43,7 +43,7 @@ export default class GenericYesNoPrompt extends Modal {
 			cls: "yesNoPromptButtonContainer",
 		});
 
-		new ButtonComponent(buttonsDiv)
+		const noButton = new ButtonComponent(buttonsDiv)
 			.setButtonText("No")
 			.onClick(() => this.submit(false));
 
@@ -53,6 +53,8 @@ export default class GenericYesNoPrompt extends Modal {
 			.setWarning();
 
 		yesButton.buttonEl.focus();
+
+		addArrowKeyNavigation([noButton.buttonEl, yesButton.buttonEl]);
 	}
 
 	private submit(input: boolean) {
@@ -67,4 +69,17 @@ export default class GenericYesNoPrompt extends Modal {
 		if (!this.didSubmit) this.rejectPromise("No answer given.");
 		else this.resolvePromise(this.input);
 	}
+}
+
+function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
+    buttons.forEach((button) => {
+        button.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                const currentIndex = buttons.indexOf(button);
+                const nextIndex = (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+                buttons[nextIndex].focus();
+                event.preventDefault();
+            }
+        });
+    });
 }
