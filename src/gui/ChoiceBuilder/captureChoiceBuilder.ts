@@ -340,6 +340,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		formatInput.inputEl.style.width = "100%";
 		formatInput.inputEl.style.marginBottom = "8px";
 		formatInput.inputEl.style.height = "10rem";
+		formatInput.inputEl.style.minHeight = "10rem";
 		formatInput
 			.setValue(this.choice.format.format)
 			.setDisabled(!this.choice.format.enabled)
