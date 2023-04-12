@@ -1,6 +1,11 @@
 ---
 title: Capture
 ---
+Allows to quickly capture your input and save it from anywhere in Obsidian, without leaving your current window setup e.g.
+- Add messages to your work log
+- Save interesting links for later reading and watching
+- Individually timed notes in Daily notes file
+
 
 ![image](https://user-images.githubusercontent.com/29108628/123451366-e025e280-d5dd-11eb-81b6-c21f3ad1823d.png)
 ![image](https://user-images.githubusercontent.com/29108628/123451469-e61bc380-d5dd-11eb-80d1-7667427656f3.png)
@@ -41,35 +46,40 @@ Insert After will allow you to insert the text after some line with the specifie
 With Insert After, you can also enable `Insert at end of section` and `Consider subsections`.
 You can see an explanation of these below.
 
-I use this in my journal capture, where I insert after the line `## What did I do today?`.
+I use this in my daily journal capture, where I insert after the heading line `## What did I do today?`.
 
-### Consider subsections
-Behavior with `Insert after` & `Insert at end`, but not `Consider subsections` enabled:
+### Consider subsections -option
+#### `Consider subsections` disabled
+Behavior with `Insert after` & `Insert at end`:
 ```markdown
-## Heading # Insert after here
+## 1. First heading 
+**Insert after** comes here.
 - content 1
 - content 2
-- content 3 # captures to after this = same behavior as before. Enabled by default.
+- content 3 
+**Insert at end** comes here.
 
-### Nested heading 1
+### 1.1. Nested heading 1
 Content
 
-## Another heading
+## 2. Another heading
 Content
 
 ```
-
-New behavior with `Insert after`, `Insert at end`, AND `Consider subsections` enabled:
+#### `Consider subsections` enabled
+Behavior with `Insert after` & `Insert at end`:
 ```markdown
-## Heading # Insert after here
+## 1. First heading 		
+**Insert after** comes here
 - content 1
 - content 2
 - content 3
 
-### Nested heading 1
-Content # captures to after this, as it's considered part of the "## Heading" section
+### 1.1. Nested heading 1
+Content 		
+**Insert at end** comes here. Captures to after this, as it's considered part of the "1. First heading" section.
 
-## Another heading
+## 2. Another heading
 Content
 
 ```
