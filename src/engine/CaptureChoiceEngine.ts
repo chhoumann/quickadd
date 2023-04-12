@@ -196,7 +196,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// Ensure user has selected a file in target folder. InputSuggester allows user to write
 		// their own file path, so we need to make sure it's in the target folder.
-		const filePath = targetFilePath.startsWith(`${folderPathSlash}/`)
+		const filePath = targetFilePath.startsWith(`${folderPathSlash}`)
 			? targetFilePath
 			: `${folderPathSlash}/${targetFilePath}`;
 
