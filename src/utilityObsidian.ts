@@ -1,9 +1,8 @@
 import type {
 	App,
-	CachedMetadata,
 	TAbstractFile,
-	TagCache,
 	WorkspaceLeaf,
+	CachedMetadata,
 } from "obsidian";
 import { MarkdownView, TFile, TFolder } from "obsidian";
 import type { NewTabDirection } from "./types/newTabDirection";
@@ -253,71 +252,59 @@ export function getMarkdownFilesInFolder(folderPath: string): TFile[] {
 		.filter((f) => f.path.startsWith(folderPath));
 }
 
+function getFrontmatterTags(fileCache: CachedMetadata): string[] {
+	const frontmatter = fileCache.frontmatter;
+	if (!frontmatter) return [];
+
+	// You can have both a 'tag' and 'tags' key in frontmatter.
+	const frontMatterValues = Object.entries(frontmatter);
+	if (!frontMatterValues.length) return [];
+
+	const tagPairs = frontMatterValues.filter(([key, value]) => {
+		const lowercaseKey = key.toLowerCase();
+
+		// In Obsidian, these are synonymous.
+		return lowercaseKey === "tags" || lowercaseKey === "tag";
+	});
+
+	if (!tagPairs) return [];
+
+	const tags = tagPairs
+		.flatMap(([key, value]) => {
+			if (typeof value === "string") {
+				// separator can either be comma or space separated
+				return value.split(/,|\s+/).map((v) => v.trim());
+			} else if (Array.isArray(value)) {
+				return value as string[];
+			}
+		})
+		.filter((v) => !!v) as string[]; // fair to cast after filtering out falsy values
+
+	return tags;
+}
+
+function getFileTags(file: TFile): string[] {
+	const fileCache = app.metadataCache.getFileCache(file);
+	if (!fileCache) return [];
+
+	const tagsInFile: string[] = [];
+	if (fileCache.frontmatter) {
+		tagsInFile.push(...getFrontmatterTags(fileCache));
+	}
+
+	if (fileCache.tags && Array.isArray(fileCache.tags)) {
+		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^\#/, "")));
+	}
+
+	return tagsInFile;
+}
+
 export function getMarkdownFilesWithTag(tag: string): TFile[] {
-	const hasTags = (
-		fileCache: CachedMetadata
-	): fileCache is CachedMetadata & { tags: TagCache[] } =>
-		fileCache.tags !== undefined && Array.isArray(fileCache.tags);
-
-	const hasFrontmatterTags = (
-		fileCache: CachedMetadata
-	): fileCache is CachedMetadata & { frontmatter: { tags: string } } => {
-		return (
-			fileCache.frontmatter !== undefined &&
-			fileCache.frontmatter.tags !== undefined &&
-			typeof fileCache.frontmatter.tags === "string" &&
-			fileCache.frontmatter.tags.length > 0
-		);
-	};
-
-	const hasFrontmatterTag = (
-		fileCache: CachedMetadata
-	): fileCache is CachedMetadata & { frontmatter: { tag: string } } => {
-		return (
-			fileCache.frontmatter !== undefined &&
-			fileCache.frontmatter.tag !== undefined &&
-			typeof fileCache.frontmatter.tag === "string" &&
-			fileCache.frontmatter.tag.length > 0
-		);
-	};
+	const targetTag = tag.replace(/^\#/, "");
 
 	return app.vault.getMarkdownFiles().filter((f) => {
-		const fileCache = app.metadataCache.getFileCache(f);
-		if (!fileCache) return false;
+		const fileTags = getFileTags(f);
 
-		// tag is #tag in file
-		if (hasTags(fileCache)) {
-			const tagInTags = fileCache.tags.find((item) => item.tag === tag);
-
-			if (tagInTags) {
-				return true;
-			}
-		}
-
-		// frontmattter 'tags' property is set - alias for 'tag'
-		if (hasFrontmatterTags(fileCache)) {
-			const tagWithoutHash = tag.replace(/^\#/, "");
-			const tagInFrontmatterTags = fileCache.frontmatter.tags
-				.split(" ")
-				.find((item) => item === tagWithoutHash);
-
-			if (tagInFrontmatterTags) {
-				return true;
-			}
-		}
-
-		// frontmater 'tag' property is set
-		if (hasFrontmatterTag(fileCache)) {
-			const tagWithoutHash = tag.replace(/^\#/, "");
-			const tagInFrontmatterTag = fileCache.frontmatter.tag
-				.split(" ")
-				.find((item) => item === tagWithoutHash);
-
-			if (tagInFrontmatterTag) {
-				return true;
-			}
-		}
-
-		return false;
+		return fileTags.includes(targetTag);
 	});
 }
