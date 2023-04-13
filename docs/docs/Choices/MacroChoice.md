@@ -11,18 +11,19 @@ This is what the settings for a _macro choice_ looks like.
 
 ![image](https://user-images.githubusercontent.com/29108628/121774145-22ccd100-cb81-11eb-8873-7533755bdf32.png)
 
-Now, you can have any amount of _macros_. You can use the macro manager to... manage them.
-If you have any macros that you want to run on plugin load - which is often just when you start Obsidian - you can specify that here, too.
+You can have any amount of _macros_. 
 
-This allows you to, for example, create a daily note automatically when you open Obsidian.
-
+Manage settings using the **macro manager**. 
+- **Run on plugin load**. Useful e.g. to create a daily note automatically when you open Obsidian.
 ![image](https://user-images.githubusercontent.com/29108628/121774198-81924a80-cb81-11eb-9f80-9816263e4b6f.png)
 
-This is what my `logBook` macro looks like. It's pretty plain - it just executes one of my user scripts.
+
+## Practical programming example
+
+I have a `logBook` macro. It just executes my user scripts, which in turn update the book in my daily page to something I specify in a prompt.
 
 ![image](https://user-images.githubusercontent.com/29108628/121774245-cfa74e00-cb81-11eb-9977-3ddac04dc8bd.png)
 
-The `logBook` user script simply updates the book in my daily page to something I specify in a prompt.
 Here it is - with some comments that explain the code. [How-to-install guide](https://github.com/chhoumann/quickadd/issues/15#issuecomment-864553251).
 
 ```js
@@ -57,7 +58,7 @@ Let's talk a bit more about `variables`. If you assign a value to a key in `vari
 This can be accessed both in subsequent macros, and the format syntax `{{VALUE:<variable name>}}`.
 
 For example, say you assign `myVar` to `variables`.
-Then you can access the value of `myVar` in subsequent macros, as well as through the format syntax`{{VALUE:myVar}}`.
+Then you can access the value of `myVar` in subsequent macros, as well as through the format syntax `{{VALUE:myVar}}`.
 You can also access it through `<parametername>.variables["myVar"]`.
 
 ```js
