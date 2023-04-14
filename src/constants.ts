@@ -6,6 +6,7 @@ export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const TITLE_SYNTAX = "{{title}}";
+export const SELECTED_SYNTAX = "{{selected}}";
 
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
@@ -19,6 +20,7 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
 	MATH_VALUE_SYNTAX,
+	SELECTED_SYNTAX
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
@@ -66,6 +68,8 @@ export const INLINE_JAVASCRIPT_REGEX = new RegExp(
 export const MATH_VALUE_REGEX = new RegExp(/{{MVALUE}}/i);
 export const TITLE_REGEX = new RegExp(/{{TITLE}}/i);
 
+export const SELECTED_REGEX = new RegExp(/{{SELECTED}}/i);
+
 // This is not an accurate wikilink regex - but works for its intended purpose.
 export const FILE_LINK_REGEX = new RegExp(/\[\[([^\]]*)$/);
 export const TAG_REGEX = new RegExp(/#([^ ]*)$/);
@@ -103,6 +107,9 @@ export const MATH_VALUE_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const TITLE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[I]?[T]?[L]?[E]?[}]?[}]?/i
+);
+export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i
 );
 
 // == File Exists (Template Choice) == //

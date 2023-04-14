@@ -39,6 +39,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceTemplateInString(output);
 		output = this.replaceDateInString(output);
 		output = await this.replaceValueInString(output);
+		output = await this.replaceSelectedInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);

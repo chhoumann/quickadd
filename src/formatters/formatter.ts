@@ -13,6 +13,7 @@ import {
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 	FIELD_VAR_REGEX,
+	SELECTED_REGEX,
 } from "../constants";
 import { getDate } from "../utilityObsidian";
 
@@ -81,6 +82,19 @@ export abstract class Formatter {
 			if (!this.value) this.value = await this.promptForValue();
 
 			output = this.replacer(output, NAME_VALUE_REGEX, this.value);
+		}
+
+		return output;
+	}
+
+
+	protected async replaceSelectedInString(input: string): Promise<string> {
+		let output: string = input;
+
+		const selectedText = await this.getSelectedText();
+
+		while (SELECTED_REGEX.test(output)) {
+			output = this.replacer(output, SELECTED_REGEX, selectedText);
 		}
 
 		return output;

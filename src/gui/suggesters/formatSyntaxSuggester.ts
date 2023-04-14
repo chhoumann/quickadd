@@ -16,6 +16,8 @@ import {
 	VALUE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_SYNTAX_SUGGEST_REGEX,
+	SELECTED_SYNTAX_SUGGEST_REGEX,
+	SELECTED_SYNTAX,
 } from "../../constants";
 import type QuickAdd from "../../main";
 
@@ -172,6 +174,10 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				FormatSyntaxToken.MathValue,
 				MATH_VALUE_SYNTAX
 			);
+
+		const selectedMatch = SELECTED_SYNTAX_SUGGEST_REGEX.exec(input);
+		if (selectedMatch)
+			callback(selectedMatch, FormatSyntaxToken.Macro, SELECTED_SYNTAX);
 
 		const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(input);
 		if (variableMatch)
