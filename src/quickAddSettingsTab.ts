@@ -55,50 +55,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.createEl("h2", { text: "QuickAdd Settings" });
 
-		this.addChoicesSetting();
+		containerEl.createEl("h3", { text: "General Settings" });
 		this.addUseMultiLineInputPromptSetting();
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
-	}
 
-	addAnnounceUpdatesSetting() {
-		const setting = new Setting(this.containerEl);
-		setting.setName("Announce Updates");
-		setting.setDesc(
-			"Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes."
-		);
-		setting.addToggle((toggle) => {
-			toggle.setValue(settingsStore.getState().announceUpdates);
-			toggle.onChange((value) => {
-				settingsStore.setState({ announceUpdates: value });
-			});
-		});
-	}
-
-	hide(): void {
-		if (this.choiceView) this.choiceView.$destroy();
-	}
-
-	private addChoicesSetting(): void {
-		const setting = new Setting(this.containerEl);
-		setting.infoEl.remove();
-		setting.settingEl.style.display = "block";
-
-		this.choiceView = new ChoiceView({
-			target: setting.settingEl,
-			props: {
-				app: this.app,
-				plugin: this.plugin,
-				choices: settingsStore.getState().choices,
-				saveChoices: (choices: IChoice[]) => {
-					settingsStore.setState({ choices });
-				},
-				macros: settingsStore.getState().macros,
-				saveMacros: (macros: IMacro[]) => {
-					settingsStore.setState({ macros });
-				},
-			},
-		});
+		containerEl.createEl("h3", { text: "List of individual Choices (Templates, Captures, Macros)" });
+		this.addChoicesSetting();
 	}
 
 	private addUseMultiLineInputPromptSetting() {
@@ -148,6 +111,46 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					.filter((f) => f instanceof TFolder && f.path !== "/")
 					.map((f) => f.path)
 			);
+		});
+	}
+
+	addAnnounceUpdatesSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Announce Updates");
+		setting.setDesc(
+			"Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes."
+		);
+		setting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().announceUpdates);
+			toggle.onChange((value) => {
+				settingsStore.setState({ announceUpdates: value });
+			});
+		});
+	}
+
+	hide(): void {
+		if (this.choiceView) this.choiceView.$destroy();
+	}
+
+	private addChoicesSetting(): void {
+		const setting = new Setting(this.containerEl);
+		setting.infoEl.remove();
+		setting.settingEl.style.display = "block";
+
+		this.choiceView = new ChoiceView({
+			target: setting.settingEl,
+			props: {
+				app: this.app,
+				plugin: this.plugin,
+				choices: settingsStore.getState().choices,
+				saveChoices: (choices: IChoice[]) => {
+					settingsStore.setState({ choices });
+				},
+				macros: settingsStore.getState().macros,
+				saveMacros: (macros: IMacro[]) => {
+					settingsStore.setState({ macros });
+				},
+			},
 		});
 	}
 }
