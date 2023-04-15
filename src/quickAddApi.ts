@@ -74,7 +74,8 @@ export class QuickAddApi {
 			},
 			format: async (
 				input: string,
-				variables?: { [key: string]: unknown }
+				variables?: { [key: string]: unknown },
+				shouldClearVariables = true
 			) => {
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -88,7 +89,9 @@ export class QuickAddApi {
 					choiceExecutor
 				).formatFileContent(input);
 
-				choiceExecutor.variables.clear();
+				if (shouldClearVariables) {
+					choiceExecutor.variables.clear();
+				}
 
 				return output;
 			},
