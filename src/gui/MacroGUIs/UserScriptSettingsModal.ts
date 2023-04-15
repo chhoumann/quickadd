@@ -1,39 +1,46 @@
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
-import type { App} from "obsidian";
+import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 
-type Option = {
-	type: "text" | "input";
-	value: string;
-	placeholder?: string;
-	secret?: boolean;
-	defaultValue: string;
-} | {
-	type: "checkbox" | "toggle";
-	value: boolean;
-	defaultValue: boolean;
-} | {
-	type: "dropdown" | "select";
-	value: string;
-	options: string[];
-	defaultValue: string;
-} | {
-	type: "format";
-	value: string;
-	placeholder?: string;
-	defaultValue: string;
-};
+type Option =
+	| {
+			type: "text" | "input";
+			value: string;
+			placeholder?: string;
+			secret?: boolean;
+			defaultValue: string;
+	  }
+	| {
+			type: "checkbox" | "toggle";
+			value: boolean;
+			defaultValue: boolean;
+	  }
+	| {
+			type: "dropdown" | "select";
+			value: string;
+			options: string[];
+			defaultValue: string;
+	  }
+	| {
+			type: "format";
+			value: string;
+			placeholder?: string;
+			defaultValue: string;
+	  };
 
 export class UserScriptSettingsModal extends Modal {
 	constructor(
 		app: App,
 		private command: IUserScript,
-		private settings: { [key: string]: unknown, options?: { [key: string]: Option; }; }
+		private settings: {
+			[key: string]: unknown;
+			options?: { [key: string]: Option };
+		}
 	) {
 		super(app);
 
@@ -42,18 +49,19 @@ export class UserScriptSettingsModal extends Modal {
 
 		if (this.settings.options) {
 			for (const setting in this.settings.options) {
+				const valueIsNotSetAlready =
+					this.command.settings[setting] === undefined;
+				const defaultValueAvailable =
+					"defaultValue" in this.settings.options[setting] &&
+					this.settings.options[setting].defaultValue !== undefined;
+
 				if (
-					this.command.settings[setting] === undefined &&
+					valueIsNotSetAlready &&
 					// Checking that the setting is an object & getting the default value...
-					typeof this.settings.options === "object" &&
-					this.settings.options &&
-					"setting" in this.settings.options &&
-					typeof this.settings.options.setting === "object" &&
-					this.settings.options.setting &&
-					"defaultValue" in this.settings.options.setting
+					defaultValueAvailable
 				) {
 					this.command.settings[setting] =
-						this.settings.options.setting.defaultValue;
+						this.settings.options[setting].defaultValue;
 				}
 			}
 		}
@@ -71,7 +79,7 @@ export class UserScriptSettingsModal extends Modal {
 		if (!options) {
 			return;
 		}
-		
+
 		// If there are options, add them to the modal
 		for (const option in options) {
 			if (!options.hasOwnProperty(option)) continue;
