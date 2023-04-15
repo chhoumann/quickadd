@@ -1,12 +1,59 @@
 const READWISE_API_OPTION = "Readwise API key";
-const ARTICLE_FORMAT = "Article file name format";
-const YOUTUBE_VIDEO_FORMAT = "YouTube video file name format";
-const PODCAST_FORMAT = "Podcast episode file name format";
-const TWEET_FORMAT = "Tweet file name format";
-const BOOK_FORMAT = "Book file name format";
+const FILE_NAME_FORMAT = "File name format";
 const IGNORE_EMPTY_PROPERTIES = "Ignore empty Properties";
+const USE_CACHE = "Use cache";
+const IMPORT_TYPE = "Import type";
+
+const MANUAL_ENTRY = "Manual Entry";
 
 const READWISE_API_URL = "https://readwise.io/api/v2/";
+const READWISE_CACHE_KEY = "ez-import-readwise-cache";
+
+
+/*
+    Cache structure:
+    {
+        ...
+        [item title]: {
+            title: item title,
+            createdFileWithItem: true/false,
+            ignore: true/false,
+        }
+        ...
+    }
+*/
+
+function getReadwiseCache() {
+    if (!window.localStorage) return null;
+    const cacheStr = window.localStorage.getItem(READWISE_CACHE_KEY);
+    if (!cacheStr) return null;
+    return JSON.parse(cacheStr);
+}
+
+function getCacheItem(itemKey) {
+    if (!window.localStorage) return null;
+    const cache = getReadwiseCache();
+    if (!cache) return null;
+    return cache[itemKey];
+}
+
+function setCacheItem(itemKey, item) {
+    if (!window.localStorage) return null;
+    const cache = getReadwiseCache() || {};
+    if (!cache) {
+        new Notice("No existing EzImport-Readwise cache. Creating one.", 10000);
+    };
+
+    cache[itemKey] = item;
+    
+    setCacheItems(cache);
+}
+
+function setCacheItems(items) {
+    if (!window.localStorage) return null;
+    window.localStorage.setItem(READWISE_CACHE_KEY, JSON.stringify(items));
+}
+
 
 const LogAndThrowError = (error) => {
     new Notice("error", 10000);
@@ -22,8 +69,8 @@ const EzImportType = Object.freeze({
 });
 
 module.exports = {
-    entry: () => {
-        new Notice("Please use one of the specific entry points.", 10000);
+    entry: async (params, settings) => {
+        await start(params, settings, settings[IMPORT_TYPE]);
     },
     settings: {
         name: "EzImport",
@@ -31,43 +78,29 @@ module.exports = {
         options: {
             [READWISE_API_OPTION]: {
                 type: "input",
+                secret: true,
                 placeholder: "Readwise API key",
+            },
+            [USE_CACHE]: {
+                type: "toggle",
+                defaultValue: false,
+            },
+            [IMPORT_TYPE]: {
+                type: "dropdown",
+                defaultValue: EzImportType.Article,
+                options: Object.values(EzImportType),
             },
             [IGNORE_EMPTY_PROPERTIES]: {
                 type: "toggle",
                 defaultValue: true,
             },
-            [ARTICLE_FORMAT]: {
+            [FILE_NAME_FORMAT]: {
                 type: "format",
                 defaultValue: "",
-                placeholder: "Article file name format",
-            },
-            [YOUTUBE_VIDEO_FORMAT]: {
-                type: "format",
-                defaultValue: "",
-                placeholder: "YouTube video file name format",
-            },
-            [PODCAST_FORMAT]: {
-                type: "format",
-                defaultValue: "",
-                placeholder: "Podcast episode file name format",
-            },
-            [TWEET_FORMAT]: {
-                type: "format",
-                defaultValue: "",
-                placeholder: "Tweet file name format",
-            },
-            [BOOK_FORMAT]: {
-                type: "format",
-                defaultValue: "",
-                placeholder: "Book file name format",
+                placeholder: "File name format for the note",
             },
         }
     },
-    article: (params, settings) => start(params, settings, EzImportType.Article),
-    podcastEpisode: (params, settings) => start(params, settings, EzImportType.Podcast_episode),
-    tweet: (params, settings) => start(params, settings, EzImportType.Tweet),
-    book: (params, settings) => start(params, settings, EzImportType.Book),
 };
 
 let QuickAdd;
@@ -91,13 +124,67 @@ async function getReadwiseHighlights(type) {
     }
 
     const {results} = resolve;
-    const item = await QuickAdd.quickAddApi.suggester(results.map(item => item.title), results);
+    const highlightItems = [];
+
+    if (Settings[USE_CACHE]) { 
+        const cache = getReadwiseCache();
+        
+        if (cache) {
+            results.forEach(result => {
+                const cacheItem = cache[result.title];
+                if (cacheItem && !cacheItem.ignore && !cacheItem.createdFileWithItem) {
+                    highlightItems.push(result);
+                }
+                
+                if (!cacheItem) {
+                    highlightItems.push(result);
+                }
+            });
+        } else {
+            // No cache. Build.
+            let newCache = {};
+            for (const item of results) {
+                newCache[item.title] = {
+                    title: item.title,
+                    createdFileWithItem: false,
+                };
+            }
+
+            setCacheItems(newCache);
+            highlightItems.push(...results);
+        }
+    } else {
+        highlightItems.push(...results);
+    }
+
+    highlightItems.push({title: MANUAL_ENTRY});
+
+    const item = await QuickAdd.quickAddApi.suggester(highlightItems.map(item => item.title), highlightItems);
     if (!item) {
         LogAndThrowError("No item selected.");
     }
 
+    if (Settings[USE_CACHE]) {
+        const cacheItem = getCacheItem(item.title);
+        let newCacheItem;
+
+        if (cacheItem) {
+            newCacheItem = {
+                ...cacheItem,
+                createdFileWithItem: true,
+            };
+        } else {
+            newCacheItem = {
+                title: item.title,
+                createdFileWithItem: true,
+            };
+        }
+
+        setCacheItem(item.title, newCacheItem);
+    }
+
     const safeTitle = replaceIllegalFileNameCharactersInString(item.title);
-    const fileName = await getFileName(type, safeTitle);
+    const fileName = await getFileName(safeTitle);
 
     QuickAdd.variables = {
         ...QuickAdd.variables,
@@ -106,7 +193,7 @@ async function getReadwiseHighlights(type) {
         title: item.title,
         author: `[[${item.author}]]`,
         source: item.source_url,
-        tags: item.tags.map(tag => tag.name).join(", "),
+        tags: item?.tags?.map(tag => tag.name).join(", "),
         cover: item.cover_image_url,
         lastHighlightAt: item.last_highlight_at,
         updated: item.updated,
@@ -145,7 +232,7 @@ async function handleAddToExistingFile(file, item) {
 
     const resolve = await getHighlightsAfterDateForItem(item, lastHighlightAt);
     const highlights = resolve.results.reverse();
-
+    
     if (highlights.length > 0) {
         QuickAdd.variables.highlights = `\n${formatHighlights(highlights)}`;
         await update("lastHighlightAt", item.last_highlight_at, file);
@@ -157,6 +244,8 @@ async function handleAddToExistingFile(file, item) {
 }
 
 async function handleCreateSourceFile(item) {
+    if (item.title === MANUAL_ENTRY) return;
+
     const resolve = await getHighlightsForItem(item);
     if (!resolve) {
         LogAndThrowError("No highlights found.");
@@ -166,29 +255,11 @@ async function handleCreateSourceFile(item) {
     QuickAdd.variables.highlights = formatHighlights(highlights);
 }
 
-async function getFileName(type, safeTitle) {
-    let fileNameFormat;
+async function getFileName(safeTitle) {
+    const fileNameFormat = Settings[FILE_NAME_FORMAT];
+    const fileNameWithSafeTitle = fileNameFormat.replace(/{{VALUE:safeTitle}}/gi, safeTitle);
 
-    switch (type) {
-        case EzImportType.Article:
-            fileNameFormat = Settings[ARTICLE_FORMAT];
-            break;
-        case EzImportType.YouTube_video:
-            fileNameFormat = Settings[YOUTUBE_VIDEO_FORMAT];
-            break;
-        case EzImportType.Podcast_episode:
-            fileNameFormat = Settings[PODCAST_FORMAT];
-            break;
-        case EzImportType.Tweet:
-            fileNameFormat = Settings[TWEET_FORMAT];
-            break;
-        case EzImportType.Book:
-            fileNameFormat = Settings[BOOK_FORMAT];
-            break;
-    }
-
-    fileNameFormat = fileNameFormat.replace(/{{VALUE:safeTitle}}/g, safeTitle);
-    return await QuickAdd.quickAddApi.format(fileNameFormat);
+    return await QuickAdd.quickAddApi.format(fileNameWithSafeTitle);
 }
 
 function formatHighlights(highlights) {
@@ -246,7 +317,7 @@ async function apiGet(url, data) {
 
 function replaceIllegalFileNameCharactersInString(string) {
     return string
-        .replace(/[\\,#%&\{\}\/*<>$\'\":@]*/g, '') // Replace illegal file name characters with empty string
+        .replace(/[\\,#%&\{\}\/*<>$\'\":@\u2023\|\?]*/g, '') // Replace illegal file name characters with empty string
         .replace(/\n/, ' ') // replace newlines with spaces
         .replace('  ', ' '); // replace multiple spaces with single space to make sure we don't have double spaces in the file name
 }
