@@ -13,6 +13,7 @@ export class FileNameDisplayFormatter extends Formatter {
 
 		output = await this.replaceMacrosInString(output);
 		output = this.replaceDateInString(output);
+		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);

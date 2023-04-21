@@ -4,6 +4,7 @@ import {
 	DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
 	DATE_SYNTAX,
 	DATE_SYNTAX_SUGGEST_REGEX,
+	TIME_SYNTAX,
 	LINKCURRENT_SYNTAX,
 	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
@@ -18,6 +19,7 @@ import {
 	VARIABLE_SYNTAX_SUGGEST_REGEX,
 	SELECTED_SYNTAX_SUGGEST_REGEX,
 	SELECTED_SYNTAX,
+	TIME_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 import type QuickAdd from "../../main";
 
@@ -32,6 +34,8 @@ enum FormatSyntaxToken {
 	Macro,
 	Template,
 	MathValue,
+	Time,
+	Selected
 }
 
 export class FormatSyntaxSuggester extends TextInputSuggest<string> {
@@ -160,6 +164,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		const dateMatch = DATE_SYNTAX_SUGGEST_REGEX.exec(input);
 		if (dateMatch) callback(dateMatch, FormatSyntaxToken.Date, DATE_SYNTAX);
 
+		const timeMatch = TIME_SYNTAX_SUGGEST_REGEX.exec(input);
+		if (timeMatch) callback(timeMatch, FormatSyntaxToken.Time, TIME_SYNTAX);
+
 		const nameMatch = NAME_SYNTAX_SUGGEST_REGEX.exec(input);
 		if (nameMatch) callback(nameMatch, FormatSyntaxToken.Name, NAME_SYNTAX);
 
@@ -177,7 +184,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 
 		const selectedMatch = SELECTED_SYNTAX_SUGGEST_REGEX.exec(input);
 		if (selectedMatch)
-			callback(selectedMatch, FormatSyntaxToken.Macro, SELECTED_SYNTAX);
+			callback(selectedMatch, FormatSyntaxToken.Selected, SELECTED_SYNTAX);
 
 		const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(input);
 		if (variableMatch)

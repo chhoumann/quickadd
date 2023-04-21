@@ -1,5 +1,6 @@
 export const VALUE_SYNTAX = "{{value}}";
 export const DATE_SYNTAX = "{{date}}";
+export const TIME_SYNTAX = "{{time}}";
 export const NAME_SYNTAX = "{{name}}";
 export const VARIABLE_SYNTAX = "{{value:<variable name>}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
@@ -46,6 +47,8 @@ export const DATE_REGEX = new RegExp(/{{DATE(\+-?[0-9]+)?}}/i);
 export const DATE_REGEX_FORMATTED = new RegExp(
 	/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/i
 );
+export const TIME_REGEX = new RegExp(/{{TIME}}/i);
+export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);
 export const NAME_VALUE_REGEX = new RegExp(/{{NAME}}|{{VALUE}}/i);
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
@@ -111,6 +114,10 @@ export const TITLE_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i
 );
+export const TIME_SYNTAX_SUGGEST_REGEX = new RegExp(/{{[T]?[I]?[M]?[E]?[}]?[}]?/i);
+export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[T]?[I]?[M]?[E]?[:]?$|{{TIME:[^\n\r}]*}}$/i
+)
 
 // == File Exists (Template Choice) == //
 export const fileExistsIncrement = "Increment the file name" as const;

@@ -14,6 +14,8 @@ import {
 	VARIABLE_REGEX,
 	FIELD_VAR_REGEX,
 	SELECTED_REGEX,
+	TIME_REGEX,
+	TIME_REGEX_FORMATTED,
 } from "../constants";
 import { getDate } from "../utilityObsidian";
 
@@ -66,6 +68,36 @@ export abstract class Formatter {
 				DATE_REGEX_FORMATTED,
 				getDate({ format, offset: offset })
 			);
+		}
+
+		return output;
+	}
+
+	protected replaceTimeInString(input: string): string {
+		let output: string = input;
+
+		while (TIME_REGEX.test(output)) {
+			const timeMatch = TIME_REGEX.exec(output);
+			if (!timeMatch) throw new Error("unable to parse time");
+
+			output = this.replacer(
+				output,
+				TIME_REGEX,
+				getDate({ format: "HH:mm" })
+			)
+		}
+
+		while (TIME_REGEX_FORMATTED.test(output)) {
+			const timeMatch = TIME_REGEX_FORMATTED.exec(output);
+			if (!timeMatch) throw new Error("unable to parse time");
+
+			const format = timeMatch[1];
+
+			output = this.replacer(
+				output,
+				TIME_REGEX_FORMATTED,
+				getDate({ format })
+			)
 		}
 
 		return output;

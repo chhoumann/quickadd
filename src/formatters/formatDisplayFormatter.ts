@@ -13,6 +13,7 @@ export class FormatDisplayFormatter extends Formatter {
 		let output: string = input;
 
 		output = this.replaceDateInString(output);
+		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
