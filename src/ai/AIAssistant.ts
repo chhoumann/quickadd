@@ -37,23 +37,33 @@ async function repeatUntilResolved(
 
 async function getTargetPromptTemplate(
 	userDefinedPromptTemplate: params["promptTemplate"],
-	promptTemplatePaths: TFile[]
+	promptTemplates: TFile[]
 ): Promise<[string, string]> {
-	const targetTemplatePath = userDefinedPromptTemplate.enable
-		? promptTemplatePaths.find(item => item.path.endsWith(userDefinedPromptTemplate.name))?.path
-		: await GenericSuggester.Suggest(
-				app,
-				promptTemplatePaths.map((f) => f.basename),
-				promptTemplatePaths.map((f) => f.path)
-		  );
+	let targetFile;
 
-    invariant(targetTemplatePath, `${targetTemplatePath ?? "Prompt template"} does not exist`);
+	if (userDefinedPromptTemplate.enable) {
+		targetFile = promptTemplates.find((item) =>
+			item.path.endsWith(userDefinedPromptTemplate.name)
+		);
+	} else {
+		const basenames = promptTemplates.map((f) => f.basename);
+
+		targetFile = await GenericSuggester.Suggest(
+			app,
+			basenames,
+			promptTemplates
+		);
+	}
+
+	invariant(targetFile, "Prompt template does not exist");
+
+	const targetTemplatePath = targetFile.path;
 
 	const file = app.vault.getAbstractFileByPath(targetTemplatePath);
 	invariant(file instanceof TFile, `${targetTemplatePath} is not a file`);
 	const targetTemplateContent = await app.vault.cachedRead(file);
 
-	return [targetTemplatePath, targetTemplateContent];
+	return [targetFile.basename, targetTemplateContent];
 }
 
 interface params {
@@ -98,7 +108,7 @@ export async function runAIAssistant(
 
 		const promptingMsg = [
 			"prompting",
-			`Using prompt template ${targetKey}.`,
+			`Using prompt template "${targetKey}".`,
 		];
 		notice.setMessage(noticeMsg(promptingMsg[0], promptingMsg[1]));
 
