@@ -84,11 +84,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.choice.fileExistsMode;
 
 				if (!this.choice.setFileExistsBehavior) {
-					userChoice = (await GenericSuggester.Suggest(
+					userChoice = await GenericSuggester.Suggest(
 						this.app,
 						[...fileExistsChoices],
 						[...fileExistsChoices]
-					)) as typeof fileExistsChoices[number];
+					);
 				}
 
 				switch (userChoice) {
