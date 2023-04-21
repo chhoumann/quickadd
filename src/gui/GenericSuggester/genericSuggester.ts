@@ -1,13 +1,13 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch , App} from "obsidian";
 
-export default class GenericSuggester extends FuzzySuggestModal<string> {
-	private resolvePromise: (value: string) => void;
+export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
+	private resolvePromise: (value: T) => void;
 	private rejectPromise: (reason?: unknown) => void;
-	public promise: Promise<string>;
+	public promise: Promise<T>;
 	private resolved: boolean;
 
-	public static Suggest(app: App, displayItems: string[], items: string[]) {
+	public static Suggest<T>(app: App, displayItems: string[], items: T[]) {
 		const newSuggester = new GenericSuggester(app, displayItems, items);
 		return newSuggester.promise;
 	}
@@ -15,11 +15,11 @@ export default class GenericSuggester extends FuzzySuggestModal<string> {
 	public constructor(
 		app: App,
 		private displayItems: string[],
-		private items: string[]
+		private items: T[]
 	) {
 		super(app);
 
-		this.promise = new Promise<string>((resolve, reject) => {
+		this.promise = new Promise<T>((resolve, reject) => {
 			this.resolvePromise = resolve;
 			this.rejectPromise = reject;
 		});
@@ -46,23 +46,23 @@ export default class GenericSuggester extends FuzzySuggestModal<string> {
 		this.open();
 	}
 
-	getItemText(item: string): string {
+	getItemText(item: T): string {
 		return this.displayItems[this.items.indexOf(item)];
 	}
 
-	getItems(): string[] {
+	getItems(): T[] {
 		return this.items;
 	}
 
 	selectSuggestion(
-		value: FuzzyMatch<string>,
+		value: FuzzyMatch<T>,
 		evt: MouseEvent | KeyboardEvent
 	) {
 		this.resolved = true;
 		super.selectSuggestion(value, evt);
 	}
 
-	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
+	onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
 	}
