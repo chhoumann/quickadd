@@ -28,7 +28,6 @@ import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "src/ai/AIAssistant";
 import { settingsStore } from "src/settingsStore";
-import type { Model } from "src/ai/models";
 import { models } from "src/ai/models";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 
@@ -303,15 +302,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const options = [...models];
 		const model =
 			command.model === "Ask me"
-				? ((await GenericSuggester.Suggest(
-						app,
-						options,
-						options
-				  )) as Model)
+				? await GenericSuggester.Suggest(app, options, options)
 				: command.model;
-		const formatter = new CompleteFormatter(app, QuickAdd.instance, this.choiceExecutor);
+		const formatter = new CompleteFormatter(
+			app,
+			QuickAdd.instance,
+			this.choiceExecutor
+		);
 
-		const newVars = await runAIAssistant(
+		const aiOutputVariables = await runAIAssistant(
 			{
 				apiKey: aiSettings.OpenAIApiKey,
 				model,
@@ -319,14 +318,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				promptTemplate: command.promptTemplate,
 				promptTemplateFolder: aiSettings.promptTemplatesFolderPath,
 				systemPrompt: command.systemPrompt,
+				showAssistantMessages: aiSettings.showAssistant,
 			},
 			async (input: string) => {
-				return formatter.formatFileContent(input);				
+				return formatter.formatFileContent(input);
 			}
 		);
-		
-		for (const key in newVars) {
-			this.choiceExecutor.variables.set(key, newVars[key]);
+
+		for (const key in aiOutputVariables) {
+			this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
 		}
 	}
 }
