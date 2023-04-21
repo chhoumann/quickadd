@@ -152,7 +152,7 @@ export async function runAIAssistant(
 		const variables = {
 			[outputVariable]: output,
 			// For people that want the output in callouts or quote blocks.
-			quoted: outputInMarkdownBlockQuote,
+			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
 		};
 
 		setTimeout(() => notice.hide(), 5000);
