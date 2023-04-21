@@ -133,6 +133,7 @@ export class AIAssistantSettingsModal extends Modal {
 
 		textAreaComponent.inputEl.style.width = "100%";
 		textAreaComponent.inputEl.style.height = "100px";
+		textAreaComponent.inputEl.style.minHeight = "100px";
 		textAreaComponent.inputEl.style.marginBottom = "1em";
 
 		const formatDisplay = this.contentEl.createEl("span");

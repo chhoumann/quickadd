@@ -295,7 +295,7 @@
 		on:reorderChoices={(e) => saveChoices(e.detail.choices)}
 	/>
 	<div class="choiceViewBottomBar">
-		<div>
+		<div style="display: flex; gap: 4px;">
 			<button class="mod-cta" on:click={openMacroManager}
 				>Manage Macros</button
 			>
