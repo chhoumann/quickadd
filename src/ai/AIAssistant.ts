@@ -76,13 +76,16 @@ interface params {
 		name: string;
 	};
 	promptTemplateFolder: string;
+	showAssistantMessages: boolean;
 }
 
 export async function runAIAssistant(
 	settings: params,
 	formatter: (input: string) => Promise<string>
 ) {
-	const notice = new Notice(noticeMsg("starting", ""), 1000000);
+	const notice = settings.showAssistantMessages
+		? new Notice(noticeMsg("starting", ""), 1000000)
+		: { setMessage: () => { }, hide: () => { } };
 
 	try {
 		const {
