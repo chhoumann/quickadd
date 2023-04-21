@@ -11,9 +11,9 @@ import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
-import type QuickAdd from "../main";
+import QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { getUserScript  } from "../utilityObsidian";
+import { getUserScript } from "../utilityObsidian";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -25,6 +25,11 @@ import { PasteCommand } from "../types/macros/EditorCommands/PasteCommand";
 import { SelectActiveLineCommand } from "../types/macros/EditorCommands/SelectActiveLineCommand";
 import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 import { waitFor } from "src/utility";
+import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
+import { runAIAssistant } from "src/ai/AIAssistant";
+import { settingsStore } from "src/settingsStore";
+import { models } from "src/ai/models";
+import { CompleteFormatter } from "src/formatters/completeFormatter";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -97,6 +102,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			if (command?.type === CommandType.EditorCommand) {
 				await this.executeEditorCommand(command as IEditorCommand);
 			}
+			if (command?.type === CommandType.AIAssistant) {
+				await this.executeAIAssistant(command as IAIAssistantCommand);
+			}
 
 			Object.keys(this.params.variables).forEach((key) => {
 				this.choiceExecutor.variables.set(
@@ -125,7 +133,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			await this.userScriptDelegator(userScript);
 		} catch (error) {
 			log.logError(
-				`failed to run user script ${command.name}. Error:\n\n${(error as {message: string}).message}`
+				`failed to run user script ${command.name}. Error:\n\n${
+					(error as { message: string }).message
+				}`
 			);
 		}
 
@@ -283,6 +293,40 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			case EditorCommandType.SelectLinkOnActiveLine:
 				SelectLinkOnActiveLineCommand.run(this.app);
 				break;
+		}
+	}
+
+	private async executeAIAssistant(command: IAIAssistantCommand) {
+		const aiSettings = settingsStore.getState().ai;
+
+		const options = [...models];
+		const model =
+			command.model === "Ask me"
+				? await GenericSuggester.Suggest(app, options, options)
+				: command.model;
+		const formatter = new CompleteFormatter(
+			app,
+			QuickAdd.instance,
+			this.choiceExecutor
+		);
+
+		const aiOutputVariables = await runAIAssistant(
+			{
+				apiKey: aiSettings.OpenAIApiKey,
+				model,
+				outputVariableName: command.outputVariableName,
+				promptTemplate: command.promptTemplate,
+				promptTemplateFolder: aiSettings.promptTemplatesFolderPath,
+				systemPrompt: command.systemPrompt,
+				showAssistantMessages: aiSettings.showAssistant,
+			},
+			async (input: string) => {
+				return formatter.formatFileContent(input);
+			}
+		);
+
+		for (const key in aiOutputVariables) {
+			this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
 		}
 	}
 }
