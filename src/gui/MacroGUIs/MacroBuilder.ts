@@ -1,14 +1,6 @@
 import type { IMacro } from "../../types/macros/IMacro";
-import type {
-	App,
-	DropdownComponent,
-	TextComponent,
-	TFile} from "obsidian";
-import {
-	ButtonComponent,
-	Modal,
-	Setting
-} from "obsidian";
+import type { App, DropdownComponent, TextComponent, TFile } from "obsidian";
+import { ButtonComponent, Modal, Setting } from "obsidian";
 import type { IObsidianCommand } from "../../types/macros/IObsidianCommand";
 import { UserScript } from "../../types/macros/UserScript";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
@@ -36,6 +28,8 @@ import { SelectLinkOnActiveLineCommand } from "../../types/macros/EditorCommands
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import type { MultiChoice } from "src/types/choices/MultiChoice";
+import type { IconType } from "src/types/IconType";
+import { AIAssistantCommand } from "src/types/macros/QuickCommands/AIAssistantCommand";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -48,7 +42,7 @@ function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 				arr.push(choice);
 			}
 		});
-	}
+	};
 
 	recursive(nestedChoices);
 
@@ -333,7 +327,8 @@ export class MacroBuilder extends Modal {
 		// @ts-ignore
 		Object.keys(this.app.commands.commands).forEach((key) => {
 			// @ts-ignore
-			const command: {name: string, id: string} = this.app.commands.commands[key];
+			const command: { name: string; id: string } =
+				this.app.commands.commands[key];
 
 			this.commands.push(new ObsidianCommand(command.name, command.id));
 		});
@@ -396,6 +391,19 @@ export class MacroBuilder extends Modal {
 		this.newChoiceButton(quickCommandContainer, "Capture", CaptureChoice);
 		this.newChoiceButton(quickCommandContainer, "Template", TemplateChoice);
 		this.addAddWaitCommandButton(quickCommandContainer);
+		this.addAIAssistantCommandButton(quickCommandContainer);
+	}
+	addAIAssistantCommandButton(quickCommandContainer: HTMLDivElement) {
+		const button: ButtonComponent = new ButtonComponent(
+			quickCommandContainer
+		);
+
+		button
+			.setIcon("bot" as IconType)
+			.setTooltip("Add AI Assistant command")
+			.onClick(() => {
+				this.addCommandToMacro(new AIAssistantCommand());
+			});
 	}
 
 	private addAddWaitCommandButton(quickCommandContainer: HTMLDivElement) {

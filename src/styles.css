@@ -189,6 +189,7 @@
 	justify-content: flex-end;
 	align-content: center;
 	margin-bottom: 1em;
+	gap: 4px;
 }
 
 .yesNoPromptButtonContainer {

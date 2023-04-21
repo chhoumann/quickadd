@@ -6,6 +6,7 @@ import type { IUserScript } from "../../types/macros/IUserScript";
 import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 
 type Option =
 	| {
@@ -109,18 +110,6 @@ export class UserScriptSettingsModal extends Modal {
 		}
 	}
 
-	private setPasswordOnBlur(el: HTMLInputElement) {
-		el.addEventListener("focus", () => {
-			el.type = "text";
-		});
-
-		el.addEventListener("blur", () => {
-			el.type = "password";
-		});
-
-		el.type = "password";
-	}
-
 	private addInputBox(
 		name: string,
 		value: string,
@@ -134,7 +123,7 @@ export class UserScriptSettingsModal extends Modal {
 				.setPlaceholder(placeholder ?? "");
 
 			if (passwordOnBlur) {
-				this.setPasswordOnBlur(input.inputEl);
+				setPasswordOnBlur(input.inputEl);
 			}
 		});
 	}

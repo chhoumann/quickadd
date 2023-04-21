@@ -5,4 +5,5 @@ export enum CommandType {
 	Wait = "Wait",
 	NestedChoice = "NestedChoice",
 	EditorCommand = "EditorCommand",
+	AIAssistant = "AIAssistant",
 }
