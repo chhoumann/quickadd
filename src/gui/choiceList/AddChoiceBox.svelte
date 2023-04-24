@@ -52,5 +52,6 @@
         font-size: 16px;
         padding: 3px;
         border-radius: 3px;
+        appearance: auto;
     }
 </style>

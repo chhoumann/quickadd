@@ -30,9 +30,10 @@
 	$: {
 		if (nameElement) {
 			nameElement.innerHTML = "";
-			const nameHTML = htmlToMarkdown(choice.name);
+			const typeHTML = htmlToMarkdown(choice.type);
+			const nameHTMLWithChoiceType = `**${typeHTML}:** ${choice.name}`;
 			MarkdownRenderer.renderMarkdown(
-				nameHTML,
+				nameHTMLWithChoiceType,
 				nameElement,
 				"/",
 				null as unknown as Component
