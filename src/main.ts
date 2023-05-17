@@ -15,6 +15,7 @@ import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
+import logDecorator from "./logger/logDecorator";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
@@ -55,7 +56,9 @@ export default class QuickAdd extends Plugin {
 
 				const id: string = this.manifest.id,
 					plugins = this.app.plugins;
-				void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
+				void plugins
+					.disablePlugin(id)
+					.then(() => plugins.enablePlugin(id));
 			},
 		});
 
