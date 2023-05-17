@@ -1,8 +1,8 @@
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
-import { isCaptureChoice } from "./isCaptureChoice";
-import { isMultiChoice } from "./isMultiChoice";
-import { isNestedChoiceCommand } from "./isNestedChoiceCommand";
+import { isCaptureChoice } from "./helpers/isCaptureChoice";
+import { isMultiChoice } from "./helpers/isMultiChoice";
+import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration } from "./Migrations";
 
 function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
