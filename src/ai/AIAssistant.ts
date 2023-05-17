@@ -3,7 +3,7 @@ import type { Model } from "./models";
 import { Notice, TFile, requestUrl } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
-import { OpenAIModelParameters } from "./OpenAIModelParameters";
+import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 
 const noticeMsg = (task: string, message: string) =>
