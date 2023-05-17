@@ -319,6 +319,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				promptTemplateFolder: aiSettings.promptTemplatesFolderPath,
 				systemPrompt: command.systemPrompt,
 				showAssistantMessages: aiSettings.showAssistant,
+				modelOptions: command.modelParameters,
 			},
 			async (input: string) => {
 				return formatter.formatFileContent(input);

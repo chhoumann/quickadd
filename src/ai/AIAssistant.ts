@@ -3,6 +3,7 @@ import type { Model } from "./models";
 import { Notice, TFile, requestUrl } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
+import { OpenAIModelParameters } from "./OpenAIModelParameters";
 
 const noticeMsg = (task: string, message: string) =>
 	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
@@ -77,6 +78,7 @@ interface params {
 	};
 	promptTemplateFolder: string;
 	showAssistantMessages: boolean;
+	modelOptions: Partial<OpenAIModelParameters>;
 }
 
 export async function runAIAssistant(
@@ -85,7 +87,7 @@ export async function runAIAssistant(
 ) {
 	const notice = settings.showAssistantMessages
 		? new Notice(noticeMsg("starting", ""), 1000000)
-		: { setMessage: () => { }, hide: () => { } };
+		: { setMessage: () => {}, hide: () => {} };
 
 	try {
 		const {
@@ -115,7 +117,12 @@ export async function runAIAssistant(
 		];
 		notice.setMessage(noticeMsg(promptingMsg[0], promptingMsg[1]));
 
-		const makeRequest = OpenAIRequest(apiKey, model, systemPrompt);
+		const makeRequest = OpenAIRequest(
+			apiKey,
+			model,
+			systemPrompt,
+			settings.modelOptions
+		);
 		const res = makeRequest(formattedPrompt);
 
 		const time_start = Date.now();
@@ -183,7 +190,12 @@ type ReqResponse = {
 	created: number;
 };
 
-function OpenAIRequest(apiKey: string, model: Model, systemPrompt: string) {
+function OpenAIRequest(
+	apiKey: string,
+	model: Model,
+	systemPrompt: string,
+	modelParams: Partial<OpenAIModelParameters> = {}
+) {
 	return async function makeRequest(prompt: string) {
 		try {
 			const response = await requestUrl({
@@ -195,6 +207,7 @@ function OpenAIRequest(apiKey: string, model: Model, systemPrompt: string) {
 				},
 				body: JSON.stringify({
 					model,
+					...modelParams,
 					messages: [
 						{ role: "system", content: systemPrompt },
 						{ role: "user", content: prompt },
