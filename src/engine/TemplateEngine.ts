@@ -65,7 +65,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async incrementFileName(fileName: string) {
 		const exec = FILE_NUMBER_REGEX.exec(fileName);
-		const numStr = exec?.at(1);
+		const numStr =
+			exec && typeof exec.at === "function" ? exec?.at(1) : undefined;
 		const fileExists = await this.app.vault.adapter.exists(fileName);
 		let newFileName = fileName;
 
@@ -110,7 +111,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return createdFile;
 		} catch (e) {
 			log.logError(
-				`Could not create file with template: \n\n${(e as {message: string}).message}`
+				`Could not create file with template: \n\n${
+					(e as { message: string }).message
+				}`
 			);
 			return null;
 		}
