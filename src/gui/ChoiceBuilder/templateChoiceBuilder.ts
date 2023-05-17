@@ -59,7 +59,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				search.setValue(this.choice.templatePath);
 				search.setPlaceholder("Template path");
 
-				new GenericTextSuggester(this.app, search.inputEl, templates);
+				new GenericTextSuggester(this.app, search.inputEl, templates, 50);
 
 				search.onChange((value) => {
 					this.choice.templatePath = value;
