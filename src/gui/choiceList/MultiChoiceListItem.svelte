@@ -30,6 +30,7 @@
         dispatcher('duplicateChoice', {choice});
     }
 
+	const cmp = new Component();
 	let nameElement: HTMLSpanElement;
 
 	$: {
@@ -40,7 +41,7 @@
 				nameHTML,
 				nameElement,
 				"/",
-				null as unknown as Component
+				cmp
 			);
 		}
 	}
