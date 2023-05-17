@@ -12,70 +12,74 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = process.argv[2] === "production";
+const options = Object.freeze({
+	banner: {
+		js: banner,
+	},
+	entryPoints: ["src/main.ts", "src/styles.css"],
+	bundle: true,
+	external: [
+		"obsidian",
+		"electron",
+		"@codemirror/autocomplete",
+		"@codemirror/closebrackets",
+		"@codemirror/collab",
+		"@codemirror/commands",
+		"@codemirror/comment",
+		"@codemirror/fold",
+		"@codemirror/gutter",
+		"@codemirror/highlight",
+		"@codemirror/history",
+		"@codemirror/language",
+		"@codemirror/lint",
+		"@codemirror/matchbrackets",
+		"@codemirror/panel",
+		"@codemirror/rangeset",
+		"@codemirror/rectangular-selection",
+		"@codemirror/search",
+		"@codemirror/state",
+		"@codemirror/stream-parser",
+		"@codemirror/text",
+		"@codemirror/tooltip",
+		"@codemirror/view",
+		"@lezer/common",
+		"@lezer/highlight",
+		"@lezer/lr",
+		...builtins,
+	],
+	mainFields: ["svelte", "browser", "module", "main"],
+	plugins: [
+		esbuildSvelte({
+			compilerOptions: { css: true },
+			preprocess: sveltePreprocess(),
+		}),
+		...(!prod
+			? [
+					copy({
+						resolveFrom: "cwd",
+						assets: {
+							from: ["./styles.css"],
+							to: [
+								// Path to dev's Obsidian CSS snippets folder, for hot-reload of CSS
+								"/mnt/c/Users/chhou/Documents/dev/.obsidian/snippets/quickadd.css",
+							],
+						},
+					}),
+			  ]
+			: []),
+	],
+	format: "cjs",
+	target: "ES2020",
+	logLevel: "info",
+	sourcemap: prod ? false : "inline",
+	treeShaking: true,
+	outdir: ".",
+});
 
-esbuild
-	.build({
-		banner: {
-			js: banner,
-		},
-		entryPoints: ["src/main.ts", "src/styles.css"],
-		bundle: true,
-		external: [
-			"obsidian",
-			"electron",
-			"@codemirror/autocomplete",
-			"@codemirror/closebrackets",
-			"@codemirror/collab",
-			"@codemirror/commands",
-			"@codemirror/comment",
-			"@codemirror/fold",
-			"@codemirror/gutter",
-			"@codemirror/highlight",
-			"@codemirror/history",
-			"@codemirror/language",
-			"@codemirror/lint",
-			"@codemirror/matchbrackets",
-			"@codemirror/panel",
-			"@codemirror/rangeset",
-			"@codemirror/rectangular-selection",
-			"@codemirror/search",
-			"@codemirror/state",
-			"@codemirror/stream-parser",
-			"@codemirror/text",
-			"@codemirror/tooltip",
-			"@codemirror/view",
-			"@lezer/common",
-			"@lezer/highlight",
-			"@lezer/lr",
-			...builtins,
-		],
-		mainFields: ["svelte", "browser", "module", "main"],
-		plugins: [
-			esbuildSvelte({
-				compilerOptions: { css: true },
-				preprocess: sveltePreprocess(),
-			}),
-			...(!prod
-				? [
-						copy({
-							resolveFrom: "cwd",
-							assets: {
-								from: ["./styles.css"],
-								to: [
-									// Path to dev's Obsidian CSS snippets folder, for hot-reload of CSS
-									"/mnt/c/Users/chhou/Documents/dev/.obsidian/snippets/quickadd.css",
-								],
-							},
-						}),
-				  ]
-				: []),
-		],
-		format: "cjs",
-		watch: !prod,
-		target: "ES2020",
-		logLevel: "info",
-		sourcemap: prod ? false : "inline",
-		treeShaking: true,
-		outdir: ".",
-	})
-	.catch(() => process.exit(1));
+if (!prod) {
+	const context = await esbuild.context(options);
+
+	await context.watch();
+} else {
+	esbuild.build(options).catch(() => process.exit(1));
+}
