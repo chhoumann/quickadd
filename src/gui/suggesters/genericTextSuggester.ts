@@ -5,7 +5,8 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
-		private items: string[]
+		private items: string[],
+		private maxSuggestions = Infinity
 	) {
 		super(app, inputEl);
 	}
@@ -18,9 +19,10 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 		});
 
 		if (!filtered) this.close();
-		if (filtered?.length > 0) return filtered;
 
-		return [];
+		const limited = filtered.slice(0, this.maxSuggestions);
+
+		return limited;
 	}
 
 	selectSuggestion(item: string): void {

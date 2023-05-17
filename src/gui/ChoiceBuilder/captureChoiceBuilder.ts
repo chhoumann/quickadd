@@ -119,7 +119,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			new GenericTextSuggester(
 				this.app,
 				textField.inputEl,
-				markdownFilesAndFormatSyntax
+				markdownFilesAndFormatSyntax,
+				50
 			);
 		}
 	}
@@ -418,7 +419,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		new GenericTextSuggester(
 			this.app,
 			templateSelector.inputEl,
-			templateFilePaths
+			templateFilePaths,
+			50
 		);
 
 		templateSelector.onChange((value) => {

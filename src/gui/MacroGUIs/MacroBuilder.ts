@@ -30,6 +30,7 @@ import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import type { MultiChoice } from "src/types/choices/MultiChoice";
 import type { IconType } from "src/types/IconType";
 import { AIAssistantCommand } from "src/types/macros/QuickCommands/AIAssistantCommand";
+import { settingsStore } from "src/settingsStore";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -391,7 +392,10 @@ export class MacroBuilder extends Modal {
 		this.newChoiceButton(quickCommandContainer, "Capture", CaptureChoice);
 		this.newChoiceButton(quickCommandContainer, "Template", TemplateChoice);
 		this.addAddWaitCommandButton(quickCommandContainer);
-		this.addAIAssistantCommandButton(quickCommandContainer);
+
+		if (!settingsStore.getState().disableOnlineFeatures) {
+			this.addAIAssistantCommandButton(quickCommandContainer);
+		}
 	}
 	addAIAssistantCommandButton(quickCommandContainer: HTMLDivElement) {
 		const button: ButtonComponent = new ButtonComponent(

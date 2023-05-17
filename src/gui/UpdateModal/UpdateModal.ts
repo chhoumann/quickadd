@@ -1,4 +1,4 @@
-import type { Component} from "obsidian";
+import { Component } from "obsidian";
 import { MarkdownRenderer, Modal } from "obsidian";
 import { log } from "src/logger/logManager";
 
@@ -136,7 +136,7 @@ export class UpdateModal extends Modal {
 			markdownStr,
 			contentDiv,
 			app.vault.getRoot().path,
-			null as unknown as Component
+			new Component(),
 		);
 	}
 }

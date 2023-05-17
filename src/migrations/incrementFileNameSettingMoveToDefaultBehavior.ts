@@ -1,9 +1,9 @@
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
-import { isMultiChoice } from "./isMultiChoice";
-import { isNestedChoiceCommand } from "./isNestedChoiceCommand";
-import { isOldTemplateChoice } from "./isOldTemplateChoice";
+import { isMultiChoice } from "./helpers/isMultiChoice";
+import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
+import { isOldTemplateChoice } from "./helpers/isOldTemplateChoice";
 import type { Migration } from "./Migrations";
 
 function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
