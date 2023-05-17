@@ -297,6 +297,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {
+		if (settingsStore.getState().disableOnlineFeatures) {
+			throw new Error(
+				"Blocking request to OpenAI: Online features are disabled in settings."
+			);
+		}
+
 		const aiSettings = settingsStore.getState().ai;
 
 		const options = [...models];

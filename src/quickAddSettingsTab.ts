@@ -16,6 +16,11 @@ export interface QuickAddSettings {
 	templateFolderPath: string;
 	announceUpdates: boolean;
 	version: string;
+	/**
+	 * If this is true, then the plugin is not to contact external services (e.g. OpenAI, etc.) via plugin features.
+	 * Users _can_ still use User Scripts to do so by executing arbitrary JavaScript, but that is not something the plugin controls.
+	 */
+	disableOnlineFeatures: boolean;
 	ai: {
 		OpenAIApiKey: string;
 		defaultModel: Models_And_Ask_Me;
@@ -40,6 +45,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	templateFolderPath: "",
 	announceUpdates: true,
 	version: "0.0.0",
+	disableOnlineFeatures: true,
 	ai: {
 		OpenAIApiKey: "",
 		defaultModel: "Ask me",
@@ -74,6 +80,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addUseMultiLineInputPromptSetting();
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
+		this.addDisableOnlineFeaturesSetting();
 	}
 
 	addAnnounceUpdatesSetting() {
@@ -164,5 +171,24 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					.map((f) => f.path)
 			);
 		});
+	}
+
+	private addDisableOnlineFeaturesSetting() {
+		new Setting(this.containerEl)
+			.setName("Disable AI & Online features")
+			.setDesc(
+				"This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, inclulding contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(settingsStore.getState().disableOnlineFeatures)
+					.onChange((value) => {
+						settingsStore.setState({
+							disableOnlineFeatures: value,
+						});
+
+						this.display();
+					})
+			);
 	}
 }

@@ -276,10 +276,12 @@
 	}
 
 	async function openAISettings() {
-		const newSettings = await new AIAssistantSettingsModal(settingsStore.getState().ai).waitForClose;
+		const newSettings = await new AIAssistantSettingsModal(
+			settingsStore.getState().ai
+		).waitForClose;
 
 		if (newSettings) {
-		    settingsStore.setState(state => ({...state, ai: newSettings}));
+			settingsStore.setState((state) => ({ ...state, ai: newSettings }));
 		}
 	}
 </script>
@@ -299,9 +301,11 @@
 			<button class="mod-cta" on:click={openMacroManager}
 				>Manage Macros</button
 			>
-			<button class="mod-cta" on:click={openAISettings}
-				>AI Assistant</button
-			>
+			{#if !settingsStore.getState().disableOnlineFeatures}
+				<button class="mod-cta" on:click={openAISettings}
+					>AI Assistant</button
+				>
+			{/if}
 		</div>
 		<AddChoiceBox on:addChoice={addChoiceToList} />
 	</div>
