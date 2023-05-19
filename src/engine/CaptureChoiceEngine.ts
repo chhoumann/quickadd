@@ -210,7 +210,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 
 		const filePaths = filesWithTag.map((f) => f.path);
-		const targetFilePath = await GenericSuggester.Suggest(
+		const targetFilePath = await InputSuggester.Suggest(
 			app,
 			filePaths,
 			filePaths
