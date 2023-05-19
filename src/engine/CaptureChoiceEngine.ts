@@ -20,7 +20,6 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
-import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
