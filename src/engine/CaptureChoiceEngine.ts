@@ -20,7 +20,6 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
-import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -210,7 +209,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 
 		const filePaths = filesWithTag.map((f) => f.path);
-		const targetFilePath = await GenericSuggester.Suggest(
+		const targetFilePath = await InputSuggester.Suggest(
 			app,
 			filePaths,
 			filePaths
