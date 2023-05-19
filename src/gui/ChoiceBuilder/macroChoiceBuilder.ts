@@ -131,9 +131,11 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 		const selectedMacro = this.macros.find(
 			(m) => m.id === this.choice.macroId
 		);
+
 		if (selectedMacro) {
 			dropdown.setValue(selectedMacro.name);
 		} else {
+			// If the macro choice has no associated macro, select the first macro in the list
 			const value = dropdown.getValue();
 			if (value) {
 				this.selectMacro(value);
@@ -146,5 +148,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 		if (!targetMacro) return;
 
 		this.choice.macroId = targetMacro.id;
+
+		settingsStore.setMacro(targetMacro.id, targetMacro);
 	}
 }
