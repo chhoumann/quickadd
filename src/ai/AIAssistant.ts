@@ -5,6 +5,11 @@ import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
+import { encodingForModel } from "js-tiktoken";
+
+const getTokenCount = (text: string) => {
+	return encodingForModel("gpt-4").encode(text).length;
+};
 
 const noticeMsg = (task: string, message: string) =>
 	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
@@ -197,6 +202,24 @@ type ReqResponse = {
 	created: number;
 };
 
+function getModelMaxTokens(model: Model) {
+	switch (model) {
+		case "text-davinci-003":
+			return 4096;
+		case "gpt-3.5-turbo":
+			return 4096;
+		case "gpt-4":
+			return 8192;
+		case "gpt-3.5-turbo-16k":
+			return 16384;
+		case "gpt-4-32k":
+			return 32768;
+		default:
+			const exhaustiveCheck: never = model;
+			throw new Error(`Unhandled model ${exhaustiveCheck}`);
+	}
+}
+
 function OpenAIRequest(
 	apiKey: string,
 	model: Model,
@@ -207,6 +230,15 @@ function OpenAIRequest(
 		if (settingsStore.getState().disableOnlineFeatures) {
 			throw new Error(
 				"Blocking request to OpenAI: Online features are disabled in settings."
+			);
+		}
+
+		const tokenCount = getTokenCount(prompt) + getTokenCount(systemPrompt);
+		const maxTokens = getModelMaxTokens(model);
+
+		if (tokenCount > maxTokens) {
+			throw new Error(
+				`The ${model} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
 			);
 		}
 

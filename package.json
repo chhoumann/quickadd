@@ -49,6 +49,7 @@
   "dependencies": {
     "builtin-modules": "^3.3.0",
     "fuse.js": "6.6.2",
+    "js-tiktoken": "^1.0.6",
     "zustand": "^4.3.8"
   },
   "repository": {
