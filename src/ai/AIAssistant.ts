@@ -214,9 +214,6 @@ function getModelMaxTokens(model: Model) {
 			return 16384;
 		case "gpt-4-32k":
 			return 32768;
-		default:
-			const exhaustiveCheck: never = model;
-			throw new Error(`Unhandled model ${exhaustiveCheck}`);
 	}
 }
 
