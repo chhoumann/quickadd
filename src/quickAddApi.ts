@@ -12,10 +12,11 @@ import { CompleteFormatter } from "./formatters/completeFormatter";
 import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
-import { Prompt } from "./ai/AIAssistant";
+import { Prompt, getTokenCount } from "./ai/AIAssistant";
 import { settingsStore } from "./settingsStore";
-import type { Model } from "./ai/models";
-import { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
+import { models, type Model } from "./ai/models";
+import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
+import { getModelMaxTokens } from "./ai/getModelMaxTokens";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -110,7 +111,7 @@ export class QuickAddApi {
 						showAssistantMessages: boolean;
 						systemPrompt: string;
 					}>
-				) => {
+				): Promise<{[key: string]: string}> => {
 					const AISettings = settingsStore.getState().ai;
 
 					const formatter = new CompleteFormatter(
@@ -136,13 +137,27 @@ export class QuickAddApi {
 						(txt: string) => formatter.formatFileContent(txt)
 					);
 
-					if (assistantRes && settings?.shouldAssignVariables) {
+					if (!assistantRes) {
+						log.logError("AI Assistant returned null");
+						return {};
+					}
+
+					if (settings?.shouldAssignVariables) {
 						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
 						Object.assign(choiceExecutor.variables, assistantRes);
 					}
 
 					return assistantRes;
 				},
+				getModels: () => {
+					return models;
+				},
+				getMaxTokens: (model: Model) => {
+					return getModelMaxTokens(model);
+				},
+				countTokens(text: string, model: Model) {
+					return getTokenCount(text, model);
+				}
 			},
 			utility: {
 				getClipboard: async () => {
