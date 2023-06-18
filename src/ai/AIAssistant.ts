@@ -17,9 +17,6 @@ export const getTokenCount = (text: string, model: Model) => {
 	return encodingForModel(m).encode(text).length;
 };
 
-export const noticeMsg = (task: string, message: string) =>
-	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
-
 async function repeatUntilResolved(
 	callback: () => void,
 	promise: Promise<unknown>,
@@ -327,6 +324,7 @@ class RateLimiter {
 type ChunkedPromptParams = Omit<
 	PromptParams & {
 		chunkSeparator: RegExp;
+		chunkJoiner: string;
 		text: string;
 		promptTemplate: string;
 	},
@@ -366,29 +364,40 @@ export async function ChunkedPrompt(
 
 		const chunkSeparator = settings.chunkSeparator || /\n/g;
 		const chunks = text.split(chunkSeparator);
+
 		const systemPromptLength = getTokenCount(systemPrompt, model);
-		const maxChunkTokenSize = getModelMaxTokens(model) - systemPromptLength;
+		const maxChunkTokenSize = (getModelMaxTokens(model) / 2) - systemPromptLength;
+		
 		const chunkedPrompts = [];
 
 		let combinedPrompt = "";
 		let promptGenerated = false;
+		let chunkCount = 0;
 
 		for (const chunk of chunks) {
+			let nextChunk = "";
+
 			if (!promptGenerated) {
 				// Only once per combined chunk
-				combinedPrompt += await formatter(promptTemplate, { chunk });
+				nextChunk += await formatter(promptTemplate, { chunk });
 				promptGenerated = true;
 			} else {
-				combinedPrompt += `\n\n${chunk}`;
+				nextChunk += `\n\n${chunk}`;
 			}
 
-			const tokenCount = getTokenCount(combinedPrompt, model);
+			const tokenCount = getTokenCount(combinedPrompt + nextChunk, model);
 
 			if (tokenCount > maxChunkTokenSize) {
 				chunkedPrompts.push(combinedPrompt);
-
 				promptGenerated = false;
-				combinedPrompt = "";
+				combinedPrompt = nextChunk;
+
+				notice.setMessage(
+					"chunking",
+					`Created ${++chunkCount} chunks.`
+				);
+			} else {
+				combinedPrompt += nextChunk;
 			}
 		}
 
@@ -403,7 +412,10 @@ export async function ChunkedPrompt(
 			modelOptions
 		);
 
-		const promptingMsg = ["prompting", `${chunkedPrompts.length} prompts being sent.}`];
+		const promptingMsg = [
+			"prompting",
+			`${chunkedPrompts.length} prompts being sent.`,
+		];
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const rateLimiter = new RateLimiter(5, 1000); // 5 requests per second
@@ -430,7 +442,9 @@ export async function ChunkedPrompt(
 			}
 		);
 
-		const output = result.reduce((acc, curr) => acc + curr.choices[0].message.content, "");
+		const outputs = result.map((r) => r.choices[0].message.content);
+
+		const output = outputs.join(settings.chunkJoiner);
 		const outputInMarkdownBlockQuote = ("> " + output).replace(
 			/\n/g,
 			"\n> "

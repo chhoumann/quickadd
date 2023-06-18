@@ -1,6 +1,8 @@
 import { Notice } from "obsidian";
 import { log } from "src/logger/logManager";
-import { noticeMsg } from "./AIAssistant";
+
+const noticeMsg = (task: string, message: string) =>
+	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
 
 interface NoticeHandler {
     setMessage: (status: string, msg: string) => void;

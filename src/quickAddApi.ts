@@ -161,7 +161,6 @@ export class QuickAddApi {
 				chunkedPrompt: async (
 					text: string,
 					promptTemplate: string,
-					chunkSeparator: RegExp,
 					model: Model,
 					settings?: Partial<{
 						variableName: string;
@@ -169,6 +168,8 @@ export class QuickAddApi {
 						modelOptions: Partial<OpenAIModelParameters>;
 						showAssistantMessages: boolean;
 						systemPrompt: string;
+						chunkSeparator: RegExp,
+						chunkJoiner: string,
 					}>
 				) => {
 					const pluginSettings = settingsStore.getState();
@@ -191,7 +192,7 @@ export class QuickAddApi {
 							model,
 							text,
 							promptTemplate,
-							chunkSeparator,
+							chunkSeparator: settings?.chunkSeparator ?? /\n/,
 							apiKey: AISettings.OpenAIApiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName:
@@ -201,6 +202,7 @@ export class QuickAddApi {
 							systemPrompt:
 								settings?.systemPrompt ??
 								AISettings.defaultSystemPrompt,
+							chunkJoiner: settings?.chunkJoiner ?? "\n",
 						},
 						(txt: string, variables?: Record<string, unknown>) => {
 							return formatter(txt, variables, false);
