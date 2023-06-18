@@ -1,17 +1,19 @@
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import type { Model } from "./models";
-import { Notice, TFile, requestUrl } from "obsidian";
+import { TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 import { encodingForModel } from "js-tiktoken";
+import { OpenAIRequest } from "./OpenAIRequest";
+import { makeNoticeHandler } from "./makeNoticeHandler";
 
-const getTokenCount = (text: string) => {
+export const getTokenCount = (text: string) => {
 	return encodingForModel("gpt-4").encode(text).length;
 };
 
-const noticeMsg = (task: string, message: string) =>
+export const noticeMsg = (task: string, message: string) =>
 	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
 
 async function repeatUntilResolved(
@@ -43,7 +45,7 @@ async function repeatUntilResolved(
 }
 
 async function getTargetPromptTemplate(
-	userDefinedPromptTemplate: params["promptTemplate"],
+	userDefinedPromptTemplate: Params["promptTemplate"],
 	promptTemplates: TFile[]
 ): Promise<[string, string]> {
 	let targetFile;
@@ -73,7 +75,7 @@ async function getTargetPromptTemplate(
 	return [targetFile.basename, targetTemplateContent];
 }
 
-interface params {
+interface Params {
 	apiKey: string;
 	model: Model;
 	systemPrompt: string;
@@ -88,7 +90,7 @@ interface params {
 }
 
 export async function runAIAssistant(
-	settings: params,
+	settings: Params,
 	formatter: (input: string) => Promise<string>
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -97,9 +99,7 @@ export async function runAIAssistant(
 		);
 	}
 
-	const notice = settings.showAssistantMessages
-		? new Notice(noticeMsg("starting", ""), 1000000)
-		: { setMessage: () => {}, hide: () => {} };
+	const notice = makeNoticeHandler(settings.showAssistantMessages);
 
 	try {
 		const {
@@ -119,7 +119,8 @@ export async function runAIAssistant(
 		);
 
 		notice.setMessage(
-			noticeMsg("waiting", "QuickAdd is formatting the prompt template.")
+			"waiting",
+			"QuickAdd is formatting the prompt template."
 		);
 		const formattedPrompt = await formatter(targetPrompt);
 
@@ -127,7 +128,7 @@ export async function runAIAssistant(
 			"prompting",
 			`Using prompt template "${targetKey}".`,
 		];
-		notice.setMessage(noticeMsg(promptingMsg[0], promptingMsg[1]));
+		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const makeRequest = OpenAIRequest(
 			apiKey,
@@ -141,13 +142,11 @@ export async function runAIAssistant(
 		await repeatUntilResolved(
 			() => {
 				notice.setMessage(
-					noticeMsg(
-						promptingMsg[0],
-						`${promptingMsg[1]} (${(
-							(Date.now() - time_start) /
-							1000
-						).toFixed(2)}s)`
-					)
+					promptingMsg[0],
+					`${promptingMsg[1]} (${(
+						(Date.now() - time_start) /
+						1000
+					).toFixed(2)}s)`
 				);
 			},
 			res,
@@ -159,7 +158,8 @@ export async function runAIAssistant(
 		const time_end = Date.now();
 
 		notice.setMessage(
-			noticeMsg(`finished`, `Took ${(time_end - time_start) / 1000}s.`)
+			`finished`,
+			`Took ${(time_end - time_start) / 1000}s.`
 		);
 
 		const output = result.choices[0].message.content;
@@ -178,93 +178,7 @@ export async function runAIAssistant(
 
 		return variables;
 	} catch (error) {
-		notice.setMessage(
-			noticeMsg("dead", (error as { message: string }).message)
-		);
+		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
 	}
-}
-
-type ReqResponse = {
-	id: string;
-	model: string;
-	object: string;
-	usage: {
-		prompt_tokens: number;
-		completion_tokens: number;
-		total_tokens: number;
-	};
-	choices: {
-		finish_reason: string;
-		index: number;
-		message: { content: string; role: string };
-	}[];
-	created: number;
-};
-
-function getModelMaxTokens(model: Model) {
-	switch (model) {
-		case "text-davinci-003":
-			return 4096;
-		case "gpt-3.5-turbo":
-			return 4096;
-		case "gpt-4":
-			return 8192;
-		case "gpt-3.5-turbo-16k":
-			return 16384;
-		case "gpt-4-32k":
-			return 32768;
-	}
-}
-
-function OpenAIRequest(
-	apiKey: string,
-	model: Model,
-	systemPrompt: string,
-	modelParams: Partial<OpenAIModelParameters> = {}
-) {
-	return async function makeRequest(prompt: string) {
-		if (settingsStore.getState().disableOnlineFeatures) {
-			throw new Error(
-				"Blocking request to OpenAI: Online features are disabled in settings."
-			);
-		}
-
-		const tokenCount = getTokenCount(prompt) + getTokenCount(systemPrompt);
-		const maxTokens = getModelMaxTokens(model);
-
-		if (tokenCount > maxTokens) {
-			throw new Error(
-				`The ${model} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
-			);
-		}
-
-		try {
-			const response = await requestUrl({
-				url: `https://api.openai.com/v1/chat/completions`,
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${apiKey}`,
-				},
-				body: JSON.stringify({
-					model,
-					...modelParams,
-					messages: [
-						{ role: "system", content: systemPrompt },
-						{ role: "user", content: prompt },
-					],
-				}),
-			});
-
-			return response.json as ReqResponse;
-		} catch (error) {
-			console.log(error);
-			throw new Error(
-				`Error while making request to OpenAI API: ${
-					(error as { message: string }).message
-				}`
-			);
-		}
-	};
 }
