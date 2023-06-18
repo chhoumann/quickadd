@@ -138,28 +138,122 @@ export async function runAIAssistant(
 		);
 		const res = makeRequest(formattedPrompt);
 
-		const time_start = Date.now();
-		await repeatUntilResolved(
-			() => {
+		const result = await timePromise(
+			res,
+			100,
+			(time) => {
 				notice.setMessage(
 					promptingMsg[0],
-					`${promptingMsg[1]} (${(
-						(Date.now() - time_start) /
-						1000
-					).toFixed(2)}s)`
+					`${promptingMsg[1]} (${(time / 1000).toFixed(2)}s)`
 				);
 			},
-			res,
-			100
+			(time) => {
+				notice.setMessage(
+					"finished",
+					`Took ${(time / 1000).toFixed(2)}s.`
+				);
+			}
 		);
 
-		const result = await res; // already resolved, just getting the value.
+		const output = result.choices[0].message.content;
+		const outputInMarkdownBlockQuote = ("> " + output).replace(
+			/\n/g,
+			"\n> "
+		);
 
-		const time_end = Date.now();
+		const variables = {
+			[outputVariable]: output,
+			// For people that want the output in callouts or quote blocks.
+			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
+		};
+
+		setTimeout(() => notice.hide(), 5000);
+
+		return variables;
+	} catch (error) {
+		notice.setMessage("dead", (error as { message: string }).message);
+		setTimeout(() => notice.hide(), 5000);
+	}
+}
+
+async function timePromise<T>(
+	promise: Promise<T>,
+	interval: number,
+	tick: (time: number) => void,
+	onFinish: (time: number) => void
+): Promise<T> {
+	const time_start = Date.now();
+
+	await repeatUntilResolved(
+		() => tick(Date.now() - time_start),
+		promise,
+		interval
+	);
+
+	onFinish(Date.now() - time_start);
+
+	return await promise;
+}
+
+type PromptParams = Omit<
+	Params & { prompt: string },
+	"promptTemplate" | "promptTemplateFolder"
+>;
+
+export async function Prompt(
+	settings: PromptParams,
+	formatter: (input: string) => Promise<string>
+) {
+	if (settingsStore.getState().disableOnlineFeatures) {
+		throw new Error(
+			"Blocking request to OpenAI: Online features are disabled in settings."
+		);
+	}
+
+	const notice = makeNoticeHandler(settings.showAssistantMessages);
+
+	try {
+		const {
+			apiKey,
+			model,
+			outputVariableName: outputVariable,
+			systemPrompt,
+			prompt,
+			modelOptions,
+		} = settings;
 
 		notice.setMessage(
-			`finished`,
-			`Took ${(time_end - time_start) / 1000}s.`
+			"waiting",
+			"QuickAdd is formatting the prompt template."
+		);
+		const formattedPrompt = await formatter(prompt);
+
+		const promptingMsg = ["prompting", `Using custom prompt.`];
+		notice.setMessage(promptingMsg[0], promptingMsg[1]);
+
+		const makeRequest = OpenAIRequest(
+			apiKey,
+			model,
+			systemPrompt,
+			modelOptions
+		);
+		const res = makeRequest(formattedPrompt);
+
+		const result = await timePromise(
+			res,
+			100,
+			(time) => {
+				notice.setMessage(
+					promptingMsg[0],
+					`${promptingMsg[1]} (${(time / 1000).toFixed(2)}s)`
+				);
+			},
+			(time) => {
+				notice.setMessage(
+					"finished",
+					`Took ${(time / 1000).toFixed(2)}s.`
+				);
+			}
 		);
 
 		const output = result.choices[0].message.content;

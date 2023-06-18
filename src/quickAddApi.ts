@@ -12,6 +12,10 @@ import { CompleteFormatter } from "./formatters/completeFormatter";
 import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
+import { Prompt } from "./ai/AIAssistant";
+import { settingsStore } from "./settingsStore";
+import type { Model } from "./ai/models";
+import { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -94,6 +98,51 @@ export class QuickAddApi {
 				}
 
 				return output;
+			},
+			ai: {
+				prompt: async (
+					prompt: string,
+					model: Model,
+					settings?: Partial<{
+						variableName: string;
+						shouldAssignVariables: boolean;
+						modelOptions: Partial<OpenAIModelParameters>;
+						showAssistantMessages: boolean;
+						systemPrompt: string;
+					}>
+				) => {
+					const AISettings = settingsStore.getState().ai;
+
+					const formatter = new CompleteFormatter(
+						app,
+						plugin,
+						choiceExecutor
+					);
+
+					const assistantRes = await Prompt(
+						{
+							model,
+							prompt,
+							apiKey: AISettings.OpenAIApiKey,
+							modelOptions: settings?.modelOptions ?? {},
+							outputVariableName:
+								settings?.variableName ?? "output",
+							showAssistantMessages:
+								settings?.showAssistantMessages ?? true,
+							systemPrompt:
+								settings?.systemPrompt ??
+								AISettings.defaultSystemPrompt,
+						},
+						(txt: string) => formatter.formatFileContent(txt)
+					);
+
+					if (assistantRes && settings?.shouldAssignVariables) {
+						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
+						Object.assign(choiceExecutor.variables, assistantRes);
+					}
+
+					return assistantRes;
+				},
 			},
 			utility: {
 				getClipboard: async () => {
