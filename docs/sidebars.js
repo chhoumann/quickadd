@@ -43,6 +43,7 @@ const sidebars = {
 		},
 		"FormatSyntax",
 		'InlineScripts',
+		'AIAssistant',
 		{
 			type: "category",
 			label: "Examples",
