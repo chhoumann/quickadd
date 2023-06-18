@@ -34,7 +34,7 @@ export function OpenAIRequest(
             );
         }
 
-        const tokenCount = getTokenCount(prompt) + getTokenCount(systemPrompt);
+        const tokenCount = getTokenCount(prompt, model) + getTokenCount(systemPrompt, model);
         const maxTokens = getModelMaxTokens(model);
 
         if (tokenCount > maxTokens) {

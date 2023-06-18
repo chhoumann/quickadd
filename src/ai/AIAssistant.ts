@@ -9,8 +9,11 @@ import { encodingForModel } from "js-tiktoken";
 import { OpenAIRequest } from "./OpenAIRequest";
 import { makeNoticeHandler } from "./makeNoticeHandler";
 
-export const getTokenCount = (text: string) => {
-	return encodingForModel("gpt-4").encode(text).length;
+export const getTokenCount = (text: string, model: Model) => {
+	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet
+	const m = model === "gpt-3.5-turbo-16k" ? "gpt-3.5-turbo" : model;
+
+	return encodingForModel(m).encode(text).length;
 };
 
 export const noticeMsg = (task: string, message: string) =>
