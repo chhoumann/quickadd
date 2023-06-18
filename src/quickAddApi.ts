@@ -12,7 +12,7 @@ import { CompleteFormatter } from "./formatters/completeFormatter";
 import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
-import { Prompt, getTokenCount } from "./ai/AIAssistant";
+import { ChunkedPrompt, Prompt, getTokenCount } from "./ai/AIAssistant";
 import { settingsStore } from "./settingsStore";
 import { models, type Model } from "./ai/models";
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
@@ -111,14 +111,21 @@ export class QuickAddApi {
 						showAssistantMessages: boolean;
 						systemPrompt: string;
 					}>
-				): Promise<{[key: string]: string}> => {
-					const AISettings = settingsStore.getState().ai;
+				): Promise<{ [key: string]: string }> => {
+					const pluginSettings = settingsStore.getState();
+					const AISettings = pluginSettings.ai;
 
-					const formatter = new CompleteFormatter(
+					if (pluginSettings.disableOnlineFeatures) {
+						throw new Error(
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
+						);
+					}
+
+					const formatter = this.GetApi(
 						app,
 						plugin,
 						choiceExecutor
-					);
+					).format;
 
 					const assistantRes = await Prompt(
 						{
@@ -134,7 +141,70 @@ export class QuickAddApi {
 								settings?.systemPrompt ??
 								AISettings.defaultSystemPrompt,
 						},
-						(txt: string) => formatter.formatFileContent(txt)
+						(txt: string, variables?: Record<string, unknown>) => {
+							return formatter(txt, variables, false);
+						}
+					);
+
+					if (!assistantRes) {
+						log.logError("AI Assistant returned null");
+						return {};
+					}
+
+					if (settings?.shouldAssignVariables) {
+						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
+						Object.assign(choiceExecutor.variables, assistantRes);
+					}
+
+					return assistantRes;
+				},
+				chunkedPrompt: async (
+					text: string,
+					promptTemplate: string,
+					chunkSeparator: RegExp,
+					model: Model,
+					settings?: Partial<{
+						variableName: string;
+						shouldAssignVariables: boolean;
+						modelOptions: Partial<OpenAIModelParameters>;
+						showAssistantMessages: boolean;
+						systemPrompt: string;
+					}>
+				) => {
+					const pluginSettings = settingsStore.getState();
+					const AISettings = pluginSettings.ai;
+
+					if (pluginSettings.disableOnlineFeatures) {
+						throw new Error(
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
+						);
+					}
+
+					const formatter = this.GetApi(
+						app,
+						plugin,
+						choiceExecutor
+					).format;
+
+					const assistantRes = await ChunkedPrompt(
+						{
+							model,
+							text,
+							promptTemplate,
+							chunkSeparator,
+							apiKey: AISettings.OpenAIApiKey,
+							modelOptions: settings?.modelOptions ?? {},
+							outputVariableName:
+								settings?.variableName ?? "output",
+							showAssistantMessages:
+								settings?.showAssistantMessages ?? true,
+							systemPrompt:
+								settings?.systemPrompt ??
+								AISettings.defaultSystemPrompt,
+						},
+						(txt: string, variables?: Record<string, unknown>) => {
+							return formatter(txt, variables, false);
+						}
 					);
 
 					if (!assistantRes) {
@@ -157,7 +227,7 @@ export class QuickAddApi {
 				},
 				countTokens(text: string, model: Model) {
 					return getTokenCount(text, model);
-				}
+				},
 			},
 			utility: {
 				getClipboard: async () => {

@@ -8,6 +8,7 @@ import { settingsStore } from "src/settingsStore";
 import { encodingForModel } from "js-tiktoken";
 import { OpenAIRequest } from "./OpenAIRequest";
 import { makeNoticeHandler } from "./makeNoticeHandler";
+import { getModelMaxTokens } from "./getModelMaxTokens";
 
 export const getTokenCount = (text: string, model: Model) => {
 	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet
@@ -260,6 +261,176 @@ export async function Prompt(
 		);
 
 		const output = result.choices[0].message.content;
+		const outputInMarkdownBlockQuote = ("> " + output).replace(
+			/\n/g,
+			"\n> "
+		);
+
+		const variables = {
+			[outputVariable]: output,
+			// For people that want the output in callouts or quote blocks.
+			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
+		};
+
+		setTimeout(() => notice.hide(), 5000);
+
+		return variables;
+	} catch (error) {
+		notice.setMessage("dead", (error as { message: string }).message);
+		setTimeout(() => notice.hide(), 5000);
+	}
+}
+
+class RateLimiter {
+	private queue: (() => Promise<unknown>)[] = [];
+	private pendingPromises: Promise<unknown>[] = [];
+
+	constructor(private maxRequests: number, private intervalMs: number) {}
+
+	add<T>(promiseFactory: () => Promise<T>): Promise<T> {
+		return new Promise<T>((resolve, reject) => {
+			this.queue.push(async () => {
+				try {
+					resolve(await promiseFactory());
+				} catch (err) {
+					reject(err);
+				}
+			});
+			this.schedule();
+		});
+	}
+
+	private schedule() {
+		if (
+			this.queue.length === 0 ||
+			this.pendingPromises.length >= this.maxRequests
+		) {
+			return;
+		}
+		const promiseFactory = this.queue.shift();
+		if (!promiseFactory) {
+			return;
+		}
+
+		const promise = promiseFactory();
+		this.pendingPromises.push(promise);
+		promise.finally(() => {
+			this.pendingPromises = this.pendingPromises.filter(
+				(p) => p !== promise
+			);
+			this.schedule();
+		});
+		setTimeout(() => this.schedule(), this.intervalMs);
+	}
+}
+
+type ChunkedPromptParams = Omit<
+	PromptParams & {
+		chunkSeparator: RegExp;
+		text: string;
+		promptTemplate: string;
+	},
+	"prompt"
+>;
+
+export async function ChunkedPrompt(
+	settings: ChunkedPromptParams,
+	formatter: (
+		input: string,
+		variables: { [k: string]: unknown }
+	) => Promise<string>
+) {
+	if (settingsStore.getState().disableOnlineFeatures) {
+		throw new Error(
+			"Blocking request to OpenAI: Online features are disabled in settings."
+		);
+	}
+
+	const notice = makeNoticeHandler(settings.showAssistantMessages);
+
+	try {
+		const {
+			apiKey,
+			model,
+			outputVariableName: outputVariable,
+			systemPrompt,
+			promptTemplate,
+			text,
+			modelOptions,
+		} = settings;
+
+		notice.setMessage(
+			"chunking",
+			"Creating prompt chunks with text and prompt template"
+		);
+
+		const chunkSeparator = settings.chunkSeparator || /\n/g;
+		const chunks = text.split(chunkSeparator);
+		const systemPromptLength = getTokenCount(systemPrompt, model);
+		const maxChunkTokenSize = getModelMaxTokens(model) - systemPromptLength;
+		const chunkedPrompts = [];
+
+		let combinedPrompt = "";
+		let promptGenerated = false;
+
+		for (const chunk of chunks) {
+			if (!promptGenerated) {
+				// Only once per combined chunk
+				combinedPrompt += await formatter(promptTemplate, { chunk });
+				promptGenerated = true;
+			} else {
+				combinedPrompt += `\n\n${chunk}`;
+			}
+
+			const tokenCount = getTokenCount(combinedPrompt, model);
+
+			if (tokenCount > maxChunkTokenSize) {
+				chunkedPrompts.push(combinedPrompt);
+
+				promptGenerated = false;
+				combinedPrompt = "";
+			}
+		}
+
+		if (combinedPrompt.length > 0) {
+			chunkedPrompts.push(combinedPrompt);
+		}
+
+		const makeRequest = OpenAIRequest(
+			apiKey,
+			model,
+			systemPrompt,
+			modelOptions
+		);
+
+		const promptingMsg = ["prompting", `${chunkedPrompts.length} prompts being sent.}`];
+		notice.setMessage(promptingMsg[0], promptingMsg[1]);
+
+		const rateLimiter = new RateLimiter(5, 1000); // 5 requests per second
+		const results = Promise.all(
+			chunkedPrompts.map((prompt) =>
+				rateLimiter.add(() => makeRequest(prompt))
+			)
+		);
+
+		const result = await timePromise(
+			results,
+			100,
+			(time) => {
+				notice.setMessage(
+					promptingMsg[0],
+					`${promptingMsg[1]} (${(time / 1000).toFixed(2)}s)`
+				);
+			},
+			(time) => {
+				notice.setMessage(
+					"finished",
+					`Took ${(time / 1000).toFixed(2)}s.`
+				);
+			}
+		);
+
+		const output = result.reduce((acc, curr) => acc + curr.choices[0].message.content, "");
 		const outputInMarkdownBlockQuote = ("> " + output).replace(
 			/\n/g,
 			"\n> "
