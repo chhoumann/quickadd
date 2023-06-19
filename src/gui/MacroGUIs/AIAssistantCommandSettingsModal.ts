@@ -281,6 +281,68 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			});
 	}
 
+	addChunkJoinerSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Chunk Joiner")
+			.setDesc(
+				"The string used to join chunks of text together. The default is a newline."
+		)
+			.addText((text) => {
+				text.setValue(this.settings.chunkJoiner).onChange(
+					(value) => {
+						this.settings.chunkJoiner = value;
+					}
+				);
+			}
+		);
+	}
+
+	addChunkSeparatorSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Chunk Separator")
+			.setDesc(
+				"The string used to separate chunks of text. The default is a newline."
+		)
+			.addText((text) => {
+				text.setValue(this.settings.chunkSeparator).onChange(
+					(value) => {
+						this.settings.chunkSeparator = value;
+					}
+				);
+			}
+		);
+	}
+
+	addMaxTokensSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Max Chunk Tokens")
+			.setDesc(
+				"The maximum number of tokens in each chunk, calculated as the chunk token size + prompt template token size + system prompt token size. Make sure you leave room for the model to respond to the prompt."
+		)
+			.addText((text) => {
+				text.setValue(this.settings.maxTokens).onChange(
+					(value) => {
+						this.settings.maxTokens = value;
+					}
+				);
+			}
+		);
+	}
+
+	addMergeChunksSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Merge Chunks")
+			.setDesc(
+				"Merge chunks together by putting them in the same prompt, until the max tokens limit is reached. Useful for sending fewer queries overall, but may result in less coherent responses."
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.settings.mergeChunks);
+				toggle.onChange((value) => {
+					this.settings.mergeChunks = value;
+				});
+			});
+	}
+
 	onClose(): void {
 		this.resolvePromise(this.settings);
 		super.onClose();
