@@ -281,16 +281,16 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			});
 	}
 
-	addChunkJoinerSetting(container: HTMLElement) {
+	addResultJoinerSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Chunk Joiner")
+			.setName("Result Joiner")
 			.setDesc(
-				"The string used to join chunks of text together. The default is a newline."
+				"The string used to join multiple LLM responses together. The default is a newline."
 		)
 			.addText((text) => {
-				text.setValue(this.settings.chunkJoiner).onChange(
+				text.setValue(this.settings.resultJoiner).onChange(
 					(value) => {
-						this.settings.chunkJoiner = value;
+						this.settings.resultJoiner = value;
 					}
 				);
 			}

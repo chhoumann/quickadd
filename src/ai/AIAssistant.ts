@@ -324,7 +324,7 @@ class RateLimiter {
 type ChunkedPromptParams = Omit<
 	PromptParams & {
 		chunkSeparator: RegExp;
-		chunkJoiner: string;
+		resultJoiner: string;
 		text: string;
 		promptTemplate: string;
 	},
@@ -366,43 +366,67 @@ export async function ChunkedPrompt(
 		const chunks = text.split(chunkSeparator);
 
 		const systemPromptLength = getTokenCount(systemPrompt, model);
-		const maxChunkTokenSize = (getModelMaxTokens(model) / 2) - systemPromptLength;
-		
+		// We need the prompt template to be rendered to get the token count of it, except the chunk variable.
+		const renderedPromptTemplate = await formatter(promptTemplate, {
+			chunk: "",
+		});
+		const promptTemplateTokenCount = getTokenCount(
+			renderedPromptTemplate,
+			model
+		);
+
+		const maxChunkTokenSize =
+			getModelMaxTokens(model) / 2 - systemPromptLength; // temp, need to impl. config
+
+		const shouldMerge = true; // temp, need to impl. config
+
 		const chunkedPrompts = [];
+		const maxCombinedChunkSize =
+			maxChunkTokenSize - promptTemplateTokenCount;
 
-		let combinedPrompt = "";
-		let promptGenerated = false;
-		let chunkCount = 0;
+		if (shouldMerge) {
+			const output: string[] = [];
+			let combinedChunk = "";
+			let combinedChunkSize = 0;
 
-		for (const chunk of chunks) {
-			let nextChunk = "";
+			for (const chunk of chunks) {
+				const strSize = getTokenCount(chunk, model) + 1; // +1 for the newline
 
-			if (!promptGenerated) {
-				// Only once per combined chunk
-				nextChunk += await formatter(promptTemplate, { chunk });
-				promptGenerated = true;
-			} else {
-				nextChunk += `\n\n${chunk}`;
+				if (combinedChunkSize + strSize < maxCombinedChunkSize) {
+					// Add string to the current chunk and increase its size
+					combinedChunk += chunk;
+					combinedChunkSize += strSize;
+				} else {
+					// Push the current chunk to the output array
+					output.push(combinedChunk);
+
+					// Start a new chunk with the current string
+					combinedChunk = chunk;
+					combinedChunkSize = strSize;
+				}
 			}
 
-			const tokenCount = getTokenCount(combinedPrompt + nextChunk, model);
-
-			if (tokenCount > maxChunkTokenSize) {
-				chunkedPrompts.push(combinedPrompt);
-				promptGenerated = false;
-				combinedPrompt = nextChunk;
-
-				notice.setMessage(
-					"chunking",
-					`Created ${++chunkCount} chunks.`
-				);
-			} else {
-				combinedPrompt += nextChunk;
+			if (combinedChunk !== "") {
+				output.push(combinedChunk);
 			}
-		}
 
-		if (combinedPrompt.length > 0) {
-			chunkedPrompts.push(combinedPrompt);
+			for (const chunk of output) {
+				const prompt = await formatter(promptTemplate, { chunk });
+				chunkedPrompts.push(prompt);
+			}
+		} else {
+			for (const chunk of chunks) {
+				const tokenCount = getTokenCount(chunk, model);
+
+				if (tokenCount > maxChunkTokenSize) {
+					throw new Error(
+						`Chunk size (${tokenCount}) is larger than the maximum chunk size (${maxChunkTokenSize}). Please check your chunk separator.`
+					);
+				}
+
+				const prompt = await formatter(promptTemplate, { chunk });
+				chunkedPrompts.push(prompt);
+			}
 		}
 
 		const makeRequest = OpenAIRequest(
@@ -444,7 +468,7 @@ export async function ChunkedPrompt(
 
 		const outputs = result.map((r) => r.choices[0].message.content);
 
-		const output = outputs.join(settings.chunkJoiner);
+		const output = outputs.join(settings.resultJoiner);
 		const outputInMarkdownBlockQuote = ("> " + output).replace(
 			/\n/g,
 			"\n> "
