@@ -1,4 +1,4 @@
-import { Modal, Setting, TextAreaComponent } from "obsidian";
+import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
 import type { Models_And_Ask_Me } from "src/ai/models";
 import { models_and_ask_me } from "src/ai/models";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
@@ -15,6 +15,7 @@ import {
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
+import { getTokenCount } from "src/ai/AIAssistant";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -24,6 +25,12 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	private settings: IAIAssistantCommand;
 	private showAdvancedSettings = false;
+
+	private get systemPromptTokenLength(): number {
+		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
+
+		return getTokenCount(this.settings.systemPrompt, this.settings.model);
+	}
 
 	constructor(settings: IAIAssistantCommand) {
 		super(app);
@@ -67,6 +74,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		});
 
 		this.addPromptTemplateSetting(this.contentEl);
+
 		this.addModelSetting(this.contentEl);
 		this.addOutputVariableNameSetting(this.contentEl);
 
@@ -135,6 +143,8 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				dropdown.setValue(this.settings.model);
 				dropdown.onChange((value) => {
 					this.settings.model = value as Models_And_Ask_Me;
+
+					this.reload();
 				});
 			});
 	}
@@ -159,6 +169,12 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.setName("System Prompt")
 			.setDesc("The system prompt for the AI Assistant");
 
+		const container = this.contentEl.createEl("div");
+		const tokenCount = container.createEl("span");
+		tokenCount.style.color = "var(--text-muted-color)";
+
+		container.appendChild(tokenCount);
+
 		const textAreaComponent = new TextAreaComponent(contentEl);
 		textAreaComponent
 			.setValue(this.settings.systemPrompt)
@@ -166,6 +182,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				this.settings.systemPrompt = value;
 
 				formatDisplay.innerText = await displayFormatter.format(value);
+				updateTokenCount();
 			});
 
 		new FormatSyntaxSuggester(
@@ -184,6 +201,15 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		textAreaComponent.inputEl.style.marginBottom = "1em";
 
 		const formatDisplay = this.contentEl.createEl("span");
+		const updateTokenCount = debounce(() => {
+			tokenCount.innerText = `Token count: ${
+				this.systemPromptTokenLength !== Number.POSITIVE_INFINITY
+					? this.systemPromptTokenLength
+					: "select a model to calculate"
+			}`;
+		}, 50);
+
+		updateTokenCount();
 
 		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(
@@ -277,68 +303,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				);
 				slider.onChange((value) => {
 					this.settings.modelParameters.presence_penalty = value;
-				});
-			});
-	}
-
-	addResultJoinerSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Result Joiner")
-			.setDesc(
-				"The string used to join multiple LLM responses together. The default is a newline."
-		)
-			.addText((text) => {
-				text.setValue(this.settings.resultJoiner).onChange(
-					(value) => {
-						this.settings.resultJoiner = value;
-					}
-				);
-			}
-		);
-	}
-
-	addChunkSeparatorSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Chunk Separator")
-			.setDesc(
-				"The string used to separate chunks of text. The default is a newline."
-		)
-			.addText((text) => {
-				text.setValue(this.settings.chunkSeparator).onChange(
-					(value) => {
-						this.settings.chunkSeparator = value;
-					}
-				);
-			}
-		);
-	}
-
-	addMaxTokensSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Max Chunk Tokens")
-			.setDesc(
-				"The maximum number of tokens in each chunk, calculated as the chunk token size + prompt template token size + system prompt token size. Make sure you leave room for the model to respond to the prompt."
-		)
-			.addText((text) => {
-				text.setValue(this.settings.maxTokens).onChange(
-					(value) => {
-						this.settings.maxTokens = value;
-					}
-				);
-			}
-		);
-	}
-
-	addMergeChunksSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Merge Chunks")
-			.setDesc(
-				"Merge chunks together by putting them in the same prompt, until the max tokens limit is reached. Useful for sending fewer queries overall, but may result in less coherent responses."
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.settings.mergeChunks);
-				toggle.onChange((value) => {
-					this.settings.mergeChunks = value;
 				});
 			});
 	}
