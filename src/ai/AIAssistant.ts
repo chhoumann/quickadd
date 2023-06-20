@@ -1,18 +1,21 @@
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import type { Model } from "./models";
-import { Notice, TFile, requestUrl } from "obsidian";
+import { TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 import { encodingForModel } from "js-tiktoken";
+import { OpenAIRequest } from "./OpenAIRequest";
+import { makeNoticeHandler } from "./makeNoticeHandler";
+import { getModelMaxTokens } from "./getModelMaxTokens";
 
-const getTokenCount = (text: string) => {
-	return encodingForModel("gpt-4").encode(text).length;
+export const getTokenCount = (text: string, model: Model) => {
+	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet
+	const m = model === "gpt-3.5-turbo-16k" ? "gpt-3.5-turbo" : model;
+
+	return encodingForModel(m).encode(text).length;
 };
-
-const noticeMsg = (task: string, message: string) =>
-	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
 
 async function repeatUntilResolved(
 	callback: () => void,
@@ -43,7 +46,7 @@ async function repeatUntilResolved(
 }
 
 async function getTargetPromptTemplate(
-	userDefinedPromptTemplate: params["promptTemplate"],
+	userDefinedPromptTemplate: Params["promptTemplate"],
 	promptTemplates: TFile[]
 ): Promise<[string, string]> {
 	let targetFile;
@@ -73,7 +76,7 @@ async function getTargetPromptTemplate(
 	return [targetFile.basename, targetTemplateContent];
 }
 
-interface params {
+interface Params {
 	apiKey: string;
 	model: Model;
 	systemPrompt: string;
@@ -88,7 +91,7 @@ interface params {
 }
 
 export async function runAIAssistant(
-	settings: params,
+	settings: Params,
 	formatter: (input: string) => Promise<string>
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -97,9 +100,7 @@ export async function runAIAssistant(
 		);
 	}
 
-	const notice = settings.showAssistantMessages
-		? new Notice(noticeMsg("starting", ""), 1000000)
-		: { setMessage: () => {}, hide: () => {} };
+	const notice = makeNoticeHandler(settings.showAssistantMessages);
 
 	try {
 		const {
@@ -119,7 +120,8 @@ export async function runAIAssistant(
 		);
 
 		notice.setMessage(
-			noticeMsg("waiting", "QuickAdd is formatting the prompt template.")
+			"waiting",
+			"QuickAdd is formatting the prompt template."
 		);
 		const formattedPrompt = await formatter(targetPrompt);
 
@@ -127,7 +129,7 @@ export async function runAIAssistant(
 			"prompting",
 			`Using prompt template "${targetKey}".`,
 		];
-		notice.setMessage(noticeMsg(promptingMsg[0], promptingMsg[1]));
+		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const makeRequest = OpenAIRequest(
 			apiKey,
@@ -137,29 +139,21 @@ export async function runAIAssistant(
 		);
 		const res = makeRequest(formattedPrompt);
 
-		const time_start = Date.now();
-		await repeatUntilResolved(
-			() => {
+		const result = await timePromise(
+			res,
+			100,
+			(time) => {
 				notice.setMessage(
-					noticeMsg(
-						promptingMsg[0],
-						`${promptingMsg[1]} (${(
-							(Date.now() - time_start) /
-							1000
-						).toFixed(2)}s)`
-					)
+					promptingMsg[0],
+					`${promptingMsg[1]} (${(time / 1000).toFixed(2)}s)`
 				);
 			},
-			res,
-			100
-		);
-
-		const result = await res; // already resolved, just getting the value.
-
-		const time_end = Date.now();
-
-		notice.setMessage(
-			noticeMsg(`finished`, `Took ${(time_end - time_start) / 1000}s.`)
+			(time) => {
+				notice.setMessage(
+					"finished",
+					`Took ${(time / 1000).toFixed(2)}s.`
+				);
+			}
 		);
 
 		const output = result.choices[0].message.content;
@@ -178,93 +172,325 @@ export async function runAIAssistant(
 
 		return variables;
 	} catch (error) {
-		notice.setMessage(
-			noticeMsg("dead", (error as { message: string }).message)
-		);
+		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
 	}
 }
 
-type ReqResponse = {
-	id: string;
-	model: string;
-	object: string;
-	usage: {
-		prompt_tokens: number;
-		completion_tokens: number;
-		total_tokens: number;
-	};
-	choices: {
-		finish_reason: string;
-		index: number;
-		message: { content: string; role: string };
-	}[];
-	created: number;
-};
+async function timePromise<T>(
+	promise: Promise<T>,
+	interval: number,
+	tick: (time: number) => void,
+	onFinish: (time: number) => void
+): Promise<T> {
+	const time_start = Date.now();
 
-function getModelMaxTokens(model: Model) {
-	switch (model) {
-		case "text-davinci-003":
-			return 4096;
-		case "gpt-3.5-turbo":
-			return 4096;
-		case "gpt-4":
-			return 8192;
-		case "gpt-3.5-turbo-16k":
-			return 16384;
-		case "gpt-4-32k":
-			return 32768;
+	await repeatUntilResolved(
+		() => tick(Date.now() - time_start),
+		promise,
+		interval
+	);
+
+	onFinish(Date.now() - time_start);
+
+	return await promise;
+}
+
+type PromptParams = Omit<
+	Params & { prompt: string },
+	"promptTemplate" | "promptTemplateFolder"
+>;
+
+export async function Prompt(
+	settings: PromptParams,
+	formatter: (input: string) => Promise<string>
+) {
+	if (settingsStore.getState().disableOnlineFeatures) {
+		throw new Error(
+			"Blocking request to OpenAI: Online features are disabled in settings."
+		);
+	}
+
+	const notice = makeNoticeHandler(settings.showAssistantMessages);
+
+	try {
+		const {
+			apiKey,
+			model,
+			outputVariableName: outputVariable,
+			systemPrompt,
+			prompt,
+			modelOptions,
+		} = settings;
+
+		notice.setMessage(
+			"waiting",
+			"QuickAdd is formatting the prompt template."
+		);
+		const formattedPrompt = await formatter(prompt);
+
+		const promptingMsg = ["prompting", `Using custom prompt.`];
+		notice.setMessage(promptingMsg[0], promptingMsg[1]);
+
+		const makeRequest = OpenAIRequest(
+			apiKey,
+			model,
+			systemPrompt,
+			modelOptions
+		);
+		const res = makeRequest(formattedPrompt);
+
+		const result = await timePromise(
+			res,
+			100,
+			(time) => {
+				notice.setMessage(
+					promptingMsg[0],
+					`${promptingMsg[1]} (${(time / 1000).toFixed(2)}s)`
+				);
+			},
+			(time) => {
+				notice.setMessage(
+					"finished",
+					`Took ${(time / 1000).toFixed(2)}s.`
+				);
+			}
+		);
+
+		const output = result.choices[0].message.content;
+		const outputInMarkdownBlockQuote = ("> " + output).replace(
+			/\n/g,
+			"\n> "
+		);
+
+		const variables = {
+			[outputVariable]: output,
+			// For people that want the output in callouts or quote blocks.
+			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
+		};
+
+		setTimeout(() => notice.hide(), 5000);
+
+		return variables;
+	} catch (error) {
+		notice.setMessage("dead", (error as { message: string }).message);
+		setTimeout(() => notice.hide(), 5000);
 	}
 }
 
-function OpenAIRequest(
-	apiKey: string,
-	model: Model,
-	systemPrompt: string,
-	modelParams: Partial<OpenAIModelParameters> = {}
-) {
-	return async function makeRequest(prompt: string) {
-		if (settingsStore.getState().disableOnlineFeatures) {
-			throw new Error(
-				"Blocking request to OpenAI: Online features are disabled in settings."
-			);
-		}
+class RateLimiter {
+	private queue: (() => Promise<unknown>)[] = [];
+	private pendingPromises: Promise<unknown>[] = [];
 
-		const tokenCount = getTokenCount(prompt) + getTokenCount(systemPrompt);
-		const maxTokens = getModelMaxTokens(model);
+	constructor(private maxRequests: number, private intervalMs: number) {}
 
-		if (tokenCount > maxTokens) {
-			throw new Error(
-				`The ${model} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
-			);
-		}
-
-		try {
-			const response = await requestUrl({
-				url: `https://api.openai.com/v1/chat/completions`,
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${apiKey}`,
-				},
-				body: JSON.stringify({
-					model,
-					...modelParams,
-					messages: [
-						{ role: "system", content: systemPrompt },
-						{ role: "user", content: prompt },
-					],
-				}),
+	add<T>(promiseFactory: () => Promise<T>): Promise<T> {
+		return new Promise<T>((resolve, reject) => {
+			this.queue.push(async () => {
+				try {
+					resolve(await promiseFactory());
+				} catch (err) {
+					reject(err);
+				}
 			});
+			this.schedule();
+		});
+	}
 
-			return response.json as ReqResponse;
-		} catch (error) {
-			console.log(error);
-			throw new Error(
-				`Error while making request to OpenAI API: ${
-					(error as { message: string }).message
-				}`
-			);
+	private schedule() {
+		if (
+			this.queue.length === 0 ||
+			this.pendingPromises.length >= this.maxRequests
+		) {
+			return;
 		}
-	};
+		const promiseFactory = this.queue.shift();
+		if (!promiseFactory) {
+			return;
+		}
+
+		const promise = promiseFactory();
+		this.pendingPromises.push(promise);
+		promise.finally(() => {
+			this.pendingPromises = this.pendingPromises.filter(
+				(p) => p !== promise
+			);
+			this.schedule();
+		});
+		setTimeout(() => this.schedule(), this.intervalMs);
+	}
+}
+
+type ChunkedPromptParams = Omit<
+	PromptParams & {
+		chunkSeparator: RegExp;
+		resultJoiner: string;
+		text: string;
+		promptTemplate: string;
+	},
+	"prompt"
+>;
+
+export async function ChunkedPrompt(
+	settings: ChunkedPromptParams,
+	formatter: (
+		input: string,
+		variables: { [k: string]: unknown }
+	) => Promise<string>
+) {
+	if (settingsStore.getState().disableOnlineFeatures) {
+		throw new Error(
+			"Blocking request to OpenAI: Online features are disabled in settings."
+		);
+	}
+
+	const notice = makeNoticeHandler(settings.showAssistantMessages);
+
+	try {
+		const {
+			apiKey,
+			model,
+			outputVariableName: outputVariable,
+			systemPrompt,
+			promptTemplate,
+			text,
+			modelOptions,
+		} = settings;
+
+		notice.setMessage(
+			"chunking",
+			"Creating prompt chunks with text and prompt template"
+		);
+
+		const chunkSeparator = settings.chunkSeparator || /\n/g;
+		const chunks = text.split(chunkSeparator);
+
+		const systemPromptLength = getTokenCount(systemPrompt, model);
+		// We need the prompt template to be rendered to get the token count of it, except the chunk variable.
+		const renderedPromptTemplate = await formatter(promptTemplate, {
+			chunk: "",
+		});
+		const promptTemplateTokenCount = getTokenCount(
+			renderedPromptTemplate,
+			model
+		);
+
+		const maxChunkTokenSize =
+			getModelMaxTokens(model) / 2 - systemPromptLength; // temp, need to impl. config
+
+		const shouldMerge = true; // temp, need to impl. config
+
+		const chunkedPrompts = [];
+		const maxCombinedChunkSize =
+			maxChunkTokenSize - promptTemplateTokenCount;
+
+		if (shouldMerge) {
+			const output: string[] = [];
+			let combinedChunk = "";
+			let combinedChunkSize = 0;
+
+			for (const chunk of chunks) {
+				const strSize = getTokenCount(chunk, model) + 1; // +1 for the newline
+
+				if (strSize > maxCombinedChunkSize) {
+					throw new Error(
+						`The chunk "${chunk.slice(0, 25)}..." is too large to fit in a single prompt.`
+					);
+				}
+
+				if (combinedChunkSize + strSize < maxCombinedChunkSize) {
+					// Add string to the current chunk and increase its size
+					combinedChunk += chunk;
+					combinedChunkSize += strSize;
+				} else {
+					// Push the current chunk to the output array
+					output.push(combinedChunk);
+
+					// Start a new chunk with the current string
+					combinedChunk = chunk;
+					combinedChunkSize = strSize;
+				}
+			}
+
+			if (combinedChunk !== "") {
+				output.push(combinedChunk);
+			}
+
+			for (const chunk of output) {
+				const prompt = await formatter(promptTemplate, { chunk });
+				chunkedPrompts.push(prompt);
+			}
+		} else {
+			for (const chunk of chunks) {
+				const tokenCount = getTokenCount(chunk, model);
+
+				if (tokenCount > maxChunkTokenSize) {
+					throw new Error(
+						`Chunk size (${tokenCount}) is larger than the maximum chunk size (${maxChunkTokenSize}). Please check your chunk separator.`
+					);
+				}
+
+				const prompt = await formatter(promptTemplate, { chunk });
+				chunkedPrompts.push(prompt);
+			}
+		}
+
+		const makeRequest = OpenAIRequest(
+			apiKey,
+			model,
+			systemPrompt,
+			modelOptions
+		);
+
+		const promptingMsg = [
+			"prompting",
+			`${chunkedPrompts.length} prompts being sent.`,
+		];
+		notice.setMessage(promptingMsg[0], promptingMsg[1]);
+
+		const rateLimiter = new RateLimiter(5, 1000); // 5 requests per second
+		const results = Promise.all(
+			chunkedPrompts.map((prompt) =>
+				rateLimiter.add(() => makeRequest(prompt))
+			)
+		);
+
+		const result = await timePromise(
+			results,
+			100,
+			(time) => {
+				notice.setMessage(
+					promptingMsg[0],
+					`${promptingMsg[1]} (${(time / 1000).toFixed(2)}s)`
+				);
+			},
+			(time) => {
+				notice.setMessage(
+					"finished",
+					`Took ${(time / 1000).toFixed(2)}s.`
+				);
+			}
+		);
+
+		const outputs = result.map((r) => r.choices[0].message.content);
+
+		const output = outputs.join(settings.resultJoiner);
+		const outputInMarkdownBlockQuote = ("> " + output).replace(
+			/\n/g,
+			"\n> "
+		);
+
+		const variables = {
+			[outputVariable]: output,
+			// For people that want the output in callouts or quote blocks.
+			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
+		};
+
+		setTimeout(() => notice.hide(), 5000);
+
+		return variables;
+	} catch (error) {
+		notice.setMessage("dead", (error as { message: string }).message);
+		setTimeout(() => notice.hide(), 5000);
+	}
 }

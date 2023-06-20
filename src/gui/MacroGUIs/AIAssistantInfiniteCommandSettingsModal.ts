@@ -1,13 +1,10 @@
 import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
-import type { Models_And_Ask_Me } from "src/ai/models";
+import type { Model } from "src/ai/models";
 import { models_and_ask_me } from "src/ai/models";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
-import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import { getMarkdownFilesInFolder } from "src/utilityObsidian";
-import { settingsStore } from "src/settingsStore";
+import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import {
 	DEFAULT_FREQUENCY_PENALTY,
@@ -16,28 +13,27 @@ import {
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
+import { getModelMaxTokens } from "src/ai/getModelMaxTokens";
 
-export class AIAssistantCommandSettingsModal extends Modal {
-	public waitForClose: Promise<IAIAssistantCommand>;
+export class InfiniteAIAssistantCommandSettingsModal extends Modal {
+	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
 
-	private resolvePromise: (settings: IAIAssistantCommand) => void;
+	private resolvePromise: (settings: IInfiniteAIAssistantCommand) => void;
 	private rejectPromise: (reason?: unknown) => void;
 
-	private settings: IAIAssistantCommand;
+	private settings: IInfiniteAIAssistantCommand;
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
-		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
-
 		return getTokenCount(this.settings.systemPrompt, this.settings.model);
 	}
 
-	constructor(settings: IAIAssistantCommand) {
+	constructor(settings: IInfiniteAIAssistantCommand) {
 		super(app);
 
 		this.settings = settings;
 
-		this.waitForClose = new Promise<IAIAssistantCommand>(
+		this.waitForClose = new Promise<IInfiniteAIAssistantCommand>(
 			(resolve, reject) => {
 				this.rejectPromise = reject;
 				this.resolvePromise = resolve;
@@ -49,6 +45,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	private display(): void {
+		this.contentEl.empty();
 		const header = this.contentEl.createEl("h2", {
 			text: `${this.settings.name} Settings`,
 		});
@@ -73,7 +70,10 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			} catch (error) {} // no new name, don't need exceptional state for that
 		});
 
-		this.addPromptTemplateSetting(this.contentEl);
+		this.addResultJoinerSetting(this.contentEl);
+		this.addChunkSeparatorSetting(this.contentEl);
+		this.addMaxTokensSetting(this.contentEl);
+		this.addMergeChunksSetting(this.contentEl);
 
 		this.addModelSetting(this.contentEl);
 		this.addOutputVariableNameSetting(this.contentEl);
@@ -98,39 +98,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		this.display();
 	}
 
-	addPromptTemplateSetting(container: HTMLElement) {
-		const promptTemplatesFolder =
-			settingsStore.getState().ai.promptTemplatesFolderPath;
-		const promptTemplateFiles = getMarkdownFilesInFolder(
-			promptTemplatesFolder
-		).map((f) => f.name);
-
-		new Setting(container)
-			.setName("Prompt Template")
-			.setDesc(
-				"Enabling this will have the assistant use the prompt template you specify. If disable, the assistant will ask you for a prompt template to use."
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.settings.promptTemplate.enable);
-				toggle.onChange((value) => {
-					this.settings.promptTemplate.enable = value;
-				});
-			})
-			.addText((text) => {
-				text.setValue(this.settings.promptTemplate.name).onChange(
-					(value) => {
-						this.settings.promptTemplate.name = value;
-					}
-				);
-
-				new GenericTextSuggester(
-					app,
-					text.inputEl,
-					promptTemplateFiles
-				);
-			});
-	}
-
 	addModelSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName("Model")
@@ -142,8 +109,8 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 				dropdown.setValue(this.settings.model);
 				dropdown.onChange((value) => {
-					this.settings.model = value as Models_And_Ask_Me;
-
+					this.settings.model = value as Model;
+					
 					this.reload();
 				});
 			});
@@ -202,11 +169,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const updateTokenCount = debounce(() => {
-			tokenCount.innerText = `Token count: ${
-				this.systemPromptTokenLength !== Number.POSITIVE_INFINITY
-					? this.systemPromptTokenLength
-					: "select a model to calculate"
-			}`;
+			tokenCount.innerText = `Token count: ${this.systemPromptTokenLength}`;
 		}, 50);
 
 		updateTokenCount();
@@ -303,6 +266,67 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				);
 				slider.onChange((value) => {
 					this.settings.modelParameters.presence_penalty = value;
+				});
+			});
+	}
+
+	addResultJoinerSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Result Joiner")
+			.setDesc(
+				"The string used to join multiple LLM responses together. The default is a newline."
+			)
+			.addText((text) => {
+				text.setValue(this.settings.resultJoiner).onChange((value) => {
+					this.settings.resultJoiner = value;
+				});
+			});
+	}
+
+	addChunkSeparatorSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Chunk Separator")
+			.setDesc(
+				"The string used to separate chunks of text. The default is a newline."
+			)
+			.addText((text) => {
+				text.setValue(this.settings.chunkSeparator).onChange(
+					(value) => {
+						this.settings.chunkSeparator = value;
+					}
+				);
+			});
+	}
+
+	addMaxTokensSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Max Chunk Tokens")
+			.setDesc(
+				"The maximum number of tokens in each chunk, calculated as the chunk token size + prompt template token size + system prompt token size. Make sure you leave room for the model to respond to the prompt."
+			)
+			.addSlider((slider) => {
+				const modelMaxTokens = getModelMaxTokens(this.settings.model);
+
+				slider.setLimits(1, modelMaxTokens - this.systemPromptTokenLength, 1);
+				slider.setDynamicTooltip();
+
+				slider.setValue(this.settings.maxChunkTokens);
+				slider.onChange((value) => {
+					this.settings.maxChunkTokens = value;
+				});
+			});
+	}
+
+	addMergeChunksSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Merge Chunks")
+			.setDesc(
+				"Merge chunks together by putting them in the same prompt, until the max tokens limit is reached. Useful for sending fewer queries overall, but may result in less coherent responses."
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.settings.mergeChunks);
+				toggle.onChange((value) => {
+					this.settings.mergeChunks = value;
 				});
 			});
 	}

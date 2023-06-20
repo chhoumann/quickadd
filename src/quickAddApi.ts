@@ -12,6 +12,11 @@ import { CompleteFormatter } from "./formatters/completeFormatter";
 import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
+import { ChunkedPrompt, Prompt, getTokenCount } from "./ai/AIAssistant";
+import { settingsStore } from "./settingsStore";
+import { models, type Model } from "./ai/models";
+import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
+import { getModelMaxTokens } from "./ai/getModelMaxTokens";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -94,6 +99,137 @@ export class QuickAddApi {
 				}
 
 				return output;
+			},
+			ai: {
+				prompt: async (
+					prompt: string,
+					model: Model,
+					settings?: Partial<{
+						variableName: string;
+						shouldAssignVariables: boolean;
+						modelOptions: Partial<OpenAIModelParameters>;
+						showAssistantMessages: boolean;
+						systemPrompt: string;
+					}>
+				): Promise<{ [key: string]: string }> => {
+					const pluginSettings = settingsStore.getState();
+					const AISettings = pluginSettings.ai;
+
+					if (pluginSettings.disableOnlineFeatures) {
+						throw new Error(
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
+						);
+					}
+
+					const formatter = this.GetApi(
+						app,
+						plugin,
+						choiceExecutor
+					).format;
+
+					const assistantRes = await Prompt(
+						{
+							model,
+							prompt,
+							apiKey: AISettings.OpenAIApiKey,
+							modelOptions: settings?.modelOptions ?? {},
+							outputVariableName:
+								settings?.variableName ?? "output",
+							showAssistantMessages:
+								settings?.showAssistantMessages ?? true,
+							systemPrompt:
+								settings?.systemPrompt ??
+								AISettings.defaultSystemPrompt,
+						},
+						(txt: string, variables?: Record<string, unknown>) => {
+							return formatter(txt, variables, false);
+						}
+					);
+
+					if (!assistantRes) {
+						log.logError("AI Assistant returned null");
+						return {};
+					}
+
+					if (settings?.shouldAssignVariables) {
+						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
+						Object.assign(choiceExecutor.variables, assistantRes);
+					}
+
+					return assistantRes;
+				},
+				chunkedPrompt: async (
+					text: string,
+					promptTemplate: string,
+					model: Model,
+					settings?: Partial<{
+						variableName: string;
+						shouldAssignVariables: boolean;
+						modelOptions: Partial<OpenAIModelParameters>;
+						showAssistantMessages: boolean;
+						systemPrompt: string;
+						chunkSeparator: RegExp;
+						chunkJoiner: string;
+					}>
+				) => {
+					const pluginSettings = settingsStore.getState();
+					const AISettings = pluginSettings.ai;
+
+					if (pluginSettings.disableOnlineFeatures) {
+						throw new Error(
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
+						);
+					}
+
+					const formatter = this.GetApi(
+						app,
+						plugin,
+						choiceExecutor
+					).format;
+
+					const assistantRes = await ChunkedPrompt(
+						{
+							model,
+							text,
+							promptTemplate,
+							chunkSeparator: settings?.chunkSeparator ?? /\n/,
+							apiKey: AISettings.OpenAIApiKey,
+							modelOptions: settings?.modelOptions ?? {},
+							outputVariableName:
+								settings?.variableName ?? "output",
+							showAssistantMessages:
+								settings?.showAssistantMessages ?? true,
+							systemPrompt:
+								settings?.systemPrompt ??
+								AISettings.defaultSystemPrompt,
+							resultJoiner: settings?.chunkJoiner ?? "\n",
+						},
+						(txt: string, variables?: Record<string, unknown>) => {
+							return formatter(txt, variables, false);
+						}
+					);
+
+					if (!assistantRes) {
+						log.logError("AI Assistant returned null");
+						return {};
+					}
+
+					if (settings?.shouldAssignVariables) {
+						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
+						Object.assign(choiceExecutor.variables, assistantRes);
+					}
+
+					return assistantRes;
+				},
+				getModels: () => {
+					return models;
+				},
+				getMaxTokens: (model: Model) => {
+					return getModelMaxTokens(model);
+				},
+				countTokens(text: string, model: Model) {
+					return getTokenCount(text, model);
+				},
 			},
 			utility: {
 				getClipboard: async () => {
