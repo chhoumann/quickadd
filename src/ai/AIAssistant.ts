@@ -392,6 +392,12 @@ export async function ChunkedPrompt(
 			for (const chunk of chunks) {
 				const strSize = getTokenCount(chunk, model) + 1; // +1 for the newline
 
+				if (strSize > maxCombinedChunkSize) {
+					throw new Error(
+						`The chunk "${chunk.slice(0, 25)}..." is too large to fit in a single prompt.`
+					);
+				}
+
 				if (combinedChunkSize + strSize < maxCombinedChunkSize) {
 					// Add string to the current chunk and increase its size
 					combinedChunk += chunk;
