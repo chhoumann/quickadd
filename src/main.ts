@@ -15,8 +15,8 @@ import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
-import { AIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantCommandSettingsModal";
 import { CommandType } from "./types/macros/CommandType";
+import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
@@ -74,19 +74,19 @@ export default class QuickAdd extends Plugin {
 				console.log(`Test QuickAdd (dev)`);
 
 				const fn = () => {
-					new AIAssistantCommandSettingsModal({
+					new InfiniteAIAssistantCommandSettingsModal({
 						id: "test",
 						name: "Test",
 						model: "gpt-4",
 						modelParameters: {},
 						outputVariableName: "test",
-						promptTemplate: {
-							enable: false,
-							name: "",
-						},
 						systemPrompt: "test",
-						type: CommandType.AIAssistant
-					})
+						type: CommandType.AIAssistant,
+						resultJoiner: "\\n",
+						chunkSeparator: "\\n",
+						maxChunkTokens: 100,
+						mergeChunks: false,
+					});
 				};
 
 				void fn();
