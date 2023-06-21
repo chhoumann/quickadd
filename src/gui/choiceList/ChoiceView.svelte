@@ -318,6 +318,7 @@
 		align-items: center;
 		justify-content: space-between;
 		margin-top: 1rem;
+		gap: 1rem;
 	}
 
 	@media (max-width: 800px) {

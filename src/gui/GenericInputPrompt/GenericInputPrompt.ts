@@ -118,6 +118,7 @@ export default class GenericInputPrompt extends Modal {
 		buttonBarContainer.style.flexDirection = "row-reverse";
 		buttonBarContainer.style.justifyContent = "flex-start";
 		buttonBarContainer.style.marginTop = "1rem";
+		buttonBarContainer.style.gap = "0.5rem";
 	}
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();

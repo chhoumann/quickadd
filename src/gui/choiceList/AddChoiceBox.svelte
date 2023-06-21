@@ -34,7 +34,6 @@
 
 <style>
     .addChoiceBox {
-        margin-top: 1em;
         display: flex;
         flex-direction: row;
         align-items: center;
@@ -49,8 +48,8 @@
     }
 
     #addChoiceTypeSelector {
-        font-size: 16px;
-        padding: 3px;
-        border-radius: 3px;
+        font-size: var(--font-ui-small);
+        padding: var(--size-4-1) var(--size-4-3);
+        border-radius: var(--button-radius);
     }
 </style>
