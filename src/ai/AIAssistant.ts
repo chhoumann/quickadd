@@ -327,6 +327,7 @@ type ChunkedPromptParams = Omit<
 		resultJoiner: string;
 		text: string;
 		promptTemplate: string;
+		shouldMerge: boolean;
 	},
 	"prompt"
 >;
@@ -368,7 +369,7 @@ export async function ChunkedPrompt(
 		const systemPromptLength = getTokenCount(systemPrompt, model);
 		// We need the prompt template to be rendered to get the token count of it, except the chunk variable.
 		const renderedPromptTemplate = await formatter(promptTemplate, {
-			chunk: "",
+			chunk: " ", // empty would make QA ask for a value, which we don't want
 		});
 		const promptTemplateTokenCount = getTokenCount(
 			renderedPromptTemplate,
@@ -378,7 +379,7 @@ export async function ChunkedPrompt(
 		const maxChunkTokenSize =
 			getModelMaxTokens(model) / 2 - systemPromptLength; // temp, need to impl. config
 
-		const shouldMerge = true; // temp, need to impl. config
+		const shouldMerge = settings.shouldMerge ?? true; // temp, need to impl. config
 
 		const chunkedPrompts = [];
 		const maxCombinedChunkSize =
@@ -448,7 +449,7 @@ export async function ChunkedPrompt(
 		];
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
-		const rateLimiter = new RateLimiter(5, 1000); // 5 requests per second
+		const rateLimiter = new RateLimiter(5, 1000 * 30); // 5 requests per half minute
 		const results = Promise.all(
 			chunkedPrompts.map((prompt) =>
 				rateLimiter.add(() => makeRequest(prompt))
