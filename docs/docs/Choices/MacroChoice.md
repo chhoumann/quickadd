@@ -34,6 +34,7 @@ module.exports = async (params) => {
 	// Object destructuring. We pull inputPrompt out of the QuickAdd API in params.
 	const {
 		quickAddApi: { inputPrompt },
+		app,
 	} = params;
 	// Here, I pull in the update function from the MetaEdit API.
 	const { update } = app.plugins.plugins["metaedit"].api;
