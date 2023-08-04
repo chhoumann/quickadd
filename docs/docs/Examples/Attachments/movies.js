@@ -52,7 +52,7 @@ async function start(params, settings) {
         ...selectedShow,
         actorLinks: linkifyList(selectedShow.Actors.split(",")),
         genreLinks: linkifyList(selectedShow.Genre.split(",")),
-        directorLink: selectedShow.Director === "N/A" ? " " : `[[${selectedShow.Director}]]`,
+        directorLink: linkifyList(selectedShow.Director.split(",")),
         fileName: replaceIllegalFileNameCharactersInString(selectedShow.Title),
         typeLink: `[[${selectedShow.Type === "movie" ? "Movies" : "Series"}]]`,
         languageLower: selectedShow.Language.toLowerCase(),
