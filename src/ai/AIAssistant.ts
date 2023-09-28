@@ -379,6 +379,7 @@ export async function ChunkedPrompt(
 		const maxChunkTokenSize =
 			getModelMaxTokens(model) / 2 - systemPromptLength; // temp, need to impl. config
 
+		// Whether we should strictly enforce the chunking rules or we should merge chunks that are too small
 		const shouldMerge = settings.shouldMerge ?? true; // temp, need to impl. config
 
 		const chunkedPrompts = [];
