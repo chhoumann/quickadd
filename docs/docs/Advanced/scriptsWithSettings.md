@@ -26,6 +26,8 @@ For example, the following script will have a text field setting with the key `T
 
 ![Settings menu for the script](../Images/script_with_settings.png)
 
+It's possible to give a description to a setting by adding a `description` property to the setting object.
+
 ```js
 const TEXT_FIELD = "Text field";
 
@@ -42,6 +44,7 @@ module.exports = {
                 type: "text",
                 defaultValue: "",
                 placeholder: "Placeholder",
+                description: "Description here.",
             },
             "Checkbox": {
                 type: "checkbox",
