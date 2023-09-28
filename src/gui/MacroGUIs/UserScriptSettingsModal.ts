@@ -8,7 +8,7 @@ import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter"
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 
-type Option =
+type Option = { description?: string } & (
 	| {
 			type: "text" | "input";
 			value: string;
@@ -32,7 +32,8 @@ type Option =
 			value: string;
 			placeholder?: string;
 			defaultValue: string;
-	  };
+	  }
+);
 
 export class UserScriptSettingsModal extends Modal {
 	constructor(
@@ -92,20 +93,33 @@ export class UserScriptSettingsModal extends Modal {
 				value = this.command.settings[option] as string | boolean;
 			}
 
+			let setting;
 			const type = entry.type;
 			if (type === "text" || type === "input") {
-				this.addInputBox(
+				setting = this.addInputBox(
 					option,
 					value as string,
 					entry?.placeholder,
 					entry.secret
 				);
 			} else if (type === "checkbox" || type === "toggle") {
-				this.addToggle(option, value as boolean);
+				setting = this.addToggle(option, value as boolean);
 			} else if (type === "dropdown" || type === "select") {
-				this.addDropdown(option, entry.options, value as string);
+				setting = this.addDropdown(
+					option,
+					entry.options,
+					value as string
+				);
 			} else if (type === "format") {
-				this.addFormatInput(option, value as string, entry.placeholder);
+				setting = this.addFormatInput(
+					option,
+					value as string,
+					entry.placeholder
+				);
+			}
+
+			if (entry.description && setting) {
+				setting.setDesc(entry.description);
 			}
 		}
 	}
@@ -116,7 +130,7 @@ export class UserScriptSettingsModal extends Modal {
 		placeholder?: string,
 		passwordOnBlur?: boolean
 	) {
-		new Setting(this.contentEl).setName(name).addText((input) => {
+		return new Setting(this.contentEl).setName(name).addText((input) => {
 			input
 				.setValue(value)
 				.onChange((value) => (this.command.settings[name] = value))
@@ -129,7 +143,7 @@ export class UserScriptSettingsModal extends Modal {
 	}
 
 	private addToggle(name: string, value: boolean) {
-		new Setting(this.contentEl)
+		return new Setting(this.contentEl)
 			.setName(name)
 			.addToggle((toggle) =>
 				toggle
@@ -139,15 +153,19 @@ export class UserScriptSettingsModal extends Modal {
 	}
 
 	private addDropdown(name: string, options: string[], value: string) {
-		new Setting(this.contentEl).setName(name).addDropdown((dropdown) => {
-			options.forEach((item) => void dropdown.addOption(item, item));
-			dropdown.setValue(value);
-			dropdown.onChange((value) => (this.command.settings[name] = value));
-		});
+		return new Setting(this.contentEl)
+			.setName(name)
+			.addDropdown((dropdown) => {
+				options.forEach((item) => void dropdown.addOption(item, item));
+				dropdown.setValue(value);
+				dropdown.onChange(
+					(value) => (this.command.settings[name] = value)
+				);
+			});
 	}
 
 	private addFormatInput(name: string, value: string, placeholder?: string) {
-		new Setting(this.contentEl).setName(name);
+		const setting = new Setting(this.contentEl).setName(name);
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const input = new TextAreaComponent(this.contentEl);
@@ -171,5 +189,7 @@ export class UserScriptSettingsModal extends Modal {
 
 		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(value)))();
+
+		return setting;
 	}
 }
