@@ -170,6 +170,7 @@ export class QuickAddApi {
 						systemPrompt: string;
 						chunkSeparator: RegExp;
 						chunkJoiner: string;
+						shouldMerge: boolean;
 					}>
 				) => {
 					const pluginSettings = settingsStore.getState();
@@ -203,6 +204,7 @@ export class QuickAddApi {
 								settings?.systemPrompt ??
 								AISettings.defaultSystemPrompt,
 							resultJoiner: settings?.chunkJoiner ?? "\n",
+							shouldMerge: settings?.shouldMerge ?? true,
 						},
 						(txt: string, variables?: Record<string, unknown>) => {
 							return formatter(txt, variables, false);
