@@ -171,7 +171,8 @@ export class QuickAddApi {
 						chunkSeparator: RegExp;
 						chunkJoiner: string;
 						shouldMerge: boolean;
-					}>
+					}>,
+					existingVariables?: Record<string, unknown>
 				) => {
 					const pluginSettings = settingsStore.getState();
 					const AISettings = pluginSettings.ai;
@@ -207,7 +208,12 @@ export class QuickAddApi {
 							shouldMerge: settings?.shouldMerge ?? true,
 						},
 						(txt: string, variables?: Record<string, unknown>) => {
-							return formatter(txt, variables, false);
+							const mergedVariables = {
+								...existingVariables,
+								...variables,
+							};
+
+							return formatter(txt, mergedVariables, false);
 						}
 					);
 
