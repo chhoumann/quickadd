@@ -171,8 +171,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return -1;
 		}
 
-		if (fileCache.frontmatter.position)
-			return fileCache.frontmatter.position.end.line;
+		if (fileCache.frontmatter.position || fileCache.frontmatterPosition)
+			if (fileCache.frontmatter.position) {
+				return fileCache.frontmatter.position.end.line;
+			} else {
+				return fileCache.frontmatterPosition.end.line;
+			}
 
 		return -1;
 	}
