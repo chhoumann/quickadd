@@ -11,9 +11,10 @@ import { makeNoticeHandler } from "./makeNoticeHandler";
 import { getModelMaxTokens } from "./getModelMaxTokens";
 
 export const getTokenCount = (text: string, model: Model) => {
-	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview.
+	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview and gpt-3.5-turbo-1106.
 	let m = model === "gpt-3.5-turbo-16k" ? "gpt-3.5-turbo" : model;
 	m = m === "gpt-4-1106-preview" ? "gpt-4" : m;
+	m = m === "gpt-3.5-turbo-1106" ? "gpt-3.5-turbo" : m;
 
 	return encodingForModel(m).encode(text).length;
 };
