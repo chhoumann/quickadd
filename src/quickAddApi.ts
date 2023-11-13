@@ -339,7 +339,7 @@ export class QuickAddApi {
 		app: App,
 		displayItems:
 			| string[]
-			| ((value: string, index?: number, arr?: string[]) => string[]),
+			| ((value: string, index?: number, arr?: string[]) => string),
 		actualItems: string[]
 	) {
 		try {
