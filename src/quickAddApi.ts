@@ -52,7 +52,7 @@ export class QuickAddApi {
 							value: string,
 							index?: number,
 							arr?: string[]
-					  ) => string[]),
+					  ) => string),
 				actualItems: string[]
 			) => {
 				return this.suggester(app, displayItems, actualItems);
