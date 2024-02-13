@@ -41,6 +41,7 @@ export const NUMBER_REGEX = new RegExp(/^-?[0-9]*$/);
 
 export const CREATE_IF_NOT_FOUND_TOP = "top";
 export const CREATE_IF_NOT_FOUND_BOTTOM = "bottom";
+export const CREATE_IF_NOT_FOUND_CURSOR = "cursor";
 
 // == Format Syntax == //
 export const DATE_REGEX = new RegExp(/{{DATE(\+-?[0-9]+)?}}/i);

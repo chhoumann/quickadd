@@ -1,12 +1,11 @@
 import { CompleteFormatter } from "./completeFormatter";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import type { App, TFile } from "obsidian";
+import { MarkdownView, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
-import type QuickAdd from "../main";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { templaterParseTemplate } from "../utilityObsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
+	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
 import { escapeRegExp, getLinesInString } from "src/utility";
@@ -17,15 +16,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private file: TFile | null = null;
 	private fileContent = "";
 
-	constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
-		super(app, plugin, choiceExecutor);
-	}
-
 	public async formatContentWithFile(
 		input: string,
 		choice: ICaptureChoice,
 		fileContent: string,
-		file: TFile
+		file: TFile,
 	): Promise<string> {
 		this.choice = choice;
 		this.file = file;
@@ -36,7 +31,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const templaterFormatted = templaterParseTemplate(
 			this.app,
 			formatted,
-			this.file
+			this.file,
 		);
 		if (!(await templaterFormatted)) return formatted;
 
@@ -45,7 +40,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	public async formatContent(
 		input: string,
-		choice: ICaptureChoice
+		choice: ICaptureChoice,
 	): Promise<string> {
 		this.choice = choice;
 		if (!choice) return input;
@@ -79,7 +74,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-			frontmatterEndPosition
+			frontmatterEndPosition,
 		);
 	}
 
@@ -95,16 +90,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	private async insertAfterHandler(formatted: string) {
 		const targetString: string = await this.format(
-			this.choice.insertAfter.after
+			this.choice.insertAfter.after,
 		);
 
 		const targetRegex = new RegExp(
-			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`
+			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`,
 		);
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 
 		let targetPosition = fileContentLines.findIndex((line) =>
-			targetRegex.test(line)
+			targetRegex.test(line),
 		);
 		const targetNotFound = targetPosition === -1;
 		if (targetNotFound) {
@@ -116,13 +111,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
-			if (!this.file)
-				throw new Error("Tried to get sections without file.");
+			if (!this.file) throw new Error("Tried to get sections without file.");
 
 			const endOfSectionIndex = getEndOfSection(
 				fileContentLines,
 				targetPosition,
-				!!this.choice.insertAfter.considerSubsections
+				!!this.choice.insertAfter.considerSubsections,
 			);
 
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
@@ -131,13 +125,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-			targetPosition
+			targetPosition,
 		);
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
 		const insertAfterLine: string = this.replaceLinebreakInString(
-			await this.format(this.choice.insertAfter.after)
+			await this.format(this.choice.insertAfter.after),
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
@@ -151,7 +145,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
 				this.fileContent,
-				frontmatterEndPosition
+				frontmatterEndPosition,
 			);
 		}
 
@@ -160,6 +154,51 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			CREATE_IF_NOT_FOUND_BOTTOM
 		) {
 			return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
+		}
+
+		if (
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_CURSOR
+		) {
+			try {
+				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+				if (!activeView) {
+					throw new Error("No active view.");
+				}
+
+				const cursor = activeView.editor.getCursor();
+				let targetPosition = cursor.line;
+
+				if (this.choice.insertAfter?.insertAtEnd) {
+					if (!this.file)
+						throw new Error("Tried to get sections without file.");
+
+					const fileContentLines: string[] = getLinesInString(this.fileContent);
+
+					const endOfSectionIndex = getEndOfSection(
+						fileContentLines,
+						targetPosition,
+						!!this.choice.insertAfter.considerSubsections,
+					);
+
+					targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
+				}
+
+				const newFileContent = this.insertTextAfterPositionInBody(
+					insertAfterLineAndFormatted,
+					this.fileContent,
+					targetPosition,
+				);
+
+				return newFileContent;
+			} catch (e) {
+				log.logError(
+					`unable to insert line '${
+						this.choice.insertAfter.after
+					}' on your cursor.\n${e as string}`,
+				);
+			}
 		}
 	}
 
@@ -180,7 +219,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private insertTextAfterPositionInBody(
 		text: string,
 		body: string,
-		pos: number
+		pos: number,
 	): string {
 		if (pos === -1) {
 			// For the case that there is no frontmatter and we're adding to the top of the file.
