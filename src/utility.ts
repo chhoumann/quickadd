@@ -3,18 +3,7 @@ export function waitFor(ms: number): Promise<unknown> {
 }
 
 export function getLinesInString(input: string) {
-	const lines: string[] = [];
-	let tempString = input;
-
-	while (tempString.includes("\n")) {
-		const lineEndIndex = tempString.indexOf("\n");
-		lines.push(tempString.slice(0, lineEndIndex));
-		tempString = tempString.slice(lineEndIndex + 1);
-	}
-
-	lines.push(tempString);
-
-	return lines;
+	return input.split("\n");
 }
 
 // https://stackoverflow.com/questions/3115150/how-to-escape-regular-expression-special-characters-using-javascript
