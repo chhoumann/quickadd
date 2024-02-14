@@ -25,7 +25,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		input: string,
 		choice: ICaptureChoice,
 		fileContent: string,
-		file: TFile
+		file: TFile,
 	): Promise<string> {
 		this.choice = choice;
 		this.file = file;
@@ -36,7 +36,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const templaterFormatted = templaterParseTemplate(
 			this.app,
 			formatted,
-			this.file
+			this.file,
 		);
 		if (!(await templaterFormatted)) return formatted;
 
@@ -45,7 +45,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	public async formatContent(
 		input: string,
-		choice: ICaptureChoice
+		choice: ICaptureChoice,
 	): Promise<string> {
 		this.choice = choice;
 		if (!choice) return input;
@@ -79,7 +79,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-			frontmatterEndPosition
+			frontmatterEndPosition,
 		);
 	}
 
@@ -95,16 +95,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	private async insertAfterHandler(formatted: string) {
 		const targetString: string = await this.format(
-			this.choice.insertAfter.after
+			this.choice.insertAfter.after,
 		);
 
 		const targetRegex = new RegExp(
-			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`
+			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`,
 		);
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 
 		let targetPosition = fileContentLines.findIndex((line) =>
-			targetRegex.test(line)
+			targetRegex.test(line),
 		);
 		const targetNotFound = targetPosition === -1;
 		if (targetNotFound) {
@@ -116,13 +116,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
-			if (!this.file)
-				throw new Error("Tried to get sections without file.");
+			if (!this.file) throw new Error("Tried to get sections without file.");
 
 			const endOfSectionIndex = getEndOfSection(
 				fileContentLines,
 				targetPosition,
-				!!this.choice.insertAfter.considerSubsections
+				!!this.choice.insertAfter.considerSubsections,
 			);
 
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
@@ -131,13 +130,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-			targetPosition
+			targetPosition,
 		);
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
 		const insertAfterLine: string = this.replaceLinebreakInString(
-			await this.format(this.choice.insertAfter.after)
+			await this.format(this.choice.insertAfter.after),
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
@@ -151,7 +150,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
 				this.fileContent,
-				frontmatterEndPosition
+				frontmatterEndPosition,
 			);
 		}
 
@@ -171,8 +170,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return -1;
 		}
 
-		if (fileCache.frontmatter.position)
-			return fileCache.frontmatter.position.end.line;
+		if (fileCache.frontmatter.position || fileCache.frontmatterPosition) {
+			if (fileCache.frontmatter.position) {
+				return fileCache.frontmatter.position.end.line;
+			}
+		}
 
 		return -1;
 	}
@@ -180,7 +182,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private insertTextAfterPositionInBody(
 		text: string,
 		body: string,
-		pos: number
+		pos: number,
 	): string {
 		if (pos === -1) {
 			// For the case that there is no frontmatter and we're adding to the top of the file.
