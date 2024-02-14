@@ -32,7 +32,7 @@
     "esbuild-svelte": "^0.7.3",
     "eslint": "^8.40.0",
     "jsdom": "^22.0.0",
-    "obsidian": "latest",
+    "obsidian": "^1.4.11",
     "semantic-release": "^21.0.2",
     "svelte": "^3.59.1",
     "svelte-awesome": "3.2.0",
