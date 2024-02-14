@@ -9,6 +9,7 @@ import {
 } from "obsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
+	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 	FILE_NAME_FORMAT_SYNTAX,
 } from "../../constants";
@@ -307,6 +308,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					dropdown
 						.addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
 						.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
+						.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
 						.setValue(
 							this.choice.insertAfter?.createIfNotFoundLocation
 						)
