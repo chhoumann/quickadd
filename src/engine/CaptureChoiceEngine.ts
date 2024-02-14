@@ -30,22 +30,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		app: App,
 		plugin: QuickAdd,
 		choice: ICaptureChoice,
-		private choiceExecutor: IChoiceExecutor
+		private choiceExecutor: IChoiceExecutor,
 	) {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
-		this.formatter = new CaptureChoiceFormatter(
-			app,
-			plugin,
-			choiceExecutor
-		);
+		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 	}
 
 	async run(): Promise<void> {
 		try {
 			const filePath = await this.getFormattedPathToCaptureTo(
-				this.choice.captureToActiveFile
+				this.choice.captureToActiveFile,
 			);
 			const content = this.getCaptureContent();
 
@@ -53,15 +49,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			if (await this.fileExists(filePath)) {
 				getFileAndAddContentFn = this.onFileExists.bind(
-					this
+					this,
 				) as typeof this.onFileExists;
 			} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
 				getFileAndAddContentFn = this.onCreateFileIfItDoesntExist.bind(
-					this
+					this,
 				) as typeof this.onCreateFileIfItDoesntExist;
 			} else {
 				log.logWarning(
-					`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`
+					`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`,
 				);
 				return;
 			}
@@ -69,14 +65,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-			if (this.choice.captureToActiveFile && !this.choice.prepend && !this.choice.insertAfter.enabled) {
+			if (
+				this.choice.captureToActiveFile &&
+				!this.choice.prepend &&
+				!this.choice.insertAfter.enabled
+			) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
-				const content = await templaterParseTemplate(
-					app,
-					captureContent,
-					file
-				);
+				const content = await templaterParseTemplate(app, captureContent, file);
 
 				appendToCurrentLine(content, this.app);
 			} else {
@@ -86,7 +82,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (this.choice.appendLink) {
 				const markdownLink = this.app.fileManager.generateMarkdownLink(
 					file,
-					""
+					"",
 				);
 
 				appendToCurrentLine(markdownLink, this.app);
@@ -127,14 +123,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	 *                 if the capture path is invalid, or if the target folder is empty.
 	 */
 	private async getFormattedPathToCaptureTo(
-		shouldCaptureToActiveFile: boolean
+		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {
 		if (shouldCaptureToActiveFile) {
 			const activeFile = this.app.workspace.getActiveFile();
-			invariant(
-				activeFile,
-				`Cannot capture to active file - no active file.`
-			);
+			invariant(activeFile, "Cannot capture to active file - no active file.");
 
 			return activeFile.path;
 		}
@@ -144,10 +137,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// Removing the trailing slash from the capture to path because otherwise isFolder will fail
 		// to get the folder.
-		const folderPath = formattedCaptureTo.replace(
-			/^\/$|\/\.md$|^\.md$/,
-			""
-		);
+		const folderPath = formattedCaptureTo.replace(/^\/$|\/\.md$|^\.md$/, "");
 		// Empty string means we suggest to capture anywhere in the vault.
 		const captureAnywhereInVault = folderPath === "";
 		const shouldCaptureToFolder =
@@ -168,7 +158,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private async selectFileInFolder(
 		folderPath: string,
-		captureAnywhereInVault: boolean
+		captureAnywhereInVault: boolean,
 	): Promise<string> {
 		const folderPathSlash =
 			folderPath.endsWith("/") || captureAnywhereInVault
@@ -176,21 +166,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				: `${folderPath}/`;
 		const filesInFolder = getMarkdownFilesInFolder(folderPathSlash);
 
-		invariant(
-			filesInFolder.length > 0,
-			`Folder ${folderPathSlash} is empty.`
-		);
+		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
 		const filePaths = filesInFolder.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
 			app,
 			filePaths.map((item) => item.replace(folderPathSlash, "")),
-			filePaths
+			filePaths,
 		);
 
 		invariant(
 			!!targetFilePath && targetFilePath.length > 0,
-			`No file selected for capture.`
+			"No file selected for capture.",
 		);
 
 		// Ensure user has selected a file in target folder. InputSuggester allows user to write
@@ -212,12 +199,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const targetFilePath = await InputSuggester.Suggest(
 			app,
 			filePaths,
-			filePaths
+			filePaths,
 		);
 
 		invariant(
 			!!targetFilePath && targetFilePath.length > 0,
-			`No file selected for capture.`
+			"No file selected for capture.",
 		);
 
 		return await this.formatFilePath(targetFilePath);
@@ -225,7 +212,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private async onFileExists(
 		filePath: string,
-		content: string
+		content: string,
 	): Promise<{
 		file: TFile;
 		newFileContent: string;
@@ -245,7 +232,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				formatted,
 				this.choice,
 				fileContent,
-				file
+				file,
 			);
 
 		const secondReadFileContent: string = await this.app.vault.read(file);
@@ -255,14 +242,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const res = merge(
 				secondReadFileContent,
 				fileContent,
-				formattedFileContent
+				formattedFileContent,
 			);
 			invariant(
 				!res.isSuccess,
 				() =>
-					`The file ${filePath} has been modified since the last read.` +
-					`\nQuickAdd could not merge the versions two without conflicts, and will not modify the file.` +
-					`\nThis is in order to prevent data loss.`
+					`The file ${filePath} has been modified since the last read.\nQuickAdd could not merge the versions two without conflicts, and will not modify the file.\nThis is in order to prevent data loss.`,
 			);
 
 			newFileContent = res.joinedResults() as string;
@@ -273,7 +258,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
-		captureContent: string
+		captureContent: string,
 	): Promise<{
 		file: TFile;
 		newFileContent: string;
@@ -287,28 +272,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					this.app,
 					this.plugin,
 					this.choice.createFileIfItDoesntExist.template,
-					this.choiceExecutor
+					this.choiceExecutor,
 				);
 
 			fileContent = await singleTemplateEngine.run();
 		}
 
-		const file: TFile = await this.createFileWithInput(
-			filePath,
-			fileContent
-		);
+		const file: TFile = await this.createFileWithInput(filePath, fileContent);
 		await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
-		const updatedFileContent: string = await this.app.vault.cachedRead(
-			file
+		const updatedFileContent: string = await this.app.vault.cachedRead(file);
+		const newFileContent: string = await this.formatter.formatContentWithFile(
+			captureContent,
+			this.choice,
+			updatedFileContent,
+			file,
 		);
-		const newFileContent: string =
-			await this.formatter.formatContentWithFile(
-				captureContent,
-				this.choice,
-				updatedFileContent,
-				file
-			);
 
 		return { file, newFileContent, captureContent };
 	}
@@ -316,7 +295,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async formatFilePath(captureTo: string) {
 		const formattedCaptureTo: string = await this.formatter.formatFileName(
 			captureTo,
-			this.choice.name
+			this.choice.name,
 		);
 
 		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
