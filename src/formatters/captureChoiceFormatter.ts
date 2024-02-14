@@ -66,6 +66,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return (await this.insertAfterHandler(formatted)) as string;
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		const frontmatterEndPosition = this.file
 			? this.getFrontmatterEndPosition(this.file)
 			: null;
@@ -74,6 +75,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 			frontmatterEndPosition,
 		);
 	}
@@ -139,12 +141,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			const frontmatterEndPosition = this.file
 				? this.getFrontmatterEndPosition(this.file)
 				: -1;
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
 				this.fileContent,
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
 				frontmatterEndPosition,
 			);
 		}
@@ -212,6 +216,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		if (fileCache.frontmatter.position || fileCache.frontmatterPosition) {
 			if (fileCache.frontmatter.position) {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
 				return fileCache.frontmatter.position.end.line;
 			}
 		}
