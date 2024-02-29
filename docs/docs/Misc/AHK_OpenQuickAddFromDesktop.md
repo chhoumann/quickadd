@@ -51,3 +51,7 @@ It uses the same hotkey to activate as above (`CTRL+SHIFT+ALT+G`). If you wish t
 -   `+` means `Shift`
 
 So, you can replace the `!^+g` with any hotkey of your choosing.
+
+#### About MacOS
+
+based on Advanced URI, It is recommended that you use `Create Quicklink` in [raycast](https://www.raycast.com/help/quicklinks).
