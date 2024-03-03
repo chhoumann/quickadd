@@ -82,7 +82,7 @@ export function OpenAIRequest(
 		} catch (error) {
 			console.log(error);
 			throw new Error(
-				`Error while making request to OpenAI API: ${
+				`Error while making request to ${modelProvider.name}: ${
 					(error as { message: string }).message
 				}`
 			);
