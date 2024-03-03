@@ -46,31 +46,17 @@ const OpenAIProvider: AIProvider = {
 	],
 };
 
-const OllamaLocalAIProvider: AIProvider = {
-	name: "Ollama Local",
-	endpoint: "http://localhost:3000/v1",
-	apiKey: "",
-	models: [],
-};
-
-const TogetherXYZAIProvider: AIProvider = {
-	name: "Together.ai",
-	endpoint: "https://api.together.xyz/v1",
-	apiKey: "",
-	models: [],
-};
-
 const GroqAPIProvider: AIProvider = {
 	name: "Groq",
 	endpoint: "https://api.groq.com/openai/v1",
 	apiKey: "",
 	models: [
 		{
-			name: "LLaMA2-70b",
+			name: "llama2-70b-4096",
 			maxTokens: 4096,
 		},
 		{
-			name: "Mixtral-8x7b",
+			name: "mixtral-8x7b-32768",
 			maxTokens: 32768,
 		},
 	],
@@ -78,7 +64,5 @@ const GroqAPIProvider: AIProvider = {
 
 export const DefaultProviders: AIProvider[] = [
 	OpenAIProvider,
-	OllamaLocalAIProvider,
-	TogetherXYZAIProvider,
 	GroqAPIProvider,
 ];
