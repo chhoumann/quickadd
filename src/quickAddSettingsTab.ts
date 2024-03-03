@@ -6,7 +6,7 @@ import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import type { IMacro } from "./types/macros/IMacro";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 import { settingsStore } from "./settingsStore";
-import type { Models_And_Ask_Me } from "./ai/models";
+import type { Model } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 
 export interface QuickAddSettings {
@@ -23,8 +23,7 @@ export interface QuickAddSettings {
 	 */
 	disableOnlineFeatures: boolean;
 	ai: {
-		OpenAIApiKey: string;
-		defaultModel: Models_And_Ask_Me;
+		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
 		promptTemplatesFolderPath: string;
 		showAssistant: boolean;
@@ -50,7 +49,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	version: "0.0.0",
 	disableOnlineFeatures: true,
 	ai: {
-		OpenAIApiKey: "",
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
 		promptTemplatesFolderPath: "",

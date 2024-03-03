@@ -6,16 +6,23 @@ const addDefaultAIProviders: Migration = {
 	description: "Add default AI providers to the settings.",
 	// eslint-disable-next-line @typescript-eslint/require-await
 	migrate: async (_) => {
-		const { OpenAIApiKey } = settingsStore.getState().ai;
+		const ai = settingsStore.getState().ai;
+
 		const defaultProvidersWithOpenAIKey = DefaultProviders.map(
 			(provider) => {
 				if (provider.name === "OpenAI") {
-					provider.apiKey = OpenAIApiKey;
+					if ("OpenAIApiKey" in ai && typeof ai.OpenAIApiKey === "string") {
+						provider.apiKey = ai.OpenAIApiKey;
+					}
 				}
 
 				return provider;
 			}
 		);
+
+		if ("OpenAIApiKey" in ai) {
+			delete ai.OpenAIApiKey;
+		}
 
 		settingsStore.setState({
 			ai: {
@@ -23,6 +30,8 @@ const addDefaultAIProviders: Migration = {
 				providers: defaultProvidersWithOpenAIKey,
 			},
 		});
+
+
 	},
 };
 
