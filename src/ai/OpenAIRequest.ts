@@ -4,6 +4,7 @@ import { settingsStore } from "src/settingsStore";
 import { getTokenCount } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { Model } from "./Provider";
+import { getModelProvider } from "./aiHelpers";
 
 type ReqResponse = {
 	id: string;
@@ -45,17 +46,27 @@ export function OpenAIRequest(
 			);
 		}
 
+		const modelProvider = getModelProvider(model.name);
+
+		if (!modelProvider) {
+			throw new Error(`Model ${model.name} not found with any provider.`);
+		}
+
+		console.log(
+			`Making request to ${modelProvider?.name} at ${modelProvider.endpoint} with model ${model.name}`
+		);
+
 		try {
 			const restoreCursor = preventCursorChange();
 			const _response = requestUrl({
-				url: `https://api.openai.com/v1/chat/completions`,
+				url: `${modelProvider?.endpoint}/chat/completions`,
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${apiKey}`,
 				},
 				body: JSON.stringify({
-					model,
+					model: model.name,
 					...modelParams,
 					messages: [
 						{ role: "system", content: systemPrompt },

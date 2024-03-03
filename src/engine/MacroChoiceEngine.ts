@@ -29,7 +29,12 @@ import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssi
 import { runAIAssistant } from "src/ai/AIAssistant";
 import { settingsStore } from "src/settingsStore";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
-import { getModelNames, getModelProvider } from "src/ai/aiHelpers";
+import {
+	getModelByName,
+	getModelNames,
+	getModelProvider,
+} from "src/ai/aiHelpers";
+import { Model } from "src/ai/Provider";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -306,21 +311,28 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const aiSettings = settingsStore.getState().ai;
 
 		const options = [...getModelNames()];
-		const model =
+		const modelName: string =
 			command.model === "Ask me"
 				? await GenericSuggester.Suggest(app, options, options)
 				: command.model;
+
+		const model: Model | undefined = getModelByName(modelName);
+
+		if (!model) {
+			throw new Error(`Model ${modelName} not found with any provider.`);
+		}
+
 		const formatter = new CompleteFormatter(
 			app,
 			QuickAdd.instance,
 			this.choiceExecutor
 		);
 
-		const modelProvider = getModelProvider(model);
+		const modelProvider = getModelProvider(model.name);
 
 		if (!modelProvider) {
 			throw new Error(
-				`Model ${model} not found in the AI providers settings.`
+				`Model ${model.name} not found in the AI providers settings.`
 			);
 		}
 
