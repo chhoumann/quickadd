@@ -6,13 +6,15 @@ import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionInsertAfterAndWriteToBottomOfFile";
 import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelease";
+import addDefaultAIProviders from "./addDefaultAIProviders";
 
 const migrations: Migrations = {
 	migrateToMacroIDFromEmbeddedMacro,
 	useQuickAddTemplateFolder,
 	incrementFileNameSettingMoveToDefaultBehavior,
 	mutualExclusionInsertAfterAndWriteToBottomOfFile,
-	setVersionAfterUpdateModalRelease
+	setVersionAfterUpdateModalRelease,
+	addDefaultAIProviders,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {
