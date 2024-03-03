@@ -14,7 +14,7 @@ import {
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
-import { getModelNames } from "src/ai/aiHelpers";
+import { getModelByName, getModelNames } from "src/ai/aiHelpers";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -28,7 +28,10 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	private get systemPromptTokenLength(): number {
 		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
 
-		return getTokenCount(this.settings.systemPrompt, this.settings.model);
+		const model = getModelByName(this.settings.model);
+		if (!model) return Number.POSITIVE_INFINITY;
+
+		return getTokenCount(this.settings.systemPrompt, model);
 	}
 
 	constructor(settings: IAIAssistantCommand) {

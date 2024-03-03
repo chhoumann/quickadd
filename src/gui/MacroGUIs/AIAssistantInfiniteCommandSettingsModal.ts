@@ -23,7 +23,9 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
-		return getTokenCount(this.settings.systemPrompt, this.settings.model);
+		const model = getModelByName(this.settings.model);
+		if (!model) return Number.POSITIVE_INFINITY;
+		return getTokenCount(this.settings.systemPrompt, model);
 	}
 
 	constructor(settings: IInfiniteAIAssistantCommand) {

@@ -1,4 +1,3 @@
-import type { Model, Models_And_Ask_Me } from "src/ai/models";
 import type { ICommand } from "../ICommand";
 import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
 
@@ -10,7 +9,7 @@ interface IBaseAIAssistantCommand extends ICommand {
 }
 
 export interface IAIAssistantCommand extends IBaseAIAssistantCommand {
-	model: Models_And_Ask_Me;
+	model: string;
 	promptTemplate: {
 		enable: boolean;
 		name: string;
@@ -18,7 +17,7 @@ export interface IAIAssistantCommand extends IBaseAIAssistantCommand {
 }
 
 export interface IInfiniteAIAssistantCommand extends IBaseAIAssistantCommand {
-	model: Model;
+	model: string;
 	resultJoiner: string;
 	chunkSeparator: string;
 	maxChunkTokens: number;
