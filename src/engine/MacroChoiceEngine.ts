@@ -34,7 +34,7 @@ import {
 	getModelNames,
 	getModelProvider,
 } from "src/ai/aiHelpers";
-import { Model } from "src/ai/Provider";
+import type { Model } from "src/ai/Provider";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
