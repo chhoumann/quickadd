@@ -1,11 +1,10 @@
 import { Modal, Setting, TextAreaComponent } from "obsidian";
-import type { Models_And_Ask_Me } from "src/ai/models";
-import { models_and_ask_me } from "src/ai/models";
 import type { QuickAddSettings } from "src/quickAddSettingsTab";
-import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
+import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
+import { getModelNames } from "src/ai/aiHelpers";
 
 type AIAssistantSettings = QuickAddSettings["ai"];
 
@@ -38,7 +37,7 @@ export class AIAssistantSettingsModal extends Modal {
 			text: "AI Assistant Settings",
 		}).style.textAlign = "center";
 
-		this.addApiKeySetting(this.contentEl);
+		this.addProvidersSetting(this.contentEl);
 		this.addDefaultModelSetting(this.contentEl);
 		this.addPromptTemplateFolderPathSetting(this.contentEl);
 		this.addShowAssistantSetting(this.contentEl);
@@ -52,32 +51,37 @@ export class AIAssistantSettingsModal extends Modal {
 		this.display();
 	}
 
-	addApiKeySetting(container: HTMLElement) {
+	addProvidersSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("API Key")
-			.setDesc("The API Key for the AI Assistant")
-			.addText((text) => {
-				setPasswordOnBlur(text.inputEl);
-				text.setValue(this.settings.OpenAIApiKey).onChange((value) => {
-					this.settings.OpenAIApiKey = value;
+			.setName("Providers")
+			.setDesc("The providers for the AI Assistant")
+			.addButton((button) => {
+				button.setButtonText("Edit Providers").onClick(() => {
+					void new AIAssistantProvidersModal(
+						this.settings.providers,
+						app
+					).waitForClose.then(() => {
+						this.reload();
+					});
 				});
-
-				text.inputEl.placeholder = "sk-...";
 			});
 	}
-
+ 
 	addDefaultModelSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName("Default Model")
 			.setDesc("The default model for the AI Assistant")
 			.addDropdown((dropdown) => {
-				for (const model of models_and_ask_me) {
+				const models = getModelNames();
+				for (const model of models) {
 					dropdown.addOption(model, model);
 				}
 
+				dropdown.addOption("Ask me", "Ask me");
+
 				dropdown.setValue(this.settings.defaultModel);
 				dropdown.onChange((value) => {
-					this.settings.defaultModel = value as Models_And_Ask_Me;
+					this.settings.defaultModel = value;
 				});
 			});
 	}
@@ -144,8 +148,8 @@ export class AIAssistantSettingsModal extends Modal {
 			)))();
 	}
 
-    onClose(): void {
-        this.resolvePromise(this.settings);
-        super.onClose();
-    }
+	onClose(): void {
+		this.resolvePromise(this.settings);
+		super.onClose();
+	}
 }

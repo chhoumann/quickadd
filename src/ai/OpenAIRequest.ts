@@ -1,10 +1,10 @@
-import type { Model } from "./models";
 import { requestUrl } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 import { getTokenCount } from "./AIAssistant";
-import { getModelMaxTokens } from "./getModelMaxTokens";
 import { preventCursorChange } from "./preventCursorChange";
+import type { Model } from "./Provider";
+import { getModelProvider } from "./aiHelpers";
 
 type ReqResponse = {
 	id: string;
@@ -38,25 +38,31 @@ export function OpenAIRequest(
 
 		const tokenCount =
 			getTokenCount(prompt, model) + getTokenCount(systemPrompt, model);
-		const maxTokens = getModelMaxTokens(model);
+		const { maxTokens } = model;
 
 		if (tokenCount > maxTokens) {
 			throw new Error(
-				`The ${model} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
+				`The ${model.name} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
 			);
+		}
+
+		const modelProvider = getModelProvider(model.name);
+
+		if (!modelProvider) {
+			throw new Error(`Model ${model.name} not found with any provider.`);
 		}
 
 		try {
 			const restoreCursor = preventCursorChange();
 			const _response = requestUrl({
-				url: `https://api.openai.com/v1/chat/completions`,
+				url: `${modelProvider.endpoint}/chat/completions`,
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${apiKey}`,
 				},
 				body: JSON.stringify({
-					model,
+					model: model.name,
 					...modelParams,
 					messages: [
 						{ role: "system", content: systemPrompt },
@@ -72,7 +78,7 @@ export function OpenAIRequest(
 		} catch (error) {
 			console.log(error);
 			throw new Error(
-				`Error while making request to OpenAI API: ${
+				`Error while making request to ${modelProvider.name}: ${
 					(error as { message: string }).message
 				}`
 			);

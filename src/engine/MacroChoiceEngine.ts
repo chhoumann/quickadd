@@ -28,8 +28,13 @@ import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "src/ai/AIAssistant";
 import { settingsStore } from "src/settingsStore";
-import { models } from "src/ai/models";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
+import {
+	getModelByName,
+	getModelNames,
+	getModelProvider,
+} from "src/ai/aiHelpers";
+import type { Model } from "src/ai/Provider";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -305,20 +310,35 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const aiSettings = settingsStore.getState().ai;
 
-		const options = [...models];
-		const model =
+		const options = getModelNames();
+		const modelName: string =
 			command.model === "Ask me"
 				? await GenericSuggester.Suggest(app, options, options)
 				: command.model;
+
+		const model: Model | undefined = getModelByName(modelName);
+
+		if (!model) {
+			throw new Error(`Model ${modelName} not found with any provider.`);
+		}
+
 		const formatter = new CompleteFormatter(
 			app,
 			QuickAdd.instance,
 			this.choiceExecutor
 		);
 
+		const modelProvider = getModelProvider(model.name);
+
+		if (!modelProvider) {
+			throw new Error(
+				`Model ${model.name} not found in the AI providers settings.`
+			);
+		}
+
 		const aiOutputVariables = await runAIAssistant(
 			{
-				apiKey: aiSettings.OpenAIApiKey,
+				apiKey: modelProvider.apiKey,
 				model,
 				outputVariableName: command.outputVariableName,
 				promptTemplate: command.promptTemplate,

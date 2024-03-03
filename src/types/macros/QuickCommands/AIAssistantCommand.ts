@@ -1,4 +1,3 @@
-import type { Models_And_Ask_Me } from "src/ai/models";
 import { Command } from "../Command";
 import { CommandType } from "../CommandType";
 import type { IAIAssistantCommand } from "./IAIAssistantCommand";
@@ -11,7 +10,7 @@ export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 	name: string;
 	type: CommandType;
 
-	model: Models_And_Ask_Me;
+	model: string;
 	systemPrompt: string;
 	outputVariableName: string;
 	promptTemplate: {

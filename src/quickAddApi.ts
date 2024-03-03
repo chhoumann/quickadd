@@ -14,9 +14,13 @@ import { MarkdownView } from "obsidian";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
 import { ChunkedPrompt, Prompt, getTokenCount } from "./ai/AIAssistant";
 import { settingsStore } from "./settingsStore";
-import { models, type Model } from "./ai/models";
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
-import { getModelMaxTokens } from "./ai/getModelMaxTokens";
+import type { Model } from "./ai/Provider";
+import {
+	getModelByName,
+	getModelNames,
+	getModelProvider,
+} from "./ai/aiHelpers";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -127,11 +131,19 @@ export class QuickAddApi {
 						choiceExecutor
 					).format;
 
+					const modelProvider = getModelProvider(model.name);
+
+					if (!modelProvider) {
+						throw new Error(
+							`Model '${model.name}' not found in any provider`
+						);
+					}
+
 					const assistantRes = await Prompt(
 						{
 							model,
 							prompt,
-							apiKey: AISettings.OpenAIApiKey,
+							apiKey: modelProvider.apiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName:
 								settings?.variableName ?? "output",
@@ -189,13 +201,28 @@ export class QuickAddApi {
 						choiceExecutor
 					).format;
 
+					const modelProvider = getModelProvider(model.name);
+
+					if (!modelProvider) {
+						throw new Error(
+							`Model '${model.name}' not found in any provider`
+						);
+					}
+
+
+					if (!modelProvider.apiKey) {
+						throw new Error(
+							`Model '${model.name}' requires an API key`
+						);
+					}
+
 					const assistantRes = await ChunkedPrompt(
 						{
 							model,
 							text,
 							promptTemplate,
 							chunkSeparator: settings?.chunkSeparator ?? /\n/,
-							apiKey: AISettings.OpenAIApiKey,
+							apiKey: modelProvider.apiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName:
 								settings?.variableName ?? "output",
@@ -230,10 +257,16 @@ export class QuickAddApi {
 					return assistantRes;
 				},
 				getModels: () => {
-					return models;
+					return getModelNames();
 				},
-				getMaxTokens: (model: Model) => {
-					return getModelMaxTokens(model);
+				getMaxTokens: (modelName: string) => {
+					const model = getModelByName(modelName);
+
+					if (!model) {
+						throw new Error(`Model ${modelName} not found.`);
+					}
+
+					return model.maxTokens;
 				},
 				countTokens(text: string, model: Model) {
 					return getTokenCount(text, model);
