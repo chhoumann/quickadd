@@ -310,7 +310,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const aiSettings = settingsStore.getState().ai;
 
-		const options = [...getModelNames()];
+		const options = getModelNames();
 		const modelName: string =
 			command.model === "Ask me"
 				? await GenericSuggester.Suggest(app, options, options)
