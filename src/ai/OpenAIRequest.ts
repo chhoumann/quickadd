@@ -52,14 +52,10 @@ export function OpenAIRequest(
 			throw new Error(`Model ${model.name} not found with any provider.`);
 		}
 
-		console.log(
-			`Making request to ${modelProvider?.name} at ${modelProvider.endpoint} with model ${model.name}`
-		);
-
 		try {
 			const restoreCursor = preventCursorChange();
 			const _response = requestUrl({
-				url: `${modelProvider?.endpoint}/chat/completions`,
+				url: `${modelProvider.endpoint}/chat/completions`,
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
