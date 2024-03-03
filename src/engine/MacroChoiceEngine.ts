@@ -28,8 +28,8 @@ import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "src/ai/AIAssistant";
 import { settingsStore } from "src/settingsStore";
-import { models } from "src/ai/models";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
+import { getModelNames, getModelProvider } from "src/ai/aiHelpers";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -305,7 +305,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const aiSettings = settingsStore.getState().ai;
 
-		const options = [...models];
+		const options = [...getModelNames()];
 		const model =
 			command.model === "Ask me"
 				? await GenericSuggester.Suggest(app, options, options)
@@ -316,9 +316,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			this.choiceExecutor
 		);
 
+		const modelProvider = getModelProvider(model);
+
+		if (!modelProvider) {
+			throw new Error(
+				`Model ${model} not found in the AI providers settings.`
+			);
+		}
+
 		const aiOutputVariables = await runAIAssistant(
 			{
-				apiKey: aiSettings.OpenAIApiKey,
+				apiKey: modelProvider.apiKey,
 				model,
 				outputVariableName: command.outputVariableName,
 				promptTemplate: command.promptTemplate,

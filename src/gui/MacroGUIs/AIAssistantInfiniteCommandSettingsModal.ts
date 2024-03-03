@@ -1,6 +1,4 @@
 import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
-import type { Model } from "src/ai/models";
-import { models_and_ask_me } from "src/ai/models";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
@@ -13,7 +11,7 @@ import {
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
-import { getModelMaxTokens } from "src/ai/getModelMaxTokens";
+import { getModelByName, getModelNames } from "src/ai/aiHelpers";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
@@ -103,13 +101,16 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			.setName("Model")
 			.setDesc("The model the AI Assistant will use")
 			.addDropdown((dropdown) => {
-				for (const model of models_and_ask_me) {
+				const models = getModelNames();
+				for (const model of models) {
 					dropdown.addOption(model, model);
 				}
 
+				dropdown.addOption("Ask me", "Ask me");
+
 				dropdown.setValue(this.settings.model);
 				dropdown.onChange((value) => {
-					this.settings.model = value as Model;
+					this.settings.model = value;
 					
 					this.reload();
 				});
@@ -305,9 +306,15 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				"The maximum number of tokens in each chunk, calculated as the chunk token size + prompt template token size + system prompt token size. Make sure you leave room for the model to respond to the prompt."
 			)
 			.addSlider((slider) => {
-				const modelMaxTokens = getModelMaxTokens(this.settings.model);
+				const model = getModelByName(this.settings.model);
 
-				slider.setLimits(1, modelMaxTokens - this.systemPromptTokenLength, 1);
+				if (!model) {
+					throw new Error(
+						`Model ${this.settings.model} not found in settings`
+					);
+				}
+
+				slider.setLimits(1, model.maxTokens - this.systemPromptTokenLength, 1);
 				slider.setDynamicTooltip();
 
 				slider.setValue(this.settings.maxChunkTokens);

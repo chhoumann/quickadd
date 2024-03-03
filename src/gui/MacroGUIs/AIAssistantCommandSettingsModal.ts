@@ -1,6 +1,4 @@
 import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
-import type { Models_And_Ask_Me } from "src/ai/models";
-import { models_and_ask_me } from "src/ai/models";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
@@ -16,6 +14,7 @@ import {
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
+import { getModelNames } from "src/ai/aiHelpers";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -136,13 +135,16 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.setName("Model")
 			.setDesc("The model the AI Assistant will use")
 			.addDropdown((dropdown) => {
-				for (const model of models_and_ask_me) {
+				const models = getModelNames();
+				for (const model of models) {
 					dropdown.addOption(model, model);
 				}
 
+				dropdown.addOption("Ask me", "Ask me");
+
 				dropdown.setValue(this.settings.model);
 				dropdown.onChange((value) => {
-					this.settings.model = value as Models_And_Ask_Me;
+					this.settings.model = value;
 
 					this.reload();
 				});

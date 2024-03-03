@@ -1,10 +1,9 @@
-import type { Model } from "./models";
 import { requestUrl } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 import { getTokenCount } from "./AIAssistant";
-import { getModelMaxTokens } from "./getModelMaxTokens";
 import { preventCursorChange } from "./preventCursorChange";
+import type { Model } from "./Provider";
 
 type ReqResponse = {
 	id: string;
@@ -38,11 +37,11 @@ export function OpenAIRequest(
 
 		const tokenCount =
 			getTokenCount(prompt, model) + getTokenCount(systemPrompt, model);
-		const maxTokens = getModelMaxTokens(model);
+		const { maxTokens } = model;
 
 		if (tokenCount > maxTokens) {
 			throw new Error(
-				`The ${model} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
+				`The ${model.name} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
 			);
 		}
 

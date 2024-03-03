@@ -1,5 +1,4 @@
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
-import type { Model } from "./models";
 import { TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
@@ -8,11 +7,12 @@ import { settingsStore } from "src/settingsStore";
 import { encodingForModel } from "js-tiktoken";
 import { OpenAIRequest } from "./OpenAIRequest";
 import { makeNoticeHandler } from "./makeNoticeHandler";
-import { getModelMaxTokens } from "./getModelMaxTokens";
+import type { Model } from "./Provider";
+import { getModelMaxTokens } from "./aiHelpers";
 
 export const getTokenCount = (text: string, model: Model) => {
 	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview and gpt-3.5-turbo-1106.
-	let m = model === "gpt-3.5-turbo-16k" ? "gpt-3.5-turbo" : model;
+	let m = model.name === "gpt-3.5-turbo-16k" ? "gpt-3.5-turbo" : model.name;
 	m = m === "gpt-4-1106-preview" ? "gpt-4" : m;
 	m = m === "gpt-3.5-turbo-1106" ? "gpt-3.5-turbo" : m;
 
@@ -379,7 +379,7 @@ export async function ChunkedPrompt(
 		);
 
 		const maxChunkTokenSize =
-			getModelMaxTokens(model) / 2 - systemPromptLength; // temp, need to impl. config
+			getModelMaxTokens(model.name) / 2 - systemPromptLength; // temp, need to impl. config
 
 		// Whether we should strictly enforce the chunking rules or we should merge chunks that are too small
 		const shouldMerge = settings.shouldMerge ?? true; // temp, need to impl. config
