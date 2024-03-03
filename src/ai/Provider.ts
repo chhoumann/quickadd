@@ -46,23 +46,7 @@ const OpenAIProvider: AIProvider = {
 	],
 };
 
-const GroqAPIProvider: AIProvider = {
-	name: "Groq",
-	endpoint: "https://api.groq.com/openai/v1",
-	apiKey: "",
-	models: [
-		{
-			name: "llama2-70b-4096",
-			maxTokens: 4096,
-		},
-		{
-			name: "mixtral-8x7b-32768",
-			maxTokens: 32768,
-		},
-	],
-};
 
 export const DefaultProviders: AIProvider[] = [
 	OpenAIProvider,
-	GroqAPIProvider,
 ];
