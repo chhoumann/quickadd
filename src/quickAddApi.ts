@@ -173,7 +173,7 @@ export class QuickAddApi {
 				chunkedPrompt: async (
 					text: string,
 					promptTemplate: string,
-					model: Model,
+					model: string,
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
@@ -201,24 +201,30 @@ export class QuickAddApi {
 						choiceExecutor
 					).format;
 
-					const modelProvider = getModelProvider(model.name);
+					const _model = getModelByName(model);
+
+					if (!_model) {
+						throw new Error(`Model ${model} not found.`);
+					}
+
+					const modelProvider = getModelProvider(model);
 
 					if (!modelProvider) {
 						throw new Error(
-							`Model '${model.name}' not found in any provider`
+							`Model '${_model.name}' not found in any provider`
 						);
 					}
 
 
 					if (!modelProvider.apiKey) {
 						throw new Error(
-							`Model '${model.name}' requires an API key`
+							`Model '${_model.name}' requires an API key`
 						);
 					}
 
 					const assistantRes = await ChunkedPrompt(
 						{
-							model,
+							model: _model,
 							text,
 							promptTemplate,
 							chunkSeparator: settings?.chunkSeparator ?? /\n/,
