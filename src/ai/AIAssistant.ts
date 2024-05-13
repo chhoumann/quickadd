@@ -165,7 +165,7 @@ export async function runAIAssistant(
 			}
 		);
 
-		const output = result.choices[0].message.content;
+		const output = result.content;
 		const outputInMarkdownBlockQuote = ("> " + output).replace(
 			/\n/g,
 			"\n> "
@@ -266,7 +266,7 @@ export async function Prompt(
 			}
 		);
 
-		const output = result.choices[0].message.content;
+		const output = result.content;
 		const outputInMarkdownBlockQuote = ("> " + output).replace(
 			/\n/g,
 			"\n> "
@@ -486,7 +486,7 @@ export async function ChunkedPrompt(
 			}
 		);
 
-		const outputs = result.map((r) => r.choices[0].message.content);
+		const outputs = result.map((r) => r.content);
 
 		const output = outputs.join(settings.resultJoiner);
 		const outputInMarkdownBlockQuote = ("> " + output).replace(
