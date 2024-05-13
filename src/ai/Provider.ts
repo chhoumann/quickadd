@@ -16,6 +16,10 @@ const OpenAIProvider: AIProvider = {
 	apiKey: "",
 	models: [
 		{
+			name: "text-davinci-003",
+			maxTokens: 4096,
+		},
+		{
 			name: "gpt-3.5-turbo",
 			maxTokens: 4096,
 		},
@@ -40,8 +44,12 @@ const OpenAIProvider: AIProvider = {
 			maxTokens: 128000,
 		},
 		{
-			name: "text-davinci-003",
-			maxTokens: 4096,
+			name: "gpt-4-turbo",
+			maxTokens: 128000,
+		},
+		{
+			name: "gpt-4o",
+			maxTokens: 128000,
 		},
 	],
 };
