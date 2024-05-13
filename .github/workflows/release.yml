@@ -15,23 +15,23 @@ jobs:
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-            - uses: pnpm/action-setup@v3
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v1
               with:
-                  version: 7
+                  bun-version: latest
             - name: Use Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node-version }}
-                  cache: "pnpm"
             - name: Install dependencies
               run: |
-                  pnpm install
+                  bun install
             - name: Build
               run: |
-                  pnpm run build --if-present
+                  bun run build --if-present
             - name: Run tests
               run: |
-                  pnpm run test
+                  bun run test
             - name: Release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

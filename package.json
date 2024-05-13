@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "lint": "eslint --ext .ts .",
-    "build": "tsc -noEmit -skipLibCheck && pnpm lint && node esbuild.config.mjs production",
+    "build": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "semantic-release": "semantic-release",
     "test": "vitest --passWithNoTests"
