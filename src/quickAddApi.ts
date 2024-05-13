@@ -215,13 +215,6 @@ export class QuickAddApi {
 						);
 					}
 
-
-					if (!modelProvider.apiKey) {
-						throw new Error(
-							`Model '${_model.name}' requires an API key`
-						);
-					}
-
 					const assistantRes = await ChunkedPrompt(
 						{
 							model: _model,
