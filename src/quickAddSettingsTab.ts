@@ -180,7 +180,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		new Setting(this.containerEl)
 			.setName("Disable AI & Online features")
 			.setDesc(
-				"This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, inclulding contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant."
+				"This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant."
 			)
 			.addToggle((toggle) =>
 				toggle
