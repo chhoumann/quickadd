@@ -254,7 +254,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				.setName("Consider subsections")
 				.setDesc(
 					"Enabling this will insert the text at the end of the section & its subsections, rather than just at the end of the target section." +
-						"A section is defined by a heading, and its subsections are all the headings inside that section."
+						" A section is defined by a heading, and its subsections are all the headings inside that section."
 				)
 				.addToggle((toggle) =>
 					toggle
