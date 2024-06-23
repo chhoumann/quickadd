@@ -46,6 +46,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting();
 		if (this.choice.openFile) this.addOpenFileInNewTabSetting();
+		if (this.choice.appendLink) this.addIgnoreAppendLinkWhenNoActiveFileSetting(); // Show setting depending on whether AppendLink is enabled
 	}
 
 	private addTemplatePathSetting(): void {
@@ -285,35 +286,30 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				toggle.setValue(this.choice.setFileExistsBehavior);
 				toggle.onChange((value) => {
 					this.choice.setFileExistsBehavior = value;
+					this.reload();
 				});
-			})
-			.addDropdown((dropdown) => {
-				dropdown.selectEl.style.marginLeft = "10px";
-
-				if (!this.choice.fileExistsMode)
-					this.choice.fileExistsMode = fileExistsDoNothing;
-
-				dropdown
-					.addOption(
-						fileExistsAppendToBottom,
-						fileExistsAppendToBottom
-					)
-					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
-					.addOption(fileExistsIncrement, fileExistsIncrement)
-					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
-					.addOption(fileExistsDoNothing, fileExistsDoNothing)
-					.setValue(this.choice.fileExistsMode)
-					.onChange(
-						(value: typeof fileExistsChoices[number]) =>
-							(this.choice.fileExistsMode = value)
-					);
 			});
+
+		if (this.choice.setFileExistsBehavior) {
+			fileAlreadyExistsSetting
+				.addDropdown((dropdown) => {
+					dropdown.addOption(fileExistsIncrement, "Increment the file name");
+					dropdown.addOption(fileExistsAppendToTop, "Append to the top of the file");
+					dropdown.addOption(fileExistsAppendToBottom, "Append to the bottom of the file");
+					dropdown.addOption(fileExistsOverwriteFile, "Overwrite the file");
+					dropdown.addOption(fileExistsDoNothing, "Nothing");
+					dropdown.setValue(this.choice.fileExistsMode);
+					dropdown.onChange((value: typeof fileExistsChoices[number]) => {
+						this.choice.fileExistsMode = value;
+					});
+				});
+		}
 	}
 
 	private addOpenFileSetting(): void {
-		const noOpenSetting: Setting = new Setting(this.contentEl);
-		noOpenSetting
-			.setName("Open")
+		const openFileSetting: Setting = new Setting(this.contentEl);
+		openFileSetting
+			.setName("Open File")
 			.setDesc("Open the created file.")
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.openFile);
@@ -321,58 +317,43 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.openFile = value;
 					this.reload();
 				});
-			})
-			.addDropdown((dropdown) => {
-				dropdown.selectEl.style.marginLeft = "10px";
-
-				if (!this.choice.openFileInMode)
-					this.choice.openFileInMode = "default";
-
-				dropdown
-					.addOption("source", "Source")
-					.addOption("preview", "Preview")
-					.addOption("default", "Default")
-					.setValue(this.choice.openFileInMode)
-					.onChange(
-						(value) =>
-							(this.choice.openFileInMode = value as FileViewMode)
-					);
 			});
 	}
 
 	private addOpenFileInNewTabSetting(): void {
-		const newTabSetting = new Setting(this.contentEl);
-		newTabSetting
-			.setName("New split")
-			.setDesc("Split your editor and open file in new split.")
+		const openFileInNewTabSetting: Setting = new Setting(this.contentEl);
+		openFileInNewTabSetting
+			.setName("Open File in New Tab")
+			.setDesc("Open the created file in a new tab.")
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.openFileInNewTab.enabled);
-				toggle.onChange(
-					(value) => (this.choice.openFileInNewTab.enabled = value)
-				);
+				toggle.onChange((value) => {
+					this.choice.openFileInNewTab.enabled = value;
+					this.reload();
+				});
 			})
 			.addDropdown((dropdown) => {
-				dropdown.selectEl.style.marginLeft = "10px";
 				dropdown.addOption(NewTabDirection.vertical, "Vertical");
 				dropdown.addOption(NewTabDirection.horizontal, "Horizontal");
 				dropdown.setValue(this.choice.openFileInNewTab.direction);
-				dropdown.onChange(
-					(value) =>
-						(this.choice.openFileInNewTab.direction = <
-							NewTabDirection
-						>value)
-				);
+				dropdown.onChange((value: NewTabDirection) => {
+					this.choice.openFileInNewTab.direction = value;
+				});
 			});
+	}
 
+	private addIgnoreAppendLinkWhenNoActiveFileSetting(): void {
 		new Setting(this.contentEl)
-			.setName("Focus new pane")
-			.setDesc("Focus the opened tab immediately after opening")
+			.setName("Ignore Append Link When No File Open")
+			.setDesc(
+				"When enabled, the system allows file creation with 'Append link' selected in a Template even if no file is currently open, by ignoring the 'Append link' option."
+			)
 			.addToggle((toggle) =>
 				toggle
-					.setValue(this.choice.openFileInNewTab.focus)
-					.onChange(
-						(value) => (this.choice.openFileInNewTab.focus = value)
-					)
+					.setValue(this.choice.ignoreAppendLinkWhenNoActiveFile)
+					.onChange((value) => {
+						this.choice.ignoreAppendLinkWhenNoActiveFile = value;
+					})
 			);
 	}
 }

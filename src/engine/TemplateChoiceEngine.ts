@@ -21,6 +21,7 @@ import { TemplateEngine } from "./TemplateEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import invariant from "src/utils/invariant";
+import { settingsStore } from "../settingsStore"; // Added import for settingsStore
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -140,7 +141,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 
+			// Check if the setting to ignore append link when no file is open is enabled
 			if (this.choice.appendLink && createdFile) {
+				if (!this.app.workspace.getActiveFile() && !settingsStore.getState().ignoreAppendLinkWhenNoFileOpen) {
+					log.logWarning("No active file to append link to.");
+					return;
+				}
 				appendToCurrentLine(
 					this.app.fileManager.generateMarkdownLink(createdFile, ""),
 					this.app

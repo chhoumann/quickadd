@@ -23,4 +23,5 @@ export default interface ITemplateChoice extends IChoice {
 	openFileInMode: FileViewMode;
 	fileExistsMode: typeof fileExistsChoices[number];
 	setFileExistsBehavior: boolean;
+	ignoreAppendLinkWhenNoActiveFile: boolean; // Added new property
 }
