@@ -35,7 +35,7 @@ You can now use the macro to create notes with movie or TV show information in y
 
 ```markdown
 ---
-cover: { { VALUE:Poster } }
+cover: {{VALUE:Poster}}
 ---
 
 category:: {{VALUE:typeLink}}
