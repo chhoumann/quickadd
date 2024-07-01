@@ -21,3 +21,5 @@ If you specify multiple folders, you'll get a suggester asking which of the fold
 
 **Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
 ![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)
+
+**Ignore Append Link When No File Open**. When enabled, the system allows file creation with `Append link` selected in a Template even if no file is currently open, by ignoring the `Append link` option.
