@@ -107,7 +107,7 @@ export class QuickAddApi {
 			ai: {
 				prompt: async (
 					prompt: string,
-					model: Model,
+					model: Model | string,
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
@@ -131,17 +131,29 @@ export class QuickAddApi {
 						choiceExecutor
 					).format;
 
-					const modelProvider = getModelProvider(model.name);
+					let _model: Model;
+					if (typeof model === "string") {
+						const foundModel = getModelByName(model);
+						if (!foundModel) {
+							throw new Error(`Model '${model}' not found.`);
+						}
+
+						_model = foundModel;
+					} else {
+						_model = model;
+					}
+
+					const modelProvider = getModelProvider(_model.name);
 
 					if (!modelProvider) {
 						throw new Error(
-							`Model '${model.name}' not found in any provider`
+							`Model '${_model.name}' not found in any provider`
 						);
 					}
 
 					const assistantRes = await Prompt(
 						{
-							model,
+							model: _model,
 							prompt,
 							apiKey: modelProvider.apiKey,
 							modelOptions: settings?.modelOptions ?? {},
@@ -173,7 +185,7 @@ export class QuickAddApi {
 				chunkedPrompt: async (
 					text: string,
 					promptTemplate: string,
-					model: string,
+					model: Model | string,
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
@@ -201,13 +213,19 @@ export class QuickAddApi {
 						choiceExecutor
 					).format;
 
-					const _model = getModelByName(model);
+					let _model: Model;
+					if (typeof model === "string") {
+						const foundModel = getModelByName(model);
+						if (!foundModel) {
+							throw new Error(`Model ${model} not found.`);
+						}
 
-					if (!_model) {
-						throw new Error(`Model ${model} not found.`);
+						_model = foundModel;
+					} else {
+						_model = model;
 					}
 
-					const modelProvider = getModelProvider(model);
+					const modelProvider = getModelProvider(_model.name);
 
 					if (!modelProvider) {
 						throw new Error(
