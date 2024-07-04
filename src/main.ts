@@ -95,6 +95,12 @@ export default class QuickAdd extends Plugin {
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
 
+		if (this.settings.enableRibbonIcon) {
+			this.addRibbonIcon("file-plus", "QuickAdd", () => {
+				ChoiceSuggester.Open(this, this.settings.choices);
+			});
+		}
+		
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
 		this.app.workspace.onLayoutReady(() =>
