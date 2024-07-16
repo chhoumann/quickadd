@@ -132,6 +132,7 @@ async function makeAnthropicRequest(
 			"Content-Type": "application/json",
 			"x-api-key": apiKey,
 			"anthropic-version": "2023-06-01",
+			"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15"
 		},
 		body: JSON.stringify({
 			model: model.name,
