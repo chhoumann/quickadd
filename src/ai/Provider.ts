@@ -51,6 +51,10 @@ const OpenAIProvider: AIProvider = {
 			name: "gpt-4o",
 			maxTokens: 128000,
 		},
+		{
+			name: "gpt-4o-mini",
+			maxTokens: 128000,
+		},
 	],
 };
 
