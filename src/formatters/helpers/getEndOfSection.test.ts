@@ -184,6 +184,26 @@ test("getEndOfSection - target is heading, should not consider subsections", () 
 	expect(result).toBe(5);
 });
 
+test("getEndOfSection - capture to end of section with a leading tag, should not consider subsections", () => {
+	const lines = [
+		"# Notes",
+		"",
+		"## Topic A", // target (2)
+		"content a1",
+		"#TagForA1",
+		"content a2", // result (5)
+		"## Topic B",
+		"content b1",
+		"",
+		"",
+	];
+
+	const targetLine = 2;
+
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(5);
+});
+
 test("getEndOfSection - target is heading, should consider subsections", () => {
 	const lines = [
 		"# Notes", // target (0)
