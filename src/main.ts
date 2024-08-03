@@ -18,10 +18,18 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 
+// Parameters prefixed with `value-` get used as named values for the executed choice
+type CaptureValueParameters = { [key in `value-${string}`]?: string };
+
+interface DefinedUriParameters {
+	choice?: string; // Name
+}
+
+type UriParameters = DefinedUriParameters & CaptureValueParameters;
+
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
-
 	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
@@ -89,6 +97,42 @@ export default class QuickAdd extends Plugin {
 
 				void fn();
 			},
+		});
+
+		this.registerObsidianProtocolHandler("quickadd", async (e) => {
+			const parameters = e as unknown as UriParameters;
+			if (!parameters.choice) {
+				log.logWarning(
+					"URI was executed without a `choice` parameter."
+				);
+				return;
+			}
+			const choice = this.getChoice("name", parameters.choice);
+
+			if (!choice) {
+				log.logError(
+					`URI could not find any choice named '${parameters.choice}'`
+				);
+				return;
+			}
+
+			const choiceExecutor = new ChoiceExecutor(this.app, this);
+
+			const vars = Object.entries(parameters)
+				.filter(([key]) => key.startsWith("value-"))
+				.map(
+					([key, value]) => [key.slice(6), value] as [string, string]
+				);
+
+			vars.forEach(([key, value]) => {
+				choiceExecutor.variables.set(key, value);
+			});
+
+			try {
+				await choiceExecutor.execute(choice);
+			} catch (err) {
+				log.logError(err as string);
+			}
 		});
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
