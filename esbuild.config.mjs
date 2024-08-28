@@ -18,6 +18,7 @@ const options = Object.freeze({
 	},
 	entryPoints: ["src/main.ts", "src/styles.css"],
 	bundle: true,
+	minify: prod,
 	external: [
 		"obsidian",
 		"electron",
