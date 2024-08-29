@@ -68,6 +68,7 @@ function formatTitleForSuggestion(resultItem) {
 }
 
 async function getByQuery(query) {
+	query = "\"" + query + "\""
     const searchResults = await apiGet(API_URL, {
         "s": query,
     });
