@@ -14,7 +14,7 @@ class LogManager {
 	}
 
 	logWarning(message: string) {
-		LogManager.loggers.forEach((logger) => logger.logError(message));
+		LogManager.loggers.forEach((logger) => logger.logWarning(message));
 	}
 
 	logMessage(message: string) {
