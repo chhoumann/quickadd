@@ -117,16 +117,11 @@ export default class QuickAdd extends Plugin {
 			}
 
 			const choiceExecutor = new ChoiceExecutor(this.app, this);
-
-			const vars = Object.entries(parameters)
+			Object.entries(parameters)
 				.filter(([key]) => key.startsWith("value-"))
-				.map(
-					([key, value]) => [key.slice(6), value] as [string, string]
-				);
-
-			vars.forEach(([key, value]) => {
-				choiceExecutor.variables.set(key, value);
-			});
+				.forEach(([key, value]) => {
+					choiceExecutor.variables.set(key.slice(6), value);
+				});
 
 			try {
 				await choiceExecutor.execute(choice);
