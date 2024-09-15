@@ -51,7 +51,7 @@ async function start(params, settings) {
 
     QuickAdd.variables = {
         ...selectedShow,
-        imdbURL: IMDB_BASE_URL + selectedShow.imdbID,
+        imdbUrl: IMDB_BASE_URL + selectedShow.imdbID,
         Released: formatDateString(selectedShow.Released),
         actorLinks: linkifyList(selectedShow.Actors.split(",")),
         genreLinks: linkifyList(selectedShow.Genre.split(",")),
