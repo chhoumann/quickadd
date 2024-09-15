@@ -3,6 +3,7 @@ const log = msg => console.log(msg);
 
 const API_KEY_OPTION = "OMDb API Key";
 const API_URL = "https://www.omdbapi.com/";
+const IMDB_BASE_URL = "https://www.imdb.com/title/";
 
 module.exports = {
     entry: start,
@@ -50,6 +51,8 @@ async function start(params, settings) {
 
     QuickAdd.variables = {
         ...selectedShow,
+        imdbUrl: IMDB_BASE_URL + selectedShow.imdbID,
+        Released: formatDateString(selectedShow.Released),
         actorLinks: linkifyList(selectedShow.Actors.split(",")),
         genreLinks: linkifyList(selectedShow.Genre.split(",")),
         directorLink: linkifyList(selectedShow.Director.split(",")),
@@ -65,6 +68,21 @@ function isImdbId(str) {
 
 function formatTitleForSuggestion(resultItem) {
     return `(${resultItem.Type === "movie" ? "M" : "TV"}) ${resultItem.Title} (${resultItem.Year})`;
+}
+
+function formatDateString(dateString) {
+    const [day, month, year] = dateString.split(' ');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthIndex = monthNames.indexOf(month);
+
+    const date = new Date(year, monthIndex, day);
+
+    // Format the date as yyyy-mm-dd
+    const formattedYear = date.getFullYear();
+    const formattedMonth = String(date.getMonth() + 1).padStart(2, '0');
+    const formattedDay = String(date.getDate()).padStart(2, '0');
+
+    return `${formattedYear}-${formattedMonth}-${formattedDay}`;
 }
 
 async function getByQuery(query) {
@@ -101,7 +119,7 @@ function linkifyList(list) {
 }
 
 function replaceIllegalFileNameCharactersInString(string) {
-    return string.replace(/[\\,#%&\{\}\/*<>$\'\":@]*/g, '');    
+    return string.replace(/[\\,#%&\{\}\/*<>$\'\":@]*/g, '');
 }
 
 async function apiGet(url, data) {
