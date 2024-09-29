@@ -122,7 +122,7 @@ export class CompleteFormatter extends Formatter {
 			const value = cache?.frontmatter?.[variableName];
 			if (!value) continue;
 			if (value.constructor === Array) {
-			    value.forEach(x => suggestedValues.add(x.toString));
+			    value.forEach(x => suggestedValues.add(x.toString()));
 			    continue
 			}
 			if (typeof value == "object") continue;
