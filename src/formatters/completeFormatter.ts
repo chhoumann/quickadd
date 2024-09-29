@@ -121,7 +121,7 @@ export class CompleteFormatter extends Formatter {
 			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			const value = cache?.frontmatter?.[variableName];
 			if (!value) continue;
-			if (value.constructor === Array): value.forEach(x => suggestedValues.add(x.toString))
+			if (value.constructor === Array) value.forEach(x => suggestedValues.add(x.toString));
 			if (typeof value == "object") continue;
 
 			suggestedValues.add(value.toString());
