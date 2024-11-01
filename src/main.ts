@@ -55,11 +55,9 @@ export default class QuickAdd extends Plugin {
 					return this.settings.devMode;
 				}
 
-				const id: string = this.manifest.id,
-					plugins = this.app.plugins;
-				void plugins
-					.disablePlugin(id)
-					.then(() => plugins.enablePlugin(id));
+				const id: string = this.manifest.id;
+				const plugins = this.app.plugins;
+				void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
 		});
 
@@ -71,7 +69,7 @@ export default class QuickAdd extends Plugin {
 					return this.settings.devMode;
 				}
 
-				console.log(`Test QuickAdd (dev)`);
+				console.log("Test QuickAdd (dev)");
 
 				const fn = () => {
 					new InfiniteAIAssistantCommandSettingsModal({
@@ -100,7 +98,7 @@ export default class QuickAdd extends Plugin {
 				ChoiceSuggester.Open(this, this.settings.choices);
 			});
 		}
-		
+
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
 		this.app.workspace.onLayoutReady(() =>
@@ -108,8 +106,8 @@ export default class QuickAdd extends Plugin {
 				this.app,
 				this,
 				this.settings.macros,
-				new ChoiceExecutor(this.app, this)
-			).run()
+				new ChoiceExecutor(this.app, this),
+			).run(),
 		);
 		this.addCommandsForChoices(this.settings.choices);
 
@@ -124,11 +122,7 @@ export default class QuickAdd extends Plugin {
 
 	async loadSettings() {
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData()
-		);
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
 	async saveSettings() {
@@ -136,7 +130,9 @@ export default class QuickAdd extends Plugin {
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {
-		choices.forEach((choice) => this.addCommandForChoice(choice));
+		for (const choice of choices) {
+			this.addCommandForChoice(choice);
+		}
 	}
 
 	public addCommandForChoice(choice: IChoice) {
@@ -178,7 +174,7 @@ export default class QuickAdd extends Plugin {
 	private getChoice(
 		by: "name" | "id",
 		targetPropertyValue: string,
-		choices: IChoice[] = this.settings.choices
+		choices: IChoice[] = this.settings.choices,
 	): IChoice | null {
 		for (const choice of choices) {
 			if (choice[by] === targetPropertyValue) {
@@ -188,7 +184,7 @@ export default class QuickAdd extends Plugin {
 				const subChoice = this.getChoice(
 					by,
 					targetPropertyValue,
-					(choice as IMultiChoice).choices
+					(choice as IMultiChoice).choices,
 				);
 				if (subChoice) {
 					return subChoice;
@@ -208,9 +204,7 @@ export default class QuickAdd extends Plugin {
 
 		return this.app.vault
 			.getFiles()
-			.filter((file) =>
-				file.path.startsWith(this.settings.templateFolderPath)
-			);
+			.filter((file) => file.path.startsWith(this.settings.templateFolderPath));
 	}
 
 	private announceUpdate() {

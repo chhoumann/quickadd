@@ -4,16 +4,11 @@ import { DEFAULT_SETTINGS } from "./quickAddSettingsTab";
 import type { IMacro } from "./types/macros/IMacro";
 import { QuickAddMacro } from "./types/macros/QuickAddMacro";
 
-// Define the state shape and actions for your store.
-type SettingsState = QuickAddSettings & {
-	setSettings: (settings: Partial<QuickAddSettings>) => void;
-};
+type SettingsState = QuickAddSettings;
 
-export const settingsStore = (function () {
-	const useSettingsStore = createStore<SettingsState>((set, get) => ({
-		...DEFAULT_SETTINGS,
-		setSettings: (settings: Partial<QuickAddSettings>) =>
-			set((state) => ({ ...state, ...settings })),
+export const settingsStore = (() => {
+	const useSettingsStore = createStore<SettingsState>((set, _get) => ({
+		...structuredClone(DEFAULT_SETTINGS),
 	}));
 
 	const { getState, setState, subscribe } = useSettingsStore;
@@ -24,9 +19,7 @@ export const settingsStore = (function () {
 		subscribe,
 		setMacro: (macroId: IMacro["id"], macro: IMacro) => {
 			setState((state) => {
-				const macroIdx = state.macros.findIndex(
-					(m) => m.id === macroId
-				);
+				const macroIdx = state.macros.findIndex((m) => m.id === macroId);
 				if (macroIdx === -1) {
 					throw new Error("Macro not found");
 				}

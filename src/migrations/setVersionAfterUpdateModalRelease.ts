@@ -1,12 +1,17 @@
 import { settingsStore } from "src/settingsStore";
 import type { Migration } from "./Migrations";
 
+/**
+ * This was used with v. 0.14.0, which was the release version prior to the update modal release.
+ * Previously, it set the version to 0.14.0, but now we want to set it to the current version.
+ * It would otherwise break the plugin for new users.
+ */
+
 const setVersionAfterUpdateModalRelease: Migration = {
-	description:
-		"Set version to 0.14.0, which is the release version prior to the update modal release.",
+	description: "Set version to the current plugin version.",
 	// eslint-disable-next-line @typescript-eslint/require-await
-	migrate: async (_) => {
-		settingsStore.setState({ version: "0.14.0" });
+	migrate: async (plugin) => {
+		settingsStore.setState({ version: plugin.manifest.version });
 	},
 };
 
