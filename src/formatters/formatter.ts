@@ -4,7 +4,6 @@ import {
 	DATE_REGEX,
 	DATE_REGEX_FORMATTED,
 	DATE_VARIABLE_REGEX,
-	LINEBREAK_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
@@ -340,17 +339,26 @@ export abstract class Formatter {
 	}
 
 	protected replaceLinebreakInString(input: string): string {
-		let output: string = input;
-		let match = LINEBREAK_REGEX.exec(output);
+		let output = "";
 
-		while (match && input[match.index - 1] !== "\\") {
-			output = this.replacer(output, LINEBREAK_REGEX, `\n`);
-			match = LINEBREAK_REGEX.exec(output);
-		}
+		for (let i = 0; i < input.length; i++) {
+			const curr = input[i];
+			const next = input[i + 1];
 
-		const EscapedLinebreakRegex = /\\\\n/;
-		while (EscapedLinebreakRegex.test(output)) {
-			output = this.replacer(output, EscapedLinebreakRegex, `\\n`);
+			if (curr == "\\") {
+				if (next == "n") {
+					output += "\n";
+					i++;
+				} else if (next == "\\") {
+					output += "\\";
+					i++;
+				} else {
+					// Invalid use of escape character, but we keep it anyway.
+					output += '\\';
+				}
+			} else {
+				output += curr;
+			}
 		}
 
 		return output;
