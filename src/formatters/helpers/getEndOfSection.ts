@@ -12,7 +12,7 @@ export function getMarkdownHeadings(bodyLines: string[]): Heading[] {
 	const headers: Heading[] = [];
 
 	bodyLines.forEach((line, index) => {
-		const match = line.match(/^(#+\s)[\s]?(.*)$/);
+		const match = line.match(/^(#+)[\s]+(.*)$/);
 
 		if (!match) return;
 
