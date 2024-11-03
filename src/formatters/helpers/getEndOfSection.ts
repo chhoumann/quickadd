@@ -8,7 +8,7 @@ function isSameHeading(heading1: Heading, heading2: Heading): boolean {
 	return heading1.line === heading2.line;
 }
 
-function getMarkdownHeadings(bodyLines: string[]): Heading[] {
+export function getMarkdownHeadings(bodyLines: string[]): Heading[] {
 	const headers: Heading[] = [];
 
 	bodyLines.forEach((line, index) => {
