@@ -214,11 +214,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return -1;
 		}
 
-		if (fileCache.frontmatter.position || fileCache.frontmatterPosition) {
-			if (fileCache.frontmatter.position) {
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-				return fileCache.frontmatter.position.end.line;
-			}
+		if (fileCache.frontmatterPosition) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+			return fileCache.frontmatterPosition.end.line;
 		}
 
 		return -1;
