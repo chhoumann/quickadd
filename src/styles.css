@@ -46,6 +46,8 @@
 		width: 20rem;
 		max-width: 100%;
 		height: 3rem;
+		direction: inherit;
+		text-align: inherit;
 	}
 }
 
@@ -67,6 +69,8 @@
 		width: 30rem;
 		max-width: 100%;
 		height: 20rem;
+		direction: inherit;
+		text-align: inherit;
 	}
 }
 
@@ -88,6 +92,8 @@
 		width: 40rem;
 		max-width: 100%;
 		height: 20rem;
+		direction: inherit;
+		text-align: inherit;
 	}
 }
 
