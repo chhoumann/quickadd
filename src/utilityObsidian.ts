@@ -139,8 +139,10 @@ export async function openFile(
 
 	if (optional.openInNewTab && optional.direction) {
 		leaf = app.workspace.getLeaf("split", optional.direction);
-	} else {
+	} else if (optional.openInNewTab) {
 		leaf = app.workspace.getLeaf("tab");
+	} else {
+		leaf = app.workspace.getLeaf(false);
 	}
 
 	await leaf.openFile(file);
