@@ -52,9 +52,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		this.addInsertAfterSetting();
 		if (!this.choice.captureToActiveFile) {
 			this.addOpenFileSetting();
-			
+
 			if (this.choice.openFile) {
-				this.addOpenFileInNewTabSetting();
+				this.addFocusExsitingTabSetting();
+
+				if (!this.choice.focusExsitingFileTab) {
+					this.addOpenFileInNewTabSetting();
+				}
 			}
 		}
 
@@ -460,6 +464,23 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			});
 	}
 
+	private addFocusExsitingTabSetting(): void {
+		const exsitingTabSetting = new Setting(this.contentEl);
+		exsitingTabSetting
+			.setName("Focus Exsiting Tab")
+			.setDesc("Focus the tab that have already opened the file.")
+			.addToggle((toggle) => {
+				toggle.setValue(this.choice?.focusExsitingFileTab);
+				toggle.onChange(
+					(value) => { 
+						this.choice.focusExsitingFileTab = value; 
+						this.reload();
+					}
+
+				);
+			});
+	}
+
 	private addOpenFileInNewTabSetting(): void {
 		const newTabSetting = new Setting(this.contentEl);
 		newTabSetting
@@ -494,7 +515,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		new Setting(this.contentEl)
 			.setName("Focus new pane")
-			.setDesc("Focus the opened tab immediately")
+			.setDesc("Focus the created tab immediately")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice.openFileInNewTab.focus)

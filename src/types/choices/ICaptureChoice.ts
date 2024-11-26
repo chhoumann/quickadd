@@ -23,6 +23,7 @@ export default interface ICaptureChoice extends IChoice {
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
 	};
+	focusExsitingFileTab:boolean;
 	openFileInNewTab: {
 		enabled: boolean;
 		direction: NewTabDirection;
