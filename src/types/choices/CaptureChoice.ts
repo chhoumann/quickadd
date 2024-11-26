@@ -23,6 +23,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	};
 	prepend: boolean;
 	task: boolean;
+	focusExsitingFileTab:boolean;
 	openFileInNewTab: {
 		enabled: boolean;
 		direction: NewTabDirection;
@@ -60,6 +61,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		};
 		this.openFile = false;
 		this.openFileInMode = "default";
+		this.focusExsitingFileTab=true
 	}
 
 	public static Load(choice: ICaptureChoice): CaptureChoice {

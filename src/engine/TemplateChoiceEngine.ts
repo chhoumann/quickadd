@@ -4,6 +4,7 @@ import { TFile } from "obsidian";
 import {
 	appendToCurrentLine,
 	getAllFolderPathsInVault,
+	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
 import {
@@ -148,12 +149,21 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (this.choice.openFile && createdFile) {
-				await openFile(this.app, createdFile, {
-					openInNewTab: this.choice.openFileInNewTab.enabled,
-					direction: this.choice.openFileInNewTab.direction,
-					focus: this.choice.openFileInNewTab.focus,
-					mode: this.choice.openFileInMode,
-				});
+				let openExistingTab=false;
+				if(this.choice.focusExsitingFileTab)
+				{
+					openExistingTab=await openExistingFileTab(this.app, createdFile);
+				}
+
+				if(!openExistingTab)
+				{
+					await openFile(this.app, createdFile, {
+						openInNewTab: this.choice.openFileInNewTab.enabled,
+						direction: this.choice.openFileInNewTab.direction,
+						focus: this.choice.openFileInNewTab.focus,
+						mode: this.choice.openFileInMode,
+					});
+				}
 			}
 		} catch (error) {
 			log.logError(error as string);
