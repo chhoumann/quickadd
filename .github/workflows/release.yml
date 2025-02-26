@@ -53,18 +53,18 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node-version }}
-                  cache: 'npm'
+                  # Removing npm caching as we're using Bun
 
-            # Additional caching for faster builds
+            # Proper caching specifically for Bun
             - name: Cache dependencies
               uses: actions/cache@v3
               with:
                 path: |
                     **/node_modules
-                    ~/.npm
-                key: ${{ runner.os }}-node-${{ hashFiles('**/pnpm-lock.yaml', '**/bun.lockb') }}
+                    ~/.bun/install/cache
+                key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
                 restore-keys: |
-                    ${{ runner.os }}-node-
+                    ${{ runner.os }}-bun-
 
             - name: Install dependencies
               run: |
