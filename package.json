@@ -64,8 +64,7 @@
   "release": {
     "tagFormat": "${version}",
     "branches": [
-      "master",
-      "release"
+      "master"
     ],
     "plugins": [
       [

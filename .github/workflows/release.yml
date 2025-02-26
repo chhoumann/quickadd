@@ -24,9 +24,6 @@ on:
                 type: string
     repository_dispatch:
         types: [release-trigger]
-    push:
-        branches:
-            - release
 jobs:
     release:
         name: Release
@@ -75,19 +72,6 @@ jobs:
               run: |
                 if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event_name }}" == "repository_dispatch" ]]; then
                   echo "✅ Manual release triggered, validation passed"
-                  echo "valid=true" >> $GITHUB_OUTPUT
-                elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/release" ]]; then
-                  # Check if there are any new commits since last release
-                  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-                  if [[ "$LAST_TAG" != "none" ]]; then
-                    CHANGES=$(git log $LAST_TAG..HEAD --oneline)
-                    if [[ -z "$CHANGES" ]]; then
-                      echo "❌ No changes since last release"
-                      echo "valid=false" >> $GITHUB_OUTPUT
-                      exit 0
-                    fi
-                  fi
-                  echo "✅ Changes detected, validation passed"
                   echo "valid=true" >> $GITHUB_OUTPUT
                 else
                   echo "❌ Unknown trigger source"
