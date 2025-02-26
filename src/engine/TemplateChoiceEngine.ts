@@ -30,7 +30,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		app: App,
 		plugin: QuickAdd,
 		choice: ITemplateChoice,
-		choiceExecutor: IChoiceExecutor
+		choiceExecutor: IChoiceExecutor,
 	) {
 		super(app, plugin, choiceExecutor);
 		this.choice = choice;
@@ -52,19 +52,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				folderPath = await this.getFolderPath();
 			}
 
-			let filePath;
+			let filePath: string;
 
 			if (this.choice.fileNameFormat.enabled) {
 				filePath = await this.getFormattedFilePath(
 					folderPath,
 					this.choice.fileNameFormat.format,
-					this.choice.name
+					this.choice.name,
 				);
 			} else {
 				filePath = await this.getFormattedFilePath(
 					folderPath,
 					VALUE_SYNTAX,
-					this.choice.name
+					this.choice.name,
 				);
 			}
 
@@ -76,19 +76,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const file = this.app.vault.getAbstractFileByPath(filePath);
 				if (!(file instanceof TFile) || file.extension !== "md") {
 					log.logError(
-						`'${filePath}' already exists and is not a valid markdown file.`
+						`'${filePath}' already exists and is not a valid markdown file.`,
 					);
 					return;
 				}
 
-				let userChoice: typeof fileExistsChoices[number] =
+				let userChoice: (typeof fileExistsChoices)[number] =
 					this.choice.fileExistsMode;
 
 				if (!this.choice.setFileExistsBehavior) {
 					userChoice = await GenericSuggester.Suggest(
 						this.app,
 						[...fileExistsChoices],
-						[...fileExistsChoices]
+						[...fileExistsChoices],
 					);
 				}
 
@@ -97,32 +97,30 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						createdFile = await this.appendToFileWithTemplate(
 							file,
 							this.choice.templatePath,
-							"top"
+							"top",
 						);
 						break;
 					case fileExistsAppendToBottom:
 						createdFile = await this.appendToFileWithTemplate(
 							file,
 							this.choice.templatePath,
-							"bottom"
+							"bottom",
 						);
 						break;
 					case fileExistsOverwriteFile:
 						createdFile = await this.overwriteFileWithTemplate(
 							file,
-							this.choice.templatePath
+							this.choice.templatePath,
 						);
 						break;
 					case fileExistsDoNothing:
 						createdFile = file;
 						break;
 					case fileExistsIncrement: {
-						const incrementFileName = await this.incrementFileName(
-							filePath
-						);
+						const incrementFileName = await this.incrementFileName(filePath);
 						createdFile = await this.createFileWithTemplate(
 							incrementFileName,
-							this.choice.templatePath
+							this.choice.templatePath,
 						);
 						break;
 					}
@@ -133,7 +131,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					filePath,
-					this.choice.templatePath
+					this.choice.templatePath,
 				);
 				if (!createdFile) {
 					log.logWarning(`Could not create file '${filePath}'.`);
@@ -144,19 +142,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			if (this.choice.appendLink && createdFile) {
 				appendToCurrentLine(
 					this.app.fileManager.generateMarkdownLink(createdFile, ""),
-					this.app
+					this.app,
 				);
 			}
 
 			if (this.choice.openFile && createdFile) {
-				let openExistingTab=false;
-				if(this.choice.focusExsitingFileTab)
-				{
-					openExistingTab=await openExistingFileTab(this.app, createdFile);
+				let openExistingTab = false;
+				if (this.choice.focusExistingFileTab) {
+					openExistingTab = await openExistingFileTab(this.app, createdFile);
 				}
 
-				if(!openExistingTab)
-				{
+				if (!openExistingTab) {
 					await openFile(this.app, createdFile, {
 						openInNewTab: this.choice.openFileInNewTab.enabled,
 						direction: this.choice.openFileInNewTab.direction,
@@ -174,7 +170,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const folderPaths = await Promise.all(
 			folders.map(async (folder) => {
 				return await this.formatter.formatFolderPath(folder);
-			})
+			}),
 		);
 
 		return folderPaths;
@@ -192,9 +188,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.choice.folder?.createInSameFolderAsActiveFile
 			)
 		) {
-			const allFoldersInVault: string[] = getAllFolderPathsInVault(
-				this.app
-			);
+			const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
 
 			const subfolders = allFoldersInVault.filter((folder) => {
 				return folders.some((f) => folder.startsWith(f));
@@ -204,9 +198,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 
 		if (this.choice.folder?.chooseWhenCreatingNote) {
-			const allFoldersInVault: string[] = getAllFolderPathsInVault(
-				this.app
-			);
+			const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
 			return await this.getOrCreateFolder(allFoldersInVault);
 		}
 
@@ -215,11 +207,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			if (!activeFile || !activeFile.parent) {
 				log.logWarning(
-					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder."
+					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
 				);
 				return "";
 			}
-			
+
 			return this.getOrCreateFolder([activeFile.parent.path]);
 		}
 

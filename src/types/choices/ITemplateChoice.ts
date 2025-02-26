@@ -15,13 +15,13 @@ export default interface ITemplateChoice extends IChoice {
 	fileNameFormat: { enabled: boolean; format: string };
 	appendLink: boolean;
 	openFile: boolean;
-	focusExsitingFileTab:boolean;
+	focusExistingFileTab: boolean;
 	openFileInNewTab: {
 		enabled: boolean;
 		direction: NewTabDirection;
 		focus: boolean;
 	};
 	openFileInMode: FileViewMode;
-	fileExistsMode: typeof fileExistsChoices[number];
+	fileExistsMode: (typeof fileExistsChoices)[number];
 	setFileExistsBehavior: boolean;
 }

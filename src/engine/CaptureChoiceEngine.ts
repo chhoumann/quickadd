@@ -90,14 +90,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			if (this.choice.openFile && file) {
-				let openExistingTab=false;
-				if(this.choice.focusExsitingFileTab)
-				{
-					openExistingTab=await openExistingFileTab(this.app, file);
+				let openExistingTab = false;
+				if (this.choice.focusExistingFileTab) {
+					openExistingTab = await openExistingFileTab(this.app, file);
 				}
 
-				if(!openExistingTab)
-				{
+				if (!openExistingTab) {
 					await openFile(this.app, file, {
 						openInNewTab: this.choice.openFileInNewTab.enabled,
 						direction: this.choice.openFileInNewTab.direction,
