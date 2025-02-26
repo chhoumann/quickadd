@@ -4,7 +4,7 @@ import type {
 	WorkspaceLeaf,
 	CachedMetadata,
 } from "obsidian";
-import { MarkdownView, TFile, TFolder } from "obsidian";
+import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
 import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
 import type { FileViewMode } from "./types/fileViewMode";
@@ -22,7 +22,7 @@ export function getTemplater(app: App) {
 export async function replaceTemplaterTemplatesInCreatedFile(
 	app: App,
 	file: TFile,
-	force = false
+	force = false,
 ) {
 	const templater = getTemplater(app);
 
@@ -45,7 +45,7 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 export async function templaterParseTemplate(
 	app: App,
 	templateContent: string,
-	targetFile: TFile
+	targetFile: TFile,
 ) {
 	const templater = getTemplater(app);
 	if (!templater) return templateContent;
@@ -54,7 +54,7 @@ export async function templaterParseTemplate(
 		templater.templater as {
 			parse_template: (
 				opt: { target_file: TFile; run_mode: number },
-				content: string
+				content: string,
 			) => Promise<string>;
 		}
 	).parse_template({ target_file: targetFile, run_mode: 4 }, templateContent);
@@ -133,7 +133,7 @@ export async function openFile(
 		direction?: NewTabDirection;
 		mode?: FileViewMode;
 		focus?: boolean;
-	}
+	},
 ) {
 	let leaf: WorkspaceLeaf;
 
@@ -163,6 +163,33 @@ export async function openFile(
 	}
 }
 
+/**
+ * If there is no existing tab which opened the file, return false, else return true.
+ */
+export async function openExistingFileTab(
+	app: App,
+	file: TFile,
+): Promise<boolean> {
+	let leaf: WorkspaceLeaf | undefined = undefined;
+
+	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
+		const view = m_leaf.view;
+		if (view instanceof FileView) {
+			if (view.file) {
+				if (file.path === view.file.path) {
+					leaf = m_leaf;
+					return;
+				}
+			}
+		}
+	});
+	if (leaf !== undefined) {
+		app.workspace.setActiveLeaf(leaf);
+		return true;
+	}
+	return false;
+}
+
 // Slightly modified version of Templater's user script import implementation
 // Source: https://github.com/SilentVoid13/Templater
 export async function getUserScript(command: IUserScript, app: App) {
@@ -182,7 +209,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 		const fileContent = await app.vault.read(file);
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		const fn = window.eval(
-			`(function(require, module, exports) { ${fileContent} \n})`
+			`(function(require, module, exports) { ${fileContent} \n})`,
 		);
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		fn(req, mod, exp);
@@ -209,7 +236,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 
 export function excludeKeys<T extends object, K extends keyof T>(
 	sourceObj: T,
-	except: K[]
+	except: K[],
 ): Omit<T, K> {
 	const obj = structuredClone(sourceObj);
 
@@ -221,7 +248,7 @@ export function excludeKeys<T extends object, K extends keyof T>(
 }
 
 export function getChoiceType<
-	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice
+	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice,
 >(choice: IChoice): choice is T {
 	const isTemplate = (choice: IChoice): choice is TemplateChoice =>
 		choice.type === "Template";

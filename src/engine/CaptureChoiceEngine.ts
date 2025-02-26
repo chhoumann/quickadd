@@ -11,6 +11,7 @@ import {
 	isFolder,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	openExistingFileTab,
 } from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
@@ -88,13 +89,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				appendToCurrentLine(markdownLink, this.app);
 			}
 
-			if (this.choice?.openFile) {
-				await openFile(this.app, file, {
-					openInNewTab: this.choice.openFileInNewTab.enabled,
-					direction: this.choice.openFileInNewTab.direction,
-					focus: this.choice.openFileInNewTab.focus,
-					mode: this.choice.openFileInMode,
-				});
+			if (this.choice.openFile && file) {
+				const openExistingTab = await openExistingFileTab(this.app, file);
+
+				if (!openExistingTab) {
+					await openFile(this.app, file, {
+						openInNewTab: this.choice.openFileInNewTab.enabled,
+						direction: this.choice.openFileInNewTab.direction,
+						focus: this.choice.openFileInNewTab.focus,
+						mode: this.choice.openFileInMode,
+					});
+				}
 			}
 		} catch (e) {
 			log.logError(e as string);
