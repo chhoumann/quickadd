@@ -147,10 +147,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (this.choice.openFile && createdFile) {
-				let openExistingTab = false;
-				if (this.choice.focusExistingFileTab) {
-					openExistingTab = await openExistingFileTab(this.app, createdFile);
-				}
+				const openExistingTab = await openExistingFileTab(
+					this.app,
+					createdFile,
+				);
 
 				if (!openExistingTab) {
 					await openFile(this.app, createdFile, {

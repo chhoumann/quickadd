@@ -14,7 +14,6 @@ import type { CaptureChoice } from "./types/choices/CaptureChoice";
 import type { MacroChoice } from "./types/choices/MacroChoice";
 import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
-import { resolve } from "path";
 
 export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
@@ -177,10 +176,7 @@ export async function openExistingFileTab(
 		const view = m_leaf.view;
 		if (view instanceof FileView) {
 			if (view.file) {
-				const normalizedOpeningPath = resolve(file.path);
-				const normalizedCurrentPath = resolve(view.file.path);
-
-				if (normalizedOpeningPath === normalizedCurrentPath) {
+				if (file.path === view.file.path) {
 					leaf = m_leaf;
 					return;
 				}

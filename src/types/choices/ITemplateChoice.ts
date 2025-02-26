@@ -15,7 +15,6 @@ export default interface ITemplateChoice extends IChoice {
 	fileNameFormat: { enabled: boolean; format: string };
 	appendLink: boolean;
 	openFile: boolean;
-	focusExistingFileTab: boolean;
 	openFileInNewTab: {
 		enabled: boolean;
 		direction: NewTabDirection;

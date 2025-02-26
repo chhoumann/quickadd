@@ -51,11 +51,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addOpenFileSetting();
 
 		if (this.choice.openFile) {
-			this.addFocusExistingTabSetting();
-
-			if (!this.choice.focusExistingFileTab) {
-				this.addOpenFileInNewTabSetting();
-			}
+			this.addOpenFileInNewTabSetting();
 		}
 	}
 
@@ -336,20 +332,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					.onChange(
 						(value) => (this.choice.openFileInMode = value as FileViewMode),
 					);
-			});
-	}
-
-	private addFocusExistingTabSetting(): void {
-		const existingTabSetting = new Setting(this.contentEl);
-		existingTabSetting
-			.setName("Focus Existing Tab")
-			.setDesc("Focus the tab that have already opened the file.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice?.focusExistingFileTab);
-				toggle.onChange((value) => {
-					this.choice.focusExistingFileTab = value;
-					this.reload();
-				});
 			});
 	}
 
