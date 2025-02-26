@@ -166,10 +166,10 @@ export async function openFile(
 /**
  * If there is no existing tab which opened the file, return false, else return true.
  */
-export async function openExistingFileTab(
+export function openExistingFileTab(
 	app: App,
 	file: TFile,
-): Promise<boolean> {
+): boolean {
 	let leaf: WorkspaceLeaf | undefined = undefined;
 
 	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
