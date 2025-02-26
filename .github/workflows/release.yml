@@ -35,14 +35,14 @@ jobs:
             matrix:
                 node-version: [20]
         outputs:
-            new_version: ${{ steps.extract-version.outputs.version }}
+            version: ${{ steps.extract-version.outputs.version }}
             released: ${{ steps.release.outputs.released }}
         steps:
             - name: Checkout
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-                  token: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Setup Bun
               uses: oven-sh/setup-bun@v1
@@ -53,7 +53,6 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node-version }}
-                  # Removing npm caching as we're using Bun
 
             # Proper caching specifically for Bun
             - name: Cache dependencies
@@ -109,14 +108,13 @@ jobs:
               id: release
               if: steps.validate.outputs.valid == 'true'
               env:
-                  GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
                   RELEASE_TYPE: ${{ github.event.inputs.releaseType || 'auto' }}
                   DRY_RUN: ${{ github.event.inputs.dryRun || 'false' }}
                   PRE_RELEASE: ${{ github.event.inputs.preRelease || '' }}
               run: |
                   EXTRA_ARGS=""
-                  RELEASED="false"
                   
                   if [ "$DRY_RUN" == "true" ]; then
                     echo "Running in dry-run mode"
@@ -126,28 +124,36 @@ jobs:
                   if [ -n "$PRE_RELEASE" ]; then
                     echo "Running pre-release: $PRE_RELEASE"
                     npx semantic-release --prerelease $PRE_RELEASE $EXTRA_ARGS
+                    RELEASE_EXIT_CODE=$?
                   elif [ "$RELEASE_TYPE" == "auto" ]; then
                     echo "Running auto release"
                     npx semantic-release $EXTRA_ARGS
+                    RELEASE_EXIT_CODE=$?
                   else
                     echo "Running release with type: $RELEASE_TYPE"
                     npx semantic-release --release-as $RELEASE_TYPE $EXTRA_ARGS
+                    RELEASE_EXIT_CODE=$?
                   fi
                   
-                  # Only set released=true if this was not a dry run and the command succeeded
-                  if [ "$DRY_RUN" != "true" ] && [ $? -eq 0 ]; then
+                  # Set release status based on exit code
+                  if [ "$DRY_RUN" != "true" ] && [ $RELEASE_EXIT_CODE -eq 0 ]; then
                     echo "released=true" >> $GITHUB_OUTPUT
                   else
                     echo "released=false" >> $GITHUB_OUTPUT
                   fi
+                  
+                  exit $RELEASE_EXIT_CODE
 
-            # Extract version for notifications
+            # Extract version for notifications - more resilient approach
             - name: Extract version
               id: extract-version
               if: steps.release.outputs.released == 'true'
               run: |
-                VERSION=$(grep '"version":' package.json | cut -d'"' -f4)
+                # Save the version to a temporary file to avoid issues with special characters
+                node -e "console.log('VERSION=' + require('./package.json').version)" > version.txt
+                source version.txt
                 echo "version=$VERSION" >> $GITHUB_OUTPUT
+                rm version.txt
 
             # Find related PR to comment on
             - name: Find PR
@@ -162,6 +168,7 @@ jobs:
               if: steps.release.outputs.released == 'true' && steps.find-pr.outputs.pr
               uses: actions/github-script@v6
               with:
+                github-token: ${{ secrets.GITHUB_TOKEN }}
                 script: |
                   github.rest.issues.createComment({
                     issue_number: ${{ steps.find-pr.outputs.pr }},
@@ -184,7 +191,7 @@ jobs:
               env:
                 SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
                 SLACK_TITLE: "🚀 New Release"
-                SLACK_MESSAGE: "Version v${{ needs.release.outputs.new_version }} of QuickAdd has been released!"
+                SLACK_MESSAGE: "Version v${{ needs.release.outputs.version }} of QuickAdd has been released!"
                 SLACK_COLOR: "good"
                 SLACK_ICON: "https://github.com/chhoumann.png"
                 MSG_MINIMAL: true
@@ -196,4 +203,4 @@ jobs:
               env:
                 DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
               with:
-                args: '🚀 **New Release**: Version v${{ needs.release.outputs.new_version }} of QuickAdd has been released!'
+                args: '🚀 **New Release**: Version v${{ needs.release.outputs.version }} of QuickAdd has been released!'
