@@ -27,15 +27,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.fileContent = fileContent;
 		if (!choice || !file || fileContent === null) return input;
 
-		const formatted = await this.formatFileContent(input);
-		const templaterFormatted = templaterParseTemplate(
-			this.app,
-			formatted,
-			this.file,
-		);
-		if (!(await templaterFormatted)) return formatted;
-
-		return templaterFormatted;
+		// Skip templater processing here since it's already been processed in formatContentOnly
+		// Just position the already-formatted content in the file according to settings
+		const formatted = await this.formatFileContent(input, false);
+		return formatted;
 	}
 
 	public async formatContent(
@@ -48,9 +43,22 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return await this.formatFileContent(input);
 	}
 
-	async formatFileContent(input: string): Promise<string> {
+	async formatFileContent(input: string, runTemplater = true): Promise<string> {
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
+
+		// If runTemplater is true and we have a file, run the templater parsing
+		// This will only be true during the first formatting stage (formatContentOnly)
+		if (runTemplater && this.file) {
+			const templaterFormatted = await templaterParseTemplate(
+				this.app,
+				formatted,
+				this.file
+			);
+			if (templaterFormatted) {
+				formatted = templaterFormatted;
+			}
+		}
 
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
@@ -81,8 +89,22 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
+		// Process the input with templater (if needed) at this stage
+		// This is the first pass where we want to run any templater code
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
+		
+		// If we have a file, run templater parsing once in this first pass
+		if (this.file) {
+			const templaterFormatted = await templaterParseTemplate(
+				this.app,
+				formatted,
+				this.file
+			);
+			if (templaterFormatted) {
+				formatted = templaterFormatted;
+			}
+		}
 
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
