@@ -65,7 +65,6 @@ export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(
 	/{{TEMPLATE:([^\n\r}]*.md)}}/i
 );
-export const LINEBREAK_REGEX = new RegExp(/\\n/);
 export const INLINE_JAVASCRIPT_REGEX = new RegExp(
 	/`{3,}js quickadd([\s\S]*?)`{3,}/
 );
