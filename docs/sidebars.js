@@ -42,8 +42,8 @@ const sidebars = {
 			],
 		},
 		"FormatSyntax",
-		'InlineScripts',
-		'AIAssistant',
+		"InlineScripts",
+		"AIAssistant",
 		{
 			type: "category",
 			label: "Examples",
@@ -57,7 +57,11 @@ const sidebars = {
 		{
 			type: "category",
 			label: "Advanced",
-			items: ["QuickAddAPI", "Advanced/scriptsWithSettings"],
+			items: [
+				"QuickAddAPI",
+				"Advanced/scriptsWithSettings",
+				"Advanced/ObsidianUri",
+			],
 		},
 		{
 			type: "category",
