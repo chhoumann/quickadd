@@ -23,13 +23,13 @@
 - [x] Modify `LogManager` to accept and propagate Error objects
 - [x] Update console logging to leverage Chrome DevTools error display
 - [x] Add `toError` utility function for standardized error conversion
-- [ ] Add JSDoc comments to new error handling functions
-- [ ] Create ErrorUtils.ts with standardized error handling functions
+- [x] Add JSDoc comments to new error handling functions
+- [x] Create ErrorUtils.ts with standardized error handling functions
 
 ### Phase 2: Systematic Codebase Updates
 
 - [ ] Scan and update all try/catch blocks in:
-  - [ ] Engine directory
+  - [x] Engine directory
   - [ ] Formatters directory
   - [ ] Main application code
   - [ ] Macros and command execution
@@ -48,7 +48,7 @@
 
 ### Phase 4: Performance Optimization
 
-- [ ] Implement error log size limits
+- [x] Implement error log size limits
 - [ ] Add WeakRef for original error objects to prevent memory leaks
 - [ ] Optimize stack trace generation for performance-critical paths
 - [ ] Add error sampling for high-frequency error scenarios
