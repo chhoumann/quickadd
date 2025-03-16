@@ -30,7 +30,7 @@
 
 - [ ] Scan and update all try/catch blocks in:
   - [x] Engine directory
-  - [ ] Formatters directory
+  - [x] Formatters directory
   - [ ] Main application code
   - [ ] Macros and command execution
 - [ ] Standardize error patterns using ErrorUtils helper functions
