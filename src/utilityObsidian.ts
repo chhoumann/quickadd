@@ -25,14 +25,16 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 	force = false,
 ) {
 	const templater = getTemplater(app);
-
-	if (
-		templater &&
-		(force ||
-			!(templater.settings as Record<string, unknown>)[
-				"trigger_on_file_creation"
-			])
-	) {
+	
+	if (!templater) return;
+	
+	// Process Templater commands in these cases:
+	// 1. force=true (explicitly requested processing, e.g., for Template choices)
+	// 2. Templater's trigger_on_file_creation=false (manual processing required)
+	const shouldProcess = force || 
+		!(templater.settings as Record<string, unknown>)["trigger_on_file_creation"];
+	
+	if (shouldProcess) {
 		const impl = templater?.templater as {
 			overwrite_file_commands?: (file: TFile) => Promise<void>;
 		};
