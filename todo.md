@@ -31,9 +31,9 @@
 - [ ] Scan and update all try/catch blocks in:
   - [x] Engine directory
   - [x] Formatters directory
-  - [ ] Main application code
-  - [ ] Macros and command execution
-- [ ] Standardize error patterns using ErrorUtils helper functions
+  - [x] Main application code
+  - [x] API module
+- [x] Standardize error patterns using ErrorUtils helper functions
 - [ ] Update GuiLogger to display rich error information in Obsidian notices
 - [ ] Add warning notices for deprecated error logging patterns
 
