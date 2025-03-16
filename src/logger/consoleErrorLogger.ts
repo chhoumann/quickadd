@@ -9,28 +9,28 @@ export class ConsoleErrorLogger extends QuickAddLogger {
 		const error = this.getQuickAddError(errorMsg, ErrorLevel.Error, stack, originalError);
 		this.addMessageToErrorLog(error);
 
-		if (originalError) {
-			console.error(this.formatOutputString(error), originalError);
-		} else {
-			console.error(this.formatOutputString(error));
-		}
+		// Always pass the original error or create a new one to leverage Dev Tools' stack trace UI
+		const errorToLog = originalError || new Error(errorMsg);
+		
+		// Just log the message as the first argument and the error object as the second
+		console.error(this.formatOutputString(error), errorToLog);
 	}
 
 	public logWarning(warningMsg: string, stack?: string, originalError?: Error) {
 		const warning = this.getQuickAddError(warningMsg, ErrorLevel.Warning, stack, originalError);
 		this.addMessageToErrorLog(warning);
 
-		if (originalError) {
-			console.warn(this.formatOutputString(warning), originalError);
-		} else {
-			console.warn(this.formatOutputString(warning));
-		}
+		// Always pass the original error or create a new one to leverage Dev Tools' stack trace UI
+		const errorToLog = originalError || new Error(warningMsg);
+		
+		console.warn(this.formatOutputString(warning), errorToLog);
 	}
 
 	public logMessage(logMsg: string, stack?: string, originalError?: Error) {
 		const log = this.getQuickAddError(logMsg, ErrorLevel.Log, stack, originalError);
 		this.addMessageToErrorLog(log);
 
+		// For regular logs, we'll still show the error if available
 		if (originalError) {
 			console.log(this.formatOutputString(log), originalError);
 		} else {

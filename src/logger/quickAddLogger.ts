@@ -10,11 +10,8 @@ export abstract class QuickAddLogger implements ILogger {
 	abstract logWarning(msg: string, stack?: string, originalError?: Error): void;
 
 	protected formatOutputString(error: QuickAddError): string {
-		let output = `QuickAdd: (${error.level}) ${error.message}`;
-		if (error.stack) {
-			output += `\nStack trace: ${error.stack}`;
-		}
-		return output;
+		// Just return the basic message without stack trace, as we'll pass the error object separately
+		return `QuickAdd: (${error.level}) ${error.message}`;
 	}
 
 	protected getQuickAddError(
