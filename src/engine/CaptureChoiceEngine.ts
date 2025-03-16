@@ -2,7 +2,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
-import { handleError } from "../utils/errorUtils";
+import { reportError } from "../utils/errorUtils";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import {
 	appendToCurrentLine,
@@ -103,7 +103,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 			}
 		} catch (err) {
-			handleError(err, `Error running capture choice "${this.choice.name}"`);
+			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
 	}
 

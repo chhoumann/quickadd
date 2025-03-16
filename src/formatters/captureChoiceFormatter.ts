@@ -2,7 +2,7 @@ import { CompleteFormatter } from "./completeFormatter";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { MarkdownView, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
-import { handleError } from "../utils/errorUtils";
+import { reportError } from "../utils/errorUtils";
 import { templaterParseTemplate } from "../utilityObsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -132,7 +132,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return await this.createInsertAfterIfNotFound(formatted);
 			}
 
-			handleError(new Error("Unable to find insert after line in file"), "Insert After Error");
+			reportError(new Error("Unable to find insert after line in file"), "Insert After Error");
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
@@ -220,7 +220,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 				return newFileContent;
 			} catch (err) {
-				handleError(
+				reportError(
 					err, 
 					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`
 				);

@@ -47,10 +47,10 @@ export function toError(err: unknown, contextMessage?: string): Error {
 }
 
 /**
- * Standard error handler that converts any error to a proper Error object
- * and logs it with the appropriate level
+ * Reports an error to the logging system with additional context
+ * Converts any error type to a proper Error object and logs it with the appropriate level
  * 
- * @param err - The error to handle
+ * @param err - The error to report
  * @param contextMessage - Optional context message to add
  * @param level - Error level (defaults to ERROR)
  * 
@@ -59,11 +59,11 @@ export function toError(err: unknown, contextMessage?: string): Error {
  * try {
  *   // Some operation
  * } catch (err) {
- *   handleError(err, "Failed during template processing");
+ *   reportError(err, "Failed during template processing");
  * }
  * ```
  */
-export function handleError(
+export function reportError(
   err: unknown, 
   contextMessage?: string,
   level: ErrorLevel = ErrorLevelEnum.Error
@@ -87,7 +87,7 @@ export function handleError(
 }
 
 /**
- * Error boundary - wraps a function and handles any errors it throws
+ * Error boundary - wraps a function and reports any errors it throws
  * 
  * @param fn - Function to execute
  * @param contextMessage - Context message for any errors
@@ -110,13 +110,13 @@ export function withErrorHandling<T>(
   try {
     return fn();
   } catch (err) {
-    handleError(err, contextMessage, level);
+    reportError(err, contextMessage, level);
     return undefined;
   }
 }
 
 /**
- * Async error boundary - wraps an async function and handles any errors it throws
+ * Async error boundary - wraps an async function and reports any errors it throws
  * 
  * @param fn - Async function to execute
  * @param contextMessage - Context message for any errors
@@ -139,7 +139,7 @@ export async function withAsyncErrorHandling<T>(
   try {
     return await fn();
   } catch (err) {
-    handleError(err, contextMessage, level);
+    reportError(err, contextMessage, level);
     return undefined;
   }
 }
