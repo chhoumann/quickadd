@@ -4,4 +4,6 @@ export interface QuickAddError {
 	message: string;
 	level: ErrorLevel;
 	time: number;
+	stack?: string;
+	originalError?: Error;
 }

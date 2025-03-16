@@ -102,16 +102,14 @@ export default class QuickAdd extends Plugin {
 		this.registerObsidianProtocolHandler("quickadd", async (e) => {
 			const parameters = e as unknown as UriParameters;
 			if (!parameters.choice) {
-				log.logWarning(
-					"URI was executed without a `choice` parameter."
-				);
+				log.logWarning("URI was executed without a `choice` parameter.");
 				return;
 			}
 			const choice = this.getChoice("name", parameters.choice);
 
 			if (!choice) {
 				log.logError(
-					`URI could not find any choice named '${parameters.choice}'`
+					`URI could not find any choice named '${parameters.choice}'`,
 				);
 				return;
 			}
@@ -126,7 +124,7 @@ export default class QuickAdd extends Plugin {
 			try {
 				await choiceExecutor.execute(choice);
 			} catch (err) {
-				log.logError(err as string);
+				log.logError(err);
 			}
 		});
 
