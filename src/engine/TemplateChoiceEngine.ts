@@ -17,6 +17,7 @@ import {
 	fileExistsIncrement,
 } from "../constants";
 import { log } from "../logger/logManager";
+import { reportError } from "../utils/errorUtils";
 import type QuickAdd from "../main";
 import { TemplateEngine } from "./TemplateEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -158,8 +159,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					});
 				}
 			}
-		} catch (error) {
-			log.logError(error as string);
+		} catch (err) {
+			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
 	}
 

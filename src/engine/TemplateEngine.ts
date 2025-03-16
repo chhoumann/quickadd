@@ -9,7 +9,7 @@ import {
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
-import { log } from "../logger/logManager";
+import { reportError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
 export abstract class TemplateEngine extends QuickAddEngine {
@@ -110,12 +110,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile, true);
 
 			return createdFile;
-		} catch (e) {
-			log.logError(
-				`Could not create file with template: \n\n${
-					(e as { message: string }).message
-				}`
-			);
+		} catch (err) {
+			reportError(err, "Could not create file with template");
 			return null;
 		}
 	}
@@ -137,8 +133,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
 
 			return file;
-		} catch (e) {
-			log.logError(e as string);
+		} catch (err) {
+			reportError(err, "Could not overwrite file with template");
 			return null;
 		}
 	}
@@ -166,8 +162,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
 
 			return file;
-		} catch (e) {
-			log.logError(e as string);
+		} catch (err) {
+			reportError(err, "Could not append to file with template");
 			return null;
 		}
 	}

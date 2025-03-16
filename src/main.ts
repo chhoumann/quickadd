@@ -5,6 +5,8 @@ import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
+import { LogManager } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -102,16 +104,15 @@ export default class QuickAdd extends Plugin {
 		this.registerObsidianProtocolHandler("quickadd", async (e) => {
 			const parameters = e as unknown as UriParameters;
 			if (!parameters.choice) {
-				log.logWarning(
-					"URI was executed without a `choice` parameter."
-				);
+				log.logWarning("URI was executed without a `choice` parameter.");
 				return;
 			}
 			const choice = this.getChoice("name", parameters.choice);
 
 			if (!choice) {
-				log.logError(
-					`URI could not find any choice named '${parameters.choice}'`
+				reportError(
+					new Error(`URI could not find any choice named '${parameters.choice}'`),
+					"URI handler error"
 				);
 				return;
 			}
@@ -126,7 +127,7 @@ export default class QuickAdd extends Plugin {
 			try {
 				await choiceExecutor.execute(choice);
 			} catch (err) {
-				log.logError(err as string);
+				reportError(err, "Error executing choice from URI");
 			}
 		});
 
@@ -157,6 +158,13 @@ export default class QuickAdd extends Plugin {
 	onunload() {
 		console.log("Unloading QuickAdd");
 		this.unsubscribeSettingsStore?.call(this);
+		
+		// Clear the error log to prevent memory leaks
+		LogManager.loggers.forEach(logger => {
+			if (logger instanceof ConsoleErrorLogger) {
+				logger.clearErrorLog();
+			}
+		});
 	}
 
 	async loadSettings() {

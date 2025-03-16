@@ -7,7 +7,7 @@ import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPr
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
-import { log } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
@@ -70,7 +70,7 @@ export class QuickAddApi {
 			) => {
 				const choice: IChoice = plugin.getChoiceByName(choiceName);
 				if (!choice)
-					log.logError(`choice named '${choiceName}' not found`);
+					reportError(new Error(`Choice named '${choiceName}' not found`), "API executeChoice error");
 
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -171,7 +171,7 @@ export class QuickAddApi {
 					);
 
 					if (!assistantRes) {
-						log.logError("AI Assistant returned null");
+						reportError(new Error("AI Assistant returned null"), "AI Prompt error");
 						return {};
 					}
 
@@ -262,7 +262,7 @@ export class QuickAddApi {
 					);
 
 					if (!assistantRes) {
-						log.logError("AI Assistant returned null");
+						reportError(new Error("AI Assistant returned null"), "Chunked AI Prompt error");
 						return {};
 					}
 
@@ -301,14 +301,12 @@ export class QuickAddApi {
 						app.workspace.getActiveViewOfType(MarkdownView);
 
 					if (!activeView) {
-						log.logError(
-							"no active view - could not get selected text."
-						);
+						reportError(new Error("No active view"), "Could not get selected text");
 						return;
 					}
 
 					if (!activeView.editor.somethingSelected()) {
-						log.logError("no text selected.");
+						reportError(new Error("No text selected"), "Could not get selected text");
 						return;
 					}
 
