@@ -5,6 +5,7 @@ import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log, toError } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
+import { LogManager } from "./logger/logManager";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -155,6 +156,13 @@ export default class QuickAdd extends Plugin {
 	onunload() {
 		console.log("Unloading QuickAdd");
 		this.unsubscribeSettingsStore?.call(this);
+		
+		// Clear the error log to prevent memory leaks
+		LogManager.loggers.forEach(logger => {
+			if (logger instanceof ConsoleErrorLogger) {
+				logger.clearErrorLog();
+			}
+		});
 	}
 
 	async loadSettings() {

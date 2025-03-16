@@ -2,15 +2,27 @@ import type { ILogger } from "./ilogger";
 
 /**
  * Helper function to convert any value to an Error object
- * @param err The error value to convert
- * @returns Error object
+ * This function ensures that an Error object is always returned, preserving
+ * the original Error if provided or creating a new one otherwise.
+ * 
+ * @param err - The error value to convert (can be any type)
+ * @returns A proper Error object with stack trace
+ * 
+ * @example
+ * ```ts
+ * try {
+ *   // Some operation
+ * } catch (err) {
+ *   log.logError(toError(err));
+ * }
+ * ```
  */
 export function toError(err: unknown): Error {
 	if (err instanceof Error) return err;
 	return new Error(typeof err === 'string' ? err : String(err));
 }
 
-class LogManager {
+export class LogManager {
 	public static loggers: ILogger[] = [];
 
 	public register(logger: ILogger): LogManager {
