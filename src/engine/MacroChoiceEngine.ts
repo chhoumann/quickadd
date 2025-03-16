@@ -4,6 +4,7 @@ import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
+import { handleError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
@@ -136,12 +137,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		try {
 			await this.userScriptDelegator(userScript);
-		} catch (error) {
-			log.logError(
-				`failed to run user script ${command.name}. Error:\n\n${
-					(error as { message: string }).message
-				}`
-			);
+		} catch (err) {
+			handleError(err, `Failed to run user script ${command.name}`);
 		}
 
 		if (this.userScriptCommand) this.userScriptCommand = null;
@@ -248,8 +245,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 
 			await this.userScriptDelegator(obj[selected]);
-		} catch (e) {
-			log.logMessage(e as string);
+		} catch (err) {
+			handleError(err, "Error in script object handling", "Log");
 		}
 	}
 
