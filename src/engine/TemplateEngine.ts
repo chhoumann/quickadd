@@ -9,7 +9,6 @@ import {
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
-import { log } from "../logger/logManager";
 import { handleError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 

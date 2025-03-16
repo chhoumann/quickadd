@@ -5,6 +5,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
 import { handleError } from "../utils/errorUtils";
+import { ErrorLevel } from "../logger/errorLevel";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
@@ -246,7 +247,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			await this.userScriptDelegator(obj[selected]);
 		} catch (err) {
-			handleError(err, "Error in script object handling", "Log");
+			handleError(err, "Error in script object handling", ErrorLevel.Log);
 		}
 	}
 
