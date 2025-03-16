@@ -2,10 +2,11 @@ import type { TFile } from "obsidian";
 import { Plugin } from "obsidian";
 import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type { QuickAddSettings } from "./quickAddSettingsTab";
-import { log, toError } from "./logger/logManager";
+import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { LogManager } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -109,8 +110,9 @@ export default class QuickAdd extends Plugin {
 			const choice = this.getChoice("name", parameters.choice);
 
 			if (!choice) {
-				log.logError(
-					`URI could not find any choice named '${parameters.choice}'`,
+				reportError(
+					new Error(`URI could not find any choice named '${parameters.choice}'`),
+					"URI handler error"
 				);
 				return;
 			}
@@ -125,7 +127,7 @@ export default class QuickAdd extends Plugin {
 			try {
 				await choiceExecutor.execute(choice);
 			} catch (err) {
-				log.logError(toError(err));
+				reportError(err, "Error executing choice from URI");
 			}
 		});
 
