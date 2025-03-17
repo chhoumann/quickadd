@@ -28,9 +28,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.fileContent = fileContent;
 		if (!choice || !file || fileContent === null) return input;
 
-		// Skip templater processing here since it's already been processed in formatContentOnly
-		// Just position the already-formatted content in the file according to settings
-		const formatted = await this.formatFileContent(input, false);
+		// We need to run templater processing here to ensure commands are processed
+		// This ensures templater commands work correctly with the current file context
+		const formatted = await this.formatFileContent(input, true);
 		return formatted;
 	}
 
@@ -49,12 +49,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		formatted = this.replaceLinebreakInString(formatted);
 
 		// If runTemplater is true and we have a file, run the templater parsing
-		// This will only be true during the first formatting stage (formatContentOnly)
+		// This allows templater commands to execute in the correct file context
 		if (runTemplater && this.file) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
 				formatted,
-				this.file
+				this.file,
 			);
 			if (templaterFormatted) {
 				formatted = templaterFormatted;
@@ -90,17 +90,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
-		// Process the input with templater (if needed) at this stage
-		// This is the first pass where we want to run any templater code
+		// First formatting pass - format content with basic formatters
+		// Templater commands are processed later in formatContentWithFile
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
-		
+
 		// If we have a file, run templater parsing once in this first pass
 		if (this.file) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
 				formatted,
-				this.file
+				this.file,
 			);
 			if (templaterFormatted) {
 				formatted = templaterFormatted;
@@ -132,7 +132,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return await this.createInsertAfterIfNotFound(formatted);
 			}
 
-			reportError(new Error("Unable to find insert after line in file"), "Insert After Error");
+			reportError(
+				new Error("Unable to find insert after line in file"),
+				"Insert After Error",
+			);
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
@@ -221,8 +224,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return newFileContent;
 			} catch (err) {
 				reportError(
-					err, 
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`
+					err,
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`,
 				);
 			}
 		}
