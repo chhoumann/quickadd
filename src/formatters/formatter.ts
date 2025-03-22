@@ -162,22 +162,30 @@ export abstract class Formatter {
 			const match = VARIABLE_REGEX.exec(output);
 			if (!match) throw new Error("unable to parse variable");
 
-			const variableName = match[1];
+			let variableName = match[1];
 
 			if (variableName) {
 				if (!this.getVariableValue(variableName)) {
+					const defaultValueParsed = variableName.split("|");
+					let defaultValue = '';
+					if (defaultValueParsed.length === 2) {
+						variableName = defaultValueParsed[0];
+						defaultValue = defaultValueParsed[1];
+					}
 					const suggestedValues = variableName.split(",");
 
-					if (suggestedValues.length === 1)
-						this.variables.set(
-							variableName,
-							await this.promptForVariable(variableName)
-						);
-					else
-						this.variables.set(
-							variableName,
-							await this.suggestForValue(suggestedValues)
-						);
+					let variableValue = '';
+					if (suggestedValues.length === 1) {
+						variableValue = await this.promptForVariable(variableName);
+					} else {
+						variableValue = await this.suggestForValue(suggestedValues);
+					}
+
+					if (!variableValue && defaultValue) {
+						variableValue = defaultValue;
+					} 
+
+					this.variables.set(variableName, variableValue);
 				}
 
 				output = this.replacer(
