@@ -43,11 +43,7 @@ export abstract class Formatter {
 				const offsetIsInt = NUMBER_REGEX.test(offsetString);
 				if (offsetIsInt) offset = parseInt(offsetString);
 			}
-			output = this.replacer(
-				output,
-				DATE_REGEX,
-				getDate({ offset: offset })
-			);
+			output = this.replacer(output, DATE_REGEX, getDate({ offset: offset }));
 		}
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
@@ -66,7 +62,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset: offset })
+				getDate({ format, offset: offset }),
 			);
 		}
 
@@ -80,11 +76,7 @@ export abstract class Formatter {
 			const timeMatch = TIME_REGEX.exec(output);
 			if (!timeMatch) throw new Error("unable to parse time");
 
-			output = this.replacer(
-				output,
-				TIME_REGEX,
-				getDate({ format: "HH:mm" })
-			)
+			output = this.replacer(output, TIME_REGEX, getDate({ format: "HH:mm" }));
 		}
 
 		while (TIME_REGEX_FORMATTED.test(output)) {
@@ -93,22 +85,20 @@ export abstract class Formatter {
 
 			const format = timeMatch[1];
 
-			output = this.replacer(
-				output,
-				TIME_REGEX_FORMATTED,
-				getDate({ format })
-			)
+			output = this.replacer(output, TIME_REGEX_FORMATTED, getDate({ format }));
 		}
 
 		return output;
 	}
 
-	protected abstract promptForValue(
-		header?: string
-	): Promise<string> | string;
+	protected abstract promptForValue(header?: string): Promise<string> | string;
 
 	protected async replaceValueInString(input: string): Promise<string> {
 		let output: string = input;
+
+		if (this.variables.has("value")) {
+			this.value = this.variables.get("value") as string;
+		}
 
 		while (NAME_VALUE_REGEX.test(output)) {
 			if (!this.value) this.value = await this.promptForValue();
@@ -118,7 +108,6 @@ export abstract class Formatter {
 
 		return output;
 	}
-
 
 	protected async replaceSelectedInString(input: string): Promise<string> {
 		let output: string = input;
@@ -134,7 +123,7 @@ export abstract class Formatter {
 
 	// eslint-disable-next-line @typescript-eslint/require-await
 	protected async replaceLinkToCurrentFileInString(
-		input: string
+		input: string,
 	): Promise<string> {
 		const currentFilePathLink = this.getCurrentFileLink();
 		let output = input;
@@ -147,7 +136,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				LINK_TO_CURRENT_FILE_REGEX,
-				currentFilePathLink
+				currentFilePathLink,
 			);
 
 		return output;
@@ -171,19 +160,19 @@ export abstract class Formatter {
 					if (suggestedValues.length === 1)
 						this.variables.set(
 							variableName,
-							await this.promptForVariable(variableName)
+							await this.promptForVariable(variableName),
 						);
 					else
 						this.variables.set(
 							variableName,
-							await this.suggestForValue(suggestedValues)
+							await this.suggestForValue(suggestedValues),
 						);
 				}
 
 				output = this.replacer(
 					output,
 					VARIABLE_REGEX,
-					this.getVariableValue(variableName)
+					this.getVariableValue(variableName),
 				);
 			} else {
 				break;
@@ -206,14 +195,14 @@ export abstract class Formatter {
 				if (!this.getVariableValue(variableName)) {
 					this.variables.set(
 						variableName,
-						await this.suggestForField(variableName)
+						await this.suggestForField(variableName),
 					);
 				}
 
 				output = this.replacer(
 					output,
 					FIELD_VAR_REGEX,
-					this.getVariableValue(variableName)
+					this.getVariableValue(variableName),
 				);
 			} else {
 				break;
@@ -249,7 +238,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				MACRO_REGEX,
-				macroOutput ? macroOutput.toString() : ""
+				macroOutput ? macroOutput.toString() : "",
 			);
 		}
 
@@ -259,7 +248,7 @@ export abstract class Formatter {
 	protected abstract getVariableValue(variableName: string): string;
 
 	protected abstract suggestForValue(
-		suggestedValues: string[]
+		suggestedValues: string[],
 	): Promise<string> | string;
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -279,16 +268,12 @@ export abstract class Formatter {
 				if (!this.variables.get(variableName)) {
 					this.variables.set(
 						variableName,
-						await this.promptForVariable(variableName)
+						await this.promptForVariable(variableName),
 					);
 
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const nld = this.getNaturalLanguageDates();
-					if (
-						!nld ||
-						!nld.parseDate ||
-						typeof nld.parseDate !== "function"
-					)
+					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
 						continue;
 
 					const parseAttempt = (
@@ -300,20 +285,20 @@ export abstract class Formatter {
 					if (parseAttempt)
 						this.variables.set(
 							variableName,
-							parseAttempt.moment.format(dateFormat)
+							parseAttempt.moment.format(dateFormat),
 						);
 					else
 						throw new Error(
 							`unable to parse date variable ${this.variables.get(
-								variableName
-							)}`
+								variableName,
+							)}`,
 						);
 				}
 
 				output = this.replacer(
 					output,
 					DATE_VARIABLE_REGEX,
-					this.variables.get(variableName) as string // literally setting it above / throwing error if not set
+					this.variables.get(variableName) as string, // literally setting it above / throwing error if not set
 				);
 			} else {
 				break;
@@ -359,15 +344,11 @@ export abstract class Formatter {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	protected abstract getNaturalLanguageDates(): any;
 
-	protected abstract getMacroValue(
-		macroName: string
-	): Promise<string> | string;
+	protected abstract getMacroValue(macroName: string): Promise<string> | string;
 
 	protected abstract promptForVariable(variableName: string): Promise<string>;
 
-	protected abstract getTemplateContent(
-		templatePath: string
-	): Promise<string>;
+	protected abstract getTemplateContent(templatePath: string): Promise<string>;
 
 	protected abstract getSelectedText(): Promise<string>;
 }
