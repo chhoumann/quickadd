@@ -80,6 +80,15 @@ massiveDataArray.forEach(async (data) => {
 
 This would execute the choice for each item in the array, passing the data as a variable. This means you can access the variables from within your Capture with `{{VALUE:X}}` (and so on, for each key-value pair in the object).
 
+Additionally, you can use the reserved variable name 'value' to pass a value directly to `{{VALUE}}` or `{{NAME}}` format tags:
+
+```js
+await params.quickAddApi.executeChoice('My Template Choice', {
+    value: "This text will be used for {{VALUE}} tags",
+    customVar: "This will be available as {{VALUE:customVar}}"
+});
+```
+
 ## Utility module
 Given by `api.utility`.
 
