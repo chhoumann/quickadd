@@ -45,7 +45,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
-
+		output = await this.replaceLinkToCurrentFileInString(output);
 		return output;
 	}
 
