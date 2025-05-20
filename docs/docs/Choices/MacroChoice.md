@@ -3,7 +3,7 @@ title: Macros
 ---
 
 Macros are powerful tools that allow you to execute any sequence of Obsidian commands and user scripts.
-User scripts are Javascript scripts that you can write to do something in Obsidian. All you need is a Javascript file in your vault, and you can activate it.
+User scripts are JavaScript scripts that you can write to do something in Obsidian. All you need is a Javascript file in your vault, and you can activate it.
 
 Each _macro choice_ has an associated _macro_. A macro choice allows you to activate a macro from the QuickAdd suggester.
 
@@ -11,7 +11,7 @@ This is what the settings for a _macro choice_ looks like.
 
 ![image](https://user-images.githubusercontent.com/29108628/121774145-22ccd100-cb81-11eb-8873-7533755bdf32.png)
 
-You can have any amount of _macros_. 
+You can have any number of _macros_. 
 
 Manage settings using the **macro manager**. 
 - **Run on plugin load**. Useful e.g. to create a daily note automatically when you open Obsidian.
@@ -29,7 +29,7 @@ Here it is - with some comments that explain the code. [How-to-install guide](ht
 ```js
 // You have to export the function you wish to run.
 // QuickAdd automatically passes a parameter, which is an object with the Obsidian app object
-// and the QuickAdd API (see description further on this page).
+// and the [QuickAdd API](../API/QuickAddAPICore.md).
 module.exports = async (params) => {
 	// Object destructuring. We pull inputPrompt out of the QuickAdd API in params.
 	const {
@@ -52,7 +52,7 @@ Any function executed by QuickAdd will be passed an object as the first (and onl
 The object contains
 
 -   A reference to the Obsidian `app`.
--   A reference to the QuickAddApi - which allows you to use the functions below.
+-   A reference to the [QuickAddApi](../API/QuickAddAPICore.md) - which allows you to use the functions below.
 -   A reference to `variables`, an object which, if you assign values to it, you can use in your format syntax.
 
 Let's talk a bit more about `variables`. If you assign a value to a key in `variables`, you can access that variable by its key name.

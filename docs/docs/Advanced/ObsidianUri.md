@@ -16,7 +16,7 @@ All parameter names and values must be properly [URL encoded](https://en.wikiped
 
 The only required parameter is `choice` which selects the choice to run by its name. The name must match exactly, otherwise it will not be able to be found.
 
-[Variables to your choice](../FormatSyntax.md) are passed as additional `value-VARIABLE_NAME` parameters, with `value-` prefixing the name. Variables with a space in their name can still be used, but the spaces in the name must be encoded as `%20` as usual. For example, a capture asking for a variable named `log notes` would be passed as `value-log%20notes=...` in the URI.
+[Variables to your choice](../FormatSyntax.md) are passed as additional `value-VARIABLE_NAME` parameters, with `value-` prefixing the name. Variables with a space in their name can still be used, but the spaces in the name must be encoded as `%20` as usual. For example, a choice asking for a variable named `log notes` would be passed as `value-log%20notes=...` in the URI.
 
 Keep in mind that unnamed variables (a bare `{{VALUE}}`/`{{NAME}}` or `{{MVALUE}}`) cannot be filled by the URI and you will instead be prompted inside Obsidian as usual.
 

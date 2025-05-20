@@ -2,7 +2,7 @@
 title: Capture
 ---
 
-Allows to quickly capture your input and save it from anywhere in Obsidian, without leaving your current window setup e.g.
+Allows you to quickly capture your input and save it from anywhere in Obsidian, without leaving your current window setup, e.g.:
 
 -   Add messages to your work log
 -   Save interesting links for later reading and watching
@@ -16,14 +16,14 @@ Allows to quickly capture your input and save it from anywhere in Obsidian, with
 _Capture To_ is the name of the file you are capturing to.
 You can choose to either enable _Capture to active file_, or you can enter a file name in the _File Name_ input field.
 
-This field also supports the [format syntax](/FormatSyntax.md), which allows you to use dynamic file names.
+This field also supports the [format syntax](../FormatSyntax.md), which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
 
 ### Capturing to folders
 
 You can also type a **folder name** into the _Capture To_ field, and QuickAdd will ask you which file in the folder you'd like to capture to.
-This also supports the [format syntax](/FormatSyntax.md). You can even write a filename in the suggester that opens, and it will create the file for you - assuming you have the _Create file if it doesn't exist_ setting enabled.
+This also supports the [format syntax](../FormatSyntax.md). You can even write a filename in the suggester that opens, and it will create the file for you - assuming you have the _Create file if it doesn't exist_ setting enabled.
 
 For example, you might have a folder called `CRM/people`. In this folder, you have a note for the people in your life. You can type `CRM/people` in the _Capture To_ field, and QuickAdd will ask you which file to capture to. You can then type `John Doe` in the suggester, and QuickAdd will create a file called `John Doe.md` in the `CRM/people` folder.
 
@@ -46,7 +46,7 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 
 ## Insert after
 
-Insert After will allow you to insert the text after some line with the specified text.
+Insert After will allow you to insert the text after a specific line with the specified text.
 
 With Insert After, you can also enable `Insert at end of section` and `Consider subsections`.
 You can see an explanation of these below.
@@ -60,7 +60,7 @@ This setting can place the line at the start or end of the file, or at your curr
 
 #### `Consider subsections` disabled
 
-Behavior with `Insert after` & `Insert at end`:
+Behavior with `Insert After` & `Insert at end`:
 
 ```markdown
 ## 1. First heading
@@ -83,7 +83,7 @@ Content
 
 #### `Consider subsections` enabled
 
-Behavior with `Insert after` & `Insert at end`:
+Behavior with `Insert After` & `Insert at end`:
 
 ```markdown
 ## 1. First heading
@@ -111,6 +111,6 @@ You can do practically anything here. Think of it as a mini template.
 
 If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will just insert whatever you enter in the prompt that appears when activating the Capture.
 
-You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
+You can use [format syntax](../FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
 
 In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.

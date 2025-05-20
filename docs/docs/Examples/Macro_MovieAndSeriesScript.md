@@ -4,7 +4,7 @@ title: Movie & Series Script
 
 This script allows you to easily insert a movie or TV show note into your vault.
 
-We use OMDb api to get the movie or TV show information. You can get an API key on the website [here](https://www.omdbapi.com/). This will be needed to use this script.
+We use OMDb API to get the movie or TV show information. You can get an API key on the website [here](https://www.omdbapi.com/). An API key is required to use this script.
 
 ## Demo
 
@@ -12,7 +12,7 @@ We use OMDb api to get the movie or TV show information. You can get an API key 
 
 ## Installation
 
-We'll need to install a QuickAdd user script for this to work. I have made a video which shows you how to do so - [click here](https://www.youtube.com/watch?v=gYK3VDQsZJo&t=1730s).
+We'll need to install a QuickAdd user script for this to work. I have made a video that shows you how to do so - [click here](https://www.youtube.com/watch?v=gYK3VDQsZJo&t=1730s).
 You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
 You can find the script [here](./Attachments/movies.js).
 
@@ -21,13 +21,13 @@ You can find the script [here](./Attachments/movies.js).
 3. Open the Macro Manager by opening the QuickAdd plugin settings and clicking `Manage Macros`.
 4. Create a new Macro - you decide what to name it. I named mine `Movie`.
 5. Add the user script to the command list.
-6. Add a new Template step to the macro. This will be what creates the note in your vault. Settings are as follows:
+6. Add a new Template step to the macro. This will be the step that creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
-    2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.
+    2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the movie or TV show without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
-7. Click on the cog icon to the right of the script step to configure the script settings. This should allow you to enter the API key you got from OMDb. [Image demonstration](../Images/moviescript_settings.jpg).
+7. Click on the gear icon (⚙️) to the right of the script step to configure the script settings. This should allow you to enter the API key you got from OMDb. [Image demonstration](../Images/moviescript_settings.jpg).
 8. Go back out to your QuickAdd main menu and add a new Macro choice. Again, you decide the name. I named mine `🎬 Movie`. This is what activates the macro.
-9. Attach the Macro to the Macro Choice you just created. Do so by clicking the cog ⚙ icon and selecting it.
+9. Attach the Macro to the Macro Choice you just created. Do so by clicking the gear ⚙ icon and selecting it.
 
 You can now use the macro to create notes with movie or TV show information in your vault.
 
@@ -35,7 +35,7 @@ You can now use the macro to create notes with movie or TV show information in y
 
 ```markdown
 ---
-cover: { { VALUE:Poster } }
+cover: {{VALUE:Poster}}
 ---
 
 category:: {{VALUE:typeLink}}

@@ -4,7 +4,7 @@ title: Book Finder Script
 
 This script allows you to easily insert the details of a book into your vault.
 
-We use Google books api to get the the details. You don't need an API key because we're only exploring publicly available information.
+We use Google Books API to get the details. You don't need an API key because we're only exploring publicly available information.
 
 
 ## Installation
@@ -18,9 +18,9 @@ You can find the script [here](./Attachments/BookFinder.js).
 3. Open the Macro Manager by opening the QuickAdd plugin settings and clicking `Manage Macros`.
 4. Create a new Macro - you decide what to name it. I named mine `BookFinder`.
 5. Add the user script to the command list.
-6. Add a new Template step to the macro. This will be what creates the note in your vault. Settings are as follows:
+6. Add a new Template step to the macro. This will be the step that creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
-    2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
+    2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the book without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
 7. Go back out to your QuickAdd main menu and add a new Macro choice. Again, you decide the name. I named mine `Book`. This is what activates the macro.
 8. Attach the Macro to the Macro Choice you just created. Do so by clicking the cog ⚙ icon and selecting it.
@@ -51,7 +51,7 @@ You can now use the macro to create notes with book information in your vault.
 ## Usage
 
 It's possible to access whichever JSON variables are sent in response through a `{{VALUE:<variable>}}` tag (e.g. `{{VALUE:Title}}`). Below is an example response for the Book 'Flowers for Algernon'.
-**From personal experience this JSON is messy enough that we might want encourage people to extend the JS code to extract additional info**
+**From personal experience, this JSON is messy enough that we might want to encourage people to extend the JS code to extract additional info.**
 
 ```json
 {

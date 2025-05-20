@@ -12,7 +12,7 @@ To set up the AI Assistant, follow these steps:
 
 1. In Obsidian, create a new folder dedicated to AI prompt templates, e.g. `bins/ai_prompts`.
 2. Navigate to QuickAdd settings and locate the "AI Assistant" section. Specify the path to the folder you created in step 1.
-3. In the same section, add a provider to get started. If you are using OpenAI, you will need to add your API key to the settings. As of v1.8.x, you need to enter your API key in the [provider](#providers) settings. The video below is from an older version, but the process is the similar.
+3. In the same section, add a provider to get started. If you are using OpenAI, you will need to add your API key to the settings. As of v1.8.x, you need to enter your API key in the [provider](#providers) settings. The video below is from an older version, but the process is similar.
 
 ![AI Assistant Setup](./Images/AI_Assistant_Setup.gif)
 
@@ -31,12 +31,12 @@ Here's an example of how you can set up a prompt template:
 
 ![AI Assistant Macro](./Images/AI_Assistant_Macro.gif)
 
-You can also use AI Assistant features from within the [API](./QuickAddAPI.md).
+You can also use AI Assistant features from within the [API](./API/QuickAddAIAssistantModule.md).
 
 ## Providers
 
 QuickAdd supports multiple providers for LLMs.
-The only requirement is that they are OpenAI-compatible, which means their API should be similar to OpenAIs.
+The only requirement is that they are OpenAI-compatible, which means their API should be similar to OpenAI's.
 
 Here are a few providers that are known to work with QuickAdd:
 
@@ -90,7 +90,7 @@ For each individual AI Assistant command in your macros, you can set these optio
 -   Prompt Template: Determines the prompt template to use.
 -   Model: Specifies the OpenAI model to use, overriding the default model.
 -   Output Name Variable: Sets the variable name for the AI Assistant’s output.
--   System Prompt Template: Determines the models behavior, overriding the default system prompt template.
+-   System Prompt Template: Determines the model's behavior, overriding the default system prompt template.
 
 You can also tweak model parameters in advanced settings:
 
@@ -103,14 +103,14 @@ You can also tweak model parameters in advanced settings:
 
 You can create powerful workflows utilizing the AI Assistant. Some examples are:
 
--   **Generating Writing Prompts:** Using links to related notes to generate writing prompts.
--   **Summarizer:** Create summaries of selected text.
--   **Transform Selected:** Transform selected text based on provided instructions.
--   **Flashcard Creator:** Generate flashcards based on selected text.
--   **Get Me Started Writing About…:** Generate points to kickstart your writing on a given topic.
--   **Manual Prompt:** Provide a manual prompt to the AI assistant.
--   **Alternative Viewpoints:** Obtain alternative perspectives and improvements on your draft.
--   **Prompt Chaining:** Chain multiple prompts together, with each prompt using the output of the previous one.
+-   [**Generating Writing Prompts**](https://bagerbach.com/blog/obsidian-ai#generating-writing-prompts): Using links to related notes to generate writing prompts.
+-   [**Summarizer**](https://bagerbach.com/blog/obsidian-ai#summarizer): Create summaries of selected text.
+-   [**Transform Selected**](https://bagerbach.com/blog/obsidian-ai#transform-selected): Transform selected text based on provided instructions.
+-   [**Flashcard Creator**](https://bagerbach.com/blog/obsidian-ai#flashcard-creator): Generate flashcards based on selected text.
+-   [**Get Me Started Writing About…**](https://bagerbach.com/blog/obsidian-ai#get-me-started-writing-about): Generate points to kickstart your writing on a given topic.
+-   [**Manual Prompt**](https://bagerbach.com/blog/obsidian-ai#manual-prompt): Provide a manual prompt to the AI assistant.
+-   [**Alternative Viewpoints**](https://bagerbach.com/blog/obsidian-ai#alternative-viewpoints): Obtain alternative perspectives and improvements on your draft.
+-   [**Prompt Chaining**](https://bagerbach.com/blog/obsidian-ai#prompt-chaining): Chain multiple prompts together, with each prompt using the output of the previous one.
 
 All of these examples, and more, can be found in [Christian's blog post about the AI Assistant](https://bagerbach.com/blog/obsidian-ai).
 

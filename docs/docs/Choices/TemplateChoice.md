@@ -2,22 +2,22 @@
 title: Template
 ---
 
-The template choice type is not meant to be a replacement for [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use both QuickAdd format syntax in a Templater template - and both will work.
+The template choice type is not meant to be a replacement for the [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use QuickAdd format syntax in a Templater template, and both will work.
 
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert.
 
 ## Optional
-**File Name Format**. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.
+**File Name Format**. You can specify a format for the file name, using [format syntax](../FormatSyntax.md).
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
 
-**Create in folder**. In which folder should the file be created in.
-You can specify as many folders as you want. If you don't, it'll just create the file in the root directory. If you specify one folder, it'll automatically create the file in there.
+**Create in folder**. In which folder will the file be created?
+You can specify as many folders as you want. If you don't, it will just create the file in the root directory. If you specify one folder, it will automatically create the file in there.
 If you specify multiple folders, you'll get a suggester asking which of the folders you wish to create the file in.
 
 **Append link**. The file you're currently in will get a link to a newly created file.
 
 **Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
 
-**Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
+**Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it will open in a new tab in the direction you specified.
 ![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)

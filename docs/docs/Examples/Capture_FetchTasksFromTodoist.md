@@ -2,7 +2,7 @@
 title: "Capture: Fetch Tasks From Todoist"
 ---
 
-For this capture to work, you will need the Todoist plugin for Obsidian.
+For this setup to work, you will need the Todoist plugin for Obsidian.
 You will also need to set it up with your API key.
 
 This is very useful for capturing tasks on the go with your phone, and then adding them to Obsidian when you get back to your computer.
@@ -10,8 +10,9 @@ This is very useful for capturing tasks on the go with your phone, and then addi
 You will need to set up a [macro](../Choices/MacroChoice.md) with the [Todoist Script](./Attachments/TodoistScript.js).
 
 The script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProject`, and `GetAllTasksFromSection`.
+The script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProject`, and `GetAllTasksFromSection`.
 
--   `SelectFromAllTasks` will prompt you to select tasks from all tasks on your Todoist account,
+-   `SelectFromAllTasks` will prompt you to select tasks from all tasks in your Todoist account,
 -   `GetAllTasksFromProject` will prompt you for a project and get all tasks from that project, and
 -   `GetAllTasksFromSection` will prompt you for a section and get all tasks from that section.
 
@@ -39,11 +40,11 @@ If there isn't a date set for the task, they'll simply be entered as `- [ ] Buy 
 ### Steps
 
 _NOTE:_ If you simply follow the process below, you will be asked which export to execute each time.
-That is fine - if you want to be asked - but you can also make separate [Capture choices](../Choices/CaptureChoice.md) for each exported function, meaning, it'll execute that function without asking you which one to execute.
+That is fine - if you want to be asked - but you can also make separate [Capture choices](../Choices/CaptureChoice.md) for each exported function, meaning, it will execute that function without asking you which one to execute.
 Just set up the macro as shown in the image above.
 
 1. Set up the Todoist plugin - grab the API key from your Todoist account. There's a link in the plugin's settings.
-2. Grab the code block from the example and add it to your vault as a javascript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
+2. Grab the code block from the example and add it to your vault as a JavaScript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
 3. Follow along with what I do in the gif below
 
 ![GKkCNWZHLv](https://user-images.githubusercontent.com/29108628/123500983-26ad2880-d642-11eb-9e45-b537271312d1.gif)

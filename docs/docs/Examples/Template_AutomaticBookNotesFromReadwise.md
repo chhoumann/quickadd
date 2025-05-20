@@ -8,21 +8,21 @@ title: "Template - My Book Notes template"
 
 Here's a video guide for [installing user scripts in QuickAdd](https://github.com/chhoumann/quickadd/blob/master/docs/Examples/Capture_FetchTasksFromTodoist.md#installation-video).
 
-Basically, you'll want to create a new JavaScript file (file extension is `.js`) with the contents of the script. Then, in the script, you see the `YOUR_READWISE_TOKEN`, which is where you'll want to insert your Readwise token (find it [here](https://readwise.io/access_token)).
+Basically, you will want to create a new JavaScript file (file extension is `.js`) with the contents of the script. Then, in the script, you see the `YOUR_READWISE_TOKEN`, which is where you will want to insert your Readwise token (find it [here](https://readwise.io/access_token)).
 
-Now you need to create a new macro. To do so, open the Macro Manager, enter a name for it (I use `Readwise`), and then click `Add`. Then click `Configure` on that macro. Once a modal opens, select the user script you've created and click `Add`.
+Now you need to create a new macro. To do so, open the Macro Manager, enter a name for it (I use `Readwise`), and then click `Add`. Then click `Configure` on that macro. Once a modal opens, select the user script you have created and click `Add`.
 
-Once that's done, you can use the [template provided below](https://github.com/chhoumann/quickadd/blob/master/docs/Examples/Template_AutomaticBookNotesFromReadwise.md#template). If you have your own, then you can just use the `{{MACRO:Readwise::instaFetchBook}}` to insert the highlights. If you called your macro something else than `Readwise`, replace `Readwise` with that.
+Once that's done, you can use the [template provided below](https://github.com/chhoumann/quickadd/blob/master/docs/Examples/Template_AutomaticBookNotesFromReadwise.md#template). If you have your own, then you can just use the `{{MACRO:Readwise::instaFetchBook}}` to insert the highlights. If you called your macro something other than `Readwise`, replace `Readwise` with that.
 
 This template should be added to a [Template choice](../Choices/TemplateChoice.md), and should be given values that resemble this:
 ![Template choice setup](../Images/readwise_template_choice.png)
 
-The template path should be the path the template made based on the one here.
+The template path should be the path to the template created based on the one here.
 
-Notably, the book's name would be the one selected. I have chosen to write prepend a `{ ` before it, as I use this to denote literature notes in my vault.
+Notably, the book's name would be the one selected. I have chosen to prepend a `{ ` before it, as I use this to denote literature notes in my vault.
 
-The remaining settings are up to you. Activating this choice will open a menu which allows you to choose a book, and the book notes will be used appended to the template.
-You can customize the template as much as you like, but make sure to keep the `{{MACRO:Readwise::instaFetchBook}}`, as that is what gets the highlights (and where they'll be inserted).
+The remaining settings are up to you. Activating this choice will open a menu which allows you to choose a book, and the book notes will be appended to the template.
+You can customize the template as much as you like, but make sure to keep the `{{MACRO:Readwise::instaFetchBook}}`, as that is what gets the highlights (and where they will be inserted).
 
 #### Script
 

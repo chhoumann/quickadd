@@ -58,7 +58,17 @@ const sidebars = {
 			type: "category",
 			label: "Advanced",
 			items: [
-				"QuickAddAPI",
+				{
+					type: "category",
+					label: "QuickAdd API",
+					items: [
+						"API/QuickAddAPICore",
+						"API/QuickAddAPIUtility",
+						"API/QuickAddAPIDate",
+						"API/QuickAddAIAssistantModule",
+						"API/QuickAddObsidianModule",
+					]
+				},
 				"Advanced/scriptsWithSettings",
 				"Advanced/ObsidianUri",
 			],
