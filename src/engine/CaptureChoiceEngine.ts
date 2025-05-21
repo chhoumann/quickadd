@@ -78,9 +78,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 				appendToCurrentLine(content, this.app);
 			} else {
-				const processedContent = await templaterParseTemplate(this.app, captureContent, file);
+				const formatted = await this.formatter.formatContentOnly(captureContent);
+				
+				// Second pass: Position the formatted content in the file
 				const newProcessedFileContent = await this.formatter.formatContentWithFile(
-					processedContent,
+					formatted,
 					this.choice,
 					newFileContent,
 					file
@@ -183,7 +185,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		const filePaths = filesInFolder.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths.map((item) => item.replace(folderPathSlash, "")),
 			filePaths,
 		);
@@ -210,7 +212,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		const filePaths = filesWithTag.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths,
 			filePaths,
 		);
