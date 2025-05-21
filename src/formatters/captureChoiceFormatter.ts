@@ -28,7 +28,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.fileContent = fileContent;
 		if (!choice || !file || fileContent === null) return input;
 
-		// Skip templater processing here since it's already been processed in formatContentOnly
+		// Skip templater processing here (runTemplater=false) since it's already been processed in formatContentOnly
 		// Just position the already-formatted content in the file according to settings
 		const formatted = await this.formatFileContent(input, false);
 		return formatted;
@@ -90,12 +90,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
-		// Process the input with templater (if needed) at this stage
-		// This is the first pass where we want to run any templater code
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
 		
-		// If we have a file, run templater parsing once in this first pass
+		// Process Templater commands if a file is available
+		// This is necessary for all capture scenarios
 		if (this.file) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
