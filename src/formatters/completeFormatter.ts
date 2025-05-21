@@ -132,7 +132,7 @@ export class CompleteFormatter extends Formatter {
 
 		if (suggestedValues.size === 0) {
 			return await GenericInputPrompt.Prompt(
-				app,
+				this.app,
 				`Enter value for ${variableName}`,
 				`No existing values were found in your vault.`
 			);

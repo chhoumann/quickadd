@@ -78,16 +78,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 				appendToCurrentLine(content, this.app);
 			} else {
-				const formatted = await this.formatter.formatContentOnly(captureContent);
-				
-				// Second pass: Position the formatted content in the file
-				const newProcessedFileContent = await this.formatter.formatContentWithFile(
-					formatted,
-					this.choice,
-					newFileContent,
-					file
-				);
-				await this.app.vault.modify(file, newProcessedFileContent);
+				await this.app.vault.modify(file, newFileContent);
 			}
 
 			if (this.choice.appendLink) {
@@ -156,7 +147,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Empty string means we suggest to capture anywhere in the vault.
 		const captureAnywhereInVault = folderPath === "";
 		const shouldCaptureToFolder =
-			captureAnywhereInVault || isFolder(folderPath);
+			captureAnywhereInVault || isFolder(folderPath, this.app);
 		const shouldCaptureWithTag = formattedCaptureTo.startsWith("#");
 
 		if (shouldCaptureToFolder) {
@@ -179,7 +170,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			folderPath.endsWith("/") || captureAnywhereInVault
 				? folderPath
 				: `${folderPath}/`;
-		const filesInFolder = getMarkdownFilesInFolder(folderPathSlash);
+		const filesInFolder = getMarkdownFilesInFolder(folderPathSlash, this.app);
 
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
@@ -206,7 +197,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private async selectFileWithTag(tag: string): Promise<string> {
 		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
-		const filesWithTag = getMarkdownFilesWithTag(tagWithHash);
+		const filesWithTag = getMarkdownFilesWithTag(tagWithHash, this.app);
 
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 

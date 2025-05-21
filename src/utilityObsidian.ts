@@ -269,16 +269,16 @@ export function getChoiceType<
 	);
 }
 
-export function isFolder(path: string): boolean {
+export function isFolder(path: string, app: App): boolean {
 	const abstractItem = app.vault.getAbstractFileByPath(path);
 
 	return !!abstractItem && abstractItem instanceof TFolder;
 }
 
-export function getMarkdownFilesInFolder(folderPath: string): TFile[] {
+export function getMarkdownFilesInFolder(folderPath: string, app: App): TFile[] {
 	return app.vault
 		.getMarkdownFiles()
-		.filter((f) => f.path.startsWith(folderPath));
+		.filter((f: TFile) => f.path.startsWith(folderPath));
 }
 
 function getFrontmatterTags(fileCache: CachedMetadata): string[] {
@@ -312,7 +312,7 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 	return tags;
 }
 
-function getFileTags(file: TFile): string[] {
+function getFileTags(file: TFile, app: App): string[] {
 	const fileCache = app.metadataCache.getFileCache(file);
 	if (!fileCache) return [];
 
@@ -322,17 +322,17 @@ function getFileTags(file: TFile): string[] {
 	}
 
 	if (fileCache.tags && Array.isArray(fileCache.tags)) {
-		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^\#/, "")));
+		tagsInFile.push(...fileCache.tags.map((v: any) => v.tag.replace(/^\#/, "")));
 	}
 
 	return tagsInFile;
 }
 
-export function getMarkdownFilesWithTag(tag: string): TFile[] {
+export function getMarkdownFilesWithTag(tag: string, app: App): TFile[] {
 	const targetTag = tag.replace(/^\#/, "");
 
-	return app.vault.getMarkdownFiles().filter((f) => {
-		const fileTags = getFileTags(f);
+	return app.vault.getMarkdownFiles().filter((f: TFile) => {
+		const fileTags = getFileTags(f, app);
 
 		return fileTags.includes(targetTag);
 	});
