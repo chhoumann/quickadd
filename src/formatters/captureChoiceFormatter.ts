@@ -28,9 +28,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.fileContent = fileContent;
 		if (!choice || !file || fileContent === null) return input;
 
-		// Skip templater processing here since it's already been processed in formatContentOnly
-		// Just position the already-formatted content in the file according to settings
-		const formatted = await this.formatFileContent(input, false);
+		// Process templater here if we're using insert after or prepend or not capturing to active file
+		// This is needed because in these cases, the content won't be processed by templaterParseTemplate in CaptureChoiceEngine
+		const shouldRunTemplater = choice.insertAfter.enabled || choice.prepend || !choice.captureToActiveFile;
+		const formatted = await this.formatFileContent(input, shouldRunTemplater);
 		return formatted;
 	}
 
@@ -49,7 +50,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		formatted = this.replaceLinebreakInString(formatted);
 
 		// If runTemplater is true and we have a file, run the templater parsing
-		// This will only be true during the first formatting stage (formatContentOnly)
 		if (runTemplater && this.file) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
@@ -95,17 +95,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
 		
-		// If we have a file, run templater parsing once in this first pass
-		if (this.file) {
-			const templaterFormatted = await templaterParseTemplate(
-				this.app,
-				formatted,
-				this.file
-			);
-			if (templaterFormatted) {
-				formatted = templaterFormatted;
-			}
-		}
+		// DON'T run templater parsing here - it will be handled either by:
+		// 1. CaptureChoiceEngine.run() for the active file + no insert after + no prepend case
+		// 2. formatContentWithFile() for all other cases
+		// This avoids double processing of templater commands
 
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
