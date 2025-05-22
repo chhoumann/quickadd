@@ -1,4 +1,4 @@
-import { App, MarkdownView, TFile } from "obsidian";
+import { type App, MarkdownView, type TFile } from "obsidian";
 import { CURSOR_SYNTAX_REGEX } from "../constants";
 
 export interface CursorPosition {
@@ -35,7 +35,7 @@ export function findCursorPositions(content: string): {
 	const cleanedContent = content.replace(CURSOR_SYNTAX_REGEX, (match, index, position) => {
 		positions.push({
 			position: position - offset,
-			index: index ? parseInt(index) : 0
+			index: index ? Number.parseInt(index) : 0
 		});
 		offset += match.length;
 		return "";
@@ -83,25 +83,34 @@ export function jumpToCursor(
 }
 
 /**
- * Handles cursor positioning after content is inserted
+ * Calculates where cursor should be placed in the final file content
  */
-export async function handleCursorInsertion(
-	app: App,
-	file: TFile,
-	originalContent: string,
-	insertedContent: string,
-	insertPosition: number
-): Promise<void> {
-	const { positions } = findCursorPositions(insertedContent);
+export function calculateCursorPosition(
+	capturedContent: string,
+	fileContent: string,
+	insertMode: 'prepend' | 'append' | 'insertAfter',
+	insertPosition?: number
+): number | null {
+	const { cleanedContent: cleanCapture, positions } = findCursorPositions(capturedContent);
 	
-	if (positions.length === 0) return;
+	if (positions.length === 0) return null;
 	
-	// Get the first cursor position (or lowest index)
-	const firstCursor = positions[0];
-	const absolutePosition = insertPosition + firstCursor.position;
+	const cursorPosInCapture = positions[0].position;
 	
-	// Small delay to ensure file is ready
-	setTimeout(() => {
-		jumpToCursor(app, file, originalContent, absolutePosition);
-	}, 100);
+	switch (insertMode) {
+		case 'prepend':
+			// Cursor is at the beginning plus offset into captured content
+			return cursorPosInCapture;
+		
+		case 'append':
+			// Cursor is at end of file plus offset into captured content
+			return fileContent.length + (fileContent.endsWith('\n') ? 0 : 1) + cursorPosInCapture;
+		
+		case 'insertAfter':
+			// Cursor is at insert position plus offset into captured content
+			return (insertPosition || 0) + cursorPosInCapture;
+		
+		default:
+			return null;
+	}
 }

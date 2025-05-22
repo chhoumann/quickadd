@@ -80,37 +80,50 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 				// Handle cursor positioning for append to current line
 				const { cleanedContent, positions } = findCursorPositions(content);
-				appendToCurrentLine(cleanedContent, this.app);
 				
-				// Jump to cursor if we have positions
 				if (positions.length > 0) {
-					setTimeout(() => {
-						const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-						if (activeView?.file?.path === file.path) {
-							const editor = activeView.editor;
-							const cursor = editor.getCursor();
-							// Adjust cursor position based on where we inserted
+					// Get current cursor position before appending
+					const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+					if (activeView?.file?.path === file.path) {
+						const editor = activeView.editor;
+						const initialCursor = editor.getCursor();
+						
+						// Append the content
+						appendToCurrentLine(cleanedContent, this.app);
+						
+						// Set cursor to the correct position
+						setTimeout(() => {
 							editor.setCursor({
-								line: cursor.line,
-								ch: cursor.ch - cleanedContent.length + positions[0].position
+								line: initialCursor.line,
+								ch: initialCursor.ch + positions[0].position
 							});
-						}
-					}, 50);
+						}, 50);
+					} else {
+						// No active editor, just append
+						appendToCurrentLine(cleanedContent, this.app);
+					}
+				} else {
+					appendToCurrentLine(cleanedContent, this.app);
 				}
 			} else {
-				// Handle cursor for other cases (prepend, insert after, different file)
-				const { cleanedContent, positions } = findCursorPositions(newFileContent);
-				await this.app.vault.modify(file, cleanedContent);
+				// For other cases, the cursor position is already in the correct place in newFileContent
+				// We just need to extract it and set the cursor after file modification
+				const hasCursor = newFileContent.includes('{{cursor');
 				
-				// If we have cursor positions and file is/will be opened
-				if (positions.length > 0 && (this.choice.openFile || this.choice.captureToActiveFile)) {
-					// Store cursor position for after file is opened
-					const cursorPosition = positions[0].position;
+				if (hasCursor && (this.choice.openFile || this.choice.captureToActiveFile)) {
+					// Find cursor position in the complete file content
+					const { cleanedContent, positions } = findCursorPositions(newFileContent);
+					await this.app.vault.modify(file, cleanedContent);
 					
-					// Use setTimeout to handle cursor after file operations
-					setTimeout(() => {
-						jumpToCursor(this.app, file, cleanedContent, cursorPosition);
-					}, 100);
+					if (positions.length > 0) {
+						// Small delay to ensure file is opened and ready
+						setTimeout(() => {
+							jumpToCursor(this.app, file, cleanedContent, positions[0].position);
+						}, 150);
+					}
+				} else {
+					// No cursor, just write the content
+					await this.app.vault.modify(file, newFileContent);
 				}
 			}
 
