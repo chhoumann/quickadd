@@ -22,17 +22,17 @@ export function getTemplater(app: App) {
 export async function replaceTemplaterTemplatesInCreatedFile(
 	app: App,
 	file: TFile,
-	force = false,
 ) {
 	const templater = getTemplater(app);
 	
 	if (!templater) return;
 	
-	// Process Templater commands in these cases:
-	// 1. force=true (explicitly requested processing, e.g., for Template choices)
-	// 2. Templater's trigger_on_file_creation=false (manual processing required)
-	const shouldProcess = force || 
-		!(templater.settings as Record<string, unknown>)["trigger_on_file_creation"];
+	const settings = templater.settings as Record<string, unknown>;
+	const triggerOnFileCreation = settings?.["trigger_on_file_creation"];
+	
+	// Only process if Templater's trigger_on_file_creation is disabled
+	// If it's enabled, Templater will process the file automatically
+	const shouldProcess = !triggerOnFileCreation;
 	
 	if (shouldProcess) {
 		const impl = templater?.templater as {
