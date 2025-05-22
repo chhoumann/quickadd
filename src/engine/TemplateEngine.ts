@@ -106,8 +106,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				formattedTemplateContent
 			);
 
-			// Always force processing of Templater commands for template choices
-			await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile, true);
+			// Process Templater commands for template choices
+			await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile);
 
 			return createdFile;
 		} catch (err) {
@@ -129,8 +129,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				await this.formatter.formatFileContent(templateContent);
 			await this.app.vault.modify(file, formattedTemplateContent);
 
-			// Already forcing Templater processing, keep this as-is
-			await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+			// Process Templater commands
+			await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
 			return file;
 		} catch (err) {
@@ -158,8 +158,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 					: `${fileContent}\n${formattedTemplateContent}`;
 			await this.app.vault.modify(file, newFileContent);
 
-			// Already forcing Templater processing, keep this as-is
-			await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+			// Process Templater commands
+			await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
 			return file;
 		} catch (err) {

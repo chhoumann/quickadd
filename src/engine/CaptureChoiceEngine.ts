@@ -285,7 +285,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
-		await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+		await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
 		const updatedFileContent: string = await this.app.vault.cachedRead(file);
 		const newFileContent: string = await this.formatter.formatContentWithFile(
