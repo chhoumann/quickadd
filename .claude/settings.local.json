@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun run lint:*)",
+      "Bash(bun run:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx esbuild-visualizer:*)",
+      "Bash(rm:*)",
+      "Bash(sed:*)",
+      "Bash(node:*)"
+    ],
+    "deny": []
+  }
+}

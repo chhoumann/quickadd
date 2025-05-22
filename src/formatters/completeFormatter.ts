@@ -16,6 +16,7 @@ import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { convertTemplaterCursorSyntax } from "../utils/cursorUtils";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -55,7 +56,8 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatFileContent(input: string): Promise<string> {
-		let output: string = input;
+		// Convert Templater cursor syntax to QuickAdd cursor syntax
+		let output: string = convertTemplaterCursorSyntax(input);
 
 		output = await this.format(output);
 		output = await this.replaceLinkToCurrentFileInString(output);

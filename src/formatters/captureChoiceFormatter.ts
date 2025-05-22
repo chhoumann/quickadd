@@ -11,6 +11,7 @@ import {
 } from "../constants";
 import { escapeRegExp, getLinesInString } from "src/utility";
 import getEndOfSection from "./helpers/getEndOfSection";
+import { convertTemplaterCursorSyntax } from "../utils/cursorUtils";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
@@ -46,7 +47,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
-		let formatted = await super.formatFileContent(input);
+		// Convert Templater cursor syntax to QuickAdd cursor syntax first
+		let formatted = convertTemplaterCursorSyntax(input);
+		
+		formatted = await super.formatFileContent(formatted);
 		formatted = this.replaceLinebreakInString(formatted);
 
 		// If runTemplater is true and we have a file, run the templater parsing
@@ -90,9 +94,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
+		// Convert Templater cursor syntax to QuickAdd cursor syntax first
+		let formatted = convertTemplaterCursorSyntax(input);
+		
 		// Process the input with templater (if needed) at this stage
 		// This is the first pass where we want to run any templater code
-		let formatted = await super.formatFileContent(input);
+		formatted = await super.formatFileContent(formatted);
 		formatted = this.replaceLinebreakInString(formatted);
 		
 		// DON'T run templater parsing here - it will be handled either by:

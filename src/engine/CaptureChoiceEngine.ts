@@ -1,6 +1,7 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
 import type { App } from "obsidian";
+import { MarkdownView } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
@@ -22,6 +23,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { findCursorPositions, jumpToCursor } from "../utils/cursorUtils";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -76,9 +78,40 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(app, captureContent, file);
 
-				appendToCurrentLine(content, this.app);
+				// Handle cursor positioning for append to current line
+				const { cleanedContent, positions } = findCursorPositions(content);
+				appendToCurrentLine(cleanedContent, this.app);
+				
+				// Jump to cursor if we have positions
+				if (positions.length > 0) {
+					setTimeout(() => {
+						const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+						if (activeView?.file?.path === file.path) {
+							const editor = activeView.editor;
+							const cursor = editor.getCursor();
+							// Adjust cursor position based on where we inserted
+							editor.setCursor({
+								line: cursor.line,
+								ch: cursor.ch - cleanedContent.length + positions[0].position
+							});
+						}
+					}, 50);
+				}
 			} else {
-				await this.app.vault.modify(file, newFileContent);
+				// Handle cursor for other cases (prepend, insert after, different file)
+				const { cleanedContent, positions } = findCursorPositions(newFileContent);
+				await this.app.vault.modify(file, cleanedContent);
+				
+				// If we have cursor positions and file is/will be opened
+				if (positions.length > 0 && (this.choice.openFile || this.choice.captureToActiveFile)) {
+					// Store cursor position for after file is opened
+					const cursorPosition = positions[0].position;
+					
+					// Use setTimeout to handle cursor after file operations
+					setTimeout(() => {
+						jumpToCursor(this.app, file, cleanedContent, cursorPosition);
+					}, 100);
+				}
 			}
 
 			if (this.choice.appendLink) {

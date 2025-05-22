@@ -11,6 +11,7 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { findCursorPositions, jumpToCursor } from "../utils/cursorUtils";
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
@@ -101,13 +102,25 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+			
+			// Find cursor positions before creating the file
+			const { cleanedContent, positions } = findCursorPositions(formattedTemplateContent);
+			
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
-				formattedTemplateContent
+				cleanedContent
 			);
 
 			// Process Templater commands for template choices
 			await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile);
+			
+			// Handle cursor positioning after file is created
+			if (positions.length > 0) {
+				setTimeout(async () => {
+					const fileContent = await this.app.vault.read(createdFile);
+					jumpToCursor(this.app, createdFile, fileContent, positions[0].position);
+				}, 100);
+			}
 
 			return createdFile;
 		} catch (err) {
@@ -127,10 +140,22 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
-			await this.app.vault.modify(file, formattedTemplateContent);
+			
+			// Find cursor positions before modifying the file
+			const { cleanedContent, positions } = findCursorPositions(formattedTemplateContent);
+			
+			await this.app.vault.modify(file, cleanedContent);
 
 			// Process Templater commands
 			await replaceTemplaterTemplatesInCreatedFile(this.app, file);
+			
+			// Handle cursor positioning
+			if (positions.length > 0) {
+				setTimeout(async () => {
+					const fileContent = await this.app.vault.read(file);
+					jumpToCursor(this.app, file, fileContent, positions[0].position);
+				}, 100);
+			}
 
 			return file;
 		} catch (err) {
@@ -151,15 +176,28 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+			
+			// Find cursor positions before modifying
+			const { cleanedContent, positions } = findCursorPositions(formattedTemplateContent);
+			
 			const fileContent: string = await this.app.vault.cachedRead(file);
 			const newFileContent: string =
 				section === "top"
-					? `${formattedTemplateContent}\n${fileContent}`
-					: `${fileContent}\n${formattedTemplateContent}`;
+					? `${cleanedContent}\n${fileContent}`
+					: `${fileContent}\n${cleanedContent}`;
 			await this.app.vault.modify(file, newFileContent);
 
 			// Process Templater commands
 			await replaceTemplaterTemplatesInCreatedFile(this.app, file);
+			
+			// Handle cursor positioning with offset for append position
+			if (positions.length > 0) {
+				const offset = section === "top" ? 0 : fileContent.length + 1;
+				setTimeout(async () => {
+					const updatedContent = await this.app.vault.read(file);
+					jumpToCursor(this.app, file, updatedContent, positions[0].position + offset);
+				}, 100);
+			}
 
 			return file;
 		} catch (err) {

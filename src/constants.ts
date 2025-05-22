@@ -8,6 +8,8 @@ export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
+export const CURSOR_SYNTAX = "{{cursor}}";
+export const CURSOR_SYNTAX_REGEX = /{{cursor(?::(\d+))?}}/gi;
 
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
@@ -21,7 +23,9 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
 	MATH_VALUE_SYNTAX,
-	SELECTED_SYNTAX
+	SELECTED_SYNTAX,
+	CURSOR_SYNTAX,
+	"{{cursor:<number>}}"
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
