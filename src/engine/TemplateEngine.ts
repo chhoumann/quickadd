@@ -99,15 +99,22 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
-			const formattedTemplateContent: string =
-				await this.formatter.formatFileContent(templateContent);
+			// Create file with raw template content first
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
-				formattedTemplateContent
+				templateContent
 			);
 
-			// Always force processing of Templater commands for template choices
+			// Process Templater commands FIRST
 			await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile, true);
+
+			// Then format QuickAdd variables after Templater is done
+			const fileContent = await this.app.vault.read(createdFile);
+			const formattedContent = await this.formatter.formatFileContent(fileContent);
+			
+			if (formattedContent !== fileContent) {
+				await this.app.vault.modify(createdFile, formattedContent);
+			}
 
 			return createdFile;
 		} catch (err) {
@@ -125,12 +132,19 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
-			const formattedTemplateContent: string =
-				await this.formatter.formatFileContent(templateContent);
-			await this.app.vault.modify(file, formattedTemplateContent);
+			// Write raw template content first
+			await this.app.vault.modify(file, templateContent);
 
-			// Already forcing Templater processing, keep this as-is
+			// Process Templater commands FIRST
 			await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+
+			// Then format QuickAdd variables after Templater is done
+			const fileContent = await this.app.vault.read(file);
+			const formattedContent = await this.formatter.formatFileContent(fileContent);
+			
+			if (formattedContent !== fileContent) {
+				await this.app.vault.modify(file, formattedContent);
+			}
 
 			return file;
 		} catch (err) {
@@ -149,17 +163,24 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
-			const formattedTemplateContent: string =
-				await this.formatter.formatFileContent(templateContent);
+			// Append raw template content first
 			const fileContent: string = await this.app.vault.cachedRead(file);
 			const newFileContent: string =
 				section === "top"
-					? `${formattedTemplateContent}\n${fileContent}`
-					: `${fileContent}\n${formattedTemplateContent}`;
+					? `${templateContent}\n${fileContent}`
+					: `${fileContent}\n${templateContent}`;
 			await this.app.vault.modify(file, newFileContent);
 
-			// Already forcing Templater processing, keep this as-is
+			// Process Templater commands FIRST
 			await replaceTemplaterTemplatesInCreatedFile(this.app, file, true);
+
+			// Then format QuickAdd variables after Templater is done
+			const processedContent = await this.app.vault.read(file);
+			const formattedContent = await this.formatter.formatFileContent(processedContent);
+			
+			if (formattedContent !== processedContent) {
+				await this.app.vault.modify(file, formattedContent);
+			}
 
 			return file;
 		} catch (err) {

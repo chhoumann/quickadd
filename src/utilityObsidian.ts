@@ -37,21 +37,9 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 	if (shouldProcess) {
 		const impl = templater?.templater as {
 			overwrite_file_commands?: (file: TFile) => Promise<void>;
-			jump_to_next_cursor_location?: (file: TFile) => void;
 		};
 		if (impl?.overwrite_file_commands) {
 			await impl.overwrite_file_commands(file);
-			
-			// After processing, handle cursor jump if enabled
-			// Use setTimeout to ensure the file is ready and active
-			const settings = templater.settings as Record<string, unknown>;
-			if (settings?.["enable_automatic_jump_to_cursor"]) {
-				setTimeout(() => {
-					if (impl?.jump_to_next_cursor_location) {
-						impl.jump_to_next_cursor_location(file);
-					}
-				}, 50);
-			}
 		}
 	}
 }
@@ -180,10 +168,7 @@ export async function openFile(
 /**
  * If there is no existing tab which opened the file, return false, else return true.
  */
-export function openExistingFileTab(
-	app: App,
-	file: TFile,
-): boolean {
+export function openExistingFileTab(app: App, file: TFile): boolean {
 	let leaf: WorkspaceLeaf | undefined = undefined;
 
 	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
