@@ -1,8 +1,9 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
-const lightCodeTheme = require('prism-react-renderer/themes/github');
-const darkCodeTheme = require('prism-react-renderer/themes/dracula');
+const {themes} = require('prism-react-renderer');
+const lightCodeTheme = themes.github;
+const darkCodeTheme = themes.dracula;
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -63,12 +64,24 @@ const config = {
             type: 'doc',
             docId: 'index',
             position: 'left',
-            label: 'Documentation',
+            label: '📚 Docs',
+          },
+          {
+            type: 'doc',
+            docId: 'QuickAddAPI',
+            position: 'left',
+            label: '🔧 API',
+          },
+          {
+            to: '/docs/Examples/Macro_BookFinder',
+            position: 'left',
+            label: '💡 Examples',
           },
           {
             href: 'https://github.com/chhoumann/quickadd',
-            label: 'GitHub',
             position: 'right',
+            className: 'header-github-link',
+            'aria-label': 'GitHub repository',
           },
         ],
       },
@@ -99,7 +112,26 @@ const config = {
         theme: lightCodeTheme,
         darkTheme: darkCodeTheme,
       },
+      colorMode: {
+        defaultMode: 'light',
+        disableSwitch: false,
+        respectPrefersColorScheme: true,
+      },
     }),
+    
+  themes: [
+    [
+      require.resolve("@easyops-cn/docusaurus-search-local"),
+      {
+        hashed: true,
+        language: ["en"],
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+        docsRouteBasePath: "/docs",
+        searchBarShortcutHint: false,
+      },
+    ],
+  ],
 };
 
 module.exports = config;
