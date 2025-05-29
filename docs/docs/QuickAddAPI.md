@@ -1,239 +1,449 @@
 # QuickAdd API
 
-The API is an interface accessible from scripts, macros and choices.
+The QuickAdd API provides a powerful interface for automating tasks in Obsidian through scripts, macros, and inline scripts. The API offers methods for user interaction, file manipulation, AI integration, and more.
 
-As of v0.8.0, the API is available for public consumption from just `app.plugins.plugins.quickadd.api`.<br/>
-This means you can use the API methods found below in your Dataviewjs scripts, Templater scripts, and so on.
+## Accessing the API
 
-It is also accessible from within [inline scripts](./InlineScripts.md) and [user scripts](./Choices/MacroChoice.md).
+The API can be accessed in several ways:
+
+### From QuickAdd Scripts (Macros/User Scripts)
+```javascript
+module.exports = async (params) => {
+    const { quickAddApi, app, variables } = params;
+    // Use quickAddApi here
+};
+```
+
+### From Other Plugins/Scripts
+```javascript
+const quickAddApi = app.plugins.plugins.quickadd.api;
+// Use the API methods
+```
+
+### From Templater Scripts
+```javascript
+<%*
+const quickAddApi = app.plugins.plugins.quickadd.api;
+const result = await quickAddApi.inputPrompt("Enter value:");
+tR += result;
+%>
+```
+
+### From Dataview Scripts
+```javascript
+```dataviewjs
+const quickAddApi = app.plugins.plugins.quickadd.api;
+const choice = await quickAddApi.suggester(["Option 1", "Option 2"], ["value1", "value2"]);
+dv.paragraph(choice);
+```
+
+## User Input Methods
 
 ### `inputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
-Opens a prompt that asks for an input. Returns a string with the input.
+Opens a prompt that asks for text input.
 
-This function is asynchronous. You should ``await`` it.
+**Parameters:**
+- `header`: The prompt title/question
+- `placeholder`: (Optional) Placeholder text in the input field
+- `value`: (Optional) Default value
 
-### `wideInputPrompt: (header: string, placeholder?: string, value?): Promise<string>`
-Opens a wide prompt that asks for an input. Returns a string with the input.
+**Returns:** Promise resolving to the entered string, or `null` if cancelled
 
-This function is asynchronous. You should ``await`` it.
-
-### `yesNoPrompt: (header: string, text?: string): Promise<boolean>`
-Opens a prompt asking for confirmation. Returns `true` or `false` based on answer.
-
-This function is asynchronous. You should ``await`` it.
-
-### `infoDialog: (header: string, text: string[] | string): Promise<void>`
-Opens a dialog showing information the text and an `OK` button.
-You can pass a single string, which results in a single line, or an array of strings, which will be displayed as multiple lines.
-
-This function is asynchronous. You should ``await`` it.
-
-### `suggester: (displayItems: string[] | ((value: string, index?: number, arr?: string[]) => string[]), actualItems: string[]): Promise<string>`
-Opens a suggester. Displays the `displayItems`, but you map these the other values with `actualItems`.
-
-The ``displayItems`` can either be an array of strings, or a map function that will be executed on the actual items.
-
-This means that the following syntax is possible:
-````js
-const pickedFile = await params.quickAddApi.suggester(
-    (file) => file.basename,
-    params.app.vault.getMarkdownFiles()
+**Example:**
+```javascript
+const name = await quickAddApi.inputPrompt(
+    "What's your name?",
+    "Enter your full name",
+    "John Doe"
 );
-````
 
-Returns the selected value.
+if (name) {
+    console.log(`Hello, ${name}!`);
+}
+```
 
-This function is asynchronous. You should ``await`` it.
+### `wideInputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
+Opens a wider prompt for longer text input (multi-line).
 
-### `checkboxPrompt: (items: string[], selectedItems: string[]): Promise<string[]>`
-Opens a checkbox prompt with the items given. Items in the `selectedItems` array will be selected by default.
+**Parameters:** Same as `inputPrompt`
 
-Returns an array of the selected items.
+**Returns:** Promise resolving to the entered string, or `null` if cancelled
 
-This function is asynchronous. You should ``await`` it.
+**Example:**
+```javascript
+const description = await quickAddApi.wideInputPrompt(
+    "Project Description",
+    "Enter a detailed description...",
+    "This project aims to..."
+);
+```
 
-### ``executeChoice(choiceName: string, variables?: {[key: string]: any}): Promise``
-Executes choice with the given name.
+### `yesNoPrompt(header: string, text?: string): Promise<boolean>`
+Opens a confirmation dialog with Yes/No buttons.
 
-You can also pass an optional parameter, ``variables``.
+**Parameters:**
+- `header`: The dialog title
+- `text`: (Optional) Additional explanation text
 
-The object will be read as variables for the choice to be executed. These variables do _not_ affect the currently set variables.
-You should view the execution as a new branch, separate from the one executing the macro.
+**Returns:** Promise resolving to `true` (Yes) or `false` (No)
 
-This function is asynchronous. You should ``await`` it.
+**Example:**
+```javascript
+const confirmed = await quickAddApi.yesNoPrompt(
+    "Delete Note?",
+    "This action cannot be undone."
+);
 
-#### Example use case for `executeChoice`
-Say you have added a [Capture Choice](./Choices/CaptureChoice.md). Now you want to call it from within a script / macro, because you want to execute it repeatedly with different parameters.
+if (confirmed) {
+    // Proceed with deletion
+}
+```
 
-Then you'd be able to do something like this:
-```js
-const massiveDataArray = [/* ... */];
-massiveDataArray.forEach(async (data) => {
-    await params.quickAddApi.executeChoice('Capture Choice', {
-        X: data.x,
-        Y: data.y,
-        Z: data.z,
-        // ...
+### `infoDialog(header: string, text: string[] | string): Promise<void>`
+Shows an information dialog with an OK button.
+
+**Parameters:**
+- `header`: Dialog title
+- `text`: Single string or array of strings (for multiple lines)
+
+**Example:**
+```javascript
+await quickAddApi.infoDialog(
+    "Operation Complete",
+    [
+        "Files processed: 10",
+        "Errors: 0",
+        "Time taken: 2.5 seconds"
+    ]
+);
+```
+
+### `suggester(displayItems: string[] | Function, actualItems: string[]): Promise<string>`
+Opens a selection prompt with searchable options.
+
+**Parameters:**
+- `displayItems`: Array of display strings OR a map function
+- `actualItems`: Array of actual values to return
+
+**Returns:** Promise resolving to the selected value, or `null` if cancelled
+
+**Examples:**
+
+Basic usage:
+```javascript
+const fruit = await quickAddApi.suggester(
+    ["🍎 Apple", "🍌 Banana", "🍊 Orange"],
+    ["apple", "banana", "orange"]
+);
+```
+
+With map function:
+```javascript
+const files = app.vault.getMarkdownFiles();
+const selectedFile = await quickAddApi.suggester(
+    file => file.basename,  // Display just the filename
+    files                   // Return the full file object
+);
+```
+
+Complex objects:
+```javascript
+const tasks = [
+    { id: 1, title: "Task 1", priority: "high" },
+    { id: 2, title: "Task 2", priority: "low" }
+];
+
+const selectedTask = await quickAddApi.suggester(
+    task => `${task.title} (${task.priority})`,
+    tasks
+);
+```
+
+### `checkboxPrompt(items: string[], selectedItems?: string[]): Promise<string[]>`
+Opens a checkbox prompt allowing multiple selections.
+
+**Parameters:**
+- `items`: Array of options to display
+- `selectedItems`: (Optional) Array of pre-selected items
+
+**Returns:** Promise resolving to array of selected items
+
+**Example:**
+```javascript
+const features = await quickAddApi.checkboxPrompt(
+    ["Dark Mode", "Auto-save", "Spell Check", "Line Numbers"],
+    ["Auto-save", "Line Numbers"]  // Pre-selected
+);
+
+console.log("Enabled features:", features);
+```
+
+## Choice Execution
+
+### `executeChoice(choiceName: string, variables?: {[key: string]: any}): Promise<void>`
+Executes another QuickAdd choice programmatically.
+
+**Parameters:**
+- `choiceName`: Name of the choice to execute
+- `variables`: (Optional) Variables to pass to the choice
+
+**Example:**
+```javascript
+// Execute a template choice with variables
+await quickAddApi.executeChoice("Create Meeting Note", {
+    meetingTitle: "Project Review",
+    attendees: "John, Jane, Bob",
+    date: "2024-01-15",
+    value: "Main agenda content"  // Special: maps to {{VALUE}}
+});
+```
+
+Batch processing example:
+```javascript
+const contacts = [
+    { name: "John Doe", email: "john@example.com", company: "ACME" },
+    { name: "Jane Smith", email: "jane@example.com", company: "Tech Corp" }
+];
+
+for (const contact of contacts) {
+    await quickAddApi.executeChoice("Create Contact", {
+        contactName: contact.name,
+        contactEmail: contact.email,
+        contactCompany: contact.company
     });
-});
+}
 ```
 
-This would execute the choice for each item in the array, passing the data as a variable. This means you can access the variables from within your Capture with `{{VALUE:X}}` (and so on, for each key-value pair in the object).
+## Utility Module
 
-Additionally, you can use the reserved variable name 'value' to pass a value directly to `{{VALUE}}` or `{{NAME}}` format tags:
+Access via `quickAddApi.utility`:
 
-```js
-await params.quickAddApi.executeChoice('My Template Choice', {
-    value: "This text will be used for {{VALUE}} tags",
-    customVar: "This will be available as {{VALUE:customVar}}"
-});
+### `getClipboard(): Promise<string>`
+Gets the current clipboard contents.
+
+**Example:**
+```javascript
+const clipboardText = await quickAddApi.utility.getClipboard();
+console.log("Clipboard contains:", clipboardText);
 ```
 
-## Utility module
-Given by `api.utility`.
+### `setClipboard(text: string): Promise<void>`
+Sets the clipboard contents.
 
-### ``getClipboard(): Promise<string>``
-Returns the contents of your clipboard.
+**Example:**
+```javascript
+await quickAddApi.utility.setClipboard("Hello, World!");
+```
 
-This function is asynchronous. You should ``await`` it.
+Combined example:
+```javascript
+// Transform clipboard contents
+const original = await quickAddApi.utility.getClipboard();
+const transformed = original.toUpperCase();
+await quickAddApi.utility.setClipboard(transformed);
+```
 
-Syntax: `await quickAddApi.utility.getClipboard();`
+## Date Module
 
-### ``setClipboard(text: string): Promise``
-Sets the contents of your clipboard to the given input.
+Access via `quickAddApi.date`:
 
-This function is asynchronous. You should ``await`` it.
+### `now(format?: string, offset?: number): string`
+Gets formatted current date/time.
 
-Syntax: `await quickAddApi.utility.setClipboard();`
+**Parameters:**
+- `format`: (Optional) Moment.js format string, defaults to "YYYY-MM-DD"
+- `offset`: (Optional) Day offset (negative for past, positive for future)
 
-## Date module
-Formats always default to ``YYYY-MM-DD``.
-### ``now(format?: string, offset?: number)``
-Gets the current time and formats according to the given format.
+**Examples:**
+```javascript
+// Current date
+const today = quickAddApi.date.now();  // "2024-01-15"
 
-Providing an offset will offset the date by number of days. Giving -1 would mean yesterday, and giving 1 would mean tomorrow - and so on.
+// Custom format
+const timestamp = quickAddApi.date.now("YYYY-MM-DD HH:mm:ss");
 
-### ``tomorrow(format?: string)``
-Same as ``now`` but with offset set to 1.
+// With offset
+const nextWeek = quickAddApi.date.now("YYYY-MM-DD", 7);
+const lastMonth = quickAddApi.date.now("YYYY-MM-DD", -30);
+```
 
-### ``yesterday(format?: string)``
-Again, same as ``now`` but with offset set to -1.
+### `tomorrow(format?: string): string`
+Shorthand for `now(format, 1)`.
+
+### `yesterday(format?: string): string`
+Shorthand for `now(format, -1)`.
+
+**Example:**
+```javascript
+const yesterdayLog = `Daily Notes/${quickAddApi.date.yesterday()}.md`;
+const tomorrowTask = `Tasks for ${quickAddApi.date.tomorrow("dddd, MMMM D")}`;
+```
 
 ## AI Module
-Given by `api.ai`.
 
-### `prompt(prompt: string, model: Model, settings?: Partial<{variableName: string, shouldAssignVariables: boolean, modelOptions: Partial<OpenAIModelParameters>, showAssistantMessages: boolean, systemPrompt: string}>): Promise<{[key: string]: string}>`
+Access via `quickAddApi.ai`:
 
-This function is a part of the AI module and it takes a prompt and a Large Language Model (LLM) to perform an action and return the result. The optional settings parameter is used to control the function's behavior. 
+### `prompt(prompt: string, model: string, settings?: object): Promise<object>`
+Sends a prompt to an AI model and returns the response.
 
-This function is asynchronous. You should `await` it.
+**Parameters:**
+- `prompt`: The prompt text
+- `model`: Model name (e.g., "gpt-4", "gpt-3.5-turbo")
+- `settings`: (Optional) Configuration object:
+  - `variableName`: Output variable name (default: "output")
+  - `shouldAssignVariables`: Auto-assign to variables (default: false)
+  - `modelOptions`: Model parameters (temperature, max_tokens, etc.)
+  - `showAssistantMessages`: Show AI responses in UI (default: true)
+  - `systemPrompt`: Override system prompt
 
-The parameters of the function are as follows:
+**Returns:** Object with:
+- `[variableName]`: The AI response
+- `[variableName]-quoted`: The response in markdown quote format
 
-- `prompt`: A `string`. The prompt that will be passed to the machine learning model.
-- `model`: A `Model`. The machine learning model that will process the prompt. The model could be "gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-32k", or "text-davinci-003".
-- `settings`: An optional `object` with the following keys:
-    - `variableName`: A `string`. The name of the output variable. Default is "output".
-    - `shouldAssignVariables`: A `boolean`. If set to true, the result of the function will be assigned to the variables of the `choiceExecutor`. Default is `false`.
-    - `modelOptions`: An instance of `Partial<OpenAIModelParameters>`. The parameters to be used when interacting with the OpenAI model. Defaults to an empty object.
-    - `showAssistantMessages`: A `boolean`. If set to true, messages from the assistant will be shown. Default is `true`.
-    - `systemPrompt`: A `string`. The system prompt to be used. Default is your default system prompt, as specified in the AI Assistant settings.
+**Example:**
+```javascript
+const result = await quickAddApi.ai.prompt(
+    "Summarize this text: " + noteContent,
+    "gpt-4",
+    {
+        variableName: "summary",
+        modelOptions: {
+            temperature: 0.3,
+            max_tokens: 150
+        }
+    }
+);
 
-Returns a `Promise` that resolves to the result of the `Prompt` function call. That is an object with the following keys:
-- `output` or your specified `variableName`: A `string`. The output of the machine learning model. 
-- `output-quoted` or your specified `variableName` + `-quoted`: A `string`. The output of the machine learning model, but in a markdown quote.
+console.log(result.summary);
+// Use in template: {{VALUE:summary}}
+```
 
-#### Example use case for `ai.prompt`
+### `getModels(): string[]`
+Returns available AI models.
 
-```js
-const promptText = "What is the capital of France?";
-const model = "gpt-4";
+**Example:**
+```javascript
+const models = quickAddApi.ai.getModels();
+const selectedModel = await quickAddApi.suggester(models, models);
+```
 
-const settings = {
-    variableName: "capital",
-    shouldAssignVariables: true,
-    modelOptions: {
-        temperature: 0.6,
-        max_tokens: 60,
-        frequency_penalty: 0.5,
-        presence_penalty: 0.5
-    },
-    showAssistantMessages: true,
-    systemPrompt: "Please provide the answer"
+### `getMaxTokens(model: string): number`
+Gets the maximum token limit for a model.
+
+### `countTokens(text: string, model: string): number`
+Counts tokens in text according to model's tokenization.
+
+**Example:**
+```javascript
+const text = await quickAddApi.utility.getClipboard();
+const tokenCount = quickAddApi.ai.countTokens(text, "gpt-4");
+
+if (tokenCount > 4000) {
+    await quickAddApi.infoDialog(
+        "Text Too Long",
+        `The text contains ${tokenCount} tokens, which exceeds the model limit.`
+    );
+}
+```
+
+## Complete Example: Research Assistant
+
+Here's a comprehensive example combining multiple API features:
+
+```javascript
+module.exports = async (params) => {
+    const { quickAddApi, app, variables } = params;
+    
+    try {
+        // Get research parameters
+        const topic = await quickAddApi.inputPrompt("Research Topic:");
+        if (!topic) return;
+        
+        const sources = await quickAddApi.checkboxPrompt(
+            ["Web Search", "Academic Papers", "Books", "Videos"],
+            ["Web Search", "Academic Papers"]
+        );
+        
+        // AI-assisted outline generation
+        const outline = await quickAddApi.ai.prompt(
+            `Create a research outline for: ${topic}`,
+            "gpt-4",
+            {
+                variableName: "outline",
+                shouldAssignVariables: true,
+                modelOptions: { temperature: 0.7 }
+            }
+        );
+        
+        // Create folder structure
+        const folder = `Research/${topic}`;
+        await app.vault.createFolder(folder);
+        
+        // Set variables for templates
+        variables.topic = topic;
+        variables.sources = sources.join(", ");
+        variables.date = quickAddApi.date.now("YYYY-MM-DD HH:mm");
+        
+        // Execute template choice
+        await quickAddApi.executeChoice("Research Template", variables);
+        
+        // Show completion
+        await quickAddApi.infoDialog(
+            "Research Project Created",
+            [
+                `Topic: ${topic}`,
+                `Sources: ${sources.length} selected`,
+                `Location: ${folder}`,
+                "AI outline generated successfully"
+            ]
+        );
+        
+    } catch (error) {
+        console.error("Research assistant error:", error);
+        new Notice(`Error: ${error.message}`);
+    }
 };
-
-const response = await api.ai.prompt(promptText, model, settings);
 ```
 
-In this example, the function will ask the GPT-4 model "What is the capital of France?". The response from the model will be assigned to the variable "capital". The model parameters will be set to a temperature of 0.6, maximum of 60 tokens, frequency penalty of 0.5, and presence penalty of 0.5. Assistant messages will be shown, and the system prompt will be "Please provide the answer".
+## Error Handling Best Practices
 
-An example response is:
+Always wrap API calls in try-catch blocks:
 
-```json
-{
-    "capital": "The capital of France is [[Paris]].",
-    "capital-quoted": "> The capital of France is [[Paris]]."
-}
+```javascript
+module.exports = async (params) => {
+    const { quickAddApi } = params;
+    
+    try {
+        const input = await quickAddApi.inputPrompt("Enter value:");
+        
+        if (!input) {
+            // User cancelled - handle gracefully
+            return;
+        }
+        
+        // Process input...
+        
+    } catch (error) {
+        console.error("Script error:", error);
+        
+        await quickAddApi.infoDialog(
+            "Error",
+            `An error occurred: ${error.message}`
+        );
+    }
+};
 ```
 
-### `getModels(): Model[]`
+## Performance Tips
 
-Returns an array containing the names of all available LLMs. 
+1. **Batch Operations**: Use loops wisely to avoid overwhelming the system
+2. **Debounce User Input**: Add delays between rapid operations
+3. **Check File Existence**: Verify files exist before operations
+4. **Validate Input**: Always validate user input before processing
 
-This function is synchronous.
+## See Also
 
-#### Example use case for `ai.getModels`
-
-```js
-const models = api.ai.getModels();
-console.log(models); // Outputs: ["gpt-3.5-turbo", "gpt-3.5-turbo-16k", "gpt-4", "gpt-4-32k", "text-davinci-003"]
-```
-
-In this example, the function will return all the available LLMs.
-
-### `getMaxTokens(model: Model): number`
-
-Returns the maximum number of tokens that the specified model can handle.
-
-This function is synchronous.
-
-- `model`: A `Model`. The LLM for which the maximum token limit will be returned.
-
-#### Example use case for `ai.getMaxTokens`
-
-```js
-const model = "gpt-4";
-const maxTokens = api.ai.getMaxTokens(model);
-console.log(maxTokens); // Outputs: Max token limit for the specified model
-```
-
-In this example, the function will return the maximum token limit for the GPT-4 model.
-
-### `countTokens(text: string, model: Model): number`
-
-Counts the number of tokens in the provided text string according to the tokenization rules of the specified model.
-
-This function is synchronous.
-
-- `text`: A `string`. The text for which the token count will be computed.
-- `model`: A `Model`. The LLM whose tokenization rules will be used.
-
-#### Example use case for `ai.countTokens`
-
-```js
-const model = "gpt-4";
-const text = "This is a sample sentence.";
-const tokenCount = api.ai.countTokens(text, model);
-console.log(tokenCount); // Outputs: Token count for the specified sentence
-```
-
-In this example, the function will return the token count for the text "This is a sample sentence." according to the GPT-4 model's tokenization rules.
-
-## Obsidian
-The Obsidian API is exposed as well.
-Accessible through the first parameter in your scripts. For example:
-````js
-module.exports = ({obsidian}) => {
-    // obsidian is the API
-}
-````
+- [Macro Choices](./Choices/MacroChoice.md) - Using scripts in macros
+- [Inline Scripts](./InlineScripts.md) - Using scripts in templates
+- [Format Syntax](./FormatSyntax.md) - Template variables
+- [Examples](./Examples/) - Practical implementations
