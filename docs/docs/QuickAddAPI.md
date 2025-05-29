@@ -29,13 +29,6 @@ tR += result;
 %>
 ```
 
-### From Dataview Scripts
-```javascript
-```dataviewjs
-const quickAddApi = app.plugins.plugins.quickadd.api;
-const choice = await quickAddApi.suggester(["Option 1", "Option 2"], ["value1", "value2"]);
-dv.paragraph(choice);
-```
 
 ## User Input Methods
 
@@ -365,7 +358,7 @@ module.exports = async (params) => {
         );
         
         // AI-assisted outline generation
-        const outline = await quickAddApi.ai.prompt(
+        const { outline } = await quickAddApi.ai.prompt(
             `Create a research outline for: ${topic}`,
             "gpt-4",
             {
@@ -377,12 +370,24 @@ module.exports = async (params) => {
         
         // Create folder structure
         const folder = `Research/${topic}`;
-        await app.vault.createFolder(folder);
+        
+        // Check if folder exists before creating
+        try {
+            const folderExists = await app.vault.adapter.exists(folder);
+            if (!folderExists) {
+                await app.vault.createFolder(folder);
+            }
+        } catch (err) {
+            console.error(`Failed to create folder: ${err}`);
+            new Notice(`Failed to create research folder: ${err.message}`);
+            return;
+        }
         
         // Set variables for templates
         variables.topic = topic;
         variables.sources = sources.join(", ");
         variables.date = quickAddApi.date.now("YYYY-MM-DD HH:mm");
+        variables.outline = outline;
         
         // Execute template choice
         await quickAddApi.executeChoice("Research Template", variables);
