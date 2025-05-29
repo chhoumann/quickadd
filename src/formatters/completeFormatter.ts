@@ -79,7 +79,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		return this.variables.get(variableName) as string;
+		return (this.variables.get(variableName) as string) ?? "";
 	}
 
 	protected async promptForValue(header?: string): Promise<string> {
