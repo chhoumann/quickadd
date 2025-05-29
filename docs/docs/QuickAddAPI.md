@@ -451,4 +451,4 @@ module.exports = async (params) => {
 - [Macro Choices](./Choices/MacroChoice.md) - Using scripts in macros
 - [Inline Scripts](./InlineScripts.md) - Using scripts in templates
 - [Format Syntax](./FormatSyntax.md) - Template variables
-- [Examples](./Examples/) - Practical implementations
+- [Examples](./Examples/Macro_BookFinder.md) - Practical implementations

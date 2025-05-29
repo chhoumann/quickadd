@@ -385,4 +385,4 @@ Break complex macros into smaller, reusable parts:
 - [Capture Choices](CaptureChoice.md) - For appending to existing notes
 - [Format Syntax](../FormatSyntax.md) - Available template variables
 - [QuickAdd API](../QuickAddAPI.md) - Detailed API documentation
-- [Examples](../Examples/) - Pre-built macro examples
+- [Examples](../Examples/Macro_BookFinder.md) - Pre-built macro examples
