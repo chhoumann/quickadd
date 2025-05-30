@@ -261,8 +261,14 @@ export abstract class Formatter {
 			const match = DATE_VARIABLE_REGEX.exec(output);
 			if (!match || !match[1] || !match[2]) continue;
 
-			const variableName = match[1];
-			const dateFormat = match[2];
+			const variableName = match[1].trim();
+			const dateFormat = match[2].trim();
+			
+			// Skip processing if variable name or format is empty
+			// This prevents crashes when typing incomplete patterns like {{VDATE:,
+			if (!variableName || !dateFormat) {
+				break;
+			}
 
 			if (variableName && dateFormat) {
 				if (!this.variables.get(variableName)) {

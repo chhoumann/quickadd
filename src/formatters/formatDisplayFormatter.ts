@@ -12,16 +12,22 @@ export class FormatDisplayFormatter extends Formatter {
 	public async format(input: string): Promise<string> {
 		let output: string = input;
 
-		output = this.replaceDateInString(output);
-		output = this.replaceTimeInString(output);
-		output = await this.replaceValueInString(output);
-		output = await this.replaceDateVariableInString(output);
-		output = await this.replaceVariableInString(output);
-		output = await this.replaceLinkToCurrentFileInString(output);
-		output = await this.replaceMacrosInString(output);
-		output = await this.replaceTemplateInString(output);
-		output = await this.replaceFieldVarInString(output);
-		output = this.replaceLinebreakInString(output);
+		try {
+			output = this.replaceDateInString(output);
+			output = this.replaceTimeInString(output);
+			output = await this.replaceValueInString(output);
+			output = await this.replaceDateVariableInString(output);
+			output = await this.replaceVariableInString(output);
+			output = await this.replaceLinkToCurrentFileInString(output);
+			output = await this.replaceMacrosInString(output);
+			output = await this.replaceTemplateInString(output);
+			output = await this.replaceFieldVarInString(output);
+			output = this.replaceLinebreakInString(output);
+		} catch (error) {
+			// Return the input as-is if formatting fails during preview
+			// This prevents crashes when typing incomplete syntax
+			return input;
+		}
 
 		return output;
 	}
