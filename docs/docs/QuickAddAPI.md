@@ -446,6 +446,118 @@ module.exports = async (params) => {
 3. **Check File Existence**: Verify files exist before operations
 4. **Validate Input**: Always validate user input before processing
 
+## Field Suggestions Module
+
+Access via `quickAddApi.fieldSuggestions`:
+
+### `getFieldValues(fieldName: string, options?: object): Promise<string[]>`
+Retrieves all unique values for a specific field across your vault.
+
+**Parameters:**
+- `fieldName`: The name of the field to search for
+- `options`: (Optional) Filtering options:
+  - `folder`: Only search in specific folder (e.g., "daily/notes")
+  - `tags`: Only search in files with specific tags (array)
+  - `includeInline`: Include Dataview inline fields (default: false)
+
+**Returns:** Promise resolving to sorted array of unique field values
+
+**Examples:**
+
+Basic usage:
+```javascript
+// Get all status values in vault
+const statuses = await quickAddApi.fieldSuggestions.getFieldValues("status");
+const selected = await quickAddApi.suggester(statuses, statuses);
+```
+
+With folder filter:
+```javascript
+// Get project types only from projects folder
+const projectTypes = await quickAddApi.fieldSuggestions.getFieldValues(
+    "type",
+    { folder: "projects" }
+);
+```
+
+With tag filter:
+```javascript
+// Get priorities from work-tagged files
+const priorities = await quickAddApi.fieldSuggestions.getFieldValues(
+    "priority",
+    { tags: ["work", "important"] }
+);
+```
+
+Include inline fields:
+```javascript
+// Get all client names including inline fields
+const clients = await quickAddApi.fieldSuggestions.getFieldValues(
+    "client",
+    { 
+        folder: "work/projects",
+        includeInline: true 
+    }
+);
+```
+
+### `clearCache(fieldName?: string): void`
+Clears the field suggestions cache for better performance.
+
+**Parameters:**
+- `fieldName`: (Optional) Specific field to clear, or clears all if omitted
+
+**Example:**
+```javascript
+// Clear cache for specific field after bulk updates
+await quickAddApi.fieldSuggestions.clearCache("status");
+
+// Clear entire cache
+await quickAddApi.fieldSuggestions.clearCache();
+```
+
+### Complete Field Management Example
+
+```javascript
+module.exports = async (params) => {
+    const { quickAddApi, app, variables } = params;
+    
+    // Smart task creation with field suggestions
+    const taskType = await quickAddApi.suggester(
+        await quickAddApi.fieldSuggestions.getFieldValues("type", {
+            folder: "tasks"
+        }),
+        await quickAddApi.fieldSuggestions.getFieldValues("type", {
+            folder: "tasks"
+        })
+    );
+    
+    const priority = await quickAddApi.suggester(
+        ["🔴 High", "🟡 Medium", "🟢 Low"],
+        await quickAddApi.fieldSuggestions.getFieldValues("priority") || 
+        ["high", "medium", "low"]
+    );
+    
+    const assignee = await quickAddApi.suggester(
+        await quickAddApi.fieldSuggestions.getFieldValues("assignee", {
+            tags: ["person"],
+            includeInline: true
+        }),
+        await quickAddApi.fieldSuggestions.getFieldValues("assignee", {
+            tags: ["person"],
+            includeInline: true
+        })
+    );
+    
+    // Create task with consistent field values
+    variables.type = taskType;
+    variables.priority = priority;
+    variables.assignee = assignee;
+    
+    await quickAddApi.executeChoice("Create Task", variables);
+};
+```
+
 ## See Also
 
 - [Macro Choices](./Choices/MacroChoice.md) - Using scripts in macros

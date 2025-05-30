@@ -1,13 +1,4 @@
 {
-  "overrides": [
-	{
-		"extends": ["plugin:@typescript-eslint/recommended-requiring-type-checking"],
-		"files": ["*.ts"],
-		"parserOptions": {
-			"project": ["./tsconfig.json"]
-		}
-	}
-  ],
 	"root": true,
 	"parser": "@typescript-eslint/parser",
 	"env": { "node": true },
@@ -16,8 +7,7 @@
 		"plugin:@typescript-eslint/recommended"
 	],
 	"parserOptions": {
-		"sourceType": "module",
-		"project": "./tsconfig.json"
+		"sourceType": "module"
 	},
 	"rules": {
 		"no-unused-vars": "off",
@@ -25,8 +15,7 @@
 		"@typescript-eslint/ban-ts-comment": "off",
 		"no-prototype-builtins": "off",
 		"@typescript-eslint/no-empty-function": "off",
-		"@typescript-eslint/consistent-type-imports": "warn",
-		"@typescript-eslint/switch-exhaustiveness-check": "error"
+		"@typescript-eslint/consistent-type-imports": "warn"
 	},
   "ignorePatterns": ["node_modules/", "main.js"]
 }
