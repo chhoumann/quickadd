@@ -17,6 +17,9 @@ export const FORMAT_SYNTAX: string[] = [
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
     FIELD_VAR_SYNTAX,
+	"{{field:<fieldname>|folder:<path>}}",
+	"{{field:<fieldname>|tag:<tagname>}}",
+	"{{field:<fieldname>|inline:true}}",
 	LINKCURRENT_SYNTAX,
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
@@ -53,6 +56,7 @@ export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);
 export const NAME_VALUE_REGEX = new RegExp(/{{NAME}}|{{VALUE}}/i);
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
+export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(/{{FIELD:([^\n\r}|]*)(\|[^\n\r}]*)?}}/i);
 export const DATE_VARIABLE_REGEX = new RegExp(
 	/{{VDATE:([^\n\r},]*),\s*([^\n\r},]*)}}/i
 );
