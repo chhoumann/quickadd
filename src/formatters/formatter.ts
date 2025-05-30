@@ -13,6 +13,7 @@ import {
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 	FIELD_VAR_REGEX,
+	FIELD_VAR_REGEX_WITH_FILTERS,
 	SELECTED_REGEX,
 	TIME_REGEX,
 	TIME_REGEX_FORMATTED,
@@ -185,24 +186,27 @@ export abstract class Formatter {
 	protected async replaceFieldVarInString(input: string) {
 		let output: string = input;
 
-		while (FIELD_VAR_REGEX.test(output)) {
-			const match = FIELD_VAR_REGEX.exec(output);
+		// Use the enhanced regex that supports filters
+		while (FIELD_VAR_REGEX_WITH_FILTERS.test(output)) {
+			const match = FIELD_VAR_REGEX_WITH_FILTERS.exec(output);
 			if (!match) throw new Error("unable to parse variable");
 
-			const variableName = match[1];
+			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
+			// match[2] contains the filter part starting with |, if present
+			const fullMatch = match[1] + (match[2] || "");
 
-			if (variableName) {
-				if (!this.getVariableValue(variableName)) {
+			if (fullMatch) {
+				if (!this.getVariableValue(fullMatch)) {
 					this.variables.set(
-						variableName,
-						await this.suggestForField(variableName),
+						fullMatch,
+						await this.suggestForField(fullMatch),
 					);
 				}
 
 				output = this.replacer(
 					output,
-					FIELD_VAR_REGEX,
-					this.getVariableValue(variableName),
+					FIELD_VAR_REGEX_WITH_FILTERS,
+					this.getVariableValue(fullMatch),
 				);
 			} else {
 				break;

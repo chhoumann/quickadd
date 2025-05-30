@@ -16,6 +16,12 @@ import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
+import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
+import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { InlineFieldParser } from "../utils/InlineFieldParser";
+import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
+import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -113,41 +119,123 @@ export class CompleteFormatter extends Formatter {
 		);
 	}
 
-	protected async suggestForField(variableName: string) {
-		const suggestedValues = new Set<string>();
+	protected async suggestForField(fieldInput: string) {
+		// Parse the field input to extract field name and filters
+		const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
+		
+		// Generate cache key based on filters
+		const cacheKey = this.generateCacheKey(filters);
+		const cache = FieldSuggestionCache.getInstance();
+		
+		// Check cache first
+		let rawValues = cache.get(fieldName, cacheKey);
+		
+		if (!rawValues) {
+			// Cache miss, collect values
+			rawValues = new Set<string>();
 
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const cache = this.app.metadataCache.getFileCache(file);
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-			const value = cache?.frontmatter?.[variableName];
-			if (!value) continue;
-			if (value.constructor === Array) {
-			    value.forEach(x => suggestedValues.add(x.toString()));
-			    continue
+			// Get all markdown files and apply enhanced filtering
+			let files = this.app.vault.getMarkdownFiles();
+			files = EnhancedFieldSuggestionFileFilter.filterFiles(
+				files,
+				filters,
+				(file) => this.app.metadataCache.getFileCache(file)
+			);
+
+			// Process files in batches for better performance
+			const batchSize = 50;
+			for (let i = 0; i < files.length; i += batchSize) {
+				const batch = files.slice(i, i + batchSize);
+				const promises = batch.map(async (file) => {
+					const values = new Set<string>();
+					const metadataCache = this.app.metadataCache.getFileCache(file);
+					
+					// Get values from YAML frontmatter
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					const value = metadataCache?.frontmatter?.[fieldName];
+					if (value !== undefined && value !== null) {
+						if (value.constructor === Array) {
+							value.forEach(x => {
+								const strValue = x.toString().trim();
+								if (strValue) values.add(strValue);
+							});
+						} else if (typeof value !== "object") {
+							const strValue = value.toString().trim();
+							if (strValue) values.add(strValue);
+						}
+					}
+
+					// Get values from inline fields if requested
+					if (filters.inline) {
+						const content = await this.app.vault.read(file);
+						const inlineValues = InlineFieldParser.getFieldValues(content, fieldName);
+						inlineValues.forEach(v => values.add(v));
+					}
+					
+					return values;
+				});
+				
+				const batchResults = await Promise.all(promises);
+				batchResults.forEach(values => {
+					values.forEach(v => rawValues!.add(v));
+				});
 			}
-			if (typeof value == "object") continue;
 
-			suggestedValues.add(value.toString());
+			// Store in cache
+			cache.set(fieldName, rawValues, cacheKey);
 		}
 
-		if (suggestedValues.size === 0) {
+		// Process values with deduplication and defaults
+		const processedResult = FieldValueProcessor.processValues(rawValues, filters);
+
+		if (processedResult.values.length === 0) {
+			// No values found even after processing defaults
+			let fallbackPrompt = `No existing values were found in your vault.`;
+			
+			// Suggest smart defaults if no custom default was provided
+			if (!filters.defaultValue) {
+				const smartDefaults = FieldValueProcessor.getSmartDefaults(fieldName, []);
+				if (smartDefaults.length > 0) {
+					fallbackPrompt += `\n\nSuggested values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`;
+				}
+			}
+
 			return await GenericInputPrompt.Prompt(
-				app,
-				`Enter value for ${variableName}`,
-				`No existing values were found in your vault.`
+				this.app,
+				`Enter value for ${fieldName}`,
+				fallbackPrompt
 			);
 		}
 
-		const suggestedValuesArr = Array.from(suggestedValues);
+		// Enhance placeholder with context
+		let placeholder = `Enter value for ${fieldName}`;
+		if (processedResult.hasDefaultValue) {
+			placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+		}
 
 		return await InputSuggester.Suggest(
 			this.app,
-			suggestedValuesArr,
-			suggestedValuesArr,
+			processedResult.values,
+			processedResult.values,
 			{
-				placeholder: `Enter value for ${variableName}`,
+				placeholder,
 			}
 		);
+	}
+
+	private generateCacheKey(filters: Record<string, any>): string {
+		const parts: string[] = [];
+		if (filters.folder) parts.push(`folder:${filters.folder}`);
+		if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
+		if (filters.inline) parts.push("inline:true");
+		if (filters.caseSensitive) parts.push("case-sensitive:true");
+		if (filters.excludeFolders) parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
+		if (filters.excludeTags) parts.push(`exclude-tags:${filters.excludeTags.join(",")}`);
+		if (filters.excludeFiles) parts.push(`exclude-files:${filters.excludeFiles.join(",")}`);
+		if (filters.defaultValue) parts.push(`default:${filters.defaultValue}`);
+		if (filters.defaultEmpty) parts.push("default-empty:true");
+		if (filters.defaultAlways) parts.push("default-always:true");
+		return parts.join("|");
 	}
 
 	protected async getMacroValue(macroName: string): Promise<string> {
