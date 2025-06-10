@@ -259,7 +259,7 @@ export abstract class Formatter {
 
 		while (DATE_VARIABLE_REGEX.test(output)) {
 			const match = DATE_VARIABLE_REGEX.exec(output);
-			if (!match || !match[1] || !match[2]) continue;
+			if (!match || !match[1] || !match[2]) break;
 
 			const variableName = match[1].trim();
 			const dateFormat = match[2].trim();
