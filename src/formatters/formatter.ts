@@ -263,10 +263,16 @@ export abstract class Formatter {
 
 		while (DATE_VARIABLE_REGEX.test(output)) {
 			const match = DATE_VARIABLE_REGEX.exec(output);
-			if (!match || !match[1] || !match[2]) continue;
+			if (!match || !match[1] || !match[2]) break;
 
-			const variableName = match[1];
-			const dateFormat = match[2];
+			const variableName = match[1].trim();
+			const dateFormat = match[2].trim();
+			
+			// Skip processing if variable name or format is empty
+			// This prevents crashes when typing incomplete patterns like {{VDATE:,
+			if (!variableName || !dateFormat) {
+				break;
+			}
 
 			if (variableName && dateFormat) {
 				if (!this.variables.get(variableName)) {
@@ -278,7 +284,9 @@ export abstract class Formatter {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const nld = this.getNaturalLanguageDates();
 					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
-						continue;
+						throw new Error(
+							`VDATE variable "${variableName}" requires the Natural Language Dates plugin to be installed and enabled.`,
+						);
 
 					const parseAttempt = (
 						nld.parseDate as (s: string | undefined) => {

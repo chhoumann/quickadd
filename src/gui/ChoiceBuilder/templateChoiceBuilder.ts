@@ -11,7 +11,7 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { getAllFolderPathsInVault, getNaturalLanguageDates } from "../../utilityObsidian";
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -98,18 +98,41 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				this.choice.fileNameFormat.format,
 			)))();
 
+		// Warning for VDATE usage without Natural Language Dates plugin
+		const vdateWarning: HTMLDivElement = this.contentEl.createDiv("vdate-warning");
+		vdateWarning.style.color = "var(--text-error)";
+		vdateWarning.style.fontSize = "0.9em";
+		vdateWarning.style.marginTop = "4px";
+		vdateWarning.style.display = "none";
+
 		const formatInput = new TextComponent(this.contentEl);
 		formatInput.setPlaceholder("File name format");
 		textField = formatInput;
 		formatInput.inputEl.style.width = "100%";
 		formatInput.inputEl.style.marginBottom = "8px";
+		const checkVdateWarning = (value: string) => {
+			const hasVdate = /{{VDATE:/i.test(value);
+			const hasNaturalLanguageDates = getNaturalLanguageDates(this.app);
+			
+			if (hasVdate && !hasNaturalLanguageDates) {
+				vdateWarning.style.display = "block";
+				vdateWarning.textContent = "⚠️ VDATE requires the Natural Language Dates plugin to be installed and enabled.";
+			} else {
+				vdateWarning.style.display = "none";
+			}
+		};
+
 		formatInput
 			.setValue(this.choice.fileNameFormat.format)
 			.setDisabled(!this.choice.fileNameFormat.enabled)
 			.onChange(async (value) => {
 				this.choice.fileNameFormat.format = value;
 				formatDisplay.textContent = await displayFormatter.format(value);
+				checkVdateWarning(value);
 			});
+
+		// Check warning on initial load
+		checkVdateWarning(this.choice.fileNameFormat.format);
 
 		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin, true);
 	}
