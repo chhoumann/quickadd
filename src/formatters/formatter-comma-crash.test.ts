@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { DATE_VARIABLE_REGEX } from '../constants';
 
 // Simple test implementation for comma crash validation
 class TestFormatterCommaCrash {
@@ -20,7 +21,6 @@ class TestFormatterCommaCrash {
 
     // Test the regex pattern and validation logic
     public async testReplaceDateVariableInString(input: string): Promise<string> {
-        const DATE_VARIABLE_REGEX = /{{VDATE:([^\n\r},]*),\s*([^\n\r},]*)}}/i;
         let output: string = input;
         let iterations = 0;
         const maxIterations = 10; // Prevent infinite loops in tests
@@ -151,6 +151,32 @@ describe('Formatter - VDATE Comma Crash Prevention', () => {
             const result = await formatter.testReplaceDateVariableInString(input);
             
             expect(result).toBe("");
+        });
+    });
+
+    describe('Comma support in date formats', () => {
+        it('should support commas in date format patterns', async () => {
+            const input = "{{VDATE:myDate,MMM D, YYYY}}";
+            const result = await formatter.testReplaceDateVariableInString(input);
+            
+            // Should process the format with comma correctly
+            expect(result).toBe("[myDate-MMM D, YYYY]");
+        });
+
+        it('should handle multiple commas in date format', async () => {
+            const input = "{{VDATE:event,YYYY, MMM D, dddd}}";
+            const result = await formatter.testReplaceDateVariableInString(input);
+            
+            // Should process the entire format after first comma
+            expect(result).toBe("[event-YYYY, MMM D, dddd]");
+        });
+
+        it('should work with trailing commas', async () => {
+            const input = "{{VDATE:test,YYYY,}}";
+            const result = await formatter.testReplaceDateVariableInString(input);
+            
+            // Should include the trailing comma in the format
+            expect(result).toBe("[test-YYYY,]");
         });
     });
 
