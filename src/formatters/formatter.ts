@@ -280,7 +280,9 @@ export abstract class Formatter {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const nld = this.getNaturalLanguageDates();
 					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
-						continue;
+						throw new Error(
+							`VDATE variable "${variableName}" requires the Natural Language Dates plugin to be installed and enabled.`,
+						);
 
 					const parseAttempt = (
 						nld.parseDate as (s: string | undefined) => {
