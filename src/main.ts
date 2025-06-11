@@ -19,6 +19,7 @@ import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
+import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -70,6 +71,10 @@ export default class QuickAdd extends Plugin {
 				void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
 			},
 		});
+
+		// Start automatic cleanup for field suggestion cache
+		const cache = FieldSuggestionCache.getInstance();
+		cache.startAutomaticCleanup((intervalId) => this.registerInterval(intervalId));
 
 		this.addCommand({
 			id: "testQuickAdd",
@@ -165,6 +170,10 @@ export default class QuickAdd extends Plugin {
 				logger.clearErrorLog();
 			}
 		});
+
+		// Clean up field suggestion cache
+		const cache = FieldSuggestionCache.getInstance();
+		cache.destroy();
 	}
 
 	async loadSettings() {
