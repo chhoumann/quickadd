@@ -49,7 +49,7 @@ export abstract class Formatter {
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
 			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
-			if (!dateMatch) throw new Error("unable to parse date");
+			if (!dateMatch) throw new Error(`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`);
 
 			const format = dateMatch[1];
 			let offset: number | undefined;
@@ -75,14 +75,14 @@ export abstract class Formatter {
 
 		while (TIME_REGEX.test(output)) {
 			const timeMatch = TIME_REGEX.exec(output);
-			if (!timeMatch) throw new Error("unable to parse time");
+			if (!timeMatch) throw new Error(`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`);
 
 			output = this.replacer(output, TIME_REGEX, getDate({ format: "HH:mm" }));
 		}
 
 		while (TIME_REGEX_FORMATTED.test(output)) {
 			const timeMatch = TIME_REGEX_FORMATTED.exec(output);
-			if (!timeMatch) throw new Error("unable to parse time");
+			if (!timeMatch) throw new Error(`Unable to parse formatted time. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(TIME_REGEX_FORMATTED) + 30))}..."`);
 
 			const format = timeMatch[1];
 
@@ -130,7 +130,7 @@ export abstract class Formatter {
 		let output = input;
 
 		if (!currentFilePathLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
-			throw new Error("unable to get current file path");
+			throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
 		} else if (!currentFilePathLink) return output; // No need to throw, there's no {{LINKCURRENT}} + we can skip while loop.
 
 		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
@@ -150,7 +150,7 @@ export abstract class Formatter {
 
 		while (VARIABLE_REGEX.test(output)) {
 			const match = VARIABLE_REGEX.exec(output);
-			if (!match) throw new Error("unable to parse variable");
+			if (!match) throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(VARIABLE_REGEX) - 10), Math.min(output.length, output.search(VARIABLE_REGEX) + 30))}..."`);
 
 			const variableName = match[1];
 
@@ -189,7 +189,7 @@ export abstract class Formatter {
 		// Use the enhanced regex that supports filters
 		while (FIELD_VAR_REGEX_WITH_FILTERS.test(output)) {
 			const match = FIELD_VAR_REGEX_WITH_FILTERS.exec(output);
-			if (!match) throw new Error("unable to parse variable");
+			if (!match) throw new Error(`Unable to parse field variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(FIELD_VAR_REGEX_WITH_FILTERS) - 10), Math.min(output.length, output.search(FIELD_VAR_REGEX_WITH_FILTERS) + 30))}..."`);
 
 			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
 			// match[2] contains the filter part starting with |, if present
@@ -301,9 +301,9 @@ export abstract class Formatter {
 						);
 					else
 						throw new Error(
-							`unable to parse date variable ${this.variables.get(
+							`Unable to parse date variable "${variableName}". Natural Language Dates plugin could not parse the value: "${this.variables.get(
 								variableName,
-							)}`,
+							)}". Expected format: ${dateFormat}`,
 						);
 				}
 
