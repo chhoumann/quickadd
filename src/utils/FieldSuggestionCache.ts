@@ -9,12 +9,32 @@ export class FieldSuggestionCache {
 	private static instance: FieldSuggestionCache;
 	private cache: Map<string, CacheEntry> = new Map();
 	private readonly TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+	private readonly MAX_CACHE_ENTRIES = 100; // Maximum number of cache entries
+	private readonly MAX_VALUES_PER_ENTRY = 1000; // Maximum values per field
+	private cleanupInterval: number | null = null;
 
 	static getInstance(): FieldSuggestionCache {
 		if (!FieldSuggestionCache.instance) {
 			FieldSuggestionCache.instance = new FieldSuggestionCache();
 		}
 		return FieldSuggestionCache.instance;
+	}
+
+	private constructor() {
+		// Automatic cleanup will be started by the plugin using startAutomaticCleanup()
+	}
+
+	/**
+	 * Start automatic cleanup - should be called by the plugin with registered interval
+	 * @param registerInterval Function to register the interval with Obsidian
+	 */
+	startAutomaticCleanup(registerInterval: (id: number) => number): void {
+		if (this.cleanupInterval === null && typeof window !== 'undefined') {
+			const intervalId = window.setInterval(() => {
+				this.cleanExpired();
+			}, 60 * 1000);
+			this.cleanupInterval = registerInterval(intervalId);
+		}
 	}
 
 	/**
@@ -46,10 +66,39 @@ export class FieldSuggestionCache {
 	 */
 	set(fieldName: string, values: Set<string>, cacheKey?: string): void {
 		const key = this.makeKey(fieldName, cacheKey);
+
+		// Limit the number of values per entry
+		const limitedValues = new Set<string>();
+		let count = 0;
+		for (const value of values) {
+			if (count >= this.MAX_VALUES_PER_ENTRY) break;
+			limitedValues.add(value);
+			count++;
+		}
+
+		// Check if we need to evict old entries
+		if (this.cache.size >= this.MAX_CACHE_ENTRIES && !this.cache.has(key)) {
+			this.evictOldestEntries(1);
+		}
+
 		this.cache.set(key, {
-			values: new Set(values),
+			values: limitedValues,
 			timestamp: Date.now(),
 		});
+	}
+
+	/**
+	 * Evict the oldest cache entries
+	 * @param count Number of entries to evict
+	 */
+	private evictOldestEntries(count: number): void {
+		const entries = Array.from(this.cache.entries())
+			.sort(([, a], [, b]) => a.timestamp - b.timestamp)
+			.slice(0, count);
+
+		for (const [key] of entries) {
+			this.cache.delete(key);
+		}
 	}
 
 	/**
@@ -61,11 +110,13 @@ export class FieldSuggestionCache {
 			// Clear all entries for this field
 			const keysToDelete: string[] = [];
 			for (const key of this.cache.keys()) {
-				if (key.startsWith(fieldName + ":") || key === fieldName) {
+				if (key.startsWith(`${fieldName}:`) || key === fieldName) {
 					keysToDelete.push(key);
 				}
 			}
-			keysToDelete.forEach((key) => this.cache.delete(key));
+			for (const key of keysToDelete) {
+				this.cache.delete(key);
+			}
 		} else {
 			// Clear entire cache
 			this.cache.clear();
@@ -85,7 +136,33 @@ export class FieldSuggestionCache {
 			}
 		}
 
-		keysToDelete.forEach((key) => this.cache.delete(key));
+		for (const key of keysToDelete) {
+			this.cache.delete(key);
+		}
+	}
+
+	/**
+	 * Get cache statistics for monitoring
+	 */
+	getStats(): {
+		size: number;
+		maxSize: number;
+		cleanupInterval: number | null;
+	} {
+		return {
+			size: this.cache.size,
+			maxSize: this.MAX_CACHE_ENTRIES,
+			cleanupInterval: this.cleanupInterval,
+		};
+	}
+
+	/**
+	 * Cleanup resources when shutting down
+	 * Note: Obsidian will automatically clear registered intervals
+	 */
+	destroy(): void {
+		this.cleanupInterval = null;
+		this.cache.clear();
 	}
 
 	private makeKey(fieldName: string, cacheKey?: string): string {

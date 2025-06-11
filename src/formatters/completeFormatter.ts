@@ -29,7 +29,7 @@ export class CompleteFormatter extends Formatter {
 	constructor(
 		protected app: App,
 		private plugin: QuickAdd,
-		protected choiceExecutor?: IChoiceExecutor
+		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super();
 		if (choiceExecutor) {
@@ -102,9 +102,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async promptForVariable(header?: string): Promise<string> {
-		return await new InputPrompt()
-			.factory()
-			.Prompt(this.app, header as string);
+		return await new InputPrompt().factory().Prompt(this.app, header as string);
 	}
 
 	protected async promptForMathValue(): Promise<string> {
@@ -115,21 +113,21 @@ export class CompleteFormatter extends Formatter {
 		return await GenericSuggester.Suggest(
 			this.app,
 			suggestedValues,
-			suggestedValues
+			suggestedValues,
 		);
 	}
 
 	protected async suggestForField(fieldInput: string) {
 		// Parse the field input to extract field name and filters
 		const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
-		
+
 		// Generate cache key based on filters
 		const cacheKey = this.generateCacheKey(filters);
 		const cache = FieldSuggestionCache.getInstance();
-		
+
 		// Check cache first
 		let rawValues = cache.get(fieldName, cacheKey);
-		
+
 		if (!rawValues) {
 			// Cache miss, collect values
 			rawValues = new Set<string>();
@@ -139,7 +137,7 @@ export class CompleteFormatter extends Formatter {
 			files = EnhancedFieldSuggestionFileFilter.filterFiles(
 				files,
 				filters,
-				(file) => this.app.metadataCache.getFileCache(file)
+				(file) => this.app.metadataCache.getFileCache(file),
 			);
 
 			// Process files in batches for better performance
@@ -148,37 +146,52 @@ export class CompleteFormatter extends Formatter {
 				const batch = files.slice(i, i + batchSize);
 				const promises = batch.map(async (file) => {
 					const values = new Set<string>();
-					const metadataCache = this.app.metadataCache.getFileCache(file);
 					
-					// Get values from YAML frontmatter
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-					const value = metadataCache?.frontmatter?.[fieldName];
-					if (value !== undefined && value !== null) {
-						if (value.constructor === Array) {
-							value.forEach(x => {
-								const strValue = x.toString().trim();
+					try {
+						const metadataCache = this.app.metadataCache.getFileCache(file);
+
+						// Get values from YAML frontmatter
+						const value: unknown = metadataCache?.frontmatter?.[fieldName];
+						if (value !== undefined && value !== null) {
+							if (Array.isArray(value)) {
+								value.forEach((x) => {
+									const strValue = String(x).trim();
+									if (strValue) values.add(strValue);
+								});
+							} else if (typeof value !== "object") {
+								const strValue = String(value).trim();
 								if (strValue) values.add(strValue);
-							});
-						} else if (typeof value !== "object") {
-							const strValue = value.toString().trim();
-							if (strValue) values.add(strValue);
+							}
 						}
+
+						// Get values from inline fields if requested
+						if (filters.inline) {
+							try {
+								const content = await this.app.vault.read(file);
+								const inlineValues = InlineFieldParser.getFieldValues(
+									content,
+									fieldName,
+								);
+								inlineValues.forEach((v) => values.add(v));
+							} catch (error) {
+								// Skip files that can't be read (binary files, permissions, etc.)
+								console.warn(`Could not read file ${file.path} for inline field parsing:`, error);
+							}
+						}
+					} catch (error) {
+						// Skip files with metadata cache issues
+						console.warn(`Could not process metadata for file ${file.path}:`, error);
 					}
 
-					// Get values from inline fields if requested
-					if (filters.inline) {
-						const content = await this.app.vault.read(file);
-						const inlineValues = InlineFieldParser.getFieldValues(content, fieldName);
-						inlineValues.forEach(v => values.add(v));
-					}
-					
 					return values;
 				});
-				
+
 				const batchResults = await Promise.all(promises);
-				batchResults.forEach(values => {
-					values.forEach(v => rawValues!.add(v));
-				});
+				for (const values of batchResults) {
+					for (const v of values) {
+						rawValues.add(v);
+					}
+				}
 			}
 
 			// Store in cache
@@ -186,15 +199,21 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		// Process values with deduplication and defaults
-		const processedResult = FieldValueProcessor.processValues(rawValues, filters);
+		const processedResult = FieldValueProcessor.processValues(
+			rawValues,
+			filters,
+		);
 
 		if (processedResult.values.length === 0) {
 			// No values found even after processing defaults
 			let fallbackPrompt = `No existing values were found in your vault.`;
-			
+
 			// Suggest smart defaults if no custom default was provided
 			if (!filters.defaultValue) {
-				const smartDefaults = FieldValueProcessor.getSmartDefaults(fieldName, []);
+				const smartDefaults = FieldValueProcessor.getSmartDefaults(
+					fieldName,
+					[],
+				);
 				if (smartDefaults.length > 0) {
 					fallbackPrompt += `\n\nSuggested values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`;
 				}
@@ -203,7 +222,7 @@ export class CompleteFormatter extends Formatter {
 			return await GenericInputPrompt.Prompt(
 				this.app,
 				`Enter value for ${fieldName}`,
-				fallbackPrompt
+				fallbackPrompt,
 			);
 		}
 
@@ -219,7 +238,7 @@ export class CompleteFormatter extends Formatter {
 			processedResult.values,
 			{
 				placeholder,
-			}
+			},
 		);
 	}
 
@@ -229,9 +248,12 @@ export class CompleteFormatter extends Formatter {
 		if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
 		if (filters.inline) parts.push("inline:true");
 		if (filters.caseSensitive) parts.push("case-sensitive:true");
-		if (filters.excludeFolders) parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
-		if (filters.excludeTags) parts.push(`exclude-tags:${filters.excludeTags.join(",")}`);
-		if (filters.excludeFiles) parts.push(`exclude-files:${filters.excludeFiles.join(",")}`);
+		if (filters.excludeFolders)
+			parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
+		if (filters.excludeTags)
+			parts.push(`exclude-tags:${filters.excludeTags.join(",")}`);
+		if (filters.excludeFiles)
+			parts.push(`exclude-files:${filters.excludeFiles.join(",")}`);
 		if (filters.defaultValue) parts.push(`default:${filters.defaultValue}`);
 		if (filters.defaultEmpty) parts.push("default-empty:true");
 		if (filters.defaultAlways) parts.push("default-always:true");
@@ -245,10 +267,9 @@ export class CompleteFormatter extends Formatter {
 			this.plugin.settings.macros,
 			//@ts-ignore
 			this.choiceExecutor,
-			this.variables
+			this.variables,
 		);
-		const macroOutput =
-			(await macroEngine.runAndGetOutput(macroName)) ?? "";
+		const macroOutput = (await macroEngine.runAndGetOutput(macroName)) ?? "";
 
 		Object.keys(macroEngine.params.variables).forEach((key) => {
 			this.variables.set(key, macroEngine.params.variables[key]);
@@ -262,7 +283,7 @@ export class CompleteFormatter extends Formatter {
 			this.app,
 			this.plugin,
 			templatePath,
-			this.choiceExecutor
+			this.choiceExecutor,
 		).run();
 	}
 
@@ -287,7 +308,7 @@ export class CompleteFormatter extends Formatter {
 					this.plugin,
 					//@ts-ignore
 					this.choiceExecutor,
-					this.variables
+					this.variables,
 				);
 				const outVal: unknown = await executor.runAndGetOutput(code);
 

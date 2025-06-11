@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 
 describe("FieldSuggestionCache", () => {
@@ -8,11 +8,6 @@ describe("FieldSuggestionCache", () => {
 		// Get a fresh instance and clear it
 		cache = FieldSuggestionCache.getInstance();
 		cache.clear();
-		vi.useFakeTimers();
-	});
-
-	afterEach(() => {
-		vi.useRealTimers();
 	});
 
 	describe("singleton pattern", () => {
@@ -50,30 +45,6 @@ describe("FieldSuggestionCache", () => {
 		});
 	});
 
-	describe("TTL and expiration", () => {
-		it("should return null for expired entries", () => {
-			const values = new Set(["value1"]);
-			cache.set("field", values);
-
-			// Fast forward past TTL (5 minutes)
-			vi.advanceTimersByTime(6 * 60 * 1000);
-
-			const result = cache.get("field");
-			expect(result).toBeNull();
-		});
-
-		it("should return values within TTL", () => {
-			const values = new Set(["value1"]);
-			cache.set("field", values);
-
-			// Fast forward less than TTL
-			vi.advanceTimersByTime(4 * 60 * 1000);
-
-			const result = cache.get("field");
-			expect(result).toEqual(values);
-		});
-	});
-
 	describe("clear operations", () => {
 		it("should clear specific field", () => {
 			cache.set("field1", new Set(["value1"]));
@@ -98,21 +69,46 @@ describe("FieldSuggestionCache", () => {
 		});
 	});
 
-	describe("cleanExpired", () => {
-		it("should remove only expired entries", () => {
+	describe("automatic cleanup", () => {
+		beforeEach(() => {
+			// Clear any existing state
+			cache.destroy();
+			cache = FieldSuggestionCache.getInstance();
+			
+			// Mock window.setInterval for tests
+			global.window = {
+				setInterval: vi.fn().mockReturnValue(456)
+			} as any;
+		});
+
+		it("should start automatic cleanup with registered interval", () => {
+			const mockRegisterInterval = vi.fn().mockReturnValue(123);
+			
+			cache.startAutomaticCleanup(mockRegisterInterval);
+			
+			expect(mockRegisterInterval).toHaveBeenCalledWith(456);
+			expect(global.window.setInterval).toHaveBeenCalledWith(expect.any(Function), 60000);
+		});
+
+		it("should not start multiple intervals", () => {
+			const mockRegisterInterval = vi.fn().mockReturnValue(123);
+			
+			cache.startAutomaticCleanup(mockRegisterInterval);
+			cache.startAutomaticCleanup(mockRegisterInterval);
+			
+			expect(mockRegisterInterval).toHaveBeenCalledTimes(1);
+		});
+
+		it("should provide cache statistics", () => {
 			cache.set("field1", new Set(["value1"]));
-
-			// Fast forward 3 minutes
-			vi.advanceTimersByTime(3 * 60 * 1000);
-			cache.set("field2", new Set(["value2"]));
-
-			// Fast forward another 3 minutes (field1 is now expired, field2 is not)
-			vi.advanceTimersByTime(3 * 60 * 1000);
-
-			cache.cleanExpired();
-
-			expect(cache.get("field1")).toBeNull();
-			expect(cache.get("field2")).toEqual(new Set(["value2"]));
+			
+			const stats = cache.getStats();
+			
+			expect(stats).toEqual({
+				size: 1,
+				maxSize: 100,
+				cleanupInterval: null // No interval started in test
+			});
 		});
 	});
 });

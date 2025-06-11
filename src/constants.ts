@@ -56,7 +56,7 @@ export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);
 export const NAME_VALUE_REGEX = new RegExp(/{{NAME}}|{{VALUE}}/i);
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
-export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(/{{FIELD:([^\n\r}|]*)(\|[^\n\r}]*)?}}/i);
+export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i);
 export const DATE_VARIABLE_REGEX = new RegExp(
 	/{{VDATE:([^\n\r},]*),\s*([^\n\r}]*)}}/i
 );
