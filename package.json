@@ -34,6 +34,7 @@
     "eslint": "^8.40.0",
     "jsdom": "^22.0.0",
     "obsidian": "^1.5.7-1",
+    "obsidian-dataview": "^0.5.68",
     "semantic-release": "^21.0.2",
     "svelte": "^3.59.1",
     "svelte-awesome": "3.2.0",

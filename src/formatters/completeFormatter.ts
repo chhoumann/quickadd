@@ -18,6 +18,7 @@ import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
+import { DataviewIntegration } from "../utils/DataviewIntegration";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
@@ -132,12 +133,25 @@ export class CompleteFormatter extends Formatter {
 			// Cache miss, collect values
 			rawValues = new Set<string>();
 
-			// Get all markdown files and apply enhanced filtering
-			let files = this.app.vault.getMarkdownFiles();
-			files = EnhancedFieldSuggestionFileFilter.filterFiles(
-				files,
-				filters,
-				(file) => this.app.metadataCache.getFileCache(file),
+			// Try to use Dataview if available and no inline filter is specified
+			// (Dataview handles both YAML and inline fields automatically)
+			if (!filters.inline && DataviewIntegration.isAvailable(this.app)) {
+				rawValues = await DataviewIntegration.getFieldValuesWithFilter(
+					this.app,
+					fieldName,
+					filters.folder,
+					filters.tags,
+					filters.excludeFolders,
+					filters.excludeTags
+				);
+			} else {
+				// Fall back to manual parsing
+				// Get all markdown files and apply enhanced filtering
+				let files = this.app.vault.getMarkdownFiles();
+				files = EnhancedFieldSuggestionFileFilter.filterFiles(
+					files,
+					filters,
+					(file) => this.app.metadataCache.getFileCache(file),
 			);
 
 			// Process files in batches for better performance
@@ -240,6 +254,7 @@ export class CompleteFormatter extends Formatter {
 				placeholder,
 			},
 		);
+	}
 	}
 
 	private generateCacheKey(filters: Record<string, any>): string {
