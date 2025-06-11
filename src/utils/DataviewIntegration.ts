@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { getAPI, type DataviewApi } from "obsidian-dataview";
 
+// biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class DataviewIntegration {
 	private static getDataviewAPI(app: App): DataviewApi | null {
 		const dataview = getAPI(app);
@@ -40,10 +41,16 @@ export class DataviewIntegration {
 						fieldValue.forEach(v => {
 							if (v && typeof v === 'string') {
 								values.add(v.trim());
+							} else if (v && typeof v === 'object' && v.path) {
+								// Handle file objects from Dataview
+								values.add(v.path);
 							} else if (v && typeof v !== 'object') {
 								values.add(String(v).trim());
 							}
 						});
+					} else if (fieldValue && typeof fieldValue === 'object' && fieldValue.path) {
+						// Handle single file object from Dataview
+						values.add(fieldValue.path);
 					} else if (fieldValue && typeof fieldValue === 'string') {
 						// Handle comma-separated values
 						if (fieldValue.includes(',')) {
@@ -138,10 +145,16 @@ export class DataviewIntegration {
 						fieldValue.forEach(v => {
 							if (v && typeof v === 'string') {
 								values.add(v.trim());
+							} else if (v && typeof v === 'object' && v.path) {
+								// Handle file objects from Dataview
+								values.add(v.path);
 							} else if (v && typeof v !== 'object') {
 								values.add(String(v).trim());
 							}
 						});
+					} else if (fieldValue && typeof fieldValue === 'object' && fieldValue.path) {
+						// Handle single file object from Dataview
+						values.add(fieldValue.path);
 					} else if (fieldValue && typeof fieldValue === 'string') {
 						if (fieldValue.includes(',')) {
 							fieldValue.split(',')
