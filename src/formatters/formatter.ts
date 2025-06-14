@@ -152,22 +152,33 @@ export abstract class Formatter {
 			const match = VARIABLE_REGEX.exec(output);
 			if (!match) throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(VARIABLE_REGEX) - 10), Math.min(output.length, output.search(VARIABLE_REGEX) + 30))}..."`);
 
-			const variableName = match[1];
+			let variableName = match[1];
+			let defaultValue = "";
 
 			if (variableName) {
+				// Parse default value if present (syntax: {{VALUE:name|default}})
+				const pipeIndex = variableName.indexOf("|");
+				if (pipeIndex !== -1) {
+					defaultValue = variableName.substring(pipeIndex + 1).trim();
+					variableName = variableName.substring(0, pipeIndex).trim();
+				}
+
 				if (!this.getVariableValue(variableName)) {
 					const suggestedValues = variableName.split(",");
+					let variableValue = "";
 
-					if (suggestedValues.length === 1)
-						this.variables.set(
-							variableName,
-							await this.promptForVariable(variableName),
-						);
-					else
-						this.variables.set(
-							variableName,
-							await this.suggestForValue(suggestedValues),
-						);
+					if (suggestedValues.length === 1) {
+						variableValue = await this.promptForVariable(variableName);
+					} else {
+						variableValue = await this.suggestForValue(suggestedValues);
+					}
+
+					// Use default value if no input provided
+					if (!variableValue && defaultValue) {
+						variableValue = defaultValue;
+					}
+
+					this.variables.set(variableName, variableValue);
 				}
 
 				output = this.replacer(
