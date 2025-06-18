@@ -2,6 +2,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
+import { reportError } from "../utils/errorUtils";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import {
 	appendToCurrentLine,
@@ -11,6 +12,7 @@ import {
 	isFolder,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	openExistingFileTab,
 } from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
@@ -72,7 +74,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
-				const content = await templaterParseTemplate(app, captureContent, file);
+				const content = await templaterParseTemplate(this.app, captureContent, file);
 
 				appendToCurrentLine(content, this.app);
 			} else {
@@ -88,16 +90,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				appendToCurrentLine(markdownLink, this.app);
 			}
 
-			if (this.choice?.openFile) {
-				await openFile(this.app, file, {
-					openInNewTab: this.choice.openFileInNewTab.enabled,
-					direction: this.choice.openFileInNewTab.direction,
-					focus: this.choice.openFileInNewTab.focus,
-					mode: this.choice.openFileInMode,
-				});
+			if (this.choice.openFile && file) {
+				const openExistingTab = openExistingFileTab(this.app, file);
+
+				if (!openExistingTab) {
+					await openFile(this.app, file, {
+						openInNewTab: this.choice.openFileInNewTab.enabled,
+						direction: this.choice.openFileInNewTab.direction,
+						focus: this.choice.openFileInNewTab.focus,
+						mode: this.choice.openFileInMode,
+					});
+				}
 			}
-		} catch (e) {
-			log.logError(e as string);
+		} catch (err) {
+			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
 	}
 
@@ -141,7 +147,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Empty string means we suggest to capture anywhere in the vault.
 		const captureAnywhereInVault = folderPath === "";
 		const shouldCaptureToFolder =
-			captureAnywhereInVault || isFolder(folderPath);
+			captureAnywhereInVault || isFolder(this.app, folderPath);
 		const shouldCaptureWithTag = formattedCaptureTo.startsWith("#");
 
 		if (shouldCaptureToFolder) {
@@ -164,13 +170,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			folderPath.endsWith("/") || captureAnywhereInVault
 				? folderPath
 				: `${folderPath}/`;
-		const filesInFolder = getMarkdownFilesInFolder(folderPathSlash);
+		const filesInFolder = getMarkdownFilesInFolder(this.app, folderPathSlash);
 
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
 		const filePaths = filesInFolder.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths.map((item) => item.replace(folderPathSlash, "")),
 			filePaths,
 		);
@@ -191,13 +197,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private async selectFileWithTag(tag: string): Promise<string> {
 		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
-		const filesWithTag = getMarkdownFilesWithTag(tagWithHash);
+		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
 
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 
 		const filePaths = filesWithTag.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths,
 			filePaths,
 		);

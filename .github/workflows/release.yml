@@ -1,8 +1,29 @@
 name: Release
 on:
-    push:
-        branches:
-            - master
+    workflow_dispatch:
+        inputs:
+            releaseType:
+                description: 'Release type (patch, minor, major)'
+                required: false
+                default: 'auto'
+                type: choice
+                options:
+                    - auto
+                    - patch
+                    - minor
+                    - major
+            dryRun:
+                description: 'Dry run (no actual release)'
+                required: false
+                default: false
+                type: boolean
+            preRelease:
+                description: 'Pre-release identifier (beta, alpha, rc, etc.)'
+                required: false
+                default: ''
+                type: string
+    repository_dispatch:
+        types: [release-trigger]
 jobs:
     release:
         name: Release
@@ -10,30 +31,160 @@ jobs:
         strategy:
             matrix:
                 node-version: [20]
+        outputs:
+            version: ${{ steps.extract-version.outputs.version }}
+            released: ${{ steps.release.outputs.released }}
         steps:
             - name: Checkout
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
             - name: Setup Bun
               uses: oven-sh/setup-bun@v1
               with:
                   bun-version: latest
+
             - name: Use Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node-version }}
+
+            # Proper caching specifically for Bun
+            - name: Cache dependencies
+              uses: actions/cache@v3
+              with:
+                path: |
+                    **/node_modules
+                    ~/.bun/install/cache
+                key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+                restore-keys: |
+                    ${{ runner.os }}-bun-
+
             - name: Install dependencies
               run: |
                   bun install
+
+            # Validate version before release (tag protection)
+            - name: Validate release
+              id: validate
+              run: |
+                if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event_name }}" == "repository_dispatch" ]]; then
+                  echo "✅ Manual release triggered, validation passed"
+                  echo "valid=true" >> $GITHUB_OUTPUT
+                else
+                  echo "❌ Unknown trigger source"
+                  echo "valid=false" >> $GITHUB_OUTPUT
+                fi
+
             - name: Build
+              if: steps.validate.outputs.valid == 'true'
               run: |
                   bun run build --if-present
+
             - name: Run tests
+              if: steps.validate.outputs.valid == 'true'
               run: |
                   bun run test
+
             - name: Release
+              id: release
+              if: steps.validate.outputs.valid == 'true'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-              run: npx semantic-release
+                  RELEASE_TYPE: ${{ github.event.inputs.releaseType || 'auto' }}
+                  DRY_RUN: ${{ github.event.inputs.dryRun || 'false' }}
+                  PRE_RELEASE: ${{ github.event.inputs.preRelease || '' }}
+              run: |
+                  EXTRA_ARGS=""
+                  
+                  if [ "$DRY_RUN" == "true" ]; then
+                    echo "Running in dry-run mode"
+                    EXTRA_ARGS="--dry-run"
+                  fi
+                  
+                  if [ -n "$PRE_RELEASE" ]; then
+                    echo "Running pre-release: $PRE_RELEASE"
+                    npx semantic-release --prerelease $PRE_RELEASE $EXTRA_ARGS
+                    RELEASE_EXIT_CODE=$?
+                  elif [ "$RELEASE_TYPE" == "auto" ]; then
+                    echo "Running auto release"
+                    npx semantic-release $EXTRA_ARGS
+                    RELEASE_EXIT_CODE=$?
+                  else
+                    echo "Running release with type: $RELEASE_TYPE"
+                    npx semantic-release --release-as $RELEASE_TYPE $EXTRA_ARGS
+                    RELEASE_EXIT_CODE=$?
+                  fi
+                  
+                  # Set release status based on exit code
+                  if [ "$DRY_RUN" != "true" ] && [ $RELEASE_EXIT_CODE -eq 0 ]; then
+                    echo "released=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "released=false" >> $GITHUB_OUTPUT
+                  fi
+                  
+                  exit $RELEASE_EXIT_CODE
+
+            # Extract version for notifications - more resilient approach
+            - name: Extract version
+              id: extract-version
+              if: steps.release.outputs.released == 'true'
+              run: |
+                # Save the version to a temporary file to avoid issues with special characters
+                node -e "console.log('VERSION=' + require('./package.json').version)" > version.txt
+                source version.txt
+                echo "version=$VERSION" >> $GITHUB_OUTPUT
+                rm version.txt
+
+            # Find related PR to comment on
+            - name: Find PR
+              id: find-pr
+              if: steps.release.outputs.released == 'true'
+              uses: jwalton/gh-find-current-pr@v1
+              with:
+                state: closed
+
+            # Comment on the PR that triggered this release
+            - name: Comment on PR
+              if: steps.release.outputs.released == 'true' && steps.find-pr.outputs.pr
+              uses: actions/github-script@v6
+              with:
+                github-token: ${{ secrets.GITHUB_TOKEN }}
+                script: |
+                  github.rest.issues.createComment({
+                    issue_number: ${{ steps.find-pr.outputs.pr }},
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: '🚀 Release has been published: v${{ steps.extract-version.outputs.version }}'
+                  })
+    
+    # Notification job that runs after release
+    notify:
+        name: Send notifications
+        needs: release
+        if: needs.release.outputs.released == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            # Optional: Slack notifications
+            - name: Notify Slack
+              uses: rtCamp/action-slack-notify@v2
+              if: env.SLACK_WEBHOOK != ''
+              env:
+                SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+                SLACK_TITLE: "🚀 New Release"
+                SLACK_MESSAGE: "Version v${{ needs.release.outputs.version }} of QuickAdd has been released!"
+                SLACK_COLOR: "good"
+                SLACK_ICON: "https://github.com/chhoumann.png"
+                MSG_MINIMAL: true
+                
+            # Optional: Discord notifications
+            - name: Notify Discord
+              if: env.DISCORD_WEBHOOK != ''
+              uses: Ilshidur/action-discord@master
+              env:
+                DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+              with:
+                args: '🚀 **New Release**: Version v${{ needs.release.outputs.version }} of QuickAdd has been released!'

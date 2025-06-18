@@ -21,11 +21,16 @@ import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { log } from "src/logger/logManager";
+import { getNaturalLanguageDates } from "../../utilityObsidian";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
 
-	constructor(app: App, choice: ICaptureChoice, private plugin: QuickAdd) {
+	constructor(
+		app: App,
+		choice: ICaptureChoice,
+		private plugin: QuickAdd,
+	) {
 		super(app);
 		this.choice = choice;
 
@@ -52,7 +57,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		this.addInsertAfterSetting();
 		if (!this.choice.captureToActiveFile) {
 			this.addOpenFileSetting();
-			
+
 			if (this.choice.openFile) {
 				this.addOpenFileInNewTabSetting();
 			}
@@ -76,7 +81,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			captureToActiveFileContainer.createEl("span");
 		captureToActiveFileText.textContent = "Capture to active file";
 		const captureToActiveFileToggle: ToggleComponent = new ToggleComponent(
-			captureToActiveFileContainer
+			captureToActiveFileContainer,
 		);
 		captureToActiveFileToggle.setValue(this.choice?.captureToActiveFile);
 		captureToActiveFileToggle.onChange((value) => {
@@ -95,7 +100,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				new FileNameDisplayFormatter(this.app);
 			void (async () =>
 				(formatDisplay.textContent = await displayFormatter.format(
-					this.choice.captureTo
+					this.choice.captureTo,
 				)))();
 
 			const formatInput = new TextComponent(captureToFileContainer);
@@ -108,9 +113,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				.setDisabled(this.choice?.captureToActiveFile)
 				.onChange(async (value) => {
 					this.choice.captureTo = value;
-					formatDisplay.textContent = await displayFormatter.format(
-						value
-					);
+					formatDisplay.textContent = await displayFormatter.format(value);
 				});
 
 			const markdownFilesAndFormatSyntax = [
@@ -121,7 +124,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				this.app,
 				textField.inputEl,
 				markdownFilesAndFormatSyntax,
-				50
+				50,
 			);
 		}
 	}
@@ -132,20 +135,15 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.setName("Write to bottom of file")
 			.setDesc(
 				`Put value at the bottom of the file - otherwise at the ${
-					this.choice?.captureToActiveFile
-						? "active cursor location"
-						: "top"
-				}.`
+					this.choice?.captureToActiveFile ? "active cursor location" : "top"
+				}.`,
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.prepend);
 				toggle.onChange((value) => {
 					this.choice.prepend = value;
 
-					if (
-						this.choice.prepend &&
-						this.choice.insertAfter.enabled
-					) {
+					if (this.choice.prepend && this.choice.insertAfter.enabled) {
 						this.choice.insertAfter.enabled = false;
 						this.reload();
 					}
@@ -169,7 +167,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		appendLinkSetting
 			.setName("Append link")
 			.setDesc(
-				"Add a link on your current cursor position, linking to the file you're capturing to."
+				"Add a link on your current cursor position, linking to the file you're capturing to.",
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.appendLink);
@@ -183,19 +181,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const insertAfterSetting: Setting = new Setting(this.contentEl);
 		insertAfterSetting
 			.setName("Insert after")
-			.setDesc(
-				"Insert capture after specified line. Accepts format syntax."
-			)
+			.setDesc("Insert capture after specified line. Accepts format syntax.")
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.insertAfter.enabled);
 				toggle.onChange((value) => {
 					this.choice.insertAfter.enabled = value;
 					insertAfterInput.setDisabled(!value);
 
-					if (
-						this.choice.insertAfter.enabled &&
-						this.choice.prepend
-					) {
+					if (this.choice.insertAfter.enabled && this.choice.prepend) {
 						this.choice.prepend = false;
 					}
 
@@ -205,11 +198,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const insertAfterFormatDisplay: HTMLSpanElement =
 			this.contentEl.createEl("span");
-		const displayFormatter: FormatDisplayFormatter =
-			new FormatDisplayFormatter(this.app, this.plugin);
+		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
+			this.app,
+			this.plugin,
+		);
 		void (async () =>
 			(insertAfterFormatDisplay.innerText = await displayFormatter.format(
-				this.choice.insertAfter.after
+				this.choice.insertAfter.after,
 			)))();
 
 		insertAfterInput = new TextComponent(this.contentEl);
@@ -225,36 +220,27 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					await displayFormatter.format(value);
 			});
 
-		new FormatSyntaxSuggester(
-			this.app,
-			insertAfterInput.inputEl,
-			this.plugin
-		);
+		new FormatSyntaxSuggester(this.app, insertAfterInput.inputEl, this.plugin);
 
 		if (this.choice.insertAfter.enabled) {
 			const insertAtEndSetting: Setting = new Setting(this.contentEl);
 			insertAtEndSetting
 				.setName("Insert at end of section")
 				.setDesc(
-					"Insert the text at the end of the section, rather than at the top."
+					"Insert the text at the end of the section, rather than at the top.",
 				)
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.choice.insertAfter?.insertAtEnd)
-						.onChange(
-							(value) =>
-								(this.choice.insertAfter.insertAtEnd = value)
-						)
+						.onChange((value) => (this.choice.insertAfter.insertAtEnd = value)),
 				);
 
-			const considerSubsectionsSetting: Setting = new Setting(
-				this.contentEl
-			);
+			const considerSubsectionsSetting: Setting = new Setting(this.contentEl);
 			considerSubsectionsSetting
 				.setName("Consider subsections")
 				.setDesc(
 					"Enabling this will insert the text at the end of the section & its subsections, rather than just at the end of the target section." +
-						" A section is defined by a heading, and its subsections are all the headings inside that section."
+						" A section is defined by a heading, and its subsections are all the headings inside that section.",
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -262,8 +248,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						.onChange((value) => {
 							// Trying to disable
 							if (!value) {
-								this.choice.insertAfter.considerSubsections =
-									false;
+								this.choice.insertAfter.considerSubsections = false;
 								return;
 							}
 
@@ -271,17 +256,15 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							const targetIsHeading =
 								this.choice.insertAfter.after.startsWith("#");
 							if (targetIsHeading) {
-								this.choice.insertAfter.considerSubsections =
-									value;
+								this.choice.insertAfter.considerSubsections = value;
 							} else {
-								this.choice.insertAfter.considerSubsections =
-									false;
+								this.choice.insertAfter.considerSubsections = false;
 								log.logError(
-									"'Consider subsections' can only be enabled if the insert after line starts with a # (heading)."
+									"'Consider subsections' can only be enabled if the insert after line starts with a # (heading).",
 								);
 								this.display();
 							}
-						})
+						}),
 				);
 
 			const createLineIfNotFound: Setting = new Setting(this.contentEl);
@@ -295,9 +278,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					toggle
 						.setValue(this.choice.insertAfter?.createIfNotFound)
 						.onChange(
-							(value) =>
-								(this.choice.insertAfter.createIfNotFound =
-									value)
+							(value) => (this.choice.insertAfter.createIfNotFound = value),
 						).toggleEl.style.marginRight = "1em";
 				})
 				.addDropdown((dropdown) => {
@@ -309,13 +290,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						.addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
 						.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
 						.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
-						.setValue(
-							this.choice.insertAfter?.createIfNotFoundLocation
-						)
+						.setValue(this.choice.insertAfter?.createIfNotFoundLocation)
 						.onChange(
 							(value) =>
-								(this.choice.insertAfter.createIfNotFoundLocation =
-									value)
+								(this.choice.insertAfter.createIfNotFoundLocation = value),
 						);
 				});
 		}
@@ -346,20 +324,45 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		formatInput.inputEl.style.minHeight = "10rem";
 		formatInput
 			.setValue(this.choice.format.format)
-			.setDisabled(!this.choice.format.enabled)
-			.onChange(async (value) => {
-				this.choice.format.format = value;
-				formatDisplay.innerText = await displayFormatter.format(value);
-			});
+			.setDisabled(!this.choice.format.enabled);
+
+		// Warning for VDATE usage without Natural Language Dates plugin
+		const vdateWarning: HTMLDivElement = this.contentEl.createDiv("vdate-warning");
+		vdateWarning.style.color = "var(--text-error)";
+		vdateWarning.style.fontSize = "0.9em";
+		vdateWarning.style.marginTop = "4px";
+		vdateWarning.style.display = "none";
+
+		const checkVdateWarning = (value: string) => {
+			const hasVdate = /{{VDATE:/i.test(value);
+			const hasNaturalLanguageDates = getNaturalLanguageDates(this.app);
+			
+			if (hasVdate && !hasNaturalLanguageDates) {
+				vdateWarning.style.display = "block";
+				vdateWarning.textContent = "⚠️ VDATE requires the Natural Language Dates plugin to be installed and enabled.";
+			} else {
+				vdateWarning.style.display = "none";
+			}
+		};
+
+		// Check warning on initial load and when input changes
+		checkVdateWarning(this.choice.format.format);
+		formatInput.onChange(async (value) => {
+			this.choice.format.format = value;
+			formatDisplay.innerText = await displayFormatter.format(value);
+			checkVdateWarning(value);
+		});
 
 		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin);
 
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
-		const displayFormatter: FormatDisplayFormatter =
-			new FormatDisplayFormatter(this.app, this.plugin);
+		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
+			this.app,
+			this.plugin,
+		);
 		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(
-				this.choice.format.format
+				this.choice.format.format,
 			)))();
 	}
 
@@ -381,7 +384,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.onChange((value) => {
 						this.choice.createFileIfItDoesntExist.enabled = value;
 						this.reload();
-					})
+					}),
 			);
 	}
 
@@ -393,24 +396,18 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.setName("Create file with given template.")
 			.addToggle((toggle) =>
 				toggle
-					.setValue(
-						this.choice.createFileIfItDoesntExist
-							?.createWithTemplate
-					)
+					.setValue(this.choice.createFileIfItDoesntExist?.createWithTemplate)
 					.onChange((value) => {
-						this.choice.createFileIfItDoesntExist.createWithTemplate =
-							value;
+						this.choice.createFileIfItDoesntExist.createWithTemplate = value;
 						templateSelector.setDisabled(!value);
-					})
+					}),
 			);
 
 		templateSelector = new TextComponent(this.contentEl);
 		templateSelector
 			.setValue(this.choice?.createFileIfItDoesntExist?.template ?? "")
 			.setPlaceholder("Template path")
-			.setDisabled(
-				!this.choice?.createFileIfItDoesntExist?.createWithTemplate
-			);
+			.setDisabled(!this.choice?.createFileIfItDoesntExist?.createWithTemplate);
 
 		templateSelector.inputEl.style.width = "100%";
 		templateSelector.inputEl.style.marginBottom = "8px";
@@ -422,7 +419,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.app,
 			templateSelector.inputEl,
 			templateFilePaths,
-			50
+			50,
 		);
 
 		templateSelector.onChange((value) => {
@@ -445,8 +442,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.addDropdown((dropdown) => {
 				dropdown.selectEl.style.marginLeft = "10px";
 
-				if (!this.choice.openFileInMode)
-					this.choice.openFileInMode = "default";
+				if (!this.choice.openFileInMode) this.choice.openFileInMode = "default";
 
 				dropdown
 					.addOption("source", "Source")
@@ -454,8 +450,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.addOption("default", "Default")
 					.setValue(this.choice.openFileInMode)
 					.onChange(
-						(value) =>
-							(this.choice.openFileInMode = value as FileViewMode)
+						(value) => (this.choice.openFileInMode = value as FileViewMode),
 					);
 			});
 	}
@@ -468,7 +463,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice?.openFileInNewTab?.enabled);
 				toggle.onChange(
-					(value) => (this.choice.openFileInNewTab.enabled = value)
+					(value) => (this.choice.openFileInNewTab.enabled = value),
 				);
 			})
 			.addDropdown((dropdown) => {
@@ -486,21 +481,17 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				dropdown.setValue(this.choice?.openFileInNewTab?.direction);
 				dropdown.onChange(
 					(value) =>
-						(this.choice.openFileInNewTab.direction = <
-							NewTabDirection
-						>value)
+						(this.choice.openFileInNewTab.direction = <NewTabDirection>value),
 				);
 			});
 
 		new Setting(this.contentEl)
 			.setName("Focus new pane")
-			.setDesc("Focus the opened tab immediately")
+			.setDesc("Focus the created tab immediately")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice.openFileInNewTab.focus)
-					.onChange(
-						(value) => (this.choice.openFileInNewTab.focus = value)
-					)
+					.onChange((value) => (this.choice.openFileInNewTab.focus = value)),
 			);
 	}
 }

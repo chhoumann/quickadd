@@ -73,4 +73,4 @@ module.exports = {
 - `text` and `input`: A text field.
 - `checkbox` and `toggle`: A checkbox.
 - `dropdown` and `select`: A dropdown.
-- `format`: A format field, adhering to [format syntax](/Docs/FormatSyntax).
+- `format`: A format field, adhering to [format syntax](../FormatSyntax.md).

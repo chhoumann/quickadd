@@ -99,7 +99,7 @@ export class MacroChoiceBuilder extends ChoiceBuilder {
 					return log.logError("Could not find macro to configure");
 
 				const builder = new MacroBuilder(
-					app,
+					this.app,
 					QuickAdd.instance,
 					macro,
 					this.choices

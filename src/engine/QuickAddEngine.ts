@@ -63,7 +63,7 @@ export abstract class QuickAddEngine {
 		let dirName = "";
 		if (dirMatch) dirName = dirMatch[1];
 
-		const dir = app.vault.getAbstractFileByPath(dirName);
+		const dir = this.app.vault.getAbstractFileByPath(dirName);
 
 		if (!dir || !(dir instanceof TFolder)) {
 			await this.createFolder(dirName);

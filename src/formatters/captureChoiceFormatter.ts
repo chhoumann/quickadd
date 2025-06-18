@@ -2,6 +2,7 @@ import { CompleteFormatter } from "./completeFormatter";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { MarkdownView, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
+import { reportError } from "../utils/errorUtils";
 import { templaterParseTemplate } from "../utilityObsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -27,15 +28,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.fileContent = fileContent;
 		if (!choice || !file || fileContent === null) return input;
 
-		const formatted = await this.formatFileContent(input);
-		const templaterFormatted = templaterParseTemplate(
-			this.app,
-			formatted,
-			this.file,
-		);
-		if (!(await templaterFormatted)) return formatted;
-
-		return templaterFormatted;
+		// Process templater here if we're using insert after or prepend or not capturing to active file
+		// This is needed because in these cases, the content won't be processed by templaterParseTemplate in CaptureChoiceEngine
+		const shouldRunTemplater = choice.insertAfter.enabled || choice.prepend || !choice.captureToActiveFile;
+		const formatted = await this.formatFileContent(input, shouldRunTemplater);
+		return formatted;
 	}
 
 	public async formatContent(
@@ -48,9 +45,21 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return await this.formatFileContent(input);
 	}
 
-	async formatFileContent(input: string): Promise<string> {
+	async formatFileContent(input: string, runTemplater = true): Promise<string> {
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
+
+		// If runTemplater is true and we have a file, run the templater parsing
+		if (runTemplater && this.file) {
+			const templaterFormatted = await templaterParseTemplate(
+				this.app,
+				formatted,
+				this.file
+			);
+			if (templaterFormatted) {
+				formatted = templaterFormatted;
+			}
+		}
 
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
@@ -81,8 +90,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
+		// Process the input with templater (if needed) at this stage
+		// This is the first pass where we want to run any templater code
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
+		
+		// DON'T run templater parsing here - it will be handled either by:
+		// 1. CaptureChoiceEngine.run() for the active file + no insert after + no prepend case
+		// 2. formatContentWithFile() for all other cases
+		// This avoids double processing of templater commands
 
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
@@ -109,7 +125,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return await this.createInsertAfterIfNotFound(formatted);
 			}
 
-			log.logError("unable to find insert after line in file.");
+			reportError(new Error("Unable to find insert after line in file"), "Insert After Error");
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
@@ -196,11 +212,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				);
 
 				return newFileContent;
-			} catch (e) {
-				log.logError(
-					`unable to insert line '${
-						this.choice.insertAfter.after
-					}' on your cursor.\n${e as string}`,
+			} catch (err) {
+				reportError(
+					err, 
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`
 				);
 			}
 		}
@@ -214,11 +229,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return -1;
 		}
 
-		if (fileCache.frontmatter.position || fileCache.frontmatterPosition) {
-			if (fileCache.frontmatter.position) {
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
-				return fileCache.frontmatter.position.end.line;
-			}
+		if (fileCache.frontmatterPosition) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+			return fileCache.frontmatterPosition.end.line;
 		}
 
 		return -1;

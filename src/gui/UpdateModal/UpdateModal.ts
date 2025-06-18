@@ -1,5 +1,4 @@
-import { Component } from "obsidian";
-import { MarkdownRenderer, Modal } from "obsidian";
+import { Component, MarkdownRenderer, Modal, App } from "obsidian";
 import { log } from "src/logger/logManager";
 
 type Release = {
@@ -74,7 +73,7 @@ export class UpdateModal extends Modal {
 	private releaseNotesPromise: Promise<Release[]>;
 	private previousVersion: string;
 
-	constructor(previousQAVersion: string) {
+	constructor(app: App, previousQAVersion: string) {
 		super(app);
 		this.previousVersion = previousQAVersion;
 
@@ -135,7 +134,7 @@ export class UpdateModal extends Modal {
 		void MarkdownRenderer.renderMarkdown(
 			markdownStr,
 			contentDiv,
-			app.vault.getRoot().path,
+			this.app.vault.getRoot().path,
 			new Component(),
 		);
 	}

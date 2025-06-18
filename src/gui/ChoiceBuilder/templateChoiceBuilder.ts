@@ -11,7 +11,7 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { getAllFolderPathsInVault, getNaturalLanguageDates } from "../../utilityObsidian";
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -29,7 +29,11 @@ import {
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
 
-	constructor(app: App, choice: ITemplateChoice, private plugin: QuickAdd) {
+	constructor(
+		app: App,
+		choice: ITemplateChoice,
+		private plugin: QuickAdd,
+	) {
 		super(app);
 		this.choice = choice;
 
@@ -45,7 +49,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addAppendLinkSetting();
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting();
-		if (this.choice.openFile) this.addOpenFileInNewTabSetting();
+
+		if (this.choice.openFile) {
+			this.addOpenFileInNewTabSetting();
+		}
 	}
 
 	private addTemplatePathSetting(): void {
@@ -88,30 +95,46 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			new FileNameDisplayFormatter(this.app);
 		void (async () =>
 			(formatDisplay.textContent = await displayFormatter.format(
-				this.choice.fileNameFormat.format
+				this.choice.fileNameFormat.format,
 			)))();
+
+		// Warning for VDATE usage without Natural Language Dates plugin
+		const vdateWarning: HTMLDivElement = this.contentEl.createDiv("vdate-warning");
+		vdateWarning.style.color = "var(--text-error)";
+		vdateWarning.style.fontSize = "0.9em";
+		vdateWarning.style.marginTop = "4px";
+		vdateWarning.style.display = "none";
 
 		const formatInput = new TextComponent(this.contentEl);
 		formatInput.setPlaceholder("File name format");
 		textField = formatInput;
 		formatInput.inputEl.style.width = "100%";
 		formatInput.inputEl.style.marginBottom = "8px";
+		const checkVdateWarning = (value: string) => {
+			const hasVdate = /{{VDATE:/i.test(value);
+			const hasNaturalLanguageDates = getNaturalLanguageDates(this.app);
+			
+			if (hasVdate && !hasNaturalLanguageDates) {
+				vdateWarning.style.display = "block";
+				vdateWarning.textContent = "⚠️ VDATE requires the Natural Language Dates plugin to be installed and enabled.";
+			} else {
+				vdateWarning.style.display = "none";
+			}
+		};
+
 		formatInput
 			.setValue(this.choice.fileNameFormat.format)
 			.setDisabled(!this.choice.fileNameFormat.enabled)
 			.onChange(async (value) => {
 				this.choice.fileNameFormat.format = value;
-				formatDisplay.textContent = await displayFormatter.format(
-					value
-				);
+				formatDisplay.textContent = await displayFormatter.format(value);
+				checkVdateWarning(value);
 			});
 
-		new FormatSyntaxSuggester(
-			this.app,
-			textField.inputEl,
-			this.plugin,
-			true
-		);
+		// Check warning on initial load
+		checkVdateWarning(this.choice.fileNameFormat.format);
+
+		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin, true);
 	}
 
 	private addFolderSetting(): void {
@@ -119,7 +142,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		folderSetting
 			.setName("Create in folder")
 			.setDesc(
-				"Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in."
+				"Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in.",
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.folder.enabled);
@@ -134,15 +157,15 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		}
 
 		if (!this.choice.folder?.createInSameFolderAsActiveFile) {
-			const chooseFolderWhenCreatingNoteContainer =
-				this.contentEl.createDiv(
-					"chooseFolderWhenCreatingNoteContainer"
-				);
+			const chooseFolderWhenCreatingNoteContainer = this.contentEl.createDiv(
+				"chooseFolderWhenCreatingNoteContainer",
+			);
 			chooseFolderWhenCreatingNoteContainer.createEl("span", {
 				text: "Choose folder when creating a new note",
 			});
-			const chooseFolderWhenCreatingNote: ToggleComponent =
-				new ToggleComponent(chooseFolderWhenCreatingNoteContainer);
+			const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(
+				chooseFolderWhenCreatingNoteContainer,
+			);
 			chooseFolderWhenCreatingNote
 				.setValue(this.choice.folder?.chooseWhenCreatingNote)
 				.onChange((value) => {
@@ -158,9 +181,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				this.contentEl.createDiv("chooseFolderFromSubfolderContainer");
 
 			const stn = new Setting(chooseFolderFromSubfolderContainer);
-			stn.setName("Include subfolders")
+			stn
+				.setName("Include subfolders")
 				.setDesc(
-					"Get prompted to choose from both the selected folders and their subfolders when creating the note."
+					"Get prompted to choose from both the selected folders and their subfolders when creating the note.",
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -168,36 +192,34 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						.onChange((value) => {
 							this.choice.folder.chooseFromSubfolders = value;
 							this.reload();
-						})
+						}),
 				);
 		}
 
 		if (!this.choice.folder?.chooseWhenCreatingNote) {
 			const createInSameFolderAsActiveFileSetting: Setting = new Setting(
-				this.contentEl
+				this.contentEl,
 			);
 			createInSameFolderAsActiveFileSetting
 				.setName("Create in same folder as active file")
 				.setDesc(
-					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file."
+					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file.",
 				)
 				.addToggle((toggle) =>
 					toggle
-						.setValue(
-							this.choice.folder?.createInSameFolderAsActiveFile
-						)
+						.setValue(this.choice.folder?.createInSameFolderAsActiveFile)
 						.onChange((value) => {
-							this.choice.folder.createInSameFolderAsActiveFile =
-								value;
+							this.choice.folder.createInSameFolderAsActiveFile = value;
 							this.reload();
-						})
+						}),
 				);
 		}
 	}
 
 	private addFolderSelector() {
-		const folderSelectionContainer: HTMLDivElement =
-			this.contentEl.createDiv("folderSelectionContainer");
+		const folderSelectionContainer: HTMLDivElement = this.contentEl.createDiv(
+			"folderSelectionContainer",
+		);
 		const folderList: HTMLDivElement =
 			folderSelectionContainer.createDiv("folderList");
 
@@ -206,8 +228,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			props: {
 				folders: this.choice.folder.folders,
 				deleteFolder: (folder: string) => {
-					this.choice.folder.folders =
-						this.choice.folder.folders.filter((f) => f !== folder);
+					this.choice.folder.folders = this.choice.folder.folders.filter(
+						(f) => f !== folder,
+					);
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 					folderListEl.updateFolders(this.choice.folder.folders);
 					suggester.updateCurrentItems(this.choice.folder.folders);
@@ -218,7 +241,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.svelteElements.push(folderListEl);
 
 		const inputContainer = folderSelectionContainer.createDiv(
-			"folderInputContainer"
+			"folderInputContainer",
 		);
 		const folderInput = new TextComponent(inputContainer);
 		folderInput.inputEl.style.width = "100%";
@@ -229,7 +252,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			this.app,
 			folderInput.inputEl,
 			allFolders,
-			this.choice.folder.folders
+			this.choice.folder.folders,
 		);
 
 		const addFolder = () => {
@@ -279,7 +302,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		fileAlreadyExistsSetting
 			.setName("Set default behavior if file already exists")
 			.setDesc(
-				"Set default behavior rather then prompting user on what to do if a file already exists."
+				"Set default behavior rather then prompting user on what to do if a file already exists.",
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
@@ -294,18 +317,15 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.fileExistsMode = fileExistsDoNothing;
 
 				dropdown
-					.addOption(
-						fileExistsAppendToBottom,
-						fileExistsAppendToBottom
-					)
+					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
 					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
 					.addOption(fileExistsIncrement, fileExistsIncrement)
 					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
 					.addOption(fileExistsDoNothing, fileExistsDoNothing)
 					.setValue(this.choice.fileExistsMode)
 					.onChange(
-						(value: typeof fileExistsChoices[number]) =>
-							(this.choice.fileExistsMode = value)
+						(value: (typeof fileExistsChoices)[number]) =>
+							(this.choice.fileExistsMode = value),
 					);
 			});
 	}
@@ -325,8 +345,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.addDropdown((dropdown) => {
 				dropdown.selectEl.style.marginLeft = "10px";
 
-				if (!this.choice.openFileInMode)
-					this.choice.openFileInMode = "default";
+				if (!this.choice.openFileInMode) this.choice.openFileInMode = "default";
 
 				dropdown
 					.addOption("source", "Source")
@@ -334,8 +353,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					.addOption("default", "Default")
 					.setValue(this.choice.openFileInMode)
 					.onChange(
-						(value) =>
-							(this.choice.openFileInMode = value as FileViewMode)
+						(value) => (this.choice.openFileInMode = value as FileViewMode),
 					);
 			});
 	}
@@ -348,7 +366,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.openFileInNewTab.enabled);
 				toggle.onChange(
-					(value) => (this.choice.openFileInNewTab.enabled = value)
+					(value) => (this.choice.openFileInNewTab.enabled = value),
 				);
 			})
 			.addDropdown((dropdown) => {
@@ -358,9 +376,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				dropdown.setValue(this.choice.openFileInNewTab.direction);
 				dropdown.onChange(
 					(value) =>
-						(this.choice.openFileInNewTab.direction = <
-							NewTabDirection
-						>value)
+						(this.choice.openFileInNewTab.direction = <NewTabDirection>value),
 				);
 			});
 
@@ -370,9 +386,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice.openFileInNewTab.focus)
-					.onChange(
-						(value) => (this.choice.openFileInNewTab.focus = value)
-					)
+					.onChange((value) => (this.choice.openFileInNewTab.focus = value)),
 			);
 	}
 }

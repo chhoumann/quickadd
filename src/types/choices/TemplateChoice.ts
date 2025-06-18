@@ -22,7 +22,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 	openFile: boolean;
 	openFileInMode: FileViewMode;
 	templatePath: string;
-	fileExistsMode: typeof fileExistsChoices[number];
+	fileExistsMode: (typeof fileExistsChoices)[number];
 	setFileExistsBehavior: boolean;
 
 	constructor(name: string) {

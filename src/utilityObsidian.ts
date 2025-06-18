@@ -4,7 +4,7 @@ import type {
 	WorkspaceLeaf,
 	CachedMetadata,
 } from "obsidian";
-import { MarkdownView, TFile, TFolder } from "obsidian";
+import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
 import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
 import type { FileViewMode } from "./types/fileViewMode";
@@ -22,17 +22,19 @@ export function getTemplater(app: App) {
 export async function replaceTemplaterTemplatesInCreatedFile(
 	app: App,
 	file: TFile,
-	force = false
 ) {
 	const templater = getTemplater(app);
-
-	if (
-		templater &&
-		(force ||
-			!(templater.settings as Record<string, unknown>)[
-				"trigger_on_file_creation"
-			])
-	) {
+	
+	if (!templater) return;
+	
+	const settings = templater.settings as Record<string, unknown>;
+	const triggerOnFileCreation = settings?.["trigger_on_file_creation"];
+	
+	// Only process if Templater's trigger_on_file_creation is disabled
+	// If it's enabled, Templater will process the file automatically
+	const shouldProcess = !triggerOnFileCreation;
+	
+	if (shouldProcess) {
 		const impl = templater?.templater as {
 			overwrite_file_commands?: (file: TFile) => Promise<void>;
 		};
@@ -45,7 +47,7 @@ export async function replaceTemplaterTemplatesInCreatedFile(
 export async function templaterParseTemplate(
 	app: App,
 	templateContent: string,
-	targetFile: TFile
+	targetFile: TFile,
 ) {
 	const templater = getTemplater(app);
 	if (!templater) return templateContent;
@@ -54,7 +56,7 @@ export async function templaterParseTemplate(
 		templater.templater as {
 			parse_template: (
 				opt: { target_file: TFile; run_mode: number },
-				content: string
+				content: string,
 			) => Promise<string>;
 		}
 	).parse_template({ target_file: targetFile, run_mode: 4 }, templateContent);
@@ -133,7 +135,7 @@ export async function openFile(
 		direction?: NewTabDirection;
 		mode?: FileViewMode;
 		focus?: boolean;
-	}
+	},
 ) {
 	let leaf: WorkspaceLeaf;
 
@@ -163,6 +165,33 @@ export async function openFile(
 	}
 }
 
+/**
+ * If there is no existing tab which opened the file, return false, else return true.
+ */
+export function openExistingFileTab(
+	app: App,
+	file: TFile,
+): boolean {
+	let leaf: WorkspaceLeaf | undefined = undefined;
+
+	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
+		const view = m_leaf.view;
+		if (view instanceof FileView) {
+			if (view.file) {
+				if (file.path === view.file.path) {
+					leaf = m_leaf;
+					return;
+				}
+			}
+		}
+	});
+	if (leaf !== undefined) {
+		app.workspace.setActiveLeaf(leaf);
+		return true;
+	}
+	return false;
+}
+
 // Slightly modified version of Templater's user script import implementation
 // Source: https://github.com/SilentVoid13/Templater
 export async function getUserScript(command: IUserScript, app: App) {
@@ -182,7 +211,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 		const fileContent = await app.vault.read(file);
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		const fn = window.eval(
-			`(function(require, module, exports) { ${fileContent} \n})`
+			`(function(require, module, exports) { ${fileContent} \n})`,
 		);
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 		fn(req, mod, exp);
@@ -209,7 +238,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 
 export function excludeKeys<T extends object, K extends keyof T>(
 	sourceObj: T,
-	except: K[]
+	except: K[],
 ): Omit<T, K> {
 	const obj = structuredClone(sourceObj);
 
@@ -221,7 +250,7 @@ export function excludeKeys<T extends object, K extends keyof T>(
 }
 
 export function getChoiceType<
-	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice
+	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice,
 >(choice: IChoice): choice is T {
 	const isTemplate = (choice: IChoice): choice is TemplateChoice =>
 		choice.type === "Template";
@@ -240,13 +269,13 @@ export function getChoiceType<
 	);
 }
 
-export function isFolder(path: string): boolean {
+export function isFolder(app: App, path: string): boolean {
 	const abstractItem = app.vault.getAbstractFileByPath(path);
 
 	return !!abstractItem && abstractItem instanceof TFolder;
 }
 
-export function getMarkdownFilesInFolder(folderPath: string): TFile[] {
+export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] {
 	return app.vault
 		.getMarkdownFiles()
 		.filter((f) => f.path.startsWith(folderPath));
@@ -283,7 +312,7 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 	return tags;
 }
 
-function getFileTags(file: TFile): string[] {
+function getFileTags(app: App, file: TFile): string[] {
 	const fileCache = app.metadataCache.getFileCache(file);
 	if (!fileCache) return [];
 
@@ -299,11 +328,11 @@ function getFileTags(file: TFile): string[] {
 	return tagsInFile;
 }
 
-export function getMarkdownFilesWithTag(tag: string): TFile[] {
+export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 	const targetTag = tag.replace(/^\#/, "");
 
-	return app.vault.getMarkdownFiles().filter((f) => {
-		const fileTags = getFileTags(f);
+	return app.vault.getMarkdownFiles().filter((f: TFile) => {
+		const fileTags = getFileTags(app, f);
 
 		return fileTags.includes(targetTag);
 	});

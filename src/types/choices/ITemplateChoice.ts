@@ -21,6 +21,6 @@ export default interface ITemplateChoice extends IChoice {
 		focus: boolean;
 	};
 	openFileInMode: FileViewMode;
-	fileExistsMode: typeof fileExistsChoices[number];
+	fileExistsMode: (typeof fileExistsChoices)[number];
 	setFileExistsBehavior: boolean;
 }

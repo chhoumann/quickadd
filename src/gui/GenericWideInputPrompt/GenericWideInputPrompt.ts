@@ -80,6 +80,7 @@ export default class GenericWideInputPrompt extends Modal {
 		const textComponent = new TextAreaComponent(container);
 
 		textComponent.inputEl.classList.add("wideInputPromptInputEl");
+		textComponent.inputEl.setAttribute("dir", "auto");
 		textComponent
 			.setPlaceholder(placeholder ?? "")
 			.setValue(value ?? "")

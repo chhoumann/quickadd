@@ -7,7 +7,7 @@ import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPr
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
-import { log } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
@@ -21,6 +21,10 @@ import {
 	getModelNames,
 	getModelProvider,
 } from "./ai/aiHelpers";
+
+import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
+import { InlineFieldParser } from "./utils/InlineFieldParser";
+import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -70,7 +74,7 @@ export class QuickAddApi {
 			) => {
 				const choice: IChoice = plugin.getChoiceByName(choiceName);
 				if (!choice)
-					log.logError(`choice named '${choiceName}' not found`);
+					reportError(new Error(`Choice named '${choiceName}' not found`), "API executeChoice error");
 
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -152,6 +156,7 @@ export class QuickAddApi {
 					}
 
 					const assistantRes = await Prompt(
+						app,
 						{
 							model: _model,
 							prompt,
@@ -171,7 +176,7 @@ export class QuickAddApi {
 					);
 
 					if (!assistantRes) {
-						log.logError("AI Assistant returned null");
+						reportError(new Error("AI Assistant returned null"), "AI Prompt error");
 						return {};
 					}
 
@@ -234,6 +239,7 @@ export class QuickAddApi {
 					}
 
 					const assistantRes = await ChunkedPrompt(
+						app,
 						{
 							model: _model,
 							text,
@@ -262,7 +268,7 @@ export class QuickAddApi {
 					);
 
 					if (!assistantRes) {
-						log.logError("AI Assistant returned null");
+						reportError(new Error("AI Assistant returned null"), "Chunked AI Prompt error");
 						return {};
 					}
 
@@ -301,14 +307,12 @@ export class QuickAddApi {
 						app.workspace.getActiveViewOfType(MarkdownView);
 
 					if (!activeView) {
-						log.logError(
-							"no active view - could not get selected text."
-						);
+						reportError(new Error("No active view"), "Could not get selected text");
 						return;
 					}
 
 					if (!activeView.editor.somethingSelected()) {
-						log.logError("no text selected.");
+						reportError(new Error("No text selected"), "Could not get selected text");
 						return;
 					}
 
@@ -324,6 +328,64 @@ export class QuickAddApi {
 				},
 				yesterday: (format?: string) => {
 					return getDate({ format, offset: -1 });
+				},
+			},
+			fieldSuggestions: {
+				getFieldValues: async (
+					fieldName: string,
+					options?: {
+						folder?: string;
+						tags?: string[];
+						includeInline?: boolean;
+					}
+				) => {
+					const filters = {
+						folder: options?.folder,
+						tags: options?.tags,
+						inline: options?.includeInline ?? false,
+					};
+
+					// Get all markdown files and apply filters
+					let files = app.vault.getMarkdownFiles();
+					files = FieldSuggestionFileFilter.filterFiles(
+						files,
+						filters,
+						(file) => app.metadataCache.getFileCache(file)
+					);
+
+					const values = new Set<string>();
+
+					// Collect field values from filtered files
+					for (const file of files) {
+						const cache = app.metadataCache.getFileCache(file);
+						
+						// Get values from YAML frontmatter
+						const value = cache?.frontmatter?.[fieldName];
+						if (value !== undefined && value !== null) {
+							if (Array.isArray(value)) {
+								value.forEach(x => {
+									const strValue = x.toString().trim();
+									if (strValue) values.add(strValue);
+								});
+							} else if (typeof value !== "object") {
+								const strValue = value.toString().trim();
+								if (strValue) values.add(strValue);
+							}
+						}
+
+						// Get values from inline fields if requested
+						if (filters.inline) {
+							const content = await app.vault.read(file);
+							const inlineValues = InlineFieldParser.getFieldValues(content, fieldName);
+							inlineValues.forEach(v => values.add(v));
+						}
+					}
+
+					return Array.from(values).sort();
+				},
+				clearCache: (fieldName?: string) => {
+					const cache = FieldSuggestionCache.getInstance();
+					cache.clear(fieldName);
 				},
 			},
 		};

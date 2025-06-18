@@ -5,6 +5,8 @@ import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
+import { LogManager } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -17,15 +19,24 @@ import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
+import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+
+// Parameters prefixed with `value-` get used as named values for the executed choice
+type CaptureValueParameters = { [key in `value-${string}`]?: string };
+
+interface DefinedUriParameters {
+	choice?: string; // Name
+}
+
+type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
-
 	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
-		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
+		return QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
 	}
 
 	async onload() {
@@ -61,6 +72,10 @@ export default class QuickAdd extends Plugin {
 			},
 		});
 
+		// Start automatic cleanup for field suggestion cache
+		const cache = FieldSuggestionCache.getInstance();
+		cache.startAutomaticCleanup((intervalId) => this.registerInterval(intervalId));
+
 		this.addCommand({
 			id: "testQuickAdd",
 			name: "Test QuickAdd (dev)",
@@ -72,7 +87,7 @@ export default class QuickAdd extends Plugin {
 				console.log("Test QuickAdd (dev)");
 
 				const fn = () => {
-					new InfiniteAIAssistantCommandSettingsModal({
+					new InfiniteAIAssistantCommandSettingsModal(this.app, {
 						id: "test",
 						name: "Test",
 						model: "gpt-4",
@@ -89,6 +104,36 @@ export default class QuickAdd extends Plugin {
 
 				void fn();
 			},
+		});
+
+		this.registerObsidianProtocolHandler("quickadd", async (e) => {
+			const parameters = e as unknown as UriParameters;
+			if (!parameters.choice) {
+				log.logWarning("URI was executed without a `choice` parameter.");
+				return;
+			}
+			const choice = this.getChoice("name", parameters.choice);
+
+			if (!choice) {
+				reportError(
+					new Error(`URI could not find any choice named '${parameters.choice}'`),
+					"URI handler error"
+				);
+				return;
+			}
+
+			const choiceExecutor = new ChoiceExecutor(this.app, this);
+			Object.entries(parameters)
+				.filter(([key]) => key.startsWith("value-"))
+				.forEach(([key, value]) => {
+					choiceExecutor.variables.set(key.slice(6), value);
+				});
+
+			try {
+				await choiceExecutor.execute(choice);
+			} catch (err) {
+				reportError(err, "Error executing choice from URI");
+			}
 		});
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
@@ -118,6 +163,17 @@ export default class QuickAdd extends Plugin {
 	onunload() {
 		console.log("Unloading QuickAdd");
 		this.unsubscribeSettingsStore?.call(this);
+		
+		// Clear the error log to prevent memory leaks
+		LogManager.loggers.forEach(logger => {
+			if (logger instanceof ConsoleErrorLogger) {
+				logger.clearErrorLog();
+			}
+		});
+
+		// Clean up field suggestion cache
+		const cache = FieldSuggestionCache.getInstance();
+		cache.destroy();
 	}
 
 	async loadSettings() {
@@ -218,7 +274,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.announceUpdates === false) return;
 
-		const updateModal = new UpdateModal(knownVersion);
+		const updateModal = new UpdateModal(this.app, knownVersion);
 		updateModal.open();
 	}
 }

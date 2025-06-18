@@ -1,4 +1,6 @@
-export function preventCursorChange(): () => void {
+import { App } from "obsidian";
+
+export function preventCursorChange(app: App): () => void {
 	const cursor = app.workspace.activeEditor?.editor?.getCursor();
 	const selection = app.workspace.activeEditor?.editor?.listSelections();
 

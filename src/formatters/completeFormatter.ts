@@ -16,6 +16,13 @@ import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
+
+import { DataviewIntegration } from "../utils/DataviewIntegration";
+import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { InlineFieldParser } from "../utils/InlineFieldParser";
+import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
+import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -23,7 +30,7 @@ export class CompleteFormatter extends Formatter {
 	constructor(
 		protected app: App,
 		private plugin: QuickAdd,
-		protected choiceExecutor?: IChoiceExecutor
+		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super();
 		if (choiceExecutor) {
@@ -79,7 +86,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		return this.variables.get(variableName) as string;
+		return (this.variables.get(variableName) as string) ?? "";
 	}
 
 	protected async promptForValue(header?: string): Promise<string> {
@@ -96,9 +103,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async promptForVariable(header?: string): Promise<string> {
-		return await new InputPrompt()
-			.factory()
-			.Prompt(this.app, header as string);
+		return await new InputPrompt().factory().Prompt(this.app, header as string);
 	}
 
 	protected async promptForMathValue(): Promise<string> {
@@ -109,40 +114,165 @@ export class CompleteFormatter extends Formatter {
 		return await GenericSuggester.Suggest(
 			this.app,
 			suggestedValues,
-			suggestedValues
+			suggestedValues,
 		);
 	}
 
-	protected async suggestForField(variableName: string) {
-		const suggestedValues = new Set<string>();
+	protected async suggestForField(fieldInput: string) {
+		// Parse the field input to extract field name and filters
+		const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
 
-		for (const file of this.app.vault.getMarkdownFiles()) {
-			const cache = this.app.metadataCache.getFileCache(file);
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-			const value = cache?.frontmatter?.[variableName];
-			if (!value || typeof value == "object") continue;
+		// Generate cache key based on filters
+		const cacheKey = this.generateCacheKey(filters);
+		const cache = FieldSuggestionCache.getInstance();
 
-			suggestedValues.add(value.toString());
+		// Check cache first
+		let rawValues = cache.get(fieldName, cacheKey);
+
+		if (!rawValues) {
+			// Cache miss, collect values
+			rawValues = new Set<string>();
+
+			// Try to use Dataview if available and no inline filter is specified
+			// (Dataview handles both YAML and inline fields automatically)
+			if (!filters.inline && DataviewIntegration.isAvailable(this.app)) {
+				rawValues = await DataviewIntegration.getFieldValuesWithFilter(
+					this.app,
+					fieldName,
+					filters.folder,
+					filters.tags,
+					filters.excludeFolders,
+					filters.excludeTags
+				);
+			} else {
+				// Fall back to manual parsing
+				// Get all markdown files and apply enhanced filtering
+				let files = this.app.vault.getMarkdownFiles();
+				files = EnhancedFieldSuggestionFileFilter.filterFiles(
+					files,
+					filters,
+					(file) => this.app.metadataCache.getFileCache(file),
+			);
+
+			// Process files in batches for better performance
+			const batchSize = 50;
+			for (let i = 0; i < files.length; i += batchSize) {
+				const batch = files.slice(i, i + batchSize);
+				const promises = batch.map(async (file) => {
+					const values = new Set<string>();
+					
+					try {
+						const metadataCache = this.app.metadataCache.getFileCache(file);
+
+						// Get values from YAML frontmatter
+						const value: unknown = metadataCache?.frontmatter?.[fieldName];
+						if (value !== undefined && value !== null) {
+							if (Array.isArray(value)) {
+								value.forEach((x) => {
+									const strValue = String(x).trim();
+									if (strValue) values.add(strValue);
+								});
+							} else if (typeof value !== "object") {
+								const strValue = String(value).trim();
+								if (strValue) values.add(strValue);
+							}
+						}
+
+						// Get values from inline fields if requested
+						if (filters.inline) {
+							try {
+								const content = await this.app.vault.read(file);
+								const inlineValues = InlineFieldParser.getFieldValues(
+									content,
+									fieldName,
+								);
+								inlineValues.forEach((v) => values.add(v));
+							} catch (error) {
+								// Skip files that can't be read (binary files, permissions, etc.)
+								console.warn(`Could not read file ${file.path} for inline field parsing:`, error);
+							}
+						}
+					} catch (error) {
+						// Skip files with metadata cache issues
+						console.warn(`Could not process metadata for file ${file.path}:`, error);
+					}
+
+					return values;
+				});
+
+				const batchResults = await Promise.all(promises);
+				for (const values of batchResults) {
+					for (const v of values) {
+						rawValues.add(v);
+					}
+				}
+			}
+
+			// Store in cache
+			cache.set(fieldName, rawValues, cacheKey);
 		}
 
-		if (suggestedValues.size === 0) {
+		// Process values with deduplication and defaults
+		const processedResult = FieldValueProcessor.processValues(
+			rawValues,
+			filters,
+		);
+
+		if (processedResult.values.length === 0) {
+			// No values found even after processing defaults
+			let fallbackPrompt = `No existing values were found in your vault.`;
+
+			// Suggest smart defaults if no custom default was provided
+			if (!filters.defaultValue) {
+				const smartDefaults = FieldValueProcessor.getSmartDefaults(
+					fieldName,
+					[],
+				);
+				if (smartDefaults.length > 0) {
+					fallbackPrompt += `\n\nSuggested values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`;
+				}
+			}
+
 			return await GenericInputPrompt.Prompt(
-				app,
-				`Enter value for ${variableName}`,
-				`No existing values were found in your vault.`
+				this.app,
+				`Enter value for ${fieldName}`,
+				fallbackPrompt,
 			);
 		}
 
-		const suggestedValuesArr = Array.from(suggestedValues);
+		// Enhance placeholder with context
+		let placeholder = `Enter value for ${fieldName}`;
+		if (processedResult.hasDefaultValue) {
+			placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+		}
 
 		return await InputSuggester.Suggest(
 			this.app,
-			suggestedValuesArr,
-			suggestedValuesArr,
+			processedResult.values,
+			processedResult.values,
 			{
-				placeholder: `Enter value for ${variableName}`,
-			}
+				placeholder,
+			},
 		);
+	}
+	}
+
+	private generateCacheKey(filters: Record<string, any>): string {
+		const parts: string[] = [];
+		if (filters.folder) parts.push(`folder:${filters.folder}`);
+		if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
+		if (filters.inline) parts.push("inline:true");
+		if (filters.caseSensitive) parts.push("case-sensitive:true");
+		if (filters.excludeFolders)
+			parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
+		if (filters.excludeTags)
+			parts.push(`exclude-tags:${filters.excludeTags.join(",")}`);
+		if (filters.excludeFiles)
+			parts.push(`exclude-files:${filters.excludeFiles.join(",")}`);
+		if (filters.defaultValue) parts.push(`default:${filters.defaultValue}`);
+		if (filters.defaultEmpty) parts.push("default-empty:true");
+		if (filters.defaultAlways) parts.push("default-always:true");
+		return parts.join("|");
 	}
 
 	protected async getMacroValue(macroName: string): Promise<string> {
@@ -152,10 +282,9 @@ export class CompleteFormatter extends Formatter {
 			this.plugin.settings.macros,
 			//@ts-ignore
 			this.choiceExecutor,
-			this.variables
+			this.variables,
 		);
-		const macroOutput =
-			(await macroEngine.runAndGetOutput(macroName)) ?? "";
+		const macroOutput = (await macroEngine.runAndGetOutput(macroName)) ?? "";
 
 		Object.keys(macroEngine.params.variables).forEach((key) => {
 			this.variables.set(key, macroEngine.params.variables[key]);
@@ -169,7 +298,7 @@ export class CompleteFormatter extends Formatter {
 			this.app,
 			this.plugin,
 			templatePath,
-			this.choiceExecutor
+			this.choiceExecutor,
 		).run();
 	}
 
@@ -194,7 +323,7 @@ export class CompleteFormatter extends Formatter {
 					this.plugin,
 					//@ts-ignore
 					this.choiceExecutor,
-					this.variables
+					this.variables,
 				);
 				const outVal: unknown = await executor.runAndGetOutput(code);
 

@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import getEndOfSection from "./getEndOfSection";
+import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
 
 test("getEndOfSection - find the end of a section", () => {
 	const lines = [
@@ -184,6 +184,26 @@ test("getEndOfSection - target is heading, should not consider subsections", () 
 	expect(result).toBe(5);
 });
 
+test("getEndOfSection - capture to end of section with a leading tag, should not consider subsections", () => {
+	const lines = [
+		"# Notes",
+		"",
+		"## Topic A", // target (2)
+		"content a1",
+		"#TagForA1",
+		"content a2", // result (5)
+		"## Topic B",
+		"content b1",
+		"",
+		"",
+	];
+
+	const targetLine = 2;
+
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(5);
+});
+
 test("getEndOfSection - target is heading, should consider subsections", () => {
 	const lines = [
 		"# Notes", // target (0)
@@ -289,4 +309,59 @@ test("getEndOfSection - capture to last line, shouldConsiderSubsections OFF", ()
 
 	const result = getEndOfSection(lines, targetLine, false);
 	expect(result).toBe(2);
+});
+
+
+test("getMarkdownHeadings - correctly identifies headings", () => {
+	const lines = [
+		"# Heading 1",
+		"## Heading 2",
+		"### Heading 3",
+		"#### Heading 4",
+		"##### Heading 5",
+		"###### Heading 6",
+		"Normal text",
+		"#Not a heading",
+		"# Heading with #hash in text",
+		"##Invalid heading",
+		"",
+		"  # Heading with leading spaces",
+	];
+
+	const result = getMarkdownHeadings(lines);
+
+	expect(result).toEqual([
+		{ level: 1, text: "Heading 1", line: 0 },
+		{ level: 2, text: "Heading 2", line: 1 },
+		{ level: 3, text: "Heading 3", line: 2 },
+		{ level: 4, text: "Heading 4", line: 3 },
+		{ level: 5, text: "Heading 5", line: 4 },
+		{ level: 6, text: "Heading 6", line: 5 },
+		{ level: 1, text: "Heading with #hash in text", line: 8 },
+	]);
+});
+
+test("getMarkdownHeadings - handles empty input", () => {
+	const lines: string[] = [];
+
+	const result = getMarkdownHeadings(lines);
+
+	expect(result).toEqual([]);
+});
+
+test("getMarkdownHeadings - correctly ignores Obsidian tags", () => {
+	const lines = [
+		"# Real Heading",
+		"#tag",
+		"#anothertag",
+		"Text with #inline_tag",
+		"## Heading with #tag in it",
+	];
+
+	const result = getMarkdownHeadings(lines);
+
+	expect(result).toEqual([
+		{ level: 1, text: "Real Heading", line: 0 },
+		{ level: 2, text: "Heading with #tag in it", line: 4 },
+	]);
 });
