@@ -277,6 +277,7 @@
 
 	async function openAISettings() {
 		const newSettings = await new AIAssistantSettingsModal(
+			app,
 			settingsStore.getState().ai
 		).waitForClose;
 

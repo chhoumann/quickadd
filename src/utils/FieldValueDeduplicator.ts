@@ -185,7 +185,7 @@ export class FieldValueDeduplicator {
 	static getSuggestions(
 		target: string, 
 		existingValues: string[], 
-		threshold: number = 0.8
+		threshold = 0.8
 	): string[] {
 		const targetNormalized = this.normalizeForComparison(target);
 		const suggestions: string[] = [];

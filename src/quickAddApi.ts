@@ -21,7 +21,7 @@ import {
 	getModelNames,
 	getModelProvider,
 } from "./ai/aiHelpers";
-import { FieldSuggestionParser } from "./utils/FieldSuggestionParser";
+
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
@@ -156,6 +156,7 @@ export class QuickAddApi {
 					}
 
 					const assistantRes = await Prompt(
+						app,
 						{
 							model: _model,
 							prompt,
@@ -238,6 +239,7 @@ export class QuickAddApi {
 					}
 
 					const assistantRes = await ChunkedPrompt(
+						app,
 						{
 							model: _model,
 							text,

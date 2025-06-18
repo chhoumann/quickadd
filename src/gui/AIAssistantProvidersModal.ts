@@ -63,7 +63,7 @@ export class AIAssistantProvidersModal extends Modal {
 			.addButton((button) => {
 				button.setButtonText("Add Provider").onClick(async () => {
 					const providerName = await GenericInputPrompt.Prompt(
-						app,
+						this.app,
 						"Provider Name"
 					);
 
@@ -95,7 +95,7 @@ export class AIAssistantProvidersModal extends Modal {
 				.addButton((button) => {
 					button.onClick(async () => {
 						const confirmation = await GenericYesNoPrompt.Prompt(
-							app,
+							this.app,
 							`Are you sure you want to delete ${provider.name}?`
 						);
 						if (!confirmation) {
@@ -183,7 +183,7 @@ export class AIAssistantProvidersModal extends Modal {
                 .addButton((button) => {
                     button.onClick(async () => {
                         const confirmation = await GenericYesNoPrompt.Prompt(
-                            app,
+                            this.app,
                             `Are you sure you want to delete ${model.name}?`
                         );
                         if (!confirmation) {
@@ -203,11 +203,11 @@ export class AIAssistantProvidersModal extends Modal {
             .addButton((button) => {
                 button.setButtonText("Add Model").onClick(async () => {
                     const modelName = await GenericInputPrompt.Prompt(
-                        app,
+                        this.app,
                         "Model Name"
                     );
                     const maxTokens = await GenericInputPrompt.Prompt(
-                        app,
+                        this.app,
                         "Max Tokens"
                     );
 

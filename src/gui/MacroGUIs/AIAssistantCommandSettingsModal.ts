@@ -1,4 +1,4 @@
-import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
+import { Modal, Setting, TextAreaComponent, debounce, App } from "obsidian";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
@@ -34,7 +34,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		return getTokenCount(this.settings.systemPrompt, model);
 	}
 
-	constructor(settings: IAIAssistantCommand) {
+	constructor(app: App, settings: IAIAssistantCommand) {
 		super(app);
 
 		this.settings = settings;
@@ -62,7 +62,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		header.addEventListener("click", async () => {
 			try {
 				const newName = await GenericInputPrompt.Prompt(
-					app,
+					this.app,
 					"New name",
 					this.settings.name,
 					this.settings.name
@@ -104,6 +104,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		const promptTemplatesFolder =
 			settingsStore.getState().ai.promptTemplatesFolderPath;
 		const promptTemplateFiles = getMarkdownFilesInFolder(
+			this.app,
 			promptTemplatesFolder
 		).map((f) => f.name);
 
@@ -126,7 +127,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				);
 
 				new GenericTextSuggester(
-					app,
+					this.app,
 					text.inputEl,
 					promptTemplateFiles
 				);

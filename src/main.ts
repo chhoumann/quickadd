@@ -36,7 +36,7 @@ export default class QuickAdd extends Plugin {
 	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
-		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
+		return QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
 	}
 
 	async onload() {
@@ -87,7 +87,7 @@ export default class QuickAdd extends Plugin {
 				console.log("Test QuickAdd (dev)");
 
 				const fn = () => {
-					new InfiniteAIAssistantCommandSettingsModal({
+					new InfiniteAIAssistantCommandSettingsModal(this.app, {
 						id: "test",
 						name: "Test",
 						model: "gpt-4",
@@ -274,7 +274,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.announceUpdates === false) return;
 
-		const updateModal = new UpdateModal(knownVersion);
+		const updateModal = new UpdateModal(this.app, knownVersion);
 		updateModal.open();
 	}
 }

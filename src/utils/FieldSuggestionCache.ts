@@ -1,4 +1,4 @@
-import type { TFile } from "obsidian";
+
 
 interface CacheEntry {
 	values: Set<string>;

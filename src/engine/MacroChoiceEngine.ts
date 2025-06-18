@@ -311,7 +311,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const options = getModelNames();
 		const modelName: string =
 			command.model === "Ask me"
-				? await GenericSuggester.Suggest(app, options, options)
+				? await GenericSuggester.Suggest(this.app, options, options)
 				: command.model;
 
 		const model: Model | undefined = getModelByName(modelName);
@@ -321,7 +321,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		const formatter = new CompleteFormatter(
-			app,
+			this.app,
 			QuickAdd.instance,
 			this.choiceExecutor
 		);
@@ -335,6 +335,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		const aiOutputVariables = await runAIAssistant(
+			this.app,
 			{
 				apiKey: modelProvider.apiKey,
 				model,
