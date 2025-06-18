@@ -67,6 +67,7 @@ export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(
 	/{{LINKCURRENT}}/i
 );
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
+export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(
