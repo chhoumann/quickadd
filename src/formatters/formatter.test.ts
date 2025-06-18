@@ -9,9 +9,39 @@ class TestFormatter {
         return (this.variables.get(variableName) as string) ?? "";
     }
 
+    protected replaceLinebreakInString(input: string): string {
+        let output = "";
+
+        for (let i = 0; i < input.length; i++) {
+            const curr = input[i];
+            const next = input[i + 1];
+
+            if (curr == "\\") {
+                if (next == "n") {
+                    output += "\n";
+                    i++;
+                } else if (next == "\\") {
+                    output += "\\";
+                    i++;
+                } else {
+                    // Invalid use of escape character, but we keep it anyway.
+                    output += '\\';
+                }
+            } else {
+                output += curr;
+            }
+        }
+
+        return output;
+    }
+
     // Expose for testing
     public testGetVariableValue(variableName: string): string {
         return this.getVariableValue(variableName);
+    }
+
+    public testReplaceLinebreakInString(input: string): string {
+        return this.replaceLinebreakInString(input);
     }
 
     public setVariable(name: string, value: unknown) {
@@ -98,6 +128,112 @@ describe('Formatter - Variable Handling', () => {
             const result = formatter.testGetVariableValue('var2');
             expect(result).toBe("");
             expect(result).not.toBe("undefined");
+        });
+    });
+});
+
+describe('Formatter - replaceLinebreakInString', () => {
+    let formatter: TestFormatter;
+
+    beforeEach(() => {
+        formatter = new TestFormatter();
+    });
+
+    describe('Basic linebreak replacement', () => {
+        it('should replace \\n with actual newline', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\nLine2");
+            expect(result).toBe("Line1\nLine2");
+        });
+
+        it('should replace multiple \\n sequences', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\n\\nLine2");
+            expect(result).toBe("Line1\n\nLine2");
+        });
+
+        it('should handle text without escape sequences', () => {
+            const result = formatter.testReplaceLinebreakInString("No escapes here");
+            expect(result).toBe("No escapes here");
+        });
+
+        it('should handle empty string', () => {
+            const result = formatter.testReplaceLinebreakInString("");
+            expect(result).toBe("");
+        });
+    });
+
+    describe('Escape sequence handling', () => {
+        it('should replace \\\\ with single backslash', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\\\Line2");
+            expect(result).toBe("Line1\\Line2");
+        });
+
+        it('should handle mixed escape sequences', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\nLine2\\\\Line3");
+            expect(result).toBe("Line1\nLine2\\Line3");
+        });
+
+        it('should handle invalid escape sequences', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\tLine2");
+            expect(result).toBe("Line1\\tLine2");
+        });
+
+        it('should handle trailing backslash', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\");
+            expect(result).toBe("Line1\\");
+        });
+    });
+
+    describe('Complex escape sequences', () => {
+        it('should handle \\\\n as escaped backslash followed by n', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\\\nLine2");
+            expect(result).toBe("Line1\\nLine2");
+        });
+
+        it('should handle \\\\\\n as escaped backslash followed by newline', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\\\\\nLine2");
+            expect(result).toBe("Line1\\\nLine2");
+        });
+
+        it('should handle multiple consecutive backslashes', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\\\\\\\Line2");
+            expect(result).toBe("Line1\\\\Line2");
+        });
+    });
+
+    describe('Test cases from PR description', () => {
+        it('should handle "Line1\\\\Line2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\\\Line2");
+            expect(result).toBe("Line1\\Line2");
+        });
+
+        it('should handle "Line1\\\\\\\\Line2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\\\\\\\Line2");
+            expect(result).toBe("Line1\\\\Line2");
+        });
+
+        it('should handle "Line1\\tLine2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\tLine2");
+            expect(result).toBe("Line1\\tLine2");
+        });
+
+        it('should handle "Line1\\nLine2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\nLine2");
+            expect(result).toBe("Line1\nLine2");
+        });
+
+        it('should handle "Line1\\n\\nLine2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\n\\nLine2");
+            expect(result).toBe("Line1\n\nLine2");
+        });
+
+        it('should handle "Line1\\n\\\\nLine2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\n\\\\nLine2");
+            expect(result).toBe("Line1\n\\nLine2");
+        });
+
+        it('should handle "Line1\\n\\\\\\\\nLine2"', () => {
+            const result = formatter.testReplaceLinebreakInString("Line1\\n\\\\\\nLine2");
+            expect(result).toBe("Line1\n\\\nLine2");
         });
     });
 });
