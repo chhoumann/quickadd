@@ -7,9 +7,9 @@ export default {
 	// eslint-disable-next-line @typescript-eslint/require-await
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		try {
-			const templaterPlugin = app.plugins.plugins["templater"];
+			const templaterPlugin = plugin.app.plugins.plugins["templater"];
 			const obsidianTemplatesPlugin =
-				app.internalPlugins.plugins["templates"];
+				plugin.app.internalPlugins.plugins["templates"];
 
 			if (!templaterPlugin && !obsidianTemplatesPlugin) {
 				log.logMessage("No template plugin found. Skipping migration.");

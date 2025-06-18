@@ -1,5 +1,5 @@
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
-import { TFile } from "obsidian";
+import { TFile, App } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
@@ -55,6 +55,7 @@ async function repeatUntilResolved(
 }
 
 async function getTargetPromptTemplate(
+	app: App,
 	userDefinedPromptTemplate: Params["promptTemplate"],
 	promptTemplates: TFile[]
 ): Promise<[string, string]> {
@@ -100,6 +101,7 @@ interface Params {
 }
 
 export async function runAIAssistant(
+	app: App,
 	settings: Params,
 	formatter: (input: string) => Promise<string>
 ) {
@@ -121,9 +123,10 @@ export async function runAIAssistant(
 			promptTemplateFolder,
 		} = settings;
 
-		const promptTemplates = getMarkdownFilesInFolder(promptTemplateFolder);
+		const promptTemplates = getMarkdownFilesInFolder(app, promptTemplateFolder);
 
 		const [targetKey, targetPrompt] = await getTargetPromptTemplate(
+			app,
 			promptTemplate,
 			promptTemplates
 		);
@@ -141,6 +144,7 @@ export async function runAIAssistant(
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const makeRequest = OpenAIRequest(
+			app,
 			apiKey,
 			model,
 			systemPrompt,
@@ -211,6 +215,7 @@ type PromptParams = Omit<
 >;
 
 export async function Prompt(
+	app: App,
 	settings: PromptParams,
 	formatter: (input: string) => Promise<string>
 ) {
@@ -242,6 +247,7 @@ export async function Prompt(
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const makeRequest = OpenAIRequest(
+			app,
 			apiKey,
 			model,
 			systemPrompt,
@@ -342,6 +348,7 @@ type ChunkedPromptParams = Omit<
 >;
 
 export async function ChunkedPrompt(
+	app: App,
 	settings: ChunkedPromptParams,
 	formatter: (
 		input: string,
@@ -450,6 +457,7 @@ export async function ChunkedPrompt(
 		}
 
 		const makeRequest = OpenAIRequest(
+			app,
 			apiKey,
 			model,
 			systemPrompt,

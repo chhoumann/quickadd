@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { PluginSettingTab, Setting, TFolder } from "obsidian";
+import { PluginSettingTab, Setting, TFolder, TAbstractFile } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
@@ -169,12 +169,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				});
 
 			new GenericTextSuggester(
-				app,
+				this.app,
 				text.inputEl,
-				app.vault
+				this.app.vault
 					.getAllLoadedFiles()
-					.filter((f) => f instanceof TFolder && f.path !== "/")
-					.map((f) => f.path)
+					.filter((f: TAbstractFile) => f instanceof TFolder && f.path !== "/")
+					.map((f: TAbstractFile) => f.path)
 			);
 		});
 	}

@@ -87,7 +87,7 @@ export default class QuickAdd extends Plugin {
 				console.log("Test QuickAdd (dev)");
 
 				const fn = () => {
-					new InfiniteAIAssistantCommandSettingsModal({
+					new InfiniteAIAssistantCommandSettingsModal(this.app, {
 						id: "test",
 						name: "Test",
 						model: "gpt-4",
@@ -274,7 +274,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.announceUpdates === false) return;
 
-		const updateModal = new UpdateModal(knownVersion);
+		const updateModal = new UpdateModal(this.app, knownVersion);
 		updateModal.open();
 	}
 }

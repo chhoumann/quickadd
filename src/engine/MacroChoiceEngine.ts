@@ -335,6 +335,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		const aiOutputVariables = await runAIAssistant(
+			this.app,
 			{
 				apiKey: modelProvider.apiKey,
 				model,

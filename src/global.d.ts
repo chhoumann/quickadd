@@ -1,9 +1,4 @@
-import type { Plugin, App } from "obsidian";
-
-declare global {
-	// eslint-disable-next-line no-var
-	var app: App;
-}
+import type { Plugin } from "obsidian";
 
 declare module "obsidian" {
 	interface App {

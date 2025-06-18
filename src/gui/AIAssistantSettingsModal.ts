@@ -1,4 +1,4 @@
-import { Modal, Setting, TextAreaComponent } from "obsidian";
+import { Modal, Setting, TextAreaComponent, App } from "obsidian";
 import type { QuickAddSettings } from "src/quickAddSettingsTab";
 import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
@@ -16,7 +16,7 @@ export class AIAssistantSettingsModal extends Modal {
 
 	private settings: AIAssistantSettings;
 
-	constructor(settings: AIAssistantSettings) {
+	constructor(app: App, settings: AIAssistantSettings) {
 		super(app);
 
 		this.settings = settings;
@@ -59,7 +59,7 @@ export class AIAssistantSettingsModal extends Modal {
 				button.setButtonText("Edit Providers").onClick(() => {
 					void new AIAssistantProvidersModal(
 						this.settings.providers,
-						app
+						this.app
 					).waitForClose.then(() => {
 						this.reload();
 					});

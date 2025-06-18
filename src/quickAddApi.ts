@@ -156,6 +156,7 @@ export class QuickAddApi {
 					}
 
 					const assistantRes = await Prompt(
+						app,
 						{
 							model: _model,
 							prompt,
@@ -238,6 +239,7 @@ export class QuickAddApi {
 					}
 
 					const assistantRes = await ChunkedPrompt(
+						app,
 						{
 							model: _model,
 							text,
