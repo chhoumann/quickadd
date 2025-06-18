@@ -63,7 +63,7 @@ export class AIAssistantProvidersModal extends Modal {
 			.addButton((button) => {
 				button.setButtonText("Add Provider").onClick(async () => {
 					const providerName = await GenericInputPrompt.Prompt(
-						app,
+						this.app,
 						"Provider Name"
 					);
 
@@ -95,7 +95,7 @@ export class AIAssistantProvidersModal extends Modal {
 				.addButton((button) => {
 					button.onClick(async () => {
 						const confirmation = await GenericYesNoPrompt.Prompt(
-							app,
+							this.app,
 							`Are you sure you want to delete ${provider.name}?`
 						);
 						if (!confirmation) {

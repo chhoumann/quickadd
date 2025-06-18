@@ -21,7 +21,7 @@ import {
 	getModelNames,
 	getModelProvider,
 } from "./ai/aiHelpers";
-import { FieldSuggestionParser } from "./utils/FieldSuggestionParser";
+
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";

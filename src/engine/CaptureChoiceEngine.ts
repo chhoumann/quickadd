@@ -74,7 +74,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
-				const content = await templaterParseTemplate(app, captureContent, file);
+				const content = await templaterParseTemplate(this.app, captureContent, file);
 
 				appendToCurrentLine(content, this.app);
 			} else {
@@ -176,7 +176,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		const filePaths = filesInFolder.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths.map((item) => item.replace(folderPathSlash, "")),
 			filePaths,
 		);
@@ -203,7 +203,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		const filePaths = filesWithTag.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths,
 			filePaths,
 		);

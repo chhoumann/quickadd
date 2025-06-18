@@ -36,7 +36,7 @@ export default class QuickAdd extends Plugin {
 	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
-		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
+		return QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
 	}
 
 	async onload() {

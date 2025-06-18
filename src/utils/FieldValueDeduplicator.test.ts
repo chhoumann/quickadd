@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { FieldValueDeduplicator, type DeduplicationOptions } from "./FieldValueDeduplicator";
+import { FieldValueDeduplicator } from "./FieldValueDeduplicator";
 
 describe("FieldValueDeduplicator", () => {
 	describe("case-insensitive deduplication", () => {

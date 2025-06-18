@@ -17,7 +17,7 @@ import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
-import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
+
 import { DataviewIntegration } from "../utils/DataviewIntegration";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { InlineFieldParser } from "../utils/InlineFieldParser";

@@ -140,7 +140,7 @@ export class FieldValueProcessor {
 	} {
 		const warnings: string[] = [];
 		const suggestions: string[] = [];
-		let isValid = true;
+		const isValid = true;
 
 		// Check if default value follows existing patterns
 		if (existingValues.length > 0) {
@@ -148,11 +148,8 @@ export class FieldValueProcessor {
 			
 			// Check case consistency
 			const defaultNormalized = defaultValue.toLowerCase();
-			let hasMatchingCase = false;
-			
 			for (const [normalized, variants] of caseAnalysis.caseVariations) {
 				if (normalized === defaultNormalized) {
-					hasMatchingCase = true;
 					if (!variants.includes(defaultValue)) {
 						suggestions.push(...variants.slice(0, 3));
 						warnings.push(`Consider using existing case: ${variants[0]}`);
