@@ -285,11 +285,13 @@ export abstract class Formatter {
 			}
 
 			if (variableName && dateFormat) {
-				if (!this.variables.get(variableName)) {
-					this.variables.set(
-						variableName,
-						await this.promptForVariable(variableName),
-					);
+				const existingValue = this.variables.get(variableName) as string;
+				
+				// Check if we already have this date variable stored
+				if (!existingValue) {
+					// Prompt for date input
+					const dateInput = await this.promptForVariable(variableName);
+					this.variables.set(variableName, dateInput);
 
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const nld = this.getNaturalLanguageDates();
@@ -300,28 +302,46 @@ export abstract class Formatter {
 
 					const parseAttempt = (
 						nld.parseDate as (s: string | undefined) => {
-							moment: { format: (s: string) => string };
+							moment: { format: (s: string) => string; toISOString: () => string };
 						}
-					)(this.variables.get(variableName) as string);
+					)(dateInput);
 
-					if (parseAttempt)
+					if (parseAttempt) {
+						// Store the ISO string with a special prefix
 						this.variables.set(
 							variableName,
-							parseAttempt.moment.format(dateFormat),
+							`@date:${parseAttempt.moment.toISOString()}`,
 						);
-					else
+					} else {
 						throw new Error(
-							`Unable to parse date variable "${variableName}". Natural Language Dates plugin could not parse the value: "${this.variables.get(
-								variableName,
-							)}". Expected format: ${dateFormat}`,
+							`unable to parse date variable ${dateInput}`,
 						);
+					}
 				}
 
-				output = this.replacer(
-					output,
-					DATE_VARIABLE_REGEX,
-					this.variables.get(variableName) as string, // literally setting it above / throwing error if not set
-				);
+				// Format the date based on what's stored
+				let formattedDate = "";
+				const storedValue = this.variables.get(variableName) as string;
+				
+				if (storedValue && storedValue.startsWith("@date:")) {
+					// It's a date variable, extract and format it
+					const isoString = storedValue.substring(6);
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					const nld = this.getNaturalLanguageDates();
+					if (nld && nld.parseDate && typeof nld.parseDate === "function") {
+						const moment = (window as any).moment(isoString);
+						if (moment && moment.isValid()) {
+							formattedDate = moment.format(dateFormat);
+						}
+					}
+				} else if (storedValue) {
+					// Backward compatibility: use the stored value as-is
+					formattedDate = storedValue;
+				}
+
+				// Replace the specific match rather than using regex again
+				// to handle multiple VDATE variables with same name but different formats
+				output = output.replace(match[0], formattedDate);
 			} else {
 				break;
 			}
