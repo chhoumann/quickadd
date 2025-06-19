@@ -339,11 +339,9 @@ export abstract class Formatter {
 					formattedDate = storedValue;
 				}
 
-				output = this.replacer(
-					output,
-					DATE_VARIABLE_REGEX,
-					formattedDate,
-				);
+				// Replace the specific match rather than using regex again
+				// to handle multiple VDATE variables with same name but different formats
+				output = output.replace(match[0], formattedDate);
 			} else {
 				break;
 			}
