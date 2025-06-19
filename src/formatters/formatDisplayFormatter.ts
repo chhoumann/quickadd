@@ -33,15 +33,31 @@ export class FormatDisplayFormatter extends Formatter {
 		return output;
 	}
 	protected promptForValue(header?: string): string {
-		return "_value_";
+		return `💬 ${header || "user input"}`;
 	}
 
 	protected getVariableValue(variableName: string): string {
-		return variableName;
+		// Return example values for common variable names
+		const exampleValues: Record<string, string> = {
+			"title": "My Document Title",
+			"name": "Document Name", 
+			"project": "Project Alpha",
+			"category": "Notes",
+			"author": "Your Name",
+			"status": "Draft",
+			"priority": "High",
+			"tag": "important",
+			"type": "meeting",
+			"client": "Acme Corp"
+		};
+		
+		const example = exampleValues[variableName.toLowerCase()];
+		return example ? `📝 ${example}` : `📝 ${variableName}_example`;
 	}
 
 	protected getCurrentFileLink() {
-		return this.app.workspace.getActiveFile()?.path ?? "_noPageOpen_";
+		const activeFile = this.app.workspace.getActiveFile();
+		return activeFile?.path ? `🔗 ${activeFile.basename}` : "🔗 current_file";
 	}
 
 	protected getNaturalLanguageDates() {
@@ -49,19 +65,51 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected suggestForValue(suggestedValues: string[]) {
-		return "_suggest_";
+		if (suggestedValues.length > 0) {
+			return `📋 ${suggestedValues[0]} (${suggestedValues.length} options)`;
+		}
+		return "📋 suggestion_list";
 	}
 
 	protected getMacroValue(macroName: string) {
-		return `_macro: ${macroName}_`;
+		// Show more descriptive macro previews
+		const macroDescriptions: Record<string, string> = {
+			"clipboard": "clipboard_content",
+			"date": "formatted_date",
+			"time": "current_time",
+			"random": "random_value",
+			"uuid": "unique_id"
+		};
+		
+		const description = macroDescriptions[macroName.toLowerCase()] || `${macroName}_output`;
+		return `⚙️ ${description}`;
 	}
 
 	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("_math_");
+		return Promise.resolve("🧮 calculation_result");
 	}
 
 	protected promptForVariable(variableName: string): Promise<string> {
-		return Promise.resolve(`${variableName}_`);
+		// Generate realistic example based on variable name patterns
+		const patterns: Array<{pattern: RegExp, example: string}> = [
+			{pattern: /date|time/i, example: "2024-01-15"},
+			{pattern: /title|name/i, example: "Example Title"},
+			{pattern: /tag/i, example: "important"},
+			{pattern: /category|type/i, example: "Notes"},
+			{pattern: /author|user/i, example: "Your Name"},
+			{pattern: /project/i, example: "Project Alpha"},
+			{pattern: /status/i, example: "In Progress"},
+			{pattern: /priority/i, example: "High"},
+			{pattern: /number|count|id/i, example: "001"}
+		];
+		
+		for (const {pattern, example} of patterns) {
+			if (pattern.test(variableName)) {
+				return Promise.resolve(`💭 ${example}`);
+			}
+		}
+		
+		return Promise.resolve(`💭 ${variableName}_value`);
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
@@ -79,11 +127,11 @@ export class FormatDisplayFormatter extends Formatter {
 
 	// eslint-disable-next-line @typescript-eslint/require-await
 	protected async getSelectedText(): Promise<string> {
-		return "_selected_";
+		return "✂️ selected_text";
 	}
 
 	protected async suggestForField(variableName: string) {
-		return Promise.resolve(`_field: ${variableName}_`);
+		return Promise.resolve(`🏷️ ${variableName}_field_value`);
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
@@ -110,7 +158,7 @@ export class FormatDisplayFormatter extends Formatter {
 				formattedExample = `[${cleanDateFormat} format]`;
 			}
 			
-			return `${formattedExample} (${cleanVariableName})`;
+			return `📅 ${formattedExample}`;
 		});
 		
 		return output;
