@@ -123,6 +123,7 @@
 		const command: IAIAssistantCommand = e.detail;
 
 		const newSetings = await new AIAssistantCommandSettingsModal(
+			app,
 			command
 		).waitForClose;
 

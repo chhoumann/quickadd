@@ -7,6 +7,8 @@ The template choice type is not meant to be a replacement for [Templater](https:
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert.
 
+QuickAdd supports both markdown (`.md`) and canvas (`.canvas`) templates. When using a canvas template, the created file will also be a canvas file with the same extension.
+
 ## Optional
 **File Name Format**. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.

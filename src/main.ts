@@ -19,6 +19,7 @@ import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
+import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -35,7 +36,7 @@ export default class QuickAdd extends Plugin {
 	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
-		return QuickAddApi.GetApi(app, this, new ChoiceExecutor(app, this));
+		return QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
 	}
 
 	async onload() {
@@ -71,6 +72,10 @@ export default class QuickAdd extends Plugin {
 			},
 		});
 
+		// Start automatic cleanup for field suggestion cache
+		const cache = FieldSuggestionCache.getInstance();
+		cache.startAutomaticCleanup((intervalId) => this.registerInterval(intervalId));
+
 		this.addCommand({
 			id: "testQuickAdd",
 			name: "Test QuickAdd (dev)",
@@ -82,7 +87,7 @@ export default class QuickAdd extends Plugin {
 				console.log("Test QuickAdd (dev)");
 
 				const fn = () => {
-					new InfiniteAIAssistantCommandSettingsModal({
+					new InfiniteAIAssistantCommandSettingsModal(this.app, {
 						id: "test",
 						name: "Test",
 						model: "gpt-4",
@@ -165,6 +170,10 @@ export default class QuickAdd extends Plugin {
 				logger.clearErrorLog();
 			}
 		});
+
+		// Clean up field suggestion cache
+		const cache = FieldSuggestionCache.getInstance();
+		cache.destroy();
 	}
 
 	async loadSettings() {
@@ -265,7 +274,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.announceUpdates === false) return;
 
-		const updateModal = new UpdateModal(knownVersion);
+		const updateModal = new UpdateModal(this.app, knownVersion);
 		updateModal.open();
 	}
 }

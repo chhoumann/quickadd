@@ -74,7 +74,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
-				const content = await templaterParseTemplate(app, captureContent, file);
+				const content = await templaterParseTemplate(this.app, captureContent, file);
 
 				appendToCurrentLine(content, this.app);
 			} else {
@@ -147,7 +147,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Empty string means we suggest to capture anywhere in the vault.
 		const captureAnywhereInVault = folderPath === "";
 		const shouldCaptureToFolder =
-			captureAnywhereInVault || isFolder(folderPath);
+			captureAnywhereInVault || isFolder(this.app, folderPath);
 		const shouldCaptureWithTag = formattedCaptureTo.startsWith("#");
 
 		if (shouldCaptureToFolder) {
@@ -170,13 +170,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			folderPath.endsWith("/") || captureAnywhereInVault
 				? folderPath
 				: `${folderPath}/`;
-		const filesInFolder = getMarkdownFilesInFolder(folderPathSlash);
+		const filesInFolder = getMarkdownFilesInFolder(this.app, folderPathSlash);
 
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
 		const filePaths = filesInFolder.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths.map((item) => item.replace(folderPathSlash, "")),
 			filePaths,
 		);
@@ -197,13 +197,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private async selectFileWithTag(tag: string): Promise<string> {
 		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
-		const filesWithTag = getMarkdownFilesWithTag(tagWithHash);
+		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
 
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 
 		const filePaths = filesWithTag.map((f) => f.path);
 		const targetFilePath = await InputSuggester.Suggest(
-			app,
+			this.app,
 			filePaths,
 			filePaths,
 		);

@@ -269,13 +269,13 @@ export function getChoiceType<
 	);
 }
 
-export function isFolder(path: string): boolean {
+export function isFolder(app: App, path: string): boolean {
 	const abstractItem = app.vault.getAbstractFileByPath(path);
 
 	return !!abstractItem && abstractItem instanceof TFolder;
 }
 
-export function getMarkdownFilesInFolder(folderPath: string): TFile[] {
+export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] {
 	return app.vault
 		.getMarkdownFiles()
 		.filter((f) => f.path.startsWith(folderPath));
@@ -312,7 +312,7 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 	return tags;
 }
 
-function getFileTags(file: TFile): string[] {
+function getFileTags(app: App, file: TFile): string[] {
 	const fileCache = app.metadataCache.getFileCache(file);
 	if (!fileCache) return [];
 
@@ -328,11 +328,11 @@ function getFileTags(file: TFile): string[] {
 	return tagsInFile;
 }
 
-export function getMarkdownFilesWithTag(tag: string): TFile[] {
+export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 	const targetTag = tag.replace(/^\#/, "");
 
-	return app.vault.getMarkdownFiles().filter((f) => {
-		const fileTags = getFileTags(f);
+	return app.vault.getMarkdownFiles().filter((f: TFile) => {
+		const fileTags = getFileTags(app, f);
 
 		return fileTags.includes(targetTag);
 	});

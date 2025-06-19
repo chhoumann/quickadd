@@ -3,6 +3,7 @@ export const DATE_SYNTAX = "{{date}}";
 export const TIME_SYNTAX = "{{time}}";
 export const NAME_SYNTAX = "{{name}}";
 export const VARIABLE_SYNTAX = "{{value:<variable name>}}";
+export const VARIABLE_DEFAULT_SYNTAX = "{{value:<variable name>|<default value>}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
@@ -16,7 +17,11 @@ export const FORMAT_SYNTAX: string[] = [
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
+	VARIABLE_DEFAULT_SYNTAX,
     FIELD_VAR_SYNTAX,
+	"{{field:<fieldname>|folder:<path>}}",
+	"{{field:<fieldname>|tag:<tagname>}}",
+	"{{field:<fieldname>|inline:true}}",
 	LINKCURRENT_SYNTAX,
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
@@ -31,6 +36,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
+	VARIABLE_DEFAULT_SYNTAX,
     FIELD_VAR_SYNTAX,
 ];
 
@@ -53,19 +59,20 @@ export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);
 export const NAME_VALUE_REGEX = new RegExp(/{{NAME}}|{{VALUE}}/i);
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
+export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i);
 export const DATE_VARIABLE_REGEX = new RegExp(
-	/{{VDATE:([^\n\r},]*),\s*([^\n\r},]*)}}/i
+	/{{VDATE:([^\n\r},]*),\s*([^\n\r}]*)}}/i
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(
 	/{{LINKCURRENT}}/i
 );
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
+export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(
 	/{{TEMPLATE:([^\n\r}]*.md)}}/i
 );
-export const LINEBREAK_REGEX = new RegExp(/\\n/);
 export const INLINE_JAVASCRIPT_REGEX = new RegExp(
 	/`{3,}js quickadd([\s\S]*?)`{3,}/
 );

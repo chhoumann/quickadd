@@ -1,4 +1,4 @@
-import { requestUrl } from "obsidian";
+import { requestUrl, App } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 import { getTokenCount } from "./AIAssistant";
@@ -148,6 +148,7 @@ async function makeAnthropicRequest(
 }
 
 export function OpenAIRequest(
+	app: App,
 	apiKey: string,
 	model: Model,
 	systemPrompt: string,
@@ -177,7 +178,7 @@ export function OpenAIRequest(
 		}
 
 		try {
-			const restoreCursor = preventCursorChange();
+			const restoreCursor = preventCursorChange(app);
 
 			let response: CommonResponse;
 			if (modelProvider.name === "Anthropic") {

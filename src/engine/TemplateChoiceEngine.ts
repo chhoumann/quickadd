@@ -56,17 +56,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let filePath: string;
 
 			if (this.choice.fileNameFormat.enabled) {
-				filePath = await this.getFormattedFilePath(
-					folderPath,
+				const formattedName = await this.formatter.formatFileName(
 					this.choice.fileNameFormat.format,
-					this.choice.name,
+					this.choice.name
 				);
+				filePath = this.normalizeTemplateFilePath(folderPath, formattedName, this.choice.templatePath);
 			} else {
-				filePath = await this.getFormattedFilePath(
-					folderPath,
+				const formattedName = await this.formatter.formatFileName(
 					VALUE_SYNTAX,
-					this.choice.name,
+					this.choice.name
 				);
+				filePath = this.normalizeTemplateFilePath(folderPath, formattedName, this.choice.templatePath);
 			}
 
 			if (this.choice.fileExistsMode === fileExistsIncrement)
@@ -75,11 +75,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			if (await this.app.vault.adapter.exists(filePath)) {
 				const file = this.app.vault.getAbstractFileByPath(filePath);
-				if (!(file instanceof TFile) || file.extension !== "md") {
-					log.logError(
-						`'${filePath}' already exists and is not a valid markdown file.`,
-					);
-					return;
+				if (!(file instanceof TFile) || (file.extension !== "md" && file.extension !== "canvas")) {
+				log.logError(
+				`'${filePath}' already exists and is not a valid markdown or canvas file.`,
+				);
+				return;
 				}
 
 				let userChoice: (typeof fileExistsChoices)[number] =

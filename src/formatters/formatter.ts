@@ -4,7 +4,6 @@ import {
 	DATE_REGEX,
 	DATE_REGEX_FORMATTED,
 	DATE_VARIABLE_REGEX,
-	LINEBREAK_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
@@ -12,7 +11,8 @@ import {
 	NUMBER_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
-	FIELD_VAR_REGEX,
+
+	FIELD_VAR_REGEX_WITH_FILTERS,
 	SELECTED_REGEX,
 	TIME_REGEX,
 	TIME_REGEX_FORMATTED,
@@ -48,7 +48,7 @@ export abstract class Formatter {
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
 			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
-			if (!dateMatch) throw new Error("unable to parse date");
+			if (!dateMatch) throw new Error(`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`);
 
 			const format = dateMatch[1];
 			let offset: number | undefined;
@@ -74,14 +74,14 @@ export abstract class Formatter {
 
 		while (TIME_REGEX.test(output)) {
 			const timeMatch = TIME_REGEX.exec(output);
-			if (!timeMatch) throw new Error("unable to parse time");
+			if (!timeMatch) throw new Error(`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`);
 
 			output = this.replacer(output, TIME_REGEX, getDate({ format: "HH:mm" }));
 		}
 
 		while (TIME_REGEX_FORMATTED.test(output)) {
 			const timeMatch = TIME_REGEX_FORMATTED.exec(output);
-			if (!timeMatch) throw new Error("unable to parse time");
+			if (!timeMatch) throw new Error(`Unable to parse formatted time. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(TIME_REGEX_FORMATTED) + 30))}..."`);
 
 			const format = timeMatch[1];
 
@@ -129,7 +129,7 @@ export abstract class Formatter {
 		let output = input;
 
 		if (!currentFilePathLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
-			throw new Error("unable to get current file path");
+			throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
 		} else if (!currentFilePathLink) return output; // No need to throw, there's no {{LINKCURRENT}} + we can skip while loop.
 
 		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
@@ -149,24 +149,35 @@ export abstract class Formatter {
 
 		while (VARIABLE_REGEX.test(output)) {
 			const match = VARIABLE_REGEX.exec(output);
-			if (!match) throw new Error("unable to parse variable");
+			if (!match) throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(VARIABLE_REGEX) - 10), Math.min(output.length, output.search(VARIABLE_REGEX) + 30))}..."`);
 
-			const variableName = match[1];
+			let variableName = match[1];
+			let defaultValue = "";
 
 			if (variableName) {
+				// Parse default value if present (syntax: {{VALUE:name|default}})
+				const pipeIndex = variableName.indexOf("|");
+				if (pipeIndex !== -1) {
+					defaultValue = variableName.substring(pipeIndex + 1).trim();
+					variableName = variableName.substring(0, pipeIndex).trim();
+				}
+
 				if (!this.getVariableValue(variableName)) {
 					const suggestedValues = variableName.split(",");
+					let variableValue = "";
 
-					if (suggestedValues.length === 1)
-						this.variables.set(
-							variableName,
-							await this.promptForVariable(variableName),
-						);
-					else
-						this.variables.set(
-							variableName,
-							await this.suggestForValue(suggestedValues),
-						);
+					if (suggestedValues.length === 1) {
+						variableValue = await this.promptForVariable(variableName);
+					} else {
+						variableValue = await this.suggestForValue(suggestedValues);
+					}
+
+					// Use default value if no input provided
+					if (!variableValue && defaultValue) {
+						variableValue = defaultValue;
+					}
+
+					this.variables.set(variableName, variableValue);
 				}
 
 				output = this.replacer(
@@ -185,24 +196,27 @@ export abstract class Formatter {
 	protected async replaceFieldVarInString(input: string) {
 		let output: string = input;
 
-		while (FIELD_VAR_REGEX.test(output)) {
-			const match = FIELD_VAR_REGEX.exec(output);
-			if (!match) throw new Error("unable to parse variable");
+		// Use the enhanced regex that supports filters
+		while (FIELD_VAR_REGEX_WITH_FILTERS.test(output)) {
+			const match = FIELD_VAR_REGEX_WITH_FILTERS.exec(output);
+			if (!match) throw new Error(`Unable to parse field variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(FIELD_VAR_REGEX_WITH_FILTERS) - 10), Math.min(output.length, output.search(FIELD_VAR_REGEX_WITH_FILTERS) + 30))}..."`);
 
-			const variableName = match[1];
+			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
+			// match[2] contains the filter part starting with |, if present
+			const fullMatch = match[1] + (match[2] || "");
 
-			if (variableName) {
-				if (!this.getVariableValue(variableName)) {
+			if (fullMatch) {
+				if (!this.getVariableValue(fullMatch)) {
 					this.variables.set(
-						variableName,
-						await this.suggestForField(variableName),
+						fullMatch,
+						await this.suggestForField(fullMatch),
 					);
 				}
 
 				output = this.replacer(
 					output,
-					FIELD_VAR_REGEX,
-					this.getVariableValue(variableName),
+					FIELD_VAR_REGEX_WITH_FILTERS,
+					this.getVariableValue(fullMatch),
 				);
 			} else {
 				break;
@@ -259,10 +273,16 @@ export abstract class Formatter {
 
 		while (DATE_VARIABLE_REGEX.test(output)) {
 			const match = DATE_VARIABLE_REGEX.exec(output);
-			if (!match || !match[1] || !match[2]) continue;
+			if (!match || !match[1] || !match[2]) break;
 
-			const variableName = match[1];
-			const dateFormat = match[2];
+			const variableName = match[1].trim();
+			const dateFormat = match[2].trim();
+			
+			// Skip processing if variable name or format is empty
+			// This prevents crashes when typing incomplete patterns like {{VDATE:,
+			if (!variableName || !dateFormat) {
+				break;
+			}
 
 			if (variableName && dateFormat) {
 				const existingValue = this.variables.get(variableName) as string;
@@ -276,7 +296,9 @@ export abstract class Formatter {
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const nld = this.getNaturalLanguageDates();
 					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
-						continue;
+						throw new Error(
+							`VDATE variable "${variableName}" requires the Natural Language Dates plugin to be installed and enabled.`,
+						);
 
 					const parseAttempt = (
 						nld.parseDate as (s: string | undefined) => {
@@ -347,17 +369,26 @@ export abstract class Formatter {
 	}
 
 	protected replaceLinebreakInString(input: string): string {
-		let output: string = input;
-		let match = LINEBREAK_REGEX.exec(output);
+		let output = "";
 
-		while (match && input[match.index - 1] !== "\\") {
-			output = this.replacer(output, LINEBREAK_REGEX, `\n`);
-			match = LINEBREAK_REGEX.exec(output);
-		}
+		for (let i = 0; i < input.length; i++) {
+			const curr = input[i];
+			const next = input[i + 1];
 
-		const EscapedLinebreakRegex = /\\\\n/;
-		while (EscapedLinebreakRegex.test(output)) {
-			output = this.replacer(output, EscapedLinebreakRegex, `\\n`);
+			if (curr == "\\") {
+				if (next == "n") {
+					output += "\n";
+					i++;
+				} else if (next == "\\") {
+					output += "\\";
+					i++;
+				} else {
+					// Invalid use of escape character, but we keep it anyway.
+					output += '\\';
+				}
+			} else {
+				output += curr;
+			}
 		}
 
 		return output;

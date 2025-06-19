@@ -8,7 +8,7 @@ import {
 	replaceTemplaterTemplatesInCreatedFile,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
+import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
@@ -63,12 +63,36 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		return this.normalizeMarkdownFilePath(folderPath, formattedName);
 	}
 
+	protected getTemplateExtension(templatePath: string): string {
+		if (CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
+			return ".canvas";
+		}
+		return ".md";
+	}
+
+	protected normalizeTemplateFilePath(
+		folderPath: string,
+		fileName: string,
+		templatePath: string
+	): string {
+		const actualFolderPath: string = folderPath ? `${folderPath}/` : "";
+		const extension = this.getTemplateExtension(templatePath);
+		const formattedFileName: string = fileName.replace(
+			MARKDOWN_FILE_EXTENSION_REGEX,
+			""
+		).replace(CANVAS_FILE_EXTENSION_REGEX, "");
+		return `${actualFolderPath}${formattedFileName}${extension}`;
+	}
+
 	protected async incrementFileName(fileName: string) {
 		const exec = FILE_NUMBER_REGEX.exec(fileName);
 		const numStr =
 			exec && typeof exec.at === "function" ? exec?.at(1) : undefined;
 		const fileExists = await this.app.vault.adapter.exists(fileName);
 		let newFileName = fileName;
+
+		// Determine the extension from the filename
+		const extension = CANVAS_FILE_EXTENSION_REGEX.test(fileName) ? ".canvas" : ".md";
 
 		if (fileExists && numStr) {
 			const number = parseInt(numStr);
@@ -77,10 +101,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			newFileName = newFileName.replace(
 				FILE_NUMBER_REGEX,
-				`${number + 1}.md`
+				`${number + 1}${extension}`
 			);
 		} else if (fileExists) {
-			newFileName = newFileName.replace(FILE_NUMBER_REGEX, `${1}.md`);
+			newFileName = newFileName.replace(FILE_NUMBER_REGEX, `${1}${extension}`);
 		}
 
 		const newFileExists = await this.app.vault.adapter.exists(newFileName);
@@ -170,7 +194,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		let correctTemplatePath: string = templatePath;
-		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath))
+		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
+			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath))
 			correctTemplatePath += ".md";
 
 		const templateFile =
