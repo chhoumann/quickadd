@@ -4,6 +4,14 @@ import { getNaturalLanguageDates } from "../utilityObsidian";
 import type QuickAdd from "../main";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { DATE_VARIABLE_REGEX } from "../constants";
+import {
+	getVariableExample,
+	getMacroPreview,
+	getVariablePromptExample,
+	getSuggestionPreview,
+	getCurrentFileLinkPreview,
+	DateFormatPreviewGenerator
+} from "./helpers/previewHelpers";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(private app: App, private plugin: QuickAdd) {
@@ -37,27 +45,11 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		// Return example values for common variable names
-		const exampleValues: Record<string, string> = {
-			"title": "My Document Title",
-			"name": "Document Name", 
-			"project": "Project Alpha",
-			"category": "Notes",
-			"author": "Your Name",
-			"status": "Draft",
-			"priority": "High",
-			"tag": "important",
-			"type": "meeting",
-			"client": "Acme Corp"
-		};
-		
-		const example = exampleValues[variableName.toLowerCase()];
-		return example ? `📝 ${example}` : `📝 ${variableName}_example`;
+		return getVariableExample(variableName);
 	}
 
 	protected getCurrentFileLink() {
-		const activeFile = this.app.workspace.getActiveFile();
-		return activeFile?.path ? `🔗 ${activeFile.basename}` : "🔗 current_file";
+		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 
 	protected getNaturalLanguageDates() {
@@ -65,24 +57,11 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected suggestForValue(suggestedValues: string[]) {
-		if (suggestedValues.length > 0) {
-			return `📋 ${suggestedValues[0]} (${suggestedValues.length} options)`;
-		}
-		return "📋 suggestion_list";
+		return getSuggestionPreview(suggestedValues);
 	}
 
 	protected getMacroValue(macroName: string) {
-		// Show more descriptive macro previews
-		const macroDescriptions: Record<string, string> = {
-			"clipboard": "clipboard_content",
-			"date": "formatted_date",
-			"time": "current_time",
-			"random": "random_value",
-			"uuid": "unique_id"
-		};
-		
-		const description = macroDescriptions[macroName.toLowerCase()] || `${macroName}_output`;
-		return `⚙️ ${description}`;
+		return getMacroPreview(macroName);
 	}
 
 	protected promptForMathValue(): Promise<string> {
@@ -90,26 +69,7 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected promptForVariable(variableName: string): Promise<string> {
-		// Generate realistic example based on variable name patterns
-		const patterns: Array<{pattern: RegExp, example: string}> = [
-			{pattern: /date|time/i, example: "2024-01-15"},
-			{pattern: /title|name/i, example: "Example Title"},
-			{pattern: /tag/i, example: "important"},
-			{pattern: /category|type/i, example: "Notes"},
-			{pattern: /author|user/i, example: "Your Name"},
-			{pattern: /project/i, example: "Project Alpha"},
-			{pattern: /status/i, example: "In Progress"},
-			{pattern: /priority/i, example: "High"},
-			{pattern: /number|count|id/i, example: "001"}
-		];
-		
-		for (const {pattern, example} of patterns) {
-			if (pattern.test(variableName)) {
-				return Promise.resolve(`💭 ${example}`);
-			}
-		}
-		
-		return Promise.resolve(`💭 ${variableName}_value`);
+		return Promise.resolve(getVariablePromptExample(variableName));
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
@@ -152,7 +112,7 @@ export class FormatDisplayFormatter extends Formatter {
 			
 			try {
 				// Try to generate a realistic preview using the format
-				formattedExample = this.generateDateFormatPreview(cleanDateFormat, previewDate);
+				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
 			} catch (error) {
 				// Fallback to showing the format pattern
 				formattedExample = `[${cleanDateFormat} format]`;
@@ -162,27 +122,5 @@ export class FormatDisplayFormatter extends Formatter {
 		});
 		
 		return output;
-	}
-	
-	private generateDateFormatPreview(format: string, date: Date): string {
-		// Simple format preview generator for common patterns
-		const year = date.getFullYear();
-		const month = (date.getMonth() + 1).toString().padStart(2, '0');
-		const day = date.getDate().toString().padStart(2, '0');
-		const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-						   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-		const monthName = monthNames[date.getMonth()];
-		
-		// Handle common format patterns - order matters!
-		return format
-			.replace(/YYYY/g, year.toString())
-			.replace(/YY/g, year.toString().slice(-2))
-			.replace(/MMM/g, monthName) // Do MMM before MM to avoid double replacement
-			.replace(/MM/g, month)
-			.replace(/M/g, (date.getMonth() + 1).toString())
-			.replace(/DD/g, day)
-			.replace(/D/g, date.getDate().toString())
-			// Add more format patterns as needed
-			.replace(/[HhmsS]+/g, '12'); // Simple time placeholder
 	}
 }

@@ -5,13 +5,17 @@ Enhanced the live preview system for format syntax during Choice editing to prov
 
 ## What's New
 
-### Enhanced File Name Display Formatter
-- **File:** `src/formatters/enhancedFileNameDisplayFormatter.ts`
-- **Purpose:** Provides improved live preview for file name formats in Template and Capture choices
+### Improved File Name Display Formatter
+- **File:** `src/formatters/fileNameDisplayFormatter.ts`
+- **Purpose:** Enhanced live preview for file name formats in Template and Capture choices
 
-### Improved Format Display Formatter
+### Enhanced Format Display Formatter
 - **File:** `src/formatters/formatDisplayFormatter.ts` 
-- **Purpose:** Enhanced capture format previews with better placeholder values
+- **Purpose:** Better capture format previews with realistic placeholder values
+
+### Shared Preview Utilities
+- **File:** `src/formatters/helpers/previewHelpers.ts`
+- **Purpose:** Reusable utilities for consistent preview generation across formatters
 
 ## Key Improvements
 
@@ -70,15 +74,24 @@ Supports more date format patterns:
 
 ## Implementation Details
 
+### Code Organization
+- **Shared utilities:** `src/formatters/helpers/previewHelpers.ts` contains reusable preview logic
+- **DRY principle:** Eliminated code duplication between formatters
+- **Single responsibility:** Each utility function has a clear, focused purpose
+- **Comprehensive testing:** Full test coverage for all preview utilities
+
 ### Components Updated
-- `src/gui/ChoiceBuilder/captureChoiceBuilder.ts`
-- `src/gui/ChoiceBuilder/templateChoiceBuilder.ts`
+- `src/formatters/fileNameDisplayFormatter.ts` - Refactored to use shared utilities
+- `src/formatters/formatDisplayFormatter.ts` - Enhanced and refactored
+- `src/gui/ChoiceBuilder/captureChoiceBuilder.ts` - Uses improved formatters
+- `src/gui/ChoiceBuilder/templateChoiceBuilder.ts` - Uses improved formatters
 
 ### Key Features
 1. **Error Handling:** Gracefully handles incomplete or malformed syntax
 2. **Contextual Examples:** Provides realistic examples based on variable names
 3. **Visual Hierarchy:** Uses emojis to distinguish different types of content
 4. **Enhanced Date Formatting:** More comprehensive date format pattern support
+5. **Code Reusability:** Shared utilities prevent duplication and ensure consistency
 
 ## Benefits
 - **User Experience:** Much clearer understanding of what format strings will produce
@@ -87,6 +100,8 @@ Supports more date format patterns:
 - **Better Accessibility:** Visual indicators make it easier to scan and understand previews
 
 ## Testing
-- Created comprehensive test suite: `src/formatters/enhancedFileNameDisplayFormatter.test.ts`
+- Created comprehensive test suite: `src/formatters/fileNameDisplayFormatter.test.ts`
+- Shared utilities fully tested: `src/formatters/helpers/previewHelpers.test.ts`
 - All existing functionality preserved
 - New features thoroughly tested
+- Clean refactoring with no breaking changes
