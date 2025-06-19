@@ -41,7 +41,7 @@ export class FormatDisplayFormatter extends Formatter {
 		return output;
 	}
 	protected promptForValue(header?: string): string {
-		return `💬 ${header || "user input"}`;
+		return header || "user input";
 	}
 
 	protected getVariableValue(variableName: string): string {
@@ -65,7 +65,7 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("🧮 calculation_result");
+		return Promise.resolve("calculation_result");
 	}
 
 	protected promptForVariable(variableName: string): Promise<string> {
@@ -87,11 +87,11 @@ export class FormatDisplayFormatter extends Formatter {
 
 	// eslint-disable-next-line @typescript-eslint/require-await
 	protected async getSelectedText(): Promise<string> {
-		return "✂️ selected_text";
+		return "selected_text";
 	}
 
 	protected async suggestForField(variableName: string) {
-		return Promise.resolve(`🏷️ ${variableName}_field_value`);
+		return Promise.resolve(`${variableName}_field_value`);
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
@@ -118,7 +118,7 @@ export class FormatDisplayFormatter extends Formatter {
 				formattedExample = `[${cleanDateFormat} format]`;
 			}
 			
-			return `📅 ${formattedExample}`;
+			return formattedExample;
 		});
 		
 		return output;

@@ -33,11 +33,11 @@ export class FileNameDisplayFormatter extends Formatter {
 			return input;
 		}
 
-		return `📄 ${output}`;
+		return `Preview: ${output}`;
 	}
 
 	protected promptForValue(header?: string): string {
-		return `💬 ${header || "user input"}`;
+		return header || "user input";
 	}
 
 	protected getVariableValue(variableName: string): string {
@@ -57,7 +57,7 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("🧮 calculation_result");
+		return Promise.resolve("calculation_result");
 	}
 
 	protected getMacroValue(macroName: string) {
@@ -71,15 +71,15 @@ export class FileNameDisplayFormatter extends Formatter {
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		// Show template preview with realistic content length
 		const templateName = templatePath.split('/').pop()?.replace('.md', '') || templatePath;
-		return `📄 [${templateName} template content...]`;
+		return `[${templateName} template content...]`;
 	}
 
 	protected async getSelectedText(): Promise<string> {
-		return "✂️ selected_text";
+		return "selected_text";
 	}
 
 	protected suggestForField(variableName: string) {
-		return `🏷️ ${variableName}_field_value`;
+		return `${variableName}_field_value`;
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
@@ -104,7 +104,7 @@ export class FileNameDisplayFormatter extends Formatter {
 				formattedExample = `[${cleanDateFormat}]`;
 			}
 			
-			return `📅 ${formattedExample}`;
+			return formattedExample;
 		});
 		
 		return output;

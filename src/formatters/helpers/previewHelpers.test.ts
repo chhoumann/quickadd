@@ -11,70 +11,70 @@ import {
 describe('PreviewHelpers', () => {
 	describe('getVariableExample', () => {
 		it('should return predefined examples for known variables', () => {
-			expect(getVariableExample('title')).toBe('📝 My Document Title');
-			expect(getVariableExample('project')).toBe('📝 Project Alpha');
-			expect(getVariableExample('TITLE')).toBe('📝 My Document Title'); // case insensitive
+			expect(getVariableExample('title')).toBe('My Document Title');
+			expect(getVariableExample('project')).toBe('Project Alpha');
+			expect(getVariableExample('TITLE')).toBe('My Document Title'); // case insensitive
 		});
 
 		it('should return generic example for unknown variables', () => {
-			expect(getVariableExample('unknown')).toBe('📝 unknown_example');
+			expect(getVariableExample('unknown')).toBe('unknown_example');
 		});
 	});
 
 	describe('getMacroPreview', () => {
 		it('should return descriptive previews for known macros', () => {
-			expect(getMacroPreview('clipboard')).toBe('⚙️ clipboard_content');
-			expect(getMacroPreview('UUID')).toBe('⚙️ unique_id'); // case insensitive
+			expect(getMacroPreview('clipboard')).toBe('clipboard_content');
+			expect(getMacroPreview('UUID')).toBe('unique_id'); // case insensitive
 		});
 
 		it('should return generic preview for unknown macros', () => {
-			expect(getMacroPreview('custom')).toBe('⚙️ custom_output');
+			expect(getMacroPreview('custom')).toBe('custom_output');
 		});
 	});
 
 	describe('getVariablePromptExample', () => {
 		it('should match patterns and return appropriate examples', () => {
-			expect(getVariablePromptExample('date')).toBe('💭 2024-01-15');
-			expect(getVariablePromptExample('title')).toBe('💭 Example Title');
-			expect(getVariablePromptExample('tag')).toBe('💭 important');
-			expect(getVariablePromptExample('priority')).toBe('💭 High');
+			expect(getVariablePromptExample('date')).toBe('2024-01-15');
+			expect(getVariablePromptExample('title')).toBe('Example Title');
+			expect(getVariablePromptExample('tag')).toBe('important');
+			expect(getVariablePromptExample('priority')).toBe('High');
 		});
 
 		it('should return generic example for unmatched patterns', () => {
-			expect(getVariablePromptExample('custom')).toBe('💭 custom_value');
+			expect(getVariablePromptExample('custom')).toBe('custom_value');
 		});
 	});
 
 	describe('getSuggestionPreview', () => {
 		it('should show first option with count for non-empty arrays', () => {
 			const suggestions = ['option1', 'option2', 'option3'];
-			expect(getSuggestionPreview(suggestions)).toBe('📋 option1 (3 options)');
+			expect(getSuggestionPreview(suggestions)).toBe('option1 (3 options)');
 		});
 
 		it('should show single option with count', () => {
 			const suggestions = ['single'];
-			expect(getSuggestionPreview(suggestions)).toBe('📋 single (1 options)');
+			expect(getSuggestionPreview(suggestions)).toBe('single (1 options)');
 		});
 
 		it('should return generic preview for empty arrays', () => {
-			expect(getSuggestionPreview([])).toBe('📋 suggestion_list');
+			expect(getSuggestionPreview([])).toBe('suggestion_list');
 		});
 	});
 
 	describe('getCurrentFileLinkPreview', () => {
 		it('should return basename for files with path', () => {
 			const file = { basename: 'example', path: 'folder/example.md' };
-			expect(getCurrentFileLinkPreview(file)).toBe('🔗 example');
+			expect(getCurrentFileLinkPreview(file)).toBe('example');
 		});
 
 		it('should return generic preview for files without path', () => {
 			const file = { basename: 'example', path: '' };
-			expect(getCurrentFileLinkPreview(file as any)).toBe('🔗 current_file');
+			expect(getCurrentFileLinkPreview(file as any)).toBe('current_file');
 		});
 
 		it('should return generic preview for null/undefined', () => {
-			expect(getCurrentFileLinkPreview(null)).toBe('🔗 current_file');
-			expect(getCurrentFileLinkPreview(undefined)).toBe('🔗 current_file');
+			expect(getCurrentFileLinkPreview(null)).toBe('current_file');
+			expect(getCurrentFileLinkPreview(undefined)).toBe('current_file');
 		});
 	});
 

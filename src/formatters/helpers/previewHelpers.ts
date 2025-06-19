@@ -46,10 +46,10 @@ export function getVariableExample(variableName: string): string {
 	const predefinedExample = VARIABLE_EXAMPLES[lowerName];
 	
 	if (predefinedExample) {
-		return `📝 ${predefinedExample}`;
+		return predefinedExample;
 	}
 	
-	return `📝 ${variableName}_example`;
+	return `${variableName}_example`;
 }
 
 /**
@@ -57,7 +57,7 @@ export function getVariableExample(variableName: string): string {
  */
 export function getMacroPreview(macroName: string): string {
 	const description = MACRO_DESCRIPTIONS[macroName.toLowerCase()] || `${macroName}_output`;
-	return `⚙️ ${description}`;
+	return description;
 }
 
 /**
@@ -66,11 +66,11 @@ export function getMacroPreview(macroName: string): string {
 export function getVariablePromptExample(variableName: string): string {
 	for (const {pattern, example} of VARIABLE_PATTERNS) {
 		if (pattern.test(variableName)) {
-			return `💭 ${example}`;
+			return example;
 		}
 	}
 	
-	return `💭 ${variableName}_value`;
+	return `${variableName}_value`;
 }
 
 /**
@@ -78,16 +78,16 @@ export function getVariablePromptExample(variableName: string): string {
  */
 export function getSuggestionPreview(suggestedValues: string[]): string {
 	if (suggestedValues.length > 0) {
-		return `📋 ${suggestedValues[0]} (${suggestedValues.length} options)`;
+		return `${suggestedValues[0]} (${suggestedValues.length} options)`;
 	}
-	return "📋 suggestion_list";
+	return "suggestion_list";
 }
 
 /**
  * Gets a current file link preview
  */
 export function getCurrentFileLinkPreview(activeFile?: {basename: string, path: string} | null): string {
-	return activeFile?.path ? `🔗 ${activeFile.basename}` : "🔗 current_file";
+	return activeFile?.path ? activeFile.basename : "current_file";
 }
 
 /**

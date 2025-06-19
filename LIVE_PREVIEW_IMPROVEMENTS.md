@@ -23,35 +23,35 @@ Enhanced the live preview system for format syntax during Choice editing to prov
 
 #### Date Formatting
 - **Before:** `File Name: 2024-01-15 - _value_`
-- **After:** `📄 2024-01-15 - 💬 user input`
+- **After:** `Preview: 2024-01-15 - user input`
 
 #### Variable Formatting
 - **Before:** `File Name: title_ - project_`
-- **After:** `📄 📝 My Document Title - 📝 Project Alpha`
+- **After:** `Preview: My Document Title - Project Alpha`
 
 #### Macro Formatting
 - **Before:** `File Name: _macro: clipboard_ - _macro: uuid_`
-- **After:** `📄 ⚙️ clipboard_content - ⚙️ unique_id`
+- **After:** `Preview: clipboard_content - unique_id`
 
 #### Date Variables
 - **Before:** `File Name: 2024-01-15 (dueDate)`
-- **After:** `📄 📅 2024-01-15`
+- **After:** `Preview: 2024-01-15`
 
 #### Current File Links
 - **Before:** `File Name: /path/to/current/file.md`
-- **After:** `📄 🔗 current_file`
+- **After:** `Preview: current_file`
 
 ### Smart Variable Recognition
 The new formatter recognizes common variable patterns and provides contextual examples:
 
-- `title` → `📝 My Document Title`
-- `project` → `📝 Project Alpha`
-- `author` → `📝 Your Name`
-- `status` → `📝 Draft`
-- `priority` → `📝 High`
-- `category` → `📝 Notes`
-- `date` variables → `💭 2024-01-15`
-- `number` variables → `💭 001`
+- `title` → `My Document Title`
+- `project` → `Project Alpha`
+- `author` → `Your Name`
+- `status` → `Draft`
+- `priority` → `High`
+- `category` → `Notes`
+- `date` variables → `2024-01-15`
+- `number` variables → `001`
 
 ### Enhanced Date Format Previews
 Supports more date format patterns:
@@ -60,17 +60,11 @@ Supports more date format patterns:
 - `ddd, MMM D` → `Mon, Jan 15`
 - Week numbers, 12/24 hour time, and more
 
-### Visual Indicators
-- 📄 File names
-- 💬 User input prompts
-- 📝 Variable values
-- 🔗 File links
-- ⚙️ Macro outputs
-- 📅 Date variables
-- 🧮 Math calculations
-- 🏷️ Field values
-- ✂️ Selected text
-- 📋 Suggestion lists
+### Clear Preview Indicators
+- `Preview:` prefix for file name formats to distinguish from actual output
+- Realistic placeholder values instead of generic underscored names
+- Contextual examples based on variable name patterns
+- Clean text formatting without potentially confusing symbols
 
 ## Implementation Details
 
@@ -89,7 +83,7 @@ Supports more date format patterns:
 ### Key Features
 1. **Error Handling:** Gracefully handles incomplete or malformed syntax
 2. **Contextual Examples:** Provides realistic examples based on variable names
-3. **Visual Hierarchy:** Uses emojis to distinguish different types of content
+3. **Clear Preview Formatting:** Clean text formatting that won't confuse users about actual output
 4. **Enhanced Date Formatting:** More comprehensive date format pattern support
 5. **Code Reusability:** Shared utilities prevent duplication and ensure consistency
 
@@ -97,7 +91,8 @@ Supports more date format patterns:
 - **User Experience:** Much clearer understanding of what format strings will produce
 - **Reduced Errors:** Better previews help users spot formatting issues before saving
 - **Faster Workflow:** Users can quickly see the effects of their format changes
-- **Better Accessibility:** Visual indicators make it easier to scan and understand previews
+- **No Confusion:** Clean text formatting ensures users understand these are preview examples, not actual output
+- **Better Accessibility:** Clear text formatting is easier to read and understand
 
 ## Testing
 - Created comprehensive test suite: `src/formatters/fileNameDisplayFormatter.test.ts`
