@@ -270,32 +270,40 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		newFileContent: string;
 		captureContent: string;
 	}> {
-		let fileContent = "";
+		// First formatting pass: resolve QuickAdd placeholders and prompt for user input (e.g. {{value}})
+		// This mirrors the logic used when the target file already exists and prevents the timing issue
+		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
+		const formattedCaptureContent: string = await this.formatter.formatContentOnly(
+			captureContent,
+		);
 
+		let fileContent = "";
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
-			const singleTemplateEngine: SingleTemplateEngine =
-				new SingleTemplateEngine(
-					this.app,
-					this.plugin,
-					this.choice.createFileIfItDoesntExist.template,
-					this.choiceExecutor,
-				);
+			const singleTemplateEngine: SingleTemplateEngine = new SingleTemplateEngine(
+				this.app,
+				this.plugin,
+				this.choice.createFileIfItDoesntExist.template,
+				this.choiceExecutor,
+			);
 
 			fileContent = await singleTemplateEngine.run();
 		}
 
+		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
+		// Ensure templater processes any template-level commands that should run on file creation
 		await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
 		const updatedFileContent: string = await this.app.vault.cachedRead(file);
+		// Second formatting pass: embed the already-resolved capture content into the newly created file
 		const newFileContent: string = await this.formatter.formatContentWithFile(
-			captureContent,
+			formattedCaptureContent,
 			this.choice,
 			updatedFileContent,
 			file,
 		);
 
-		return { file, newFileContent, captureContent };
+		return { file, newFileContent, captureContent: formattedCaptureContent };
 	}
 
 	private async formatFilePath(captureTo: string) {

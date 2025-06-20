@@ -13,11 +13,13 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			src: path.resolve("./src"),
+			obsidian: path.resolve("./obsidian.ts"),
 		},
 	},
 	test: {
 		include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
 		globals: true,
 		environment: "jsdom",
+		setupFiles: ["tests/setup.vitest.ts"],
 	},
 });
