@@ -1,85 +1,174 @@
-/* Enhanced File Suggester Styles */
+/* S-Tier File Suggester Styles - Elite Design */
 
-.qa-suggest-exact {
-  border-left: 3px solid var(--color-accent);
+/* Core suggestion item - sleek, compact, information-dense */
+.qaFileSuggestionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  margin: 1px 0;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.12s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  min-height: 32px;
+  font-size: 13px;
+  line-height: 1.3;
 }
 
-.qa-suggest-alias {
-  border-left: 3px solid var(--color-orange);
+.qaFileSuggestionItem:hover {
+  background-color: var(--background-modifier-hover);
+  transform: translateX(2px);
 }
 
-.qa-suggest-fuzzy {
-  border-left: 3px solid var(--color-blue);
+.qaFileSuggestionItem.is-selected {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.qa-suggest-unresolved {
-  border-left: 3px solid var(--color-red);
+.qaFileSuggestionItem.is-selected .suggestion-sub-text {
+  color: var(--text-on-accent-inverted);
+  opacity: 0.8;
 }
 
+/* Priority indicators - subtle left border */
+.qa-suggest-exact::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--interactive-accent);
+  border-radius: 0 1px 1px 0;
+}
+
+.qa-suggest-alias::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-orange, #ff8c00);
+  border-radius: 0 1px 1px 0;
+}
+
+.qa-suggest-fuzzy::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-faint);
+  border-radius: 0 1px 1px 0;
+}
+
+.qa-suggest-unresolved::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-red, #e74c3c);
+  border-radius: 0 1px 1px 0;
+}
+
+/* Main content area */
 .qa-suggestion-content {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
 }
 
+.suggestion-main-text {
+  font-weight: 500;
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.suggestion-sub-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  margin-left: auto;
+  padding-left: 8px;
+  opacity: 0.7;
+}
+
+/* Micro pills - ultra-compact status indicators */
 .qa-suggestion-pill {
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 0.75em;
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  opacity: 0.8;
 }
 
 .qa-alias-pill {
-  background-color: var(--color-orange);
-  color: var(--color-base-00);
+  background: var(--color-orange, #ff8c00);
+  color: white;
 }
 
 .qa-unresolved-pill {
-  background-color: var(--color-red);
-  color: var(--color-base-00);
+  background: var(--color-red, #e74c3c);
+  color: white;
 }
 
 .qa-create-pill {
-  background-color: var(--color-green);
-  color: var(--color-base-00);
+  background: var(--color-green, #27ae60);
+  color: white;
 }
 
-/* File tooltip */
+/* File tooltip - refined and minimal */
 .qa-file-tooltip {
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 6px;
-  padding: 12px;
-  max-width: 300px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 8px 10px;
+  max-width: 280px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
   z-index: 1000;
   pointer-events: none;
+  font-size: 12px;
 }
 
 .qa-tooltip-header {
   font-weight: 600;
-  font-size: 1.1em;
-  margin-bottom: 8px;
+  font-size: 13px;
+  margin-bottom: 4px;
   color: var(--text-normal);
 }
 
 .qa-tooltip-content {
-  font-size: 0.9em;
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .qa-tooltip-content div {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
-/* Section dividers */
+/* Section dividers - ultra-subtle */
 .qa-suggestion-section {
   border-top: 1px solid var(--background-modifier-border);
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 4px;
+  padding-top: 4px;
 }
 
 .qa-suggestion-section:first-child {
@@ -88,76 +177,93 @@
   padding-top: 0;
 }
 
-/* Enhanced suggestion item layout */
-.qaFileSuggestionItem {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.15s ease;
-}
-
-.qaFileSuggestionItem:hover {
-  background-color: var(--background-modifier-hover);
-}
-
-.qaFileSuggestionItem.is-selected {
-  background-color: var(--background-modifier-active-hover);
-}
-
-.suggestion-main-text {
-  font-weight: 500;
-  color: var(--text-normal);
-}
-
-.suggestion-sub-text {
-  font-size: 0.85em;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-/* Keyboard shortcut hints */
+/* Keyboard shortcuts - minimalist badges */
 .qa-keyboard-hint {
-  font-size: 0.75em;
+  font-size: 9px;
   color: var(--text-faint);
-  padding: 2px 4px;
+  padding: 1px 3px;
   background: var(--background-secondary);
   border-radius: 2px;
-  margin-left: auto;
+  margin-left: 6px;
+  opacity: 0.6;
 }
 
-/* Dark theme adjustments */
+/* Icon space for future file type icons */
+.qa-file-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .suggestion-sub-text {
+    display: none;
+  }
+  
+  .qa-suggestion-content {
+    gap: 4px;
+  }
+}
+
+/* Dark theme refinements */
 .theme-dark .qa-file-tooltip {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border-color: var(--background-modifier-border-hover);
 }
 
-/* High contrast mode support */
+.theme-dark .qaFileSuggestionItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* High contrast mode */
 @media (prefers-contrast: high) {
-  .qa-suggest-exact {
-    border-left-width: 4px;
+  .qa-suggest-exact::before,
+  .qa-suggest-alias::before,
+  .qa-suggest-fuzzy::before,
+  .qa-suggest-unresolved::before {
+    width: 3px;
   }
   
-  .qa-suggest-alias {
-    border-left-width: 4px;
-  }
-  
-  .qa-suggest-fuzzy {
-    border-left-width: 4px;
-  }
-  
-  .qa-suggest-unresolved {
-    border-left-width: 4px;
+  .qa-suggestion-pill {
+    font-weight: 700;
   }
 }
 
-/* Reduced motion support */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .qaFileSuggestionItem {
     transition: none;
   }
   
-  .qa-file-tooltip {
-    transition: none;
+  .qaFileSuggestionItem:hover {
+    transform: none;
   }
+}
+
+/* Performance optimization - GPU acceleration for smooth animations */
+.qaFileSuggestionItem {
+  will-change: transform, background-color;
+  backface-visibility: hidden;
+}
+
+/* Focus styles for accessibility */
+.qaFileSuggestionItem:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+/* Density variants for power users */
+.qa-suggester-compact .qaFileSuggestionItem {
+  padding: 4px 12px;
+  min-height: 28px;
+  font-size: 12px;
+}
+
+.qa-suggester-spacious .qaFileSuggestionItem {
+  padding: 8px 12px;
+  min-height: 38px;
+  font-size: 14px;
 }
