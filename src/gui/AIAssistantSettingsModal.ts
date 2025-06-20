@@ -1,6 +1,6 @@
 import { Modal, Setting, TextAreaComponent, App } from "obsidian";
 import type { QuickAddSettings } from "src/quickAddSettingsTab";
-import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
+import { FormatSyntaxSuggester } from "./suggesters/ImprovedFormatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";

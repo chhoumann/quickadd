@@ -15,7 +15,7 @@ import { getAllFolderPathsInVault, getNaturalLanguageDates } from "../../utility
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { FormatSyntaxSuggester } from "../suggesters/ImprovedFormatSyntaxSuggester";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import type { fileExistsChoices } from "src/constants";
 import {
