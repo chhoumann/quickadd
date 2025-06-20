@@ -380,28 +380,7 @@ export class FileIndex {
 			});
 		}
 
-		// 3. Heading search: global [[#Heading]] support
-		if (query.includes('#')) {
-			const [, headingQueryRaw] = query.split('#');
-			const headingQuery = headingQueryRaw.toLowerCase();
-
-			if (headingQuery.length > 0) {
-				for (const file of this.fileMap.values()) {
-					for (const heading of file.headings) {
-						if (!heading.toLowerCase().includes(headingQuery)) continue;
-
-						results.push({
-							file,
-							score: this.calculateScore(file, query, context, 0.2),
-							matchType: 'heading',
-							displayText: `${file.basename}#${heading}`
-						});
-					}
-				}
-			}
-		}
-
-		// 4. Unresolved links
+		// 3. Unresolved links
 		if (query.length >= 2) {
 			let unresolvedCount = 0;
 			const unresolvedLimit = query.length < 3 ? 10 : 20;
@@ -508,6 +487,8 @@ export class FileIndex {
 		} else {
 			// File-specific heading search - use direct search to avoid recursion
 			const fileResults = this.searchFiles(filePart, context, limit);
+			if (fileResults.length === 0) return [];
+			
 			for (const fileResult of fileResults) {
 				for (const heading of fileResult.file.headings) {
 					if (heading.toLowerCase().includes(headingPart)) {

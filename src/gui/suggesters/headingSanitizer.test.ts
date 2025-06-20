@@ -29,6 +29,11 @@ describe('sanitizeHeading', () => {
 		['**Bold** with [[Link|Alias]] and ![[image.png]]', 'Bold with Alias and'],
 		['Complex *markdown* [[Note]] with `code` and ![[img.png]]', 'Complex markdown Note with code and'],
 		
+		// ATX heading markers
+		['# Heading', 'Heading'],
+		['## Heading ##', 'Heading'],
+		['### Heading with **bold** ###', 'Heading with bold'],
+		
 		// Edge cases
 		['[[Incomplete link', 'Incomplete link'],
 		[']]Backwards link[[', 'Backwards link'],
@@ -55,5 +60,14 @@ describe('sanitizeHeading', () => {
 		
 		const duration = performance.now() - start;
 		expect(duration).toBeLessThan(100); // Should complete in < 100ms
+	});
+
+	// Test idempotency - multiple sanitizations should yield same result
+	it('is idempotent', () => {
+		const input = '## **Bold** [[Link|Alias]] with ![[image.png]] ##';
+		const firstPass = sanitizeHeading(input);
+		const secondPass = sanitizeHeading(firstPass);
+		expect(secondPass).toBe(firstPass);
+		expect(firstPass).toBe('Bold Alias with');
 	});
 });

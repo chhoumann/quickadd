@@ -17,40 +17,12 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		super(app, inputEl);
 
 		this.fileIndex = FileIndex.getInstance(app);
-		this.setupKeyboardShortcuts();
 		
 		// Initialize index in background
 		this.fileIndex.ensureIndexed();
 	}
 
-	private setupKeyboardShortcuts(): void {
-		// Enhanced keyboard shortcuts will be handled in the suggest component
-		// For now, we'll skip the complex keyboard handling until we can properly
-		// access the suggestion state
-	}
 
-	private openInNewPane(item: SearchResult): void {
-		if (item.matchType === 'unresolved') return;
-		
-		const file = this.app.vault.getAbstractFileByPath(item.file.path);
-		if (file instanceof TFile) {
-			this.app.workspace.getLeaf('split').openFile(file);
-		}
-		this.close();
-	}
-
-	private openAndInsertLink(item: SearchResult): void {
-		// First insert the link
-		this.selectSuggestion(item);
-		
-		// Then open the file if it exists
-		if (item.matchType !== 'unresolved') {
-			const file = this.app.vault.getAbstractFileByPath(item.file.path);
-			if (file instanceof TFile) {
-				this.app.workspace.getLeaf().openFile(file);
-			}
-		}
-	}
 
 	getSuggestions(inputStr: string): SearchResult[] {
 		if (this.inputEl.selectionStart === null) return [];
@@ -282,12 +254,6 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				break;
 		}
 
-		// Show "Create new note" option for unresolved links
-		if (matchType === 'unresolved' && !file.path.includes('#') && !file.path.includes('^')) {
-			subText = `Create "${displayText}.md"`;
-			pill = '<span class="qa-suggestion-pill qa-create-pill">create</span>';
-		}
-
 		el.innerHTML = `
 			<div class="qa-suggestion-content">
 				<span class="suggestion-main-text">${mainText}</span>
@@ -386,11 +352,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		const currentInputValue: string = this.inputEl.value;
 		let insertedEndPosition = 0;
 
-		// Handle create new note
-		if (item.matchType === 'unresolved' && !item.file.path.includes('#') && !item.file.path.includes('^')) {
-			insertedEndPosition = await this.createNewNote(item, currentInputValue, cursorPosition, lastInputLength);
-		} else if (item.matchType === 'unresolved') {
-			// Regular unresolved link
+		if (item.matchType === 'unresolved') {
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,
 				item.displayText.replace(/.md$/, ""),
@@ -434,35 +396,6 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			insertedEndPosition,
 			insertedEndPosition
 		);
-	}
-
-	private async createNewNote(item: SearchResult, currentInputValue: string, cursorPosition: number, lastInputLength: number): Promise<number> {
-		const fileName = item.displayText;
-		const activeFile = this.app.workspace.getActiveFile();
-		const targetFolder = activeFile?.parent ?? this.app.vault.getRoot();
-		
-		try {
-			// Normalize path to avoid double slashes
-			const folderPath = targetFolder.path === "" ? "" : targetFolder.path;
-			const filePath = normalizePath(folderPath ? `${folderPath}/${fileName}.md` : `${fileName}.md`);
-			
-			const newFile = await this.app.vault.create(filePath, "");
-			
-			return this.makeLinkObsidianMethod(
-				newFile,
-				currentInputValue,
-				cursorPosition,
-				lastInputLength
-			);
-		} catch (error) {
-			// Fallback to manual link if creation fails
-			return this.makeLinkManually(
-				currentInputValue,
-				fileName,
-				cursorPosition,
-				lastInputLength
-			);
-		}
 	}
 
 	private makeLinkObsidianMethod(

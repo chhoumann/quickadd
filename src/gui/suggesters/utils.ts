@@ -80,16 +80,18 @@ export function highlightFuzzyMatches(text: string, query: string): string {
  * Removes wikilinks, images, and markdown formatting from heading text.
  */
 export const sanitizeHeading = (() => {
-	const imgRE    = /!\[\[[^\]]*\]\]/g;                    // ![[img.png]] - process first
-	const wikiRE   = /\[\[([^\]|]*?)(\|([^\]]*?))?\]\]/g;   // [[page]] or [[page|alias]]
-	const mdRE     = /[*_`~]/g;                             // *, _, `, ~
-	const strayRE  = /\[\[|\]\]/g;                          // any leftover [[ ]]
+	const imgRE     = /!\[\[[^\]]*\]\]/g;                   // ![[img.png]] - process first
+	const wikiRE    = /\[\[([^\]|]*?)(\|([^\]]*?))?\]\]/g;  // [[page]] or [[page|alias]]
+	const mdRE      = /[*_`~]/g;                            // *, _, `, ~ (global flag for all occurrences)
+	const trimHashRE = /^#+\s*|\s*#+$/g;                    // leading/trailing # from ATX headings
+	const strayRE   = /\[\[|\]\]/g;                         // any leftover [[ ]]
 
 	return (heading: string): string =>
 		heading
-			.replace(imgRE,    '')                          // Remove images first
-			.replace(wikiRE,   (_, p1, _p2, alias) => alias ?? p1) // Then handle wikilinks
-			.replace(mdRE,     '')                          // Remove markdown
-			.replace(strayRE,  '')                          // Clean up stray brackets
+			.replace(imgRE,     '')                         // Remove images first
+			.replace(wikiRE,    (_, p1, _p2, alias) => alias ?? p1) // Then handle wikilinks
+			.replace(mdRE,      '')                         // Remove markdown formatting
+			.replace(trimHashRE, '')                        // Remove ATX heading markers
+			.replace(strayRE,   '')                         // Clean up stray brackets
 			.trim();
 })();
