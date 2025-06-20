@@ -290,7 +290,27 @@
 
 .quickadd-update-modal {
 	min-width: 35%;
+	max-width: 90%;
 	max-height: 70%;
+	overflow-wrap: break-word;
+	word-wrap: break-word;
+	word-break: break-word;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.quickadd-update-modal pre {
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	overflow-x: auto;
+	max-width: 100%;
+}
+
+.quickadd-update-modal code {
+	word-wrap: break-word;
+	white-space: pre-wrap;
+	max-width: 100%;
+	overflow-x: auto;
 }
 .quickadd-update-modal img {
 	width: 100%;
