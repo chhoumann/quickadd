@@ -154,6 +154,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			return [];
 		}
 
+		// If cursor is positioned after a colon within the segment (e.g., "{{VALUE:|"), do not suggest
+		const colonIndex = inputSegment.indexOf(":");
+		if (colonIndex !== -1 && cursorPosition - startBrace > colonIndex + 1) {
+			return [];
+		}
+
 		const suggestions: string[] = [];
 
 		// Check all token definitions
@@ -209,10 +215,10 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		// Replace the partial syntax with the complete syntax
 		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
 
-		// Position cursor for tokens that need input
-		const tokenDef = this.getTokenDefinition(this.lastInputType);
-		if (tokenDef?.cursorOffset) {
-			const newCursorPos = replaceStart + item.length - tokenDef.cursorOffset;
+		// Determine cursor offset dynamically based on the chosen item
+		const offset = item.includes(":") ? 2 : 0; // place before "}}" if there is a colon
+		if (offset) {
+			const newCursorPos = replaceStart + item.length - offset;
 			this.inputEl.setSelectionRange(newCursorPos, newCursorPos);
 		}
 
