@@ -14,33 +14,73 @@ import type { CaptureChoice } from "./types/choices/CaptureChoice";
 import type { MacroChoice } from "./types/choices/MacroChoice";
 import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
+
+/**
+ * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
+ * This removes the need for an arbitrary debounce (e.g., 75 ms) and is resilient across
+ * local SSDs, network shares, and different OSes.
+ */
+export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
+	try {
+		const adapter = app.vault.adapter;
+		if (!("stat" in adapter) || typeof adapter.stat !== "function") return;
+
+		const firstStat = await adapter.stat(file.path);
+		if (!firstStat) return; // Unable to get file info – skip waiting.
+		let previousMtime = firstStat.mtime;
+		const start = Date.now();
+
+		// Poll with exponential backoff until the mtime is stable or we hit the timeout.
+		let pollIntervalMs = 30;
+		while (Date.now() - start < timeoutMs) {
+			await new Promise((r) => setTimeout(r, pollIntervalMs));
+			const current = await adapter.stat(file.path);
+			if (!current) return; // stat failed; abort waiting.
+			if (current.mtime === previousMtime) return;
+			previousMtime = current.mtime;
+			// Double the interval if mtime keeps changing (exponential backoff)
+			pollIntervalMs = Math.min(pollIntervalMs * 2, 200);
+		}
+	} catch (err) {
+		// Non-fatal – we'll fall back to immediate processing.
+		log.logWarning(`waitForFileSettle: fallback due to adapter/stat failure – ${(err as Error).message}`);
+	}
+}
 
 export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
 }
 
-export async function replaceTemplaterTemplatesInCreatedFile(
-	app: App,
-	file: TFile,
-) {
+export async function overwriteTemplaterOnce(app: App, file: TFile) {
 	const templater = getTemplater(app);
-	
 	if (!templater) return;
-	
-	const settings = templater.settings as Record<string, unknown>;
-	const triggerOnFileCreation = settings?.["trigger_on_file_creation"];
-	
-	// Only process if Templater's trigger_on_file_creation is disabled
-	// If it's enabled, Templater will process the file automatically
-	const shouldProcess = !triggerOnFileCreation;
-	
-	if (shouldProcess) {
-		const impl = templater?.templater as {
-			overwrite_file_commands?: (file: TFile) => Promise<void>;
-		};
-		if (impl?.overwrite_file_commands) {
-			await impl.overwrite_file_commands(file);
+
+	// 1. Ensure the initial QuickAdd write is flushed & stable on disk.
+	await waitForFileSettle(app, file);
+
+	let original: string;
+	try {
+		original = await app.vault.read(file);
+	} catch (err) {
+		reportError(err as Error, `overwriteTemplaterOnce: failed to read ${file.path} before render`);
+		return;
+	}
+
+	try {
+		await (templater.templater as {
+			overwrite_file_commands: (f: TFile) => Promise<void>;
+		}).overwrite_file_commands(file);
+		return;
+	} catch (err) {
+		// Roll back to original content to avoid partial renders
+		try {
+			await app.vault.modify(file, original);
+		} catch (rollbackErr) {
+			log.logWarning(`Failed to rollback ${file.path} after Templater error: ${(rollbackErr as Error).message}`);
 		}
+		reportError(err as Error, `Templater failed on ${file.path}. Rolled back to pre-render state.`);
+		return;
 	}
 }
 
@@ -55,7 +95,7 @@ export async function templaterParseTemplate(
 	return await (
 		templater.templater as {
 			parse_template: (
-				opt: { target_file: TFile; run_mode: number },
+				opt: { target_file: TFile; run_mode: number; },
 				content: string,
 			) => Promise<string>;
 		}
@@ -67,7 +107,7 @@ export function getNaturalLanguageDates(app: App) {
 	return app.plugins.plugins["nldates-obsidian"];
 }
 
-export function getDate(input?: { format?: string; offset?: number }) {
+export function getDate(input?: { format?: string; offset?: number; }) {
 	let duration;
 
 	if (

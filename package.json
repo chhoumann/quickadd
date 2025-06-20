@@ -1,6 +1,6 @@
 {
   "name": "quickadd",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "Quickly add new pages or content to your vault.",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "build-with-lint": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "semantic-release": "semantic-release",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --config vitest.config.ts --passWithNoTests"
   },
   "keywords": [],
   "author": "Christian B. B. Houmann",
