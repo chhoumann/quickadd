@@ -129,8 +129,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				.filter(h => headingQuery === '' || h.toLowerCase().includes(headingQuery.toLowerCase()))
 				.slice(0, 20);
 			
-			for (const rawHeading of filteredHeadings) {
-				const heading = this.sanitizeHeading(rawHeading);
+			for (const heading of filteredHeadings) {
 				results.push({
 					file,
 					score: 0,
@@ -143,16 +142,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		return results;
 	}
 
-	private sanitizeHeading(heading: string): string {
-		return heading
-			// replace wikilinks with their display text
-			.replace(/\[\[([^\]|]+)(\|([^\]]+))?\]\]/g, (_, p1, _p2, alias) => alias ?? p1)
-			// remove images ![[...]]
-			.replace(/!\[\[[^\]]*\]\]/g, '')
-			// strip leftover markdown emphasis/code
-			.replace(/[*_`~]/g, '')
-			.trim();
-	}
+
 
 	private getBlockSuggestions(input: string): SearchResult[] {
 		const [fileName, blockQuery] = input.split('^');

@@ -1,6 +1,7 @@
 import type { App, HeadingCache, BlockCache } from "obsidian";
 import { TFile } from "obsidian";
 import Fuse from "fuse.js";
+import { sanitizeHeading } from "./utils";
 
 export interface IndexedFile {
 	path: string;
@@ -227,8 +228,8 @@ export class FileIndex {
 			aliases.push(...aliasData.filter(a => typeof a === 'string'));
 		}
 
-		// Extract headings
-		const headings = fileCache?.headings?.map(h => h.heading) ?? [];
+		// Extract and sanitize headings at index time
+		const headings = (fileCache?.headings ?? []).map(h => sanitizeHeading(h.heading));
 
 		// Extract block IDs
 		const blockIds: string[] = [];
@@ -386,16 +387,14 @@ export class FileIndex {
 
 			if (headingQuery.length > 0) {
 				for (const file of this.fileMap.values()) {
-					for (const rawHeading of file.headings) {
-						if (!rawHeading.toLowerCase().includes(headingQuery)) continue;
-
-						const cleanHeading = this.sanitizeHeading(rawHeading);
+					for (const heading of file.headings) {
+						if (!heading.toLowerCase().includes(headingQuery)) continue;
 
 						results.push({
 							file,
 							score: this.calculateScore(file, query, context, 0.2),
 							matchType: 'heading',
-							displayText: `${file.basename}#${cleanHeading}`
+							displayText: `${file.basename}#${heading}`
 						});
 					}
 				}
@@ -614,11 +613,4 @@ export class FileIndex {
 		return file.blockIds;
 	}
 
-	private sanitizeHeading(heading: string): string {
-		return heading
-			.replace(/\[\[([^\]|]+)(\|([^\]]+))?\]\]/g, (_, p1, _p2, alias) => alias ?? p1)
-			.replace(/!\[\[[^\]]*\]\]/g, '')
-			.replace(/[*_`~]/g, '')
-			.trim();
-	}
 }
