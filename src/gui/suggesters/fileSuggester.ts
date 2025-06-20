@@ -134,7 +134,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			.map(blockId => ({
 				file,
 				score: 0,
-				matchType: 'exact' as const,
+				matchType: 'block' as const,
 				displayText: `${file.basename}^${blockId}`
 			}));
 	}
@@ -234,6 +234,11 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				mainText = displayText;
 				subText = file.path;
 				pill = '<span class="qa-suggestion-pill qa-heading-pill">H</span>';
+				break;
+			case 'block':
+				mainText = displayText;
+				subText = file.path;
+				pill = '<span class="qa-suggestion-pill qa-block-pill">^</span>';
 				break;
 			case 'unresolved':
 				mainText = displayText;
@@ -338,6 +343,15 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,
 				item.displayText.replace(/.md$/, ""),
+				cursorPosition,
+				lastInputLength
+			);
+		} else if (item.matchType === 'heading' || item.matchType === 'block') {
+			// Heading/block selection - use manual link with full path
+			const linkTarget = item.displayText; // already "file#Heading" or "file^block"
+			insertedEndPosition = this.makeLinkManually(
+				currentInputValue,
+				linkTarget,
 				cursorPosition,
 				lastInputLength
 			);

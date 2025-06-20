@@ -60,6 +60,12 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 			return [];
 		}
 
+		// Reject if we are inside a wikilink ([[ … # … ]])
+		const lastWiki = inputBeforeCursor.lastIndexOf('[[');
+		if (lastWiki !== -1 && lastWiki < tagMatch.index!) {
+			return [];
+		}
+
 		const tagInput: string = tagMatch[1];
 		this.lastInput = tagInput;
 		this.lastInputStart = tagMatch.index! + 1; // +1 to skip the #

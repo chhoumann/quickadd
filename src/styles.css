@@ -306,6 +306,17 @@
   border-radius: 0 1px 1px 0;
 }
 
+.qa-suggest-block::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-purple, #9b59b6);
+  border-radius: 0 1px 1px 0;
+}
+
 /* Main content area */
 .qa-suggestion-content {
   display: flex;
@@ -369,6 +380,11 @@
   color: white;
 }
 
+.qa-block-pill {
+  background: var(--color-purple, #9b59b6);
+  color: white;
+}
+
 /* File tooltip - refined and minimal */
 .qa-file-tooltip {
   background: var(--background-primary);
@@ -426,7 +442,8 @@
   .qa-suggest-alias::before,
   .qa-suggest-fuzzy::before,
   .qa-suggest-unresolved::before,
-  .qa-suggest-heading::before {
+  .qa-suggest-heading::before,
+  .qa-suggest-block::before {
     width: 3px;
   }
   

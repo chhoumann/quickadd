@@ -23,7 +23,7 @@ export interface SearchContext {
 export interface SearchResult {
 	file: IndexedFile;
 	score: number;
-	matchType: 'exact' | 'alias' | 'fuzzy' | 'unresolved' | 'heading';
+	matchType: 'exact' | 'alias' | 'fuzzy' | 'unresolved' | 'heading' | 'block';
 	displayText: string;
 }
 
