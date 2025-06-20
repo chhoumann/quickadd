@@ -178,8 +178,12 @@ declare module "obsidian" {
 	}
 }
 
-// Instance reuse to prevent duplicate popups
-const instanceMap = new WeakMap<HTMLInputElement | HTMLTextAreaElement, TextInputSuggest<any>>();
+// Instance reuse to prevent duplicate popups. We allow one instance *per class* per input element so
+// different suggesters (e.g., file + format) can coexist, while still preventing duplicates of the same type.
+const instanceMap = new WeakMap<
+	HTMLInputElement | HTMLTextAreaElement,
+	Map<string, TextInputSuggest<any>>
+>();
 
 export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	protected app: App;
@@ -207,12 +211,20 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	protected renderMatch: (text: string, query: string) => string = highlightMatches;
 
 	constructor(app: App, inputEl: HTMLInputElement | HTMLTextAreaElement) {
-		// Check if instance already exists for this input
-		const existing = instanceMap.get(inputEl);
-		if (existing) {
-			existing.destroy();
+		// Manage per-input map of suggesters keyed by their class name
+		const classKey = this.constructor.name;
+		let byClass = instanceMap.get(inputEl);
+		if (!byClass) {
+			byClass = new Map();
+			instanceMap.set(inputEl, byClass);
 		}
-		instanceMap.set(inputEl, this);
+
+		const existingOfSameClass = byClass.get(classKey);
+		if (existingOfSameClass) {
+			existingOfSameClass.destroy();
+		}
+
+		byClass.set(classKey, this);
 
 		this.app = app;
 		this.inputEl = inputEl;
@@ -400,6 +412,15 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		document.removeEventListener("wheel", this.globalWheelListener, true);
 		window.removeEventListener("resize", this.globalResizeListener);
 		window.removeEventListener("blur", this.globalBlurListener);
+
+		const classKey = this.constructor.name;
+		const byClass = instanceMap.get(this.inputEl);
+		if (byClass) {
+			byClass.delete(classKey);
+			if (byClass.size === 0) {
+				instanceMap.delete(this.inputEl);
+			}
+		}
 	}
 
 	destroy(): void {
@@ -410,7 +431,14 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl.removeEventListener("blur", this.close.bind(this));
 		
 		// Remove from instance map
-		instanceMap.delete(this.inputEl);
+		const classKey = this.constructor.name;
+		const byClass = instanceMap.get(this.inputEl);
+		if (byClass) {
+			byClass.delete(classKey);
+			if (byClass.size === 0) {
+				instanceMap.delete(this.inputEl);
+			}
+		}
 	}
 
 	// Helper method to get current query for highlighting
