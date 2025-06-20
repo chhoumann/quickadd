@@ -295,6 +295,17 @@
   border-radius: 0 1px 1px 0;
 }
 
+.qa-suggest-heading::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-blue, #3498db);
+  border-radius: 0 1px 1px 0;
+}
+
 /* Main content area */
 .qa-suggestion-content {
   display: flex;
@@ -350,6 +361,11 @@
 
 .qa-create-pill {
   background: var(--color-green, #27ae60);
+  color: white;
+}
+
+.qa-heading-pill {
+  background: var(--color-blue, #3498db);
   color: white;
 }
 
@@ -409,7 +425,8 @@
   .qa-suggest-exact::before,
   .qa-suggest-alias::before,
   .qa-suggest-fuzzy::before,
-  .qa-suggest-unresolved::before {
+  .qa-suggest-unresolved::before,
+  .qa-suggest-heading::before {
     width: 3px;
   }
   

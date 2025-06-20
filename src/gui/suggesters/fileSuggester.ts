@@ -2,14 +2,13 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
-import { TFile } from "obsidian";
+import { TFile, normalizePath } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext } from "./FileIndex";
 
 export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
 	private fileIndex: FileIndex;
-	private recentFiles: TFile[] = [];
 
 	constructor(
 		public app: App,
@@ -18,20 +17,10 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		super(app, inputEl);
 
 		this.fileIndex = FileIndex.getInstance(app);
-		this.trackRecentFiles();
 		this.setupKeyboardShortcuts();
 		
 		// Initialize index in background
 		this.fileIndex.ensureIndexed();
-	}
-
-	private trackRecentFiles(): void {
-		this.app.workspace.on('file-open', (file) => {
-			if (file) {
-				// Keep only last 10 recent files
-				this.recentFiles = [file, ...this.recentFiles.filter(f => f.path !== file.path)].slice(0, 10);
-			}
-		});
 	}
 
 	private setupKeyboardShortcuts(): void {
@@ -94,12 +83,17 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			return this.getRelativePathSuggestions(fileNameInput);
 		}
 
+		// Handle embeds/attachments - check if input starts with !
+		const isEmbed = inputBeforeCursor.includes('![[');
+		if (isEmbed) {
+			return this.getAttachmentSuggestions(fileNameInput);
+		}
+
 		// Build search context
 		const activeFile = this.app.workspace.getActiveFile();
 		const context: SearchContext = {
 			currentFile: activeFile ?? undefined,
-			currentFolder: activeFile?.parent?.path,
-			recentFiles: this.recentFiles
+			currentFolder: activeFile?.parent?.path
 		};
 
 		return this.fileIndex.search(fileNameInput, context, 50);
@@ -107,7 +101,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 
 	private getHeadingSuggestions(input: string): SearchResult[] {
 		const [fileName, headingQuery] = input.split('#');
-		const fileResults = this.fileIndex.search(fileName, { recentFiles: [] }, 1);
+		const fileResults = this.fileIndex.search(fileName, {}, 1);
 		
 		if (fileResults.length === 0) return [];
 		
@@ -127,7 +121,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 
 	private getBlockSuggestions(input: string): SearchResult[] {
 		const [fileName, blockQuery] = input.split('^');
-		const fileResults = this.fileIndex.search(fileName, { recentFiles: [] }, 1);
+		const fileResults = this.fileIndex.search(fileName, {}, 1);
 		
 		if (fileResults.length === 0) return [];
 		
@@ -156,27 +150,59 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			const remainingPath = input.substring(3);
 			if (remainingPath) {
 				return this.fileIndex.search(remainingPath, { 
-					currentFolder: targetFolder?.path,
-					recentFiles: []
+					currentFolder: targetFolder?.path
 				}, 20);
 			}
 		} else if (input.startsWith('./')) {
 			const remainingPath = input.substring(2);
 			if (remainingPath) {
 				return this.fileIndex.search(remainingPath, { 
-					currentFolder: targetFolder?.path,
-					recentFiles: []
+					currentFolder: targetFolder?.path
 				}, 20);
 			}
 		}
 
 		// Show all files in target folder
+		const targetFolderPath = targetFolder?.path ?? "";
 		const allResults = this.fileIndex.search('', { 
-			currentFolder: targetFolder?.path,
-			recentFiles: []
+			currentFolder: targetFolderPath
 		}, 50);
 		
-		return allResults.filter(r => r.file.folder === targetFolder?.path);
+		// Fix root folder matching - normalize paths for comparison
+		return allResults.filter(r => {
+			const fileFolder = r.file.folder === "" ? "" : r.file.folder;
+			const targetPath = targetFolderPath === "" ? "" : targetFolderPath;
+			return fileFolder === targetPath;
+		});
+	}
+
+	private getAttachmentSuggestions(query: string): SearchResult[] {
+		// Get all files, not just markdown
+		const allFiles = this.app.vault.getFiles();
+		const attachmentExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'mp4', 'webm', 'mov', 'canvas'];
+		
+		const attachmentFiles = allFiles.filter(file => 
+			attachmentExtensions.includes(file.extension.toLowerCase()) &&
+			(query === '' || file.basename.toLowerCase().includes(query.toLowerCase()))
+		);
+
+		return attachmentFiles
+			.slice(0, 20)
+			.map(file => ({
+				file: {
+					path: file.path,
+					basename: file.basename,
+					aliases: [],
+					headings: [],
+					blockIds: [],
+					tags: [],
+					modified: file.stat.mtime,
+					folder: file.parent?.path ?? ""
+				},
+				score: 0,
+				matchType: 'exact' as const,
+				displayText: file.basename
+			}));
 	}
 
 	renderSuggestion(item: SearchResult, el: HTMLElement): void {
@@ -203,6 +229,11 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			case 'fuzzy':
 				mainText = file.basename;
 				subText = file.path;
+				break;
+			case 'heading':
+				mainText = displayText;
+				subText = file.path;
+				pill = '<span class="qa-suggestion-pill qa-heading-pill">H</span>';
 				break;
 			case 'unresolved':
 				mainText = displayText;
@@ -232,7 +263,14 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	private addHoverTooltip(el: HTMLElement, file: { path: string }): void {
 		let tooltipTimeout: NodeJS.Timeout;
 		
+		const cleanup = () => {
+			clearTimeout(tooltipTimeout);
+			const existingTooltip = document.querySelector('.qa-file-tooltip');
+			existingTooltip?.remove();
+		};
+
 		el.addEventListener('mouseenter', () => {
+			cleanup(); // Remove any existing tooltips
 			tooltipTimeout = setTimeout(async () => {
 				const tooltip = this.createTooltip(file);
 				if (tooltip) {
@@ -242,11 +280,19 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			}, 200);
 		});
 
-		el.addEventListener('mouseleave', () => {
-			clearTimeout(tooltipTimeout);
-			const existingTooltip = document.querySelector('.qa-file-tooltip');
-			existingTooltip?.remove();
-		});
+		// Clean up on multiple events to prevent leaks
+		el.addEventListener('mouseleave', cleanup);
+		el.addEventListener('blur', cleanup);
+		
+		// Clean up on scroll to prevent misplaced tooltips
+		const cleanupOnScroll = () => cleanup();
+		document.addEventListener('scroll', cleanupOnScroll, { passive: true });
+		
+		// Store cleanup function for later removal
+		(el as any)._tooltipCleanup = () => {
+			cleanup();
+			document.removeEventListener('scroll', cleanupOnScroll);
+		};
 	}
 
 	private createTooltip(file: { path: string }): HTMLElement | null {
@@ -331,10 +377,11 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		const targetFolder = activeFile?.parent ?? this.app.vault.getRoot();
 		
 		try {
-			const newFile = await this.app.vault.create(
-				`${targetFolder.path}/${fileName}.md`,
-				""
-			);
+			// Normalize path to avoid double slashes
+			const folderPath = targetFolder.path === "" ? "" : targetFolder.path;
+			const filePath = normalizePath(folderPath ? `${folderPath}/${fileName}.md` : `${fileName}.md`);
+			
+			const newFile = await this.app.vault.create(filePath, "");
 			
 			return this.makeLinkObsidianMethod(
 				newFile,

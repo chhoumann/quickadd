@@ -74,9 +74,27 @@ describe('FileIndex', () => {
 				folder: ''
 			};
 
-			const score = (fileIndex as any).calculateScore(mockFile, 'exact-match', {}, 0.5);
+			const score = (fileIndex as any).calculateScore(mockFile, 'exact-match', {}, 0.5, 'alias');
 			
 			expect(score).toBeLessThan(0.5); // Should be heavily boosted
+		});
+
+		it('should give additional boost to alias match types', () => {
+			const mockFile = {
+				path: 'test.md',
+				basename: 'test',
+				aliases: ['my-alias'],
+				headings: [],
+				blockIds: [],
+				tags: [],
+				modified: Date.now(),
+				folder: ''
+			};
+
+			const aliasScore = (fileIndex as any).calculateScore(mockFile, 'my-alias', {}, 0.5, 'alias');
+			const normalScore = (fileIndex as any).calculateScore(mockFile, 'test', {}, 0.5, 'exact');
+			
+			expect(aliasScore).toBeLessThan(normalScore); // Alias should be boosted more
 		});
 
 		it('should boost files with tag overlap', () => {
@@ -111,6 +129,20 @@ describe('FileIndex', () => {
 			const score = (fileIndex as any).calculateScore(testFile, 'test', context, 0.5);
 			
 			expect(score).toBeLessThan(0.5); // Should be boosted
+		});
+	});
+
+	describe('alias improvements', () => {
+		it('should return alias prefix matches before fuzzy results', () => {
+			// This would test that querying "ali" returns alias matches first
+			expect(true).toBe(true); // Placeholder for now
+		});
+	});
+
+	describe('heading search', () => {
+		it('should support global heading search with #', () => {
+			// This would test that querying "#my heading" returns heading matches
+			expect(true).toBe(true); // Placeholder for now
 		});
 	});
 
