@@ -462,9 +462,16 @@ export class FileIndex {
 
 		// Prevent infinite recursion by doing a simple search if no file part
 		if (filePart === '') {
-			// Global heading search - search all files
+			// Global heading search - search all files with performance limit
+			let resultCount = 0;
+			const maxResults = 200; // Performance guard for large vaults
+			
 			for (const file of this.fileMap.values()) {
+				if (resultCount >= maxResults) break;
+				
 				for (const heading of file.headings) {
+					if (resultCount >= maxResults) break;
+					
 					if (heading.toLowerCase().includes(headingPart)) {
 						results.push({
 							file,
@@ -472,6 +479,7 @@ export class FileIndex {
 							matchType: 'heading',
 							displayText: `${file.basename}#${heading}`
 						});
+						resultCount++;
 					}
 				}
 			}

@@ -230,16 +230,26 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				mainText = file.basename;
 				subText = file.path;
 				break;
-			case 'heading':
-				mainText = displayText;
-				subText = file.path;
+			case 'heading': {
+				const [fileName, heading] = displayText.split('#');
+				// Highlight the query in the heading text if possible
+				const headingQuery = this.lastInput.includes('#') 
+					? this.lastInput.split('#')[1] 
+					: '';
+				mainText = headingQuery && heading.toLowerCase().includes(headingQuery.toLowerCase())
+					? this.renderMatch(heading, headingQuery)
+					: heading;
+				subText = fileName; // Show source file name
 				pill = '<span class="qa-suggestion-pill qa-heading-pill">H</span>';
 				break;
-			case 'block':
-				mainText = displayText;
-				subText = file.path;
+			}
+			case 'block': {
+				const [fileName, blockId] = displayText.split('^');
+				mainText = blockId; // Show only the block ID
+				subText = fileName; // Show source file name
 				pill = '<span class="qa-suggestion-pill qa-block-pill">^</span>';
 				break;
+			}
 			case 'unresolved':
 				mainText = displayText;
 				subText = "Unresolved link";
@@ -325,6 +335,22 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		tooltip.style.left = `${rect.right + 10}px`;
 		tooltip.style.top = `${rect.top}px`;
 		tooltip.style.zIndex = '1000';
+	}
+
+	close(): void {
+		// Clean up any tooltip listeners before closing
+		const tooltipElements = document.querySelectorAll('.qaFileSuggestionItem');
+		tooltipElements.forEach(el => {
+			if ((el as any)._tooltipCleanup) {
+				(el as any)._tooltipCleanup();
+			}
+		});
+		
+		// Remove any existing tooltips
+		const existingTooltips = document.querySelectorAll('.qa-file-tooltip');
+		existingTooltips.forEach(tooltip => tooltip.remove());
+		
+		super.close();
 	}
 
 	async selectSuggestion(item: SearchResult): Promise<void> {
