@@ -4,7 +4,7 @@ import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
 import { TFile, normalizePath } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
-import { FileIndex, type SearchResult, type SearchContext } from "./FileIndex";
+import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
 
 export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
@@ -101,22 +101,57 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 
 	private getHeadingSuggestions(input: string): SearchResult[] {
 		const [fileName, headingQuery] = input.split('#');
-		const fileResults = this.fileIndex.search(fileName, {}, 1);
+		const noFileSpecified = fileName.trim() === '';
 		
-		if (fileResults.length === 0) return [];
+		// Determine candidate files based on whether file part was specified
+		let candidateFiles: IndexedFile[] = [];
 		
-		const file = fileResults[0].file;
-		const headings = this.fileIndex.getHeadings(file);
+		if (noFileSpecified) {
+			const activeFile = this.app.workspace.getActiveFile();
+			if (activeFile) {
+				const indexedFile = this.fileIndex.getFile(activeFile.path);
+				if (indexedFile) {
+					candidateFiles = [indexedFile];
+				}
+			}
+		} else {
+			candidateFiles = this.fileIndex.search(fileName, {}, 1).map(r => r.file);
+		}
 		
-		return headings
-			.filter(h => headingQuery === '' || h.toLowerCase().includes(headingQuery.toLowerCase()))
-			.slice(0, 20)
-			.map(heading => ({
-				file,
-				score: 0,
-				matchType: 'exact' as const,
-				displayText: `${file.basename}#${heading}`
-			}));
+		if (candidateFiles.length === 0) return [];
+		
+		const results: SearchResult[] = [];
+		
+		for (const file of candidateFiles) {
+			const headings = this.fileIndex.getHeadings(file);
+			
+			const filteredHeadings = headings
+				.filter(h => headingQuery === '' || h.toLowerCase().includes(headingQuery.toLowerCase()))
+				.slice(0, 20);
+			
+			for (const rawHeading of filteredHeadings) {
+				const heading = this.sanitizeHeading(rawHeading);
+				results.push({
+					file,
+					score: 0,
+					matchType: 'heading' as const,
+					displayText: noFileSpecified ? `#${heading}` : `${file.basename}#${heading}`
+				});
+			}
+		}
+		
+		return results;
+	}
+
+	private sanitizeHeading(heading: string): string {
+		return heading
+			// replace wikilinks with their display text
+			.replace(/\[\[([^\]|]+)(\|([^\]]+))?\]\]/g, (_, p1, _p2, alias) => alias ?? p1)
+			// remove images ![[...]]
+			.replace(/!\[\[[^\]]*\]\]/g, '')
+			// strip leftover markdown emphasis/code
+			.replace(/[*_`~]/g, '')
+			.trim();
 	}
 
 	private getBlockSuggestions(input: string): SearchResult[] {
@@ -374,7 +409,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			);
 		} else if (item.matchType === 'heading' || item.matchType === 'block') {
 			// Heading/block selection - use manual link with full path
-			const linkTarget = item.displayText; // already "file#Heading" or "file^block"
+			const linkTarget = item.displayText;
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,
 				linkTarget,
