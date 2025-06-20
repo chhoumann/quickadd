@@ -154,9 +154,8 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			return [];
 		}
 
-		// If cursor is positioned after a colon within the segment (e.g., "{{VALUE:|"), do not suggest
-		const colonIndex = inputSegment.indexOf(":");
-		if (colonIndex !== -1 && cursorPosition - startBrace > colonIndex + 1) {
+		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions
+		if (inputSegment.includes(":")) {
 			return [];
 		}
 
@@ -172,8 +171,8 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			const match = tokenDef.regex.exec(inputSegment);
 			if (!match) continue;
 
-			// If only "{{" has been typed (length 2), skip suggestions – user hasn't started a token yet
-			if (match[0].length <= 2) {
+			// Only accept matches that run right up to the cursor (i.e., the user is still typing this token)
+			if (match.index + match[0].length !== inputSegment.length) {
 				continue;
 			}
 
