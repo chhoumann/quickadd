@@ -1,9 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// Mock the Obsidian dependencies
-vi.mock('../utilityObsidian', () => ({
-	getNaturalLanguageDates: () => vi.fn()
-}));
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Simple mock for testing
 class TestFileNameDisplayFormatter {

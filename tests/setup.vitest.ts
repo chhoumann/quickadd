@@ -8,5 +8,8 @@ vi.mock("obsidian", () => {
     App: Dummy,
     FileView: Dummy,
     WorkspaceLeaf: Dummy,
+    FuzzySuggestModal: Dummy,
+    Modal: Dummy,
+    Scope: Dummy,
   };
 }); 

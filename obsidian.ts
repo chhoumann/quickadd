@@ -17,6 +17,19 @@ export class FileView {}
 export class WorkspaceLeaf {
   view: any;
 }
+export class FuzzySuggestModal {
+  constructor(app: App) {}
+  open() {}
+  close() {}
+}
+export class Modal {
+  constructor(app: App) {}
+  open() {}
+  close() {}
+}
+export class Scope {
+  register(hotkeys: any, callback: any) {}
+}
 export class App {
   workspace: any = {
     getActiveViewOfType: () => undefined,
@@ -48,5 +61,8 @@ export default {
   MarkdownView,
   FileView,
   WorkspaceLeaf,
+  FuzzySuggestModal,
+  Modal,
+  Scope,
   App,
 }; 
