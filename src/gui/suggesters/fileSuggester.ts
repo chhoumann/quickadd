@@ -198,7 +198,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				},
 				score: 0,
 				matchType: 'exact' as const,
-				displayText: file.basename
+				displayText: file.name
 			}));
 	}
 
@@ -352,6 +352,9 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		const currentInputValue: string = this.inputEl.value;
 		let insertedEndPosition = 0;
 
+		// Detect if we're in embed mode (![[) by looking at the 3 chars before the lastInputStart
+		const isEmbedMode = this.inputEl.value.slice(cursorPosition - this.lastInput.length - 3, cursorPosition - this.lastInput.length) === '![[';
+
 		if (item.matchType === 'unresolved') {
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,
@@ -365,6 +368,14 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,
 				linkTarget,
+				cursorPosition,
+				lastInputLength
+			);
+		} else if (isEmbedMode) {
+			// For embeds we always make the link manually to avoid duplicating '!'
+			insertedEndPosition = this.makeLinkManually(
+				currentInputValue,
+				item.displayText,
 				cursorPosition,
 				lastInputLength
 			);
