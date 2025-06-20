@@ -1,7 +1,7 @@
 import type { App} from "obsidian";
 import { ButtonComponent, Modal, TextComponent } from "obsidian";
 import { SilentFileSuggester } from "../suggesters/fileSuggester";
-import { SilentTagSuggester } from "../suggesters/ImprovedTagSuggester";
+import { SilentTagSuggester } from "../suggesters/tagSuggester";
 
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;

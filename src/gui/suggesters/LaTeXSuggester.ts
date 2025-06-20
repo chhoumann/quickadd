@@ -1,4 +1,4 @@
-import { TextInputSuggest } from "./BaseSuggest";
+import { TextInputSuggest } from "./suggest";
 import Fuse from "fuse.js";
 import { renderMath } from "obsidian";
 import { LATEX_CURSOR_MOVE_HERE, LaTeXSymbols } from "../../LaTeXSymbols";

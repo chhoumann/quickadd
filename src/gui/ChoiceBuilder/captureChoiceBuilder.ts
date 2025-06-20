@@ -19,7 +19,7 @@ import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormat
 import { NewTabDirection } from "../../types/newTabDirection";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import { FormatSyntaxSuggester } from "../suggesters/ImprovedFormatSyntaxSuggester";
+import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { log } from "src/logger/logManager";
 import { getNaturalLanguageDates } from "../../utilityObsidian";
 

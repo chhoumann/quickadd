@@ -1,4 +1,4 @@
-import { TextInputSuggest } from "./BaseSuggest";
+import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
 
 export class GenericTextSuggester extends TextInputSuggest<string> {

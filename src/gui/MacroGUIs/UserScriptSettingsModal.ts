@@ -5,7 +5,7 @@ import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
-import { FormatSyntaxSuggester } from "../suggesters/ImprovedFormatSyntaxSuggester";
+import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 
 type Option = { description?: string } & (

@@ -1,5 +1,5 @@
 import { Modal, Setting, TextAreaComponent, debounce, App } from "obsidian";
-import { FormatSyntaxSuggester } from "./../suggesters/ImprovedFormatSyntaxSuggester";
+import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
