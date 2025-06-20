@@ -379,7 +379,30 @@ export class FileIndex {
 			});
 		}
 
-		// 3. Unresolved links - limit explosion for short queries
+		// 3. Heading search: global [[#Heading]] support
+		if (query.includes('#')) {
+			const [, headingQueryRaw] = query.split('#');
+			const headingQuery = headingQueryRaw.toLowerCase();
+
+			if (headingQuery.length > 0) {
+				for (const file of this.fileMap.values()) {
+					for (const rawHeading of file.headings) {
+						if (!rawHeading.toLowerCase().includes(headingQuery)) continue;
+
+						const cleanHeading = this.sanitizeHeading(rawHeading);
+
+						results.push({
+							file,
+							score: this.calculateScore(file, query, context, 0.2),
+							matchType: 'heading',
+							displayText: `${file.basename}#${cleanHeading}`
+						});
+					}
+				}
+			}
+		}
+
+		// 4. Unresolved links
 		if (query.length >= 2) {
 			let unresolvedCount = 0;
 			const unresolvedLimit = query.length < 3 ? 10 : 20;
@@ -589,5 +612,13 @@ export class FileIndex {
 
 	getBlockIds(file: IndexedFile): string[] {
 		return file.blockIds;
+	}
+
+	private sanitizeHeading(heading: string): string {
+		return heading
+			.replace(/\[\[([^\]|]+)(\|([^\]]+))?\]\]/g, (_, p1, _p2, alias) => alias ?? p1)
+			.replace(/!\[\[[^\]]*\]\]/g, '')
+			.replace(/[*_`~]/g, '')
+			.trim();
 	}
 }
