@@ -1,0 +1,163 @@
+/* Enhanced File Suggester Styles */
+
+.qa-suggest-exact {
+  border-left: 3px solid var(--color-accent);
+}
+
+.qa-suggest-alias {
+  border-left: 3px solid var(--color-orange);
+}
+
+.qa-suggest-fuzzy {
+  border-left: 3px solid var(--color-blue);
+}
+
+.qa-suggest-unresolved {
+  border-left: 3px solid var(--color-red);
+}
+
+.qa-suggestion-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qa-suggestion-pill {
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.qa-alias-pill {
+  background-color: var(--color-orange);
+  color: var(--color-base-00);
+}
+
+.qa-unresolved-pill {
+  background-color: var(--color-red);
+  color: var(--color-base-00);
+}
+
+.qa-create-pill {
+  background-color: var(--color-green);
+  color: var(--color-base-00);
+}
+
+/* File tooltip */
+.qa-file-tooltip {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  padding: 12px;
+  max-width: 300px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.qa-tooltip-header {
+  font-weight: 600;
+  font-size: 1.1em;
+  margin-bottom: 8px;
+  color: var(--text-normal);
+}
+
+.qa-tooltip-content {
+  font-size: 0.9em;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.qa-tooltip-content div {
+  margin-bottom: 4px;
+}
+
+/* Section dividers */
+.qa-suggestion-section {
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.qa-suggestion-section:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* Enhanced suggestion item layout */
+.qaFileSuggestionItem {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.qaFileSuggestionItem:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.qaFileSuggestionItem.is-selected {
+  background-color: var(--background-modifier-active-hover);
+}
+
+.suggestion-main-text {
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.suggestion-sub-text {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Keyboard shortcut hints */
+.qa-keyboard-hint {
+  font-size: 0.75em;
+  color: var(--text-faint);
+  padding: 2px 4px;
+  background: var(--background-secondary);
+  border-radius: 2px;
+  margin-left: auto;
+}
+
+/* Dark theme adjustments */
+.theme-dark .qa-file-tooltip {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .qa-suggest-exact {
+    border-left-width: 4px;
+  }
+  
+  .qa-suggest-alias {
+    border-left-width: 4px;
+  }
+  
+  .qa-suggest-fuzzy {
+    border-left-width: 4px;
+  }
+  
+  .qa-suggest-unresolved {
+    border-left-width: 4px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .qaFileSuggestionItem {
+    transition: none;
+  }
+  
+  .qa-file-tooltip {
+    transition: none;
+  }
+}
