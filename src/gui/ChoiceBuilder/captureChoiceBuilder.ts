@@ -97,7 +97,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const formatDisplay: HTMLSpanElement =
 				captureToFileContainer.createEl("span");
 			const displayFormatter: FileNameDisplayFormatter =
-				new FileNameDisplayFormatter(this.app);
+			new FileNameDisplayFormatter(this.app);
 			void (async () =>
 				(formatDisplay.textContent = await displayFormatter.format(
 					this.choice.captureTo,
