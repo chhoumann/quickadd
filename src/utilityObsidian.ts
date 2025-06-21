@@ -31,13 +31,16 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 		let previousMtime = firstStat.mtime;
 		const start = Date.now();
 
-		// Poll every 30 ms until the mtime is stable or we hit the timeout.
+		// Poll with exponential backoff until the mtime is stable or we hit the timeout.
+		let pollIntervalMs = 30;
 		while (Date.now() - start < timeoutMs) {
-			await new Promise((r) => setTimeout(r, 30));
+			await new Promise((r) => setTimeout(r, pollIntervalMs));
 			const current = await adapter.stat(file.path);
 			if (!current) return; // stat failed; abort waiting.
 			if (current.mtime === previousMtime) return;
 			previousMtime = current.mtime;
+			// Double the interval if mtime keeps changing (exponential backoff)
+			pollIntervalMs = Math.min(pollIntervalMs * 2, 200);
 		}
 	} catch (err) {
 		// Non-fatal – we'll fall back to immediate processing.
@@ -68,11 +71,14 @@ export async function overwriteTemplaterOnce(app: App, file: TFile) {
 		await (templater.templater as {
 			overwrite_file_commands: (f: TFile) => Promise<void>;
 		}).overwrite_file_commands(file);
+		return;
 	} catch (err) {
 		// Roll back to original content to avoid partial renders
 		try {
 			await app.vault.modify(file, original);
-		} catch { /* ignore secondary failure */ }
+		} catch (rollbackErr) {
+			log.logWarning(`Failed to rollback ${file.path} after Templater error: ${(rollbackErr as Error).message}`);
+		}
 		reportError(err as Error, `Templater failed on ${file.path}. Rolled back to pre-render state.`);
 		return;
 	}
@@ -89,7 +95,7 @@ export async function templaterParseTemplate(
 	return await (
 		templater.templater as {
 			parse_template: (
-				opt: { target_file: TFile; run_mode: number },
+				opt: { target_file: TFile; run_mode: number; },
 				content: string,
 			) => Promise<string>;
 		}
@@ -101,7 +107,7 @@ export function getNaturalLanguageDates(app: App) {
 	return app.plugins.plugins["nldates-obsidian"];
 }
 
-export function getDate(input?: { format?: string; offset?: number }) {
+export function getDate(input?: { format?: string; offset?: number; }) {
 	let duration;
 
 	if (

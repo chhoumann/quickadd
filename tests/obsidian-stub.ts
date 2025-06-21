@@ -1,7 +1,6 @@
 // Stub module for Obsidian API used during tests
 // This file provides minimal runtime implementations for testing
 
-class Dummy {}
 const moment = (..._args: any[]) => ({
   add: () => ({ format: () => "2025-06-21" }),
   format: () => "2025-06-21",
