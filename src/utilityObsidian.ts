@@ -14,6 +14,36 @@ import type { CaptureChoice } from "./types/choices/CaptureChoice";
 import type { MacroChoice } from "./types/choices/MacroChoice";
 import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
+
+/**
+ * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
+ * This removes the need for an arbitrary debounce (e.g., 75 ms) and is resilient across
+ * local SSDs, network shares, and different OSes.
+ */
+export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
+	try {
+		const adapter = app.vault.adapter;
+		if (!("stat" in adapter) || typeof adapter.stat !== "function") return;
+
+		const firstStat = await adapter.stat(file.path);
+		if (!firstStat) return; // Unable to get file info – skip waiting.
+		let previousMtime = firstStat.mtime;
+		const start = Date.now();
+
+		// Poll every 30 ms until the mtime is stable or we hit the timeout.
+		while (Date.now() - start < timeoutMs) {
+			await new Promise((r) => setTimeout(r, 30));
+			const current = await adapter.stat(file.path);
+			if (!current) return; // stat failed; abort waiting.
+			if (current.mtime === previousMtime) return;
+			previousMtime = current.mtime;
+		}
+	} catch (err) {
+		// Non-fatal – we'll fall back to immediate processing.
+		log.logWarning(`waitForFileSettle: fallback due to adapter/stat failure – ${(err as Error).message}`);
+	}
+}
 
 export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
@@ -23,24 +53,30 @@ export async function overwriteTemplaterOnce(app: App, file: TFile) {
 	const templater = getTemplater(app);
 	if (!templater) return;
 
-	// Small debounce so the FS notices the first write (esp. on Windows)
-	await new Promise(r => setTimeout(r, 75));
+	// 1. Ensure the initial QuickAdd write is flushed & stable on disk.
+	await waitForFileSettle(app, file);
 
-	const original = await app.vault.read(file);
+	let original: string;
+	try {
+		original = await app.vault.read(file);
+	} catch (err) {
+		reportError(err as Error, `overwriteTemplaterOnce: failed to read ${file.path} before render`);
+		return;
+	}
 
-	// Use official API – RunMode.OverwriteFile is implied
-	await (templater.templater as {
-		overwrite_file_commands: (f: TFile) => Promise<void>;
-	}).overwrite_file_commands(file);
-
-	// If Templater made no substitutions, content is identical; avoid extra write
-	const rendered = await app.vault.read(file);
-	if (rendered === original) return;
-
-	// Jump cursor handled by Templater already
+	try {
+		await (templater.templater as {
+			overwrite_file_commands: (f: TFile) => Promise<void>;
+		}).overwrite_file_commands(file);
+	} catch (err) {
+		// Roll back to original content to avoid partial renders
+		try {
+			await app.vault.modify(file, original);
+		} catch { /* ignore secondary failure */ }
+		reportError(err as Error, `Templater failed on ${file.path}. Rolled back to pre-render state.`);
+		return;
+	}
 }
-
-
 
 export async function templaterParseTemplate(
 	app: App,
