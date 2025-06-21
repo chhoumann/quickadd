@@ -19,30 +19,28 @@ export function getTemplater(app: App) {
 	return app.plugins.plugins["templater-obsidian"];
 }
 
-export async function replaceTemplaterTemplatesInCreatedFile(
-	app: App,
-	file: TFile,
-) {
+export async function overwriteTemplaterOnce(app: App, file: TFile) {
 	const templater = getTemplater(app);
-	
 	if (!templater) return;
-	
-	const settings = templater.settings as Record<string, unknown>;
-	const triggerOnFileCreation = settings?.["trigger_on_file_creation"];
-	
-	// Only process if Templater's trigger_on_file_creation is disabled
-	// If it's enabled, Templater will process the file automatically
-	const shouldProcess = !triggerOnFileCreation;
-	
-	if (shouldProcess) {
-		const impl = templater?.templater as {
-			overwrite_file_commands?: (file: TFile) => Promise<void>;
-		};
-		if (impl?.overwrite_file_commands) {
-			await impl.overwrite_file_commands(file);
-		}
-	}
+
+	// Small debounce so the FS notices the first write (esp. on Windows)
+	await new Promise(r => setTimeout(r, 75));
+
+	const original = await app.vault.read(file);
+
+	// Use official API – RunMode.OverwriteFile is implied
+	await (templater.templater as {
+		overwrite_file_commands: (f: TFile) => Promise<void>;
+	}).overwrite_file_commands(file);
+
+	// If Templater made no substitutions, content is identical; avoid extra write
+	const rendered = await app.vault.read(file);
+	if (rendered === original) return;
+
+	// Jump cursor handled by Templater already
 }
+
+
 
 export async function templaterParseTemplate(
 	app: App,

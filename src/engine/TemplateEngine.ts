@@ -5,7 +5,7 @@ import { TFile } from "obsidian";
 import type QuickAdd from "../main";
 import {
 	getTemplater,
-	replaceTemplaterTemplatesInCreatedFile,
+	overwriteTemplaterOnce,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
@@ -131,7 +131,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			);
 
 			// Process Templater commands for template choices
-			await replaceTemplaterTemplatesInCreatedFile(this.app, createdFile);
+			await overwriteTemplaterOnce(this.app, createdFile);
 
 			return createdFile;
 		} catch (err) {
@@ -154,7 +154,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await this.app.vault.modify(file, formattedTemplateContent);
 
 			// Process Templater commands
-			await replaceTemplaterTemplatesInCreatedFile(this.app, file);
+			await overwriteTemplaterOnce(this.app, file);
 
 			return file;
 		} catch (err) {
@@ -183,7 +183,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await this.app.vault.modify(file, newFileContent);
 
 			// Process Templater commands
-			await replaceTemplaterTemplatesInCreatedFile(this.app, file);
+			await overwriteTemplaterOnce(this.app, file);
 
 			return file;
 		} catch (err) {

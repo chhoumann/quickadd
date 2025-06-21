@@ -7,7 +7,7 @@ import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import {
 	appendToCurrentLine,
 	openFile,
-	replaceTemplaterTemplatesInCreatedFile,
+	overwriteTemplaterOnce,
 	templaterParseTemplate,
 	isFolder,
 	getMarkdownFilesInFolder,
@@ -79,6 +79,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				appendToCurrentLine(content, this.app);
 			} else {
 				await this.app.vault.modify(file, newFileContent);
+				await overwriteTemplaterOnce(this.app, file);
 			}
 
 			if (this.choice.appendLink) {
@@ -291,8 +292,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
-		// Ensure templater processes any template-level commands that should run on file creation
-		await replaceTemplaterTemplatesInCreatedFile(this.app, file);
 
 		const updatedFileContent: string = await this.app.vault.cachedRead(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
