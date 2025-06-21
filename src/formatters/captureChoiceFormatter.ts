@@ -16,6 +16,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
 	private file: TFile | null = null;
 	private fileContent = "";
+	/**
+	 * Tracks whether the current formatter instance has already run Templater on the
+	 * capture payload.  This prevents the same content from being parsed twice in
+	 * multi-stage formatting flows (see issue #533 – double execution when using
+	 * tp.system.prompt).
+	 */
+	private templaterProcessed = false;
 
 	public async formatContentWithFile(
 		input: string,
@@ -49,16 +56,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
 
-		// If runTemplater is true and we have a file, run the templater parsing
-		if (runTemplater && this.file) {
+		// Run templater only once per capture payload to prevent #533 double execution
+		if (runTemplater && this.file && !this.templaterProcessed) {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
 				formatted,
-				this.file
+				this.file,
 			);
 			if (templaterFormatted) {
 				formatted = templaterFormatted;
 			}
+			this.templaterProcessed = true;
 		}
 
 		const formattedContentIsEmpty = formatted.trim() === "";

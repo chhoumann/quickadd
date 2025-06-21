@@ -13,11 +13,15 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			src: path.resolve("./src"),
+			obsidian: path.resolve("./tests/obsidian-stub.ts"),
 		},
 	},
 	test: {
 		include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
 		globals: true,
 		environment: "jsdom",
+		deps: {
+			inline: ["obsidian"],
+		},
 	},
 });
