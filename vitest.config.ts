@@ -13,7 +13,6 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			src: path.resolve("./src"),
-			obsidian: path.resolve("./obsidian.ts"),
 		},
 	},
 	test: {
