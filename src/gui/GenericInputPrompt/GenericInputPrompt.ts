@@ -1,7 +1,7 @@
-import type { App} from "obsidian";
+import type { App } from "obsidian";
 import { ButtonComponent, Modal, TextComponent } from "obsidian";
-import { SilentFileSuggester } from "../suggesters/fileSuggester";
-import { SilentTagSuggester } from "../suggesters/tagSuggester";
+import { FileSuggester } from "../suggesters/fileSuggester";
+import { TagSuggester } from "../suggesters/tagSuggester";
 
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -12,8 +12,8 @@ export default class GenericInputPrompt extends Modal {
 	private inputComponent: TextComponent;
 	private input: string;
 	private readonly placeholder: string;
-	private fileSuggester: SilentFileSuggester;
-	private tagSuggester: SilentTagSuggester;
+	private fileSuggester: FileSuggester;
+	private tagSuggester: TagSuggester;
 
 	public static Prompt(
 		app: App,
@@ -48,11 +48,11 @@ export default class GenericInputPrompt extends Modal {
 		this.display();
 		this.open();
 
-		this.fileSuggester = new SilentFileSuggester(
+		this.fileSuggester = new FileSuggester(
 			app,
 			this.inputComponent.inputEl
 		);
-		this.tagSuggester = new SilentTagSuggester(
+		this.tagSuggester = new TagSuggester(
 			app,
 			this.inputComponent.inputEl
 		);

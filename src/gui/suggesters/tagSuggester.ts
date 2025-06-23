@@ -5,7 +5,7 @@ import { TextInputSuggest } from "./suggest";
 import { replaceRange } from "./utils";
 import QuickAdd from "../../main";
 
-export class SilentTagSuggester extends TextInputSuggest<string> {
+export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputStart = 0;
 	private tagSet: Set<string>;

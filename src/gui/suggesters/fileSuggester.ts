@@ -7,7 +7,7 @@ import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
 import QuickAdd from "../../main";
 
-export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
+export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
 	private fileIndex: FileIndex;
 
@@ -18,7 +18,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		super(app, inputEl);
 
 		this.fileIndex = FileIndex.getInstance(app, QuickAdd.instance);
-		
+
 		// Initialize index in background
 		this.fileIndex.ensureIndexed();
 	}
@@ -42,11 +42,11 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		// Handle heading/block suggestions
 		const hashIndex = fileNameInput.indexOf('#');
 		const caretIndex = fileNameInput.indexOf('^');
-		
+
 		if (hashIndex > 0) {
 			return this.getHeadingSuggestions(fileNameInput);
 		}
-		
+
 		if (caretIndex > 0) {
 			return this.getBlockSuggestions(fileNameInput);
 		}
@@ -75,10 +75,10 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	private getHeadingSuggestions(input: string): SearchResult[] {
 		const [fileName, headingQuery] = input.split('#');
 		const noFileSpecified = fileName.trim() === '';
-		
+
 		// Determine candidate files based on whether file part was specified
 		let candidateFiles: IndexedFile[] = [];
-		
+
 		if (noFileSpecified) {
 			const activeFile = this.app.workspace.getActiveFile();
 			if (activeFile) {
@@ -90,18 +90,18 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		} else {
 			candidateFiles = this.fileIndex.search(fileName, {}, 1).map(r => r.file);
 		}
-		
+
 		if (candidateFiles.length === 0) return [];
-		
+
 		const results: SearchResult[] = [];
-		
+
 		for (const file of candidateFiles) {
 			const headings = this.fileIndex.getHeadings(file);
-			
+
 			const filteredHeadings = headings
 				.filter(h => headingQuery === '' || h.toLowerCase().includes(headingQuery.toLowerCase()))
 				.slice(0, 20);
-			
+
 			for (const heading of filteredHeadings) {
 				results.push({
 					file,
@@ -111,7 +111,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				});
 			}
 		}
-		
+
 		return results;
 	}
 
@@ -120,12 +120,12 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	private getBlockSuggestions(input: string): SearchResult[] {
 		const [fileName, blockQuery] = input.split('^');
 		const fileResults = this.fileIndex.search(fileName, {}, 1);
-		
+
 		if (fileResults.length === 0) return [];
-		
+
 		const file = fileResults[0].file;
 		const blockIds = this.fileIndex.getBlockIds(file);
-		
+
 		return blockIds
 			.filter(b => blockQuery === '' || b.toLowerCase().includes(blockQuery.toLowerCase()))
 			.slice(0, 20)
@@ -142,19 +142,19 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		if (!activeFile) return [];
 
 		let targetFolder = activeFile.parent ?? null;
-		
+
 		if (input.startsWith('../')) {
 			targetFolder = targetFolder?.parent ?? null;
 			const remainingPath = input.substring(3);
 			if (remainingPath) {
-				return this.fileIndex.search(remainingPath, { 
+				return this.fileIndex.search(remainingPath, {
 					currentFolder: targetFolder?.path
 				}, 20);
 			}
 		} else if (input.startsWith('./')) {
 			const remainingPath = input.substring(2);
 			if (remainingPath) {
-				return this.fileIndex.search(remainingPath, { 
+				return this.fileIndex.search(remainingPath, {
 					currentFolder: targetFolder?.path
 				}, 20);
 			}
@@ -162,10 +162,10 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 
 		// Show all files in target folder
 		const targetFolderPath = targetFolder?.path ?? "";
-		const allResults = this.fileIndex.search('', { 
+		const allResults = this.fileIndex.search('', {
 			currentFolder: targetFolderPath
 		}, 50);
-		
+
 		// Fix root folder matching - normalize paths for comparison
 		return allResults.filter(r => {
 			const fileFolder = r.file.folder === "" ? "" : r.file.folder;
@@ -178,8 +178,8 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		// Get all files, not just markdown
 		const allFiles = this.app.vault.getFiles();
 		const attachmentExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'mp4', 'webm', 'mov', 'canvas'];
-		
-		const attachmentFiles = allFiles.filter(file => 
+
+		const attachmentFiles = allFiles.filter(file =>
 			attachmentExtensions.includes(file.extension.toLowerCase()) &&
 			(query === '' || file.basename.toLowerCase().includes(query.toLowerCase()))
 		);
@@ -205,7 +205,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 
 	renderSuggestion(item: SearchResult, el: HTMLElement): void {
 		const { file, matchType, displayText } = item;
-		
+
 		// Add CSS classes for theming
 		el.classList.add("qaFileSuggestionItem");
 		el.classList.add(`qa-suggest-${matchType}`);
@@ -231,8 +231,8 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 			case 'heading': {
 				const [fileName, heading] = displayText.split('#');
 				// Highlight the query in the heading text if possible
-				const headingQuery = this.lastInput.includes('#') 
-					? this.lastInput.split('#')[1] 
+				const headingQuery = this.lastInput.includes('#')
+					? this.lastInput.split('#')[1]
 					: '';
 				mainText = headingQuery && heading.toLowerCase().includes(headingQuery.toLowerCase())
 					? this.renderMatch(heading, headingQuery)
@@ -267,9 +267,9 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		this.addHoverTooltip(el, file);
 	}
 
-	private addHoverTooltip(el: HTMLElement, file: { path: string }): void {
+	private addHoverTooltip(el: HTMLElement, file: { path: string; }): void {
 		let tooltipTimeout: NodeJS.Timeout;
-		
+
 		const cleanup = () => {
 			clearTimeout(tooltipTimeout);
 			const existingTooltip = document.querySelector('.qa-file-tooltip');
@@ -290,11 +290,11 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		// Clean up on multiple events to prevent leaks
 		el.addEventListener('mouseleave', cleanup);
 		el.addEventListener('blur', cleanup);
-		
+
 		// Clean up on scroll to prevent misplaced tooltips
 		const cleanupOnScroll = () => cleanup();
 		document.addEventListener('scroll', cleanupOnScroll, { passive: true });
-		
+
 		// Store cleanup function for later removal
 		(el as any)._tooltipCleanup = () => {
 			cleanup();
@@ -302,13 +302,13 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 		};
 	}
 
-	private createTooltip(file: { path: string }): HTMLElement | null {
+	private createTooltip(file: { path: string; }): HTMLElement | null {
 		const obsidianFile = this.app.vault.getAbstractFileByPath(file.path);
 		if (!obsidianFile || !(obsidianFile instanceof TFile)) return null;
 
 		const tooltip = document.createElement('div');
 		tooltip.className = 'qa-file-tooltip';
-		
+
 		// For now, just show basic info - content preview can be added later
 		tooltip.innerHTML = `
 			<div class="qa-tooltip-header">${obsidianFile.basename}</div>
@@ -337,11 +337,11 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 				(el as any)._tooltipCleanup();
 			}
 		});
-		
+
 		// Remove any existing tooltips
 		const existingTooltips = document.querySelectorAll('.qa-file-tooltip');
 		existingTooltips.forEach(tooltip => tooltip.remove());
-		
+
 		super.close();
 	}
 
