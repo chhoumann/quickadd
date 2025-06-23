@@ -39,16 +39,15 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const fileNameInput: string = fileLinkMatch[1];
 		this.lastInput = fileNameInput;
 
-		// Handle heading/block suggestions
-		const hashIndex = fileNameInput.indexOf('#');
-		const caretIndex = fileNameInput.indexOf('^');
-
-		if (hashIndex > 0) {
-			return this.getHeadingSuggestions(fileNameInput);
+		// Detect block reference pattern ("#^") *before* heading detection to avoid conflicts
+		if (fileNameInput.includes('#^')) {
+			return this.getBlockSuggestions(fileNameInput);
 		}
 
-		if (caretIndex > 0) {
-			return this.getBlockSuggestions(fileNameInput);
+		// Heading suggestions ("#heading")
+		const hashIndex = fileNameInput.indexOf('#');
+		if (hashIndex > 0) {
+			return this.getHeadingSuggestions(fileNameInput);
 		}
 
 		// Handle relative path shortcuts
@@ -118,7 +117,8 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 
 	private getBlockSuggestions(input: string): SearchResult[] {
-		const [fileName, blockQuery] = input.split('^');
+		// Split on the full "#^" sequence to correctly separate file name and block query
+		const [fileName, blockQuery] = input.split('#^');
 		const fileResults = this.fileIndex.search(fileName, {}, 1);
 
 		if (fileResults.length === 0) return [];
@@ -133,7 +133,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				file,
 				score: 0,
 				matchType: 'block' as const,
-				displayText: `${file.basename}^${blockId}`
+				displayText: `${file.basename}#^${blockId}`
 			}));
 	}
 
@@ -242,9 +242,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				break;
 			}
 			case 'block': {
-				const [fileName, blockId] = displayText.split('^');
+				// Split on "#^" to avoid the trailing hash in the file name
+				const [fileName, blockId] = displayText.split('#^');
 				mainText = blockId; // Show only the block ID
-				subText = fileName; // Show source file name
+				subText = fileName; // Show source file name without '#'
 				pill = '<span class="qa-suggestion-pill qa-block-pill">^</span>';
 				break;
 			}
