@@ -6,7 +6,7 @@ The QuickAdd suggester system provides intelligent text completion and suggestio
 
 ### Core Components
 
-- **BaseSuggest.ts** - The main suggester base class
+- **suggest.ts** - The main suggester base class
 - **utils.ts** - Utility functions for text manipulation and highlighting
 - **Domain-specific suggesters** - Specialized implementations for different use cases
 
@@ -25,7 +25,7 @@ The QuickAdd suggester system provides intelligent text completion and suggestio
 To create a custom suggester, extend the `TextInputSuggest` base class:
 
 ```typescript
-import { TextInputSuggest } from "./BaseSuggest";
+import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
 
 export class MyCustomSuggester extends TextInputSuggest<string> {
