@@ -19,7 +19,7 @@ class TestableFileIndex extends FileIndex {
 // Mock Obsidian types
 const createMockApp = (): App => {
 	const mockFiles: TFile[] = [];
-	
+
 	return {
 		vault: {
 			getMarkdownFiles: vi.fn(() => mockFiles),
@@ -76,7 +76,7 @@ describe('FileIndex', () => {
 
 			const context = { currentFolder: 'folder' };
 			const score = (fileIndex as any).calculateScore(mockFile, 'test', context, 0.5);
-			
+
 			expect(score).toBeLessThan(0.5); // Should be boosted (lower score)
 		});
 
@@ -93,7 +93,7 @@ describe('FileIndex', () => {
 			};
 
 			const score = (fileIndex as any).calculateScore(mockFile, 'exact-match', {}, 0.5, 'alias');
-			
+
 			expect(score).toBeLessThan(0.5); // Should be heavily boosted
 		});
 
@@ -111,7 +111,7 @@ describe('FileIndex', () => {
 
 			const aliasScore = (fileIndex as any).calculateScore(mockFile, 'my-alias', {}, 0.5, 'alias');
 			const normalScore = (fileIndex as any).calculateScore(mockFile, 'test', {}, 0.5, 'exact');
-			
+
 			expect(aliasScore).toBeLessThan(normalScore); // Alias should be boosted more
 		});
 
@@ -140,12 +140,12 @@ describe('FileIndex', () => {
 
 			// Simulate current file in map
 			(fileIndex as any).fileMap.set('current.md', currentFile);
-			
+
 			const mockCurrentFile = { path: 'current.md' } as TFile;
 			const context = { currentFile: mockCurrentFile };
-			
+
 			const score = (fileIndex as any).calculateScore(testFile, 'test', context, 0.5);
-			
+
 			expect(score).toBeLessThan(0.5); // Should be boosted
 		});
 	});
@@ -157,7 +157,7 @@ describe('FileIndex', () => {
 			expect(typeof fileIndex.getIndexedFileCount).toBe('function');
 			expect(typeof fileIndex.getFile).toBe('function');
 		});
-		
+
 		it('should return empty results for searches before indexing', () => {
 			const results = fileIndex.search('test', {}, 10);
 			expect(Array.isArray(results)).toBe(true);
@@ -172,12 +172,12 @@ describe('FileIndex', () => {
 				{ path: 'alias-file.md', basename: 'random', aliases: ['alias-match'] },
 				{ path: 'another.md', basename: 'another', aliases: ['alice'] }
 			];
-			
+
 			// Mock the vault to return our test files
 			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
 				files.map(f => ({ ...f, extension: 'md', parent: { path: '' } }))
 			);
-			
+
 			// Mock metadata cache
 			mockApp.metadataCache.getFileCache = vi.fn((file) => {
 				const testFile = files.find(f => f.path === file.path);
@@ -185,15 +185,15 @@ describe('FileIndex', () => {
 					frontmatter: { aliases: testFile.aliases }
 				} : null;
 			});
-			
+
 			await fileIndex.ensureIndexed();
 			const results = fileIndex.search('ali', {}, 10);
-			
+
 			// Should find alias matches
 			expect(results.length).toBeGreaterThan(0);
 			const aliasMatches = results.filter(r => r.matchType === 'alias');
 			expect(aliasMatches.length).toBe(2);
-			
+
 			// Verify we found the expected files
 			const paths = aliasMatches.map(r => r.file.path);
 			expect(paths).toContain('alias-file.md');
@@ -208,34 +208,38 @@ describe('FileIndex', () => {
 				{ path: 'file1.md', basename: 'file1', headings: ['Introduction', 'My Heading', 'Conclusion'] },
 				{ path: 'file2.md', basename: 'file2', headings: ['Overview', 'My Special Heading'] }
 			];
-			
+
 			// Mock the vault
 			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
 				files.map(f => ({ ...f, extension: 'md', parent: { path: '' } }))
 			);
-			
+
 			// Mock metadata cache with headings
+			// @ts-ignore
 			mockApp.metadataCache.getFileCache = vi.fn((file) => {
 				const testFile = files.find(f => f.path === file.path);
 				return testFile ? {
-					headings: testFile.headings.map((h, i) => ({ 
-						heading: h, 
+					headings: testFile.headings.map((h, i) => ({
+						heading: h,
 						level: 1,
-						position: { start: { line: i * 10, col: 0 }, end: { line: i * 10, col: h.length } }
-					}))
+						position: {
+							start: { line: i * 10, col: 0, offset: 0 },
+							end: { line: i * 10, col: h.length, offset: h.length }
+						}
+					})) as any // cast to satisfy HeadingCache type
 				} : null;
 			});
-			
+
 			await fileIndex.ensureIndexed();
 			const results = fileIndex.search('#my heading', {}, 10);
-			
+
 			// Should find files with matching headings
 			expect(results.length).toBeGreaterThan(0);
 			const headingMatches = results.filter(r => r.matchType === 'heading');
 			expect(headingMatches.length).toBeGreaterThan(0);
-			
+
 			// Verify display text contains heading
-			const hasHeadingInDisplay = headingMatches.some(r => 
+			const hasHeadingInDisplay = headingMatches.some(r =>
 				r.displayText.toLowerCase().includes('heading')
 			);
 			expect(hasHeadingInDisplay).toBe(true);
@@ -249,19 +253,19 @@ describe('FileIndex', () => {
 				{ path: 'testing.md', basename: 'testing' },
 				{ path: 'contest.md', basename: 'contest' }
 			];
-			
+
 			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
 				files.map(f => ({ ...f, extension: 'md', parent: { path: '' } }))
 			);
-			
+
 			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
-			
+
 			await fileIndex.ensureIndexed();
 			const results = fileIndex.search('test', {}, 10);
-			
+
 			// Should find results
 			expect(results.length).toBeGreaterThan(0);
-			
+
 			// Should have an exact match
 			const exactMatch = results.find(r => r.file.basename === 'test' && r.matchType === 'exact');
 			expect(exactMatch).toBeDefined();
@@ -273,27 +277,27 @@ describe('FileIndex', () => {
 				{ path: 'folder2/note.md', basename: 'note' },
 				{ path: 'note.md', basename: 'note' }
 			];
-			
+
 			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(
-				files.map(f => ({ 
-					...f, 
-					extension: 'md', 
-					parent: { path: f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '' } 
+				files.map(f => ({
+					...f,
+					extension: 'md',
+					parent: { path: f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '' }
 				}))
 			);
-			
+
 			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
-			
+
 			await fileIndex.ensureIndexed();
-			
+
 			// Search from folder1 context
 			const context = { currentFolder: 'folder1' };
 			const results = fileIndex.search('note', context, 10);
-			
+
 			// Same folder file should be boosted
 			const folder1Result = results.find(r => r.file.path === 'folder1/note.md');
 			const folder2Result = results.find(r => r.file.path === 'folder2/note.md');
-			
+
 			expect(folder1Result).toBeDefined();
 			expect(folder2Result).toBeDefined();
 			expect(folder1Result!.score).toBeLessThan(folder2Result!.score);
@@ -312,7 +316,7 @@ describe('FileIndex', () => {
 			})) as TFile[];
 
 			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(mockFiles);
-			
+
 			// Mock getFileCache to return empty metadata for all files
 			mockApp.metadataCache.getFileCache = vi.fn(() => ({
 				frontmatter: {},
@@ -328,7 +332,7 @@ describe('FileIndex', () => {
 			// Should complete indexing in reasonable time (< 2 seconds for 1000 files)
 			// This is more realistic for CI environments and slower machines
 			expect(endTime - startTime).toBeLessThan(2000);
-			
+
 			// Verify all files were indexed
 			expect(fileIndex.getIndexedFileCount()).toBe(1000);
 		});
