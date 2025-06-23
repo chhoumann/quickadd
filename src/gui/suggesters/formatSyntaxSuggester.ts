@@ -22,6 +22,7 @@ import {
 	TIME_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 import type QuickAdd from "../../main";
+import { replaceRange } from "./utils";
 
 enum FormatSyntaxToken {
 	Date,
@@ -38,11 +39,89 @@ enum FormatSyntaxToken {
 	Selected
 }
 
+interface TokenDefinition {
+	regex: RegExp;
+	token: FormatSyntaxToken;
+	suggestion: string;
+	cursorOffset?: number; // How far back to position cursor from end
+}
+
 export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputType: FormatSyntaxToken;
+	private lastInputStart = 0;
 	private readonly macroNames: string[];
 	private readonly templatePaths: string[];
+
+	// Table-driven approach for cleaner token processing
+	private readonly tokenDefinitions: TokenDefinition[] = [
+		{
+			regex: DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.DateFormat,
+			suggestion: "{{DATE:}}",
+			cursorOffset: 2
+		},
+		{
+			regex: DATE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Date,
+			suggestion: DATE_SYNTAX
+		},
+		{
+			regex: TIME_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Time,
+			suggestion: TIME_SYNTAX
+		},
+		{
+			regex: NAME_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Name,
+			suggestion: NAME_SYNTAX
+		},
+		{
+			regex: VALUE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Value,
+			suggestion: VALUE_SYNTAX
+		},
+		{
+			regex: MATH_VALUE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.MathValue,
+			suggestion: MATH_VALUE_SYNTAX
+		},
+		{
+			regex: SELECTED_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Selected,
+			suggestion: SELECTED_SYNTAX
+		},
+		{
+			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Variable,
+			suggestion: "{{VALUE:}}",
+			cursorOffset: 2
+		},
+		{
+			regex: VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.VariableDate,
+			suggestion: "{{VDATE:}}",
+			cursorOffset: 2
+		},
+	];
+
+	private readonly contextualTokens: TokenDefinition[] = [
+		{
+			regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.LinkCurrent,
+			suggestion: LINKCURRENT_SYNTAX
+		},
+		{
+			regex: TEMPLATE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Template,
+			suggestion: "{{TEMPLATE:"
+		},
+		{
+			regex: MACRO_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Macro,
+			suggestion: "{{MACRO:"
+		},
+	];
 
 	constructor(
 		public app: App,
@@ -59,167 +138,103 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		this.templatePaths = this.plugin.getTemplateFiles().map((file) => file.path);
 	}
 
-	getSuggestions(inputStr: string): string[] {
+	async getSuggestions(inputStr: string): Promise<string[]> {
 		if (this.inputEl.selectionStart === null) return [];
-
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const lookbehind = 15;
-		const inputBeforeCursor: string = inputStr.substr(
-			cursorPosition - lookbehind,
-			lookbehind
-		);
+
+		// Find the last opening braces "{{" before the cursor – we only care about the fragment
+		// the user is currently typing, not earlier, already-completed tokens.
+		const startBrace = inputStr.lastIndexOf("{{", cursorPosition - 1);
+		if (startBrace === -1) return [];
+
+		const inputSegment = inputStr.slice(startBrace, cursorPosition);
+
+		// If the user has already typed the closing braces in this segment, nothing to suggest.
+		if (inputSegment.includes("}}")) {
+			return [];
+		}
+
+		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions
+		if (inputSegment.includes(":")) {
+			return [];
+		}
+
 		const suggestions: string[] = [];
 
-		this.processToken(
-			inputBeforeCursor,
-			(
-				match: RegExpMatchArray,
-				type: FormatSyntaxToken,
-				suggestion: string
-			) => {
-				this.lastInput = match[0];
-				this.lastInputType = type;
-				suggestions.push(suggestion);
+		// Check all token definitions
+		const allTokens = [
+			...this.tokenDefinitions,
+			...(this.suggestForFileNames ? [] : this.contextualTokens)
+		];
 
-				if (this.lastInputType === FormatSyntaxToken.Template) {
-					suggestions.push(
-						...this.templatePaths.map(
-							(templatePath) => `{{TEMPLATE:${templatePath}}}`
-						)
-					);
-				}
+		for (const tokenDef of allTokens) {
+			const match = tokenDef.regex.exec(inputSegment);
+			if (!match) continue;
 
-				if (this.lastInputType === FormatSyntaxToken.Macro) {
-					suggestions.push(
-						...this.macroNames.map(
-							(macroName) => `{{MACRO:${macroName}}}`
-						)
-					);
-				}
+			// Only accept matches that run right up to the cursor (i.e., the user is still typing this token)
+			if (match.index + match[0].length !== inputSegment.length) {
+				continue;
 			}
-		);
+
+			this.lastInput = match[0];
+			this.lastInputType = tokenDef.token;
+			this.lastInputStart = cursorPosition - match[0].length;
+
+			// Avoid duplicates
+			if (!suggestions.includes(tokenDef.suggestion)) {
+				suggestions.push(tokenDef.suggestion);
+			}
+
+			// Add dynamic suggestions for template and macro
+			if (tokenDef.token === FormatSyntaxToken.Template) {
+				suggestions.push(
+					...this.templatePaths.map(
+						(templatePath) => `{{TEMPLATE:${templatePath}}}`
+					)
+				);
+			} else if (tokenDef.token === FormatSyntaxToken.Macro) {
+				suggestions.push(
+					...this.macroNames.map(
+						(macroName) => `{{MACRO:${macroName}}}`
+					)
+				);
+			}
+		}
 
 		return suggestions;
 	}
 
 	selectSuggestion(item: string): void {
 		if (this.inputEl.selectionStart === null) return;
+		
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const lastInputLength: number = this.lastInput.length;
-		const currentInputValue: string = this.inputEl.value;
-		let insertedEndPosition = 0;
+		const replaceStart = this.lastInputStart;
+		const replaceEnd = cursorPosition;
 
-		const insert = (text: string, offset = 0) => {
-			return `${currentInputValue.substr(
-				0,
-				cursorPosition - lastInputLength + offset
-			)}${text}${currentInputValue.substr(cursorPosition)}`;
-		};
+		// Replace the partial syntax with the complete syntax
+		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
 
-		this.processToken(item, (match, type, suggestion) => {
-			if (item.contains(suggestion)) {
-				this.inputEl.value = insert(item);
-				this.lastInputType = type;
-				insertedEndPosition =
-					cursorPosition - lastInputLength + item.length;
+		// Determine cursor offset dynamically based on the chosen item
+		const offset = item.includes(":") ? 2 : 0; // place before "}}" if there is a colon
+		if (offset) {
+			const newCursorPos = replaceStart + item.length - offset;
+			this.inputEl.setSelectionRange(newCursorPos, newCursorPos);
+		}
 
-				if (
-					this.lastInputType === FormatSyntaxToken.VariableDate ||
-					this.lastInputType === FormatSyntaxToken.Variable ||
-					this.lastInputType === FormatSyntaxToken.DateFormat
-				) {
-					insertedEndPosition -= 2;
-				}
-			}
-		});
-
-		this.inputEl.trigger("input");
 		this.close();
-		this.inputEl.setSelectionRange(
-			insertedEndPosition,
-			insertedEndPosition
-		);
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
-		if (value) el.setText(value);
+		if (!value) return;
+		// Highlight using the current query fragment for accuracy
+		const highlighted = this.renderMatch(value, this.getCurrentQuery());
+		el.innerHTML = highlighted;
 	}
 
-	private processToken(
-		input: string,
-		callback: (
-			match: RegExpMatchArray,
-			type: FormatSyntaxToken,
-			suggestion: string
-		) => void
-	) {
-		const dateFormatMatch = DATE_FORMAT_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (dateFormatMatch)
-			callback(
-				dateFormatMatch,
-				FormatSyntaxToken.DateFormat,
-				"{{DATE:}}"
-			);
-
-		const dateMatch = DATE_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (dateMatch) callback(dateMatch, FormatSyntaxToken.Date, DATE_SYNTAX);
-
-		const timeMatch = TIME_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (timeMatch) callback(timeMatch, FormatSyntaxToken.Time, TIME_SYNTAX);
-
-		const nameMatch = NAME_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (nameMatch) callback(nameMatch, FormatSyntaxToken.Name, NAME_SYNTAX);
-
-		const valueMatch = VALUE_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (valueMatch)
-			callback(valueMatch, FormatSyntaxToken.Value, VALUE_SYNTAX);
-
-		const mathValueMatch = MATH_VALUE_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (mathValueMatch)
-			callback(
-				mathValueMatch,
-				FormatSyntaxToken.MathValue,
-				MATH_VALUE_SYNTAX
-			);
-
-		const selectedMatch = SELECTED_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (selectedMatch)
-			callback(selectedMatch, FormatSyntaxToken.Selected, SELECTED_SYNTAX);
-
-		const variableMatch = VARIABLE_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (variableMatch)
-			callback(variableMatch, FormatSyntaxToken.Variable, "{{VALUE:}}");
-
-		const variableDateMatch =
-			VARIABLE_DATE_SYNTAX_SUGGEST_REGEX.exec(input);
-		if (variableDateMatch)
-			callback(
-				variableDateMatch,
-				FormatSyntaxToken.VariableDate,
-				"{{VDATE:}}"
-			);
-
-		if (!this.suggestForFileNames) {
-			const linkCurrentMatch =
-				LINKCURRENT_SYNTAX_SUGGEST_REGEX.exec(input);
-			if (linkCurrentMatch)
-				callback(
-					linkCurrentMatch,
-					FormatSyntaxToken.LinkCurrent,
-					LINKCURRENT_SYNTAX
-				);
-
-			const templateMatch = TEMPLATE_SYNTAX_SUGGEST_REGEX.exec(input);
-			if (templateMatch)
-				callback(
-					templateMatch,
-					FormatSyntaxToken.Template,
-					"{{TEMPLATE:"
-				);
-
-			const macroMatch = MACRO_SYNTAX_SUGGEST_REGEX.exec(input);
-			if (macroMatch)
-				callback(macroMatch, FormatSyntaxToken.Macro, "{{MACRO:");
-		}
+	private getTokenDefinition(token: FormatSyntaxToken): TokenDefinition | undefined {
+		return [...this.tokenDefinitions, ...this.contextualTokens]
+			.find(def => def.token === token);
 	}
 }
+
+

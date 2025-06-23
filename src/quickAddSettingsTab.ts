@@ -1,5 +1,5 @@
-import type { App } from "obsidian";
-import { PluginSettingTab, Setting, TFolder, TAbstractFile } from "obsidian";
+import type { App , TAbstractFile } from "obsidian";
+import { PluginSettingTab, Setting, TFolder } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";

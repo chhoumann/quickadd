@@ -1,83 +1,15 @@
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { TextInputSuggest } from "./suggest";
-import type { App, TFile } from "obsidian";
+import type { App } from "obsidian";
+import { TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
-import Fuse from "fuse.js";
+import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
+import QuickAdd from "../../main";
 
-type AliasArrTFile = TFile & {
-	alias: string[];
-};
-
-enum FileSuggestionType {
-	File,
-	Alias,
-	Unresolved,
-}
-
-type SuggestionMapItem = {
-	type: FileSuggestionType;
-	file?: TFile;
-};
-
-class SuggestionMap extends Map<string, SuggestionMapItem> {}
-
-function buildFileMap(
-	files: AliasArrTFile[],
-	unresolvedLinkNames: string[]
-): SuggestionMap {
-	const fileMap = new SuggestionMap();
-
-	for (const file of files) {
-		fileMap.set(file.path, {
-			file,
-			type: FileSuggestionType.File,
-		});
-
-		for (const alias of file.alias) {
-			fileMap.set(alias, {
-				file,
-				type: FileSuggestionType.Alias,
-			});
-		}
-	}
-
-	for (const unresolvedLinkName of unresolvedLinkNames) {
-		fileMap.set(unresolvedLinkName, {
-			type: FileSuggestionType.Unresolved,
-		});
-	}
-
-	return fileMap;
-}
-
-function getAliasesForFile(file: TFile, app: App): AliasArrTFile {
-	const fileMetadata = app.metadataCache.getFileCache(file);
-	const fileMetaAlias: string | string[] =
-		fileMetadata?.frontmatter?.alias ??
-		fileMetadata?.frontmatter?.aliases ??
-		"";
-	const aliases: string[] = [];
-
-	if (typeof fileMetaAlias === "string" && fileMetaAlias) {
-		aliases.push(fileMetaAlias);
-	} else if (Array.isArray(fileMetaAlias)) {
-		const filteredAliases = fileMetaAlias.filter(
-			(v) => v && typeof v === "string"
-		);
-
-		if (filteredAliases.length) {
-			aliases.push(...filteredAliases); // remove null values
-		}
-	}
-
-	return { ...file, alias: aliases };
-}
-
-export class SilentFileSuggester extends TextInputSuggest<string> {
+export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
-	private fileNames: string[];
-	private fileMap: SuggestionMap;
+	private fileIndex: FileIndex;
 
 	constructor(
 		public app: App,
@@ -85,20 +17,15 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 	) {
 		super(app, inputEl);
 
-		const filesAndAliases: AliasArrTFile[] = app.vault
-			.getMarkdownFiles()
-			.map((file) => getAliasesForFile(file, app));
-		const unresolvedLinkNames = this.getUnresolvedLinkNames(app);
-		const fileAndAliasMap = buildFileMap(
-			filesAndAliases,
-			unresolvedLinkNames
-		);
+		this.fileIndex = FileIndex.getInstance(app, QuickAdd.instance);
 
-		this.fileNames = [...fileAndAliasMap.keys()];
-		this.fileMap = fileAndAliasMap;
+		// Initialize index in background
+		this.fileIndex.ensureIndexed();
 	}
 
-	getSuggestions(inputStr: string): string[] {
+
+
+	getSuggestions(inputStr: string): SearchResult[] {
 		if (this.inputEl.selectionStart === null) return [];
 
 		const cursorPosition: number = this.inputEl.selectionStart;
@@ -112,60 +39,313 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 		const fileNameInput: string = fileLinkMatch[1];
 		this.lastInput = fileNameInput;
 
-		const fuse = new Fuse(this.fileNames, {
-			findAllMatches: true,
-			shouldSort: true,
-			isCaseSensitive: false,
-			minMatchCharLength: 1,
-			threshold: 0.3,
-		});
+		// Handle heading/block suggestions
+		const hashIndex = fileNameInput.indexOf('#');
+		const caretIndex = fileNameInput.indexOf('^');
 
-		const MAX_ITEMS = 50;
-		const search = fuse
-			.search(this.lastInput)
-			.slice(0, MAX_ITEMS)
-			.map((value) => value.item);
+		if (hashIndex > 0) {
+			return this.getHeadingSuggestions(fileNameInput);
+		}
 
-		return search;
+		if (caretIndex > 0) {
+			return this.getBlockSuggestions(fileNameInput);
+		}
+
+		// Handle relative path shortcuts
+		if (fileNameInput.startsWith('./') || fileNameInput.startsWith('../')) {
+			return this.getRelativePathSuggestions(fileNameInput);
+		}
+
+		// Handle embeds/attachments - check if input starts with !
+		const isEmbed = inputBeforeCursor.includes('![[');
+		if (isEmbed) {
+			return this.getAttachmentSuggestions(fileNameInput);
+		}
+
+		// Build search context
+		const activeFile = this.app.workspace.getActiveFile();
+		const context: SearchContext = {
+			currentFile: activeFile ?? undefined,
+			currentFolder: activeFile?.parent?.path
+		};
+
+		return this.fileIndex.search(fileNameInput, context, 50);
 	}
 
-	renderSuggestion(item: string, el: HTMLElement): void {
-		const suggestionItem = this.fileMap.get(item);
+	private getHeadingSuggestions(input: string): SearchResult[] {
+		const [fileName, headingQuery] = input.split('#');
+		const noFileSpecified = fileName.trim() === '';
 
-		if (suggestionItem === undefined) {
-			el.innerHTML = `
-				<span class="suggestion-main-text">${item}</span>
-				<span class="suggestion-sub-text">Unknown</span>
-			`;
+		// Determine candidate files based on whether file part was specified
+		let candidateFiles: IndexedFile[] = [];
+
+		if (noFileSpecified) {
+			const activeFile = this.app.workspace.getActiveFile();
+			if (activeFile) {
+				const indexedFile = this.fileIndex.getFile(activeFile.path);
+				if (indexedFile) {
+					candidateFiles = [indexedFile];
+				}
+			}
 		} else {
-			switch (suggestionItem.type) {
-				case FileSuggestionType.File:
-					el.innerHTML = `
-                    <span class="suggestion-main-text">${suggestionItem?.file?.basename}</span>
-                    <span class="suggestion-sub-text">${suggestionItem?.file?.path}</span>
-                `;
-					break;
-				case FileSuggestionType.Alias:
-					el.innerHTML = `
-                    <span class="suggestion-main-text">${item}</span>
-                    <span class="suggestion-sub-text">${suggestionItem?.file?.path}</span>
-                `;
-					break;
-				case FileSuggestionType.Unresolved:
-					el.innerHTML = `
-                    <span class="suggestion-main-text">${item}</span>
-                    <span class="suggestion-sub-text">Unresolved link</span>
-                `;
-					break;
-				default:
-					break;
+			candidateFiles = this.fileIndex.search(fileName, {}, 1).map(r => r.file);
+		}
+
+		if (candidateFiles.length === 0) return [];
+
+		const results: SearchResult[] = [];
+
+		for (const file of candidateFiles) {
+			const headings = this.fileIndex.getHeadings(file);
+
+			const filteredHeadings = headings
+				.filter(h => headingQuery === '' || h.toLowerCase().includes(headingQuery.toLowerCase()))
+				.slice(0, 20);
+
+			for (const heading of filteredHeadings) {
+				results.push({
+					file,
+					score: 0,
+					matchType: 'heading' as const,
+					displayText: noFileSpecified ? `#${heading}` : `${file.basename}#${heading}`
+				});
 			}
 		}
 
-		el.classList.add("qaFileSuggestionItem");
+		return results;
 	}
 
-	selectSuggestion(item: string): void {
+
+
+	private getBlockSuggestions(input: string): SearchResult[] {
+		const [fileName, blockQuery] = input.split('^');
+		const fileResults = this.fileIndex.search(fileName, {}, 1);
+
+		if (fileResults.length === 0) return [];
+
+		const file = fileResults[0].file;
+		const blockIds = this.fileIndex.getBlockIds(file);
+
+		return blockIds
+			.filter(b => blockQuery === '' || b.toLowerCase().includes(blockQuery.toLowerCase()))
+			.slice(0, 20)
+			.map(blockId => ({
+				file,
+				score: 0,
+				matchType: 'block' as const,
+				displayText: `${file.basename}^${blockId}`
+			}));
+	}
+
+	private getRelativePathSuggestions(input: string): SearchResult[] {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return [];
+
+		let targetFolder = activeFile.parent ?? null;
+
+		if (input.startsWith('../')) {
+			targetFolder = targetFolder?.parent ?? null;
+			const remainingPath = input.substring(3);
+			if (remainingPath) {
+				return this.fileIndex.search(remainingPath, {
+					currentFolder: targetFolder?.path
+				}, 20);
+			}
+		} else if (input.startsWith('./')) {
+			const remainingPath = input.substring(2);
+			if (remainingPath) {
+				return this.fileIndex.search(remainingPath, {
+					currentFolder: targetFolder?.path
+				}, 20);
+			}
+		}
+
+		// Show all files in target folder
+		const targetFolderPath = targetFolder?.path ?? "";
+		const allResults = this.fileIndex.search('', {
+			currentFolder: targetFolderPath
+		}, 50);
+
+		// Fix root folder matching - normalize paths for comparison
+		return allResults.filter(r => {
+			const fileFolder = r.file.folder === "" ? "" : r.file.folder;
+			const targetPath = targetFolderPath === "" ? "" : targetFolderPath;
+			return fileFolder === targetPath;
+		});
+	}
+
+	private getAttachmentSuggestions(query: string): SearchResult[] {
+		// Get all files, not just markdown
+		const allFiles = this.app.vault.getFiles();
+		const attachmentExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'mp4', 'webm', 'mov', 'canvas'];
+
+		const attachmentFiles = allFiles.filter(file =>
+			attachmentExtensions.includes(file.extension.toLowerCase()) &&
+			(query === '' || file.basename.toLowerCase().includes(query.toLowerCase()))
+		);
+
+		return attachmentFiles
+			.slice(0, 20)
+			.map(file => ({
+				file: {
+					path: file.path,
+					basename: file.basename,
+					aliases: [],
+					headings: [],
+					blockIds: [],
+					tags: [],
+					modified: file.stat.mtime,
+					folder: file.parent?.path ?? ""
+				},
+				score: 0,
+				matchType: 'exact' as const,
+				displayText: file.name
+			}));
+	}
+
+	renderSuggestion(item: SearchResult, el: HTMLElement): void {
+		const { file, matchType, displayText } = item;
+
+		// Add CSS classes for theming
+		el.classList.add("qaFileSuggestionItem");
+		el.classList.add(`qa-suggest-${matchType}`);
+
+		let mainText = displayText;
+		let subText = "";
+		let pill = "";
+
+		switch (matchType) {
+			case 'exact':
+				mainText = file.basename;
+				subText = file.path;
+				break;
+			case 'alias':
+				mainText = displayText;
+				subText = file.path;
+				pill = '<span class="qa-suggestion-pill qa-alias-pill">alias</span>';
+				break;
+			case 'fuzzy':
+				mainText = file.basename;
+				subText = file.path;
+				break;
+			case 'heading': {
+				const [fileName, heading] = displayText.split('#');
+				// Highlight the query in the heading text if possible
+				const headingQuery = this.lastInput.includes('#')
+					? this.lastInput.split('#')[1]
+					: '';
+				mainText = headingQuery && heading.toLowerCase().includes(headingQuery.toLowerCase())
+					? this.renderMatch(heading, headingQuery)
+					: heading;
+				subText = fileName; // Show source file name
+				pill = '<span class="qa-suggestion-pill qa-heading-pill">H</span>';
+				break;
+			}
+			case 'block': {
+				const [fileName, blockId] = displayText.split('^');
+				mainText = blockId; // Show only the block ID
+				subText = fileName; // Show source file name
+				pill = '<span class="qa-suggestion-pill qa-block-pill">^</span>';
+				break;
+			}
+			case 'unresolved':
+				mainText = displayText;
+				subText = "Unresolved link";
+				pill = '<span class="qa-suggestion-pill qa-unresolved-pill">unresolved</span>';
+				break;
+		}
+
+		el.innerHTML = `
+			<div class="qa-suggestion-content">
+				<span class="suggestion-main-text">${mainText}</span>
+				${pill}
+			</div>
+			<span class="suggestion-sub-text">${subText}</span>
+		`;
+
+		// Add hover tooltip for content preview
+		this.addHoverTooltip(el, file);
+	}
+
+	private addHoverTooltip(el: HTMLElement, file: { path: string; }): void {
+		let tooltipTimeout: NodeJS.Timeout;
+
+		const cleanup = () => {
+			clearTimeout(tooltipTimeout);
+			const existingTooltip = document.querySelector('.qa-file-tooltip');
+			existingTooltip?.remove();
+		};
+
+		el.addEventListener('mouseenter', () => {
+			cleanup(); // Remove any existing tooltips
+			tooltipTimeout = setTimeout(async () => {
+				const tooltip = this.createTooltip(file);
+				if (tooltip) {
+					document.body.appendChild(tooltip);
+					this.positionTooltip(tooltip, el);
+				}
+			}, 200);
+		});
+
+		// Clean up on multiple events to prevent leaks
+		el.addEventListener('mouseleave', cleanup);
+		el.addEventListener('blur', cleanup);
+
+		// Clean up on scroll to prevent misplaced tooltips
+		const cleanupOnScroll = () => cleanup();
+		document.addEventListener('scroll', cleanupOnScroll, { passive: true });
+
+		// Store cleanup function for later removal
+		(el as any)._tooltipCleanup = () => {
+			cleanup();
+			document.removeEventListener('scroll', cleanupOnScroll);
+		};
+	}
+
+	private createTooltip(file: { path: string; }): HTMLElement | null {
+		const obsidianFile = this.app.vault.getAbstractFileByPath(file.path);
+		if (!obsidianFile || !(obsidianFile instanceof TFile)) return null;
+
+		const tooltip = document.createElement('div');
+		tooltip.className = 'qa-file-tooltip';
+
+		// For now, just show basic info - content preview can be added later
+		tooltip.innerHTML = `
+			<div class="qa-tooltip-header">${obsidianFile.basename}</div>
+			<div class="qa-tooltip-content">
+				<div>Path: ${obsidianFile.path}</div>
+				<div>Modified: ${new Date(obsidianFile.stat.mtime).toLocaleDateString()}</div>
+			</div>
+		`;
+
+		return tooltip;
+	}
+
+	private positionTooltip(tooltip: HTMLElement, trigger: HTMLElement): void {
+		const rect = trigger.getBoundingClientRect();
+		tooltip.style.position = 'fixed';
+		tooltip.style.left = `${rect.right + 10}px`;
+		tooltip.style.top = `${rect.top}px`;
+		tooltip.style.zIndex = '1000';
+	}
+
+	close(): void {
+		// Clean up any tooltip listeners before closing
+		const tooltipElements = document.querySelectorAll('.qaFileSuggestionItem');
+		tooltipElements.forEach(el => {
+			if ((el as any)._tooltipCleanup) {
+				(el as any)._tooltipCleanup();
+			}
+		});
+
+		// Remove any existing tooltips
+		const existingTooltips = document.querySelectorAll('.qa-file-tooltip');
+		existingTooltips.forEach(tooltip => tooltip.remove());
+
+		super.close();
+	}
+
+	async selectSuggestion(item: SearchResult): Promise<void> {
 		if (this.inputEl.selectionStart === null) return;
 
 		const cursorPosition: number = this.inputEl.selectionStart;
@@ -173,32 +353,53 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 		const currentInputValue: string = this.inputEl.value;
 		let insertedEndPosition = 0;
 
-		const suggestionItem = this.fileMap.get(item);
+		// Detect if we're in embed mode (![[) by looking at the 3 chars before the lastInputStart
+		const isEmbedMode = this.inputEl.value.slice(cursorPosition - this.lastInput.length - 3, cursorPosition - this.lastInput.length) === '![[';
 
-		if (suggestionItem !== undefined && suggestionItem.file !== undefined) {
-			if (suggestionItem.type === FileSuggestionType.File) {
-				insertedEndPosition = this.makeLinkObsidianMethod(
-					suggestionItem.file,
-					currentInputValue,
-					cursorPosition,
-					lastInputLength
-				);
-			} else if (suggestionItem.type === FileSuggestionType.Alias) {
-				insertedEndPosition = this.makeLinkObsidianMethod(
-					suggestionItem.file,
-					currentInputValue,
-					cursorPosition,
-					lastInputLength,
-					item
-				);
-			}
-		} else {
+		if (item.matchType === 'unresolved') {
 			insertedEndPosition = this.makeLinkManually(
 				currentInputValue,
-				item.replace(/.md$/, ""),
+				item.displayText.replace(/.md$/, ""),
 				cursorPosition,
 				lastInputLength
 			);
+		} else if (item.matchType === 'heading' || item.matchType === 'block') {
+			// Heading/block selection - use manual link with full path
+			const linkTarget = item.displayText;
+			insertedEndPosition = this.makeLinkManually(
+				currentInputValue,
+				linkTarget,
+				cursorPosition,
+				lastInputLength
+			);
+		} else if (isEmbedMode) {
+			// For embeds we always make the link manually to avoid duplicating '!'
+			insertedEndPosition = this.makeLinkManually(
+				currentInputValue,
+				item.displayText,
+				cursorPosition,
+				lastInputLength
+			);
+		} else {
+			// Existing file
+			const obsidianFile = this.app.vault.getAbstractFileByPath(item.file.path);
+			if (obsidianFile instanceof TFile) {
+				const alias = item.matchType === 'alias' ? item.displayText : undefined;
+				insertedEndPosition = this.makeLinkObsidianMethod(
+					obsidianFile,
+					currentInputValue,
+					cursorPosition,
+					lastInputLength,
+					alias
+				);
+			} else {
+				insertedEndPosition = this.makeLinkManually(
+					currentInputValue,
+					item.displayText,
+					cursorPosition,
+					lastInputLength
+				);
+			}
 		}
 
 		this.inputEl.trigger("input");
@@ -274,17 +475,4 @@ export class SilentFileSuggester extends TextInputSuggest<string> {
 		)}${selectedItem}]]${currentInputElValue.substr(cursorPosition)}`;
 	}
 
-	private getUnresolvedLinkNames(app: App): string[] {
-		const unresolvedLinks: Record<string, Record<string, number>> = app
-			.metadataCache.unresolvedLinks;
-		const unresolvedLinkNames: Set<string> = new Set<string>();
-
-		for (const sourceFileName in unresolvedLinks) {
-			for (const unresolvedLink in unresolvedLinks[sourceFileName]) {
-				unresolvedLinkNames.add(unresolvedLink);
-			}
-		}
-
-		return Array.from(unresolvedLinkNames);
-	}
 }

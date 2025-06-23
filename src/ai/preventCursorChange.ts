@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import type { App } from "obsidian";
 
 export function preventCursorChange(app: App): () => void {
 	const cursor = app.workspace.activeEditor?.editor?.getCursor();

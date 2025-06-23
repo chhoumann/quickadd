@@ -2,10 +2,15 @@ import Fuse from "fuse.js";
 import type { App } from "obsidian";
 import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
+import { replaceRange } from "./utils";
+import QuickAdd from "../../main";
 
-export class SilentTagSuggester extends TextInputSuggest<string> {
+export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
-	private tags: string[];
+	private lastInputStart = 0;
+	private tagSet: Set<string>;
+	private sortedTags: string[];
+	private fuse: Fuse<string>;
 
 	constructor(
 		public app: App,
@@ -13,77 +18,104 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 	) {
 		super(app, inputEl);
 
-		// @ts-expect-error
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call
-		this.tags = Object.keys(app.metadataCache.getTags());
+		this.refreshTagIndex();
+
+		// Listen to metadata cache changes to refresh tag index
+		// Using registerEvent for automatic cleanup when plugin unloads
+		QuickAdd.instance.registerEvent(
+			this.app.metadataCache.on("resolved", () => this.refreshTagIndex())
+		);
+	}
+
+	private refreshTagIndex(): void {
+		// Build and sort the tag list once
+		// @ts-expect-error - getTags is available but not in the type definitions
+		const tagObj = this.app.metadataCache.getTags();
+		const tags = Object.keys(tagObj);
+
+		this.tagSet = new Set(tags);
+
+		// Sort tags: prefer shorter tags first, then alphabetically
+		this.sortedTags = tags.sort((a, b) => {
+			if (a.length !== b.length) {
+				return a.length - b.length;
+			}
+			return a.localeCompare(b);
+		});
+
+		// Setup Fuse for fuzzy search
+		this.fuse = new Fuse(this.sortedTags, {
+			threshold: 0.4,
+			includeScore: true,
+			keys: [""],
+		});
 	}
 
 	getSuggestions(inputStr: string): string[] {
 		if (this.inputEl.selectionStart === null) {
 			return [];
 		}
-		
+
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
+		const inputBeforeCursor: string = inputStr.slice(0, cursorPosition);
 		const tagMatch = TAG_REGEX.exec(inputBeforeCursor);
 
 		if (!tagMatch) {
 			return [];
 		}
 
+		// Reject if we are inside a wikilink ([[ … # … ]])
+		const lastWiki = inputBeforeCursor.lastIndexOf('[[');
+		if (lastWiki !== -1 && lastWiki < tagMatch.index!) {
+			return [];
+		}
+
 		const tagInput: string = tagMatch[1];
 		this.lastInput = tagInput;
-		const suggestions = this.tags.filter((tag) =>
-			tag.toLowerCase().contains(tagInput.toLowerCase())
-		);
+		this.lastInputStart = tagMatch.index! + 1; // +1 to skip the #
 
-		const fuse = new Fuse(suggestions, {
-			findAllMatches: true,
-			threshold: 0.8,
-		});
-		const search = fuse.search(this.lastInput).map((value) => value.item);
+		// Prefix matches first
+		const prefixMatches = this.sortedTags.filter(tag =>
+			tag.toLowerCase().startsWith(tagInput.toLowerCase())
+		).slice(0, 5);
 
-		return search;
+		// Then fuzzy matches
+		const fuzzyResults = this.fuse.search(tagInput)
+			.filter(result => result.score! < 0.8)
+			.map(result => result.item)
+			.slice(0, 10);
+
+		// Combine and deduplicate, preserving prefix match priority
+		const seen = new Set(prefixMatches);
+		const combined = [...prefixMatches];
+
+		for (const tag of fuzzyResults) {
+			if (!seen.has(tag) && combined.length < 15) {
+				combined.push(tag);
+				seen.add(tag);
+			}
+		}
+
+		return combined;
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
-		el.setText(item);
+		// Use highlighting to show why this item matches
+		const highlighted = this.renderMatch(item, this.lastInput);
+		el.innerHTML = highlighted;
 	}
 
 	selectSuggestion(item: string): void {
-		if (!this.inputEl.selectionStart) return;
+		if (this.inputEl.selectionStart === null) return;
 
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const lastInputLength: number = this.lastInput.length;
-		const currentInputValue: string = this.inputEl.value;
-		let insertedEndPosition = 0;
+		const replaceStart = this.lastInputStart;
+		const replaceEnd = cursorPosition;
 
-		this.inputEl.value = this.getNewInputValueForTag(
-			currentInputValue,
-			item,
-			cursorPosition,
-			lastInputLength
-		);
-		insertedEndPosition =
-			cursorPosition - lastInputLength + item.length - 1;
-
-		this.inputEl.trigger("input");
+		// Replace the partial tag with the complete tag
+		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
 		this.close();
-		this.inputEl.setSelectionRange(
-			insertedEndPosition,
-			insertedEndPosition
-		);
-	}
-
-	private getNewInputValueForTag(
-		currentInputElValue: string,
-		selectedItem: string,
-		cursorPosition: number,
-		lastInputLength: number
-	) {
-		return `${currentInputElValue.substr(
-			0,
-			cursorPosition - lastInputLength - 1
-		)}${selectedItem}${currentInputElValue.substr(cursorPosition)}`;
 	}
 }
+
+
