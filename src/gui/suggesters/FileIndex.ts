@@ -74,6 +74,8 @@ export class FileIndex {
 	private isIndexing = false;
 	private indexPromise: Promise<void> | null = null;
 	private reindexTimeout: number | null = null;
+	private fuseUpdateTimeout: number | null = null;
+	private pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'> = new Map();
 
 	protected constructor(app: App, plugin: Plugin) {
 		this.app = app;
@@ -284,14 +286,14 @@ export class FileIndex {
 	private addFile(file: TFile): void {
 		const indexedFile = this.createIndexedFile(file);
 		this.fileMap.set(file.path, indexedFile);
-		this.updateFuseIndex();
+		this.scheduleFuseUpdate(file.path, 'add');
 	}
 
 	private updateFile(file: TFile): void {
 		// Incremental update for single file - more efficient than full reindex
 		const indexedFile = this.createIndexedFile(file);
 		this.fileMap.set(file.path, indexedFile);
-		this.updateFuseIndex();
+		this.scheduleFuseUpdate(file.path, 'update');
 		this.updateUnresolvedLinks();
 	}
 
@@ -301,13 +303,77 @@ export class FileIndex {
 
 	private removeFileByPath(path: string): void {
 		this.fileMap.delete(path);
-		this.updateFuseIndex();
+		this.scheduleFuseUpdate(path, 'remove');
 	}
 
 	private updateFuseIndex(): void {
 		const files = Array.from(this.fileMap.values());
 		this.fuseStrict.setCollection(files);
 		this.fuseRelaxed.setCollection(files);
+	}
+
+	private scheduleFuseUpdate(path: string, operation: 'add' | 'update' | 'remove'): void {
+		// If we're doing a full reindex, don't bother with incremental updates
+		if (this.isIndexing) return;
+
+		// Store the pending update
+		this.pendingFuseUpdates.set(path, operation);
+
+		// Clear existing timeout
+		if (this.fuseUpdateTimeout !== null) {
+			clearTimeout(this.fuseUpdateTimeout);
+		}
+
+		// Debounce updates - wait 100ms to batch multiple operations
+		this.fuseUpdateTimeout = window.setTimeout(() => {
+			this.processPendingFuseUpdates();
+		}, 100);
+	}
+
+	private processPendingFuseUpdates(): void {
+		if (this.pendingFuseUpdates.size === 0) return;
+
+		// If we have too many pending updates, just do a full rebuild
+		// This threshold prevents performance degradation with many individual updates
+		if (this.pendingFuseUpdates.size > 20) {
+			this.updateFuseIndex();
+			this.pendingFuseUpdates.clear();
+			return;
+		}
+
+		// Process each pending update
+		for (const [path, operation] of this.pendingFuseUpdates) {
+			switch (operation) {
+				case 'add': {
+					const file = this.fileMap.get(path);
+					if (file) {
+						this.fuseStrict.add(file);
+						this.fuseRelaxed.add(file);
+					}
+					break;
+				}
+				case 'update': {
+					// For updates, we need to remove the old version first
+					// Fuse doesn't have a direct update method
+					this.fuseStrict.remove((doc) => doc.path === path);
+					this.fuseRelaxed.remove((doc) => doc.path === path);
+					
+					const file = this.fileMap.get(path);
+					if (file) {
+						this.fuseStrict.add(file);
+						this.fuseRelaxed.add(file);
+					}
+					break;
+				}
+				case 'remove': {
+					this.fuseStrict.remove((doc) => doc.path === path);
+					this.fuseRelaxed.remove((doc) => doc.path === path);
+					break;
+				}
+			}
+		}
+
+		this.pendingFuseUpdates.clear();
 	}
 
 	private updateUnresolvedLinks(): void {
