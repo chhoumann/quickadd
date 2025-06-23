@@ -2,13 +2,27 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FileIndex } from './FileIndex';
 import type { App, TFile, Vault, MetadataCache, Workspace } from 'obsidian';
 
+// Test-specific subclass that allows resetting the singleton
+class TestableFileIndex extends FileIndex {
+	static reset(): void {
+		if (TestableFileIndex.instance) {
+			// Clear any pending timeouts
+			if ((TestableFileIndex.instance as any).reindexTimeout !== null) {
+				clearTimeout((TestableFileIndex.instance as any).reindexTimeout);
+			}
+			// Clear the instance
+			TestableFileIndex.instance = null as any;
+		}
+	}
+}
+
 // Mock Obsidian types
 const createMockApp = (): App => {
 	const mockFiles: TFile[] = [];
 	
 	return {
 		vault: {
-			getMarkdownFiles: () => mockFiles,
+			getMarkdownFiles: vi.fn(() => mockFiles),
 			getAbstractFileByPath: (path: string) => mockFiles.find(f => f.path === path),
 			getRoot: () => ({ path: '' }),
 			on: vi.fn(),
@@ -38,9 +52,13 @@ describe('FileIndex', () => {
 
 	beforeEach(() => {
 		mockApp = createMockApp();
-		// Reset singleton
-		(FileIndex as any).instance = null;
-		fileIndex = FileIndex.getInstance(mockApp);
+		// Create a mock plugin with registerEvent
+		const mockPlugin = {
+			registerEvent: vi.fn((eventRef) => eventRef)
+		} as any;
+		// Reset singleton using the test subclass
+		TestableFileIndex.reset();
+		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
 	});
 
 	describe('scoring system', () => {

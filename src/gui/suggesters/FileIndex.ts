@@ -1,4 +1,4 @@
-import type { App, HeadingCache, BlockCache } from "obsidian";
+import type { App, Plugin } from "obsidian";
 import { TFile } from "obsidian";
 import Fuse from "fuse.js";
 import { sanitizeHeading } from "./utils";
@@ -63,8 +63,9 @@ class LRUCache<T> {
 }
 
 export class FileIndex {
-	private static instance: FileIndex;
+	protected static instance: FileIndex;
 	private app: App;
+	private plugin: Plugin;
 	private fileMap: Map<string, IndexedFile> = new Map();
 	private fuseStrict: Fuse<IndexedFile>;
 	private fuseRelaxed: Fuse<IndexedFile>;
@@ -72,9 +73,11 @@ export class FileIndex {
 	private unresolvedLinks: Set<string> = new Set();
 	private isIndexing = false;
 	private indexPromise: Promise<void> | null = null;
+	private reindexTimeout: number | null = null;
 
-	private constructor(app: App) {
+	protected constructor(app: App, plugin: Plugin) {
 		this.app = app;
+		this.plugin = plugin;
 		
 		const fuseConfig = {
 			keys: [
@@ -101,60 +104,73 @@ export class FileIndex {
 		this.setupEventListeners();
 	}
 
-	static getInstance(app: App): FileIndex {
+	static getInstance(app: App, plugin: Plugin): FileIndex {
 		if (!FileIndex.instance) {
-			FileIndex.instance = new FileIndex(app);
+			FileIndex.instance = new FileIndex(app, plugin);
 		}
 		return FileIndex.instance;
 	}
 
+
 	private setupEventListeners(): void {
 		// Track recently opened files
-		this.app.workspace.on('file-open', (file) => {
-			if (file) {
-				this.recentFiles.set(file.path, Date.now());
-				// Update openedAt in our index
-				const indexedFile = this.fileMap.get(file.path);
-				if (indexedFile) {
-					indexedFile.openedAt = Date.now();
+		this.plugin.registerEvent(
+			this.app.workspace.on('file-open', (file) => {
+				if (file) {
+					this.recentFiles.set(file.path, Date.now());
+					// Update openedAt in our index
+					const indexedFile = this.fileMap.get(file.path);
+					if (indexedFile) {
+						indexedFile.openedAt = Date.now();
+					}
 				}
-			}
-		});
+			})
+		);
 
 		// Incremental metadata updates for better performance
-		this.app.metadataCache.on('changed', (file) => {
-			if (file instanceof TFile && file.extension === 'md') {
-				this.updateFile(file);
-			}
-		});
+		this.plugin.registerEvent(
+			this.app.metadataCache.on('changed', (file) => {
+				if (file instanceof TFile && file.extension === 'md') {
+					this.updateFile(file);
+				}
+			})
+		);
 
 		// Fallback for resolved event (less frequent, full reindex only if needed)
-		this.app.metadataCache.on('resolved', () => {
-			// Only schedule reindex if we don't have any files indexed yet
-			if (this.fileMap.size === 0) {
-				this.scheduleReindex();
-			}
-		});
+		this.plugin.registerEvent(
+			this.app.metadataCache.on('resolved', () => {
+				// Only schedule reindex if we don't have any files indexed yet
+				if (this.fileMap.size === 0) {
+					this.scheduleReindex();
+				}
+			})
+		);
 
 		// Handle file system changes
-		this.app.vault.on('create', (file) => {
-			if (file instanceof TFile && file.extension === 'md') {
-				this.addFile(file);
-			}
-		});
+		this.plugin.registerEvent(
+			this.app.vault.on('create', (file) => {
+				if (file instanceof TFile && file.extension === 'md') {
+					this.addFile(file);
+				}
+			})
+		);
 
-		this.app.vault.on('delete', (file) => {
-			if (file instanceof TFile) {
-				this.removeFile(file);
-			}
-		});
+		this.plugin.registerEvent(
+			this.app.vault.on('delete', (file) => {
+				if (file instanceof TFile) {
+					this.removeFile(file);
+				}
+			})
+		);
 
-		this.app.vault.on('rename', (file, oldPath) => {
-			if (file instanceof TFile && file.extension === 'md') {
-				this.removeFileByPath(oldPath);
-				this.addFile(file);
-			}
-		});
+		this.plugin.registerEvent(
+			this.app.vault.on('rename', (file, oldPath) => {
+				if (file instanceof TFile && file.extension === 'md') {
+					this.removeFileByPath(oldPath);
+					this.addFile(file);
+				}
+			})
+		);
 	}
 
 	async ensureIndexed(): Promise<void> {
@@ -169,14 +185,16 @@ export class FileIndex {
 
 	private scheduleReindex(): void {
 		// Debounce reindexing
-		clearTimeout((this as any).reindexTimeout);
-		(this as any).reindexTimeout = setTimeout(() => {
+		if (this.reindexTimeout !== null) {
+			clearTimeout(this.reindexTimeout);
+		}
+		this.reindexTimeout = window.setTimeout(() => {
 			this.reindex();
 		}, 500);
 	}
 
 	private async reindex(): Promise<void> {
-		if (this.isIndexing) return this.indexPromise!;
+		if (this.isIndexing && this.indexPromise) return this.indexPromise;
 
 		this.isIndexing = true;
 		this.indexPromise = this.performReindex();

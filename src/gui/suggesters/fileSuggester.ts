@@ -2,9 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
-import { TFile, normalizePath } from "obsidian";
+import { TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
+import QuickAdd from "../../main";
 
 export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
@@ -16,7 +17,7 @@ export class SilentFileSuggester extends TextInputSuggest<SearchResult> {
 	) {
 		super(app, inputEl);
 
-		this.fileIndex = FileIndex.getInstance(app);
+		this.fileIndex = FileIndex.getInstance(app, QuickAdd.instance);
 		
 		// Initialize index in background
 		this.fileIndex.ensureIndexed();
