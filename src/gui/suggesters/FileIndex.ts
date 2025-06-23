@@ -612,4 +612,11 @@ export class FileIndex {
 		return file.blockIds;
 	}
 
+	/**
+	 * Get the count of indexed files (for testing)
+	 */
+	getIndexedFileCount(): number {
+		return this.fileMap.size;
+	}
+
 }
