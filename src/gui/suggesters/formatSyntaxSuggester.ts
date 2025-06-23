@@ -22,7 +22,7 @@ import {
 	TIME_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 import type QuickAdd from "../../main";
-import { replaceRange, getTextBeforeCursor } from "./utils";
+import { replaceRange } from "./utils";
 
 enum FormatSyntaxToken {
 	Date,

@@ -1,4 +1,5 @@
-import { Component, MarkdownRenderer, Modal, App } from "obsidian";
+import type { App } from "obsidian";
+import { Component, MarkdownRenderer, Modal } from "obsidian";
 import { log } from "src/logger/logManager";
 
 type Release = {

@@ -1,4 +1,5 @@
-import { Modal, Setting, TextAreaComponent, debounce, App } from "obsidian";
+import type { App } from "obsidian";
+import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";

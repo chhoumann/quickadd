@@ -1,5 +1,6 @@
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
-import { TFile, App } from "obsidian";
+import type { App } from "obsidian";
+import { TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";

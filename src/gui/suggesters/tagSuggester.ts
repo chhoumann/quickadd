@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
 import { replaceRange } from "./utils";
+import QuickAdd from "../../main";
 
 export class SilentTagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
@@ -18,9 +19,12 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		super(app, inputEl);
 
 		this.refreshTagIndex();
-		
+
 		// Listen to metadata cache changes to refresh tag index
-		this.app.metadataCache.on("resolved", this.refreshTagIndex.bind(this));
+		// Using registerEvent for automatic cleanup when plugin unloads
+		QuickAdd.instance.registerEvent(
+			this.app.metadataCache.on("resolved", () => this.refreshTagIndex())
+		);
 	}
 
 	private refreshTagIndex(): void {
@@ -28,9 +32,9 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		// @ts-expect-error - getTags is available but not in the type definitions
 		const tagObj = this.app.metadataCache.getTags();
 		const tags = Object.keys(tagObj);
-		
+
 		this.tagSet = new Set(tags);
-		
+
 		// Sort tags: prefer shorter tags first, then alphabetically
 		this.sortedTags = tags.sort((a, b) => {
 			if (a.length !== b.length) {
@@ -51,7 +55,7 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		if (this.inputEl.selectionStart === null) {
 			return [];
 		}
-		
+
 		const cursorPosition: number = this.inputEl.selectionStart;
 		const inputBeforeCursor: string = inputStr.slice(0, cursorPosition);
 		const tagMatch = TAG_REGEX.exec(inputBeforeCursor);
@@ -84,7 +88,7 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		// Combine and deduplicate, preserving prefix match priority
 		const seen = new Set(prefixMatches);
 		const combined = [...prefixMatches];
-		
+
 		for (const tag of fuzzyResults) {
 			if (!seen.has(tag) && combined.length < 15) {
 				combined.push(tag);
@@ -111,11 +115,6 @@ export class SilentTagSuggester extends TextInputSuggest<string> {
 		// Replace the partial tag with the complete tag
 		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
 		this.close();
-	}
-
-	destroy(): void {
-		super.destroy();
-		this.app.metadataCache.off("resolved", this.refreshTagIndex.bind(this));
 	}
 }
 

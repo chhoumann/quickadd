@@ -1,4 +1,5 @@
-import { Modal, Setting, TextAreaComponent, App } from "obsidian";
+import type { App } from "obsidian";
+import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { QuickAddSettings } from "src/quickAddSettingsTab";
 import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
 import QuickAdd from "src/main";

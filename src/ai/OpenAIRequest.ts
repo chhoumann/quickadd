@@ -1,4 +1,5 @@
-import { requestUrl, App } from "obsidian";
+import type { App } from "obsidian";
+import { requestUrl } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
 import { getTokenCount } from "./AIAssistant";
