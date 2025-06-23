@@ -62,6 +62,10 @@ class LRUCache<T> {
 	}
 }
 
+// Constants for optimization thresholds
+const MAX_INCREMENTAL_UPDATES = 20;
+const FUSE_UPDATE_DEBOUNCE_MS = 100;
+
 export class FileIndex {
 	protected static instance: FileIndex;
 	private app: App;
@@ -73,8 +77,8 @@ export class FileIndex {
 	private unresolvedLinks: Set<string> = new Set();
 	private isIndexing = false;
 	private indexPromise: Promise<void> | null = null;
-	private reindexTimeout: number | null = null;
-	private fuseUpdateTimeout: number | null = null;
+	private reindexTimeout: ReturnType<typeof setTimeout> | null = null;
+	private fuseUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 	private pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'> = new Map();
 
 	protected constructor(app: App, plugin: Plugin) {
@@ -190,7 +194,7 @@ export class FileIndex {
 		if (this.reindexTimeout !== null) {
 			clearTimeout(this.reindexTimeout);
 		}
-		this.reindexTimeout = window.setTimeout(() => {
+		this.reindexTimeout = globalThis.setTimeout(() => {
 			this.reindex();
 		}, 500);
 	}
@@ -316,26 +320,48 @@ export class FileIndex {
 		// If we're doing a full reindex, don't bother with incremental updates
 		if (this.isIndexing) return;
 
-		// Store the pending update
-		this.pendingFuseUpdates.set(path, operation);
+		// Handle operation sequences to prevent duplicates
+		const existingOp = this.pendingFuseUpdates.get(path);
+		if (existingOp) {
+			// State machine to handle operation sequences
+			if (existingOp === 'add' && operation === 'remove') {
+				// add + remove = no-op (file was created then deleted)
+				this.pendingFuseUpdates.delete(path);
+				return;
+			} else if (existingOp === 'remove' && operation === 'add') {
+				// remove + add = update (common in rename operations)
+				this.pendingFuseUpdates.set(path, 'update');
+			} else {
+				// For other sequences, keep the latest operation
+				this.pendingFuseUpdates.set(path, operation);
+			}
+		} else {
+			this.pendingFuseUpdates.set(path, operation);
+		}
 
 		// Clear existing timeout
 		if (this.fuseUpdateTimeout !== null) {
 			clearTimeout(this.fuseUpdateTimeout);
 		}
 
-		// Debounce updates - wait 100ms to batch multiple operations
-		this.fuseUpdateTimeout = window.setTimeout(() => {
+		// Debounce updates - use globalThis for cross-platform compatibility
+		this.fuseUpdateTimeout = globalThis.setTimeout(() => {
 			this.processPendingFuseUpdates();
-		}, 100);
+		}, FUSE_UPDATE_DEBOUNCE_MS);
 	}
 
 	private processPendingFuseUpdates(): void {
 		if (this.pendingFuseUpdates.size === 0) return;
+		
+		// Guard against concurrent full reindex
+		if (this.isIndexing) {
+			this.pendingFuseUpdates.clear();
+			return;
+		}
 
 		// If we have too many pending updates, just do a full rebuild
 		// This threshold prevents performance degradation with many individual updates
-		if (this.pendingFuseUpdates.size > 20) {
+		if (this.pendingFuseUpdates.size > MAX_INCREMENTAL_UPDATES) {
 			this.updateFuseIndex();
 			this.pendingFuseUpdates.clear();
 			return;
@@ -345,6 +371,10 @@ export class FileIndex {
 		for (const [path, operation] of this.pendingFuseUpdates) {
 			switch (operation) {
 				case 'add': {
+					// Always remove first to prevent duplicates
+					this.fuseStrict.remove((doc) => doc.path === path);
+					this.fuseRelaxed.remove((doc) => doc.path === path);
+					
 					const file = this.fileMap.get(path);
 					if (file) {
 						this.fuseStrict.add(file);

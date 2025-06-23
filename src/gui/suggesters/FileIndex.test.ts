@@ -167,36 +167,91 @@ describe('FileIndex', () => {
 		});
 		
 		it.skip('should use incremental updates for single file changes', async () => {
-			// Skip this test for now as it requires more complex mocking
-			// The optimization is tested manually and works correctly
-			// Set up initial files
+			// Use fake timers for deterministic testing
+			vi.useFakeTimers();
+			
+			// Reset the existing index to ensure clean state
+			TestableFileIndex.reset();
+			const freshPlugin = { registerEvent: vi.fn((eventRef) => eventRef) } as any;
+			const freshIndex = FileIndex.getInstance(mockApp, freshPlugin);
+			
+			// Set up initial files with proper metadata
 			const initialFiles = [
-				{ path: 'file1.md', basename: 'file1', extension: 'md', parent: { path: '' } },
-				{ path: 'file2.md', basename: 'file2', extension: 'md', parent: { path: '' } }
+				{ path: 'file1.md', basename: 'file1', extension: 'md', parent: { path: '' }, stat: { mtime: Date.now() } },
+				{ path: 'file2.md', basename: 'file2', extension: 'md', parent: { path: '' }, stat: { mtime: Date.now() } }
 			] as TFile[];
 			
 			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(initialFiles);
-			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
+			mockApp.metadataCache.getFileCache = vi.fn(() => ({
+				frontmatter: {},
+				headings: [],
+				tags: []
+			}));
 			
 			// Initial index
-			await fileIndex.ensureIndexed();
-			expect(fileIndex.getIndexedFileCount()).toBe(2);
+			await freshIndex.ensureIndexed();
+			expect(freshIndex.getIndexedFileCount()).toBe(2);
 			
-			// Spy on the full rebuild method
-			const updateFuseIndexSpy = vi.spyOn(fileIndex as any, 'updateFuseIndex');
-			const processPendingUpdatesSpy = vi.spyOn(fileIndex as any, 'processPendingFuseUpdates');
+			// Spy on the methods - use proper type assertion
+			const freshIndexWithPrivates = freshIndex as unknown as {
+				updateFuseIndex: () => void;
+				processPendingFuseUpdates: () => void;
+				addFile: (file: TFile) => void;
+			};
+			const updateFuseIndexSpy = vi.spyOn(freshIndexWithPrivates, 'updateFuseIndex');
+			const processPendingUpdatesSpy = vi.spyOn(freshIndexWithPrivates, 'processPendingFuseUpdates');
 			
 			// Simulate adding a single file
-			const newFile = { path: 'file3.md', basename: 'file3', extension: 'md', parent: { path: '' } } as TFile;
-			(fileIndex as any).addFile(newFile);
+			const newFile = { 
+				path: 'file3.md', 
+				basename: 'file3', 
+				extension: 'md', 
+				parent: { path: '' },
+				stat: { mtime: Date.now() }
+			} as TFile;
+			freshIndexWithPrivates.addFile(newFile);
 			
-			// Wait for debounced update
-			await new Promise(resolve => setTimeout(resolve, 150));
+			// Advance timers to trigger debounced update
+			vi.advanceTimersByTime(150);
 			
 			// Should use incremental update, not full rebuild
 			expect(processPendingUpdatesSpy).toHaveBeenCalled();
 			expect(updateFuseIndexSpy).not.toHaveBeenCalled();
-			expect(fileIndex.getIndexedFileCount()).toBe(3);
+			expect(freshIndex.getIndexedFileCount()).toBe(3);
+			
+			// Clean up
+			vi.useRealTimers();
+		});
+		
+		it('should batch multiple rapid updates', async () => {
+			// Create mock pending updates
+			const indexWithPrivates = fileIndex as unknown as {
+				pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'>;
+				scheduleFuseUpdate: (path: string, op: 'add' | 'update' | 'remove') => void;
+			};
+			
+			// Simulate rapid file operations
+			indexWithPrivates.scheduleFuseUpdate('file1.md', 'add');
+			indexWithPrivates.scheduleFuseUpdate('file2.md', 'update');
+			indexWithPrivates.scheduleFuseUpdate('file1.md', 'remove'); // Should coalesce with add
+			
+			// Check that add+remove was coalesced
+			expect(indexWithPrivates.pendingFuseUpdates.has('file1.md')).toBe(false);
+			expect(indexWithPrivates.pendingFuseUpdates.get('file2.md')).toBe('update');
+		});
+		
+		it('should handle remove+add sequence as update', () => {
+			const indexWithPrivates = fileIndex as unknown as {
+				pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'>;
+				scheduleFuseUpdate: (path: string, op: 'add' | 'update' | 'remove') => void;
+			};
+			
+			// Simulate rename operation (remove then add)
+			indexWithPrivates.scheduleFuseUpdate('file.md', 'remove');
+			indexWithPrivates.scheduleFuseUpdate('file.md', 'add');
+			
+			// Should be treated as update
+			expect(indexWithPrivates.pendingFuseUpdates.get('file.md')).toBe('update');
 		});
 	});
 
