@@ -160,6 +160,57 @@ describe('FileSuggester - Issue #838 and #839', () => {
             expect(results[0].file.basename).toBe('gbtJAG5KAO1NU4KdDKzMe');
         });
     });
+    
+    describe('Basename-exact vs Alias-exact ranking', () => {
+        it('should rank basename-exact match before alias-exact match', async () => {
+            // Reset the singleton instance
+            (FileIndex as any).instance = null;
+            
+            // Create files where one has the query as basename, another as alias
+            const testFiles = [
+                createMockFile('Notes/MyFile.md', 'MyFile'),
+                createMockFile('Notes/Test.md', 'Test'), // Will have 'MyFile' as alias
+            ];
+            
+            // Mock metadata to add alias
+            vi.mocked(mockApp.metadataCache.getFileCache).mockImplementation((file: TFile) => {
+                if (file.basename === 'Test') {
+                    return {
+                        frontmatter: {
+                            aliases: ['MyFile'] // Exact match for query
+                        }
+                    };
+                }
+                return null;
+            });
+            
+            vi.mocked(mockApp.vault.getFiles).mockReturnValue(testFiles);
+            vi.mocked(mockApp.vault.getMarkdownFiles).mockReturnValue(testFiles);
+            
+            const testIndex = FileIndex.getInstance(mockApp as App, mockPlugin);
+            await testIndex.ensureIndexed();
+            
+            const query = 'MyFile';
+            const results = testIndex.search(query);
+            
+            // Should find both files
+            expect(results.length).toBeGreaterThanOrEqual(2);
+            
+            // Basename-exact should be first
+            expect(results[0].file.basename).toBe('MyFile');
+            expect(results[0].matchType).toBe('exact');
+            
+            // Alias-exact should be second
+            const aliasMatch = results.find(r => r.file.basename === 'Test');
+            expect(aliasMatch).toBeDefined();
+            expect(aliasMatch!.matchType).toBe('alias');
+            
+            // Verify ordering
+            const basenameIndex = results.findIndex(r => r.file.basename === 'MyFile');
+            const aliasIndex = results.findIndex(r => r.file.basename === 'Test');
+            expect(basenameIndex).toBeLessThan(aliasIndex);
+        });
+    });
 });
 
 describe('FileSuggester - Budget search example', () => {
@@ -216,10 +267,13 @@ describe('FileSuggester - Budget search example', () => {
     });
 
     it('should prioritize basename matches over alias matches for "budget"', () => {
+        // Mock console.log to avoid output during tests
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        
         const query = 'budget';
         const results = fileIndex.search(query);
         
-        // Log for debugging
+        // Log for debugging (now mocked)
         console.log('Budget search results:', results.map(r => ({
             basename: r.file.basename,
             score: r.score,
@@ -242,5 +296,8 @@ describe('FileSuggester - Budget search example', () => {
         aliasMatches.forEach(match => {
             expect(match.score).toBeGreaterThan(results[budgetFileIndex].score); // Higher score = worse ranking
         });
+        
+        // Restore console.log
+        consoleSpy.mockRestore();
     });
 });

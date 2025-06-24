@@ -66,6 +66,9 @@ class LRUCache<T> {
 const MAX_INCREMENTAL_UPDATES = 20;
 const FUSE_UPDATE_DEBOUNCE_MS = 100;
 
+// Word boundary regex for substring matching
+const WORD_BOUNDARY_REGEX = /\w/;
+
 export class FileIndex {
 	protected static instance: FileIndex;
 	private app: App;
@@ -428,9 +431,12 @@ export class FileIndex {
 
 		// Track which files we've already added to avoid duplicates
 		const addedPaths = new Set<string>();
+		
+		// Pre-create array from fileMap for better performance
+		const allFiles = Array.from(this.fileMap.values());
 
 		// 1. Exact matches (basename and aliases) - Tier 0
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			if (file.basename.toLowerCase() === queryLower) {
 				results.push({
 					file,
@@ -441,21 +447,28 @@ export class FileIndex {
 				addedPaths.add(file.path);
 			}
 
+		}
+		
+		// Exact alias matches (separate loop to ensure basename-exact always wins)
+		for (const file of allFiles) {
+			if (addedPaths.has(file.path)) continue;
+			
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase() === queryLower && !addedPaths.has(file.path)) {
+				if (alias.toLowerCase() === queryLower) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, -1000, 'alias'),
+						score: this.calculateScore(file, query, context, -900, 'alias'), // Slightly worse than basename-exact
 						matchType: 'alias',
 						displayText: alias
 					});
 					addedPaths.add(file.path);
+					break;
 				}
 			}
 		}
 
 		// 1.5. Prefix matches (basename) - Tier 1
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			if (file.basename.toLowerCase().startsWith(queryLower) && 
 				file.basename.toLowerCase() !== queryLower && // not exact (already added)
 				!addedPaths.has(file.path)) {
@@ -470,7 +483,7 @@ export class FileIndex {
 		}
 
 		// 2. Prefix alias matches - Tier 1
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			for (const alias of file.aliases) {
 				if (alias.toLowerCase().startsWith(queryLower) && 
 					alias.toLowerCase() !== queryLower &&  // not exact (already added)
@@ -487,14 +500,14 @@ export class FileIndex {
 		}
 
 		// 2.5. Substring-basename matches (word boundary) - Tier 2
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			if (addedPaths.has(file.path)) continue;
 			
 			const idx = file.basename.toLowerCase().indexOf(queryLower);
 			if (idx > 0) { // not at start (that would be prefix)
 				// Check if match starts at word boundary
 				const charBefore = file.basename[idx - 1];
-				if (!/\w/.test(charBefore)) { // Previous char is not alphanumeric
+				if (!WORD_BOUNDARY_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
 						score: this.calculateScore(file, query, context, -300, 'fuzzy'), // Between prefix (-500) and fuzzy (0+)
@@ -585,11 +598,6 @@ export class FileIndex {
 			if (recency < 1) score -= 0.10;
 		}
 
-		// Alias exact match boost
-		const queryLower = query.toLowerCase();
-		if (file.aliases.some(alias => alias.toLowerCase() === queryLower)) {
-			score -= 0.30;
-		}
 
 		// Tag overlap boost
 		if (context.currentFile) {
@@ -609,19 +617,37 @@ export class FileIndex {
 		}
 
 		// Length penalty - longer titles are less likely to be what user wants
-		const titleLength = matchType === 'alias' && file.aliases.length > 0 
-			? file.aliases[0].length  // Use the matched alias length
-			: file.basename.length;
+		const queryLower = query.toLowerCase();
+		let titleLength = file.basename.length;
+		
+		// For alias matches, find the actual matched alias to get correct length
+		if (matchType === 'alias' && file.aliases.length > 0) {
+			// Find which alias was matched
+			const matchedAlias = file.aliases.find(alias => 
+				alias.toLowerCase().includes(queryLower)
+			);
+			if (matchedAlias) {
+				titleLength = matchedAlias.length;
+			}
+		}
 		if (titleLength > 15) {
 			score += (titleLength - 15) * 0.02;
 		}
 
 		// Position bonus - earlier matches are better
-		const queryLowerForPos = query.toLowerCase();
-		const textToSearch = matchType === 'alias' && file.aliases.length > 0
-			? file.aliases[0].toLowerCase()
-			: file.basename.toLowerCase();
-		const pos = textToSearch.indexOf(queryLowerForPos);
+		let textToSearch = file.basename.toLowerCase();
+		
+		// For alias matches, find the actual matched alias for position calculation
+		if (matchType === 'alias' && file.aliases.length > 0) {
+			const matchedAlias = file.aliases.find(alias => 
+				alias.toLowerCase().includes(queryLower)
+			);
+			if (matchedAlias) {
+				textToSearch = matchedAlias.toLowerCase();
+			}
+		}
+		
+		const pos = textToSearch.indexOf(queryLower);
 		if (pos >= 0) {
 			score += pos * 0.05; // Later position = higher score = worse ranking
 		}
@@ -640,8 +666,9 @@ export class FileIndex {
 			// Global heading search - search all files with performance limit
 			let resultCount = 0;
 			const maxResults = 200; // Performance guard for large vaults
+			const allFiles = Array.from(this.fileMap.values());
 			
-			for (const file of this.fileMap.values()) {
+			for (const file of allFiles) {
 				if (resultCount >= maxResults) break;
 				
 				for (const heading of file.headings) {
@@ -687,9 +714,12 @@ export class FileIndex {
 		const results: SearchResult[] = [];
 		const queryLower = query.toLowerCase();
 		const addedPaths = new Set<string>();
+		
+		// Pre-create array from fileMap for better performance
+		const allFiles = Array.from(this.fileMap.values());
 
 		// 1. Exact matches (basename and aliases) - Tier 0
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			if (file.basename.toLowerCase() === queryLower) {
 				results.push({
 					file,
@@ -700,21 +730,28 @@ export class FileIndex {
 				addedPaths.add(file.path);
 			}
 
+		}
+		
+		// Exact alias matches (separate loop to ensure basename-exact always wins)
+		for (const file of allFiles) {
+			if (addedPaths.has(file.path)) continue;
+			
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase() === queryLower && !addedPaths.has(file.path)) {
+				if (alias.toLowerCase() === queryLower) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, -1000, 'alias'),
+						score: this.calculateScore(file, query, context, -900, 'alias'), // Slightly worse than basename-exact
 						matchType: 'alias',
 						displayText: alias
 					});
 					addedPaths.add(file.path);
+					break;
 				}
 			}
 		}
 
 		// 1.5. Prefix matches (basename) - Tier 1
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			if (file.basename.toLowerCase().startsWith(queryLower) && 
 				file.basename.toLowerCase() !== queryLower &&
 				!addedPaths.has(file.path)) {
@@ -729,7 +766,7 @@ export class FileIndex {
 		}
 
 		// 2. Prefix alias matches - Tier 1
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			for (const alias of file.aliases) {
 				if (alias.toLowerCase().startsWith(queryLower) && 
 					alias.toLowerCase() !== queryLower &&
@@ -746,14 +783,14 @@ export class FileIndex {
 		}
 
 		// 2.5. Substring-basename matches (word boundary) - Tier 2
-		for (const file of this.fileMap.values()) {
+		for (const file of allFiles) {
 			if (addedPaths.has(file.path)) continue;
 			
 			const idx = file.basename.toLowerCase().indexOf(queryLower);
 			if (idx > 0) { // not at start (that would be prefix)
 				// Check if match starts at word boundary
 				const charBefore = file.basename[idx - 1];
-				if (!/\w/.test(charBefore)) { // Previous char is not alphanumeric
+				if (!WORD_BOUNDARY_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
 						score: this.calculateScore(file, query, context, -300, 'fuzzy'),
