@@ -69,6 +69,39 @@ const FUSE_UPDATE_DEBOUNCE_MS = 100;
 // Regex to test if a character is alphanumeric (used for word boundary detection)
 const ALPHANUMERIC_REGEX = /\w/;
 
+// Configurable search ranking weights
+export const SearchWeights = {
+	base: {
+		basenameExact: -1000,
+		aliasExact: -900,
+		basenamePrefix: -500,
+		aliasPrefix: -500,
+		substringBasename: -300,
+		fuzzyMatch: 0,
+		unresolvedLink: 1000,
+	},
+	boosts: {
+		sameFolder: -0.15,
+		recency: -0.10,
+		tagOverlap: -0.05,
+		tagOverlapMax: -0.20, // Max boost for multiple tag overlaps
+	},
+	penalties: {
+		titleLengthThreshold: 15,
+		titleLengthMultiplier: 0.02,
+		aliasMinPenalty: 0.05,
+		aliasMaxPenalty: 0.60,
+		aliasLengthMultiplier: 0.04,
+		positionMultiplier: 0.05,
+	},
+	thresholds: {
+		recencyDays: 1, // Files opened within this many days get recency boost
+		fuzzyRelaxCount: 5, // Relax fuzzy threshold if fewer than this many results
+	}
+} as const;
+
+export type SearchWeightsConfig = typeof SearchWeights;
+
 export class FileIndex {
 	protected static instance: FileIndex;
 	private app: App;
@@ -83,6 +116,7 @@ export class FileIndex {
 	private reindexTimeout: ReturnType<typeof setTimeout> | null = null;
 	private fuseUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 	private pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'> = new Map();
+	private effectiveWeights: SearchWeightsConfig = SearchWeights;
 
 	protected constructor(app: App, plugin: Plugin) {
 		this.app = app;
@@ -111,6 +145,37 @@ export class FileIndex {
 		});
 
 		this.setupEventListeners();
+		this.updateEffectiveWeights();
+	}
+
+	private updateEffectiveWeights(): void {
+		// Get settings from plugin
+		const settings = (this.plugin as any).settings;
+		const searchRanking = settings?.searchRanking || { mode: "balanced", contextualBoostMultiplier: 1.0 };
+		
+		// Deep clone the default weights
+		this.effectiveWeights = JSON.parse(JSON.stringify(SearchWeights));
+		
+		// Apply contextual boost multiplier
+		const multiplier = searchRanking.contextualBoostMultiplier ?? 1.0;
+		this.effectiveWeights.boosts.sameFolder = this.effectiveWeights.boosts.sameFolder * multiplier;
+		this.effectiveWeights.boosts.recency = this.effectiveWeights.boosts.recency * multiplier;
+		this.effectiveWeights.boosts.tagOverlap = this.effectiveWeights.boosts.tagOverlap * multiplier;
+		this.effectiveWeights.boosts.tagOverlapMax = this.effectiveWeights.boosts.tagOverlapMax * multiplier;
+		
+		// Handle classic mode (disable all smart features)
+		if (searchRanking.mode === "classic") {
+			// Set all boosts to 0
+			Object.keys(this.effectiveWeights.boosts).forEach(key => {
+				(this.effectiveWeights.boosts as any)[key] = 0;
+			});
+			// Disable fuzzy search by making all scores equal
+			this.effectiveWeights.base.basenameExact = 0;
+			this.effectiveWeights.base.aliasExact = 0;
+			this.effectiveWeights.base.basenamePrefix = 0;
+			this.effectiveWeights.base.aliasPrefix = 0;
+			this.effectiveWeights.base.substringBasename = 0;
+		}
 	}
 
 	static getInstance(app: App, plugin: Plugin): FileIndex {
@@ -440,7 +505,7 @@ export class FileIndex {
 			if (file.basename.toLowerCase() === queryLower) {
 				results.push({
 					file,
-					score: this.calculateScore(file, query, context, -1000, 'exact'), // Very negative score for top priority
+					score: this.calculateScore(file, query, context, this.effectiveWeights.base.basenameExact, 'exact'),
 					matchType: 'exact',
 					displayText: file.basename
 				});
@@ -457,7 +522,7 @@ export class FileIndex {
 				if (alias.toLowerCase() === queryLower) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, -900, 'alias'), // Slightly worse than basename-exact
+						score: this.calculateScore(file, query, context, this.effectiveWeights.base.aliasExact, 'alias'),
 						matchType: 'alias',
 						displayText: alias
 					});
@@ -474,7 +539,7 @@ export class FileIndex {
 				!addedPaths.has(file.path)) {
 				results.push({
 					file,
-					score: this.calculateScore(file, query, context, -500, 'fuzzy'), // High priority but below exact
+					score: this.calculateScore(file, query, context, this.effectiveWeights.base.basenamePrefix, 'fuzzy'),
 					matchType: 'fuzzy',
 					displayText: file.basename
 				});
@@ -490,7 +555,7 @@ export class FileIndex {
 					!addedPaths.has(file.path)) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, -500, 'alias'), // Same tier as prefix basename
+						score: this.calculateScore(file, query, context, this.effectiveWeights.base.aliasPrefix, 'alias'),
 						matchType: 'alias',
 						displayText: alias
 					});
@@ -510,7 +575,7 @@ export class FileIndex {
 				if (!ALPHANUMERIC_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, -300, 'fuzzy'), // Between prefix (-500) and fuzzy (0+)
+						score: this.calculateScore(file, query, context, this.effectiveWeights.base.substringBasename, 'fuzzy'),
 						matchType: 'fuzzy',
 						displayText: file.basename
 					});
@@ -523,7 +588,7 @@ export class FileIndex {
 		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
 
 		// Relax threshold if we have too few results
-		if (fuseResults.length < 5) {
+		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
 			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
 		}
 
@@ -542,7 +607,7 @@ export class FileIndex {
 
 			results.push({
 				file: result.item,
-				score: this.calculateScore(result.item, query, context, result.score ?? 0.5, matchType),
+				score: this.calculateScore(result.item, query, context, (result.score ?? 0.5) + this.effectiveWeights.base.fuzzyMatch, matchType),
 				matchType,
 				displayText
 			});
@@ -569,7 +634,7 @@ export class FileIndex {
 							modified: 0,
 							folder: ""
 						},
-						score: 1000, // High positive score to ensure they appear last
+						score: this.effectiveWeights.base.unresolvedLink,
 						matchType: 'unresolved',
 						displayText: unresolvedLink
 					});
@@ -589,13 +654,13 @@ export class FileIndex {
 
 		// Same folder boost
 		if (context.currentFolder && file.folder === context.currentFolder) {
-			score -= 0.15;
+			score += this.effectiveWeights.boosts.sameFolder;
 		}
 
 		// Recent files boost - check openedAt directly from file index
 		if (file.openedAt) {
 			const recency = (Date.now() - file.openedAt) / (1000 * 60 * 60 * 24); // days
-			if (recency < 1) score -= 0.10;
+			if (recency < this.effectiveWeights.thresholds.recencyDays) score += this.effectiveWeights.boosts.recency;
 		}
 
 
@@ -606,7 +671,7 @@ export class FileIndex {
 				const commonTags = file.tags.filter(tag => 
 					currentFileIndexed.tags.includes(tag));
 				if (commonTags.length > 0) {
-					score -= 0.05 * commonTags.length;
+					score += this.effectiveWeights.boosts.tagOverlap * Math.min(commonTags.length, Math.abs(this.effectiveWeights.boosts.tagOverlapMax / this.effectiveWeights.boosts.tagOverlap));
 				}
 			}
 		}
@@ -630,14 +695,14 @@ export class FileIndex {
 		if (matchType === 'alias') {
 			// Length-scaled penalty: minimum 0.05 for short aliases, up to +0.60 for very long aliases
 			// This ensures basename matches still have an edge even for short aliases
-			const lengthPenalty = Math.max(0, (titleLength - 15) * 0.04);
-			const aliasPenalty = Math.min(0.60, 0.05 + lengthPenalty);
+			const lengthPenalty = Math.max(0, (titleLength - this.effectiveWeights.penalties.titleLengthThreshold) * this.effectiveWeights.penalties.aliasLengthMultiplier);
+			const aliasPenalty = Math.min(this.effectiveWeights.penalties.aliasMaxPenalty, this.effectiveWeights.penalties.aliasMinPenalty + lengthPenalty);
 			score += aliasPenalty;
 		}
 		
 		// Additional length penalty for all matches
-		if (titleLength > 15) {
-			score += (titleLength - 15) * 0.02;
+		if (titleLength > this.effectiveWeights.penalties.titleLengthThreshold) {
+			score += (titleLength - this.effectiveWeights.penalties.titleLengthThreshold) * this.effectiveWeights.penalties.titleLengthMultiplier;
 		}
 
 		// Position bonus - earlier matches are better
@@ -655,7 +720,7 @@ export class FileIndex {
 		
 		const pos = textToSearch.indexOf(queryLower);
 		if (pos >= 0) {
-			score += pos * 0.05; // Later position = higher score = worse ranking
+			score += pos * this.effectiveWeights.penalties.positionMultiplier; // Later position = higher score = worse ranking
 		}
 
 		// Don't flatten negative scores - preserve ranking differences
@@ -746,7 +811,7 @@ export class FileIndex {
 				if (alias.toLowerCase() === queryLower) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, -900, 'alias'), // Slightly worse than basename-exact
+						score: this.calculateScore(file, query, context, this.effectiveWeights.base.aliasExact, 'alias'),
 						matchType: 'alias',
 						displayText: alias
 					});
@@ -810,7 +875,7 @@ export class FileIndex {
 
 		// 3. Fuzzy search - Tier 3 and below
 		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
-		if (fuseResults.length < 5) {
+		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
 			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
 		}
 
@@ -827,7 +892,7 @@ export class FileIndex {
 
 			results.push({
 				file: result.item,
-				score: this.calculateScore(result.item, query, context, result.score ?? 0.5, matchType),
+				score: this.calculateScore(result.item, query, context, (result.score ?? 0.5) + this.effectiveWeights.base.fuzzyMatch, matchType),
 				matchType,
 				displayText
 			});
@@ -856,6 +921,13 @@ export class FileIndex {
 	 */
 	getIndexedFileCount(): number {
 		return this.fileMap.size;
+	}
+
+	/**
+	 * Refresh search weights when settings change
+	 */
+	refreshSearchWeights(): void {
+		this.updateEffectiveWeights();
 	}
 
 }

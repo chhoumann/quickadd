@@ -38,6 +38,10 @@ export interface QuickAddSettings {
 		setVersionAfterUpdateModalRelease: boolean;
 		addDefaultAIProviders: boolean;
 	};
+	searchRanking: {
+		mode: "classic" | "balanced" | "contextual";
+		contextualBoostMultiplier: number;
+	};
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
@@ -65,6 +69,10 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		setVersionAfterUpdateModalRelease: false,
 		addDefaultAIProviders: false,
 	},
+	searchRanking: {
+		mode: "balanced",
+		contextualBoostMultiplier: 1.0,
+	},
 };
 
 export class QuickAddSettingsTab extends PluginSettingTab {
@@ -84,6 +92,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addChoicesSetting();
 		this.addUseMultiLineInputPromptSetting();
 		this.addTemplateFolderPathSetting();
+		this.addSearchRankingSettings();
 		this.addAnnounceUpdatesSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
@@ -151,6 +160,58 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 						}
 					})
 			);
+	}
+
+	private addSearchRankingSettings() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Search Ranking Mode");
+		setting.setDesc(
+			"Control how file suggestions are ranked. Classic: alphabetical order. Balanced: smart ranking with moderate context. Contextual: maximum relevance using folder, recency, and tags."
+		);
+		
+		setting.addDropdown((dropdown) => {
+			dropdown
+				.addOption("classic", "Classic (Alphabetical)")
+				.addOption("balanced", "Balanced (Default)")
+				.addOption("contextual", "Contextual (Smart)")
+				.setValue(settingsStore.getState().searchRanking?.mode || "balanced")
+				.onChange((value: "classic" | "balanced" | "contextual") => {
+					const currentSettings = settingsStore.getState();
+					settingsStore.setState({
+						...currentSettings,
+						searchRanking: {
+							...currentSettings.searchRanking,
+							mode: value,
+							contextualBoostMultiplier: value === "classic" ? 0 : value === "contextual" ? 1.5 : 1.0,
+						},
+					});
+				});
+		});
+
+		// Advanced contextual boost slider
+		const contextualSetting = new Setting(this.containerEl);
+		contextualSetting.setName("Contextual Boost Strength");
+		contextualSetting.setDesc(
+			"Fine-tune how much context (folder, recency, tags) affects ranking. 0 = no context, 1 = normal, 2 = double strength."
+		);
+		
+		contextualSetting.addSlider((slider) => {
+			const currentMultiplier = settingsStore.getState().searchRanking?.contextualBoostMultiplier ?? 1.0;
+			slider
+				.setLimits(0, 2, 0.1)
+				.setValue(currentMultiplier)
+				.setDynamicTooltip()
+				.onChange((value) => {
+					const currentSettings = settingsStore.getState();
+					settingsStore.setState({
+						...currentSettings,
+						searchRanking: {
+							...currentSettings.searchRanking,
+							contextualBoostMultiplier: value,
+						},
+					});
+				});
+		});
 	}
 
 	private addTemplateFolderPathSetting() {
