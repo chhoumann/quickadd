@@ -145,38 +145,10 @@ export class FileIndex {
 		});
 
 		this.setupEventListeners();
-		this.updateEffectiveWeights();
+		// Just use the default weights - they're already optimal
+		this.effectiveWeights = SearchWeights;
 	}
 
-	private updateEffectiveWeights(): void {
-		// Get settings from plugin
-		const settings = (this.plugin as any).settings;
-		const searchRanking = settings?.searchRanking || { mode: "balanced", contextualBoostMultiplier: 1.0 };
-		
-		// Deep clone the default weights
-		this.effectiveWeights = JSON.parse(JSON.stringify(SearchWeights));
-		
-		// Apply contextual boost multiplier
-		const multiplier = searchRanking.contextualBoostMultiplier ?? 1.0;
-		this.effectiveWeights.boosts.sameFolder = this.effectiveWeights.boosts.sameFolder * multiplier;
-		this.effectiveWeights.boosts.recency = this.effectiveWeights.boosts.recency * multiplier;
-		this.effectiveWeights.boosts.tagOverlap = this.effectiveWeights.boosts.tagOverlap * multiplier;
-		this.effectiveWeights.boosts.tagOverlapMax = this.effectiveWeights.boosts.tagOverlapMax * multiplier;
-		
-		// Handle classic mode (disable all smart features)
-		if (searchRanking.mode === "classic") {
-			// Set all boosts to 0
-			Object.keys(this.effectiveWeights.boosts).forEach(key => {
-				(this.effectiveWeights.boosts as any)[key] = 0;
-			});
-			// Disable fuzzy search by making all scores equal
-			this.effectiveWeights.base.basenameExact = 0;
-			this.effectiveWeights.base.aliasExact = 0;
-			this.effectiveWeights.base.basenamePrefix = 0;
-			this.effectiveWeights.base.aliasPrefix = 0;
-			this.effectiveWeights.base.substringBasename = 0;
-		}
-	}
 
 	static getInstance(app: App, plugin: Plugin): FileIndex {
 		if (!FileIndex.instance) {
@@ -923,11 +895,5 @@ export class FileIndex {
 		return this.fileMap.size;
 	}
 
-	/**
-	 * Refresh search weights when settings change
-	 */
-	refreshSearchWeights(): void {
-		this.updateEffectiveWeights();
-	}
 
 }

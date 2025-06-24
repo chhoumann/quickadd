@@ -22,7 +22,7 @@ In your choices, you can use [format syntax](./FormatSyntax), which is similar t
 
 You could, for example, use `{{DATE}}` to get the current date.
 
-QuickAdd also features a powerful [suggester system](./SuggesterSystem) that provides intelligent, fuzzy-search suggestions for files, tags, headings, and more. The search ranking is fully configurable with Classic, Balanced, and Contextual modes to match your workflow.
+QuickAdd also features a powerful [suggester system](./SuggesterSystem) that provides intelligent, fuzzy-search suggestions for files, tags, headings, and more.
 
 ## I want to...
 

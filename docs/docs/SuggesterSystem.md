@@ -49,45 +49,6 @@ Type `^` to find specific blocks:
 - Use `./` to search in the current folder
 - Use `../` to search in the parent folder
 
-## Search Ranking Modes
-
-QuickAdd now offers three search modes to help you find files faster. Choose the one that matches how you work:
-
-### Which Mode Should I Use?
-
-#### Use **Classic** if you:
-- Like seeing files in alphabetical order
-- Have a good naming system already
-- Find "smart" search confusing or unpredictable
-
-**What you get:** Simple A-Z ordering. No surprises.
-
-#### Use **Balanced** (recommended) if you:
-- Want files you're working on to appear first
-- Like smart suggestions but still want control
-- Are a typical Obsidian user
-
-**What you get:** The file you want is usually in the top 3 results. Recent files and files in the same folder bubble up.
-
-#### Use **Contextual** if you:
-- Have thousands of files
-- Work on projects with related files
-- Trust the algorithm to know what you want
-
-**What you get:** Almost magical results. The file you're thinking of appears first, even if you only typed part of the name.
-
-### Want More Control?
-
-The **Contextual Boost Strength** slider lets you fine-tune how "smart" the search is:
-- Slide left (toward 0) = More predictable, less smart
-- Slide right (toward 2) = More smart, less predictable
-
-Start with the default (1.0) and adjust if needed.
-
-### Where Do I Change This?
-
-Settings → QuickAdd → Search Ranking Mode
-
 ## Keyboard Shortcuts
 
 The suggester system supports comprehensive keyboard navigation:
