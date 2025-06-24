@@ -83,7 +83,7 @@ describe('FileIndex', () => {
 			expect(score).toBeLessThan(0.5); // Should be boosted (lower score)
 		});
 
-		it('should boost exact alias matches', () => {
+		it('should penalize alias match types', () => {
 			const mockFile = {
 				path: 'test.md',
 				basename: 'test',
@@ -97,10 +97,10 @@ describe('FileIndex', () => {
 
 			const score = (fileIndex as any).calculateScore(mockFile, 'exact-match', {}, 0.5, 'alias');
 
-			expect(score).toBeLessThan(0.5); // Should be heavily boosted
+			expect(score).toBeGreaterThan(0.5); // Should be penalized (higher score = worse ranking)
 		});
 
-		it('should give additional boost to alias match types', () => {
+		it('should rank basename matches better than alias matches', () => {
 			const mockFile = {
 				path: 'test.md',
 				basename: 'test',
@@ -113,9 +113,9 @@ describe('FileIndex', () => {
 			};
 
 			const aliasScore = (fileIndex as any).calculateScore(mockFile, 'my-alias', {}, 0.5, 'alias');
-			const normalScore = (fileIndex as any).calculateScore(mockFile, 'test', {}, 0.5, 'exact');
+			const basenameScore = (fileIndex as any).calculateScore(mockFile, 'test', {}, 0.5, 'exact');
 
-			expect(aliasScore).toBeLessThan(normalScore); // Alias should be boosted more
+			expect(aliasScore).toBeGreaterThan(basenameScore); // Alias should have worse score (higher = worse)
 		});
 
 		it('should boost files with tag overlap', () => {

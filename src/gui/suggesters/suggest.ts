@@ -75,19 +75,6 @@ class Suggest<T> {
 			}
 		});
 
-		scope.register([], "Home", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(0, true);
-				return false;
-			}
-		});
-
-		scope.register([], "End", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(this.suggestions.length - 1, true);
-				return false;
-			}
-		});
 	}
 
 	onSuggestionClick(event: MouseEvent, el: HTMLDivElement): void {
