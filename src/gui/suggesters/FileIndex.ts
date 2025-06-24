@@ -66,8 +66,8 @@ class LRUCache<T> {
 const MAX_INCREMENTAL_UPDATES = 20;
 const FUSE_UPDATE_DEBOUNCE_MS = 100;
 
-// Word boundary regex for substring matching
-const WORD_BOUNDARY_REGEX = /\w/;
+// Regex to test if a character is alphanumeric (used for word boundary detection)
+const ALPHANUMERIC_REGEX = /\w/;
 
 export class FileIndex {
 	protected static instance: FileIndex;
@@ -507,7 +507,7 @@ export class FileIndex {
 			if (idx > 0) { // not at start (that would be prefix)
 				// Check if match starts at word boundary
 				const charBefore = file.basename[idx - 1];
-				if (!WORD_BOUNDARY_REGEX.test(charBefore)) { // Previous char is not alphanumeric
+				if (!ALPHANUMERIC_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
 						score: this.calculateScore(file, query, context, -300, 'fuzzy'), // Between prefix (-500) and fuzzy (0+)
@@ -611,12 +611,7 @@ export class FileIndex {
 			}
 		}
 
-		// Alias PENALTY (not boost) - aliases should rank lower than basenames
-		if (matchType === 'alias') {
-			score += 0.10; // Adding positive score makes it worse (lower priority)
-		}
-
-		// Length penalty - longer titles are less likely to be what user wants
+		// Length penalty - calculate first as it's used by alias penalty
 		const queryLower = query.toLowerCase();
 		let titleLength = file.basename.length;
 		
@@ -630,6 +625,17 @@ export class FileIndex {
 				titleLength = matchedAlias.length;
 			}
 		}
+		
+		// Alias penalty - scale based on length to allow good short aliases to compete
+		if (matchType === 'alias') {
+			// Length-scaled penalty: minimum 0.05 for short aliases, up to +0.60 for very long aliases
+			// This ensures basename matches still have an edge even for short aliases
+			const lengthPenalty = Math.max(0, (titleLength - 15) * 0.04);
+			const aliasPenalty = Math.min(0.60, 0.05 + lengthPenalty);
+			score += aliasPenalty;
+		}
+		
+		// Additional length penalty for all matches
 		if (titleLength > 15) {
 			score += (titleLength - 15) * 0.02;
 		}
@@ -790,7 +796,7 @@ export class FileIndex {
 			if (idx > 0) { // not at start (that would be prefix)
 				// Check if match starts at word boundary
 				const charBefore = file.basename[idx - 1];
-				if (!WORD_BOUNDARY_REGEX.test(charBefore)) { // Previous char is not alphanumeric
+				if (!ALPHANUMERIC_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
 						score: this.calculateScore(file, query, context, -300, 'fuzzy'),
