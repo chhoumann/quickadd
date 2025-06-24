@@ -87,8 +87,8 @@ export class FileIndex {
 		
 		const fuseConfig = {
 			keys: [
-				{ name: 'basename', weight: 0.6 },
-				{ name: 'aliases', weight: 1.0 }, // Increased weight for aliases
+				{ name: 'basename', weight: 0.8 }, // Prioritize basename matches
+				{ name: 'aliases', weight: 0.6 },  // Reduced from 1.0
 				{ name: 'path', weight: 0.2 }
 			],
 			ignoreLocation: true,
@@ -426,46 +426,87 @@ export class FileIndex {
 			return this.searchWithHeadings(query, context, limit);
 		}
 
-		// 1. Exact matches (basename and aliases)
+		// Track which files we've already added to avoid duplicates
+		const addedPaths = new Set<string>();
+
+		// 1. Exact matches (basename and aliases) - Tier 0
 		for (const file of this.fileMap.values()) {
 			if (file.basename.toLowerCase() === queryLower) {
 				results.push({
 					file,
-					score: this.calculateScore(file, query, context, 0, 'exact'),
+					score: this.calculateScore(file, query, context, -1000, 'exact'), // Very negative score for top priority
 					matchType: 'exact',
 					displayText: file.basename
 				});
+				addedPaths.add(file.path);
 			}
 
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase() === queryLower) {
+				if (alias.toLowerCase() === queryLower && !addedPaths.has(file.path)) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, 0, 'alias'),
+						score: this.calculateScore(file, query, context, -1000, 'alias'),
 						matchType: 'alias',
 						displayText: alias
 					});
+					addedPaths.add(file.path);
 				}
 			}
 		}
 
-		// 1.5. Prefix alias matches - promote these above fuzzy results
+		// 1.5. Prefix matches (basename) - Tier 1
+		for (const file of this.fileMap.values()) {
+			if (file.basename.toLowerCase().startsWith(queryLower) && 
+				file.basename.toLowerCase() !== queryLower && // not exact (already added)
+				!addedPaths.has(file.path)) {
+				results.push({
+					file,
+					score: this.calculateScore(file, query, context, -500, 'fuzzy'), // High priority but below exact
+					matchType: 'fuzzy',
+					displayText: file.basename
+				});
+				addedPaths.add(file.path);
+			}
+		}
+
+		// 2. Prefix alias matches - Tier 1
 		for (const file of this.fileMap.values()) {
 			for (const alias of file.aliases) {
 				if (alias.toLowerCase().startsWith(queryLower) && 
 					alias.toLowerCase() !== queryLower &&  // not exact (already added)
-					!results.some(r => r.file.path === file.path && r.matchType === 'alias')) {
+					!addedPaths.has(file.path)) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, 0.05, 'alias'),
+						score: this.calculateScore(file, query, context, -500, 'alias'), // Same tier as prefix basename
 						matchType: 'alias',
 						displayText: alias
 					});
+					addedPaths.add(file.path);
 				}
 			}
 		}
 
-		// 2. Fuzzy search with adaptive threshold - use pre-built instances
+		// 2.5. Substring-basename matches (word boundary) - Tier 2
+		for (const file of this.fileMap.values()) {
+			if (addedPaths.has(file.path)) continue;
+			
+			const idx = file.basename.toLowerCase().indexOf(queryLower);
+			if (idx > 0) { // not at start (that would be prefix)
+				// Check if match starts at word boundary
+				const charBefore = file.basename[idx - 1];
+				if (!/\w/.test(charBefore)) { // Previous char is not alphanumeric
+					results.push({
+						file,
+						score: this.calculateScore(file, query, context, -300, 'fuzzy'), // Between prefix (-500) and fuzzy (0+)
+						matchType: 'fuzzy',
+						displayText: file.basename
+					});
+					addedPaths.add(file.path);
+				}
+			}
+		}
+
+		// 3. Fuzzy search with adaptive threshold - Tier 3 and below
 		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
 
 		// Relax threshold if we have too few results
@@ -474,8 +515,8 @@ export class FileIndex {
 		}
 
 		for (const result of fuseResults) {
-			// Skip if already added as exact match
-			if (results.some(r => r.file.path === result.item.path)) {
+			// Skip if already added
+			if (addedPaths.has(result.item.path)) {
 				continue;
 			}
 
@@ -492,9 +533,10 @@ export class FileIndex {
 				matchType,
 				displayText
 			});
+			addedPaths.add(result.item.path);
 		}
 
-		// 3. Unresolved links
+		// 4. Unresolved links - Tier 3
 		if (query.length >= 2) {
 			let unresolvedCount = 0;
 			const unresolvedLimit = query.length < 3 ? 10 : 20;
@@ -514,7 +556,7 @@ export class FileIndex {
 							modified: 0,
 							folder: ""
 						},
-						score: 1,
+						score: 1000, // High positive score to ensure they appear last
 						matchType: 'unresolved',
 						displayText: unresolvedLink
 					});
@@ -561,9 +603,27 @@ export class FileIndex {
 			}
 		}
 
-		// Alias preference boost
+		// Alias PENALTY (not boost) - aliases should rank lower than basenames
 		if (matchType === 'alias') {
-			score -= 0.10;
+			score += 0.10; // Adding positive score makes it worse (lower priority)
+		}
+
+		// Length penalty - longer titles are less likely to be what user wants
+		const titleLength = matchType === 'alias' && file.aliases.length > 0 
+			? file.aliases[0].length  // Use the matched alias length
+			: file.basename.length;
+		if (titleLength > 15) {
+			score += (titleLength - 15) * 0.02;
+		}
+
+		// Position bonus - earlier matches are better
+		const queryLowerForPos = query.toLowerCase();
+		const textToSearch = matchType === 'alias' && file.aliases.length > 0
+			? file.aliases[0].toLowerCase()
+			: file.basename.toLowerCase();
+		const pos = textToSearch.indexOf(queryLowerForPos);
+		if (pos >= 0) {
+			score += pos * 0.05; // Later position = higher score = worse ranking
 		}
 
 		// Don't flatten negative scores - preserve ranking differences
@@ -626,54 +686,93 @@ export class FileIndex {
 		// Direct file search without heading handling to avoid recursion
 		const results: SearchResult[] = [];
 		const queryLower = query.toLowerCase();
+		const addedPaths = new Set<string>();
 
-		// 1. Exact matches (basename and aliases)
+		// 1. Exact matches (basename and aliases) - Tier 0
 		for (const file of this.fileMap.values()) {
 			if (file.basename.toLowerCase() === queryLower) {
 				results.push({
 					file,
-					score: this.calculateScore(file, query, context, 0, 'exact'),
+					score: this.calculateScore(file, query, context, -1000, 'exact'),
 					matchType: 'exact',
 					displayText: file.basename
 				});
+				addedPaths.add(file.path);
 			}
 
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase() === queryLower) {
+				if (alias.toLowerCase() === queryLower && !addedPaths.has(file.path)) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, 0, 'alias'),
+						score: this.calculateScore(file, query, context, -1000, 'alias'),
 						matchType: 'alias',
 						displayText: alias
 					});
+					addedPaths.add(file.path);
 				}
 			}
 		}
 
-		// 2. Prefix alias matches
+		// 1.5. Prefix matches (basename) - Tier 1
+		for (const file of this.fileMap.values()) {
+			if (file.basename.toLowerCase().startsWith(queryLower) && 
+				file.basename.toLowerCase() !== queryLower &&
+				!addedPaths.has(file.path)) {
+				results.push({
+					file,
+					score: this.calculateScore(file, query, context, -500, 'fuzzy'),
+					matchType: 'fuzzy',
+					displayText: file.basename
+				});
+				addedPaths.add(file.path);
+			}
+		}
+
+		// 2. Prefix alias matches - Tier 1
 		for (const file of this.fileMap.values()) {
 			for (const alias of file.aliases) {
 				if (alias.toLowerCase().startsWith(queryLower) && 
 					alias.toLowerCase() !== queryLower &&
-					!results.some(r => r.file.path === file.path && r.matchType === 'alias')) {
+					!addedPaths.has(file.path)) {
 					results.push({
 						file,
-						score: this.calculateScore(file, query, context, 0.05, 'alias'),
+						score: this.calculateScore(file, query, context, -500, 'alias'),
 						matchType: 'alias',
 						displayText: alias
 					});
+					addedPaths.add(file.path);
 				}
 			}
 		}
 
-		// 3. Fuzzy search
+		// 2.5. Substring-basename matches (word boundary) - Tier 2
+		for (const file of this.fileMap.values()) {
+			if (addedPaths.has(file.path)) continue;
+			
+			const idx = file.basename.toLowerCase().indexOf(queryLower);
+			if (idx > 0) { // not at start (that would be prefix)
+				// Check if match starts at word boundary
+				const charBefore = file.basename[idx - 1];
+				if (!/\w/.test(charBefore)) { // Previous char is not alphanumeric
+					results.push({
+						file,
+						score: this.calculateScore(file, query, context, -300, 'fuzzy'),
+						matchType: 'fuzzy',
+						displayText: file.basename
+					});
+					addedPaths.add(file.path);
+				}
+			}
+		}
+
+		// 3. Fuzzy search - Tier 3 and below
 		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
 		if (fuseResults.length < 5) {
 			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
 		}
 
 		for (const result of fuseResults) {
-			if (results.some(r => r.file.path === result.item.path)) {
+			if (addedPaths.has(result.item.path)) {
 				continue;
 			}
 
@@ -689,6 +788,7 @@ export class FileIndex {
 				matchType,
 				displayText
 			});
+			addedPaths.add(result.item.path);
 		}
 
 		return results
