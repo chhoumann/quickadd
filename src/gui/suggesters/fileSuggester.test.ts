@@ -213,7 +213,7 @@ describe('FileSuggester - Issue #838 and #839', () => {
     });
 });
 
-describe('FileSuggester - Budget search example', () => {
+describe('FileSuggester - Substring search with long aliases', () => {
     let fileIndex: FileIndex;
     let files: TFile[];
 
@@ -221,38 +221,37 @@ describe('FileSuggester - Budget search example', () => {
         // Reset the singleton instance
         (FileIndex as any).instance = null;
         
-        // Create files that replicate the problematic budget search
+        // Create generic test files that demonstrate the substring matching issue
         files = [
-            createMockFile('Notes/2025 Budget Fælles.md', '2025 Budget Fælles'),
-            createMockFile('People/Warren Buffett.md', 'Warren Buffett'),
-            createMockFile('Quotes/What you get by achieving your goals.md', '` What you get by achieving your goals is not as important as what you become by achieving your goals'),
-            createMockFile('Quotes/Ignorance more frequently begets confidence.md', '` Ignorance more frequently begets confidence than does knowledge'),
-            createMockFile('Daily/210812 You can update your title.md', '210812 You can update your title and thumbnail until you get 8+ CTR after uploading'),
-            createMockFile('Courses/MS27 Bliv personligt mere effektiv.md', '% MS27 Bliv personligt mere effektiv på studiet med disse to metoder'),
-            createMockFile('Business/210829 You grow your business.md', '210829 You grow your business by getting more customers and by increasing each customers value'),
-            createMockFile('Tech/2023-09-09 - CodeWars - Can you get the loop.md', '2023-09-09 - CodeWars - Can you get the loop'),
+            createMockFile('Projects/Project Alpha.md', 'Project Alpha'),
+            createMockFile('Projects/Project Beta Documentation.md', 'Project Beta Documentation'),
+            createMockFile('Archive/Old Project Notes.md', 'Old Project Notes'),
+            createMockFile('Planning/2025 Project Roadmap.md', '2025 Project Roadmap'),
+            createMockFile('References/Project Management Guide.md', 'Project Management Guide'),
+            createMockFile('Daily/2024-03-15.md', '2024-03-15'),
+            createMockFile('Templates/Project Template.md', 'Project Template'),
         ];
         
-        // Add aliases to simulate the real scenario
+        // Add aliases to simulate files with very long aliases
         vi.mocked(mockApp.metadataCache.getFileCache).mockImplementation((file: TFile) => {
-            if (file.basename === '% MS27 Bliv personligt mere effektiv på studiet med disse to metoder') {
+            if (file.basename === 'Project Beta Documentation') {
                 return {
                     frontmatter: {
-                        aliases: ['MS27 Bliv personligt mere effektiv på studiet med disse to metoder']
+                        aliases: ['Complete documentation for Project Beta including all technical specifications and implementation details']
                     }
                 };
             }
-            if (file.basename === '210829 You grow your business by getting more customers and by increasing each customers value') {
+            if (file.basename === '2024-03-15') {
                 return {
                     frontmatter: {
-                        aliases: ['You grow your business by getting more customers and by increasing each customers value']
+                        aliases: ['Daily review of all ongoing projects and their current status updates']
                     }
                 };
             }
-            if (file.basename === '2023-09-09 - CodeWars - Can you get the loop') {
+            if (file.basename === 'Old Project Notes') {
                 return {
                     frontmatter: {
-                        aliases: ['CodeWars - Can you get the loop']
+                        aliases: ['Archived notes from previous projects that might be useful for reference']
                     }
                 };
             }
@@ -266,38 +265,32 @@ describe('FileSuggester - Budget search example', () => {
         await fileIndex.ensureIndexed();
     });
 
-    it('should prioritize basename matches over alias matches for "budget"', () => {
-        // Mock console.log to avoid output during tests
-        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        
-        const query = 'budget';
+    it('should prioritize basename substring matches over long alias matches', () => {
+        const query = 'project';
         const results = fileIndex.search(query);
         
-        // Log for debugging (now mocked)
-        console.log('Budget search results:', results.map(r => ({
-            basename: r.file.basename,
-            score: r.score,
-            matchType: r.matchType,
-            displayText: r.displayText
-        })));
+        // Files with "project" in the basename should appear before alias matches
+        const projectAlpha = results.findIndex(r => r.file.basename === 'Project Alpha');
+        const projectRoadmap = results.findIndex(r => r.file.basename === '2025 Project Roadmap');
         
-        // "2025 Budget Fælles" should be at or near the top (substring match in basename)
-        const budgetFileIndex = results.findIndex(r => r.file.basename === '2025 Budget Fælles');
-        expect(budgetFileIndex).toBeLessThan(3); // Should be in top 3 results
+        // Files that only match via long aliases should appear later
+        const dailyNote = results.findIndex(r => r.file.basename === '2024-03-15');
         
-        // Warren Buffett might appear due to fuzzy match, but should be after the budget file
-        const buffettIndex = results.findIndex(r => r.file.basename === 'Warren Buffett');
-        if (buffettIndex !== -1) {
-            expect(buffettIndex).toBeGreaterThan(budgetFileIndex);
+        if (dailyNote !== -1) {
+            expect(projectAlpha).toBeLessThan(dailyNote);
+            expect(projectRoadmap).toBeLessThan(dailyNote);
         }
         
-        // Long alias matches should be penalized and appear later
-        const aliasMatches = results.filter(r => r.matchType === 'alias');
-        aliasMatches.forEach(match => {
-            expect(match.score).toBeGreaterThan(results[budgetFileIndex].score); // Higher score = worse ranking
-        });
+        // Verify that basename matches score better than alias matches
+        const basenameMatches = results.filter(r => r.file.basename.toLowerCase().includes('project'));
+        const aliasOnlyMatches = results.filter(r => 
+            r.matchType === 'alias' && !r.file.basename.toLowerCase().includes('project')
+        );
         
-        // Restore console.log
-        consoleSpy.mockRestore();
+        if (basenameMatches.length > 0 && aliasOnlyMatches.length > 0) {
+            const worstBasenameScore = Math.max(...basenameMatches.map(m => m.score));
+            const bestAliasScore = Math.min(...aliasOnlyMatches.map(m => m.score));
+            expect(worstBasenameScore).toBeLessThan(bestAliasScore); // Lower score = better ranking
+        }
     });
 });
