@@ -178,30 +178,25 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	protected async userScriptDelegator(userScript: any) {
-		switch (typeof userScript) {
+	protected async userScriptDelegator(userScript: unknown) {
+		// runtime type inspection – we need any for further handling
+		const script: any = userScript;
+		switch (typeof script) {
 			case "function":
 				if (this.userScriptCommand) {
-					await this.runScriptWithSettings(
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-						userScript,
-						this.userScriptCommand
-					);
+					await this.runScriptWithSettings(script, this.userScriptCommand);
 				} else {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-					await this.onExportIsFunction(userScript);
+					await this.onExportIsFunction(script);
 				}
 				break;
 			case "object":
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-				await this.onExportIsObject(userScript);
+				await this.onExportIsObject(script as Record<string, unknown>);
 				break;
 			case "bigint":
 			case "boolean":
 			case "number":
 			case "string":
-				this.output = userScript.toString();
+				this.output = String(script);
 				break;
 			default:
 				log.logError(
