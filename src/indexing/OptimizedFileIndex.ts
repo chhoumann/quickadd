@@ -10,6 +10,7 @@ function sleep(ms: number) {
 }
 
 export class OptimizedFileIndex {
+	private static _instance: OptimizedFileIndex | null = null;
 	private index: Map<string, IndexedFile> = new Map();
 	private fuseInstance: Fuse<IndexedFile>;
 	private pendingUpdates: Map<string, "add" | "update" | "delete"> = new Map();
@@ -19,6 +20,8 @@ export class OptimizedFileIndex {
 	// 5-second query result cache
 	private searchCache = new Map<string, SearchResult[]>();
 	private cacheTimeout: number | null = null;
+
+	private initialIndexPromise: Promise<void> | null = null;
 
 	constructor(private app: App) {
 		// Initialise worker if the environment supports it
@@ -55,7 +58,7 @@ export class OptimizedFileIndex {
 		});
 
 		// Kick off initial async index build
-		void this.initializeIndex();
+		this.initialIndexPromise = this.initializeIndex();
 	}
 
 	/* ------------------------------ Indexing ------------------------------ */
@@ -236,5 +239,35 @@ export class OptimizedFileIndex {
 			this.index = new Map(serialized);
 			this.buildFuseIndex();
 		}
+	}
+
+	/** Public helper to wait until the initial index build is complete. */
+	async ensureIndexed() {
+		if (this.initialIndexPromise) {
+			await this.initialIndexPromise;
+		}
+	}
+
+	getFile(path: string): IndexedFile | undefined {
+		return this.index.get(path);
+	}
+
+	getHeadings(file: IndexedFile): string[] {
+		return file.headings;
+	}
+
+	getBlockIds(file: IndexedFile): string[] {
+		return file.blockIds;
+	}
+
+	getIndexedFileCount(): number {
+		return this.index.size;
+	}
+
+	static getInstance(app: App): OptimizedFileIndex {
+		if (!OptimizedFileIndex._instance) {
+			OptimizedFileIndex._instance = new OptimizedFileIndex(app);
+		}
+		return OptimizedFileIndex._instance;
 	}
 }
