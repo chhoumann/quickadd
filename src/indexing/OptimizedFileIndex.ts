@@ -30,6 +30,12 @@ export class OptimizedFileIndex {
 					{ type: "module" }
 				);
 				this.worker.onmessage = this.handleWorkerMessage.bind(this);
+				this.worker.addEventListener("error", (ev) => {
+					console.error("OptimizedFileIndex worker error", ev);
+					// Disable worker fallback
+					this.worker?.terminate();
+					this.worker = null;
+				});
 			} catch (err) {
 				console.warn("OptimizedFileIndex: failed to create worker", err);
 				this.worker = null;

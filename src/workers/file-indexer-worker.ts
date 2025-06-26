@@ -1,18 +1,8 @@
 import Fuse from "fuse.js";
 import type { IndexedFile } from "../gui/suggesters/FileIndex";
+import type { WorkerRequest, WorkerResponse, IndexOperation } from "../types/workerMessages";
 
-interface UpdateMessage {
-	type: "updateIndex";
-	updates: Array<[string, "add" | "update" | "delete"]>;
-	currentIndex: Array<[string, IndexedFile]>;
-}
-
-interface SearchMessage {
-	type: "search";
-	query: string;
-}
-
-type IncomingMessage = UpdateMessage | SearchMessage;
+type IncomingMessage = WorkerRequest;
 
 // In the worker context, `self` refers to the global scope. Typing with `any` avoids lib dependency issues
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,11 +34,11 @@ function buildFuse() {
 }
 
 function processUpdates(
-	updates: Array<[string, "add" | "update" | "delete"]>,
-	currentIndex: Array<[string, IndexedFile]>
+	updates: Array<[string, IndexOperation]>,
+	currentIndex: Array<[string, unknown]>
 ) {
-	// Start from the provided snapshot
-	index = new Map(currentIndex);
+	// Start from the provided snapshot (cast unknown -> IndexedFile safely)
+	index = new Map(currentIndex as Array<[string, IndexedFile]>);
 
 	for (const [path, operation] of updates) {
 		if (operation === "delete") {

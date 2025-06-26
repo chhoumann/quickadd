@@ -1,0 +1,25 @@
+export type IndexOperation = "add" | "update" | "delete";
+
+export interface UpdateIndexMessage {
+	type: "updateIndex";
+	updates: Array<[string, IndexOperation]>;
+	currentIndex: Array<[string, unknown]>; // use unknown to avoid dependency cycle
+}
+
+export interface SearchMessage {
+	type: "search";
+	query: string;
+}
+
+export interface IndexUpdatedMessage {
+	type: "indexUpdated";
+	index: Array<[string, unknown]>;
+}
+
+export interface SearchResultsMessage {
+	type: "searchResults";
+	results: unknown;
+}
+
+export type WorkerRequest = UpdateIndexMessage | SearchMessage;
+export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage;
