@@ -14,9 +14,17 @@ let index: Map<string, IndexedFile> = new Map();
 self.onmessage = (e: MessageEvent<IncomingMessage>) => {
 	const data = e.data;
 	if (data.type === "updateIndex") {
-		processUpdates(data.updates, data.currentIndex);
+		try {
+			processUpdates(data.updates, data.currentIndex);
+		} catch (err) {
+			self.postMessage({ type: "indexFailed", error: String(err) } as WorkerResponse);
+		}
 	} else if (data.type === "search") {
-		performSearch(data.query);
+		try {
+			performSearch(data.query);
+		} catch (err) {
+			self.postMessage({ type: "searchFailed", error: String(err) } as WorkerResponse);
+		}
 	}
 };
 

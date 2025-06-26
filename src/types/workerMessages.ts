@@ -21,5 +21,15 @@ export interface SearchResultsMessage {
 	results: unknown;
 }
 
+export interface IndexFailedMessage {
+	type: "indexFailed";
+	error: string;
+}
+
+export interface SearchFailedMessage {
+	type: "searchFailed";
+	error: string;
+}
+
 export type WorkerRequest = UpdateIndexMessage | SearchMessage;
-export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage;
+export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage | IndexFailedMessage | SearchFailedMessage;

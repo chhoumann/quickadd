@@ -9,6 +9,8 @@ function sleep(ms: number) {
 	return new Promise<void>((res) => setTimeout(res, ms));
 }
 
+const MAX_CACHE_ENTRIES = 100;
+
 export class OptimizedFileIndex {
 	private static _instance: OptimizedFileIndex | null = null;
 	private index: Map<string, IndexedFile> = new Map();
@@ -86,8 +88,14 @@ export class OptimizedFileIndex {
 
 	/** Build a single IndexedFile representation */
 	private async indexFile(file: TFile): Promise<IndexedFile> {
-		const fileCache = this.app.metadataCache.getFileCache(file);
-		const frontmatter = fileCache?.frontmatter;
+		let fileCache: any;
+		try {
+			fileCache = this.app.metadataCache.getFileCache(file);
+		} catch (err) {
+			console.error("OptimizedFileIndex: Failed to read metadata cache for", file.path, err);
+			fileCache = {};
+		}
+		const frontmatter = fileCache?.frontmatter ?? {};
 
 		// Aliases
 		const aliases: string[] = [];
@@ -220,6 +228,13 @@ export class OptimizedFileIndex {
 
 		this.searchCache.set(query, results);
 
+		// Limit cache size to avoid memory pressure
+		if (this.searchCache.size > MAX_CACHE_ENTRIES) {
+			// Remove oldest entry (first inserted)
+			const firstKey = this.searchCache.keys().next().value as string;
+			this.searchCache.delete(firstKey);
+		}
+
 		if (this.cacheTimeout) {
 			clearTimeout(this.cacheTimeout);
 		}
@@ -238,6 +253,11 @@ export class OptimizedFileIndex {
 			const serialized: Array<[string, IndexedFile]> = e.data.index;
 			this.index = new Map(serialized);
 			this.buildFuseIndex();
+		} else if (type === "indexFailed" || type === "searchFailed") {
+			console.error("OptimizedFileIndex: worker error", e.data.error);
+			// Disable worker to prevent repeated failures
+			this.worker?.terminate();
+			this.worker = null;
 		}
 	}
 

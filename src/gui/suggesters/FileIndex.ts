@@ -2,6 +2,7 @@ import type { App, Plugin } from "obsidian";
 import { TFile } from "obsidian";
 import Fuse from "fuse.js";
 import { sanitizeHeading } from "./utils";
+import { OptimizedFileIndex } from "../../indexing/OptimizedFileIndex";
 
 export interface IndexedFile {
 	path: string;
@@ -104,6 +105,7 @@ export type SearchWeightsConfig = typeof SearchWeights;
 
 export class FileIndex {
 	protected static instance: FileIndex;
+	protected static optimizedFlag = false;
 	private app: App;
 	private plugin: Plugin;
 	private fileMap: Map<string, IndexedFile> = new Map();
@@ -151,6 +153,11 @@ export class FileIndex {
 
 
 	static getInstance(app: App, plugin: Plugin): FileIndex {
+		if (FileIndex.optimizedFlag) {
+			// Use the new indexer but cast to legacy interface for gradual migration
+			return OptimizedFileIndex.getInstance(app) as unknown as FileIndex;
+		}
+
 		if (!FileIndex.instance) {
 			FileIndex.instance = new FileIndex(app, plugin);
 		}
@@ -895,5 +902,12 @@ export class FileIndex {
 		return this.fileMap.size;
 	}
 
+	/**
+	 * Enable the experimental OptimizedFileIndex globally. Call this early in plugin init
+	 * once stability is confirmed.
+	 */
+	static enableOptimizedIndexing(): void {
+		FileIndex.optimizedFlag = true;
+	}
 
 }
