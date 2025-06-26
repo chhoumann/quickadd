@@ -1,0 +1,2 @@
+import "svelte";
+export {};

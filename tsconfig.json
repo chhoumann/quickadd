@@ -10,7 +10,8 @@
 		"moduleResolution": "node",
 		"importHelpers": true,
 		"isolatedModules": true,
-		"types": ["svelte", "node", "obsidian"],
+		"types": ["node", "svelte", "obsidian"],
+		"typeRoots": ["./node_modules/@types", "./src/types"],
 		"strictNullChecks": true,
 		"lib": ["DOM", "ES5", "ES6", "ES7"],
 		"experimentalDecorators": true
