@@ -31,6 +31,7 @@ import type { MultiChoice } from "src/types/choices/MultiChoice";
 import type { IconType } from "src/types/IconType";
 import { AIAssistantCommand } from "src/types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "src/settingsStore";
+import InputSuggester from "../InputSuggester/inputSuggester";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -239,6 +240,7 @@ export class MacroBuilder extends Modal {
 
 	private addAddUserScriptSetting() {
 		let input: TextComponent;
+		let addButton: ButtonComponent;
 
 		const addUserScriptFromInput = () => {
 			const value: string = input.getValue();
@@ -252,15 +254,18 @@ export class MacroBuilder extends Modal {
 			this.addCommandToMacro(new UserScript(value, file.path));
 
 			input.setValue("");
+			// Ensure Add button is hidden after clearing input
+			addButton.buttonEl.style.display = 'none';
 		};
 
-		new Setting(this.contentEl)
+		const setting = new Setting(this.contentEl)
 			.setName("User Scripts")
-			.setDesc("Add user script")
+			.setDesc("Add user script - type the name or click Browse")
 			.addText((textComponent) => {
 				input = textComponent;
 				textComponent.inputEl.style.marginRight = "1em";
-				textComponent.setPlaceholder("User script");
+				textComponent.setPlaceholder("Start typing script name...");
+				
 				new GenericTextSuggester(
 					this.app,
 					textComponent.inputEl,
@@ -276,12 +281,31 @@ export class MacroBuilder extends Modal {
 					}
 				);
 			})
-			.addButton((button) =>
+			.addButton((button) => {
+				button
+					.setButtonText("Browse")
+					.setTooltip("Browse and select a script file")
+					.onClick(async () => {
+						const selected = await this.showScriptPicker();
+						if (selected) {
+							this.addCommandToMacro(new UserScript(selected.basename, selected.path));
+						}
+					});
+			})
+			.addButton((button) => {
+				addButton = button;
 				button
 					.setButtonText("Add")
 					.setCta()
-					.onClick(addUserScriptFromInput)
-			);
+					.onClick(addUserScriptFromInput);
+				// Initially hidden
+				button.buttonEl.style.display = 'none';
+			});
+
+		// Set up onChange handler after both input and addButton are initialized
+		input!.onChange((value) => {
+			addButton!.buttonEl.style.display = value.trim() ? 'inline-block' : 'none';
+		});
 	}
 
 	private addAddChoiceSetting() {
@@ -437,6 +461,27 @@ export class MacroBuilder extends Modal {
 				);
 				this.addCommandToMacro(new NestedChoiceCommand(captureChoice));
 			});
+	}
+
+	private async showScriptPicker(): Promise<TFile | null> {
+		if (this.javascriptFiles.length === 0) {
+			return null;
+		}
+
+		const scriptNames = this.javascriptFiles.map(f => f.basename);
+		const selected = await InputSuggester.Suggest(
+			this.app,
+			scriptNames,
+			scriptNames,
+			{ 
+				placeholder: "Select a JavaScript file",
+				emptyStateText: "No .js files found in your vault"
+			}
+		);
+		
+		if (!selected) return null;
+		
+		return this.javascriptFiles.find(f => f.basename === selected) ?? null;
 	}
 
 	private addCommandToMacro(command: ICommand) {
