@@ -258,18 +258,13 @@ export class MacroBuilder extends Modal {
 			addButton.buttonEl.style.display = 'none';
 		};
 
-		new Setting(this.contentEl)
+		const setting = new Setting(this.contentEl)
 			.setName("User Scripts")
 			.setDesc("Add user script - type the name or click Browse")
 			.addText((textComponent) => {
 				input = textComponent;
 				textComponent.inputEl.style.marginRight = "1em";
 				textComponent.setPlaceholder("Start typing script name...");
-				
-				// Show/hide Add button based on input
-				textComponent.onChange((value) => {
-					addButton.buttonEl.style.display = value.trim() ? 'inline-block' : 'none';
-				});
 				
 				new GenericTextSuggester(
 					this.app,
@@ -306,6 +301,11 @@ export class MacroBuilder extends Modal {
 				// Initially hidden
 				button.buttonEl.style.display = 'none';
 			});
+
+		// Set up onChange handler after both input and addButton are initialized
+		input!.onChange((value) => {
+			addButton!.buttonEl.style.display = value.trim() ? 'inline-block' : 'none';
+		});
 	}
 
 	private addAddChoiceSetting() {
