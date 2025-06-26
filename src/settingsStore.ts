@@ -8,7 +8,7 @@ import type IChoice from "./types/choices/IChoice";
 type SettingsState = QuickAddSettings;
 
 export const settingsStore = (() => {
-	const useSettingsStore = createStore<SettingsState>((set, _get) => ({
+	const useSettingsStore = createStore<SettingsState>((set: (fn: (state: SettingsState) => SettingsState) => void, _get: () => SettingsState) => ({
 		...structuredClone(DEFAULT_SETTINGS),
 	}));
 
@@ -18,8 +18,8 @@ export const settingsStore = (() => {
 		getState,
 		setState,
 		subscribe,
-		setMacro: (macroId: IMacro["id"], macro: IMacro) => {
-			setState((state) => {
+		setMacro: (macroId: IMacro["id"], macro: IMacro): void => {
+			setState((state: SettingsState) => {
 				const macroIdx = state.macros.findIndex((m) => m.id === macroId);
 				if (macroIdx === -1) {
 					throw new Error("Macro not found");
@@ -35,13 +35,13 @@ export const settingsStore = (() => {
 				return newState;
 			});
 		},
-		createMacro: (name: string) => {
+		createMacro: (name: string): IMacro => {
 			if (name === "" || getState().macros.some((m) => m.name === name)) {
 				throw new Error("Invalid macro name");
 			}
 
 			const macro = new QuickAddMacro(name);
-			setState((state) => ({
+			setState((state: SettingsState) => ({
 				...state,
 				macros: [...state.macros, macro],
 			}));
@@ -60,8 +60,8 @@ export const settingsStore = (() => {
 
 			return choice.id;
 		},
-		updateChoice: (id: IChoice["id"], updates: Partial<IChoice>) => {
-			setState((state) => {
+		updateChoice: (id: IChoice["id"], updates: Partial<IChoice>): void => {
+			setState((state: SettingsState) => {
 				const idx = state.choices.findIndex((c) => c.id === id);
 				if (idx === -1) return state;
 				const newChoices = [...state.choices];
@@ -69,8 +69,8 @@ export const settingsStore = (() => {
 				return { ...state, choices: newChoices };
 			});
 		},
-		deleteChoice: (id: IChoice["id"]) => {
-			setState((state) => ({
+		deleteChoice: (id: IChoice["id"]): void => {
+			setState((state: SettingsState) => ({
 				...state,
 				choices: state.choices.filter((c) => c.id !== id),
 			}));
