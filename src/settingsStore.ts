@@ -3,6 +3,7 @@ import type { QuickAddSettings } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./quickAddSettingsTab";
 import type { IMacro } from "./types/macros/IMacro";
 import { QuickAddMacro } from "./types/macros/QuickAddMacro";
+import type IChoice from "./types/choices/IChoice";
 
 type SettingsState = QuickAddSettings;
 
@@ -49,6 +50,33 @@ export const settingsStore = (() => {
 		},
 		getMacro: (macroId: IMacro["id"]) => {
 			return getState().macros.find((m) => m.id === macroId);
+		},
+		/* -------------------- Choice CRUD helpers -------------------- */
+		createChoice: (choice: IChoice) => {
+			setState((state) => ({
+				...state,
+				choices: [...state.choices, choice],
+			}));
+
+			return choice.id;
+		},
+		updateChoice: (id: IChoice["id"], updates: Partial<IChoice>) => {
+			setState((state) => {
+				const idx = state.choices.findIndex((c) => c.id === id);
+				if (idx === -1) return state;
+				const newChoices = [...state.choices];
+				newChoices[idx] = { ...newChoices[idx], ...updates } as IChoice;
+				return { ...state, choices: newChoices };
+			});
+		},
+		deleteChoice: (id: IChoice["id"]) => {
+			setState((state) => ({
+				...state,
+				choices: state.choices.filter((c) => c.id !== id),
+			}));
+		},
+		getChoice: (id: IChoice["id"]) => {
+			return getState().choices.find((c) => c.id === id) ?? null;
 		},
 	};
 })();

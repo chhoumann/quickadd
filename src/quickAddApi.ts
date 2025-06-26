@@ -26,6 +26,7 @@ import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { EventBus } from "./utils/EventBus";
+import type { ICommand } from "./types/macros/ICommand";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -86,9 +87,9 @@ export class QuickAddApi {
 					reportError(new Error(`Choice named '${choiceName}' not found`), "API executeChoice error");
 
 				if (variables) {
-					Object.keys(variables).forEach((key) => {
+					for (const key of Object.keys(variables)) {
 						choiceExecutor.variables.set(key, variables[key]);
-					});
+					}
 				}
 
 				await choiceExecutor.execute(choice);
@@ -100,9 +101,9 @@ export class QuickAddApi {
 				shouldClearVariables = true
 			) => {
 				if (variables) {
-					Object.keys(variables).forEach((key) => {
+					for (const key of Object.keys(variables)) {
 						choiceExecutor.variables.set(key, variables[key]);
-					});
+					}
 				}
 
 				const output = await new CompleteFormatter(
@@ -121,16 +122,47 @@ export class QuickAddApi {
 			// Phase-1 public API skeletons — currently throw NotImplementedYet.
 			/* ------------------------------------------------------------------ */
 			choices: {
-				create: (...args: unknown[]) => notImplemented("choices.create"),
-				update: (...args: unknown[]) => notImplemented("choices.update"),
-				delete: (...args: unknown[]) => notImplemented("choices.delete"),
-				get: (...args: unknown[]) => notImplemented("choices.get"),
-				getAll: () => notImplemented("choices.getAll"),
-				execute: (...args: unknown[]) => notImplemented("choices.execute"),
+				create: (choice: IChoice): string => {
+					return settingsStore.createChoice(choice);
+				},
+				update: (id: string, updates: Partial<IChoice>): void => {
+					settingsStore.updateChoice(id, updates);
+				},
+				delete: (id: string): void => {
+					settingsStore.deleteChoice(id);
+				},
+				get: (id: string): IChoice | null => {
+					return settingsStore.getChoice(id);
+				},
+				getAll: (): IChoice[] => {
+					return settingsStore.getState().choices;
+				},
+				execute: async (
+					id: string,
+					variables?: Record<string, unknown>
+				): Promise<void> => {
+					const choiceObj = plugin.getChoiceById(id);
+					if (variables) {
+						for (const key of Object.keys(variables)) {
+							choiceExecutor.variables.set(key, variables[key]);
+						}
+					}
+
+					await choiceExecutor.execute(choiceObj);
+					choiceExecutor.variables.clear();
+				},
 			},
 			macros: {
-				create: (...args: unknown[]) => notImplemented("macros.create"),
-				addCommand: (...args: unknown[]) => notImplemented("macros.addCommand"),
+				create: (name: string) => {
+					return settingsStore.createMacro(name).id;
+				},
+				addCommand: (macroId: string, command: ICommand): void => {
+					const macro = settingsStore.getMacro(macroId);
+					if (!macro) throw new Error(`Macro ${macroId} not found`);
+					// ICommand is a generic QuickAdd macro command type
+					(macro.commands as unknown[]).push(command);
+					settingsStore.setMacro(macroId, macro);
+				},
 				execute: (...args: unknown[]) => notImplemented("macros.execute"),
 			},
 			templates: {
