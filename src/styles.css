@@ -1,3 +1,12 @@
+/* Common modal button container styles */
+.modal-button-container {
+	display: flex;
+	flex-direction: row-reverse;
+	justify-content: flex-start;
+	margin-top: 1rem;
+	gap: 0.5rem;
+}
+
 .configureMacroDiv {
 	display: grid;
 	grid-template-rows: 1fr;
@@ -166,6 +175,7 @@
 	display: flex;
 	align-content: center;
 	justify-content: center;
+	gap: 0.5rem;
 }
 
 .chooseFolderWhenCreatingNoteContainer {
@@ -203,6 +213,7 @@
 	align-items: center;
 	justify-content: space-around;
 	margin-top: 2rem;
+	gap: 0.5rem;
 }
 
 .yesNoPromptParagraph {

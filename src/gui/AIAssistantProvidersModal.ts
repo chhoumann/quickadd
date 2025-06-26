@@ -227,6 +227,7 @@ export class AIAssistantProvidersModal extends Modal {
 		buttonRow.style.display = "flex";
 		buttonRow.style.justifyContent = "space-between";
 		buttonRow.style.marginTop = "20px";
+		buttonRow.style.gap = "0.5rem";
 
 		const CancelButton = new ButtonComponent(buttonRow);
 		CancelButton.setButtonText("Cancel");
