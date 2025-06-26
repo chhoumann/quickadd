@@ -33,8 +33,8 @@ type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
-	settings: QuickAddSettings;
-	private unsubscribeSettingsStore: () => void;
+	settings!: QuickAddSettings;
+	private unsubscribeSettingsStore!: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
