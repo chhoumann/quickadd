@@ -1,7 +1,6 @@
-// @ts-nocheck
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { OptimizedTemplateProcessor } from "./OptimizedTemplateProcessor";
-import { Variables } from "./types";
+import type { Variables } from "./types";
 
 function naiveLegacyProcess(template: string, variables: Variables): string {
   let output = template;
@@ -11,10 +10,21 @@ function naiveLegacyProcess(template: string, variables: Variables): string {
     return String(val);
   });
 
-  output = output.replace(/{{DATE}}/gi, () => {
-    const date = new Date();
-    const two = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-    return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())}`;
+  const two = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+
+  const iso = (d: Date) => `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+
+  output = output.replace(/{{DATE}}/gi, () => iso(new Date()));
+
+  output = output.replace(/{{DATE:([^}]+)}}/gi, (_m, fmt: string) => {
+    if (fmt.trim() === "YYYY-MM-DD") return iso(new Date());
+    return iso(new Date());
+  });
+
+  output = output.replace(/{{DATE([+\-]\d+)}}/gi, (_m, off: string) => {
+    const base = new Date();
+    base.setDate(base.getDate() + parseInt(off, 10));
+    return iso(base);
   });
 
   return output;
@@ -22,6 +32,15 @@ function naiveLegacyProcess(template: string, variables: Variables): string {
 
 describe("OptimizedTemplateProcessor", () => {
   const processor = new OptimizedTemplateProcessor();
+
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-01-02T03:04:05Z"));
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
 
   it("replaces simple variables", () => {
     const tpl = "Hello {{VALUE:name}}!";
@@ -45,5 +64,13 @@ describe("OptimizedTemplateProcessor", () => {
     const optimized = processor.process(tpl, vars);
     const legacy = naiveLegacyProcess(tpl, vars);
     expect(optimized).toBe(legacy);
+  });
+
+  it("formats DATE token in ISO form", () => {
+    expect(processor.process("Today is {{DATE}}", {})).toBe("Today is 2025-01-02");
+  });
+
+  it("formats DATE with offset", () => {
+    expect(processor.process("Tomorrow {{DATE+1}}", {})).toBe("Tomorrow 2025-01-03");
   });
 });
