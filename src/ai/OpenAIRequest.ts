@@ -6,6 +6,7 @@ import { getTokenCount } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
+import { AIResponseCache, buildCacheKey } from "./AIResponseCache";
 
 export interface CommonResponse {
 	id: string;
@@ -178,6 +179,14 @@ export function OpenAIRequest(
 			throw new Error(`Model ${model.name} not found with any provider.`);
 		}
 
+		const cacheKey = buildCacheKey(model.name, systemPrompt, prompt);
+
+		// 1) Check cache before making any network requests
+		const cached = AIResponseCache.instance.get(cacheKey);
+		if (cached) {
+			return cached;
+		}
+
 		try {
 			const restoreCursor = preventCursorChange(app);
 
@@ -204,6 +213,9 @@ export function OpenAIRequest(
 				);
 				response = mapOpenAIResponseToCommon(openaiResponse);
 			}
+
+			// 5) Store in cache for future reuse
+			AIResponseCache.instance.set(cacheKey, response);
 
 			return response;
 		} catch (error) {
