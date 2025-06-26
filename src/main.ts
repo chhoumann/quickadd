@@ -20,6 +20,7 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { commandHistory } from "./history/CommandHistory";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -69,6 +70,32 @@ export default class QuickAdd extends Plugin {
 				const id: string = this.manifest.id;
 				const plugins = this.app.plugins;
 				void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
+			},
+		});
+
+		this.addCommand({
+			id: "undoQuickAdd",
+			name: "Undo QuickAdd Action",
+			hotkeys: [{ modifiers: ["Mod"], key: "z" }],
+			checkCallback: (checking) => {
+				if (checking) {
+					return commandHistory.canUndo();
+				}
+
+				void commandHistory.undo();
+			},
+		});
+
+		this.addCommand({
+			id: "redoQuickAdd",
+			name: "Redo QuickAdd Action",
+			hotkeys: [{ modifiers: ["Mod", "Shift"], key: "z" }],
+			checkCallback: (checking) => {
+				if (checking) {
+					return commandHistory.canRedo();
+				}
+
+				void commandHistory.redo();
 			},
 		});
 
