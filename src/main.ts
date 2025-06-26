@@ -30,7 +30,7 @@ interface DefinedUriParameters {
 
 type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
-export default class QuickAdd extends Plugin {
+export default class QuickAdd extends Plugin<QuickAddSettings> {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
@@ -82,13 +82,7 @@ export default class QuickAdd extends Plugin {
 
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
-		cache.startAutomaticCleanup((intervalId: number) => {
-			// The Plugin base class has `registerInterval`, but the type is
-			// missing from the current version of the obsidian typings. Cast
-			// to `unknown` to bypass the missing declaration while preserving
-			// runtime behaviour.
-			return (this as unknown as { registerInterval: (id: number) => number }).registerInterval(intervalId);
-		});
+		cache.startAutomaticCleanup((intervalId: number) => this.registerInterval(intervalId));
 
 		this.addCommand({
 			id: "testQuickAdd",
