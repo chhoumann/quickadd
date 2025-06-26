@@ -11,7 +11,7 @@ export class OptimizedTemplateProcessor {
   /** Cache of frequently-used regular expressions. */
   private static readonly patternCache = new Map<string, RegExp>();
   /** Cache for fully-parsed template token streams. */
-  private static readonly templateCache = new WeakMap<String, ParsedTemplate>();
+  private static readonly templateCache = new Map<string, ParsedTemplate>();
 
   /**
    * Entry point – hand over a template string and variable map, receive the
@@ -19,11 +19,11 @@ export class OptimizedTemplateProcessor {
    * cached.
    */
   public process(template: string, variables: Variables): string {
-    let parsed = OptimizedTemplateProcessor.templateCache.get(template as unknown as String);
+    let parsed = OptimizedTemplateProcessor.templateCache.get(template);
 
     if (!parsed) {
       parsed = this.parseTemplate(template);
-      OptimizedTemplateProcessor.templateCache.set(template as unknown as String, parsed);
+      OptimizedTemplateProcessor.templateCache.set(template, parsed);
     }
 
     return this.renderTemplate(parsed, variables);
