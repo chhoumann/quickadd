@@ -23,6 +23,7 @@ import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggest
 import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
+import { TemplateProcessingError } from "../errors/templateProcessingError";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -62,12 +63,18 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatFileContent(input: string): Promise<string> {
-		let output: string = input;
+		try {
+			let output: string = input;
 
-		output = await this.format(output);
-		output = await this.replaceLinkToCurrentFileInString(output);
+			output = await this.format(output);
+			output = await this.replaceLinkToCurrentFileInString(output);
 
-		return output;
+			return output;
+		} catch (err) {
+			// Any failure in template processing should raise our structured error.
+			const reason = err instanceof Error ? err.message : String(err);
+			throw new TemplateProcessingError("<inline>", reason);
+		}
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
