@@ -14,6 +14,9 @@ export default defineConfig({
 		alias: {
 			src: path.resolve("./src"),
 			obsidian: path.resolve("./tests/obsidian-stub.ts"),
+			"@src": path.resolve("./src"),
+			"@engine": path.resolve("./src/engine"),
+			"@template": path.resolve("./src/template-engine"),
 		},
 	},
 	test: {

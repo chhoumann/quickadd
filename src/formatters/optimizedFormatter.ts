@@ -1,5 +1,5 @@
 import { CompleteFormatter } from "./completeFormatter";
-import { OptimizedTemplateProcessor } from "../template-engine/OptimizedTemplateProcessor";
+import { OptimizedTemplateProcessor } from "@template/OptimizedTemplateProcessor";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
-import { OptimizedTemplateProcessor } from "./OptimizedTemplateProcessor";
+import { OptimizedTemplateProcessor } from "@template/OptimizedTemplateProcessor";
 import type { VariableMap } from "./types";
 
 function naiveLegacyProcess(template: string, variables: VariableMap): string {
@@ -72,5 +72,31 @@ describe("OptimizedTemplateProcessor", () => {
 
   it("formats DATE with offset", () => {
     expect(processor.process("Tomorrow {{DATE+1}}", {})).toBe("Tomorrow 2025-01-03");
+  });
+
+  it("handles nested template placeholders", () => {
+    const tpl = "A {{TEMPLATE:first.md}} B {{TEMPLATE:second.md}} C";
+    expect(processor.process(tpl, {})).toBe(tpl);
+  });
+
+  it("handles year crossover with positive offset", () => {
+    vi.setSystemTime(new Date("2024-12-31T00:00:00Z"));
+    expect(processor.process("Next {{DATE+1}}", {})).toBe("Next 2025-01-01");
+  });
+
+  it("handles year crossover with negative offset", () => {
+    vi.setSystemTime(new Date("2025-01-01T00:00:00Z"));
+    expect(processor.process("Prev {{DATE-1}}", {})).toBe("Prev 2024-12-31");
+  });
+
+  it("leaves malformed date format untouched", () => {
+    const tpl = "{{DATE:INVALIDFORMAT}}";
+    expect(processor.process(tpl, {})).toBe("INVALIDFORMAT");
+  });
+
+  it("substitutes variables containing special characters", () => {
+    const vars: VariableMap = { "user-name": "Alice/Bob" };
+    const tpl = "Hello {{VALUE:user-name}}!";
+    expect(processor.process(tpl, vars)).toBe("Hello Alice/Bob!");
   });
 });

@@ -1,11 +1,12 @@
-import { ParsedTemplate, Token, LiteralToken, VariableToken, DateToken, TemplateToken, VariableMap } from "./types";
+import type { ParsedTemplate, Token, LiteralToken, VariableToken, DateToken, TemplateToken, VariableMap } from "./types";
 
 /**
- * An aggressively-optimized, self-contained template processor that turns a
- * template string and a Variables map into the final rendered string using a
- * single parsing pass.  It purposefully does **not** depend on any Obsidian or
- * QuickAdd APIs so it can be unit-tested in isolation and, if needed, reused in
- * other contexts.
+ * High-performance, single-pass template processor.
+ *
+ * It performs tokenisation in one linear scan, caches the parsed token stream
+ * (per unique template string), formats variables / dates, and leaves unknown
+ * constructs untouched so that higher-level formatters (or Obsidian's own
+ * Templater) can handle them later.
  */
 export class OptimizedTemplateProcessor {
   /** Cache of frequently-used regular expressions. */
@@ -14,9 +15,10 @@ export class OptimizedTemplateProcessor {
   private static readonly templateCache = new Map<string, ParsedTemplate>();
 
   /**
-   * Entry point – hand over a template string and variable map, receive the
-   * rendered output.  Parsing is skipped if the template instance is already
-   * cached.
+   * Render a template with the supplied variables.
+   *
+   * The same template string is parsed only once and then served from the
+   * internal cache on subsequent calls.
    */
   public process(template: string, variables: VariableMap): string {
     let parsed = OptimizedTemplateProcessor.templateCache.get(template);
