@@ -10,10 +10,15 @@
 		"moduleResolution": "node",
 		"importHelpers": true,
 		"isolatedModules": true,
-		"types": ["svelte", "node", "obsidian"],
+		"types": ["node", "svelte"],
 		"strictNullChecks": true,
 		"lib": ["DOM", "ES2017", "ES2020"],
-		"experimentalDecorators": true
+		"experimentalDecorators": true,
+		"paths": {
+			"obsidian": ["node_modules/obsidian/dist/obsidian.d.ts"]
+		},
+		"skipLibCheck": true,
+		"esModuleInterop": true
 	},
 	"include": ["**/*.ts"]
 }
