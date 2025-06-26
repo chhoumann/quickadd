@@ -31,5 +31,10 @@ export interface SearchFailedMessage {
 	error: string;
 }
 
+export interface MemoryPressureMessage {
+	type: "memoryPressure";
+	used: number;
+}
+
 export type WorkerRequest = UpdateIndexMessage | SearchMessage;
-export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage | IndexFailedMessage | SearchFailedMessage;
+export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage | IndexFailedMessage | SearchFailedMessage | MemoryPressureMessage;

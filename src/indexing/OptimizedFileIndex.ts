@@ -258,6 +258,10 @@ export class OptimizedFileIndex {
 			// Disable worker to prevent repeated failures
 			this.worker?.terminate();
 			this.worker = null;
+		} else if (type === "memoryPressure") {
+			console.warn("OptimizedFileIndex: worker memory pressure", e.data.used);
+			// Clear search cache to release memory
+			this.searchCache.clear();
 		}
 	}
 

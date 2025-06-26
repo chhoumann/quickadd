@@ -154,8 +154,12 @@ export class FileIndex {
 
 	static getInstance(app: App, plugin: Plugin): FileIndex {
 		if (FileIndex.optimizedFlag) {
-			// Use the new indexer but cast to legacy interface for gradual migration
-			return OptimizedFileIndex.getInstance(app) as unknown as FileIndex;
+			try {
+				return OptimizedFileIndex.getInstance(app) as unknown as FileIndex;
+			} catch (err) {
+				console.error("FileIndex: Failed to initialize OptimizedFileIndex, falling back", err);
+				FileIndex.optimizedFlag = false;
+			}
 		}
 
 		if (!FileIndex.instance) {
@@ -300,12 +304,12 @@ export class FileIndex {
 		}
 
 		// Extract and sanitize headings at index time
-		const headings = (fileCache?.headings ?? []).map(h => sanitizeHeading(h.heading));
+		const headings = (fileCache?.headings ?? []).map((h: { heading: string }) => sanitizeHeading(h.heading));
 
 		// Extract block IDs
 		const blockIds: string[] = [];
 		if (fileCache?.blocks) {
-			for (const block of Object.values(fileCache.blocks)) {
+			for (const block of Object.values(fileCache.blocks as Record<string, { id?: string }>)) {
 				if (block.id) {
 					blockIds.push(block.id);
 				}
@@ -313,7 +317,7 @@ export class FileIndex {
 		}
 
 		// Extract tags
-		const tags = fileCache?.tags?.map(t => t.tag) ?? [];
+		const tags = fileCache?.tags?.map((t: { tag: string }) => t.tag) ?? [];
 		if (frontmatter?.tags) {
 			const frontmatterTags = Array.isArray(frontmatter.tags) 
 				? frontmatter.tags 
@@ -564,11 +568,11 @@ export class FileIndex {
 		}
 
 		// 3. Fuzzy search with adaptive threshold - Tier 3 and below
-		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
+		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 }) as Array<{ item: IndexedFile; score?: number; matches?: Array<{ key: string; value: string }> }>;
 
 		// Relax threshold if we have too few results
 		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
-			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
+			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 }) as Array<{ item: IndexedFile; score?: number; matches?: Array<{ key: string; value: string }> }>;
 		}
 
 		for (const result of fuseResults) {
@@ -578,10 +582,10 @@ export class FileIndex {
 			}
 
 			// Detect if this Fuse result came from an alias match
-			const fromAlias = (result.matches ?? []).some(m => m.key === 'aliases');
+			const fromAlias = (result.matches ?? []).some((m: { key: string }) => m.key === 'aliases');
 			const matchType = fromAlias ? 'alias' : 'fuzzy';
 			const displayText = fromAlias 
-				? (result.matches?.find(m => m.key === 'aliases')?.value as string) ?? result.item.basename
+				? (result.matches?.find((m: { key: string; value: string }) => m.key === 'aliases')?.value as string) ?? result.item.basename
 				: result.item.basename;
 
 			results.push({
@@ -853,9 +857,9 @@ export class FileIndex {
 		}
 
 		// 3. Fuzzy search - Tier 3 and below
-		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
+		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 }) as Array<{ item: IndexedFile; score?: number; matches?: Array<{ key: string; value: string }> }>;
 		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
-			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
+			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 }) as Array<{ item: IndexedFile; score?: number; matches?: Array<{ key: string; value: string }> }>;
 		}
 
 		for (const result of fuseResults) {
@@ -863,10 +867,10 @@ export class FileIndex {
 				continue;
 			}
 
-			const fromAlias = (result.matches ?? []).some(m => m.key === 'aliases');
+			const fromAlias = (result.matches ?? []).some((m: { key: string }) => m.key === 'aliases');
 			const matchType = fromAlias ? 'alias' : 'fuzzy';
 			const displayText = fromAlias 
-				? (result.matches?.find(m => m.key === 'aliases')?.value as string) ?? result.item.basename
+				? (result.matches?.find((m: { key: string; value: string }) => m.key === 'aliases')?.value as string) ?? result.item.basename
 				: result.item.basename;
 
 			results.push({
@@ -908,6 +912,12 @@ export class FileIndex {
 	 */
 	static enableOptimizedIndexing(): void {
 		FileIndex.optimizedFlag = true;
+		try {
+			OptimizedFileIndex.getInstance(undefined as any);
+		} catch (err) {
+			console.error("FileIndex: Optimized indexing failed to enable", err);
+			FileIndex.optimizedFlag = false;
+		}
 	}
 
 }

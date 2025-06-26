@@ -10,8 +10,19 @@ declare module "obsidian" {
     stat: { mtime: number };
   }
 
+  export interface HeadingCache { heading: string }
+  export interface BlockCache { id?: string }
+  export interface TagCache { tag: string }
+
+  export interface FileCache {
+    frontmatter?: Record<string, unknown>;
+    headings?: HeadingCache[];
+    blocks?: Record<string, BlockCache>;
+    tags?: TagCache[];
+  }
+
   export interface MetadataCache {
-    getFileCache(file: TFile): any;
+    getFileCache(file: TFile): FileCache | null;
     unresolvedLinks: Record<string, Record<string, unknown>>;
     on(event: string, callback: (...args: unknown[]) => void): () => void;
   }

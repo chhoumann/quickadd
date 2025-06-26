@@ -10,6 +10,8 @@ declare const self: any;
 
 let fuseInstance: Fuse<IndexedFile> | null = null;
 let index: Map<string, IndexedFile> = new Map();
+let memoryCheckInterval: number | null = null;
+const MEMORY_LIMIT = 150 * 1024 * 1024; // 150MB
 
 self.onmessage = (e: MessageEvent<IncomingMessage>) => {
 	const data = e.data;
@@ -71,3 +73,21 @@ function performSearch(query: string) {
 	const results = fuseInstance.search(query);
 	self.postMessage({ type: "searchResults", results });
 }
+
+function startMemoryMonitor() {
+	if (typeof performance === "undefined" || !(performance as any).memory) return;
+	if (memoryCheckInterval !== null) return;
+
+	memoryCheckInterval = setInterval(() => {
+		const mem = (performance as any).memory;
+		if (mem && mem.usedJSHeapSize > MEMORY_LIMIT) {
+			self.postMessage({ type: "memoryPressure", used: mem.usedJSHeapSize } as WorkerResponse);
+			// Simple mitigation: drop Fuse collection to free memory (will be rebuilt on demand)
+			fuseInstance = null;
+			index.clear();
+		}
+	}, 60000) as unknown as number;
+}
+
+// start monitor on initialization
+startMemoryMonitor();
