@@ -7,6 +7,7 @@ import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
 import { AIResponseCache, buildCacheKey } from "./AIResponseCache";
+import { TokenUsageTracker } from "./TokenUsageTracker";
 
 export interface CommonResponse {
 	id: string;
@@ -213,6 +214,10 @@ export function OpenAIRequest(
 				);
 				response = mapOpenAIResponseToCommon(openaiResponse);
 			}
+
+			// 4) Track token usage (both prompt & completion)
+			TokenUsageTracker.instance.addTokens(modelProvider.name, response.usage.promptTokens, "input", modelProvider);
+			TokenUsageTracker.instance.addTokens(modelProvider.name, response.usage.completionTokens, "output", modelProvider);
 
 			// 5) Store in cache for future reuse
 			AIResponseCache.instance.set(cacheKey, response);
