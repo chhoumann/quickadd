@@ -53,7 +53,7 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.setState(this.settings);
-		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
+		this.unsubscribeSettingsStore = settingsStore.subscribe((settings: QuickAddSettings) => {
 			this.settings = settings;
 			void this.saveSettings();
 		});
@@ -69,7 +69,7 @@ export default class QuickAdd extends Plugin {
 		this.addCommand({
 			id: "reloadQuickAdd",
 			name: "Reload QuickAdd (dev)",
-			checkCallback: (checking) => {
+			checkCallback: (checking: boolean) => {
 				if (checking) {
 					return this.settings.devMode;
 				}
@@ -82,12 +82,18 @@ export default class QuickAdd extends Plugin {
 
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
-		cache.startAutomaticCleanup((intervalId) => this.registerInterval(intervalId));
+		cache.startAutomaticCleanup((intervalId: number) => {
+			// The Plugin base class has `registerInterval`, but the type is
+			// missing from the current version of the obsidian typings. Cast
+			// to `unknown` to bypass the missing declaration while preserving
+			// runtime behaviour.
+			return (this as unknown as { registerInterval: (id: number) => number }).registerInterval(intervalId);
+		});
 
 		this.addCommand({
 			id: "testQuickAdd",
 			name: "Test QuickAdd (dev)",
-			checkCallback: (checking) => {
+			checkCallback: (checking: boolean) => {
 				if (checking) {
 					return this.settings.devMode;
 				}
