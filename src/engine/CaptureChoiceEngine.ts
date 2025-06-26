@@ -22,6 +22,8 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { commandHistory } from "../history/CommandHistory";
+import { OverwriteFileCommand } from "../history/commands/OverwriteFileCommand";
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -78,7 +80,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 				appendToCurrentLine(content, this.app);
 			} else {
-				await this.app.vault.modify(file, newFileContent);
+				await commandHistory.execute(new OverwriteFileCommand(this.app, file.path, newFileContent));
 				await overwriteTemplaterOnce(this.app, file);
 			}
 

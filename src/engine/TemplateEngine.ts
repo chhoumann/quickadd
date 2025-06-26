@@ -11,6 +11,8 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { commandHistory } from "../history/CommandHistory";
+import { OverwriteFileCommand } from "../history/commands/OverwriteFileCommand";
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
@@ -151,7 +153,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
-			await this.app.vault.modify(file, formattedTemplateContent);
+			await commandHistory.execute(new OverwriteFileCommand(this.app, file.path, formattedTemplateContent));
 
 			// Process Templater commands
 			await overwriteTemplaterOnce(this.app, file);
@@ -180,7 +182,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				section === "top"
 					? `${formattedTemplateContent}\n${fileContent}`
 					: `${fileContent}\n${formattedTemplateContent}`;
-			await this.app.vault.modify(file, newFileContent);
+			await commandHistory.execute(new OverwriteFileCommand(this.app, file.path, newFileContent));
 
 			// Process Templater commands
 			await overwriteTemplaterOnce(this.app, file);
