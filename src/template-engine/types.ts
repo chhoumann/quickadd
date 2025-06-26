@@ -1,4 +1,7 @@
-export type Variables = Record<string, unknown>;
+export interface VariableMap {
+  /** Map of variable names to their string values */
+  [name: string]: string;
+}
 
 export interface ParsedTemplate {
   /**

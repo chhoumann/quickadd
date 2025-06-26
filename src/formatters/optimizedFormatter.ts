@@ -3,6 +3,7 @@ import { OptimizedTemplateProcessor } from "../template-engine/OptimizedTemplate
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { VariableMap } from "../template-engine/types";
 
 /**
  * Lightweight adapter that plugs the high-performance
@@ -36,7 +37,14 @@ export class OptimizedFormatter extends CompleteFormatter {
     output = await this.replaceDateVariableInString(output);
 
     // ── Phase 2: fast token rendering ──────────────────────────────────────
-    output = this.processor.process(output, this.variables as any);
+    const varObj: VariableMap = {};
+    this.variables.forEach((value, key) => {
+      if (value !== undefined && value !== null) {
+        varObj[key] = String(value);
+      }
+    });
+
+    output = this.processor.process(output, varObj);
 
     return output;
   }

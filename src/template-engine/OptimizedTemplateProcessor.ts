@@ -1,4 +1,4 @@
-import { ParsedTemplate, Token, LiteralToken, VariableToken, DateToken, TemplateToken, Variables } from "./types";
+import { ParsedTemplate, Token, LiteralToken, VariableToken, DateToken, TemplateToken, VariableMap } from "./types";
 
 /**
  * An aggressively-optimized, self-contained template processor that turns a
@@ -18,7 +18,7 @@ export class OptimizedTemplateProcessor {
    * rendered output.  Parsing is skipped if the template instance is already
    * cached.
    */
-  public process(template: string, variables: Variables): string {
+  public process(template: string, variables: VariableMap): string {
     let parsed = OptimizedTemplateProcessor.templateCache.get(template);
 
     if (!parsed) {
@@ -108,7 +108,7 @@ export class OptimizedTemplateProcessor {
   //  Rendering helpers
   // ──────────────────────────────────────────────────────────────────────────
 
-  private renderTemplate(parsed: ParsedTemplate, variables: Variables): string {
+  private renderTemplate(parsed: ParsedTemplate, variables: VariableMap): string {
     const parts = new Array<string>(parsed.tokens.length);
 
     for (let i = 0; i < parsed.tokens.length; i++) {
@@ -132,7 +132,7 @@ export class OptimizedTemplateProcessor {
     return parts.join("");
   }
 
-  private resolveVariable(token: VariableToken, variables: Variables): string {
+  private resolveVariable(token: VariableToken, variables: VariableMap): string {
     const value = variables[token.name];
     if (value === undefined || value === null || value === "") {
       return token.defaultValue ?? "";
@@ -171,7 +171,7 @@ export class OptimizedTemplateProcessor {
    * higher-level formatter can post-process.  This keeps the engine entirely
    * decoupled from IO concerns.
    */
-  private includeTemplate(token: TemplateToken, _variables: Variables): string {
+  private includeTemplate(token: TemplateToken, _variables: VariableMap): string {
     return `{{TEMPLATE:${token.path}}}`;
   }
 

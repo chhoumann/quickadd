@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { OptimizedTemplateProcessor } from "./OptimizedTemplateProcessor";
-import type { Variables } from "./types";
+import type { VariableMap } from "./types";
 
-function naiveLegacyProcess(template: string, variables: Variables): string {
+function naiveLegacyProcess(template: string, variables: VariableMap): string {
   let output = template;
   output = output.replace(/{{VALUE:([^}|]+)(?:\|([^}]*))?}}/gi, (_m, name: string, def?: string) => {
     const val = variables[name.trim()];
@@ -44,7 +44,7 @@ describe("OptimizedTemplateProcessor", () => {
 
   it("replaces simple variables", () => {
     const tpl = "Hello {{VALUE:name}}!";
-    const vars: Variables = { name: "World" };
+    const vars: VariableMap = { name: "World" };
     expect(processor.process(tpl, vars)).toBe("Hello World!");
   });
 
@@ -60,7 +60,7 @@ describe("OptimizedTemplateProcessor", () => {
 
   it("matches naive legacy implementation on mixed template", () => {
     const tpl = "{{DATE}} - {{VALUE:name}} - {{VALUE:missing|bar}}";
-    const vars: Variables = { name: "Alice" };
+    const vars: VariableMap = { name: "Alice" };
     const optimized = processor.process(tpl, vars);
     const legacy = naiveLegacyProcess(tpl, vars);
     expect(optimized).toBe(legacy);
