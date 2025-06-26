@@ -43,6 +43,14 @@ export default class QuickAdd extends Plugin {
 		console.log("Loading QuickAdd");
 		QuickAdd.instance = this;
 
+		// Expose a stable public API for extensions.
+		// We register early so that other plugins can start using it as soon
+		// as QuickAdd is enabled, but after QuickAdd has been instantiated.
+		// Note: we purposefully use `globalThis` to avoid assumptions about
+		// the runtime environment (browser vs Electron).
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(globalThis as any).QuickAdd = this.api;
+
 		await this.loadSettings();
 		settingsStore.setState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
@@ -162,6 +170,9 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		console.log("Unloading QuickAdd");
+		// Clean up the global API reference to avoid leaking stale instances.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		delete (globalThis as any).QuickAdd;
 		this.unsubscribeSettingsStore?.call(this);
 		
 		// Clear the error log to prevent memory leaks

@@ -25,6 +25,7 @@ import {
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { EventBus } from "./utils/EventBus";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -32,6 +33,14 @@ export class QuickAddApi {
 		plugin: QuickAdd,
 		choiceExecutor: IChoiceExecutor
 	) {
+		const eventBus = EventBus.getInstance();
+
+		// Centralised helper for Phase-1 stubbed methods.
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		const notImplemented = (name: string): never => {
+			throw new Error(`NotImplementedYet: ${name}`);
+		};
+
 		return {
 			inputPrompt: (
 				header: string,
@@ -107,6 +116,49 @@ export class QuickAddApi {
 				}
 
 				return output;
+			},
+			/* ------------------------------------------------------------------ */
+			// Phase-1 public API skeletons — currently throw NotImplementedYet.
+			/* ------------------------------------------------------------------ */
+			choices: {
+				create: (...args: unknown[]) => notImplemented("choices.create"),
+				update: (...args: unknown[]) => notImplemented("choices.update"),
+				delete: (...args: unknown[]) => notImplemented("choices.delete"),
+				get: (...args: unknown[]) => notImplemented("choices.get"),
+				getAll: () => notImplemented("choices.getAll"),
+				execute: (...args: unknown[]) => notImplemented("choices.execute"),
+			},
+			macros: {
+				create: (...args: unknown[]) => notImplemented("macros.create"),
+				addCommand: (...args: unknown[]) => notImplemented("macros.addCommand"),
+				execute: (...args: unknown[]) => notImplemented("macros.execute"),
+			},
+			templates: {
+				format: (...args: unknown[]) => notImplemented("templates.format"),
+				registerFormatter: (...args: unknown[]) => notImplemented("templates.registerFormatter"),
+				registerVariable: (...args: unknown[]) => notImplemented("templates.registerVariable"),
+			},
+			events: {
+				on: eventBus.on.bind(eventBus),
+				off: eventBus.off.bind(eventBus),
+				once: eventBus.once.bind(eventBus),
+			},
+			ui: {
+				prompt: (title: string, placeholder?: string, value?: string) =>
+					this.inputPrompt(app, title, placeholder, value),
+				confirm: (message: string) => this.yesNoPrompt(app, message),
+				suggest: (items: unknown[], display: (item: unknown) => string) => {
+					const displayItems = items.map(display);
+					return this.suggester(app, displayItems, items as unknown as string[]);
+				},
+				showError: (...args: unknown[]) => notImplemented("ui.showError"),
+				showSuccess: (...args: unknown[]) => notImplemented("ui.showSuccess"),
+			},
+			utils: {
+				getActiveFile: () => notImplemented("utils.getActiveFile"),
+				createFile: (...args: unknown[]) => notImplemented("utils.createFile"),
+				appendToFile: (...args: unknown[]) => notImplemented("utils.appendToFile"),
+				executeObsidianCommand: (...args: unknown[]) => notImplemented("utils.executeObsidianCommand"),
 			},
 			ai: {
 				prompt: async (
