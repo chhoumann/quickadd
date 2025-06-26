@@ -30,7 +30,7 @@ interface DefinedUriParameters {
 
 type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
-export default class QuickAdd extends Plugin<QuickAddSettings> {
+export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
