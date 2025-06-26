@@ -16,7 +16,11 @@ const options = Object.freeze({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ["src/main.ts", "src/styles.css"],
+	entryPoints: [
+		"src/main.ts",
+		"src/styles.css",
+		"src/workers/file-indexer-worker.ts",
+	],
 	bundle: true,
 	minify: prod,
 	external: [
