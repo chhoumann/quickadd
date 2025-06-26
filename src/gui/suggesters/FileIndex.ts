@@ -172,14 +172,12 @@ export class FileIndex {
 	private setupEventListeners(): void {
 		// Track recently opened files
 		this.plugin.registerEvent(
-			this.app.workspace.on('file-open', (file: TFile | null) => {
-				if (file) {
-					this.recentFiles.set(file.path, Date.now());
-					// Update openedAt in our index
-					const indexedFile = this.fileMap.get(file.path);
-					if (indexedFile) {
-						indexedFile.openedAt = Date.now();
-					}
+			this.app.workspace.on('file-open', (file: unknown) => {
+				if (file && typeof (file as any).path === 'string') {
+					const tfile = file as TFile;
+					this.recentFiles.set(tfile.path, Date.now());
+					const indexedFile = this.fileMap.get(tfile.path);
+					if (indexedFile) indexedFile.openedAt = Date.now();
 				}
 			})
 		);

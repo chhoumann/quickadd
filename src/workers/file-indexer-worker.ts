@@ -82,9 +82,13 @@ function startMemoryMonitor() {
 		const mem = (performance as any).memory;
 		if (mem && mem.usedJSHeapSize > MEMORY_LIMIT) {
 			self.postMessage({ type: "memoryPressure", used: mem.usedJSHeapSize } as WorkerResponse);
-			// Simple mitigation: drop Fuse collection to free memory (will be rebuilt on demand)
+			// Mitigation: drop Fuse collection & index to free memory; they'll lazily rebuild
 			fuseInstance = null;
 			index.clear();
+			// Notify after cleanup
+			setTimeout(() => {
+				self.postMessage({ type: "memoryPressureCleared" } as any);
+			}, 0);
 		}
 	}, 60000) as unknown as number;
 }

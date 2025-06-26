@@ -260,8 +260,13 @@ export class OptimizedFileIndex {
 			this.worker = null;
 		} else if (type === "memoryPressure") {
 			console.warn("OptimizedFileIndex: worker memory pressure", e.data.used);
-			// Clear search cache to release memory
 			this.searchCache.clear();
+		} else if (type === "memoryPressureCleared") {
+			console.info("OptimizedFileIndex: worker memory pressure resolved - rebuilding index cache");
+			// trigger a lightweight fuse rebuild if index still present
+			if (this.index.size > 0) {
+				this.buildFuseIndex();
+			}
 		}
 	}
 

@@ -36,5 +36,9 @@ export interface MemoryPressureMessage {
 	used: number;
 }
 
+export interface MemoryPressureClearedMessage {
+	type: "memoryPressureCleared";
+}
+
 export type WorkerRequest = UpdateIndexMessage | SearchMessage;
-export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage | IndexFailedMessage | SearchFailedMessage | MemoryPressureMessage;
+export type WorkerResponse = IndexUpdatedMessage | SearchResultsMessage | IndexFailedMessage | SearchFailedMessage | MemoryPressureMessage | MemoryPressureClearedMessage;
