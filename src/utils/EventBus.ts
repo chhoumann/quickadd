@@ -53,7 +53,7 @@ export class EventBus<Event extends string = string> {
 	 * Register a handler that will be invoked at most once.
 	 */
 	once(event: Event, handler: EventHandler): void {
-		const wrapper: EventHandler = (...args) => {
+		const wrapper: EventHandler = (...args: unknown[]) => {
 			this.off(event, wrapper);
 			handler(...args);
 		};
