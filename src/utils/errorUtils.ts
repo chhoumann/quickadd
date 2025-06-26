@@ -1,6 +1,8 @@
 import { log } from "../logger/logManager";
 import type { ErrorLevel } from "../logger/errorLevel";
 import { ErrorLevel as ErrorLevelEnum } from "../logger/errorLevel";
+import { QuickAddError } from "../errors/quickAddError";
+import { ErrorDisplay } from "../errors/errorDisplay";
 
 /**
  * Maximum number of errors to keep in the error log
@@ -70,19 +72,28 @@ export function reportError(
 ): void {
   const error = toError(err, contextMessage);
   
+  // If this is one of our structured QuickAddErrors, surface it to the UI first.
+  if (error instanceof QuickAddError) {
+    ErrorDisplay.show(error);
+  }
+
   switch (level) {
-    case ErrorLevelEnum.Error:
+    case ErrorLevelEnum.Error: {
       log.logError(error);
       break;
-    case ErrorLevelEnum.Warning:
+    }
+    case ErrorLevelEnum.Warning: {
       log.logWarning(error);
       break;
-    case ErrorLevelEnum.Log:
+    }
+    case ErrorLevelEnum.Log: {
       log.logMessage(error);
       break;
-    default:
+    }
+    default: {
       // Ensure exhaustiveness
       log.logError(error);
+    }
   }
 }
 

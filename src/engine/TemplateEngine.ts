@@ -9,8 +9,10 @@ import {
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
-import { reportError } from "../utils/errorUtils";
+import { reportError, toError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { QuickAddError } from "../errors/quickAddError";
+import { FileOperationError } from "../errors/fileOperationError";
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
@@ -135,7 +137,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return createdFile;
 		} catch (err) {
-			reportError(err, "Could not create file with template");
+			const wrappedError = err instanceof QuickAddError
+				? err
+				: new FileOperationError("create", filePath, toError(err).message);
+			reportError(wrappedError, "Could not create file with template");
 			return null;
 		}
 	}
@@ -158,7 +163,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return file;
 		} catch (err) {
-			reportError(err, "Could not overwrite file with template");
+			const wrappedError = err instanceof QuickAddError
+				? err
+				: new FileOperationError("update", file.path, toError(err).message);
+			reportError(wrappedError, "Could not overwrite file with template");
 			return null;
 		}
 	}
@@ -187,7 +195,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return file;
 		} catch (err) {
-			reportError(err, "Could not append to file with template");
+			const wrappedError = err instanceof QuickAddError
+				? err
+				: new FileOperationError("update", file.path, toError(err).message);
+			reportError(wrappedError, "Could not append to file with template");
 			return null;
 		}
 	}
