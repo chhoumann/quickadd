@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
+import { TemplateProcessingError } from "../errors/templateProcessingError";
 
 export class SingleTemplateEngine extends TemplateEngine {
 	constructor(
@@ -14,17 +15,27 @@ export class SingleTemplateEngine extends TemplateEngine {
 		super(app, plugin, choiceExecutor);
 	}
 	public async run(): Promise<string> {
-		let templateContent: string = await this.getTemplateContent(
-			this.templatePath
-		);
-		if (!templateContent) {
-			log.logError(`Template ${this.templatePath} not found.`);
+		try {
+			let templateContent: string = await this.getTemplateContent(
+				this.templatePath
+			);
+
+			if (!templateContent) {
+				throw new TemplateProcessingError(this.templatePath, "EMPTY_TEMPLATE");
+			}
+
+			templateContent = await this.formatter.formatFileContent(
+				templateContent
+			);
+
+			return templateContent;
+		} catch (err) {
+			// Wrap any unknown errors as TemplateProcessingError
+			if (err instanceof TemplateProcessingError) throw err;
+			throw new TemplateProcessingError(
+				this.templatePath,
+				err instanceof Error ? err.message : String(err)
+			);
 		}
-
-		templateContent = await this.formatter.formatFileContent(
-			templateContent
-		);
-
-		return templateContent;
 	}
 }

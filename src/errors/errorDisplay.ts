@@ -1,6 +1,11 @@
 import { Notice } from "obsidian";
+import type { App, TFile } from "obsidian";
 import type { QuickAddError } from "./quickAddError";
 import { log } from "../logger/logManager";
+
+// Use imported types in a private noop to avoid unused warnings
+type _App = App; // eslint-disable-line @typescript-eslint/no-unused-vars
+type _TFile = TFile; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 export class ErrorDisplay {
   /**
