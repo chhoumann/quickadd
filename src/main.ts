@@ -46,7 +46,7 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.setState(this.settings);
-		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
+		this.unsubscribeSettingsStore = settingsStore.subscribe((settings: QuickAddSettings) => {
 			this.settings = settings;
 			void this.saveSettings();
 		});
@@ -271,6 +271,14 @@ export default class QuickAdd extends Plugin {
 		return choice;
 	}
 
+	/**
+	 * Recursively find a choice by `name` or `id`.
+	 *
+	 * @param by  Whether to match on the "name" or "id" field.
+	 * @param targetPropertyValue  The value to search for.
+	 * @param choices  The collection of choices to search (defaults to root list).
+	 * @returns The matching choice or `null` when nothing was found.
+	 */
 	private getChoice(
 		by: "name" | "id",
 		targetPropertyValue: string,

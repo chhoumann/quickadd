@@ -17,6 +17,9 @@
 	},
 	"include": ["**/*.ts"],
 	"paths": {
-		"obsidian": ["./node_modules/obsidian"]
+		"obsidian": [
+			"./tests/obsidian-stub",
+			"./node_modules/obsidian"
+		]
 	}
 }
