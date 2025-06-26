@@ -99,6 +99,15 @@ export default class QuickAdd extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "quickadd-history",
+			name: "Show QuickAdd History",
+			callback: async () => {
+				const { CommandHistoryModal } = await import("./gui/CommandHistoryModal");
+				new CommandHistoryModal(this.app).open();
+			},
+		});
+
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.startAutomaticCleanup((intervalId) => this.registerInterval(intervalId));
@@ -168,6 +177,14 @@ export default class QuickAdd extends Plugin {
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
 				ChoiceSuggester.Open(this, this.settings.choices);
+			});
+
+			// Undo / Redo ribbon icons
+			this.addRibbonIcon("rotate-ccw", "Undo QuickAdd Action", () => {
+				void commandHistory.undo();
+			});
+			this.addRibbonIcon("rotate-cw", "Redo QuickAdd Action", () => {
+				void commandHistory.redo();
 			});
 		}
 
