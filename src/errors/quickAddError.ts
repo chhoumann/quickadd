@@ -18,9 +18,17 @@ export class QuickAddError extends Error {
     super(message);
     this.name = "QuickAddError";
 
-    // Gracefully invoke V8 specific stack trace capture if available
-    if (typeof (Error as any).captureStackTrace === "function") {
-      (Error as any).captureStackTrace(this, this.constructor);
+    // Gracefully invoke V8 specific stack trace capture if available (V8 environments)
+    type ErrorConstructorWithTrace = ErrorConstructor & {
+      captureStackTrace?: (
+        target: object,
+        constructorOpt?: new (...args: unknown[]) => unknown
+      ) => void;
+    };
+
+    const ErrorWithTrace = Error as ErrorConstructorWithTrace;
+    if (typeof ErrorWithTrace.captureStackTrace === "function") {
+      ErrorWithTrace.captureStackTrace(this, this.constructor);
     }
   }
 }

@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import { QuickAddError } from "./quickAddError";
+import type { QuickAddError } from "./quickAddError";
 import { log } from "../logger/logManager";
 
 export class ErrorDisplay {
