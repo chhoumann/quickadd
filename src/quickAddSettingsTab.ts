@@ -23,6 +23,11 @@ export interface QuickAddSettings {
 	 */
 	disableOnlineFeatures: boolean;
 	enableRibbonIcon: boolean;
+	/**
+	 * Enable the new single-pass template engine. This is experimental and may be
+	 * toggled off to fall back to the legacy CompleteFormatter behaviour.
+	 */
+	useOptimizedFormatter: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -50,6 +55,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	version: "0.0.0",
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
+	useOptimizedFormatter: false,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -87,6 +93,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addAnnounceUpdatesSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
+		this.addUseOptimizedFormatterSetting();
 	}
 
 	addAnnounceUpdatesSetting() {
@@ -213,5 +220,18 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 						this.display();
 					})
 			});
+	}
+
+	private addUseOptimizedFormatterSetting() {
+		new Setting(this.containerEl)
+			.setName("Use Optimized Template Engine (experimental)")
+			.setDesc("Enable single-pass, cached template processing. Disable if you encounter issues.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(settingsStore.getState().useOptimizedFormatter)
+					.onChange((value: boolean) => {
+						settingsStore.setState({ useOptimizedFormatter: value });
+					})
+			);
 	}
 }

@@ -1,5 +1,6 @@
 import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
+import { OptimizedFormatter } from "../formatters/optimizedFormatter";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import type QuickAdd from "../main";
@@ -23,7 +24,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	) {
 		super(app);
 		this.templater = getTemplater(app);
-		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
+		this.formatter = plugin.settings.useOptimizedFormatter
+			? new OptimizedFormatter(app, plugin, choiceFormatter)
+			: new CompleteFormatter(app, plugin, choiceFormatter);
 	}
 
 	public abstract run():
