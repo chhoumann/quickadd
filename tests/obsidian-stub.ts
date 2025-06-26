@@ -81,6 +81,7 @@ export const FuzzySuggestModal = class {
 };
 
 export const Modal = class {
+  contentEl: HTMLElement = (typeof document !== "undefined" ? document.createElement("div") : ({} as any));
   constructor(app: any) {}
   open() {}
   close() {}

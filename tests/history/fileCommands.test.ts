@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import type { App as ObsidianApp } from "obsidian";
 import { CommandHistory } from "../../src/history/CommandHistory";
 import { CreateFileCommand } from "../../src/history/commands/CreateFileCommand";
 import { OverwriteFileCommand } from "../../src/history/commands/OverwriteFileCommand";
@@ -7,7 +6,7 @@ import { AppendToFileCommand } from "../../src/history/commands/AppendToFileComm
 import { DeleteFileCommand } from "../../src/history/commands/DeleteFileCommand";
 
 // Simple in-memory vault stub.
-function createStubApp(): ObsidianApp {
+function createStubApp(): any {
   const files = new Map<string, string>();
   const adapter = {
     exists: async (path: string) => files.has(path),
@@ -31,11 +30,11 @@ function createStubApp(): ObsidianApp {
     },
     createFolder: async () => {},
   } as any;
-  return { vault } as ObsidianApp;
+  return { vault } as any;
 }
 
 describe("File Commands", () => {
-  let app: ObsidianApp;
+  let app: any;
   let history: CommandHistory;
   const filePath = "Test.md";
 
