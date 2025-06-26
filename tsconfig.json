@@ -10,16 +10,16 @@
 		"moduleResolution": "node",
 		"importHelpers": true,
 		"isolatedModules": true,
-		"types": ["svelte", "node", "vitest"],
+		"types": ["svelte", "node"],
+		"paths": {
+			"obsidian": [
+				"./tests/obsidian-stub",
+				"./node_modules/obsidian"
+			]
+		},
 		"strictNullChecks": true,
 		"lib": ["DOM", "ES5", "ES6", "ES7"],
 		"experimentalDecorators": true
 	},
-	"include": ["**/*.ts"],
-	"paths": {
-		"obsidian": [
-			"./tests/obsidian-stub",
-			"./node_modules/obsidian"
-		]
-	}
+	"include": ["**/*.ts"]
 }
