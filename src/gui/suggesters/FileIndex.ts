@@ -126,9 +126,9 @@ export class FileIndex {
 		
 		const fuseConfig = {
 			keys: [
-				{ name: 'basename', weight: 0.8 }, // Prioritize basename matches
-				{ name: 'aliases', weight: 0.6 },  // Reduced from 1.0
-				{ name: 'path', weight: 0.2 }
+				{ name: 'basename' as keyof IndexedFile, weight: 0.8 }, // Prioritize basename matches
+				{ name: 'aliases' as keyof IndexedFile, weight: 0.6 },  // Reduced from 1.0
+				{ name: 'path' as keyof IndexedFile, weight: 0.2 }
 			],
 			ignoreLocation: true,
 			findAllMatches: true,
@@ -168,7 +168,7 @@ export class FileIndex {
 	private setupEventListeners(): void {
 		// Track recently opened files
 		this.plugin.registerEvent(
-			this.app.workspace.on('file-open', (file) => {
+			this.app.workspace.on('file-open', (file: TFile | null) => {
 				if (file) {
 					this.recentFiles.set(file.path, Date.now());
 					// Update openedAt in our index
@@ -182,7 +182,7 @@ export class FileIndex {
 
 		// Incremental metadata updates for better performance
 		this.plugin.registerEvent(
-			this.app.metadataCache.on('changed', (file) => {
+			this.app.metadataCache.on('changed', (file: TFile) => {
 				if (file instanceof TFile && file.extension === 'md') {
 					this.updateFile(file);
 				}
@@ -201,7 +201,7 @@ export class FileIndex {
 
 		// Handle file system changes
 		this.plugin.registerEvent(
-			this.app.vault.on('create', (file) => {
+			this.app.vault.on('create', (file: TFile) => {
 				if (file instanceof TFile && file.extension === 'md') {
 					this.addFile(file);
 				}
@@ -209,7 +209,7 @@ export class FileIndex {
 		);
 
 		this.plugin.registerEvent(
-			this.app.vault.on('delete', (file) => {
+			this.app.vault.on('delete', (file: TFile) => {
 				if (file instanceof TFile) {
 					this.removeFile(file);
 				}
@@ -217,7 +217,7 @@ export class FileIndex {
 		);
 
 		this.plugin.registerEvent(
-			this.app.vault.on('rename', (file, oldPath) => {
+			this.app.vault.on('rename', (file: TFile, oldPath: string) => {
 				if (file instanceof TFile && file.extension === 'md') {
 					this.removeFileByPath(oldPath);
 					this.addFile(file);

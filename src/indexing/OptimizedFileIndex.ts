@@ -50,9 +50,9 @@ export class OptimizedFileIndex {
 		// Fuse configuration
 		this.fuseInstance = new Fuse([], {
 			keys: [
-				{ name: "basename", weight: 0.8 },
-				{ name: "aliases", weight: 0.6 },
-				{ name: "path", weight: 0.2 },
+				{ name: "basename" as keyof IndexedFile, weight: 0.8 },
+				{ name: "aliases" as keyof IndexedFile, weight: 0.6 },
+				{ name: "path" as keyof IndexedFile, weight: 0.2 },
 			],
 			ignoreLocation: true,
 			findAllMatches: true,
