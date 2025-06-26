@@ -37,6 +37,7 @@ import {
 	getModelProvider,
 } from "src/ai/aiHelpers";
 import type { Model } from "src/ai/Provider";
+import { commandHistory } from "../history/CommandHistory";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -88,7 +89,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.executeCommands(macro.commands);
+		await commandHistory.executeBatch(`Macro: ${macro.name}`, async () => {
+			await this.executeCommands(macro.commands);
+		});
 	}
 
 	protected async executeCommands(commands: ICommand[]) {

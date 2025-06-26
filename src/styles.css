@@ -559,3 +559,13 @@
 	justify-content: center;
 	align-items: center;
 }
+
+/* QuickAdd Command History Modal */
+.qa-history-current {
+  font-weight: 600;
+  color: var(--text-accent);
+}
+
+.modal .qa-history-current::before {
+  content: "• ";
+}

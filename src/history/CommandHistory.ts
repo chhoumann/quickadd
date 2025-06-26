@@ -1,5 +1,6 @@
 import { Notice } from "obsidian";
 import type { Command } from "./Command";
+import { MacroCommand } from "./commands/MacroCommand";
 
 /**
  * Centralised history stack for all QuickAdd commands.
@@ -64,6 +65,28 @@ export class CommandHistory {
 
   canRedo(): boolean {
     return this.currentIndex < this.history.length - 1;
+  }
+
+  /**
+   * Execute a callback that runs multiple `commandHistory.execute(...)` calls and
+   * groups them into a single MacroCommand so they appear as a single entry in the history.
+   */
+  async executeBatch(description: string, fn: () => Promise<void>): Promise<void> {
+    const startIndex = this.history.length;
+    await fn();
+    const newCommands = this.history.slice(startIndex);
+    if (newCommands.length <= 1) {
+      // Nothing or just one command – keep as-is.
+      return;
+    }
+
+    // Remove newly added commands
+    this.history = this.history.slice(0, startIndex);
+
+    // Push composite
+    const composite = new MacroCommand(newCommands, description);
+    this.history.push(composite);
+    this.currentIndex = this.history.length - 1;
   }
 }
 
