@@ -8,7 +8,6 @@ import QuickAdd from "../../main";
 export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputStart = 0;
-	private tagSet: Set<string>;
 	private sortedTags: string[];
 	private fuse: Fuse<string>;
 
@@ -22,18 +21,18 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 		// Listen to metadata cache changes to refresh tag index
 		// Using registerEvent for automatic cleanup when plugin unloads
-		QuickAdd.instance.registerEvent(
-			this.app.metadataCache.on("resolved", () => this.refreshTagIndex())
-		);
+		const eventRef = this.app.metadataCache.on("resolved", this.refreshTagIndex.bind(this));
+		// Cast is required because the `registerEvent` helper is inherited
+		// from Obsidian's `Plugin` → `Component` chain, but the type is not
+		// exposed in the default QuickAdd export within this project.
+		(QuickAdd.instance as unknown as { registerEvent: (ref: unknown) => void })?.registerEvent(eventRef);
 	}
 
 	private refreshTagIndex(): void {
 		// Build and sort the tag list once
-		// @ts-expect-error - getTags is available but not in the type definitions
+		// getTags is available on MetadataCache (augmented in `obsidian.d.ts`)
 		const tagObj = this.app.metadataCache.getTags();
 		const tags = Object.keys(tagObj);
-
-		this.tagSet = new Set(tags);
 
 		// Sort tags: prefer shorter tags first, then alphabetically
 		this.sortedTags = tags.sort((a, b) => {
@@ -75,21 +74,23 @@ export class TagSuggester extends TextInputSuggest<string> {
 		this.lastInputStart = tagMatch.index! + 1; // +1 to skip the #
 
 		// Prefix matches first
-		const prefixMatches = this.sortedTags.filter(tag =>
-			tag.toLowerCase().startsWith(tagInput.toLowerCase())
-		).slice(0, 5);
+		const prefixMatches = this.sortedTags
+			.filter((tag) => tag.toLowerCase().startsWith(tagInput.toLowerCase()))
+			.slice(0, 5);
 
 		// Then fuzzy matches
-		const fuzzyResults = this.fuse.search(tagInput)
-			.filter(result => result.score! < 0.8)
-			.map(result => result.item)
+		const fuzzyResults: Fuse.FuseResult<string>[] = this.fuse.search(tagInput);
+
+		const filteredFuzzy = fuzzyResults
+			.filter((result: Fuse.FuseResult<string>) => result.score !== undefined && result.score < 0.8)
+			.map((result: Fuse.FuseResult<string>) => result.item)
 			.slice(0, 10);
 
 		// Combine and deduplicate, preserving prefix match priority
 		const seen = new Set(prefixMatches);
 		const combined = [...prefixMatches];
 
-		for (const tag of fuzzyResults) {
+		for (const tag of filteredFuzzy) {
 			if (!seen.has(tag) && combined.length < 15) {
 				combined.push(tag);
 				seen.add(tag);
