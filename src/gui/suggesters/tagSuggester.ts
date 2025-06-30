@@ -4,6 +4,7 @@ import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
 import { replaceRange } from "./utils";
 import QuickAdd from "../../main";
+import type { FuseResult } from "fuse.js";
 
 export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
@@ -79,11 +80,11 @@ export class TagSuggester extends TextInputSuggest<string> {
 			.slice(0, 5);
 
 		// Then fuzzy matches
-		const fuzzyResults: Fuse.FuseResult<string>[] = this.fuse.search(tagInput);
+		const fuzzyResults: FuseResult<string>[] = this.fuse.search(tagInput) as FuseResult<string>[];
 
 		const filteredFuzzy = fuzzyResults
-			.filter((result: Fuse.FuseResult<string>) => result.score !== undefined && result.score < 0.8)
-			.map((result: Fuse.FuseResult<string>) => result.item)
+			.filter((result: FuseResult<string>) => result.score !== undefined && result.score < 0.8)
+			.map((result: FuseResult<string>) => result.item)
 			.slice(0, 10);
 
 		// Combine and deduplicate, preserving prefix match priority
