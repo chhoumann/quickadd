@@ -109,10 +109,20 @@ export class TagSuggester extends TextInputSuggest<string> {
 		if (this.inputEl.selectionStart === null) return;
 
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const replaceStart = this.lastInputStart;
+
+		/*
+		 * `lastInputStart` is calculated as the index **after** the leading
+		 * hash ("#") that the user has already typed. If we start replacing
+		 * from that position, the original "#" will remain, resulting in
+		 * a duplicate (e.g. "##tag").
+		 *
+		 * To ensure only a single leading hash, we expand the replacement
+		 * range to **include** that character.
+		 */
+		const replaceStart = Math.max(this.lastInputStart - 1, 0);
 		const replaceEnd = cursorPosition;
 
-		// Replace the partial tag with the complete tag
+		// Replace the partial tag (including the leading '#') with the full tag
 		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
 		this.close();
 	}
