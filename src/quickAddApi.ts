@@ -2,6 +2,8 @@ import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
+import InputSuggester from "./gui/InputSuggester/inputSuggester";
+import Options from "./gui/InputSuggester/inputSuggester";
 import type { App } from "obsidian";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
@@ -64,6 +66,19 @@ export class QuickAddApi {
 				actualItems: string[]
 			) => {
 				return this.suggester(app, displayItems, actualItems);
+			},
+			inputSuggester: (
+				displayItems:
+					| string[]
+					| ((
+							value: string,
+							index?: number,
+							arr?: string[]
+					  ) => string[]),
+				actualItems: string[],
+				options: Partial<Options> = {}
+			) => {
+				return this.inputSuggester(app, displayItems, actualItems, options);
 			},
 			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
 				return this.checkboxPrompt(app, items, selectedItems);
@@ -467,6 +482,34 @@ export class QuickAddApi {
 				app,
 				displayedItems as string[],
 				actualItems
+			);
+		} catch {
+			return undefined;
+		}
+	}
+
+	public static async inputSuggester(
+		app: App,
+		displayItems:
+			| string[]
+			| ((value: string, index?: number, arr?: string[]) => string[]),
+		actualItems: string[],
+		options: Partial<Options> = {}
+	) {
+		try {
+			let displayedItems;
+
+			if (typeof displayItems === "function") {
+				displayedItems = actualItems.map(displayItems);
+			} else {
+				displayedItems = displayItems;
+			}
+
+			return await InputSuggester.Suggest(
+				app,
+				displayedItems as string[],
+				actualItems,
+				options
 			);
 		} catch {
 			return undefined;
