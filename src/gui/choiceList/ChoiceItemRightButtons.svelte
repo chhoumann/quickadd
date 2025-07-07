@@ -1,6 +1,5 @@
 <script lang="ts">
-    import {faTrash, faBars, faCog, faBolt, faClone} from "@fortawesome/free-solid-svg-icons";
-    import Icon from "svelte-awesome/components/Icon.svelte";
+    import ObsidianIcon from "../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
 
     export let dragDisabled: boolean;
@@ -30,25 +29,25 @@
 <div class="rightButtonsContainer">
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div on:click={emitToggleCommand} class="alignIconInDivInMiddle clickable" aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} style={commandEnabled ? "color: #FDD023;" : ""}>
-        <Icon data={faBolt} />
+        <ObsidianIcon iconId="zap" size={16} />
     </div>
     {#if showConfigureButton}
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label={`Configure${choiceName ? " " + choiceName : ""}`}>
-            <Icon data={faCog} />
+            <ObsidianIcon iconId="settings" size={16} />
         </div>
     {/if}
 
     {#if showDuplicateButton}
         <!-- svelte-ignore a11y-click-events-have-key-events -->
         <div aria-label={`Duplicate ${choiceName ?? ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDuplicateChoice}>
-            <Icon data={faClone} />
+            <ObsidianIcon iconId="copy" size={16} />
         </div>
     {/if}
 
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <div aria-label={`Delete${choiceName ? " " + choiceName : ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDeleteChoice}>
-        <Icon data={faTrash} />
+        <ObsidianIcon iconId="trash-2" size={16} />
     </div>
 
     <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
@@ -59,7 +58,7 @@
          on:mousedown
          on:touchstart
     >
-        <Icon data={faBars} />
+        <ObsidianIcon iconId="grip-vertical" size={16} />
     </div>
 </div>
 

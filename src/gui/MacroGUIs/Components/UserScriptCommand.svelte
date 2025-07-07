@@ -1,6 +1,5 @@
 <script lang="ts">
-    import {faTrash, faBars, faCog} from "@fortawesome/free-solid-svg-icons";
-    import Icon from "svelte-awesome/components/Icon.svelte";
+    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
     import {DndEvent} from "svelte-dnd-action";
     import {IUserScript} from "../../../types/macros/IUserScript";
@@ -23,10 +22,10 @@
     <li>{command.name}</li>
     <div>
         <span on:click={() => configureChoice()} on:keypress={() => configureChoice()} class="clickable">
-            <Icon data="{faCog}" />
+            <ObsidianIcon iconId="settings" size={16} />
         </span>
         <span on:click={() => deleteCommand()} on:keypress={() => configureChoice()} class="clickable">
-            <Icon data="{faTrash}" />
+            <ObsidianIcon iconId="trash-2" size={16} />
         </span>
         <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
         <span on:mousedown={startDrag} on:touchstart={startDrag}
@@ -34,7 +33,7 @@
               style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
               tabindex={dragDisabled ? 0 : -1}
         >
-            <Icon data={faBars} />
+            <ObsidianIcon iconId="grip-vertical" size={16} />
         </span>
     </div>
 </div>
