@@ -1,6 +1,5 @@
 <script lang="ts">
-    import {faTrash} from "@fortawesome/free-solid-svg-icons";
-    import Icon from "svelte-awesome/components/Icon.svelte";
+    import ObsidianIcon from "../components/ObsidianIcon.svelte";
 
     export let folders: string[];
     export let deleteFolder: (folder: string) => void;
@@ -15,7 +14,7 @@
             <span>{folder}</span>
             <!-- svelte-ignore a11y-click-events-have-key-events -->
             <span on:click={() => deleteFolder(folder)} class="clickable">
-                <Icon data="{faTrash}" />
+                <ObsidianIcon iconId="trash-2" size={16} />
             </span>
         </div>
     {/each}
