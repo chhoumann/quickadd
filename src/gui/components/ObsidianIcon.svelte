@@ -7,17 +7,21 @@
     
     let iconEl: HTMLElement;
     
-    onMount(() => {
-        if (iconEl) {
+    onMount(updateIcon);
+    
+    // React to changes in iconId or size after mount
+    $: if (iconEl) updateIcon();
+    
+    function updateIcon() {
+        if (iconEl && iconId) {
             setIcon(iconEl, iconId);
-            // Apply size styling
             const svgEl = iconEl.querySelector('svg');
             if (svgEl) {
                 svgEl.setAttribute('width', `${size}`);
                 svgEl.setAttribute('height', `${size}`);
             }
         }
-    });
+    }
 </script>
 
 <span bind:this={iconEl} class="quickadd-icon" style="display: inline-flex; align-items: center;"></span>
