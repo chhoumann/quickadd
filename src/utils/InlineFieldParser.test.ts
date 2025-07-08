@@ -142,5 +142,23 @@ regular:: this should be parsed
 
 			expect(result).toEqual(new Set(["work", "project", "urgent"]));
 		});
+
+		it("should handle Unicode field names", () => {
+			const content = "经验归类:: 技术\n标签:: 测试";
+			const result = InlineFieldParser.getFieldValues(content, "经验归类");
+			expect(result).toEqual(new Set(["技术"]));
+		});
+
+		it("should handle Unicode field names with emoji", () => {
+			const content = "📝 Notes:: Important\n🎯 Status:: Complete";
+			const result = InlineFieldParser.getFieldValues(content, "📝 Notes");
+			expect(result).toEqual(new Set(["Important"]));
+		});
+
+		it("should handle Japanese field names", () => {
+			const content = "プロジェクト:: 新機能\nステータス:: 完了";
+			const result = InlineFieldParser.getFieldValues(content, "プロジェクト");
+			expect(result).toEqual(new Set(["新機能"]));
+		});
 	});
 });

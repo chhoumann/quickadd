@@ -2,7 +2,7 @@ export class InlineFieldParser {
 	// Regex to match inline fields in the format "fieldname:: value"
 	// Captures: fieldname and value (until end of line or next field)
 	private static readonly INLINE_FIELD_REGEX =
-		/(?:^|[\n\r])[ \t]*(?![-*+][ \t]+\[[ xX]\])([a-zA-Z0-9_\- ]+)::[ \t]*(.*)$/gm;
+		/(?:^|[\n\r])[ \t]*(?![-*+][ \t]+\[[ xX]\])([^:\n\r]+?)::[ \t]*(.*)$/gmu;
 
 	/**
 	 * Extracts inline fields from the content of a file
