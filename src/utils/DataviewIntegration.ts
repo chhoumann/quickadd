@@ -28,7 +28,10 @@ export class DataviewIntegration {
 
 		try {
 			// Query for all pages that have this field
-			const query = `TABLE ${fieldName} WHERE ${fieldName}`;
+			// Properly escape field name to prevent injection
+			const escapedFieldName = fieldName.replace(/[\\"]/g, '\\$&');
+			const safe = `field("${escapedFieldName}")`;
+			const query = `TABLE ${safe} WHERE ${safe}`;
 			const result = await dv.query(query);
 			
 			if (result.successful && result.value.values) {
@@ -101,7 +104,10 @@ export class DataviewIntegration {
 
 		try {
 			// Build the WHERE clause
-			const conditions: string[] = [fieldName]; // Field must exist
+			// Properly escape field name to prevent injection
+			const escapedFieldName = fieldName.replace(/[\\"]/g, '\\$&');
+			const safe = `field("${escapedFieldName}")`;
+			const conditions: string[] = [safe]; // Field must exist
 			
 			if (folder) {
 				// Normalize folder path
@@ -133,7 +139,7 @@ export class DataviewIntegration {
 			}
 			
 			const whereClause = conditions.join(' AND ');
-			const query = `TABLE ${fieldName} WHERE ${whereClause}`;
+			const query = `TABLE ${safe} WHERE ${whereClause}`;
 			const result = await dv.query(query);
 			
 			if (result.successful && result.value.values) {

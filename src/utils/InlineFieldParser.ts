@@ -2,7 +2,7 @@ export class InlineFieldParser {
 	// Regex to match inline fields in the format "fieldname:: value"
 	// Captures: fieldname and value (until end of line or next field)
 	private static readonly INLINE_FIELD_REGEX =
-		/(?:^|[\n\r])[ \t]*(?![-*+][ \t]+\[[ xX]\])([a-zA-Z0-9_\- ]+)::[ \t]*(.*)$/gm;
+		/(?:^|[\n\r])[ \t]*(?![-*+][ \t]+\[[ xX]\])([^:\n\r]+?)::[ \t]*(.*)$/gmu;
 
 	/**
 	 * Extracts inline fields from the content of a file
@@ -50,8 +50,8 @@ export class InlineFieldParser {
 	}
 
 	private static removeCodeBlocksAndFrontmatter(content: string): string {
-		// Remove frontmatter
-		const frontmatterRegex = /^---\n[\s\S]*?\n---\n/;
+		// Remove frontmatter (handle both Unix and Windows line endings)
+		const frontmatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 		content = content.replace(frontmatterRegex, "");
 
 		// Remove code blocks (both ``` and `)

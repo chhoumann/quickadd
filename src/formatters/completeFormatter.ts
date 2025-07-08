@@ -144,68 +144,12 @@ export class CompleteFormatter extends Formatter {
 					filters.excludeFolders,
 					filters.excludeTags
 				);
-			} else {
-				// Fall back to manual parsing
-				// Get all markdown files and apply enhanced filtering
-				let files = this.app.vault.getMarkdownFiles();
-				files = EnhancedFieldSuggestionFileFilter.filterFiles(
-					files,
-					filters,
-					(file) => this.app.metadataCache.getFileCache(file),
-			);
-
-			// Process files in batches for better performance
-			const batchSize = 50;
-			for (let i = 0; i < files.length; i += batchSize) {
-				const batch = files.slice(i, i + batchSize);
-				const promises = batch.map(async (file) => {
-					const values = new Set<string>();
-					
-					try {
-						const metadataCache = this.app.metadataCache.getFileCache(file);
-
-						// Get values from YAML frontmatter
-						const value: unknown = metadataCache?.frontmatter?.[fieldName];
-						if (value !== undefined && value !== null) {
-							if (Array.isArray(value)) {
-								value.forEach((x) => {
-									const strValue = String(x).trim();
-									if (strValue) values.add(strValue);
-								});
-							} else if (typeof value !== "object") {
-								const strValue = String(value).trim();
-								if (strValue) values.add(strValue);
-							}
-						}
-
-						// Get values from inline fields if requested
-						if (filters.inline) {
-							try {
-								const content = await this.app.vault.read(file);
-								const inlineValues = InlineFieldParser.getFieldValues(
-									content,
-									fieldName,
-								);
-								inlineValues.forEach((v) => values.add(v));
-							} catch (error) {
-								// Skip files that can't be read (binary files, permissions, etc.)
-								console.warn(`Could not read file ${file.path} for inline field parsing:`, error);
-							}
-						}
-					} catch (error) {
-						// Skip files with metadata cache issues
-						console.warn(`Could not process metadata for file ${file.path}:`, error);
-					}
-
-					return values;
-				});
-
-				const batchResults = await Promise.all(promises);
-				for (const values of batchResults) {
-					for (const v of values) {
-						rawValues.add(v);
-					}
+				// Dataview could not find anything or threw – fall back
+				if (rawValues.size === 0) {
+					rawValues = await this.collectValuesManually(fieldName, filters);
 				}
+			} else {
+				rawValues = await this.collectValuesManually(fieldName, filters);
 			}
 
 			// Store in cache
@@ -255,9 +199,8 @@ export class CompleteFormatter extends Formatter {
 			},
 		);
 	}
-	}
 
-	private generateCacheKey(filters: Record<string, any>): string {
+	private generateCacheKey(filters: Record<string, unknown>): string {
 		const parts: string[] = [];
 		if (filters.folder) parts.push(`folder:${filters.folder}`);
 		if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
@@ -339,5 +282,73 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		return output;
+	}
+
+	private async collectValuesManually(fieldName: string, filters: unknown): Promise<Set<string>> {
+		const rawValues = new Set<string>();
+		
+		// Get all markdown files and apply enhanced filtering
+		let files = this.app.vault.getMarkdownFiles();
+		files = EnhancedFieldSuggestionFileFilter.filterFiles(
+			files,
+			filters,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
+
+		// Process files in batches for better performance
+		const batchSize = 50;
+		for (let i = 0; i < files.length; i += batchSize) {
+			const batch = files.slice(i, i + batchSize);
+			const promises = batch.map(async (file) => {
+				const values = new Set<string>();
+				
+				try {
+					const metadataCache = this.app.metadataCache.getFileCache(file);
+
+					// Get values from YAML frontmatter
+					const value: unknown = metadataCache?.frontmatter?.[fieldName];
+					if (value !== undefined && value !== null) {
+						if (Array.isArray(value)) {
+							value.forEach((x) => {
+								const strValue = String(x).trim();
+								if (strValue) values.add(strValue);
+							});
+						} else if (typeof value !== "object") {
+							const strValue = String(value).trim();
+							if (strValue) values.add(strValue);
+						}
+					}
+
+					// Get values from inline fields if requested
+					if (filters.inline) {
+						try {
+							const content = await this.app.vault.read(file);
+							const inlineValues = InlineFieldParser.getFieldValues(
+								content,
+								fieldName,
+							);
+							inlineValues.forEach((v) => values.add(v));
+						} catch (error) {
+							// Skip files that can't be read (binary files, permissions, etc.)
+							console.warn(`Could not read file ${file.path} for inline field parsing:`, error);
+						}
+					}
+				} catch (error) {
+					// Skip files with metadata cache issues
+					console.warn(`Could not process metadata for file ${file.path}:`, error);
+				}
+
+				return values;
+			});
+
+			const batchResults = await Promise.all(promises);
+			for (const values of batchResults) {
+				for (const v of values) {
+					rawValues.add(v);
+				}
+			}
+		}
+
+		return rawValues;
 	}
 }
