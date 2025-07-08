@@ -72,7 +72,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 		const tagInput: string = tagMatch[1];
 		this.lastInput = tagInput;
-		this.lastInputStart = tagMatch.index! + 1; // +1 to skip the #
+		this.lastInputStart = tagMatch.index!;
 
 		// Prefix matches first
 		const prefixMatches = this.sortedTags.filter(tag =>
@@ -106,14 +106,20 @@ export class TagSuggester extends TextInputSuggest<string> {
 	}
 
 	selectSuggestion(item: string): void {
-		if (this.inputEl.selectionStart === null) return;
+		const input = this.inputEl;
+		if (input.selectionStart === null) return;
 
-		const cursorPosition: number = this.inputEl.selectionStart;
-		const replaceStart = this.lastInputStart;
-		const replaceEnd = cursorPosition;
+		const cursor = input.selectionStart;
+		const value = input.value;
 
-		// Replace the partial tag with the complete tag
-		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
+		// Find the actual '#' position by walking backwards from cursor
+		const hashPos = value.lastIndexOf("#", cursor - 1);
+		if (hashPos === -1) return; // Should not happen, but be safe
+
+		// Ensure exactly one '#' in replacement
+		const replacement = item.startsWith("#") ? item : `#${item}`;
+
+		replaceRange(input, hashPos, cursor, replacement, { dispatchInput: false });
 		this.close();
 	}
 }
