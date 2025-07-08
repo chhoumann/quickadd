@@ -25,12 +25,16 @@ export function replaceRange(
 	input: HTMLInputElement | HTMLTextAreaElement,
 	start: number,
 	end: number,
-	replacement: string
+	replacement: string,
+	options: { dispatchInput?: boolean } = {}
 ): void {
+	const { dispatchInput = true } = options;
 	const value = input.value;
 	input.value = value.slice(0, start) + replacement + value.slice(end);
 	input.setSelectionRange(start + replacement.length, start + replacement.length);
-	input.trigger("input");
+	if (dispatchInput) {
+		input.trigger("input");
+	}
 }
 
 /**
