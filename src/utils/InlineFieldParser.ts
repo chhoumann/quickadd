@@ -50,8 +50,8 @@ export class InlineFieldParser {
 	}
 
 	private static removeCodeBlocksAndFrontmatter(content: string): string {
-		// Remove frontmatter
-		const frontmatterRegex = /^---\n[\s\S]*?\n---\n/;
+		// Remove frontmatter (handle both Unix and Windows line endings)
+		const frontmatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 		content = content.replace(frontmatterRegex, "");
 
 		// Remove code blocks (both ``` and `)

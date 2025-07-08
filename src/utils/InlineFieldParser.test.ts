@@ -160,5 +160,11 @@ regular:: this should be parsed
 			const result = InlineFieldParser.getFieldValues(content, "プロジェクト");
 			expect(result).toEqual(new Set(["新機能"]));
 		});
+
+		it("should handle Windows line endings", () => {
+			const content = "status:: complete\r\ntag:: important\r\n";
+			const result = InlineFieldParser.getFieldValues(content, "status");
+			expect(result).toEqual(new Set(["complete"]));
+		});
 	});
 });
