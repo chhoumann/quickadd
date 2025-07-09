@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
 import { getNaturalLanguageDates } from "../utilityObsidian";
@@ -16,7 +14,7 @@ import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
-import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
+import { FieldSuggestionParser, type FieldFilter } from "../utils/FieldSuggestionParser";
 
 import { DataviewIntegration } from "../utils/DataviewIntegration";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
@@ -200,7 +198,7 @@ export class CompleteFormatter extends Formatter {
 		);
 	}
 
-	private generateCacheKey(filters: Record<string, unknown>): string {
+	private generateCacheKey(filters: FieldFilter): string {
 		const parts: string[] = [];
 		if (filters.folder) parts.push(`folder:${filters.folder}`);
 		if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
@@ -284,7 +282,7 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
-	private async collectValuesManually(fieldName: string, filters: unknown): Promise<Set<string>> {
+	private async collectValuesManually(fieldName: string, filters: FieldFilter): Promise<Set<string>> {
 		const rawValues = new Set<string>();
 		
 		// Get all markdown files and apply enhanced filtering
