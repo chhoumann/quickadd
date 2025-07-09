@@ -18,11 +18,11 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		this.elementsRendered = this.symbols.reduce((elements, symbol) => {
 			try {
 				//@ts-ignore
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+				 
 				elements[symbol.toString()] = renderMath(symbol, true);
 			
 						// Ignoring symbols that we can't use
-			} catch {} 	//eslint-disable-line no-empty
+			} catch {} 	 
 
 			return elements;
 		}, {});
@@ -46,7 +46,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 			this.lastInput = match[1];
 			suggestions = this.symbols.filter((val) =>
 				//@ts-ignore
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+				 
 				val.toLowerCase().contains(this.lastInput)
 			);
 		}
@@ -63,7 +63,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		if (item) {
 			el.setText(item);
 			//@ts-ignore
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+			 
 			el.append(this.elementsRendered[item]);
 		}
 	}

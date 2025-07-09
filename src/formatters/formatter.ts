@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
 	DATE_REGEX,
 	DATE_REGEX_FORMATTED,
@@ -121,7 +119,7 @@ export abstract class Formatter {
 		return output;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	protected async replaceLinkToCurrentFileInString(
 		input: string,
 	): Promise<string> {
@@ -265,8 +263,7 @@ export abstract class Formatter {
 		suggestedValues: string[],
 	): Promise<string> | string;
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	protected abstract suggestForField(variableName: string): any;
+	protected abstract suggestForField(variableName: string): Promise<string>;
 
 	protected async replaceDateVariableInString(input: string) {
 		let output: string = input;
@@ -293,7 +290,7 @@ export abstract class Formatter {
 					const dateInput = await this.promptForVariable(variableName);
 					this.variables.set(variableName, dateInput);
 
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					 
 					const nld = this.getNaturalLanguageDates();
 					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
 						throw new Error(
@@ -326,10 +323,15 @@ export abstract class Formatter {
 				if (storedValue && storedValue.startsWith("@date:")) {
 					// It's a date variable, extract and format it
 					const isoString = storedValue.substring(6);
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					 
 					const nld = this.getNaturalLanguageDates();
 					if (nld && nld.parseDate && typeof nld.parseDate === "function") {
-						const moment = (window as any).moment(isoString);
+						const moment = (window as Window & { 
+							moment: (isoString: string) => {
+								isValid: () => boolean;
+								format: (dateFormat: string) => string;
+							}
+						}).moment(isoString);
 						if (moment && moment.isValid()) {
 							formattedDate = moment.format(dateFormat);
 						}
@@ -392,8 +394,11 @@ export abstract class Formatter {
 		return output;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	protected abstract getNaturalLanguageDates(): any;
+	protected abstract getNaturalLanguageDates(): {
+		parseDate?: (s: string | undefined) => {
+			moment: { format: (s: string) => string; toISOString: () => string };
+		};
+	} | undefined;
 
 	protected abstract getMacroValue(macroName: string): Promise<string> | string;
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
 import { getNaturalLanguageDates } from "../utilityObsidian";
@@ -28,7 +27,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceFieldVarInString(output);
-		} catch (error) {
+		} catch {
 			// Return the input as-is if formatting fails during preview
 			return input;
 		}
@@ -49,7 +48,19 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	protected getNaturalLanguageDates() {
-		return getNaturalLanguageDates(this.app);
+		const plugin = getNaturalLanguageDates(this.app);
+		if (!plugin) return undefined;
+		
+		// Check if the plugin has the parseDate method
+		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
+			return {
+				parseDate: plugin.parseDate as (s: string | undefined) => {
+					moment: { format: (s: string) => string; toISOString: () => string };
+				}
+			};
+		}
+		
+		return undefined;
 	}
 
 	protected suggestForValue(suggestedValues: string[]) {
@@ -78,7 +89,7 @@ export class FileNameDisplayFormatter extends Formatter {
 		return "selected_text";
 	}
 
-	protected suggestForField(variableName: string) {
+	protected async suggestForField(variableName: string): Promise<string> {
 		return `${variableName}_field_value`;
 	}
 
@@ -100,7 +111,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			
 			try {
 				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
-			} catch (error) {
+			} catch {
 				formattedExample = `[${cleanDateFormat}]`;
 			}
 			

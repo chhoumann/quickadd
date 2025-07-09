@@ -32,15 +32,17 @@ export class EnhancedFieldSuggestionFileFilter {
 		// Folder filter
 		if (filters.folder) {
 			hasInclusionFilters = true;
-			const folderFiles = files.filter(file => this.matchesFolder(file, filters.folder!));
+			const folder = filters.folder;
+			const folderFiles = files.filter(file => this.matchesFolder(file, folder));
 			includedFiles.push(...folderFiles);
 		}
 
 		// Tag filter
 		if (filters.tags && filters.tags.length > 0) {
 			hasInclusionFilters = true;
+			const tags = filters.tags;
 			const tagFiles = files.filter(file => 
-				this.matchesTags(file, filters.tags!, metadataCache)
+				this.matchesTags(file, tags, metadataCache)
 			);
 			
 			if (filters.folder) {

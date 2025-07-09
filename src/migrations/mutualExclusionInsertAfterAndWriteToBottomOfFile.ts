@@ -46,7 +46,7 @@ function migrateSettingsInMacros(macros: IMacro[]): IMacro[] {
 const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 	description:
 		"Mutual exclusion of insertAfter and writeToBottomOfFile settings. If insertAfter is enabled, writeToBottomOfFile is disabled. To support changes in settings UI.",
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	migrate: async (plugin) => {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveMigrateSettingInChoices(choicesCopy);

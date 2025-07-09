@@ -1,11 +1,15 @@
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+ 
+ 
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
 import QuickAdd from "../../main";
+
+interface HTMLElementWithTooltipCleanup extends HTMLElement {
+	_tooltipCleanup?: () => void;
+}
 
 export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
@@ -297,7 +301,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		document.addEventListener('scroll', cleanupOnScroll, { passive: true });
 
 		// Store cleanup function for later removal
-		(el as any)._tooltipCleanup = () => {
+		(el as HTMLElementWithTooltipCleanup)._tooltipCleanup = () => {
 			cleanup();
 			document.removeEventListener('scroll', cleanupOnScroll);
 		};
@@ -334,8 +338,9 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		// Clean up any tooltip listeners before closing
 		const tooltipElements = document.querySelectorAll('.qaFileSuggestionItem');
 		tooltipElements.forEach(el => {
-			if ((el as any)._tooltipCleanup) {
-				(el as any)._tooltipCleanup();
+			const elementWithCleanup = el as HTMLElementWithTooltipCleanup;
+			if (elementWithCleanup._tooltipCleanup) {
+				elementWithCleanup._tooltipCleanup();
 			}
 		});
 

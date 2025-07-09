@@ -196,7 +196,7 @@ export async function openFile(
 
 		await leaf.setViewState({
 			...leafViewState,
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+			 
 			state: {
 				...leafViewState.state,
 				mode: optional.mode,
@@ -243,17 +243,17 @@ export async function getUserScript(command: IUserScript, app: App) {
 	}
 
 	if (file instanceof TFile) {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-return
+		 
 		const req = (s: string) => window.require && window.require(s);
 		const exp: Record<string, unknown> = {};
 		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+		 
 		const fn = window.eval(
 			`(function(require, module, exports) { ${fileContent} \n})`,
 		);
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+		 
 		fn(req, mod, exp);
 
 		// @ts-ignore
@@ -267,7 +267,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 			let member: string;
 			while ((member = memberAccess.shift() as string)) {
 				//@ts-ignore
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				 
 				script = script[member];
 			}
 		}

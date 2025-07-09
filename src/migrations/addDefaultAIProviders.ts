@@ -4,7 +4,7 @@ import { settingsStore } from "src/settingsStore";
 
 const addDefaultAIProviders: Migration = {
 	description: "Add default AI providers to the settings.",
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	migrate: async (_) => {
 		const ai = settingsStore.getState().ai;
 

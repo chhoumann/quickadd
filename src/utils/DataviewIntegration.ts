@@ -1,12 +1,13 @@
 import type { App } from "obsidian";
 import { getAPI, type DataviewApi } from "obsidian-dataview";
+import { log } from "src/logger/logManager";
 
 // biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class DataviewIntegration {
 	private static getDataviewAPI(app: App): DataviewApi | null {
 		const dataview = getAPI(app);
 		if (!dataview) {
-			console.log("Dataview plugin is not installed or enabled");
+			log.logMessage("Dataview plugin is not installed or enabled");
 			return null;
 		}
 		return dataview;
@@ -71,7 +72,7 @@ export class DataviewIntegration {
 				}
 			}
 		} catch (error) {
-			console.error(`Failed to query Dataview for field ${fieldName}:`, error);
+			log.logError(new Error(`Failed to query Dataview for field ${fieldName}: ${error}`));
 		}
 
 		return values;
@@ -176,7 +177,7 @@ export class DataviewIntegration {
 				}
 			}
 		} catch (error) {
-			console.error(`Failed to query Dataview for field ${fieldName} with filters:`, error);
+			log.logError(new Error(`Failed to query Dataview for field ${fieldName} with filters: ${error}`));
 		}
 
 		return values;

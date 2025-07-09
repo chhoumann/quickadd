@@ -75,7 +75,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFileNameFormatSetting(): void {
-		// eslint-disable-next-line prefer-const
+		 
 		let textField: TextComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
@@ -231,7 +231,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.folder.folders = this.choice.folder.folders.filter(
 						(f) => f !== folder,
 					);
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+					 
 					folderListEl.updateFolders(this.choice.folder.folders);
 					suggester.updateCurrentItems(this.choice.folder.folders);
 				},
@@ -264,7 +264,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 
 			this.choice.folder.folders.push(input);
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+			 
 			folderListEl.updateFolders(this.choice.folder.folders);
 			folderInput.inputEl.value = "";
 

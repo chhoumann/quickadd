@@ -157,7 +157,10 @@ export class FieldValueDeduplicator {
 				variations.set(normalized, []);
 			}
 			
-			variations.get(normalized)!.push(value);
+			const variationsList = variations.get(normalized);
+			if (variationsList) {
+				variationsList.push(value);
+			}
 		}
 
 		// Find most common case pattern

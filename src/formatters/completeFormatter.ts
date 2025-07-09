@@ -18,6 +18,7 @@ import { FieldSuggestionParser, type FieldFilter } from "../utils/FieldSuggestio
 
 import { DataviewIntegration } from "../utils/DataviewIntegration";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { log } from "../logger/logManager";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
@@ -80,7 +81,19 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected getNaturalLanguageDates() {
-		return getNaturalLanguageDates(this.app);
+		const plugin = getNaturalLanguageDates(this.app);
+		if (!plugin) return undefined;
+		
+		// Check if the plugin has the parseDate method
+		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
+			return {
+				parseDate: plugin.parseDate as (s: string | undefined) => {
+					moment: { format: (s: string) => string; toISOString: () => string };
+				}
+			};
+		}
+		
+		return undefined;
 	}
 
 	protected getVariableValue(variableName: string): string {
@@ -243,7 +256,7 @@ export class CompleteFormatter extends Formatter {
 		).run();
 	}
 
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	protected async getSelectedText(): Promise<string> {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) return "";
@@ -328,12 +341,12 @@ export class CompleteFormatter extends Formatter {
 							inlineValues.forEach((v) => values.add(v));
 						} catch (error) {
 							// Skip files that can't be read (binary files, permissions, etc.)
-							console.warn(`Could not read file ${file.path} for inline field parsing:`, error);
+							log.logWarning(`Could not read file ${file.path} for inline field parsing: ${error}`);
 						}
 					}
 				} catch (error) {
 					// Skip files with metadata cache issues
-					console.warn(`Could not process metadata for file ${file.path}:`, error);
+					log.logWarning(`Could not process metadata for file ${file.path}: ${error}`);
 				}
 
 				return values;

@@ -176,7 +176,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addInsertAfterSetting() {
-		// eslint-disable-next-line prefer-const
+		 
 		let insertAfterInput: TextComponent;
 		const insertAfterSetting: Setting = new Setting(this.contentEl);
 		insertAfterSetting
@@ -300,7 +300,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFormatSetting() {
-		// eslint-disable-next-line prefer-const
+		 
 		let textField: TextAreaComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
@@ -389,7 +389,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addCreateWithTemplateSetting() {
-		// eslint-disable-next-line prefer-const
+		 
 		let templateSelector: TextComponent;
 		const createWithTemplateSetting = new Setting(this.contentEl);
 		createWithTemplateSetting

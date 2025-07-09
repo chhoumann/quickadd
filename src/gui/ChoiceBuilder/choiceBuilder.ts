@@ -64,7 +64,7 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 		headerEl.setText(choice.name);
 
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises
+		 
 		headerEl.addEventListener("click", async (ev) => {
 			try {
 				const newName: string = await GenericInputPrompt.Prompt(
@@ -77,7 +77,7 @@ export abstract class ChoiceBuilder extends Modal {
 					choice.name = newName;
 					headerEl.setText(newName);
 				}
-			} catch (e) {
+			} catch {
 				log.logMessage(`No new name given for ${choice.name}`);
 			}
 		});

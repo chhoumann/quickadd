@@ -54,7 +54,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		header.style.textAlign = "center";
 		header.style.cursor = "pointer";
 		header.style.userSelect = "none";
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises
+		 
 		header.addEventListener("click", async () => {
 			try {
 				const newName = await GenericInputPrompt.Prompt(
@@ -68,7 +68,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 					this.settings.name = newName;
 					this.reload();
 				}
-			} catch (error) {} // no new name, don't need exceptional state for that
+			} catch {} // no new name, don't need exceptional state for that
 		});
 
 		this.addResultJoinerSetting(this.contentEl);

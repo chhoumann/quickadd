@@ -175,23 +175,23 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	 
 	protected async userScriptDelegator(userScript: any) {
 		switch (typeof userScript) {
 			case "function":
 				if (this.userScriptCommand) {
 					await this.runScriptWithSettings(
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+						 
 						userScript,
 						this.userScriptCommand
 					);
 				} else {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+					 
 					await this.onExportIsFunction(userScript);
 				}
 				break;
 			case "object":
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+				 
 				await this.onExportIsObject(userScript);
 				break;
 			case "bigint":
@@ -253,7 +253,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
 		// @ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+		 
 		this.app.commands.executeCommandById(command.commandId);
 	}
 

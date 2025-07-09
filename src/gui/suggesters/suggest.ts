@@ -1,11 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
+ 
+ 
+ 
 import { Scope, debounce } from "obsidian";
 import type { ISuggestOwner, App } from "obsidian";
 import { createPopper } from "@popperjs/core";
 import type { Instance as PopperInstance } from "@popperjs/core";
 import { highlightMatches } from "./utils";
+import { log } from "src/logger/logManager";
 
 const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
@@ -169,7 +170,7 @@ declare module "obsidian" {
 // different suggesters (e.g., file + format) can coexist, while still preventing duplicates of the same type.
 const instanceMap = new WeakMap<
 	HTMLInputElement | HTMLTextAreaElement,
-	Map<string, TextInputSuggest<any>>
+	Map<string, TextInputSuggest<unknown>>
 >();
 
 export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
@@ -298,7 +299,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			this.suggest.setSuggestions(suggestions);
 			this.open(this.app.dom.appContainerEl, this.inputEl);
 		} catch (error) {
-			console.error("Error getting suggestions:", error);
+			log.logError(error as Error);
 			this.close();
 		}
 	}
