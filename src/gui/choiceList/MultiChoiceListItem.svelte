@@ -1,7 +1,7 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
     import ChoiceList from "./ChoiceList.svelte";
-    import IMultiChoice from "../../types/choices/IMultiChoice";
+    import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import {createEventDispatcher} from "svelte";
 	import { Component, htmlToMarkdown, MarkdownRenderer } from "obsidian";

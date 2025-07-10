@@ -1,8 +1,8 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
-    import {DndEvent} from "svelte-dnd-action";
-    import {IUserScript} from "../../../types/macros/IUserScript";
+    import type {DndEvent} from "svelte-dnd-action";
+    import type {IUserScript} from "../../../types/macros/IUserScript";
 
     export let command: IUserScript;
     export let startDrag: (e: CustomEvent<DndEvent>) => void;

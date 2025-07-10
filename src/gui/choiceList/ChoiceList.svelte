@@ -1,8 +1,9 @@
 <script lang="ts">
-    import IChoice from "../../types/choices/IChoice";
+    import type IChoice from "../../types/choices/IChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
-    import {DndEvent, dndzone, SHADOW_PLACEHOLDER_ITEM_ID, SOURCES} from "svelte-dnd-action";
+    import {dndzone, SHADOW_PLACEHOLDER_ITEM_ID, SOURCES} from "svelte-dnd-action";
+    import type {DndEvent} from "svelte-dnd-action";
     import {createEventDispatcher} from "svelte";
 
     export let choices: IChoice[] = [];

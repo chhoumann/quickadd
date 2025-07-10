@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ICommand } from "../../types/macros/ICommand";
 	import {
-		DndEvent,
+		type DndEvent,
 		dndzone,
 		SOURCES,
 		SHADOW_PLACEHOLDER_ITEM_ID,
@@ -22,7 +22,7 @@
 	import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 	import { log } from "../../logger/logManager";
 	import { getUserScript } from "src/utilityObsidian";
-	import { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
+	import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 	import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 	import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
 

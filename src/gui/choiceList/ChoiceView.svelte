@@ -1,7 +1,7 @@
 <script lang="ts">
-	import IChoice from "../../types/choices/IChoice";
+	import type IChoice from "../../types/choices/IChoice";
 	import ChoiceList from "./ChoiceList.svelte";
-	import IMultiChoice from "../../types/choices/IMultiChoice";
+	import type IMultiChoice from "../../types/choices/IMultiChoice";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 	import { TemplateChoice } from "../../types/choices/TemplateChoice";
