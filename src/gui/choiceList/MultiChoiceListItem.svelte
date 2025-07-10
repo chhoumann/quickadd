@@ -48,12 +48,17 @@
 
 <div>
     <div class="multiChoiceListItem">
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <div class="multiChoiceListItemName clickable" on:click={() => choice.collapsed = !choice.collapsed}>
+        <div 
+            role="button"
+            tabindex="0"
+            class="multiChoiceListItemName clickable" 
+            on:click={() => choice.collapsed = !choice.collapsed}
+            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && (choice.collapsed = !choice.collapsed)}
+        >
             <div style={`transform:rotate(${choice.collapsed ? -180 : 0}deg); transition: transform 0.2s ease-in-out; display: inline-flex;`}>
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </div>
-            <span class="choiceListItemName" bind:this={nameElement} />
+            <span class="choiceListItemName" bind:this={nameElement}></span>
         </div>
 
         <RightButtons

@@ -17,12 +17,19 @@
 <div class="quickAddCommandListItem">
     <li>{command.name}</li>
     <div>
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <span on:click={() => deleteCommand(command.id)} class="clickable">
+        <span 
+            role="button"
+            tabindex="0"
+            on:click={() => deleteCommand(command.id)}
+            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteCommand(command.id)}
+            class="clickable"
+        >
             <ObsidianIcon iconId="trash-2" size={16} />
         </span>
-        <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-        <span on:mousedown={startDrag} on:touchstart={startDrag}
+        <span 
+              role="button"
+              on:mousedown={startDrag} 
+              on:touchstart={startDrag}
               aria-label="Drag-handle"
               style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
               tabindex={dragDisabled ? 0 : -1}

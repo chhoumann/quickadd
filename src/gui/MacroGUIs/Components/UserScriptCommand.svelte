@@ -21,14 +21,28 @@
 <div class="quickAddCommandListItem">
     <li>{command.name}</li>
     <div>
-        <span on:click={() => configureChoice()} on:keypress={() => configureChoice()} class="clickable">
+        <span 
+            role="button"
+            tabindex="0"
+            on:click={() => configureChoice()}
+            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && configureChoice()}
+            class="clickable"
+        >
             <ObsidianIcon iconId="settings" size={16} />
         </span>
-        <span on:click={() => deleteCommand()} on:keypress={() => configureChoice()} class="clickable">
+        <span 
+            role="button"
+            tabindex="0"
+            on:click={() => deleteCommand()}
+            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteCommand()}
+            class="clickable"
+        >
             <ObsidianIcon iconId="trash-2" size={16} />
         </span>
-        <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-        <span on:mousedown={startDrag} on:touchstart={startDrag}
+        <span 
+              role="button"
+              on:mousedown={startDrag} 
+              on:touchstart={startDrag}
               aria-label="Drag-handle"
               style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
               tabindex={dragDisabled ? 0 : -1}

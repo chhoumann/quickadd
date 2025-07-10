@@ -12,8 +12,13 @@
     {#each folders as folder, i}
         <div class="quickAddCommandListItem">
             <span>{folder}</span>
-            <!-- svelte-ignore a11y-click-events-have-key-events -->
-            <span on:click={() => deleteFolder(folder)} class="clickable">
+            <span 
+                role="button"
+                tabindex="0"
+                on:click={() => deleteFolder(folder)}
+                on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteFolder(folder)}
+                class="clickable"
+            >
                 <ObsidianIcon iconId="trash-2" size={16} />
             </span>
         </div>

@@ -27,31 +27,57 @@
 </script>
 
 <div class="rightButtonsContainer">
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div on:click={emitToggleCommand} class="alignIconInDivInMiddle clickable" aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} style={commandEnabled ? "color: #FDD023;" : ""}>
+    <div 
+        role="button"
+        tabindex="0"
+        on:click={emitToggleCommand}
+        on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitToggleCommand()}
+        class="alignIconInDivInMiddle clickable" 
+        aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} 
+        style={commandEnabled ? "color: #FDD023;" : ""}
+    >
         <ObsidianIcon iconId="zap" size={16} />
     </div>
     {#if showConfigureButton}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <div on:click={emitConfigureChoice} class="alignIconInDivInMiddle clickable" aria-label={`Configure${choiceName ? " " + choiceName : ""}`}>
+        <div 
+            role="button"
+            tabindex="0"
+            on:click={emitConfigureChoice}
+            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitConfigureChoice()}
+            class="alignIconInDivInMiddle clickable" 
+            aria-label={`Configure${choiceName ? " " + choiceName : ""}`}
+        >
             <ObsidianIcon iconId="settings" size={16} />
         </div>
     {/if}
 
     {#if showDuplicateButton}
-        <!-- svelte-ignore a11y-click-events-have-key-events -->
-        <div aria-label={`Duplicate ${choiceName ?? ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDuplicateChoice}>
+        <div 
+            role="button"
+            tabindex="0"
+            aria-label={`Duplicate ${choiceName ?? ""}`} 
+            class="alignIconInDivInMiddle clickable" 
+            on:click={emitDuplicateChoice}
+            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitDuplicateChoice()}
+        >
             <ObsidianIcon iconId="copy" size={16} />
         </div>
     {/if}
 
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <div aria-label={`Delete${choiceName ? " " + choiceName : ""}`} class="alignIconInDivInMiddle clickable" on:click={emitDeleteChoice}>
+    <div 
+        role="button"
+        tabindex="0"
+        aria-label={`Delete${choiceName ? " " + choiceName : ""}`} 
+        class="alignIconInDivInMiddle clickable" 
+        on:click={emitDeleteChoice}
+        on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitDeleteChoice()}
+    >
         <ObsidianIcon iconId="trash-2" size={16} />
     </div>
 
-    <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
-    <div tabindex={dragDisabled ? 0 : -1}
+    <div 
+         role="button"
+         tabindex={dragDisabled ? 0 : -1}
          aria-label="Drag-handle"
          style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
          class="alignIconInDivInMiddle"
