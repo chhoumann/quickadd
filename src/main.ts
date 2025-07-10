@@ -40,7 +40,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async onload() {
-		console.log("Loading QuickAdd");
+		log.logMessage("Loading QuickAdd");
 		QuickAdd.instance = this;
 
 		await this.loadSettings();
@@ -84,7 +84,7 @@ export default class QuickAdd extends Plugin {
 					return this.settings.devMode;
 				}
 
-				console.log("Test QuickAdd (dev)");
+				log.logMessage("Test QuickAdd (dev)");
 
 				const fn = () => {
 					new InfiniteAIAssistantCommandSettingsModal(this.app, {
@@ -161,7 +161,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	onunload() {
-		console.log("Unloading QuickAdd");
+		log.logMessage("Unloading QuickAdd");
 		this.unsubscribeSettingsStore?.call(this);
 		
 		// Clear the error log to prevent memory leaks
@@ -177,7 +177,7 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async loadSettings() {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+		 
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 

@@ -51,7 +51,7 @@ const options = Object.freeze({
 	mainFields: ["svelte", "browser", "module", "main"],
 	plugins: [
 		esbuildSvelte({
-			compilerOptions: { css: true },
+			compilerOptions: { css: "injected" },
 			preprocess: sveltePreprocess(),
 		}),
 		...(!prod

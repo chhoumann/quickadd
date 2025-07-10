@@ -1,5 +1,5 @@
 <script lang="ts">
-    import {ChoiceType} from "../../types/choices/choiceType";
+    import type {ChoiceType} from "../../types/choices/choiceType";
     import {createEventDispatcher} from "svelte";
     import {Notice} from "obsidian";
 

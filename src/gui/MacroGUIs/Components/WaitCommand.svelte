@@ -1,8 +1,8 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher, onMount} from "svelte";
-    import {DndEvent} from "svelte-dnd-action";
-    import {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
+    import type {DndEvent} from "svelte-dnd-action";
+    import type {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
 
     export let command: IWaitCommand;
     export let startDrag: (e: CustomEvent<DndEvent>) => void;

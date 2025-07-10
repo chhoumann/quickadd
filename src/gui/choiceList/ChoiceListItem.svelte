@@ -1,5 +1,5 @@
 <script lang="ts">
-	import IChoice from "../../types/choices/IChoice";
+	import type IChoice from "../../types/choices/IChoice";
 	import RightButtons from "./ChoiceItemRightButtons.svelte";
 	import { createEventDispatcher } from "svelte";
 	import { Component, htmlToMarkdown, MarkdownRenderer } from "obsidian";

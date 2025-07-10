@@ -9,7 +9,7 @@ import type { Migration } from "./Migrations";
 
 const setVersionAfterUpdateModalRelease: Migration = {
 	description: "Set version to the current plugin version.",
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	migrate: async (plugin) => {
 		settingsStore.setState({ version: plugin.manifest.version });
 	},

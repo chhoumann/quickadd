@@ -6,6 +6,7 @@ import { getTokenCount } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
+import { log } from "src/logger/logManager";
 
 export interface CommonResponse {
 	id: string;
@@ -207,7 +208,7 @@ export function OpenAIRequest(
 
 			return response;
 		} catch (error) {
-			console.log(error);
+			log.logError(error as Error);
 			throw new Error(
 				`Error while making request to ${modelProvider.name}: ${
 					(error as { message: string }).message

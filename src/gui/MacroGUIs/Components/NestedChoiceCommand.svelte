@@ -1,8 +1,8 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
-    import {DndEvent} from "svelte-dnd-action";
-    import {INestedChoiceCommand} from "../../../types/macros/QuickCommands/INestedChoiceCommand";
+    import type {DndEvent} from "svelte-dnd-action";
+    import type {INestedChoiceCommand} from "../../../types/macros/QuickCommands/INestedChoiceCommand";
 
     export let command: INestedChoiceCommand;
     export let startDrag: (e: CustomEvent<DndEvent>) => void;

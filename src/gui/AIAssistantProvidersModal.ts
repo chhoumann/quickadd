@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+ 
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";

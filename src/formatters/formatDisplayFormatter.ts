@@ -32,7 +32,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);
 			output = this.replaceLinebreakInString(output);
-		} catch (error) {
+		} catch {
 			// Return the input as-is if formatting fails during preview
 			// This prevents crashes when typing incomplete syntax
 			return input;
@@ -53,7 +53,19 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected getNaturalLanguageDates() {
-		return getNaturalLanguageDates(this.app);
+		const plugin = getNaturalLanguageDates(this.app);
+		if (!plugin) return undefined;
+		
+		// Check if the plugin has the parseDate method
+		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
+			return {
+				parseDate: plugin.parseDate as (s: string | undefined) => {
+					moment: { format: (s: string) => string; toISOString: () => string };
+				}
+			};
+		}
+		
+		return undefined;
 	}
 
 	protected suggestForValue(suggestedValues: string[]) {
@@ -80,12 +92,12 @@ export class FormatDisplayFormatter extends Formatter {
 				templatePath,
 				undefined
 			).run();
-		} catch (e) {
+		} catch {
 			return `Template (not found): ${templatePath}`;
 		}
 	}
 
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	protected async getSelectedText(): Promise<string> {
 		return "selected_text";
 	}
@@ -113,7 +125,7 @@ export class FormatDisplayFormatter extends Formatter {
 			try {
 				// Try to generate a realistic preview using the format
 				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
-			} catch (error) {
+			} catch {
 				// Fallback to showing the format pattern
 				formattedExample = `[${cleanDateFormat} format]`;
 			}

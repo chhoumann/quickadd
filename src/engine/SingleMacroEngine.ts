@@ -16,7 +16,7 @@ export class SingleMacroEngine extends MacroChoiceEngine {
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, unknown>
 	) {
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+		 
 		super(app, plugin, null!, macros, choiceExecutor, variables);
 	}
 
@@ -36,14 +36,14 @@ export class SingleMacroEngine extends MacroChoiceEngine {
 		return this.output as string;
 	}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	 
 	protected override async onExportIsObject(obj: any): Promise<void> {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+		 
 		if (!this.memberAccess) return await super.onExportIsObject(obj);
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+		 
 		let newObj = obj;
 		this.memberAccess.forEach((key) => {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+			 
 			newObj = newObj[key];
 		});
 

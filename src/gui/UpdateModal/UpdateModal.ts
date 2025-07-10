@@ -28,7 +28,7 @@ async function getReleaseNotesAfter(
 	const response = await fetch(
 		`https://api.github.com/repos/${repoOwner}/${repoName}/releases`
 	);
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+	 
 	const releases: Release[] | { message: string } = await response.json();
 
 	if ((!response.ok && "message" in releases) || !Array.isArray(releases)) {

@@ -106,7 +106,7 @@ export class MacroBuilder extends Modal {
 		headerEl.setText(header);
 		headerEl.addClass("clickable");
 
-		// eslint-disable-next-line @typescript-eslint/no-misused-promises
+		 
 		headerEl.addEventListener("click", async () => {
 			const newMacroName: string = await GenericInputPrompt.Prompt(
 				this.app,
@@ -258,7 +258,7 @@ export class MacroBuilder extends Modal {
 			addButton.buttonEl.style.display = 'none';
 		};
 
-		const setting = new Setting(this.contentEl)
+		new Setting(this.contentEl)
 			.setName("User Scripts")
 			.setDesc("Add user script - type the name or click Browse")
 			.addText((textComponent) => {
@@ -300,12 +300,12 @@ export class MacroBuilder extends Modal {
 					.onClick(addUserScriptFromInput);
 				// Initially hidden
 				button.buttonEl.style.display = 'none';
+				
+				// Set up onChange handler after both input and addButton are initialized
+				input.onChange((value) => {
+					addButton.buttonEl.style.display = value.trim() ? 'inline-block' : 'none';
+				});
 			});
-
-		// Set up onChange handler after both input and addButton are initialized
-		input!.onChange((value) => {
-			addButton!.buttonEl.style.display = value.trim() ? 'inline-block' : 'none';
-		});
 	}
 
 	private addAddChoiceSetting() {
@@ -396,7 +396,7 @@ export class MacroBuilder extends Modal {
 						(c) => c.id !== commandId
 					);
 					//@ts-ignore
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+					 
 					this.commandListEl.updateCommandList(this.macro.commands);
 				},
 				saveCommands: (commands: ICommand[]) => {
@@ -487,7 +487,7 @@ export class MacroBuilder extends Modal {
 	private addCommandToMacro(command: ICommand) {
 		this.macro.commands.push(command);
 		//@ts-ignore
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+		 
 		this.commandListEl.updateCommandList(this.macro.commands);
 	}
 }

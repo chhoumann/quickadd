@@ -46,7 +46,7 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveRemoveIncrementFileName(choicesCopy);

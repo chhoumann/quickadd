@@ -1,8 +1,8 @@
 <script lang="ts">
-    import {ICommand} from "../../../types/macros/ICommand";
+    import type {ICommand} from "../../../types/macros/ICommand";
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
-    import {DndEvent} from "svelte-dnd-action";
+    import type {DndEvent} from "svelte-dnd-action";
 
     export let command: ICommand;
     export let startDrag: (e: CustomEvent<DndEvent>) => void;

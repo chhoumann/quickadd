@@ -66,13 +66,16 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 		// Reject if we are inside a wikilink ([[ … # … ]])
 		const lastWiki = inputBeforeCursor.lastIndexOf('[[');
-		if (lastWiki !== -1 && lastWiki < tagMatch.index!) {
+		if (tagMatch.index === undefined) {
+			return [];
+		}
+		if (lastWiki !== -1 && lastWiki < tagMatch.index) {
 			return [];
 		}
 
 		const tagInput: string = tagMatch[1];
 		this.lastInput = tagInput;
-		this.lastInputStart = tagMatch.index!;
+		this.lastInputStart = tagMatch.index;
 
 		// Prefix matches first
 		const prefixMatches = this.sortedTags.filter(tag =>
@@ -81,7 +84,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 		// Then fuzzy matches
 		const fuzzyResults = this.fuse.search(tagInput)
-			.filter(result => result.score! < 0.8)
+			.filter(result => result.score !== undefined && result.score < 0.8)
 			.map(result => result.item)
 			.slice(0, 10);
 
@@ -123,5 +126,3 @@ export class TagSuggester extends TextInputSuggest<string> {
 		this.close();
 	}
 }
-
-

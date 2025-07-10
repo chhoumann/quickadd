@@ -4,7 +4,7 @@ import type QuickAdd from "src/main";
 export default {
 	description:
 		"Use QuickAdd template folder instead of Obsidian templates plugin folder / Templater templates folder.",
-	// eslint-disable-next-line @typescript-eslint/require-await
+	 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		try {
 			const templaterPlugin = plugin.app.plugins.plugins["templater"];
@@ -18,15 +18,15 @@ export default {
 			}
 
 			if (obsidianTemplatesPlugin) {
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+				 
 				const obsidianTemplatesSettings =
 					//@ts-ignore
 					obsidianTemplatesPlugin.instance.options;
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+				 
 				if (obsidianTemplatesSettings["folder"]) {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					 
 					plugin.settings.templateFolderPath =
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+						 
 						obsidianTemplatesSettings["folder"];
 
 					log.logMessage(
@@ -39,7 +39,7 @@ export default {
 				const templaterSettings = templaterPlugin.settings;
 					//@ts-ignore
 				if (templaterSettings["template_folder"]) {
-					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+					 
 					plugin.settings.templateFolderPath =
 						//@ts-ignore
 						templaterSettings["template_folder"];
