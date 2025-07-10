@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Report a bug in the QuickAdd Obsidian plugin
 title: "[BUG] "
 labels: bug
 
@@ -10,11 +10,10 @@ labels: bug
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
+Steps to reproduce the behavior in Obsidian:
+1. Open Obsidian and '...'
 2. Click on '....'
-3. Scroll down to '....'
-4. See error
+3. See error
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
@@ -22,16 +21,22 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+**Environment (please complete the following information):**
+ - Obsidian version: [e.g. 1.0.0]
+ - QuickAdd version: [e.g. 0.5.0]
+ - Operating system: [e.g. Windows 11]
+ - Debug info: Paste output from Developer Tools (Ctrl+Shift+I or Cmd+Option+I on Mac)
+ - Other plugins enabled: [List any other plugins that might be relevant]
+ - Theme: [e.g. Default] (if applicable)
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
+**Console Logs**
+If applicable, open developer tools (Ctrl+Shift+I or Cmd+Option+I on Mac) and paste any relevant error messages.
+
+**Mobile (if applicable, complete the following information):**
+ - Device: [e.g. iPhone 12]
+ - OS: [e.g. iOS 15]
+ - Obsidian version: [e.g. 1.0.0]
+ - QuickAdd version: [e.g. 0.5.0]
 
 **Additional context**
-Add any other context about the problem here.
+Add any other context about the problem here, such as specific settings or vault configuration.
