@@ -9,7 +9,7 @@ export interface ParsedDate {
 }
 
 /**
- * Parse a natural language date string using the Natural Language Dates plugin
+ * Parse a natural language date string using built-in date parser (with NLD plugin fallback)
  * @param app - The Obsidian app instance
  * @param input - The date string to parse
  * @param format - Optional format string for the output (defaults to YYYY-MM-DD)
