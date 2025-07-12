@@ -18,7 +18,7 @@ describe("dateParser", () => {
 			expect(result.error).toBe("Empty input");
 		});
 
-		it("should use built-in parser when NLD plugin is not available", () => {
+		it("should use built-in chrono parser", () => {
 			const mockApp = {
 				plugins: {
 					plugins: {}
@@ -26,33 +26,23 @@ describe("dateParser", () => {
 			} as unknown as App;
 			
 			const result = parseNaturalLanguageDate(mockApp, "tomorrow");
-			// With built-in chrono parser, this should now succeed
+			// Built-in chrono parser should work
 			expect(result.isValid).toBe(true);
 			expect(result.isoString).toBeDefined();
 		});
 
-		it("should parse valid date when NLD plugin is available", () => {
+		it("should parse valid date with custom format", () => {
 			const mockApp = {
 				plugins: {
-					plugins: {
-						"nldates-obsidian": {
-							parseDate: (input: string) => ({
-								moment: {
-									format: (fmt: string) => "2025-07-11",
-									toISOString: () => "2025-07-11T00:00:00.000Z",
-									isValid: () => true
-								}
-							})
-						}
-					}
+					plugins: {}
 				}
 			} as unknown as App;
 
 			const result = parseNaturalLanguageDate(mockApp, "tomorrow", "YYYY-MM-DD");
 			
 			expect(result.isValid).toBe(true);
-			expect(result.formatted).toBe("2025-07-11");
-			expect(result.isoString).toBe("2025-07-11T00:00:00.000Z");
+			expect(result.formatted).toBe("2025-06-21"); // Based on test stub moment
+			expect(result.isoString).toBe("2025-06-21T00:00:00.000Z");
 		});
 
 		it("should return error when date parsing fails", () => {
@@ -76,23 +66,18 @@ describe("dateParser", () => {
 			expect(result.error).toBe("Unable to parse date");
 		});
 
-		it("should handle parse exceptions gracefully", () => {
+		it("should handle unparseable input gracefully", () => {
 			const mockApp = {
 				plugins: {
-					plugins: {
-						"nldates-obsidian": {
-							parseDate: () => {
-								throw new Error("Parse error");
-							}
-						}
-					}
+					plugins: {}
 				}
 			} as unknown as App;
 
-			const result = parseNaturalLanguageDate(mockApp, "error date");
+			// Test with input that chrono can't parse
+			const result = parseNaturalLanguageDate(mockApp, "not a valid date at all");
 			
 			expect(result.isValid).toBe(false);
-			expect(result.error).toBe("Parse error: Parse error");
+			expect(result.error).toBe("Unable to parse date");
 		});
 	});
 

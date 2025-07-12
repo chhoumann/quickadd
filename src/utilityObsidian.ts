@@ -103,15 +103,8 @@ export async function templaterParseTemplate(
 	).parse_template({ target_file: targetFile, run_mode: 4 }, templateContent);
 }
 
-export function getNaturalLanguageDates(app: App) {
-	// Try external plugin first for backward compatibility
-	// @ts-ignore
-	const externalPlugin = app.plugins.plugins?.["nldates-obsidian"];
-	if (externalPlugin && typeof externalPlugin.parseDate === "function") {
-		return externalPlugin;
-	}
-
-	// Fallback to internal chrono parser
+export function getNaturalLanguageDates(_app: App) {
+	// Use built-in chrono parser
 	return NLDParser;
 }
 

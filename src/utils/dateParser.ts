@@ -9,7 +9,7 @@ export interface ParsedDate {
 }
 
 /**
- * Parse a natural language date string using built-in date parser (with NLD plugin fallback)
+ * Parse a natural language date string using built-in chrono-node parser
  * @param app - The Obsidian app instance
  * @param input - The date string to parse
  * @param format - Optional format string for the output (defaults to YYYY-MM-DD)
@@ -28,7 +28,7 @@ export function parseNaturalLanguageDate(
 	}
 
 	const nld = getNaturalLanguageDates(app);
-	// With fallback parser, this should always be available
+	// Built-in parser should always be available
 	if (!nld || !nld.parseDate || typeof nld.parseDate !== "function") {
 		return {
 			isValid: false,

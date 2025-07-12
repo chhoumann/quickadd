@@ -18,7 +18,7 @@ class NLDParserImpl {
     return this.chrono.parseDate(input, new Date(), { forwardDate: true });
   }
 
-  /** Drop-in replacement for Natural Language Dates plugin parseDate method */
+  /** Parse date using chrono-node natural language date parser */
   parseDate(input?: string): ParsedMoment | null {
     if (!input || !input.trim()) return null;
 
