@@ -8,11 +8,12 @@ import { SingleMacroEngine } from "../engine/SingleMacroEngine";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { INLINE_JAVASCRIPT_REGEX } from "../constants";
+import { INLINE_JAVASCRIPT_REGEX, DATE_VARIABLE_REGEX } from "../constants";
 import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
+import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldSuggestionParser, type FieldFilter } from "../utils/FieldSuggestionParser";
 
@@ -22,6 +23,7 @@ import { log } from "../logger/logManager";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
+import { parseNaturalLanguageDate } from "../utils/dateParser";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -113,7 +115,22 @@ export class CompleteFormatter extends Formatter {
 		return this.value;
 	}
 
-	protected async promptForVariable(header?: string): Promise<string> {
+	protected async promptForVariable(
+		header?: string,
+		context?: { type?: string; dateFormat?: string }
+	): Promise<string> {
+		// Use VDateInputPrompt for VDATE variables
+		if (context?.type === "VDATE" && context.dateFormat) {
+			return await VDateInputPrompt.Prompt(
+				this.app,
+				header as string,
+				"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
+				undefined,
+				context.dateFormat
+			);
+		}
+		
+		// Use default prompt for other variables
 		return await new InputPrompt().factory().Prompt(this.app, header as string);
 	}
 
@@ -361,5 +378,74 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		return rawValues;
+	}
+
+	protected async replaceDateVariableInString(input: string): Promise<string> {
+		let output: string = input;
+
+		while (DATE_VARIABLE_REGEX.test(output)) {
+			const match = DATE_VARIABLE_REGEX.exec(output);
+			if (!match || !match[1] || !match[2]) break;
+
+			const variableName = match[1].trim();
+			const dateFormat = match[2].trim();
+			
+			// Skip processing if variable name or format is empty
+			if (!variableName || !dateFormat) {
+				break;
+			}
+
+			if (variableName && dateFormat) {
+				const existingValue = this.variables.get(variableName) as string;
+				
+				// Check if we already have this date variable stored
+				if (!existingValue) {
+					// Prompt for date input with VDATE context
+					const dateInput = await this.promptForVariable(
+						`Enter value for ${variableName}`,
+						{ type: "VDATE", dateFormat }
+					);
+					this.variables.set(variableName, dateInput);
+
+					// Parse the date using shared utility
+					const parseResult = parseNaturalLanguageDate(this.app, dateInput);
+					
+					if (parseResult.isValid && parseResult.isoString) {
+						// Store the ISO string with a special prefix
+						this.variables.set(
+							variableName,
+							`@date:${parseResult.isoString}`
+						);
+					} else {
+						throw new Error(
+							`Unable to parse date variable "${dateInput}": ${parseResult.error || "Invalid date"}`
+						);
+					}
+				}
+
+				// Format the date based on what's stored
+				let formattedDate = "";
+				const storedValue = this.variables.get(variableName) as string;
+				
+				if (storedValue && storedValue.startsWith("@date:")) {
+					// It's a date variable, extract and format it
+					const isoString = storedValue.substring(6);
+					const moment = window.moment(isoString);
+					if (moment && moment.isValid()) {
+						formattedDate = moment.format(dateFormat);
+					}
+				} else if (storedValue) {
+					// Backward compatibility: use the stored value as-is
+					formattedDate = storedValue;
+				}
+
+				// Replace the specific match
+				output = output.replace(match[0], formattedDate);
+			} else {
+				break;
+			}
+		}
+
+		return output;
 	}
 }
