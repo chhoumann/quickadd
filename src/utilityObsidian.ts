@@ -15,6 +15,7 @@ import type { MacroChoice } from "./types/choices/MacroChoice";
 import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
 import { reportError } from "./utils/errorUtils";
+import { NLDParser } from "./parsers/NLDParser";
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -103,8 +104,15 @@ export async function templaterParseTemplate(
 }
 
 export function getNaturalLanguageDates(app: App) {
+	// Try external plugin first for backward compatibility
 	// @ts-ignore
-	return app.plugins.plugins["nldates-obsidian"];
+	const externalPlugin = app.plugins.plugins?.["nldates-obsidian"];
+	if (externalPlugin && typeof externalPlugin.parseDate === "function") {
+		return externalPlugin;
+	}
+
+	// Fallback to internal chrono parser
+	return NLDParser;
 }
 
 export function getDate(input?: { format?: string; offset?: number; }) {

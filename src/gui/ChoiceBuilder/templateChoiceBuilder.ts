@@ -111,15 +111,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		formatInput.inputEl.style.width = "100%";
 		formatInput.inputEl.style.marginBottom = "8px";
 		const checkVdateWarning = (value: string) => {
-			const hasVdate = /{{VDATE:/i.test(value);
-			const hasNaturalLanguageDates = getNaturalLanguageDates(this.app);
-			
-			if (hasVdate && !hasNaturalLanguageDates) {
-				vdateWarning.style.display = "block";
-				vdateWarning.textContent = "⚠️ VDATE requires the Natural Language Dates plugin to be installed and enabled.";
-			} else {
-				vdateWarning.style.display = "none";
-			}
+			// VDATE is now built-in, no warning needed
+			vdateWarning.style.display = "none";
 		};
 
 		formatInput

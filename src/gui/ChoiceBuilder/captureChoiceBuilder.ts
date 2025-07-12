@@ -334,15 +334,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		vdateWarning.style.display = "none";
 
 		const checkVdateWarning = (value: string) => {
-			const hasVdate = /{{VDATE:/i.test(value);
-			const hasNaturalLanguageDates = getNaturalLanguageDates(this.app);
-			
-			if (hasVdate && !hasNaturalLanguageDates) {
-				vdateWarning.style.display = "block";
-				vdateWarning.textContent = "⚠️ VDATE requires the Natural Language Dates plugin to be installed and enabled.";
-			} else {
-				vdateWarning.style.display = "none";
-			}
+			// VDATE is now built-in, no warning needed
+			vdateWarning.style.display = "none";
 		};
 
 		// Check warning on initial load and when input changes

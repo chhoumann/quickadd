@@ -28,10 +28,11 @@ export function parseNaturalLanguageDate(
 	}
 
 	const nld = getNaturalLanguageDates(app);
+	// With fallback parser, this should always be available
 	if (!nld || !nld.parseDate || typeof nld.parseDate !== "function") {
 		return {
 			isValid: false,
-			error: "Natural Language Dates plugin is not installed or enabled"
+			error: "Date parser is not available"
 		};
 	}
 

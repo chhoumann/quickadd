@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { parseNaturalLanguageDate, formatISODate } from "./dateParser";
 import type { App } from "obsidian";
 
@@ -18,7 +18,7 @@ describe("dateParser", () => {
 			expect(result.error).toBe("Empty input");
 		});
 
-		it("should return error when NLD plugin is not available", () => {
+		it("should use built-in parser when NLD plugin is not available", () => {
 			const mockApp = {
 				plugins: {
 					plugins: {}
@@ -26,8 +26,9 @@ describe("dateParser", () => {
 			} as unknown as App;
 			
 			const result = parseNaturalLanguageDate(mockApp, "tomorrow");
-			expect(result.isValid).toBe(false);
-			expect(result.error).toBe("Natural Language Dates plugin is not installed or enabled");
+			// With built-in chrono parser, this should now succeed
+			expect(result.isValid).toBe(true);
+			expect(result.isoString).toBeDefined();
 		});
 
 		it("should parse valid date when NLD plugin is available", () => {
