@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, Debouncer } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { parseNaturalLanguageDate } from "../../utils/dateParser";
 import { debounce } from "obsidian";
@@ -6,8 +6,9 @@ import { debounce } from "obsidian";
 export default class VDateInputPrompt extends GenericInputPrompt {
 	private previewEl: HTMLElement;
 	private dateFormat: string;
-	private updatePreviewDebounced: () => void;
+	private updatePreviewDebounced: Debouncer<[], void>;
 	private currentInput = "";
+	private isOpen = true;
 
 	public static Prompt(
 		app: App,
@@ -36,7 +37,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		super(app, header, placeholder, value);
 		this.dateFormat = dateFormat || "YYYY-MM-DD";
 		
-		// Create debounced preview update function (250ms delay)
+		// Create debounced preview update function (250ms delay, reset on each call)
 		this.updatePreviewDebounced = debounce(
 			this.updatePreview.bind(this),
 			250,
@@ -93,6 +94,9 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	private updatePreview() {
+		// Don't update if modal is closed
+		if (!this.isOpen) return;
+		
 		const input = this.currentInput.trim();
 		
 		if (!input) {
@@ -100,12 +104,13 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			return;
 		}
 		
-		const parseResult = parseNaturalLanguageDate(this.app, input, this.dateFormat);
+		const parseResult = parseNaturalLanguageDate(input, this.dateFormat);
 		
 		if (parseResult.isValid && parseResult.formatted) {
 			this.setPreviewText(parseResult.formatted, false);
 		} else {
-			this.setPreviewText(parseResult.error || "Unable to parse date", true);
+			const errorMessage = parseResult.error || "Unable to parse date";
+			this.setPreviewText(errorMessage, true);
 		}
 	}
 
@@ -120,11 +125,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	onClose() {
-		// Clean up debounced function
-		if (this.updatePreviewDebounced) {
-			// @ts-ignore - cancel is added by debounce
-			this.updatePreviewDebounced.cancel?.();
-		}
+		// Prevent any pending debounced updates
+		this.isOpen = false;
+		
+		// Cancel any pending debounced calls
+		this.updatePreviewDebounced.cancel();
+		
 		super.onClose();
 	}
 }

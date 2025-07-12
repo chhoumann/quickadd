@@ -1,7 +1,8 @@
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utilityObsidian";
 import { DATE_VARIABLE_REGEX } from "../constants";
+import type { IDateParser } from "../parsers/IDateParser";
+import { NLDParser } from "../parsers/NLDParser";
 import {
 	getVariableExample,
 	getMacroPreview,
@@ -12,8 +13,12 @@ import {
 } from "./helpers/previewHelpers";
 
 export class FileNameDisplayFormatter extends Formatter {
-	constructor(private app: App) {
+	constructor(
+		private app: App,
+		dateParser?: IDateParser
+	) {
 		super();
+		this.dateParser = dateParser || NLDParser;
 	}
 
 	public async format(input: string): Promise<string> {
@@ -47,21 +52,6 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 
-	protected getNaturalLanguageDates() {
-		const plugin = getNaturalLanguageDates(this.app);
-		if (!plugin) return undefined;
-		
-		// Check if the plugin has the parseDate method
-		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
-			return {
-				parseDate: plugin.parseDate as (s: string | undefined) => {
-					moment: { format: (s: string) => string; toISOString: () => string };
-				}
-			};
-		}
-		
-		return undefined;
-	}
 
 	protected suggestForValue(suggestedValues: string[]) {
 		return getSuggestionPreview(suggestedValues);
@@ -75,7 +65,10 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getMacroPreview(macroName);
 	}
 
-	protected async promptForVariable(variableName: string): Promise<string> {
+	protected async promptForVariable(
+		variableName: string,
+		context?: { type?: string; dateFormat?: string }
+	): Promise<string> {
 		return getVariablePromptExample(variableName);
 	}
 

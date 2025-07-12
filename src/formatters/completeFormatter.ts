@@ -1,14 +1,13 @@
 
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type QuickAdd from "../main";
 import { SingleMacroEngine } from "../engine/SingleMacroEngine";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { INLINE_JAVASCRIPT_REGEX, DATE_VARIABLE_REGEX } from "../constants";
+import { INLINE_JAVASCRIPT_REGEX } from "../constants";
 import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
@@ -23,7 +22,8 @@ import { log } from "../logger/logManager";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
-import { parseNaturalLanguageDate } from "../utils/dateParser";
+import type { IDateParser } from "../parsers/IDateParser";
+import { NLDParser } from "../parsers/NLDParser";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -32,8 +32,10 @@ export class CompleteFormatter extends Formatter {
 		protected app: App,
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
+		dateParser?: IDateParser
 	) {
 		super();
+		this.dateParser = dateParser || NLDParser;
 		if (choiceExecutor) {
 			this.variables = choiceExecutor?.variables;
 		}
@@ -82,21 +84,6 @@ export class CompleteFormatter extends Formatter {
 		return this.app.fileManager.generateMarkdownLink(currentFile, "");
 	}
 
-	protected getNaturalLanguageDates() {
-		const plugin = getNaturalLanguageDates(this.app);
-		if (!plugin) return undefined;
-		
-		// Check if the plugin has the parseDate method
-		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
-			return {
-				parseDate: plugin.parseDate as (s: string | undefined) => {
-					moment: { format: (s: string) => string; toISOString: () => string };
-				}
-			};
-		}
-		
-		return undefined;
-	}
 
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
@@ -380,72 +367,4 @@ export class CompleteFormatter extends Formatter {
 		return rawValues;
 	}
 
-	protected async replaceDateVariableInString(input: string): Promise<string> {
-		let output: string = input;
-
-		while (DATE_VARIABLE_REGEX.test(output)) {
-			const match = DATE_VARIABLE_REGEX.exec(output);
-			if (!match || !match[1] || !match[2]) break;
-
-			const variableName = match[1].trim();
-			const dateFormat = match[2].trim();
-			
-			// Skip processing if variable name or format is empty
-			if (!variableName || !dateFormat) {
-				break;
-			}
-
-			if (variableName && dateFormat) {
-				const existingValue = this.variables.get(variableName) as string;
-				
-				// Check if we already have this date variable stored
-				if (!existingValue) {
-					// Prompt for date input with VDATE context
-					const dateInput = await this.promptForVariable(
-						`Enter value for ${variableName}`,
-						{ type: "VDATE", dateFormat }
-					);
-					this.variables.set(variableName, dateInput);
-
-					// Parse the date using shared utility
-					const parseResult = parseNaturalLanguageDate(this.app, dateInput);
-					
-					if (parseResult.isValid && parseResult.isoString) {
-						// Store the ISO string with a special prefix
-						this.variables.set(
-							variableName,
-							`@date:${parseResult.isoString}`
-						);
-					} else {
-						throw new Error(
-							`Unable to parse date variable "${dateInput}": ${parseResult.error || "Invalid date"}`
-						);
-					}
-				}
-
-				// Format the date based on what's stored
-				let formattedDate = "";
-				const storedValue = this.variables.get(variableName) as string;
-				
-				if (storedValue && storedValue.startsWith("@date:")) {
-					// It's a date variable, extract and format it
-					const isoString = storedValue.substring(6);
-					const moment = window.moment(isoString);
-					if (moment && moment.isValid()) {
-						formattedDate = moment.format(dateFormat);
-					}
-				} else if (storedValue) {
-					// Backward compatibility: use the stored value as-is
-					formattedDate = storedValue;
-				}
-
-				// Replace the specific match
-				output = output.replace(match[0], formattedDate);
-			} else {
-				break;
-			}
-		}
-
-		return output;
-	}
 }

@@ -1,5 +1,5 @@
-import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utilityObsidian";
+import { NLDParser } from "../parsers/NLDParser";
+import type { IDateParser } from "../parsers/IDateParser";
 
 export interface ParsedDate {
 	isValid: boolean;
@@ -9,16 +9,16 @@ export interface ParsedDate {
 }
 
 /**
- * Parse a natural language date string using the Natural Language Dates plugin
- * @param app - The Obsidian app instance
+ * Parse a natural language date string using built-in chrono-node parser
  * @param input - The date string to parse
  * @param format - Optional format string for the output (defaults to YYYY-MM-DD)
+ * @param dateParser - Optional date parser to use (defaults to NLDParser)
  * @returns ParsedDate object with the result
  */
 export function parseNaturalLanguageDate(
-	app: App,
 	input: string,
-	format?: string
+	format?: string,
+	dateParser: IDateParser = NLDParser
 ): ParsedDate {
 	if (!input || !input.trim()) {
 		return {
@@ -27,28 +27,12 @@ export function parseNaturalLanguageDate(
 		};
 	}
 
-	const nld = getNaturalLanguageDates(app);
-	if (!nld || !nld.parseDate || typeof nld.parseDate !== "function") {
-		return {
-			isValid: false,
-			error: "Natural Language Dates plugin is not installed or enabled"
-		};
-	}
-
 	try {
-		const parseResult = (
-			nld.parseDate as (s: string) => {
-				moment?: {
-					format: (s: string) => string;
-					toISOString: () => string;
-					isValid: () => boolean;
-				};
-			}
-		)(input);
+		const parseResult = dateParser.parseDate(input);
 
-		if (parseResult && parseResult.moment && parseResult.moment.isValid()) {
+		if (parseResult?.moment?.isValid()) {
 			const isoString = parseResult.moment.toISOString();
-			const formatted = format 
+			const formatted = format
 				? parseResult.moment.format(format)
 				: parseResult.moment.format("YYYY-MM-DD");
 

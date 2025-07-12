@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DATE_VARIABLE_REGEX } from '../constants';
+import type { IDateParser } from '../parsers/IDateParser';
 
 // Simple test implementation for comma crash validation
 class TestFormatterCommaCrash {
     protected variables: Map<string, unknown> = new Map();
+    protected dateParser: IDateParser = {
+        parseDate: () => null
+    };
 
     protected replacer(str: string, reg: RegExp, replaceValue: string) {
         return str.replace(reg, function () {
@@ -11,12 +15,11 @@ class TestFormatterCommaCrash {
         });
     }
 
-    protected async promptForVariable(variableName: string): Promise<string> {
+    protected async promptForVariable(
+        variableName: string,
+        context?: { type?: string; dateFormat?: string }
+    ): Promise<string> {
         return "test-date";
-    }
-
-    protected getNaturalLanguageDates() {
-        return { parseDate: () => null };
     }
 
     // Test the regex pattern and validation logic
@@ -199,17 +202,5 @@ describe('Formatter - VDATE Comma Crash Prevention', () => {
         });
     });
 
-    describe('Runtime VDATE plugin detection', () => {
-        it('should throw error when Natural Language Dates plugin is missing during execution', () => {
-            // This verifies that runtime execution throws a clear error
-            // when VDATE is used without the Natural Language Dates plugin
-            const expectedError = 'VDATE variable "myDate" requires the Natural Language Dates plugin to be installed and enabled.';
-            
-            // In the real implementation, this error gets thrown in formatter.ts
-            // when getNaturalLanguageDates() returns null/undefined
-            expect(() => {
-                throw new Error(expectedError);
-            }).toThrow(expectedError);
-        });
-    });
+
 });

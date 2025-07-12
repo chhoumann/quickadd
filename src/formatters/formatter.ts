@@ -16,10 +16,12 @@ import {
 	TIME_REGEX_FORMATTED,
 } from "../constants";
 import { getDate } from "../utilityObsidian";
+import type { IDateParser } from "../parsers/IDateParser";
 
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, string>();
+	protected dateParser: IDateParser | undefined;
 
 	protected abstract format(input: string): Promise<string>;
 
@@ -286,22 +288,16 @@ export abstract class Formatter {
 				
 				// Check if we already have this date variable stored
 				if (!existingValue) {
-					// Prompt for date input
-					const dateInput = await this.promptForVariable(variableName);
+					// Prompt for date input with VDATE context
+					const dateInput = await this.promptForVariable(
+						variableName,
+						{ type: "VDATE", dateFormat }
+					);
 					this.variables.set(variableName, dateInput);
 
-					 
-					const nld = this.getNaturalLanguageDates();
-					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
-						throw new Error(
-							`VDATE variable "${variableName}" requires the Natural Language Dates plugin to be installed and enabled.`,
-						);
+					if (!this.dateParser) throw new Error("Date parser is not available");
 
-					const parseAttempt = (
-						nld.parseDate as (s: string | undefined) => {
-							moment: { format: (s: string) => string; toISOString: () => string };
-						}
-					)(dateInput);
+					const parseAttempt = this.dateParser.parseDate(dateInput);
 
 					if (parseAttempt) {
 						// Store the ISO string with a special prefix
@@ -324,14 +320,8 @@ export abstract class Formatter {
 					// It's a date variable, extract and format it
 					const isoString = storedValue.substring(6);
 					 
-					const nld = this.getNaturalLanguageDates();
-					if (nld && nld.parseDate && typeof nld.parseDate === "function") {
-						const moment = (window as Window & { 
-							moment: (isoString: string) => {
-								isValid: () => boolean;
-								format: (dateFormat: string) => string;
-							}
-						}).moment(isoString);
+					if (this.dateParser && window.moment) {
+						const moment = window.moment(isoString);
 						if (moment && moment.isValid()) {
 							formattedDate = moment.format(dateFormat);
 						}
@@ -394,15 +384,13 @@ export abstract class Formatter {
 		return output;
 	}
 
-	protected abstract getNaturalLanguageDates(): {
-		parseDate?: (s: string | undefined) => {
-			moment: { format: (s: string) => string; toISOString: () => string };
-		};
-	} | undefined;
 
 	protected abstract getMacroValue(macroName: string): Promise<string> | string;
 
-	protected abstract promptForVariable(variableName: string): Promise<string>;
+	protected abstract promptForVariable(
+		variableName: string,
+		context?: { type?: string; dateFormat?: string }
+	): Promise<string>;
 
 	protected abstract getTemplateContent(templatePath: string): Promise<string>;
 

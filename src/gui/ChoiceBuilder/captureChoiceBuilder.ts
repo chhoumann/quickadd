@@ -21,7 +21,6 @@ import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { log } from "src/logger/logManager";
-import { getNaturalLanguageDates } from "../../utilityObsidian";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
@@ -200,7 +199,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
-			this.plugin,
+			this.plugin
 		);
 		void (async () =>
 			(insertAfterFormatDisplay.innerText = await displayFormatter.format(
@@ -326,31 +325,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.setValue(this.choice.format.format)
 			.setDisabled(!this.choice.format.enabled);
 
-		// Warning for VDATE usage without Natural Language Dates plugin
-		const vdateWarning: HTMLDivElement = this.contentEl.createDiv("vdate-warning");
-		vdateWarning.style.color = "var(--text-error)";
-		vdateWarning.style.fontSize = "0.9em";
-		vdateWarning.style.marginTop = "4px";
-		vdateWarning.style.display = "none";
-
-		const checkVdateWarning = (value: string) => {
-			const hasVdate = /{{VDATE:/i.test(value);
-			const hasNaturalLanguageDates = getNaturalLanguageDates(this.app);
-			
-			if (hasVdate && !hasNaturalLanguageDates) {
-				vdateWarning.style.display = "block";
-				vdateWarning.textContent = "⚠️ VDATE requires the Natural Language Dates plugin to be installed and enabled.";
-			} else {
-				vdateWarning.style.display = "none";
-			}
-		};
-
-		// Check warning on initial load and when input changes
-		checkVdateWarning(this.choice.format.format);
 		formatInput.onChange(async (value) => {
 			this.choice.format.format = value;
 			formatDisplay.innerText = await displayFormatter.format(value);
-			checkVdateWarning(value);
 		});
 
 		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin);
@@ -358,7 +335,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
-			this.plugin,
+			this.plugin
 		);
 		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(

@@ -1,9 +1,10 @@
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utilityObsidian";
 import type QuickAdd from "../main";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { DATE_VARIABLE_REGEX } from "../constants";
+import type { IDateParser } from "../parsers/IDateParser";
+import { NLDParser } from "../parsers/NLDParser";
 import {
 	getVariableExample,
 	getMacroPreview,
@@ -14,8 +15,13 @@ import {
 } from "./helpers/previewHelpers";
 
 export class FormatDisplayFormatter extends Formatter {
-	constructor(private app: App, private plugin: QuickAdd) {
+	constructor(
+		private app: App, 
+		private plugin: QuickAdd,
+		dateParser?: IDateParser
+	) {
 		super();
+		this.dateParser = dateParser || NLDParser;
 	}
 
 	public async format(input: string): Promise<string> {
@@ -52,22 +58,6 @@ export class FormatDisplayFormatter extends Formatter {
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 
-	protected getNaturalLanguageDates() {
-		const plugin = getNaturalLanguageDates(this.app);
-		if (!plugin) return undefined;
-		
-		// Check if the plugin has the parseDate method
-		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
-			return {
-				parseDate: plugin.parseDate as (s: string | undefined) => {
-					moment: { format: (s: string) => string; toISOString: () => string };
-				}
-			};
-		}
-		
-		return undefined;
-	}
-
 	protected suggestForValue(suggestedValues: string[]) {
 		return getSuggestionPreview(suggestedValues);
 	}
@@ -80,7 +70,10 @@ export class FormatDisplayFormatter extends Formatter {
 		return Promise.resolve("calculation_result");
 	}
 
-	protected promptForVariable(variableName: string): Promise<string> {
+	protected promptForVariable(
+		variableName: string,
+		context?: { type?: string; dateFormat?: string }
+	): Promise<string> {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}
 
