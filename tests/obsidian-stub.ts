@@ -4,6 +4,8 @@
 const moment = (..._args: any[]) => ({
   add: () => ({ format: () => "2025-06-21" }),
   format: () => "2025-06-21",
+  isValid: () => true,
+  toISOString: () => "2025-06-21T00:00:00.000Z",
 });
 
 // Ensure window and global moment are available

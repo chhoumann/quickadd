@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "builtin-modules": "^5.0.0",
+    "chrono-node": "^2.8.3",
     "fuse.js": "7.1.0",
     "js-tiktoken": "^1.0.20",
     "zustand": "^5.0.6"

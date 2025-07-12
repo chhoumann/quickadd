@@ -290,12 +290,8 @@ export abstract class Formatter {
 					const dateInput = await this.promptForVariable(variableName);
 					this.variables.set(variableName, dateInput);
 
-					 
 					const nld = this.getNaturalLanguageDates();
-					if (!nld || !nld.parseDate || typeof nld.parseDate !== "function")
-						throw new Error(
-							`VDATE variable "${variableName}" requires the Natural Language Dates plugin to be installed and enabled.`,
-						);
+					if (!nld) throw new Error("Date parser is not available");
 
 					const parseAttempt = (
 						nld.parseDate as (s: string | undefined) => {
