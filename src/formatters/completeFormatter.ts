@@ -1,7 +1,6 @@
 
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { getNaturalLanguageDates } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type QuickAdd from "../main";
 import { SingleMacroEngine } from "../engine/SingleMacroEngine";
@@ -13,6 +12,7 @@ import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { MathModal } from "../gui/MathModal";
 import InputPrompt from "../gui/InputPrompt";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
+import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldSuggestionParser, type FieldFilter } from "../utils/FieldSuggestionParser";
 
@@ -22,6 +22,8 @@ import { log } from "../logger/logManager";
 import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
+import type { IDateParser } from "../parsers/IDateParser";
+import { NLDParser } from "../parsers/NLDParser";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -30,8 +32,10 @@ export class CompleteFormatter extends Formatter {
 		protected app: App,
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
+		dateParser?: IDateParser
 	) {
 		super();
+		this.dateParser = dateParser || NLDParser;
 		if (choiceExecutor) {
 			this.variables = choiceExecutor?.variables;
 		}
@@ -80,21 +84,6 @@ export class CompleteFormatter extends Formatter {
 		return this.app.fileManager.generateMarkdownLink(currentFile, "");
 	}
 
-	protected getNaturalLanguageDates() {
-		const plugin = getNaturalLanguageDates(this.app);
-		if (!plugin) return undefined;
-		
-		// Check if the plugin has the parseDate method
-		if ('parseDate' in plugin && typeof plugin.parseDate === 'function') {
-			return {
-				parseDate: plugin.parseDate as (s: string | undefined) => {
-					moment: { format: (s: string) => string; toISOString: () => string };
-				}
-			};
-		}
-		
-		return undefined;
-	}
 
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
@@ -113,7 +102,22 @@ export class CompleteFormatter extends Formatter {
 		return this.value;
 	}
 
-	protected async promptForVariable(header?: string): Promise<string> {
+	protected async promptForVariable(
+		header?: string,
+		context?: { type?: string; dateFormat?: string }
+	): Promise<string> {
+		// Use VDateInputPrompt for VDATE variables
+		if (context?.type === "VDATE" && context.dateFormat) {
+			return await VDateInputPrompt.Prompt(
+				this.app,
+				header as string,
+				"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
+				undefined,
+				context.dateFormat
+			);
+		}
+		
+		// Use default prompt for other variables
 		return await new InputPrompt().factory().Prompt(this.app, header as string);
 	}
 
@@ -362,4 +366,5 @@ export class CompleteFormatter extends Formatter {
 
 		return rawValues;
 	}
+
 }

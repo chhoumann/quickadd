@@ -1,10 +1,20 @@
 // Stub module for Obsidian API used during tests
 // This file provides minimal runtime implementations for testing
 
-const moment = (..._args: any[]) => ({
-  add: () => ({ format: () => "2025-06-21" }),
-  format: () => "2025-06-21",
-});
+const moment = (...args: any[]) => {
+  // Handle date inputs for NLDParser compatibility
+  const isValidInput = args.length === 0 || args[0] instanceof Date || typeof args[0] === 'string';
+  
+  return {
+    add: () => ({ format: () => "2025-06-21" }),
+    format: (fmt?: string) => {
+      if (fmt === "YYYY-MM-DD") return "2025-06-21";
+      return "2025-06-21T00:00:00.000Z";
+    },
+    isValid: () => isValidInput,
+    toISOString: () => "2025-06-21T00:00:00.000Z",
+  };
+};
 
 // Ensure window and global moment are available
 (globalThis as any).window ??= globalThis;
