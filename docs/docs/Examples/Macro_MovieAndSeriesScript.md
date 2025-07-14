@@ -16,7 +16,7 @@ We'll need to install a QuickAdd user script for this to work. I have made a vid
 You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
 You can find the script [here](./Attachments/movies.js).
 
-1. Save the script (`movies.js`) to your vault somewhere. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end.
+1. Save the script (`movies.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
 3. Open the Macro Manager by opening the QuickAdd plugin settings and clicking `Manage Macros`.
 4. Create a new Macro - you decide what to name it. I named mine `Movie`.

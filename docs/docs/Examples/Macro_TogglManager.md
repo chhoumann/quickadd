@@ -13,7 +13,7 @@ You will need to put the user script into a new macro and then create a Macro ch
 You can find the script [here](./Attachments/togglManager.js).
 
 ## Installation
-1. Save the script (`togglManager.js`) to your vault somewhere. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end.
+1. Save the script (`togglManager.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Open the Macro Manager by opening the QuickAdd plugin settings and clicking `Manage Macros`.
 3. Create a new Macro - you decide what to name it. I named mine ``⏳ TogglManager``.
 4. Add the user script to the command list.
