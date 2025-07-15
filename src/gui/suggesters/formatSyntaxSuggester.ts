@@ -23,6 +23,7 @@ import {
 } from "../../constants";
 import type QuickAdd from "../../main";
 import { replaceRange } from "./utils";
+import { flattenChoices } from "../../utils/choiceUtils";
 
 enum FormatSyntaxToken {
 	Date,
@@ -131,9 +132,10 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 	) {
 		super(app, inputEl);
 
-		this.macroNames = this.plugin.settings.macros.map(
-			(macro) => macro.name
-		);
+		// Get macro names from choices
+		this.macroNames = flattenChoices(this.plugin.settings.choices)
+			.filter((choice) => choice.type === "Macro")
+			.map((choice) => choice.name);
 		
 		this.templatePaths = this.plugin.getTemplateFiles().map((file) => file.path);
 	}

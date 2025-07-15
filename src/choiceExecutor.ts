@@ -69,7 +69,6 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.app,
 			this.plugin,
 			macroChoice,
-			this.plugin.settings.macros,
 			this,
 			this.variables
 		);

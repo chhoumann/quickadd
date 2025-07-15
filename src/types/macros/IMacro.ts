@@ -4,5 +4,4 @@ export interface IMacro {
 	name: string;
 	id: string;
 	commands: ICommand[];
-	runOnStartup: boolean;
 }

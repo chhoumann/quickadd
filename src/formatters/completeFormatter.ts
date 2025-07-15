@@ -237,15 +237,16 @@ export class CompleteFormatter extends Formatter {
 		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
 			this.app,
 			this.plugin,
-			this.plugin.settings.macros,
+			this.plugin.settings.choices,
 			//@ts-ignore
 			this.choiceExecutor,
 			this.variables,
 		);
 		const macroOutput = (await macroEngine.runAndGetOutput(macroName)) ?? "";
 
-		Object.keys(macroEngine.params.variables).forEach((key) => {
-			this.variables.set(key, macroEngine.params.variables[key]);
+		// Copy variables from macro execution
+		macroEngine.getVariables().forEach((value, key) => {
+			this.variables.set(key, value);
 		});
 
 		return macroOutput;

@@ -47,7 +47,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		obsidian: typeof obsidian;
 	};
 	protected output: unknown;
-	protected macros: IMacro[];
+	protected macro: IMacro;
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
 	private userScriptCommand: IUserScript | null;
@@ -56,14 +56,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		app: App,
 		plugin: QuickAdd,
 		choice: IMacroChoice,
-		macros: IMacro[],
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, unknown>
 	) {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
-		this.macros = macros;
+		this.macro = choice.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.params = {
 			app: this.app,
@@ -78,17 +77,18 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	async run(): Promise<void> {
-		const macroId: string = this.choice.macroId ?? this.choice?.macro?.id;
-		const macro = this.macros.find((m) => m.id === macroId);
-
-		if (!macro || !macro?.commands) {
+		if (!this.macro || !this.macro.commands) {
 			log.logError(
-				`No commands in the selected macro. Did you select a macro for '${this.choice.name}'?`
+				`No commands in the macro for choice '${this.choice.name}'`
 			);
 			return;
 		}
 
-		await this.executeCommands(macro.commands);
+		await this.executeCommands(this.macro.commands);
+	}
+
+	public getOutput(): unknown {
+		return this.output;
 	}
 
 	protected async executeCommands(commands: ICommand[]) {

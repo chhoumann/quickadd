@@ -9,6 +9,7 @@ import type { ICommand } from "../../types/macros/ICommand";
 import type { SvelteComponent } from "svelte";
 import CommandList from "./CommandList.svelte";
 import type IChoice from "../../types/choices/IChoice";
+import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { ChoiceCommand } from "../../types/macros/ChoiceCommand";
 import { getUserScriptMemberAccess } from "../../utilityObsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
@@ -52,25 +53,29 @@ function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 }
 
 export class MacroBuilder extends Modal {
+	public choice: IMacroChoice;
 	public macro: IMacro;
-	public waitForClose: Promise<IMacro>;
+	public waitForClose: Promise<IMacroChoice>;
 	private commands: IObsidianCommand[] = [];
 	private javascriptFiles: TFile[] = [];
 	private readonly choices: IChoice[] = [];
 	private commandListEl: CommandList;
 	private svelteElements: SvelteComponent[];
-	private resolvePromise: (macro: IMacro) => void;
+	private resolvePromise: (choice: IMacroChoice) => void;
 	private plugin: QuickAdd;
 
-	constructor(app: App, plugin: QuickAdd, macro: IMacro, choices: IChoice[]) {
+	constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, choices: IChoice[]) {
 		super(app);
-		this.macro = macro;
+		this.choice = choice;
+		this.macro = choice.macro;
 		this.svelteElements = [];
 		this.choices = getChoicesAsList(choices);
 		this.plugin = plugin;
 
-		this.waitForClose = new Promise<IMacro>(
-			(resolve) => (this.resolvePromise = resolve)
+		this.waitForClose = new Promise<IMacroChoice>(
+			(resolve) => {
+				this.resolvePromise = resolve;
+			}
 		);
 
 		this.getObsidianCommands();
@@ -82,7 +87,7 @@ export class MacroBuilder extends Modal {
 
 	onClose() {
 		super.onClose();
-		this.resolvePromise(this.macro);
+		this.resolvePromise(this.choice);
 		this.svelteElements.forEach((el) => {
 			if (el && el.$destroy) el.$destroy();
 		});
@@ -91,13 +96,14 @@ export class MacroBuilder extends Modal {
 	protected display() {
 		this.containerEl.addClass("quickAddModal", "macroBuilder");
 		this.contentEl.empty();
-		this.addCenteredHeader(this.macro.name);
+		this.addCenteredHeader(this.choice.name);
 		this.addCommandList();
 		this.addCommandBar();
 		this.addAddObsidianCommandSetting();
 		this.addAddEditorCommandsSetting();
 		this.addAddUserScriptSetting();
 		this.addAddChoiceSetting();
+		this.addRunOnStartupSetting();
 	}
 
 	protected addCenteredHeader(header: string): void {
@@ -108,19 +114,36 @@ export class MacroBuilder extends Modal {
 
 		 
 		headerEl.addEventListener("click", async () => {
-			const newMacroName: string = await GenericInputPrompt.Prompt(
+			const newName: string = await GenericInputPrompt.Prompt(
 				this.app,
-				`Update name for ${this.macro.name}`,
-				this.macro.name
+				`Update name for ${this.choice.name}`,
+				this.choice.name
 			);
-			if (!newMacroName) return;
+			if (!newName) return;
 
-			this.macro.name = newMacroName;
+			// Keep choice name and macro name in sync
+			this.choice.name = newName;
+			this.macro.name = newName;
 			this.reload();
 		});
 	}
 
+	private addRunOnStartupSetting(): void {
+		new Setting(this.contentEl)
+			.setName("Run on startup")
+			.setDesc("Execute this macro when Obsidian starts")
+			.addToggle(toggle => toggle
+				.setValue(this.choice.runOnStartup)
+				.onChange(value => {
+					this.choice.runOnStartup = value;
+				})
+			);
+	}
+
 	private reload() {
+		// Destroy existing Svelte components to prevent memory leaks
+		this.svelteElements.forEach(el => el?.$destroy?.());
+		this.svelteElements = [];
 		this.display();
 	}
 

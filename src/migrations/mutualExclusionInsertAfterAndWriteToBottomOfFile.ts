@@ -51,11 +51,20 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveMigrateSettingInChoices(choicesCopy);
 
-		const macrosCopy = structuredClone(plugin.settings.macros);
+		const macrosCopy = structuredClone((plugin.settings as any).macros || []);
 		const macros = migrateSettingsInMacros(macrosCopy);
 
 		plugin.settings.choices = choices;
-		plugin.settings.macros = macros;
+		
+		// Save the migrated macros back to settings - later migrations still need it
+		(plugin.settings as any).macros = macros;
+		
+		/* DO NOT delete macros here – later migrations still need it
+		// Clean up legacy macros array if it exists
+		if ('macros' in plugin.settings) {
+			delete (plugin.settings as any).macros;
+		}
+		*/
 	},
 };
 
