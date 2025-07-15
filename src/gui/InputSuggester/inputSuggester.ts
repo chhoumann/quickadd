@@ -1,7 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch , App} from "obsidian";
 
-type Options = {
+export type Options = {
 	limit: FuzzySuggestModal<string>["limit"];
 	emptyStateText: FuzzySuggestModal<string>["emptyStateText"];
 	placeholder: Parameters<
