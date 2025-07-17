@@ -51,11 +51,20 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveRemoveIncrementFileName(choicesCopy);
 
-		const macrosCopy = structuredClone(plugin.settings.macros);
+		const macrosCopy = structuredClone((plugin.settings as any).macros || []);
 		const macros = removeIncrementFileName(macrosCopy);
 
 		plugin.settings.choices = structuredClone(choices);
-		plugin.settings.macros = structuredClone(macros);
+		
+		// Save the migrated macros back to settings - later migrations still need it
+		(plugin.settings as any).macros = macros;
+		
+		/* DO NOT delete macros here – later migrations still need it
+		// Clean up legacy macros array if it exists
+		if ('macros' in plugin.settings) {
+			delete (plugin.settings as any).macros;
+		}
+		*/
 	},
 };
 

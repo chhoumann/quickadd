@@ -146,17 +146,24 @@ export default class QuickAdd extends Plugin {
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
-		this.app.workspace.onLayoutReady(() =>
-			new StartupMacroEngine(
-				this.app,
-				this,
-				this.settings.macros,
-				new ChoiceExecutor(this.app, this),
-			).run(),
-		);
 		this.addCommandsForChoices(this.settings.choices);
 
 		await migrate(this);
+		
+		// Run startup macros after migrations are complete
+		const launchStartupMacros = () =>
+			new StartupMacroEngine(
+				this.app,
+				this,
+				this.settings.choices,
+				new ChoiceExecutor(this.app, this),
+			).run();
+
+		if (this.app.workspace.layoutReady) {
+			void launchStartupMacros();
+		} else {
+			this.app.workspace.onLayoutReady(launchStartupMacros);
+		}
 		this.announceUpdate();
 	}
 

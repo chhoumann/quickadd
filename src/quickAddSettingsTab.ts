@@ -3,7 +3,6 @@ import { PluginSettingTab, Setting, TFolder } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
-import type { IMacro } from "./types/macros/IMacro";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 import { settingsStore } from "./settingsStore";
 import type { Model } from "./ai/Provider";
@@ -11,7 +10,6 @@ import { DefaultProviders, type AIProvider } from "./ai/Provider";
 
 export interface QuickAddSettings {
 	choices: IChoice[];
-	macros: IMacro[];
 	inputPrompt: "multi-line" | "single-line";
 	devMode: boolean;
 	templateFolderPath: string;
@@ -37,12 +35,12 @@ export interface QuickAddSettings {
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: boolean;
 		setVersionAfterUpdateModalRelease: boolean;
 		addDefaultAIProviders: boolean;
+		removeMacroIndirection: boolean;
 	};
 }
 
 export const DEFAULT_SETTINGS: QuickAddSettings = {
 	choices: [],
-	macros: [],
 	inputPrompt: "single-line",
 	devMode: false,
 	templateFolderPath: "",
@@ -58,12 +56,16 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		providers: DefaultProviders,
 	},
 	migrations: {
-		migrateToMacroIDFromEmbeddedMacro: false,
+		/**
+		 * @deprecated kept for backward compatibility; always true, ignored.
+		 */
+		migrateToMacroIDFromEmbeddedMacro: true,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
 		setVersionAfterUpdateModalRelease: false,
 		addDefaultAIProviders: false,
+		removeMacroIndirection: false,
 	},
 };
 
@@ -120,10 +122,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				choices: settingsStore.getState().choices,
 				saveChoices: (choices: IChoice[]) => {
 					settingsStore.setState({ choices });
-				},
-				macros: settingsStore.getState().macros,
-				saveMacros: (macros: IMacro[]) => {
-					settingsStore.setState({ macros });
 				},
 			},
 		});

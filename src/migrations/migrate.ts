@@ -1,20 +1,20 @@
 import { log } from "src/logger/logManager";
 import type QuickAdd from "src/main";
 import type { Migrations } from "./Migrations";
-import migrateToMacroIDFromEmbeddedMacro from "./migrateToMacroIDFromEmbeddedMacro";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionInsertAfterAndWriteToBottomOfFile";
 import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelease";
 import addDefaultAIProviders from "./addDefaultAIProviders";
+import removeMacroIndirection from "./removeMacroIndirection";
 
 const migrations: Migrations = {
-	migrateToMacroIDFromEmbeddedMacro,
 	useQuickAddTemplateFolder,
 	incrementFileNameSettingMoveToDefaultBehavior,
 	mutualExclusionInsertAfterAndWriteToBottomOfFile,
 	setVersionAfterUpdateModalRelease,
 	addDefaultAIProviders,
+	removeMacroIndirection,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {

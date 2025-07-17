@@ -160,10 +160,15 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 	basename: string | undefined;
 	memberAccess: string[] | undefined;
 } {
-	const fullMemberArray: string[] = fullMemberPath.split("::");
+	// Use "::" exclusively to separate macro/script from member path
+	const parts = fullMemberPath
+		.split("::")
+		.map(p => p.trim())
+		.filter(Boolean);
+
 	return {
-		basename: fullMemberArray[0],
-		memberAccess: fullMemberArray.slice(1),
+		basename: parts[0],
+		memberAccess: parts.slice(1)
 	};
 }
 
