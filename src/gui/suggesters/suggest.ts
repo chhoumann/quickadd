@@ -277,7 +277,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	async onInputChanged(): Promise<void> {
 		if (this.ignoreNextInput) {
 			this.ignoreNextInput = false;
-			return;
+			return; // Skip this synthetic input event, no requestId increment needed
 		}
 
 		const inputStr = this.inputEl.value;
@@ -441,7 +441,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	/** Call before you programmatically change the value and
-	 *  know you'll dispatch an 'input' event yourself. */
+	 *  know you'll dispatch an 'input' event yourself.
+	 *  Suppresses the next single 'input' event from reopening the suggester. */
 	protected suppressNextInputEvent(): void {
 		this.ignoreNextInput = true;
 	}
