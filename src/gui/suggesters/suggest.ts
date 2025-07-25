@@ -1,12 +1,9 @@
- 
- 
- 
-import { Scope, debounce } from "obsidian";
-import type { ISuggestOwner, App } from "obsidian";
-import { createPopper } from "@popperjs/core";
 import type { Instance as PopperInstance } from "@popperjs/core";
-import { highlightMatches } from "./utils";
+import { createPopper } from "@popperjs/core";
+import type { App, ISuggestOwner } from "obsidian";
+import { debounce, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
+import { highlightMatches } from "./utils";
 
 const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
@@ -20,23 +17,19 @@ class Suggest<T> {
 	private containerEl: HTMLElement;
 	private isOpen = false;
 
-	constructor(
-		owner: ISuggestOwner<T>,
-		containerEl: HTMLElement,
-		scope: Scope
-	) {
+	constructor(owner: ISuggestOwner<T>, containerEl: HTMLElement, scope: Scope) {
 		this.owner = owner;
 		this.containerEl = containerEl;
 
 		containerEl.on(
 			"click",
 			".suggestion-item",
-			this.onSuggestionClick.bind(this)
+			this.onSuggestionClick.bind(this),
 		);
 		containerEl.on(
 			"mousemove",
 			".suggestion-item",
-			this.onSuggestionMouseover.bind(this)
+			this.onSuggestionMouseover.bind(this),
 		);
 
 		// Enhanced keyboard navigation
@@ -71,11 +64,13 @@ class Suggest<T> {
 
 		scope.register([], "PageDown", (event) => {
 			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(Math.min(this.suggestions.length - 1, this.selectedItem + 5), true);
+				this.setSelectedItem(
+					Math.min(this.suggestions.length - 1, this.selectedItem + 5),
+					true,
+				);
 				return false;
 			}
 		});
-
 	}
 
 	onSuggestionClick(event: MouseEvent, el: HTMLDivElement): void {
@@ -101,7 +96,7 @@ class Suggest<T> {
 			suggestionEl.setAttribute("role", "option");
 			suggestionEl.setAttribute("aria-selected", "false");
 			suggestionEl.setAttribute("id", `suggestion-${index}`);
-			
+
 			this.owner.renderSuggestion(value, suggestionEl);
 			suggestionEls.push(suggestionEl);
 		});
@@ -122,10 +117,7 @@ class Suggest<T> {
 	setSelectedItem(selectedIndex: number, scrollIntoView: boolean) {
 		if (!this.suggestions?.length) return;
 
-		const normalizedIndex = wrapAround(
-			selectedIndex,
-			this.suggestions.length
-		);
+		const normalizedIndex = wrapAround(selectedIndex, this.suggestions.length);
 		const prevSelectedSuggestion = this.suggestions[this.selectedItem];
 		const selectedSuggestion = this.suggestions[normalizedIndex];
 
@@ -185,6 +177,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private isOpen = false;
 	private noResultsTimeout: number | null = null;
 	private currentQuery = "";
+	private ignoreNextInput = false;
 
 	// Global listeners for close-on-anything-else
 	private globalClickListener: (event: MouseEvent) => void;
@@ -196,7 +189,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private debouncedOnInputChanged: () => void;
 
 	// Highlighting function - can be overridden
-	protected renderMatch: (text: string, query: string) => string = highlightMatches;
+	protected renderMatch: (text: string, query: string) => string =
+		highlightMatches;
 
 	constructor(app: App, inputEl: HTMLInputElement | HTMLTextAreaElement) {
 		// Manage per-input map of suggesters keyed by their class name
@@ -220,11 +214,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		this.suggestEl = createDiv("suggestion-container");
 		const suggestion = this.suggestEl.createDiv("suggestion");
-		
+
 		// Add accessibility attributes to the suggestion container
 		suggestion.setAttribute("role", "listbox");
 		suggestion.setAttribute("aria-label", "Suggestions");
-		
+
 		this.suggest = new Suggest(this, suggestion, this.scope);
 
 		this.scope.register([], "Escape", this.close.bind(this));
@@ -235,17 +229,17 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl.addEventListener("input", this.debouncedOnInputChanged);
 		this.inputEl.addEventListener("focus", this.debouncedOnInputChanged);
 		this.inputEl.addEventListener("blur", this.close.bind(this));
-		
+
 		// Set up accessibility relationship
 		this.inputEl.setAttribute("aria-autocomplete", "list");
 		this.inputEl.setAttribute("aria-expanded", "false");
-		
+
 		this.suggestEl.on(
 			"mousedown",
 			".suggestion-container",
 			(event: MouseEvent) => {
 				event.preventDefault();
-			}
+			},
 		);
 
 		// Setup global listeners
@@ -257,7 +251,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 	private onGlobalClick(event: MouseEvent): void {
 		if (!this.isOpen) return;
-		
+
 		const target = event.target as Node;
 		if (!this.suggestEl.contains(target) && !this.inputEl.contains(target)) {
 			this.close();
@@ -266,7 +260,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 	private onGlobalWheel(event: WheelEvent): void {
 		if (!this.isOpen) return;
-		
+
 		const target = event.target as Node;
 		if (!this.suggestEl.contains(target)) {
 			this.close();
@@ -274,6 +268,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	async onInputChanged(): Promise<void> {
+		if (this.ignoreNextInput) {
+			this.ignoreNextInput = false;
+			return; // Skip this synthetic input event, no requestId increment needed
+		}
+
 		const inputStr = this.inputEl.value;
 		const requestId = ++this.currentRequestId;
 
@@ -320,12 +319,12 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			this.app.keymap.pushScope(this.scope);
 		}
 		this.isOpen = true;
-		
+
 		// Update accessibility attributes
 		this.inputEl.setAttribute("aria-expanded", "true");
 
 		container.appendChild(this.suggestEl);
-		
+
 		// Create Popper only when needed
 		this.popper = createPopper(inputEl, this.suggestEl, {
 			placement: "bottom-start",
@@ -374,19 +373,19 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		this.app.keymap.popScope(this.scope);
 		this.isOpen = false;
-		
+
 		// Update accessibility attributes
 		this.inputEl.setAttribute("aria-expanded", "false");
 
 		this.suggest.close();
 		this.suggest.setSuggestions([]);
-		
+
 		// Destroy Popper instance
 		if (this.popper) {
 			this.popper.destroy();
 			this.popper = null;
 		}
-		
+
 		this.suggestEl.detach();
 
 		// Clear no results timeout
@@ -417,7 +416,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl.removeEventListener("input", this.debouncedOnInputChanged);
 		this.inputEl.removeEventListener("focus", this.debouncedOnInputChanged);
 		this.inputEl.removeEventListener("blur", this.close.bind(this));
-		
+
 		// Remove from instance map
 		const classKey = this.constructor.name;
 		const byClass = instanceMap.get(this.inputEl);
@@ -432,6 +431,15 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	// Helper method to get current query for highlighting
 	protected getCurrentQuery(): string {
 		return this.currentQuery;
+	}
+
+	/** Call before you programmatically change the value and
+	 *  know you'll dispatch an 'input' event yourself.
+	 *  Suppresses the next single 'input' event from reopening the suggester and
+	 *  bumps the request counter to invalidate any in-flight suggestion queries. */
+	protected suppressNextInputEvent(): void {
+		this.ignoreNextInput = true;
+		this.currentRequestId++; // invalidate pending asynchronous suggestions
 	}
 
 	// Abstract methods - now supports async

@@ -214,6 +214,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		const replaceEnd = cursorPosition;
 
 		// Replace the partial syntax with the complete syntax
+		this.suppressNextInputEvent(); // Prevent suggester from reopening
 		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
 
 		// Determine cursor offset dynamically based on the chosen item
