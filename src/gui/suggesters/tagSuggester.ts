@@ -121,9 +121,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 		// Ensure exactly one '#' in replacement
 		const replacement = item.startsWith("#") ? item : `#${item}`;
 
-		// Prevent suggester from reopening when input event fires  
-		this.suppressNextInputEvent();
-		replaceRange(input, tagStart, tagEnd, replacement); // dispatchInput defaults to true
+		replaceRange(input, tagStart, tagEnd, replacement);
 		this.close();
 	}
 }

@@ -177,7 +177,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private isOpen = false;
 	private noResultsTimeout: number | null = null;
 	private currentQuery = "";
-	private ignoreNextInput = false;
 
 	// Global listeners for close-on-anything-else
 	private globalClickListener: (event: MouseEvent) => void;
@@ -268,11 +267,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	async onInputChanged(): Promise<void> {
-		if (this.ignoreNextInput) {
-			this.ignoreNextInput = false;
-			return; // Skip this synthetic input event, no requestId increment needed
-		}
-
 		const inputStr = this.inputEl.value;
 		const requestId = ++this.currentRequestId;
 
@@ -433,14 +427,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		return this.currentQuery;
 	}
 
-	/** Call before you programmatically change the value and
-	 *  know you'll dispatch an 'input' event yourself.
-	 *  Suppresses the next single 'input' event from reopening the suggester and
-	 *  bumps the request counter to invalidate any in-flight suggestion queries. */
-	protected suppressNextInputEvent(): void {
-		this.ignoreNextInput = true;
-		this.currentRequestId++; // invalidate pending asynchronous suggestions
-	}
+
 
 	// Abstract methods - now supports async
 	abstract getSuggestions(inputStr: string): T[] | Promise<T[]>;
