@@ -8,6 +8,7 @@ import QuickAdd from "../../main";
 export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputStart = 0;
+	private lastInputLength = 0;
 	private tagSet: Set<string>;
 	private sortedTags: string[];
 	private fuse: Fuse<string>;
@@ -76,6 +77,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 		const tagInput: string = tagMatch[1];
 		this.lastInput = tagInput;
 		this.lastInputStart = tagMatch.index;
+		this.lastInputLength = tagMatch[0].length;
 
 		// Prefix matches first
 		const prefixMatches = this.sortedTags.filter(tag =>
@@ -112,19 +114,16 @@ export class TagSuggester extends TextInputSuggest<string> {
 		const input = this.inputEl;
 		if (input.selectionStart === null) return;
 
-		const cursor = input.selectionStart;
-		const value = input.value;
-
-		// Find the actual '#' position by walking backwards from cursor
-		const hashPos = value.lastIndexOf("#", cursor - 1);
-		if (hashPos === -1) return; // Should not happen, but be safe
+		// Use the stored match position for cursor-position independence
+		const tagStart = this.lastInputStart;
+		const tagEnd = tagStart + this.lastInputLength;
 
 		// Ensure exactly one '#' in replacement
 		const replacement = item.startsWith("#") ? item : `#${item}`;
 
 		// Prevent suggester from reopening when input event fires  
 		this.suppressNextInputEvent();
-		replaceRange(input, hashPos, cursor, replacement); // dispatchInput defaults to true
+		replaceRange(input, tagStart, tagEnd, replacement); // dispatchInput defaults to true
 		this.close();
 	}
 }
