@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { duplicateChoice } from "./choiceDuplicator";
-import { MacroChoice } from "../types/choices/MacroChoice";
+import { describe, expect, it } from "vitest";
+import { duplicateChoice } from "../services/choiceService";
 import type IMacroChoice from "../types/choices/IMacroChoice";
+import { MacroChoice } from "../types/choices/MacroChoice";
 
 describe("choiceDuplicator", () => {
 	describe("duplicateChoice", () => {
@@ -13,8 +13,12 @@ describe("choiceDuplicator", () => {
 				name: "Test Macro",
 				commands: [
 					{ id: "original-cmd-1", type: "UserScript" as any, name: "Script 1" },
-					{ id: "original-cmd-2", type: "ObsidianCommand" as any, name: "Command 2" }
-				]
+					{
+						id: "original-cmd-2",
+						type: "ObsidianCommand" as any,
+						name: "Command 2",
+					},
+				],
 			};
 
 			// Duplicate the choice
@@ -23,8 +27,12 @@ describe("choiceDuplicator", () => {
 			// Should have different IDs
 			expect(duplicated.id).not.toBe(original.id);
 			expect(duplicated.macro.id).not.toBe(original.macro.id);
-			expect(duplicated.macro.commands[0].id).not.toBe(original.macro.commands[0].id);
-			expect(duplicated.macro.commands[1].id).not.toBe(original.macro.commands[1].id);
+			expect(duplicated.macro.commands[0].id).not.toBe(
+				original.macro.commands[0].id,
+			);
+			expect(duplicated.macro.commands[1].id).not.toBe(
+				original.macro.commands[1].id,
+			);
 
 			// Should have same content but with "(copy)" suffix
 			expect(duplicated.name).toBe("Test Macro (copy)");

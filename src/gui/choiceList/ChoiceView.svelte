@@ -1,20 +1,21 @@
 <script lang="ts">
-	import type IChoice from "../../types/choices/IChoice";
-	import ChoiceList from "./ChoiceList.svelte";
-	import AddChoiceBox from "./AddChoiceBox.svelte";
-	import { App } from "obsidian";
-	import QuickAdd from "../../main";
+	import type { App } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
-	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import { onMount } from "svelte";
-	import { 
-		createChoice, 
-		deleteChoiceWithConfirmation, 
-		configureChoice, 
-		createToggleCommandChoice,
+	import type QuickAdd from "../../main";
+	import {
+		type ChoiceType,
 		CommandRegistry,
-		type ChoiceType 
+		configureChoice,
+		createChoice,
+		createToggleCommandChoice,
+		deleteChoiceWithConfirmation,
+		duplicateChoice,
 	} from "../../services/choiceService";
+	import type IChoice from "../../types/choices/IChoice";
+	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
+	import AddChoiceBox from "./AddChoiceBox.svelte";
+	import ChoiceList from "./ChoiceList.svelte";
 
 	export let choices: IChoice[] = [];
 	export let saveChoices: (choices: IChoice[]) => void;
@@ -31,7 +32,7 @@
 			unsubSettingsStore();
 		};
 	});
-	
+
 	// Command registry for managing Obsidian commands
 	const commandRegistry = new CommandRegistry(plugin);
 
@@ -49,15 +50,17 @@
 		if (!userConfirmed) return;
 
 		// Remove choice from array (including nested choices)
-		choices = choices.filter((value) => removeChoiceHelper(choice.id, value));
+		choices = choices.filter((value) =>
+			removeChoiceHelper(choice.id, value),
+		);
 		commandRegistry.disableCommand(choice);
 		saveChoices(choices);
 	}
 
 	function removeChoiceHelper(id: string, value: IChoice): boolean {
 		if (value.type === "Multi") {
-			(value as any).choices = (value as any).choices.filter((v: any) => 
-				removeChoiceHelper(id, v)
+			(value as any).choices = (value as any).choices.filter((v: any) =>
+				removeChoiceHelper(id, v),
 			);
 		}
 		return value.id !== id;
@@ -69,12 +72,17 @@
 		const updatedChoice = await configureChoice(oldChoice, app, plugin);
 		if (!updatedChoice) return;
 
-		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
+		choices = choices.map((choice) =>
+			updateChoiceHelper(choice, updatedChoice),
+		);
 		commandRegistry.updateCommand(oldChoice, updatedChoice);
 		saveChoices(choices);
 	}
 
-	function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): IChoice {
+	function updateChoiceHelper(
+		oldChoice: IChoice,
+		newChoice: IChoice,
+	): IChoice {
 		if (oldChoice.id === newChoice.id) {
 			return { ...oldChoice, ...newChoice };
 		}
@@ -82,7 +90,7 @@
 		if (oldChoice.type === "Multi") {
 			const multiChoice = oldChoice as any;
 			const updatedChoices = multiChoice.choices.map((c: any) =>
-				updateChoiceHelper(c, newChoice)
+				updateChoiceHelper(c, newChoice),
 			);
 			return { ...multiChoice, choices: updatedChoices };
 		}
@@ -94,7 +102,9 @@
 		const { choice: oldChoice } = e.detail;
 		const updatedChoice = createToggleCommandChoice(oldChoice);
 
-		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
+		choices = choices.map((choice) =>
+			updateChoiceHelper(choice, updatedChoice),
+		);
 		updatedChoice.command
 			? commandRegistry.enableCommand(updatedChoice)
 			: commandRegistry.disableCommand(updatedChoice);
@@ -103,13 +113,10 @@
 
 	async function handleDuplicateChoice(e: any) {
 		const { choice: sourceChoice } = e.detail;
-		const { duplicateChoice } = await import("../../utils/choiceDuplicator");
 		const newChoice = duplicateChoice(sourceChoice);
 		choices = [...choices, newChoice];
 		saveChoices(choices);
 	}
-
-
 
 	async function openAISettings() {
 		const newSettings = await new AIAssistantSettingsModal(
