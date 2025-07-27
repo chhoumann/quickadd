@@ -184,8 +184,10 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private globalResizeListener: () => void;
 	private globalBlurListener: () => void;
 
-	// Debounced input handler
-	private debouncedOnInputChanged: () => void;
+	// Debounced input handler and bound event listeners
+	private debouncedOnInputChanged: (event?: Event) => void;
+	private inputEventListener: (event: Event) => void;
+	private focusEventListener: () => void;
 
 	// Highlighting function - can be overridden
 	protected renderMatch: (text: string, query: string) => string =
@@ -224,9 +226,13 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		// Shorter debounce for snappier UX
 		this.debouncedOnInputChanged = debounce(this.onInputChanged.bind(this), 50);
+		
+		// Store bound event listeners for proper cleanup
+		this.inputEventListener = (event: Event) => this.debouncedOnInputChanged(event);
+		this.focusEventListener = () => this.debouncedOnInputChanged();
 
-		this.inputEl.addEventListener("input", this.debouncedOnInputChanged);
-		this.inputEl.addEventListener("focus", this.debouncedOnInputChanged);
+		this.inputEl.addEventListener("input", this.inputEventListener);
+		this.inputEl.addEventListener("focus", this.focusEventListener);
 		this.inputEl.addEventListener("blur", this.close.bind(this));
 
 		// Set up accessibility relationship
@@ -266,7 +272,12 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		}
 	}
 
-	async onInputChanged(): Promise<void> {
+	async onInputChanged(event?: Event): Promise<void> {
+		// Ignore programmatic changes from completion selection
+		if (event && (event as any).fromCompletion) {
+			return;
+		}
+
 		const inputStr = this.inputEl.value;
 		const requestId = ++this.currentRequestId;
 
@@ -407,8 +418,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	destroy(): void {
 		this.close();
 		// Remove input listeners
-		this.inputEl.removeEventListener("input", this.debouncedOnInputChanged);
-		this.inputEl.removeEventListener("focus", this.debouncedOnInputChanged);
+		this.inputEl.removeEventListener("input", this.inputEventListener);
+		this.inputEl.removeEventListener("focus", this.focusEventListener);
 		this.inputEl.removeEventListener("blur", this.close.bind(this));
 
 		// Remove from instance map

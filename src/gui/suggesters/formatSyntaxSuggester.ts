@@ -214,7 +214,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		const replaceEnd = cursorPosition;
 
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, replaceEnd, item);
+		replaceRange(this.inputEl, replaceStart, replaceEnd, item, { fromCompletion: true });
 
 		// Determine cursor offset dynamically based on the chosen item
 		const offset = item.includes(":") ? 2 : 0; // place before "}}" if there is a colon
