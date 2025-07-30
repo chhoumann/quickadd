@@ -9,6 +9,7 @@ export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
+export const CLIPBOARD_SYNTAX = "{{clipboard}}";
 
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
@@ -26,7 +27,8 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
 	MATH_VALUE_SYNTAX,
-	SELECTED_SYNTAX
+	SELECTED_SYNTAX,
+	CLIPBOARD_SYNTAX
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
@@ -80,6 +82,7 @@ export const MATH_VALUE_REGEX = new RegExp(/{{MVALUE}}/i);
 export const TITLE_REGEX = new RegExp(/{{TITLE}}/i);
 
 export const SELECTED_REGEX = new RegExp(/{{SELECTED}}/i);
+export const CLIPBOARD_REGEX = new RegExp(/{{CLIPBOARD}}/i);
 
 // This is not an accurate wikilink regex - but works for its intended purpose.
 export const FILE_LINK_REGEX = new RegExp(/\[\[([^\]]*)$/);
@@ -121,6 +124,9 @@ export const TITLE_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i
+);
+export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i
 );
 export const TIME_SYNTAX_SUGGEST_REGEX = new RegExp(/{{[T]?[I]?[M]?[E]?[}]?[}]?/i);
 export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(

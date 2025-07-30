@@ -51,6 +51,7 @@ export class CompleteFormatter extends Formatter {
 		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);
 		output = await this.replaceSelectedInString(output);
+		output = await this.replaceClipboardInString(output);
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
@@ -267,6 +268,15 @@ export class CompleteFormatter extends Formatter {
 		if (!activeView) return "";
 
 		return activeView.editor.getSelection();
+	}
+
+	protected async getClipboardContent(): Promise<string> {
+		try {
+			return await navigator.clipboard.readText();
+		} catch {
+			// Fallback for when clipboard access fails (permissions, security context, etc.)
+			return "";
+		}
 	}
 
 	protected async replaceInlineJavascriptInString(input: string) {
