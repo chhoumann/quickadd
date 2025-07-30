@@ -19,6 +19,8 @@ import {
 	VARIABLE_SYNTAX_SUGGEST_REGEX,
 	SELECTED_SYNTAX_SUGGEST_REGEX,
 	SELECTED_SYNTAX,
+	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
+	CLIPBOARD_SYNTAX,
 	TIME_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 import type QuickAdd from "../../main";
@@ -37,7 +39,8 @@ enum FormatSyntaxToken {
 	Template,
 	MathValue,
 	Time,
-	Selected
+	Selected,
+	Clipboard
 }
 
 interface TokenDefinition {
@@ -91,6 +94,11 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: SELECTED_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Selected,
 			suggestion: SELECTED_SYNTAX
+		},
+		{
+			regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Clipboard,
+			suggestion: CLIPBOARD_SYNTAX
 		},
 		{
 			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,

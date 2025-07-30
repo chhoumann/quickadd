@@ -29,6 +29,8 @@ export class FileNameDisplayFormatter extends Formatter {
 			output = this.replaceDateInString(output);
 			output = this.replaceTimeInString(output);
 			output = await this.replaceValueInString(output);
+			output = await this.replaceSelectedInString(output);
+			output = await this.replaceClipboardInString(output);
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceFieldVarInString(output);
@@ -80,6 +82,10 @@ export class FileNameDisplayFormatter extends Formatter {
 
 	protected async getSelectedText(): Promise<string> {
 		return "selected_text";
+	}
+
+	protected async getClipboardContent(): Promise<string> {
+		return "clipboard_content";
 	}
 
 	protected async suggestForField(variableName: string): Promise<string> {
