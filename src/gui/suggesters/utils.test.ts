@@ -21,6 +21,10 @@ class MockInput {
 	trigger() {
 		// Mock trigger method
 	}
+	
+	dispatchEvent() {
+		// Required by replaceRange but not tested
+	}
 }
 
 describe("Suggester Utils", () => {
