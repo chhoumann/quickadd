@@ -19,9 +19,6 @@ import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { excludeKeys } from "../utilityObsidian";
 import { regenerateIds } from "../utils/macroUtils";
 
-/**
- * Constructor map is colocated here to keep service self-contained.
- */
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 	Template: TemplateChoice,
 	Capture: CaptureChoice,
