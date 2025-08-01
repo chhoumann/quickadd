@@ -104,11 +104,6 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			suggestion: CLIPBOARD_SYNTAX
 		},
 		{
-			regex: TITLE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Title,
-			suggestion: TITLE_SYNTAX
-		},
-		{
 			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Variable,
 			suggestion: "{{VALUE:}}",
@@ -127,6 +122,11 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.LinkCurrent,
 			suggestion: LINKCURRENT_SYNTAX
+		},
+		{
+			regex: TITLE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Title,
+			suggestion: TITLE_SYNTAX
 		},
 		{
 			regex: TEMPLATE_SYNTAX_SUGGEST_REGEX,

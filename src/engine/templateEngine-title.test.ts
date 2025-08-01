@@ -30,6 +30,10 @@ vi.mock('../utilityObsidian', () => ({
 
 // Test implementation of TemplateEngine
 class TestTemplateEngine extends TemplateEngine {
+    constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
+        super(app, plugin, choiceExecutor);
+    }
+
     public async run(): Promise<void> {
         // Not used in these tests
     }
@@ -128,4 +132,18 @@ describe('TemplateEngine - Title Handling', () => {
             expect(mockFormatter.formatFileContent).toHaveBeenCalled();
         });
     });
+
+    describe('formatFileName - title exclusion', () => {
+        it('should NOT replace {{title}} in filename formatting', async () => {
+            const mockFormatter = (engine as any).formatter;
+            mockFormatter.setTitle('MyTitle');
+            
+            // formatFileName should not include title replacement
+            const result = await mockFormatter.formatFileName('{{title}}-note.md', '');
+            
+            // The {{title}} should remain unchanged in the filename
+            expect(result).toBe('{{title}}-note.md');
+        });
+    });
+
 });

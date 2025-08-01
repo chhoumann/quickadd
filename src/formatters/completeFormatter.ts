@@ -56,12 +56,16 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
-		output = this.replaceTitleInString(output);
 
 		return output;
 	}
 
 	async formatFileName(input: string, valueHeader: string): Promise<string> {
+		// Check for {{title}} usage in filename which would cause infinite recursion
+		if (/\{\{title\}\}/i.test(input)) {
+			throw new Error("{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.");
+		}
+		
 		this.valueHeader = valueHeader;
 		return await this.format(input);
 	}
@@ -71,11 +75,17 @@ export class CompleteFormatter extends Formatter {
 
 		output = await this.format(output);
 		output = await this.replaceLinkToCurrentFileInString(output);
+		output = this.replaceTitleInString(output);
 
 		return output;
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
+		// Check for {{title}} usage in folder path which would cause issues
+		if (/\{\{title\}\}/i.test(folderName)) {
+			throw new Error("{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.");
+		}
+		
 		return await this.format(folderName);
 	}
 

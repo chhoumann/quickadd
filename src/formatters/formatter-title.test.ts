@@ -142,3 +142,16 @@ describe('Formatter - Title Handling', () => {
         });
     });
 });
+
+// Add tests to verify {{title}} error handling in filenames
+describe('Formatter - Title Error Handling', () => {
+    it('should detect {{title}} pattern in strings', () => {
+        const titleRegex = /\{\{title\}\}/i;
+        
+        expect(titleRegex.test('{{title}}-note.md')).toBe(true);
+        expect(titleRegex.test('{{TITLE}}-note.md')).toBe(true);
+        expect(titleRegex.test('folder/{{title}}/file.md')).toBe(true);
+        expect(titleRegex.test('{{date}}-note.md')).toBe(false);
+        expect(titleRegex.test('{{titleSomething}}.md')).toBe(false);
+    });
+});

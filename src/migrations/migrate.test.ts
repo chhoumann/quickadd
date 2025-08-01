@@ -69,7 +69,7 @@ describe("Migration Re-entrance Safety", () => {
 
 			try {
 				await failingMigration.migrate(mockPlugin);
-			} catch (_) {
+			} catch {
 				// Restore backup on failure (pattern from migrate.ts)
 				mockPlugin.settings = originalSettings;
 			}
