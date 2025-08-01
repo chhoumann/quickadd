@@ -25,7 +25,6 @@ import {
 	TITLE_SYNTAX_SUGGEST_REGEX,
 	TITLE_SYNTAX,
 	RANDOM_SYNTAX_SUGGEST_REGEX,
-	RANDOM_SYNTAX,
 } from "../../constants";
 import type QuickAdd from "../../main";
 import { replaceRange } from "./utils";
@@ -224,6 +223,13 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 					...this.macroNames.map(
 						(macroName) => `{{MACRO:${macroName}}}`
 					)
+				);
+			} else if (tokenDef.token === FormatSyntaxToken.VariableDate) {
+				// Add example suggestions for VDATE with and without default values
+				suggestions.push(
+					"{{VDATE:date,YYYY-MM-DD}}",
+					"{{VDATE:date,YYYY-MM-DD|today}}",
+					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}"
 				);
 			}
 		}

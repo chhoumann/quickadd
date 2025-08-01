@@ -117,7 +117,7 @@ export class CompleteFormatter extends Formatter {
 
 	protected async promptForVariable(
 		header?: string,
-		context?: { type?: string; dateFormat?: string }
+		context?: { type?: string; dateFormat?: string; defaultValue?: string }
 	): Promise<string> {
 		// Use VDateInputPrompt for VDATE variables
 		if (context?.type === "VDATE" && context.dateFormat) {
@@ -125,7 +125,7 @@ export class CompleteFormatter extends Formatter {
 				this.app,
 				header as string,
 				"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
-				undefined,
+				context.defaultValue,
 				context.dateFormat
 			);
 		}

@@ -10,7 +10,7 @@ export default class GenericInputPrompt extends Modal {
 	private rejectPromise: (reason?: unknown) => void;
 	private didSubmit = false;
 	private inputComponent: TextComponent;
-	private input: string;
+	protected input: string;
 	private readonly placeholder: string;
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;

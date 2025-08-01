@@ -295,6 +295,7 @@ export abstract class Formatter {
 
 			const variableName = match[1].trim();
 			const dateFormat = match[2].trim();
+			const defaultValue = match[3] ? match[3].trim() : undefined;
 			
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
@@ -310,7 +311,7 @@ export abstract class Formatter {
 					// Prompt for date input with VDATE context
 					const dateInput = await this.promptForVariable(
 						variableName,
-						{ type: "VDATE", dateFormat }
+						{ type: "VDATE", dateFormat, defaultValue }
 					);
 					this.variables.set(variableName, dateInput);
 
@@ -408,7 +409,7 @@ export abstract class Formatter {
 
 	protected abstract promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string }
+		context?: { type?: string; dateFormat?: string; defaultValue?: string }
 	): Promise<string>;
 
 	protected abstract getTemplateContent(templatePath: string): Promise<string>;
