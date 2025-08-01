@@ -10,6 +10,7 @@ export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
 export const CLIPBOARD_SYNTAX = "{{clipboard}}";
+export const RANDOM_SYNTAX = "{{random:<length>}}";
 
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
@@ -28,7 +29,8 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{template:<templatepath>}}",
 	MATH_VALUE_SYNTAX,
 	SELECTED_SYNTAX,
-	CLIPBOARD_SYNTAX
+	CLIPBOARD_SYNTAX,
+	RANDOM_SYNTAX
 ];
 
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
@@ -40,6 +42,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VARIABLE_SYNTAX,
 	VARIABLE_DEFAULT_SYNTAX,
     FIELD_VAR_SYNTAX,
+	RANDOM_SYNTAX,
 ];
 
 export const TEMPLATE_FORMAT_SYNTAX: string[] = [TITLE_SYNTAX];
@@ -83,6 +86,7 @@ export const TITLE_REGEX = new RegExp(/{{TITLE}}/i);
 
 export const SELECTED_REGEX = new RegExp(/{{SELECTED}}/i);
 export const CLIPBOARD_REGEX = new RegExp(/{{CLIPBOARD}}/i);
+export const RANDOM_REGEX = new RegExp(/{{RANDOM:(\d+)}}/i);
 
 // This is not an accurate wikilink regex - but works for its intended purpose.
 export const FILE_LINK_REGEX = new RegExp(/\[\[([^\]]*)$/);
