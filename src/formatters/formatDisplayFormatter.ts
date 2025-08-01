@@ -39,6 +39,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);
+			output = this.replaceRandomInString(output);
 			output = this.replaceLinebreakInString(output);
 		} catch {
 			// Return the input as-is if formatting fails during preview
@@ -130,6 +131,34 @@ export class FormatDisplayFormatter extends Formatter {
 			}
 			
 			return formattedExample;
+		});
+		
+		return output;
+	}
+
+	protected replaceRandomInString(input: string): string {
+		let output = input;
+		
+		// Replace {{RANDOM:n}} with a preview showing example output
+		output = output.replace(/{{RANDOM:(\d+)}}/gi, (match, length) => {
+			const len = parseInt(length);
+			if (len <= 0 || len > 100) {
+				return match; // Return original if invalid
+			}
+			
+			// Generate a preview random string
+			const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+			let preview = '';
+			for (let i = 0; i < Math.min(len, 8); i++) {
+				preview += chars.charAt(Math.floor(Math.random() * chars.length));
+			}
+			
+			// For long strings, show truncated preview
+			if (len > 8) {
+				preview += `... (${len} chars)`;
+			}
+			
+			return preview;
 		});
 		
 		return output;

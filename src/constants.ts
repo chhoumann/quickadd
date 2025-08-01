@@ -132,6 +132,9 @@ export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i
 );
+export const RANDOM_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i
+);
 export const TIME_SYNTAX_SUGGEST_REGEX = new RegExp(/{{[T]?[I]?[M]?[E]?[}]?[}]?/i);
 export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[I]?[M]?[E]?[:]?$|{{TIME:[^\n\r}]*}}$/i
