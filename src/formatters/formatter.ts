@@ -16,6 +16,7 @@ import {
 	TIME_REGEX,
 	TIME_REGEX_FORMATTED,
 	TITLE_REGEX,
+	RANDOM_REGEX,
 } from "../constants";
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -416,6 +417,31 @@ export abstract class Formatter {
 
 	protected abstract getClipboardContent(): Promise<string>;
 	
+	protected replaceRandomInString(input: string): string {
+		let output = input;
+		
+		while (RANDOM_REGEX.test(output)) {
+			const match = RANDOM_REGEX.exec(output);
+			if (!match || !match[1]) continue;
+			
+			const length = parseInt(match[1]);
+			if (length <= 0 || length > 100) {
+				throw new Error(`Random string length must be between 1 and 100. Got: ${length}`);
+			}
+			
+			const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+			let randomString = '';
+			
+			for (let i = 0; i < length; i++) {
+				randomString += chars.charAt(Math.floor(Math.random() * chars.length));
+			}
+			
+			output = output.replace(match[0], randomString);
+		}
+		
+		return output;
+	}
+
 	protected replaceTitleInString(input: string): string {
 		let output = input;
 		const title = this.getVariableValue("title");

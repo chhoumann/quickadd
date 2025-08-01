@@ -24,6 +24,8 @@ import {
 	TIME_SYNTAX_SUGGEST_REGEX,
 	TITLE_SYNTAX_SUGGEST_REGEX,
 	TITLE_SYNTAX,
+	RANDOM_SYNTAX_SUGGEST_REGEX,
+	RANDOM_SYNTAX,
 } from "../../constants";
 import type QuickAdd from "../../main";
 import { replaceRange } from "./utils";
@@ -43,6 +45,7 @@ enum FormatSyntaxToken {
 	Time,
 	Selected,
 	Clipboard,
+	Random,
 	Title
 }
 
@@ -102,6 +105,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Clipboard,
 			suggestion: CLIPBOARD_SYNTAX
+		},
+		{
+			regex: RANDOM_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.Random,
+			suggestion: "{{RANDOM:}}",
+			cursorOffset: 2
 		},
 		{
 			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,

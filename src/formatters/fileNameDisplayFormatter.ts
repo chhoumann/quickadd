@@ -34,6 +34,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceFieldVarInString(output);
+			output = this.replaceRandomInString(output);
 		} catch {
 			// Return the input as-is if formatting fails during preview
 			return input;
@@ -115,6 +116,34 @@ export class FileNameDisplayFormatter extends Formatter {
 			}
 			
 			return formattedExample;
+		});
+		
+		return output;
+	}
+
+	protected replaceRandomInString(input: string): string {
+		let output = input;
+		
+		// Replace {{RANDOM:n}} with a preview showing example output
+		output = output.replace(/{{RANDOM:(\d+)}}/gi, (match, length) => {
+			const len = parseInt(length);
+			if (len <= 0 || len > 100) {
+				return match; // Return original if invalid
+			}
+			
+			// For filename preview, show a simple example
+			const exampleChars = 'ABC123';
+			let preview = '';
+			for (let i = 0; i < Math.min(len, 6); i++) {
+				preview += exampleChars.charAt(i % exampleChars.length);
+			}
+			
+			// For long strings, show ellipsis
+			if (len > 6) {
+				preview += '...';
+			}
+			
+			return preview;
 		});
 		
 		return output;
