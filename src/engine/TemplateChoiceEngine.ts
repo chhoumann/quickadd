@@ -53,26 +53,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				folderPath = await this.getFolderPath();
 			}
 
-			let filePath: string;
-
-			if (this.choice.fileNameFormat.enabled) {
-				const formattedName = await this.formatter.formatFileName(
-					this.choice.fileNameFormat.format,
-					this.choice.name
-				);
-				filePath = this.normalizeTemplateFilePath(folderPath, formattedName, this.choice.templatePath);
-			} else {
-				const formattedName = await this.formatter.formatFileName(
-					VALUE_SYNTAX,
-					this.choice.name
-				);
-				filePath = this.normalizeTemplateFilePath(folderPath, formattedName, this.choice.templatePath);
-			}
+			const format = this.choice.fileNameFormat.enabled
+				? this.choice.fileNameFormat.format
+				: VALUE_SYNTAX;
+			const formattedName = await this.formatter.formatFileName(format, this.choice.name);
+			let filePath = this.normalizeTemplateFilePath(folderPath, formattedName, this.choice.templatePath);
 
 			if (this.choice.fileExistsMode === fileExistsIncrement)
 				filePath = await this.incrementFileName(filePath);
 
 			let createdFile: TFile | null;
+			let shouldAutoOpen = false;
 			if (await this.app.vault.adapter.exists(filePath)) {
 				const file = this.app.vault.getAbstractFileByPath(filePath);
 				if (!(file instanceof TFile) || (file.extension !== "md" && file.extension !== "canvas")) {
@@ -116,6 +107,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						break;
 					case fileExistsDoNothing:
 						createdFile = file;
+						shouldAutoOpen = true; // Auto-open existing file when user chooses "Nothing"
+						log.logMessage(`Opening existing file: ${file.path}`);
 						break;
 					case fileExistsIncrement: {
 						const incrementFileName = await this.incrementFileName(filePath);
@@ -147,7 +140,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 			}
 
-			if (this.choice.openFile && createdFile) {
+			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
 				const openExistingTab = openExistingFileTab(this.app, createdFile);
 
 				if (!openExistingTab) {
