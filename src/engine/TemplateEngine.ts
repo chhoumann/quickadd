@@ -123,6 +123,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
+			// Extract filename without extension from the full path
+			const fileBasename = filePath.split('/').pop()?.replace(/\.md$/, '') || '';
+			this.formatter.setTitle(fileBasename);
+
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
 			const createdFile: TFile = await this.createFileWithInput(
@@ -149,6 +153,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
+			// Use the existing file's basename as the title
+			const fileBasename = file.basename;
+			this.formatter.setTitle(fileBasename);
+
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
 			await this.app.vault.modify(file, formattedTemplateContent);
@@ -172,6 +180,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			const templateContent: string = await this.getTemplateContent(
 				templatePath
 			);
+
+			// Use the existing file's basename as the title
+			const fileBasename = file.basename;
+			this.formatter.setTitle(fileBasename);
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);

@@ -15,6 +15,7 @@ import {
 	CLIPBOARD_REGEX,
 	TIME_REGEX,
 	TIME_REGEX_FORMATTED,
+	TITLE_REGEX,
 } from "../constants";
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -25,6 +26,10 @@ export abstract class Formatter {
 	protected dateParser: IDateParser | undefined;
 
 	protected abstract format(input: string): Promise<string>;
+	
+	public setTitle(title: string): void {
+		this.variables.set("title", title);
+	}
 
 	protected replacer(str: string, reg: RegExp, replaceValue: string) {
 		return str.replace(reg, function () {
@@ -410,4 +415,15 @@ export abstract class Formatter {
 	protected abstract getSelectedText(): Promise<string>;
 
 	protected abstract getClipboardContent(): Promise<string>;
+	
+	protected replaceTitleInString(input: string): string {
+		let output = input;
+		const title = this.getVariableValue("title");
+		
+		while (TITLE_REGEX.test(output)) {
+			output = this.replacer(output, TITLE_REGEX, title);
+		}
+		
+		return output;
+	}
 }
