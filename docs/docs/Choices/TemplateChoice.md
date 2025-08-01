@@ -22,4 +22,17 @@ If you specify multiple folders, you'll get a suggester asking which of the fold
 **Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
 
 **Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
+
+## File Already Exists Behavior
+
+When a file with the target name already exists, QuickAdd will prompt you with several options:
+
+- **Append to the bottom of the file**: Adds the template content to the end of the existing file
+- **Append to the top of the file**: Adds the template content to the beginning of the existing file  
+- **Overwrite the file**: Replaces the entire file content with the template
+- **Increment the file name**: Creates a new file with a number suffix (e.g., `note1.md`)
+- **Nothing**: Opens the existing file without modification
+
+**Note**: When you select "Nothing", the existing file will automatically open, making it easy to quickly access files that already exist without needing to enable the "Open" setting.
+
 ![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)
