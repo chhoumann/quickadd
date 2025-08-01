@@ -56,6 +56,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
+		output = this.replaceTitleInString(output);
 
 		return output;
 	}

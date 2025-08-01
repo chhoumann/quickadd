@@ -228,6 +228,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
+		// Set the title to the existing file's basename
+		this.formatter.setTitle(file.basename);
+
 		// First format pass...
 		const formatted = await this.formatter.formatContentOnly(content);
 
@@ -271,6 +274,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		newFileContent: string;
 		captureContent: string;
 	}> {
+		// Extract filename without extension from the full path
+		const fileBasename = filePath.split('/').pop()?.replace(/\.md$/, '') || '';
+		this.formatter.setTitle(fileBasename);
+
 		// First formatting pass: resolve QuickAdd placeholders and prompt for user input (e.g. {{value}})
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
