@@ -1,5 +1,6 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
+import { Notice } from "obsidian";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
@@ -42,6 +43,31 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 	}
 
+	private showSuccessNotice(
+		file: TFile,
+		{ wasNewFile, action }: { wasNewFile: boolean; action: "append"|"prepend"|"insertAfter"|"currentLine" }
+	) {
+		if (!this.plugin.settings.showCaptureNotification) return;
+
+		let msg = "";
+		switch (action) {
+			case "currentLine":
+				msg = `Captured to current line in ${file.basename}`;
+				break;
+			case "prepend":
+				msg = `Prepended capture to ${file.basename}`;
+				break;
+			case "append":
+				msg = `Appended capture to ${file.basename}`;
+				break;
+			case "insertAfter":
+				msg = `Inserted capture in ${file.basename}`;
+				break;
+		}
+		if (wasNewFile) msg = `Created ${file.basename} and ${msg.toLowerCase()}`;
+		new Notice(msg, 4000);
+	}
+
 	async run(): Promise<void> {
 		try {
 			const filePath = await this.getFormattedPathToCaptureTo(
@@ -50,8 +76,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const content = this.getCaptureContent();
 
 			let getFileAndAddContentFn: typeof this.onFileExists;
+			const fileAlreadyExists = await this.fileExists(filePath);
 
-			if (await this.fileExists(filePath)) {
+			if (fileAlreadyExists) {
 				getFileAndAddContentFn = this.onFileExists.bind(
 					this,
 				) as typeof this.onFileExists;
@@ -83,6 +110,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				await this.app.vault.modify(file, newFileContent);
 				await overwriteTemplaterOnce(this.app, file);
 			}
+
+			// Determine the action type for the notification
+			const action: "append"|"prepend"|"insertAfter"|"currentLine" =
+				this.choice.captureToActiveFile && !this.choice.prepend && !this.choice.insertAfter.enabled
+					? "currentLine"
+					: this.choice.insertAfter.enabled
+						? "insertAfter"
+						: this.choice.prepend
+							? "prepend"
+							: "append";
+
+			// Show success notification
+			this.showSuccessNotice(file, { wasNewFile: !fileAlreadyExists, action });
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			if (linkOptions.enabled) {
