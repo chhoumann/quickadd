@@ -146,7 +146,7 @@ export function appendToCurrentLine(toAppend: string, app: App) {
 		const insertionPos = editor.getCursor("to");
 		editor.replaceRange(toAppend, insertionPos);
 	} catch (e) {
-		log.logError(`unable to append '${toAppend}' to current line. ${(e as Error).message}`);
+		log.logError(`unable to append '${toAppend}' to current line. ${e instanceof Error ? e.message : String(e)}`);
 	}
 }
 
