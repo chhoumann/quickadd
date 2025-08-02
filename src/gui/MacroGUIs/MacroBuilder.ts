@@ -23,6 +23,7 @@ import { EditorCommandType } from "../../types/macros/EditorCommands/EditorComma
 import { CopyCommand } from "../../types/macros/EditorCommands/CopyCommand";
 import { CutCommand } from "../../types/macros/EditorCommands/CutCommand";
 import { PasteCommand } from "../../types/macros/EditorCommands/PasteCommand";
+import { PasteWithFormatCommand } from "../../types/macros/EditorCommands/PasteWithFormatCommand";
 import { log } from "../../logger/logManager";
 import { SelectActiveLineCommand } from "../../types/macros/EditorCommands/SelectActiveLineCommand";
 import { SelectLinkOnActiveLineCommand } from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
@@ -220,6 +221,9 @@ export class MacroBuilder extends Modal {
 				case EditorCommandType.Paste:
 					command = new PasteCommand();
 					break;
+				case EditorCommandType.PasteWithFormat:
+					command = new PasteWithFormatCommand();
+					break;
 				case EditorCommandType.SelectActiveLine:
 					command = new SelectActiveLineCommand();
 					break;
@@ -244,6 +248,7 @@ export class MacroBuilder extends Modal {
 					.addOption(EditorCommandType.Copy, EditorCommandType.Copy)
 					.addOption(EditorCommandType.Cut, EditorCommandType.Cut)
 					.addOption(EditorCommandType.Paste, EditorCommandType.Paste)
+					.addOption(EditorCommandType.PasteWithFormat, EditorCommandType.PasteWithFormat)
 					.addOption(
 						EditorCommandType.SelectActiveLine,
 						EditorCommandType.SelectActiveLine
