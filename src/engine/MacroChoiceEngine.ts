@@ -378,7 +378,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
 			// Validate path to prevent traversal attacks
-			if (normalizedPath.includes("..")) {
+			const safePath = "/" + normalizedPath;
+			if (safePath.includes("..") || safePath.includes("//")) {
 				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
 				return;
 			}

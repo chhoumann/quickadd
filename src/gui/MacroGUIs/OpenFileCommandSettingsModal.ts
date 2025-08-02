@@ -83,6 +83,10 @@ export class OpenFileCommandSettingsModal extends Modal {
 				.setValue(this.command.openInNewTab || false)
 				.onChange(value => {
 					this.command.openInNewTab = value;
+					// Clear direction when new tab is disabled
+					if (!value) {
+						this.command.direction = undefined;
+					}
 					this.reload();
 				})
 			);
