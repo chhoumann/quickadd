@@ -3,6 +3,7 @@
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
     import type {DndEvent} from "svelte-dnd-action";
+    import {getCommandDisplayName} from "../../../utils/macroHelpers";
 
     export let command: ICommand;
     export let startDrag: (e: CustomEvent<DndEvent>) => void;
@@ -15,7 +16,7 @@
 </script>
 
 <div class="quickAddCommandListItem">
-    <li>{command.name}</li>
+    <li>{getCommandDisplayName(command)}</li>
     <div>
         <span 
             role="button"
