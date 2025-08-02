@@ -24,6 +24,7 @@ import { EditorCommandType } from "../types/macros/EditorCommands/EditorCommandT
 import { CutCommand } from "../types/macros/EditorCommands/CutCommand";
 import { CopyCommand } from "../types/macros/EditorCommands/CopyCommand";
 import { PasteCommand } from "../types/macros/EditorCommands/PasteCommand";
+import { PasteWithFormatCommand } from "../types/macros/EditorCommands/PasteWithFormatCommand";
 import { SelectActiveLineCommand } from "../types/macros/EditorCommands/SelectActiveLineCommand";
 import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
 import { waitFor } from "src/utility";
@@ -289,6 +290,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				break;
 			case EditorCommandType.Paste:
 				await PasteCommand.run(this.app);
+				break;
+			case EditorCommandType.PasteWithFormat:
+				await PasteWithFormatCommand.run(this.app);
 				break;
 			case EditorCommandType.SelectActiveLine:
 				SelectActiveLineCommand.run(this.app);
