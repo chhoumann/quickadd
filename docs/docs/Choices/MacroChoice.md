@@ -58,7 +58,7 @@ In the Macro Builder, you can add different types of commands:
 7. **Open File** - Open files with formatted paths
    - Supports all QuickAdd formatting syntax ({{DATE}}, {{VALUE}}, etc.)
    - Configurable tab and split options
-   - Opens files in preview mode with focus
+   - Opens files in default view mode with focus
    - Only opens existing files (no auto-creation)
 
 ## Editor Commands

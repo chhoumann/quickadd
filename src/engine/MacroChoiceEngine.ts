@@ -395,7 +395,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				openInNewTab: command.openInNewTab,
 				direction: command.direction,
 				focus: true,
-				mode: "preview",
+				mode: "default",
 			});
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
