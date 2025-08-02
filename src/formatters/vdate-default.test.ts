@@ -218,7 +218,7 @@ describe('VDATE Default Value Support', () => {
             const input = "Test {{VDATE:date,YYYY|MM|DD}}";
             const match = DATE_VARIABLE_REGEX.exec(input);
             
-            // The regex should stop at the first pipe, treating it as default separator
+            // The regex splits at the first pipe, treating the rest as default
             expect(match?.[1]).toBe("date");
             expect(match?.[2]).toBe("YYYY");
             expect(match?.[3]).toBe("MM|DD");

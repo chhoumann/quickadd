@@ -295,7 +295,7 @@ export abstract class Formatter {
 
 			const variableName = match[1].trim();
 			const dateFormat = match[2].trim();
-			const defaultValue = match[3] ? match[3].trim() : undefined;
+			const defaultValue = match[3]?.trim() || undefined;
 			
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,

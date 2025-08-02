@@ -1,15 +1,16 @@
 import type { App, Debouncer } from "obsidian";
+import { TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { parseNaturalLanguageDate } from "../../utils/dateParser";
-import { debounce } from "obsidian";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	private previewEl: HTMLElement;
 	private dateFormat: string;
 	private updatePreviewDebounced: Debouncer<[], void>;
-	private currentInput = "";
+	private currentInput: string;
 	private isOpen = true;
 	private defaultValue: string | undefined;
+	private static readonly PREVIEW_PLACEHOLDER = "Preview will appear here";
 
 	public static Prompt(
 		app: App,
@@ -46,7 +47,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.updatePreviewDebounced = debounce(
 			this.updatePreview.bind(this),
 			250,
-			true
+			false // Don't fire immediately on first call
 		);
 
 		// Trigger initial preview update now that all fields are properly set
@@ -60,20 +61,25 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		placeholder?: string,
 		value?: string
 	) {
-		const textComponent = super.createInputField(container, placeholder, value);
+		// Create TextComponent directly to avoid duplicate onChange listeners
+		const textComponent = new TextComponent(container);
+		
+		textComponent.inputEl.style.width = "100%";
+		textComponent
+			.setPlaceholder(placeholder ?? "")
+			.setValue(value ?? "")
+			.onChange((newValue) => {
+				this.currentInput = newValue;
+				this.input = newValue; // Keep parent's input in sync  
+				this.updatePreviewDebounced();
+			})
+			.inputEl.addEventListener("keydown", this.submitEnterCallback);
 		
 		// Initialize currentInput with the initial value (which should be defaultValue)
 		this.currentInput = value ?? "";
 		
 		// Create preview element
 		this.createPreviewElement(container);
-		
-		// Track input changes
-		textComponent.onChange((newValue) => {
-			this.currentInput = newValue;
-			this.input = newValue; // Keep parent's input in sync
-			this.updatePreviewDebounced();
-		});
 		
 		return textComponent;
 	}
@@ -98,7 +104,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			cls: "vdate-preview-text"
 		});
 		this.previewEl.style.fontFamily = "var(--font-monospace)";
-		this.previewEl.textContent = "Preview will appear here";
+		this.previewEl.textContent = VDateInputPrompt.PREVIEW_PLACEHOLDER;
 		this.previewEl.style.color = "var(--text-normal)";
 	}
 
@@ -110,32 +116,20 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		
 		// If no input and we have a default, show preview for default
 		if (!input && this.defaultValue) {
-			this.updatePreviewForValue(this.defaultValue);
+			this.renderPreview(this.defaultValue);
 			return;
 		}
 		
 		if (!input) {
-			this.setPreviewText("Preview will appear here", false);
+			this.setPreviewText(VDateInputPrompt.PREVIEW_PLACEHOLDER, false);
 			return;
 		}
 		
-		// If input matches default value, use special preview
-		if (input === this.defaultValue) {
-			this.updatePreviewForValue(this.defaultValue);
-			return;
-		}
-		
-		const parseResult = parseNaturalLanguageDate(input, this.dateFormat);
-		
-		if (parseResult.isValid && parseResult.formatted) {
-			this.setPreviewText(parseResult.formatted, false);
-		} else {
-			const errorMessage = parseResult.error || "Unable to parse date";
-			this.setPreviewText(errorMessage, true);
-		}
+		// If input matches default value or regular input, render the preview
+		this.renderPreview(input);
 	}
 
-	private updatePreviewForValue(value: string) {
+	private renderPreview(value: string) {
 		const parseResult = parseNaturalLanguageDate(value, this.dateFormat);
 		
 		if (parseResult.isValid && parseResult.formatted) {
