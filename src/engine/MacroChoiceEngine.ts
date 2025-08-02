@@ -38,6 +38,9 @@ import {
 	getModelProvider,
 } from "src/ai/aiHelpers";
 import type { Model } from "src/ai/Provider";
+import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
+import { openFile } from "../utilityObsidian";
+import { TFile } from "obsidian";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -112,6 +115,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			}
 			if (command?.type === CommandType.AIAssistant) {
 				await this.executeAIAssistant(command as IAIAssistantCommand);
+			}
+			if (command?.type === CommandType.OpenFile) {
+				await this.executeOpenFile(command as IOpenFileCommand);
 			}
 
 			Object.keys(this.params.variables).forEach((key) => {
@@ -357,6 +363,42 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		for (const key in aiOutputVariables) {
 			this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
+		}
+	}
+
+	private async executeOpenFile(command: IOpenFileCommand) {
+		try {
+			const formatter = new CompleteFormatter(
+				this.app,
+				QuickAdd.instance,
+				this.choiceExecutor
+			);
+
+			const resolvedPath = await formatter.formatFileName(command.filePath, "");
+			const normalizedPath = resolvedPath.replace(/\\/g, "/");
+
+			// Validate path to prevent traversal attacks
+			const safePath = "/" + normalizedPath;
+			if (safePath.includes("..") || safePath.includes("//")) {
+				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
+				return;
+			}
+
+			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
+
+			if (!file || !(file instanceof TFile)) {
+				log.logError(`OpenFile: '${normalizedPath}' does not exist or is not a file`);
+				return;
+			}
+
+			await openFile(this.app, file, {
+				openInNewTab: command.openInNewTab,
+				direction: command.direction,
+				focus: true,
+				mode: "default",
+			});
+		} catch (error) {
+			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
 		}
 	}
 }

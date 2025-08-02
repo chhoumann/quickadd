@@ -34,6 +34,7 @@ import type { IconType } from "src/types/IconType";
 import { AIAssistantCommand } from "src/types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "src/settingsStore";
 import InputSuggester from "../InputSuggester/inputSuggester";
+import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -443,12 +444,26 @@ export class MacroBuilder extends Modal {
 
 		this.newChoiceButton(quickCommandContainer, "Capture", CaptureChoice);
 		this.newChoiceButton(quickCommandContainer, "Template", TemplateChoice);
+		this.addOpenFileCommandButton(quickCommandContainer);
 		this.addAddWaitCommandButton(quickCommandContainer);
 
 		if (!settingsStore.getState().disableOnlineFeatures) {
 			this.addAIAssistantCommandButton(quickCommandContainer);
 		}
 	}
+	addOpenFileCommandButton(quickCommandContainer: HTMLDivElement) {
+		const button: ButtonComponent = new ButtonComponent(
+			quickCommandContainer
+		);
+
+		button
+			.setIcon("file")
+			.setTooltip("Add Open File command")
+			.onClick(() => {
+				this.addCommandToMacro(new OpenFileCommand());
+			});
+	}
+
 	addAIAssistantCommandButton(quickCommandContainer: HTMLDivElement) {
 		const button: ButtonComponent = new ButtonComponent(
 			quickCommandContainer

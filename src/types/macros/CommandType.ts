@@ -7,4 +7,5 @@ export enum CommandType {
 	EditorCommand = "EditorCommand",
 	AIAssistant = "AIAssistant",
 	InfiniteAIAssistant = "InfiniteAIAssistant",
+	OpenFile = "OpenFile",
 }

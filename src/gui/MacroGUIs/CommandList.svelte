@@ -25,6 +25,9 @@
 	import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 	import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 	import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
+	import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
+	import OpenFileCommand from "./Components/OpenFileCommand.svelte";
+	import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
 
 	export let commands: ICommand[];
 	export let deleteCommand: (commandId: string) => Promise<void>;
@@ -131,6 +134,19 @@
             updateCommand(command);
         }
 	}
+
+	async function configureOpenFile(e: CustomEvent) {
+		const command: IOpenFileCommand = e.detail;
+
+		const updatedCommand = await new OpenFileCommandSettingsModal(
+			app,
+			command
+		).waitForClose;
+
+		if (updatedCommand) {
+			updateCommand(updatedCommand);
+		}
+	}
 </script>
 
 <ol
@@ -179,6 +195,15 @@
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
 				on:updateCommand={updateCommandFromEvent}
 				on:configureAssistant={configureAssistant}
+			/>
+		{:else if command.type === CommandType.OpenFile}
+			<OpenFileCommand
+				bind:command
+				bind:dragDisabled
+				bind:startDrag
+				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
+				on:updateCommand={updateCommandFromEvent}
+				on:configureOpenFile={configureOpenFile}
 			/>
 		{:else}
 			<StandardCommand
