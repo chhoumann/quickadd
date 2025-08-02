@@ -2,7 +2,6 @@ import type { App } from "obsidian";
 import { Modal, Setting, ButtonComponent } from "obsidian";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 import { NewTabDirection } from "../../types/newTabDirection";
-import type { FileViewMode } from "../../types/fileViewMode";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
@@ -54,8 +53,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 			this.addDirectionSetting();
 		}
 		
-		this.addFocusSetting();
-		this.addModeSetting();
 		this.addButtonBar();
 	}
 
@@ -108,33 +105,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 			});
 	}
 
-	private addFocusSetting() {
-		new Setting(this.contentEl)
-			.setName("Focus")
-			.setDesc("Focus the opened file")
-			.addToggle(toggle => toggle
-				.setValue(this.command.focus !== false)
-				.onChange(value => {
-					this.command.focus = value;
-				})
-			);
-	}
 
-	private addModeSetting() {
-		new Setting(this.contentEl)
-			.setName("View mode")
-			.setDesc("How to display the file")
-			.addDropdown(dropdown => {
-				dropdown
-					.addOption("default", "Default")
-					.addOption("source", "Source")
-					.addOption("preview", "Preview")
-					.setValue(this.command.mode || "default")
-					.onChange(value => {
-						this.command.mode = value as FileViewMode;
-					});
-			});
-	}
 
 	private addButtonBar() {
 		const buttonContainer = this.contentEl.createDiv();

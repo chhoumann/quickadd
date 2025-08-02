@@ -391,14 +391,11 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				return;
 			}
 
-			// Handle default view mode
-			const viewMode = command.mode === "default" ? undefined : command.mode;
-
 			await openFile(this.app, file, {
 				openInNewTab: command.openInNewTab,
 				direction: command.direction,
-				focus: command.focus,
-				mode: viewMode,
+				focus: true,
+				mode: "preview",
 			});
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);

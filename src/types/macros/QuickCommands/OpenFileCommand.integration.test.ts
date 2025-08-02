@@ -35,28 +35,26 @@ describe("OpenFileCommand Integration", () => {
 	it("should support all file opening configurations", () => {
 		// Test all combinations that users might configure
 		const configurations = [
-			// Default: focus, no new tab
-			{ filePath: "test.md", openInNewTab: false, focus: true },
+			// Default: no new tab
+			{ filePath: "test.md", openInNewTab: false },
 			// Open in new tab with vertical split
-			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.vertical, focus: true },
+			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.vertical },
 			// Open in new tab with horizontal split
-			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.horizontal, focus: false },
+			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.horizontal },
 			// Open in current tab
-			{ filePath: "existing.md", openInNewTab: false, focus: true }
+			{ filePath: "existing.md", openInNewTab: false }
 		];
 
 		configurations.forEach(config => {
 			const command = new OpenFileCommand(
 				config.filePath,
 				config.openInNewTab,
-				config.direction,
-				config.focus
+				config.direction
 			);
 
 			expect(command.filePath).toBe(config.filePath);
 			expect(command.openInNewTab).toBe(config.openInNewTab);
 			expect(command.direction).toBe(config.direction);
-			expect(command.focus).toBe(config.focus);
 		});
 	});
 

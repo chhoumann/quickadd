@@ -2,7 +2,6 @@ import { CommandType } from "../CommandType";
 import { nanoid } from "nanoid";
 import type { IOpenFileCommand } from "./IOpenFileCommand";
 import type { NewTabDirection } from "../../newTabDirection";
-import type { FileViewMode } from "../../fileViewMode";
 
 export class OpenFileCommand implements IOpenFileCommand {
 	readonly type = CommandType.OpenFile;
@@ -12,9 +11,7 @@ export class OpenFileCommand implements IOpenFileCommand {
 	constructor(
 		public filePath = "{{DATE}}todo.md",
 		public openInNewTab = false,
-		public direction?: NewTabDirection,
-		public focus = true,
-		public mode?: FileViewMode
+		public direction?: NewTabDirection
 	) {
 		this.name = `Open file: ${this.filePath}`;
 	}

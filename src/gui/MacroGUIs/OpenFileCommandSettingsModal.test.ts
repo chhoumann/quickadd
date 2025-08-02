@@ -40,8 +40,7 @@ describe("OpenFileCommand Configuration", () => {
 		const command = new OpenFileCommand(
 			"test.md",
 			true,
-			NewTabDirection.horizontal,
-			false
+			NewTabDirection.horizontal
 		);
 		
 		// Update just the path
@@ -51,6 +50,5 @@ describe("OpenFileCommand Configuration", () => {
 		expect(command.filePath).toBe("new-path.md");
 		expect(command.openInNewTab).toBe(true);
 		expect(command.direction).toBe(NewTabDirection.horizontal);
-		expect(command.focus).toBe(false);
 	});
 });
