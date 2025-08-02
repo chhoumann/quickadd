@@ -1,6 +1,7 @@
 import type IChoice from "./IChoice";
 import type { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
+import type { AppendLinkOptions } from "../linkPlacement";
 
 export default interface ICaptureChoice extends IChoice {
 	captureTo: string;
@@ -13,7 +14,12 @@ export default interface ICaptureChoice extends IChoice {
 	format: { enabled: boolean; format: string };
 	/** Capture to bottom of file (after current file content). */
 	prepend: boolean;
-	appendLink: boolean;
+	/** 
+	 * Configure link appending behavior. 
+	 * - boolean: Legacy format for backward compatibility (true = enabled with default placement)
+	 * - AppendLinkOptions: New format with configurable placement options
+	 */
+	appendLink: boolean | AppendLinkOptions;
 	task: boolean;
 	insertAfter: {
 		enabled: boolean;

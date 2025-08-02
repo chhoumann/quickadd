@@ -1,5 +1,6 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
+import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
@@ -13,6 +14,7 @@ import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
 	openExistingFileTab,
+	insertLinkWithPlacement,
 } from "../utilityObsidian";
 import { VALUE_SYNTAX } from "../constants";
 import type QuickAdd from "../main";
@@ -82,13 +84,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				await overwriteTemplaterOnce(this.app, file);
 			}
 
-			if (this.choice.appendLink) {
-				const markdownLink = this.app.fileManager.generateMarkdownLink(
-					file,
-					"",
+			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
+			if (linkOptions.enabled) {
+				insertLinkWithPlacement(
+					this.app,
+					this.app.fileManager.generateMarkdownLink(file, ""),
+					linkOptions.placement,
 				);
-
-				appendToCurrentLine(markdownLink, this.app);
 			}
 
 			if (this.choice.openFile && file) {

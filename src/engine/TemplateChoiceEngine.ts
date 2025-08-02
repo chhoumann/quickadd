@@ -1,28 +1,29 @@
-import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import {
-	appendToCurrentLine,
-	getAllFolderPathsInVault,
-	openExistingFileTab,
-	openFile,
-} from "../utilityObsidian";
+import invariant from "src/utils/invariant";
 import {
 	fileExistsAppendToBottom,
 	fileExistsAppendToTop,
-	fileExistsDoNothing,
 	fileExistsChoices,
+	fileExistsDoNothing,
+	fileExistsIncrement,
 	fileExistsOverwriteFile,
 	VALUE_SYNTAX,
-	fileExistsIncrement,
 } from "../constants";
-import { log } from "../logger/logManager";
-import { reportError } from "../utils/errorUtils";
-import type QuickAdd from "../main";
-import { TemplateEngine } from "./TemplateEngine";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import invariant from "src/utils/invariant";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { log } from "../logger/logManager";
+import type QuickAdd from "../main";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { normalizeAppendLinkOptions } from "../types/linkPlacement";
+import {
+	getAllFolderPathsInVault,
+	insertLinkWithPlacement,
+	openExistingFileTab,
+	openFile,
+} from "../utilityObsidian";
+import { reportError } from "../utils/errorUtils";
+import { TemplateEngine } from "./TemplateEngine";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -40,11 +41,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	public async run(): Promise<void> {
 		try {
 			invariant(this.choice.templatePath, () => {
-				return `Invalid template path for ${this.choice.name}. ${
-					this.choice.templatePath.length === 0
+				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
 						? "Template path is empty."
 						: `Template path is not valid: ${this.choice.templatePath}`
-				}`;
+					}`;
 			});
 
 			let folderPath = "";
@@ -56,8 +56,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
 				: VALUE_SYNTAX;
-			const formattedName = await this.formatter.formatFileName(format, this.choice.name);
-			let filePath = this.normalizeTemplateFilePath(folderPath, formattedName, this.choice.templatePath);
+			const formattedName = await this.formatter.formatFileName(
+				format,
+				this.choice.name,
+			);
+			let filePath = this.normalizeTemplateFilePath(
+				folderPath,
+				formattedName,
+				this.choice.templatePath,
+			);
 
 			if (this.choice.fileExistsMode === fileExistsIncrement)
 				filePath = await this.incrementFileName(filePath);
@@ -66,11 +73,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let shouldAutoOpen = false;
 			if (await this.app.vault.adapter.exists(filePath)) {
 				const file = this.app.vault.getAbstractFileByPath(filePath);
-				if (!(file instanceof TFile) || (file.extension !== "md" && file.extension !== "canvas")) {
-				log.logError(
-				`'${filePath}' already exists and is not a valid markdown or canvas file.`,
-				);
-				return;
+				if (
+					!(file instanceof TFile) ||
+					(file.extension !== "md" && file.extension !== "canvas")
+				) {
+					log.logError(
+						`'${filePath}' already exists and is not a valid markdown or canvas file.`,
+					);
+					return;
 				}
 
 				let userChoice: (typeof fileExistsChoices)[number] =
@@ -133,10 +143,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 
-			if (this.choice.appendLink && createdFile) {
-				appendToCurrentLine(
-					this.app.fileManager.generateMarkdownLink(createdFile, ""),
+			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
+			if (linkOptions.enabled && createdFile) {
+				insertLinkWithPlacement(
 					this.app,
+					this.app.fileManager.generateMarkdownLink(createdFile, ""),
+					linkOptions.placement,
 				);
 			}
 
