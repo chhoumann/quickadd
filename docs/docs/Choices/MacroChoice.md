@@ -39,6 +39,7 @@ In the Macro Builder, you can add different types of commands:
    
 2. **Editor Commands** - Manipulate text in the editor
    - Copy, Cut, Paste
+   - Paste with format - Preserves rich formatting from clipboard (HTML → Markdown)
    - Select active line
    - Select link on active line
 
@@ -59,6 +60,33 @@ In the Macro Builder, you can add different types of commands:
    - Generate content based on templates
    - Process notes with AI
    - Available with configured AI providers
+
+## Editor Commands
+
+Editor commands provide text manipulation capabilities within the active editor:
+
+### Paste with Format
+
+The **Paste with format** command preserves rich formatting when pasting content from external sources. Unlike the standard paste command which only handles plain text, this command:
+
+- **Detects HTML content** in your clipboard
+- **Converts to Markdown** using Obsidian's built-in conversion
+- **Preserves formatting** like links, bold text, italics, headers, and lists
+- **Falls back gracefully** to plain text when HTML isn't available
+
+**Example use cases:**
+- Copy a formatted link from a webpage → Pastes as `[Link Text](https://example.com)`
+- Copy formatted text with bold/italic → Preserves **bold** and *italic* formatting
+- Copy a bulleted list → Converts to proper Markdown list syntax
+- Copy tables from websites → Converts to Markdown table format
+
+**Browser compatibility:** Uses modern clipboard APIs with automatic fallback for older versions.
+
+### Other Editor Commands
+
+- **Copy/Cut/Paste**: Standard clipboard operations
+- **Select active line**: Selects the entire line where your cursor is positioned
+- **Select link on active line**: Finds and selects any link on the current line
 
 ## User Scripts
 
