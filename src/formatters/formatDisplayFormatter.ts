@@ -75,7 +75,7 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string }
+		context?: { type?: string; dateFormat?: string; defaultValue?: string }
 	): Promise<string> {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}
@@ -110,9 +110,10 @@ export class FormatDisplayFormatter extends Formatter {
 		let output: string = input;
 		
 		// For preview, show helpful format examples instead of failing
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, defaultValue) => {
 			const cleanVariableName = variableName?.trim();
 			const cleanDateFormat = dateFormat?.trim();
+			const cleanDefaultValue = defaultValue?.trim();
 			
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete
@@ -128,6 +129,11 @@ export class FormatDisplayFormatter extends Formatter {
 			} catch {
 				// Fallback to showing the format pattern
 				formattedExample = `[${cleanDateFormat} format]`;
+			}
+			
+			// If there's a default value, indicate it in the preview
+			if (cleanDefaultValue) {
+				formattedExample += ` (default: ${cleanDefaultValue})`;
 			}
 			
 			return formattedExample;
