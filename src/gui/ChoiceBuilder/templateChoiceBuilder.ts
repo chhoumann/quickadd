@@ -1,5 +1,7 @@
 import { ChoiceBuilder } from "./choiceBuilder";
 import type { App } from "obsidian";
+import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
+import type { LinkPlacement } from "../../types/linkPlacement";
 import {
 	ButtonComponent,
 	Setting,
@@ -265,14 +267,54 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addAppendLinkSetting(): void {
+		// Normalize to ensure we're always working with the new format internally
+		const normalizedOptions = normalizeAppendLinkOptions(this.choice.appendLink);
+		
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
-			.setName("Append link")
-			.setDesc("Append link to created file to current file.")
+			.setName("Append link to note")
+			.setDesc(
+				"Add a link on your current cursor position, linking to the file you're creating.",
+			)
 			.addToggle((toggle) => {
-				toggle.setValue(this.choice.appendLink);
-				toggle.onChange((value) => (this.choice.appendLink = value));
+				toggle.setValue(normalizedOptions.enabled);
+				toggle.onChange((value) => {
+					if (value) {
+						// When enabling, use the new object format
+						this.choice.appendLink = {
+							enabled: true,
+							placement: normalizedOptions.placement
+						};
+					} else {
+						// When disabling, keep as boolean for simplicity and backward compatibility
+						this.choice.appendLink = false;
+					}
+					this.reload();
+				});
 			});
+
+		// Only show placement dropdown when append link is enabled
+		if (normalizedOptions.enabled) {
+			const placementSetting: Setting = new Setting(this.contentEl);
+			placementSetting
+				.setName("Link placement")
+				.setDesc("Where to place the link when appending")
+				.addDropdown(dropdown => {
+					dropdown.addOption("replaceSelection", "Replace selection");
+					dropdown.addOption("afterSelection", "After selection");
+					dropdown.addOption("endOfLine", "End of line");
+					dropdown.addOption("newLine", "New line");
+					
+					dropdown.setValue(normalizedOptions.placement);
+					dropdown.onChange((value: LinkPlacement) => {
+						// Ensure we update the choice with object format when placement changes
+						this.choice.appendLink = {
+							enabled: true,
+							placement: value
+						};
+					});
+				});
+		}
 	}
 
 	private addFileAlreadyExistsSetting(): void {

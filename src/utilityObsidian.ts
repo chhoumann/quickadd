@@ -16,6 +16,7 @@ import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
 import { reportError } from "./utils/errorUtils";
 import { NLDParser } from "./parsers/NLDParser";
+import type { LinkPlacement } from "./types/linkPlacement";
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -135,6 +136,102 @@ export function appendToCurrentLine(toAppend: string, app: App) {
 		activeView.editor.replaceSelection(toAppend);
 	} catch {
 		log.logError(`unable to append '${toAppend}' to current line.`);
+	}
+}
+
+/**
+ * Core routine that inserts a link (or any text) in the active markdown
+ * editor according to the chosen placement mode.
+ *
+ * – Works with any number of cursors / selections.
+ * – Falls back gracefully if no markdown editor is focused.
+ * – Keeps the editor's undo history clean by performing a single
+ *   CodeMirror transaction.
+ */
+export function insertLinkWithPlacement(
+	app: App,
+	text: string,
+	mode: LinkPlacement = "replaceSelection",
+) {
+	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	if (!view) {
+		log.logError("insertLinkWithPlacement: no active Markdown view.");
+		return;
+	}
+
+	const editor = view.editor;
+
+	// Snapshot current selections *before* mutating the document.
+	// We copy them because CodeMirror mutates the objects in-place.
+	const selections = editor
+		.listSelections()
+		.map((sel) => ({
+			anchor: { ...sel.anchor },
+			head: { ...sel.head },
+		}));
+
+	//////////////////////////////////////////////////////////////////
+	//  REPLACE-SELECTION
+	//////////////////////////////////////////////////////////////////
+	if (mode === "replaceSelection") {
+		editor.replaceSelection(text);
+		return;
+	}
+
+	//////////////////////////////////////////////////////////////////
+	//  ALL OTHER MODES NEED EXPLICIT POSITION CALCULATION
+	//////////////////////////////////////////////////////////////////
+
+	/**
+	 * Helper that converts a {line, ch} position to a monotonically
+	 * increasing index so we can sort selections bottom-to-top.  
+	 * Sorting bottom-to-top prevents indices from becoming stale while
+	 * we insert (because later lines are modified first).
+	 */
+	const asIndex = ({ line, ch }: { line: number; ch: number }) =>
+		editor.posToOffset({ line, ch });
+
+	// Sort selections by document position (descending)
+	const ordered = selections.sort(
+		(a, b) => asIndex(b.head) - asIndex(a.head),
+	);
+
+	// Perform all insertions sequentially for simplicity
+	for (const sel of ordered) {
+		const head =
+			asIndex(sel.anchor) > asIndex(sel.head) ? sel.anchor : sel.head;
+
+		switch (mode) {
+			//////////////////////////////////////////////////////////////////
+			//  AFTER-SELECTION
+			//////////////////////////////////////////////////////////////////
+			case "afterSelection": {
+				editor.replaceRange(text, head);
+				break;
+			}
+
+			//////////////////////////////////////////////////////////////////
+			//  END-OF-LINE
+			//////////////////////////////////////////////////////////////////
+			case "endOfLine": {
+				const lineStr = editor.getLine(head.line);
+				const eolPos = { line: head.line, ch: lineStr.length };
+				editor.replaceRange(text, eolPos);
+				break;
+			}
+
+			//////////////////////////////////////////////////////////////////
+			//  NEW-LINE
+			//////////////////////////////////////////////////////////////////
+			case "newLine": {
+				const lineStr = editor.getLine(head.line);
+				const eolPos = { line: head.line, ch: lineStr.length };
+				// prepend newline only if the current line isn't already empty
+				const prefix = lineStr.endsWith("\n") ? "" : "\n";
+				editor.replaceRange(prefix + text, eolPos);
+				break;
+			}
+		}
 	}
 }
 

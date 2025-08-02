@@ -17,7 +17,11 @@ Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}}
 You can specify as many folders as you want. If you don't, it'll just create the file in the root directory. If you specify one folder, it'll automatically create the file in there.
 If you specify multiple folders, you'll get a suggester asking which of the folders you wish to create the file in.
 
-**Append link**. The file you're currently in will get a link to a newly created file.
+**Append link**. The file you're currently in will get a link to a newly created file. You can choose where the link is placed:
+- **Replace selection** - Replaces any selected text with the link (default)
+- **After selection** - Preserves selected text and places the link after it  
+- **End of line** - Places the link at the end of the current line
+- **New line** - Places the link on a new line below the cursor
 
 **Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
 
