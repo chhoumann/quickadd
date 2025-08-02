@@ -35,10 +35,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		defaultValue?: string,
 		dateFormat?: string
 	) {
-		// Don't pass defaultValue to super - we want the input field to be empty
-		super(app, header, placeholder, "");
+		// Pass the defaultValue to the parent so the input box is pre-filled
+		super(app, header, placeholder, defaultValue ?? "");
+		
 		this.dateFormat = dateFormat || "YYYY-MM-DD";
 		this.defaultValue = defaultValue;
+		this.currentInput = defaultValue ?? "";
 		
 		// Create debounced preview update function (250ms delay, reset on each call)
 		this.updatePreviewDebounced = debounce(
@@ -46,6 +48,11 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			250,
 			true
 		);
+
+		// Trigger initial preview update now that all fields are properly set
+		if (this.defaultValue) {
+			this.updatePreview();
+		}
 	}
 
 	protected createInputField(
@@ -54,6 +61,9 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		value?: string
 	) {
 		const textComponent = super.createInputField(container, placeholder, value);
+		
+		// Initialize currentInput with the initial value (which should be defaultValue)
+		this.currentInput = value ?? "";
 		
 		// Create preview element
 		this.createPreviewElement(container);
@@ -109,6 +119,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			return;
 		}
 		
+		// If input matches default value, use special preview
+		if (input === this.defaultValue) {
+			this.updatePreviewForValue(this.defaultValue);
+			return;
+		}
+		
 		const parseResult = parseNaturalLanguageDate(input, this.dateFormat);
 		
 		if (parseResult.isValid && parseResult.formatted) {
@@ -145,11 +161,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 	onOpen() {
 		super.onOpen();
-		
-		// Show preview for default value after modal is fully initialized
-		if (this.defaultValue && !this.currentInput) {
-			this.updatePreviewForValue(this.defaultValue);
-		}
 	}
 
 	onClose() {

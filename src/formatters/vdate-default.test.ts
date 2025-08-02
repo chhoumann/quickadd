@@ -6,11 +6,10 @@ import { DATE_VARIABLE_REGEX } from '../constants';
 class TestFormatter extends Formatter {
     public variables = new Map<string, unknown>();
     private mockPromptValue = "";
-    private dateParser = { parseDate: vi.fn() };
 
     constructor() {
         super();
-        // Set dateParser
+        // Set dateParser via protected property
         //@ts-ignore
         this.dateParser = { 
             parseDate: vi.fn((input: string) => ({
@@ -25,6 +24,12 @@ class TestFormatter extends Formatter {
 
     setMockPromptValue(value: string) {
         this.mockPromptValue = value;
+    }
+
+    // Public getter for testing dateParser
+    get testDateParser(): any {
+        //@ts-ignore
+        return this.dateParser;
     }
 
     protected async format(input: string): Promise<string> {
@@ -58,6 +63,23 @@ class TestFormatter extends Formatter {
         return "";
     }
 
+    // Abstract methods that need to be implemented
+    protected async promptForValue(variableName: string): Promise<string> {
+        return this.mockPromptValue || `prompted-${variableName}`;
+    }
+
+    protected getCurrentFileLink(): string {
+        return "[[current-file]]";
+    }
+
+    protected async promptForMathValue(): Promise<string> {
+        return this.mockPromptValue || "42";
+    }
+
+    protected getVariableValue(variableName: string): string {
+        return this.variables.get(variableName) as string || "";
+    }
+
     protected async getSelectedText(): Promise<string> {
         return "";
     }
@@ -80,6 +102,7 @@ describe('VDATE Default Value Support', () => {
         // Mock window.moment
         //@ts-ignore
         global.window = {
+            //@ts-ignore
             moment: vi.fn((isoString: string) => ({
                 isValid: () => true,
                 format: (format: string) => `${format}-formatted`
@@ -139,7 +162,7 @@ describe('VDATE Default Value Support', () => {
             const result = await formatter.testReplaceDateVariableInString(input);
             
             // The formatter should have used "today" as the value
-            expect(formatter.dateParser.parseDate).toHaveBeenCalledWith("today");
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("today");
             expect(result).toBe("Test YYYY-MM-DD-formatted");
         });
 
@@ -150,7 +173,7 @@ describe('VDATE Default Value Support', () => {
             const result = await formatter.testReplaceDateVariableInString(input);
             
             // The formatter should have used "tomorrow" instead of "today"
-            expect(formatter.dateParser.parseDate).toHaveBeenCalledWith("tomorrow");
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("tomorrow");
             expect(result).toBe("Test YYYY-MM-DD-formatted");
         });
 
@@ -161,8 +184,8 @@ describe('VDATE Default Value Support', () => {
             const result = await formatter.testReplaceDateVariableInString(input);
             
             expect(result).toBe("Start: YYYY-MM-DD-formatted End: YYYY-MM-DD-formatted");
-            expect(formatter.dateParser.parseDate).toHaveBeenCalledWith("today");
-            expect(formatter.dateParser.parseDate).toHaveBeenCalledWith("next week");
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("today");
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("next week");
         });
 
         it('should handle VDATE with empty default value', async () => {
@@ -184,8 +207,8 @@ describe('VDATE Default Value Support', () => {
             const result = await formatter.testReplaceDateVariableInString(input);
             
             // Should use "today" for the first occurrence, then reuse the same variable for the second
-            expect(formatter.dateParser.parseDate).toHaveBeenCalledTimes(1);
-            expect(formatter.dateParser.parseDate).toHaveBeenCalledWith("today");
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledTimes(1);
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("today");
             expect(result).toBe("Date1: YYYY-MM-DD-formatted Date2: MM/DD/YYYY-formatted");
         });
     });
