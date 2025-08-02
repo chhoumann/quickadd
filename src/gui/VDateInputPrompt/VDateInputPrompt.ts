@@ -139,10 +139,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		const parseResult = parseNaturalLanguageDate(value, this.dateFormat);
 		
 		if (parseResult.isValid && parseResult.formatted) {
-			const previewText = this.defaultValue === value 
-				? `${parseResult.formatted} (default: ${value})`
-				: parseResult.formatted;
-			this.setPreviewText(previewText, false);
+			this.setPreviewText(parseResult.formatted, false);
 		} else {
 			const errorMessage = parseResult.error || "Unable to parse date";
 			this.setPreviewText(errorMessage, true);
