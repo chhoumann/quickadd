@@ -196,6 +196,70 @@ module.exports = async (params) => {
     const bookName = await quickAddApi.inputPrompt("Book name:");
     variables.bookTitle = bookName;
     variables.readDate = new Date().toISOString();
+    
+    // Control when prompts appear:
+    variables.rating = "";        // Empty string - won't prompt
+    variables.notes = undefined;  // Undefined - will prompt for input
+};
+```
+
+### Controlling Variable Prompts
+
+When using `{{VALUE:variableName}}` in your templates, QuickAdd decides whether to prompt you for input based on how the variable was set in your script:
+
+#### Variables That Trigger Prompts
+- **Unset variables**: Variables that were never assigned a value
+- **Undefined variables**: Variables explicitly set to `undefined` in scripts
+- **Null variables**: Variables explicitly set to `null` in scripts
+
+#### Variables That Don't Trigger Prompts
+- **Empty string variables**: Variables explicitly set to `""` in scripts
+- **Variables with any other value**: Including `"0"`, `"false"`, or any non-empty string
+
+#### Practical Examples
+
+```javascript
+// Data import script example
+module.exports = async (params) => {
+    const { quickAddApi, variables } = params;
+    
+    // These will NOT prompt when used in templates:
+    variables.rating = "";        // Intentionally empty
+    variables.score = "0";        // Valid value (zero as string)
+    variables.status = "draft";   // Has content
+    variables.description = "";   // User chose to leave blank
+    
+    // These WILL prompt when used in templates:
+    variables.author = undefined; // Explicitly undefined
+    variables.reviewer = null;    // Explicitly null
+    // variables.category is never set - will prompt
+};
+```
+
+**Use Case**: This is particularly useful when importing data where some fields may be intentionally empty. For example, when importing movie data, you might want to leave the rating empty for unseen movies without being prompted to enter a rating:
+
+```javascript
+// Movie import example
+module.exports = async (params) => {
+    const { variables } = params;
+    
+    const movieData = await fetchMovieData();
+    
+    variables.title = movieData.title;
+    variables.year = movieData.year.toString();
+    
+    if (movieData.hasWatched) {
+        variables.rating = movieData.userRating || "";  // Empty if no rating
+        variables.watchDate = movieData.watchDate;
+    } else {
+        // For unwatched movies, set empty strings to avoid prompts
+        variables.rating = "";       // Don't prompt for rating
+        variables.watchDate = "";    // Don't prompt for watch date
+        variables.review = "";       // Don't prompt for review
+    }
+    
+    // This will prompt because we want user input
+    variables.personalNotes = undefined;  // Will ask for notes
 };
 ```
 
