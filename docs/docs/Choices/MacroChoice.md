@@ -56,7 +56,7 @@ In the Macro Builder, you can add different types of commands:
    - Process notes with AI
    - Available with configured AI providers
 7. **Open File** - Open files with formatted paths
-   - Supports all QuickAdd formatting syntax ({{DATE}}, {{VALUE}}, etc.)
+   - Supports all QuickAdd formatting syntax (`{{DATE}}`, `{{VALUE}}`, etc.)
    - Configurable tab and split options
    - Opens files in default view mode with focus
    - Only opens existing files (no auto-creation)
