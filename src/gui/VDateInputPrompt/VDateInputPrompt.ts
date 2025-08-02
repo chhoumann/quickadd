@@ -47,7 +47,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.updatePreviewDebounced = debounce(
 			this.updatePreview.bind(this),
 			250,
-			false // Don't fire immediately on first call
+			true // Reset timer on each call (standard debounce behavior)
 		);
 
 		// Trigger initial preview update now that all fields are properly set
