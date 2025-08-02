@@ -132,9 +132,21 @@ export function appendToCurrentLine(toAppend: string, app: App) {
 			return;
 		}
 
-		activeView.editor.replaceSelection(toAppend);
-	} catch {
-		log.logError(`unable to append '${toAppend}' to current line.`);
+		const editor = activeView.editor;
+
+		/**
+		 * We want to keep any selected text and add the link straight
+		 * after the selection (or, if nothing is selected, at the cursor).
+		 *
+		 * 1. Get the end‐position (`"to"`) of the current selection/caret.
+		 * 2. Insert the link there with replaceRange().
+		 *    – replaceRange() with only the "from" position works as
+		 *      an insert and does **not** touch the existing text.
+		 */
+		const insertionPos = editor.getCursor("to");
+		editor.replaceRange(toAppend, insertionPos);
+	} catch (e) {
+		log.logError(`unable to append '${toAppend}' to current line. ${(e as Error).message}`);
 	}
 }
 
