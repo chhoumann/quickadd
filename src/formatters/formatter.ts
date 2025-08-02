@@ -28,6 +28,14 @@ export abstract class Formatter {
 
 	protected abstract format(input: string): Promise<string>;
 	
+	/** Returns true when a variable is present AND its value is neither undefined nor null.  
+	 *  An empty string is considered a valid, intentional value. */
+	protected hasConcreteVariable(name: string): boolean {
+		if (!this.variables.has(name)) return false;
+		const v = this.variables.get(name);
+		return v !== undefined && v !== null;
+	}
+	
 	public setTitle(title: string): void {
 		this.variables.set("title", title);
 	}
@@ -181,7 +189,7 @@ export abstract class Formatter {
 					variableName = variableName.substring(0, pipeIndex).trim();
 				}
 
-				if (!this.getVariableValue(variableName)) {
+				if (!this.hasConcreteVariable(variableName)) {
 					const suggestedValues = variableName.split(",");
 					let variableValue = "";
 
@@ -225,7 +233,7 @@ export abstract class Formatter {
 			const fullMatch = match[1] + (match[2] || "");
 
 			if (fullMatch) {
-				if (!this.getVariableValue(fullMatch)) {
+				if (!this.hasConcreteVariable(fullMatch)) {
 					this.variables.set(
 						fullMatch,
 						await this.suggestForField(fullMatch),
