@@ -8,9 +8,9 @@ describe("OpenFileCommand", () => {
 		const command = new OpenFileCommand();
 		
 		expect(command.type).toBe(CommandType.OpenFile);
-		expect(command.filePath).toBe("{{DATE}}todo.md");
+		expect(command.filePath).toBe("{{DATE}}.md");
 		expect(command.openInNewTab).toBe(false);
-		expect(command.name).toBe("Open file: {{DATE}}todo.md");
+		expect(command.name).toBe("Open file: {{DATE}}.md");
 		expect(command.id).toBeDefined();
 	});
 

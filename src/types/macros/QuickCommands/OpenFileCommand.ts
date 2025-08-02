@@ -9,7 +9,7 @@ export class OpenFileCommand implements IOpenFileCommand {
 	name: string;
 	
 	constructor(
-		public filePath = "{{DATE}}todo.md",
+		public filePath = "{{DATE}}.md",
 		public openInNewTab = false,
 		public direction?: NewTabDirection
 	) {
