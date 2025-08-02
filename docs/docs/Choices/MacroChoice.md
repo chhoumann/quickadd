@@ -36,89 +36,29 @@ In the Macro Builder, you can add different types of commands:
 
 1. **Obsidian Command** - Execute any Obsidian command
    - Examples: "Daily notes: Open today's daily note", "Toggle reading view"
-   
 2. **Editor Commands** - Manipulate text in the editor
    - Copy, Cut, Paste
    - Paste with format - Preserves rich formatting from clipboard (HTML → Markdown)
    - Select active line
    - Select link on active line
-
 3. **User Script** - Run custom JavaScript code
    - Access the Obsidian API
    - Perform complex operations
    - Integrate with other plugins
-
 4. **Nested Choice** - Execute another QuickAdd choice
    - Reuse existing templates, captures, or other macros
    - Create modular workflows
-
 5. **Wait** - Add delays between commands
    - Useful when commands need time to complete
    - Specified in milliseconds
-
 6. **AI Assistant** - Execute AI prompts
    - Generate content based on templates
    - Process notes with AI
    - Available with configured AI providers
-
 7. **Open File** - Open files with formatted paths
    - Supports all QuickAdd formatting syntax
    - Configurable opening options
    - Only opens existing files (no auto-creation)
-
-## Open File Command
-
-The **Open File** command allows you to open existing files in your vault using formatted paths. This is useful for quickly navigating to specific files as part of a macro workflow.
-
-### Key Features
-
-- **Format Support**: Uses all QuickAdd formatting syntax including `{{DATE}}`, `{{VALUE}}`, `{{CLIPBOARD}}`, etc.
-- **Opening Options**: Configure new tab, split direction, focus, and view mode
-- **Safety**: Only opens existing files - does not create new files
-
-### Configuration Options
-
-When you add an Open File command to your macro, you can configure:
-
-- **File Path**: The path to the file, with optional formatting
-  - Example: `daily/{{DATE:YYYY-MM-DD}}.md`
-  - Example: `projects/{{VALUE:projectName}}/README.md`
-  - Example: `inbox/{{CLIPBOARD}}.md`
-
-- **Opening Settings**:
-  - **New Tab**: Open in current tab or new tab
-  - **Split Direction**: Horizontal or vertical split (when opening in new tab)
-  - **Focus**: Whether the opened file receives focus
-  - **View Mode**: Default, source mode, or preview mode
-
-### Usage Examples
-
-**Daily Note Navigation**:
-```
-File path: daily/{{DATE:YYYY-MM-DD}}.md
-New tab: false
-Focus: true
-```
-
-**Project File Opening**:
-```
-File path: projects/{{VALUE:project}}/notes.md
-New tab: true
-Split direction: vertical
-Focus: true
-```
-
-**Quick Reference**:
-```
-File path: references/{{CLIPBOARD}}.md
-New tab: true
-View mode: preview
-Focus: false
-```
-
-:::note File Must Exist
-The Open File command only opens existing files. If the specified file doesn't exist, the command will log an error but continue macro execution. Use Template or Capture choices if you need to create files.
-:::
 
 ## Editor Commands
 
