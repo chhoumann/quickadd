@@ -37,4 +37,12 @@ export default [
             '@typescript-eslint/restrict-template-expressions': 'off',
         },
     },
+    // Special rules for main.ts to preserve critical import order
+    {
+        files: ['src/main.ts'],
+        rules: {
+            // Disable any import sorting in main.ts to preserve dependency order
+            'sort-imports': 'off',
+        },
+    },
 ];
