@@ -1,31 +1,30 @@
-import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import type { TFile } from "obsidian";
+import type { App, TFile } from "obsidian";
 import { Notice } from "obsidian";
-import { normalizeAppendLinkOptions } from "../types/linkPlacement";
-import { getCaptureAction, type CaptureAction } from "./captureAction";
-import type { App } from "obsidian";
-import { log } from "../logger/logManager";
-import { reportError } from "../utils/errorUtils";
+import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import invariant from "src/utils/invariant";
+import merge from "three-way-merge";
+import { VALUE_SYNTAX } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { log } from "../logger/logManager";
+import type QuickAdd from "../main";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
 	appendToCurrentLine,
+	getMarkdownFilesInFolder,
+	getMarkdownFilesWithTag,
+	insertLinkWithPlacement,
+	isFolder,
+	openExistingFileTab,
 	openFile,
 	overwriteTemplaterOnce,
 	templaterParseTemplate,
-	isFolder,
-	getMarkdownFilesInFolder,
-	getMarkdownFilesWithTag,
-	openExistingFileTab,
-	insertLinkWithPlacement,
 } from "../utilityObsidian";
-import { VALUE_SYNTAX } from "../constants";
-import type QuickAdd from "../main";
+import { reportError } from "../utils/errorUtils";
+import { type CaptureAction, getCaptureAction } from "./captureAction";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
-import invariant from "src/utils/invariant";
-import merge from "three-way-merge";
-import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -48,12 +47,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private showSuccessNotice(
 		file: TFile,
-		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction }
+		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction },
 	) {
 		const fileName = `'${file.basename}'`;
-		
+
 		if (wasNewFile) {
-			new Notice(`Created and captured to ${fileName}`, DEFAULT_NOTICE_DURATION);
+			new Notice(
+				`Created and captured to ${fileName}`,
+				DEFAULT_NOTICE_DURATION,
+			);
 			return;
 		}
 
@@ -68,14 +70,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			case "append":
 				msg = `Captured to ${fileName}`;
 				break;
-			case "insertAfter":
+			case "insertAfter": {
 				const heading = this.choice.insertAfter.after;
-				msg = heading 
+				msg = heading
 					? `Captured to ${fileName} under '${heading}'`
 					: `Captured to ${fileName}`;
 				break;
+			}
 		}
-		
+
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
 	}
 
@@ -114,7 +117,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
-				const content = await templaterParseTemplate(this.app, captureContent, file);
+				const content = await templaterParseTemplate(
+					this.app,
+					captureContent,
+					file,
+				);
 
 				appendToCurrentLine(content, this.app);
 			} else {
@@ -125,7 +132,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
 				const action = getCaptureAction(this.choice);
-				this.showSuccessNotice(file, { wasNewFile: !fileAlreadyExists, action });
+				this.showSuccessNotice(file, {
+					wasNewFile: !fileAlreadyExists,
+					action,
+				});
 			}
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
@@ -321,24 +331,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		captureContent: string;
 	}> {
 		// Extract filename without extension from the full path
-		const fileBasename = filePath.split('/').pop()?.replace(/\.md$/, '') || '';
+		const fileBasename = filePath.split("/").pop()?.replace(/\.md$/, "") || "";
 		this.formatter.setTitle(fileBasename);
 
 		// First formatting pass: resolve QuickAdd placeholders and prompt for user input (e.g. {{value}})
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
-		const formattedCaptureContent: string = await this.formatter.formatContentOnly(
-			captureContent,
-		);
+		const formattedCaptureContent: string =
+			await this.formatter.formatContentOnly(captureContent);
 
 		let fileContent = "";
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
-			const singleTemplateEngine: SingleTemplateEngine = new SingleTemplateEngine(
-				this.app,
-				this.plugin,
-				this.choice.createFileIfItDoesntExist.template,
-				this.choiceExecutor,
-			);
+			const singleTemplateEngine: SingleTemplateEngine =
+				new SingleTemplateEngine(
+					this.app,
+					this.plugin,
+					this.choice.createFileIfItDoesntExist.template,
+					this.choiceExecutor,
+				);
 
 			fileContent = await singleTemplateEngine.run();
 		}
