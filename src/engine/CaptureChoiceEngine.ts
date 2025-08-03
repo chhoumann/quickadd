@@ -2,6 +2,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
 import { Notice } from "obsidian";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
+import { determineAction, type CaptureAction } from "./captureAction";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
@@ -26,6 +27,8 @@ import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 
+const DEFAULT_NOTICE_DURATION = 4000;
+
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
 	private formatter: CaptureChoiceFormatter;
@@ -45,37 +48,32 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private showSuccessNotice(
 		file: TFile,
-		{ wasNewFile, action }: { wasNewFile: boolean; action: "append"|"prepend"|"insertAfter"|"currentLine" }
+		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction }
 	) {
 		if (!this.plugin.settings.showCaptureNotification) return;
 
 		const fileName = `'${file.basename}'`;
 		
 		if (wasNewFile) {
-			new Notice(`Created and captured to ${fileName}`, 4000);
+			new Notice(`Created and captured to ${fileName}`, DEFAULT_NOTICE_DURATION);
 			return;
 		}
 
-		let msg = "";
-		switch (action) {
-			case "currentLine":
-				msg = `Captured to current line in ${fileName}`;
-				break;
-			case "prepend":
-				msg = `Captured to top of ${fileName}`;
-				break;
-			case "append":
-				msg = `Captured to ${fileName}`;
-				break;
-			case "insertAfter":
-				const heading = this.choice.insertAfter.after;
-				msg = heading 
-					? `Captured to ${fileName} under '${heading}'`
-					: `Captured to ${fileName}`;
-				break;
-		}
+		const actionMessages: Record<CaptureAction, string> = {
+			append: "Captured to {{file}}",
+			prepend: "Captured to top of {{file}}",
+			currentLine: "Captured to current line in {{file}}",
+			insertAfter: "Captured to {{file}}{{heading}}"
+		};
+
+		let msg = actionMessages[action]
+			.replace("{{file}}", fileName)
+			.replace("{{heading}}", 
+				action === "insertAfter" && this.choice.insertAfter.enabled && this.choice.insertAfter.after
+					? ` under '${this.choice.insertAfter.after}'`
+					: "");
 		
-		new Notice(msg, 4000);
+		new Notice(msg, DEFAULT_NOTICE_DURATION);
 	}
 
 	async run(): Promise<void> {
@@ -121,17 +119,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				await overwriteTemplaterOnce(this.app, file);
 			}
 
-			// Determine the action type for the notification
-			const action: "append"|"prepend"|"insertAfter"|"currentLine" =
-				this.choice.captureToActiveFile && !this.choice.prepend && !this.choice.insertAfter.enabled
-					? "currentLine"
-					: this.choice.insertAfter.enabled
-						? "insertAfter"
-						: this.choice.prepend
-							? "prepend"
-							: "append";
-
 			// Show success notification
+			const action = determineAction(this.choice);
 			this.showSuccessNotice(file, { wasNewFile: !fileAlreadyExists, action });
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
