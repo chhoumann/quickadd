@@ -553,44 +553,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				);
 		}
 
-		// Legacy settings in collapsible section
-		const legacyContainer = this.contentEl.createDiv();
-		const legacyDetails = legacyContainer.createEl("details");
-		const legacySummary = legacyDetails.createEl("summary", { 
-			text: "Legacy Settings (deprecated)",
-			attr: { style: "opacity: 0.7; font-size: 0.9em; cursor: pointer;" }
-		});
-		
-		const legacyContent = legacyDetails.createDiv();
-		
-		const legacySetting = new Setting(legacyContent);
-		legacySetting
-			.setName("Legacy: New Tab")
-			.setDesc("Legacy setting - use File Opening Location instead")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice?.openFileInNewTab?.enabled);
-				toggle.onChange(
-					(value) => (this.choice.openFileInNewTab.enabled = value),
-				);
-			})
-			.addDropdown((dropdown) => {
-				if (!this.choice?.openFileInNewTab) {
-					this.choice.openFileInNewTab = {
-						enabled: false,
-						direction: NewTabDirection.vertical,
-						focus: true,
-					};
-				}
 
-				dropdown.selectEl.style.marginLeft = "10px";
-				dropdown.addOption(NewTabDirection.vertical, "Vertical");
-				dropdown.addOption(NewTabDirection.horizontal, "Horizontal");
-				dropdown.setValue(this.choice?.openFileInNewTab?.direction);
-				dropdown.onChange(
-					(value) =>
-						(this.choice.openFileInNewTab.direction = <NewTabDirection>value),
-				);
-			});
-		legacySetting.settingEl.style.opacity = "0.6";
 	}
 }

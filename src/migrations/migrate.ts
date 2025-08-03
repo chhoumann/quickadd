@@ -7,6 +7,7 @@ import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionI
 import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelease";
 import addDefaultAIProviders from "./addDefaultAIProviders";
 import removeMacroIndirection from "./removeMacroIndirection";
+import migrateFileOpeningSettings from "./migrateFileOpeningSettings";
 
 const migrations: Migrations = {
 	useQuickAddTemplateFolder,
@@ -15,6 +16,7 @@ const migrations: Migrations = {
 	setVersionAfterUpdateModalRelease,
 	addDefaultAIProviders,
 	removeMacroIndirection,
+	migrateFileOpeningSettings,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {
