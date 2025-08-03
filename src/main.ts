@@ -1,24 +1,23 @@
 import type { TFile } from "obsidian";
 import { Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
-import type { QuickAddSettings } from "./quickAddSettingsTab";
-import { log } from "./logger/logManager";
+import { ChoiceExecutor } from "./choiceExecutor";
+import { StartupMacroEngine } from "./engine/StartupMacroEngine";
+import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
+import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
-import { LogManager } from "./logger/logManager";
-import { reportError } from "./utils/errorUtils";
-import { StartupMacroEngine } from "./engine/StartupMacroEngine";
-import { ChoiceExecutor } from "./choiceExecutor";
+import { LogManager, log } from "./logger/logManager";
+import migrate from "./migrations/migrate";
+import { QuickAddApi } from "./quickAddApi";
+import type { QuickAddSettings } from "./quickAddSettingsTab";
+import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
+import { settingsStore } from "./settingsStore";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import { deleteObsidianCommand } from "./utilityObsidian";
-import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
-import { QuickAddApi } from "./quickAddApi";
-import migrate from "./migrations/migrate";
-import { settingsStore } from "./settingsStore";
-import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
-import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
+import { deleteObsidianCommand } from "./utilityObsidian";
+import { reportError } from "./utils/errorUtils";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
@@ -36,7 +35,11 @@ export default class QuickAdd extends Plugin {
 	private unsubscribeSettingsStore: () => void;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
-		return QuickAddApi.GetApi(this.app, this, new ChoiceExecutor(this.app, this));
+		return QuickAddApi.GetApi(
+			this.app,
+			this,
+			new ChoiceExecutor(this.app, this),
+		);
 	}
 
 	async onload() {
@@ -74,7 +77,9 @@ export default class QuickAdd extends Plugin {
 
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
-		cache.startAutomaticCleanup((intervalId) => this.registerInterval(intervalId));
+		cache.startAutomaticCleanup((intervalId) =>
+			this.registerInterval(intervalId),
+		);
 
 		this.addCommand({
 			id: "testQuickAdd",
@@ -116,8 +121,10 @@ export default class QuickAdd extends Plugin {
 
 			if (!choice) {
 				reportError(
-					new Error(`URI could not find any choice named '${parameters.choice}'`),
-					"URI handler error"
+					new Error(
+						`URI could not find any choice named '${parameters.choice}'`,
+					),
+					"URI handler error",
 				);
 				return;
 			}
@@ -149,7 +156,7 @@ export default class QuickAdd extends Plugin {
 		this.addCommandsForChoices(this.settings.choices);
 
 		await migrate(this);
-		
+
 		// Run startup macros after migrations are complete
 		const launchStartupMacros = () =>
 			new StartupMacroEngine(
@@ -170,9 +177,9 @@ export default class QuickAdd extends Plugin {
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
 		this.unsubscribeSettingsStore?.call(this);
-		
+
 		// Clear the error log to prevent memory leaks
-		LogManager.loggers.forEach(logger => {
+		LogManager.loggers.forEach((logger) => {
 			if (logger instanceof ConsoleErrorLogger) {
 				logger.clearErrorLog();
 			}
@@ -184,7 +191,6 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async loadSettings() {
-		 
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
@@ -204,11 +210,18 @@ export default class QuickAdd extends Plugin {
 		}
 
 		if (choice.command) {
+			const choiceId = choice.id;
+
 			this.addCommand({
-				id: `choice:${choice.id}`,
+				id: `choice:${choiceId}`,
 				name: choice.name,
 				callback: async () => {
-					await new ChoiceExecutor(this.app, this).execute(choice);
+					try {
+						const current = this.getChoiceById(choiceId);
+						await new ChoiceExecutor(this.app, this).execute(current);
+					} catch (err) {
+						reportError(err, `Error executing choice ${choiceId}`);
+					}
 				},
 			});
 		}
