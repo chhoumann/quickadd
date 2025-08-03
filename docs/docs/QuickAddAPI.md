@@ -111,12 +111,13 @@ await quickAddApi.infoDialog(
 );
 ```
 
-### `suggester(displayItems: string[] | Function, actualItems: string[]): Promise<string>`
+### `suggester(displayItems: string[] | Function, actualItems: string[], placeholder?: string): Promise<string>`
 Opens a selection prompt with searchable options.
 
 **Parameters:**
 - `displayItems`: Array of display strings OR a map function
 - `actualItems`: Array of actual values to return
+- `placeholder`: (Optional) Placeholder text shown in the suggester
 
 **Returns:** Promise resolving to the selected value, or `null` if cancelled
 
@@ -127,6 +128,15 @@ Basic usage:
 const fruit = await quickAddApi.suggester(
     ["🍎 Apple", "🍌 Banana", "🍊 Orange"],
     ["apple", "banana", "orange"]
+);
+```
+
+With placeholder text:
+```javascript
+const fruit = await quickAddApi.suggester(
+    ["🍎 Apple", "🍌 Banana", "🍊 Orange"],
+    ["apple", "banana", "orange"],
+    "Choose your favorite fruit"
 );
 ```
 
@@ -148,7 +158,8 @@ const tasks = [
 
 const selectedTask = await quickAddApi.suggester(
     task => `${task.title} (${task.priority})`,
-    tasks
+    tasks,
+    "Select a task to edit"
 );
 ```
 
