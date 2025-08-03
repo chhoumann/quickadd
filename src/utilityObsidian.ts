@@ -280,21 +280,6 @@ export type FileViewMode2 = FileViewModeNew;
 export type OpenFileOptions = FileOpenOptions;
 
 /**
- * Helper to convert legacy file opening settings to new OpenFileOptions
- */
-export function toLegacyOpenFileOptions(
-	oldTab: { enabled: boolean; direction: NewTabDirection; focus: boolean },
-	oldMode: FileViewMode,
-	newOptions?: FileOpenOptions
-): FileOpenOptions {
-	if (newOptions) {
-		return newOptions;
-	}
-	
-	return getInitialFileOpening(oldTab, oldMode);
-}
-
-/**
  * Create initial fileOpening settings from legacy values
  */
 export function getInitialFileOpening(
@@ -412,30 +397,6 @@ export async function openFile(
   }
 
   return leaf;
-}
-
-/**
- * @deprecated Legacy openFile function for backward compatibility.
- * Use the new openFile function with OpenFileOptions instead.
- */
-export async function openFileLegacy(
-	app: App,
-	file: TFile,
-	optional: {
-		openInNewTab?: boolean;
-		direction?: NewTabDirection;
-		mode?: FileViewMode;
-		focus?: boolean;
-	} = {},
-): Promise<void> {
-	const options: FileOpenOptions = {
-		location: optional.openInNewTab ? "split" : "tab",
-		direction: optional.direction === "horizontal" ? "horizontal" : "vertical",
-		mode: optional.mode as FileViewModeNew,
-		focus: optional.focus,
-	};
-	
-	await openFile(app, file, options);
 }
 
 /**

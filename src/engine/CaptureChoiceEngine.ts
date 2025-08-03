@@ -19,7 +19,6 @@ import {
 	openExistingFileTab,
 	openFile,
 	overwriteTemplaterOnce,
-	toLegacyOpenFileOptions,
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
@@ -152,13 +151,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				const openExistingTab = openExistingFileTab(this.app, file);
 
 				if (!openExistingTab) {
-					// Use helper to convert legacy to new options
-					const options = toLegacyOpenFileOptions(
-						this.choice.openFileInNewTab,
-						this.choice.openFileInMode,
-						this.choice.fileOpening
-					);
-					await openFile(this.app, file, options);
+					// Migration ensures fileOpening always exists
+					await openFile(this.app, file, this.choice.fileOpening!);
 				}
 			}
 		} catch (err) {

@@ -21,7 +21,6 @@ import {
 	insertLinkWithPlacement,
 	openExistingFileTab,
 	openFile,
-	toLegacyOpenFileOptions,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { TemplateEngine } from "./TemplateEngine";
@@ -157,13 +156,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const openExistingTab = openExistingFileTab(this.app, createdFile);
 
 				if (!openExistingTab) {
-					// Use helper to convert legacy to new options
-					const options = toLegacyOpenFileOptions(
-						this.choice.openFileInNewTab,
-						this.choice.openFileInMode,
-						this.choice.fileOpening
-					);
-					await openFile(this.app, createdFile, options);
+					// Migration ensures fileOpening always exists
+					await openFile(this.app, createdFile, this.choice.fileOpening!);
 				}
 			}
 		} catch (err) {
