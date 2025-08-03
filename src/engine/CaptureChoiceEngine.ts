@@ -49,22 +49,32 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	) {
 		if (!this.plugin.settings.showCaptureNotification) return;
 
+		const fileName = `'${file.basename}'`;
+		
+		if (wasNewFile) {
+			new Notice(`Created ${fileName}`, 4000);
+			return;
+		}
+
 		let msg = "";
 		switch (action) {
 			case "currentLine":
-				msg = `Captured to current line in ${file.basename}`;
+				msg = `Captured to current line in ${fileName}`;
 				break;
 			case "prepend":
-				msg = `Prepended capture to ${file.basename}`;
+				msg = `Captured to top of ${fileName}`;
 				break;
 			case "append":
-				msg = `Appended capture to ${file.basename}`;
+				msg = `Captured to ${fileName}`;
 				break;
 			case "insertAfter":
-				msg = `Inserted capture in ${file.basename}`;
+				const heading = this.choice.insertAfter.after;
+				msg = heading 
+					? `Captured to ${fileName} under '${heading}'`
+					: `Captured to ${fileName}`;
 				break;
 		}
-		if (wasNewFile) msg = `Created ${file.basename} and ${msg.toLowerCase()}`;
+		
 		new Notice(msg, 4000);
 	}
 
