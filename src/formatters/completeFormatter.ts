@@ -142,7 +142,7 @@ export class CompleteFormatter extends Formatter {
 		return await GenericSuggester.Suggest(
 			this.app,
 			suggestedValues,
-			suggestedValues,
+			suggestedValues
 		);
 	}
 

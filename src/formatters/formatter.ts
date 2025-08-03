@@ -171,6 +171,8 @@ export abstract class Formatter {
 
 	protected abstract getCurrentFileLink(): string | null;
 
+
+
 	protected async replaceVariableInString(input: string) {
 		let output: string = input;
 
