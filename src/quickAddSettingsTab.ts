@@ -21,6 +21,7 @@ export interface QuickAddSettings {
 	 */
 	disableOnlineFeatures: boolean;
 	enableRibbonIcon: boolean;
+	showCaptureNotification: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -48,6 +49,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	version: "0.0.0",
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
+	showCaptureNotification: true,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -87,6 +89,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addUseMultiLineInputPromptSetting();
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
+		this.addShowCaptureNotificationSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
 	}
@@ -101,6 +104,20 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			toggle.setValue(settingsStore.getState().announceUpdates);
 			toggle.onChange((value) => {
 				settingsStore.setState({ announceUpdates: value });
+			});
+		});
+	}
+
+	addShowCaptureNotificationSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Show Capture Notifications");
+		setting.setDesc(
+			"Display a notification when content is captured successfully to confirm the operation completed."
+		);
+		setting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().showCaptureNotification);
+			toggle.onChange((value) => {
+				settingsStore.setState({ showCaptureNotification: value });
 			});
 		});
 	}

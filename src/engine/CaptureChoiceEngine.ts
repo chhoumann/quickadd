@@ -1,6 +1,8 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
+import { Notice } from "obsidian";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
+import { getCaptureAction, type CaptureAction } from "./captureAction";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
@@ -25,6 +27,8 @@ import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 
+const DEFAULT_NOTICE_DURATION = 4000;
+
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
 	private formatter: CaptureChoiceFormatter;
@@ -42,6 +46,39 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 	}
 
+	private showSuccessNotice(
+		file: TFile,
+		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction }
+	) {
+		const fileName = `'${file.basename}'`;
+		
+		if (wasNewFile) {
+			new Notice(`Created and captured to ${fileName}`, DEFAULT_NOTICE_DURATION);
+			return;
+		}
+
+		let msg = "";
+		switch (action) {
+			case "currentLine":
+				msg = `Captured to current line in ${fileName}`;
+				break;
+			case "prepend":
+				msg = `Captured to top of ${fileName}`;
+				break;
+			case "append":
+				msg = `Captured to ${fileName}`;
+				break;
+			case "insertAfter":
+				const heading = this.choice.insertAfter.after;
+				msg = heading 
+					? `Captured to ${fileName} under '${heading}'`
+					: `Captured to ${fileName}`;
+				break;
+		}
+		
+		new Notice(msg, DEFAULT_NOTICE_DURATION);
+	}
+
 	async run(): Promise<void> {
 		try {
 			const filePath = await this.getFormattedPathToCaptureTo(
@@ -50,8 +87,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const content = this.getCaptureContent();
 
 			let getFileAndAddContentFn: typeof this.onFileExists;
+			const fileAlreadyExists = await this.fileExists(filePath);
 
-			if (await this.fileExists(filePath)) {
+			if (fileAlreadyExists) {
 				getFileAndAddContentFn = this.onFileExists.bind(
 					this,
 				) as typeof this.onFileExists;
@@ -82,6 +120,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 				await overwriteTemplaterOnce(this.app, file);
+			}
+
+			// Show success notification
+			if (this.plugin.settings.showCaptureNotification) {
+				const action = getCaptureAction(this.choice);
+				this.showSuccessNotice(file, { wasNewFile: !fileAlreadyExists, action });
 			}
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
