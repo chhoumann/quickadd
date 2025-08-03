@@ -395,7 +395,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				location: command.openInNewTab ? "split" : "tab",
 				direction: command.direction === "horizontal" ? "horizontal" : "vertical",
 				focus: true,
-				mode: "source",
+				mode: "default",
 			});
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
