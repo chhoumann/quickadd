@@ -1,23 +1,25 @@
+/** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
 import type { TFile } from "obsidian";
 import { Plugin } from "obsidian";
-import { ChoiceExecutor } from "./choiceExecutor";
-import { StartupMacroEngine } from "./engine/StartupMacroEngine";
-import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
-import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
-import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
+import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
+import type { QuickAddSettings } from "./quickAddSettingsTab";
+import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
-import { LogManager, log } from "./logger/logManager";
-import migrate from "./migrations/migrate";
-import { QuickAddApi } from "./quickAddApi";
-import type { QuickAddSettings } from "./quickAddSettingsTab";
-import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
-import { settingsStore } from "./settingsStore";
+import { LogManager } from "./logger/logManager";
+import { reportError } from "./utils/errorUtils";
+import { StartupMacroEngine } from "./engine/StartupMacroEngine";
+import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import { CommandType } from "./types/macros/CommandType";
 import { deleteObsidianCommand } from "./utilityObsidian";
-import { reportError } from "./utils/errorUtils";
+import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { QuickAddApi } from "./quickAddApi";
+import migrate from "./migrations/migrate";
+import { settingsStore } from "./settingsStore";
+import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
+import { CommandType } from "./types/macros/CommandType";
+import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
