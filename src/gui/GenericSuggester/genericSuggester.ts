@@ -7,8 +7,11 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	public promise: Promise<T>;
 	private resolved: boolean;
 
-	public static Suggest<T>(app: App, displayItems: string[], items: T[]) {
+	public static Suggest<T>(app: App, displayItems: string[], items: T[], placeholder?: string) {
 		const newSuggester = new GenericSuggester(app, displayItems, items);
+		if (placeholder) {
+			newSuggester.setPlaceholder(placeholder);
+		}
 		return newSuggester.promise;
 	}
 

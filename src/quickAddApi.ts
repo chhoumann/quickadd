@@ -61,9 +61,10 @@ export class QuickAddApi {
 							index?: number,
 							arr?: string[]
 					  ) => string[]),
-				actualItems: string[]
+				actualItems: string[],
+				placeholder?: string
 			) => {
-				return this.suggester(app, displayItems, actualItems);
+				return this.suggester(app, displayItems, actualItems, placeholder);
 			},
 			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
 				return this.checkboxPrompt(app, items, selectedItems);
@@ -452,7 +453,8 @@ export class QuickAddApi {
 		displayItems:
 			| string[]
 			| ((value: string, index?: number, arr?: string[]) => string[]),
-		actualItems: string[]
+		actualItems: string[],
+		placeholder?: string
 	) {
 		try {
 			let displayedItems;
@@ -466,7 +468,8 @@ export class QuickAddApi {
 			return await GenericSuggester.Suggest(
 				app,
 				displayedItems as string[],
-				actualItems
+				actualItems,
+				placeholder
 			);
 		} catch {
 			return undefined;
