@@ -1,15 +1,15 @@
-import { CompleteFormatter } from "./completeFormatter";
-import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { MarkdownView, type TFile } from "obsidian";
-import { log } from "../logger/logManager";
-import { reportError } from "../utils/errorUtils";
-import { templaterParseTemplate } from "../utilityObsidian";
+import { getLinesInString } from "src/utility";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
-import { escapeRegExp, getLinesInString } from "src/utility";
+import { log } from "../logger/logManager";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { templaterParseTemplate } from "../utilityObsidian";
+import { reportError } from "../utils/errorUtils";
+import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
@@ -37,7 +37,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		// Process templater here if we're using insert after or prepend or not capturing to active file
 		// This is needed because in these cases, the content won't be processed by templaterParseTemplate in CaptureChoiceEngine
-		const shouldRunTemplater = choice.insertAfter.enabled || choice.prepend || !choice.captureToActiveFile;
+		const shouldRunTemplater =
+			choice.insertAfter.enabled ||
+			choice.prepend ||
+			!choice.captureToActiveFile;
 		const formatted = await this.formatFileContent(input, shouldRunTemplater);
 		return formatted;
 	}
@@ -74,16 +77,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		if (this.choice.prepend) {
 			const shouldInsertLinebreak = !this.choice.task;
-			return `${this.fileContent}${
-				shouldInsertLinebreak ? "\n" : ""
-			}${formatted}`;
+			return `${this.fileContent}${shouldInsertLinebreak ? "\n" : ""
+				}${formatted}`;
 		}
 
 		if (this.choice.insertAfter.enabled) {
 			return (await this.insertAfterHandler(formatted)) as string;
 		}
 
-		 
 		const frontmatterEndPosition = this.file
 			? this.getFrontmatterEndPosition(this.file)
 			: null;
@@ -92,7 +93,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-			 
+
 			frontmatterEndPosition,
 		);
 	}
@@ -102,7 +103,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// This is the first pass where we want to run any templater code
 		let formatted = await super.formatFileContent(input);
 		formatted = this.replaceLinebreakInString(formatted);
-		
+
 		// DON'T run templater parsing here - it will be handled either by:
 		// 1. CaptureChoiceEngine.run() for the active file + no insert after + no prepend case
 		// 2. formatContentWithFile() for all other cases
@@ -114,18 +115,46 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return formatted;
 	}
 
+	private normalizeTarget(target: string): string {
+		return target.replace("\\n", "").trimEnd();
+	}
+
+	private findInsertAfterIndex(lines: string[], rawTarget: string): number {
+		const target = this.normalizeTarget(rawTarget);
+		let partialIndex = -1;
+
+		for (let i = 0; i < lines.length; i++) {
+			// Trim only left whitespace to preserve indentation alignment
+			const line = lines[i].trimStart();
+
+			// 1. Exact match wins immediately
+			if (line === target) return i;
+
+			// 2. Check for regex-compatible match (target + only whitespace suffix)
+			if (line.startsWith(target)) {
+				const suffix = line.slice(target.length);
+				// If suffix is only whitespace, this matches old regex behavior exactly
+				if (/^\s*$/.test(suffix)) return i;
+				
+				// Remember first broader prefix match as fallback
+				if (partialIndex === -1) {
+					partialIndex = i;
+				}
+			}
+		}
+
+		return partialIndex; // -1 if no match at all
+	}
+
 	private async insertAfterHandler(formatted: string) {
 		const targetString: string = await this.format(
 			this.choice.insertAfter.after,
 		);
 
-		const targetRegex = new RegExp(
-			`\\s*${escapeRegExp(targetString.replace("\\n", ""))}\\s*`,
-		);
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-
-		let targetPosition = fileContentLines.findIndex((line) =>
-			targetRegex.test(line),
+		let targetPosition = this.findInsertAfterIndex(
+			fileContentLines,
+			targetString,
 		);
 		const targetNotFound = targetPosition === -1;
 		if (targetNotFound) {
@@ -133,7 +162,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return await this.createInsertAfterIfNotFound(formatted);
 			}
 
-			reportError(new Error("Unable to find insert after line in file"), "Insert After Error");
+			reportError(
+				new Error("Unable to find insert after line in file"),
+				"Insert After Error",
+			);
 		}
 
 		if (this.choice.insertAfter?.insertAtEnd) {
@@ -165,14 +197,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			 
 			const frontmatterEndPosition = this.file
 				? this.getFrontmatterEndPosition(this.file)
 				: -1;
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
 				this.fileContent,
-				 
+
 				frontmatterEndPosition,
 			);
 		}
@@ -222,8 +253,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return newFileContent;
 			} catch (err) {
 				reportError(
-					err, 
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`
+					err,
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`,
 				);
 			}
 		}
@@ -238,7 +269,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		if (fileCache.frontmatterPosition) {
-			 
 			return fileCache.frontmatterPosition.end.line;
 		}
 
