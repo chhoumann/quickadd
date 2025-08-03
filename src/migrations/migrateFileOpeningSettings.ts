@@ -4,6 +4,7 @@ import type { Migration } from "./Migrations";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { NewTabDirection } from "../types/newTabDirection";
+import { getInitialFileOpening } from "../utilityObsidian";
 
 const migrateFileOpeningSettings: Migration = {
 	description: "Migrate legacy openFileInNewTab settings to new fileOpening format",
@@ -28,12 +29,10 @@ const migrateFileOpeningSettings: Migration = {
 					}
 					
 					// Create new fileOpening settings from legacy ones
-					templateOrCaptureChoice.fileOpening = {
-						location: templateOrCaptureChoice.openFileInNewTab.enabled ? "split" : "tab",
-						direction: templateOrCaptureChoice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
-						mode: templateOrCaptureChoice.openFileInMode === "default" ? "default" : (templateOrCaptureChoice.openFileInMode || "source") as any,
-						focus: templateOrCaptureChoice.openFileInNewTab.focus,
-					};
+					templateOrCaptureChoice.fileOpening = getInitialFileOpening(
+						templateOrCaptureChoice.openFileInNewTab,
+						templateOrCaptureChoice.openFileInMode
+					);
 					
 					migratedCount++;
 					log.logMessage(`Migrated file opening settings for choice: ${choice.name}`);

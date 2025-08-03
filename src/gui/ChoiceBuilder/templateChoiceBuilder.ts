@@ -13,7 +13,7 @@ import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { getAllFolderPathsInVault, getInitialFileOpening } from "../../utilityObsidian";
 import type QuickAdd from "../../main";
 import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -386,12 +386,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private addFileOpeningSetting(): void {
 		// Initialize fileOpening settings if not present
 		if (!this.choice.fileOpening) {
-			this.choice.fileOpening = {
-				location: this.choice.openFileInNewTab.enabled ? "split" : "tab",
-				direction: this.choice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
-				mode: this.choice.openFileInMode as any || "source",
-				focus: this.choice.openFileInNewTab.focus ?? true,
-			};
+			this.choice.fileOpening = getInitialFileOpening(
+				this.choice.openFileInNewTab,
+				this.choice.openFileInMode
+			);
 		}
 
 		// Location setting

@@ -23,6 +23,7 @@ import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { log } from "src/logger/logManager";
+import { getInitialFileOpening } from "../../utilityObsidian";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
@@ -489,12 +490,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				};
 			}
 			
-			this.choice.fileOpening = {
-				location: this.choice.openFileInNewTab.enabled ? "split" : "tab",
-				direction: this.choice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
-				mode: this.choice.openFileInMode as any || "source",
-				focus: this.choice.openFileInNewTab.focus ?? true,
-			};
+			this.choice.fileOpening = getInitialFileOpening(
+				this.choice.openFileInNewTab,
+				this.choice.openFileInMode
+			);
 		}
 
 		// Location setting

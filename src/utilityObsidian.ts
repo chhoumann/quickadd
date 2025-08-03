@@ -291,11 +291,22 @@ export function toLegacyOpenFileOptions(
 		return newOptions;
 	}
 	
+	return getInitialFileOpening(oldTab, oldMode);
+}
+
+/**
+ * Create initial fileOpening settings from legacy values
+ */
+export function getInitialFileOpening(
+	oldTab: { enabled: boolean; direction: NewTabDirection; focus: boolean },
+	oldMode: FileViewMode
+): Required<FileOpenOptions> {
 	return {
 		location: oldTab.enabled ? "split" : "tab",
 		direction: oldTab.direction === "horizontal" ? "horizontal" : "vertical",
 		focus: oldTab.focus ?? true,
 		mode: oldMode === "default" ? "default" : oldMode as FileViewModeNew,
+		eState: undefined,
 	};
 }
 
