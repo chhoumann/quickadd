@@ -3,6 +3,7 @@ import type { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
 import type { fileExistsChoices } from "src/constants";
 import type { AppendLinkOptions } from "../linkPlacement";
+import type { OpenLocation, FileViewMode2 } from "../../utilityObsidian";
 
 export default interface ITemplateChoice extends IChoice {
 	templatePath: string;
@@ -27,6 +28,13 @@ export default interface ITemplateChoice extends IChoice {
 		focus: boolean;
 	};
 	openFileInMode: FileViewMode;
+	/** New flexible file opening options */
+	fileOpening?: {
+		location: OpenLocation;
+		direction: "vertical" | "horizontal";
+		mode: FileViewMode2;
+		focus: boolean;
+	};
 	fileExistsMode: (typeof fileExistsChoices)[number];
 	setFileExistsBehavior: boolean;
 }

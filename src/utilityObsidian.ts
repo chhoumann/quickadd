@@ -3,6 +3,7 @@ import type {
 	TAbstractFile,
 	WorkspaceLeaf,
 	CachedMetadata,
+	SplitDirection,
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
 import type { NewTabDirection } from "./types/newTabDirection";
@@ -269,7 +270,140 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 	};
 }
 
+/** Where to open the file */
+export type OpenLocation =
+  | "reuse"         // reuse a navigable leaf
+  | "tab"           // new tab in the active pane
+  | "split"         // split from the active pane
+  | "window"        // new popout window
+  | "left-sidebar"  // new leaf in the left sidebar
+  | "right-sidebar";// new leaf in the right sidebar
+
+/** View mode: accept simple tags or full state */
+export type FileViewMode2 =
+  | "preview"              // Reading view
+  | "source"               // Source mode (raw Markdown)
+  | "live" | "live-preview"// Live Preview (source=false)
+  | { mode: "preview" }
+  | { mode: "source"; source: boolean }; // advanced override
+
+export interface OpenFileOptions {
+  location?: OpenLocation;           // default: "tab"
+  direction?: SplitDirection;        // for location="split" only
+  mode?: FileViewMode2;              // default: leave as-is
+  focus?: boolean;                   // default: true
+  /** Optional ephemeral state passed to setViewState */
+  eState?: any;
+}
+
+/**
+ * Open a file (by TFile or vault path) with precise control over location and mode.
+ * 
+ * @example
+ * // Open in a new tab
+ * await openFile(app, "daily/2024-01-01.md", { location: "tab" });
+ * 
+ * @example
+ * // Split vertically in source mode
+ * await openFile(app, file, { 
+ *   location: "split", 
+ *   direction: "vertical", 
+ *   mode: "source" 
+ * });
+ * 
+ * @example
+ * // Open in sidebar without focus
+ * await openFile(app, file, { 
+ *   location: "right-sidebar", 
+ *   focus: false 
+ * });
+ * 
+ * @returns The leaf it opened into.
+ */
 export async function openFile(
+  app: App,
+  fileOrPath: TFile | string,
+  options: OpenFileOptions = {}
+): Promise<WorkspaceLeaf> {
+  const {
+    location = "tab",
+    direction = "vertical",
+    mode,
+    focus = true,
+    eState,
+  } = options;
+
+  const file =
+    typeof fileOrPath === "string"
+      ? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
+      : fileOrPath;
+
+  if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
+
+  // Resolve a target leaf for all supported locations
+  let leaf: WorkspaceLeaf | null;
+  switch (location) {
+    case "reuse":
+      leaf = app.workspace.getLeaf(false);
+      break;
+    case "tab":
+      leaf = app.workspace.getLeaf("tab");
+      break;
+    case "split":
+      leaf = app.workspace.getLeaf("split", direction);
+      break;
+    case "window":
+      leaf = app.workspace.getLeaf("window");
+      break;
+    case "left-sidebar":
+      leaf = app.workspace.getLeftLeaf(true);
+      break;
+    case "right-sidebar":
+      leaf = app.workspace.getRightLeaf(true);
+      break;
+    default:
+      leaf = app.workspace.getLeaf("tab");
+  }
+  if (!leaf) throw new Error("Could not obtain a workspace leaf.");
+
+  // Open the file
+  await leaf.openFile(file);
+
+  // Optionally adjust view mode (Reading / Live Preview / Source)
+  if (mode) {
+    const vs = leaf.getViewState();
+    const next = { ...(vs.state ?? {}) };
+
+    if (mode === "preview" || (typeof mode === "object" && mode.mode === "preview")) {
+      next.mode = "preview";
+      delete (next as any).source;
+    } else if (mode === "source") {
+      next.mode = "source";
+      (next as any).source = true;
+    } else if (mode === "live" || mode === "live-preview") {
+      next.mode = "source";
+      (next as any).source = false; // Live Preview = source:false
+    } else if (typeof mode === "object" && mode.mode === "source") {
+      // advanced override
+      next.mode = "source";
+      (next as any).source = mode.source;
+    }
+
+    await leaf.setViewState({ ...vs, state: next }, eState);
+  }
+
+  if (focus) {
+    app.workspace.setActiveLeaf(leaf, { focus: true });
+  }
+
+  return leaf;
+}
+
+/**
+ * @deprecated Legacy openFile function for backward compatibility.
+ * Use the new openFile function with OpenFileOptions instead.
+ */
+export async function openFileLegacy(
 	app: App,
 	file: TFile,
 	optional: {
@@ -277,34 +411,16 @@ export async function openFile(
 		direction?: NewTabDirection;
 		mode?: FileViewMode;
 		focus?: boolean;
-	},
-) {
-	let leaf: WorkspaceLeaf;
-
-	if (optional.openInNewTab && optional.direction) {
-		leaf = app.workspace.getLeaf("split", optional.direction);
-	} else {
-		leaf = app.workspace.getLeaf("tab");
-	}
-
-	await leaf.openFile(file);
-
-	if (optional?.focus) {
-		app.workspace.setActiveLeaf(leaf, { focus: optional.focus });
-	}
-
-	if (optional?.mode) {
-		const leafViewState = leaf.getViewState();
-
-		await leaf.setViewState({
-			...leafViewState,
-			 
-			state: {
-				...leafViewState.state,
-				mode: optional.mode,
-			},
-		});
-	}
+	} = {},
+): Promise<void> {
+	const options: OpenFileOptions = {
+		location: optional.openInNewTab ? "split" : "tab",
+		direction: optional.direction === "horizontal" ? "horizontal" : "vertical",
+		mode: optional.mode as FileViewMode2,
+		focus: optional.focus,
+	};
+	
+	await openFile(app, file, options);
 }
 
 /**

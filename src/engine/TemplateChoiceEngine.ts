@@ -156,12 +156,23 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const openExistingTab = openExistingFileTab(this.app, createdFile);
 
 				if (!openExistingTab) {
-					await openFile(this.app, createdFile, {
-						openInNewTab: this.choice.openFileInNewTab.enabled,
-						direction: this.choice.openFileInNewTab.direction,
-						focus: this.choice.openFileInNewTab.focus,
-						mode: this.choice.openFileInMode,
-					});
+					// Use new fileOpening settings if available, otherwise fall back to legacy settings
+					if (this.choice.fileOpening) {
+						await openFile(this.app, createdFile, {
+							location: this.choice.fileOpening.location,
+							direction: this.choice.fileOpening.direction,
+							focus: this.choice.fileOpening.focus,
+							mode: this.choice.fileOpening.mode,
+						});
+					} else {
+						// Legacy fallback with sensible defaults
+						await openFile(this.app, createdFile, {
+							location: this.choice.openFileInNewTab.enabled ? "split" : "tab",
+							direction: this.choice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
+							focus: this.choice.openFileInNewTab.focus ?? true,
+							mode: this.choice.openFileInMode as any ?? "source",
+						});
+					}
 				}
 			}
 		} catch (err) {
