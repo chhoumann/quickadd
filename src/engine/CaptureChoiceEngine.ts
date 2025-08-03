@@ -52,7 +52,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const fileName = `'${file.basename}'`;
 		
 		if (wasNewFile) {
-			new Notice(`Created ${fileName}`, 4000);
+			new Notice(`Created and captured to ${fileName}`, 4000);
 			return;
 		}
 
