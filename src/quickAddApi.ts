@@ -2,6 +2,7 @@ import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
+import InputSuggester from "./gui/InputSuggester/inputSuggester";
 import type { App } from "obsidian";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
@@ -62,9 +63,10 @@ export class QuickAddApi {
 							arr?: string[]
 					  ) => string[]),
 				actualItems: string[],
-				placeholder?: string
+				placeholder?: string,
+				allowCustomInput = false
 			) => {
-				return this.suggester(app, displayItems, actualItems, placeholder);
+				return this.suggester(app, displayItems, actualItems, placeholder, allowCustomInput);
 			},
 			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
 				return this.checkboxPrompt(app, items, selectedItems);
@@ -454,7 +456,8 @@ export class QuickAddApi {
 			| string[]
 			| ((value: string, index?: number, arr?: string[]) => string[]),
 		actualItems: string[],
-		placeholder?: string
+		placeholder?: string,
+		allowCustomInput = false
 	) {
 		try {
 			let displayedItems;
@@ -463,6 +466,15 @@ export class QuickAddApi {
 				displayedItems = actualItems.map(displayItems);
 			} else {
 				displayedItems = displayItems;
+			}
+
+			if (allowCustomInput) {
+				return await InputSuggester.Suggest(
+					app,
+					displayedItems as string[],
+					actualItems,
+					placeholder ? { placeholder } : {}
+				);
 			}
 
 			return await GenericSuggester.Suggest(
