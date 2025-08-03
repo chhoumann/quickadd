@@ -2,7 +2,7 @@ import type IChoice from "./IChoice";
 import type { NewTabDirection } from "../newTabDirection";
 import type { FileViewMode } from "../fileViewMode";
 import type { AppendLinkOptions } from "../linkPlacement";
-import type { OpenLocation, FileViewMode2 } from "../../utilityObsidian";
+import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
 export default interface ICaptureChoice extends IChoice {
 	captureTo: string;
@@ -30,12 +30,14 @@ export default interface ICaptureChoice extends IChoice {
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
 	};
+	/** @deprecated Use fileOpening.location instead */
 	openFileInNewTab: {
 		enabled: boolean;
 		direction: NewTabDirection;
 		focus: boolean;
 	};
 	openFile: boolean;
+	/** @deprecated Use fileOpening.mode instead */
 	openFileInMode: FileViewMode;
 	/** New flexible file opening options */
 	fileOpening?: {

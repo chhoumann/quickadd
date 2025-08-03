@@ -3,7 +3,6 @@ import type {
 	TAbstractFile,
 	WorkspaceLeaf,
 	CachedMetadata,
-	SplitDirection,
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
 import type { NewTabDirection } from "./types/newTabDirection";
@@ -18,6 +17,11 @@ import { log } from "./logger/logManager";
 import { reportError } from "./utils/errorUtils";
 import { NLDParser } from "./parsers/NLDParser";
 import type { LinkPlacement } from "./types/linkPlacement";
+import type { 
+	OpenLocation as FileOpenLocation, 
+	FileViewMode2 as FileViewModeNew, 
+	OpenFileOptions as FileOpenOptions 
+} from "./types/fileOpening";
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -270,30 +274,29 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 	};
 }
 
-/** Where to open the file */
-export type OpenLocation =
-  | "reuse"         // reuse a navigable leaf
-  | "tab"           // new tab in the active pane
-  | "split"         // split from the active pane
-  | "window"        // new popout window
-  | "left-sidebar"  // new leaf in the left sidebar
-  | "right-sidebar";// new leaf in the right sidebar
+// Re-export types for convenience
+export type OpenLocation = FileOpenLocation;
+export type FileViewMode2 = FileViewModeNew;
+export type OpenFileOptions = FileOpenOptions;
 
-/** View mode: accept simple tags or full state */
-export type FileViewMode2 =
-  | "preview"              // Reading view
-  | "source"               // Source mode (raw Markdown)
-  | "live" | "live-preview"// Live Preview (source=false)
-  | { mode: "preview" }
-  | { mode: "source"; source: boolean }; // advanced override
-
-export interface OpenFileOptions {
-  location?: OpenLocation;           // default: "tab"
-  direction?: SplitDirection;        // for location="split" only
-  mode?: FileViewMode2;              // default: leave as-is
-  focus?: boolean;                   // default: true
-  /** Optional ephemeral state passed to setViewState */
-  eState?: any;
+/**
+ * Helper to convert legacy file opening settings to new OpenFileOptions
+ */
+export function toLegacyOpenFileOptions(
+	oldTab: { enabled: boolean; direction: NewTabDirection; focus: boolean },
+	oldMode: FileViewMode,
+	newOptions?: FileOpenOptions
+): FileOpenOptions {
+	if (newOptions) {
+		return newOptions;
+	}
+	
+	return {
+		location: oldTab.enabled ? "split" : "tab",
+		direction: oldTab.direction === "horizontal" ? "horizontal" : "vertical",
+		focus: oldTab.focus ?? true,
+		mode: oldMode === "default" ? "default" : oldMode as FileViewModeNew,
+	};
 }
 
 /**
@@ -323,7 +326,7 @@ export interface OpenFileOptions {
 export async function openFile(
   app: App,
   fileOrPath: TFile | string,
-  options: OpenFileOptions = {}
+  options: FileOpenOptions = {}
 ): Promise<WorkspaceLeaf> {
   const {
     location = "tab",
@@ -370,7 +373,7 @@ export async function openFile(
   await leaf.openFile(file);
 
   // Optionally adjust view mode (Reading / Live Preview / Source)
-  if (mode) {
+  if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
     const vs = leaf.getViewState();
     const next = { ...(vs.state ?? {}) };
 
@@ -389,7 +392,8 @@ export async function openFile(
       (next as any).source = mode.source;
     }
 
-    await leaf.setViewState({ ...vs, state: next }, eState);
+    // Fix eState usage - merge into state rather than passing as second param
+    await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
   }
 
   if (focus) {
@@ -413,10 +417,10 @@ export async function openFileLegacy(
 		focus?: boolean;
 	} = {},
 ): Promise<void> {
-	const options: OpenFileOptions = {
+	const options: FileOpenOptions = {
 		location: optional.openInNewTab ? "split" : "tab",
 		direction: optional.direction === "horizontal" ? "horizontal" : "vertical",
-		mode: optional.mode as FileViewMode2,
+		mode: optional.mode as FileViewModeNew,
 		focus: optional.focus,
 	};
 	

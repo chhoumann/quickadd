@@ -21,6 +21,7 @@ import {
 	insertLinkWithPlacement,
 	openExistingFileTab,
 	openFile,
+	toLegacyOpenFileOptions,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { TemplateEngine } from "./TemplateEngine";
@@ -156,23 +157,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const openExistingTab = openExistingFileTab(this.app, createdFile);
 
 				if (!openExistingTab) {
-					// Use new fileOpening settings if available, otherwise fall back to legacy settings
-					if (this.choice.fileOpening) {
-						await openFile(this.app, createdFile, {
-							location: this.choice.fileOpening.location,
-							direction: this.choice.fileOpening.direction,
-							focus: this.choice.fileOpening.focus,
-							mode: this.choice.fileOpening.mode,
-						});
-					} else {
-						// Legacy fallback with sensible defaults
-						await openFile(this.app, createdFile, {
-							location: this.choice.openFileInNewTab.enabled ? "split" : "tab",
-							direction: this.choice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
-							focus: this.choice.openFileInNewTab.focus ?? true,
-							mode: this.choice.openFileInMode as any ?? "source",
-						});
-					}
+					// Use helper to convert legacy to new options
+					const options = toLegacyOpenFileOptions(
+						this.choice.openFileInNewTab,
+						this.choice.openFileInMode,
+						this.choice.fileOpening
+					);
+					await openFile(this.app, createdFile, options);
 				}
 			}
 		} catch (err) {

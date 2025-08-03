@@ -19,6 +19,7 @@ import {
 	openExistingFileTab,
 	openFile,
 	overwriteTemplaterOnce,
+	toLegacyOpenFileOptions,
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
@@ -151,23 +152,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				const openExistingTab = openExistingFileTab(this.app, file);
 
 				if (!openExistingTab) {
-					// Use new fileOpening settings if available, otherwise fall back to legacy settings
-					if (this.choice.fileOpening) {
-						await openFile(this.app, file, {
-							location: this.choice.fileOpening.location,
-							direction: this.choice.fileOpening.direction,
-							focus: this.choice.fileOpening.focus,
-							mode: this.choice.fileOpening.mode,
-						});
-					} else {
-						// Legacy fallback with sensible defaults
-						await openFile(this.app, file, {
-							location: this.choice.openFileInNewTab.enabled ? "split" : "tab",
-							direction: this.choice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
-							focus: this.choice.openFileInNewTab.focus ?? true,
-							mode: this.choice.openFileInMode as any ?? "source",
-						});
-					}
+					// Use helper to convert legacy to new options
+					const options = toLegacyOpenFileOptions(
+						this.choice.openFileInNewTab,
+						this.choice.openFileInMode,
+						this.choice.fileOpening
+					);
+					await openFile(this.app, file, options);
 				}
 			}
 		} catch (err) {

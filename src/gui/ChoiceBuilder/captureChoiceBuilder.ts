@@ -60,7 +60,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.addOpenFileSetting();
 
 			if (this.choice.openFile) {
-				this.addOpenFileInNewTabSetting();
+				this.addFileOpeningSetting();
 			}
 		}
 
@@ -464,26 +464,41 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				dropdown
 					.addOption("source", "Source")
 					.addOption("preview", "Preview")
+					.addOption("live", "Live Preview")
 					.addOption("default", "Default")
 					.setValue(this.choice.openFileInMode)
-					.onChange(
-						(value) => (this.choice.openFileInMode = value as FileViewMode),
-					);
+					.onChange((value) => {
+						this.choice.openFileInMode = value as FileViewMode;
+						// Sync with new fileOpening settings if they exist
+						if (this.choice.fileOpening) {
+							this.choice.fileOpening.mode = value as any;
+						}
+					});
 			});
 	}
 
-	private addOpenFileInNewTabSetting(): void {
+	private addFileOpeningSetting(): void {
 		// Initialize fileOpening settings if not present
 		if (!this.choice.fileOpening) {
+			// Ensure openFileInNewTab exists
+			if (!this.choice.openFileInNewTab) {
+				this.choice.openFileInNewTab = {
+					enabled: false,
+					direction: NewTabDirection.vertical,
+					focus: true,
+				};
+			}
+			
 			this.choice.fileOpening = {
-				location: "tab",
-				direction: "vertical",
-				mode: "source",
-				focus: true,
+				location: this.choice.openFileInNewTab.enabled ? "split" : "tab",
+				direction: this.choice.openFileInNewTab.direction === "horizontal" ? "horizontal" : "vertical",
+				mode: this.choice.openFileInMode as any || "source",
+				focus: this.choice.openFileInNewTab.focus ?? true,
 			};
 		}
 
-		new Setting(this.contentEl)
+		// Location setting
+		const locationSetting = new Setting(this.contentEl)
 			.setName("File Opening Location")
 			.setDesc("Where to open the captured file")
 			.addDropdown((dropdown) => {
@@ -499,55 +514,56 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						if (this.choice.fileOpening) {
 							this.choice.fileOpening.location = value;
 						}
+						// Re-render to show/hide conditional settings
+						this.reload();
 					});
 			});
 
-		new Setting(this.contentEl)
-			.setName("Split Direction")
-			.setDesc("Direction for split panes")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("vertical", "Vertical")
-					.addOption("horizontal", "Horizontal")
-					.setValue(this.choice.fileOpening?.direction || "vertical")
-					.onChange((value: any) => {
-						if (this.choice.fileOpening) {
-							this.choice.fileOpening.direction = value;
-						}
-					});
-			});
+		// Split direction - only show if location is "split"
+		if (this.choice.fileOpening?.location === "split") {
+			new Setting(this.contentEl)
+				.setName("Split Direction")
+				.setDesc("Direction for split panes")
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("vertical", "Vertical")
+						.addOption("horizontal", "Horizontal")
+						.setValue(this.choice.fileOpening?.direction || "vertical")
+						.onChange((value: any) => {
+							if (this.choice.fileOpening) {
+								this.choice.fileOpening.direction = value;
+							}
+						});
+				});
+		}
 
-		new Setting(this.contentEl)
-			.setName("View Mode")
-			.setDesc("How to display the opened file")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("source", "Source mode")
-					.addOption("preview", "Reading view")
-					.addOption("live", "Live preview")
-					.setValue(typeof this.choice.fileOpening?.mode === 'string' ? this.choice.fileOpening.mode : "source")
-					.onChange((value: string) => {
-						if (this.choice.fileOpening) {
-							this.choice.fileOpening.mode = value as any;
-						}
-					});
-			});
+		// Focus setting - only show for non-reuse locations
+		if (this.choice.fileOpening?.location !== "reuse") {
+			new Setting(this.contentEl)
+				.setName("Focus new pane")
+				.setDesc("Focus the opened tab immediately after opening")
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.choice.fileOpening?.focus || true)
+						.onChange((value) => {
+							if (this.choice.fileOpening) {
+								this.choice.fileOpening.focus = value;
+							}
+						}),
+				);
+		}
 
-		new Setting(this.contentEl)
-			.setName("Focus new pane")
-			.setDesc("Focus the opened tab immediately after opening")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.choice.fileOpening?.focus || true)
-					.onChange((value) => {
-						if (this.choice.fileOpening) {
-							this.choice.fileOpening.focus = value;
-						}
-					}),
-			);
-
-		// Keep legacy setting for backward compatibility
-		const legacySetting = new Setting(this.contentEl);
+		// Legacy settings in collapsible section
+		const legacyContainer = this.contentEl.createDiv();
+		const legacyDetails = legacyContainer.createEl("details");
+		const legacySummary = legacyDetails.createEl("summary", { 
+			text: "Legacy Settings (deprecated)",
+			attr: { style: "opacity: 0.7; font-size: 0.9em; cursor: pointer;" }
+		});
+		
+		const legacyContent = legacyDetails.createDiv();
+		
+		const legacySetting = new Setting(legacyContent);
 		legacySetting
 			.setName("Legacy: New Tab")
 			.setDesc("Legacy setting - use File Opening Location instead")
