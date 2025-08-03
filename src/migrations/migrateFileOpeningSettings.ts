@@ -5,8 +5,27 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type { MultiChoice } from "../types/choices/MultiChoice";
-import { NewTabDirection } from "../types/newTabDirection";
-import { getInitialFileOpening } from "../utilityObsidian";
+import type { FileViewMode2 } from "../types/fileOpening";
+
+/**
+ * Create fileOpening settings from legacy values (migration only)
+ */
+function createFileOpeningFromLegacy(
+	oldTab: { enabled: boolean; direction: string; focus: boolean },
+	oldMode: string
+): {
+	location: "split" | "tab";
+	direction: "vertical" | "horizontal";
+	mode: FileViewMode2;
+	focus: boolean;
+} {
+	return {
+		location: oldTab.enabled ? "split" : "tab",
+		direction: oldTab.direction === "horizontal" ? "horizontal" : "vertical",
+		focus: oldTab.focus ?? true,
+		mode: oldMode === "default" ? "default" : oldMode as FileViewMode2,
+	};
+}
 
 /**
  * Recursively walk through all choices, including nested Multi choices
@@ -63,19 +82,21 @@ const migrateFileOpeningSettings: Migration = {
 			const templateOrCaptureChoice = choice as ITemplateChoice | ICaptureChoice;
 			
 			// Only migrate if new fileOpening doesn't exist but legacy settings do
-			if (!templateOrCaptureChoice.fileOpening && templateOrCaptureChoice.openFileInNewTab) {
-				// Ensure openFileInNewTab has all required fields
-				if (!templateOrCaptureChoice.openFileInNewTab.direction) {
-					templateOrCaptureChoice.openFileInNewTab.direction = NewTabDirection.vertical;
-				}
-				if (templateOrCaptureChoice.openFileInNewTab.focus === undefined) {
-					templateOrCaptureChoice.openFileInNewTab.focus = true;
-				}
+			const legacyTab = (templateOrCaptureChoice as any).openFileInNewTab;
+			const legacyMode = (templateOrCaptureChoice as any).openFileInMode;
+			
+			if (!templateOrCaptureChoice.fileOpening && legacyTab) {
+				// Ensure legacy fields have defaults
+				const tabSettings = {
+					enabled: legacyTab.enabled ?? false,
+					direction: legacyTab.direction ?? "vertical",
+					focus: legacyTab.focus ?? true,
+				};
 				
 				// Create new fileOpening settings from legacy ones
-				templateOrCaptureChoice.fileOpening = getInitialFileOpening(
-					templateOrCaptureChoice.openFileInNewTab,
-					templateOrCaptureChoice.openFileInMode
+				templateOrCaptureChoice.fileOpening = createFileOpeningFromLegacy(
+					tabSettings,
+					legacyMode ?? "default"
 				);
 				
 				migratedCount++;

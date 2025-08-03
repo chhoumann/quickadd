@@ -5,9 +5,7 @@ import type {
 	CachedMetadata,
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
-import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
-import type { FileViewMode } from "./types/fileViewMode";
 import type { TemplateChoice } from "./types/choices/TemplateChoice";
 import type { MultiChoice } from "./types/choices/MultiChoice";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
@@ -279,21 +277,7 @@ export type OpenLocation = FileOpenLocation;
 export type FileViewMode2 = FileViewModeNew;
 export type OpenFileOptions = FileOpenOptions;
 
-/**
- * Create initial fileOpening settings from legacy values
- */
-export function getInitialFileOpening(
-	oldTab: { enabled: boolean; direction: NewTabDirection; focus: boolean },
-	oldMode: FileViewMode
-): Required<FileOpenOptions> {
-	return {
-		location: oldTab.enabled ? "split" : "tab",
-		direction: oldTab.direction === "horizontal" ? "horizontal" : "vertical",
-		focus: oldTab.focus ?? true,
-		mode: oldMode === "default" ? "default" : oldMode as FileViewModeNew,
-		eState: undefined,
-	};
-}
+
 
 /**
  * Open a file (by TFile or vault path) with precise control over location and mode.

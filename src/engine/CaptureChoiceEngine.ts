@@ -151,8 +151,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				const openExistingTab = openExistingFileTab(this.app, file);
 
 				if (!openExistingTab) {
-					// Migration ensures fileOpening always exists
-					await openFile(this.app, file, this.choice.fileOpening!);
+					await openFile(this.app, file, this.choice.fileOpening);
 				}
 			}
 		} catch (err) {

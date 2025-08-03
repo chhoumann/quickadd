@@ -156,8 +156,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const openExistingTab = openExistingFileTab(this.app, createdFile);
 
 				if (!openExistingTab) {
-					// Migration ensures fileOpening always exists
-					await openFile(this.app, createdFile, this.choice.fileOpening!);
+					await openFile(this.app, createdFile, this.choice.fileOpening);
 				}
 			}
 		} catch (err) {

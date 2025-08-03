@@ -9,13 +9,11 @@ import {
 	ToggleComponent,
 } from "obsidian";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import { NewTabDirection } from "../../types/newTabDirection";
 import FolderList from "./FolderList.svelte";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault, getInitialFileOpening } from "../../utilityObsidian";
+import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import type QuickAdd from "../../main";
-import type { FileViewMode } from "../../types/fileViewMode";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
@@ -361,39 +359,22 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.openFile = value;
 					this.reload();
 				});
-			})
-			.addDropdown((dropdown) => {
-				dropdown.selectEl.style.marginLeft = "10px";
-
-				if (!this.choice.openFileInMode) this.choice.openFileInMode = "default";
-
-				dropdown
-					.addOption("source", "Source")
-					.addOption("preview", "Preview")
-					.addOption("live", "Live Preview")
-					.addOption("default", "Default")
-					.setValue(this.choice.openFileInMode)
-					.onChange((value) => {
-						this.choice.openFileInMode = value as FileViewMode;
-						// Sync with new fileOpening settings if they exist
-						if (this.choice.fileOpening) {
-							this.choice.fileOpening.mode = value as any;
-						}
-					});
 			});
 	}
 
 	private addFileOpeningSetting(): void {
 		// Initialize fileOpening settings if not present
 		if (!this.choice.fileOpening) {
-			this.choice.fileOpening = getInitialFileOpening(
-				this.choice.openFileInNewTab,
-				this.choice.openFileInMode
-			);
+			this.choice.fileOpening = {
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: true,
+			};
 		}
 
 		// Location setting
-		const locationSetting = new Setting(this.contentEl)
+		new Setting(this.contentEl)
 			.setName("File Opening Location")
 			.setDesc("Where to open the created file")
 			.addDropdown((dropdown) => {
@@ -404,18 +385,15 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					.addOption("window", "New window")
 					.addOption("left-sidebar", "Left sidebar")
 					.addOption("right-sidebar", "Right sidebar")
-					.setValue(this.choice.fileOpening?.location || "tab")
+					.setValue(this.choice.fileOpening.location)
 					.onChange((value: any) => {
-						if (this.choice.fileOpening) {
-							this.choice.fileOpening.location = value;
-						}
-						// Re-render to show/hide conditional settings
+						this.choice.fileOpening.location = value;
 						this.reload();
 					});
 			});
 
 		// Split direction - only show if location is "split"
-		if (this.choice.fileOpening?.location === "split") {
+		if (this.choice.fileOpening.location === "split") {
 			new Setting(this.contentEl)
 				.setName("Split Direction")
 				.setDesc("Direction for split panes")
@@ -423,31 +401,41 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					dropdown
 						.addOption("vertical", "Vertical")
 						.addOption("horizontal", "Horizontal")
-						.setValue(this.choice.fileOpening?.direction || "vertical")
+						.setValue(this.choice.fileOpening.direction)
 						.onChange((value: any) => {
-							if (this.choice.fileOpening) {
-								this.choice.fileOpening.direction = value;
-							}
+							this.choice.fileOpening.direction = value;
 						});
 				});
 		}
 
+		// View mode setting
+		new Setting(this.contentEl)
+			.setName("View Mode")
+			.setDesc("How to display the opened file")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("source", "Source")
+					.addOption("preview", "Preview")
+					.addOption("live", "Live Preview")
+					.addOption("default", "Default")
+					.setValue(typeof this.choice.fileOpening.mode === 'string' ? this.choice.fileOpening.mode : "default")
+					.onChange((value: any) => {
+						this.choice.fileOpening.mode = value;
+					});
+			});
+
 		// Focus setting - only show for non-reuse locations
-		if (this.choice.fileOpening?.location !== "reuse") {
+		if (this.choice.fileOpening.location !== "reuse") {
 			new Setting(this.contentEl)
 				.setName("Focus new pane")
 				.setDesc("Focus the opened tab immediately after opening")
 				.addToggle((toggle) =>
 					toggle
-						.setValue(this.choice.fileOpening?.focus || true)
+						.setValue(this.choice.fileOpening.focus)
 						.onChange((value) => {
-							if (this.choice.fileOpening) {
-								this.choice.fileOpening.focus = value;
-							}
+							this.choice.fileOpening.focus = value;
 						}),
 				);
 		}
-
-
 	}
 }
