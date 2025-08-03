@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { determineAction } from "./captureAction";
+import { getCaptureAction } from "./captureAction";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { NewTabDirection } from "../types/newTabDirection";
 
-describe("determineAction", () => {
+describe("getCaptureAction", () => {
 	const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
 		id: "test",
 		name: "Test Choice",
@@ -25,27 +25,27 @@ describe("determineAction", () => {
 
 	it("returns 'currentLine' when captureToActiveFile is true and no other options", () => {
 		const choice = createChoice({ captureToActiveFile: true });
-		expect(determineAction(choice)).toBe("currentLine");
+		expect(getCaptureAction(choice)).toBe("currentLine");
 	});
 
 	it("returns 'insertAfter' when insertAfter is enabled", () => {
 		const choice = createChoice({ insertAfter: { enabled: true, after: "heading", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" } });
-		expect(determineAction(choice)).toBe("insertAfter");
+		expect(getCaptureAction(choice)).toBe("insertAfter");
 	});
 
 	it("returns 'prepend' when prepend is true", () => {
 		const choice = createChoice({ prepend: true });
-		expect(determineAction(choice)).toBe("prepend");
+		expect(getCaptureAction(choice)).toBe("prepend");
 	});
 
 	it("returns 'append' by default", () => {
 		const choice = createChoice();
-		expect(determineAction(choice)).toBe("append");
+		expect(getCaptureAction(choice)).toBe("append");
 	});
 
 	it("prioritizes currentLine over prepend when both are set", () => {
 		const choice = createChoice({ captureToActiveFile: true, prepend: true });
-		expect(determineAction(choice)).toBe("prepend"); // prepend takes precedence
+		expect(getCaptureAction(choice)).toBe("prepend"); // prepend takes precedence
 	});
 
 	it("prioritizes insertAfter over prepend when both are set", () => {
@@ -53,6 +53,6 @@ describe("determineAction", () => {
 			prepend: true, 
 			insertAfter: { enabled: true, after: "heading", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" }
 		});
-		expect(determineAction(choice)).toBe("insertAfter");
+		expect(getCaptureAction(choice)).toBe("insertAfter");
 	});
 });

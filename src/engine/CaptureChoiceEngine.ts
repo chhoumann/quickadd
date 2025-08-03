@@ -2,7 +2,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { TFile } from "obsidian";
 import { Notice } from "obsidian";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
-import { determineAction, type CaptureAction } from "./captureAction";
+import { getCaptureAction, type CaptureAction } from "./captureAction";
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
@@ -50,8 +50,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		file: TFile,
 		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction }
 	) {
-		if (!this.plugin.settings.showCaptureNotification) return;
-
 		const fileName = `'${file.basename}'`;
 		
 		if (wasNewFile) {
@@ -59,19 +57,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		const actionMessages: Record<CaptureAction, string> = {
-			append: "Captured to {{file}}",
-			prepend: "Captured to top of {{file}}",
-			currentLine: "Captured to current line in {{file}}",
-			insertAfter: "Captured to {{file}}{{heading}}"
-		};
-
-		let msg = actionMessages[action]
-			.replace("{{file}}", fileName)
-			.replace("{{heading}}", 
-				action === "insertAfter" && this.choice.insertAfter.enabled && this.choice.insertAfter.after
-					? ` under '${this.choice.insertAfter.after}'`
-					: "");
+		let msg = "";
+		switch (action) {
+			case "currentLine":
+				msg = `Captured to current line in ${fileName}`;
+				break;
+			case "prepend":
+				msg = `Captured to top of ${fileName}`;
+				break;
+			case "append":
+				msg = `Captured to ${fileName}`;
+				break;
+			case "insertAfter":
+				const heading = this.choice.insertAfter.after;
+				msg = heading 
+					? `Captured to ${fileName} under '${heading}'`
+					: `Captured to ${fileName}`;
+				break;
+		}
 		
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
 	}
@@ -120,8 +123,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			// Show success notification
-			const action = determineAction(this.choice);
-			this.showSuccessNotice(file, { wasNewFile: !fileAlreadyExists, action });
+			if (this.plugin.settings.showCaptureNotification) {
+				const action = getCaptureAction(this.choice);
+				this.showSuccessNotice(file, { wasNewFile: !fileAlreadyExists, action });
+			}
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			if (linkOptions.enabled) {
