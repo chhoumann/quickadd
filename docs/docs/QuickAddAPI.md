@@ -111,15 +111,16 @@ await quickAddApi.infoDialog(
 );
 ```
 
-### `suggester(displayItems: string[] | Function, actualItems: string[], placeholder?: string): Promise<string>`
-Opens a selection prompt with searchable options.
+### `suggester(displayItems: string[] | Function, actualItems: string[], placeholder?: string, allowCustomInput?: boolean): Promise<string>`
+Opens a selection prompt with searchable options. Can optionally allow custom input not in the predefined list.
 
 **Parameters:**
 - `displayItems`: Array of display strings OR a map function
 - `actualItems`: Array of actual values to return
 - `placeholder`: (Optional) Placeholder text shown in the suggester
+- `allowCustomInput`: (Optional) When `true`, allows users to enter custom text not in `actualItems`. Defaults to `false`
 
-**Returns:** Promise resolving to the selected value, or `null` if cancelled
+**Returns:** Promise resolving to the selected value or custom input, or `null` if cancelled
 
 **Examples:**
 
@@ -161,6 +162,19 @@ const selectedTask = await quickAddApi.suggester(
     tasks,
     "Select a task to edit"
 );
+```
+
+Allow custom input (like quick switcher):
+```javascript
+// User can select from existing tags or type a new one
+const existingTags = ["#project", "#personal", "#work"];
+const selectedTag = await quickAddApi.suggester(
+    existingTags,
+    existingTags,
+    "Select existing tag or type new one",
+    true  // allowCustomInput = true
+);
+// Returns either an existing tag or the user's custom input
 ```
 
 ### `checkboxPrompt(items: string[], selectedItems?: string[]): Promise<string[]>`
