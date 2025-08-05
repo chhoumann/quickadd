@@ -1,7 +1,3 @@
-import { ChoiceBuilder } from "./choiceBuilder";
-import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
-import type { LinkPlacement } from "../../types/linkPlacement";
 import type { App } from "obsidian";
 import {
 	Setting,
@@ -9,18 +5,22 @@ import {
 	TextComponent,
 	ToggleComponent,
 } from "obsidian";
+import { log } from "src/logger/logManager";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 	FILE_NAME_FORMAT_SYNTAX,
 } from "../../constants";
+import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
-import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+import type { LinkPlacement } from "../../types/linkPlacement";
+import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { log } from "src/logger/logManager";
+import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import { ChoiceBuilder } from "./choiceBuilder";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
@@ -55,10 +55,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		this.addAppendLinkSetting();
 		this.addInsertAfterSetting();
 		if (!this.choice.captureToActiveFile) {
-			this.addOpenFileSetting();
+			this.addOpenFileSetting("Open the file that is captured to.");
 
 			if (this.choice.openFile) {
-				this.addFileOpeningSetting();
+				this.addFileOpeningSetting("captured");
 			}
 		}
 
@@ -96,7 +96,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const formatDisplay: HTMLSpanElement =
 				captureToFileContainer.createEl("span");
 			const displayFormatter: FileNameDisplayFormatter =
-			new FileNameDisplayFormatter(this.app);
+				new FileNameDisplayFormatter(this.app);
 			void (async () =>
 				(formatDisplay.textContent = await displayFormatter.format(
 					this.choice.captureTo,
@@ -163,8 +163,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addAppendLinkSetting() {
 		// Normalize to ensure we're always working with the new format internally
-		const normalizedOptions = normalizeAppendLinkOptions(this.choice.appendLink);
-		
+		const normalizedOptions = normalizeAppendLinkOptions(
+			this.choice.appendLink,
+		);
+
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Append link to note")
@@ -178,7 +180,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						// When enabling, use the new object format
 						this.choice.appendLink = {
 							enabled: true,
-							placement: normalizedOptions.placement
+							placement: normalizedOptions.placement,
 						};
 					} else {
 						// When disabling, keep as boolean for simplicity and backward compatibility
@@ -194,18 +196,18 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			placementSetting
 				.setName("Link placement")
 				.setDesc("Where to place the link when appending")
-				.addDropdown(dropdown => {
+				.addDropdown((dropdown) => {
 					dropdown.addOption("replaceSelection", "Replace selection");
 					dropdown.addOption("afterSelection", "After selection");
 					dropdown.addOption("endOfLine", "End of line");
 					dropdown.addOption("newLine", "New line");
-					
+
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
 						// Ensure we update the choice with object format when placement changes
 						this.choice.appendLink = {
 							enabled: true,
-							placement: value
+							placement: value,
 						};
 					});
 				});
@@ -213,7 +215,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addInsertAfterSetting() {
-		 
 		let insertAfterInput: TextComponent;
 		const insertAfterSetting: Setting = new Setting(this.contentEl);
 		insertAfterSetting
@@ -237,7 +238,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
-			this.plugin
+			this.plugin,
 		);
 		void (async () =>
 			(insertAfterFormatDisplay.innerText = await displayFormatter.format(
@@ -337,7 +338,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFormatSetting() {
-		 
 		let textField: TextAreaComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
@@ -373,7 +373,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
-			this.plugin
+			this.plugin,
 		);
 		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(
@@ -404,7 +404,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addCreateWithTemplateSetting() {
-		 
 		let templateSelector: TextComponent;
 		const createWithTemplateSetting = new Setting(this.contentEl);
 		createWithTemplateSetting
@@ -440,98 +439,5 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		templateSelector.onChange((value) => {
 			this.choice.createFileIfItDoesntExist.template = value;
 		});
-	}
-
-	private addOpenFileSetting(): void {
-		const noOpenSetting: Setting = new Setting(this.contentEl);
-		noOpenSetting
-			.setName("Open")
-			.setDesc("Open the file that is captured to.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.openFile);
-				toggle.onChange((value) => {
-					this.choice.openFile = value;
-					this.reload();
-				});
-			});
-	}
-
-	private addFileOpeningSetting(): void {
-		// Initialize fileOpening settings if not present
-		if (!this.choice.fileOpening) {
-			this.choice.fileOpening = {
-				location: "tab",
-				direction: "vertical",
-				mode: "default",
-				focus: true,
-			};
-		}
-
-		// Location setting
-		new Setting(this.contentEl)
-			.setName("File Opening Location")
-			.setDesc("Where to open the captured file")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("reuse", "Reuse current tab")
-					.addOption("tab", "New tab")
-					.addOption("split", "Split pane")
-					.addOption("window", "New window")
-					.addOption("left-sidebar", "Left sidebar")
-					.addOption("right-sidebar", "Right sidebar")
-					.setValue(this.choice.fileOpening.location)
-					.onChange((value: any) => {
-						this.choice.fileOpening.location = value;
-						this.reload();
-					});
-			});
-
-		// Split direction - only show if location is "split"
-		if (this.choice.fileOpening.location === "split") {
-			new Setting(this.contentEl)
-				.setName("Split Direction")
-				.setDesc("Direction for split panes")
-				.addDropdown((dropdown) => {
-					dropdown
-						.addOption("vertical", "Vertical")
-						.addOption("horizontal", "Horizontal")
-						.setValue(this.choice.fileOpening.direction)
-						.onChange((value: any) => {
-							this.choice.fileOpening.direction = value;
-						});
-				});
-		}
-
-		// View mode setting
-		new Setting(this.contentEl)
-			.setName("View Mode")
-			.setDesc("How to display the opened file")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("source", "Source")
-					.addOption("preview", "Preview")
-					.addOption("live", "Live Preview")
-					.addOption("default", "Default")
-					.setValue(typeof this.choice.fileOpening.mode === 'string' ? this.choice.fileOpening.mode : "default")
-					.onChange((value: any) => {
-						this.choice.fileOpening.mode = value;
-					});
-			});
-
-		// Focus setting - only show for non-reuse locations
-		if (this.choice.fileOpening.location !== "reuse") {
-			new Setting(this.contentEl)
-				.setName("Focus new pane")
-				.setDesc("Focus the opened tab immediately after opening")
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.choice.fileOpening.focus)
-						.onChange((value) => {
-							this.choice.fileOpening.focus = value;
-						}),
-				);
-		}
-
-
 	}
 }

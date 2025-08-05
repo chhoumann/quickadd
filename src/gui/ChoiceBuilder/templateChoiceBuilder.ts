@@ -1,22 +1,10 @@
-import { ChoiceBuilder } from "./choiceBuilder";
 import type { App } from "obsidian";
-import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
-import type { LinkPlacement } from "../../types/linkPlacement";
 import {
 	ButtonComponent,
 	Setting,
 	TextComponent,
 	ToggleComponent,
 } from "obsidian";
-import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import FolderList from "./FolderList.svelte";
-import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
-import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
-import type QuickAdd from "../../main";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import type { fileExistsChoices } from "src/constants";
 import {
 	fileExistsAppendToBottom,
@@ -25,6 +13,18 @@ import {
 	fileExistsIncrement,
 	fileExistsOverwriteFile,
 } from "src/constants";
+import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
+import { log } from "../../logger/logManager";
+import type QuickAdd from "../../main";
+import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+import type { LinkPlacement } from "../../types/linkPlacement";
+import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
+import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
+import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import { ChoiceBuilder } from "./choiceBuilder";
+import FolderList from "./FolderList.svelte";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -48,10 +48,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addFolderSetting();
 		this.addAppendLinkSetting();
 		this.addFileAlreadyExistsSetting();
-		this.addOpenFileSetting();
+		this.addOpenFileSetting("Open the created file.");
 
 		if (this.choice.openFile) {
-			this.addFileOpeningSetting();
+			this.addFileOpeningSetting("created");
 		}
 	}
 
@@ -75,7 +75,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFileNameFormatSetting(): void {
-		 
 		let textField: TextComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
@@ -209,7 +208,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.folder.folders = this.choice.folder.folders.filter(
 						(f) => f !== folder,
 					);
-					 
+
 					folderListEl.updateFolders(this.choice.folder.folders);
 					suggester.updateCurrentItems(this.choice.folder.folders);
 				},
@@ -242,7 +241,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 
 			this.choice.folder.folders.push(input);
-			 
+
 			folderListEl.updateFolders(this.choice.folder.folders);
 			folderInput.inputEl.value = "";
 
@@ -266,8 +265,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 	private addAppendLinkSetting(): void {
 		// Normalize to ensure we're always working with the new format internally
-		const normalizedOptions = normalizeAppendLinkOptions(this.choice.appendLink);
-		
+		const normalizedOptions = normalizeAppendLinkOptions(
+			this.choice.appendLink,
+		);
+
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Append link to note")
@@ -281,7 +282,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						// When enabling, use the new object format
 						this.choice.appendLink = {
 							enabled: true,
-							placement: normalizedOptions.placement
+							placement: normalizedOptions.placement,
 						};
 					} else {
 						// When disabling, keep as boolean for simplicity and backward compatibility
@@ -297,18 +298,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			placementSetting
 				.setName("Link placement")
 				.setDesc("Where to place the link when appending")
-				.addDropdown(dropdown => {
+				.addDropdown((dropdown) => {
 					dropdown.addOption("replaceSelection", "Replace selection");
 					dropdown.addOption("afterSelection", "After selection");
 					dropdown.addOption("endOfLine", "End of line");
 					dropdown.addOption("newLine", "New line");
-					
+
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
 						// Ensure we update the choice with object format when placement changes
 						this.choice.appendLink = {
 							enabled: true,
-							placement: value
+							placement: value,
 						};
 					});
 				});
@@ -346,96 +347,5 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 							(this.choice.fileExistsMode = value),
 					);
 			});
-	}
-
-	private addOpenFileSetting(): void {
-		const noOpenSetting: Setting = new Setting(this.contentEl);
-		noOpenSetting
-			.setName("Open")
-			.setDesc("Open the created file.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.openFile);
-				toggle.onChange((value) => {
-					this.choice.openFile = value;
-					this.reload();
-				});
-			});
-	}
-
-	private addFileOpeningSetting(): void {
-		// Initialize fileOpening settings if not present
-		if (!this.choice.fileOpening) {
-			this.choice.fileOpening = {
-				location: "tab",
-				direction: "vertical",
-				mode: "default",
-				focus: true,
-			};
-		}
-
-		// Location setting
-		new Setting(this.contentEl)
-			.setName("File Opening Location")
-			.setDesc("Where to open the created file")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("reuse", "Reuse current tab")
-					.addOption("tab", "New tab")
-					.addOption("split", "Split pane")
-					.addOption("window", "New window")
-					.addOption("left-sidebar", "Left sidebar")
-					.addOption("right-sidebar", "Right sidebar")
-					.setValue(this.choice.fileOpening.location)
-					.onChange((value: any) => {
-						this.choice.fileOpening.location = value;
-						this.reload();
-					});
-			});
-
-		// Split direction - only show if location is "split"
-		if (this.choice.fileOpening.location === "split") {
-			new Setting(this.contentEl)
-				.setName("Split Direction")
-				.setDesc("Direction for split panes")
-				.addDropdown((dropdown) => {
-					dropdown
-						.addOption("vertical", "Vertical")
-						.addOption("horizontal", "Horizontal")
-						.setValue(this.choice.fileOpening.direction)
-						.onChange((value: any) => {
-							this.choice.fileOpening.direction = value;
-						});
-				});
-		}
-
-		// View mode setting
-		new Setting(this.contentEl)
-			.setName("View Mode")
-			.setDesc("How to display the opened file")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("source", "Source")
-					.addOption("preview", "Preview")
-					.addOption("live", "Live Preview")
-					.addOption("default", "Default")
-					.setValue(typeof this.choice.fileOpening.mode === 'string' ? this.choice.fileOpening.mode : "default")
-					.onChange((value: any) => {
-						this.choice.fileOpening.mode = value;
-					});
-			});
-
-		// Focus setting - only show for non-reuse locations
-		if (this.choice.fileOpening.location !== "reuse") {
-			new Setting(this.contentEl)
-				.setName("Focus new pane")
-				.setDesc("Focus the opened tab immediately after opening")
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.choice.fileOpening.focus)
-						.onChange((value) => {
-							this.choice.fileOpening.focus = value;
-						}),
-				);
-		}
 	}
 }
