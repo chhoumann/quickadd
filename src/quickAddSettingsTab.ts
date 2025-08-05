@@ -37,6 +37,7 @@ export interface QuickAddSettings {
 		setVersionAfterUpdateModalRelease: boolean;
 		addDefaultAIProviders: boolean;
 		removeMacroIndirection: boolean;
+		migrateFileOpeningSettings: boolean;
 	};
 }
 
@@ -68,6 +69,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		setVersionAfterUpdateModalRelease: false,
 		addDefaultAIProviders: false,
 		removeMacroIndirection: false,
+		migrateFileOpeningSettings: false,
 	},
 };
 

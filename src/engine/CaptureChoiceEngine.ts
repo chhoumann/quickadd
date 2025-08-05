@@ -151,12 +151,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				const openExistingTab = openExistingFileTab(this.app, file);
 
 				if (!openExistingTab) {
-					await openFile(this.app, file, {
-						openInNewTab: this.choice.openFileInNewTab.enabled,
-						direction: this.choice.openFileInNewTab.direction,
-						focus: this.choice.openFileInNewTab.focus,
-						mode: this.choice.openFileInMode,
-					});
+					await openFile(this.app, file, this.choice.fileOpening);
 				}
 			}
 		} catch (err) {

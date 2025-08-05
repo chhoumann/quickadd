@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getCaptureAction } from "./captureAction";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { NewTabDirection } from "../types/newTabDirection";
 
 describe("getCaptureAction", () => {
 	const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
@@ -17,9 +16,8 @@ describe("getCaptureAction", () => {
 		appendLink: false,
 		task: false,
 		insertAfter: { enabled: false, after: "", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" },
-		openFileInNewTab: { enabled: false, direction: NewTabDirection.vertical, focus: false },
 		openFile: false,
-		openFileInMode: "default",
+		fileOpening: { location: "tab", direction: "vertical", mode: "default", focus: true },
 		...overrides
 	});
 

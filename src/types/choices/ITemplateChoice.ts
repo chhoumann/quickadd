@@ -1,8 +1,7 @@
 import type IChoice from "./IChoice";
-import type { NewTabDirection } from "../newTabDirection";
-import type { FileViewMode } from "../fileViewMode";
 import type { fileExistsChoices } from "src/constants";
 import type { AppendLinkOptions } from "../linkPlacement";
+import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
 export default interface ITemplateChoice extends IChoice {
 	templatePath: string;
@@ -21,12 +20,12 @@ export default interface ITemplateChoice extends IChoice {
 	 */
 	appendLink: boolean | AppendLinkOptions;
 	openFile: boolean;
-	openFileInNewTab: {
-		enabled: boolean;
-		direction: NewTabDirection;
+	fileOpening: {
+		location: OpenLocation;
+		direction: "vertical" | "horizontal";
+		mode: FileViewMode2;
 		focus: boolean;
 	};
-	openFileInMode: FileViewMode;
 	fileExistsMode: (typeof fileExistsChoices)[number];
 	setFileExistsBehavior: boolean;
 }

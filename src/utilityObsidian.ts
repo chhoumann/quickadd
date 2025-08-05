@@ -5,9 +5,7 @@ import type {
 	CachedMetadata,
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
-import type { NewTabDirection } from "./types/newTabDirection";
 import type { IUserScript } from "./types/macros/IUserScript";
-import type { FileViewMode } from "./types/fileViewMode";
 import type { TemplateChoice } from "./types/choices/TemplateChoice";
 import type { MultiChoice } from "./types/choices/MultiChoice";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
@@ -17,6 +15,11 @@ import { log } from "./logger/logManager";
 import { reportError } from "./utils/errorUtils";
 import { NLDParser } from "./parsers/NLDParser";
 import type { LinkPlacement } from "./types/linkPlacement";
+import type { 
+	OpenLocation as FileOpenLocation, 
+	FileViewMode2 as FileViewModeNew, 
+	OpenFileOptions as FileOpenOptions 
+} from "./types/fileOpening";
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -269,42 +272,115 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 	};
 }
 
+// Re-export types for convenience
+export type OpenLocation = FileOpenLocation;
+export type FileViewMode2 = FileViewModeNew;
+export type OpenFileOptions = FileOpenOptions;
+
+
+
+/**
+ * Open a file (by TFile or vault path) with precise control over location and mode.
+ * 
+ * @example
+ * // Open in a new tab
+ * await openFile(app, "daily/2024-01-01.md", { location: "tab" });
+ * 
+ * @example
+ * // Split vertically in source mode
+ * await openFile(app, file, { 
+ *   location: "split", 
+ *   direction: "vertical", 
+ *   mode: "source" 
+ * });
+ * 
+ * @example
+ * // Open in sidebar without focus
+ * await openFile(app, file, { 
+ *   location: "right-sidebar", 
+ *   focus: false 
+ * });
+ * 
+ * @returns The leaf it opened into.
+ */
 export async function openFile(
-	app: App,
-	file: TFile,
-	optional: {
-		openInNewTab?: boolean;
-		direction?: NewTabDirection;
-		mode?: FileViewMode;
-		focus?: boolean;
-	},
-) {
-	let leaf: WorkspaceLeaf;
+  app: App,
+  fileOrPath: TFile | string,
+  options: FileOpenOptions = {}
+): Promise<WorkspaceLeaf> {
+  const {
+    location = "tab",
+    direction = "vertical",
+    mode,
+    focus = true,
+    eState,
+  } = options;
 
-	if (optional.openInNewTab && optional.direction) {
-		leaf = app.workspace.getLeaf("split", optional.direction);
-	} else {
-		leaf = app.workspace.getLeaf("tab");
-	}
+  const file =
+    typeof fileOrPath === "string"
+      ? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
+      : fileOrPath;
 
-	await leaf.openFile(file);
+  if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
 
-	if (optional?.focus) {
-		app.workspace.setActiveLeaf(leaf, { focus: optional.focus });
-	}
+  // Resolve a target leaf for all supported locations
+  let leaf: WorkspaceLeaf | null;
+  switch (location) {
+    case "reuse":
+      leaf = app.workspace.getLeaf(false);
+      break;
+    case "tab":
+      leaf = app.workspace.getLeaf("tab");
+      break;
+    case "split":
+      leaf = app.workspace.getLeaf("split", direction);
+      break;
+    case "window":
+      leaf = app.workspace.getLeaf("window");
+      break;
+    case "left-sidebar":
+      leaf = app.workspace.getLeftLeaf(true);
+      break;
+    case "right-sidebar":
+      leaf = app.workspace.getRightLeaf(true);
+      break;
+    default:
+      leaf = app.workspace.getLeaf("tab");
+  }
+  if (!leaf) throw new Error("Could not obtain a workspace leaf.");
 
-	if (optional?.mode) {
-		const leafViewState = leaf.getViewState();
+  // Open the file
+  await leaf.openFile(file);
 
-		await leaf.setViewState({
-			...leafViewState,
-			 
-			state: {
-				...leafViewState.state,
-				mode: optional.mode,
-			},
-		});
-	}
+  // Optionally adjust view mode (Reading / Live Preview / Source)
+  if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
+    const vs = leaf.getViewState();
+    const next = { ...(vs.state ?? {}) };
+
+    if (mode === "preview" || (typeof mode === "object" && mode.mode === "preview")) {
+      next.mode = "preview";
+      delete (next as any).source;
+    } else if (mode === "source") {
+      next.mode = "source";
+      (next as any).source = true;
+    } else if (mode === "live" || mode === "live-preview") {
+      next.mode = "source";
+      (next as any).source = false; // Live Preview = source:false
+    } else if (typeof mode === "object" && mode.mode === "source") {
+      // advanced override
+      next.mode = "source";
+      (next as any).source = mode.source;
+    }
+
+    // Fix eState usage - merge into state rather than passing as second param
+    await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
+  }
+
+  if (focus) {
+    app.workspace.setActiveLeaf(leaf, { focus: true });
+  }
+
+  return leaf;
 }
 
 /**

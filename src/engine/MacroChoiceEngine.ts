@@ -392,8 +392,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			await openFile(this.app, file, {
-				openInNewTab: command.openInNewTab,
-				direction: command.direction,
+				location: command.openInNewTab ? "split" : "tab",
+				direction: command.direction === "horizontal" ? "horizontal" : "vertical",
 				focus: true,
 				mode: "default",
 			});
