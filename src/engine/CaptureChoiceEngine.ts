@@ -350,6 +350,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
+		
+		// Process Templater commands in the template if a template was used
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate && fileContent) {
+			await overwriteTemplaterOnce(this.app, file);
+		}
 
 		const updatedFileContent: string = await this.app.vault.cachedRead(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
