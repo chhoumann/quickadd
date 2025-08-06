@@ -11,7 +11,7 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 		variables: Map<string, string>
 	) {
 		//@ts-ignore
-		super(app, plugin, null, null, choiceExecutor, variables);
+		super(app, plugin, null, choiceExecutor, variables);
 	}
 
 	 

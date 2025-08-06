@@ -66,7 +66,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
-		this.macro = choice.macro;
+		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.params = {
 			app: this.app,
