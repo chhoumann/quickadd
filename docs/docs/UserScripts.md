@@ -202,7 +202,7 @@ async function start(params, settings) {
 
 ## Using the QuickAdd API
 
-User scripts have full access to the [QuickAdd API](../QuickAddAPI.md) through `params.quickAddApi`. For complete API documentation, see the [QuickAdd API Reference](../QuickAddAPI.md).
+User scripts have full access to the [QuickAdd API](./QuickAddAPI.md) through `params.quickAddApi`. For complete API documentation, see the [QuickAdd API Reference](./QuickAddAPI.md).
 
 ### User Input
 ```javascript
@@ -813,10 +813,10 @@ For complete working examples, see:
 - [Editor](https://docs.obsidian.md/Reference/TypeScript+API/Editor) - Text editing operations
 
 ### QuickAdd Resources
-- [QuickAdd API Reference](../QuickAddAPI.md)
-- [Format Syntax Guide](../FormatSyntax.md)
-- [Macro Choice Documentation](../Choices/MacroChoice.md)
-- [Inline Scripts](../InlineScripts.md)
+- [QuickAdd API Reference](./QuickAddAPI.md)
+- [Format Syntax Guide](./FormatSyntax.md)
+- [Macro Choice Documentation](./Choices/MacroChoice.md)
+- [Inline Scripts](./InlineScripts.md)
 
 ## Troubleshooting
 
