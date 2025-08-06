@@ -2,6 +2,8 @@
 
 User scripts are JavaScript files that extend QuickAdd's functionality with custom code. They can be used within macros to perform complex operations, integrate with external APIs, and automate sophisticated workflows.
 
+> 📚 **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
+
 ## Basic Structure
 
 Every user script must export a module with at least an entry point function:
@@ -40,12 +42,18 @@ Contains the QuickAdd API and Obsidian context:
 
 ```javascript
 {
-    app: App,                  // Obsidian app instance
-    quickAddApi: QuickAddApi,   // QuickAdd API methods
-    variables: {},              // Variables object for sharing data
-    obsidian: obsidian          // Obsidian module
+    app: App,                  // Obsidian app instance - see https://docs.obsidian.md/Reference/TypeScript+API/App
+    quickAddApi: QuickAddApi,   // QuickAdd API methods (documented below)
+    variables: {},              // Variables object for sharing data between scripts and templates
+    obsidian: obsidian          // Obsidian module with all classes and utilities
 }
 ```
+
+The `app` object provides access to the entire Obsidian API, including:
+- `app.vault` - File and folder operations ([Vault API](https://docs.obsidian.md/Reference/TypeScript+API/Vault))
+- `app.workspace` - Window and pane management ([Workspace API](https://docs.obsidian.md/Reference/TypeScript+API/Workspace))
+- `app.metadataCache` - File metadata and links ([MetadataCache API](https://docs.obsidian.md/Reference/TypeScript+API/MetadataCache))
+- `app.fileManager` - File operations and renaming ([FileManager API](https://docs.obsidian.md/Reference/TypeScript+API/FileManager))
 
 ### `settings` Object
 Contains the user-configured values for your script's options (only available when using the settings structure).
@@ -194,7 +202,7 @@ async function start(params, settings) {
 
 ## Using the QuickAdd API
 
-User scripts have full access to the QuickAdd API through `params.quickAddApi`:
+User scripts have full access to the [QuickAdd API](../QuickAddAPI.md) through `params.quickAddApi`. For complete API documentation, see the [QuickAdd API Reference](../QuickAddAPI.md).
 
 ### User Input
 ```javascript
@@ -328,40 +336,487 @@ async function start(params, settings) {
 
 ```javascript
 async function start(params, settings) {
-    const { app } = params;
+    const { app, obsidian } = params;
     
     // Get all markdown files
     const files = app.vault.getMarkdownFiles();
     
-    // Read file content
+    // Get a specific file
     const file = app.vault.getAbstractFileByPath("path/to/file.md");
-    if (file) {
+    if (file instanceof obsidian.TFile) {
+        // Read file content
         const content = await app.vault.read(file);
+        
+        // Get file metadata
+        const metadata = app.metadataCache.getFileCache(file);
+        const frontmatter = metadata?.frontmatter;
+        const links = metadata?.links || [];
+        const tags = metadata?.tags || [];
+        
         // Process content
+        const modified = content.replace(/old/g, "new");
+        
+        // Save changes
+        await app.vault.modify(file, modified);
     }
     
     // Create new file
-    await app.vault.create("path/to/new.md", "File content");
+    const newFile = await app.vault.create(
+        "folder/subfolder/new-note.md", 
+        "# Title\n\nContent here"
+    );
     
-    // Modify file
-    await app.vault.modify(file, "New content");
+    // Rename file
+    await app.fileManager.renameFile(
+        newFile, 
+        "folder/subfolder/renamed-note.md"
+    );
+    
+    // Delete file
+    await app.vault.delete(newFile);
+    
+    // Copy file
+    await app.vault.copy(
+        file, 
+        "path/to/copy.md"
+    );
+    
+    // Get folder
+    const folder = app.vault.getAbstractFileByPath("folder/subfolder");
+    if (folder instanceof obsidian.TFolder) {
+        // List folder contents
+        const children = folder.children;
+        
+        // Create folder if it doesn't exist
+        const path = "new/folder/structure";
+        if (!app.vault.getAbstractFileByPath(path)) {
+            await app.vault.createFolder(path);
+        }
+    }
+}
+```
+
+### Working with the Active File
+
+```javascript
+async function start(params, settings) {
+    const { app, obsidian } = params;
+    
+    // Get active file
+    const activeFile = app.workspace.getActiveFile();
+    if (!activeFile) {
+        new obsidian.Notice("No active file");
+        return;
+    }
+    
+    // Get active editor
+    const activeView = app.workspace.getActiveViewOfType(obsidian.MarkdownView);
+    if (activeView) {
+        const editor = activeView.editor;
+        
+        // Get selected text
+        const selection = editor.getSelection();
+        
+        // Get current line
+        const cursor = editor.getCursor();
+        const line = editor.getLine(cursor.line);
+        
+        // Replace selection
+        editor.replaceSelection("New text");
+        
+        // Insert at cursor
+        editor.replaceRange(
+            "Inserted text", 
+            cursor
+        );
+        
+        // Get entire document
+        const fullText = editor.getValue();
+        
+        // Replace entire document
+        editor.setValue("Completely new content");
+    }
+}
+```
+
+### Working with Metadata and Frontmatter
+
+```javascript
+async function start(params, settings) {
+    const { app, obsidian } = params;
+    
+    const file = app.workspace.getActiveFile();
+    if (!file) return;
+    
+    // Get frontmatter
+    const cache = app.metadataCache.getFileCache(file);
+    const frontmatter = cache?.frontmatter || {};
+    
+    // Update frontmatter
+    await app.fileManager.processFrontMatter(file, (fm) => {
+        fm.tags = fm.tags || [];
+        fm.tags.push("processed");
+        fm.date = new Date().toISOString();
+        fm.status = "completed";
+        delete fm.oldField;  // Remove a field
+    });
+    
+    // Get all files with specific frontmatter
+    const filesWithTag = app.vault.getMarkdownFiles().filter(f => {
+        const meta = app.metadataCache.getFileCache(f);
+        return meta?.frontmatter?.tags?.includes("important");
+    });
+    
+    // Get backlinks
+    const backlinks = app.metadataCache.getBacklinksForFile(file);
+    
+    // Get outgoing links
+    const links = cache?.links || [];
+    const embeds = cache?.embeds || [];
+}
+```
+
+### Opening and Navigating Files
+
+```javascript
+async function start(params, settings) {
+    const { app, obsidian } = params;
+    
+    // Open file in active pane
+    const file = app.vault.getAbstractFileByPath("path/to/note.md");
+    if (file instanceof obsidian.TFile) {
+        await app.workspace.getLeaf().openFile(file);
+    }
+    
+    // Open in new pane
+    await app.workspace.getLeaf('split').openFile(file);
+    
+    // Open in new tab
+    await app.workspace.getLeaf('tab').openFile(file);
+    
+    // Open in new window
+    await app.workspace.getLeaf('window').openFile(file);
+    
+    // Navigate to specific heading
+    await app.workspace.openLinkText(
+        "note#heading", 
+        "",  // source path
+        true  // new leaf
+    );
+    
+    // Create and open a daily note
+    const { createDailyNote } = app.plugins.plugins["daily-notes"].instance;
+    const dailyNote = await createDailyNote(moment());
+    await app.workspace.getLeaf().openFile(dailyNote);
+}
+```
+
+## Common Patterns & Recipes
+
+### Processing Multiple Notes
+
+```javascript
+async function processAllNotesInFolder(params, settings) {
+    const { app, obsidian, quickAddApi } = params;
+    
+    const folderPath = settings["Folder Path"] || "Notes";
+    const folder = app.vault.getAbstractFileByPath(folderPath);
+    
+    if (!(folder instanceof obsidian.TFolder)) {
+        throw new Error(`Folder not found: ${folderPath}`);
+    }
+    
+    let processed = 0;
+    const errors = [];
+    
+    // Process each markdown file in folder
+    for (const file of folder.children) {
+        if (file instanceof obsidian.TFile && file.extension === "md") {
+            try {
+                const content = await app.vault.read(file);
+                
+                // Your processing logic here
+                const modified = content + "\n\n---\nProcessed: " + new Date().toISOString();
+                
+                await app.vault.modify(file, modified);
+                processed++;
+                
+            } catch (error) {
+                errors.push(`${file.path}: ${error.message}`);
+            }
+        }
+    }
+    
+    // Report results
+    new obsidian.Notice(`Processed ${processed} files`);
+    if (errors.length > 0) {
+        await quickAddApi.infoDialog("Errors", errors);
+    }
+    
+    return { processed, errors };
+}
+```
+
+### Creating Notes from Templates
+
+```javascript
+async function createNoteFromTemplate(params, settings) {
+    const { app, quickAddApi, variables } = params;
+    
+    // Get template
+    const templatePath = settings["Template Path"];
+    const templateFile = app.vault.getAbstractFileByPath(templatePath);
+    
+    if (!templateFile) {
+        throw new Error(`Template not found: ${templatePath}`);
+    }
+    
+    // Read template content
+    const template = await app.vault.read(templateFile);
+    
+    // Get user input
+    const title = await quickAddApi.inputPrompt("Note title:");
+    const tags = await quickAddApi.inputPrompt("Tags (comma-separated):");
+    
+    // Format the template
+    const formatted = await quickAddApi.format(template, {
+        title: title,
+        tags: tags.split(",").map(t => `#${t.trim()}`).join(" "),
+        date: new Date().toISOString()
+    });
+    
+    // Create the note
+    const fileName = `${title.replace(/[^\w\s]/gi, '')}.md`;
+    const filePath = `${settings["Output Folder"]}/${fileName}`;
+    
+    await app.vault.create(filePath, formatted);
+    
+    // Open the new note
+    const newFile = app.vault.getAbstractFileByPath(filePath);
+    await app.workspace.getLeaf().openFile(newFile);
+    
+    return filePath;
+}
+```
+
+### Bulk Tag Operations
+
+```javascript
+async function bulkTagOperations(params, settings) {
+    const { app, quickAddApi, obsidian } = params;
+    
+    const operation = await quickAddApi.suggester(
+        ["Add tag", "Remove tag", "Replace tag"],
+        ["add", "remove", "replace"]
+    );
+    
+    const tag = await quickAddApi.inputPrompt("Tag name (without #):");
+    let newTag;
+    
+    if (operation === "replace") {
+        newTag = await quickAddApi.inputPrompt("Replace with tag:");
+    }
+    
+    const files = app.vault.getMarkdownFiles();
+    let modified = 0;
+    
+    for (const file of files) {
+        await app.fileManager.processFrontMatter(file, (fm) => {
+            fm.tags = fm.tags || [];
+            
+            if (operation === "add" && !fm.tags.includes(tag)) {
+                fm.tags.push(tag);
+                modified++;
+            } else if (operation === "remove") {
+                const index = fm.tags.indexOf(tag);
+                if (index > -1) {
+                    fm.tags.splice(index, 1);
+                    modified++;
+                }
+            } else if (operation === "replace") {
+                const index = fm.tags.indexOf(tag);
+                if (index > -1) {
+                    fm.tags[index] = newTag;
+                    modified++;
+                }
+            }
+        });
+    }
+    
+    new obsidian.Notice(`Modified ${modified} files`);
+    return modified;
+}
+```
+
+### Search and Replace Across Vault
+
+```javascript
+async function searchAndReplace(params, settings) {
+    const { app, quickAddApi, obsidian } = params;
+    
+    const searchTerm = await quickAddApi.inputPrompt("Search for:");
+    const replaceTerm = await quickAddApi.inputPrompt("Replace with:");
+    
+    const confirm = await quickAddApi.yesNoPrompt(
+        "Confirm",
+        `Replace all occurrences of "${searchTerm}" with "${replaceTerm}"?`
+    );
+    
+    if (!confirm) return;
+    
+    const files = app.vault.getMarkdownFiles();
+    const results = [];
+    
+    for (const file of files) {
+        const content = await app.vault.read(file);
+        
+        if (content.includes(searchTerm)) {
+            const newContent = content.replaceAll(searchTerm, replaceTerm);
+            await app.vault.modify(file, newContent);
+            
+            const count = (content.match(new RegExp(searchTerm, 'g')) || []).length;
+            results.push(`${file.path}: ${count} replacements`);
+        }
+    }
+    
+    if (results.length > 0) {
+        await quickAddApi.infoDialog("Replacements Made", results);
+    } else {
+        new obsidian.Notice("No matches found");
+    }
+    
+    return results;
+}
+```
+
+### Daily Note Automation
+
+```javascript
+async function enhanceDailyNote(params, settings) {
+    const { app, obsidian } = params;
+    
+    // Get or create today's daily note
+    const { moment } = window;
+    const dailyNotes = app.plugins.plugins["daily-notes"];
+    
+    if (!dailyNotes) {
+        throw new Error("Daily Notes plugin not enabled");
+    }
+    
+    const { createDailyNote, getDailyNote } = dailyNotes.instance;
+    const date = moment();
+    
+    let dailyNote = getDailyNote(date, dailyNotes.instance.options);
+    if (!dailyNote) {
+        dailyNote = await createDailyNote(date);
+    }
+    
+    // Add content to daily note
+    const content = await app.vault.read(dailyNote);
+    
+    // Add weather (example - would need actual API)
+    const weather = "☀️ Sunny, 22°C";
+    
+    // Add tasks from yesterday
+    const yesterday = moment().subtract(1, 'day');
+    const yesterdayNote = getDailyNote(yesterday, dailyNotes.instance.options);
+    
+    let unfinishedTasks = "";
+    if (yesterdayNote) {
+        const yesterdayContent = await app.vault.read(yesterdayNote);
+        const taskRegex = /- \[ \] .+/g;
+        const tasks = yesterdayContent.match(taskRegex);
+        if (tasks) {
+            unfinishedTasks = "\n## Carried Over Tasks\n" + tasks.join("\n");
+        }
+    }
+    
+    const enhanced = content + `
+## Weather
+${weather}
+
+${unfinishedTasks}
+
+## Notes
+- 
+
+## Gratitude
+- 
+`;
+    
+    await app.vault.modify(dailyNote, enhanced);
+    await app.workspace.getLeaf().openFile(dailyNote);
+    
+    return dailyNote.path;
 }
 ```
 
 ## Debugging Tips
 
-1. Use `console.log()` liberally during development
-2. Open the Developer Console (Ctrl/Cmd + Shift + I) to see output
-3. Test with simple inputs before adding complexity
-4. Use `debugger;` statements to pause execution in the Developer Tools
-5. Wrap risky operations in try-catch blocks
+1. **Use Console Logging Strategically**
+   ```javascript
+   console.log("Script started", { settings, params });
+   console.group("Processing files");
+   files.forEach(f => console.log(f.path));
+   console.groupEnd();
+   ```
+
+2. **Developer Console Access**
+   - Windows/Linux: `Ctrl + Shift + I`
+   - Mac: `Cmd + Option + I`
+   - Filter console by typing "QuickAdd" to see only relevant logs
+
+3. **Error Boundaries**
+   ```javascript
+   try {
+       // Risky operation
+       await app.vault.modify(file, content);
+   } catch (error) {
+       console.error("Failed to modify file:", error);
+       new Notice(`Error: ${error.message}`);
+       // Continue or throw depending on severity
+   }
+   ```
+
+4. **Performance Monitoring**
+   ```javascript
+   console.time("Processing files");
+   // ... your code
+   console.timeEnd("Processing files");
+   ```
+
+5. **Debugging State**
+   ```javascript
+   // Use debugger statement to pause execution
+   debugger;  // Execution will pause here if DevTools is open
+   
+   // Inspect variables at specific points
+   console.table(variables);  // Great for objects/arrays
+   ```
 
 ## Example Scripts
 
 For complete working examples, see:
+- [Complete Example with All Options](./Examples/Attachments/userScriptExample.js) - Demonstrates all option types and patterns
 - [Movie Script](./Examples/Attachments/movies.js) - Fetches movie data from OMDb API
 - [Citations Manager](./Examples/Attachments/citationsManager.js) - Integrates with Obsidian Citations plugin
 - [Book Finder](./Examples/Macro_BookFinder.md) - Searches for book information
+
+## Additional Resources
+
+### Obsidian API Documentation
+- [Official Obsidian API Reference](https://docs.obsidian.md/Reference/TypeScript+API)
+- [Plugin Development Guide](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
+- [Vault Module](https://docs.obsidian.md/Reference/TypeScript+API/Vault) - File operations
+- [MetadataCache](https://docs.obsidian.md/Reference/TypeScript+API/MetadataCache) - File metadata and links
+- [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) - Panes and leaves
+- [Editor](https://docs.obsidian.md/Reference/TypeScript+API/Editor) - Text editing operations
+
+### QuickAdd Resources
+- [QuickAdd API Reference](../QuickAddAPI.md)
+- [Format Syntax Guide](../FormatSyntax.md)
+- [Macro Choice Documentation](../Choices/MacroChoice.md)
+- [Inline Scripts](../InlineScripts.md)
 
 ## Troubleshooting
 
