@@ -132,6 +132,11 @@ const sidebars = {
 				},
 				{
 					type: "doc",
+					id: "UserScripts",
+					label: "📜 User Scripts",
+				},
+				{
+					type: "doc",
 					id: "Advanced/scriptsWithSettings",
 					label: "⚙️ Scripts with Settings",
 				},
