@@ -1,7 +1,8 @@
  
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Setting } from "obsidian";
+import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
+import { dedupeModels, fetchModelsDevDirectory, getModelsForProvider, mapModelsDevToQuickAdd } from "src/ai/modelsDirectory";
 import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
@@ -124,7 +125,9 @@ export class AIAssistantProvidersModal extends Modal {
 		this.addEndpointSetting(container);
 		this.addApiKeySetting(container);
  
-        this.addProviderModelsSetting(container);
+		this.addProviderModelsSetting(container);
+		this.addImportModelsFromDirectorySetting(container);
+		this.addAutoSyncSetting(container);
 
 		this.addProviderSettingButtonRow(this.contentEl);
 	}
@@ -221,6 +224,70 @@ export class AIAssistantProvidersModal extends Modal {
                 button.setCta();
             });
     }
+
+    addImportModelsFromDirectorySetting(container: HTMLElement) {
+        new Setting(container)
+            .setName("Import models")
+            .setDesc("Fetch models from models.dev and add to this provider")
+            .addButton((button) => {
+                button.setButtonText("Fetch from models.dev").onClick(async () => {
+                    try {
+                        await fetchModelsDevDirectory();
+                        const models = await getModelsForProvider(this.selectedProvider!);
+                        if (!models.length) {
+                            new Notice("No models found for this provider endpoint.");
+                            return;
+                        }
+                        const qaModels = mapModelsDevToQuickAdd(models);
+                        this.selectedProvider!.models = dedupeModels(
+                            this.selectedProvider!.models,
+                            qaModels
+                        );
+                        new Notice(`Imported ${qaModels.length} models (deduped).`);
+                        this.reload();
+                    } catch (err) {
+                        new Notice(
+                            `Failed to fetch models: ${(err as { message?: string }).message ?? err}`
+                        );
+                    }
+                });
+                button.setCta();
+            });
+    }
+
+	addAutoSyncSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Auto-sync models")
+			.setDesc(
+				"Automatically import new models from models.dev for this provider when opening settings."
+			)
+			.addToggle((toggle) => {
+				const current = !!this.selectedProvider?.autoSyncModels;
+				toggle.setValue(current).onChange((value) => {
+					if (this.selectedProvider) this.selectedProvider.autoSyncModels = value;
+				});
+			})
+			.addButton((button) => {
+				button.setButtonText("Sync now").onClick(async () => {
+					try {
+						await fetchModelsDevDirectory();
+						const models = await getModelsForProvider(this.selectedProvider!);
+						const qaModels = mapModelsDevToQuickAdd(models);
+						this.selectedProvider!.models = dedupeModels(
+							this.selectedProvider!.models,
+							qaModels
+						);
+						new Notice("Models synced.");
+						this.reload();
+					} catch (err) {
+						new Notice(
+							`Sync failed: ${(err as { message?: string }).message ?? err}`
+						);
+					}
+				});
+				button.setCta();
+			});
+	}
 
 	addProviderSettingButtonRow(container: HTMLElement) {
 		const buttonRow = container.createDiv("button-row");
