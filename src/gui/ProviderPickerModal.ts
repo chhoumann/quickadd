@@ -66,13 +66,20 @@ export class ProviderPickerModal extends Modal {
         doc.rel = "noopener noreferrer";
       }
 
-      new Setting(card)
+      const apiSetting = new Setting(card)
         .setName("API Key")
         .addText((text) => {
           text.setPlaceholder("paste key...");
+          text.inputEl.style.width = "100%";
           text.onChange((v) => (text.inputEl.dataset["qa_key"] = v));
-        })
-        .addButton((b) => {
+        });
+
+      // Make the API key input stack vertically to avoid squishing on narrow screens
+      apiSetting.settingEl.style.display = "flex";
+      apiSetting.settingEl.style.flexDirection = "column";
+      apiSetting.settingEl.style.gap = "6px";
+
+      apiSetting.addButton((b) => {
           b.setButtonText("Connect").setCta().onClick(() => {
             const apiKey = (card.querySelector("input") as HTMLInputElement)?.dataset?.["qa_key"] ?? "";
             const provider: AIProvider = {
