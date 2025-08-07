@@ -87,6 +87,23 @@ export interface AnthropicResponse {
 	usage: { input_tokens: number; output_tokens: number };
 }
 
+type GeminiPart = { text?: string } & Record<string, unknown>;
+type GeminiContent = { role: string; parts: GeminiPart[] };
+export interface GeminiResponse {
+  candidates: Array<{
+    content: GeminiContent;
+    finishReason?: string;
+    index?: number;
+    safetyRatings?: unknown[];
+  }>;
+  modelVersion?: string;
+  usageMetadata?: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+  };
+}
+
 async function makeOpenAIRequest(
 	apiKey: string,
 	model: Model,
@@ -149,6 +166,87 @@ async function makeAnthropicRequest(
 	return response.json as AnthropicResponse;
 }
 
+async function makeGeminiRequest(
+  apiKey: string,
+  model: Model,
+  modelProvider: AIProvider,
+  systemPrompt: string,
+  modelParams: Partial<OpenAIModelParameters>,
+  prompt: string,
+  afterRequestCallback?: () => void
+): Promise<GeminiResponse> {
+  // Gemini uses API key as query param and different payload shape
+  const url = `${modelProvider.endpoint}/v1beta/models/${encodeURIComponent(
+    model.name
+  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const generationConfig: Record<string, unknown> = {};
+  if (typeof modelParams.temperature === "number") {
+    generationConfig.temperature = modelParams.temperature;
+  }
+  if (typeof modelParams.top_p === "number") {
+    generationConfig.topP = modelParams.top_p;
+  }
+  // Do NOT pass frequency_penalty / presence_penalty; Gemini does not support them
+
+  const body: Record<string, unknown> = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ],
+  };
+
+  if (systemPrompt && systemPrompt.trim().length > 0) {
+    // Prefer systemInstruction when available; otherwise include a system content
+    body["systemInstruction"] = {
+      role: "system",
+      parts: [{ text: systemPrompt }],
+    } as GeminiContent;
+  }
+
+  if (Object.keys(generationConfig).length > 0) {
+    body["generationConfig"] = generationConfig;
+  }
+
+  const _response = requestUrl({
+    url,
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (afterRequestCallback) afterRequestCallback();
+
+  const response = await _response;
+  return response.json as GeminiResponse;
+}
+
+function mapGeminiResponseToCommon(response: GeminiResponse): CommonResponse {
+  const firstCandidate = response.candidates?.[0];
+  const parts = firstCandidate?.content?.parts ?? [];
+  const text = parts
+    .map((p) => (typeof p.text === "string" ? p.text : ""))
+    .join("");
+
+  return {
+    id: `${Date.now()}`,
+    model: response.modelVersion ?? "gemini",
+    content: text,
+    usage: {
+      promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
+      completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+      totalTokens: response.usageMetadata?.totalTokenCount ?? 0,
+    },
+    stopReason: firstCandidate?.finishReason ?? "",
+    stopSequence: null,
+    created: Date.now(),
+  };
+}
+
 export function OpenAIRequest(
 	app: App,
 	apiKey: string,
@@ -183,7 +281,7 @@ export function OpenAIRequest(
 			const restoreCursor = preventCursorChange(app);
 
 			let response: CommonResponse;
-			if (modelProvider.name === "Anthropic") {
+          if (modelProvider.name === "Anthropic") {
 				const anthropicResponse = await makeAnthropicRequest(
 					apiKey,
 					model,
@@ -193,6 +291,17 @@ export function OpenAIRequest(
 					restoreCursor
 				);
 				response = mapAnthropicResponseToCommon(anthropicResponse);
+          } else if (modelProvider.name === "Gemini") {
+            const geminiResponse = await makeGeminiRequest(
+              apiKey,
+              model,
+              modelProvider,
+              systemPrompt,
+              modelParams,
+              prompt,
+              restoreCursor
+            );
+            response = mapGeminiResponseToCommon(geminiResponse);
 			} else {
 				const openaiResponse = await makeOpenAIRequest(
 					apiKey,
