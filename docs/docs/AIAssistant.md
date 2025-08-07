@@ -48,7 +48,7 @@ Here are a few providers that are known to work with QuickAdd:
 
 Paid providers expose their own API, which you can use with QuickAdd. Free providers, such as Ollama, are also supported.
 
-By default, QuickAdd will add the OpenAI and Gemini providers. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings.
+By default, QuickAdd will add the OpenAI and Gemini providers. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings. This now opens a preset picker with common providers (OpenAI, Gemini, Groq, Together, OpenRouter, etc.). Paste your API key and click Connect to add the provider. You can also add a custom provider.
 
 Here's a video showcasing adding Groq as a provider:
 
@@ -94,6 +94,12 @@ Notes:
 
 - Use only supported parameters for Gemini (temperature, top_p). Frequency/presence penalties are not sent to Gemini.
 - Make sure "Disable AI & Online features" is turned off in QuickAdd settings to enable requests.
+
+### Importing and syncing models
+
+- Use the "Browse models" button inside a provider to search and multi-select models from the public models directory (`https://models.dev/api.json`).
+- Choose Add-only to merge or Replace to overwrite the provider's model list.
+- Enable Auto-sync to keep your model list updated; use Sync now for a manual refresh.
 
 ## AI Assistant Settings
 

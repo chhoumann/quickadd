@@ -3,6 +3,8 @@ export interface AIProvider {
 	endpoint: string;
 	apiKey: string;
 	models: Model[];
+    /** If true, QuickAdd may auto-sync models from models.dev for this provider. */
+    autoSyncModels?: boolean;
 }
 
 export interface Model {
@@ -56,6 +58,7 @@ const OpenAIProvider: AIProvider = {
 			maxTokens: 128000,
 		},
 	],
+    autoSyncModels: false,
 };
 
 const GeminiProvider: AIProvider = {
@@ -76,6 +79,7 @@ const GeminiProvider: AIProvider = {
             maxTokens: 1000000,
         },
     ],
+    autoSyncModels: false,
 };
 
 

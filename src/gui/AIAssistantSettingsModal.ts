@@ -34,6 +34,12 @@ export class AIAssistantSettingsModal extends Modal {
 	}
 
 	private display(): void {
+		// Responsive sizing (desktop and mobile)
+		this.modalEl.style.width = `min(100vw - 32px, 980px)`;
+		this.modalEl.style.maxWidth = `980px`;
+		this.contentEl.style.maxHeight = `min(85vh, 800px)`;
+		this.contentEl.style.overflowY = "auto";
+
 		this.contentEl.createEl("h2", {
 			text: "AI Assistant Settings",
 		}).style.textAlign = "center";
