@@ -58,7 +58,28 @@ const OpenAIProvider: AIProvider = {
 	],
 };
 
+const GeminiProvider: AIProvider = {
+    name: "Gemini",
+    endpoint: "https://generativelanguage.googleapis.com",
+    apiKey: "",
+    models: [
+        {
+            name: "gemini-1.5-pro",
+            maxTokens: 1000000,
+        },
+        {
+            name: "gemini-1.5-flash",
+            maxTokens: 1000000,
+        },
+        {
+            name: "gemini-1.5-flash-8b",
+            maxTokens: 1000000,
+        },
+    ],
+};
+
 
 export const DefaultProviders: AIProvider[] = [
-	OpenAIProvider,
+    OpenAIProvider,
+    GeminiProvider,
 ];
