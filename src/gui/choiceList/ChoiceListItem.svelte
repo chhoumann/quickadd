@@ -6,6 +6,7 @@
 
 	export let choice: IChoice;
 	export let dragDisabled: boolean;
+	export let startDrag: (e: Event) => void;
 	let showConfigureButton: boolean = true;
 	const dispatcher = createEventDispatcher();
 
@@ -46,8 +47,7 @@
 	<span class="choiceListItemName" bind:this={nameElement} />
 
 	<RightButtons
-		on:mousedown
-		on:touchstart
+		on:dragHandleDown={startDrag}
 		on:deleteChoice={deleteChoice}
 		on:configureChoice={configureChoice}
 		on:toggleCommand={toggleCommandForChoice}

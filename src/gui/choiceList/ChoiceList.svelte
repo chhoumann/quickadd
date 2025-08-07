@@ -20,24 +20,33 @@
         let {items: newItems, info: {id}} = e.detail;
         collapseId = id;
 
-        choices = newItems as IChoice[];
+        // Remove internal placeholder item from state to avoid ghost gaps
+        const sanitized = (newItems as IChoice[]).filter(
+            (it) => it.id !== SHADOW_PLACEHOLDER_ITEM_ID
+        );
+        choices = sanitized;
     }
 
     function handleSort(e: CustomEvent<DndEvent>) {
-        let {items: newItems, info: {source}} = e.detail;
+        let {items: newItems} = e.detail;
         collapseId = "";
 
-        choices = newItems as IChoice[];
+        // Remove internal placeholder item from state to avoid ghost gaps
+        const sanitized = (newItems as IChoice[]).filter(
+            (it) => it.id !== SHADOW_PLACEHOLDER_ITEM_ID
+        );
+        choices = sanitized;
 
-        if (source === SOURCES.POINTER) {
-            dragDisabled = true;
-        }
+        // Always re-disable dragging when the sort finalizes
+        dragDisabled = true;
 
         emitChoicesReordered();
     }
 
-    function startDrag(e: CustomEvent<DndEvent>) {
-        e.preventDefault();
+    function startDrag(e: Event) {
+        // prevent focus/selection side-effects before enabling drag
+        // @ts-ignore
+        if (typeof e?.preventDefault === 'function') e.preventDefault();
         dragDisabled = false;
     }
 </script>
@@ -52,23 +61,21 @@
         {#if choice.type !== "Multi"}
             <ChoiceListItem
                     bind:dragDisabled={dragDisabled}
-                    on:mousedown={startDrag}
-                    on:touchstart={startDrag}
                     on:deleteChoice
                     on:configureChoice
                     on:toggleCommand
                     on:duplicateChoice
+                    startDrag={startDrag}
                     bind:choice
             />
         {:else}
             <MultiChoiceListItem
                     bind:dragDisabled={dragDisabled}
-                    on:mousedown={startDrag}
-                    on:touchstart={startDrag}
                     on:deleteChoice
                     on:configureChoice
                     on:toggleCommand
                     on:duplicateChoice
+                    startDrag={startDrag}
                     bind:collapseId
                     bind:choice
             />
