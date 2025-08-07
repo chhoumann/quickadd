@@ -81,16 +81,49 @@ export class ProviderPickerModal extends Modal {
 
       apiSetting.addButton((b) => {
           b.setButtonText("Connect").setCta().onClick(() => {
-            const apiKey = (card.querySelector("input") as HTMLInputElement)?.dataset?.["qa_key"] ?? "";
-            const provider: AIProvider = {
-              name: preset.name,
-              endpoint: preset.endpoint,
-              apiKey,
-              models: [],
-            };
-            this.providers.push(provider);
-            new Notice(`${preset.name} added. Click Edit to configure models.`);
-            this.display();
+            try {
+              const apiKey = (card.querySelector("input") as HTMLInputElement)?.dataset?.["qa_key"] ?? "";
+
+              // Basic validation
+              try {
+                // Validate endpoint URL format
+                // eslint-disable-next-line no-new
+                new URL(preset.endpoint);
+              } catch {
+                new Notice(`Invalid endpoint URL for ${preset.name}.`);
+                return;
+              }
+
+              const lower = preset.endpoint.toLowerCase();
+              const likelyRequiresKey = [
+                "openai.com",
+                "generativelanguage.googleapis.com",
+                "anthropic",
+                "api.groq.com",
+                "together.xyz",
+                "openrouter.ai",
+                "router.huggingface.co",
+                "api.mistral.ai",
+                "api.deepseek.com",
+              ].some((s) => lower.includes(s));
+
+              if (likelyRequiresKey && !apiKey) {
+                new Notice(`${preset.name} requires an API key.`);
+                return;
+              }
+
+              const provider: AIProvider = {
+                name: preset.name,
+                endpoint: preset.endpoint,
+                apiKey,
+                models: [],
+              };
+              this.providers.push(provider);
+              new Notice(`${preset.name} added. Click Edit to configure models.`);
+              this.display();
+            } catch (err) {
+              new Notice(`Failed to add provider: ${(err as { message?: string }).message ?? err}`);
+            }
           });
         });
     }

@@ -136,10 +136,18 @@ export class ModelDirectoryModal extends Modal {
       new Notice("Select at least one model.");
       return;
     }
-    const selection = this.allModels.filter((m) => this.selectedIds.has(m.id));
-    const qaModels = mapModelsDevToQuickAdd(selection);
-    this.resolvePromise({ imported: qaModels, mode: this.mode });
-    this.close();
+    try {
+      const selection = this.allModels.filter((m) => this.selectedIds.has(m.id));
+      const qaModels = mapModelsDevToQuickAdd(selection);
+      if (!qaModels.length) {
+        new Notice("No models selected to import.");
+        return;
+      }
+      this.resolvePromise({ imported: qaModels, mode: this.mode });
+      this.close();
+    } catch (err) {
+      new Notice(`Import failed: ${(err as { message?: string }).message ?? err}`);
+    }
   }
 
   onClose(): void {
