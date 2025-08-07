@@ -6,6 +6,7 @@ import { dedupeModels, fetchModelsDevDirectory, getModelsForProvider, mapModelsD
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
+import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
 import type { IconType } from "src/types/IconType";
 
@@ -62,25 +63,14 @@ export class AIAssistantProvidersModal extends Modal {
 		new Setting(container)
 			.setName("Providers")
 			.setDesc("Providers for the AI Assistant")
-			.addButton((button) => {
-				button.setButtonText("Add Provider").onClick(async () => {
-					const providerName = await GenericInputPrompt.Prompt(
-						this.app,
-						"Provider Name"
-					);
+            .addButton((button) => {
+                button.setButtonText("Add Provider").onClick(async () => {
+                    await new ProviderPickerModal(this.app, this.providers).waitForClose;
+                    this.reload();
+                });
 
-					this.providers.push({
-						name: providerName,
-						endpoint: "",
-						apiKey: "",
-						models: [],
-					});
-
-					this.reload();
-				});
-
-				button.setCta();
-			});
+                button.setCta();
+            });
 
 		const providersContainer = container.createDiv("providers-container");
 		providersContainer.style.display = "flex";
