@@ -81,8 +81,7 @@
          aria-label="Drag-handle"
          style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
          class="alignIconInDivInMiddle"
-         on:mousedown
-         on:touchstart
+         on:pointerdown={() => dispatcher('dragHandleDown')}
     >
         <ObsidianIcon iconId="grip-vertical" size={16} />
     </div>

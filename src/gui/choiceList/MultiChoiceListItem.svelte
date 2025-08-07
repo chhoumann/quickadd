@@ -9,6 +9,7 @@
     export let choice: IMultiChoice;
     export let collapseId: string;
     export let dragDisabled: boolean;
+    export let startDrag: (e: Event) => void;
     let showConfigureButton: boolean = true;
 
     const dispatcher = createEventDispatcher();
@@ -62,8 +63,7 @@
         </div>
 
         <RightButtons
-            on:mousedown
-            on:touchstart
+            on:dragHandleDown={startDrag}
             on:deleteChoice={deleteChoice}
             on:configureChoice={configureChoice}
             on:toggleCommand={toggleCommandForChoice}
