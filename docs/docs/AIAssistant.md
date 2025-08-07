@@ -19,8 +19,8 @@ To set up the AI Assistant, follow these steps:
 That's really it. You're now ready to use the AI Assistant.
 
 The basic idea is that you set up a QuickAdd Macro, which will trigger the AI Assistant.
-The AI Assistant will then use the prompt template you specify to generate a prompt, which it will then send to OpenAI.
-OpenAI will then return a response, which the AI Assistant passes on to the QuickAdd Macro.
+The AI Assistant will then use the prompt template you specify to generate a prompt, which it will then send to your selected provider.
+The provider will then return a response, which the AI Assistant passes on to the QuickAdd Macro.
 You can then use the response in subsequent steps in the macro, e.g. to capture to a note, or create a new note.
 
 **Creating prompt templates is simple: just create a note in your prompt templates folder.**
@@ -36,18 +36,19 @@ You can also use AI Assistant features from within the [API](./QuickAddAPI.md).
 ## Providers
 
 QuickAdd supports multiple providers for LLMs.
-The only requirement is that they are OpenAI-compatible, which means their API should be similar to OpenAIs.
+QuickAdd works with OpenAI-compatible APIs and also supports Google Gemini.
 
 Here are a few providers that are known to work with QuickAdd:
 
 -   [OpenAI](https://openai.com)
+-   [Gemini (Google AI)](https://ai.google.dev)
 -   [TogetherAI](https://www.together.ai)
 -   [Groq](https://groq.com)
 -   [Ollama (local)](https://ollama.com)
 
 Paid providers expose their own API, which you can use with QuickAdd. Free providers, such as Ollama, are also supported.
 
-By default, QuickAdd will add the OpenAI provider. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings.
+By default, QuickAdd will add the OpenAI and Gemini providers. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings.
 
 Here's a video showcasing adding Groq as a provider:
 
@@ -75,11 +76,30 @@ Api Key: (empty)
 And that's it! You can now use Ollama as a provider in QuickAdd.
 Make sure you add the model you want to use. [mistral](https://ollama.com/library/mistral) is great.
 
+### Gemini (Google AI)
+
+Gemini is supported out of the box.
+
+```
+Name: Gemini
+URL: https://generativelanguage.googleapis.com
+API Key: (AI Studio API key)
+Models (add one or more):
+  - gemini-1.5-pro (Max Tokens: 1000000)
+  - gemini-1.5-flash (Max Tokens: 1000000)
+  - gemini-1.5-flash-8b (Max Tokens: 1000000)
+```
+
+Notes:
+
+- Use only supported parameters for Gemini (temperature, top_p). Frequency/presence penalties are not sent to Gemini.
+- Make sure "Disable AI & Online features" is turned off in QuickAdd settings to enable requests.
+
 ## AI Assistant Settings
 
 Within the main AI Assistant settings accessible via QuickAdd settings, you can configure the following options:
 
--   OpenAI API Key: The key to interact with OpenAI's models.
+-   Providers: Configure provider endpoints and API keys.
 -   Prompt Templates Folder: The location where all your prompt templates reside.
 -   Default model: The default OpenAI model to be used.
 -   Show Assistant: Toggle for status messages.
@@ -96,8 +116,8 @@ You can also tweak model parameters in advanced settings:
 
 -   **temperature:** Allows you to adjust the sampling temperature between 0 and 2. Higher values result in more random outputs, while lower values make the output more focused and deterministic.
 -   **top_p:** This parameter relates to nucleus sampling. The model considers only the tokens comprising the top 'p' probability mass. For example, 0.1 means only tokens from the top 10% probability mass are considered.
--   **frequency_penalty:** A parameter ranging between -2.0 and 2.0. Positive values penalize new tokens based on their frequency in the existing text, reducing the model's tendency to repeat the same lines.
--   **presence_penalty:** Also ranging between -2.0 and 2.0, positive values penalize new tokens based on their presence in the existing text, encouraging the model to introduce new topics.
+-   **frequency_penalty:** A parameter ranging between -2.0 and 2.0. Positive values penalize new tokens based on their frequency in the existing text, reducing the model's tendency to repeat the same lines. (Not applicable to Gemini.)
+-   **presence_penalty:** Also ranging between -2.0 and 2.0, positive values penalize new tokens based on their presence in the existing text, encouraging the model to introduce new topics. (Not applicable to Gemini.)
 
 ## AI-Powered Workflows
 
