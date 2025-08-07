@@ -29,18 +29,26 @@ export class ProviderPickerModal extends Modal {
 
   private display() {
     this.contentEl.empty();
+    // Responsive modal sizing for desktop and mobile
+    this.modalEl.style.width = `min(100vw - 32px, 980px)`;
+    this.modalEl.style.maxWidth = `980px`;
+    this.contentEl.style.maxHeight = `min(85vh, 800px)`;
+    this.contentEl.style.overflowY = "auto";
     this.addHeader(this.contentEl);
 
     const grid = this.contentEl.createDiv();
     grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "repeat(auto-fill, minmax(220px, 1fr))";
+    const isMobile = window.innerWidth < 640;
+    grid.style.gridTemplateColumns = isMobile
+      ? "1fr"
+      : "repeat(auto-fill, minmax(260px, 1fr))";
     grid.style.gap = "12px";
 
     for (const preset of PROVIDER_PRESETS) {
       const card = grid.createDiv({ cls: "qa-provider-card" });
       card.style.border = "1px solid var(--background-modifier-border)";
       card.style.borderRadius = "8px";
-      card.style.padding = "12px";
+      card.style.padding = window.innerWidth < 640 ? "10px" : "12px";
       card.style.display = "flex";
       card.style.flexDirection = "column";
       card.style.gap = "8px";

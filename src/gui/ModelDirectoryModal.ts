@@ -44,6 +44,11 @@ export class ModelDirectoryModal extends Modal {
 
   private display() {
     this.contentEl.empty();
+    // Responsive sizing
+    this.modalEl.style.width = `min(100vw - 32px, 980px)`;
+    this.modalEl.style.maxWidth = `980px`;
+    this.contentEl.style.maxHeight = `min(85vh, 800px)`;
+    this.contentEl.style.overflowY = "auto";
 
     this.contentEl.createEl("h2", { text: `Browse models for ${this.provider.name}` }).style.textAlign = "center";
 
@@ -90,7 +95,7 @@ export class ModelDirectoryModal extends Modal {
 
     // List container
     const list = this.contentEl.createDiv({ cls: "qa-model-directory" });
-    list.style.maxHeight = "400px";
+    list.style.maxHeight = window.innerWidth < 640 ? "55vh" : "60vh";
     list.style.overflowY = "auto";
     list.style.padding = "6px";
 
