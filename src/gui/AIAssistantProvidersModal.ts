@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { dedupeModels, fetchModelsDevDirectory, getModelsForProvider, mapModelsDevToQuickAdd } from "src/ai/modelsDirectory";
+import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
@@ -228,28 +229,22 @@ export class AIAssistantProvidersModal extends Modal {
     addImportModelsFromDirectorySetting(container: HTMLElement) {
         new Setting(container)
             .setName("Import models")
-            .setDesc("Fetch models from models.dev and add to this provider")
+            .setDesc("Browse and import models from models.dev for this provider")
             .addButton((button) => {
-                button.setButtonText("Fetch from models.dev").onClick(async () => {
-                    try {
-                        await fetchModelsDevDirectory();
-                        const models = await getModelsForProvider(this.selectedProvider!);
-                        if (!models.length) {
-                            new Notice("No models found for this provider endpoint.");
-                            return;
-                        }
-                        const qaModels = mapModelsDevToQuickAdd(models);
+                button.setButtonText("Browse models").onClick(async () => {
+                    const res = await new ModelDirectoryModal(this.app, this.selectedProvider!).waitForClose;
+                    if (!res) return;
+                    const { imported, mode } = res;
+                    if (mode === "replace") {
+                        this.selectedProvider!.models = imported;
+                    } else {
                         this.selectedProvider!.models = dedupeModels(
                             this.selectedProvider!.models,
-                            qaModels
-                        );
-                        new Notice(`Imported ${qaModels.length} models (deduped).`);
-                        this.reload();
-                    } catch (err) {
-                        new Notice(
-                            `Failed to fetch models: ${(err as { message?: string }).message ?? err}`
+                            imported
                         );
                     }
+                    new Notice(`Imported ${imported.length} models${mode === "replace" ? " (replaced)" : " (added)"}.`);
+                    this.reload();
                 });
                 button.setCta();
             });
