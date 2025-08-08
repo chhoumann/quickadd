@@ -42,6 +42,7 @@ category:: {{VALUE:typeLink}}
 director:: {{VALUE:directorLink}}
 genre:: {{VALUE:genreLinks}}
 imdbId:: {{VALUE:imdbID}}
+imdb:: [IMDb]({{VALUE:imdbUrl}})
 ratingImdb:: {{VALUE:imdbRating}}
 rating::
 year:: {{VALUE:Year}}
