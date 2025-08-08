@@ -3,7 +3,7 @@ import { Formatter } from "src/formatters/formatter";
 import type QuickAdd from "src/main";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import { NLDParser } from "src/parsers/NLDParser";
-import { TEMPLATE_REGEX } from "src/constants";
+import { TEMPLATE_REGEX, VARIABLE_REGEX } from "src/constants";
 
 export type FieldType =
   | "text"
@@ -34,6 +34,7 @@ export interface FieldRequirement {
  */
 export class RequirementCollector extends Formatter {
   public readonly requirements = new Map<string, FieldRequirement>();
+  public readonly templatesToScan = new Set<string>();
 
   constructor(
     protected app: App,
@@ -50,6 +51,7 @@ export class RequirementCollector extends Formatter {
   // Entry points -------------------------------------------------------------
   public async scanString(input: string): Promise<void> {
     // Run a safe formatting pass that collects variables but avoids side-effects
+    this.scanVariableTokens(input);
     await this.format(input);
   }
 
@@ -85,12 +87,49 @@ export class RequirementCollector extends Formatter {
     while (TEMPLATE_REGEX.test(output)) {
       const exec = TEMPLATE_REGEX.exec(output);
       if (!exec || !exec[1]) break;
-      // We do not inline; the caller should scan the referenced template file
-      // to find additional requirements.
+      // Record template path for caller to recursively scan
+      this.templatesToScan.add(exec[1]);
       break; // avoid infinite loop
     }
 
     return output;
+  }
+
+  // Additional scanning for defaults/options in {{VALUE:...}} tokens
+  private scanVariableTokens(input: string) {
+    const re = new RegExp(VARIABLE_REGEX.source, 'gi');
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(input)) !== null) {
+      const inner = (match[1] ?? "").trim();
+      if (!inner) continue;
+
+      const pipeIndex = inner.indexOf("|");
+      let variableName = inner;
+      let defaultValue: string | undefined;
+      if (pipeIndex !== -1) {
+        defaultValue = inner.substring(pipeIndex + 1).trim();
+        variableName = inner.substring(0, pipeIndex).trim();
+      }
+
+      if (!variableName) continue;
+
+      const hasOptions = pipeIndex === -1 && variableName.includes(",");
+      if (!this.requirements.has(variableName)) {
+        const req: FieldRequirement = {
+          id: variableName,
+          label: variableName,
+          type: hasOptions ? "dropdown" : "text",
+        };
+        if (hasOptions) {
+          req.options = variableName.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+        if (defaultValue) req.defaultValue = defaultValue;
+        this.requirements.set(variableName, req);
+      } else if (defaultValue) {
+        const existing = this.requirements.get(variableName)!;
+        if (existing.defaultValue === undefined) existing.defaultValue = defaultValue;
+      }
+    }
   }
 
   // Formatter hooks ----------------------------------------------------------

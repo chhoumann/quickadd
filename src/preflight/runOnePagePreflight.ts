@@ -36,8 +36,18 @@ async function collectForTemplateChoice(app: App, plugin: QuickAdd, choiceExecut
 
   // Template content + nested templates
   if (choice.templatePath) {
-    const content = await readTemplate(app, choice.templatePath);
-    await collector.scanString(content);
+    const visited = new Set<string>();
+    const walk = async (path: string) => {
+      if (visited.has(path)) return;
+      visited.add(path);
+      const content = await readTemplate(app, path);
+      await collector.scanString(content);
+      for (const nested of collector.templatesToScan) {
+        if (!visited.has(nested)) await walk(nested);
+      }
+      collector.templatesToScan.clear();
+    };
+    await walk(choice.templatePath);
   }
 
   return collector;
