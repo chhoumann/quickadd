@@ -94,9 +94,17 @@ export class OnePageInputModal extends Modal {
         const setting = new Setting(this.contentEl).setName(req.label);
         if (req.description) setting.setDesc(req.description);
         const dropdown = new DropdownComponent(setting.controlEl);
-        (req.options ?? []).forEach((opt) => dropdown.addOption(opt, opt));
-        dropdown.setValue(starting || (req.options?.[0] ?? ""));
-        dropdown.onChange((v) => setValue(req.id, v));
+        const options = req.options ?? [];
+        if (options.length > 0) {
+          options.forEach((opt) => dropdown.addOption(opt, opt));
+          dropdown.setValue(starting || options[0] || "");
+          dropdown.onChange((v) => setValue(req.id, v));
+        } else {
+          dropdown.setDisabled(true);
+          const note = setting.controlEl.createDiv({ text: req.placeholder || "No options available" });
+          note.style.marginLeft = "0.5rem";
+          note.style.color = "var(--text-muted)";
+        }
         break;
       }
       case "date": {
