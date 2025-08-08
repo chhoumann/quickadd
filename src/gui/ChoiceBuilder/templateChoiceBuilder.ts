@@ -43,17 +43,28 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	protected display() {
 		this.containerEl.addClass("templateChoiceBuilder");
 		this.addCenteredChoiceNameHeader(this.choice);
+
+		// Template
+		new Setting(this.contentEl).setName("Template").setHeading();
 		this.addTemplatePathSetting();
 		this.addFileNameFormatSetting();
+
+		// Location
+		new Setting(this.contentEl).setName("Location").setHeading();
 		this.addFolderSetting();
+
+		// Linking
+		new Setting(this.contentEl).setName("Linking").setHeading();
 		this.addAppendLinkSetting();
+
+		// Behavior
+		new Setting(this.contentEl).setName("Behavior").setHeading();
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting("Open the created file.");
-		this.addOnePageOverrideSetting(this.choice);
-
 		if (this.choice.openFile) {
 			this.addFileOpeningSetting("created");
 		}
+		this.addOnePageOverrideSetting(this.choice);
 	}
 
 	private addTemplatePathSetting(): void {
