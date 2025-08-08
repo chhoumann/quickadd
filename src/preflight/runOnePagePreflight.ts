@@ -113,19 +113,7 @@ export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExec
     const modal = new OnePageInputModal(app, requirements, choiceExecutor.variables);
     const values = await modal.waitForClose;
 
-    // Normalize special types before storing
-    for (const req of requirements) {
-      const key = req.id;
-      if (!(key in values)) continue;
-      const raw = values[key];
-
-      if (req.type === "date" && req.dateFormat) {
-        const parsed = parseNaturalLanguageDate(raw, req.dateFormat);
-        if (parsed.isValid && parsed.isoString) {
-          values[key] = `@date:${parsed.isoString}`;
-        }
-      }
-    }
+    // No additional normalization needed: date inputs already store @date:ISO
 
     // Store results into executor variables
     Object.entries(values).forEach(([k, v]) => choiceExecutor.variables.set(k, v));

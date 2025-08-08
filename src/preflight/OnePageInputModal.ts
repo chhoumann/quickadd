@@ -2,6 +2,7 @@ import { App, Modal, Setting, TextAreaComponent, TextComponent, DropdownComponen
 import type { FieldRequirement } from "./RequirementCollector";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
+import { parseNaturalLanguageDate, formatISODate } from "src/utils/dateParser";
 
 export class OnePageInputModal extends Modal {
   private readonly requirements: FieldRequirement[];
@@ -82,8 +83,16 @@ export class OnePageInputModal extends Modal {
         // Reuse the VDateInputPrompt component behavior by creating an input with preview
         const container = setting.controlEl.createDiv();
         const input = new TextComponent(container);
-        const placeholder = "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')";
-        input.setPlaceholder(placeholder).setValue(starting);
+        const placeholder = "Enter a date (e.g., 'today', 'next friday', '2025-12-25')";
+
+        // Friendly display: if initial is @date:ISO, show formatted text instead
+        let displayValue = starting;
+        if (starting?.startsWith("@date:") && req.dateFormat) {
+          const iso = starting.slice(6);
+          const formatted = formatISODate(iso, req.dateFormat);
+          if (formatted) displayValue = formatted;
+        }
+        input.setPlaceholder(placeholder).setValue(displayValue ?? "");
 
         const preview = container.createDiv();
         preview.style.marginTop = "0.25rem";
@@ -103,14 +112,24 @@ export class OnePageInputModal extends Modal {
             setValue(req.id, "");
             return;
           }
-          // We do not format here; normalization to @date:ISO happens after submission
-          preview.setText(`Input: ${inputVal}${req.dateFormat ? ` | Format: ${req.dateFormat}` : ""}`);
-          preview.style.color = "var(--text-normal)";
-          setValue(req.id, inputVal);
+
+          // Live-parse natural language dates and preview the formatted value
+          const parsed = parseNaturalLanguageDate(inputVal, req.dateFormat);
+          if (parsed.isValid && parsed.formatted && parsed.isoString) {
+            preview.setText(parsed.formatted);
+            preview.style.color = "var(--text-normal)";
+            // Store normalized value for execution
+            setValue(req.id, `@date:${parsed.isoString}`);
+          } else {
+            preview.setText(parsed.error || "Unable to parse date");
+            preview.style.color = "var(--text-error)";
+            // Keep value empty to avoid committing invalid dates
+            setValue(req.id, "");
+          }
         };
         input.onChange((v) => updatePreview(v));
         // Initialize preview
-        updatePreview(starting);
+        updatePreview(displayValue ?? "");
         break;
       }
       case "field-suggest": {
