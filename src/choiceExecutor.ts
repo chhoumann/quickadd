@@ -10,6 +10,8 @@ import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { settingsStore } from "./settingsStore";
+import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -17,6 +19,13 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	constructor(private app: App, private plugin: QuickAdd) {}
 
 	async execute(choice: IChoice): Promise<void> {
+		// Optional Phase 1 preflight for Template/Capture
+		if (settingsStore.getState().onePageInputEnabled && (choice.type === "Template" || choice.type === "Capture")) {
+			try {
+				await runOnePagePreflight(this.app, this.plugin as unknown as QuickAdd, this, choice);
+			} catch {}
+		}
+
 		switch (choice.type) {
 			case "Template": {
 				const templateChoice: ITemplateChoice =
