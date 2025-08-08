@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import {
+	Notice,
 	Setting,
 	TextAreaComponent,
 	TextComponent,
@@ -41,6 +42,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		this.contentEl.empty();
 
 		this.addCenteredChoiceNameHeader(this.choice);
+
+		// Destination
+		new Setting(this.contentEl).setName("Destination").setHeading();
 		this.addCapturedToSetting();
 		if (!this.choice?.captureToActiveFile) {
 			this.addCreateIfNotExistsSetting();
@@ -48,12 +52,21 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				this.addCreateWithTemplateSetting();
 		}
 
-		this.addTaskSetting();
+		// Position
+		new Setting(this.contentEl).setName("Position").setHeading();
+		this.addWritePositionSetting();
 
-		this.addPrependSetting();
-
+		// Linking
+		new Setting(this.contentEl).setName("Linking").setHeading();
 		this.addAppendLinkSetting();
-		this.addInsertAfterSetting();
+
+		// Content
+		new Setting(this.contentEl).setName("Content").setHeading();
+		this.addTaskSetting();
+		this.addFormatSetting();
+
+		// Behavior
+		new Setting(this.contentEl).setName("Behavior").setHeading();
 		if (!this.choice.captureToActiveFile) {
 			this.addOpenFileSetting("Open the file that is captured to.");
 
@@ -61,9 +74,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				this.addFileOpeningSetting("captured");
 			}
 		}
-
 		this.addOnePageOverrideSetting(this.choice);
-		this.addFormatSetting();
 	}
 
 	private addCapturedToSetting() {
@@ -215,128 +226,168 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		}
 	}
 
-	private addInsertAfterSetting() {
-		let insertAfterInput: TextComponent;
-		const insertAfterSetting: Setting = new Setting(this.contentEl);
-		insertAfterSetting
-			.setName("Insert after")
-			.setDesc("Insert capture after specified line. Accepts format syntax.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.insertAfter.enabled);
-				toggle.onChange((value) => {
-					this.choice.insertAfter.enabled = value;
-					insertAfterInput.setDisabled(!value);
+	private addWritePositionSetting() {
+		const positionSetting: Setting = new Setting(this.contentEl);
+		const isActiveFile = !!this.choice?.captureToActiveFile;
+		positionSetting
+			.setName("Write position")
+			.setDesc(
+				isActiveFile
+					? "Where to place the capture in the current file."
+					: "Where to place the capture in the target file.",
+			)
+			.addDropdown((dropdown) => {
+				const current: "top" | "after" | "bottom" = this.choice.insertAfter
+					?.enabled
+					? "after"
+					: this.choice.prepend
+						? "bottom"
+						: "top";
 
-					if (this.choice.insertAfter.enabled && this.choice.prepend) {
+				dropdown.addOption("top", isActiveFile ? "At cursor" : "Top of file");
+				dropdown.addOption("after", "After line…");
+				dropdown.addOption("bottom", "Bottom of file");
+				dropdown.setValue(current);
+				dropdown.onChange((value: string) => {
+					const v = value as "top" | "after" | "bottom";
+					if (v === "top") {
 						this.choice.prepend = false;
+						this.choice.insertAfter.enabled = false;
+						this.reload();
+						return;
 					}
 
+					if (v === "bottom") {
+						this.choice.prepend = true;
+						this.choice.insertAfter.enabled = false;
+						this.reload();
+						return;
+					}
+
+					// after line
+					this.choice.prepend = false;
+					this.choice.insertAfter.enabled = true;
 					this.reload();
 				});
 			});
 
-		const insertAfterFormatDisplay: HTMLSpanElement =
-			this.contentEl.createEl("span");
+		if (this.choice.insertAfter.enabled) {
+			this.addInsertAfterFields();
+		}
+	}
+
+	private addInsertAfterFields() {
+		// Build a desc fragment with static help + live preview
+		const descFragment = document.createDocumentFragment();
+		const descText = document.createElement("div");
+		descText.textContent =
+			"Insert capture after specified line. Accepts format syntax.";
+		descFragment.appendChild(descText);
+
+		const previewRow = document.createElement("div");
+		previewRow.style.marginTop = "6px";
+		const previewLabel = document.createElement("span");
+		previewLabel.textContent = "Preview: ";
+		previewLabel.style.fontWeight = "600";
+		const previewValue = document.createElement("span");
+		previewRow.appendChild(previewLabel);
+		previewRow.appendChild(previewValue);
+		descFragment.appendChild(previewRow);
+
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
 			this.plugin,
 		);
 		void (async () =>
-			(insertAfterFormatDisplay.innerText = await displayFormatter.format(
+			(previewValue.innerText = await displayFormatter.format(
 				this.choice.insertAfter.after,
 			)))();
 
-		insertAfterInput = new TextComponent(this.contentEl);
-		insertAfterInput.setPlaceholder("Insert after");
-		insertAfterInput.inputEl.style.width = "100%";
-		insertAfterInput.inputEl.style.marginBottom = "8px";
-		insertAfterInput
-			.setValue(this.choice.insertAfter.after)
-			.setDisabled(!this.choice.insertAfter.enabled)
-			.onChange(async (value) => {
-				this.choice.insertAfter.after = value;
-				insertAfterFormatDisplay.innerText =
-					await displayFormatter.format(value);
+		const st = new Setting(this.contentEl)
+			.setName("Insert after")
+			.setDesc(descFragment)
+			.addText((text) => {
+				text.setPlaceholder("Insert after");
+				text.inputEl.style.width = "100%";
+				text.setValue(this.choice.insertAfter.after).onChange(async (value) => {
+					this.choice.insertAfter.after = value;
+					previewValue.innerText = await displayFormatter.format(value);
+				});
+
+				new FormatSyntaxSuggester(this.app, text.inputEl, this.plugin);
 			});
 
-		new FormatSyntaxSuggester(this.app, insertAfterInput.inputEl, this.plugin);
+		const insertAtEndSetting: Setting = new Setting(this.contentEl);
+		insertAtEndSetting
+			.setName("Insert at end of section")
+			.setDesc(
+				"Insert the text at the end of the section, rather than at the top.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.choice.insertAfter?.insertAtEnd)
+					.onChange((value) => (this.choice.insertAfter.insertAtEnd = value)),
+			);
 
-		if (this.choice.insertAfter.enabled) {
-			const insertAtEndSetting: Setting = new Setting(this.contentEl);
-			insertAtEndSetting
-				.setName("Insert at end of section")
-				.setDesc(
-					"Insert the text at the end of the section, rather than at the top.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.choice.insertAfter?.insertAtEnd)
-						.onChange((value) => (this.choice.insertAfter.insertAtEnd = value)),
-				);
+		new Setting(this.contentEl)
+			.setName("Consider subsections")
+			.setDesc(
+				"Enabling this will insert the text at the end of the section & its subsections, rather than just at the end of the target section. A section is defined by a heading, and its subsections are all the headings inside that section.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.choice.insertAfter?.considerSubsections)
+					.onChange((value) => {
+						if (!value) {
+							this.choice.insertAfter.considerSubsections = false;
+							return;
+						}
 
-			const considerSubsectionsSetting: Setting = new Setting(this.contentEl);
-			considerSubsectionsSetting
-				.setName("Consider subsections")
-				.setDesc(
-					"Enabling this will insert the text at the end of the section & its subsections, rather than just at the end of the target section." +
-						" A section is defined by a heading, and its subsections are all the headings inside that section.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.choice.insertAfter?.considerSubsections)
-						.onChange((value) => {
-							// Trying to disable
-							if (!value) {
-								this.choice.insertAfter.considerSubsections = false;
-								return;
-							}
+						const targetIsHeading =
+							this.choice.insertAfter.after.startsWith("#");
+						if (targetIsHeading) {
+							this.choice.insertAfter.considerSubsections = value;
+						} else {
+							this.choice.insertAfter.considerSubsections = false;
+							new Notice(
+								"Consider subsections requires the target to be a heading (starts with #)",
+							);
+						}
+					}),
+			);
 
-							// Trying to enable but `after` is not a heading
-							const targetIsHeading =
-								this.choice.insertAfter.after.startsWith("#");
-							if (targetIsHeading) {
-								this.choice.insertAfter.considerSubsections = value;
-							} else {
-								this.choice.insertAfter.considerSubsections = false;
-								log.logError(
-									"'Consider subsections' can only be enabled if the insert after line starts with a # (heading).",
-								);
-								this.display();
-							}
-						}),
-				);
+		const createLineIfNotFound: Setting = new Setting(this.contentEl);
+		createLineIfNotFound
+			.setName("Create line if not found")
+			.setDesc("Creates the 'insert after' line if it is not found.")
+			.addToggle((toggle) => {
+				if (!this.choice.insertAfter?.createIfNotFound)
+					this.choice.insertAfter.createIfNotFound = false; // Set to default
 
-			const createLineIfNotFound: Setting = new Setting(this.contentEl);
-			createLineIfNotFound
-				.setName("Create line if not found")
-				.setDesc("Creates the 'insert after' line if it is not found.")
-				.addToggle((toggle) => {
-					if (!this.choice.insertAfter?.createIfNotFound)
-						this.choice.insertAfter.createIfNotFound = false; // Set to default
+				toggle
+					.setValue(this.choice.insertAfter?.createIfNotFound)
+					.onChange(
+						(value) => (this.choice.insertAfter.createIfNotFound = value),
+					).toggleEl.style.marginRight = "1em";
+			})
+			.addDropdown((dropdown) => {
+				if (!this.choice.insertAfter?.createIfNotFoundLocation)
+					this.choice.insertAfter.createIfNotFoundLocation =
+						CREATE_IF_NOT_FOUND_TOP; // Set to default
 
-					toggle
-						.setValue(this.choice.insertAfter?.createIfNotFound)
-						.onChange(
-							(value) => (this.choice.insertAfter.createIfNotFound = value),
-						).toggleEl.style.marginRight = "1em";
-				})
-				.addDropdown((dropdown) => {
-					if (!this.choice.insertAfter?.createIfNotFoundLocation)
-						this.choice.insertAfter.createIfNotFoundLocation =
-							CREATE_IF_NOT_FOUND_TOP; // Set to default
-
-					dropdown
-						.addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
-						.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
-						.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
-						.setValue(this.choice.insertAfter?.createIfNotFoundLocation)
-						.onChange(
-							(value) =>
-								(this.choice.insertAfter.createIfNotFoundLocation = value),
-						);
-				});
-		}
+				dropdown
+					.addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
+					.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
+					.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
+					.setValue(this.choice.insertAfter?.createIfNotFoundLocation)
+					.onChange(
+						(value) =>
+							(this.choice.insertAfter.createIfNotFoundLocation = value),
+					);
+			});
 	}
+
+	// removed legacy addInsertAfterSetting in favor of addWritePositionSetting/addInsertAfterFields
 
 	private addFormatSetting() {
 		let textField: TextAreaComponent;
