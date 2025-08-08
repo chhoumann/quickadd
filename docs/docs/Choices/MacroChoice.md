@@ -8,9 +8,7 @@ Macros are the most powerful feature in QuickAdd, allowing you to chain together
 
 ## What are Macros?
 
-A **macro** is a collection of commands that execute sequentially. Each macro is associated with a **macro choice**, which allows you to trigger the macro from the QuickAdd menu.
-
-> Tip: To make any choice (including macros) show up in Obsidian's Command Palette and be assignable to a hotkey, enable the ⚡ lightning toggle next to the choice in QuickAdd settings. When enabled, QuickAdd registers an Obsidian command for that choice; when disabled, the command is removed.
+A **macro** is a collection of commands that execute sequentially. Each macro is associated with a **macro choice**, which allows you to trigger the macro from the QuickAdd command palette.
 
 ### Key Concepts
 
@@ -479,8 +477,8 @@ Break complex macros into smaller, reusable parts:
 - Variables must be set before they're used
 - Check that variable names match exactly (case-sensitive)
 
-**Macro not appearing in Command Palette**
-- Ensure the ⚡ lightning toggle is enabled for the macro choice in QuickAdd settings
+**Macro not appearing in command palette**
+- Ensure the macro choice is enabled in settings
 - Restart Obsidian if you've just created the macro
 - Check that QuickAdd is enabled in Community Plugins
 

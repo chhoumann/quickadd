@@ -23,7 +23,6 @@ If you specify multiple folders, you'll get a suggester asking which of the fold
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
 
-> Tip: To run a Template choice from Obsidian's Command Palette or assign a hotkey, enable the ⚡ lightning toggle next to the choice in QuickAdd settings.
 
 **Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
 
