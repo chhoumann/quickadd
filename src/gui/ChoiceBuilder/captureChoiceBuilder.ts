@@ -43,8 +43,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		this.addCenteredChoiceNameHeader(this.choice);
 
-		// Destination
-		new Setting(this.contentEl).setName("Destination").setHeading();
+		// Location
+		new Setting(this.contentEl).setName("Location").setHeading();
 		this.addCapturedToSetting();
 		if (!this.choice?.captureToActiveFile) {
 			this.addCreateIfNotExistsSetting();
@@ -80,8 +80,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addCapturedToSetting() {
 		let textField: TextComponent;
 		new Setting(this.contentEl)
-			.setName("Capture To")
-			.setDesc("File to capture to. Supports some format syntax.");
+			.setName("Capture to")
+			.setDesc("Target file path. Supports format syntax.");
 
 		const captureToContainer: HTMLDivElement =
 			this.contentEl.createDiv("captureToContainer");
@@ -105,8 +105,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const captureToFileContainer: HTMLDivElement =
 				captureToContainer.createDiv("captureToFileContainer");
 
-			const formatDisplay: HTMLSpanElement =
-				captureToFileContainer.createEl("span");
+			// Preview row
+			const previewRow = captureToFileContainer.createDiv();
+			previewRow.style.marginBottom = "6px";
+			const previewLabel = previewRow.createEl("span", { text: "Preview: " });
+			previewLabel.style.fontWeight = "600";
+			const formatDisplay = previewRow.createEl("span");
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app);
 			void (async () =>
@@ -114,29 +118,29 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					this.choice.captureTo,
 				)))();
 
-			const formatInput = new TextComponent(captureToFileContainer);
-			formatInput.setPlaceholder("File name format");
-			textField = formatInput;
-			formatInput.inputEl.style.width = "100%";
-			formatInput.inputEl.style.marginBottom = "8px";
-			formatInput
-				.setValue(this.choice.captureTo)
-				.setDisabled(this.choice?.captureToActiveFile)
-				.onChange(async (value) => {
-					this.choice.captureTo = value;
-					formatDisplay.textContent = await displayFormatter.format(value);
+			// Search input using idiomatic Obsidian Setting
+			new Setting(captureToFileContainer)
+				.setName("File path / format")
+				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})")
+				.addSearch((search) => {
+					search.setValue(this.choice.captureTo);
+					search.setPlaceholder("File name format");
+					const markdownFilesAndFormatSyntax = [
+						...this.app.vault.getMarkdownFiles().map((f) => f.path),
+						...FILE_NAME_FORMAT_SYNTAX,
+					];
+					new GenericTextSuggester(
+						this.app,
+						search.inputEl,
+						markdownFilesAndFormatSyntax,
+						50,
+					);
+					search.onChange(async (value) => {
+						this.choice.captureTo = value;
+						formatDisplay.textContent = await displayFormatter.format(value);
+					});
+					new FormatSyntaxSuggester(this.app, search.inputEl, this.plugin);
 				});
-
-			const markdownFilesAndFormatSyntax = [
-				...this.app.vault.getMarkdownFiles().map((f) => f.path),
-				...FILE_NAME_FORMAT_SYNTAX,
-			];
-			new GenericTextSuggester(
-				this.app,
-				textField.inputEl,
-				markdownFilesAndFormatSyntax,
-				50,
-			);
 		}
 	}
 

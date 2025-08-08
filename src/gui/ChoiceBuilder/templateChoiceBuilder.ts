@@ -90,7 +90,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		let textField: TextComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
-			.setName("File Name Format")
+			.setName("File name format")
 			.setDesc("Set the file name format.")
 			.addToggle((toggleComponent) => {
 				toggleComponent
@@ -101,7 +101,12 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					});
 			});
 
-		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
+		// Desc + preview row
+		const previewRow = this.contentEl.createDiv();
+		previewRow.style.marginBottom = "6px";
+		const previewLabel = previewRow.createEl("span", { text: "Preview: " });
+		previewLabel.style.fontWeight = "600";
+		const formatDisplay = previewRow.createEl("span");
 		const displayFormatter: FileNameDisplayFormatter =
 			new FileNameDisplayFormatter(this.app);
 		void (async () =>
