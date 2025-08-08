@@ -158,7 +158,8 @@ export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExec
     // Only prompt for unresolved inputs (variables missing or null)
     const unresolved: FieldRequirement[] = requirements.filter((req) => {
       const v = choiceExecutor.variables.get(req.id) as unknown;
-      return v === undefined || v === null; // empty string counts as intentionally provided
+      // Treat empty string as unresolved so users still get a chance to provide a value
+      return v === undefined || v === null || (typeof v === "string" && v.length === 0);
     });
 
     if (unresolved.length === 0) return false; // Everything prefilled, skip modal
