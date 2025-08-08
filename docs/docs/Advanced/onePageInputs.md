@@ -32,6 +32,11 @@ This feature is currently in Beta.
 - If all required inputs already have values (e.g., prefilled by an earlier macro step), the modal will not open.
 - Empty string is considered an intentional value and will not prompt again.
 
+Note: For date fields with a default, leaving the input blank will apply the default automatically at submit time.
+
+### Cancel behavior
+- If you press Cancel in the one-page modal, the preflight is aborted and the choice proceeds with the standard step-by-step prompts at runtime.
+
 ---
 
 ## User scripts: declare inputs (optional)
@@ -104,5 +109,6 @@ Behavior:
 
 ## Notes
 - Macro support is best-effort: user scripts can declare inputs via `quickadd.inputs`.
+- Preflight may import user script modules to statically read `quickadd.inputs`. This can execute module top-level code.
 - Inline scripts aren’t scanned for input declarations yet.
 - If needed, you can still prompt ad-hoc (e.g., using inputPrompt or suggester) and those values will skip future one-page prompts due to being prefilled.

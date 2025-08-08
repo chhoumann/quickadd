@@ -32,6 +32,22 @@ tR += result;
 
 ## User Input Methods
 
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; description?: string; }>): Promise<Record<string, string>>`
+Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
+
+Behavior:
+- Uses existing values for any ids that already exist in `variables` (including empty strings).
+- Prompts only for missing (`undefined`/`null`) inputs.
+
+Example:
+```javascript
+const values = await quickAddApi.requestInputs([
+  { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
+  { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
+  { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] }
+]);
+```
+
 ### `inputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
 Opens a prompt that asks for text input.
 
