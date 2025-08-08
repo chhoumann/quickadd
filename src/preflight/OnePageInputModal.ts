@@ -1,25 +1,33 @@
-import { App, Modal, Setting, TextAreaComponent, TextComponent, DropdownComponent } from "obsidian";
+import { App, Modal, Setting, TextAreaComponent, TextComponent, DropdownComponent, debounce } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { parseNaturalLanguageDate, formatISODate } from "src/utils/dateParser";
 
+type PreviewComputer = (values: Record<string, string>) => Promise<Record<string, string>> | Record<string, string>;
+
 export class OnePageInputModal extends Modal {
   private readonly requirements: FieldRequirement[];
   private readonly initialValues: Map<string, string>;
   private readonly result = new Map<string, string>();
+  private readonly computePreview?: PreviewComputer;
+  private previewContainerEl: HTMLElement | null = null;
+  private updatePreviewDebounced: () => void;
 
   public waitForClose: Promise<Record<string, string>>;
   private resolvePromise!: (values: Record<string, string>) => void;
   private rejectPromise!: (reason?: unknown) => void;
 
-  constructor(app: App, requirements: FieldRequirement[], initial?: Map<string, unknown>) {
+  constructor(app: App, requirements: FieldRequirement[], initial?: Map<string, unknown>, computePreview?: PreviewComputer) {
     super(app);
     this.requirements = requirements;
     this.initialValues = new Map<string, string>();
+    this.computePreview = computePreview;
     initial?.forEach((v, k) => {
       if (typeof v === "string") this.initialValues.set(k, v);
     });
+
+    this.updatePreviewDebounced = debounce(this.updatePreviews.bind(this), 150, true);
 
     this.waitForClose = new Promise<Record<string, string>>((resolve, reject) => {
       this.resolvePromise = resolve;
@@ -37,6 +45,20 @@ export class OnePageInputModal extends Modal {
     const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
     title.style.textAlign = "center";
 
+    // Optional live preview area
+    if (this.computePreview) {
+      this.previewContainerEl = this.contentEl.createDiv();
+      this.previewContainerEl.addClass("qa-onepage-preview");
+      this.previewContainerEl.style.padding = "0.5rem";
+      this.previewContainerEl.style.marginBottom = "0.75rem";
+      this.previewContainerEl.style.backgroundColor = "var(--background-modifier-form-field)";
+      this.previewContainerEl.style.borderRadius = "4px";
+      const label = this.previewContainerEl.createEl("div", { text: "Preview" });
+      label.style.fontWeight = "600";
+      label.style.marginBottom = "0.25rem";
+      this.updatePreviews();
+    }
+
     // Render fields
     this.requirements.forEach((req) => this.renderField(req));
 
@@ -48,7 +70,7 @@ export class OnePageInputModal extends Modal {
   }
 
   private renderField(req: FieldRequirement) {
-    const setValue = (id: string, value: string) => this.result.set(id, value);
+    const setValue = (id: string, value: string) => { this.result.set(id, value); this.updatePreviewDebounced(); };
     const starting = this.initialValues.get(req.id) ?? req.defaultValue ?? "";
 
     switch (req.type) {
@@ -173,5 +195,28 @@ export class OnePageInputModal extends Modal {
   private cancel() {
     this.close();
     this.rejectPromise("cancelled");
+  }
+
+  private async updatePreviews() {
+    if (!this.computePreview || !this.previewContainerEl) return;
+    try {
+      const values: Record<string, string> = {};
+      this.result.forEach((v, k) => (values[k] = v));
+      const preview = await this.computePreview(values);
+      // Clear old preview lines (leave the label at index 0)
+      const children = Array.from(this.previewContainerEl.children);
+      for (let i = 1; i < children.length; i++) {
+        children[i].remove();
+      }
+      Object.entries(preview).forEach(([k, v]) => {
+        const row = this.previewContainerEl!.createDiv();
+        row.style.display = "flex";
+        row.style.gap = "0.5rem";
+        row.createEl("div", { text: `${k}:`, cls: "qa-preview-key" }).style.fontWeight = "600";
+        row.createEl("div", { text: String(v), cls: "qa-preview-val" });
+      });
+    } catch {
+      // Ignore preview errors
+    }
   }
 }

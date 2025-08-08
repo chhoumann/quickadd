@@ -10,6 +10,7 @@ import { MARKDOWN_FILE_EXTENSION_REGEX } from "src/constants";
 import { TFile } from "obsidian";
 import { getMarkdownFilesInFolder, getMarkdownFilesWithTag, isFolder } from "src/utilityObsidian";
 import { parseNaturalLanguageDate } from "src/utils/dateParser";
+import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 
 async function readTemplate(app: App, path: string): Promise<string> {
   const addExt = (!MARKDOWN_FILE_EXTENSION_REGEX.test(path) && !path.endsWith(".canvas"));
@@ -110,7 +111,29 @@ export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExec
     if (requirements.length === 0) return false; // Nothing to collect
 
     // Show modal
-    const modal = new OnePageInputModal(app, requirements, choiceExecutor.variables);
+    // Optional live preview of a couple of key outputs (best-effort)
+    const computePreview = async (values: Record<string, string>) => {
+      try {
+        const formatter = new FormatDisplayFormatter(app, plugin);
+        const out: Record<string, string> = {};
+        // File name preview for Template
+        if (choice.type === "Template") {
+          const tmpl = choice as ITemplateChoice;
+          if (tmpl.fileNameFormat?.enabled) {
+            // Seed variables map-like into formatter
+            for (const [k, v] of Object.entries(values)) {
+              formatter["variables"].set(k, v);
+            }
+            out.fileName = await formatter.format(tmpl.fileNameFormat.format);
+          }
+        }
+        return out;
+      } catch {
+        return {};
+      }
+    };
+
+    const modal = new OnePageInputModal(app, requirements, choiceExecutor.variables, computePreview);
     const values = await modal.waitForClose;
 
     // No additional normalization needed: date inputs already store @date:ISO
