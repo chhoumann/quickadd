@@ -26,6 +26,8 @@ import {
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { OnePageInputModal } from "./preflight/OnePageInputModal";
+import type { FieldRequirement } from "./preflight/RequirementCollector";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -34,6 +36,58 @@ export class QuickAddApi {
 		choiceExecutor: IChoiceExecutor
 	) {
 		return {
+            /**
+             * Open a single one-page modal to collect multiple inputs at once from a script.
+             * Any values already present in variables will be used as defaults and not re-asked.
+             * 
+             * Example spec item:
+             * { id: "project", label: "Project", type: "text", defaultValue: "Inbox" }
+             */
+            requestInputs: async (
+                inputs: Array<{
+                    id: string;
+                    label?: string;
+                    type: "text" | "textarea" | "dropdown" | "date" | "field-suggest";
+                    placeholder?: string;
+                    defaultValue?: string;
+                    options?: string[];
+                    dateFormat?: string;
+                    description?: string;
+                }>
+            ): Promise<Record<string, string>> => {
+                // If all inputs already have values, return them immediately
+                const existing: Record<string, string> = {};
+                const missing: FieldRequirement[] = [];
+                for (const spec of inputs) {
+                    const val = choiceExecutor.variables.get(spec.id) as string | undefined;
+                    if (val !== undefined && val !== null && String(val).length > 0) {
+                        existing[spec.id] = String(val);
+                        continue;
+                    }
+
+                    missing.push({
+                        id: spec.id,
+                        label: spec.label ?? spec.id,
+                        type: spec.type,
+                        placeholder: spec.placeholder,
+                        defaultValue: spec.defaultValue,
+                        options: spec.options,
+                        dateFormat: spec.dateFormat,
+                        description: spec.description,
+                        source: "script",
+                    });
+                }
+
+                let collected: Record<string, string> = {};
+                if (missing.length > 0) {
+                    const modal = new OnePageInputModal(app, missing, choiceExecutor.variables);
+                    collected = await modal.waitForClose;
+                }
+
+                const result = { ...existing, ...collected };
+                Object.entries(result).forEach(([k, v]) => choiceExecutor.variables.set(k, v));
+                return result;
+            },
 			inputPrompt: (
 				header: string,
 				placeholder?: string,
