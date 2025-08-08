@@ -8,6 +8,8 @@ import { RequirementCollector, type FieldRequirement } from "./RequirementCollec
 import { OnePageInputModal } from "./OnePageInputModal";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "src/constants";
 import { TFile } from "obsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesWithTag, isFolder } from "src/utilityObsidian";
+import { parseNaturalLanguageDate } from "src/utils/dateParser";
 
 async function readTemplate(app: App, path: string): Promise<string> {
   const addExt = (!MARKDOWN_FILE_EXTENSION_REGEX.test(path) && !path.endsWith(".canvas"));
@@ -64,6 +66,31 @@ async function collectForCaptureChoice(app: App, plugin: QuickAdd, choiceExecuto
     await collector.scanString(choice.format.format);
   }
 
+  // If captureTo indicates a folder or tag, offer a file picker requirement
+  const formattedTarget = choice.captureTo?.trim() ?? "";
+  const isTagTarget = formattedTarget.startsWith("#");
+  const isFolderTarget = !isTagTarget && (formattedTarget === "" || isFolder(app, formattedTarget.replace(/\/$|\.md$/g, "")));
+
+  if (!choice.captureToActiveFile && (isTagTarget || isFolderTarget)) {
+    let files: TFile[] = [];
+    if (isTagTarget) {
+      files = getMarkdownFilesWithTag(app, formattedTarget);
+    } else {
+      const folder = formattedTarget.replace(/^\/$|\/\.md$|^\.md$/, "");
+      const base = folder === "" ? "" : (folder.endsWith("/") ? folder : `${folder}/`);
+      files = getMarkdownFilesInFolder(app, base);
+    }
+
+    const options = files.map((f) => f.path);
+    collector.requirements.set("captureTargetFilePath", {
+      id: "captureTargetFilePath",
+      label: "Select capture target file",
+      type: "dropdown",
+      options,
+      placeholder: options.length ? undefined : "No files found in target scope",
+    });
+  }
+
   return collector;
 }
 
@@ -85,6 +112,20 @@ export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExec
     // Show modal
     const modal = new OnePageInputModal(app, requirements, choiceExecutor.variables);
     const values = await modal.waitForClose;
+
+    // Normalize special types before storing
+    for (const req of requirements) {
+      const key = req.id;
+      if (!(key in values)) continue;
+      const raw = values[key];
+
+      if (req.type === "date" && req.dateFormat) {
+        const parsed = parseNaturalLanguageDate(raw, req.dateFormat);
+        if (parsed.isValid && parsed.isoString) {
+          values[key] = `@date:${parsed.isoString}`;
+        }
+      }
+    }
 
     // Store results into executor variables
     Object.entries(values).forEach(([k, v]) => choiceExecutor.variables.set(k, v));

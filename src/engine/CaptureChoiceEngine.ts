@@ -183,6 +183,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async getFormattedPathToCaptureTo(
 		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {
+        // One-page preflight: if a specific target file was already chosen, use it
+        const preselected = this.choiceExecutor?.variables?.get("captureTargetFilePath") as string | undefined;
+        if (!shouldCaptureToActiveFile && preselected && typeof preselected === "string" && preselected.length > 0) {
+            return preselected;
+        }
+
 		if (shouldCaptureToActiveFile) {
 			const activeFile = this.app.workspace.getActiveFile();
 			invariant(activeFile, "Cannot capture to active file - no active file.");
