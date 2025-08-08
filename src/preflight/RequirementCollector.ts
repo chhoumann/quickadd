@@ -24,6 +24,7 @@ export interface FieldRequirement {
   // Additional metadata
   dateFormat?: string;  // for VDATE
   filters?: string;     // serialized filters for FIELD variables
+  source?: "collected" | "script"; // provenance for UX badges
 }
 
 /**
@@ -140,6 +141,7 @@ export class RequirementCollector extends Formatter {
         id: key,
         label: header || "Enter value",
         type: this.plugin.settings.inputPrompt === "multi-line" ? "textarea" : "text",
+        source: "collected",
       });
     }
     return ""; // return inert value to keep scanning
@@ -160,6 +162,7 @@ export class RequirementCollector extends Formatter {
           type: "date",
           defaultValue: context.defaultValue,
           dateFormat: context.dateFormat,
+          source: "collected",
         });
       }
       return context.defaultValue ?? "";
@@ -173,6 +176,7 @@ export class RequirementCollector extends Formatter {
         id: variableName,
         label: variableName,
         type: hasOptions ? "dropdown" : "text",
+        source: "collected",
       };
       if (hasOptions) {
         req.options = variableName.split(",").map((s) => s.trim()).filter(Boolean);
@@ -204,6 +208,7 @@ export class RequirementCollector extends Formatter {
         id: variableName,
         label: variableName,
         type: "field-suggest",
+        source: "collected",
       });
     }
     return "";

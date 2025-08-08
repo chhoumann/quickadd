@@ -75,7 +75,7 @@ export class OnePageInputModal extends Modal {
 
     switch (req.type) {
       case "textarea": {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         if (req.description) setting.setDesc(req.description);
         const input = new TextAreaComponent(setting.controlEl);
         input.setPlaceholder(req.placeholder ?? "").setValue(starting).onChange((v) => setValue(req.id, v));
@@ -84,14 +84,14 @@ export class OnePageInputModal extends Modal {
         break;
       }
       case "text": {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         if (req.description) setting.setDesc(req.description);
         const input = new TextComponent(setting.controlEl);
         input.setPlaceholder(req.placeholder ?? "").setValue(starting).onChange((v) => setValue(req.id, v));
         break;
       }
       case "dropdown": {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         if (req.description) setting.setDesc(req.description);
         const dropdown = new DropdownComponent(setting.controlEl);
         const options = req.options ?? [];
@@ -108,7 +108,7 @@ export class OnePageInputModal extends Modal {
         break;
       }
       case "date": {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         if (req.description) setting.setDesc(req.description);
         // Reuse the VDateInputPrompt component behavior by creating an input with preview
         const container = setting.controlEl.createDiv();
@@ -163,7 +163,7 @@ export class OnePageInputModal extends Modal {
         break;
       }
       case "field-suggest": {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         if (req.description) setting.setDesc(req.description);
         const input = new TextComponent(setting.controlEl);
         input.setPlaceholder(req.placeholder ?? "").setValue(starting).onChange((v) => setValue(req.id, v));
@@ -176,14 +176,14 @@ export class OnePageInputModal extends Modal {
         break;
       }
       case "file-picker": {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         if (req.description) setting.setDesc(req.description);
         const input = new TextComponent(setting.controlEl);
         input.setPlaceholder(req.placeholder ?? "").setValue(starting).onChange((v) => setValue(req.id, v));
         break;
       }
       default: {
-        const setting = new Setting(this.contentEl).setName(req.label);
+        const setting = new Setting(this.contentEl).setName(this.decorateLabel(req));
         const input = new TextComponent(setting.controlEl);
         input.setPlaceholder(req.placeholder ?? "").setValue(starting).onChange((v) => setValue(req.id, v));
       }
@@ -191,6 +191,13 @@ export class OnePageInputModal extends Modal {
 
     // Initialize stored value for empty inputs to ensure presence
     if (!this.result.has(req.id)) this.result.set(req.id, starting);
+  }
+
+  private decorateLabel(req: FieldRequirement): string {
+    if (req.source === "script") {
+      return `${req.label} (from script)`;
+    }
+    return req.label;
   }
 
   private submit() {

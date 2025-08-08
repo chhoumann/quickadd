@@ -128,3 +128,7 @@
 - [ ] Tests: Template/Capture integration tests
 - [ ] (Optional) Macro best-effort preflight (Phase 2)
 - [ ] (Optional) Per-choice override and richer previews (Phase 3-4)
+
+### Status updates
+- Implemented: setting toggle, RequirementCollector, recursive template scan, one-page modal, VDATE live parsing/preview, FIELD inline suggester, capture target picker, filename preview scaffold, macro user-script declared inputs via `quickadd.inputs` export. Added unit tests for RequirementCollector.
+- Next: mark script-declared fields in UI (done), docs for `quickadd.inputs`, expand integration tests.
