@@ -68,7 +68,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		// Behavior
 		new Setting(this.contentEl).setName("Behavior").setHeading();
 		if (!this.choice.captureToActiveFile) {
-			this.addOpenFileSetting("Open the file that is captured to.");
+			this.addOpenFileSetting("Open the captured file.");
 
 			if (this.choice.openFile) {
 				this.addFileOpeningSetting("captured");
@@ -186,9 +186,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Append link to note")
-			.setDesc(
-				"Add a link on your current cursor position, linking to the file you're capturing to.",
-			)
+			.setDesc("Insert a link in the current note to the captured file.")
 			.addToggle((toggle) => {
 				toggle.setValue(normalizedOptions.enabled);
 				toggle.onChange((value) => {
@@ -325,7 +323,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		insertAtEndSetting
 			.setName("Insert at end of section")
 			.setDesc(
-				"Insert the text at the end of the section, rather than at the top.",
+				"Place the text at the end of the matched section instead of the top.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -336,7 +334,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		new Setting(this.contentEl)
 			.setName("Consider subsections")
 			.setDesc(
-				"Enabling this will insert the text at the end of the section & its subsections, rather than just at the end of the target section. A section is defined by a heading, and its subsections are all the headings inside that section.",
+				"Also include the section’s subsections (requires the target to be a heading).",
 			)
 			.addToggle((toggle) =>
 				toggle
