@@ -71,11 +71,16 @@ function formatTitleForSuggestion(resultItem) {
 }
 
 function formatDateString(dateString) {
-    const [day, month, year] = dateString.split(' ');
+    if (!dateString || dateString === "N/A") return "";
+    const parts = dateString.split(' ');
+    if (parts.length !== 3) return dateString;
+    const [day, month, year] = parts;
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthIndex = monthNames.indexOf(month);
+    if (monthIndex < 0) return dateString;
 
-    const date = new Date(year, monthIndex, day);
+    const date = new Date(Number(year), monthIndex, Number(day));
+    if (isNaN(date.getTime())) return dateString;
 
     // Format the date as yyyy-mm-dd
     const formattedYear = date.getFullYear();
@@ -112,25 +117,35 @@ async function getByImdbId(id) {
 }
 
 function linkifyList(list) {
-    if (list.length === 0) return "";
-    if (list.length === 1) return `\n  - "[[${list[0]}]]"`;
+    if (!Array.isArray(list) || list.length === 0) return "";
+    if (list.length === 1) return `\n  - "[[${list[0].trim()}]]"`;
 
     return list.map(item => `\n  - "[[${item.trim()}]]"`).join("");
 }
 
-function replaceIllegalFileNameCharactersInString(string) {
-    return string.replace(/[\\,#%&\{\}\/*<>$\'\":@]*/g, '');
+function replaceIllegalFileNameCharactersInString(input) {
+    if (!input) return "";
+    return input.replace(/[\\,#%&\{\}\/*<>$'\":@]/g, '').trim();
 }
 
-async function apiGet(url, data) {
-    let finalURL = new URL(url);
-    if (data)
-        Object.keys(data).forEach(key => finalURL.searchParams.append(key, data[key]));
+async function apiGet(_url, data) {
+    const params = new URLSearchParams();
+    if (data) {
+        Object.entries(data).forEach(([key, value]) => {
+            if (value != null && value !== '') params.append(key, String(value));
+        });
+    }
 
-    finalURL.searchParams.append("apikey", Settings[API_KEY_OPTION]);
+    const apiKey = Settings?.[API_KEY_OPTION];
+    if (!apiKey || String(apiKey).trim() === '') {
+        notice('Please set your OMDb API key in the script settings.');
+        throw new Error('Missing OMDb API key.');
+    }
+    params.append('apikey', String(apiKey).trim());
 
+    const href = `${API_URL}?${params.toString()}`;
     const res = await request({
-        url: finalURL.href,
+        url: href,
         method: 'GET',
         cache: 'no-cache',
         headers: {
