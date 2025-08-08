@@ -5,10 +5,12 @@ sidebar_position: 50
 ## One-page inputs for QuickAdd
 
 QuickAdd can collect all inputs in a single, dynamic form before running your choice.
+This feature is currently in Beta.
 
 ### Enable
 - Settings → QuickAdd → toggle “One-page input for choices”.
 - Works with Template and Capture choices. Macros get partial support (see User Scripts below).
+ - Note: Beta – please report issues and edge cases.
 
 ### What gets collected
 - Format variables in filenames, templates, and capture content:

@@ -205,9 +205,9 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addOnePageInputSetting() {
 		new Setting(this.containerEl)
-			.setName("One-page input for choices")
+			.setName("One-page input for choices (Beta)")
 			.setDesc(
-				"Resolve variables up front and show a single dynamic form before executing Template/Capture choices."
+				"Experimental. Resolve variables up front and show a single dynamic form before executing Template/Capture choices. See Advanced → One-page Inputs in docs."
 			)
 			.addToggle((toggle) =>
 				toggle
