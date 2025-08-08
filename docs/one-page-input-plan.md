@@ -115,20 +115,20 @@
 ---
 
 ### Progress checklist
-- [ ] Add plugin setting: "One-page input for choices"
-- [ ] Implement RequirementCollector (Formatter subclass)
-- [ ] Template Choice preflight: filename, folder(s), template content, nested templates
-- [ ] Capture Choice preflight: captureTo (file/folder/tag), content; file picker when needed
-- [ ] Build OnePageInputModal with dynamic schema
-- [ ] VDATE control with live preview (reuse logic)
-- [ ] FIELD variable suggester integration
-- [ ] Merge results into `ChoiceExecutor.variables`
-- [ ] Execute engines without further prompts when possible
-- [ ] Tests: RequirementCollector unit tests
+- [x] Add plugin setting: "One-page input for choices"
+- [x] Implement RequirementCollector (Formatter subclass)
+- [x] Template Choice preflight: filename, folder(s), template content, nested templates
+- [x] Capture Choice preflight: captureTo (file/folder/tag), content; file picker when needed
+- [x] Build OnePageInputModal with dynamic schema
+- [x] VDATE control with live preview (reuse logic)
+- [x] FIELD variable suggester integration
+- [x] Merge results into `ChoiceExecutor.variables`
+- [x] Execute engines without further prompts when possible
+- [x] Tests: RequirementCollector unit tests
 - [ ] Tests: Template/Capture integration tests
 - [ ] (Optional) Macro best-effort preflight (Phase 2)
-- [ ] (Optional) Per-choice override and richer previews (Phase 3-4)
+- [x] (Optional) Per-choice override and richer previews (Phase 3-4)
 
 ### Status updates
-- Implemented: setting toggle, RequirementCollector, recursive template scan, one-page modal, VDATE live parsing/preview, FIELD inline suggester, capture target picker, filename preview scaffold, macro user-script declared inputs via `quickadd.inputs` export. Added unit tests for RequirementCollector.
-- Next: mark script-declared fields in UI (done), docs for `quickadd.inputs`, expand integration tests.
+- Implemented: setting toggle, RequirementCollector, recursive template scan (collect all templates), one-page modal, VDATE live parsing/preview (stores default when left blank), FIELD inline suggester, capture target picker with heuristics, filename preview scaffold, macro user-script declared inputs via `quickadd.inputs` export. Added unit tests for RequirementCollector.
+- Next: expand integration tests for Template/Capture; consider deeper capture heuristics if needed.
