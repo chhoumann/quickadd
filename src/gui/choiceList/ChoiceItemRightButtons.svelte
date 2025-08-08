@@ -33,7 +33,7 @@
         on:click={emitToggleCommand}
         on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitToggleCommand()}
         class="alignIconInDivInMiddle clickable" 
-        aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} 
+        aria-label={`${commandEnabled ? "Disable in Command Palette" : "Enable in Command Palette"}${choiceName ? ": " + choiceName : ""}`} 
         style={commandEnabled ? "color: #FDD023;" : ""}
     >
         <ObsidianIcon iconId="zap" size={16} />

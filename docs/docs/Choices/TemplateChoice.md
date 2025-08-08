@@ -23,6 +23,7 @@ If you specify multiple folders, you'll get a suggester asking which of the fold
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
 
+
 **Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
 
 **Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
