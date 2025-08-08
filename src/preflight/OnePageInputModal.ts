@@ -80,10 +80,37 @@ export class OnePageInputModal extends Modal {
         const setting = new Setting(this.contentEl).setName(req.label);
         if (req.description) setting.setDesc(req.description);
         // Reuse the VDateInputPrompt component behavior by creating an input with preview
-        const input = new TextComponent(setting.controlEl);
+        const container = setting.controlEl.createDiv();
+        const input = new TextComponent(container);
         const placeholder = "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')";
-        input.setPlaceholder(placeholder).setValue(starting).onChange((v) => setValue(req.id, v));
-        // Preview: handled by runtime formatters; this control just captures input
+        input.setPlaceholder(placeholder).setValue(starting);
+
+        const preview = container.createDiv();
+        preview.style.marginTop = "0.25rem";
+        preview.style.fontSize = "0.9em";
+        preview.style.fontFamily = "var(--font-monospace)";
+        const updatePreview = (val: string) => {
+          const inputVal = (val ?? "").trim();
+          if (!inputVal && req.defaultValue) {
+            preview.setText(`Default → ${req.defaultValue}`);
+            preview.style.color = "var(--text-muted)";
+            setValue(req.id, "");
+            return;
+          }
+          if (!inputVal) {
+            preview.setText("Preview will appear here");
+            preview.style.color = "var(--text-muted)";
+            setValue(req.id, "");
+            return;
+          }
+          // We do not format here; normalization to @date:ISO happens after submission
+          preview.setText(`Input: ${inputVal}${req.dateFormat ? ` | Format: ${req.dateFormat}` : ""}`);
+          preview.style.color = "var(--text-normal)";
+          setValue(req.id, inputVal);
+        };
+        input.onChange((v) => updatePreview(v));
+        // Initialize preview
+        updatePreview(starting);
         break;
       }
       case "field-suggest": {
