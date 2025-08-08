@@ -12,6 +12,13 @@ We use OMDb api to get the movie or TV show information. You can get an API key 
 
 ## Installation
 
+<details>
+<summary>Prerequisites</summary>
+
+- You must have an OMDb API key. Request one at `https://www.omdbapi.com/` and keep it handy. The script will not run without it.
+
+</details>
+
 We'll need to install a QuickAdd user script for this to work. I have made a video which shows you how to do so - [click here](https://www.youtube.com/watch?v=gYK3VDQsZJo&t=1730s).
 You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
 You can find the script [here](./Attachments/movies.js).
@@ -31,6 +38,17 @@ You can find the script [here](./Attachments/movies.js).
 
 You can now use the macro to create notes with movie or TV show information in your vault.
 
+### Troubleshooting
+
+- "TypeError: Failed to construct 'URL': Invalid URL"
+  - Ensure you are using the latest `movies.js` from this repo. The example has been updated to avoid `new URL()` internally.
+  - Verify your OMDb API key is entered in the script settings (cog icon on the script step).
+
+- "No results found."
+  - Try searching by the exact IMDb ID (e.g. `tt0111161`).
+  - Check for typos in the title or try a more specific query.
+  - Confirm your OMDb API key is valid and not rate limited.
+
 ### Example template
 
 ```markdown
@@ -42,6 +60,7 @@ category:: {{VALUE:typeLink}}
 director:: {{VALUE:directorLink}}
 genre:: {{VALUE:genreLinks}}
 imdbId:: {{VALUE:imdbID}}
+imdb:: [IMDb]({{VALUE:imdbUrl}})
 ratingImdb:: {{VALUE:imdbRating}}
 rating::
 year:: {{VALUE:Year}}
