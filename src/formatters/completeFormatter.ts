@@ -1,30 +1,35 @@
-
-import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import type QuickAdd from "../main";
-import { SingleMacroEngine } from "../engine/SingleMacroEngine";
-import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { MarkdownView } from "obsidian";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
+import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
+import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import { INLINE_JAVASCRIPT_REGEX } from "../constants";
 import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
-import { MathModal } from "../gui/MathModal";
+import { SingleMacroEngine } from "../engine/SingleMacroEngine";
+import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
+import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
-import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
-import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
-import InputSuggester from "src/gui/InputSuggester/inputSuggester";
-import { FieldSuggestionParser, type FieldFilter } from "../utils/FieldSuggestionParser";
-
-import { DataviewIntegration } from "../utils/DataviewIntegration";
-import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { MathModal } from "../gui/MathModal";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
-import { InlineFieldParser } from "../utils/InlineFieldParser";
-import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
-import { FieldValueProcessor } from "../utils/FieldValueProcessor";
-import { collectFieldValuesProcessedDetailed, collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
+import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
+import { DataviewIntegration } from "../utils/DataviewIntegration";
+import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
+import {
+	type FieldFilter,
+	FieldSuggestionParser,
+} from "../utils/FieldSuggestionParser";
+import {
+	collectFieldValuesProcessedDetailed,
+	collectFieldValuesRaw,
+	generateFieldCacheKey,
+} from "../utils/FieldValueCollector";
+import { FieldValueProcessor } from "../utils/FieldValueProcessor";
+import { InlineFieldParser } from "../utils/InlineFieldParser";
+import { Formatter } from "./formatter";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -33,7 +38,7 @@ export class CompleteFormatter extends Formatter {
 		protected app: App,
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
-		dateParser?: IDateParser
+		dateParser?: IDateParser,
 	) {
 		super();
 		this.dateParser = dateParser || NLDParser;
@@ -65,9 +70,11 @@ export class CompleteFormatter extends Formatter {
 	async formatFileName(input: string, valueHeader: string): Promise<string> {
 		// Check for {{title}} usage in filename which would cause infinite recursion
 		if (/\{\{title\}\}/i.test(input)) {
-			throw new Error("{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.");
+			throw new Error(
+				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
+			);
 		}
-		
+
 		this.valueHeader = valueHeader;
 		return await this.format(input);
 	}
@@ -85,9 +92,11 @@ export class CompleteFormatter extends Formatter {
 	async formatFolderPath(folderName: string): Promise<string> {
 		// Check for {{title}} usage in folder path which would cause issues
 		if (/\{\{title\}\}/i.test(folderName)) {
-			throw new Error("{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.");
+			throw new Error(
+				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
+			);
 		}
-		
+
 		return await this.format(folderName);
 	}
 
@@ -97,7 +106,6 @@ export class CompleteFormatter extends Formatter {
 
 		return this.app.fileManager.generateMarkdownLink(currentFile, "");
 	}
-
 
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
@@ -118,7 +126,7 @@ export class CompleteFormatter extends Formatter {
 
 	protected async promptForVariable(
 		header?: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string }
+		context?: { type?: string; dateFormat?: string; defaultValue?: string },
 	): Promise<string> {
 		// Use VDateInputPrompt for VDATE variables
 		if (context?.type === "VDATE" && context.dateFormat) {
@@ -127,10 +135,10 @@ export class CompleteFormatter extends Formatter {
 				header as string,
 				"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 				context.defaultValue,
-				context.dateFormat
+				context.dateFormat,
 			);
 		}
-		
+
 		// Use default prompt for other variables
 		return await new InputPrompt().factory().Prompt(this.app, header as string);
 	}
@@ -143,7 +151,7 @@ export class CompleteFormatter extends Formatter {
 		return await GenericSuggester.Suggest(
 			this.app,
 			suggestedValues,
-			suggestedValues
+			suggestedValues,
 		);
 	}
 
@@ -151,14 +159,11 @@ export class CompleteFormatter extends Formatter {
 		// Parse the field input to extract field name and filters
 		const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
 
-        // Collect and process via shared collector
-        const { values, hasDefaultValue } = await collectFieldValuesProcessedDetailed(
-            this.app,
-            fieldName,
-            filters
-        );
+		// Collect and process via shared collector
+		const { values, hasDefaultValue } =
+			await collectFieldValuesProcessedDetailed(this.app, fieldName, filters);
 
-        if (values.length === 0) {
+		if (values.length === 0) {
 			// No values found even after processing defaults
 			let fallbackPrompt = `No existing values were found in your vault.`;
 
@@ -182,23 +187,18 @@ export class CompleteFormatter extends Formatter {
 
 		// Enhance placeholder with context
 		let placeholder = `Enter value for ${fieldName}`;
-        if (hasDefaultValue) {
+		if (hasDefaultValue) {
 			placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
 		}
 
-		return await InputSuggester.Suggest(
-			this.app,
-            values,
-            values,
-			{
-				placeholder,
-			},
-		);
+		return await InputSuggester.Suggest(this.app, values, values, {
+			placeholder,
+		});
 	}
 
-    private generateCacheKey(filters: FieldFilter): string {
-        return generateFieldCacheKey(filters);
-    }
+	private generateCacheKey(filters: FieldFilter): string {
+		return generateFieldCacheKey(filters);
+	}
 
 	protected async getMacroValue(macroName: string): Promise<string> {
 		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
@@ -228,7 +228,6 @@ export class CompleteFormatter extends Formatter {
 		).run();
 	}
 
-	 
 	protected async getSelectedText(): Promise<string> {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) return "";
@@ -276,8 +275,10 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
-    private async collectValuesManually(fieldName: string, filters: FieldFilter): Promise<Set<string>> {
-        return await collectFieldValuesRaw(this.app, fieldName, filters);
-    }
-
+	private async collectValuesManually(
+		fieldName: string,
+		filters: FieldFilter,
+	): Promise<Set<string>> {
+		return await collectFieldValuesRaw(this.app, fieldName, filters);
+	}
 }
