@@ -133,6 +133,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.infoEl.remove();
 		setting.settingEl.style.display = "block";
 
+		// Helper text: explain the lightning bolt functionality
+		const helperContainer = setting.settingEl.createDiv({ cls: "quickadd-choices-help" });
+		helperContainer.createEl("p", {
+			text:
+				"Tip: Click the ⚡ (lightning bolt) next to a choice to add it to Obsidian's Command Palette. This lets you assign a hotkey and trigger it from other plugins.",
+		});
+
 		this.choiceView = new ChoiceView({
 			target: setting.settingEl,
 			props: {

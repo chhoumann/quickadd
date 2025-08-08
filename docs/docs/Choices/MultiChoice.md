@@ -9,3 +9,5 @@ Multi-choices are pretty simple. They're like folders for other choices. Here ar
 To actually add something in this "folder", you need to drag it in! This is not easy to do when it is the first item in the multi-folder.
 
 Make sure the multi is unfolded (as it is in the screenshot). Click the drag handle of one of the choices you want to add and drag it to just below and to the right of the drag handle for the multi. When successful, the choice will be indented under the multi.
+
+> Note: The ⚡ lightning toggle controls registration of Obsidian commands for individual choices. Enabling ⚡ on a Multi will not create a command for the folder itself, but you can enable it for the nested choices inside to make them appear in the Command Palette.

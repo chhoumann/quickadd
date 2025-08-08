@@ -33,7 +33,12 @@
         on:click={emitToggleCommand}
         on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitToggleCommand()}
         class="alignIconInDivInMiddle clickable" 
-        aria-label={`${commandEnabled ? "Remove" : "Add"} command${choiceName ? " for " + choiceName : ""}`} 
+        aria-label={`${commandEnabled ? "Remove from Command Palette" : "Add to Command Palette"}${choiceName ? ": " + choiceName : ""}`} 
+        title={
+            commandEnabled
+                ? `Remove from Command Palette: Disables the Obsidian command for this choice so it no longer appears in the Command Palette or hotkey settings.`
+                : `Add to Command Palette: Registers an Obsidian command for this choice so it appears in the Command Palette, can be assigned a hotkey, and can be triggered by other plugins (e.g., Templater, MetaBind).`
+        }
         style={commandEnabled ? "color: #FDD023;" : ""}
     >
         <ObsidianIcon iconId="zap" size={16} />

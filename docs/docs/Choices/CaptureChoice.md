@@ -38,6 +38,7 @@ Similarly, you can type a **tag name** in the _Capture To_ field, and QuickAdd w
 If you have a tag called `#people`, and you type `#people` in the _Capture To_ field, QuickAdd will ask you which file to capture to, assuming the file has the `#people` tag.
 
 ## Capture Options
+-   To add a Capture choice to Obsidian's Command Palette and assign a hotkey, enable the ⚡ lightning toggle next to the choice in QuickAdd settings.
 
 -   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
 -   _Task_ will format your captured text as a task.
