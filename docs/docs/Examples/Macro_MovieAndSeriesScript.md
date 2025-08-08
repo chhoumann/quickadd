@@ -12,9 +12,12 @@ We use OMDb api to get the movie or TV show information. You can get an API key 
 
 ## Installation
 
-> Prerequisites
->
-> - You must have an OMDb API key. Request one at `https://www.omdbapi.com/` and keep it handy. The script will not run without it.
+<details>
+<summary>Prerequisites</summary>
+
+- You must have an OMDb API key. Request one at `https://www.omdbapi.com/` and keep it handy. The script will not run without it.
+
+</details>
 
 We'll need to install a QuickAdd user script for this to work. I have made a video which shows you how to do so - [click here](https://www.youtube.com/watch?v=gYK3VDQsZJo&t=1730s).
 You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
