@@ -16,6 +16,11 @@ export interface QuickAddSettings {
 	announceUpdates: boolean;
 	version: string;
 	/**
+	 * Enables the one-page input flow that pre-collects variables
+	 * and renders a single dynamic GUI before executing a choice.
+	 */
+	onePageInputEnabled: boolean;
+	/**
 	 * If this is true, then the plugin is not to contact external services (e.g. OpenAI, etc.) via plugin features.
 	 * Users _can_ still use User Scripts to do so by executing arbitrary JavaScript, but that is not something the plugin controls.
 	 */
@@ -48,6 +53,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	templateFolderPath: "",
 	announceUpdates: true,
 	version: "0.0.0",
+	onePageInputEnabled: false,
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
 	showCaptureNotification: true,
@@ -92,6 +98,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
+		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
 	}
@@ -194,6 +201,21 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					.map((f: TAbstractFile) => f.path)
 			);
 		});
+	}
+
+	private addOnePageInputSetting() {
+		new Setting(this.containerEl)
+			.setName("One-page input for choices (Beta)")
+			.setDesc(
+				"Experimental. Resolve variables up front and show a single dynamic form before executing Template/Capture choices. See Advanced → One-page Inputs in docs."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(settingsStore.getState().onePageInputEnabled)
+					.onChange((value) => {
+						settingsStore.setState({ onePageInputEnabled: value });
+					})
+			);
 	}
 
 	private addDisableOnlineFeaturesSetting() {

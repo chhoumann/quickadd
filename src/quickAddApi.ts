@@ -1,83 +1,146 @@
-import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
-import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
-import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
-import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
-import InputSuggester from "./gui/InputSuggester/inputSuggester";
 import type { App } from "obsidian";
-import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
-import type { IChoiceExecutor } from "./IChoiceExecutor";
-import type QuickAdd from "./main";
-import type IChoice from "./types/choices/IChoice";
-import { reportError } from "./utils/errorUtils";
-import { CompleteFormatter } from "./formatters/completeFormatter";
-import { getDate } from "./utilityObsidian";
 import { MarkdownView } from "obsidian";
-import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
-import { ChunkedPrompt, Prompt, getTokenCount } from "./ai/AIAssistant";
-import { settingsStore } from "./settingsStore";
-import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
-import type { Model } from "./ai/Provider";
+import { ChunkedPrompt, getTokenCount, Prompt } from "./ai/AIAssistant";
 import {
 	getModelByName,
 	getModelNames,
 	getModelProvider,
 } from "./ai/aiHelpers";
-
+import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
+import type { Model } from "./ai/Provider";
+import { CompleteFormatter } from "./formatters/completeFormatter";
+import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
+import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
+import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
+import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
+import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
+import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import InputSuggester from "./gui/InputSuggester/inputSuggester";
+import type { IChoiceExecutor } from "./IChoiceExecutor";
+import type QuickAdd from "./main";
+import { OnePageInputModal } from "./preflight/OnePageInputModal";
+import type { FieldRequirement } from "./preflight/RequirementCollector";
+import { settingsStore } from "./settingsStore";
+import type IChoice from "./types/choices/IChoice";
+import { getDate } from "./utilityObsidian";
+import { reportError } from "./utils/errorUtils";
+import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
-import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 
 export class QuickAddApi {
 	public static GetApi(
 		app: App,
 		plugin: QuickAdd,
-		choiceExecutor: IChoiceExecutor
+		choiceExecutor: IChoiceExecutor,
 	) {
 		return {
-			inputPrompt: (
-				header: string,
-				placeholder?: string,
-				value?: string
-			) => {
-				return this.inputPrompt(app, header, placeholder, value);
+			/**
+			 * Open a single one-page modal to collect multiple inputs at once from a script.
+			 * Any values already present in variables will be used as defaults and not re-asked.
+			 *
+			 * Example spec item:
+			 * { id: "project", label: "Project", type: "text", defaultValue: "Inbox" }
+			 */
+			requestInputs: async (
+				inputs: Array<{
+					id: string;
+					label?: string;
+					type: "text" | "textarea" | "dropdown" | "date" | "field-suggest";
+					placeholder?: string;
+					defaultValue?: string;
+					options?: string[];
+					dateFormat?: string;
+					description?: string;
+				}>,
+			): Promise<Record<string, string>> => {
+				// If all inputs already have values, return them immediately
+				const existing: Record<string, string> = {};
+				const missing: FieldRequirement[] = [];
+				for (const spec of inputs) {
+					const val = choiceExecutor.variables.get(spec.id) as
+						| string
+						| undefined;
+					// Empty string is considered intentional and should not be re-asked
+					if (val !== undefined && val !== null) {
+						existing[spec.id] = String(val);
+						continue;
+					}
+
+					missing.push({
+						id: spec.id,
+						label: spec.label ?? spec.id,
+						type: spec.type,
+						placeholder: spec.placeholder,
+						defaultValue: spec.defaultValue,
+						options: spec.options,
+						dateFormat: spec.dateFormat,
+						description: spec.description,
+						source: "script",
+					});
+				}
+
+				let collected: Record<string, string> = {};
+				if (missing.length > 0) {
+					const modal = new OnePageInputModal(
+						app,
+						missing,
+						choiceExecutor.variables,
+					);
+					collected = await modal.waitForClose;
+				}
+
+				const result = { ...existing, ...collected };
+				Object.entries(result).forEach(([k, v]) =>
+					choiceExecutor.variables.set(k, v),
+				);
+				return result;
+			},
+			inputPrompt: (header: string, placeholder?: string, value?: string) => {
+				return QuickAddApi.inputPrompt(app, header, placeholder, value);
 			},
 			wideInputPrompt: (
 				header: string,
 				placeholder?: string,
-				value?: string
+				value?: string,
 			) => {
-				return this.wideInputPrompt(app, header, placeholder, value);
+				return QuickAddApi.wideInputPrompt(app, header, placeholder, value);
 			},
 			yesNoPrompt: (header: string, text?: string) => {
-				return this.yesNoPrompt(app, header, text);
+				return QuickAddApi.yesNoPrompt(app, header, text);
 			},
 			infoDialog: (header: string, text: string[] | string) => {
-				return this.infoDialog(app, header, text);
+				return QuickAddApi.infoDialog(app, header, text);
 			},
 			suggester: (
 				displayItems:
 					| string[]
-					| ((
-							value: string,
-							index?: number,
-							arr?: string[]
-					  ) => string[]),
+					| ((value: string, index?: number, arr?: string[]) => string[]),
 				actualItems: string[],
 				placeholder?: string,
-				allowCustomInput = false
+				allowCustomInput = false,
 			) => {
-				return this.suggester(app, displayItems, actualItems, placeholder, allowCustomInput);
+				return QuickAddApi.suggester(
+					app,
+					displayItems,
+					actualItems,
+					placeholder,
+					allowCustomInput,
+				);
 			},
 			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
-				return this.checkboxPrompt(app, items, selectedItems);
+				return QuickAddApi.checkboxPrompt(app, items, selectedItems);
 			},
 			executeChoice: async (
 				choiceName: string,
-				variables?: Record<string, unknown>
+				variables?: Record<string, unknown>,
 			) => {
 				const choice: IChoice = plugin.getChoiceByName(choiceName);
 				if (!choice)
-					reportError(new Error(`Choice named '${choiceName}' not found`), "API executeChoice error");
+					reportError(
+						new Error(`Choice named '${choiceName}' not found`),
+						"API executeChoice error",
+					);
 
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -91,7 +154,7 @@ export class QuickAddApi {
 			format: async (
 				input: string,
 				variables?: { [key: string]: unknown },
-				shouldClearVariables = true
+				shouldClearVariables = true,
 			) => {
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -102,7 +165,7 @@ export class QuickAddApi {
 				const output = await new CompleteFormatter(
 					app,
 					plugin,
-					choiceExecutor
+					choiceExecutor,
 				).formatFileContent(input);
 
 				if (shouldClearVariables) {
@@ -121,21 +184,21 @@ export class QuickAddApi {
 						modelOptions: Partial<OpenAIModelParameters>;
 						showAssistantMessages: boolean;
 						systemPrompt: string;
-					}>
+					}>,
 				): Promise<{ [key: string]: string }> => {
 					const pluginSettings = settingsStore.getState();
 					const AISettings = pluginSettings.ai;
 
 					if (pluginSettings.disableOnlineFeatures) {
 						throw new Error(
-							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings.",
 						);
 					}
 
-					const formatter = this.GetApi(
+					const formatter = QuickAddApi.GetApi(
 						app,
 						plugin,
-						choiceExecutor
+						choiceExecutor,
 					).format;
 
 					let _model: Model;
@@ -153,9 +216,7 @@ export class QuickAddApi {
 					const modelProvider = getModelProvider(_model.name);
 
 					if (!modelProvider) {
-						throw new Error(
-							`Model '${_model.name}' not found in any provider`
-						);
+						throw new Error(`Model '${_model.name}' not found in any provider`);
 					}
 
 					const assistantRes = await Prompt(
@@ -165,21 +226,21 @@ export class QuickAddApi {
 							prompt,
 							apiKey: modelProvider.apiKey,
 							modelOptions: settings?.modelOptions ?? {},
-							outputVariableName:
-								settings?.variableName ?? "output",
-							showAssistantMessages:
-								settings?.showAssistantMessages ?? true,
+							outputVariableName: settings?.variableName ?? "output",
+							showAssistantMessages: settings?.showAssistantMessages ?? true,
 							systemPrompt:
-								settings?.systemPrompt ??
-								AISettings.defaultSystemPrompt,
+								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
 						},
 						(txt: string, variables?: Record<string, unknown>) => {
 							return formatter(txt, variables, false);
-						}
+						},
 					);
 
 					if (!assistantRes) {
-						reportError(new Error("AI Assistant returned null"), "AI Prompt error");
+						reportError(
+							new Error("AI Assistant returned null"),
+							"AI Prompt error",
+						);
 						return {};
 					}
 
@@ -204,21 +265,21 @@ export class QuickAddApi {
 						chunkJoiner: string;
 						shouldMerge: boolean;
 					}>,
-					existingVariables?: Record<string, unknown>
+					existingVariables?: Record<string, unknown>,
 				) => {
 					const pluginSettings = settingsStore.getState();
 					const AISettings = pluginSettings.ai;
 
 					if (pluginSettings.disableOnlineFeatures) {
 						throw new Error(
-							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings.",
 						);
 					}
 
-					const formatter = this.GetApi(
+					const formatter = QuickAddApi.GetApi(
 						app,
 						plugin,
-						choiceExecutor
+						choiceExecutor,
 					).format;
 
 					let _model: Model;
@@ -236,9 +297,7 @@ export class QuickAddApi {
 					const modelProvider = getModelProvider(_model.name);
 
 					if (!modelProvider) {
-						throw new Error(
-							`Model '${_model.name}' not found in any provider`
-						);
+						throw new Error(`Model '${_model.name}' not found in any provider`);
 					}
 
 					const assistantRes = await ChunkedPrompt(
@@ -250,13 +309,10 @@ export class QuickAddApi {
 							chunkSeparator: settings?.chunkSeparator ?? /\n/,
 							apiKey: modelProvider.apiKey,
 							modelOptions: settings?.modelOptions ?? {},
-							outputVariableName:
-								settings?.variableName ?? "output",
-							showAssistantMessages:
-								settings?.showAssistantMessages ?? true,
+							outputVariableName: settings?.variableName ?? "output",
+							showAssistantMessages: settings?.showAssistantMessages ?? true,
 							systemPrompt:
-								settings?.systemPrompt ??
-								AISettings.defaultSystemPrompt,
+								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
 							resultJoiner: settings?.chunkJoiner ?? "\n",
 							shouldMerge: settings?.shouldMerge ?? true,
 						},
@@ -267,11 +323,14 @@ export class QuickAddApi {
 							};
 
 							return formatter(txt, mergedVariables, false);
-						}
+						},
 					);
 
 					if (!assistantRes) {
-						reportError(new Error("AI Assistant returned null"), "Chunked AI Prompt error");
+						reportError(
+							new Error("AI Assistant returned null"),
+							"Chunked AI Prompt error",
+						);
 						return {};
 					}
 
@@ -306,16 +365,21 @@ export class QuickAddApi {
 					return await navigator.clipboard.writeText(text);
 				},
 				getSelectedText: () => {
-					const activeView =
-						app.workspace.getActiveViewOfType(MarkdownView);
+					const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 
 					if (!activeView) {
-						reportError(new Error("No active view"), "Could not get selected text");
+						reportError(
+							new Error("No active view"),
+							"Could not get selected text",
+						);
 						return;
 					}
 
 					if (!activeView.editor.somethingSelected()) {
-						reportError(new Error("No text selected"), "Could not get selected text");
+						reportError(
+							new Error("No text selected"),
+							"Could not get selected text",
+						);
 						return;
 					}
 
@@ -340,7 +404,7 @@ export class QuickAddApi {
 						folder?: string;
 						tags?: string[];
 						includeInline?: boolean;
-					}
+					},
 				) => {
 					const filters = {
 						folder: options?.folder,
@@ -353,7 +417,7 @@ export class QuickAddApi {
 					files = FieldSuggestionFileFilter.filterFiles(
 						files,
 						filters,
-						(file) => app.metadataCache.getFileCache(file)
+						(file) => app.metadataCache.getFileCache(file),
 					);
 
 					const values = new Set<string>();
@@ -361,12 +425,12 @@ export class QuickAddApi {
 					// Collect field values from filtered files
 					for (const file of files) {
 						const cache = app.metadataCache.getFileCache(file);
-						
+
 						// Get values from YAML frontmatter
 						const value = cache?.frontmatter?.[fieldName];
 						if (value !== undefined && value !== null) {
 							if (Array.isArray(value)) {
-								value.forEach(x => {
+								value.forEach((x) => {
 									const strValue = x.toString().trim();
 									if (strValue) values.add(strValue);
 								});
@@ -379,8 +443,11 @@ export class QuickAddApi {
 						// Get values from inline fields if requested
 						if (filters.inline) {
 							const content = await app.vault.read(file);
-							const inlineValues = InlineFieldParser.getFieldValues(content, fieldName);
-							inlineValues.forEach(v => values.add(v));
+							const inlineValues = InlineFieldParser.getFieldValues(
+								content,
+								fieldName,
+							);
+							inlineValues.forEach((v) => values.add(v));
 						}
 					}
 
@@ -398,15 +465,10 @@ export class QuickAddApi {
 		app: App,
 		header: string,
 		placeholder?: string,
-		value?: string
+		value?: string,
 	) {
 		try {
-			return await GenericInputPrompt.Prompt(
-				app,
-				header,
-				placeholder,
-				value
-			);
+			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
 		} catch {
 			return undefined;
 		}
@@ -416,14 +478,14 @@ export class QuickAddApi {
 		app: App,
 		header: string,
 		placeholder?: string,
-		value?: string
+		value?: string,
 	) {
 		try {
 			return await GenericWideInputPrompt.Prompt(
 				app,
 				header,
 				placeholder,
-				value
+				value,
 			);
 		} catch {
 			return undefined;
@@ -441,7 +503,7 @@ export class QuickAddApi {
 	public static async infoDialog(
 		app: App,
 		header: string,
-		text: string[] | string
+		text: string[] | string,
 	) {
 		try {
 			return await GenericInfoDialog.Show(app, header, text);
@@ -457,7 +519,7 @@ export class QuickAddApi {
 			| ((value: string, index?: number, arr?: string[]) => string[]),
 		actualItems: string[],
 		placeholder?: string,
-		allowCustomInput = false
+		allowCustomInput = false,
 	) {
 		try {
 			let displayedItems;
@@ -473,7 +535,7 @@ export class QuickAddApi {
 					app,
 					displayedItems as string[],
 					actualItems,
-					placeholder ? { placeholder } : {}
+					placeholder ? { placeholder } : {},
 				);
 			}
 
@@ -481,7 +543,7 @@ export class QuickAddApi {
 				app,
 				displayedItems as string[],
 				actualItems,
-				placeholder
+				placeholder,
 			);
 		} catch {
 			return undefined;
@@ -491,7 +553,7 @@ export class QuickAddApi {
 	public static async checkboxPrompt(
 		app: App,
 		items: string[],
-		selectedItems?: string[]
+		selectedItems?: string[],
 	) {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);

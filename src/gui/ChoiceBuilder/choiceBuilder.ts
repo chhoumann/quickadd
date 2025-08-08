@@ -34,6 +34,25 @@ export abstract class ChoiceBuilder extends Modal {
 		this.display();
 	}
 
+	protected addOnePageOverrideSetting(choice: IChoice): void {
+		new Setting(this.contentEl)
+			.setName("One-page input override")
+			.setDesc(
+				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					"": "Follow global setting",
+					always: "Always",
+					never: "Never",
+				});
+				dropdown.setValue((choice.onePageInput ?? "") as string);
+				dropdown.onChange((val: string) => {
+					choice.onePageInput = val === "" ? undefined : (val as any);
+				});
+			});
+	}
+
 	protected addFileSearchInputToSetting(
 		setting: Setting,
 		value: string,
