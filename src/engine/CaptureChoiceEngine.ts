@@ -3,7 +3,7 @@ import { Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
-import { VALUE_SYNTAX } from "../constants";
+import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, VALUE_SYNTAX } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
@@ -184,7 +184,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {
         // One-page preflight: if a specific target file was already chosen, use it
-        const preselected = this.choiceExecutor?.variables?.get("captureTargetFilePath") as string | undefined;
+        const preselected = this.choiceExecutor?.variables?.get(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH) as string | undefined;
         if (!shouldCaptureToActiveFile && preselected && typeof preselected === "string" && preselected.length > 0) {
             return preselected;
         }

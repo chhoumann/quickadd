@@ -142,6 +142,10 @@ export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[I]?[M]?[E]?[:]?$|{{TIME:[^\n\r}]*}}$/i
 )
 
+// == Internal (reserved) variable keys == //
+// Keys starting with "__qa." are reserved for QuickAdd internal preflight/runtime plumbing.
+export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH = "__qa.captureTargetFilePath";
+
 // == File Exists (Template Choice) == //
 export const fileExistsIncrement = "Increment the file name" as const;
 export const fileExistsAppendToBottom =

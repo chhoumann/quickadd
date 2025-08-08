@@ -37,6 +37,11 @@ Note: For date fields with a default, leaving the input blank will apply the def
 ### Cancel behavior
 - If you press Cancel in the one-page modal, the preflight is aborted and the choice proceeds with the standard step-by-step prompts at runtime.
 
+### Internals and reserved variables
+- QuickAdd uses reserved variable ids prefixed with `__qa.` for internal wiring during preflight/runtime.
+- Example: `__qa.captureTargetFilePath` stores the capture target chosen in the one-page modal so the capture engine can skip its own file picker.
+- These internal keys won’t collide with your own variables; avoid using the `__qa.` prefix in your scripts.
+
 ---
 
 ## User scripts: declare inputs (optional)

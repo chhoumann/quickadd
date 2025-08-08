@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "src/constants";
+import { MARKDOWN_FILE_EXTENSION_REGEX, QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
@@ -118,8 +118,8 @@ async function collectForCaptureChoice(
 		}
 
 		const options = files.map((f) => f.path);
-		collector.requirements.set("captureTargetFilePath", {
-			id: "captureTargetFilePath",
+        collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
+            id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			label: "Select capture target file",
 			type: "dropdown",
 			options,
