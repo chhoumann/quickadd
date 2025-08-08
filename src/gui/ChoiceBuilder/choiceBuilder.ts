@@ -37,7 +37,9 @@ export abstract class ChoiceBuilder extends Modal {
 	protected addOnePageOverrideSetting(choice: IChoice): void {
 		new Setting(this.contentEl)
 			.setName("One-page input override")
-			.setDesc("Override global one-page input setting for this choice")
+			.setDesc(
+				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
+			)
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
 					"": "Follow global setting",
@@ -46,7 +48,7 @@ export abstract class ChoiceBuilder extends Modal {
 				});
 				dropdown.setValue((choice.onePageInput ?? "") as string);
 				dropdown.onChange((val: string) => {
-					choice.onePageInput = (val === "" ? undefined : (val as any));
+					choice.onePageInput = val === "" ? undefined : (val as any);
 				});
 			});
 	}
