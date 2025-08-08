@@ -49,6 +49,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addAppendLinkSetting();
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting("Open the created file.");
+		this.addOnePageOverrideSetting(this.choice);
 
 		if (this.choice.openFile) {
 			this.addFileOpeningSetting("created");

@@ -19,8 +19,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	constructor(private app: App, private plugin: QuickAdd) {}
 
 	async execute(choice: IChoice): Promise<void> {
-		// Optional Phase 1 preflight for Template/Capture
-		if (settingsStore.getState().onePageInputEnabled && (choice.type === "Template" || choice.type === "Capture")) {
+    // One-page preflight honoring per-choice override
+    const globalEnabled = settingsStore.getState().onePageInputEnabled;
+    const override = choice.onePageInput;
+    const shouldUseOnePager = (override === "always") || (override !== "never" && globalEnabled);
+    if (shouldUseOnePager && (choice.type === "Template" || choice.type === "Capture" || choice.type === "Macro")) {
 			try {
 				await runOnePagePreflight(this.app, this.plugin as unknown as QuickAdd, this, choice);
 			} catch {}
