@@ -1,6 +1,7 @@
 import { App, Modal, Setting, TextAreaComponent, TextComponent, DropdownComponent } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 
 export class OnePageInputModal extends Modal {
   private readonly requirements: FieldRequirement[];
@@ -90,9 +91,12 @@ export class OnePageInputModal extends Modal {
         if (req.description) setting.setDesc(req.description);
         const input = new TextComponent(setting.controlEl);
         input.setPlaceholder(req.placeholder ?? "").setValue(starting).onChange((v) => setValue(req.id, v));
-        // Attach suggester for better UX
-        // InputSuggester requires lists; here we fallback to simple text if none.
-        // For now, do not open a modal suggester automatically; leave as plain input.
+        // Attach inline suggester powered by vault data & filters encoded in req.id
+        try {
+          new FieldValueInputSuggest(this.app, input.inputEl, req.id);
+        } catch {
+          // Non-fatal; leave as plain input if suggester fails
+        }
         break;
       }
       case "file-picker": {
