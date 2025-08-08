@@ -1,32 +1,34 @@
 ---
 sidebar_position: 50
+title: One-page Inputs
+description: Collect all QuickAdd inputs in a single dynamic form (Beta)
 ---
 
-## One-page inputs for QuickAdd
+# One-page Inputs
 
 QuickAdd can collect all inputs in a single, dynamic form before running your choice.
 This feature is currently in Beta.
 
-### Enable
+## Enable
 - Settings → QuickAdd → toggle “One-page input for choices”.
 - Works with Template and Capture choices. Macros get partial support (see User Scripts below).
  - Note: Beta – please report issues and edge cases.
 
-### What gets collected
+## What gets collected
 - Format variables in filenames, templates, and capture content:
   - `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`
   - Nested `{{TEMPLATE:path}}` are scanned recursively.
 - Capture target file when capturing to a folder or tag.
 - Script-declared inputs (from user scripts inside macros), if provided.
 
-### Date UX
+## Date UX
 - Date fields support natural language (e.g., “today”, “next friday”).
 - The modal shows a formatted preview and stores a normalized `@date:ISO` internally.
 
-### FIELD UX
+## FIELD UX
 - FIELD inputs get inline suggestions from your vault (Dataview if available, with a manual fallback).
 
-### Skipping the modal
+## Skipping the modal
 - If all required inputs already have values (e.g., prefilled by an earlier macro step), the modal will not open.
 - Empty string is considered an intentional value and will not prompt again.
 
