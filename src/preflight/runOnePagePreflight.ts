@@ -4,6 +4,11 @@ import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
+import type IMacroChoice from "src/types/choices/IMacroChoice";
+import type { ICommand } from "src/types/macros/ICommand";
+import { CommandType } from "src/types/macros/CommandType";
+import type { IUserScript } from "src/types/macros/IUserScript";
+import { getUserScript } from "src/utilityObsidian";
 import { RequirementCollector, type FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "src/constants";
@@ -98,16 +103,56 @@ async function collectForCaptureChoice(app: App, plugin: QuickAdd, choiceExecuto
 export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor, choice: IChoice): Promise<boolean> {
   try {
     let collector: RequirementCollector | null = null;
+    const scriptRequirements: FieldRequirement[] = [];
 
     if (choice.type === "Template") {
       collector = await collectForTemplateChoice(app, plugin, choiceExecutor, choice as ITemplateChoice);
     } else if (choice.type === "Capture") {
       collector = await collectForCaptureChoice(app, plugin, choiceExecutor, choice as ICaptureChoice);
+    } else if (choice.type === "Macro") {
+      // Phase 2 (limited): Collect declared inputs from user scripts in the macro
+      const macro = choice as IMacroChoice;
+      const commands: ICommand[] = macro?.macro?.commands ?? [];
+      for (const cmd of commands) {
+        if (cmd?.type === CommandType.UserScript) {
+          const us = cmd as IUserScript;
+          try {
+            const exported = await getUserScript(us, app);
+            // We will not execute script functions. Accept both function and object exports.
+            const spec = (exported && typeof exported === 'object' && 'quickadd' in exported)
+              ? (exported as any).quickadd
+              : (typeof exported === 'function' && (exported as any).quickadd)
+                ? (exported as any).quickadd
+                : null;
+            if (spec?.inputs && Array.isArray(spec.inputs)) {
+              for (const input of spec.inputs) {
+                if (!input?.id || !input?.type) continue;
+                const req: FieldRequirement = {
+                  id: String(input.id),
+                  label: String(input.label ?? input.id),
+                  type: input.type,
+                  placeholder: input.placeholder,
+                  defaultValue: input.defaultValue,
+                  options: input.options,
+                  dateFormat: input.dateFormat,
+                };
+                scriptRequirements.push(req);
+              }
+            }
+          } catch {
+            // Ignore script spec errors silently in preflight
+          }
+        }
+      }
     } else {
       return false; // Phase 1 handles Template & Capture only
     }
 
-    const requirements: FieldRequirement[] = Array.from(collector.requirements.values());
+    // Combine formatter-collected requirements with script-declared ones (if any)
+    const mergedMap = new Map<string, FieldRequirement>();
+    for (const r of (collector ? Array.from(collector.requirements.values()) : [])) mergedMap.set(r.id, r);
+    for (const r of scriptRequirements) if (!mergedMap.has(r.id)) mergedMap.set(r.id, r);
+    const requirements: FieldRequirement[] = Array.from(mergedMap.values());
     if (requirements.length === 0) return false; // Nothing to collect
 
     // Show modal
