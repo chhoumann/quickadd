@@ -142,6 +142,11 @@ const sidebars = {
 				},
 				{
 					type: "doc",
+					id: "Advanced/onePageInputs",
+					label: "🧩 One-page Inputs",
+				},
+				{
+					type: "doc",
 					id: "Advanced/ObsidianUri",
 					label: "🔗 Obsidian URI",
 				},
