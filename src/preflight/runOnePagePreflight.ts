@@ -155,6 +155,14 @@ export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExec
     const requirements: FieldRequirement[] = Array.from(mergedMap.values());
     if (requirements.length === 0) return false; // Nothing to collect
 
+    // Only prompt for unresolved inputs (variables missing or null)
+    const unresolved: FieldRequirement[] = requirements.filter((req) => {
+      const v = choiceExecutor.variables.get(req.id) as unknown;
+      return v === undefined || v === null; // empty string counts as intentionally provided
+    });
+
+    if (unresolved.length === 0) return false; // Everything prefilled, skip modal
+
     // Show modal
     // Optional live preview of a couple of key outputs (best-effort)
     const computePreview = async (values: Record<string, string>) => {
@@ -178,7 +186,7 @@ export async function runOnePagePreflight(app: App, plugin: QuickAdd, choiceExec
       }
     };
 
-    const modal = new OnePageInputModal(app, requirements, choiceExecutor.variables, computePreview);
+    const modal = new OnePageInputModal(app, unresolved, choiceExecutor.variables, computePreview);
     const values = await modal.waitForClose;
 
     // No additional normalization needed: date inputs already store @date:ISO
