@@ -62,8 +62,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			}
 		}
 
-		this.addFormatSetting();
 		this.addOnePageOverrideSetting(this.choice);
+		this.addFormatSetting();
 	}
 
 	private addCapturedToSetting() {
