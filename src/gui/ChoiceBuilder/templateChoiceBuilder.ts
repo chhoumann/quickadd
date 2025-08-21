@@ -43,17 +43,28 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	protected display() {
 		this.containerEl.addClass("templateChoiceBuilder");
 		this.addCenteredChoiceNameHeader(this.choice);
+
+		// Template
+		new Setting(this.contentEl).setName("Template").setHeading();
 		this.addTemplatePathSetting();
 		this.addFileNameFormatSetting();
+
+		// Location
+		new Setting(this.contentEl).setName("Location").setHeading();
 		this.addFolderSetting();
+
+		// Linking
+		new Setting(this.contentEl).setName("Linking").setHeading();
 		this.addAppendLinkSetting();
+
+		// Behavior
+		new Setting(this.contentEl).setName("Behavior").setHeading();
 		this.addFileAlreadyExistsSetting();
 		this.addOpenFileSetting("Open the created file.");
-		this.addOnePageOverrideSetting(this.choice);
-
 		if (this.choice.openFile) {
 			this.addFileOpeningSetting("created");
 		}
+		this.addOnePageOverrideSetting(this.choice);
 	}
 
 	private addTemplatePathSetting(): void {
@@ -79,7 +90,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		let textField: TextComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
-			.setName("File Name Format")
+			.setName("File name format")
 			.setDesc("Set the file name format.")
 			.addToggle((toggleComponent) => {
 				toggleComponent
@@ -90,7 +101,12 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					});
 			});
 
-		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
+		// Desc + preview row
+		const previewRow = this.contentEl.createDiv();
+		previewRow.style.marginBottom = "6px";
+		const previewLabel = previewRow.createEl("span", { text: "Preview: " });
+		previewLabel.style.fontWeight = "600";
+		const formatDisplay = previewRow.createEl("span");
 		const displayFormatter: FileNameDisplayFormatter =
 			new FileNameDisplayFormatter(this.app);
 		void (async () =>
