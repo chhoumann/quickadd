@@ -52,6 +52,14 @@ It uses the same hotkey to activate as above (`CTRL+SHIFT+ALT+G`). If you wish t
 
 So, you can replace the `!^+g` with any hotkey of your choosing.
 
-#### About MacOS
+#### macOS
 
-based on Advanced URI, It is recommended that you use `Create Quicklink` in [raycast](https://www.raycast.com/help/quicklinks).
+You can trigger QuickAdd via the Advanced URI using any launcher or automation tool you prefer:
+
+- Open URL: `obsidian://advanced-uri?vault=<YOUR_VAULT_NAME>&commandname=QuickAdd: Run QuickAdd`
+
+Examples:
+- macOS Shortcuts: add an “Open URLs” action with the URI; assign a keyboard shortcut.
+- Alfred: create a workflow that opens the URI.
+- Raycast: optional — create a Quicklink with the URI.
+- Keyboard Maestro or Hammerspoon: bind a hotkey that runs `open "obsidian://advanced-uri?..."`.
