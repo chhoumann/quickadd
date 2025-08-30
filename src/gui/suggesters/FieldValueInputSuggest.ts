@@ -1,11 +1,10 @@
-import type { App, TFile } from "obsidian";
+import type { App } from "obsidian";
 import {
-	type FieldFilter,
 	FieldSuggestionParser,
+	type FieldFilter,
 } from "src/utils/FieldSuggestionParser";
 import {
-	collectFieldValuesProcessed,
-	generateFieldCacheKey,
+	collectFieldValuesProcessed
 } from "src/utils/FieldValueCollector";
 import { TextInputSuggest } from "./suggest";
 

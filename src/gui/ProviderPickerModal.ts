@@ -1,4 +1,5 @@
-import { Modal, Setting, Notice } from "obsidian";
+import type { App} from "obsidian";
+import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
 
@@ -10,7 +11,7 @@ export class ProviderPickerModal extends Modal {
 
   private providers: AIProvider[];
 
-  constructor(app: import("obsidian").App, providers: AIProvider[]) {
+  constructor(app: App, providers: AIProvider[]) {
     super(app);
     this.providers = providers;
 
@@ -87,7 +88,7 @@ export class ProviderPickerModal extends Modal {
               // Basic validation
               try {
                 // Validate endpoint URL format
-                // eslint-disable-next-line no-new
+                 
                 new URL(preset.endpoint);
               } catch {
                 new Notice(`Invalid endpoint URL for ${preset.name}.`);
