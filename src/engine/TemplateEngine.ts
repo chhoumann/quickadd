@@ -8,9 +8,10 @@ import {
 	overwriteTemplaterOnce,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import { FILE_NUMBER_REGEX, MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
+import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { isValidFilename, getInvalidFilenameError } from "../utils/filenameValidation";
+import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
 export abstract class TemplateEngine extends QuickAddEngine {
@@ -86,26 +87,30 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected async incrementFileName(fileName: string) {
-		const exec = FILE_NUMBER_REGEX.exec(fileName);
-		const numStr =
-			exec && typeof exec.at === "function" ? exec?.at(1) : undefined;
 		const fileExists = await this.app.vault.adapter.exists(fileName);
 		let newFileName = fileName;
 
-		// Determine the extension from the filename
+		// Determine the extension from the filename and construct a matching regex
 		const extension = CANVAS_FILE_EXTENSION_REGEX.test(fileName) ? ".canvas" : ".md";
+		const extPattern = extension.replace(/\./g, "\\.");
+		const numberWithExtRegex = new RegExp(`(\\d*)${extPattern}$`);
+		const exec = numberWithExtRegex.exec(fileName);
+		const numStr = exec?.[1];
 
-		if (fileExists && numStr) {
-			const number = parseInt(numStr);
-			if (!number)
-				throw new Error("detected numbers but couldn't get them.");
-
-			newFileName = newFileName.replace(
-				FILE_NUMBER_REGEX,
-				`${number + 1}${extension}`
-			);
+		if (fileExists && numStr !== undefined) {
+			if (numStr.length > 0) {
+				const number = parseInt(numStr, 10);
+				if (Number.isNaN(number)) {
+					throw new Error("detected numbers but couldn't get them.");
+				}
+				newFileName = newFileName.replace(numberWithExtRegex, `${number + 1}${extension}`);
+			} else {
+				// No digits previously; insert 1 before extension
+				newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
+			}
 		} else if (fileExists) {
-			newFileName = newFileName.replace(FILE_NUMBER_REGEX, `${1}${extension}`);
+			// No match; simply append 1 before the extension
+			newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
 		}
 
 		const newFileExists = await this.app.vault.adapter.exists(newFileName);
@@ -124,8 +129,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
-			// Extract filename without extension from the full path
-			const fileBasename = filePath.split('/').pop()?.replace(/\.md$/, '') || '';
+				// Extract filename without extension from the full path (supports .md and .canvas)
+				const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			this.formatter.setTitle(fileBasename);
 
 			const formattedTemplateContent: string =
@@ -141,7 +146,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return createdFile;
 		} catch (err) {
 			// Check if the error is likely due to invalid filename characters
-			const fileBasename = filePath.split('/').pop()?.replace(/\.(md|canvas)$/, '') || '';
+				const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			if (!isValidFilename(fileBasename)) {
 				const filenameError = getInvalidFilenameError(fileBasename);
 				reportError(new Error(filenameError), `Cannot create file "${fileBasename}"`);

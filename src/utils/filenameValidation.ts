@@ -4,17 +4,30 @@
  * macOS/Linux: / (and null character)
  * We'll be conservative and forbid all of them for cross-platform compatibility
  */
-const FORBIDDEN_FILENAME_CHARS = /[<>:"|?*\\/]/g;
+const FORBIDDEN_CHARS = ['<', '>', ':', '"', '|', '?', '*', '\\', '/'] as const;
+
+function escapeForRegexCharClass(char: string): string {
+    // Escape backslash and other regex-class special chars if present
+    return char.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+const FORBIDDEN_CHAR_CLASS = `[${FORBIDDEN_CHARS.map(escapeForRegexCharClass).join('')}]`;
 
 /**
- * Regex pattern to match forbidden characters (for validation)
+ * Regex to find all forbidden characters
  */
-const FORBIDDEN_FILENAME_PATTERN = /[<>:"|?*\\/]/;
+const FORBIDDEN_FILENAME_CHARS = new RegExp(FORBIDDEN_CHAR_CLASS, 'g');
+
+/**
+ * Regex to test if any forbidden character exists
+ */
+const FORBIDDEN_FILENAME_PATTERN = new RegExp(FORBIDDEN_CHAR_CLASS);
 
 /**
  * Get a user-friendly list of forbidden characters
  */
 export function getForbiddenCharsList(): string {
+	// Keep this formatting stable for tests and user messaging
 	return '< > : " | ? * \\ /';
 }
 
@@ -23,6 +36,12 @@ export function getForbiddenCharsList(): string {
  * @param filename The filename to validate (without path)
  * @returns true if the filename is valid, false otherwise
  */
+const WINDOWS_RESERVED = new Set([
+    'CON', 'PRN', 'AUX', 'NUL',
+    'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+    'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+]);
+
 export function isValidFilename(filename: string): boolean {
 	if (!filename || filename.trim() === '') {
 		return false;
@@ -33,15 +52,8 @@ export function isValidFilename(filename: string): boolean {
 		return false;
 	}
 	
-	// Check for reserved names on Windows
-	const reserved = [
-		'CON', 'PRN', 'AUX', 'NUL',
-		'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-		'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
-	];
-	
 	const nameWithoutExt = filename.replace(/\.(md|canvas)$/i, '');
-	if (reserved.includes(nameWithoutExt.toUpperCase())) {
+	if (WINDOWS_RESERVED.has(nameWithoutExt.toUpperCase())) {
 		return false;
 	}
 	
@@ -73,17 +85,10 @@ export function sanitizeFilename(filename: string, replacement: string = '_'): s
 	// Replace forbidden characters
 	let sanitized = filename.replace(FORBIDDEN_FILENAME_CHARS, replacement);
 	
-	// Handle reserved names on Windows
-	const reserved = [
-		'CON', 'PRN', 'AUX', 'NUL',
-		'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-		'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
-	];
-	
 	const nameWithoutExt = sanitized.replace(/\.(md|canvas)$/i, '');
 	const ext = sanitized.match(/\.(md|canvas)$/i)?.[0] || '';
 	
-	if (reserved.includes(nameWithoutExt.toUpperCase())) {
+	if (WINDOWS_RESERVED.has(nameWithoutExt.toUpperCase())) {
 		sanitized = `${nameWithoutExt}_reserved${ext}`;
 	}
 	
@@ -111,14 +116,7 @@ export function getInvalidFilenameError(filename: string): string {
 	
 	const nameWithoutExt = filename.replace(/\.(md|canvas)$/i, '');
 	
-	// Check for reserved names
-	const reserved = [
-		'CON', 'PRN', 'AUX', 'NUL',
-		'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-		'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
-	];
-	
-	if (reserved.includes(nameWithoutExt.toUpperCase())) {
+	if (WINDOWS_RESERVED.has(nameWithoutExt.toUpperCase())) {
 		return `"${nameWithoutExt}" is a reserved system name and cannot be used as a filename`;
 	}
 	

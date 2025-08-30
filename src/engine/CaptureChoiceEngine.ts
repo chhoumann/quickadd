@@ -26,6 +26,7 @@ import {
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { isValidFilename, getInvalidFilenameError } from "../utils/filenameValidation";
+import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { type CaptureAction, getCaptureAction } from "./captureAction";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
@@ -394,9 +395,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.choice.name,
 		);
 
-		// Extract just the filename part (without path) for validation
-		const normalizedPath = this.normalizeMarkdownFilePath("", formattedCaptureTo);
-		const fileBasename = normalizedPath.split('/').pop()?.replace(/\.md$/, '') || '';
+			// Extract just the filename part (without path) for validation
+			const normalizedPath = this.normalizeMarkdownFilePath("", formattedCaptureTo);
+			const fileBasename = basenameWithoutMdOrCanvas(normalizedPath);
 		
 		// Validate the filename
 		if (!isValidFilename(fileBasename)) {
