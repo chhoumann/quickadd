@@ -1,11 +1,11 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
+import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 } from "src/constants";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
-import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -20,11 +20,10 @@ import {
 	getUserScript,
 	isFolder,
 } from "src/utilityObsidian";
-import { parseNaturalLanguageDate } from "src/utils/dateParser";
 import { OnePageInputModal } from "./OnePageInputModal";
 import {
-	type FieldRequirement,
 	RequirementCollector,
+	type FieldRequirement,
 } from "./RequirementCollector";
 
 async function readTemplate(app: App, path: string): Promise<string> {

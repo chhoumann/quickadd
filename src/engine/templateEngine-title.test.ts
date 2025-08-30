@@ -120,6 +120,11 @@ describe('TemplateEngine - Title Handling', () => {
             expect(engine.getFormatterTitle()).toBe('my.complex.note');
         });
 
+        it('should extract title from .canvas filename', async () => {
+            await engine.testCreateFileWithTemplate('folder/CanvasDoc.canvas', 'template.md');
+            expect(engine.getFormatterTitle()).toBe('CanvasDoc');
+        });
+
         it('should format content with title replacement', async () => {
             const mockFormatter = (engine as any).formatter;
             

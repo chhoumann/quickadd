@@ -3,12 +3,12 @@ import { Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -25,9 +25,11 @@ import {
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
-import { type CaptureAction, getCaptureAction } from "./captureAction";
+import { getInvalidFilenameError, isValidFilename } from "../utils/filenameValidation";
+import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
+import { getCaptureAction, type CaptureAction } from "./captureAction";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -393,6 +395,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.choice.name,
 		);
 
-		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
+			// Extract just the filename part (without path) for validation
+			const normalizedPath = this.normalizeMarkdownFilePath("", formattedCaptureTo);
+			const fileBasename = basenameWithoutMdOrCanvas(normalizedPath);
+		
+			// Validate the filename
+			invariant(
+				isValidFilename(fileBasename),
+				() => `Invalid filename format: ${getInvalidFilenameError(fileBasename)}`
+			);
+
+		return normalizedPath;
 	}
 }
