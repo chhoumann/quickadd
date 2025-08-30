@@ -102,6 +102,12 @@ export const Scope = class {
 
 export { moment };
 
+// Minimal normalizePath for tests: convert Windows separators to POSIX
+export function normalizePath(p: string): string {
+  if (typeof p !== 'string') return '' as unknown as string;
+  return p.replace(/\\/g, '/');
+}
+
 // Default export for compatibility
 export default {
   App,
@@ -114,4 +120,5 @@ export default {
   Modal,
   Scope,
   moment,
+  normalizePath,
 };

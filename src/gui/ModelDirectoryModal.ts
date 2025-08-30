@@ -1,4 +1,5 @@
-import { Modal, Setting, Notice } from "obsidian";
+import type { App } from "obsidian";
+import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider, Model } from "src/ai/Provider";
 import {
   fetchModelsDevDirectory,
@@ -19,7 +20,7 @@ export class ModelDirectoryModal extends Modal {
   private selectedIds = new Set<string>();
   private mode: "add" | "replace" = "add";
 
-  constructor(app: import("obsidian").App, provider: AIProvider) {
+  constructor(app: App, provider: AIProvider) {
     super(app);
     this.provider = provider;
 

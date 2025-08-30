@@ -1,13 +1,12 @@
 import {
-	type App,
 	DropdownComponent,
-	debounce,
 	Modal,
 	Setting,
 	TextAreaComponent,
 	TextComponent,
+	debounce,
+	type App,
 } from "obsidian";
-import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import type { FieldRequirement } from "./RequirementCollector";

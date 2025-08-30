@@ -3,6 +3,7 @@ import { MarkdownView } from "obsidian";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { INLINE_JAVASCRIPT_REGEX } from "../constants";
 import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { SingleMacroEngine } from "../engine/SingleMacroEngine";
@@ -10,17 +11,12 @@ import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
-import { DataviewIntegration } from "../utils/DataviewIntegration";
-import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
-import { FieldSuggestionCache } from "../utils/FieldSuggestionCache";
 import {
-	type FieldFilter,
 	FieldSuggestionParser,
+	type FieldFilter,
 } from "../utils/FieldSuggestionParser";
 import {
 	collectFieldValuesProcessedDetailed,
@@ -28,7 +24,6 @@ import {
 	generateFieldCacheKey,
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
-import { InlineFieldParser } from "../utils/InlineFieldParser";
 import { Formatter } from "./formatter";
 
 export class CompleteFormatter extends Formatter {
