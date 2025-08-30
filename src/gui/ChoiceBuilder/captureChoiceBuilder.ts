@@ -6,7 +6,6 @@ import {
 	TextComponent,
 	ToggleComponent,
 } from "obsidian";
-import { log } from "src/logger/logManager";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -78,7 +77,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addCapturedToSetting() {
-		let textField: TextComponent;
 		new Setting(this.contentEl)
 			.setName("Capture to")
 			.setDesc("Target file path. Supports format syntax.");
@@ -106,17 +104,22 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				captureToContainer.createDiv("captureToFileContainer");
 
 			// Preview row
-			const previewRow = captureToFileContainer.createDiv();
-			previewRow.style.marginBottom = "6px";
-			const previewLabel = previewRow.createEl("span", { text: "Preview: " });
-			previewLabel.style.fontWeight = "600";
+			const previewRow = captureToFileContainer.createDiv({ cls: "qa-preview-row" });
+			previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 			const formatDisplay = previewRow.createEl("span");
+			formatDisplay.setAttr("aria-live", "polite");
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app);
-			void (async () =>
-				(formatDisplay.textContent = await displayFormatter.format(
-					this.choice.captureTo,
-				)))();
+			formatDisplay.textContent = "Loading preview…";
+			void (async () => {
+				try {
+					formatDisplay.textContent = await displayFormatter.format(
+						this.choice.captureTo,
+					);
+				} catch {
+					formatDisplay.textContent = "Preview unavailable";
+				}
+			})();
 
 			// Search input using idiomatic Obsidian Setting
 			new Setting(captureToFileContainer)
@@ -137,7 +140,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					);
 					search.onChange(async (value) => {
 						this.choice.captureTo = value;
-						formatDisplay.textContent = await displayFormatter.format(value);
+						try {
+							formatDisplay.textContent = await displayFormatter.format(value);
+						} catch {
+							formatDisplay.textContent = "Preview unavailable";
+						}
 					});
 					new FormatSyntaxSuggester(this.app, search.inputEl, this.plugin);
 				});
@@ -283,15 +290,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const descFragment = document.createDocumentFragment();
 		const descText = document.createElement("div");
 		descText.textContent =
-			"Insert capture after specified line. Accepts format syntax.";
+			"Insert capture after specified line. Accepts format syntax. Tip: use a heading (starts with #) to target a section.";
 		descFragment.appendChild(descText);
 
 		const previewRow = document.createElement("div");
-		previewRow.style.marginTop = "6px";
+		previewRow.classList.add("qa-preview-row");
 		const previewLabel = document.createElement("span");
 		previewLabel.textContent = "Preview: ";
-		previewLabel.style.fontWeight = "600";
+		previewLabel.classList.add("qa-preview-label");
 		const previewValue = document.createElement("span");
+		previewValue.setAttribute("aria-live", "polite");
 		previewRow.appendChild(previewLabel);
 		previewRow.appendChild(previewValue);
 		descFragment.appendChild(previewRow);
@@ -300,12 +308,18 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.app,
 			this.plugin,
 		);
-		void (async () =>
-			(previewValue.innerText = await displayFormatter.format(
-				this.choice.insertAfter.after,
-			)))();
+		previewValue.innerText = "Loading preview…";
+		void (async () => {
+			try {
+				previewValue.innerText = await displayFormatter.format(
+					this.choice.insertAfter.after,
+				);
+			} catch {
+				previewValue.innerText = "Preview unavailable";
+			}
+		})();
 
-		const st = new Setting(this.contentEl)
+		new Setting(this.contentEl)
 			.setName("Insert after")
 			.setDesc(descFragment)
 			.addText((text) => {
@@ -313,7 +327,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				text.inputEl.style.width = "100%";
 				text.setValue(this.choice.insertAfter.after).onChange(async (value) => {
 					this.choice.insertAfter.after = value;
-					previewValue.innerText = await displayFormatter.format(value);
+					try {
+						previewValue.innerText = await displayFormatter.format(value);
+					} catch {
+						previewValue.innerText = "Preview unavailable";
+					}
 				});
 
 				new FormatSyntaxSuggester(this.app, text.inputEl, this.plugin);
@@ -334,7 +352,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		new Setting(this.contentEl)
 			.setName("Consider subsections")
 			.setDesc(
-				"Also include the section’s subsections (requires the target to be a heading).",
+				"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section.",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -351,6 +369,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							this.choice.insertAfter.considerSubsections = value;
 						} else {
 							this.choice.insertAfter.considerSubsections = false;
+							// reset the toggle to match state and inform user
+							toggle.setValue(false);
 							new Notice(
 								"Consider subsections requires the target to be a heading (starts with #)",
 							);
@@ -389,8 +409,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			});
 	}
 
-	// removed legacy addInsertAfterSetting in favor of addWritePositionSetting/addInsertAfterFields
-
 	private addFormatSetting() {
 		let textField: TextAreaComponent;
 		const enableSetting = new Setting(this.contentEl);
@@ -419,20 +437,31 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		formatInput.onChange(async (value) => {
 			this.choice.format.format = value;
-			formatDisplay.innerText = await displayFormatter.format(value);
+			try {
+				formatDisplay.innerText = await displayFormatter.format(value);
+			} catch {
+				formatDisplay.innerText = "Preview unavailable";
+			}
 		});
 
 		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin);
 
 		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
+		formatDisplay.setAttr("aria-live", "polite");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
 			this.plugin,
 		);
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(
-				this.choice.format.format,
-			)))();
+		formatDisplay.innerText = "Loading preview…";
+		void (async () => {
+			try {
+				formatDisplay.innerText = await displayFormatter.format(
+					this.choice.format.format,
+				);
+			} catch {
+				formatDisplay.innerText = "Preview unavailable";
+			}
+		})();
 	}
 
 	private addCreateIfNotExistsSetting() {

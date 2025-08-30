@@ -102,17 +102,22 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			});
 
 		// Desc + preview row
-		const previewRow = this.contentEl.createDiv();
-		previewRow.style.marginBottom = "6px";
-		const previewLabel = previewRow.createEl("span", { text: "Preview: " });
-		previewLabel.style.fontWeight = "600";
+		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 		const formatDisplay = previewRow.createEl("span");
+		formatDisplay.setAttr("aria-live", "polite");
 		const displayFormatter: FileNameDisplayFormatter =
 			new FileNameDisplayFormatter(this.app);
-		void (async () =>
-			(formatDisplay.textContent = await displayFormatter.format(
-				this.choice.fileNameFormat.format,
-			)))();
+		formatDisplay.textContent = "Loading preview…";
+		void (async () => {
+			try {
+				formatDisplay.textContent = await displayFormatter.format(
+					this.choice.fileNameFormat.format,
+				);
+			} catch {
+				formatDisplay.textContent = "Preview unavailable";
+			}
+		})();
 
 		const formatInput = new TextComponent(this.contentEl);
 		formatInput.setPlaceholder("File name format");
@@ -125,7 +130,11 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.setDisabled(!this.choice.fileNameFormat.enabled)
 			.onChange(async (value) => {
 				this.choice.fileNameFormat.format = value;
-				formatDisplay.textContent = await displayFormatter.format(value);
+				try {
+					formatDisplay.textContent = await displayFormatter.format(value);
+				} catch {
+					formatDisplay.textContent = "Preview unavailable";
+				}
 			});
 
 		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin, true);
@@ -289,9 +298,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Append link to note")
-			.setDesc(
-				"Add a link on your current cursor position, linking to the file you're creating.",
-			)
+			.setDesc("Insert a link in the current note to the created file.")
 			.addToggle((toggle) => {
 				toggle.setValue(normalizedOptions.enabled);
 				toggle.onChange((value) => {
