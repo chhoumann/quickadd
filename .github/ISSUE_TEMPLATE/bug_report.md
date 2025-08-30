@@ -18,6 +18,17 @@ Steps to reproduce the behavior in Obsidian:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
+**Obsidian Debug Info (required for bug reports)**
+Please include the full Debug Info from Obsidian to help diagnose your environment:
+- Open the Command Palette (`Ctrl/Cmd+P`).
+- Run: `Show debug info`.
+- Click: `Copy to clipboard`.
+- Paste it below inside the code block.
+
+```text
+PASTE DEBUG INFO HERE
+```
+
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
