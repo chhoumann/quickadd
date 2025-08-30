@@ -130,6 +130,14 @@
 	max-height: 70%;
 }
 
+/* Preview row styling for Choice Builders */
+.quickAddModal .qa-preview-row {
+	margin: 6px 0;
+}
+.quickAddModal .qa-preview-label {
+	font-weight: 600;
+}
+
 .checkboxRowContainer {
 	margin: 30px 0px;
 	display: grid;
