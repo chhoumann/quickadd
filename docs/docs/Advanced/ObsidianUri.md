@@ -27,3 +27,28 @@ Like every Obsidian URI, you can use the special `vault` parameter to specify wh
 ```
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20ipsum.
 ```
+
+## Important: Sync Service Limitations
+
+:::warning
+
+When using QuickAdd via URI with sync services (Obsidian Sync, iCloud, Dropbox, etc.), be aware of a critical limitation:
+
+**If Obsidian hasn't been opened on a device**, files created on other devices won't be synced yet. This can cause QuickAdd to create duplicate files that overwrite the synced versions when they arrive.
+
+### Example Scenario
+1. You create a Daily Note on your laptop
+2. Without opening Obsidian on your phone, you trigger a Capture via URI
+3. QuickAdd checks if the Daily Note exists (it doesn't locally)
+4. QuickAdd creates a new Daily Note
+5. When sync runs, the new file overwrites the one from your laptop
+
+### Workarounds
+- **Open Obsidian first**: Always open Obsidian and wait for sync before using URIs
+- **Use device-specific names**: Configure different filename formats per device (e.g., `{{date}}-mobile`)
+- **Capture to active file**: Use an already-open note to avoid file creation issues
+- **Include timestamps**: Add `{{time}}` to filenames to ensure uniqueness
+
+This is a fundamental limitation of file-based sync services and cannot be fully resolved without sync status APIs.
+
+:::
