@@ -3,12 +3,12 @@ import { Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
-import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -25,11 +25,11 @@ import {
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
-import { isValidFilename, getInvalidFilenameError } from "../utils/filenameValidation";
+import { getInvalidFilenameError, isValidFilename } from "../utils/filenameValidation";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
-import { type CaptureAction, getCaptureAction } from "./captureAction";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
+import { getCaptureAction, type CaptureAction } from "./captureAction";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
