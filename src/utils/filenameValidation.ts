@@ -6,8 +6,10 @@
  */
 const FORBIDDEN_CHARS = ['<', '>', ':', '"', '|', '?', '*', '\\', '/'] as const;
 
+// Build a safe character class from a literal list of characters.
+// Some characters have special meaning inside character classes (e.g. '-', ']', '\\').
+// We escape those so interpolating into a RegExp does not change the class semantics.
 function escapeForRegexCharClass(char: string): string {
-    // Escape backslash and other regex-class special chars if present
     return char.replace(/[-\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 

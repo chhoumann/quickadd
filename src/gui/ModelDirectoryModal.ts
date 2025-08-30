@@ -1,4 +1,4 @@
-import type { App} from "obsidian";
+import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider, Model } from "src/ai/Provider";
 import {
