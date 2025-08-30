@@ -50,7 +50,6 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 
 export const TEMPLATE_FORMAT_SYNTAX: string[] = [TITLE_SYNTAX];
 
-export const FILE_NUMBER_REGEX = new RegExp(/([0-9]*)\.md$/);
 export const NUMBER_REGEX = new RegExp(/^-?[0-9]*$/);
 
 export const CREATE_IF_NOT_FOUND_TOP = "top";

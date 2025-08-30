@@ -126,3 +126,15 @@ export function getInvalidFilenameError(filename: string): string {
 	
 	return 'Invalid filename';
 }
+
+/**
+ * Validate a filename and throw with a detailed message if invalid.
+ * @param filename The filename to validate (without path)
+ * @param messagePrefix Optional message prefix for the thrown Error
+ */
+export function validateFilenameOrThrow(filename: string, messagePrefix?: string): void {
+    if (!isValidFilename(filename)) {
+        const msg = getInvalidFilenameError(filename);
+        throw new Error(messagePrefix ? `${messagePrefix}${msg}` : msg);
+    }
+}

@@ -25,7 +25,7 @@ import {
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
-import { isValidFilename, getInvalidFilenameError } from "../utils/filenameValidation";
+import { validateFilenameOrThrow } from "../utils/filenameValidation";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { type CaptureAction, getCaptureAction } from "./captureAction";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -399,11 +399,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const normalizedPath = this.normalizeMarkdownFilePath("", formattedCaptureTo);
 			const fileBasename = basenameWithoutMdOrCanvas(normalizedPath);
 		
-		// Validate the filename
-		if (!isValidFilename(fileBasename)) {
-			const errorMsg = getInvalidFilenameError(fileBasename);
-			throw new Error(`Invalid filename format: ${errorMsg}`);
-		}
+			// Validate the filename
+			validateFilenameOrThrow(fileBasename, 'Invalid filename format: ');
 
 		return normalizedPath;
 	}
