@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { getCaptureAction } from "./captureAction";
+import { describe, expect, it } from "vitest";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { getCaptureAction } from "./captureAction";
 
 describe("getCaptureAction", () => {
 	const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
@@ -16,6 +16,7 @@ describe("getCaptureAction", () => {
 		appendLink: false,
 		task: false,
 		insertAfter: { enabled: false, after: "", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" },
+		newLineCapture: { enabled: false, direction: "below" },
 		openFile: false,
 		fileOpening: { location: "tab", direction: "vertical", mode: "default", focus: true },
 		...overrides
@@ -52,5 +53,29 @@ describe("getCaptureAction", () => {
 			insertAfter: { enabled: true, after: "heading", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" }
 		});
 		expect(getCaptureAction(choice)).toBe("insertAfter");
+	});
+
+	it("returns 'newLineAbove' when newLineCapture is enabled with above direction", () => {
+		const choice = createChoice({ 
+			captureToActiveFile: true,
+			newLineCapture: { enabled: true, direction: "above" }
+		});
+		expect(getCaptureAction(choice)).toBe("newLineAbove");
+	});
+
+	it("returns 'newLineBelow' when newLineCapture is enabled with below direction", () => {
+		const choice = createChoice({ 
+			captureToActiveFile: true,
+			newLineCapture: { enabled: true, direction: "below" }
+		});
+		expect(getCaptureAction(choice)).toBe("newLineBelow");
+	});
+
+	it("prioritizes newLineCapture over currentLine when both could apply", () => {
+		const choice = createChoice({ 
+			captureToActiveFile: true,
+			newLineCapture: { enabled: true, direction: "below" }
+		});
+		expect(getCaptureAction(choice)).toBe("newLineBelow");
 	});
 });

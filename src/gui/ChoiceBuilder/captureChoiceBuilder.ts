@@ -224,35 +224,65 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					: "Where to place the capture in the target file.",
 			)
 			.addDropdown((dropdown) => {
-				const current: "top" | "after" | "bottom" = this.choice.insertAfter
-					?.enabled
-					? "after"
-					: this.choice.prepend
-						? "bottom"
-						: "top";
+				const current: "top" | "after" | "bottom" | "newLineAbove" | "newLineBelow" =
+					this.choice.insertAfter?.enabled
+						? "after"
+						: this.choice.prepend
+							? "bottom"
+							: this.choice.newLineCapture?.enabled
+								? this.choice.newLineCapture.direction === "above"
+									? "newLineAbove"
+									: "newLineBelow"
+								: "top";
 
 				dropdown.addOption("top", isActiveFile ? "At cursor" : "Top of file");
+
+				// Add new line options only when capturing to active file
+				if (isActiveFile) {
+					dropdown.addOption("newLineAbove", "New line above cursor");
+					dropdown.addOption("newLineBelow", "New line below cursor");
+				}
+				
 				dropdown.addOption("after", "After line…");
 				dropdown.addOption("bottom", "Bottom of file");
 				dropdown.setValue(current);
 				dropdown.onChange((value: string) => {
-					const v = value as "top" | "after" | "bottom";
+					const v = value as "top" | "after" | "bottom" | "newLineAbove" | "newLineBelow";
+					
+					// Reset all options first
+					this.choice.prepend = false;
+					this.choice.insertAfter.enabled = false;
+					if (!this.choice.newLineCapture) {
+						this.choice.newLineCapture = { enabled: false, direction: "below" };
+					}
+					this.choice.newLineCapture.enabled = false;
+					
 					if (v === "top") {
-						this.choice.prepend = false;
-						this.choice.insertAfter.enabled = false;
 						this.reload();
 						return;
 					}
 
 					if (v === "bottom") {
 						this.choice.prepend = true;
-						this.choice.insertAfter.enabled = false;
+						this.reload();
+						return;
+					}
+					
+					if (v === "newLineAbove") {
+						this.choice.newLineCapture.enabled = true;
+						this.choice.newLineCapture.direction = "above";
+						this.reload();
+						return;
+					}
+					
+					if (v === "newLineBelow") {
+						this.choice.newLineCapture.enabled = true;
+						this.choice.newLineCapture.direction = "below";
 						this.reload();
 						return;
 					}
 
 					// after line
-					this.choice.prepend = false;
 					this.choice.insertAfter.enabled = true;
 					this.reload();
 				});

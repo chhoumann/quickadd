@@ -1,25 +1,25 @@
 import type {
 	App,
+	CachedMetadata,
 	TAbstractFile,
 	WorkspaceLeaf,
-	CachedMetadata,
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
-import type { IUserScript } from "./types/macros/IUserScript";
-import type { TemplateChoice } from "./types/choices/TemplateChoice";
-import type { MultiChoice } from "./types/choices/MultiChoice";
-import type { CaptureChoice } from "./types/choices/CaptureChoice";
-import type { MacroChoice } from "./types/choices/MacroChoice";
-import type IChoice from "./types/choices/IChoice";
 import { log } from "./logger/logManager";
-import { reportError } from "./utils/errorUtils";
 import { NLDParser } from "./parsers/NLDParser";
-import type { LinkPlacement } from "./types/linkPlacement";
-import type { 
-	OpenLocation as FileOpenLocation, 
-	FileViewMode2 as FileViewModeNew, 
-	OpenFileOptions as FileOpenOptions 
+import type { CaptureChoice } from "./types/choices/CaptureChoice";
+import type IChoice from "./types/choices/IChoice";
+import type { MacroChoice } from "./types/choices/MacroChoice";
+import type { MultiChoice } from "./types/choices/MultiChoice";
+import type { TemplateChoice } from "./types/choices/TemplateChoice";
+import type {
+	OpenLocation as FileOpenLocation,
+	OpenFileOptions as FileOpenOptions,
+	FileViewMode2 as FileViewModeNew
 } from "./types/fileOpening";
+import type { LinkPlacement } from "./types/linkPlacement";
+import type { IUserScript } from "./types/macros/IUserScript";
+import { reportError } from "./utils/errorUtils";
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -140,6 +140,44 @@ export function appendToCurrentLine(toAppend: string, app: App) {
 	} catch {
 		log.logError(`unable to append '${toAppend}' to current line.`);
 	}
+}
+
+export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App) {
+	try {
+		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+
+		if (!activeView) {
+			log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
+			return;
+		}
+
+		const editor = activeView.editor;
+		const cursor = editor.getCursor();
+		const lineNumber = cursor.line;
+		
+		if (direction === "above") {
+			// Insert at the beginning of the current line, add content + newline
+			editor.replaceRange(toInsert + "\n", { line: lineNumber, ch: 0 });
+			// Move cursor to end of inserted content (before the newline)
+			editor.setCursor({ line: lineNumber, ch: toInsert.length });
+		} else {
+			// Insert at the end of the current line, add newline + content
+			const currentLine = editor.getLine(lineNumber);
+			editor.replaceRange("\n" + toInsert, { line: lineNumber, ch: currentLine.length });
+			// Move cursor to end of inserted content
+			editor.setCursor({ line: lineNumber + 1, ch: toInsert.length });
+		}
+	} catch {
+		log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
+	}
+}
+
+export function insertOnNewLineAbove(toInsert: string, app: App) {
+	insertOnNewLine(toInsert, "above", app);
+}
+
+export function insertOnNewLineBelow(toInsert: string, app: App) {
+	insertOnNewLine(toInsert, "below", app);
 }
 
 /**
