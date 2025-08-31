@@ -20,6 +20,10 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
 	};
+	newLineCapture: {
+		enabled: boolean;
+		direction: "above" | "below";
+	};
 	prepend: boolean;
 	task: boolean;
 	openFile: boolean;
@@ -49,6 +53,10 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			considerSubsections: false,
 			createIfNotFound: false,
 			createIfNotFoundLocation: "top",
+		};
+		this.newLineCapture = {
+			enabled: false,
+			direction: "below",
 		};
 		this.prepend = false;
 		this.task = false;

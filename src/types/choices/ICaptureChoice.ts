@@ -28,6 +28,10 @@ export default interface ICaptureChoice extends IChoice {
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
 	};
+	newLineCapture: {
+		enabled: boolean;
+		direction: "above" | "below";
+	};
 	openFile: boolean;
 	fileOpening: {
 		location: OpenLocation;

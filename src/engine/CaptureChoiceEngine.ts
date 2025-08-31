@@ -18,6 +18,8 @@ import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
 	insertLinkWithPlacement,
+	insertOnNewLineAbove,
+	insertOnNewLineBelow,
 	isFolder,
 	openExistingFileTab,
 	openFile,
@@ -115,11 +117,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-			if (
-				this.choice.captureToActiveFile &&
-				!this.choice.prepend &&
-				!this.choice.insertAfter.enabled
-			) {
+			const action = getCaptureAction(this.choice);
+
+			// Handle capture to active file with special actions
+			if (action === "currentLine" || action === "newLineAbove" || action === "newLineBelow") {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
@@ -128,7 +129,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					file,
 				);
 
-				appendToCurrentLine(content, this.app);
+				switch (action) {
+					case "currentLine":
+						appendToCurrentLine(content, this.app);
+						break;
+					case "newLineAbove":
+						insertOnNewLineAbove(content, this.app);
+						break;
+					case "newLineBelow":
+						insertOnNewLineBelow(content, this.app);
+						break;
+				}
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 				await overwriteTemplaterOnce(this.app, file);
