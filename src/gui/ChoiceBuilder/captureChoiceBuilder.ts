@@ -95,6 +95,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		captureToActiveFileToggle.setValue(this.choice?.captureToActiveFile);
 		captureToActiveFileToggle.onChange((value) => {
 			this.choice.captureToActiveFile = value;
+			
+			// Reset new line capture settings when switching away from active file
+			// since those options are only available for active file capture
+			if (!value && this.choice.newLineCapture?.enabled) {
+				this.choice.newLineCapture.enabled = false;
+			}
 
 			this.reload();
 		});
