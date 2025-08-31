@@ -32,6 +32,7 @@ export interface QuickAddSettings {
 	autoRenameTemplateFiles: boolean;
 	autoRenameUserScripts: boolean;
 	autoRenameFormatReferences: boolean;
+	autoRenameGlobalSettings: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -67,6 +68,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	autoRenameTemplateFiles: true,
 	autoRenameUserScripts: true,
 	autoRenameFormatReferences: true,
+	autoRenameGlobalSettings: true,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -93,6 +95,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
 	private choiceView: ChoiceView;
 	private autoRenameNotificationSetting: Setting;
+	private autoRenameSubSettings: Setting[];
 
 	constructor(app: App, plugin: QuickAdd) {
 		super(app, plugin);
@@ -109,7 +112,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
-		this.addAutoRenameFoldersSetting();
+		this.addAutoRenameSettings();
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
@@ -143,43 +146,117 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		});
 	}
 
-	addAutoRenameFoldersSetting() {
-		const setting = new Setting(this.containerEl);
-		setting.setName("Auto-rename destination folders");
-		setting.setDesc(
-			"Automatically update QuickAdd choices when folders they reference are renamed in the vault."
-		);
-		setting.addToggle((toggle) => {
+	addAutoRenameSettings() {
+		// Create header
+		const headerEl = this.containerEl.createEl("h3", { text: "Auto-Rename Settings" });
+		headerEl.style.marginTop = "20px";
+		headerEl.style.marginBottom = "10px";
+		
+		const descEl = this.containerEl.createEl("p");
+		descEl.textContent = "Automatically update QuickAdd references when files and folders are renamed in the vault.";
+		descEl.style.marginBottom = "15px";
+		descEl.style.color = "var(--text-muted)";
+
+		// Main toggle for destination folders
+		const folderSetting = new Setting(this.containerEl);
+		folderSetting.setName("Auto-rename destination folders");
+		folderSetting.setDesc("Update folder paths in choice configurations when folders are renamed.");
+		folderSetting.addToggle((toggle) => {
 			toggle.setValue(settingsStore.getState().autoRenameDestinationFolders);
 			toggle.onChange((value) => {
 				settingsStore.setState({ autoRenameDestinationFolders: value });
-				// Update notification setting visibility
-				this.updateAutoRenameNotificationSetting();
+				this.updateAutoRenameSubSettings();
 			});
 		});
 
-		// Add notification sub-setting
-		this.addAutoRenameNotificationSetting(setting);
-	}
+		// Template files setting
+		const templateSetting = new Setting(this.containerEl);
+		templateSetting.setClass("quickadd-sub-setting");
+		templateSetting.settingEl.style.marginLeft = "20px";
+		templateSetting.setName("Auto-rename template files");
+		templateSetting.setDesc("Update template file paths when template files are renamed or moved.");
+		templateSetting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().autoRenameTemplateFiles);
+			toggle.onChange((value) => {
+				settingsStore.setState({ autoRenameTemplateFiles: value });
+			});
+		});
 
-	private addAutoRenameNotificationSetting(parentSetting: Setting) {
-		const subSetting = new Setting(this.containerEl);
-		subSetting.setClass("quickadd-sub-setting");
-		subSetting.settingEl.style.marginLeft = "30px";
-		subSetting.setName("Show auto-rename notifications");
-		subSetting.setDesc(
-			"Display a notification when folders are automatically updated in choices."
-		);
-		
-		const toggle = subSetting.addToggle((toggle) => {
+		// User scripts setting
+		const scriptSetting = new Setting(this.containerEl);
+		scriptSetting.setClass("quickadd-sub-setting");
+		scriptSetting.settingEl.style.marginLeft = "20px";
+		scriptSetting.setName("Auto-rename user scripts");
+		scriptSetting.setDesc("Update user script file paths when script files are renamed or moved.");
+		scriptSetting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().autoRenameUserScripts);
+			toggle.onChange((value) => {
+				settingsStore.setState({ autoRenameUserScripts: value });
+			});
+		});
+
+		// Format references setting
+		const formatSetting = new Setting(this.containerEl);
+		formatSetting.setClass("quickadd-sub-setting");
+		formatSetting.settingEl.style.marginLeft = "20px";
+		formatSetting.setName("Auto-rename format references");
+		formatSetting.setDesc("Update file and folder references in format strings (e.g., {{TEMPLATE:path}}, {{FIELD:|folder:path}}).");
+		formatSetting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().autoRenameFormatReferences);
+			toggle.onChange((value) => {
+				settingsStore.setState({ autoRenameFormatReferences: value });
+			});
+		});
+
+		// Global settings setting
+		const globalSetting = new Setting(this.containerEl);
+		globalSetting.setClass("quickadd-sub-setting");
+		globalSetting.settingEl.style.marginLeft = "20px";
+		globalSetting.setName("Auto-rename global settings");
+		globalSetting.setDesc("Update template folder path and AI prompt templates folder path when renamed.");
+		globalSetting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().autoRenameGlobalSettings);
+			toggle.onChange((value) => {
+				settingsStore.setState({ autoRenameGlobalSettings: value });
+			});
+		});
+
+		// Notification setting
+		const notificationSetting = new Setting(this.containerEl);
+		notificationSetting.setClass("quickadd-sub-setting");
+		notificationSetting.settingEl.style.marginLeft = "20px";
+		notificationSetting.setName("Show auto-rename notifications");
+		notificationSetting.setDesc("Display notifications when auto-rename operations are performed.");
+		notificationSetting.addToggle((toggle) => {
 			toggle.setValue(settingsStore.getState().showAutoRenameNotifications);
 			toggle.onChange((value) => {
 				settingsStore.setState({ showAutoRenameNotifications: value });
 			});
 		});
 
-		// Store reference for updating visibility
-		this.autoRenameNotificationSetting = subSetting;
+		// Store references for updating visibility
+		this.autoRenameNotificationSetting = notificationSetting;
+		this.autoRenameSubSettings = [
+			templateSetting,
+			scriptSetting,
+			formatSetting,
+			globalSetting,
+			notificationSetting
+		];
+		
+		this.updateAutoRenameSubSettings();
+	}
+
+	private updateAutoRenameSubSettings() {
+		const isEnabled = settingsStore.getState().autoRenameDestinationFolders;
+		
+		if (this.autoRenameSubSettings) {
+			this.autoRenameSubSettings.forEach(setting => {
+				setting.settingEl.style.display = isEnabled ? "" : "none";
+			});
+		}
+		
+		// Keep the old method for backward compatibility
 		this.updateAutoRenameNotificationSetting();
 	}
 

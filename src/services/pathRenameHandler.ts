@@ -56,9 +56,15 @@ export class PathRenameHandler {
 				? FolderPathUpdater.findChoicesWithFilePath(currentChoices, oldPath)
 				: FolderPathUpdater.findChoicesWithFolderPath(currentChoices, oldPath);
 
-			if (affectedChoices.length === 0) {
+			// Check for affected global settings (only for folder renames)
+			let globalSettingsAffected = false;
+			if (!isFileRename && this.isGlobalSettingsAutoRenameEnabled()) {
+				globalSettingsAffected = this.checkGlobalSettingsAffected(oldPath);
+			}
+
+			if (affectedChoices.length === 0 && !globalSettingsAffected) {
 				const pathType = isFileRename ? "file" : "folder";
-				log.logMessage(`QuickAdd: No choices affected by ${pathType} rename from "${oldPath}" to "${newPath}"`);
+				log.logMessage(`QuickAdd: No choices or global settings affected by ${pathType} rename from "${oldPath}" to "${newPath}"`);
 				return;
 			}
 
@@ -66,21 +72,36 @@ export class PathRenameHandler {
 			const settingsBackup = structuredClone(currentSettings);
 
 			try {
-				// Update the choices
-				const updatedChoices = isFileRename
-					? FolderPathUpdater.updateChoicesFilePaths(currentChoices, oldPath, newPath)
-					: FolderPathUpdater.updateChoicesFolderPaths(currentChoices, oldPath, newPath);
+				let updatedSettings = { ...currentSettings };
 
-				// Apply the updates
-				settingsStore.setState({
-					...currentSettings,
-					choices: updatedChoices,
-				});
+				// Update the choices if any are affected
+				if (affectedChoices.length > 0) {
+					const updatedChoices = isFileRename
+						? FolderPathUpdater.updateChoicesFilePaths(currentChoices, oldPath, newPath)
+						: FolderPathUpdater.updateChoicesFolderPaths(currentChoices, oldPath, newPath);
+					
+					updatedSettings.choices = updatedChoices;
+				}
+
+				// Update global settings if affected
+				if (globalSettingsAffected) {
+					updatedSettings = this.updateGlobalSettings(updatedSettings, oldPath, newPath);
+				}
+
+				// Apply all updates
+				settingsStore.setState(updatedSettings);
 
 				// Log successful update
 				const pathType = isFileRename ? "file" : "folder";
+				const totalAffected = affectedChoices.length + (globalSettingsAffected ? 1 : 0);
+				const affectedType = affectedChoices.length > 0 && globalSettingsAffected 
+					? "choice(s) and global settings"
+					: affectedChoices.length > 0 
+						? "choice(s)" 
+						: "global settings";
+				
 				log.logMessage(
-					`QuickAdd: Successfully updated ${affectedChoices.length} choice(s) for ${pathType} rename from "${oldPath}" to "${newPath}"`
+					`QuickAdd: Successfully updated ${totalAffected} ${affectedType} for ${pathType} rename from "${oldPath}" to "${newPath}"`
 				);
 
 				// Show notification to user if enabled
@@ -164,6 +185,123 @@ export class PathRenameHandler {
 	}
 
 	/**
+	 * Checks if global settings auto-rename is enabled.
+	 */
+	private isGlobalSettingsAutoRenameEnabled(): boolean {
+		const settings = settingsStore.getState();
+		return settings.autoRenameGlobalSettings ?? true;
+	}
+
+	/**
+	 * Checks if the renamed path affects any global settings.
+	 */
+	private checkGlobalSettingsAffected(oldPath: string): boolean {
+		const settings = settingsStore.getState();
+		
+		// Check templateFolderPath
+		if (settings.templateFolderPath && this.pathReferencesTarget(settings.templateFolderPath, oldPath, false)) {
+			return true;
+		}
+		
+		// Check ai.promptTemplatesFolderPath
+		if (settings.ai?.promptTemplatesFolderPath && 
+			this.pathReferencesTarget(settings.ai.promptTemplatesFolderPath, oldPath, false)) {
+			return true;
+		}
+		
+		return false;
+	}
+
+	/**
+	 * Updates global settings with new folder paths.
+	 */
+	private updateGlobalSettings(currentSettings: any, oldPath: string, newPath: string): any {
+		const updatedSettings = { ...currentSettings };
+		
+		// Update templateFolderPath if affected
+		if (currentSettings.templateFolderPath && 
+			this.pathReferencesTarget(currentSettings.templateFolderPath, oldPath, false)) {
+			updatedSettings.templateFolderPath = this.updatePath(
+				currentSettings.templateFolderPath, oldPath, newPath, false
+			);
+		}
+		
+		// Update ai.promptTemplatesFolderPath if affected
+		if (currentSettings.ai?.promptTemplatesFolderPath && 
+			this.pathReferencesTarget(currentSettings.ai.promptTemplatesFolderPath, oldPath, false)) {
+			updatedSettings.ai = {
+				...currentSettings.ai,
+				promptTemplatesFolderPath: this.updatePath(
+					currentSettings.ai.promptTemplatesFolderPath, oldPath, newPath, false
+				)
+			};
+		}
+		
+		return updatedSettings;
+	}
+
+	/**
+	 * Checks if a path references a specific target path.
+	 */
+	private pathReferencesTarget(path: string, targetPath: string, isFileTarget: boolean): boolean {
+		if (!path || !targetPath) {
+			return false;
+		}
+
+		const normalizedPath = this.normalizePath(path);
+		const normalizedTarget = this.normalizePath(targetPath);
+
+		if (isFileTarget) {
+			// For file targets, only exact matches
+			return normalizedPath === normalizedTarget;
+		} else {
+			// For folder targets, exact match or if path is within the folder
+			return (
+				normalizedPath === normalizedTarget ||
+				normalizedPath.startsWith(normalizedTarget + "/")
+			);
+		}
+	}
+
+	/**
+	 * Updates a path by replacing the old reference with the new one.
+	 */
+	private updatePath(path: string, oldPath: string, newPath: string, isFileRename: boolean): string {
+		const normalizedPath = this.normalizePath(path);
+		const normalizedOld = this.normalizePath(oldPath);
+		const normalizedNew = this.normalizePath(newPath);
+
+		if (isFileRename) {
+			// For file renames, only update exact matches
+			if (normalizedPath === normalizedOld) {
+				return newPath;
+			}
+		} else {
+			// For folder renames, update exact matches and subpaths
+			if (normalizedPath === normalizedOld) {
+				return newPath;
+			} else if (normalizedPath.startsWith(normalizedOld + "/")) {
+				const remainingPath = normalizedPath.substring(normalizedOld.length + 1);
+				return normalizedNew + "/" + remainingPath;
+			}
+		}
+
+		return path;
+	}
+
+	/**
+	 * Normalizes a path for consistent comparison.
+	 */
+	private normalizePath(path: string): string {
+		if (!path) {
+			return "";
+		}
+
+		// Remove trailing slashes and normalize separators
+		return path.replace(/\/+$/, "").replace(/\\+/g, "/");
+	}
+
+	/**
 	 * Shows a success notification to the user.
 	 */
 	private showUpdateNotification(count: number, oldPath: string, newPath: string, isFileRename: boolean): void {
@@ -175,7 +313,12 @@ export class PathRenameHandler {
 		}
 
 		const pathType = isFileRename ? "file" : "folder";
-		const message = `QuickAdd: Updated ${count} choice${count > 1 ? 's' : ''} after ${pathType} rename\n"${oldPath}" → "${newPath}"`;
+		let message = `QuickAdd: Updated ${count} choice${count > 1 ? 's' : ''} after ${pathType} rename\n"${oldPath}" → "${newPath}"`;
+		
+		// Check if global settings were also updated
+		if (this.isGlobalSettingsAutoRenameEnabled() && this.checkGlobalSettingsAffected(oldPath)) {
+			message += "\nGlobal settings were also updated.";
+		}
 		
 		// Use Obsidian's notice system
 		// biome-ignore lint/style/noNonNullAssertion: app is always available in plugin context
