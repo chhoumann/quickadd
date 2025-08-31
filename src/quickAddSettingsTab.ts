@@ -27,6 +27,11 @@ export interface QuickAddSettings {
 	disableOnlineFeatures: boolean;
 	enableRibbonIcon: boolean;
 	showCaptureNotification: boolean;
+	autoRenameDestinationFolders: boolean;
+	showAutoRenameNotifications: boolean;
+	autoRenameTemplateFiles: boolean;
+	autoRenameUserScripts: boolean;
+	autoRenameFormatReferences: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -57,6 +62,11 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
 	showCaptureNotification: true,
+	autoRenameDestinationFolders: true,
+	showAutoRenameNotifications: true,
+	autoRenameTemplateFiles: true,
+	autoRenameUserScripts: true,
+	autoRenameFormatReferences: true,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -82,6 +92,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
 	private choiceView: ChoiceView;
+	private autoRenameNotificationSetting: Setting;
 
 	constructor(app: App, plugin: QuickAdd) {
 		super(app, plugin);
@@ -98,6 +109,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
+		this.addAutoRenameFoldersSetting();
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
@@ -129,6 +141,53 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				settingsStore.setState({ showCaptureNotification: value });
 			});
 		});
+	}
+
+	addAutoRenameFoldersSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Auto-rename destination folders");
+		setting.setDesc(
+			"Automatically update QuickAdd choices when folders they reference are renamed in the vault."
+		);
+		setting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().autoRenameDestinationFolders);
+			toggle.onChange((value) => {
+				settingsStore.setState({ autoRenameDestinationFolders: value });
+				// Update notification setting visibility
+				this.updateAutoRenameNotificationSetting();
+			});
+		});
+
+		// Add notification sub-setting
+		this.addAutoRenameNotificationSetting(setting);
+	}
+
+	private addAutoRenameNotificationSetting(parentSetting: Setting) {
+		const subSetting = new Setting(this.containerEl);
+		subSetting.setClass("quickadd-sub-setting");
+		subSetting.settingEl.style.marginLeft = "30px";
+		subSetting.setName("Show auto-rename notifications");
+		subSetting.setDesc(
+			"Display a notification when folders are automatically updated in choices."
+		);
+		
+		const toggle = subSetting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().showAutoRenameNotifications);
+			toggle.onChange((value) => {
+				settingsStore.setState({ showAutoRenameNotifications: value });
+			});
+		});
+
+		// Store reference for updating visibility
+		this.autoRenameNotificationSetting = subSetting;
+		this.updateAutoRenameNotificationSetting();
+	}
+
+	private updateAutoRenameNotificationSetting() {
+		if (this.autoRenameNotificationSetting) {
+			const isEnabled = settingsStore.getState().autoRenameDestinationFolders;
+			this.autoRenameNotificationSetting.settingEl.style.display = isEnabled ? "" : "none";
+		}
 	}
 
 	hide(): void {

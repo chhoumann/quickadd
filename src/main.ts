@@ -21,6 +21,8 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { FolderRenameHandler } from "./services/folderRenameHandler";
+import { PathRenameHandler } from "./services/pathRenameHandler";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -35,6 +37,7 @@ export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
+	private pathRenameHandler: PathRenameHandler;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(
@@ -82,6 +85,10 @@ export default class QuickAdd extends Plugin {
 		cache.startAutomaticCleanup((intervalId) =>
 			this.registerInterval(intervalId),
 		);
+
+		// Initialize path rename handler
+		this.pathRenameHandler = new PathRenameHandler(this.app, this);
+		this.registerEvent(this.app.vault.on("rename", this.pathRenameHandler.onRename));
 
 		this.addCommand({
 			id: "testQuickAdd",
