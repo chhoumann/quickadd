@@ -4,7 +4,8 @@ import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
 import { isFolder } from "../utilityObsidian";
-import { FolderPathUpdater } from "../utils/folderPathUpdater";
+import { FolderPathUpdater, type UpdateOptions } from "../utils/folderPathUpdater";
+import { PathNormalizer } from "../utils/pathNormalizer";
 
 /**
  * Handles file and folder rename events and automatically updates QuickAdd choice configurations.
@@ -76,9 +77,17 @@ export class PathRenameHandler {
 
 				// Update the choices if any are affected
 				if (affectedChoices.length > 0) {
+					// Get settings for options
+					const settings = settingsStore.getState();
+					const options = {
+						updateUserScripts: settings.autoRenameUserScripts ?? true,
+						updateFormatStrings: settings.autoRenameFormatReferences ?? true,
+						updateDirectPaths: true // Always enabled for basic functionality
+					};
+
 					const updatedChoices = isFileRename
-						? FolderPathUpdater.updateChoicesFilePaths(currentChoices, oldPath, newPath)
-						: FolderPathUpdater.updateChoicesFolderPaths(currentChoices, oldPath, newPath);
+						? FolderPathUpdater.updateChoicesFilePaths(currentChoices, oldPath, newPath, options)
+						: FolderPathUpdater.updateChoicesFolderPaths(currentChoices, oldPath, newPath, options);
 					
 					updatedSettings.choices = updatedChoices;
 				}
@@ -248,8 +257,8 @@ export class PathRenameHandler {
 			return false;
 		}
 
-		const normalizedPath = this.normalizePath(path);
-		const normalizedTarget = this.normalizePath(targetPath);
+		const normalizedPath = PathNormalizer.normalize(path);
+		const normalizedTarget = PathNormalizer.normalize(targetPath);
 
 		if (isFileTarget) {
 			// For file targets, only exact matches
@@ -258,7 +267,7 @@ export class PathRenameHandler {
 			// For folder targets, exact match or if path is within the folder
 			return (
 				normalizedPath === normalizedTarget ||
-				normalizedPath.startsWith(normalizedTarget + "/")
+				PathNormalizer.isSubfolderOf(normalizedPath, normalizedTarget)
 			);
 		}
 	}
@@ -267,9 +276,9 @@ export class PathRenameHandler {
 	 * Updates a path by replacing the old reference with the new one.
 	 */
 	private updatePath(path: string, oldPath: string, newPath: string, isFileRename: boolean): string {
-		const normalizedPath = this.normalizePath(path);
-		const normalizedOld = this.normalizePath(oldPath);
-		const normalizedNew = this.normalizePath(newPath);
+		const normalizedPath = PathNormalizer.normalize(path);
+		const normalizedOld = PathNormalizer.normalize(oldPath);
+		const normalizedNew = PathNormalizer.normalize(newPath);
 
 		if (isFileRename) {
 			// For file renames, only update exact matches
@@ -280,25 +289,13 @@ export class PathRenameHandler {
 			// For folder renames, update exact matches and subpaths
 			if (normalizedPath === normalizedOld) {
 				return newPath;
-			} else if (normalizedPath.startsWith(normalizedOld + "/")) {
+			} else if (PathNormalizer.isSubfolderOf(normalizedPath, normalizedOld)) {
 				const remainingPath = normalizedPath.substring(normalizedOld.length + 1);
 				return normalizedNew + "/" + remainingPath;
 			}
 		}
 
 		return path;
-	}
-
-	/**
-	 * Normalizes a path for consistent comparison.
-	 */
-	private normalizePath(path: string): string {
-		if (!path) {
-			return "";
-		}
-
-		// Remove trailing slashes and normalize separators
-		return path.replace(/\/+$/, "").replace(/\\+/g, "/");
 	}
 
 	/**

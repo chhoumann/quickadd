@@ -102,7 +102,32 @@ describe("FormatStringPathParser", () => {
 				"projects/current"
 			);
 			
-			expect(updated).toBe("{{FIELD:project|folder:projects/current|tag:urgent|inline:true|exclude-folder:archive}}");
+			expect(updated).toBe("{{FIELD:project|tag:urgent|folder:projects/current|inline:true|exclude-folder:archive}}");
+		});
+
+		it("should preserve unknown custom filters", () => {
+			// Test that unknown filters like |priority:high|color:red are preserved
+			const formatString = "{{FIELD:task|priority:high|folder:projects|color:red|exclude-folder:archive|status:active}}";
+			const updated = FormatStringPathParser.updateFieldFolderFilters(
+				formatString,
+				"projects",
+				"work/current"
+			);
+			
+			// Should only update folder and exclude-folder values, preserving all other filters exactly
+			expect(updated).toBe("{{FIELD:task|priority:high|folder:work/current|color:red|exclude-folder:archive|status:active}}");
+		});
+
+		it("should preserve filter casing and spacing", () => {
+			const formatString = "{{FIELD:notes|FOLDER:Daily Notes|exclude-folder:Archive}}";
+			const updated = FormatStringPathParser.updateFieldFolderFilters(
+				formatString,
+				"Daily Notes",
+				"Journal"
+			);
+			
+			// Should preserve the uppercase FOLDER: and exact spacing
+			expect(updated).toBe("{{FIELD:notes|FOLDER:Journal|exclude-folder:Archive}}");
 		});
 	});
 

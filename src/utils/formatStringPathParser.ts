@@ -1,5 +1,6 @@
 import { TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS } from "../constants";
 import { FieldSuggestionParser, type FieldFilter } from "./FieldSuggestionParser";
+import { PathNormalizer } from "./pathNormalizer";
 
 /**
  * Parses and updates file/folder path references in QuickAdd format strings.
@@ -80,6 +81,7 @@ export class FormatStringPathParser {
 
 	/**
 	 * Updates field folder filters in a format string when a folder is renamed.
+	 * Uses targeted replacement to preserve unknown filters and original order.
 	 */
 	static updateFieldFolderFilters(
 		formatString: string,
@@ -89,24 +91,15 @@ export class FormatStringPathParser {
 		const regex = new RegExp(FIELD_VAR_REGEX_WITH_FILTERS.source, "gi");
 		
 		return formatString.replace(regex, (fullMatch, fieldWithFilters) => {
-			const { fieldName, filters } = FieldSuggestionParser.parse(fieldWithFilters);
+			// Use targeted replacement instead of full reconstruction to preserve unknown filters
+			let updatedFieldString = fieldWithFilters;
 			
-			// Update folder filter
-			if (filters.folder && this.pathReferencesFolder(filters.folder, oldPath)) {
-				filters.folder = this.updateSinglePath(filters.folder, oldPath, newPath, false);
-			}
+			// Update folder: filter values
+			updatedFieldString = this.updateFolderFilterInPlace(updatedFieldString, oldPath, newPath);
 			
-			// Update exclude-folder filters
-			if (filters.excludeFolders) {
-				filters.excludeFolders = filters.excludeFolders.map(folder =>
-					this.pathReferencesFolder(folder, oldPath)
-						? this.updateSinglePath(folder, oldPath, newPath, false)
-						: folder
-				);
-			}
+			// Update exclude-folder: filter values
+			updatedFieldString = this.updateExcludeFolderFilterInPlace(updatedFieldString, oldPath, newPath);
 			
-			// Reconstruct the field syntax
-			const updatedFieldString = this.reconstructFieldSyntax(fieldName, filters);
 			return `{{FIELD:${updatedFieldString}}}`;
 		});
 	}
@@ -141,12 +134,12 @@ export class FormatStringPathParser {
 			return false;
 		}
 
-		const normalizedPath = this.normalizePath(path);
-		const normalizedFolder = this.normalizePath(folderPath);
+		const normalizedPath = PathNormalizer.normalize(path);
+		const normalizedFolder = PathNormalizer.normalize(folderPath);
 
 		return (
 			normalizedPath === normalizedFolder ||
-			normalizedPath.startsWith(normalizedFolder + "/")
+			PathNormalizer.isSubfolderOf(normalizedPath, normalizedFolder)
 		);
 	}
 
@@ -163,9 +156,9 @@ export class FormatStringPathParser {
 			return path;
 		}
 
-		const normalizedPath = this.normalizePath(path);
-		const normalizedOld = this.normalizePath(oldPath);
-		const normalizedNew = this.normalizePath(newPath);
+		const normalizedPath = PathNormalizer.normalize(path);
+		const normalizedOld = PathNormalizer.normalize(oldPath);
+		const normalizedNew = PathNormalizer.normalize(newPath);
 
 		if (isFileRename) {
 			// For file renames, only update exact matches
@@ -176,7 +169,7 @@ export class FormatStringPathParser {
 			// For folder renames, update exact matches and subpaths
 			if (normalizedPath === normalizedOld) {
 				return newPath;
-			} else if (normalizedPath.startsWith(normalizedOld + "/")) {
+			} else if (PathNormalizer.isSubfolderOf(normalizedPath, normalizedOld)) {
 				const remainingPath = normalizedPath.substring(normalizedOld.length + 1);
 				return normalizedNew + "/" + remainingPath;
 			}
@@ -186,7 +179,40 @@ export class FormatStringPathParser {
 	}
 
 	/**
+	 * Updates folder: filter values in place without affecting other filters.
+	 */
+	private static updateFolderFilterInPlace(fieldString: string, oldPath: string, newPath: string): string {
+		// Match |folder:value patterns (case-insensitive)
+		const folderRegex = /(\|folder:)([^|]+)/gi;
+		
+		return fieldString.replace(folderRegex, (match, prefix, folderPath) => {
+			if (this.pathReferencesFolder(folderPath.trim(), oldPath)) {
+				const updatedPath = this.updateSinglePath(folderPath.trim(), oldPath, newPath, false);
+				return `${prefix}${updatedPath}`;
+			}
+			return match;
+		});
+	}
+
+	/**
+	 * Updates exclude-folder: filter values in place without affecting other filters.
+	 */
+	private static updateExcludeFolderFilterInPlace(fieldString: string, oldPath: string, newPath: string): string {
+		// Match |exclude-folder:value patterns (case-insensitive)
+		const excludeFolderRegex = /(\|exclude-folder:)([^|]+)/gi;
+		
+		return fieldString.replace(excludeFolderRegex, (match, prefix, folderPath) => {
+			if (this.pathReferencesFolder(folderPath.trim(), oldPath)) {
+				const updatedPath = this.updateSinglePath(folderPath.trim(), oldPath, newPath, false);
+				return `${prefix}${updatedPath}`;
+			}
+			return match;
+		});
+	}
+
+	/**
 	 * Reconstructs field syntax string from field name and filters.
+	 * @deprecated Use updateFolderFilterInPlace and updateExcludeFolderFilterInPlace instead to preserve unknown filters.
 	 */
 	private static reconstructFieldSyntax(fieldName: string, filters: FieldFilter): string {
 		const parts = [fieldName];
@@ -225,15 +251,4 @@ export class FormatStringPathParser {
 		return parts.join("|");
 	}
 
-	/**
-	 * Normalizes a path for consistent comparison.
-	 */
-	private static normalizePath(path: string): string {
-		if (!path) {
-			return "";
-		}
-
-		// Remove trailing slashes and normalize separators
-		return path.replace(/\/+$/, "").replace(/\\+/g, "/");
-	}
 }

@@ -7,6 +7,19 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { CommandType } from "../types/macros/CommandType";
 import { FormatStringPathParser } from "./formatStringPathParser";
+import { PathNormalizer } from "./pathNormalizer";
+
+/**
+ * Options for controlling which types of updates are performed during path renames.
+ */
+export interface UpdateOptions {
+	/** Whether to update user script file paths */
+	updateUserScripts: boolean;
+	/** Whether to update format string references */
+	updateFormatStrings: boolean;
+	/** Whether to update direct file and folder paths */
+	updateDirectPaths: boolean;
+}
 
 /**
  * Updates file and folder paths in QuickAdd choices when files/folders are renamed.
@@ -19,13 +32,14 @@ export class FolderPathUpdater {
 	static updateChoicesFolderPaths(
 		choices: IChoice[],
 		oldPath: string,
-		newPath: string
+		newPath: string,
+		options: UpdateOptions = { updateUserScripts: true, updateFormatStrings: true, updateDirectPaths: true }
 	): IChoice[] {
 		if (!this.isValidFolderPathUpdate(oldPath, newPath)) {
 			return choices;
 		}
 
-		return choices.map(choice => this.updateSingleChoice(choice, oldPath, newPath, false));
+		return choices.map(choice => this.updateSingleChoice(choice, oldPath, newPath, false, options));
 	}
 
 	/**
@@ -34,13 +48,14 @@ export class FolderPathUpdater {
 	static updateChoicesFilePaths(
 		choices: IChoice[],
 		oldPath: string,
-		newPath: string
+		newPath: string,
+		options: UpdateOptions = { updateUserScripts: true, updateFormatStrings: true, updateDirectPaths: true }
 	): IChoice[] {
 		if (!this.isValidFilePathUpdate(oldPath, newPath)) {
 			return choices;
 		}
 
-		return choices.map(choice => this.updateSingleChoice(choice, oldPath, newPath, true));
+		return choices.map(choice => this.updateSingleChoice(choice, oldPath, newPath, true, options));
 	}
 
 	/**
@@ -111,9 +126,9 @@ export class FolderPathUpdater {
 			return false;
 		}
 
-		// Normalize paths for comparison
-		const normalizedOld = this.normalizeFolderPath(oldPath);
-		const normalizedNew = this.normalizeFolderPath(newPath);
+		// Normalize paths for comparison (with cross-platform support)
+		const normalizedOld = PathNormalizer.normalize(oldPath);
+		const normalizedNew = PathNormalizer.normalize(newPath);
 
 		return normalizedOld !== normalizedNew;
 	}
@@ -125,17 +140,18 @@ export class FolderPathUpdater {
 		choice: IChoice,
 		oldPath: string,
 		newPath: string,
-		isFileRename: boolean
+		isFileRename: boolean,
+		options: UpdateOptions
 	): IChoice {
 		switch (choice.type) {
 			case "Capture":
-				return this.updateCaptureChoice(choice as ICaptureChoice, oldPath, newPath, isFileRename);
+				return this.updateCaptureChoice(choice as ICaptureChoice, oldPath, newPath, isFileRename, options);
 			case "Template":
-				return this.updateTemplateChoice(choice as ITemplateChoice, oldPath, newPath, isFileRename);
+				return this.updateTemplateChoice(choice as ITemplateChoice, oldPath, newPath, isFileRename, options);
 			case "Multi":
-				return this.updateMultiChoice(choice as IMultiChoice, oldPath, newPath, isFileRename);
+				return this.updateMultiChoice(choice as IMultiChoice, oldPath, newPath, isFileRename, options);
 			case "Macro":
-				return this.updateMacroChoice(choice as IMacroChoice, oldPath, newPath, isFileRename);
+				return this.updateMacroChoice(choice as IMacroChoice, oldPath, newPath, isFileRename, options);
 			default:
 				return choice;
 		}
@@ -148,17 +164,18 @@ export class FolderPathUpdater {
 		choice: ICaptureChoice,
 		oldPath: string,
 		newPath: string,
-		isFileRename: boolean
+		isFileRename: boolean,
+		options: UpdateOptions
 	): ICaptureChoice {
 		const updatedChoice = { ...choice };
 
-		// Update captureTo field if it references the path
-		if (this.pathReferencesTarget(choice.captureTo, oldPath, isFileRename)) {
+		// Update captureTo field if it references the path (only if direct paths are enabled)
+		if (options.updateDirectPaths && this.pathReferencesTarget(choice.captureTo, oldPath, isFileRename)) {
 			updatedChoice.captureTo = this.updatePath(choice.captureTo, oldPath, newPath, isFileRename);
 		}
 
-		// Update template field in createFileIfItDoesntExist
-		if (choice.createFileIfItDoesntExist?.template) {
+		// Update template field in createFileIfItDoesntExist (only if direct paths are enabled)
+		if (options.updateDirectPaths && choice.createFileIfItDoesntExist?.template) {
 			if (this.pathReferencesTarget(choice.createFileIfItDoesntExist.template, oldPath, true)) {
 				updatedChoice.createFileIfItDoesntExist = {
 					...choice.createFileIfItDoesntExist,
@@ -167,8 +184,8 @@ export class FolderPathUpdater {
 			}
 		}
 
-		// Update format strings
-		if (choice.format?.format) {
+		// Update format strings (only if format strings are enabled)
+		if (options.updateFormatStrings && choice.format?.format) {
 			const updatedFormat = FormatStringPathParser.updateAllPathReferences(
 				choice.format.format,
 				oldPath,
@@ -193,21 +210,22 @@ export class FolderPathUpdater {
 		choice: ITemplateChoice,
 		oldPath: string,
 		newPath: string,
-		isFileRename: boolean
+		isFileRename: boolean,
+		options: UpdateOptions
 	): ITemplateChoice {
 		const updatedChoice = { ...choice };
 
-		// Update templatePath field for file renames
-		if (isFileRename && this.pathReferencesTarget(choice.templatePath, oldPath, true)) {
+		// Update templatePath field for file renames (only if direct paths are enabled)
+		if (options.updateDirectPaths && isFileRename && this.pathReferencesTarget(choice.templatePath, oldPath, true)) {
 			updatedChoice.templatePath = this.updatePath(choice.templatePath, oldPath, newPath, true);
 		}
-		// Update templatePath field for folder renames (if template is in renamed folder)
-		else if (!isFileRename && this.pathReferencesTarget(choice.templatePath, oldPath, false)) {
+		// Update templatePath field for folder renames (if template is in renamed folder, only if direct paths are enabled)
+		else if (options.updateDirectPaths && !isFileRename && this.pathReferencesTarget(choice.templatePath, oldPath, false)) {
 			updatedChoice.templatePath = this.updatePath(choice.templatePath, oldPath, newPath, false);
 		}
 
-		// Update folder.folders array for folder renames
-		if (!isFileRename && choice.folder?.folders) {
+		// Update folder.folders array for folder renames (only if direct paths are enabled)
+		if (options.updateDirectPaths && !isFileRename && choice.folder?.folders) {
 			const updatedFolders = choice.folder.folders.map(folderPath =>
 				this.pathReferencesTarget(folderPath, oldPath, false)
 					? this.updatePath(folderPath, oldPath, newPath, false)
@@ -222,8 +240,8 @@ export class FolderPathUpdater {
 			}
 		}
 
-		// Update format strings in fileNameFormat
-		if (choice.fileNameFormat?.format) {
+		// Update format strings in fileNameFormat (only if format strings are enabled)
+		if (options.updateFormatStrings && choice.fileNameFormat?.format) {
 			const updatedFormat = FormatStringPathParser.updateAllPathReferences(
 				choice.fileNameFormat.format,
 				oldPath,
@@ -248,11 +266,12 @@ export class FolderPathUpdater {
 		choice: IMultiChoice,
 		oldPath: string,
 		newPath: string,
-		isFileRename: boolean
+		isFileRename: boolean,
+		options: UpdateOptions
 	): IMultiChoice {
 		return {
 			...choice,
-			choices: choice.choices.map(c => this.updateSingleChoice(c, oldPath, newPath, isFileRename)),
+			choices: choice.choices.map(c => this.updateSingleChoice(c, oldPath, newPath, isFileRename, options)),
 		};
 	}
 
@@ -263,17 +282,18 @@ export class FolderPathUpdater {
 		choice: IMacroChoice,
 		oldPath: string,
 		newPath: string,
-		isFileRename: boolean
+		isFileRename: boolean,
+		options: UpdateOptions
 	): IMacroChoice {
 		const updatedChoice = { ...choice };
 		let hasChanges = false;
 
-		// Update user script commands in the macro
+		// Update user script commands in the macro (only if user scripts are enabled)
 		if (choice.macro?.commands) {
 			const updatedCommands = choice.macro.commands.map(command => {
 				if (command.type === CommandType.UserScript) {
 					const userScript = command as IUserScript;
-					if (this.pathReferencesTarget(userScript.path, oldPath, true)) {
+					if (options.updateUserScripts && this.pathReferencesTarget(userScript.path, oldPath, true)) {
 						hasChanges = true;
 						return {
 							...userScript,
@@ -283,14 +303,14 @@ export class FolderPathUpdater {
 				} else if (command.type === CommandType.OpenFile) {
 					const openFileCommand = command as IOpenFileCommand;
 					// Check both direct path references and format strings in filePath
-					if (this.pathReferencesTarget(openFileCommand.filePath, oldPath, isFileRename)) {
+					if (options.updateDirectPaths && this.pathReferencesTarget(openFileCommand.filePath, oldPath, isFileRename)) {
 						hasChanges = true;
 						return {
 							...openFileCommand,
 							filePath: this.updatePath(openFileCommand.filePath, oldPath, newPath, isFileRename)
 						};
-					} else {
-						// Check for format string references
+					} else if (options.updateFormatStrings) {
+						// Check for format string references (only if format strings are enabled)
 						const updatedFilePath = FormatStringPathParser.updateAllPathReferences(
 							openFileCommand.filePath,
 							oldPath,
@@ -445,8 +465,8 @@ export class FolderPathUpdater {
 			return false;
 		}
 
-		const normalizedPath = this.normalizeFolderPath(path);
-		const normalizedTarget = this.normalizeFolderPath(targetPath);
+		const normalizedPath = PathNormalizer.normalize(path);
+		const normalizedTarget = PathNormalizer.normalize(targetPath);
 
 		if (isFileTarget) {
 			// For file targets, only exact matches
@@ -455,7 +475,7 @@ export class FolderPathUpdater {
 			// For folder targets, exact match or subfolder
 			return (
 				normalizedPath === normalizedTarget ||
-				normalizedPath.startsWith(normalizedTarget + "/")
+				PathNormalizer.isSubfolderOf(normalizedPath, normalizedTarget)
 			);
 		}
 	}
@@ -469,9 +489,9 @@ export class FolderPathUpdater {
 		newPath: string,
 		isFileRename: boolean
 	): string {
-		const normalizedPath = this.normalizeFolderPath(path);
-		const normalizedOld = this.normalizeFolderPath(oldPath);
-		const normalizedNew = this.normalizeFolderPath(newPath);
+		const normalizedPath = PathNormalizer.normalize(path);
+		const normalizedOld = PathNormalizer.normalize(oldPath);
+		const normalizedNew = PathNormalizer.normalize(newPath);
 
 		if (isFileRename) {
 			// For file renames, only update exact matches
@@ -482,7 +502,7 @@ export class FolderPathUpdater {
 			// For folder renames, update exact matches and subpaths
 			if (normalizedPath === normalizedOld) {
 				return newPath;
-			} else if (normalizedPath.startsWith(normalizedOld + "/")) {
+			} else if (PathNormalizer.isSubfolderOf(normalizedPath, normalizedOld)) {
 				const remainingPath = normalizedPath.substring(normalizedOld.length + 1);
 				return normalizedNew + "/" + remainingPath;
 			}
@@ -491,22 +511,4 @@ export class FolderPathUpdater {
 		return path;
 	}
 
-	/**
-	 * Normalizes a folder path for consistent comparison.
-	 */
-	private static normalizeFolderPath(path: string): string {
-		if (!path) {
-			return "";
-		}
-
-		// Remove trailing slashes
-		let normalized = path.replace(/\/+$/, "");
-
-		// Handle empty path (root)
-		if (normalized === "") {
-			return "";
-		}
-
-		return normalized;
-	}
 }
