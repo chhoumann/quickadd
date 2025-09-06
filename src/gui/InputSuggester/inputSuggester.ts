@@ -110,7 +110,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		try {
 			el.empty();
 			this.renderItem(value.item, el);
-		} catch (e) {
+		} catch {
 			el.empty();
 			super.renderSuggestion(value, el);
 		}
