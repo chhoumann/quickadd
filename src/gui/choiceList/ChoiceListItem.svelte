@@ -56,7 +56,7 @@
 	}
 </script>
 
-<div class="choiceListItem" on:contextmenu={onContextMenu}>
+<div class="choiceListItem" role="button" tabindex="0" on:contextmenu={onContextMenu}>
 	<span class="choiceListItemName" bind:this={nameElement} />
 
 	<RightButtons
