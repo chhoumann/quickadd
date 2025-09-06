@@ -142,7 +142,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 			} else {
 				await this.app.vault.modify(file, newFileContent);
-				await overwriteTemplaterOnce(this.app, file);
+				// Only run a final whole-file Templater pass when the file already existed.
+				// For newly created files, we have already rendered the template once during creation
+				// and inserting the capture afterward. Running Templater again risks clobbering
+				// the just-inserted capture content.
+				if (fileAlreadyExists) {
+					await overwriteTemplaterOnce(this.app, file);
+				}
 			}
 
 			// Show success notification
