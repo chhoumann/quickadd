@@ -12,12 +12,14 @@ export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
 export const CLIPBOARD_SYNTAX = "{{clipboard}}";
 export const RANDOM_SYNTAX = "{{random:<length>}}";
+export const GLOBAL_VAR_SYNTAX = "{{global_var:<name>}}";
 
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
 	"{{date:<dateformat>}}",
 	"{{vdate:<variable name>, <date format>}}",
 	"{{vdate:<variable name>, <date format>|<default value>}}",
+	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
@@ -40,6 +42,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	"{{date:<dateformat>}}",
 	"{{vdate:<variable name>, <date format>}}",
 	"{{vdate:<variable name>, <date format>|<default value>}}",
+	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
@@ -78,6 +81,7 @@ export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/i);
+export const GLOBAL_VAR_REGEX = new RegExp(/{{GLOBAL_VAR:([^\n\r}]*)}}/i);
 export const INLINE_JAVASCRIPT_REGEX = new RegExp(
 	/`{3,}js quickadd([\s\S]*?)`{3,}/,
 );
@@ -134,6 +138,9 @@ export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const RANDOM_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i,
+);
+export const GLOBAL_VAR_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[G]?[L]?[O]?[B]?[A]?[L]?[\_]?[V]?[A]?[R]?[:]?$|{{GLOBAL_VAR:[^\n\r}]*}}$/i,
 );
 export const TIME_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[I]?[M]?[E]?[}]?[}]?/i,
