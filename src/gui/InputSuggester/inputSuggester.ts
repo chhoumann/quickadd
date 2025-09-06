@@ -1,5 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
-import type { FuzzyMatch , App} from "obsidian";
+import type { FuzzyMatch, App } from "obsidian";
+
+type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
 type Options = {
 	limit: FuzzySuggestModal<string>["limit"];
@@ -9,6 +11,7 @@ type Options = {
 	>[0] extends string
 		? string
 		: never;
+	renderItem: SuggestRender<string> | undefined;
 };
 
 /**
@@ -19,6 +22,8 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	private rejectPromise: (reason?: unknown) => void;
 	public promise: Promise<string>;
 	private resolved: boolean;
+
+	private renderItem?: SuggestRender<string>;
 
 	public static Suggest(
 		app: App,
@@ -47,6 +52,8 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			this.resolvePromise = resolve;
 			this.rejectPromise = reject;
 		});
+
+		this.renderItem = options.renderItem;
 
 		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
 			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
@@ -92,6 +99,21 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	) {
 		this.resolved = true;
 		super.selectSuggestion(value, evt);
+	}
+
+	renderSuggestion(value: FuzzyMatch<string>, el: HTMLElement): void {
+		if (!this.renderItem) {
+			super.renderSuggestion(value, el);
+			return;
+		}
+
+		try {
+			el.empty();
+			this.renderItem(value.item, el);
+		} catch (e) {
+			el.empty();
+			super.renderSuggestion(value, el);
+		}
 	}
 
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {

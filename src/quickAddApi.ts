@@ -119,6 +119,7 @@ export class QuickAddApi {
 				actualItems: string[],
 				placeholder?: string,
 				allowCustomInput = false,
+				options?: { renderItem?: (value: string, el: HTMLElement) => void },
 			) => {
 				return QuickAddApi.suggester(
 					app,
@@ -126,6 +127,7 @@ export class QuickAddApi {
 					actualItems,
 					placeholder,
 					allowCustomInput,
+					options,
 				);
 			},
 			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
@@ -520,6 +522,7 @@ export class QuickAddApi {
 		actualItems: string[],
 		placeholder?: string,
 		allowCustomInput = false,
+		options?: { renderItem?: (value: string, el: HTMLElement) => void },
 	) {
 		try {
 			let displayedItems;
@@ -535,7 +538,12 @@ export class QuickAddApi {
 					app,
 					displayedItems as string[],
 					actualItems,
-					placeholder ? { placeholder } : {},
+					{
+						...(placeholder ? { placeholder } : {}),
+						...(options?.renderItem
+							? { renderItem: options.renderItem }
+							: {}),
+					},
 				);
 			}
 
@@ -544,6 +552,7 @@ export class QuickAddApi {
 				displayedItems as string[],
 				actualItems,
 				placeholder,
+				options?.renderItem,
 			);
 		} catch {
 			return undefined;
