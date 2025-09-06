@@ -1,5 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
-import type { FuzzyMatch , App} from "obsidian";
+import type { FuzzyMatch, App } from "obsidian";
+
+type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
 export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private resolvePromise: (value: T) => void;
@@ -7,20 +9,30 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	public promise: Promise<T>;
 	private resolved: boolean;
 
-	public static Suggest<T>(app: App, displayItems: string[], items: T[], placeholder?: string) {
-		const newSuggester = new GenericSuggester(app, displayItems, items);
-		if (placeholder) {
-			newSuggester.setPlaceholder(placeholder);
-		}
+	private renderItem?: SuggestRender<T>;
+
+
+	public static Suggest<T>(
+		app: App,
+		displayItems: string[],
+		items: T[],
+		placeholder?: string,
+		renderItem?: SuggestRender<T>,
+	) {
+		const newSuggester = new GenericSuggester(app, displayItems, items, renderItem);
+		if (placeholder) newSuggester.setPlaceholder(placeholder);
 		return newSuggester.promise;
 	}
 
 	public constructor(
 		app: App,
 		private displayItems: string[],
-		private items: T[]
+		private items: T[],
+		renderItem?: SuggestRender<T>,
 	) {
 		super(app);
+
+		this.renderItem = renderItem;
 
 		this.promise = new Promise<T>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -63,6 +75,23 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	) {
 		this.resolved = true;
 		super.selectSuggestion(value, evt);
+	}
+
+	renderSuggestion(value: FuzzyMatch<T>, el: HTMLElement): void {
+		if (!this.renderItem) {
+			// default rendering with fuzzy highlights
+			super.renderSuggestion(value, el);
+			return;
+		}
+
+		try {
+			el.empty();
+			this.renderItem(value.item, el);
+		} catch (e) {
+			// Fallback to default rendering if custom render throws
+			el.empty();
+			super.renderSuggestion(value, el);
+		}
 	}
 
 	onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void {

@@ -127,14 +127,15 @@ await quickAddApi.infoDialog(
 );
 ```
 
-### `suggester(displayItems: string[] | Function, actualItems: string[], placeholder?: string, allowCustomInput?: boolean): Promise<string>`
+### `suggester(displayItems: string[] | Function, actualItems: any[], placeholder?: string, allowCustomInput?: boolean, options?: { renderItem?: (value: any, el: HTMLElement) => void }): Promise<any>`
 Opens a selection prompt with searchable options. Can optionally allow custom input not in the predefined list.
 
 **Parameters:**
 - `displayItems`: Array of display strings OR a map function
-- `actualItems`: Array of actual values to return
+- `actualItems`: Array of actual values to return (strings or objects)
 - `placeholder`: (Optional) Placeholder text shown in the suggester
 - `allowCustomInput`: (Optional) When `true`, allows users to enter custom text not in `actualItems`. Defaults to `false`
+- `options.renderItem`: (Optional) Custom renderer `(value, el) => void` to control how each suggestion row is drawn
 
 **Returns:** Promise resolving to the selected value or custom input, or `null` if cancelled
 
@@ -191,6 +192,95 @@ const selectedTag = await quickAddApi.suggester(
     true  // allowCustomInput = true
 );
 // Returns either an existing tag or the user's custom input
+```
+
+#### Custom rendering
+You can take full control over how suggestions are rendered by providing `options.renderItem`. The function receives the actual item value and the suggestion row element. If the renderer throws, QuickAdd falls back to default rendering.
+
+Custom-rendered list (no custom input):
+```javascript
+// Shows a color dot + subtitle; stores result in variables.project
+module.exports = async (params) => {
+  const { quickAddApi } = params;
+
+  const items = [
+    { name: 'Inbox',   path: 'Projects/Inbox.md',   status: 'Active' },
+    { name: 'Roadmap', path: 'Projects/Roadmap.md', status: 'Paused' },
+    { name: 'Backlog', path: 'Projects/Backlog.md', status: 'Done' },
+  ];
+
+  const values = items.map(i => i.name);
+  const meta = Object.fromEntries(items.map(i => [i.name, i]));
+
+  const selected = await quickAddApi.suggester(
+    values,         // display items
+    values,         // actual items
+    'Pick a project',
+    false,          // allowCustomInput
+    {
+      renderItem: (value, el) => {
+        const info = meta[value] || {};
+        const row = el.createEl('div');
+        const title = row.createEl('div', { cls: 'qa-title' });
+
+        const dot = title.createEl('span');
+        dot.setAttr('style', 'display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;'
+          + `background:${statusColor(info.status)};`);
+
+        title.createEl('span', { text: value });
+
+        const sub = row.createEl('div', { text: info.path || '' });
+        sub.setAttr('style', 'font-size:12px;color:var(--text-muted);');
+      }
+    }
+  );
+
+  if (!selected) return;
+  params.variables.project = selected;
+  return selected;
+
+  function statusColor(status) {
+    switch (status) {
+      case 'Active': return 'var(--text-accent)';
+      case 'Paused': return 'orange';
+      case 'Done':   return 'var(--interactive-accent)';
+      default:       return 'var(--text-muted)';
+    }
+  }
+};
+```
+
+Allow custom input with tailored rendering:
+```javascript
+// Highlights when value is new; stores result in variables.project
+module.exports = async (params) => {
+  const { quickAddApi } = params;
+  const values = ['Inbox', 'Roadmap', 'Backlog'];
+
+  const selected = await quickAddApi.suggester(
+    values,
+    values,
+    'Type a new project or pick…',
+    true, // allowCustomInput
+    {
+      renderItem: (value, el) => {
+        const isNew = !values.includes(value);
+        const row = el.createEl('div');
+
+        const title = row.createEl('div', { text: value });
+        title.setAttr('style', 'font-weight:600;');
+
+        const hint = isNew ? 'New project (press Enter to create)' : 'Existing project';
+        const sub = row.createEl('div', { text: hint });
+        sub.setAttr('style', 'font-size:12px;color:var(--text-muted);');
+      }
+    }
+  );
+
+  if (!selected) return;
+  params.variables.project = selected;
+  return selected;
+};
 ```
 
 ### `checkboxPrompt(items: string[], selectedItems?: string[]): Promise<string[]>`
