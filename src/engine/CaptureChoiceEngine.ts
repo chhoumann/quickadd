@@ -394,7 +394,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			await overwriteTemplaterOnce(this.app, file);
 		}
 
-		const updatedFileContent: string = await this.app.vault.cachedRead(file);
+		// Read the file fresh from disk to avoid any potential cached content
+		// after the initial Templater run on newly created files.
+		const updatedFileContent: string = await this.app.vault.read(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
 		const newFileContent: string = await this.formatter.formatContentWithFile(
 			formattedCaptureContent,
