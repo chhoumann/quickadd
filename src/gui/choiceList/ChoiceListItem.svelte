@@ -56,7 +56,14 @@
 	}
 </script>
 
-<div class="choiceListItem" role="button" tabindex="0" on:contextmenu={onContextMenu}>
+<div
+    class="choiceListItem"
+    role="button"
+    tabindex="0"
+    aria-haspopup="menu"
+    aria-label={`Context menu for ${choice.name}`}
+    on:contextmenu={onContextMenu}
+>
 	<span class="choiceListItemName" bind:this={nameElement} />
 
 	<RightButtons

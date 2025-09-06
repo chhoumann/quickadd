@@ -62,7 +62,14 @@
 </script>
 
 <div>
-    <div class="multiChoiceListItem" role="button" tabindex="0" on:contextmenu={onContextMenu}>
+    <div
+        class="multiChoiceListItem"
+        role="button"
+        tabindex="0"
+        aria-haspopup="menu"
+        aria-label={`Context menu for ${choice.name}`}
+        on:contextmenu={onContextMenu}
+    >
         <div 
             role="button"
             tabindex="0"
