@@ -16,6 +16,7 @@
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
+    import { moveChoice as moveChoiceService } from "../../services/choiceService";
 
 	export let choices: IChoice[] = [];
 	export let saveChoices: (choices: IChoice[]) => void;
@@ -118,6 +119,12 @@
 		saveChoices(choices);
 	}
 
+	function handleMoveChoice(e: any) {
+		const { choice, targetId } = e.detail;
+		choices = moveChoiceService(choices, choice.id, targetId);
+		saveChoices(choices);
+	}
+
 	async function openAISettings() {
 		const newSettings = await new AIAssistantSettingsModal(
 			app,
@@ -133,11 +140,14 @@
 <div>
 	<ChoiceList
 		type="main"
+		app={app}
+		roots={choices}
 		bind:choices
 		on:deleteChoice={deleteChoice}
 		on:configureChoice={handleConfigureChoice}
 		on:toggleCommand={toggleCommandForChoice}
 		on:duplicateChoice={handleDuplicateChoice}
+		on:moveChoice={handleMoveChoice}
 		on:reorderChoices={(e) => saveChoices(e.detail.choices)}
 	/>
 	<div class="choiceViewBottomBar">

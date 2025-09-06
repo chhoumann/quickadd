@@ -175,3 +175,107 @@ export class CommandRegistry {
 		this.plugin.addCommandForChoice(newChoice);
 	}
 }
+
+/**
+ * Move a choice into a target Multi choice at the end of its list.
+ * Prevents cycles (cannot move a Multi into itself or any of its descendants).
+ * Returns a new choices array (immutable) suitable for Svelte reactivity.
+ */
+export function moveChoice(
+	rootChoices: IChoice[],
+	movingId: string,
+	targetMultiId: string,
+): IChoice[] {
+	if (!movingId || !targetMultiId) return rootChoices;
+
+	const movingChoice = findChoiceById(rootChoices, movingId);
+	const targetChoice = findChoiceById(rootChoices, targetMultiId);
+	if (!movingChoice || !targetChoice || targetChoice.type !== "Multi") {
+		return rootChoices;
+	}
+
+	// Prevent cycles: cannot move a Multi into itself or its descendants
+	if (movingChoice.type === "Multi") {
+		if (movingChoice.id === targetChoice.id) return rootChoices;
+		const descendantIds = collectDescendantIds(movingChoice as IMultiChoice);
+		if (descendantIds.has(targetChoice.id)) return rootChoices;
+	}
+
+	// Remove moving choice from its current location
+	const { updated: withoutMoving, removed } = removeChoiceById(rootChoices, movingId);
+	if (!removed) return rootChoices; // nothing removed
+
+	// Insert at end of the target multi
+	const inserted = insertIntoMulti(withoutMoving, targetMultiId, removed);
+	return inserted ?? rootChoices;
+}
+
+function findChoiceById(choices: IChoice[], id: string): IChoice | undefined {
+	for (const c of choices) {
+		if (c.id === id) return c;
+		if (c.type === "Multi") {
+			const found = findChoiceById((c as IMultiChoice).choices, id);
+			if (found) return found;
+		}
+	}
+	return undefined;
+}
+
+function collectDescendantIds(multi: IMultiChoice): Set<string> {
+	const ids = new Set<string>();
+	const walk = (c: IChoice) => {
+		ids.add(c.id);
+		if (c.type === "Multi") (c as IMultiChoice).choices.forEach(walk);
+	};
+	(multi.choices ?? []).forEach(walk);
+	return ids;
+}
+
+function removeChoiceById(
+	choices: IChoice[],
+	id: string,
+): { updated: IChoice[]; removed?: IChoice } {
+	let removed: IChoice | undefined;
+	const updated = choices
+		.map((c) => {
+			if (c.id === id) {
+				removed = c;
+				return undefined;
+			}
+			if (c.type !== "Multi") return c;
+			const res = removeChoiceById((c as IMultiChoice).choices, id);
+			if (res.removed) removed = res.removed;
+			if (res.removed) {
+				// Only recreate object when children changed
+				return { ...(c as IMultiChoice), choices: res.updated } as IChoice;
+			}
+			return c;
+		})
+		.filter(Boolean) as IChoice[];
+
+	return { updated, removed };
+}
+
+function insertIntoMulti(
+	choices: IChoice[],
+	targetId: string,
+	child: IChoice,
+): IChoice[] | undefined {
+	let changed = false;
+	const updated = choices.map((c) => {
+		if (c.id === targetId && c.type === "Multi") {
+			changed = true;
+			const mc = c as IMultiChoice;
+			return { ...mc, choices: [...mc.choices, child] } as IChoice;
+		}
+		if (c.type !== "Multi") return c;
+		const inner = insertIntoMulti((c as IMultiChoice).choices, targetId, child);
+		if (inner) {
+			changed = true;
+			return { ...(c as IMultiChoice), choices: inner } as IChoice;
+		}
+		return c;
+	});
+
+	return changed ? updated : undefined;
+}

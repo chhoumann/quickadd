@@ -5,8 +5,11 @@
     import {dndzone, SHADOW_PLACEHOLDER_ITEM_ID, SOURCES} from "svelte-dnd-action";
     import type {DndEvent} from "svelte-dnd-action";
     import {createEventDispatcher} from "svelte";
+    import type { App } from "obsidian";
 
     export let choices: IChoice[] = [];
+    export let roots: IChoice[] | undefined;
+    export let app: App;
     let collapseId: string;
     let dragDisabled: boolean = true;
 
@@ -60,21 +63,27 @@
     {#each choices.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as choice(choice.id)}
         {#if choice.type !== "Multi"}
             <ChoiceListItem
+                    {app}
+                    roots={roots ?? choices}
                     bind:dragDisabled={dragDisabled}
                     on:deleteChoice
                     on:configureChoice
                     on:toggleCommand
                     on:duplicateChoice
+                    on:moveChoice
                     startDrag={startDrag}
                     bind:choice
             />
         {:else}
             <MultiChoiceListItem
+                    {app}
+                    roots={roots ?? choices}
                     bind:dragDisabled={dragDisabled}
                     on:deleteChoice
                     on:configureChoice
                     on:toggleCommand
                     on:duplicateChoice
+                    on:moveChoice
                     startDrag={startDrag}
                     bind:collapseId
                     bind:choice
