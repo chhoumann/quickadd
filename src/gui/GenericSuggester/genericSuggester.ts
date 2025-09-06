@@ -87,7 +87,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		try {
 			el.empty();
 			this.renderItem(value.item, el);
-		} catch (e) {
+		} catch {
 			// Fallback to default rendering if custom render throws
 			el.empty();
 			super.renderSuggestion(value, el);
