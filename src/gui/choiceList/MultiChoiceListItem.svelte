@@ -4,12 +4,16 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import {createEventDispatcher} from "svelte";
-	import { Component, htmlToMarkdown, MarkdownRenderer } from "obsidian";
+	import { Component, htmlToMarkdown, MarkdownRenderer, type App } from "obsidian";
+    import type IChoice from "src/types/choices/IChoice";
+    import { showChoiceContextMenu } from "./contextMenu";
 
     export let choice: IMultiChoice;
+    export let roots: IChoice[];
     export let collapseId: string;
     export let dragDisabled: boolean;
     export let startDrag: (e: Event) => void;
+    export let app: App;
     let showConfigureButton: boolean = true;
 
     const dispatcher = createEventDispatcher();
@@ -45,10 +49,27 @@
 			);
 		}
 	}
+
+    function onContextMenu(evt: MouseEvent) {
+        showChoiceContextMenu(app, evt, choice, roots, {
+            onToggle: () => toggleCommandForChoice(),
+            onConfigure: () => configureChoice(),
+            onDuplicate: () => duplicateChoice(),
+            onDelete: () => deleteChoice(null),
+            onMove: (targetId) => dispatcher('moveChoice', { choice, targetId }),
+        });
+    }
 </script>
 
 <div>
-    <div class="multiChoiceListItem">
+    <div
+        class="multiChoiceListItem"
+        role="button"
+        tabindex="0"
+        aria-haspopup="menu"
+        aria-label={`Context menu for ${choice.name}`}
+        on:contextmenu={onContextMenu}
+    >
         <div 
             role="button"
             tabindex="0"
@@ -80,10 +101,13 @@
         {#if !choice.collapsed}
             <div class="nestedChoiceList">
                 <ChoiceList
+                        app={app}
+                        roots={roots}
                         on:deleteChoice
                         on:configureChoice
                         on:toggleCommand
                         on:duplicateChoice
+                        on:moveChoice
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}
                 />
