@@ -2,7 +2,7 @@ import { Formatter } from "./formatter";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
-import { DATE_VARIABLE_REGEX } from "../constants";
+import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import {
@@ -28,6 +28,8 @@ export class FormatDisplayFormatter extends Formatter {
 		let output: string = input;
 
 		try {
+			// Expand global variables first so previews include their content
+			output = await this.replaceGlobalVarInString(output);
 			output = this.replaceDateInString(output);
 			output = this.replaceTimeInString(output);
 			output = await this.replaceValueInString(output);
@@ -47,6 +49,22 @@ export class FormatDisplayFormatter extends Formatter {
 			return input;
 		}
 
+		return output;
+	}
+
+	protected async replaceGlobalVarInString(input: string): Promise<string> {
+		let output = input;
+		let guard = 0;
+		const re = new RegExp(GLOBAL_VAR_REGEX.source, 'gi');
+		while (re.test(output)) {
+			if (++guard > 5) break;
+			output = output.replace(re, (_m, rawName) => {
+				const name = String(rawName ?? '').trim();
+				if (!name) return _m;
+				const snippet = this.plugin?.settings?.globalVariables?.[name];
+				return typeof snippet === 'string' ? snippet : '';
+			});
+		}
 		return output;
 	}
 	protected promptForValue(header?: string): string {

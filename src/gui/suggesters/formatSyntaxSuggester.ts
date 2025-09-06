@@ -25,6 +25,7 @@ import {
 	TITLE_SYNTAX_SUGGEST_REGEX,
 	TITLE_SYNTAX,
 	RANDOM_SYNTAX_SUGGEST_REGEX,
+	GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 import type QuickAdd from "../../main";
 import { replaceRange } from "./utils";
@@ -45,7 +46,8 @@ enum FormatSyntaxToken {
 	Selected,
 	Clipboard,
 	Random,
-	Title
+	Title,
+	GlobalVar,
 }
 
 interface TokenDefinition {
@@ -110,6 +112,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			token: FormatSyntaxToken.Random,
 			suggestion: "{{RANDOM:}}",
 			cursorOffset: 2
+		},
+		{
+			regex: GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.GlobalVar,
+			suggestion: "{{GLOBAL_VAR:}}",
+			cursorOffset: 2,
 		},
 		{
 			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
@@ -231,6 +239,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 					"{{VDATE:date,YYYY-MM-DD|today}}",
 					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}"
 				);
+			} else if (tokenDef.token === FormatSyntaxToken.GlobalVar) {
+				// Suggest defined global variable names
+				const globals = Object.keys(this.plugin?.settings?.globalVariables ?? {});
+				suggestions.push(
+					...globals.map((name) => `{{GLOBAL_VAR:${name}}}`)
+				);
 			}
 		}
 
@@ -269,5 +283,4 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			.find(def => def.token === token);
 	}
 }
-
 

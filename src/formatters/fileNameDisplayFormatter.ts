@@ -1,6 +1,6 @@
 import { Formatter } from "./formatter";
 import type { App } from "obsidian";
-import { DATE_VARIABLE_REGEX } from "../constants";
+import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import {
@@ -12,9 +12,12 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 
+import type QuickAdd from "../main";
+
 export class FileNameDisplayFormatter extends Formatter {
 	constructor(
 		private app: App,
+		private plugin?: QuickAdd,
 		dateParser?: IDateParser
 	) {
 		super();
@@ -25,6 +28,8 @@ export class FileNameDisplayFormatter extends Formatter {
 		let output: string = input;
 
 		try {
+			// Expand globals first to preview inserted snippets
+			output = await this.replaceGlobalVarInString(output);
 			output = await this.replaceMacrosInString(output);
 			output = this.replaceDateInString(output);
 			output = this.replaceTimeInString(output);
@@ -41,6 +46,22 @@ export class FileNameDisplayFormatter extends Formatter {
 		}
 
 		return `Preview: ${output}`;
+	}
+
+	protected async replaceGlobalVarInString(input: string): Promise<string> {
+		let output = input;
+		let guard = 0;
+		const re = new RegExp(GLOBAL_VAR_REGEX.source, 'gi');
+		while (re.test(output)) {
+			if (++guard > 5) break;
+			output = output.replace(re, (_m, rawName) => {
+				const name = String(rawName ?? '').trim();
+				if (!name) return _m;
+				const snippet = this.plugin?.settings?.globalVariables?.[name];
+				return typeof snippet === 'string' ? snippet : '';
+			});
+		}
+		return output;
 	}
 
 	protected promptForValue(header?: string): string {

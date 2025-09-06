@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { TEMPLATE_REGEX, VARIABLE_REGEX } from "src/constants";
+import { GLOBAL_VAR_REGEX, TEMPLATE_REGEX, VARIABLE_REGEX } from "src/constants";
 import { Formatter } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
@@ -51,9 +51,11 @@ export class RequirementCollector extends Formatter {
 
 	// Entry points -------------------------------------------------------------
 	public async scanString(input: string): Promise<void> {
+		// Expand global variables first so we can detect inner requirements
+		const expanded = await this.replaceGlobalVarInString(input);
 		// Run a safe formatting pass that collects variables but avoids side-effects
-		this.scanVariableTokens(input);
-		await this.format(input);
+		this.scanVariableTokens(expanded);
+		await this.format(expanded);
 	}
 
 	protected async format(input: string): Promise<string> {
@@ -61,6 +63,9 @@ export class RequirementCollector extends Formatter {
 
 		// NOTE: Intentionally skip macros, inline js, templates content resolution
 		// We will only record the TEMPLATE references for later recursive scanning.
+
+		// Expand global variables early (text-only expansion)
+		output = await this.replaceGlobalVarInString(output);
 
 		// Dates/Times
 		output = this.replaceDateInString(output);
@@ -94,6 +99,22 @@ export class RequirementCollector extends Formatter {
 			}
 		}
 
+		return output;
+	}
+
+	protected async replaceGlobalVarInString(input: string): Promise<string> {
+		let output = input;
+		let guard = 0;
+		const re = new RegExp(GLOBAL_VAR_REGEX.source, "gi");
+		while (re.test(output)) {
+			if (++guard > 5) break;
+			output = output.replace(re, (_m, rawName) => {
+				const name = String(rawName ?? "").trim();
+				if (!name) return _m;
+				const snippet = this.plugin?.settings?.globalVariables?.[name];
+				return typeof snippet === "string" ? snippet : "";
+			});
+		}
 		return output;
 	}
 

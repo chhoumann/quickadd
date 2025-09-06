@@ -107,7 +107,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const formatDisplay = previewRow.createEl("span");
 		formatDisplay.setAttr("aria-live", "polite");
 		const displayFormatter: FileNameDisplayFormatter =
-			new FileNameDisplayFormatter(this.app);
+			new FileNameDisplayFormatter(this.app, this.plugin);
 		formatDisplay.textContent = "Loading preview…";
 		void (async () => {
 			try {

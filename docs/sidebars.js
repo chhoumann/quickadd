@@ -72,6 +72,11 @@ const sidebars = {
 				},
 				{
 					type: "doc",
+					id: "GlobalVariables",
+					label: "🌐 Global Variables",
+				},
+				{
+					type: "doc",
 					id: "InlineScripts",
 					label: "💻 Inline Scripts",
 				},

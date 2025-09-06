@@ -4,6 +4,7 @@ import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
+import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
 import type { Model } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
@@ -15,6 +16,7 @@ export interface QuickAddSettings {
 	templateFolderPath: string;
 	announceUpdates: boolean;
 	version: string;
+	globalVariables: Record<string, string>;
 	/**
 	 * Enables the one-page input flow that pre-collects variables
 	 * and renders a single dynamic GUI before executing a choice.
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	templateFolderPath: "",
 	announceUpdates: true,
 	version: "0.0.0",
+	globalVariables: {},
 	onePageInputEnabled: false,
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
@@ -98,9 +101,21 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
+		this.addGlobalVariablesSetting();
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
+	}
+
+	private addGlobalVariablesSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.infoEl.remove();
+		setting.settingEl.style.display = "block";
+
+		new GlobalVariablesView({
+			target: setting.settingEl,
+			props: { app: this.app, plugin: this.plugin },
+		});
 	}
 
 	addAnnounceUpdatesSetting() {

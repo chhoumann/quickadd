@@ -4,7 +4,7 @@ import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { INLINE_JAVASCRIPT_REGEX } from "../constants";
+import { GLOBAL_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
 import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
 import { SingleMacroEngine } from "../engine/SingleMacroEngine";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
@@ -48,6 +48,8 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceInlineJavascriptInString(output);
 		output = await this.replaceMacrosInString(output);
 		output = await this.replaceTemplateInString(output);
+		// Expand global variables early so injected snippets can be further formatted
+		output = await this.replaceGlobalVarInString(output);
 		output = this.replaceDateInString(output);
 		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);
@@ -59,6 +61,23 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 
+		return output;
+	}
+
+	protected async replaceGlobalVarInString(input: string): Promise<string> {
+		let output = input;
+		// Allow nested globals up to a small recursion limit
+		let guard = 0;
+		const re = new RegExp(GLOBAL_VAR_REGEX.source, "gi");
+		while (re.test(output)) {
+			if (++guard > 5) break;
+			output = output.replace(re, (_m, rawName) => {
+				const name = String(rawName ?? "").trim();
+				if (!name) return _m;
+				const snippet = this.plugin?.settings?.globalVariables?.[name];
+				return typeof snippet === "string" ? snippet : "";
+			});
+		}
 		return output;
 	}
 
