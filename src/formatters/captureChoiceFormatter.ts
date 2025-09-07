@@ -147,10 +147,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async insertAfterHandler(formatted: string) {
-		// Format the target string and also resolve link/title placeholders
-		let targetString: string = await this.format(this.choice.insertAfter.after);
-		targetString = await this.replaceLinkToCurrentFileInString(targetString);
-		targetString = this.replaceTitleInString(targetString);
+		// Use centralized location formatting for selector strings
+		const targetString: string = await this.formatLocationString(
+			this.choice.insertAfter.after,
+		);
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 		let targetPosition = this.findInsertAfterIndex(
@@ -189,12 +189,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
-		// Build the line to insert and resolve link/title placeholders too
-		let insertAfterLine: string = this.replaceLinebreakInString(
-			await this.format(this.choice.insertAfter.after),
+		// Build the line to insert using centralized location formatting
+		const insertAfterLine: string = this.replaceLinebreakInString(
+			await this.formatLocationString(this.choice.insertAfter.after),
 		);
-		insertAfterLine = await this.replaceLinkToCurrentFileInString(insertAfterLine);
-		insertAfterLine = this.replaceTitleInString(insertAfterLine);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
 		if (
