@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { LINK_TO_CURRENT_FILE_REGEX } from '../constants';
+import { LINK_TO_CURRENT_FILE_REGEX, TITLE_REGEX } from '../constants';
 
 // Local helper mirroring Formatter.replaceLinkToCurrentFileInString,
 // but without importing Formatter (to avoid obsidian deps in tests).
@@ -102,5 +102,50 @@ describe('Insert after — {{linkcurrent}} resolution', () => {
 
     expect(newContent.includes('[[Target Note]]')).toBe(true);
     expect(newContent.includes('{{linkcurrent}}')).toBe(false);
+  });
+});
+
+// Local helper mirroring Formatter.replaceTitleInString without importing it
+function replaceTitleInStringLocal(input: string, title: string): string {
+  let output = input;
+  while (TITLE_REGEX.test(output)) {
+    output = output.replace(TITLE_REGEX, title);
+  }
+  return output;
+}
+
+describe('Insert after — {{title}} resolution', () => {
+  it('resolves {{title}} in the target and inserts after the actual title line', async () => {
+    const title = 'My Title';
+    const fileContent = [
+      '# Inbox',
+      title,
+      'Body',
+    ].join('\n');
+
+    const rawTarget = '{{title}}';
+    const resolvedTarget = replaceTitleInStringLocal(rawTarget, title);
+    expect(resolvedTarget).toBe(title);
+
+    const lines = fileContent.split('\n');
+    const idx = findInsertAfterIndex(lines, resolvedTarget);
+    expect(idx).toBe(1);
+
+    const newContent = insertTextAfterPositionInBody('Inserted\n', fileContent, idx);
+    const expected = ['# Inbox', title, 'Inserted', 'Body'].join('\n');
+    expect(newContent).toBe(expected);
+  });
+
+  it('creates the line with resolved title (not literal token) when not found', async () => {
+    const title = 'My Title';
+    const fileContent = '# Empty\n';
+    const rawTarget = '{{title}}';
+    const resolvedTarget = replaceTitleInStringLocal(rawTarget, title);
+
+    const insertAfterLineAndFormatted = `${resolvedTarget}\nCONTENT`;
+    const newContent = `${fileContent}\n${insertAfterLineAndFormatted}`.replace(/\n\n+$/, '\n');
+
+    expect(newContent.includes(title)).toBe(true);
+    expect(newContent.includes('{{title}}')).toBe(false);
   });
 });
