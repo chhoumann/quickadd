@@ -10,7 +10,6 @@ import {
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
-import { isValidFilename, getInvalidFilenameError } from "../utils/filenameValidation";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
@@ -145,14 +144,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return createdFile;
 		} catch (err) {
-			// Check if the error is likely due to invalid filename characters
-				const fileBasename = basenameWithoutMdOrCanvas(filePath);
-			if (!isValidFilename(fileBasename)) {
-				const filenameError = getInvalidFilenameError(fileBasename);
-				reportError(new Error(filenameError), `Cannot create file "${fileBasename}"`);
-			} else {
-				reportError(err, "Could not create file with template");
-			}
+			reportError(err, `Could not create file with template at ${filePath}`);
 			return null;
 		}
 	}
