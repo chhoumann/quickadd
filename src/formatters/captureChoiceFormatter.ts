@@ -147,7 +147,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async insertAfterHandler(formatted: string) {
-		const targetString: string = await this.format(
+		// Use centralized location formatting for selector strings
+		const targetString: string = await this.formatLocationString(
 			this.choice.insertAfter.after,
 		);
 
@@ -188,8 +189,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
+		// Build the line to insert using centralized location formatting
 		const insertAfterLine: string = this.replaceLinebreakInString(
-			await this.format(this.choice.insertAfter.after),
+			await this.formatLocationString(this.choice.insertAfter.after),
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
