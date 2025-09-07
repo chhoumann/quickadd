@@ -565,6 +565,11 @@ export class FileIndex {
 		}
 
 		for (const result of fuseResults) {
+			// Defensive: skip malformed Fuse results
+			if (!result || !result.item || !result.item.path) {
+				continue;
+			}
+
 			// Skip if already added
 			if (addedPaths.has(result.item.path)) {
 				continue;
@@ -852,6 +857,11 @@ export class FileIndex {
 		}
 
 		for (const result of fuseResults) {
+			// Defensive: skip malformed Fuse results
+			if (!result || !result.item || !result.item.path) {
+				continue;
+			}
+
 			if (addedPaths.has(result.item.path)) {
 				continue;
 			}
