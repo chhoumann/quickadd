@@ -23,7 +23,6 @@ import {
 	openFile,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
-import { isValidFilename, getInvalidFilenameError } from "../utils/filenameValidation";
 import { TemplateEngine } from "./TemplateEngine";
 
 export class TemplateChoiceEngine extends TemplateEngine {
@@ -62,11 +61,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.choice.name,
 			);
 			
-			// Validate the filename before proceeding
-			invariant(
-				isValidFilename(formattedName),
-				() => `Invalid filename format: ${getInvalidFilenameError(formattedName)}`
-			);
+
 			let filePath = this.normalizeTemplateFilePath(
 				folderPath,
 				formattedName,
