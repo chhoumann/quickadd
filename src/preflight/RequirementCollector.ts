@@ -45,7 +45,10 @@ export class RequirementCollector extends Formatter {
 		super();
 		this.dateParser = NLDParser;
 		if (choiceExecutor) {
-			this.variables = choiceExecutor.variables;
+			// Use a shallow copy to avoid mutating the executor's live variables
+			// during preflight scanning. This ensures unresolved detection works
+			// and the One Page Input modal is shown when needed.
+			this.variables = new Map(choiceExecutor.variables);
 		}
 	}
 
