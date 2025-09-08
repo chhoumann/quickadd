@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { App } from "obsidian";
+	import { prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
 	import { onMount } from "svelte";
 	import type QuickAdd from "../../main";
@@ -14,6 +15,7 @@
 	} from "../../services/choiceService";
 	import type IChoice from "../../types/choices/IChoice";
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
+	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
     import { moveChoice as moveChoiceService } from "../../services/choiceService";
@@ -22,6 +24,37 @@
 	export let saveChoices: (choices: IChoice[]) => void;
 	export let app: App;
 	export let plugin: QuickAdd;
+
+	let filterQuery: string = ""; // not persisted
+
+	function filterChoices(list: IChoice[], query: string): IChoice[] {
+		const q = query.trim();
+		if (!q) return list;
+		const match = prepareFuzzySearch(q);
+
+		const walk = (c: IChoice): IChoice | null => {
+			const selfMatches = !!match(c.name ?? "");
+			if (c.type !== "Multi") {
+				return selfMatches ? c : null;
+			}
+
+			const mc = c as any; // IMultiChoice
+			const filteredChildren = (mc.choices ?? [])
+				.map((child: IChoice) => walk(child))
+				.filter(Boolean) as IChoice[];
+
+			if (selfMatches || filteredChildren.length > 0) {
+				// Clone Multi node expanded with only matching children to avoid mutating original
+				return { ...mc, collapsed: false, choices: filteredChildren } as IChoice;
+			}
+
+			return null;
+		};
+
+		return list
+			.map((c) => walk(c))
+			.filter(Boolean) as IChoice[];
+	}
 
 	// Subscribe to settings changes to keep choices in sync
 	onMount(() => {
@@ -137,19 +170,61 @@
 	}
 </script>
 
+
 <div>
-	<ChoiceList
-		type="main"
-		app={app}
-		roots={choices}
-		bind:choices
-		on:deleteChoice={deleteChoice}
-		on:configureChoice={handleConfigureChoice}
-		on:toggleCommand={toggleCommandForChoice}
-		on:duplicateChoice={handleDuplicateChoice}
-		on:moveChoice={handleMoveChoice}
-		on:reorderChoices={(e) => saveChoices(e.detail.choices)}
-	/>
+	<div class="choiceFilterBar">
+		<div class="choiceFilterInputWrapper">
+			<input
+				type="text"
+				placeholder="Filter choices (fuzzy)"
+				bind:value={filterQuery}
+				autocapitalize="off"
+				autocorrect="off"
+				spellcheck={false}
+				on:keydown={(e) => {
+					if (e.key === 'Escape' && filterQuery) {
+						filterQuery = "";
+						e.stopPropagation();
+					}
+				}}
+			/>
+			{#if filterQuery}
+				<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
+					on:click={() => (filterQuery = "")}
+				>
+					<ObsidianIcon iconId="x" size={14} />
+				</button>
+			{/if}
+		</div>
+	</div>
+
+	{#if filterQuery.trim().length === 0}
+		<ChoiceList
+			type="main"
+			app={app}
+			roots={choices}
+			bind:choices
+			on:deleteChoice={deleteChoice}
+			on:configureChoice={handleConfigureChoice}
+			on:toggleCommand={toggleCommandForChoice}
+			on:duplicateChoice={handleDuplicateChoice}
+			on:moveChoice={handleMoveChoice}
+			on:reorderChoices={(e) => saveChoices(e.detail.choices)}
+		/>
+	{:else}
+		<ChoiceList
+			type="main"
+			app={app}
+			roots={choices}
+			choices={filterChoices(choices, filterQuery)}
+			forceDragDisabled={true}
+			on:deleteChoice={deleteChoice}
+			on:configureChoice={handleConfigureChoice}
+			on:toggleCommand={toggleCommandForChoice}
+			on:duplicateChoice={handleDuplicateChoice}
+			on:moveChoice={handleMoveChoice}
+		/>
+	{/if}
 	<div class="choiceViewBottomBar">
 		<div style="display: flex; gap: 4px;">
 			{#if !settingsStore.getState().disableOnlineFeatures}
@@ -170,6 +245,38 @@
 		justify-content: space-between;
 		margin-top: 1rem;
 		gap: 1rem;
+	}
+
+	.choiceFilterBar {
+		margin-bottom: 0.5rem;
+	}
+
+	.choiceFilterInputWrapper {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.choiceFilterInputWrapper input {
+		width: 100%;
+		padding-right: 1.6rem; /* space for clear button */
+	}
+
+	.choiceFilterClear {
+		position: absolute;
+		right: 4px;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2px;
+		color: var(--text-muted);
+	}
+
+	.choiceFilterClear:hover {
+		color: var(--text-normal);
 	}
 
 	@media (max-width: 800px) {

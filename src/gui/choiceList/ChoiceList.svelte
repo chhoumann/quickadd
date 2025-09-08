@@ -10,6 +10,8 @@
     export let choices: IChoice[] = [];
     export let roots: IChoice[] | undefined;
     export let app: App;
+    // When true, keeps drag disabled regardless of user action
+    export let forceDragDisabled: boolean = false;
     let collapseId: string;
     let dragDisabled: boolean = true;
 
@@ -47,6 +49,7 @@
     }
 
     function startDrag(e: Event) {
+        if (forceDragDisabled) return; // Do not enable drag while forcing disabled (e.g., during filtering)
         // prevent focus/selection side-effects before enabling drag
         // @ts-ignore
         if (typeof e?.preventDefault === 'function') e.preventDefault();
