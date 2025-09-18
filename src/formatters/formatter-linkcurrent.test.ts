@@ -5,6 +5,7 @@ type Behavior = Parameters<Formatter["setLinkToCurrentFileBehavior"]>[0];
 
 class StubFormatter extends Formatter {
   private link: string | null = null;
+  private variables = new Map<string, string>();
 
   protected async format(input: string): Promise<string> {
     return input;
@@ -15,6 +16,42 @@ class StubFormatter extends Formatter {
   }
 
   protected async promptForValue(): Promise<string> {
+    return "";
+  }
+
+  protected async promptForMathValue(): Promise<string> {
+    return "";
+  }
+
+  protected getVariableValue(variableName: string): string {
+    return this.variables.get(variableName) ?? "";
+  }
+
+  protected async suggestForValue(): Promise<string> {
+    return "";
+  }
+
+  protected async suggestForField(): Promise<string> {
+    return "";
+  }
+
+  protected async getMacroValue(): Promise<string> {
+    return "";
+  }
+
+  protected async promptForVariable(): Promise<string> {
+    return "";
+  }
+
+  protected async getTemplateContent(): Promise<string> {
+    return "";
+  }
+
+  protected async getSelectedText(): Promise<string> {
+    return "";
+  }
+
+  protected async getClipboardContent(): Promise<string> {
     return "";
   }
 
