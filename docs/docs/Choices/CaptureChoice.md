@@ -42,7 +42,12 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 -   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
 -   _Task_ will format your captured text as a task.
 -   _Write to bottom of file_ will put whatever you enter at the bottom of the file.
--   _Append link_ will append a link to the file you have open in the file you're capturing to. You can choose where the link is placed:
+-   _Append link_ will append a link to the file you have open in the file you're capturing to. You can choose between three modes:
+    -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused
+    -   **Enabled (skip if no active file)** – inserts the link when possible and silently drops `{{LINKCURRENT}}` if nothing is open
+    -   **Disabled** – never append a link
+
+    When either enabled mode is selected, you can choose where the link is placed:
     -   **Replace selection** - Replaces any selected text with the link (default)
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
