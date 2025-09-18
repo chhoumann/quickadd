@@ -47,6 +47,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					}`;
 			});
 
+			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
+			this.setLinkToCurrentFileBehavior(
+				linkOptions.enabled && !linkOptions.requireActiveFile
+					? "optional"
+					: "required",
+			);
+
 			let folderPath = "";
 
 			if (this.choice.folder.enabled) {
@@ -145,12 +152,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 
-			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			if (linkOptions.enabled && createdFile) {
 				insertLinkWithPlacement(
 					this.app,
 					this.app.fileManager.generateMarkdownLink(createdFile, ""),
 					linkOptions.placement,
+					{ requireActiveView: linkOptions.requireActiveFile },
 				);
 			}
 

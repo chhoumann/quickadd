@@ -295,29 +295,49 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			this.choice.appendLink,
 		);
 
+		type AppendLinkMode = "required" | "optional" | "disabled";
+		const currentMode: AppendLinkMode = normalizedOptions.enabled
+			? normalizedOptions.requireActiveFile
+				? "required"
+				: "optional"
+			: "disabled";
+
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
-			.setName("Append link to note")
-			.setDesc("Insert a link in the current note to the created file.")
-			.addToggle((toggle) => {
-				toggle.setValue(normalizedOptions.enabled);
-				toggle.onChange((value) => {
-					if (value) {
-						// When enabling, use the new object format
-						this.choice.appendLink = {
-							enabled: true,
-							placement: normalizedOptions.placement,
-						};
-					} else {
-						// When disabling, keep as boolean for simplicity and backward compatibility
-						this.choice.appendLink = false;
+			.setName("Link to created file")
+			.setDesc("Choose how QuickAdd should insert a link to the created file in the current note.")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("required", "Enabled (requires active file)");
+				dropdown.addOption("optional", "Enabled (skip if no active file)");
+				dropdown.addOption("disabled", "Disabled");
+
+				dropdown.setValue(currentMode);
+				dropdown.onChange((value: AppendLinkMode) => {
+					switch (value) {
+						case "disabled":
+							this.choice.appendLink = false;
+							break;
+						case "required":
+							this.choice.appendLink = {
+								enabled: true,
+								placement: normalizedOptions.placement,
+								requireActiveFile: true,
+							};
+							break;
+						case "optional":
+							this.choice.appendLink = {
+								enabled: true,
+								placement: normalizedOptions.placement,
+								requireActiveFile: false,
+							};
+							break;
 					}
 					this.reload();
 				});
 			});
 
 		// Only show placement dropdown when append link is enabled
-		if (normalizedOptions.enabled) {
+		if (currentMode !== "disabled") {
 			const placementSetting: Setting = new Setting(this.contentEl);
 			placementSetting
 				.setName("Link placement")
@@ -330,10 +350,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
-						// Ensure we update the choice with object format when placement changes
+						const currentValue = this.choice.appendLink;
+						const requireActiveFile =
+							typeof currentValue === "boolean"
+								? normalizedOptions.requireActiveFile
+								: currentValue.requireActiveFile;
+
 						this.choice.appendLink = {
 							enabled: true,
 							placement: value,
+							requireActiveFile,
 						};
 					});
 				});

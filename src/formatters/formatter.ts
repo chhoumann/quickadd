@@ -20,11 +20,15 @@ import {
 } from "../constants";
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
+import { log } from "../logger/logManager";
+
+export type LinkToCurrentFileBehavior = "required" | "optional";
 
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, string>();
 	protected dateParser: IDateParser | undefined;
+	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -156,7 +160,14 @@ export abstract class Formatter {
 		let output = input;
 
 		if (!currentFilePathLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
-			throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+			if (this.linkToCurrentFileBehavior === "required") {
+				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+			}
+			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
+			while (LINK_TO_CURRENT_FILE_REGEX.test(output)) {
+				output = this.replacer(output, LINK_TO_CURRENT_FILE_REGEX, "");
+			}
+			return output;
 		} else if (!currentFilePathLink) return output; // No need to throw, there's no {{LINKCURRENT}} + we can skip while loop.
 
 		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
@@ -167,6 +178,10 @@ export abstract class Formatter {
 			);
 
 		return output;
+	}
+
+	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
+		this.linkToCurrentFileBehavior = behavior;
 	}
 
 	protected abstract getCurrentFileLink(): string | null;

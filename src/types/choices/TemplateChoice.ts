@@ -2,9 +2,10 @@ import type ITemplateChoice from "./ITemplateChoice";
 import { Choice } from "./Choice";
 import type { fileExistsChoices } from "src/constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { AppendLinkOptions } from "../linkPlacement";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
-	appendLink: boolean;
+	appendLink: boolean | AppendLinkOptions;
 	fileNameFormat: { enabled: boolean; format: string };
 	folder: {
 		enabled: boolean;
