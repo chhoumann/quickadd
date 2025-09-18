@@ -16,6 +16,11 @@ export interface AppendLinkOptions {
 	enabled: boolean;
 	/** Where to place the appended link */
 	placement: LinkPlacement;
+	/**
+	 * When true, throw an error if no active file is available for link insertion.
+	 * When false, skip link insertion silently if there is no active file.
+	 */
+	requireActiveFile: boolean;
 }
 
 /**
@@ -24,7 +29,12 @@ export interface AppendLinkOptions {
  * @returns True if the value is AppendLinkOptions, false if it's a boolean
  */
 export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): appendLink is AppendLinkOptions {
-	return typeof appendLink === "object" && appendLink !== null && "enabled" in appendLink && "placement" in appendLink;
+	return (
+		typeof appendLink === "object" &&
+		appendLink !== null &&
+		"enabled" in appendLink &&
+		"placement" in appendLink
+	);
 }
 
 /**
@@ -36,13 +46,18 @@ export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): ap
  */
 export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions {
 	if (isAppendLinkOptions(appendLink)) {
-		return appendLink;
+		return {
+			enabled: appendLink.enabled,
+			placement: appendLink.placement ?? "replaceSelection",
+			requireActiveFile: appendLink.requireActiveFile ?? true,
+		};
 	}
-	
+
 	// Convert legacy boolean format to new options format
 	return {
 		enabled: appendLink,
-		placement: "replaceSelection" // Default placement for backward compatibility
+		placement: "replaceSelection", // Default placement for backward compatibility
+		requireActiveFile: appendLink ? true : false,
 	};
 }
 

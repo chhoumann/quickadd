@@ -193,10 +193,16 @@ export function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
+	options: { requireActiveView?: boolean } = {},
 ) {
+	const { requireActiveView = true } = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
-		log.logError("insertLinkWithPlacement: no active Markdown view.");
+		const message = "Cannot append link because no active Markdown view is available.";
+		if (requireActiveView) {
+			throw new Error(message);
+		}
+		log.logMessage(message);
 		return;
 	}
 

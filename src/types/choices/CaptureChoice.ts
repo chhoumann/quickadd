@@ -1,9 +1,10 @@
 import { Choice } from "./Choice";
 import type ICaptureChoice from "./ICaptureChoice";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { AppendLinkOptions } from "../linkPlacement";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
-	appendLink: boolean;
+	appendLink: boolean | AppendLinkOptions;
 	captureTo: string;
 	captureToActiveFile: boolean;
 	createFileIfItDoesntExist: {

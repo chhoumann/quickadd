@@ -12,7 +12,7 @@ import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { normalizeAppendLinkOptions } from "../types/linkPlacement";
+import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
 import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
@@ -89,6 +89,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	async run(): Promise<void> {
 		try {
+			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
+			this.formatter.setLinkToCurrentFileBehavior(
+				linkOptions.enabled && !linkOptions.requireActiveFile
+					? "optional"
+					: "required",
+			);
+
 			const filePath = await this.getFormattedPathToCaptureTo(
 				this.choice.captureToActiveFile,
 			);
@@ -101,10 +108,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				getFileAndAddContentFn = this.onFileExists.bind(
 					this,
 				) as typeof this.onFileExists;
-			} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
-				getFileAndAddContentFn = this.onCreateFileIfItDoesntExist.bind(
-					this,
-				) as typeof this.onCreateFileIfItDoesntExist;
+				} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
+					getFileAndAddContentFn = ((path, capture, _options) =>
+						this.onCreateFileIfItDoesntExist(path, capture, linkOptions)
+					) as typeof this.onCreateFileIfItDoesntExist;
 			} else {
 				log.logWarning(
 					`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`,
@@ -152,14 +159,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
-			if (linkOptions.enabled) {
-				insertLinkWithPlacement(
-					this.app,
-					this.app.fileManager.generateMarkdownLink(file, ""),
-					linkOptions.placement,
-				);
-			}
+				if (linkOptions.enabled) {
+					insertLinkWithPlacement(
+						this.app,
+						this.app.fileManager.generateMarkdownLink(file, ""),
+						linkOptions.placement,
+						{ requireActiveView: linkOptions.requireActiveFile },
+					);
+				}
 
 			if (this.choice.openFile && file) {
 				const openExistingTab = openExistingFileTab(this.app, file);
@@ -347,6 +354,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
+		linkOptions?: AppendLinkOptions,
 	): Promise<{
 		file: TFile;
 		newFileContent: string;
@@ -371,6 +379,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					this.choice.createFileIfItDoesntExist.template,
 					this.choiceExecutor,
 				);
+
+			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
+				singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
+			}
 
 			fileContent = await singleTemplateEngine.run();
 		}

@@ -13,6 +13,7 @@ describe("LinkPlacement", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
 				placement: "newLine",
+				requireActiveFile: true,
 			};
 			expect(isAppendLinkOptions(options)).toBe(true);
 		});
@@ -29,12 +30,13 @@ describe("LinkPlacement", () => {
 	});
 
 	describe("normalizeAppendLinkOptions", () => {
-		it("should return the same object when already AppendLinkOptions", () => {
+		it("should normalize AppendLinkOptions and preserve values", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
 				placement: "afterSelection",
+				requireActiveFile: false,
 			};
-			expect(normalizeAppendLinkOptions(options)).toBe(options);
+			expect(normalizeAppendLinkOptions(options)).toEqual(options);
 		});
 
 		it("should convert true to enabled with default placement", () => {
@@ -42,6 +44,7 @@ describe("LinkPlacement", () => {
 			expect(result).toEqual({
 				enabled: true,
 				placement: "replaceSelection",
+				requireActiveFile: true,
 			});
 		});
 
@@ -50,6 +53,7 @@ describe("LinkPlacement", () => {
 			expect(result).toEqual({
 				enabled: false,
 				placement: "replaceSelection",
+				requireActiveFile: false,
 			});
 		});
 	});
@@ -59,10 +63,12 @@ describe("LinkPlacement", () => {
 			const enabledOptions: AppendLinkOptions = {
 				enabled: true,
 				placement: "endOfLine",
+				requireActiveFile: true,
 			};
 			const disabledOptions: AppendLinkOptions = {
 				enabled: false,
 				placement: "replaceSelection",
+				requireActiveFile: true,
 			};
 
 			expect(isAppendLinkEnabled(enabledOptions)).toBe(true);
@@ -88,6 +94,7 @@ describe("LinkPlacement", () => {
 				const options: AppendLinkOptions = {
 					enabled: true,
 					placement,
+					requireActiveFile: true,
 				};
 				expect(options.placement).toBe(placement);
 			}

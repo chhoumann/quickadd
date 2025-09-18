@@ -1,5 +1,6 @@
 import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
+import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import type QuickAdd from "../main";
@@ -147,6 +148,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			reportError(err, `Could not create file with template at ${filePath}`);
 			return null;
 		}
+	}
+
+	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
+		this.formatter.setLinkToCurrentFileBehavior(behavior);
 	}
 
 	protected async overwriteFileWithTemplate(
