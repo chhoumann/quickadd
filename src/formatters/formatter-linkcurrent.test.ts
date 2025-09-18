@@ -18,6 +18,42 @@ class StubFormatter extends Formatter {
     return "";
   }
 
+  protected async promptForMathValue(): Promise<string> {
+    return "";
+  }
+
+  protected getVariableValue(): string {
+    return "";
+  }
+
+  protected async suggestForValue(): Promise<string> {
+    return "";
+  }
+
+  protected async suggestForField(): Promise<string> {
+    return "";
+  }
+
+  protected async getMacroValue(): Promise<string> {
+    return "";
+  }
+
+  protected async promptForVariable(): Promise<string> {
+    return "";
+  }
+
+  protected async getTemplateContent(): Promise<string> {
+    return "";
+  }
+
+  protected async getSelectedText(): Promise<string> {
+    return "";
+  }
+
+  protected async getClipboardContent(): Promise<string> {
+    return "";
+  }
+
   public setLink(link: string | null) {
     this.link = link;
   }
