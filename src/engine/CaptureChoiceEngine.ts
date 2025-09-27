@@ -37,6 +37,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
 	private formatter: CaptureChoiceFormatter;
 	private readonly plugin: QuickAdd;
+	private templateStructuredVars?: Map<string, unknown>;
 
 	constructor(
 		app: App,
@@ -85,6 +86,23 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
+	}
+
+	/**
+	 * Post-processes the front matter of a newly created file to properly format
+	 * structured variables (arrays, objects, etc.) using Obsidian's YAML processor.
+	 */
+	private async postProcessFrontMatter(file: TFile, structuredVars: Map<string, unknown>): Promise<void> {
+		try {
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				for (const [key, value] of structuredVars) {
+					frontmatter[key] = value;
+				}
+			});
+		} catch (err) {
+			log.logError(`Failed to post-process YAML front matter for file ${file.path}: ${err}`);
+			// Don't throw - the file was still created successfully
+		}
 	}
 
 	async run(): Promise<void> {
@@ -385,10 +403,21 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			fileContent = await singleTemplateEngine.run();
+			
+			// Get structured variables from the template engine's formatter
+			const structuredVars = singleTemplateEngine.getStructuredFrontMatterVars();
+			
+			// Store for later use
+			this.templateStructuredVars = structuredVars;
 		}
 
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
+
+		// Post-process YAML front matter for structured variables if we used a template
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate && this.templateStructuredVars && this.templateStructuredVars.size > 0) {
+			await this.postProcessFrontMatter(file, this.templateStructuredVars);
+		}
 
 		// Process Templater commands in the template if a template was used
 		if (

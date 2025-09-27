@@ -26,9 +26,12 @@ export type LinkToCurrentFileBehavior = "required" | "optional";
 
 export abstract class Formatter {
 	protected value: string;
-	protected variables: Map<string, unknown> = new Map<string, string>();
+	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
+	
+	// Track structured variables that should be processed as proper YAML
+	private structuredFrontMatterVars: Map<string, unknown> = new Map();
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -188,54 +191,200 @@ export abstract class Formatter {
 		this.linkToCurrentFileBehavior = behavior;
 	}
 
+	/**
+	 * Returns the structured variables that should be processed as YAML front matter
+	 * and clears the internal tracking.
+	 */
+	public getAndClearStructuredFrontMatterVars(): Map<string, unknown> {
+		const result = new Map(this.structuredFrontMatterVars);
+		this.structuredFrontMatterVars.clear();
+		return result;
+	}
+
 	protected abstract getCurrentFileLink(): string | null;
+
+	/**
+	 * Finds the YAML front matter range in the input string.
+	 * Returns [start, end] indices or null if no front matter is found.
+	 */
+	private findYamlFrontMatterRange(input: string): [number, number] | null {
+		const lines = input.split('\n');
+		
+		// Skip empty lines at the beginning
+		let startLineIndex = 0;
+		while (startLineIndex < lines.length && lines[startLineIndex].trim() === '') {
+			startLineIndex++;
+		}
+		
+		// First non-empty line must be "---"
+		if (startLineIndex >= lines.length || lines[startLineIndex].trim() !== '---') {
+			return null;
+		}
+		
+		// Find closing "---" or "..."
+		let endLineIndex = startLineIndex + 1;
+		while (endLineIndex < lines.length) {
+			const line = lines[endLineIndex].trim();
+			if (line === '---' || line === '...') {
+				break;
+			}
+			endLineIndex++;
+		}
+		
+		// If we didn't find a closing delimiter, no valid front matter
+		if (endLineIndex >= lines.length) {
+			return null;
+		}
+		
+		// Calculate character indices
+		const startChar = lines.slice(0, startLineIndex).join('\n').length + (startLineIndex > 0 ? 1 : 0);
+		const endChar = lines.slice(0, endLineIndex + 1).join('\n').length;
+		
+		return [startChar, endChar];
+	}
+
+	/**
+	 * Analyzes the context around a variable match to determine if it's in a position
+	 * where YAML structure formatting should be applied.
+	 */
+	private getYamlContextForMatch(
+		input: string,
+		matchStart: number,
+		matchEnd: number,
+		yamlRange: [number, number] | null
+	): {
+		isInYaml: boolean;
+		isQuoted: boolean;
+		lineStart: number;
+		lineEnd: number;
+		baseIndent: string;
+		isKeyValuePosition: boolean;
+	} {
+		const isInYaml = yamlRange !== null && matchStart >= yamlRange[0] && matchStart <= yamlRange[1];
+		
+		if (!isInYaml) {
+			return {
+				isInYaml: false,
+				isQuoted: false,
+				lineStart: 0,
+				lineEnd: 0,
+				baseIndent: '',
+				isKeyValuePosition: false
+			};
+		}
+		
+		// Find the line containing the match
+		const lineStart = input.lastIndexOf('\n', matchStart - 1) + 1;
+		const lineEnd = input.indexOf('\n', matchStart);
+		const actualLineEnd = lineEnd === -1 ? input.length : lineEnd;
+		
+		const before = input.slice(lineStart, matchStart);
+		const after = input.slice(matchEnd, actualLineEnd);
+		
+		// Extract base indentation
+		const baseIndent = (before.match(/^\s*/) || [''])[0];
+		
+		// Check if the match is quoted (surrounded by matching quotes on the same line)
+		const isQuoted = 
+			(input[matchStart - 1] === '"' && input[matchEnd] === '"') ||
+			(input[matchStart - 1] === "'" && input[matchEnd] === "'");
+		
+		// Check if this is a key-value position (format: "key: {{VALUE:var}}")
+		const isKeyValuePosition = /:\s*$/.test(before) && after.trim().length === 0;
+		
+		return {
+			isInYaml: true,
+			isQuoted,
+			lineStart,
+			lineEnd: actualLineEnd,
+			baseIndent,
+			isKeyValuePosition
+		};
+	}
 
 
 
 	protected async replaceVariableInString(input: string) {
-		let output: string = input;
+		let output = input;
+		const regex = new RegExp(VARIABLE_REGEX.source, 'g'); // ensure global
+		let match: RegExpExecArray | null;
 
-		while (VARIABLE_REGEX.test(output)) {
-			const match = VARIABLE_REGEX.exec(output);
-			if (!match) throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(VARIABLE_REGEX) - 10), Math.min(output.length, output.search(VARIABLE_REGEX) + 30))}..."`);
+		while ((match = regex.exec(output)) !== null) {
+			if (!match[1]) {
+				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
+			}
 
 			let variableName = match[1];
 			let defaultValue = "";
 
-			if (variableName) {
-				// Parse default value if present (syntax: {{VALUE:name|default}})
-				const pipeIndex = variableName.indexOf("|");
-				if (pipeIndex !== -1) {
-					defaultValue = variableName.substring(pipeIndex + 1).trim();
-					variableName = variableName.substring(0, pipeIndex).trim();
-				}
-
-				if (!this.hasConcreteVariable(variableName)) {
-					const suggestedValues = variableName.split(",");
-					let variableValue = "";
-
-					if (suggestedValues.length === 1) {
-						variableValue = await this.promptForVariable(variableName);
-					} else {
-						variableValue = await this.suggestForValue(suggestedValues);
-					}
-
-					// Use default value if no input provided
-					if (!variableValue && defaultValue) {
-						variableValue = defaultValue;
-					}
-
-					this.variables.set(variableName, variableValue);
-				}
-
-				output = this.replacer(
-					output,
-					VARIABLE_REGEX,
-					this.getVariableValue(variableName),
-				);
-			} else {
-				break;
+			// Parse default value if present (syntax: {{VALUE:name|default}})
+			const pipeIndex = variableName.indexOf("|");
+			if (pipeIndex !== -1) {
+				defaultValue = variableName.substring(pipeIndex + 1).trim();
+				variableName = variableName.substring(0, pipeIndex).trim();
 			}
+
+			// Ensure variable is set (prompt if needed)
+			if (!this.hasConcreteVariable(variableName)) {
+				const suggestedValues = variableName.split(",");
+				let variableValue = "";
+
+				if (suggestedValues.length === 1) {
+					variableValue = await this.promptForVariable(variableName);
+				} else {
+					variableValue = await this.suggestForValue(suggestedValues);
+				}
+
+				// Use default value if no input provided
+				if (!variableValue && defaultValue) {
+					variableValue = defaultValue;
+				}
+
+				this.variables.set(variableName, variableValue);
+			}
+
+			// Get the raw value from variables
+			const rawValue = this.variables.get(variableName);
+			
+
+			
+			// Check if this should be tracked for YAML post-processing
+			// Re-detect YAML range for current content state
+			const yamlRange = this.findYamlFrontMatterRange(output);
+			const context = this.getYamlContextForMatch(
+				output, 
+				match.index, 
+				match.index + match[0].length, 
+				yamlRange
+			);
+
+
+
+			// Track structured variables in YAML front matter for post-processing
+			if (context.isInYaml && 
+				context.isKeyValuePosition && 
+				typeof rawValue !== 'string' && 
+				(Array.isArray(rawValue) || 
+				 (typeof rawValue === 'object' && rawValue !== null) ||
+				 typeof rawValue === 'number' ||
+				 typeof rawValue === 'boolean' ||
+				 rawValue === null)) {
+				
+				// Extract the YAML key from the template line (before the colon)
+				const lineContent = output.slice(context.lineStart, context.lineEnd);
+				const yamlKeyMatch = lineContent.match(/^\s*([^:]+):/);
+				const yamlKey = yamlKeyMatch ? yamlKeyMatch[1].trim() : variableName;
+				
+
+				this.structuredFrontMatterVars.set(yamlKey, rawValue);
+			}
+
+			// Always use string replacement initially
+			const replacement = this.getVariableValue(variableName);
+
+			// Replace in output and adjust regex position
+			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
+			regex.lastIndex = match.index + replacement.length;
 		}
 
 		return output;

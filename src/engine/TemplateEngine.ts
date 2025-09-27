@@ -13,6 +13,7 @@ import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../c
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { log } from "../logger/logManager";
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
@@ -135,10 +136,19 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+			
+			// Get structured variables before creating the file
+			const structuredVars = this.formatter.getAndClearStructuredFrontMatterVars();
+			
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
 				formattedTemplateContent
 			);
+
+			// Post-process YAML front matter for structured variables
+			if (structuredVars.size > 0) {
+				await this.postProcessFrontMatter(createdFile, structuredVars);
+			}
 
 			// Process Templater commands for template choices
 			await overwriteTemplaterOnce(this.app, createdFile);
@@ -152,6 +162,23 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
 		this.formatter.setLinkToCurrentFileBehavior(behavior);
+	}
+
+	/**
+	 * Post-processes the front matter of a newly created file to properly format
+	 * structured variables (arrays, objects, etc.) using Obsidian's YAML processor.
+	 */
+	private async postProcessFrontMatter(file: TFile, structuredVars: Map<string, unknown>): Promise<void> {
+		try {
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				for (const [key, value] of structuredVars) {
+					frontmatter[key] = value;
+				}
+			});
+		} catch (err) {
+			log.logError(`Failed to post-process YAML front matter for file ${file.path}: ${err}`);
+			// Don't throw - the file was still created successfully
+		}
 	}
 
 	protected async overwriteFileWithTemplate(
