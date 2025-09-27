@@ -145,13 +145,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				formattedTemplateContent
 			);
 
-			// Process Templater commands for template choices
-			await overwriteTemplaterOnce(this.app, createdFile);
-
-			// Post-process front matter for template property types AFTER Templater
+			// Post-process front matter for template property types BEFORE Templater
 			if (templateVars.size > 0) {
 				await this.postProcessFrontMatter(createdFile, templateVars);
 			}
+
+			// Process Templater commands for template choices
+			await overwriteTemplaterOnce(this.app, createdFile);
 
 			return createdFile;
 		} catch (err) {
