@@ -173,7 +173,21 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		try {
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				for (const [key, value] of templateVars) {
-					frontmatter[key] = value;
+					// Convert @date:ISO strings to Date objects
+					if (typeof value === 'string' && value.startsWith('@date:')) {
+						const dateString = value.substring(6); // Remove '@date:' prefix
+						const dateObj = new Date(dateString);
+						
+						// Only convert if it's a valid date
+						if (!isNaN(dateObj.getTime())) {
+							frontmatter[key] = dateObj;
+						} else {
+							// Keep as string if invalid date
+							frontmatter[key] = value;
+						}
+					} else {
+						frontmatter[key] = value;
+					}
 				}
 			});
 		} catch (err) {
@@ -197,7 +211,17 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+			
+			// Get template variables before modifying the file
+			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
+			
 			await this.app.vault.modify(file, formattedTemplateContent);
+
+			// Post-process front matter for template property types BEFORE Templater
+			// Only applies to Markdown files (Canvas files use JSON, not YAML)
+			if (templateVars.size > 0 && file.extension === 'md') {
+				await this.postProcessFrontMatter(file, templateVars);
+			}
 
 			// Process Templater commands
 			await overwriteTemplaterOnce(this.app, file);

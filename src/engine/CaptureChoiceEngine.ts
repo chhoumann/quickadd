@@ -96,7 +96,21 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		try {
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				for (const [key, value] of templateVars) {
-					frontmatter[key] = value;
+					// Convert @date:ISO strings to Date objects
+					if (typeof value === 'string' && value.startsWith('@date:')) {
+						const dateString = value.substring(6); // Remove '@date:' prefix
+						const dateObj = new Date(dateString);
+						
+						// Only convert if it's a valid date
+						if (!isNaN(dateObj.getTime())) {
+							frontmatter[key] = dateObj;
+						} else {
+							// Keep as string if invalid date
+							frontmatter[key] = value;
+						}
+					} else {
+						frontmatter[key] = value;
+					}
 				}
 			});
 		} catch (err) {
