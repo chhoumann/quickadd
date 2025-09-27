@@ -87,6 +87,11 @@ const sidebars = {
 				},
 				{
 					type: "doc",
+					id: "QuickStart-YAMLStructuredVariables",
+					label: "🚀 Quick Start: YAML Variables",
+				},
+				{
+					type: "doc",
 					id: "YAMLStructuredVariables",
 					label: "📋 YAML Structured Variables (Beta)",
 				},

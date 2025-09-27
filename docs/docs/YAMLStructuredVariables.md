@@ -113,7 +113,7 @@ Content here...
 
 | JavaScript Type | YAML Output | Example |
 |-----------------|-------------|---------|
-| **Array** | YAML list | `["a", "b"]` → `- a`<br>`- b` |
+| **Array** | YAML list | `["a", "b"]` → `- a`<br />`- b` |
 | **Empty Array** | Empty list | `[]` → `[]` |
 | **Object** | YAML mapping | `{key: "value"}` → `key: value` |
 | **Empty Object** | Empty mapping | `{}` → `{}` |

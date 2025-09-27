@@ -55,7 +55,7 @@ published: true
 
 | Data Type | Result |
 |-----------|---------|
-| `["a", "b"]` | `- a`<br>`- b` |
+| `["a", "b"]` | `- a`<br />`- b` |
 | `{key: "value"}` | `key: value` |
 | `42` | `42` |
 | `true` | `true` |
