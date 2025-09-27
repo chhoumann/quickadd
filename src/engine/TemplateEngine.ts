@@ -145,13 +145,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				formattedTemplateContent
 			);
 
-			// Post-process YAML front matter for structured variables
+			// Process Templater commands for template choices
+			await overwriteTemplaterOnce(this.app, createdFile);
+
+			// Post-process YAML front matter for structured variables AFTER Templater
 			if (structuredVars.size > 0) {
 				await this.postProcessFrontMatter(createdFile, structuredVars);
 			}
-
-			// Process Templater commands for template choices
-			await overwriteTemplaterOnce(this.app, createdFile);
 
 			return createdFile;
 		} catch (err) {
