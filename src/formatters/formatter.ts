@@ -289,8 +289,11 @@ export abstract class Formatter {
 			(input[matchStart - 1] === '"' && input[matchEnd] === '"') ||
 			(input[matchStart - 1] === "'" && input[matchEnd] === "'");
 		
-		// Check if this is a key-value position (format: "key: {{VALUE:var}}")
-		const isKeyValuePosition = /:\s*$/.test(before) && after.trim().length === 0;
+		// Check if this is a key-value position (format: "key: {{VALUE:var}}" or "key: "{{VALUE:var}}"")
+		// Handle both unquoted and quoted placeholders (Obsidian auto-quotes YAML values)
+		const beforeTrimmed = before.replace(/["']$/, ''); // Remove trailing quote if present
+		const afterTrimmed = after.replace(/^["']/, ''); // Remove leading quote if present
+		const isKeyValuePosition = /:\s*$/.test(beforeTrimmed) && afterTrimmed.trim().length === 0;
 		
 		return {
 			isInYaml: true,
