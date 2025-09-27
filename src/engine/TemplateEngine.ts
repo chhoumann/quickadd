@@ -146,7 +146,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			);
 
 			// Post-process front matter for template property types BEFORE Templater
-			if (templateVars.size > 0) {
+			// Only applies to Markdown files (Canvas files use JSON, not YAML)
+			if (templateVars.size > 0 && createdFile.extension === 'md') {
 				await this.postProcessFrontMatter(createdFile, templateVars);
 			}
 

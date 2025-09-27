@@ -415,7 +415,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
 
 		// Post-process front matter for template property types if we used a template
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate && this.templatePropertyVars && this.templatePropertyVars.size > 0) {
+		// Only applies to Markdown files (Canvas files use JSON, not YAML)
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate && 
+			this.templatePropertyVars && 
+			this.templatePropertyVars.size > 0 && 
+			file.extension === 'md') {
 			await this.postProcessFrontMatter(file, this.templatePropertyVars);
 		}
 

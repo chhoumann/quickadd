@@ -64,13 +64,13 @@ Your template syntax stays exactly the same:
 
 ```yaml
 ---
-title: {{VALUE:title}}
-authors: {{VALUE:authors}}
-tags: {{VALUE:tags}}
-metadata: {{VALUE:metadata}}
-published: {{VALUE:published}}
-year: {{VALUE:year}}
-notes: {{VALUE:notes}}
+title: "{{VALUE:title}}"
+authors: "{{VALUE:authors}}"
+tags: "{{VALUE:tags}}"
+metadata: "{{VALUE:metadata}}"
+published: "{{VALUE:published}}"
+year: "{{VALUE:year}}"
+notes: "{{VALUE:notes}}"
 ---
 
 # {{VALUE:title}}
@@ -163,21 +163,6 @@ paper:
   reviewed: true
 ```
 
-## Context-Aware Processing
-
-The feature only applies property type formatting when appropriate:
-
-### ✅ **When Property Type Formatting Applies**
-- Variable is in YAML front matter (between `---` delimiters)
-- Variable is the complete value for a property (`key: {{VALUE:var}}`)
-- Variable contains structured data (not a string)
-
-### ❌ **When String Replacement is Used**
-- Variable is outside front matter: `# {{VALUE:title}}`
-- Variable is quoted: `title: "{{VALUE:title}}"` *(still gets structured formatting)*
-- Variable is part of a larger value: `aliases: [{{VALUE:a}}, {{VALUE:b}}]`
-- Variable contains string data
-
 ## Real-World Examples
 
 ### Academic Papers
@@ -203,12 +188,12 @@ Object.assign(QuickAdd.variables, paper);
 **Template:**
 ```yaml
 ---
-title: {{VALUE:title}}
-authors: {{VALUE:authors}}
-year: {{VALUE:year}}
-venue: {{VALUE:venue}}
-keywords: {{VALUE:keywords}}
-metrics: {{VALUE:metrics}}
+title: "{{VALUE:title}}"
+authors: "{{VALUE:authors}}"
+year: "{{VALUE:year}}"
+venue: "{{VALUE:venue}}"
+keywords: "{{VALUE:keywords}}"
+metrics: "{{VALUE:metrics}}"
 ---
 
 # {{VALUE:title}}
@@ -281,99 +266,6 @@ project:
       complete: false
   deadline: "2023-12-01"
 ```
-
-## Backward Compatibility
-
-### Existing Templates Keep Working
-All existing QuickAdd templates continue to work exactly as before:
-- String variables work unchanged
-- Manual formatting still works
-- No templates need to be modified
-
-### Migration Path
-You can gradually adopt template property types:
-1. **Phase 1**: Enable the feature, test with simple arrays
-2. **Phase 2**: Convert complex string formatting to structured data
-3. **Phase 3**: Fully leverage nested objects and complex structures
-
-### Side-by-Side Usage
-You can mix both approaches in the same template:
-```yaml
----
-title: "{{VALUE:title}}"              # String (unchanged)
-authors: {{VALUE:authors}}            # Array (structured)
-legacy_tags: "{{VALUE:tag_string}}"   # String (unchanged) 
-modern_tags: {{VALUE:tag_array}}      # Array (structured)
----
-```
-
-## Troubleshooting
-
-### Feature Not Working
-1. **Check settings**: Ensure "Format template variables as proper property types (Beta)" is enabled
-2. **Verify context**: Make sure variables are in front matter, not document body
-3. **Check data types**: Ensure variables contain arrays/objects, not strings
-
-### YAML Parsing Errors
-If you see YAML parsing errors:
-1. **Check for special characters** in string values
-2. **Verify nested structure** doesn't have circular references
-3. **Try with simpler data** first to isolate the issue
-
-### Mixed Results
-If some variables get structured formatting and others don't:
-- **String variables** will always use string replacement
-- **Variables outside front matter** use string replacement
-- **Quoted placeholders** in complex expressions may use string replacement
-
-### Debugging Tips
-1. **Start simple**: Test with basic arrays before complex nested objects
-2. **Check console**: Look for error messages in developer console
-3. **Disable temporarily**: Turn off the feature to compare behavior
-4. **Test incrementally**: Add one structured variable at a time
-
-## Performance Considerations
-
-### Minimal Impact
-- Processing happens only when creating new files
-- Uses Obsidian's optimized YAML processor
-- No impact on existing files or daily usage
-
-### Large Data Structures
-- Very large objects may take slightly longer to process
-- Consider breaking up extremely complex nested structures
-- No practical limits for typical note-taking scenarios
-
-## Technical Details
-
-### How It Works
-1. **Detection**: Identifies template variables in YAML front matter during template processing
-2. **Initial Creation**: Creates files with string representations first
-3. **Post-Processing**: Uses `FileManager.processFrontMatter()` to rewrite structured data
-4. **YAML Serialization**: Leverages Obsidian's battle-tested YAML formatting
-
-### Security & Safety
-- **No external dependencies**: Uses only Obsidian's built-in functionality
-- **Graceful fallback**: If post-processing fails, file is still created with strings
-- **Data integrity**: Original variable data is preserved throughout the process
-
-### Compatibility
-- **Obsidian versions**: Works with all recent Obsidian versions
-- **Other plugins**: Compatible with Templater and other template plugins
-- **File types**: Works with all Markdown files, including those with Canvas front matter
-
-## Limitations (Beta)
-
-### Current Limitations
-- **Front matter only**: Only works in YAML front matter, not document body
-- **Complete values only**: Doesn't work for partial replacements like `tags: [{{VALUE:a}}, "fixed"]`
-- **Template choices and captures**: Both supported, but complex workflows may need testing
-
-### Planned Improvements
-- Enhanced support for mixed inline contexts
-- Better error reporting and validation
-- Performance optimizations for very large data structures
-- Integration with field suggestions and autocomplete
 
 ## Feedback & Support
 

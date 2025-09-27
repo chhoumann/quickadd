@@ -206,41 +206,21 @@ export abstract class Formatter {
 	/**
 	 * Finds the YAML front matter range in the input string.
 	 * Returns [start, end] indices or null if no front matter is found.
+	 * Handles both LF and CRLF line endings correctly.
 	 */
 	private findYamlFrontMatterRange(input: string): [number, number] | null {
-		const lines = input.split('\n');
+		// Use regex to find front matter block, handling CRLF properly
+		const frontMatterRegex = /^(\s*---\r?\n)([\s\S]*?)(\r?\n(?:---|\.\.\.)\s*(?:\r?\n|$))/;
+		const match = frontMatterRegex.exec(input);
 		
-		// Skip empty lines at the beginning
-		let startLineIndex = 0;
-		while (startLineIndex < lines.length && lines[startLineIndex].trim() === '') {
-			startLineIndex++;
-		}
-		
-		// First non-empty line must be "---"
-		if (startLineIndex >= lines.length || lines[startLineIndex].trim() !== '---') {
+		if (!match) {
 			return null;
 		}
 		
-		// Find closing "---" or "..."
-		let endLineIndex = startLineIndex + 1;
-		while (endLineIndex < lines.length) {
-			const line = lines[endLineIndex].trim();
-			if (line === '---' || line === '...') {
-				break;
-			}
-			endLineIndex++;
-		}
+		const startIndex = 0;
+		const endIndex = match[0].length;
 		
-		// If we didn't find a closing delimiter, no valid front matter
-		if (endLineIndex >= lines.length) {
-			return null;
-		}
-		
-		// Calculate character indices
-		const startChar = lines.slice(0, startLineIndex).join('\n').length + (startLineIndex > 0 ? 1 : 0);
-		const endChar = lines.slice(0, endLineIndex + 1).join('\n').length;
-		
-		return [startChar, endChar];
+		return [startIndex, endIndex];
 	}
 
 	/**
