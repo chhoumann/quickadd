@@ -12,6 +12,8 @@ Native support for proper Obsidian property types in QuickAdd template front mat
 
 QuickAdd now supports automatic property type formatting for template variables in front matter. Instead of converting everything to text, template variables become proper Obsidian property types: arrays become List properties, numbers become Number properties, booleans become Checkbox properties, and so on.
 
+The goal is to make note creation easier and more intuitive. When we've reached that point, the option to disable this feature will be removed. While we're in beta, we appreciate your feedback and suggestions.
+
 **Before:**
 ```yaml
 authors: "John Doe, Jane Smith, Bob Wilson"  # Manual string formatting
@@ -24,8 +26,6 @@ authors:
   - Jane Smith  
   - Bob Wilson
 ```
-
-This feature uses Obsidian's built-in property system for maximum reliability and compatibility.
 
 ## Enabling the Feature
 
