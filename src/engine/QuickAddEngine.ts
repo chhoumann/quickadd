@@ -72,4 +72,32 @@ export abstract class QuickAddEngine {
 
 		return await this.app.vault.create(filePath, fileContent);
 	}
+
+	/**
+	 * Post-processes the front matter of a newly created file to properly format
+	 * template property variables (arrays, objects, etc.) using Obsidian's YAML processor.
+	 */
+	protected async postProcessFrontMatter(file: TFile, templatePropertyVars: Map<string, unknown>): Promise<void> {
+		try {
+			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+				for (const [key, value] of templatePropertyVars) {
+					// Convert @date:ISO strings to Date objects for proper YAML serialization
+					if (typeof value === 'string' && value.startsWith('@date:')) {
+						const isoString = value.substring(6);
+						const dateValue = new Date(isoString);
+						if (!isNaN(dateValue.getTime())) {
+							frontmatter[key] = dateValue;
+						} else {
+							frontmatter[key] = value; // Keep as string if invalid date
+						}
+					} else {
+						frontmatter[key] = value;
+					}
+				}
+			});
+		} catch (err) {
+			log.logError(`Failed to post-process front matter for file ${file.path}: ${err}`);
+			// Don't throw - the file was still created successfully
+		}
+	}
 }

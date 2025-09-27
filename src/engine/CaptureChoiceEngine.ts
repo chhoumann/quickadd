@@ -88,36 +88,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
 	}
 
-	/**
-	 * Post-processes the front matter of a newly created file to properly format
-	 * template variables as proper property types using Obsidian's YAML processor.
-	 */
-	private async postProcessFrontMatter(file: TFile, templateVars: Map<string, unknown>): Promise<void> {
-		try {
-			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				for (const [key, value] of templateVars) {
-					// Convert @date:ISO strings to Date objects
-					if (typeof value === 'string' && value.startsWith('@date:')) {
-						const dateString = value.substring(6); // Remove '@date:' prefix
-						const dateObj = new Date(dateString);
-						
-						// Only convert if it's a valid date
-						if (!isNaN(dateObj.getTime())) {
-							frontmatter[key] = dateObj;
-						} else {
-							// Keep as string if invalid date
-							frontmatter[key] = value;
-						}
-					} else {
-						frontmatter[key] = value;
-					}
-				}
-			});
-		} catch (err) {
-			log.logError(`Failed to post-process YAML front matter for file ${file.path}: ${err}`);
-			// Don't throw - the file was still created successfully
-		}
-	}
+
 
 	async run(): Promise<void> {
 		try {
