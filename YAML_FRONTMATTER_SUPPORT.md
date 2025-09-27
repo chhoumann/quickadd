@@ -2,6 +2,13 @@
 
 This implementation adds native support for proper YAML formatting of structured variables (arrays, objects, numbers, booleans, null) in QuickAdd templates.
 
+## Enabling the Feature
+
+This is a **beta feature** that must be enabled in settings:
+1. Go to **Settings → QuickAdd**  
+2. Enable **"Enable YAML Structured Variables (Beta)"**
+3. The feature is disabled by default to ensure backward compatibility
+
 ## How It Works
 
 ### 1. Template Processing

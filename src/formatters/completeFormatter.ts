@@ -271,6 +271,10 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
+	protected isYamlStructuredVariablesEnabled(): boolean {
+		return this.plugin.settings.enableYamlStructuredVariables;
+	}
+
 	protected async replaceInlineJavascriptInString(input: string) {
 		let output: string = input;
 

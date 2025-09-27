@@ -54,6 +54,10 @@ class Issue929TestFormatter extends Formatter {
         return Promise.resolve("");
     }
 
+    protected isYamlStructuredVariablesEnabled(): boolean {
+        return false; // Test formatter doesn't need structured YAML variable handling
+    }
+
     // Expose for testing
     public async testFormat(input: string): Promise<string> {
         return await this.format(input);

@@ -187,4 +187,8 @@ export class FormatDisplayFormatter extends Formatter {
 		
 		return output;
 	}
+
+	protected isYamlStructuredVariablesEnabled(): boolean {
+		return false; // Preview formatter doesn't need structured YAML variable handling
+	}
 }

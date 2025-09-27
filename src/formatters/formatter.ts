@@ -361,7 +361,9 @@ export abstract class Formatter {
 
 
 			// Track structured variables in YAML front matter for post-processing
-			if (context.isInYaml && 
+			// Only if the feature is enabled in settings
+			if (this.isYamlStructuredVariablesEnabled() &&
+				context.isInYaml && 
 				context.isKeyValuePosition && 
 				typeof rawValue !== 'string' && 
 				(Array.isArray(rawValue) || 
@@ -375,7 +377,6 @@ export abstract class Formatter {
 				const yamlKeyMatch = lineContent.match(/^\s*([^:]+):/);
 				const yamlKey = yamlKeyMatch ? yamlKeyMatch[1].trim() : variableName;
 				
-
 				this.structuredFrontMatterVars.set(yamlKey, rawValue);
 			}
 
@@ -595,6 +596,11 @@ export abstract class Formatter {
 	protected abstract getSelectedText(): Promise<string>;
 
 	protected abstract getClipboardContent(): Promise<string>;
+
+	/**
+	 * Returns whether YAML structured variables feature is enabled in settings.
+	 */
+	protected abstract isYamlStructuredVariablesEnabled(): boolean;
 	
 	protected replaceRandomInString(input: string): string {
 		let output = input;
