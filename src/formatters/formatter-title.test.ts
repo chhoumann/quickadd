@@ -114,12 +114,29 @@ describe('Formatter - Title Handling', () => {
             expect(result).toBe('Test Title');
         });
 
-        it('should overwrite previous title', () => {
-            formatter.setTitle('First Title');
-            formatter.setTitle('Second Title');
-            const result = formatter.testReplaceTitleInString('{{title}}');
-            expect(result).toBe('Second Title');
-        });
+        it('should not overwrite manually set title', () => {
+        // Use a public method to simulate script setting the variable
+        (formatter as any).variables.set('title', 'Script Provided Title');
+        formatter.setTitle('File Basename Title');
+        const result = formatter.testReplaceTitleInString('{{title}}');
+        expect(result).toBe('Script Provided Title');
+		});
+
+		it('should set title when none exists', () => {
+			formatter.setTitle('File Basename Title');
+			const result = formatter.testReplaceTitleInString('{{title}}');
+			expect(result).toBe('File Basename Title');
+		});
+
+		it('should preserve script-provided title for {{VALUE:title}} replacement', () => {
+			// Simulate script setting title variable
+			(formatter as any).variables.set('title', 'Script Provided Title');
+			// Simulate engine trying to set title from filename
+			formatter.setTitle('My Note');
+			// Test that script value is preserved
+			const result = (formatter as any).getVariableValue('title');
+			expect(result).toBe('Script Provided Title');
+		});
 
         it('should handle empty title', () => {
             formatter.setTitle('');
