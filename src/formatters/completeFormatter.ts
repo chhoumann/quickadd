@@ -135,18 +135,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		const value = this.variables.get(variableName);
-		if (value === undefined || value === null) {
-			return "";
-		}
-		
-		// For arrays, use a more readable string representation
-		// This will be overwritten by post-processing for template property types
-		if (Array.isArray(value)) {
-			return value.join(', '); // Space after comma for better readability
-		}
-		
-		return String(value);
+		return (this.variables.get(variableName) as string) ?? "";
 	}
 
 	protected async promptForValue(header?: string): Promise<string> {
