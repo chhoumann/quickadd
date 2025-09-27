@@ -137,8 +137,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
 			
-			// Get structured variables before creating the file
-			const structuredVars = this.formatter.getAndClearStructuredFrontMatterVars();
+			// Get template variables before creating the file
+			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
 			
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
@@ -148,9 +148,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Process Templater commands for template choices
 			await overwriteTemplaterOnce(this.app, createdFile);
 
-			// Post-process YAML front matter for structured variables AFTER Templater
-			if (structuredVars.size > 0) {
-				await this.postProcessFrontMatter(createdFile, structuredVars);
+			// Post-process front matter for template property types AFTER Templater
+			if (templateVars.size > 0) {
+				await this.postProcessFrontMatter(createdFile, templateVars);
 			}
 
 			return createdFile;
@@ -166,12 +166,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	/**
 	 * Post-processes the front matter of a newly created file to properly format
-	 * structured variables (arrays, objects, etc.) using Obsidian's YAML processor.
+	 * template variables as proper property types using Obsidian's YAML processor.
 	 */
-	private async postProcessFrontMatter(file: TFile, structuredVars: Map<string, unknown>): Promise<void> {
+	private async postProcessFrontMatter(file: TFile, templateVars: Map<string, unknown>): Promise<void> {
 		try {
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				for (const [key, value] of structuredVars) {
+				for (const [key, value] of templateVars) {
 					frontmatter[key] = value;
 				}
 			});

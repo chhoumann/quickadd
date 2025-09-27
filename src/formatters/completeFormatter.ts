@@ -141,7 +141,7 @@ export class CompleteFormatter extends Formatter {
 		}
 		
 		// For arrays, use a more readable string representation
-		// This will be overwritten by post-processing for YAML structured variables
+		// This will be overwritten by post-processing for template property types
 		if (Array.isArray(value)) {
 			return value.join(', '); // Space after comma for better readability
 		}
@@ -282,8 +282,8 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	protected isYamlStructuredVariablesEnabled(): boolean {
-		return this.plugin.settings.enableYamlStructuredVariables;
+	protected isTemplatePropertyTypesEnabled(): boolean {
+		return this.plugin.settings.enableTemplatePropertyTypes;
 	}
 
 	protected async replaceInlineJavascriptInString(input: string) {

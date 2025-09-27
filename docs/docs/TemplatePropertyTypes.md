@@ -1,16 +1,16 @@
 ---
-title: YAML Structured Variables (Beta)
+title: Template Property Types (Beta)
 sidebar_position: 5
-tags: [yaml, templates, beta, front matter]
+tags: [properties, templates, beta, front matter, obsidian]
 ---
 
-# YAML Structured Variables (Beta)
+# Template Property Types (Beta)
 
-Native support for arrays, objects, and other structured data types in QuickAdd template front matter.
+Native support for proper Obsidian property types in QuickAdd template front matter.
 
 ## Overview
 
-QuickAdd now supports automatic YAML formatting for structured variables in template front matter. Instead of manually converting arrays to comma-separated strings, you can use native JavaScript data structures that get properly formatted as YAML.
+QuickAdd now supports automatic property type formatting for template variables in front matter. Instead of converting everything to text, template variables become proper Obsidian property types: arrays become List properties, numbers become Number properties, booleans become Checkbox properties, and so on.
 
 **Before:**
 ```yaml
@@ -25,14 +25,14 @@ authors:
   - Bob Wilson
 ```
 
-This feature uses Obsidian's built-in YAML processor for maximum reliability and compatibility.
+This feature uses Obsidian's built-in property system for maximum reliability and compatibility.
 
 ## Enabling the Feature
 
 ⚠️ **This is a beta feature** - enable it in settings:
 
 1. Open **Settings → QuickAdd**
-2. Toggle **"Enable YAML Structured Variables (Beta)"**
+2. Toggle **"Format template variables as proper property types (Beta)"**
 3. The feature is **disabled by default** for safety
 
 ## Basic Usage
@@ -78,9 +78,9 @@ notes: {{VALUE:notes}}
 Content here...
 ```
 
-### 3. Get Perfect YAML Output
+### 3. Get Perfect Property Types
 
-The result is properly formatted YAML:
+The result is properly formatted as Obsidian property types:
 
 ```yaml
 ---
@@ -111,11 +111,11 @@ Content here...
 
 ## Supported Data Types
 
-| JavaScript Type | YAML Output | Example |
+| JavaScript Type | Property Output | Example |
 |-----------------|-------------|---------|
-| **Array** | YAML list | `["a", "b"]` → `- a`<br />`- b` |
+| **Array** | List property | `["a", "b"]` → `- a`<br />`- b` |
 | **Empty Array** | Empty list | `[]` → `[]` |
-| **Object** | YAML mapping | `{key: "value"}` → `key: value` |
+| **Object** | Object property | `{key: "value"}` → `key: value` |
 | **Empty Object** | Empty mapping | `{}` → `{}` |
 | **Number** | Number literal | `42` → `42` |
 | **Boolean** | Boolean literal | `true` → `true` |
@@ -165,11 +165,11 @@ paper:
 
 ## Context-Aware Processing
 
-The feature only applies YAML formatting when appropriate:
+The feature only applies property type formatting when appropriate:
 
-### ✅ **When YAML Formatting Applies**
+### ✅ **When Property Type Formatting Applies**
 - Variable is in YAML front matter (between `---` delimiters)
-- Variable is the complete value for a YAML key (`key: {{VALUE:var}}`)
+- Variable is the complete value for a property (`key: {{VALUE:var}}`)
 - Variable contains structured data (not a string)
 
 ### ❌ **When String Replacement is Used**
@@ -291,7 +291,7 @@ All existing QuickAdd templates continue to work exactly as before:
 - No templates need to be modified
 
 ### Migration Path
-You can gradually adopt structured variables:
+You can gradually adopt template property types:
 1. **Phase 1**: Enable the feature, test with simple arrays
 2. **Phase 2**: Convert complex string formatting to structured data
 3. **Phase 3**: Fully leverage nested objects and complex structures
@@ -310,7 +310,7 @@ modern_tags: {{VALUE:tag_array}}      # Array (structured)
 ## Troubleshooting
 
 ### Feature Not Working
-1. **Check settings**: Ensure "Enable YAML Structured Variables (Beta)" is enabled
+1. **Check settings**: Ensure "Format template variables as proper property types (Beta)" is enabled
 2. **Verify context**: Make sure variables are in front matter, not document body
 3. **Check data types**: Ensure variables contain arrays/objects, not strings
 
@@ -347,7 +347,7 @@ If some variables get structured formatting and others don't:
 ## Technical Details
 
 ### How It Works
-1. **Detection**: Identifies structured variables in YAML front matter during template processing
+1. **Detection**: Identifies template variables in YAML front matter during template processing
 2. **Initial Creation**: Creates files with string representations first
 3. **Post-Processing**: Uses `FileManager.processFrontMatter()` to rewrite structured data
 4. **YAML Serialization**: Leverages Obsidian's battle-tested YAML formatting

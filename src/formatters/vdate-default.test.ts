@@ -88,7 +88,7 @@ class TestFormatter extends Formatter {
         return "";
     }
 
-    protected isYamlStructuredVariablesEnabled(): boolean {
+    protected isTemplatePropertyTypesEnabled(): boolean {
         return false; // Test formatter doesn't need structured YAML variable handling
     }
 

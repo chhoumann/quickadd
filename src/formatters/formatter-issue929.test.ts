@@ -54,7 +54,7 @@ class Issue929TestFormatter extends Formatter {
         return Promise.resolve("");
     }
 
-    protected isYamlStructuredVariablesEnabled(): boolean {
+    protected isTemplatePropertyTypesEnabled(): boolean {
         return false; // Test formatter doesn't need structured YAML variable handling
     }
 

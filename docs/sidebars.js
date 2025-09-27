@@ -87,8 +87,8 @@ const sidebars = {
 				},
 				{
 					type: "doc",
-					id: "YAMLStructuredVariables",
-					label: "📋 YAML Structured Variables (Beta)",
+					id: "TemplatePropertyTypes",
+					label: "📋 Template Property Types (Beta)",
 				},
 			],
 		},

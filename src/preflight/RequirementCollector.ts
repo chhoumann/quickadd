@@ -279,7 +279,7 @@ export class RequirementCollector extends Formatter {
 		return "";
 	}
 
-	protected isYamlStructuredVariablesEnabled(): boolean {
+	protected isTemplatePropertyTypesEnabled(): boolean {
 		return false; // Requirement collector doesn't need structured YAML variable handling
 	}
 }

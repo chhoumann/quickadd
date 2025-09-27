@@ -170,7 +170,7 @@ export class FileNameDisplayFormatter extends Formatter {
 		return output;
 	}
 
-	protected isYamlStructuredVariablesEnabled(): boolean {
+	protected isTemplatePropertyTypesEnabled(): boolean {
 		return false; // Not applicable for filename display
 	}
 }

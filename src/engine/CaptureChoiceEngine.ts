@@ -37,7 +37,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
 	private formatter: CaptureChoiceFormatter;
 	private readonly plugin: QuickAdd;
-	private templateStructuredVars?: Map<string, unknown>;
+	private templatePropertyVars?: Map<string, unknown>;
 
 	constructor(
 		app: App,
@@ -90,12 +90,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	/**
 	 * Post-processes the front matter of a newly created file to properly format
-	 * structured variables (arrays, objects, etc.) using Obsidian's YAML processor.
+	 * template variables as proper property types using Obsidian's YAML processor.
 	 */
-	private async postProcessFrontMatter(file: TFile, structuredVars: Map<string, unknown>): Promise<void> {
+	private async postProcessFrontMatter(file: TFile, templateVars: Map<string, unknown>): Promise<void> {
 		try {
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-				for (const [key, value] of structuredVars) {
+				for (const [key, value] of templateVars) {
 					frontmatter[key] = value;
 				}
 			});
@@ -404,19 +404,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			fileContent = await singleTemplateEngine.run();
 			
-			// Get structured variables from the template engine's formatter
-			const structuredVars = singleTemplateEngine.getStructuredFrontMatterVars();
+			// Get template variables from the template engine's formatter
+			const templateVars = singleTemplateEngine.getTemplatePropertyVars();
 			
 			// Store for later use
-			this.templateStructuredVars = structuredVars;
+			this.templatePropertyVars = templateVars;
 		}
 
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
 
-		// Post-process YAML front matter for structured variables if we used a template
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate && this.templateStructuredVars && this.templateStructuredVars.size > 0) {
-			await this.postProcessFrontMatter(file, this.templateStructuredVars);
+		// Post-process front matter for template property types if we used a template
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate && this.templatePropertyVars && this.templatePropertyVars.size > 0) {
+			await this.postProcessFrontMatter(file, this.templatePropertyVars);
 		}
 
 		// Process Templater commands in the template if a template was used

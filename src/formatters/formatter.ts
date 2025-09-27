@@ -30,8 +30,8 @@ export abstract class Formatter {
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 	
-	// Track structured variables that should be processed as proper YAML
-	private structuredFrontMatterVars: Map<string, unknown> = new Map();
+	// Track template variables that should be processed as proper property types  
+	private templatePropertyVars: Map<string, unknown> = new Map();
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -192,12 +192,12 @@ export abstract class Formatter {
 	}
 
 	/**
-	 * Returns the structured variables that should be processed as YAML front matter
+	 * Returns the template variables that should be processed as proper property types
 	 * and clears the internal tracking.
 	 */
-	public getAndClearStructuredFrontMatterVars(): Map<string, unknown> {
-		const result = new Map(this.structuredFrontMatterVars);
-		this.structuredFrontMatterVars.clear();
+	public getAndClearTemplatePropertyVars(): Map<string, unknown> {
+		const result = new Map(this.templatePropertyVars);
+		this.templatePropertyVars.clear();
 		return result;
 	}
 
@@ -363,9 +363,9 @@ export abstract class Formatter {
 
 
 
-			// Track structured variables in YAML front matter for post-processing
+			// Track template variables for property type post-processing
 			// Only if the feature is enabled in settings
-			if (this.isYamlStructuredVariablesEnabled() &&
+			if (this.isTemplatePropertyTypesEnabled() &&
 				context.isInYaml && 
 				context.isKeyValuePosition && 
 				typeof rawValue !== 'string' && 
@@ -375,12 +375,12 @@ export abstract class Formatter {
 				 typeof rawValue === 'boolean' ||
 				 rawValue === null)) {
 				
-				// Extract the YAML key from the template line (before the colon)
+				// Extract the property key from the template line (before the colon)
 				const lineContent = output.slice(context.lineStart, context.lineEnd);
-				const yamlKeyMatch = lineContent.match(/^\s*([^:]+):/);
-				const yamlKey = yamlKeyMatch ? yamlKeyMatch[1].trim() : variableName;
+				const propertyKeyMatch = lineContent.match(/^\s*([^:]+):/);
+				const propertyKey = propertyKeyMatch ? propertyKeyMatch[1].trim() : variableName;
 				
-				this.structuredFrontMatterVars.set(yamlKey, rawValue);
+				this.templatePropertyVars.set(propertyKey, rawValue);
 			}
 
 			// Always use string replacement initially
@@ -601,9 +601,9 @@ export abstract class Formatter {
 	protected abstract getClipboardContent(): Promise<string>;
 
 	/**
-	 * Returns whether YAML structured variables feature is enabled in settings.
+	 * Returns whether template property types feature is enabled in settings.
 	 */
-	protected abstract isYamlStructuredVariablesEnabled(): boolean;
+	protected abstract isTemplatePropertyTypesEnabled(): boolean;
 	
 	protected replaceRandomInString(input: string): string {
 		let output = input;

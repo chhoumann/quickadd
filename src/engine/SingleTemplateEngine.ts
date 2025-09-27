@@ -29,9 +29,9 @@ export class SingleTemplateEngine extends TemplateEngine {
 	}
 
 	/**
-	 * Returns the structured variables that should be processed as YAML front matter.
+	 * Returns the template variables that should be processed as proper property types.
 	 */
-	public getStructuredFrontMatterVars(): Map<string, unknown> {
-		return this.formatter.getAndClearStructuredFrontMatterVars();
+	public getTemplatePropertyVars(): Map<string, unknown> {
+		return this.formatter.getAndClearTemplatePropertyVars();
 	}
 }

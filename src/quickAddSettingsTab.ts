@@ -29,7 +29,7 @@ export interface QuickAddSettings {
 	disableOnlineFeatures: boolean;
 	enableRibbonIcon: boolean;
 	showCaptureNotification: boolean;
-	enableYamlStructuredVariables: boolean;
+	enableTemplatePropertyTypes: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -61,7 +61,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
 	showCaptureNotification: true,
-	enableYamlStructuredVariables: false,
+	enableTemplatePropertyTypes: false,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -103,7 +103,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
-		this.addYamlStructuredVariablesSetting();
+		this.addTemplatePropertyTypesSetting();
 		this.addGlobalVariablesSetting();
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
@@ -149,16 +149,18 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		});
 	}
 
-	addYamlStructuredVariablesSetting() {
+	addTemplatePropertyTypesSetting() {
 		const setting = new Setting(this.containerEl);
-		setting.setName("Enable YAML Structured Variables (Beta)");
+		setting.setName("Format template variables as proper property types (Beta)");
 		setting.setDesc(
-			"When enabled, arrays, objects, numbers, booleans, and null values in front matter templates will be formatted as proper YAML structures instead of strings. This is a beta feature that may have edge cases."
+			"When enabled, template variables in front matter will be formatted as proper Obsidian property types. " +
+			"Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. " +
+			"This is a beta feature that may have edge cases."
 		);
 		setting.addToggle((toggle) => {
-			toggle.setValue(settingsStore.getState().enableYamlStructuredVariables);
+			toggle.setValue(settingsStore.getState().enableTemplatePropertyTypes);
 			toggle.onChange((value) => {
-				settingsStore.setState({ enableYamlStructuredVariables: value });
+				settingsStore.setState({ enableTemplatePropertyTypes: value });
 			});
 		});
 	}
