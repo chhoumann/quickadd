@@ -13,7 +13,6 @@ import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../c
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { log } from "../logger/logManager";
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
