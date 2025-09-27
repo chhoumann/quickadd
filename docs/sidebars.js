@@ -85,6 +85,11 @@ const sidebars = {
 					id: "AIAssistant",
 					label: "🧠 AI Assistant",
 				},
+				{
+					type: "doc",
+					id: "YAMLStructuredVariables",
+					label: "📋 YAML Structured Variables (Beta)",
+				},
 			],
 		},
 		{
