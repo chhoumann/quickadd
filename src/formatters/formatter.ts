@@ -289,7 +289,7 @@ export abstract class Formatter {
 
 	protected async replaceVariableInString(input: string) {
 		let output = input;
-		const regex = new RegExp(VARIABLE_REGEX.source, 'g'); // ensure global
+		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
 		let match: RegExpExecArray | null;
 
 		while ((match = regex.exec(output)) !== null) {
