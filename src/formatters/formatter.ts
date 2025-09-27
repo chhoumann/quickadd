@@ -41,7 +41,11 @@ export abstract class Formatter {
 	}
 	
 	public setTitle(title: string): void {
-		this.variables.set("title", title);
+		// Only set title if it hasn't been manually set by a script
+		// This preserves script-provided values for {{VALUE:title}}
+		if (!this.hasConcreteVariable("title")) {
+			this.variables.set("title", title);
+		}
 	}
 
 	protected replacer(str: string, reg: RegExp, replaceValue: string) {
