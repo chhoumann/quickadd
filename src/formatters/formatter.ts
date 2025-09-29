@@ -21,6 +21,7 @@ import {
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
+import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -30,8 +31,8 @@ export abstract class Formatter {
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 	
-	// Track template variables that should be processed as proper property types  
-	private templatePropertyVars: Map<string, unknown> = new Map();
+	// Tracks variables collected for YAML property post-processing
+	private propertyCollector: TemplatePropertyCollector = new TemplatePropertyCollector();
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -196,94 +197,10 @@ export abstract class Formatter {
 	 * and clears the internal tracking.
 	 */
 	public getAndClearTemplatePropertyVars(): Map<string, unknown> {
-		const result = new Map(this.templatePropertyVars);
-		this.templatePropertyVars.clear();
-		return result;
+		return this.propertyCollector.drain();
 	}
 
 	protected abstract getCurrentFileLink(): string | null;
-
-	/**
-	 * Finds the YAML front matter range in the input string.
-	 * Returns [start, end] indices or null if no front matter is found.
-	 * Handles both LF and CRLF line endings correctly.
-	 */
-	private findYamlFrontMatterRange(input: string): [number, number] | null {
-		// Use regex to find front matter block, handling CRLF properly
-		const frontMatterRegex = /^(\s*---\r?\n)([\s\S]*?)(\r?\n(?:---|\.\.\.)\s*(?:\r?\n|$))/;
-		const match = frontMatterRegex.exec(input);
-		
-		if (!match) {
-			return null;
-		}
-		
-		const startIndex = 0;
-		const endIndex = match[0].length;
-		
-		return [startIndex, endIndex];
-	}
-
-	/**
-	 * Analyzes the context around a variable match to determine if it's in a position
-	 * where YAML structure formatting should be applied.
-	 */
-	private getYamlContextForMatch(
-		input: string,
-		matchStart: number,
-		matchEnd: number,
-		yamlRange: [number, number] | null
-	): {
-		isInYaml: boolean;
-		isQuoted: boolean;
-		lineStart: number;
-		lineEnd: number;
-		baseIndent: string;
-		isKeyValuePosition: boolean;
-	} {
-		const isInYaml = yamlRange !== null && matchStart >= yamlRange[0] && matchStart <= yamlRange[1];
-		
-		if (!isInYaml) {
-			return {
-				isInYaml: false,
-				isQuoted: false,
-				lineStart: 0,
-				lineEnd: 0,
-				baseIndent: '',
-				isKeyValuePosition: false
-			};
-		}
-		
-		// Find the line containing the match
-		const lineStart = input.lastIndexOf('\n', matchStart - 1) + 1;
-		const lineEnd = input.indexOf('\n', matchStart);
-		const actualLineEnd = lineEnd === -1 ? input.length : lineEnd;
-		
-		const before = input.slice(lineStart, matchStart);
-		const after = input.slice(matchEnd, actualLineEnd);
-		
-		// Extract base indentation
-		const baseIndent = (before.match(/^\s*/) || [''])[0];
-		
-		// Check if the match is quoted (surrounded by matching quotes on the same line)
-		const isQuoted = 
-			(input[matchStart - 1] === '"' && input[matchEnd] === '"') ||
-			(input[matchStart - 1] === "'" && input[matchEnd] === "'");
-		
-		// Check if this is a key-value position (format: "key: {{VALUE:var}}" or "key: "{{VALUE:var}}"")
-		// Handle both unquoted and quoted placeholders (Obsidian auto-quotes YAML values)
-		const beforeTrimmed = before.replace(/["']$/, ''); // Remove trailing quote if present
-		const afterTrimmed = after.replace(/^["']/, ''); // Remove leading quote if present
-		const isKeyValuePosition = /:\s*$/.test(beforeTrimmed) && afterTrimmed.trim().length === 0;
-		
-		return {
-			isInYaml: true,
-			isQuoted,
-			lineStart,
-			lineEnd: actualLineEnd,
-			baseIndent,
-			isKeyValuePosition
-		};
-	}
 
 
 
@@ -330,38 +247,16 @@ export abstract class Formatter {
 			const rawValue = this.variables.get(variableName);
 			
 
-			
-			// Check if this should be tracked for YAML post-processing
-			// Re-detect YAML range for current content state
-			const yamlRange = this.findYamlFrontMatterRange(output);
-			const context = this.getYamlContextForMatch(
-				output, 
-				match.index, 
-				match.index + match[0].length, 
-				yamlRange
-			);
 
-
-
-			// Track template variables for property type post-processing
-			// Only if the feature is enabled in settings
-			if (this.isTemplatePropertyTypesEnabled() &&
-				context.isInYaml && 
-				context.isKeyValuePosition && 
-				typeof rawValue !== 'string' && 
-				(Array.isArray(rawValue) || 
-				 (typeof rawValue === 'object' && rawValue !== null) ||
-				 typeof rawValue === 'number' ||
-				 typeof rawValue === 'boolean' ||
-				 rawValue === null)) {
-				
-				// Extract the property key from the template line (before the colon)
-				const lineContent = output.slice(context.lineStart, context.lineEnd);
-				const propertyKeyMatch = lineContent.match(/^\s*([^:]+):/);
-				const propertyKey = propertyKeyMatch ? propertyKeyMatch[1].trim() : variableName;
-				
-				this.templatePropertyVars.set(propertyKey, rawValue);
-			}
+		// Offer this variable to the property collector for YAML post-processing
+		this.propertyCollector.maybeCollect({
+			input: output,
+			matchStart: match.index,
+			matchEnd: match.index + match[0].length,
+			rawValue,
+			fallbackKey: variableName,
+			featureEnabled: this.isTemplatePropertyTypesEnabled(),
+		});
 
 			// Always use string replacement initially
 			const replacement = this.getVariableValue(variableName);

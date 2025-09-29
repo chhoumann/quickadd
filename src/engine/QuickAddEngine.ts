@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
+import { coerceYamlValue } from "../utils/yamlValues";
 
 export abstract class QuickAddEngine {
 	public app: App;
@@ -81,18 +82,7 @@ export abstract class QuickAddEngine {
 		try {
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				for (const [key, value] of templatePropertyVars) {
-					// Convert @date:ISO strings to Date objects for proper YAML serialization
-					if (typeof value === 'string' && value.startsWith('@date:')) {
-						const isoString = value.substring(6);
-						const dateValue = new Date(isoString);
-						if (!isNaN(dateValue.getTime())) {
-							frontmatter[key] = dateValue;
-						} else {
-							frontmatter[key] = value; // Keep as string if invalid date
-						}
-					} else {
-						frontmatter[key] = value;
-					}
+					frontmatter[key] = coerceYamlValue(value);
 				}
 			});
 		} catch (err) {
