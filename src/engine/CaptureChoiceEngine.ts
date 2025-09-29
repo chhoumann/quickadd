@@ -388,10 +388,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			fileContent = await singleTemplateEngine.run();
-			
+
 			// Get template variables from the template engine's formatter
-			const templateVars = singleTemplateEngine.getTemplatePropertyVars();
-			
+			const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
+
+			log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
+			if (templateVars.size > 0) {
+				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+			}
+
 			// Store for later use
 			this.templatePropertyVars = templateVars;
 		}
@@ -400,11 +405,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
 
 		// Post-process front matter for template property types if we used a template
-		// Only applies to Markdown files (Canvas files use JSON, not YAML)
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate && 
-			this.templatePropertyVars && 
-			this.templatePropertyVars.size > 0 && 
-			file.extension === 'md') {
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
+			this.templatePropertyVars &&
+			this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
 			await this.postProcessFrontMatter(file, this.templatePropertyVars);
 		}
 
