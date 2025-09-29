@@ -27,7 +27,7 @@ class SystemTestEngine {
 		this.variables.set(name, value);
 	}
 
-	getTemplatePropertyVars(): Map<string, unknown> {
+	getAndClearTemplatePropertyVars(): Map<string, unknown> {
 		return new Map(this.templatePropertyVars);
 	}
 

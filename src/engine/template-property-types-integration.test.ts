@@ -177,7 +177,7 @@ class TestSingleTemplateEngine {
 		return templateContent;
 	}
 
-	getTemplatePropertyVars(): Map<string, unknown> {
+	getAndClearTemplatePropertyVars(): Map<string, unknown> {
 		const vars = new Map(this.templatePropertyVars);
 		this.templatePropertyVars.clear(); // Clear after returning
 		return vars;
@@ -780,7 +780,7 @@ Content`;
 	});
 
 	describe('SingleTemplateEngine Integration', () => {
-		it('should return template variables from getTemplatePropertyVars', async () => {
+		it('should return template variables from getAndClearTemplatePropertyVars', async () => {
 			const templateContent = `---
 tags: {{tags}}
 priority: {{priority}}
@@ -806,14 +806,14 @@ Content`;
 			await singleEngine.run();
 
 			// Get template property variables
-			const templateVars = singleEngine.getTemplatePropertyVars();
+			const templateVars = singleEngine.getAndClearTemplatePropertyVars();
 
 			expect(templateVars.size).toBe(2);
 			expect(templateVars.get('tags')).toEqual(['test', 'integration']);
 			expect(templateVars.get('priority')).toBe(1);
 		});
 
-		it('should clear variables after getTemplatePropertyVars call', async () => {
+		it('should clear variables after getAndClearTemplatePropertyVars call', async () => {
 			const templateContent = `---
 test: {{test}}
 ---
@@ -836,12 +836,12 @@ Content`;
 			await singleEngine.run();
 
 			// First call should return variables
-			const firstCall = singleEngine.getTemplatePropertyVars();
+			const firstCall = singleEngine.getAndClearTemplatePropertyVars();
 			expect(firstCall.size).toBe(1);
 			expect(firstCall.get('test')).toBe('value');
 
 			// Second call should return empty map (variables were cleared)
-			const secondCall = singleEngine.getTemplatePropertyVars();
+			const secondCall = singleEngine.getAndClearTemplatePropertyVars();
 			expect(secondCall.size).toBe(0);
 		});
 	});
