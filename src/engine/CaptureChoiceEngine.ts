@@ -88,8 +88,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
 	}
 
-
-
 	async run(): Promise<void> {
 		try {
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
