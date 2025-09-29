@@ -294,6 +294,8 @@ describe('Template Property Types Integration Tests', () => {
 		mockPlugin = createMockPlugin();
 		mockChoiceExecutor = createMockChoiceExecutor();
 		vi.clearAllMocks();
+		// Suppress console.error during tests (expected errors are tested)
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 	});
 
 	describe('TemplateEngine Integration', () => {

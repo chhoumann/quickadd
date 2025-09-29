@@ -385,6 +385,8 @@ describe('Template Property Types - System Level Tests', () => {
 		mockPlugin = createSystemMockPlugin();
 		testEngine = new SystemTestEngine(mockApp, mockPlugin);
 		vi.clearAllMocks();
+		// Suppress console.error during tests (expected errors are tested)
+		vi.spyOn(console, 'error').mockImplementation(() => {});
 	});
 
 	describe('Real-World Scenarios', () => {
