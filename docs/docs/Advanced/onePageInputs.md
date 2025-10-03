@@ -77,12 +77,21 @@ export const quickadd = {
 Supported input fields:
 - `id` (string, required)
 - `label` (string)
-- `type` ("text" | "textarea" | "dropdown" | "date" | "field-suggest")
+- `type` ("text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester")
 - `placeholder` (string)
 - `defaultValue` (string)
-- `options` (string[] for dropdown)
+- `options` (string[] for dropdown and suggester)
 - `dateFormat` (string for date)
 - `description` (string)
+- `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean }`)
+
+**Field Type Details:**
+- `text`: Single-line text input
+- `textarea`: Multi-line text input
+- `dropdown`: Fixed dropdown menu (no search, must select from list)
+- `date`: Date input with natural language support
+- `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `suggester`: **NEW** - Searchable autocomplete with custom options (allows typing custom values)
 
 In the modal these inputs are labeled “(from script)”.
 
@@ -98,10 +107,41 @@ export default async function entry({ quickAddApi }) {
     { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
     { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
     { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
+    { 
+      id: "tags", 
+      label: "Tags", 
+      type: "suggester", 
+      options: ["work", "personal", "urgent"],
+      placeholder: "Type to search tags..."
+    },
   ]);
 
   // Access collected values
-  const { project, due, status } = values;
+  const { project, due, status, tags } = values;
+}
+```
+
+**Example with Dynamic Options (from Dataview):**
+```js
+export default async function entry({ quickAddApi, app }) {
+  // Get dynamic options from Dataview
+  const dv = app.plugins.plugins.dataview?.api;
+  const projectNames = dv?.pages()
+    .where(p => p.type === "project")
+    .map(p => p.file.name)
+    .array() ?? ["Inbox"];
+
+  const values = await quickAddApi.requestInputs([
+    { 
+      id: "project", 
+      label: "Select Project", 
+      type: "suggester",
+      options: projectNames,
+      placeholder: "Start typing project name..."
+    },
+  ]);
+  
+  const { project } = values;
 }
 ```
 

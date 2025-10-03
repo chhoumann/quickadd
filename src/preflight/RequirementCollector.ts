@@ -11,7 +11,8 @@ export type FieldType =
 	| "dropdown"
 	| "date"
 	| "field-suggest"
-	| "file-picker";
+	| "file-picker"
+	| "suggester";
 
 export interface FieldRequirement {
 	id: string; // variable key or special input id
@@ -20,11 +21,15 @@ export interface FieldRequirement {
 	description?: string;
 	placeholder?: string;
 	defaultValue?: string;
-	options?: string[]; // for dropdowns
+	options?: string[]; // for dropdowns and suggesters
 	// Additional metadata
 	dateFormat?: string; // for VDATE
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
+	suggesterConfig?: {
+		allowCustomInput?: boolean;
+		caseSensitive?: boolean;
+	};
 }
 
 /**
