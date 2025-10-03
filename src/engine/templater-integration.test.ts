@@ -35,9 +35,6 @@ class TestTemplateEngineWithTemplater {
 			const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
 			const templateContent = await this.app.vault.cachedRead(templateFile);
 
-			// Extract filename without extension for future use
-			const fileBasename = filePath.split('/').pop()?.replace(/\.md$/, '') || '';
-
 			// Step 1: Collect template variables BEFORE formatting
 			this.postProcessCallOrder.push('collectVars');
 			this.collectTemplateVars(templateContent);
@@ -354,7 +351,7 @@ created: <% tp.date.now() %>
 				mockChoiceExecutor
 			);
 
-			const result = await templateEngine.testCreateFileWithTemplate(
+			await templateEngine.testCreateFileWithTemplate(
 				'notes/array-test.md',
 				'templates/test.md'
 			);
