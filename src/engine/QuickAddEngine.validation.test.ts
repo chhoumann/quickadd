@@ -137,6 +137,47 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 	});
 
 	describe('Circular references', () => {
+		it('should allow shared references (same object in multiple places)', () => {
+			// This is NOT a circular reference - just the same object referenced twice
+			const shared = { value: 'shared data' };
+			const obj = {
+				branch1: shared,
+				branch2: shared
+			};
+
+			const vars = new Map<string, unknown>([
+				['obj', obj],
+			]);
+
+			const result = engine.testValidateStructuredVariables(vars);
+
+			expect(result.isValid).toBe(true);
+			expect(result.errors).toHaveLength(0);
+		});
+
+		it('should allow deeply shared references', () => {
+			const shared = { value: 'shared' };
+			const obj = {
+				level1: {
+					a: shared,
+					b: { nested: shared }
+				},
+				level2: {
+					c: shared,
+					d: [shared, shared]
+				}
+			};
+
+			const vars = new Map<string, unknown>([
+				['obj', obj],
+			]);
+
+			const result = engine.testValidateStructuredVariables(vars);
+
+			expect(result.isValid).toBe(true);
+			expect(result.errors).toHaveLength(0);
+		});
+
 		it('should detect circular reference in object', () => {
 			const circular: any = { name: 'test' };
 			circular.self = circular;

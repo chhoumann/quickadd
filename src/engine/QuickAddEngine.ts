@@ -21,14 +21,6 @@ interface ValidationResult {
 	errors: string[];
 }
 
-/**
- * Information about a validation issue with a specific key
- */
-interface ValidationIssue {
-	key: string;
-	message: string;
-}
-
 export abstract class QuickAddEngine {
 	public app: App;
 
@@ -138,7 +130,7 @@ export abstract class QuickAddEngine {
 					const childResult = this.validateValue(
 						`${key}[${i}]`,
 						value[i],
-						new Set(seen),
+						seen,
 						depth + 1
 					);
 					warnings.push(...childResult.warnings);
@@ -151,7 +143,7 @@ export abstract class QuickAddEngine {
 					const childResult = this.validateValue(
 						`${key}.${childKey}`,
 						childValue,
-						new Set(seen),
+						seen,
 						depth + 1
 					);
 					warnings.push(...childResult.warnings);
