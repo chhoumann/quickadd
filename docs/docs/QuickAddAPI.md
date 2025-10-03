@@ -32,19 +32,55 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; description?: string; }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; } }>): Promise<Record<string, string>>`
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
-Behavior:
+**Behavior:**
 - Uses existing values for any ids that already exist in `variables` (including empty strings).
 - Prompts only for missing (`undefined`/`null`) inputs.
 
-Example:
+**Field Types:**
+- `text`: Single-line text input
+- `textarea`: Multi-line text input
+- `dropdown`: Fixed dropdown menu (no search, must select from list)
+- `date`: Date input with natural language support
+- `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `suggester`: **NEW** - Searchable autocomplete with custom options (allows custom input)
+
+**Example:**
 ```javascript
 const values = await quickAddApi.requestInputs([
   { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
   { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
-  { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] }
+  { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
+  { 
+    id: "tags", 
+    label: "Tags", 
+    type: "suggester", 
+    options: ["work", "personal", "urgent", "review"],
+    placeholder: "Type to search tags...",
+    suggesterConfig: { caseSensitive: false }
+  }
+]);
+```
+
+**Suggester with Dynamic Options (e.g., from Dataview):**
+```javascript
+// Get dynamic options from Dataview
+const dv = app.plugins.plugins.dataview?.api;
+const projectNames = dv?.pages()
+  .where(p => p.type === "project")
+  .map(p => p.file.name)
+  .array() ?? ["Inbox"];
+
+const values = await quickAddApi.requestInputs([
+  { 
+    id: "project", 
+    label: "Select Project", 
+    type: "suggester",
+    options: projectNames,
+    placeholder: "Start typing project name..."
+  }
 ]);
 ```
 

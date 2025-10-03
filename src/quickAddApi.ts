@@ -46,12 +46,16 @@ export class QuickAddApi {
 				inputs: Array<{
 					id: string;
 					label?: string;
-					type: "text" | "textarea" | "dropdown" | "date" | "field-suggest";
+					type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester";
 					placeholder?: string;
 					defaultValue?: string;
 					options?: string[];
 					dateFormat?: string;
 					description?: string;
+					suggesterConfig?: {
+						allowCustomInput?: boolean;
+						caseSensitive?: boolean;
+					};
 				}>,
 			): Promise<Record<string, string>> => {
 				// If all inputs already have values, return them immediately
@@ -76,6 +80,7 @@ export class QuickAddApi {
 						options: spec.options,
 						dateFormat: spec.dateFormat,
 						description: spec.description,
+						suggesterConfig: spec.suggesterConfig,
 						source: "script",
 					});
 				}

@@ -8,6 +8,7 @@ import {
 	type App,
 } from "obsidian";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
+import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import type { FieldRequirement } from "./RequirementCollector";
 
@@ -229,6 +230,33 @@ export class OnePageInputModal extends Modal {
 					new FieldValueInputSuggest(this.app, input.inputEl, req.id);
 				} catch {
 					// Non-fatal; leave as plain input if suggester fails
+				}
+				break;
+			}
+			case "suggester": {
+				const setting = new Setting(this.contentEl).setName(
+					this.decorateLabel(req),
+				);
+				if (req.description) setting.setDesc(req.description);
+				const input = new TextComponent(setting.controlEl);
+				input
+					.setPlaceholder(req.placeholder ?? "Type to search...")
+					.setValue(starting)
+					.onChange((v) => setValue(req.id, v));
+				// Attach suggester if options are provided
+				const options = req.options ?? [];
+				if (options.length > 0) {
+					try {
+						const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
+						new SuggesterInputSuggest(
+							this.app,
+							input.inputEl,
+							options,
+							caseSensitive,
+						);
+					} catch {
+						// Non-fatal; falls back to plain text input
+					}
 				}
 				break;
 			}
