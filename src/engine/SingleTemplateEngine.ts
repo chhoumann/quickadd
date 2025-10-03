@@ -27,4 +27,12 @@ export class SingleTemplateEngine extends TemplateEngine {
 
 		return templateContent;
 	}
+
+	/**
+	 * Returns the template variables that should be processed as proper property types.
+	 * Note: This method clears the internal state after returning the variables.
+	 */
+	public getAndClearTemplatePropertyVars(): Map<string, unknown> {
+		return this.formatter.getAndClearTemplatePropertyVars();
+	}
 }

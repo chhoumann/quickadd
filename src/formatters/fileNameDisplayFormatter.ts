@@ -169,4 +169,8 @@ export class FileNameDisplayFormatter extends Formatter {
 		
 		return output;
 	}
+
+	protected isTemplatePropertyTypesEnabled(): boolean {
+		return false; // Not applicable for filename display
+	}
 }

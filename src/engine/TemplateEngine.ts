@@ -13,6 +13,7 @@ import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../c
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { log } from "../logger/logManager";
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
@@ -135,10 +136,24 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+
+			// Get template variables before creating the file
+			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
+
+			log.logMessage(`TemplateEngine.createFileWithTemplate: Collected ${templateVars.size} template property variables for ${filePath}`);
+			if (templateVars.size > 0) {
+				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+			}
+
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
 				formattedTemplateContent
 			);
+
+			// Post-process front matter for template property types BEFORE Templater
+			if (this.shouldPostProcessFrontMatter(createdFile, templateVars)) {
+				await this.postProcessFrontMatter(createdFile, templateVars);
+			}
 
 			// Process Templater commands for template choices
 			await overwriteTemplaterOnce(this.app, createdFile);
@@ -153,6 +168,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
 		this.formatter.setLinkToCurrentFileBehavior(behavior);
 	}
+
+
 
 	protected async overwriteFileWithTemplate(
 		file: TFile,
@@ -169,7 +186,21 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			const formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+
+			// Get template variables before modifying the file
+			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
+
+			log.logMessage(`TemplateEngine.overwriteFileWithTemplate: Collected ${templateVars.size} template property variables for ${file.path}`);
+			if (templateVars.size > 0) {
+				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+			}
+
 			await this.app.vault.modify(file, formattedTemplateContent);
+
+			// Post-process front matter for template property types BEFORE Templater
+			if (this.shouldPostProcessFrontMatter(file, templateVars)) {
+				await this.postProcessFrontMatter(file, templateVars);
+			}
 
 			// Process Templater commands
 			await overwriteTemplaterOnce(this.app, file);

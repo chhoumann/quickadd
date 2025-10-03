@@ -88,6 +88,10 @@ class TestFormatter extends Formatter {
         return "";
     }
 
+    protected isTemplatePropertyTypesEnabled(): boolean {
+        return false; // Test formatter doesn't need structured YAML variable handling
+    }
+
     // Expose the method for testing
     public async testReplaceDateVariableInString(input: string): Promise<string> {
         return await this.replaceDateVariableInString(input);

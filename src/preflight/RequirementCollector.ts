@@ -278,4 +278,8 @@ export class RequirementCollector extends Formatter {
 	protected async getMacroValue(_macroName: string): Promise<string> {
 		return "";
 	}
+
+	protected isTemplatePropertyTypesEnabled(): boolean {
+		return false; // Requirement collector doesn't need structured YAML variable handling
+	}
 }

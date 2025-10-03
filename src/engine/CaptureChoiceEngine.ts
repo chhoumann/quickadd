@@ -37,6 +37,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
 	private formatter: CaptureChoiceFormatter;
 	private readonly plugin: QuickAdd;
+	private templatePropertyVars?: Map<string, unknown>;
 
 	constructor(
 		app: App,
@@ -385,10 +386,28 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			fileContent = await singleTemplateEngine.run();
+
+			// Get template variables from the template engine's formatter
+			const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
+
+			log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
+			if (templateVars.size > 0) {
+				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+			}
+
+			// Store for later use
+			this.templatePropertyVars = templateVars;
 		}
 
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent);
+
+		// Post-process front matter for template property types if we used a template
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
+			this.templatePropertyVars &&
+			this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
+			await this.postProcessFrontMatter(file, this.templatePropertyVars);
+		}
 
 		// Process Templater commands in the template if a template was used
 		if (

@@ -21,14 +21,18 @@ import {
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
+import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
 export abstract class Formatter {
 	protected value: string;
-	protected variables: Map<string, unknown> = new Map<string, string>();
+	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
+	
+	// Tracks variables collected for YAML property post-processing
+	private propertyCollector: TemplatePropertyCollector = new TemplatePropertyCollector();
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -188,54 +192,78 @@ export abstract class Formatter {
 		this.linkToCurrentFileBehavior = behavior;
 	}
 
+	/**
+	 * Returns the template variables that should be processed as proper property types
+	 * and clears the internal tracking.
+	 */
+	public getAndClearTemplatePropertyVars(): Map<string, unknown> {
+		return this.propertyCollector.drain();
+	}
+
 	protected abstract getCurrentFileLink(): string | null;
 
 
 
 	protected async replaceVariableInString(input: string) {
-		let output: string = input;
+		let output = input;
+		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
+		let match: RegExpExecArray | null;
 
-		while (VARIABLE_REGEX.test(output)) {
-			const match = VARIABLE_REGEX.exec(output);
-			if (!match) throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(VARIABLE_REGEX) - 10), Math.min(output.length, output.search(VARIABLE_REGEX) + 30))}..."`);
+		while ((match = regex.exec(output)) !== null) {
+			if (!match[1]) {
+				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
+			}
 
 			let variableName = match[1];
 			let defaultValue = "";
 
-			if (variableName) {
-				// Parse default value if present (syntax: {{VALUE:name|default}})
-				const pipeIndex = variableName.indexOf("|");
-				if (pipeIndex !== -1) {
-					defaultValue = variableName.substring(pipeIndex + 1).trim();
-					variableName = variableName.substring(0, pipeIndex).trim();
-				}
-
-				if (!this.hasConcreteVariable(variableName)) {
-					const suggestedValues = variableName.split(",");
-					let variableValue = "";
-
-					if (suggestedValues.length === 1) {
-						variableValue = await this.promptForVariable(variableName);
-					} else {
-						variableValue = await this.suggestForValue(suggestedValues);
-					}
-
-					// Use default value if no input provided
-					if (!variableValue && defaultValue) {
-						variableValue = defaultValue;
-					}
-
-					this.variables.set(variableName, variableValue);
-				}
-
-				output = this.replacer(
-					output,
-					VARIABLE_REGEX,
-					this.getVariableValue(variableName),
-				);
-			} else {
-				break;
+			// Parse default value if present (syntax: {{VALUE:name|default}})
+			const pipeIndex = variableName.indexOf("|");
+			if (pipeIndex !== -1) {
+				defaultValue = variableName.substring(pipeIndex + 1).trim();
+				variableName = variableName.substring(0, pipeIndex).trim();
 			}
+
+			// Ensure variable is set (prompt if needed)
+			if (!this.hasConcreteVariable(variableName)) {
+				const suggestedValues = variableName.split(",");
+				let variableValue = "";
+
+				if (suggestedValues.length === 1) {
+					variableValue = await this.promptForVariable(variableName);
+				} else {
+					variableValue = await this.suggestForValue(suggestedValues);
+				}
+
+				// Use default value if no input provided
+				if (!variableValue && defaultValue) {
+					variableValue = defaultValue;
+				}
+
+				this.variables.set(variableName, variableValue);
+			}
+
+			// Get the raw value from variables
+			const rawValue = this.variables.get(variableName);
+			
+
+
+		// Offer this variable to the property collector for YAML post-processing
+		this.propertyCollector.maybeCollect({
+			input: output,
+			matchStart: match.index,
+			matchEnd: match.index + match[0].length,
+			rawValue,
+			fallbackKey: variableName,
+			featureEnabled: this.isTemplatePropertyTypesEnabled(),
+		});
+
+			// Always use string replacement initially
+			const replacement = this.getVariableValue(variableName);
+
+			// Replace in output and adjust regex position
+			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
+			regex.lastIndex = match.index + replacement.length;
 		}
 
 		return output;
@@ -446,6 +474,11 @@ export abstract class Formatter {
 	protected abstract getSelectedText(): Promise<string>;
 
 	protected abstract getClipboardContent(): Promise<string>;
+
+	/**
+	 * Returns whether template property types feature is enabled in settings.
+	 */
+	protected abstract isTemplatePropertyTypesEnabled(): boolean;
 	
 	protected replaceRandomInString(input: string): string {
 		let output = input;

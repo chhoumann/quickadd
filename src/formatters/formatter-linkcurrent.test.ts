@@ -54,6 +54,10 @@ class StubFormatter extends Formatter {
     return "";
   }
 
+  protected isTemplatePropertyTypesEnabled(): boolean {
+    return false; // Test formatter doesn't need structured YAML variable handling
+  }
+
   public setLink(link: string | null) {
     this.link = link;
   }

@@ -63,6 +63,10 @@ class CaptureFormatterTest extends Formatter {
         return Promise.resolve("");
     }
 
+    protected isTemplatePropertyTypesEnabled(): boolean {
+        return false; // Test formatter doesn't need structured YAML variable handling
+    }
+
     // Test helpers
     public async formatCapture(input: string): Promise<string> {
         return await this.format(input);

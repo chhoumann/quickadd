@@ -271,6 +271,10 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
+	protected isTemplatePropertyTypesEnabled(): boolean {
+		return this.plugin.settings.enableTemplatePropertyTypes;
+	}
+
 	protected async replaceInlineJavascriptInString(input: string) {
 		let output: string = input;
 
