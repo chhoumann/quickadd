@@ -29,6 +29,7 @@ export interface FieldRequirement {
 	suggesterConfig?: {
 		allowCustomInput?: boolean;
 		caseSensitive?: boolean;
+		multiSelect?: boolean;
 	};
 }
 

@@ -248,11 +248,13 @@ export class OnePageInputModal extends Modal {
 				if (options.length > 0) {
 					try {
 						const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
+						const multiSelect = req.suggesterConfig?.multiSelect ?? false;
 						new SuggesterInputSuggest(
 							this.app,
 							input.inputEl,
 							options,
 							caseSensitive,
+							multiSelect,
 						);
 					} catch {
 						// Non-fatal; falls back to plain text input

@@ -39,8 +39,9 @@ export class QuickAddApi {
 			 * Open a single one-page modal to collect multiple inputs at once from a script.
 			 * Any values already present in variables will be used as defaults and not re-asked.
 			 *
-			 * Example spec item:
+			 * Example spec items:
 			 * { id: "project", label: "Project", type: "text", defaultValue: "Inbox" }
+			 * { id: "tags", label: "Tags", type: "suggester", options: ["#work", "#personal"], suggesterConfig: { multiSelect: true } }
 			 */
 			requestInputs: async (
 				inputs: Array<{
@@ -55,6 +56,7 @@ export class QuickAddApi {
 					suggesterConfig?: {
 						allowCustomInput?: boolean;
 						caseSensitive?: boolean;
+						multiSelect?: boolean;
 					};
 				}>,
 			): Promise<Record<string, string>> => {

@@ -83,7 +83,7 @@ Supported input fields:
 - `options` (string[] for dropdown and suggester)
 - `dateFormat` (string for date)
 - `description` (string)
-- `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean }`)
+- `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean }`)
 
 **Field Type Details:**
 - `text`: Single-line text input
@@ -92,6 +92,8 @@ Supported input fields:
 - `date`: Date input with natural language support
 - `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
 - `suggester`: **NEW** - Searchable autocomplete with custom options (allows typing custom values)
+  - Supports multi-select mode via `suggesterConfig.multiSelect: true`
+  - Multi-select: Select multiple items, separated by commas. Suggestions stay open after each selection.
 
 In the modal these inputs are labeled “(from script)”.
 
@@ -132,16 +134,41 @@ export default async function entry({ quickAddApi, app }) {
     .array() ?? ["Inbox"];
 
   const values = await quickAddApi.requestInputs([
-    { 
-      id: "project", 
-      label: "Select Project", 
+    {
+      id: "project",
+      label: "Select Project",
       type: "suggester",
       options: projectNames,
       placeholder: "Start typing project name..."
     },
   ]);
-  
+
   const { project } = values;
+}
+```
+
+**Example with Multi-Select:**
+```js
+export default async function entry({ quickAddApi }) {
+  const values = await quickAddApi.requestInputs([
+    {
+      id: "tags",
+      label: "Select Tags",
+      type: "suggester",
+      options: ["#work", "#personal", "#project", "#urgent", "#review"],
+      suggesterConfig: {
+        multiSelect: true,
+        caseSensitive: false
+      },
+      placeholder: "Type or select multiple tags..."
+    },
+  ]);
+
+  // Result: values.tags = "#work, #project, #urgent"
+  const { tags } = values;
+
+  // Split into array if needed
+  const tagArray = tags.split(', ').filter(Boolean);
 }
 ```
 
