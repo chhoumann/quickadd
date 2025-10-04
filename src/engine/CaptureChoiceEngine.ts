@@ -272,10 +272,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				filePaths,
 			);
 		} catch (error) {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 
 		invariant(
@@ -307,10 +305,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				filePaths,
 			);
 		} catch (error) {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 
 		invariant(

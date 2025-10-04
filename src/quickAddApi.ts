@@ -480,10 +480,8 @@ export class QuickAddApi {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
 		} catch {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			return undefined;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -501,10 +499,8 @@ export class QuickAddApi {
 				value,
 			);
 		} catch {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			return undefined;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -512,10 +508,8 @@ export class QuickAddApi {
 		try {
 			return await GenericYesNoPrompt.Prompt(app, header, text);
 		} catch {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			return undefined;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -572,10 +566,8 @@ export class QuickAddApi {
 				options?.renderItem,
 			);
 		} catch {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			return undefined;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -587,10 +579,8 @@ export class QuickAddApi {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);
 		} catch {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			return undefined;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 }

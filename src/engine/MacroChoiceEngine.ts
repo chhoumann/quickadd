@@ -170,12 +170,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			if (err instanceof MacroAbortError) {
 				throw err;
 			}
-			if (settingsStore.getState().abortMacroOnScriptError) {
-				throw new MacroAbortError(
-					`Script error in ${command.name}: ${err instanceof Error ? err.message : String(err)}`
-				);
-			}
-			reportError(err, `Failed to run user script ${command.name}`);
+			// Always abort on unhandled script errors
+			throw new MacroAbortError(
+				`Script error in ${command.name}: ${err instanceof Error ? err.message : String(err)}`
+			);
 		}
 
 		if (this.userScriptCommand) this.userScriptCommand = null;
@@ -286,10 +284,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			if (err instanceof MacroAbortError) {
 				throw err;
 			}
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			reportError(err, "Error in script object handling", ErrorLevel.Log);
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -359,10 +355,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			try {
 				modelName = await GenericSuggester.Suggest(this.app, options, options);
 			} catch (error) {
-				if (settingsStore.getState().abortMacroOnCancelledInput) {
-					throw new MacroAbortError("Input cancelled by user");
-				}
-				throw error;
+				// Always abort on cancelled input
+				throw new MacroAbortError("Input cancelled by user");
 			}
 		} else {
 			modelName = command.model;

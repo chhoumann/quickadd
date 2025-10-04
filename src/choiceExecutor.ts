@@ -28,10 +28,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			try {
 				await runOnePagePreflight(this.app, this.plugin as unknown as QuickAdd, this, choice);
 			} catch {
-				if (settingsStore.getState().abortMacroOnCancelledInput) {
-					throw new MacroAbortError("One-page input cancelled by user");
-				}
-				// Silently continue for other errors (backward compatibility)
+				// Always abort on cancelled input
+				throw new MacroAbortError("One-page input cancelled by user");
 			}
 		}
 

@@ -189,10 +189,8 @@ export async function runAIAssistant(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
-		if (settingsStore.getState().abortMacroOnCancelledInput) {
-			throw new MacroAbortError("AI Assistant cancelled by user");
-		}
-		throw error;
+		// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 	}
 }
 
@@ -296,10 +294,8 @@ export async function Prompt(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
-		if (settingsStore.getState().abortMacroOnCancelledInput) {
-			throw new MacroAbortError("AI Assistant cancelled by user");
-		}
-		throw error;
+		// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 	}
 }
 
@@ -524,9 +520,7 @@ export async function ChunkedPrompt(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
-		if (settingsStore.getState().abortMacroOnCancelledInput) {
-			throw new MacroAbortError("AI Assistant cancelled by user");
-		}
-		throw error;
+		// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 	}
 }

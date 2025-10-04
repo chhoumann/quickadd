@@ -48,10 +48,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				);
 				if (!folderPath) throw new Error("No folder selected.");
 			} catch (error) {
-				if (settingsStore.getState().abortMacroOnCancelledInput) {
-					throw new MacroAbortError("Input cancelled by user");
-				}
-				throw error;
+				// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 			}
 		} else {
 			folderPath = folders[0];

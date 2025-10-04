@@ -151,10 +151,8 @@ export class CompleteFormatter extends Formatter {
 						.factory()
 						.Prompt(this.app, this.valueHeader ?? `Enter value`);
 				} catch (error) {
-					if (settingsStore.getState().abortMacroOnCancelledInput) {
-						throw new MacroAbortError("Input cancelled by user");
-					}
-					throw error;
+					// Always abort on cancelled input
+					throw new MacroAbortError("Input cancelled by user");
 				}
 			}
 		}
@@ -181,10 +179,8 @@ export class CompleteFormatter extends Formatter {
 			// Use default prompt for other variables
 			return await new InputPrompt().factory().Prompt(this.app, header as string);
 		} catch (error) {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -192,10 +188,8 @@ export class CompleteFormatter extends Formatter {
 		try {
 			return await MathModal.Prompt();
 		} catch (error) {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -207,10 +201,8 @@ export class CompleteFormatter extends Formatter {
 				suggestedValues,
 			);
 		} catch (error) {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
@@ -255,10 +247,8 @@ export class CompleteFormatter extends Formatter {
 				placeholder,
 			});
 		} catch (error) {
-			if (settingsStore.getState().abortMacroOnCancelledInput) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+			// Always abort on cancelled input
+			throw new MacroAbortError("Input cancelled by user");
 		}
 	}
 
