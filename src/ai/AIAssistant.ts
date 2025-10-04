@@ -11,6 +11,7 @@ import { OpenAIRequest } from "./OpenAIRequest";
 import { makeNoticeHandler } from "./makeNoticeHandler";
 import type { Model } from "./Provider";
 import { getModelMaxTokens } from "./aiHelpers";
+import { MacroAbortError } from "src/errors/MacroAbortError";
 
 export const getTokenCount = (text: string, model: Model) => {
 	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview and gpt-3.5-turbo-1106.
@@ -188,6 +189,10 @@ export async function runAIAssistant(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
+		if (settingsStore.getState().abortMacroOnCancelledInput) {
+			throw new MacroAbortError("AI Assistant cancelled by user");
+		}
+		throw error;
 	}
 }
 
@@ -291,6 +296,10 @@ export async function Prompt(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
+		if (settingsStore.getState().abortMacroOnCancelledInput) {
+			throw new MacroAbortError("AI Assistant cancelled by user");
+		}
+		throw error;
 	}
 }
 
@@ -515,5 +524,9 @@ export async function ChunkedPrompt(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
+		if (settingsStore.getState().abortMacroOnCancelledInput) {
+			throw new MacroAbortError("AI Assistant cancelled by user");
+		}
+		throw error;
 	}
 }
