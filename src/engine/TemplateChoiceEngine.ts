@@ -25,6 +25,7 @@ import {
 import { reportError } from "../utils/errorUtils";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { isCancellationError } from "../utils/errorUtils";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -104,8 +105,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							[...fileExistsChoices],
 						);
 					} catch (error) {
-						// Always abort on cancelled input
-						throw new MacroAbortError("Input cancelled by user");
+						if (isCancellationError(error)) {
+							throw new MacroAbortError("Input cancelled by user");
+						}
+						throw error;
 					}
 				}
 

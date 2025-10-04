@@ -7,16 +7,12 @@ import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import { settingsStore } from "src/settingsStore";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
+import { isCancellationError } from "src/utils/errorUtils";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { OpenAIRequest } from "./OpenAIRequest";
 import type { Model } from "./Provider";
 import { getModelMaxTokens } from "./aiHelpers";
 import { makeNoticeHandler } from "./makeNoticeHandler";
-
-// Check if an error indicates user cancellation rather than a real error
-function isCancellationError(error: unknown): boolean {
-	return error === "no input given.";
-}
 
 export const getTokenCount = (text: string, model: Model) => {
 	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview and gpt-3.5-turbo-1106.

@@ -47,6 +47,39 @@ export function toError(err: unknown, contextMessage?: string): Error {
 }
 
 /**
+ * Checks if an error indicates user cancellation rather than a real error.
+ * Used to distinguish between intentional user cancellations (Escape key, Cancel button)
+ * and actual errors (network failures, file system errors, etc.)
+ * 
+ * @param error - The error to check
+ * @returns true if the error indicates user cancellation, false otherwise
+ * 
+ * @example
+ * ```ts
+ * try {
+ *   const result = await promptUser();
+ * } catch (error) {
+ *   if (isCancellationError(error)) {
+ *     throw new MacroAbortError("Input cancelled by user");
+ *   }
+ *   throw error; // Re-throw actual errors
+ * }
+ * ```
+ */
+export function isCancellationError(error: unknown): boolean {
+	if (typeof error !== "string") return false;
+	
+	const cancellationMessages = [
+		"no input given.",      // GenericSuggester, InputSuggester, GenericCheckboxPrompt
+		"No input given.",      // GenericInputPrompt, MathModal
+		"No answer given.",     // GenericYesNoPrompt
+		"cancelled"             // OnePagePreflight
+	];
+	
+	return cancellationMessages.includes(error);
+}
+
+/**
  * Reports an error to the logging system with additional context
  * Converts any error type to a proper Error object and logs it with the appropriate level
  * 

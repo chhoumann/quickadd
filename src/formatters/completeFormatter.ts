@@ -26,7 +26,7 @@ import {
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { settingsStore } from "../settingsStore";
+import { isCancellationError } from "../utils/errorUtils";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -151,8 +151,10 @@ export class CompleteFormatter extends Formatter {
 						.factory()
 						.Prompt(this.app, this.valueHeader ?? `Enter value`);
 				} catch (error) {
-					// Always abort on cancelled input
-					throw new MacroAbortError("Input cancelled by user");
+					if (isCancellationError(error)) {
+						throw new MacroAbortError("Input cancelled by user");
+					}
+					throw error;
 				}
 			}
 		}
@@ -179,8 +181,10 @@ export class CompleteFormatter extends Formatter {
 			// Use default prompt for other variables
 			return await new InputPrompt().factory().Prompt(this.app, header as string);
 		} catch (error) {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
@@ -188,8 +192,10 @@ export class CompleteFormatter extends Formatter {
 		try {
 			return await MathModal.Prompt();
 		} catch (error) {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
@@ -201,8 +207,10 @@ export class CompleteFormatter extends Formatter {
 				suggestedValues,
 			);
 		} catch (error) {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
@@ -247,8 +255,10 @@ export class CompleteFormatter extends Formatter {
 				placeholder,
 			});
 		} catch (error) {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 

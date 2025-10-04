@@ -28,6 +28,7 @@ import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
+import { isCancellationError } from "./utils/errorUtils";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -479,9 +480,11 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
-		} catch {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
@@ -498,18 +501,22 @@ export class QuickAddApi {
 				placeholder,
 				value,
 			);
-		} catch {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
 	public static async yesNoPrompt(app: App, header: string, text?: string) {
 		try {
 			return await GenericYesNoPrompt.Prompt(app, header, text);
-		} catch {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
@@ -565,9 +572,11 @@ export class QuickAddApi {
 				placeholder,
 				options?.renderItem,
 			);
-		} catch {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 
@@ -578,9 +587,11 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);
-		} catch {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 }

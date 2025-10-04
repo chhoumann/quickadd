@@ -29,7 +29,7 @@ import {
 import { reportError } from "../utils/errorUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { settingsStore } from "../settingsStore";
+import { isCancellationError } from "../utils/errorUtils";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
 
@@ -272,8 +272,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				filePaths,
 			);
 		} catch (error) {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 
 		invariant(
@@ -305,8 +307,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				filePaths,
 			);
 		} catch (error) {
-			// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
 
 		invariant(
