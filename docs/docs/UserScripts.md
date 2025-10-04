@@ -45,7 +45,8 @@ Contains the QuickAdd API and Obsidian context:
     app: App,                  // Obsidian app instance - see https://docs.obsidian.md/Reference/TypeScript+API/App
     quickAddApi: QuickAddApi,   // QuickAdd API methods (documented below)
     variables: {},              // Variables object for sharing data between scripts and templates
-    obsidian: obsidian          // Obsidian module with all classes and utilities
+    obsidian: obsidian,         // Obsidian module with all classes and utilities
+    abort: (message) => never   // Abort macro execution with optional message
 }
 ```
 
@@ -259,9 +260,70 @@ await quickAddApi.executeChoice("My Other Choice", {
 });
 ```
 
-## Error Handling
+## Error Handling and Macro Control
 
-Always include proper error handling in your scripts:
+### Aborting Macro Execution
+
+You can intentionally stop a macro using `params.abort()`. This is useful for validation or conditional execution:
+
+```javascript
+module.exports = async (params) => {
+    const { abort, quickAddApi } = params;
+    
+    // Get user input
+    const projectName = await quickAddApi.inputPrompt("Project name:");
+    
+    // Validate input
+    if (!projectName || projectName.length < 3) {
+        abort("Project name must be at least 3 characters");
+        // Execution stops here - remaining macro commands won't run
+    }
+    
+    // Continue with valid input
+    console.log(`Creating project: ${projectName}`);
+};
+```
+
+**When to use `params.abort()`:**
+- Input validation failures
+- Missing required configuration
+- User cancels a confirmation prompt
+- Prerequisites not met (e.g., required plugin not installed)
+
+**What happens when you call `abort()`:**
+- Macro execution stops immediately
+- A message is logged: "Macro execution aborted: [your message]"
+- Remaining commands in the macro are skipped
+- No error is thrown to the user
+
+**QuickAdd API methods that can be cancelled:**
+- `inputPrompt()` - Returns `undefined` if cancelled
+- `wideInputPrompt()` - Returns `undefined` if cancelled
+- `yesNoPrompt()` - Returns `undefined` if cancelled
+- `suggester()` - Aborts macro if cancelled
+- `checkboxPrompt()` - Returns `undefined` if cancelled
+
+**Important:** When using the QuickAdd API, check for `undefined` to handle cancellations gracefully:
+
+```javascript
+module.exports = async (params) => {
+    const { quickAddApi, abort } = params;
+    
+    const name = await quickAddApi.inputPrompt("Your name:");
+    
+    // Handle cancellation
+    if (!name) {
+        abort("Name is required");
+    }
+    
+    // Safe to use name here
+    console.log(`Processing: ${name}`);
+};
+```
+
+### Script Error Handling
+
+Always include proper error handling for unexpected errors:
 
 ```javascript
 async function start(params, settings) {
@@ -281,6 +343,11 @@ async function start(params, settings) {
     }
 }
 ```
+
+**Error behavior:**
+- Unhandled errors in scripts automatically stop the macro
+- Original error stack traces are preserved for debugging
+- Errors are logged to the console for troubleshooting
 
 ## Best Practices
 
