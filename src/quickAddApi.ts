@@ -479,7 +479,6 @@ export class QuickAddApi {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
 		} catch {
-			// Public API: return undefined on cancellation (preserves user script contract)
 			return undefined;
 		}
 	}
@@ -498,7 +497,6 @@ export class QuickAddApi {
 				value,
 			);
 		} catch {
-			// Public API: return undefined on cancellation (preserves user script contract)
 			return undefined;
 		}
 	}
@@ -507,7 +505,6 @@ export class QuickAddApi {
 		try {
 			return await GenericYesNoPrompt.Prompt(app, header, text);
 		} catch {
-			// Public API: return undefined on cancellation (preserves user script contract)
 			return undefined;
 		}
 	}
@@ -565,7 +562,6 @@ export class QuickAddApi {
 				options?.renderItem,
 			);
 		} catch {
-			// Public API: return undefined on cancellation (preserves user script contract)
 			return undefined;
 		}
 	}
@@ -578,7 +574,6 @@ export class QuickAddApi {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);
 		} catch {
-			// Public API: return undefined on cancellation (preserves user script contract)
 			return undefined;
 		}
 	}
