@@ -50,6 +50,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		quickAddApi: QuickAddApi;
 		variables: Record<string, unknown>;
 		obsidian: typeof obsidian;
+		/**
+		 * Aborts the macro execution immediately.
+		 * @param message Optional message explaining why the macro was aborted
+		 * @example
+		 * if (!isValidProject(project)) {
+		 *   params.abort("Invalid project name");
+		 * }
+		 */
 		abort: (message?: string) => never;
 	};
 	protected output: unknown;
