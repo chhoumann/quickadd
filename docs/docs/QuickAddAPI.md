@@ -32,7 +32,7 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; } }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
 **Behavior:**
@@ -46,6 +46,7 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 - `date`: Date input with natural language support
 - `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
 - `suggester`: **NEW** - Searchable autocomplete with custom options (allows custom input)
+  - Supports multi-select mode via `suggesterConfig.multiSelect: true` for comma-separated selections
 
 **Example:**
 ```javascript
@@ -74,14 +75,36 @@ const projectNames = dv?.pages()
   .array() ?? ["Inbox"];
 
 const values = await quickAddApi.requestInputs([
-  { 
-    id: "project", 
-    label: "Select Project", 
+  {
+    id: "project",
+    label: "Select Project",
     type: "suggester",
     options: projectNames,
     placeholder: "Start typing project name..."
   }
 ]);
+```
+
+**Multi-Select Suggester:**
+```javascript
+// Select multiple tags, comma-separated
+const values = await quickAddApi.requestInputs([
+  {
+    id: "tags",
+    label: "Select Tags",
+    type: "suggester",
+    options: ["#work", "#personal", "#project", "#urgent", "#review"],
+    suggesterConfig: {
+      multiSelect: true,
+      caseSensitive: false
+    },
+    placeholder: "Type or select multiple tags..."
+  }
+]);
+
+// Result: values.tags = "#work, #project, #urgent"
+// Split into array if needed:
+const tagArray = values.tags.split(', ').filter(Boolean);
 ```
 
 ### `inputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`

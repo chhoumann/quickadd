@@ -273,6 +273,27 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	async onInputChanged(event?: Event): Promise<void> {
+		// Handle multi-select mode: keep suggestions open after selection
+		if (event && (event as any).fromCompletion && (event as any).keepOpen) {
+			const inputStr = this.inputEl.value;
+			const requestId = ++this.currentRequestId;
+			this.currentQuery = inputStr;
+
+			try {
+				const suggestions = await this.getSuggestions(inputStr);
+				if (requestId === this.currentRequestId && suggestions?.length) {
+					this.suggest.setSuggestions(suggestions);
+					// Already open, just update suggestions
+					if (!this.isOpen) {
+						this.open(this.app.dom.appContainerEl, this.inputEl);
+					}
+				}
+			} catch (error) {
+				log.logError(error as Error);
+			}
+			return;
+		}
+
 		// Ignore programmatic changes from completion selection
 		if (event && (event as any).fromCompletion) {
 			return;
