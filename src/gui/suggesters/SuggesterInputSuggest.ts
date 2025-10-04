@@ -39,12 +39,15 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 		};
 	}
 
+	private getRemainingOptions(alreadySelected: string[]): string[] {
+		return this.options.filter((opt) => !alreadySelected.includes(opt));
+	}
+
 	getSuggestions(query: string): string[] {
 		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(query);
 		const searchQuery = this.caseSensitive ? activeTerm : activeTerm.toLowerCase();
 
-		// Filter out already-selected items
-		const available = this.options.filter((opt) => !alreadySelected.includes(opt));
+		const available = this.getRemainingOptions(alreadySelected);
 
 		if (!searchQuery) {
 			return available.slice(0, 200);
@@ -82,8 +85,12 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 		const { alreadySelected } = this.parseMultiSelectInput(this.inputEl.value);
 		alreadySelected.push(item);
 
-		// Set value with trailing comma and space for next entry
-		this.inputEl.value = alreadySelected.join(", ") + ", ";
+		const hasMoreItems = this.getRemainingOptions(alreadySelected).length > 0;
+
+		// Set value with trailing comma and space only if more items available
+		this.inputEl.value = hasMoreItems
+			? alreadySelected.join(", ") + ", "
+			: alreadySelected.join(", ");
 
 		// Move cursor to end
 		this.inputEl.setSelectionRange(
@@ -91,13 +98,20 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 			this.inputEl.value.length,
 		);
 
-		// Trigger input event with special flag to keep open
+		// Trigger input event
 		const event = new Event("input", { bubbles: true });
 		(event as any).fromCompletion = true;
-		(event as any).keepOpen = true;
-		this.inputEl.dispatchEvent(event);
 
-		// Force re-focus to trigger suggestions
-		this.inputEl.focus();
+		// Only keep open if there are more items to select
+		if (hasMoreItems) {
+			(event as any).keepOpen = true;
+			this.inputEl.dispatchEvent(event);
+			// Force re-focus to trigger suggestions
+			this.inputEl.focus();
+		} else {
+			// All items selected, close the dropdown
+			this.inputEl.dispatchEvent(event);
+			this.close();
+		}
 	}
 }

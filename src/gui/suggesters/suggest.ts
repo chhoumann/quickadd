@@ -281,11 +281,16 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 			try {
 				const suggestions = await this.getSuggestions(inputStr);
-				if (requestId === this.currentRequestId && suggestions?.length) {
-					this.suggest.setSuggestions(suggestions);
-					// Already open, just update suggestions
-					if (!this.isOpen) {
-						this.open(this.app.dom.appContainerEl, this.inputEl);
+				if (requestId === this.currentRequestId) {
+					if (suggestions?.length) {
+						this.suggest.setSuggestions(suggestions);
+						// Already open, just update suggestions
+						if (!this.isOpen) {
+							this.open(this.app.dom.appContainerEl, this.inputEl);
+						}
+					} else {
+						// No more items available to select, close the dropdown
+						this.close();
 					}
 				}
 			} catch (error) {
