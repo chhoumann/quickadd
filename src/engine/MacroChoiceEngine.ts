@@ -275,6 +275,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			await this.userScriptDelegator(obj[selected]);
 		} catch (err) {
+			if (err instanceof MacroAbortError) {
+				throw err;
+			}
+			if (settingsStore.getState().abortMacroOnCancelledInput) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
 			reportError(err, "Error in script object handling", ErrorLevel.Log);
 		}
 	}
@@ -340,10 +346,19 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const aiSettings = settingsStore.getState().ai;
 
 		const options = getModelNames();
-		const modelName: string =
-			command.model === "Ask me"
-				? await GenericSuggester.Suggest(this.app, options, options)
-				: command.model;
+		let modelName: string;
+		if (command.model === "Ask me") {
+			try {
+				modelName = await GenericSuggester.Suggest(this.app, options, options);
+			} catch (error) {
+				if (settingsStore.getState().abortMacroOnCancelledInput) {
+					throw new MacroAbortError("Input cancelled by user");
+				}
+				throw error;
+			}
+		} else {
+			modelName = command.model;
+		}
 
 		const model: Model | undefined = getModelByName(modelName);
 

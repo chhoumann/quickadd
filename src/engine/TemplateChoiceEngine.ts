@@ -24,6 +24,8 @@ import {
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { TemplateEngine } from "./TemplateEngine";
+import { MacroAbortError } from "../errors/MacroAbortError";
+import { settingsStore } from "../settingsStore";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -96,11 +98,18 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.choice.fileExistsMode;
 
 				if (!this.choice.setFileExistsBehavior) {
-					userChoice = await GenericSuggester.Suggest(
-						this.app,
-						[...fileExistsChoices],
-						[...fileExistsChoices],
-					);
+					try {
+						userChoice = await GenericSuggester.Suggest(
+							this.app,
+							[...fileExistsChoices],
+							[...fileExistsChoices],
+						);
+					} catch (error) {
+						if (settingsStore.getState().abortMacroOnCancelledInput) {
+							throw new MacroAbortError("Input cancelled by user");
+						}
+						throw error;
+					}
 				}
 
 				switch (userChoice) {
