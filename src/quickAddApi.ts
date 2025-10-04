@@ -27,8 +27,6 @@ import { reportError } from "./utils/errorUtils";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
-import { MacroAbortError } from "./errors/MacroAbortError";
-import { isCancellationError } from "./utils/errorUtils";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -480,11 +478,9 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		} catch {
+			// Public API: return undefined on cancellation (preserves user script contract)
+			return undefined;
 		}
 	}
 
@@ -501,22 +497,18 @@ export class QuickAddApi {
 				placeholder,
 				value,
 			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		} catch {
+			// Public API: return undefined on cancellation (preserves user script contract)
+			return undefined;
 		}
 	}
 
 	public static async yesNoPrompt(app: App, header: string, text?: string) {
 		try {
 			return await GenericYesNoPrompt.Prompt(app, header, text);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		} catch {
+			// Public API: return undefined on cancellation (preserves user script contract)
+			return undefined;
 		}
 	}
 
@@ -572,11 +564,9 @@ export class QuickAddApi {
 				placeholder,
 				options?.renderItem,
 			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		} catch {
+			// Public API: return undefined on cancellation (preserves user script contract)
+			return undefined;
 		}
 	}
 
@@ -587,11 +577,9 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		} catch {
+			// Public API: return undefined on cancellation (preserves user script contract)
+			return undefined;
 		}
 	}
 }
