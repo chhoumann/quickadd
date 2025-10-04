@@ -25,6 +25,8 @@ import {
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter } from "./formatter";
+import { MacroAbortError } from "../errors/MacroAbortError";
+import { isCancellationError } from "../utils/errorUtils";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -141,11 +143,20 @@ export class CompleteFormatter extends Formatter {
 	protected async promptForValue(header?: string): Promise<string> {
 		if (!this.value) {
 			const selectedText: string = await this.getSelectedText();
-			this.value = selectedText
-				? selectedText
-				: await new InputPrompt()
+			if (selectedText) {
+				this.value = selectedText;
+			} else {
+				try {
+					this.value = await new InputPrompt()
 						.factory()
 						.Prompt(this.app, this.valueHeader ?? `Enter value`);
+				} catch (error) {
+					if (isCancellationError(error)) {
+						throw new MacroAbortError("Input cancelled by user");
+					}
+					throw error;
+				}
+			}
 		}
 
 		return this.value;
@@ -155,72 +166,100 @@ export class CompleteFormatter extends Formatter {
 		header?: string,
 		context?: { type?: string; dateFormat?: string; defaultValue?: string },
 	): Promise<string> {
-		// Use VDateInputPrompt for VDATE variables
-		if (context?.type === "VDATE" && context.dateFormat) {
-			return await VDateInputPrompt.Prompt(
-				this.app,
-				header as string,
-				"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
-				context.defaultValue,
-				context.dateFormat,
-			);
-		}
+		try {
+			// Use VDateInputPrompt for VDATE variables
+			if (context?.type === "VDATE" && context.dateFormat) {
+				return await VDateInputPrompt.Prompt(
+					this.app,
+					header as string,
+					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
+					context.defaultValue,
+					context.dateFormat,
+				);
+			}
 
-		// Use default prompt for other variables
-		return await new InputPrompt().factory().Prompt(this.app, header as string);
+			// Use default prompt for other variables
+			return await new InputPrompt().factory().Prompt(this.app, header as string);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 	}
 
 	protected async promptForMathValue(): Promise<string> {
-		return await MathModal.Prompt();
+		try {
+			return await MathModal.Prompt();
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 	}
 
 	protected async suggestForValue(suggestedValues: string[]) {
-		return await GenericSuggester.Suggest(
-			this.app,
-			suggestedValues,
-			suggestedValues,
-		);
+		try {
+			return await GenericSuggester.Suggest(
+				this.app,
+				suggestedValues,
+				suggestedValues,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 	}
 
 	protected async suggestForField(fieldInput: string) {
-		// Parse the field input to extract field name and filters
-		const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
+		try {
+			// Parse the field input to extract field name and filters
+			const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
 
-		// Collect and process via shared collector
-		const { values, hasDefaultValue } =
-			await collectFieldValuesProcessedDetailed(this.app, fieldName, filters);
+			// Collect and process via shared collector
+			const { values, hasDefaultValue } =
+				await collectFieldValuesProcessedDetailed(this.app, fieldName, filters);
 
-		if (values.length === 0) {
-			// No values found even after processing defaults
-			let fallbackPrompt = `No existing values were found in your vault.`;
+			if (values.length === 0) {
+				// No values found even after processing defaults
+				let fallbackPrompt = `No existing values were found in your vault.`;
 
-			// Suggest smart defaults if no custom default was provided
-			if (!filters.defaultValue) {
-				const smartDefaults = FieldValueProcessor.getSmartDefaults(
-					fieldName,
-					[],
-				);
-				if (smartDefaults.length > 0) {
-					fallbackPrompt += `\n\nSuggested values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`;
+				// Suggest smart defaults if no custom default was provided
+				if (!filters.defaultValue) {
+					const smartDefaults = FieldValueProcessor.getSmartDefaults(
+						fieldName,
+						[],
+					);
+					if (smartDefaults.length > 0) {
+						fallbackPrompt += `\n\nSuggested values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`;
+					}
 				}
+
+				return await GenericInputPrompt.Prompt(
+					this.app,
+					`Enter value for ${fieldName}`,
+					fallbackPrompt,
+				);
 			}
 
-			return await GenericInputPrompt.Prompt(
-				this.app,
-				`Enter value for ${fieldName}`,
-				fallbackPrompt,
-			);
-		}
+			// Enhance placeholder with context
+			let placeholder = `Enter value for ${fieldName}`;
+			if (hasDefaultValue) {
+				placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+			}
 
-		// Enhance placeholder with context
-		let placeholder = `Enter value for ${fieldName}`;
-		if (hasDefaultValue) {
-			placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+			return await InputSuggester.Suggest(this.app, values, values, {
+				placeholder,
+			});
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
-
-		return await InputSuggester.Suggest(this.app, values, values, {
-			placeholder,
-		});
 	}
 
 	private generateCacheKey(filters: FieldFilter): string {

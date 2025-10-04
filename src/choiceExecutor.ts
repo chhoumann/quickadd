@@ -12,6 +12,8 @@ import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
+import { MacroAbortError } from "./errors/MacroAbortError";
+import { isCancellationError } from "./utils/errorUtils";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -26,7 +28,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
     if (shouldUseOnePager && (choice.type === "Template" || choice.type === "Capture" || choice.type === "Macro")) {
 			try {
 				await runOnePagePreflight(this.app, this.plugin as unknown as QuickAdd, this, choice);
-			} catch {}
+			} catch (error) {
+				if (isCancellationError(error)) {
+					throw new MacroAbortError("One-page input cancelled by user");
+				}
+				throw error;
+			}
 		}
 
 		switch (choice.type) {

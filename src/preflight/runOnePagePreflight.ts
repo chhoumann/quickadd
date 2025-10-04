@@ -256,7 +256,12 @@ export async function runOnePagePreflight(
 		);
 
 		return true;
-	} catch {
+	} catch (error) {
+		// If user explicitly cancelled, propagate it
+		if (error === "cancelled") {
+			throw error;
+		}
+		// For other errors, silently fail and continue
 		return false;
 	}
 }

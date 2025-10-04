@@ -12,6 +12,8 @@ import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
+import { MacroAbortError } from "../errors/MacroAbortError";
+import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 
@@ -38,12 +40,20 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		let folderPath: string;
 
 		if (folders.length > 1) {
-			folderPath = await GenericSuggester.Suggest(
-				this.app,
-				folders,
-				folders
-			);
-			if (!folderPath) throw new Error("No folder selected.");
+			try {
+				folderPath = await GenericSuggester.Suggest(
+					this.app,
+					folders,
+					folders
+				);
+				if (!folderPath) throw new Error("No folder selected.");
+			} catch (error) {
+				// Always abort on cancelled input
+				if (isCancellationError(error)) {
+					throw new MacroAbortError("Input cancelled by user");
+				}
+				throw error;
+			}
 		} else {
 			folderPath = folders[0];
 		}

@@ -412,6 +412,22 @@ module.exports = async (params) => {
 };
 ```
 
+## Macro Execution Control
+
+### Automatic Abort Behavior
+
+Macros automatically stop execution in the following situations:
+
+1. **User Cancellation**: When a user presses Escape or clicks Cancel in any prompt
+2. **Script Errors**: When an unhandled error occurs in a user script
+3. **Explicit Abort**: When `params.abort()` is called in a script
+
+**What happens when a macro aborts:**
+- All remaining commands in the macro are skipped
+- A message is logged explaining why the macro stopped
+- For user cancellations and explicit aborts, no error dialog is shown
+- For script errors, the full error with stack trace is preserved for debugging
+
 ## Best Practices
 
 ### 1. Error Handling
@@ -424,6 +440,7 @@ module.exports = async (params) => {
     } catch (error) {
         console.error("Macro error:", error);
         new Notice(`Macro failed: ${error.message}`);
+        throw error; // Re-throw to stop remaining macro commands
     }
 };
 ```

@@ -28,6 +28,8 @@ import {
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import { MacroAbortError } from "../errors/MacroAbortError";
+import { isCancellationError } from "../utils/errorUtils";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
 
@@ -262,11 +264,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
 		const filePaths = filesInFolder.map((f) => f.path);
-		const targetFilePath = await InputSuggester.Suggest(
-			this.app,
-			filePaths.map((item) => item.replace(folderPathSlash, "")),
-			filePaths,
-		);
+		let targetFilePath: string;
+		try {
+			targetFilePath = await InputSuggester.Suggest(
+				this.app,
+				filePaths.map((item) => item.replace(folderPathSlash, "")),
+				filePaths,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 
 		invariant(
 			!!targetFilePath && targetFilePath.length > 0,
@@ -289,11 +299,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 
 		const filePaths = filesWithTag.map((f) => f.path);
-		const targetFilePath = await InputSuggester.Suggest(
-			this.app,
-			filePaths,
-			filePaths,
-		);
+		let targetFilePath: string;
+		try {
+			targetFilePath = await InputSuggester.Suggest(
+				this.app,
+				filePaths,
+				filePaths,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 
 		invariant(
 			!!targetFilePath && targetFilePath.length > 0,
