@@ -1,17 +1,22 @@
-import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
+import type { TiktokenModel } from "js-tiktoken";
+import { encodingForModel, getEncoding } from "js-tiktoken";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
+import { MacroAbortError } from "src/errors/MacroAbortError";
+import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
+import { settingsStore } from "src/settingsStore";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
-import { settingsStore } from "src/settingsStore";
-import type { TiktokenModel} from "js-tiktoken";
-import { encodingForModel, getEncoding } from "js-tiktoken";
 import { OpenAIRequest } from "./OpenAIRequest";
-import { makeNoticeHandler } from "./makeNoticeHandler";
 import type { Model } from "./Provider";
 import { getModelMaxTokens } from "./aiHelpers";
-import { MacroAbortError } from "src/errors/MacroAbortError";
+import { makeNoticeHandler } from "./makeNoticeHandler";
+
+// Check if an error indicates user cancellation rather than a real error
+function isCancellationError(error: unknown): boolean {
+	return error === "no input given.";
+}
 
 export const getTokenCount = (text: string, model: Model) => {
 	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview and gpt-3.5-turbo-1106.
@@ -190,7 +195,10 @@ export async function runAIAssistant(
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
 		// Always abort on cancelled input
+		if (isCancellationError(error)) {
 			throw new MacroAbortError("Input cancelled by user");
+		}
+		throw error;
 	}
 }
 
@@ -294,8 +302,8 @@ export async function Prompt(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
-		// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		// No user input in this function - re-throw original error
+		throw error;
 	}
 }
 
@@ -520,7 +528,7 @@ export async function ChunkedPrompt(
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
 		setTimeout(() => notice.hide(), 5000);
-		// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+		// No user input in this function - re-throw original error
+		throw error;
 	}
 }

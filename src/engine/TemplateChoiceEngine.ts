@@ -105,7 +105,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						);
 					} catch (error) {
 						// Always abort on cancelled input
-			throw new MacroAbortError("Input cancelled by user");
+						throw new MacroAbortError("Input cancelled by user");
 					}
 				}
 
