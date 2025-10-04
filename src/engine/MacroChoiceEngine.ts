@@ -41,6 +41,7 @@ import type { Model } from "src/ai/Provider";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
+import { MacroAbortError } from "../errors/MacroAbortError";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -49,6 +50,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		quickAddApi: QuickAddApi;
 		variables: Record<string, unknown>;
 		obsidian: typeof obsidian;
+		abort: (message?: string) => never;
 	};
 	protected output: unknown;
 	protected macro: IMacro;
@@ -73,6 +75,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
 			variables: {},
 			obsidian,
+			abort: (message?: string) => {
+				throw new MacroAbortError(message);
+			},
 		};
 
 		variables?.forEach((value, key) => {
@@ -96,36 +101,44 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	protected async executeCommands(commands: ICommand[]) {
-		for (const command of commands) {
-			if (command?.type === CommandType.Obsidian)
-				this.executeObsidianCommand(command as IObsidianCommand);
-			if (command?.type === CommandType.UserScript)
-				await this.executeUserScript(command as IUserScript);
-			if (command?.type === CommandType.Choice)
-				await this.executeChoice(command as IChoiceCommand);
-			if (command?.type === CommandType.Wait) {
-				const waitCommand: IWaitCommand = command as IWaitCommand;
-				await waitFor(waitCommand.time);
-			}
-			if (command?.type === CommandType.NestedChoice) {
-				await this.executeNestedChoice(command as INestedChoiceCommand);
-			}
-			if (command?.type === CommandType.EditorCommand) {
-				await this.executeEditorCommand(command as IEditorCommand);
-			}
-			if (command?.type === CommandType.AIAssistant) {
-				await this.executeAIAssistant(command as IAIAssistantCommand);
-			}
-			if (command?.type === CommandType.OpenFile) {
-				await this.executeOpenFile(command as IOpenFileCommand);
-			}
+		try {
+			for (const command of commands) {
+				if (command?.type === CommandType.Obsidian)
+					this.executeObsidianCommand(command as IObsidianCommand);
+				if (command?.type === CommandType.UserScript)
+					await this.executeUserScript(command as IUserScript);
+				if (command?.type === CommandType.Choice)
+					await this.executeChoice(command as IChoiceCommand);
+				if (command?.type === CommandType.Wait) {
+					const waitCommand: IWaitCommand = command as IWaitCommand;
+					await waitFor(waitCommand.time);
+				}
+				if (command?.type === CommandType.NestedChoice) {
+					await this.executeNestedChoice(command as INestedChoiceCommand);
+				}
+				if (command?.type === CommandType.EditorCommand) {
+					await this.executeEditorCommand(command as IEditorCommand);
+				}
+				if (command?.type === CommandType.AIAssistant) {
+					await this.executeAIAssistant(command as IAIAssistantCommand);
+				}
+				if (command?.type === CommandType.OpenFile) {
+					await this.executeOpenFile(command as IOpenFileCommand);
+				}
 
-			Object.keys(this.params.variables).forEach((key) => {
-				this.choiceExecutor.variables.set(
-					key,
-					this.params.variables[key]
-				);
-			});
+				Object.keys(this.params.variables).forEach((key) => {
+					this.choiceExecutor.variables.set(
+						key,
+						this.params.variables[key]
+					);
+				});
+			}
+		} catch (error) {
+			if (error instanceof MacroAbortError) {
+				log.logMessage(`Macro execution aborted: ${error.message}`);
+				return;
+			}
+			throw error;
 		}
 	}
 
@@ -146,6 +159,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		try {
 			await this.userScriptDelegator(userScript);
 		} catch (err) {
+			if (err instanceof MacroAbortError) {
+				throw err;
+			}
+			if (settingsStore.getState().abortMacroOnScriptError) {
+				throw new MacroAbortError(
+					`Script error in ${command.name}: ${err instanceof Error ? err.message : String(err)}`
+				);
+			}
 			reportError(err, `Failed to run user script ${command.name}`);
 		}
 

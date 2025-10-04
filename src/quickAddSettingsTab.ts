@@ -30,6 +30,8 @@ export interface QuickAddSettings {
 	enableRibbonIcon: boolean;
 	showCaptureNotification: boolean;
 	enableTemplatePropertyTypes: boolean;
+	abortMacroOnScriptError: boolean;
+	abortMacroOnCancelledInput: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -62,6 +64,8 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	enableRibbonIcon: false,
 	showCaptureNotification: true,
 	enableTemplatePropertyTypes: false,
+	abortMacroOnScriptError: false,
+	abortMacroOnCancelledInput: true,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
@@ -104,6 +108,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
 		this.addTemplatePropertyTypesSetting();
+		this.addAbortMacroOnScriptErrorSetting();
+		this.addAbortMacroOnCancelledInputSetting();
 		this.addGlobalVariablesSetting();
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
@@ -161,6 +167,36 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			toggle.setValue(settingsStore.getState().enableTemplatePropertyTypes);
 			toggle.onChange((value) => {
 				settingsStore.setState({ enableTemplatePropertyTypes: value });
+			});
+		});
+	}
+
+	addAbortMacroOnScriptErrorSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Abort macro on script error");
+		setting.setDesc(
+			"When enabled, any error in a macro script will automatically stop the entire macro execution. " +
+			"Scripts can also manually abort by calling params.abort(message) regardless of this setting."
+		);
+		setting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().abortMacroOnScriptError);
+			toggle.onChange((value) => {
+				settingsStore.setState({ abortMacroOnScriptError: value });
+			});
+		});
+	}
+
+	addAbortMacroOnCancelledInputSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Abort macro on cancelled input");
+		setting.setDesc(
+			"When enabled, pressing Escape or clicking Cancel in any input prompt will stop the entire macro execution. " +
+			"This prevents downstream errors from undefined variables when inputs are cancelled."
+		);
+		setting.addToggle((toggle) => {
+			toggle.setValue(settingsStore.getState().abortMacroOnCancelledInput);
+			toggle.onChange((value) => {
+				settingsStore.setState({ abortMacroOnCancelledInput: value });
 			});
 		});
 	}
