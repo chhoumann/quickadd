@@ -25,7 +25,6 @@ import {
 import { reportError } from "../utils/errorUtils";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { settingsStore } from "../settingsStore";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
