@@ -171,10 +171,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			if (err instanceof MacroAbortError) {
 				throw err;
 			}
-			// Always abort on unhandled script errors
-			throw new MacroAbortError(
-				`Script error in ${command.name}: ${err instanceof Error ? err.message : String(err)}`
-			);
+			// Report and re-throw script errors so users can debug them
+			reportError(err, `Failed to run user script ${command.name}`);
+			throw err;
 		}
 
 		if (this.userScriptCommand) this.userScriptCommand = null;
