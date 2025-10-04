@@ -1,11 +1,11 @@
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App } from "obsidian";
+import { Notice } from "obsidian";
 import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
-import { ErrorLevel } from "../logger/errorLevel";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
@@ -145,6 +145,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		} catch (error) {
 			if (error instanceof MacroAbortError) {
 				log.logMessage(`Macro execution aborted: ${error.message}`);
+				new Notice(`Macro execution aborted: ${error.message}`);
 				return;
 			}
 			throw error;
