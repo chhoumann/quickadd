@@ -31,6 +31,8 @@ export function showNoScriptsFoundNotice(): void {
 		text: "View documentation",
 		href: "https://quickadd.obsidian.guide/docs/Choices/MacroChoice#user-scripts",
 	});
+	link.target = "_blank";
+	link.rel = "noopener noreferrer";
 	link.style.color = "var(--interactive-accent)";
 	link.style.textDecoration = "underline";
 }
