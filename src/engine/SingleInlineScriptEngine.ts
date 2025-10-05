@@ -10,20 +10,15 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, string>
 	) {
-		//@ts-ignore
+		//@ts-expect-error
 		super(app, plugin, null, choiceExecutor, variables);
 	}
 
-	 
 	public async runAndGetOutput(code: string): Promise<any> {
-		 
-		const AsyncFunction = Object.getPrototypeOf(
-			async function () {}
-		).constructor;
-		 
+		const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+
 		const userCode = new AsyncFunction(code);
 
-		 
 		return await userCode.bind(this.params, this).call();
 	}
 }

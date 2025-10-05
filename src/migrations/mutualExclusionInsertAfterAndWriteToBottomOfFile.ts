@@ -26,14 +26,8 @@ function migrateSettingsInMacros(macros: IMacro[]): IMacro[] {
 		if (!Array.isArray(macro.commands)) continue;
 
 		for (const command of macro.commands) {
-			if (
-				isNestedChoiceCommand(command) &&
-				isCaptureChoice(command.choice)
-			) {
-				if (
-					command.choice.insertAfter.enabled &&
-					command.choice.prepend
-				) {
+			if (isNestedChoiceCommand(command) && isCaptureChoice(command.choice)) {
+				if (command.choice.insertAfter.enabled && command.choice.prepend) {
 					command.choice.prepend = false;
 				}
 			}
@@ -46,7 +40,7 @@ function migrateSettingsInMacros(macros: IMacro[]): IMacro[] {
 const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 	description:
 		"Mutual exclusion of insertAfter and writeToBottomOfFile settings. If insertAfter is enabled, writeToBottomOfFile is disabled. To support changes in settings UI.",
-	 
+
 	migrate: async (plugin) => {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveMigrateSettingInChoices(choicesCopy);
@@ -55,10 +49,10 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 		const macros = migrateSettingsInMacros(macrosCopy);
 
 		plugin.settings.choices = choices;
-		
+
 		// Save the migrated macros back to settings - later migrations still need it
 		(plugin.settings as any).macros = macros;
-		
+
 		/* DO NOT delete macros here – later migrations still need it
 		// Clean up legacy macros array if it exists
 		if ('macros' in plugin.settings) {

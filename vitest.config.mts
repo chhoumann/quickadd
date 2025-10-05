@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 // import { svelte } from "@sveltejs/vite-plugin-svelte";
 // import sveltePreprocess from "svelte-preprocess";
-import * as path from "path";
+import * as path from "node:path";
 
 export default defineConfig({
 	plugins: [

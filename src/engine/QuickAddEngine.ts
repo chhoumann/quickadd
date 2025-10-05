@@ -28,7 +28,7 @@ export abstract class QuickAddEngine {
 	 * File extensions that support YAML front matter post-processing.
 	 * Currently only Markdown files are supported (Canvas files use JSON, not YAML).
 	 */
-	private static readonly YAML_FRONTMATTER_EXTENSIONS = ['md'];
+	private static readonly YAML_FRONTMATTER_EXTENSIONS = ["md"];
 
 	protected constructor(app: App) {
 		this.app = app;
@@ -46,7 +46,9 @@ export abstract class QuickAddEngine {
 	 * @param templatePropertyVars - Map of variables to validate
 	 * @returns ValidationResult with any warnings or errors found
 	 */
-	protected validateStructuredVariables(templatePropertyVars: Map<string, unknown>): ValidationResult {
+	protected validateStructuredVariables(
+		templatePropertyVars: Map<string, unknown>
+	): ValidationResult {
 		const warnings: string[] = [];
 		const errors: string[] = [];
 
@@ -83,17 +85,23 @@ export abstract class QuickAddEngine {
 
 		// Check for invalid types
 		if (typeof value === "function") {
-			errors.push(`Variable "${key}" contains a function, which cannot be serialized to YAML`);
+			errors.push(
+				`Variable "${key}" contains a function, which cannot be serialized to YAML`
+			);
 			return { warnings, errors };
 		}
 
 		if (typeof value === "symbol") {
-			errors.push(`Variable "${key}" contains a symbol, which cannot be serialized to YAML`);
+			errors.push(
+				`Variable "${key}" contains a symbol, which cannot be serialized to YAML`
+			);
 			return { warnings, errors };
 		}
 
 		if (typeof value === "bigint") {
-			warnings.push(`Variable "${key}" contains a BigInt, which will be converted to a string`);
+			warnings.push(
+				`Variable "${key}" contains a BigInt, which will be converted to a string`
+			);
 			return { warnings, errors };
 		}
 
@@ -195,8 +203,7 @@ export abstract class QuickAddEngine {
 			throw new Error(`${filePath} found but it's a folder`);
 		}
 
-		if (!(file instanceof TFile))
-			throw new Error(`${filePath} is not a file`);
+		if (!(file instanceof TFile)) throw new Error(`${filePath} is not a file`);
 
 		return file;
 	}
@@ -213,7 +220,6 @@ export abstract class QuickAddEngine {
 
 		if (!dir || !(dir instanceof TFolder)) {
 			await this.createFolder(dirName);
-
 		}
 
 		return await this.app.vault.create(filePath, fileContent);
@@ -227,9 +233,14 @@ export abstract class QuickAddEngine {
 	 * @param templateVars - The map of template variables to be processed
 	 * @returns true if the file should be post-processed, false otherwise
 	 */
-	protected shouldPostProcessFrontMatter(file: TFile, templateVars: Map<string, unknown>): boolean {
-		return QuickAddEngine.YAML_FRONTMATTER_EXTENSIONS.includes(file.extension) &&
-		       templateVars.size > 0;
+	protected shouldPostProcessFrontMatter(
+		file: TFile,
+		templateVars: Map<string, unknown>
+	): boolean {
+		return (
+			QuickAddEngine.YAML_FRONTMATTER_EXTENSIONS.includes(file.extension) &&
+			templateVars.size > 0
+		);
 	}
 
 	/**
@@ -240,7 +251,10 @@ export abstract class QuickAddEngine {
 	 * - @date:ISO strings are automatically converted to Date objects for proper YAML formatting
 	 *   (see coerceYamlValue in utils/yamlValues.ts for implementation details)
 	 */
-	protected async postProcessFrontMatter(file: TFile, templatePropertyVars: Map<string, unknown>): Promise<void> {
+	protected async postProcessFrontMatter(
+		file: TFile,
+		templatePropertyVars: Map<string, unknown>
+	): Promise<void> {
 		// Validate structured variables before processing
 		const validation = this.validateStructuredVariables(templatePropertyVars);
 
@@ -256,17 +270,22 @@ export abstract class QuickAddEngine {
 			const errorSummary = validation.errors.join("; ");
 			log.logError(
 				`Cannot post-process front matter for file ${file.path} due to validation errors: ${errorSummary}. ` +
-				`The file was created successfully, but some structured variables may not be properly formatted. ` +
-				`Please check the variable values and ensure they don't contain circular references, ` +
-				`exceed nesting depth of ${VALIDATION_LIMITS.MAX_NESTING_DEPTH}, or contain unsupported types (functions, symbols).`
+					`The file was created successfully, but some structured variables may not be properly formatted. ` +
+					`Please check the variable values and ensure they don't contain circular references, ` +
+					`exceed nesting depth of ${VALIDATION_LIMITS.MAX_NESTING_DEPTH}, or contain unsupported types (functions, symbols).`
 			);
 			return;
 		}
 
 		try {
-			log.logMessage(`Post-processing front matter for ${file.path} with ${templatePropertyVars.size} structured variables`);
-			log.logMessage(`Variable types: ${Array.from(templatePropertyVars.entries())
-				.map(([k, v]) => `${k}:${typeof v}`).join(', ')}`);
+			log.logMessage(
+				`Post-processing front matter for ${file.path} with ${templatePropertyVars.size} structured variables`
+			);
+			log.logMessage(
+				`Variable types: ${Array.from(templatePropertyVars.entries())
+					.map(([k, v]) => `${k}:${typeof v}`)
+					.join(", ")}`
+			);
 
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				for (const [key, value] of templatePropertyVars) {
@@ -275,14 +294,16 @@ export abstract class QuickAddEngine {
 				}
 			});
 
-			log.logMessage(`Successfully post-processed front matter for ${file.path}`);
+			log.logMessage(
+				`Successfully post-processed front matter for ${file.path}`
+			);
 		} catch (err) {
 			// Improved error message with actionable information
 			log.logError(
 				`Failed to post-process front matter for file ${file.path}: ${err}. ` +
-				`The file was created successfully, but structured variables may not be properly formatted. ` +
-				`This usually happens when variable values contain unexpected types or when Obsidian's YAML processor encounters an issue. ` +
-				`Check the console for more details about which variables caused the problem.`
+					`The file was created successfully, but structured variables may not be properly formatted. ` +
+					`This usually happens when variable values contain unexpected types or when Obsidian's YAML processor encounters an issue. ` +
+					`Check the console for more details about which variables caused the problem.`
 			);
 			// Don't throw - the file was still created successfully
 		}

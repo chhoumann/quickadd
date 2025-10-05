@@ -65,10 +65,7 @@ export class MathModal extends Modal {
 		this.inputEl = tc.inputEl;
 
 		tc.onChange(
-			debounce(
-				async (value) => await this.mathjaxLoop(mathDiv, value),
-				50
-			)
+			debounce(async (value) => await this.mathjaxLoop(mathDiv, value), 50)
 		);
 
 		tc.inputEl.addEventListener("keydown", this.keybindListener);
@@ -91,9 +88,7 @@ export class MathModal extends Modal {
 
 	private cursorToGoTo() {
 		if (this.inputEl.value.contains(LATEX_CURSOR_MOVE_HERE)) {
-			const cursorPos = this.inputEl.value.indexOf(
-				LATEX_CURSOR_MOVE_HERE
-			);
+			const cursorPos = this.inputEl.value.indexOf(LATEX_CURSOR_MOVE_HERE);
 			this.inputEl.value = this.inputEl.value.replace(
 				LATEX_CURSOR_MOVE_HERE,
 				""
@@ -114,18 +109,13 @@ export class MathModal extends Modal {
 	}
 
 	private createButtonBar(mainContentContainer: HTMLDivElement) {
-		const buttonBarContainer: HTMLDivElement =
-			mainContentContainer.createDiv();
+		const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv();
 		this.createButton(
 			buttonBarContainer,
 			"Ok",
 			this.submitClickCallback
 		).setCta().buttonEl.style.marginRight = "0";
-		this.createButton(
-			buttonBarContainer,
-			"Cancel",
-			this.cancelClickCallback
-		);
+		this.createButton(buttonBarContainer, "Cancel", this.cancelClickCallback);
 
 		buttonBarContainer.style.display = "flex";
 		buttonBarContainer.style.flexDirection = "row-reverse";
@@ -134,8 +124,8 @@ export class MathModal extends Modal {
 		buttonBarContainer.style.gap = "0.5rem";
 	}
 
-	private submitClickCallback = (evt: MouseEvent) => this.submit();
-	private cancelClickCallback = (evt: MouseEvent) => this.cancel();
+	private submitClickCallback = (_evt: MouseEvent) => this.submit();
+	private cancelClickCallback = (_evt: MouseEvent) => this.cancel();
 
 	private removeInputListeners() {
 		this.inputEl.removeEventListener("keydown", this.keybindListener);

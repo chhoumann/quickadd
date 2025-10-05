@@ -28,7 +28,7 @@ async function getReleaseNotesAfter(
 	const response = await fetch(
 		`https://api.github.com/repos/${repoOwner}/${repoName}/releases`
 	);
-	 
+
 	const releases: Release[] | { message: string } = await response.json();
 
 	if ((!response.ok && "message" in releases) || !Array.isArray(releases)) {
@@ -50,10 +50,7 @@ async function getReleaseNotesAfter(
 		.filter((release) => !release.draft && !release.prerelease);
 }
 
-function addExtraHashToHeadings(
-	markdownText: string,
-	numHashes = 1
-): string {
+function addExtraHashToHeadings(markdownText: string, numHashes = 1): string {
 	// Split the markdown text into an array of lines
 	const lines = markdownText.split("\n");
 
@@ -87,10 +84,10 @@ export class UpdateModal extends Modal {
 			.then((releases) => {
 				this.releases = releases;
 
-                if (this.releases.length === 0) {
-                    this.close();
-                    return;
-                }
+				if (this.releases.length === 0) {
+					this.close();
+					return;
+				}
 
 				this.display();
 			})
@@ -117,7 +114,7 @@ export class UpdateModal extends Modal {
 		contentEl.empty();
 		contentEl.classList.add("quickadd-update-modal-container");
 
-        const header = `### New in QuickAdd v${this.releases[0].tag_name}\n`
+		const header = `### New in QuickAdd v${this.releases[0].tag_name}\n`;
 		const text = `Thank you for using QuickAdd! If you like the plugin, please consider supporting me by buying me a coffee. With your sponsorship, I'll be able to contribute more to my existing projects, start new ones, and be more responsive to issues & feature requests.`;
 		const buymeacoffee = `<div class="quickadd-bmac-container"><a href="https://www.buymeacoffee.com/chhoumann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 144px !important;" ></a></div>`;
 
@@ -127,7 +124,7 @@ export class UpdateModal extends Modal {
 			.join("\n---\n");
 
 		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
-        const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
+		const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
 		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${addExtraHashToHeadings(
 			releaseNotes
 		)}`;
@@ -136,7 +133,7 @@ export class UpdateModal extends Modal {
 			markdownStr,
 			contentDiv,
 			this.app.vault.getRoot().path,
-			new Component(),
+			new Component()
 		);
 	}
 }

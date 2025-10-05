@@ -4,12 +4,12 @@ import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import type QuickAdd from "../main";
-import {
-	getTemplater,
-	overwriteTemplaterOnce,
-} from "../utilityObsidian";
+import { getTemplater, overwriteTemplaterOnce } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
+import {
+	MARKDOWN_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+} from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -41,11 +41,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 		if (folders.length > 1) {
 			try {
-				folderPath = await GenericSuggester.Suggest(
-					this.app,
-					folders,
-					folders
-				);
+				folderPath = await GenericSuggester.Suggest(this.app, folders, folders);
 				if (!folderPath) throw new Error("No folder selected.");
 			} catch (error) {
 				// Always abort on cancelled input
@@ -90,10 +86,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	): string {
 		const actualFolderPath: string = folderPath ? `${folderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = fileName.replace(
-			MARKDOWN_FILE_EXTENSION_REGEX,
-			""
-		).replace(CANVAS_FILE_EXTENSION_REGEX, "");
+		const formattedFileName: string = fileName
+			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
+			.replace(CANVAS_FILE_EXTENSION_REGEX, "");
 		return `${actualFolderPath}${formattedFileName}${extension}`;
 	}
 
@@ -102,7 +97,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		let newFileName = fileName;
 
 		// Determine the extension from the filename and construct a matching regex
-		const extension = CANVAS_FILE_EXTENSION_REGEX.test(fileName) ? ".canvas" : ".md";
+		const extension = CANVAS_FILE_EXTENSION_REGEX.test(fileName)
+			? ".canvas"
+			: ".md";
 		const extPattern = extension.replace(/\./g, "\\.");
 		const numberWithExtRegex = new RegExp(`(\\d*)${extPattern}$`);
 		const exec = numberWithExtRegex.exec(fileName);
@@ -114,19 +111,27 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				if (Number.isNaN(number)) {
 					throw new Error("detected numbers but couldn't get them.");
 				}
-				newFileName = newFileName.replace(numberWithExtRegex, `${number + 1}${extension}`);
+				newFileName = newFileName.replace(
+					numberWithExtRegex,
+					`${number + 1}${extension}`
+				);
 			} else {
 				// No digits previously; insert 1 before extension
-				newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
+				newFileName = newFileName.replace(
+					new RegExp(`${extPattern}$`),
+					`1${extension}`
+				);
 			}
 		} else if (fileExists) {
 			// No match; simply append 1 before the extension
-			newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
+			newFileName = newFileName.replace(
+				new RegExp(`${extPattern}$`),
+				`1${extension}`
+			);
 		}
 
 		const newFileExists = await this.app.vault.adapter.exists(newFileName);
-		if (newFileExists)
-			newFileName = await this.incrementFileName(newFileName);
+		if (newFileExists) newFileName = await this.incrementFileName(newFileName);
 
 		return newFileName;
 	}
@@ -136,12 +141,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		templatePath: string
 	) {
 		try {
-			const templateContent: string = await this.getTemplateContent(
-				templatePath
-			);
+			const templateContent: string =
+				await this.getTemplateContent(templatePath);
 
-				// Extract filename without extension from the full path (supports .md and .canvas)
-				const fileBasename = basenameWithoutMdOrCanvas(filePath);
+			// Extract filename without extension from the full path (supports .md and .canvas)
+			const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			this.formatter.setTitle(fileBasename);
 
 			const formattedTemplateContent: string =
@@ -150,9 +154,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Get template variables before creating the file
 			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
 
-			log.logMessage(`TemplateEngine.createFileWithTemplate: Collected ${templateVars.size} template property variables for ${filePath}`);
+			log.logMessage(
+				`TemplateEngine.createFileWithTemplate: Collected ${templateVars.size} template property variables for ${filePath}`
+			);
 			if (templateVars.size > 0) {
-				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+				log.logMessage(
+					`Variables: ${Array.from(templateVars.keys()).join(", ")}`
+				);
 			}
 
 			const createdFile: TFile = await this.createFileWithInput(
@@ -179,16 +187,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		this.formatter.setLinkToCurrentFileBehavior(behavior);
 	}
 
-
-
-	protected async overwriteFileWithTemplate(
-		file: TFile,
-		templatePath: string
-	) {
+	protected async overwriteFileWithTemplate(file: TFile, templatePath: string) {
 		try {
-			const templateContent: string = await this.getTemplateContent(
-				templatePath
-			);
+			const templateContent: string =
+				await this.getTemplateContent(templatePath);
 
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
@@ -200,9 +202,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Get template variables before modifying the file
 			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
 
-			log.logMessage(`TemplateEngine.overwriteFileWithTemplate: Collected ${templateVars.size} template property variables for ${file.path}`);
+			log.logMessage(
+				`TemplateEngine.overwriteFileWithTemplate: Collected ${templateVars.size} template property variables for ${file.path}`
+			);
 			if (templateVars.size > 0) {
-				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+				log.logMessage(
+					`Variables: ${Array.from(templateVars.keys()).join(", ")}`
+				);
 			}
 
 			await this.app.vault.modify(file, formattedTemplateContent);
@@ -228,9 +234,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		section: "top" | "bottom"
 	) {
 		try {
-			const templateContent: string = await this.getTemplateContent(
-				templatePath
-			);
+			const templateContent: string =
+				await this.getTemplateContent(templatePath);
 
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
@@ -257,8 +262,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		let correctTemplatePath: string = templatePath;
-		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
-			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath))
+		if (
+			!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) &&
+			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath)
+		)
 			correctTemplatePath += ".md";
 
 		const templateFile =

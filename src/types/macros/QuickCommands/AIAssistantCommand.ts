@@ -3,7 +3,12 @@ import { CommandType } from "../CommandType";
 import type { IAIAssistantCommand } from "./IAIAssistantCommand";
 import { settingsStore } from "src/settingsStore";
 import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
-import { DEFAULT_FREQUENCY_PENALTY, DEFAULT_PRESENCE_PENALTY, DEFAULT_TEMPERATURE, DEFAULT_TOP_P } from "src/ai/OpenAIModelParameters";
+import {
+	DEFAULT_FREQUENCY_PENALTY,
+	DEFAULT_PRESENCE_PENALTY,
+	DEFAULT_TEMPERATURE,
+	DEFAULT_TOP_P,
+} from "src/ai/OpenAIModelParameters";
 
 export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 	id: string;

@@ -15,7 +15,7 @@ import type { TemplateChoice } from "./types/choices/TemplateChoice";
 import type {
 	OpenLocation as FileOpenLocation,
 	OpenFileOptions as FileOpenOptions,
-	FileViewMode2 as FileViewModeNew
+	FileViewMode2 as FileViewModeNew,
 } from "./types/fileOpening";
 import type { LinkPlacement } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
@@ -26,7 +26,11 @@ import { reportError } from "./utils/errorUtils";
  * This removes the need for an arbitrary debounce (e.g., 75 ms) and is resilient across
  * local SSDs, network shares, and different OSes.
  */
-export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) {
+export async function waitForFileSettle(
+	app: App,
+	file: TFile,
+	timeoutMs = 500
+) {
 	try {
 		const adapter = app.vault.adapter;
 		if (!("stat" in adapter) || typeof adapter.stat !== "function") return;
@@ -49,7 +53,9 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 		}
 	} catch (err) {
 		// Non-fatal – we'll fall back to immediate processing.
-		log.logWarning(`waitForFileSettle: fallback due to adapter/stat failure – ${(err as Error).message}`);
+		log.logWarning(
+			`waitForFileSettle: fallback due to adapter/stat failure – ${(err as Error).message}`
+		);
 	}
 }
 
@@ -68,23 +74,33 @@ export async function overwriteTemplaterOnce(app: App, file: TFile) {
 	try {
 		original = await app.vault.read(file);
 	} catch (err) {
-		reportError(err as Error, `overwriteTemplaterOnce: failed to read ${file.path} before render`);
+		reportError(
+			err as Error,
+			`overwriteTemplaterOnce: failed to read ${file.path} before render`
+		);
 		return;
 	}
 
 	try {
-		await (templater.templater as {
-			overwrite_file_commands: (f: TFile) => Promise<void>;
-		}).overwrite_file_commands(file);
+		await (
+			templater.templater as {
+				overwrite_file_commands: (f: TFile) => Promise<void>;
+			}
+		).overwrite_file_commands(file);
 		return;
 	} catch (err) {
 		// Roll back to original content to avoid partial renders
 		try {
 			await app.vault.modify(file, original);
 		} catch (rollbackErr) {
-			log.logWarning(`Failed to rollback ${file.path} after Templater error: ${(rollbackErr as Error).message}`);
+			log.logWarning(
+				`Failed to rollback ${file.path} after Templater error: ${(rollbackErr as Error).message}`
+			);
 		}
-		reportError(err as Error, `Templater failed on ${file.path}. Rolled back to pre-render state.`);
+		reportError(
+			err as Error,
+			`Templater failed on ${file.path}. Rolled back to pre-render state.`
+		);
 		return;
 	}
 }
@@ -92,7 +108,7 @@ export async function overwriteTemplaterOnce(app: App, file: TFile) {
 export async function templaterParseTemplate(
 	app: App,
 	templateContent: string,
-	targetFile: TFile,
+	targetFile: TFile
 ) {
 	const templater = getTemplater(app);
 	if (!templater) return templateContent;
@@ -100,8 +116,8 @@ export async function templaterParseTemplate(
 	return await (
 		templater.templater as {
 			parse_template: (
-				opt: { target_file: TFile; run_mode: number; },
-				content: string,
+				opt: { target_file: TFile; run_mode: number },
+				content: string
 			) => Promise<string>;
 		}
 	).parse_template({ target_file: targetFile, run_mode: 4 }, templateContent);
@@ -111,8 +127,8 @@ export function getNaturalLanguageDates() {
 	return NLDParser;
 }
 
-export function getDate(input?: { format?: string; offset?: number; }) {
-	let duration;
+export function getDate(input?: { format?: string; offset?: number }) {
+	let duration: moment.Duration | undefined;
 
 	if (
 		input?.offset !== null &&
@@ -142,7 +158,11 @@ export function appendToCurrentLine(toAppend: string, app: App) {
 	}
 }
 
-export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App) {
+export function insertOnNewLine(
+	toInsert: string,
+	direction: "above" | "below",
+	app: App
+) {
 	try {
 		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 
@@ -154,16 +174,19 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		const editor = activeView.editor;
 		const cursor = editor.getCursor();
 		const lineNumber = cursor.line;
-		
+
 		if (direction === "above") {
 			// Insert at the beginning of the current line, add content + newline
-			editor.replaceRange(toInsert + "\n", { line: lineNumber, ch: 0 });
+			editor.replaceRange(`${toInsert}\n`, { line: lineNumber, ch: 0 });
 			// Move cursor to end of inserted content (before the newline)
 			editor.setCursor({ line: lineNumber, ch: toInsert.length });
 		} else {
 			// Insert at the end of the current line, add newline + content
 			const currentLine = editor.getLine(lineNumber);
-			editor.replaceRange("\n" + toInsert, { line: lineNumber, ch: currentLine.length });
+			editor.replaceRange(`\n${toInsert}`, {
+				line: lineNumber,
+				ch: currentLine.length,
+			});
 			// Move cursor to end of inserted content
 			editor.setCursor({ line: lineNumber + 1, ch: toInsert.length });
 		}
@@ -193,12 +216,13 @@ export function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
-	options: { requireActiveView?: boolean } = {},
+	options: { requireActiveView?: boolean } = {}
 ) {
 	const { requireActiveView = true } = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
-		const message = "Cannot append link because no active Markdown view is available.";
+		const message =
+			"Cannot append link because no active Markdown view is available.";
 		if (requireActiveView) {
 			throw new Error(message);
 		}
@@ -210,12 +234,10 @@ export function insertLinkWithPlacement(
 
 	// Snapshot current selections *before* mutating the document.
 	// We copy them because CodeMirror mutates the objects in-place.
-	const selections = editor
-		.listSelections()
-		.map((sel) => ({
-			anchor: { ...sel.anchor },
-			head: { ...sel.head },
-		}));
+	const selections = editor.listSelections().map((sel) => ({
+		anchor: { ...sel.anchor },
+		head: { ...sel.head },
+	}));
 
 	//////////////////////////////////////////////////////////////////
 	//  REPLACE-SELECTION
@@ -231,7 +253,7 @@ export function insertLinkWithPlacement(
 
 	/**
 	 * Helper that converts a {line, ch} position to a monotonically
-	 * increasing index so we can sort selections bottom-to-top.  
+	 * increasing index so we can sort selections bottom-to-top.
 	 * Sorting bottom-to-top prevents indices from becoming stale while
 	 * we insert (because later lines are modified first).
 	 */
@@ -239,9 +261,7 @@ export function insertLinkWithPlacement(
 		editor.posToOffset({ line, ch });
 
 	// Sort selections by document position (descending)
-	const ordered = selections.sort(
-		(a, b) => asIndex(b.head) - asIndex(a.head),
-	);
+	const ordered = selections.sort((a, b) => asIndex(b.head) - asIndex(a.head));
 
 	// Perform all insertions sequentially for simplicity
 	for (const sel of ordered) {
@@ -307,12 +327,12 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 	// Use "::" exclusively to separate macro/script from member path
 	const parts = fullMemberPath
 		.split("::")
-		.map(p => p.trim())
+		.map((p) => p.trim())
 		.filter(Boolean);
 
 	return {
 		basename: parts[0],
-		memberAccess: parts.slice(1)
+		memberAccess: parts.slice(1),
 	};
 }
 
@@ -321,120 +341,122 @@ export type OpenLocation = FileOpenLocation;
 export type FileViewMode2 = FileViewModeNew;
 export type OpenFileOptions = FileOpenOptions;
 
-
-
 /**
  * Open a file (by TFile or vault path) with precise control over location and mode.
- * 
+ *
  * @example
  * // Open in a new tab
  * await openFile(app, "daily/2024-01-01.md", { location: "tab" });
- * 
+ *
  * @example
  * // Split vertically in source mode
- * await openFile(app, file, { 
- *   location: "split", 
- *   direction: "vertical", 
- *   mode: "source" 
+ * await openFile(app, file, {
+ *   location: "split",
+ *   direction: "vertical",
+ *   mode: "source"
  * });
- * 
+ *
  * @example
  * // Open in sidebar without focus
- * await openFile(app, file, { 
- *   location: "right-sidebar", 
- *   focus: false 
+ * await openFile(app, file, {
+ *   location: "right-sidebar",
+ *   focus: false
  * });
- * 
+ *
  * @returns The leaf it opened into.
  */
 export async function openFile(
-  app: App,
-  fileOrPath: TFile | string,
-  options: FileOpenOptions = {}
+	app: App,
+	fileOrPath: TFile | string,
+	options: FileOpenOptions = {}
 ): Promise<WorkspaceLeaf> {
-  const {
-    location = "tab",
-    direction = "vertical",
-    mode,
-    focus = true,
-    eState,
-  } = options;
+	const {
+		location = "tab",
+		direction = "vertical",
+		mode,
+		focus = true,
+		eState,
+	} = options;
 
-  const file =
-    typeof fileOrPath === "string"
-      ? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
-      : fileOrPath;
+	const file =
+		typeof fileOrPath === "string"
+			? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
+			: fileOrPath;
 
-  if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
+	if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
 
-  // Resolve a target leaf for all supported locations
-  let leaf: WorkspaceLeaf | null;
-  switch (location) {
-    case "reuse":
-      leaf = app.workspace.getLeaf(false);
-      break;
-    case "tab":
-      leaf = app.workspace.getLeaf("tab");
-      break;
-    case "split":
-      leaf = app.workspace.getLeaf("split", direction);
-      break;
-    case "window":
-      leaf = app.workspace.getLeaf("window");
-      break;
-    case "left-sidebar":
-      leaf = app.workspace.getLeftLeaf(true);
-      break;
-    case "right-sidebar":
-      leaf = app.workspace.getRightLeaf(true);
-      break;
-    default:
-      leaf = app.workspace.getLeaf("tab");
-  }
-  if (!leaf) throw new Error("Could not obtain a workspace leaf.");
+	// Resolve a target leaf for all supported locations
+	let leaf: WorkspaceLeaf | null;
+	switch (location) {
+		case "reuse":
+			leaf = app.workspace.getLeaf(false);
+			break;
+		case "tab":
+			leaf = app.workspace.getLeaf("tab");
+			break;
+		case "split":
+			leaf = app.workspace.getLeaf("split", direction);
+			break;
+		case "window":
+			leaf = app.workspace.getLeaf("window");
+			break;
+		case "left-sidebar":
+			leaf = app.workspace.getLeftLeaf(true);
+			break;
+		case "right-sidebar":
+			leaf = app.workspace.getRightLeaf(true);
+			break;
+		default:
+			leaf = app.workspace.getLeaf("tab");
+	}
+	if (!leaf) throw new Error("Could not obtain a workspace leaf.");
 
-  // Open the file
-  await leaf.openFile(file);
+	// Open the file
+	await leaf.openFile(file);
 
-  // Optionally adjust view mode (Reading / Live Preview / Source)
-  if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
-    const vs = leaf.getViewState();
-    const next = { ...(vs.state ?? {}) };
+	// Optionally adjust view mode (Reading / Live Preview / Source)
+	if (
+		mode &&
+		mode !== "default" &&
+		!(typeof mode === "object" && mode.mode === "default")
+	) {
+		const vs = leaf.getViewState();
+		const next = { ...(vs.state ?? {}) };
 
-    if (mode === "preview" || (typeof mode === "object" && mode.mode === "preview")) {
-      next.mode = "preview";
-      delete (next as any).source;
-    } else if (mode === "source") {
-      next.mode = "source";
-      (next as any).source = true;
-    } else if (mode === "live" || mode === "live-preview") {
-      next.mode = "source";
-      (next as any).source = false; // Live Preview = source:false
-    } else if (typeof mode === "object" && mode.mode === "source") {
-      // advanced override
-      next.mode = "source";
-      (next as any).source = mode.source;
-    }
+		if (
+			mode === "preview" ||
+			(typeof mode === "object" && mode.mode === "preview")
+		) {
+			next.mode = "preview";
+			delete (next as any).source;
+		} else if (mode === "source") {
+			next.mode = "source";
+			(next as any).source = true;
+		} else if (mode === "live" || mode === "live-preview") {
+			next.mode = "source";
+			(next as any).source = false; // Live Preview = source:false
+		} else if (typeof mode === "object" && mode.mode === "source") {
+			// advanced override
+			next.mode = "source";
+			(next as any).source = mode.source;
+		}
 
-    // Fix eState usage - merge into state rather than passing as second param
-    await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
-  }
+		// Fix eState usage - merge into state rather than passing as second param
+		await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
+	}
 
-  if (focus) {
-    app.workspace.setActiveLeaf(leaf, { focus: true });
-  }
+	if (focus) {
+		app.workspace.setActiveLeaf(leaf, { focus: true });
+	}
 
-  return leaf;
+	return leaf;
 }
 
 /**
  * If there is no existing tab which opened the file, return false, else return true.
  */
-export function openExistingFileTab(
-	app: App,
-	file: TFile,
-): boolean {
-	let leaf: WorkspaceLeaf | undefined = undefined;
+export function openExistingFileTab(app: App, file: TFile): boolean {
+	let leaf: WorkspaceLeaf | undefined;
 
 	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
 		const view = m_leaf.view;
@@ -457,7 +479,7 @@ export function openExistingFileTab(
 // Slightly modified version of Templater's user script import implementation
 // Source: https://github.com/SilentVoid13/Templater
 export async function getUserScript(command: IUserScript, app: App) {
-	// @ts-ignore
+	// @ts-expect-error
 	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
 	if (!file) {
 		log.logError(`failed to load file ${command.path}.`);
@@ -465,31 +487,31 @@ export async function getUserScript(command: IUserScript, app: App) {
 	}
 
 	if (file instanceof TFile) {
-		 
-		const req = (s: string) => window.require && window.require(s);
+		const req = (s: string) => window.require?.(s);
 		const exp: Record<string, unknown> = {};
 		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
-		 
+
+		// biome-ignore lint/security/noGlobalEval: User scripts are intentionally executed as part of the plugin's core functionality
 		const fn = window.eval(
-			`(function(require, module, exports) { ${fileContent} \n})`,
+			`(function(require, module, exports) { ${fileContent} \n})`
 		);
-		 
+
 		fn(req, mod, exp);
 
-		// @ts-ignore
-		const userScript = exp["default"] || mod.exports;
+		// @ts-expect-error
+		const userScript = exp.default || mod.exports;
 		if (!userScript) return;
 
 		let script = userScript;
 
 		const { memberAccess } = getUserScriptMemberAccess(command.name);
 		if (memberAccess && memberAccess.length > 0) {
-			let member: string;
-			while ((member = memberAccess.shift() as string)) {
-				//@ts-ignore
-				 
+			while (memberAccess.length > 0) {
+				const member = memberAccess.shift() as string;
+				//@ts-expect-error
+
 				script = script[member];
 			}
 		}
@@ -500,7 +522,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 
 export function excludeKeys<T extends object, K extends keyof T>(
 	sourceObj: T,
-	except: K[],
+	except: K[]
 ): Omit<T, K> {
 	const obj = structuredClone(sourceObj);
 
@@ -537,7 +559,10 @@ export function isFolder(app: App, path: string): boolean {
 	return !!abstractItem && abstractItem instanceof TFolder;
 }
 
-export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] {
+export function getMarkdownFilesInFolder(
+	app: App,
+	folderPath: string
+): TFile[] {
 	return app.vault
 		.getMarkdownFiles()
 		.filter((f) => f.path.startsWith(folderPath));
@@ -551,7 +576,7 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 	const frontMatterValues = Object.entries(frontmatter);
 	if (!frontMatterValues.length) return [];
 
-	const tagPairs = frontMatterValues.filter(([key, value]) => {
+	const tagPairs = frontMatterValues.filter(([key, _value]) => {
 		const lowercaseKey = key.toLowerCase();
 
 		// In Obsidian, these are synonymous.
@@ -561,13 +586,15 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 	if (!tagPairs) return [];
 
 	const tags = tagPairs
-		.flatMap(([key, value]) => {
+		.flatMap(([_key, value]) => {
 			if (typeof value === "string") {
 				// separator can either be comma or space separated
 				return value.split(/,|\s+/).map((v) => v.trim());
-			} else if (Array.isArray(value)) {
+			}
+			if (Array.isArray(value)) {
 				return value as string[];
 			}
+			return [];
 		})
 		.filter((v) => !!v) as string[]; // fair to cast after filtering out falsy values
 
@@ -584,14 +611,14 @@ function getFileTags(app: App, file: TFile): string[] {
 	}
 
 	if (fileCache.tags && Array.isArray(fileCache.tags)) {
-		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^\#/, "")));
+		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^#/, "")));
 	}
 
 	return tagsInFile;
 }
 
 export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
-	const targetTag = tag.replace(/^\#/, "");
+	const targetTag = tag.replace(/^#/, "");
 
 	return app.vault.getMarkdownFiles().filter((f: TFile) => {
 		const fileTags = getFileTags(app, f);

@@ -3,8 +3,8 @@ export interface AIProvider {
 	endpoint: string;
 	apiKey: string;
 	models: Model[];
-    /** If true, QuickAdd may auto-sync models from models.dev for this provider. */
-    autoSyncModels?: boolean;
+	/** If true, QuickAdd may auto-sync models from models.dev for this provider. */
+	autoSyncModels?: boolean;
 }
 
 export interface Model {
@@ -58,32 +58,28 @@ const OpenAIProvider: AIProvider = {
 			maxTokens: 128000,
 		},
 	],
-    autoSyncModels: false,
+	autoSyncModels: false,
 };
 
 const GeminiProvider: AIProvider = {
-    name: "Gemini",
-    endpoint: "https://generativelanguage.googleapis.com",
-    apiKey: "",
-    models: [
-        {
-            name: "gemini-1.5-pro",
-            maxTokens: 1000000,
-        },
-        {
-            name: "gemini-1.5-flash",
-            maxTokens: 1000000,
-        },
-        {
-            name: "gemini-1.5-flash-8b",
-            maxTokens: 1000000,
-        },
-    ],
-    autoSyncModels: false,
+	name: "Gemini",
+	endpoint: "https://generativelanguage.googleapis.com",
+	apiKey: "",
+	models: [
+		{
+			name: "gemini-1.5-pro",
+			maxTokens: 1000000,
+		},
+		{
+			name: "gemini-1.5-flash",
+			maxTokens: 1000000,
+		},
+		{
+			name: "gemini-1.5-flash-8b",
+			maxTokens: 1000000,
+		},
+	],
+	autoSyncModels: false,
 };
 
-
-export const DefaultProviders: AIProvider[] = [
-    OpenAIProvider,
-    GeminiProvider,
-];
+export const DefaultProviders: AIProvider[] = [OpenAIProvider, GeminiProvider];

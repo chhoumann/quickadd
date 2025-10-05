@@ -45,8 +45,7 @@ describe("FieldSuggestionFileFilter", () => {
 			["notes/random.md", {} as CachedMetadata],
 		]);
 
-		mockMetadataCache = (file: TFile) =>
-			metadataMap.get(file.path) || null;
+		mockMetadataCache = (file: TFile) => metadataMap.get(file.path) || null;
 	});
 
 	describe("filterFiles", () => {
@@ -54,7 +53,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{},
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toEqual(mockFiles);
 		});
@@ -63,7 +62,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ folder: "daily" },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(2);
 			expect(result.map((f) => f.path)).toEqual([
@@ -76,7 +75,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ folder: "projects/work" },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].path).toBe("projects/work/task1.md");
@@ -86,21 +85,19 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ tags: ["work"] },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(3);
 			expect(result.map((f) => f.path)).toContain("daily/2024-01-01.md");
 			expect(result.map((f) => f.path)).toContain("projects/project1.md");
-			expect(result.map((f) => f.path)).toContain(
-				"projects/work/task1.md",
-			);
+			expect(result.map((f) => f.path)).toContain("projects/work/task1.md");
 		});
 
 		it("should filter files by multiple tags (AND logic)", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ tags: ["work", "daily"] },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].path).toBe("daily/2024-01-01.md");
@@ -110,7 +107,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ folder: "daily", tags: ["personal"] },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].path).toBe("daily/2024-01-02.md");
@@ -120,7 +117,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ tags: ["work"] },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result.map((f) => f.path)).not.toContain("notes/random.md");
 		});
@@ -129,7 +126,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ folder: "/daily/" },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(2);
 			expect(result.map((f) => f.path)).toEqual([
@@ -142,7 +139,7 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				{ folder: "nonexistent" },
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(0);
 		});

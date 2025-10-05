@@ -36,9 +36,9 @@ export default class GenericInfoDialog extends Modal {
 		if (String.isString(this.text))
 			this.contentEl.createEl("p", { text: this.text });
 		else if (Array.isArray(this.text))
-			this.text.forEach((line) =>
-				this.contentEl.createEl("p", { text: line })
-			);
+			this.text.forEach((line) => {
+				this.contentEl.createEl("p", { text: line });
+			});
 
 		const buttonsDiv = this.contentEl.createDiv();
 
@@ -49,7 +49,7 @@ export default class GenericInfoDialog extends Modal {
 		Object.assign(buttonsDiv.style, {
 			display: "flex",
 			justifyContent: "flex-end",
-		} as Partial<typeof buttonsDiv["style"]>);
+		} as Partial<(typeof buttonsDiv)["style"]>);
 
 		noButton.buttonEl.focus();
 	}

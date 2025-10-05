@@ -74,40 +74,43 @@ describe("FieldSuggestionCache", () => {
 			// Clear any existing state
 			cache.destroy();
 			cache = FieldSuggestionCache.getInstance();
-			
+
 			// Mock window.setInterval for tests
 			global.window = {
-				setInterval: vi.fn().mockReturnValue(456)
+				setInterval: vi.fn().mockReturnValue(456),
 			} as any;
 		});
 
 		it("should start automatic cleanup with registered interval", () => {
 			const mockRegisterInterval = vi.fn().mockReturnValue(123);
-			
+
 			cache.startAutomaticCleanup(mockRegisterInterval);
-			
+
 			expect(mockRegisterInterval).toHaveBeenCalledWith(456);
-			expect(global.window.setInterval).toHaveBeenCalledWith(expect.any(Function), 60000);
+			expect(global.window.setInterval).toHaveBeenCalledWith(
+				expect.any(Function),
+				60000
+			);
 		});
 
 		it("should not start multiple intervals", () => {
 			const mockRegisterInterval = vi.fn().mockReturnValue(123);
-			
+
 			cache.startAutomaticCleanup(mockRegisterInterval);
 			cache.startAutomaticCleanup(mockRegisterInterval);
-			
+
 			expect(mockRegisterInterval).toHaveBeenCalledTimes(1);
 		});
 
 		it("should provide cache statistics", () => {
 			cache.set("field1", new Set(["value1"]));
-			
+
 			const stats = cache.getStats();
-			
+
 			expect(stats).toEqual({
 				size: 1,
 				maxSize: 100,
-				cleanupInterval: null // No interval started in test
+				cleanupInterval: null, // No interval started in test
 			});
 		});
 	});

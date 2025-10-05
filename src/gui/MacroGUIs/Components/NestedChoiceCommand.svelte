@@ -1,21 +1,20 @@
 <script lang="ts">
-    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-    import {createEventDispatcher} from "svelte";
-    import type {DndEvent} from "svelte-dnd-action";
-    import type {INestedChoiceCommand} from "../../../types/macros/QuickCommands/INestedChoiceCommand";
+import { createEventDispatcher } from "svelte";
+import type { DndEvent } from "svelte-dnd-action";
+import type { INestedChoiceCommand } from "../../../types/macros/QuickCommands/INestedChoiceCommand";
 
-    export let command: INestedChoiceCommand;
-    export let startDrag: (e: CustomEvent<DndEvent>) => void;
-    export let dragDisabled: boolean;
-    const dispatch = createEventDispatcher();
+export let command: INestedChoiceCommand;
+export let startDrag: (e: CustomEvent<DndEvent>) => void;
+export let dragDisabled: boolean;
+const dispatch = createEventDispatcher();
 
-    function deleteCommand() {
-        dispatch('deleteCommand', command.id);
-    }
+function _deleteCommand() {
+	dispatch("deleteCommand", command.id);
+}
 
-    function configureChoice() {
-        dispatch('configureChoice', command);
-    }
+function _configureChoice() {
+	dispatch("configureChoice", command);
+}
 </script>
 
 <div class="quickAddCommandListItem">

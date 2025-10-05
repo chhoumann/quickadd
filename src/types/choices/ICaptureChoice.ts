@@ -13,8 +13,8 @@ export default interface ICaptureChoice extends IChoice {
 	format: { enabled: boolean; format: string };
 	/** Capture to bottom of file (after current file content). */
 	prepend: boolean;
-	/** 
-	 * Configure link appending behavior. 
+	/**
+	 * Configure link appending behavior.
 	 * - boolean: Legacy format for backward compatibility (true = enabled with default placement)
 	 * - AppendLinkOptions: New format with configurable placement options
 	 */

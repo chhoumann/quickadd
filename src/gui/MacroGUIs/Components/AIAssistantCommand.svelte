@@ -1,21 +1,20 @@
 <script lang="ts">
-    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-    import {createEventDispatcher} from "svelte";
-    import type {DndEvent} from "svelte-dnd-action";
-	import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
+import { createEventDispatcher } from "svelte";
+import type { DndEvent } from "svelte-dnd-action";
+import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 
-    export let command: IAIAssistantCommand;
-    export let startDrag: (e: CustomEvent<DndEvent>) => void;
-    export let dragDisabled: boolean;
-    const dispatch = createEventDispatcher();
+export let command: IAIAssistantCommand;
+export let startDrag: (e: CustomEvent<DndEvent>) => void;
+export let dragDisabled: boolean;
+const dispatch = createEventDispatcher();
 
-    function deleteCommand() {
-        dispatch('deleteCommand', command.id);
-    }
+function _deleteCommand() {
+	dispatch("deleteCommand", command.id);
+}
 
-    function configureAssistant() {
-        dispatch('configureAssistant', command);
-    }
+function _configureAssistant() {
+	dispatch("configureAssistant", command);
+}
 </script>
 
 <div class="quickAddCommandListItem">

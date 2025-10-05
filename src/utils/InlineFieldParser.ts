@@ -1,7 +1,7 @@
-export class InlineFieldParser {
+export namespace InlineFieldParser {
 	// Regex to match inline fields in the format "fieldname:: value"
 	// Captures: fieldname and value (until end of line or next field)
-	private static readonly INLINE_FIELD_REGEX =
+	const INLINE_FIELD_REGEX =
 		/(?:^|[\n\r])[ \t]*(?![-*+][ \t]+\[[ xX]\])([^:\n\r]+?)::[ \t]*(.*)$/gmu;
 
 	/**
@@ -9,18 +9,14 @@ export class InlineFieldParser {
 	 * @param content The file content to parse
 	 * @returns Map of field names to their values
 	 */
-	static parseInlineFields(content: string): Map<string, Set<string>> {
+	export function parseInlineFields(content: string): Map<string, Set<string>> {
 		const fields = new Map<string, Set<string>>();
 
 		// Remove code blocks and frontmatter to avoid false positives
-		const cleanedContent = this.removeCodeBlocksAndFrontmatter(content);
+		const cleanedContent = removeCodeBlocksAndFrontmatter(content);
 
-		let match;
-		while (
-			(match = InlineFieldParser.INLINE_FIELD_REGEX.exec(
-				cleanedContent,
-			)) !== null
-		) {
+		let match: RegExpExecArray | null = INLINE_FIELD_REGEX.exec(cleanedContent);
+		while (match !== null) {
 			const fieldName = match[1].trim();
 			const fieldValue = match[2].trim();
 
@@ -37,19 +33,22 @@ export class InlineFieldParser {
 					.split(",")
 					.map((v) => v.trim())
 					.filter((v) => v.length > 0);
-				values.forEach((v) => fields.get(fieldName)?.add(v));
+				values.forEach((v) => {
+					fields.get(fieldName)?.add(v);
+				});
 			} else {
 				fields.get(fieldName)?.add(fieldValue);
 			}
+			match = INLINE_FIELD_REGEX.exec(cleanedContent);
 		}
 
 		// Reset regex lastIndex for next use
-		InlineFieldParser.INLINE_FIELD_REGEX.lastIndex = 0;
+		INLINE_FIELD_REGEX.lastIndex = 0;
 
 		return fields;
 	}
 
-	private static removeCodeBlocksAndFrontmatter(content: string): string {
+	function removeCodeBlocksAndFrontmatter(content: string): string {
 		// Remove frontmatter (handle both Unix and Windows line endings)
 		const frontmatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 		content = content.replace(frontmatterRegex, "");
@@ -67,8 +66,11 @@ export class InlineFieldParser {
 	 * @param fieldName The field name to look for
 	 * @returns Set of values for the field, or empty set if not found
 	 */
-	static getFieldValues(content: string, fieldName: string): Set<string> {
-		const fields = this.parseInlineFields(content);
+	export function getFieldValues(
+		content: string,
+		fieldName: string
+	): Set<string> {
+		const fields = parseInlineFields(content);
 		return fields.get(fieldName) || new Set();
 	}
 }

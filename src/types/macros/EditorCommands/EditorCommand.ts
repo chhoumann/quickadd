@@ -16,7 +16,7 @@ export abstract class EditorCommand extends Command implements IEditorCommand {
 	}
 
 	static getSelectedText(app: App): string {
-		return this.getActiveMarkdownView(app).editor.getSelection();
+		return EditorCommand.getActiveMarkdownView(app).editor.getSelection();
 	}
 
 	static getActiveMarkdownView(app: App): MarkdownView {

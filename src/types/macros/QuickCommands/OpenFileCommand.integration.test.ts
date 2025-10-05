@@ -6,10 +6,10 @@ import { NewTabDirection } from "../../newTabDirection";
 describe("OpenFileCommand Integration", () => {
 	it("should integrate properly with macro system", () => {
 		const command = new OpenFileCommand();
-		
+
 		// Verify the command has the correct type for macro engine dispatch
 		expect(command.type).toBe(CommandType.OpenFile);
-		
+
 		// Verify it has required properties for execution
 		expect(command.filePath).toBeDefined();
 		expect(command.name).toBeDefined();
@@ -22,10 +22,10 @@ describe("OpenFileCommand Integration", () => {
 			"{{DATE:YYYY-MM-DD}}/journal.md",
 			"projects/{{VALUE}}/readme.md",
 			"{{CLIPBOARD}}.md",
-			"notes/{{TIME}}-quick-note.md"
+			"notes/{{TIME}}-quick-note.md",
 		];
 
-		testCases.forEach(filePath => {
+		testCases.forEach((filePath) => {
 			const command = new OpenFileCommand(filePath);
 			expect(command.filePath).toBe(filePath);
 			expect(command.name).toBe(`Open file: ${filePath}`);
@@ -38,14 +38,22 @@ describe("OpenFileCommand Integration", () => {
 			// Default: no new tab
 			{ filePath: "test.md", openInNewTab: false },
 			// Open in new tab with vertical split
-			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.vertical },
+			{
+				filePath: "test.md",
+				openInNewTab: true,
+				direction: NewTabDirection.vertical,
+			},
 			// Open in new tab with horizontal split
-			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.horizontal },
+			{
+				filePath: "test.md",
+				openInNewTab: true,
+				direction: NewTabDirection.horizontal,
+			},
 			// Open in current tab
-			{ filePath: "existing.md", openInNewTab: false }
+			{ filePath: "existing.md", openInNewTab: false },
 		];
 
-		configurations.forEach(config => {
+		configurations.forEach((config) => {
 			const command = new OpenFileCommand(
 				config.filePath,
 				config.openInNewTab,
@@ -65,7 +73,8 @@ describe("OpenFileCommand Integration", () => {
 		expect(emptyPathCommand.name).toBe("Open file: ");
 
 		// Very long file path
-		const longPath = "very/deep/nested/folder/structure/with/many/levels/file.md";
+		const longPath =
+			"very/deep/nested/folder/structure/with/many/levels/file.md";
 		const longPathCommand = new OpenFileCommand(longPath);
 		expect(longPathCommand.filePath).toBe(longPath);
 		expect(longPathCommand.name).toBe(`Open file: ${longPath}`);

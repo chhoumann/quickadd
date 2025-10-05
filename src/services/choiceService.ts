@@ -40,7 +40,7 @@ export function duplicateChoice(choice: IChoice): IChoice {
 
 	if (choice.type === "Multi") {
 		(newChoice as IMultiChoice).choices = (choice as IMultiChoice).choices.map(
-			duplicateChoice,
+			duplicateChoice
 		);
 		return newChoice;
 	}
@@ -50,7 +50,7 @@ export function duplicateChoice(choice: IChoice): IChoice {
 
 	if (choice.type === "Macro") {
 		(newChoice as IMacroChoice).macro = structuredClone(
-			(choice as IMacroChoice).macro,
+			(choice as IMacroChoice).macro
 		);
 		regenerateIds((newChoice as IMacroChoice).macro);
 	}
@@ -64,7 +64,7 @@ export function duplicateChoice(choice: IChoice): IChoice {
 export function getChoiceBuilder(
 	choice: IChoice,
 	app: App,
-	plugin: QuickAdd,
+	plugin: QuickAdd
 ): TemplateChoiceBuilder | CaptureChoiceBuilder | MacroBuilder | undefined {
 	type Builder =
 		| TemplateChoiceBuilder
@@ -82,7 +82,7 @@ export function getChoiceBuilder(
 				app,
 				plugin,
 				choice as IMacroChoice,
-				settingsStore.getState().choices,
+				settingsStore.getState().choices
 			),
 		Multi: () => undefined,
 	};
@@ -96,7 +96,7 @@ export function getChoiceBuilder(
  */
 export async function deleteChoiceWithConfirmation(
 	choice: IChoice,
-	app: App,
+	app: App
 ): Promise<boolean> {
 	const isMulti = choice.type === "Multi";
 	const isMacro = choice.type === "Macro";
@@ -105,17 +105,19 @@ export async function deleteChoiceWithConfirmation(
 		app,
 		`Confirm deletion of choice`,
 		`Please confirm that you wish to delete '${choice.name}'.
-            ${isMulti
-			? "Deleting this choice will delete all (" +
-			(choice as IMultiChoice).choices.length +
-			") choices inside it!"
-			: ""
-		}
-            ${isMacro
-			? "Deleting this choice will delete its macro commands!"
-			: ""
-		}
-            `,
+            ${
+							isMulti
+								? "Deleting this choice will delete all (" +
+									(choice as IMultiChoice).choices.length +
+									") choices inside it!"
+								: ""
+						}
+            ${
+							isMacro
+								? "Deleting this choice will delete its macro commands!"
+								: ""
+						}
+            `
 	);
 
 	return userConfirmed;
@@ -127,14 +129,14 @@ export async function deleteChoiceWithConfirmation(
 export async function configureChoice(
 	choice: IChoice,
 	app: App,
-	plugin: QuickAdd,
+	plugin: QuickAdd
 ): Promise<IChoice | undefined> {
 	if (choice.type === "Multi") {
 		const name = await GenericInputPrompt.Prompt(
 			app,
 			`Rename ${choice.name}`,
 			"",
-			choice.name,
+			choice.name
 		);
 		if (!name) return undefined;
 
@@ -160,7 +162,7 @@ export function createToggleCommandChoice(choice: IChoice): IChoice {
  * Command registry adapter to decouple plugin interactions
  */
 export class CommandRegistry {
-	constructor(private plugin: QuickAdd) { }
+	constructor(private plugin: QuickAdd) {}
 
 	enableCommand(choice: IChoice): void {
 		this.plugin.addCommandForChoice(choice);
@@ -184,7 +186,7 @@ export class CommandRegistry {
 export function moveChoice(
 	rootChoices: IChoice[],
 	movingId: string,
-	targetMultiId: string,
+	targetMultiId: string
 ): IChoice[] {
 	if (!movingId || !targetMultiId) return rootChoices;
 
@@ -202,7 +204,10 @@ export function moveChoice(
 	}
 
 	// Remove moving choice from its current location
-	const { updated: withoutMoving, removed } = removeChoiceById(rootChoices, movingId);
+	const { updated: withoutMoving, removed } = removeChoiceById(
+		rootChoices,
+		movingId
+	);
 	if (!removed) return rootChoices; // nothing removed
 
 	// Insert at end of the target multi
@@ -233,7 +238,7 @@ function collectDescendantIds(multi: IMultiChoice): Set<string> {
 
 function removeChoiceById(
 	choices: IChoice[],
-	id: string,
+	id: string
 ): { updated: IChoice[]; removed?: IChoice } {
 	let removed: IChoice | undefined;
 	const updated = choices
@@ -259,7 +264,7 @@ function removeChoiceById(
 function insertIntoMulti(
 	choices: IChoice[],
 	targetId: string,
-	child: IChoice,
+	child: IChoice
 ): IChoice[] | undefined {
 	let changed = false;
 	const updated = choices.map((c) => {

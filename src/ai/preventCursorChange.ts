@@ -6,7 +6,6 @@ export function preventCursorChange(app: App): () => void {
 
 	return () => {
 		if (cursor) app.workspace.activeEditor?.editor?.setCursor(cursor);
-		if (selection)
-			app.workspace.activeEditor?.editor?.setSelections(selection);
+		if (selection) app.workspace.activeEditor?.editor?.setSelections(selection);
 	};
 }

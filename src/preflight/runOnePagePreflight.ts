@@ -41,7 +41,7 @@ async function collectForTemplateChoice(
 	app: App,
 	plugin: QuickAdd,
 	choiceExecutor: IChoiceExecutor,
-	choice: ITemplateChoice,
+	choice: ITemplateChoice
 ) {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
@@ -80,7 +80,7 @@ async function collectForCaptureChoice(
 	app: App,
 	plugin: QuickAdd,
 	choiceExecutor: IChoiceExecutor,
-	choice: ICaptureChoice,
+	choice: ICaptureChoice
 ) {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
@@ -138,7 +138,7 @@ export async function runOnePagePreflight(
 	app: App,
 	plugin: QuickAdd,
 	choiceExecutor: IChoiceExecutor,
-	choice: IChoice,
+	choice: IChoice
 ): Promise<boolean> {
 	try {
 		let collector: RequirementCollector | null = null;
@@ -149,14 +149,14 @@ export async function runOnePagePreflight(
 				app,
 				plugin,
 				choiceExecutor,
-				choice as ITemplateChoice,
+				choice as ITemplateChoice
 			);
 		} else if (choice.type === "Capture") {
 			collector = await collectForCaptureChoice(
 				app,
 				plugin,
 				choiceExecutor,
-				choice as ICaptureChoice,
+				choice as ICaptureChoice
 			);
 		} else if (choice.type === "Macro") {
 			// Phase 2 (limited): Collect declared inputs from user scripts in the macro
@@ -229,7 +229,7 @@ export async function runOnePagePreflight(
 					if (tmpl.fileNameFormat?.enabled) {
 						// Seed variables map-like into formatter
 						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(k, v);
+							formatter.variables.set(k, v);
 						}
 						out.fileName = await formatter.format(tmpl.fileNameFormat.format);
 					}
@@ -244,16 +244,16 @@ export async function runOnePagePreflight(
 			app,
 			unresolved,
 			choiceExecutor.variables,
-			computePreview,
+			computePreview
 		);
 		const values = await modal.waitForClose;
 
 		// No additional normalization needed: date inputs already store @date:ISO
 
 		// Store results into executor variables
-		Object.entries(values).forEach(([k, v]) =>
-			choiceExecutor.variables.set(k, v),
-		);
+		for (const [k, v] of Object.entries(values)) {
+			choiceExecutor.variables.set(k, v);
+		}
 
 		return true;
 	} catch (error) {

@@ -4,12 +4,12 @@ import type QuickAdd from "src/main";
 export default {
 	description:
 		"Use QuickAdd template folder instead of Obsidian templates plugin folder / Templater templates folder.",
-	 
+
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		try {
-			const templaterPlugin = plugin.app.plugins.plugins["templater"];
+			const templaterPlugin = plugin.app.plugins.plugins.templater;
 			const obsidianTemplatesPlugin =
-				plugin.app.internalPlugins.plugins["templates"];
+				plugin.app.internalPlugins.plugins.templates;
 
 			if (!templaterPlugin && !obsidianTemplatesPlugin) {
 				log.logMessage("No template plugin found. Skipping migration.");
@@ -18,16 +18,12 @@ export default {
 			}
 
 			if (obsidianTemplatesPlugin) {
-				 
 				const obsidianTemplatesSettings =
-					//@ts-ignore
+					//@ts-expect-error
 					obsidianTemplatesPlugin.instance.options;
-				 
-				if (obsidianTemplatesSettings["folder"]) {
-					 
-					plugin.settings.templateFolderPath =
-						 
-						obsidianTemplatesSettings["folder"];
+
+				if (obsidianTemplatesSettings.folder) {
+					plugin.settings.templateFolderPath = obsidianTemplatesSettings.folder;
 
 					log.logMessage(
 						"Migrated template folder path to Obsidian Templates' setting."
@@ -37,12 +33,11 @@ export default {
 
 			if (templaterPlugin) {
 				const templaterSettings = templaterPlugin.settings;
-					//@ts-ignore
-				if (templaterSettings["template_folder"]) {
-					 
+				//@ts-expect-error
+				if (templaterSettings.template_folder) {
 					plugin.settings.templateFolderPath =
-						//@ts-ignore
-						templaterSettings["template_folder"];
+						//@ts-expect-error
+						templaterSettings.template_folder;
 
 					log.logMessage(
 						"Migrated template folder path to Templaters setting."

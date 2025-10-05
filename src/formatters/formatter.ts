@@ -9,7 +9,6 @@ import {
 	NUMBER_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
-
 	FIELD_VAR_REGEX_WITH_FILTERS,
 	SELECTED_REGEX,
 	CLIPBOARD_REGEX,
@@ -30,20 +29,21 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
-	
+
 	// Tracks variables collected for YAML property post-processing
-	private propertyCollector: TemplatePropertyCollector = new TemplatePropertyCollector();
+	private propertyCollector: TemplatePropertyCollector =
+		new TemplatePropertyCollector();
 
 	protected abstract format(input: string): Promise<string>;
-	
-	/** Returns true when a variable is present AND its value is neither undefined nor null.  
+
+	/** Returns true when a variable is present AND its value is neither undefined nor null.
 	 *  An empty string is considered a valid, intentional value. */
 	protected hasConcreteVariable(name: string): boolean {
 		if (!this.variables.has(name)) return false;
 		const v = this.variables.get(name);
 		return v !== undefined && v !== null;
 	}
-	
+
 	public setTitle(title: string): void {
 		// Only set title if it hasn't been manually set by a script
 		// This preserves script-provided values for {{VALUE:title}}
@@ -53,9 +53,7 @@ export abstract class Formatter {
 	}
 
 	protected replacer(str: string, reg: RegExp, replaceValue: string) {
-		return str.replace(reg, function () {
-			return replaceValue;
-		});
+		return str.replace(reg, () => replaceValue);
 	}
 
 	protected replaceDateInString(input: string) {
@@ -65,17 +63,20 @@ export abstract class Formatter {
 			const dateMatch = DATE_REGEX.exec(output);
 			let offset: number | undefined;
 
-			if (dateMatch && dateMatch[1]) {
+			if (dateMatch?.[1]) {
 				const offsetString = dateMatch[1].replace("+", "").trim();
 				const offsetIsInt = NUMBER_REGEX.test(offsetString);
-				if (offsetIsInt) offset = parseInt(offsetString);
+				if (offsetIsInt) offset = parseInt(offsetString, 10);
 			}
 			output = this.replacer(output, DATE_REGEX, getDate({ offset: offset }));
 		}
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
 			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
-			if (!dateMatch) throw new Error(`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`);
+			if (!dateMatch)
+				throw new Error(
+					`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`
+				);
 
 			const format = dateMatch[1];
 			let offset: number | undefined;
@@ -83,13 +84,13 @@ export abstract class Formatter {
 			if (dateMatch[2]) {
 				const offsetString = dateMatch[2].replace("+", "").trim();
 				const offsetIsInt = NUMBER_REGEX.test(offsetString);
-				if (offsetIsInt) offset = parseInt(offsetString);
+				if (offsetIsInt) offset = parseInt(offsetString, 10);
 			}
 
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset: offset }),
+				getDate({ format, offset: offset })
 			);
 		}
 
@@ -101,14 +102,20 @@ export abstract class Formatter {
 
 		while (TIME_REGEX.test(output)) {
 			const timeMatch = TIME_REGEX.exec(output);
-			if (!timeMatch) throw new Error(`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`);
+			if (!timeMatch)
+				throw new Error(
+					`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`
+				);
 
 			output = this.replacer(output, TIME_REGEX, getDate({ format: "HH:mm" }));
 		}
 
 		while (TIME_REGEX_FORMATTED.test(output)) {
 			const timeMatch = TIME_REGEX_FORMATTED.exec(output);
-			if (!timeMatch) throw new Error(`Unable to parse formatted time. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(TIME_REGEX_FORMATTED) + 30))}..."`);
+			if (!timeMatch)
+				throw new Error(
+					`Unable to parse formatted time. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(TIME_REGEX_FORMATTED) + 30))}..."`
+				);
 
 			const format = timeMatch[1];
 
@@ -160,18 +167,21 @@ export abstract class Formatter {
 		return output;
 	}
 
-	 
 	protected async replaceLinkToCurrentFileInString(
-		input: string,
+		input: string
 	): Promise<string> {
 		const currentFilePathLink = this.getCurrentFileLink();
 		let output = input;
 
 		if (!currentFilePathLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
 			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+				throw new Error(
+					"Unable to get current file path. Make sure you have a file open in the editor."
+				);
 			}
-			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
+			log.logMessage(
+				"Skipping {{LINKCURRENT}} replacement because no active file is available."
+			);
 			while (LINK_TO_CURRENT_FILE_REGEX.test(output)) {
 				output = this.replacer(output, LINK_TO_CURRENT_FILE_REGEX, "");
 			}
@@ -182,7 +192,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				LINK_TO_CURRENT_FILE_REGEX,
-				currentFilePathLink,
+				currentFilePathLink
 			);
 
 		return output;
@@ -202,16 +212,16 @@ export abstract class Formatter {
 
 	protected abstract getCurrentFileLink(): string | null;
 
-
-
 	protected async replaceVariableInString(input: string) {
 		let output = input;
-		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
-		let match: RegExpExecArray | null;
+		const regex = new RegExp(VARIABLE_REGEX.source, "gi"); // preserve case-insensitive + global
+		let match: RegExpExecArray | null = regex.exec(output);
 
-		while ((match = regex.exec(output)) !== null) {
+		while (match !== null) {
 			if (!match[1]) {
-				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
+				throw new Error(
+					`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`
+				);
 			}
 
 			let variableName = match[1];
@@ -245,25 +255,27 @@ export abstract class Formatter {
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(variableName);
-			
 
-
-		// Offer this variable to the property collector for YAML post-processing
-		this.propertyCollector.maybeCollect({
-			input: output,
-			matchStart: match.index,
-			matchEnd: match.index + match[0].length,
-			rawValue,
-			fallbackKey: variableName,
-			featureEnabled: this.isTemplatePropertyTypesEnabled(),
-		});
+			// Offer this variable to the property collector for YAML post-processing
+			this.propertyCollector.maybeCollect({
+				input: output,
+				matchStart: match.index,
+				matchEnd: match.index + match[0].length,
+				rawValue,
+				fallbackKey: variableName,
+				featureEnabled: this.isTemplatePropertyTypesEnabled(),
+			});
 
 			// Always use string replacement initially
 			const replacement = this.getVariableValue(variableName);
 
 			// Replace in output and adjust regex position
-			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
+			output =
+				output.slice(0, match.index) +
+				replacement +
+				output.slice(match.index + match[0].length);
 			regex.lastIndex = match.index + replacement.length;
+			match = regex.exec(output);
 		}
 
 		return output;
@@ -275,7 +287,10 @@ export abstract class Formatter {
 		// Use the enhanced regex that supports filters
 		while (FIELD_VAR_REGEX_WITH_FILTERS.test(output)) {
 			const match = FIELD_VAR_REGEX_WITH_FILTERS.exec(output);
-			if (!match) throw new Error(`Unable to parse field variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(FIELD_VAR_REGEX_WITH_FILTERS) - 10), Math.min(output.length, output.search(FIELD_VAR_REGEX_WITH_FILTERS) + 30))}..."`);
+			if (!match)
+				throw new Error(
+					`Unable to parse field variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(FIELD_VAR_REGEX_WITH_FILTERS) - 10), Math.min(output.length, output.search(FIELD_VAR_REGEX_WITH_FILTERS) + 30))}..."`
+				);
 
 			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
 			// match[2] contains the filter part starting with |, if present
@@ -283,16 +298,13 @@ export abstract class Formatter {
 
 			if (fullMatch) {
 				if (!this.hasConcreteVariable(fullMatch)) {
-					this.variables.set(
-						fullMatch,
-						await this.suggestForField(fullMatch),
-					);
+					this.variables.set(fullMatch, await this.suggestForField(fullMatch));
 				}
 
 				output = this.replacer(
 					output,
 					FIELD_VAR_REGEX_WITH_FILTERS,
-					this.getVariableValue(fullMatch),
+					this.getVariableValue(fullMatch)
 				);
 			} else {
 				break;
@@ -328,7 +340,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				MACRO_REGEX,
-				macroOutput ? macroOutput.toString() : "",
+				macroOutput ? macroOutput.toString() : ""
 			);
 		}
 
@@ -338,7 +350,7 @@ export abstract class Formatter {
 	protected abstract getVariableValue(variableName: string): string;
 
 	protected abstract suggestForValue(
-		suggestedValues: string[],
+		suggestedValues: string[]
 	): Promise<string> | string;
 
 	protected abstract suggestForField(variableName: string): Promise<string>;
@@ -353,7 +365,7 @@ export abstract class Formatter {
 			const variableName = match[1].trim();
 			const dateFormat = match[2].trim();
 			const defaultValue = match[3]?.trim() || undefined;
-			
+
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
 			if (!variableName || !dateFormat) {
@@ -362,14 +374,15 @@ export abstract class Formatter {
 
 			if (variableName && dateFormat) {
 				const existingValue = this.variables.get(variableName) as string;
-				
+
 				// Check if we already have this date variable stored
 				if (!existingValue) {
 					// Prompt for date input with VDATE context
-					const dateInput = await this.promptForVariable(
-						variableName,
-						{ type: "VDATE", dateFormat, defaultValue }
-					);
+					const dateInput = await this.promptForVariable(variableName, {
+						type: "VDATE",
+						dateFormat,
+						defaultValue,
+					});
 					this.variables.set(variableName, dateInput);
 
 					if (!this.dateParser) throw new Error("Date parser is not available");
@@ -380,26 +393,24 @@ export abstract class Formatter {
 						// Store the ISO string with a special prefix
 						this.variables.set(
 							variableName,
-							`@date:${parseAttempt.moment.toISOString()}`,
+							`@date:${parseAttempt.moment.toISOString()}`
 						);
 					} else {
-						throw new Error(
-							`unable to parse date variable ${dateInput}`,
-						);
+						throw new Error(`unable to parse date variable ${dateInput}`);
 					}
 				}
 
 				// Format the date based on what's stored
 				let formattedDate = "";
 				const storedValue = this.variables.get(variableName) as string;
-				
-				if (storedValue && storedValue.startsWith("@date:")) {
+
+				if (storedValue?.startsWith("@date:")) {
 					// It's a date variable, extract and format it
 					const isoString = storedValue.substring(6);
-					 
+
 					if (this.dateParser && window.moment) {
 						const moment = window.moment(isoString);
-						if (moment && moment.isValid()) {
+						if (moment?.isValid()) {
 							formattedDate = moment.format(dateFormat);
 						}
 					}
@@ -442,16 +453,16 @@ export abstract class Formatter {
 			const curr = input[i];
 			const next = input[i + 1];
 
-			if (curr == "\\") {
-				if (next == "n") {
+			if (curr === "\\") {
+				if (next === "n") {
 					output += "\n";
 					i++;
-				} else if (next == "\\") {
+				} else if (next === "\\") {
 					output += "\\";
 					i++;
 				} else {
 					// Invalid use of escape character, but we keep it anyway.
-					output += '\\';
+					output += "\\";
 				}
 			} else {
 				output += curr;
@@ -460,7 +471,6 @@ export abstract class Formatter {
 
 		return output;
 	}
-
 
 	protected abstract getMacroValue(macroName: string): Promise<string> | string;
 
@@ -479,40 +489,43 @@ export abstract class Formatter {
 	 * Returns whether template property types feature is enabled in settings.
 	 */
 	protected abstract isTemplatePropertyTypesEnabled(): boolean;
-	
+
 	protected replaceRandomInString(input: string): string {
 		let output = input;
-		
+
 		while (RANDOM_REGEX.test(output)) {
 			const match = RANDOM_REGEX.exec(output);
 			if (!match || !match[1]) continue;
-			
-			const length = parseInt(match[1]);
+
+			const length = parseInt(match[1], 10);
 			if (length <= 0 || length > 100) {
-				throw new Error(`Random string length must be between 1 and 100. Got: ${length}`);
+				throw new Error(
+					`Random string length must be between 1 and 100. Got: ${length}`
+				);
 			}
-			
-			const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-			let randomString = '';
-			
+
+			const chars =
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+			let randomString = "";
+
 			for (let i = 0; i < length; i++) {
 				randomString += chars.charAt(Math.floor(Math.random() * chars.length));
 			}
-			
+
 			output = output.replace(match[0], randomString);
 		}
-		
+
 		return output;
 	}
 
 	protected replaceTitleInString(input: string): string {
 		let output = input;
 		const title = this.getVariableValue("title");
-		
+
 		while (TITLE_REGEX.test(output)) {
 			output = this.replacer(output, TITLE_REGEX, title);
 		}
-		
+
 		return output;
 	}
 }

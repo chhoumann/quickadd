@@ -28,7 +28,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	constructor(
 		app: App,
 		choice: ICaptureChoice,
-		private plugin: QuickAdd,
+		private plugin: QuickAdd
 	) {
 		super(app);
 		this.choice = choice;
@@ -90,12 +90,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			captureToActiveFileContainer.createEl("span");
 		captureToActiveFileText.textContent = "Capture to active file";
 		const captureToActiveFileToggle: ToggleComponent = new ToggleComponent(
-			captureToActiveFileContainer,
+			captureToActiveFileContainer
 		);
 		captureToActiveFileToggle.setValue(this.choice?.captureToActiveFile);
 		captureToActiveFileToggle.onChange((value) => {
 			this.choice.captureToActiveFile = value;
-			
+
 			// Reset new line capture settings when switching away from active file
 			// since those options are only available for active file capture
 			if (!value && this.choice.newLineCapture?.enabled) {
@@ -110,8 +110,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				captureToContainer.createDiv("captureToFileContainer");
 
 			// Preview row
-			const previewRow = captureToFileContainer.createDiv({ cls: "qa-preview-row" });
-			previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+			const previewRow = captureToFileContainer.createDiv({
+				cls: "qa-preview-row",
+			});
+			previewRow.createEl("span", {
+				text: "Preview: ",
+				cls: "qa-preview-label",
+			});
 			const formatDisplay = previewRow.createEl("span");
 			formatDisplay.setAttr("aria-live", "polite");
 			const displayFormatter: FileNameDisplayFormatter =
@@ -120,7 +125,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			void (async () => {
 				try {
 					formatDisplay.textContent = await displayFormatter.format(
-						this.choice.captureTo,
+						this.choice.captureTo
 					);
 				} catch {
 					formatDisplay.textContent = "Preview unavailable";
@@ -142,7 +147,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						this.app,
 						search.inputEl,
 						markdownFilesAndFormatSyntax,
-						50,
+						50
 					);
 					search.onChange(async (value) => {
 						this.choice.captureTo = value;
@@ -164,14 +169,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.setDesc("Formats the value as a task.")
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.task);
-				toggle.onChange((value) => (this.choice.task = value));
+				toggle.onChange((value) => {
+					this.choice.task = value;
+				});
 			});
 	}
 
 	private addAppendLinkSetting() {
 		// Normalize to ensure we're always working with the new format internally
 		const normalizedOptions = normalizeAppendLinkOptions(
-			this.choice.appendLink,
+			this.choice.appendLink
 		);
 
 		type AppendLinkMode = "required" | "optional" | "disabled";
@@ -184,7 +191,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Link to captured file")
-			.setDesc("Choose how QuickAdd should insert a link to the captured file in the current note.")
+			.setDesc(
+				"Choose how QuickAdd should insert a link to the captured file in the current note."
+			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("required", "Enabled (requires active file)");
 				dropdown.addOption("optional", "Enabled (skip if no active file)");
@@ -253,19 +262,23 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.setDesc(
 				isActiveFile
 					? "Where to place the capture in the current file."
-					: "Where to place the capture in the target file.",
+					: "Where to place the capture in the target file."
 			)
 			.addDropdown((dropdown) => {
-				const current: "top" | "after" | "bottom" | "newLineAbove" | "newLineBelow" =
-					this.choice.insertAfter?.enabled
-						? "after"
-						: this.choice.prepend
-							? "bottom"
-							: this.choice.newLineCapture?.enabled
-								? this.choice.newLineCapture.direction === "above"
-									? "newLineAbove"
-									: "newLineBelow"
-								: "top";
+				const current:
+					| "top"
+					| "after"
+					| "bottom"
+					| "newLineAbove"
+					| "newLineBelow" = this.choice.insertAfter?.enabled
+					? "after"
+					: this.choice.prepend
+						? "bottom"
+						: this.choice.newLineCapture?.enabled
+							? this.choice.newLineCapture.direction === "above"
+								? "newLineAbove"
+								: "newLineBelow"
+							: "top";
 
 				dropdown.addOption("top", isActiveFile ? "At cursor" : "Top of file");
 
@@ -274,13 +287,18 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					dropdown.addOption("newLineAbove", "New line above cursor");
 					dropdown.addOption("newLineBelow", "New line below cursor");
 				}
-				
+
 				dropdown.addOption("after", "After line…");
 				dropdown.addOption("bottom", "Bottom of file");
 				dropdown.setValue(current);
 				dropdown.onChange((value: string) => {
-					const v = value as "top" | "after" | "bottom" | "newLineAbove" | "newLineBelow";
-					
+					const v = value as
+						| "top"
+						| "after"
+						| "bottom"
+						| "newLineAbove"
+						| "newLineBelow";
+
 					// Reset all options first
 					this.choice.prepend = false;
 					this.choice.insertAfter.enabled = false;
@@ -288,7 +306,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						this.choice.newLineCapture = { enabled: false, direction: "below" };
 					}
 					this.choice.newLineCapture.enabled = false;
-					
+
 					if (v === "top") {
 						this.reload();
 						return;
@@ -299,14 +317,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						this.reload();
 						return;
 					}
-					
+
 					if (v === "newLineAbove") {
 						this.choice.newLineCapture.enabled = true;
 						this.choice.newLineCapture.direction = "above";
 						this.reload();
 						return;
 					}
-					
+
 					if (v === "newLineBelow") {
 						this.choice.newLineCapture.enabled = true;
 						this.choice.newLineCapture.direction = "below";
@@ -346,13 +364,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
-			this.plugin,
+			this.plugin
 		);
 		previewValue.innerText = "Loading preview…";
 		void (async () => {
 			try {
 				previewValue.innerText = await displayFormatter.format(
-					this.choice.insertAfter.after,
+					this.choice.insertAfter.after
 				);
 			} catch {
 				previewValue.innerText = "Preview unavailable";
@@ -381,18 +399,20 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		insertAtEndSetting
 			.setName("Insert at end of section")
 			.setDesc(
-				"Place the text at the end of the matched section instead of the top.",
+				"Place the text at the end of the matched section instead of the top."
 			)
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice.insertAfter?.insertAtEnd)
-					.onChange((value) => (this.choice.insertAfter.insertAtEnd = value)),
+					.onChange((value) => {
+						this.choice.insertAfter.insertAtEnd = value;
+					})
 			);
 
 		new Setting(this.contentEl)
 			.setName("Consider subsections")
 			.setDesc(
-				"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section.",
+				"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -412,10 +432,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							// reset the toggle to match state and inform user
 							toggle.setValue(false);
 							new Notice(
-								"Consider subsections requires the target to be a heading (starts with #)",
+								"Consider subsections requires the target to be a heading (starts with #)"
 							);
 						}
-					}),
+					})
 			);
 
 		const createLineIfNotFound: Setting = new Setting(this.contentEl);
@@ -428,9 +448,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 				toggle
 					.setValue(this.choice.insertAfter?.createIfNotFound)
-					.onChange(
-						(value) => (this.choice.insertAfter.createIfNotFound = value),
-					).toggleEl.style.marginRight = "1em";
+					.onChange((value) => {
+						this.choice.insertAfter.createIfNotFound = value;
+					}).toggleEl.style.marginRight = "1em";
 			})
 			.addDropdown((dropdown) => {
 				if (!this.choice.insertAfter?.createIfNotFoundLocation)
@@ -442,10 +462,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
 					.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
 					.setValue(this.choice.insertAfter?.createIfNotFoundLocation)
-					.onChange(
-						(value) =>
-							(this.choice.insertAfter.createIfNotFoundLocation = value),
-					);
+					.onChange((value) => {
+						this.choice.insertAfter.createIfNotFoundLocation = value;
+					});
 			});
 	}
 
@@ -490,13 +509,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		formatDisplay.setAttr("aria-live", "polite");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
-			this.plugin,
+			this.plugin
 		);
 		formatDisplay.innerText = "Loading preview…";
 		void (async () => {
 			try {
 				formatDisplay.innerText = await displayFormatter.format(
-					this.choice.format.format,
+					this.choice.format.format
 				);
 			} catch {
 				formatDisplay.innerText = "Preview unavailable";
@@ -522,7 +541,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.onChange((value) => {
 						this.choice.createFileIfItDoesntExist.enabled = value;
 						this.reload();
-					}),
+					})
 			);
 	}
 
@@ -537,7 +556,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.onChange((value) => {
 						this.choice.createFileIfItDoesntExist.createWithTemplate = value;
 						templateSelector.setDisabled(!value);
-					}),
+					})
 			);
 
 		templateSelector = new TextComponent(this.contentEl);
@@ -556,7 +575,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.app,
 			templateSelector.inputEl,
 			templateFilePaths,
-			50,
+			50
 		);
 
 		templateSelector.onChange((value) => {

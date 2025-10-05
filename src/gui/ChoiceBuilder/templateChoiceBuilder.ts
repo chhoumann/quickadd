@@ -32,7 +32,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	constructor(
 		app: App,
 		choice: ITemplateChoice,
-		private plugin: QuickAdd,
+		private plugin: QuickAdd
 	) {
 		super(app);
 		this.choice = choice;
@@ -112,7 +112,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		void (async () => {
 			try {
 				formatDisplay.textContent = await displayFormatter.format(
-					this.choice.fileNameFormat.format,
+					this.choice.fileNameFormat.format
 				);
 			} catch {
 				formatDisplay.textContent = "Preview unavailable";
@@ -145,7 +145,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		folderSetting
 			.setName("Create in folder")
 			.setDesc(
-				"Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in.",
+				"Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in."
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.folder.enabled);
@@ -161,13 +161,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 		if (!this.choice.folder?.createInSameFolderAsActiveFile) {
 			const chooseFolderWhenCreatingNoteContainer = this.contentEl.createDiv(
-				"chooseFolderWhenCreatingNoteContainer",
+				"chooseFolderWhenCreatingNoteContainer"
 			);
 			chooseFolderWhenCreatingNoteContainer.createEl("span", {
 				text: "Choose folder when creating a new note",
 			});
 			const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(
-				chooseFolderWhenCreatingNoteContainer,
+				chooseFolderWhenCreatingNoteContainer
 			);
 			chooseFolderWhenCreatingNote
 				.setValue(this.choice.folder?.chooseWhenCreatingNote)
@@ -187,7 +187,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			stn
 				.setName("Include subfolders")
 				.setDesc(
-					"Get prompted to choose from both the selected folders and their subfolders when creating the note.",
+					"Get prompted to choose from both the selected folders and their subfolders when creating the note."
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -195,18 +195,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						.onChange((value) => {
 							this.choice.folder.chooseFromSubfolders = value;
 							this.reload();
-						}),
+						})
 				);
 		}
 
 		if (!this.choice.folder?.chooseWhenCreatingNote) {
 			const createInSameFolderAsActiveFileSetting: Setting = new Setting(
-				this.contentEl,
+				this.contentEl
 			);
 			createInSameFolderAsActiveFileSetting
 				.setName("Create in same folder as active file")
 				.setDesc(
-					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file.",
+					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file."
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -214,14 +214,14 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						.onChange((value) => {
 							this.choice.folder.createInSameFolderAsActiveFile = value;
 							this.reload();
-						}),
+						})
 				);
 		}
 	}
 
 	private addFolderSelector() {
 		const folderSelectionContainer: HTMLDivElement = this.contentEl.createDiv(
-			"folderSelectionContainer",
+			"folderSelectionContainer"
 		);
 		const folderList: HTMLDivElement =
 			folderSelectionContainer.createDiv("folderList");
@@ -232,7 +232,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				folders: this.choice.folder.folders,
 				deleteFolder: (folder: string) => {
 					this.choice.folder.folders = this.choice.folder.folders.filter(
-						(f) => f !== folder,
+						(f) => f !== folder
 					);
 
 					folderListEl.updateFolders(this.choice.folder.folders);
@@ -244,7 +244,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.svelteElements.push(folderListEl);
 
 		const inputContainer = folderSelectionContainer.createDiv(
-			"folderInputContainer",
+			"folderInputContainer"
 		);
 		const folderInput = new TextComponent(inputContainer);
 		folderInput.inputEl.style.width = "100%";
@@ -255,7 +255,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			this.app,
 			folderInput.inputEl,
 			allFolders,
-			this.choice.folder.folders,
+			this.choice.folder.folders
 		);
 
 		const addFolder = () => {
@@ -284,7 +284,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		addButton
 			.setCta()
 			.setButtonText("Add")
-			.onClick((evt) => {
+			.onClick((_evt) => {
 				addFolder();
 			});
 	}
@@ -292,7 +292,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private addAppendLinkSetting(): void {
 		// Normalize to ensure we're always working with the new format internally
 		const normalizedOptions = normalizeAppendLinkOptions(
-			this.choice.appendLink,
+			this.choice.appendLink
 		);
 
 		type AppendLinkMode = "required" | "optional" | "disabled";
@@ -305,7 +305,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Link to created file")
-			.setDesc("Choose how QuickAdd should insert a link to the created file in the current note.")
+			.setDesc(
+				"Choose how QuickAdd should insert a link to the created file in the current note."
+			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("required", "Enabled (requires active file)");
 				dropdown.addOption("optional", "Enabled (skip if no active file)");
@@ -371,7 +373,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		fileAlreadyExistsSetting
 			.setName("Set default behavior if file already exists")
 			.setDesc(
-				"Set default behavior rather then prompting user on what to do if a file already exists.",
+				"Set default behavior rather then prompting user on what to do if a file already exists."
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
@@ -392,10 +394,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
 					.addOption(fileExistsDoNothing, fileExistsDoNothing)
 					.setValue(this.choice.fileExistsMode)
-					.onChange(
-						(value: (typeof fileExistsChoices)[number]) =>
-							(this.choice.fileExistsMode = value),
-					);
+					.onChange((value: (typeof fileExistsChoices)[number]) => {
+						this.choice.fileExistsMode = value;
+					});
 			});
 	}
 }

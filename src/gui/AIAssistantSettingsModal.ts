@@ -13,7 +13,6 @@ export class AIAssistantSettingsModal extends Modal {
 	public waitForClose: Promise<AIAssistantSettings>;
 
 	private resolvePromise: (settings: AIAssistantSettings) => void;
-	private rejectPromise: (reason?: unknown) => void;
 
 	private settings: AIAssistantSettings;
 
@@ -22,12 +21,10 @@ export class AIAssistantSettingsModal extends Modal {
 
 		this.settings = settings;
 
-		this.waitForClose = new Promise<AIAssistantSettings>(
-			(resolve, reject) => {
-				this.rejectPromise = reject;
-				this.resolvePromise = resolve;
-			}
-		);
+		this.waitForClose = new Promise<AIAssistantSettings>((resolve, reject) => {
+			this.rejectPromise = reject;
+			this.resolvePromise = resolve;
+		});
 
 		this.open();
 		this.display();
@@ -73,7 +70,7 @@ export class AIAssistantSettingsModal extends Modal {
 				});
 			});
 	}
- 
+
 	addDefaultModelSetting(container: HTMLElement) {
 		new Setting(container)
 			.setName("Default Model")
@@ -98,11 +95,11 @@ export class AIAssistantSettingsModal extends Modal {
 			.setName("Prompt Template Folder Path")
 			.setDesc("Path to your folder with prompt templates")
 			.addText((text) => {
-				text.setValue(this.settings.promptTemplatesFolderPath).onChange(
-					(value) => {
+				text
+					.setValue(this.settings.promptTemplatesFolderPath)
+					.onChange((value) => {
 						this.settings.promptTemplatesFolderPath = value;
-					}
-				);
+					});
 			});
 	}
 
@@ -149,10 +146,11 @@ export class AIAssistantSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(
+		void (async () => {
+			formatDisplay.innerText = await displayFormatter.format(
 				this.settings.defaultSystemPrompt ?? ""
-			)))();
+			);
+		})();
 	}
 
 	onClose(): void {

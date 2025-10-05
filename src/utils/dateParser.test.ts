@@ -22,12 +22,17 @@ describe("dateParser", () => {
 					moment: {
 						isValid: () => true,
 						toISOString: () => "2025-06-21T00:00:00.000Z",
-						format: (fmt: string) => fmt === "YYYY-MM-DD" ? "2025-06-21" : "2025-06-21T00:00:00.000Z"
-					}
-				})
+						format: (fmt: string) =>
+							fmt === "YYYY-MM-DD" ? "2025-06-21" : "2025-06-21T00:00:00.000Z",
+					},
+				}),
 			};
-			
-			const result = parseNaturalLanguageDate("tomorrow", undefined, mockDateParser);
+
+			const result = parseNaturalLanguageDate(
+				"tomorrow",
+				undefined,
+				mockDateParser
+			);
 			// Built-in chrono parser should work
 			expect(result.isValid).toBe(true);
 			expect(result.isoString).toBeDefined();
@@ -40,12 +45,17 @@ describe("dateParser", () => {
 					moment: {
 						isValid: () => true,
 						toISOString: () => "2025-06-21T00:00:00.000Z",
-						format: (fmt: string) => fmt === "YYYY-MM-DD" ? "2025-06-21" : "formatted-date"
-					}
-				})
+						format: (fmt: string) =>
+							fmt === "YYYY-MM-DD" ? "2025-06-21" : "formatted-date",
+					},
+				}),
 			};
-			
-			const result = parseNaturalLanguageDate("tomorrow", "YYYY-MM-DD", mockDateParser);
+
+			const result = parseNaturalLanguageDate(
+				"tomorrow",
+				"YYYY-MM-DD",
+				mockDateParser
+			);
 
 			expect(result.isValid).toBe(true);
 			expect(result.formatted).toBe("2025-06-21");
@@ -70,14 +80,16 @@ describe("dateParser", () => {
 	describe("formatISODate", () => {
 		beforeEach(() => {
 			// Mock window.moment
-			(window as Window & { moment?: unknown; }).moment = vi.fn((iso: string) => ({
-				isValid: () => iso.includes("2025"),
-				format: (fmt: string) => `formatted-${fmt}`
-			}));
+			(window as Window & { moment?: unknown }).moment = vi.fn(
+				(iso: string) => ({
+					isValid: () => iso.includes("2025"),
+					format: (fmt: string) => `formatted-${fmt}`,
+				})
+			);
 		});
 
 		afterEach(() => {
-			delete (window as Window & { moment?: unknown; }).moment;
+			delete (window as Window & { moment?: unknown }).moment;
 		});
 
 		it("should format valid ISO date", () => {
@@ -91,7 +103,7 @@ describe("dateParser", () => {
 		});
 
 		it("should return null when moment is not available", () => {
-			delete (window as Window & { moment?: unknown; }).moment;
+			delete (window as Window & { moment?: unknown }).moment;
 			const result = formatISODate("2025-07-11T00:00:00.000Z", "YYYY-MM-DD");
 			expect(result).toBe(null);
 		});

@@ -1,5 +1,3 @@
- 
- 
 import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
@@ -74,7 +72,7 @@ export class UserScriptSettingsModal extends Modal {
 		this.contentEl.empty();
 
 		this.titleEl.innerText = `${this.settings?.name}${
-			this.settings?.author ? " by " + this.settings?.author : ""
+			this.settings?.author ? ` by ${this.settings?.author}` : ""
 		}`;
 		const options = this.settings.options;
 
@@ -84,7 +82,7 @@ export class UserScriptSettingsModal extends Modal {
 
 		// If there are options, add them to the modal
 		for (const option in options) {
-			if (!options.hasOwnProperty(option)) continue;
+			if (!Object.hasOwn(options, option)) continue;
 			const entry = options[option];
 
 			let value = entry.defaultValue;
@@ -93,7 +91,7 @@ export class UserScriptSettingsModal extends Modal {
 				value = this.command.settings[option] as string | boolean;
 			}
 
-			let setting;
+			let setting: Setting;
 			const type = entry.type;
 			if (type === "text" || type === "input") {
 				setting = this.addInputBox(
@@ -105,11 +103,7 @@ export class UserScriptSettingsModal extends Modal {
 			} else if (type === "checkbox" || type === "toggle") {
 				setting = this.addToggle(option, value as boolean);
 			} else if (type === "dropdown" || type === "select") {
-				setting = this.addDropdown(
-					option,
-					entry.options,
-					value as string
-				);
+				setting = this.addDropdown(option, entry.options, value as string);
 			} else if (type === "format") {
 				setting = this.addFormatInput(
 					option,
@@ -133,7 +127,9 @@ export class UserScriptSettingsModal extends Modal {
 		return new Setting(this.contentEl).setName(name).addText((input) => {
 			input
 				.setValue(value)
-				.onChange((value) => (this.command.settings[name] = value))
+				.onChange((value) => {
+					this.command.settings[name] = value;
+				})
 				.setPlaceholder(placeholder ?? "");
 
 			if (passwordOnBlur) {
@@ -143,25 +139,21 @@ export class UserScriptSettingsModal extends Modal {
 	}
 
 	private addToggle(name: string, value: boolean) {
-		return new Setting(this.contentEl)
-			.setName(name)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(value)
-					.onChange((value) => (this.command.settings[name] = value))
-			);
+		return new Setting(this.contentEl).setName(name).addToggle((toggle) =>
+			toggle.setValue(value).onChange((value) => {
+				this.command.settings[name] = value;
+			})
+		);
 	}
 
 	private addDropdown(name: string, options: string[], value: string) {
-		return new Setting(this.contentEl)
-			.setName(name)
-			.addDropdown((dropdown) => {
-				options.forEach((item) => void dropdown.addOption(item, item));
-				dropdown.setValue(value);
-				dropdown.onChange(
-					(value) => (this.command.settings[name] = value)
-				);
+		return new Setting(this.contentEl).setName(name).addDropdown((dropdown) => {
+			options.forEach((item) => void dropdown.addOption(item, item));
+			dropdown.setValue(value);
+			dropdown.onChange((value) => {
+				this.command.settings[name] = value;
 			});
+		});
 	}
 
 	private addFormatInput(name: string, value: string, placeholder?: string) {
@@ -187,8 +179,9 @@ export class UserScriptSettingsModal extends Modal {
 		input.inputEl.style.height = "100px";
 		input.inputEl.style.marginBottom = "1em";
 
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(value)))();
+		void (async () => {
+			formatDisplay.innerText = await displayFormatter.format(value);
+		})();
 
 		return setting;
 	}

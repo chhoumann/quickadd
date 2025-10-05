@@ -1,64 +1,61 @@
 <script lang="ts">
-    import ObsidianIcon from "../components/ObsidianIcon.svelte";
-    import ChoiceList from "./ChoiceList.svelte";
-    import type IMultiChoice from "../../types/choices/IMultiChoice";
-    import RightButtons from "./ChoiceItemRightButtons.svelte";
-    import {createEventDispatcher} from "svelte";
-	import { Component, htmlToMarkdown, MarkdownRenderer, type App } from "obsidian";
-    import type IChoice from "src/types/choices/IChoice";
-    import { showChoiceContextMenu } from "./contextMenu";
+import type IMultiChoice from "../../types/choices/IMultiChoice";
+import { createEventDispatcher } from "svelte";
+import {
+	Component,
+	htmlToMarkdown,
+	MarkdownRenderer,
+	type App,
+} from "obsidian";
+import type IChoice from "src/types/choices/IChoice";
+import { showChoiceContextMenu } from "./contextMenu";
 
-    export let choice: IMultiChoice;
-    export let roots: IChoice[];
-    export let collapseId: string;
-    export let dragDisabled: boolean;
-    export let startDrag: (e: Event) => void;
-    export let app: App;
-    let showConfigureButton: boolean = true;
+export let choice: IMultiChoice;
+export let roots: IChoice[];
+export let collapseId: string;
+export let dragDisabled: boolean;
+export let startDrag: (e: Event) => void;
+export let app: App;
+const _showConfigureButton: boolean = true;
 
-    const dispatcher = createEventDispatcher();
+const dispatcher = createEventDispatcher();
 
-    function deleteChoice(e: any) {
-        dispatcher('deleteChoice', {choice});
-    }
+function deleteChoice(_e: any) {
+	dispatcher("deleteChoice", { choice });
+}
 
-    function configureChoice() {
-        dispatcher('configureChoice', {choice});
-    }
+function configureChoice() {
+	dispatcher("configureChoice", { choice });
+}
 
-    function toggleCommandForChoice() {
-        dispatcher('toggleCommand', {choice});
-    }
+function toggleCommandForChoice() {
+	dispatcher("toggleCommand", { choice });
+}
 
-    function duplicateChoice() {
-        dispatcher('duplicateChoice', {choice});
-    }
+function duplicateChoice() {
+	dispatcher("duplicateChoice", { choice });
+}
 
-	const cmp = new Component();
-	let nameElement: HTMLSpanElement;
+const cmp = new Component();
+let nameElement: HTMLSpanElement;
 
-	$: {
-		if (nameElement) {
-			nameElement.innerHTML = "";
-			const nameHTML = htmlToMarkdown(choice.name);
-			MarkdownRenderer.renderMarkdown(
-				nameHTML,
-				nameElement,
-				"/",
-				cmp
-			);
-		}
+$: {
+	if (nameElement) {
+		nameElement.innerHTML = "";
+		const nameHTML = htmlToMarkdown(choice.name);
+		MarkdownRenderer.renderMarkdown(nameHTML, nameElement, "/", cmp);
 	}
+}
 
-    function onContextMenu(evt: MouseEvent) {
-        showChoiceContextMenu(app, evt, choice, roots, {
-            onToggle: () => toggleCommandForChoice(),
-            onConfigure: () => configureChoice(),
-            onDuplicate: () => duplicateChoice(),
-            onDelete: () => deleteChoice(null),
-            onMove: (targetId) => dispatcher('moveChoice', { choice, targetId }),
-        });
-    }
+function _onContextMenu(evt: MouseEvent) {
+	showChoiceContextMenu(app, evt, choice, roots, {
+		onToggle: () => toggleCommandForChoice(),
+		onConfigure: () => configureChoice(),
+		onDuplicate: () => duplicateChoice(),
+		onDelete: () => deleteChoice(null),
+		onMove: (targetId) => dispatcher("moveChoice", { choice, targetId }),
+	});
+}
 </script>
 
 <div>

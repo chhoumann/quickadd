@@ -1,4 +1,4 @@
-import type { FuzzyMatch} from "obsidian";
+import type { FuzzyMatch } from "obsidian";
 import { FuzzySuggestModal, MarkdownRenderer } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import { ChoiceExecutor } from "../../choiceExecutor";
@@ -32,7 +32,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	renderSuggestion(item: FuzzyMatch<IChoice>, el: HTMLElement): void {
 		el.empty();
-		void MarkdownRenderer.renderMarkdown(item.item.name, el, '', this.plugin);
+		void MarkdownRenderer.renderMarkdown(item.item.name, el, "", this.plugin);
 		el.classList.add("quickadd-choice-suggestion");
 	}
 
@@ -46,17 +46,16 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	async onChooseItem(
 		item: IChoice,
-		evt: MouseEvent | KeyboardEvent
+		_evt: MouseEvent | KeyboardEvent
 	): Promise<void> {
-		if (item.type === "Multi")
-			this.onChooseMultiType(<IMultiChoice>item);
+		if (item.type === "Multi") this.onChooseMultiType(<IMultiChoice>item);
 		else await this.choiceExecutor.execute(item);
 	}
 
 	private onChooseMultiType(multi: IMultiChoice) {
 		const choices = [...multi.choices];
 
-		if (multi.name != "← Back")
+		if (multi.name !== "← Back")
 			choices.push(new MultiChoice("← Back").addChoices(this.choices));
 
 		ChoiceSuggester.Open(this.plugin, choices);

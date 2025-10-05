@@ -8,20 +8,20 @@ describe("Templater execution control", () => {
 			callCount++;
 			return `rendered::${content}`;
 		};
-		
+
 		// Simulate the pattern used in CaptureChoiceFormatter
 		let templaterProcessed = false;
-		
+
 		const processContent = async (content: string, hasFileContext: boolean) => {
 			// First pass: format QuickAdd placeholders (no templater)
 			let result = content;
-			
+
 			// Second pass: only run templater if we have file context and haven't processed yet
 			if (hasFileContext && !templaterProcessed && content.includes("<%")) {
 				result = await mockTemplaterParseTemplate({} as any, content);
 				templaterProcessed = true;
 			}
-			
+
 			return result;
 		};
 

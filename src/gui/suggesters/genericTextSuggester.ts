@@ -15,7 +15,7 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 		const inputLowerCase: string = inputStr.toLowerCase();
 
 		const filtered = this.items.filter((item) => {
-			if (item.toLowerCase().contains(inputLowerCase)) return item;
+			return item.toLowerCase().contains(inputLowerCase);
 		});
 
 		if (!filtered) this.close();

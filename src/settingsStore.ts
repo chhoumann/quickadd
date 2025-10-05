@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from "./quickAddSettingsTab";
 type SettingsState = QuickAddSettings;
 
 export const settingsStore = (() => {
-	const useSettingsStore = createStore<SettingsState>((set, _get) => ({
+	const useSettingsStore = createStore<SettingsState>((_set, _get) => ({
 		...structuredClone(DEFAULT_SETTINGS),
 	}));
 
@@ -15,6 +15,5 @@ export const settingsStore = (() => {
 		getState,
 		setState,
 		subscribe,
-
 	};
 })();

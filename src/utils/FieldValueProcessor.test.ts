@@ -31,7 +31,7 @@ describe("FieldValueProcessor", () => {
 			const rawValues = new Set(["Active", "Done"]);
 			const filters: FieldFilter = {
 				defaultValue: "To Do",
-				defaultAlways: true
+				defaultAlways: true,
 			};
 
 			const result = FieldValueProcessor.processValues(rawValues, filters);
@@ -47,7 +47,7 @@ describe("FieldValueProcessor", () => {
 			const emptyValues = new Set<string>();
 			const filters: FieldFilter = {
 				defaultValue: "Default",
-				defaultEmpty: true
+				defaultEmpty: true,
 			};
 
 			const result1 = FieldValueProcessor.processValues(emptyValues, filters);
@@ -56,7 +56,10 @@ describe("FieldValueProcessor", () => {
 
 			// Test with existing values
 			const nonEmptyValues = new Set(["Existing"]);
-			const result2 = FieldValueProcessor.processValues(nonEmptyValues, filters);
+			const result2 = FieldValueProcessor.processValues(
+				nonEmptyValues,
+				filters
+			);
 			expect(result2.values).toEqual(["Existing"]);
 			expect(result2.hasDefaultValue).toBe(false);
 		});
@@ -64,7 +67,7 @@ describe("FieldValueProcessor", () => {
 		it("should prepend default value when not already present (default behavior)", () => {
 			const rawValues = new Set(["Active", "Done"]);
 			const filters: FieldFilter = {
-				defaultValue: "To Do"
+				defaultValue: "To Do",
 			};
 
 			const result = FieldValueProcessor.processValues(rawValues, filters);
@@ -78,12 +81,12 @@ describe("FieldValueProcessor", () => {
 		it("should not duplicate default value if already present", () => {
 			const rawValues = new Set(["To Do", "Active", "Done"]);
 			const filters: FieldFilter = {
-				defaultValue: "To Do"
+				defaultValue: "To Do",
 			};
 
 			const result = FieldValueProcessor.processValues(rawValues, filters);
 
-			const toDoCount = result.values.filter(v => v === "To Do").length;
+			const toDoCount = result.values.filter((v) => v === "To Do").length;
 			expect(toDoCount).toBe(1);
 			expect(result.hasDefaultValue).toBe(false); // Already present, so no default added
 		});
@@ -96,23 +99,42 @@ describe("FieldValueProcessor", () => {
 			expect(statusDefaults).toContain("In Progress");
 			expect(statusDefaults).toContain("Done");
 
-			const priorityDefaults = FieldValueProcessor.getSmartDefaults("priority", []);
+			const priorityDefaults = FieldValueProcessor.getSmartDefaults(
+				"priority",
+				[]
+			);
 			expect(priorityDefaults).toContain("High");
 			expect(priorityDefaults).toContain("Medium");
 			expect(priorityDefaults).toContain("Low");
 		});
 
 		it("should find partial matches for field names", () => {
-			const taskStatusDefaults = FieldValueProcessor.getSmartDefaults("task_status", []);
+			const taskStatusDefaults = FieldValueProcessor.getSmartDefaults(
+				"task_status",
+				[]
+			);
 			expect(taskStatusDefaults).toContain("To Do");
 
-			const projectPriorityDefaults = FieldValueProcessor.getSmartDefaults("project-priority", []);
+			const projectPriorityDefaults = FieldValueProcessor.getSmartDefaults(
+				"project-priority",
+				[]
+			);
 			expect(projectPriorityDefaults).toContain("High");
 		});
 
 		it("should return most common existing values when no smart defaults match", () => {
-			const existingValues = ["custom1", "custom1", "custom1", "custom2", "custom2", "custom3"];
-			const defaults = FieldValueProcessor.getSmartDefaults("unknown_field", existingValues);
+			const existingValues = [
+				"custom1",
+				"custom1",
+				"custom1",
+				"custom2",
+				"custom2",
+				"custom3",
+			];
+			const defaults = FieldValueProcessor.getSmartDefaults(
+				"unknown_field",
+				existingValues
+			);
 
 			expect(defaults[0]).toBe("custom1"); // Most frequent
 			expect(defaults[1]).toBe("custom2"); // Second most frequent
@@ -120,13 +142,19 @@ describe("FieldValueProcessor", () => {
 		});
 
 		it("should return empty array for unknown fields with no existing values", () => {
-			const defaults = FieldValueProcessor.getSmartDefaults("completely_unknown", []);
+			const defaults = FieldValueProcessor.getSmartDefaults(
+				"completely_unknown",
+				[]
+			);
 			expect(defaults).toEqual([]);
 		});
 
 		it("should limit suggestions to 5 items", () => {
-			const manyValues = Array.from({length: 20}, (_, i) => `value${i}`);
-			const defaults = FieldValueProcessor.getSmartDefaults("unknown", manyValues);
+			const manyValues = Array.from({ length: 20 }, (_, i) => `value${i}`);
+			const defaults = FieldValueProcessor.getSmartDefaults(
+				"unknown",
+				manyValues
+			);
 			expect(defaults).toHaveLength(5);
 		});
 	});
@@ -134,7 +162,11 @@ describe("FieldValueProcessor", () => {
 	describe("validateDefaultValue", () => {
 		it("should validate default value against existing patterns", () => {
 			const existingValues = ["Active", "Done", "In Progress"];
-			const validation = FieldValueProcessor.validateDefaultValue("To Do", existingValues, "status");
+			const validation = FieldValueProcessor.validateDefaultValue(
+				"To Do",
+				existingValues,
+				"status"
+			);
 
 			expect(validation.isValid).toBe(true);
 			expect(validation.warnings).toHaveLength(0);
@@ -142,39 +174,65 @@ describe("FieldValueProcessor", () => {
 
 		it("should suggest existing case variations", () => {
 			const existingValues = ["Active", "Done"];
-			const validation = FieldValueProcessor.validateDefaultValue("active", existingValues, "status");
+			const validation = FieldValueProcessor.validateDefaultValue(
+				"active",
+				existingValues,
+				"status"
+			);
 
 			expect(validation.suggestions).toContain("Active");
-			expect(validation.warnings.some(w => w.includes("existing case"))).toBe(true);
+			expect(validation.warnings.some((w) => w.includes("existing case"))).toBe(
+				true
+			);
 		});
 
 		it("should suggest similar existing values", () => {
 			const existingValues = ["In Progress", "Done"];
-			const validation = FieldValueProcessor.validateDefaultValue("In Progres", existingValues, "status");
+			const validation = FieldValueProcessor.validateDefaultValue(
+				"In Progres",
+				existingValues,
+				"status"
+			);
 
 			expect(validation.suggestions).toContain("In Progress");
-			expect(validation.warnings.some(w => w.includes("Similar existing values"))).toBe(true);
+			expect(
+				validation.warnings.some((w) => w.includes("Similar existing values"))
+			).toBe(true);
 		});
 
 		it("should suggest smart defaults when applicable", () => {
 			const existingValues: string[] = [];
-			const validation = FieldValueProcessor.validateDefaultValue("Custom", existingValues, "status");
+			const validation = FieldValueProcessor.validateDefaultValue(
+				"Custom",
+				existingValues,
+				"status"
+			);
 
 			expect(validation.suggestions).toContain("To Do");
 			expect(validation.suggestions).toContain("In Progress");
-			expect(validation.warnings.some(w => w.includes("Consider common values"))).toBe(true);
+			expect(
+				validation.warnings.some((w) => w.includes("Consider common values"))
+			).toBe(true);
 		});
 
 		it("should not duplicate suggestions", () => {
 			const existingValues = ["To Do", "Done"];
-			const validation = FieldValueProcessor.validateDefaultValue("todo", existingValues, "status");
+			const validation = FieldValueProcessor.validateDefaultValue(
+				"todo",
+				existingValues,
+				"status"
+			);
 
 			const uniqueSuggestions = new Set(validation.suggestions);
 			expect(validation.suggestions.length).toBe(uniqueSuggestions.size);
 		});
 
 		it("should handle empty existing values gracefully", () => {
-			const validation = FieldValueProcessor.validateDefaultValue("Test", [], "unknown_field");
+			const validation = FieldValueProcessor.validateDefaultValue(
+				"Test",
+				[],
+				"unknown_field"
+			);
 
 			expect(validation.isValid).toBe(true);
 			expect(validation.suggestions).toEqual([]);
@@ -198,7 +256,7 @@ describe("FieldValueProcessor", () => {
 			const rawValues = new Set(["Value1", "Value2"]);
 			const filters: FieldFilter = {
 				defaultEmpty: true,
-				defaultAlways: true
+				defaultAlways: true,
 				// No defaultValue specified
 			};
 
@@ -213,7 +271,7 @@ describe("FieldValueProcessor", () => {
 			const rawValues = new Set(["Short"]);
 			const filters: FieldFilter = {
 				defaultValue: longDefault,
-				defaultAlways: true
+				defaultAlways: true,
 			};
 
 			const result = FieldValueProcessor.processValues(rawValues, filters);
@@ -227,7 +285,7 @@ describe("FieldValueProcessor", () => {
 			const rawValues = new Set(["Done"]);
 			const filters: FieldFilter = {
 				defaultValue: specialDefault,
-				defaultAlways: true
+				defaultAlways: true,
 			};
 
 			const result = FieldValueProcessor.processValues(rawValues, filters);

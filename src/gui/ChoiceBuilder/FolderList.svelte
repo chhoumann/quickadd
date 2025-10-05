@@ -1,11 +1,9 @@
 <script lang="ts">
-    import ObsidianIcon from "../components/ObsidianIcon.svelte";
-
-    export let folders: string[];
-    export let deleteFolder: (folder: string) => void;
-    export const updateFolders = (newFolders: string[]) => {
-        folders = newFolders;
-    }
+export let folders: string[];
+export let deleteFolder: (folder: string) => void;
+export const updateFolders = (newFolders: string[]) => {
+	folders = newFolders;
+};
 </script>
 
 <div class="quickAddFolderListGrid quickAddCommandList">

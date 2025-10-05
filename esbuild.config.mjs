@@ -1,7 +1,7 @@
 import builtins from "builtin-modules";
 import esbuild from "esbuild";
 import esbuildSvelte from "esbuild-svelte";
-import process from "process";
+import process from "node:process";
 import sveltePreprocess from "svelte-preprocess";
 
 const banner = `/*

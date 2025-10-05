@@ -1,5 +1,5 @@
 {
-  "installCommand": "bun install",
-  "buildCommand": "bun run build",
-  "framework": null
+	"installCommand": "bun install",
+	"buildCommand": "bun run build",
+	"framework": null
 }

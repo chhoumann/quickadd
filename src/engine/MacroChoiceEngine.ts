@@ -96,9 +96,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	async run(): Promise<void> {
 		if (!this.macro || !this.macro.commands) {
-			log.logError(
-				`No commands in the macro for choice '${this.choice.name}'`
-			);
+			log.logError(`No commands in the macro for choice '${this.choice.name}'`);
 			return;
 		}
 
@@ -136,10 +134,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				}
 
 				Object.keys(this.params.variables).forEach((key) => {
-					this.choiceExecutor.variables.set(
-						key,
-						this.params.variables[key]
-					);
+					this.choiceExecutor.variables.set(key, this.params.variables[key]);
 				});
 			}
 		} catch (error) {
@@ -161,7 +156,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		// @ts-ignore
+		// @ts-expect-error
 		if (userScript.settings) {
 			this.userScriptCommand = command;
 		}
@@ -199,10 +194,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			userScript.entry &&
 			typeof userScript.entry === "function"
 		) {
-			return await this.onExportIsFunction(
-				userScript.entry,
-				command.settings
-			);
+			return await this.onExportIsFunction(userScript.entry, command.settings);
 		}
 
 		if (typeof userScript === "function") {
@@ -210,23 +202,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
-	 
 	protected async userScriptDelegator(userScript: any) {
 		switch (typeof userScript) {
 			case "function":
 				if (this.userScriptCommand) {
-					await this.runScriptWithSettings(
-						 
-						userScript,
-						this.userScriptCommand
-					);
+					await this.runScriptWithSettings(userScript, this.userScriptCommand);
 				} else {
-					 
 					await this.onExportIsFunction(userScript);
 				}
 				break;
 			case "object":
-				 
 				await this.onExportIsObject(userScript);
 				break;
 			case "bigint":
@@ -293,15 +278,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
-		// @ts-ignore
-		 
+		// @ts-expect-error
+
 		this.app.commands.executeCommandById(command.commandId);
 	}
 
 	protected async executeChoice(command: IChoiceCommand) {
-		const targetChoice: IChoice = this.plugin.getChoiceById(
-			command.choiceId
-		);
+		const targetChoice: IChoice = this.plugin.getChoiceById(command.choiceId);
 		if (!targetChoice) {
 			log.logError("choice could not be found.");
 			return;
@@ -421,27 +404,34 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
 			// Validate path to prevent traversal attacks
-			const safePath = "/" + normalizedPath;
+			const safePath = `/${normalizedPath}`;
 			if (safePath.includes("..") || safePath.includes("//")) {
-				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
+				log.logError(
+					`OpenFile: Path traversal not allowed in '${normalizedPath}'`
+				);
 				return;
 			}
 
 			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
 
 			if (!file || !(file instanceof TFile)) {
-				log.logError(`OpenFile: '${normalizedPath}' does not exist or is not a file`);
+				log.logError(
+					`OpenFile: '${normalizedPath}' does not exist or is not a file`
+				);
 				return;
 			}
 
 			await openFile(this.app, file, {
 				location: command.openInNewTab ? "split" : "tab",
-				direction: command.direction === "horizontal" ? "horizontal" : "vertical",
+				direction:
+					command.direction === "horizontal" ? "horizontal" : "vertical",
 				focus: true,
 				mode: "default",
 			});
 		} catch (error) {
-			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
+			log.logError(
+				`OpenFile: Failed to open file '${command.filePath}': ${error.message}`
+			);
 		}
 	}
 }

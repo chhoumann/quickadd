@@ -24,12 +24,12 @@ class Suggest<T> {
 		containerEl.on(
 			"click",
 			".suggestion-item",
-			this.onSuggestionClick.bind(this),
+			this.onSuggestionClick.bind(this)
 		);
 		containerEl.on(
 			"mousemove",
 			".suggestion-item",
-			this.onSuggestionMouseover.bind(this),
+			this.onSuggestionMouseover.bind(this)
 		);
 
 		// Enhanced keyboard navigation
@@ -66,7 +66,7 @@ class Suggest<T> {
 			if (!event.isComposing && this.isOpen) {
 				this.setSelectedItem(
 					Math.min(this.suggestions.length - 1, this.selectedItem + 5),
-					true,
+					true
 				);
 				return false;
 			}
@@ -226,9 +226,10 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		// Shorter debounce for snappier UX
 		this.debouncedOnInputChanged = debounce(this.onInputChanged.bind(this), 50);
-		
+
 		// Store bound event listeners for proper cleanup
-		this.inputEventListener = (event: Event) => this.debouncedOnInputChanged(event);
+		this.inputEventListener = (event: Event) =>
+			this.debouncedOnInputChanged(event);
 		this.focusEventListener = () => this.debouncedOnInputChanged();
 
 		this.inputEl.addEventListener("input", this.inputEventListener);
@@ -244,7 +245,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			".suggestion-container",
 			(event: MouseEvent) => {
 				event.preventDefault();
-			},
+			}
 		);
 
 		// Setup global listeners
@@ -463,8 +464,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	protected getCurrentQuery(): string {
 		return this.currentQuery;
 	}
-
-
 
 	// Abstract methods - now supports async
 	abstract getSuggestions(inputStr: string): T[] | Promise<T[]>;

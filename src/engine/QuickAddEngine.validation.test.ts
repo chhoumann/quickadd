@@ -1,15 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { App } from 'obsidian';
-import { QuickAddEngine } from './QuickAddEngine';
+import { describe, it, expect, beforeEach } from "vitest";
+import type { App } from "obsidian";
+import { QuickAddEngine } from "./QuickAddEngine";
 
 /**
  * Test implementation of QuickAddEngine for validation testing
  */
 class TestQuickAddEngine extends QuickAddEngine {
-	constructor(app: App) {
-		super(app);
-	}
-
 	public run(): void {
 		// Not needed for validation tests
 	}
@@ -20,7 +16,7 @@ class TestQuickAddEngine extends QuickAddEngine {
 	}
 }
 
-describe('QuickAddEngine - Structured Variable Validation', () => {
+describe("QuickAddEngine - Structured Variable Validation", () => {
 	let mockApp: App;
 	let engine: TestQuickAddEngine;
 
@@ -29,13 +25,13 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 		engine = new TestQuickAddEngine(mockApp);
 	});
 
-	describe('Valid variables', () => {
-		it('should validate simple primitives', () => {
+	describe("Valid variables", () => {
+		it("should validate simple primitives", () => {
 			const vars = new Map<string, unknown>([
-				['string', 'test'],
-				['number', 42],
-				['boolean', true],
-				['null', null],
+				["string", "test"],
+				["number", 42],
+				["boolean", true],
+				["null", null],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -45,11 +41,11 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.warnings).toHaveLength(0);
 		});
 
-		it('should validate arrays', () => {
+		it("should validate arrays", () => {
 			const vars = new Map<string, unknown>([
-				['simpleArray', [1, 2, 3]],
-				['stringArray', ['a', 'b', 'c']],
-				['mixedArray', [1, 'two', true, null]],
+				["simpleArray", [1, 2, 3]],
+				["stringArray", ["a", "b", "c"]],
+				["mixedArray", [1, "two", true, null]],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -58,10 +54,10 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should validate objects', () => {
+		it("should validate objects", () => {
 			const vars = new Map<string, unknown>([
-				['simpleObject', { name: 'test', age: 30 }],
-				['nestedObject', { user: { name: 'test', active: true } }],
+				["simpleObject", { name: "test", age: 30 }],
+				["nestedObject", { user: { name: "test", active: true } }],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -70,9 +66,9 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should validate date strings with @date: prefix', () => {
+		it("should validate date strings with @date: prefix", () => {
 			const vars = new Map<string, unknown>([
-				['dateString', '@date:2024-01-15T10:30:00.000Z'],
+				["dateString", "@date:2024-01-15T10:30:00.000Z"],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -82,72 +78,64 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 		});
 	});
 
-	describe('Invalid types', () => {
-		it('should reject functions', () => {
-			const vars = new Map<string, unknown>([
-				['func', () => {}],
-			]);
+	describe("Invalid types", () => {
+		it("should reject functions", () => {
+			const vars = new Map<string, unknown>([["func", () => {}]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain('func');
-			expect(result.errors[0]).toContain('function');
+			expect(result.errors[0]).toContain("func");
+			expect(result.errors[0]).toContain("function");
 		});
 
-		it('should reject symbols', () => {
-			const vars = new Map<string, unknown>([
-				['sym', Symbol('test')],
-			]);
+		it("should reject symbols", () => {
+			const vars = new Map<string, unknown>([["sym", Symbol("test")]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain('sym');
-			expect(result.errors[0]).toContain('symbol');
+			expect(result.errors[0]).toContain("sym");
+			expect(result.errors[0]).toContain("symbol");
 		});
 
-		it('should warn about BigInt', () => {
-			const vars = new Map<string, unknown>([
-				['bigNum', BigInt(123)],
-			]);
+		it("should warn about BigInt", () => {
+			const vars = new Map<string, unknown>([["bigNum", BigInt(123)]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true); // Warning, not error
 			expect(result.warnings).toHaveLength(1);
-			expect(result.warnings[0]).toContain('bigNum');
-			expect(result.warnings[0]).toContain('BigInt');
+			expect(result.warnings[0]).toContain("bigNum");
+			expect(result.warnings[0]).toContain("BigInt");
 		});
 
-		it('should reject functions nested in objects', () => {
+		it("should reject functions nested in objects", () => {
 			const vars = new Map<string, unknown>([
-				['obj', { data: 'test', callback: () => {} }],
+				["obj", { data: "test", callback: () => {} }],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain('obj.callback');
-			expect(result.errors[0]).toContain('function');
+			expect(result.errors[0]).toContain("obj.callback");
+			expect(result.errors[0]).toContain("function");
 		});
 	});
 
-	describe('Circular references', () => {
-		it('should allow shared references (same object in multiple places)', () => {
+	describe("Circular references", () => {
+		it("should allow shared references (same object in multiple places)", () => {
 			// This is NOT a circular reference - just the same object referenced twice
-			const shared = { value: 'shared data' };
+			const shared = { value: "shared data" };
 			const obj = {
 				branch1: shared,
-				branch2: shared
+				branch2: shared,
 			};
 
-			const vars = new Map<string, unknown>([
-				['obj', obj],
-			]);
+			const vars = new Map<string, unknown>([["obj", obj]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
@@ -155,22 +143,20 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should allow deeply shared references', () => {
-			const shared = { value: 'shared' };
+		it("should allow deeply shared references", () => {
+			const shared = { value: "shared" };
 			const obj = {
 				level1: {
 					a: shared,
-					b: { nested: shared }
+					b: { nested: shared },
 				},
 				level2: {
 					c: shared,
-					d: [shared, shared]
-				}
+					d: [shared, shared],
+				},
 			};
 
-			const vars = new Map<string, unknown>([
-				['obj', obj],
-			]);
+			const vars = new Map<string, unknown>([["obj", obj]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
@@ -178,72 +164,64 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should detect circular reference in object', () => {
-			const circular: any = { name: 'test' };
+		it("should detect circular reference in object", () => {
+			const circular: any = { name: "test" };
 			circular.self = circular;
 
-			const vars = new Map<string, unknown>([
-				['circular', circular],
-			]);
+			const vars = new Map<string, unknown>([["circular", circular]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain('circular');
-			expect(result.errors[0]).toContain('circular reference');
+			expect(result.errors[0]).toContain("circular");
+			expect(result.errors[0]).toContain("circular reference");
 		});
 
-		it('should detect circular reference in nested object', () => {
-			const obj1: any = { name: 'obj1' };
-			const obj2: any = { name: 'obj2', parent: obj1 };
+		it("should detect circular reference in nested object", () => {
+			const obj1: any = { name: "obj1" };
+			const obj2: any = { name: "obj2", parent: obj1 };
 			obj1.child = obj2;
 
-			const vars = new Map<string, unknown>([
-				['nested', obj1],
-			]);
+			const vars = new Map<string, unknown>([["nested", obj1]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
-			expect(result.errors[0]).toContain('circular reference');
+			expect(result.errors[0]).toContain("circular reference");
 		});
 
-		it('should detect circular reference in array', () => {
+		it("should detect circular reference in array", () => {
 			const arr: any[] = [1, 2, 3];
 			arr.push(arr);
 
-			const vars = new Map<string, unknown>([
-				['arrayCircular', arr],
-			]);
+			const vars = new Map<string, unknown>([["arrayCircular", arr]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
-			expect(result.errors[0]).toContain('circular reference');
+			expect(result.errors[0]).toContain("circular reference");
 		});
 	});
 
-	describe('Nesting depth limits', () => {
-		it('should accept nesting within limits', () => {
+	describe("Nesting depth limits", () => {
+		it("should accept nesting within limits", () => {
 			// Create object with nesting depth of 5 (well within limit of 10)
 			const deepObj = {
 				level1: {
 					level2: {
 						level3: {
 							level4: {
-								level5: { value: 'deep' }
-							}
-						}
-					}
-				}
+								level5: { value: "deep" },
+							},
+						},
+					},
+				},
 			};
 
-			const vars = new Map<string, unknown>([
-				['deepObj', deepObj],
-			]);
+			const vars = new Map<string, unknown>([["deepObj", deepObj]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
@@ -251,53 +229,49 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should reject excessive nesting depth', () => {
+		it("should reject excessive nesting depth", () => {
 			// Create object with nesting depth exceeding limit
-			let deepObj: any = { value: 'bottom' };
+			let deepObj: any = { value: "bottom" };
 			for (let i = 0; i < 12; i++) {
 				deepObj = { nested: deepObj };
 			}
 
-			const vars = new Map<string, unknown>([
-				['tooDeep', deepObj],
-			]);
+			const vars = new Map<string, unknown>([["tooDeep", deepObj]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
-			expect(result.errors[0]).toContain('nesting depth');
-			expect(result.errors[0]).toContain('10');
+			expect(result.errors[0]).toContain("nesting depth");
+			expect(result.errors[0]).toContain("10");
 		});
 
-		it('should reject excessive nesting in arrays', () => {
+		it("should reject excessive nesting in arrays", () => {
 			// Create array with excessive nesting
-			let deepArr: any = ['bottom'];
+			let deepArr: any = ["bottom"];
 			for (let i = 0; i < 12; i++) {
 				deepArr = [deepArr];
 			}
 
-			const vars = new Map<string, unknown>([
-				['deepArray', deepArr],
-			]);
+			const vars = new Map<string, unknown>([["deepArray", deepArr]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
-			expect(result.errors[0]).toContain('nesting depth');
+			expect(result.errors[0]).toContain("nesting depth");
 		});
 	});
 
-	describe('Multiple issues', () => {
-		it('should report multiple errors from different variables', () => {
-			const circular: any = { name: 'test' };
+	describe("Multiple issues", () => {
+		it("should report multiple errors from different variables", () => {
+			const circular: any = { name: "test" };
 			circular.self = circular;
 
 			const vars = new Map<string, unknown>([
-				['circular', circular],
-				['func', () => {}],
-				['sym', Symbol('test')],
+				["circular", circular],
+				["func", () => {}],
+				["sym", Symbol("test")],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -306,16 +280,14 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors.length).toBeGreaterThanOrEqual(3);
 		});
 
-		it('should report multiple issues in the same object', () => {
+		it("should report multiple issues in the same object", () => {
 			const problematic = {
 				callback: () => {},
-				id: Symbol('id'),
+				id: Symbol("id"),
 				bigNumber: BigInt(999),
 			};
 
-			const vars = new Map<string, unknown>([
-				['problematic', problematic],
-			]);
+			const vars = new Map<string, unknown>([["problematic", problematic]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
@@ -325,8 +297,8 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 		});
 	});
 
-	describe('Edge cases', () => {
-		it('should handle empty Map', () => {
+	describe("Edge cases", () => {
+		it("should handle empty Map", () => {
 			const vars = new Map<string, unknown>();
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -336,10 +308,10 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.warnings).toHaveLength(0);
 		});
 
-		it('should handle undefined and null values', () => {
+		it("should handle undefined and null values", () => {
 			const vars = new Map<string, unknown>([
-				['undef', undefined],
-				['nullVal', null],
+				["undef", undefined],
+				["nullVal", null],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);
@@ -348,10 +320,8 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should handle Date objects', () => {
-			const vars = new Map<string, unknown>([
-				['date', new Date('2024-01-15')],
-			]);
+		it("should handle Date objects", () => {
+			const vars = new Map<string, unknown>([["date", new Date("2024-01-15")]]);
 
 			const result = engine.testValidateStructuredVariables(vars);
 
@@ -359,9 +329,16 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 			expect(result.errors).toHaveLength(0);
 		});
 
-		it('should handle objects with Date properties', () => {
+		it("should handle objects with Date properties", () => {
 			const vars = new Map<string, unknown>([
-				['event', { name: 'Meeting', date: new Date('2024-01-15'), attendees: ['Alice', 'Bob'] }],
+				[
+					"event",
+					{
+						name: "Meeting",
+						date: new Date("2024-01-15"),
+						attendees: ["Alice", "Bob"],
+					},
+				],
 			]);
 
 			const result = engine.testValidateStructuredVariables(vars);

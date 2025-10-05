@@ -46,7 +46,7 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
-	 
+
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const choicesCopy = structuredClone(plugin.settings.choices);
 		const choices = recursiveRemoveIncrementFileName(choicesCopy);
@@ -55,10 +55,10 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		const macros = removeIncrementFileName(macrosCopy);
 
 		plugin.settings.choices = structuredClone(choices);
-		
+
 		// Save the migrated macros back to settings - later migrations still need it
 		(plugin.settings as any).macros = macros;
-		
+
 		/* DO NOT delete macros here – later migrations still need it
 		// Clean up legacy macros array if it exists
 		if ('macros' in plugin.settings) {

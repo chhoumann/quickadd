@@ -62,7 +62,7 @@ async function getTargetPromptTemplate(
 	userDefinedPromptTemplate: Params["promptTemplate"],
 	promptTemplates: TFile[]
 ): Promise<[string, string]> {
-	let targetFile;
+	let targetFile: TFile | undefined;
 
 	if (userDefinedPromptTemplate.enable) {
 		targetFile = promptTemplates.find((item) =>
@@ -134,16 +134,10 @@ export async function runAIAssistant(
 			promptTemplates
 		);
 
-		notice.setMessage(
-			"waiting",
-			"QuickAdd is formatting the prompt template."
-		);
+		notice.setMessage("waiting", "QuickAdd is formatting the prompt template.");
 		const formattedPrompt = await formatter(targetPrompt);
 
-		const promptingMsg = [
-			"prompting",
-			`Using prompt template "${targetKey}".`,
-		];
+		const promptingMsg = ["prompting", `Using prompt template "${targetKey}".`];
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const makeRequest = OpenAIRequest(
@@ -165,18 +159,12 @@ export async function runAIAssistant(
 				);
 			},
 			(time) => {
-				notice.setMessage(
-					"finished",
-					`Took ${(time / 1000).toFixed(2)}s.`
-				);
+				notice.setMessage("finished", `Took ${(time / 1000).toFixed(2)}s.`);
 			}
 		);
 
 		const output = result.content;
-		const outputInMarkdownBlockQuote = ("> " + output).replace(
-			/\n/g,
-			"\n> "
-		);
+		const outputInMarkdownBlockQuote = `> ${output}`.replace(/\n/g, "\n> ");
 
 		const variables = {
 			[outputVariable]: output,
@@ -245,10 +233,7 @@ export async function Prompt(
 			modelOptions,
 		} = settings;
 
-		notice.setMessage(
-			"waiting",
-			"QuickAdd is formatting the prompt template."
-		);
+		notice.setMessage("waiting", "QuickAdd is formatting the prompt template.");
 		const formattedPrompt = await formatter(prompt);
 
 		const promptingMsg = ["prompting", `Using custom prompt.`];
@@ -273,18 +258,12 @@ export async function Prompt(
 				);
 			},
 			(time) => {
-				notice.setMessage(
-					"finished",
-					`Took ${(time / 1000).toFixed(2)}s.`
-				);
+				notice.setMessage("finished", `Took ${(time / 1000).toFixed(2)}s.`);
 			}
 		);
 
 		const output = result.content;
-		const outputInMarkdownBlockQuote = ("> " + output).replace(
-			/\n/g,
-			"\n> "
-		);
+		const outputInMarkdownBlockQuote = `> ${output}`.replace(/\n/g, "\n> ");
 
 		const variables = {
 			[outputVariable]: output,
@@ -307,7 +286,10 @@ class RateLimiter {
 	private queue: (() => Promise<unknown>)[] = [];
 	private pendingPromises: Promise<unknown>[] = [];
 
-	constructor(private maxRequests: number, private intervalMs: number) {}
+	constructor(
+		private maxRequests: number,
+		private intervalMs: number
+	) {}
 
 	add<T>(promiseFactory: () => Promise<T>): Promise<T> {
 		return new Promise<T>((resolve, reject) => {
@@ -337,9 +319,7 @@ class RateLimiter {
 		const promise = promiseFactory();
 		this.pendingPromises.push(promise);
 		promise.finally(() => {
-			this.pendingPromises = this.pendingPromises.filter(
-				(p) => p !== promise
-			);
+			this.pendingPromises = this.pendingPromises.filter((p) => p !== promise);
 			this.schedule();
 		});
 		setTimeout(() => this.schedule(), this.intervalMs);
@@ -409,8 +389,7 @@ export async function ChunkedPrompt(
 		const shouldMerge = settings.shouldMerge ?? true; // temp, need to impl. config
 
 		const chunkedPrompts = [];
-		const maxCombinedChunkSize =
-			maxChunkTokenSize - promptTemplateTokenCount;
+		const maxCombinedChunkSize = maxChunkTokenSize - promptTemplateTokenCount;
 
 		if (shouldMerge) {
 			const output: string[] = [];
@@ -482,9 +461,7 @@ export async function ChunkedPrompt(
 
 		const rateLimiter = new RateLimiter(5, 1000 * 30); // 5 requests per half minute
 		const results = Promise.all(
-			chunkedPrompts.map((prompt) =>
-				rateLimiter.add(() => makeRequest(prompt))
-			)
+			chunkedPrompts.map((prompt) => rateLimiter.add(() => makeRequest(prompt)))
 		);
 
 		const result = await timePromise(
@@ -497,20 +474,14 @@ export async function ChunkedPrompt(
 				);
 			},
 			(time) => {
-				notice.setMessage(
-					"finished",
-					`Took ${(time / 1000).toFixed(2)}s.`
-				);
+				notice.setMessage("finished", `Took ${(time / 1000).toFixed(2)}s.`);
 			}
 		);
 
 		const outputs = result.map((r) => r.content);
 
 		const output = outputs.join(settings.resultJoiner);
-		const outputInMarkdownBlockQuote = ("> " + output).replace(
-			/\n/g,
-			"\n> "
-		);
+		const outputInMarkdownBlockQuote = `> ${output}`.replace(/\n/g, "\n> ");
 
 		const variables = {
 			[outputVariable]: output,

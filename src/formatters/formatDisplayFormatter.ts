@@ -11,12 +11,12 @@ import {
 	getVariablePromptExample,
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
-	DateFormatPreviewGenerator
+	DateFormatPreviewGenerator,
 } from "./helpers/previewHelpers";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
-		private app: App, 
+		private app: App,
 		private plugin: QuickAdd,
 		dateParser?: IDateParser
 	) {
@@ -55,14 +55,14 @@ export class FormatDisplayFormatter extends Formatter {
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
 		let output = input;
 		let guard = 0;
-		const re = new RegExp(GLOBAL_VAR_REGEX.source, 'gi');
+		const re = new RegExp(GLOBAL_VAR_REGEX.source, "gi");
 		while (re.test(output)) {
 			if (++guard > 5) break;
 			output = output.replace(re, (_m, rawName) => {
-				const name = String(rawName ?? '').trim();
+				const name = String(rawName ?? "").trim();
 				if (!name) return _m;
 				const snippet = this.plugin?.settings?.globalVariables?.[name];
-				return typeof snippet === 'string' ? snippet : '';
+				return typeof snippet === "string" ? snippet : "";
 			});
 		}
 		return output;
@@ -93,7 +93,7 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string }
+		_context?: { type?: string; dateFormat?: string; defaultValue?: string }
 	): Promise<string> {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}
@@ -111,7 +111,6 @@ export class FormatDisplayFormatter extends Formatter {
 		}
 	}
 
-	 
 	protected async getSelectedText(): Promise<string> {
 		return "selected_text";
 	}
@@ -126,65 +125,72 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		let output: string = input;
-		
-		// For preview, show helpful format examples instead of failing
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, defaultValue) => {
-			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
-			const cleanDefaultValue = defaultValue?.trim();
-			
-			if (!cleanVariableName || !cleanDateFormat) {
-				return match; // Return original if incomplete
-			}
 
-			// Generate a preview using current date with the specified format
-			const previewDate = new Date();
-			let formattedExample: string;
-			
-			try {
-				// Try to generate a realistic preview using the format
-				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
-			} catch {
-				// Fallback to showing the format pattern
-				formattedExample = `[${cleanDateFormat} format]`;
+		// For preview, show helpful format examples instead of failing
+		output = output.replace(
+			new RegExp(DATE_VARIABLE_REGEX.source, "gi"),
+			(match, variableName, dateFormat, defaultValue) => {
+				const cleanVariableName = variableName?.trim();
+				const cleanDateFormat = dateFormat?.trim();
+				const cleanDefaultValue = defaultValue?.trim();
+
+				if (!cleanVariableName || !cleanDateFormat) {
+					return match; // Return original if incomplete
+				}
+
+				// Generate a preview using current date with the specified format
+				const previewDate = new Date();
+				let formattedExample: string;
+
+				try {
+					// Try to generate a realistic preview using the format
+					formattedExample = DateFormatPreviewGenerator.generate(
+						cleanDateFormat,
+						previewDate
+					);
+				} catch {
+					// Fallback to showing the format pattern
+					formattedExample = `[${cleanDateFormat} format]`;
+				}
+
+				// If there's a default value, indicate it in the preview
+				if (cleanDefaultValue) {
+					formattedExample += ` (default: ${cleanDefaultValue})`;
+				}
+
+				return formattedExample;
 			}
-			
-			// If there's a default value, indicate it in the preview
-			if (cleanDefaultValue) {
-				formattedExample += ` (default: ${cleanDefaultValue})`;
-			}
-			
-			return formattedExample;
-		});
-		
+		);
+
 		return output;
 	}
 
 	protected replaceRandomInString(input: string): string {
 		let output = input;
-		
+
 		// Replace {{RANDOM:n}} with a preview showing example output
 		output = output.replace(/{{RANDOM:(\d+)}}/gi, (match, length) => {
-			const len = parseInt(length);
+			const len = parseInt(length, 10);
 			if (len <= 0 || len > 100) {
 				return match; // Return original if invalid
 			}
-			
+
 			// Generate a preview random string
-			const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-			let preview = '';
+			const chars =
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+			let preview = "";
 			for (let i = 0; i < Math.min(len, 8); i++) {
 				preview += chars.charAt(Math.floor(Math.random() * chars.length));
 			}
-			
+
 			// For long strings, show truncated preview
 			if (len > 8) {
 				preview += `... (${len} chars)`;
 			}
-			
+
 			return preview;
 		});
-		
+
 		return output;
 	}
 

@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { 
-	insertAtCursor, 
-	replaceRange, 
-	getTextBeforeCursor, 
-	highlightMatches, 
-	highlightFuzzyMatches 
+import {
+	insertAtCursor,
+	replaceRange,
+	getTextBeforeCursor,
+	highlightMatches,
+	highlightFuzzyMatches,
 } from "./utils";
 
 // Mock HTMLInputElement for testing
@@ -12,16 +12,16 @@ class MockInput {
 	value = "";
 	selectionStart = 0;
 	selectionEnd = 0;
-	
+
 	setSelectionRange(start: number, end: number) {
 		this.selectionStart = start;
 		this.selectionEnd = end;
 	}
-	
+
 	trigger() {
 		// Mock trigger method
 	}
-	
+
 	dispatchEvent() {
 		// Required by replaceRange but not tested
 	}

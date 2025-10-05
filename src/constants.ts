@@ -62,7 +62,7 @@ export const CREATE_IF_NOT_FOUND_CURSOR = "cursor";
 // == Format Syntax == //
 export const DATE_REGEX = new RegExp(/{{DATE(\+-?[0-9]+)?}}/i);
 export const DATE_REGEX_FORMATTED = new RegExp(
-	/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/i,
+	/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/i
 );
 export const TIME_REGEX = new RegExp(/{{TIME}}/i);
 export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);
@@ -70,10 +70,10 @@ export const NAME_VALUE_REGEX = new RegExp(/{{NAME}}|{{VALUE}}/i);
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(
-	/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i,
+	/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i
 );
 export const DATE_VARIABLE_REGEX = new RegExp(
-	/{{VDATE:([^\n\r},]*),\s*([^\n\r}|]*)(?:\|([^\n\r}]*))?}}/i,
+	/{{VDATE:([^\n\r},]*),\s*([^\n\r}|]*)(?:\|([^\n\r}]*))?}}/i
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
@@ -83,7 +83,7 @@ export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/i);
 export const GLOBAL_VAR_REGEX = new RegExp(/{{GLOBAL_VAR:([^\n\r}]*)}}/i);
 export const INLINE_JAVASCRIPT_REGEX = new RegExp(
-	/`{3,}js quickadd([\s\S]*?)`{3,}/,
+	/`{3,}js quickadd([\s\S]*?)`{3,}/
 );
 export const MATH_VALUE_REGEX = new RegExp(/{{MVALUE}}/i);
 export const TITLE_REGEX = new RegExp(/{{TITLE}}/i);
@@ -98,55 +98,55 @@ export const TAG_REGEX = new RegExp(/#([^ ]*)$/);
 
 // == Format Syntax Suggestion == //
 export const DATE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[D]?[A]?[T]?[E]?[}]?[}]?$/i,
+	/{{[D]?[A]?[T]?[E]?[}]?[}]?$/i
 );
 export const DATE_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[D]?[A]?[T]?[E]?[:]?$|{{DATE:[^\n\r}]*}}$/i,
+	/{{[D]?[A]?[T]?[E]?[:]?$|{{DATE:[^\n\r}]*}}$/i
 );
 export const NAME_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[N]?[A]?[M]?[E]?[}]?[}]?$/i,
+	/{{[N]?[A]?[M]?[E]?[}]?[}]?$/i
 );
 export const VALUE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[V]?[A]?[L]?[U]?[E]?[}]?[}]?$/i,
+	/{{[V]?[A]?[L]?[U]?[E]?[}]?[}]?$/i
 );
 export const VARIABLE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[V]?[A]?[L]?[U]?[E]?[:]?$|{{VALUE:[^\n\r}]*}}$/i,
+	/{{[V]?[A]?[L]?[U]?[E]?[:]?$|{{VALUE:[^\n\r}]*}}$/i
 );
 export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[V]?[D]?[A]?[T]?[E]?[:]?$|{{VDATE:[^\n\r}]*}}$/i,
+	/{{[V]?[D]?[A]?[T]?[E]?[:]?$|{{VDATE:[^\n\r}]*}}$/i
 );
 export const LINKCURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[L]?[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
+	/{{[L]?[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i
 );
 export const TEMPLATE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i,
+	/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i
 );
 export const MACRO_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[M]?[A]?[C]?[R]?[O]?[:]?$|{{MACRO:[^\n\r}]*}}$/i,
+	/{{[M]?[A]?[C]?[R]?[O]?[:]?$|{{MACRO:[^\n\r}]*}}$/i
 );
 export const MATH_VALUE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[M]?[V]?[A]?[L]?[U]?[E]?[}]?[}]?/i,
+	/{{[M]?[V]?[A]?[L]?[U]?[E]?[}]?[}]?/i
 );
 export const TITLE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[T]?[I]?[T]?[L]?[E]?[}]?[}]?/i,
+	/{{[T]?[I]?[T]?[L]?[E]?[}]?[}]?/i
 );
 export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i,
+	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i
 );
 export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i,
+	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i
 );
 export const RANDOM_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i,
+	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i
 );
 export const GLOBAL_VAR_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[G]?[L]?[O]?[B]?[A]?[L]?[\_]?[V]?[A]?[R]?[:]?$|{{GLOBAL_VAR:[^\n\r}]*}}$/i,
+	/{{[G]?[L]?[O]?[B]?[A]?[L]?[_]?[V]?[A]?[R]?[:]?$|{{GLOBAL_VAR:[^\n\r}]*}}$/i
 );
 export const TIME_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[T]?[I]?[M]?[E]?[}]?[}]?/i,
+	/{{[T]?[I]?[M]?[E]?[}]?[}]?/i
 );
 export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[T]?[I]?[M]?[E]?[:]?$|{{TIME:[^\n\r}]*}}$/i,
+	/{{[T]?[I]?[M]?[E]?[:]?$|{{TIME:[^\n\r}]*}}$/i
 );
 
 // == Internal (reserved) variable keys == //

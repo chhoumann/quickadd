@@ -34,7 +34,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		app: App,
 		plugin: QuickAdd,
 		choice: ITemplateChoice,
-		choiceExecutor: IChoiceExecutor,
+		choiceExecutor: IChoiceExecutor
 	) {
 		super(app, plugin, choiceExecutor);
 		this.choice = choice;
@@ -43,17 +43,18 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	public async run(): Promise<void> {
 		try {
 			invariant(this.choice.templatePath, () => {
-				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
+				return `Invalid template path for ${this.choice.name}. ${
+					this.choice.templatePath.length === 0
 						? "Template path is empty."
 						: `Template path is not valid: ${this.choice.templatePath}`
-					}`;
+				}`;
 			});
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.setLinkToCurrentFileBehavior(
 				linkOptions.enabled && !linkOptions.requireActiveFile
 					? "optional"
-					: "required",
+					: "required"
 			);
 
 			let folderPath = "";
@@ -67,14 +68,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				: VALUE_SYNTAX;
 			const formattedName = await this.formatter.formatFileName(
 				format,
-				this.choice.name,
+				this.choice.name
 			);
-			
 
 			let filePath = this.normalizeTemplateFilePath(
 				folderPath,
 				formattedName,
-				this.choice.templatePath,
+				this.choice.templatePath
 			);
 
 			if (this.choice.fileExistsMode === fileExistsIncrement)
@@ -89,7 +89,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					(file.extension !== "md" && file.extension !== "canvas")
 				) {
 					log.logError(
-						`'${filePath}' already exists and is not a valid markdown or canvas file.`,
+						`'${filePath}' already exists and is not a valid markdown or canvas file.`
 					);
 					return;
 				}
@@ -102,7 +102,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						userChoice = await GenericSuggester.Suggest(
 							this.app,
 							[...fileExistsChoices],
-							[...fileExistsChoices],
+							[...fileExistsChoices]
 						);
 					} catch (error) {
 						if (isCancellationError(error)) {
@@ -117,20 +117,20 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						createdFile = await this.appendToFileWithTemplate(
 							file,
 							this.choice.templatePath,
-							"top",
+							"top"
 						);
 						break;
 					case fileExistsAppendToBottom:
 						createdFile = await this.appendToFileWithTemplate(
 							file,
 							this.choice.templatePath,
-							"bottom",
+							"bottom"
 						);
 						break;
 					case fileExistsOverwriteFile:
 						createdFile = await this.overwriteFileWithTemplate(
 							file,
-							this.choice.templatePath,
+							this.choice.templatePath
 						);
 						break;
 					case fileExistsDoNothing:
@@ -142,7 +142,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						const incrementFileName = await this.incrementFileName(filePath);
 						createdFile = await this.createFileWithTemplate(
 							incrementFileName,
-							this.choice.templatePath,
+							this.choice.templatePath
 						);
 						break;
 					}
@@ -153,7 +153,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					filePath,
-					this.choice.templatePath,
+					this.choice.templatePath
 				);
 				if (!createdFile) {
 					log.logWarning(`Could not create file '${filePath}'.`);
@@ -166,7 +166,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.app,
 					this.app.fileManager.generateMarkdownLink(createdFile, ""),
 					linkOptions.placement,
-					{ requireActiveView: linkOptions.requireActiveFile },
+					{ requireActiveView: linkOptions.requireActiveFile }
 				);
 			}
 
@@ -186,7 +186,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const folderPaths = await Promise.all(
 			folders.map(async (folder) => {
 				return await this.formatter.formatFolderPath(folder);
-			}),
+			})
 		);
 
 		return folderPaths;
@@ -223,7 +223,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			if (!activeFile || !activeFile.parent) {
 				log.logWarning(
-					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
+					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder."
 				);
 				return "";
 			}

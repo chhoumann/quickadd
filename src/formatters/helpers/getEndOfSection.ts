@@ -36,7 +36,7 @@ export function getMarkdownHeadings(bodyLines: string[]): Heading[] {
 export default function getEndOfSection(
 	lines: string[],
 	targetLine: number,
-	shouldConsiderSubsections = false,
+	shouldConsiderSubsections = false
 ): number {
 	const headings = getMarkdownHeadings(lines);
 
@@ -45,7 +45,7 @@ export default function getEndOfSection(
 
 	if (!targetIsHeading && shouldConsiderSubsections) {
 		throw new Error(
-			`Target line ${targetLine} is not a heading, but we are trying to find the end of its section.`,
+			`Target line ${targetLine} is not a heading, but we are trying to find the end of its section.`
 		);
 	}
 
@@ -53,7 +53,7 @@ export default function getEndOfSection(
 		const nextEmptyStringIdx = findNextIdx(
 			lines,
 			targetLine,
-			(str: string) => str.trim() === "",
+			(str: string) => str.trim() === ""
 		);
 
 		if (nextEmptyStringIdx !== null && nextEmptyStringIdx > targetLine) {
@@ -68,13 +68,13 @@ export default function getEndOfSection(
 		targetHeading as Heading,
 		headings,
 		lines,
-		shouldConsiderSubsections,
+		shouldConsiderSubsections
 	);
 
 	const lastNonEmptyLineInSectionIdx = findPriorIdx(
 		lines,
 		endOfSectionLineIdx,
-		(str: string) => str.trim() !== "",
+		(str: string) => str.trim() !== ""
 	);
 
 	if (lastNonEmptyLineInSectionIdx !== null) {
@@ -105,10 +105,10 @@ function getEndOfSectionLineByHeadings(
 	targetHeading: Heading,
 	headings: Heading[],
 	lines: string[],
-	shouldConsiderSubsections: boolean,
+	shouldConsiderSubsections: boolean
 ): number {
 	const targetHeadingIdx = headings.findIndex((heading) =>
-		isSameHeading(heading, targetHeading),
+		isSameHeading(heading, targetHeading)
 	);
 	const targetHeadingIsLastHeading = targetHeadingIdx === headings.length - 1;
 	const lastLineInBodyIdx = lines.length - 1;
@@ -154,16 +154,16 @@ function getEndOfSectionLineByHeadings(
 
 function findNextHigherOrSameLevelHeading(
 	targetHeading: Heading,
-	headings: Heading[],
+	headings: Heading[]
 ): readonly [number, boolean] {
 	const targetHeadingIdx = headings.findIndex((heading) =>
-		isSameHeading(heading, targetHeading),
+		isSameHeading(heading, targetHeading)
 	);
 
 	const nextSameOrHigherLevelHeadingIdx = findNextIdx(
 		headings,
 		targetHeadingIdx,
-		(heading) => heading.level <= targetHeading.level,
+		(heading) => heading.level <= targetHeading.level
 	);
 
 	if (nextSameOrHigherLevelHeadingIdx === null) {
@@ -175,10 +175,10 @@ function findNextHigherOrSameLevelHeading(
 
 function findNextHeading(
 	fromIdxInBody: number,
-	headings: Heading[],
+	headings: Heading[]
 ): number | null {
 	const nextheading = headings.findIndex(
-		(heading) => heading.line > fromIdxInBody,
+		(heading) => heading.line > fromIdxInBody
 	);
 
 	return nextheading === -1 ? null : nextheading;
@@ -187,7 +187,7 @@ function findNextHeading(
 function findPriorIdx<T>(
 	items: T[],
 	fromIdx: number,
-	condition: (item: T) => boolean,
+	condition: (item: T) => boolean
 ): number | null {
 	for (let i = fromIdx - 1; i >= 0; i--) {
 		if (condition(items[i])) {
@@ -201,7 +201,7 @@ function findPriorIdx<T>(
 function findNextIdx<T>(
 	items: T[],
 	fromIdx: number,
-	condition: (item: T) => boolean,
+	condition: (item: T) => boolean
 ): number | null {
 	for (let i = fromIdx + 1; i < items.length; i++) {
 		if (condition(items[i])) {

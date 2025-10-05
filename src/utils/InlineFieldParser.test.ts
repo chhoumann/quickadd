@@ -29,7 +29,7 @@ assignee:: John Doe
 			const result = InlineFieldParser.parseInlineFields(content);
 
 			expect(result.get("tags")).toEqual(
-				new Set(["work", "project", "urgent"]),
+				new Set(["work", "project", "urgent"])
 			);
 		});
 
@@ -94,9 +94,7 @@ regular:: this should be parsed
 
 			expect(result.has("task")).toBe(false);
 			expect(result.has("done")).toBe(false);
-			expect(result.get("regular")).toEqual(
-				new Set(["this should be parsed"]),
-			);
+			expect(result.get("regular")).toEqual(new Set(["this should be parsed"]));
 		});
 
 		it("should handle empty values", () => {
@@ -108,8 +106,7 @@ regular:: this should be parsed
 		});
 
 		it("should handle field names with numbers and hyphens", () => {
-			const content =
-				"field-1:: value1\nfield_2:: value2\nfield3:: value3";
+			const content = "field-1:: value1\nfield_2:: value2\nfield3:: value3";
 			const result = InlineFieldParser.parseInlineFields(content);
 
 			expect(result.get("field-1")).toEqual(new Set(["value1"]));
@@ -128,10 +125,7 @@ regular:: this should be parsed
 
 		it("should return empty set for non-existent field", () => {
 			const content = "status:: active";
-			const result = InlineFieldParser.getFieldValues(
-				content,
-				"nonexistent",
-			);
+			const result = InlineFieldParser.getFieldValues(content, "nonexistent");
 
 			expect(result).toEqual(new Set());
 		});

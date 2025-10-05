@@ -96,7 +96,7 @@ module.exports = {
 				type: "format",
 				defaultValue: "",
 				placeholder: "File name format for the note",
-			}
+			},
 		},
 	},
 };
@@ -156,7 +156,7 @@ async function getReadwiseHighlights(type) {
 
 	const item = await QuickAdd.quickAddApi.suggester(
 		highlightItems.map((item) => item.title),
-		highlightItems,
+		highlightItems
 	);
 	if (!item) {
 		LogAndThrowError("No item selected.");
@@ -206,7 +206,7 @@ async function getReadwiseHighlights(type) {
 	}
 
 	const file = await QuickAdd.app.vault.getAbstractFileByPath(
-		`${fileName.replace(".md", "")}.md`,
+		`${fileName.replace(".md", "")}.md`
 	);
 	if (file) {
 		await handleAddToExistingFile(file, item);
@@ -236,12 +236,12 @@ async function handleAddToExistingFile(file, item) {
 		});
 		new Notice(
 			`Added ${highlights.length} highlights to '${file.basename}'.`,
-			10000,
+			10000
 		);
 	} else {
 		// Throw so we don't continue the capture flow.
 		LogAndThrowError(
-			`No highlights found after ${new Date(lastHighlightAt).toISOString()}`,
+			`No highlights found after ${new Date(lastHighlightAt).toISOString()}`
 		);
 	}
 }
@@ -262,7 +262,7 @@ async function getFileName(safeTitle) {
 	const fileNameFormat = Settings[FILE_NAME_FORMAT];
 	const fileNameWithSafeTitle = fileNameFormat.replace(
 		/{{VALUE:safeTitle}}/gi,
-		safeTitle,
+		safeTitle
 	);
 
 	return await QuickAdd.quickAddApi.format(fileNameWithSafeTitle);
@@ -270,8 +270,8 @@ async function getFileName(safeTitle) {
 
 function formatHighlights(highlights) {
 	return highlights
+		.filter((hl) => hl.text !== "No title")
 		.map((hl) => {
-			if (hl.text === "No title") return;
 			const { quote, note } = textFormatter(hl.text, hl.note);
 			return `${quote}${note}`;
 		})
@@ -349,7 +349,7 @@ async function apiGet(url, data) {
 
 function replaceIllegalFileNameCharactersInString(string) {
 	return string
-		.replace(/[\\,#%&\{\}\/*<>$\'\":@\u2023\|\?]*/g, "") // Replace illegal file name characters with empty string
+		.replace(/[\\,#%&{}/*<>$'":@\u2023|?]*/g, "") // Replace illegal file name characters with empty string
 		.replace(/\n/, " ") // replace newlines with spaces
 		.replace("  ", " "); // replace multiple spaces with single space to make sure we don't have double spaces in the file name
 }

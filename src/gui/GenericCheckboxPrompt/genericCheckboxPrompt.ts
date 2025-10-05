@@ -9,11 +9,7 @@ export default class GenericCheckboxPrompt extends Modal {
 	private _selectedItems: string[];
 
 	public static Open(app: App, items: string[], selectedItems?: string[]) {
-		const newSuggester = new GenericCheckboxPrompt(
-			app,
-			items,
-			selectedItems
-		);
+		const newSuggester = new GenericCheckboxPrompt(app, items, selectedItems);
 		return newSuggester.promise;
 	}
 
@@ -53,7 +49,9 @@ export default class GenericCheckboxPrompt extends Modal {
 		const rowContainer: HTMLDivElement = this.contentEl.createDiv(
 			"checkboxRowContainer"
 		);
-		this.items.forEach((item) => this.addCheckboxRow(item, rowContainer));
+		this.items.forEach((item) => {
+			this.addCheckboxRow(item, rowContainer);
+		});
 	}
 
 	private addCheckboxRow(item: string, container: HTMLDivElement) {
@@ -69,9 +67,7 @@ export default class GenericCheckboxPrompt extends Modal {
 			.onChange((value) => {
 				if (value) this._selectedItems.push(item);
 				else {
-					const index = this._selectedItems.findIndex(
-						(value) => item === value
-					);
+					const index = this._selectedItems.indexOf(item);
 					this._selectedItems.splice(index, 1);
 				}
 			});
@@ -88,7 +84,7 @@ export default class GenericCheckboxPrompt extends Modal {
 		submitButton
 			.setButtonText("Submit")
 			.setCta()
-			.onClick((evt) => {
+			.onClick((_evt) => {
 				this.resolved = true;
 				this.resolvePromise(this._selectedItems);
 

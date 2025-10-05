@@ -1,24 +1,22 @@
 <script lang="ts">
-    import type {ChoiceType} from "../../types/choices/choiceType";
-    import {createEventDispatcher} from "svelte";
-    import {Notice} from "obsidian";
+import type { ChoiceType } from "../../types/choices/choiceType";
+import { createEventDispatcher } from "svelte";
+import { Notice } from "obsidian";
 
-    let name: string;
-    let type: ChoiceType;
+let name: string;
+let type: ChoiceType;
 
-    const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-    function addChoice() {
-        if (!name) {
-            new Notice("Choice name is invalid.");
-            return;
-        }
+function _addChoice() {
+	if (!name) {
+		new Notice("Choice name is invalid.");
+		return;
+	}
 
-        dispatch('addChoice', {name, type});
-        name = "";
-    }
-
-
+	dispatch("addChoice", { name, type });
+	name = "";
+}
 </script>
 
 <div class="addChoiceBox">

@@ -17,12 +17,12 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
 		this.elementsRendered = this.symbols.reduce((elements, symbol) => {
 			try {
-				//@ts-ignore
-				 
+				//@ts-expect-error
+
 				elements[symbol.toString()] = renderMath(symbol, true);
-			
-						// Ignoring symbols that we can't use
-			} catch {} 	 
+
+				// Ignoring symbols that we can't use
+			} catch {}
 
 			return elements;
 		}, {});
@@ -45,9 +45,11 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		if (match) {
 			this.lastInput = match[1];
 			suggestions = this.symbols.filter((val) =>
-				//@ts-ignore
-				 
-				val.toLowerCase().contains(this.lastInput)
+				//@ts-expect-error
+
+				val
+					.toLowerCase()
+					.contains(this.lastInput)
 			);
 		}
 
@@ -62,8 +64,8 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 	renderSuggestion(item: string, el: HTMLElement): void {
 		if (item) {
 			el.setText(item);
-			//@ts-ignore
-			 
+			//@ts-expect-error
+
 			el.append(this.elementsRendered[item]);
 		}
 	}
@@ -82,26 +84,20 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 			0,
 			cursorPosition - lastInputLength - 1
 		)}${textToInsert}${currentInputValue.substr(cursorPosition)}`;
-		insertedEndPosition =
-			cursorPosition - lastInputLength + item.length - 1;
+		insertedEndPosition = cursorPosition - lastInputLength + item.length - 1;
 
 		this.inputEl.trigger("input");
 		this.close();
 
 		if (item.contains(LATEX_CURSOR_MOVE_HERE)) {
-			const cursorPos = this.inputEl.value.indexOf(
-				LATEX_CURSOR_MOVE_HERE
-			);
+			const cursorPos = this.inputEl.value.indexOf(LATEX_CURSOR_MOVE_HERE);
 			this.inputEl.value = this.inputEl.value.replace(
 				LATEX_CURSOR_MOVE_HERE,
 				""
 			);
 			this.inputEl.setSelectionRange(cursorPos, cursorPos);
 		} else {
-			this.inputEl.setSelectionRange(
-				insertedEndPosition,
-				insertedEndPosition
-			);
+			this.inputEl.setSelectionRange(insertedEndPosition, insertedEndPosition);
 		}
 	}
 }

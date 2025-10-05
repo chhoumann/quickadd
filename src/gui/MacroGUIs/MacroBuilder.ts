@@ -66,7 +66,12 @@ export class MacroBuilder extends Modal {
 	private resolvePromise: (choice: IMacroChoice) => void;
 	private plugin: QuickAdd;
 
-	constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, choices: IChoice[]) {
+	constructor(
+		app: App,
+		plugin: QuickAdd,
+		choice: IMacroChoice,
+		choices: IChoice[]
+	) {
 		super(app);
 		this.choice = choice;
 		this.macro = choice.macro;
@@ -74,11 +79,9 @@ export class MacroBuilder extends Modal {
 		this.choices = getChoicesAsList(choices);
 		this.plugin = plugin;
 
-		this.waitForClose = new Promise<IMacroChoice>(
-			(resolve) => {
-				this.resolvePromise = resolve;
-			}
-		);
+		this.waitForClose = new Promise<IMacroChoice>((resolve) => {
+			this.resolvePromise = resolve;
+		});
 
 		this.getObsidianCommands();
 		this.getJavascriptFiles();
@@ -91,7 +94,7 @@ export class MacroBuilder extends Modal {
 		super.onClose();
 		this.resolvePromise(this.choice);
 		this.svelteElements.forEach((el) => {
-			if (el && el.$destroy) el.$destroy();
+			if (el?.$destroy) el.$destroy();
 		});
 	}
 
@@ -114,7 +117,6 @@ export class MacroBuilder extends Modal {
 		headerEl.setText(header);
 		headerEl.addClass("clickable");
 
-		 
 		headerEl.addEventListener("click", async () => {
 			const newName: string = await GenericInputPrompt.Prompt(
 				this.app,
@@ -134,9 +136,8 @@ export class MacroBuilder extends Modal {
 		new Setting(this.contentEl)
 			.setName("Run on startup")
 			.setDesc("Execute this macro when Obsidian starts")
-			.addToggle(toggle => toggle
-				.setValue(this.choice.runOnStartup)
-				.onChange(value => {
+			.addToggle((toggle) =>
+				toggle.setValue(this.choice.runOnStartup).onChange((value) => {
 					this.choice.runOnStartup = value;
 				})
 			);
@@ -144,7 +145,9 @@ export class MacroBuilder extends Modal {
 
 	private reload() {
 		// Destroy existing Svelte components to prevent memory leaks
-		this.svelteElements.forEach(el => el?.$destroy?.());
+		for (const el of this.svelteElements) {
+			el?.$destroy?.();
+		}
 		this.svelteElements = [];
 		this.display();
 	}
@@ -157,9 +160,7 @@ export class MacroBuilder extends Modal {
 			const obsidianCommand = this.commands.find((v) => v.name === value);
 
 			if (!obsidianCommand) {
-				log.logError(
-					`Could not find Obsidian command with name "${value}"`
-				);
+				log.logError(`Could not find Obsidian command with name "${value}"`);
 				return;
 			}
 
@@ -249,7 +250,10 @@ export class MacroBuilder extends Modal {
 					.addOption(EditorCommandType.Copy, EditorCommandType.Copy)
 					.addOption(EditorCommandType.Cut, EditorCommandType.Cut)
 					.addOption(EditorCommandType.Paste, EditorCommandType.Paste)
-					.addOption(EditorCommandType.PasteWithFormat, EditorCommandType.PasteWithFormat)
+					.addOption(
+						EditorCommandType.PasteWithFormat,
+						EditorCommandType.PasteWithFormat
+					)
 					.addOption(
 						EditorCommandType.SelectActiveLine,
 						EditorCommandType.SelectActiveLine
@@ -284,7 +288,7 @@ export class MacroBuilder extends Modal {
 
 			input.setValue("");
 			// Ensure Add button is hidden after clearing input
-			addButton.buttonEl.style.display = 'none';
+			addButton.buttonEl.style.display = "none";
 		};
 
 		new Setting(this.contentEl)
@@ -294,7 +298,7 @@ export class MacroBuilder extends Modal {
 				input = textComponent;
 				textComponent.inputEl.style.marginRight = "1em";
 				textComponent.setPlaceholder("Start typing script name...");
-				
+
 				new GenericTextSuggester(
 					this.app,
 					textComponent.inputEl,
@@ -317,22 +321,23 @@ export class MacroBuilder extends Modal {
 					.onClick(async () => {
 						const selected = await this.showScriptPicker();
 						if (selected) {
-							this.addCommandToMacro(new UserScript(selected.basename, selected.path));
+							this.addCommandToMacro(
+								new UserScript(selected.basename, selected.path)
+							);
 						}
 					});
 			})
 			.addButton((button) => {
 				addButton = button;
-				button
-					.setButtonText("Add")
-					.setCta()
-					.onClick(addUserScriptFromInput);
+				button.setButtonText("Add").setCta().onClick(addUserScriptFromInput);
 				// Initially hidden
-				button.buttonEl.style.display = 'none';
-				
+				button.buttonEl.style.display = "none";
+
 				// Set up onChange handler after both input and addButton are initialized
 				input.onChange((value) => {
-					addButton.buttonEl.style.display = value.trim() ? 'inline-block' : 'none';
+					addButton.buttonEl.style.display = value.trim()
+						? "inline-block"
+						: "none";
 				});
 			});
 	}
@@ -378,9 +383,9 @@ export class MacroBuilder extends Modal {
 	}
 
 	private getObsidianCommands(): void {
-		// @ts-ignore
+		// @ts-expect-error
 		Object.keys(this.app.commands.commands).forEach((key) => {
-			// @ts-ignore
+			// @ts-expect-error
 			const command: { name: string; id: string } =
 				this.app.commands.commands[key];
 
@@ -404,28 +409,25 @@ export class MacroBuilder extends Modal {
 				plugin: this.plugin,
 				commands: this.macro.commands,
 				deleteCommand: async (commandId: string) => {
-					const command = this.macro.commands.find(
-						(c) => c.id === commandId
-					);
+					const command = this.macro.commands.find((c) => c.id === commandId);
 
 					if (!command) {
 						log.logError("command not found");
 						throw new Error("command not found");
 					}
 
-					const promptAnswer: boolean =
-						await GenericYesNoPrompt.Prompt(
-							this.app,
-							"Are you sure you wish to delete this command?",
-							`If you click yes, you will delete '${command.name}'.`
-						);
+					const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
+						this.app,
+						"Are you sure you wish to delete this command?",
+						`If you click yes, you will delete '${command.name}'.`
+					);
 					if (!promptAnswer) return;
 
 					this.macro.commands = this.macro.commands.filter(
 						(c) => c.id !== commandId
 					);
-					//@ts-ignore
-					 
+					//@ts-expect-error
+
 					this.commandListEl.updateCommandList(this.macro.commands);
 				},
 				saveCommands: (commands: ICommand[]) => {
@@ -452,9 +454,7 @@ export class MacroBuilder extends Modal {
 		}
 	}
 	addOpenFileCommandButton(quickCommandContainer: HTMLDivElement) {
-		const button: ButtonComponent = new ButtonComponent(
-			quickCommandContainer
-		);
+		const button: ButtonComponent = new ButtonComponent(quickCommandContainer);
 
 		button
 			.setIcon("file")
@@ -465,9 +465,7 @@ export class MacroBuilder extends Modal {
 	}
 
 	addAIAssistantCommandButton(quickCommandContainer: HTMLDivElement) {
-		const button: ButtonComponent = new ButtonComponent(
-			quickCommandContainer
-		);
+		const button: ButtonComponent = new ButtonComponent(quickCommandContainer);
 
 		button
 			.setIcon("bot" as IconType)
@@ -478,9 +476,7 @@ export class MacroBuilder extends Modal {
 	}
 
 	private addAddWaitCommandButton(quickCommandContainer: HTMLDivElement) {
-		const button: ButtonComponent = new ButtonComponent(
-			quickCommandContainer
-		);
+		const button: ButtonComponent = new ButtonComponent(quickCommandContainer);
 		button
 			.setIcon("clock")
 			.setTooltip("Add wait command")
@@ -499,9 +495,7 @@ export class MacroBuilder extends Modal {
 			.setButtonText(typeName)
 			.setTooltip(`Add ${typeName} Choice`)
 			.onClick(() => {
-				const captureChoice: IChoice = new type(
-					`Untitled ${typeName} Choice`
-				);
+				const captureChoice: IChoice = new type(`Untitled ${typeName} Choice`);
 				this.addCommandToMacro(new NestedChoiceCommand(captureChoice));
 			});
 	}
@@ -511,26 +505,26 @@ export class MacroBuilder extends Modal {
 			return null;
 		}
 
-		const scriptNames = this.javascriptFiles.map(f => f.basename);
+		const scriptNames = this.javascriptFiles.map((f) => f.basename);
 		const selected = await InputSuggester.Suggest(
 			this.app,
 			scriptNames,
 			scriptNames,
-			{ 
+			{
 				placeholder: "Select a JavaScript file",
-				emptyStateText: "No .js files found in your vault"
+				emptyStateText: "No .js files found in your vault",
 			}
 		);
-		
+
 		if (!selected) return null;
-		
-		return this.javascriptFiles.find(f => f.basename === selected) ?? null;
+
+		return this.javascriptFiles.find((f) => f.basename === selected) ?? null;
 	}
 
 	private addCommandToMacro(command: ICommand) {
 		this.macro.commands.push(command);
-		//@ts-ignore
-		 
+		//@ts-expect-error
+
 		this.commandListEl.updateCommandList(this.macro.commands);
 	}
 }

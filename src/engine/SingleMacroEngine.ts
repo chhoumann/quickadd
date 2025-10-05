@@ -17,7 +17,7 @@ export class SingleMacroEngine {
 		private readonly plugin: QuickAdd,
 		private readonly choices: IChoice[],
 		choiceExecutor: IChoiceExecutor,
-		variables?: Map<string, unknown>,
+		variables?: Map<string, unknown>
 	) {
 		this.choiceExecutor = choiceExecutor;
 
@@ -47,7 +47,7 @@ export class SingleMacroEngine {
 		const trimmed = (s: string | undefined) => (s ?? "").trim();
 		let macroChoice = flattenChoices(this.choices).find(
 			(choice): choice is IMacroChoice =>
-				choice.type === "Macro" && trimmed(choice.name) === trimmed(basename),
+				choice.type === "Macro" && trimmed(choice.name) === trimmed(basename)
 		);
 
 		// ------------------------------------------------------------------
@@ -58,15 +58,15 @@ export class SingleMacroEngine {
 			const lower = (s: string | undefined) => trimmed(s).toLowerCase();
 			const ciMatches = flattenChoices(this.choices).filter(
 				(choice): choice is IMacroChoice =>
-					choice.type === "Macro" && lower(choice.name) === lower(basename),
+					choice.type === "Macro" && lower(choice.name) === lower(basename)
 			);
 
 			if (ciMatches.length > 1) {
 				log.logError(
-					`Ambiguous macro reference '${macroName}'. Multiple choices match when ignoring case.`,
+					`Ambiguous macro reference '${macroName}'. Multiple choices match when ignoring case.`
 				);
 				throw new Error(
-					`Ambiguous macro reference '${macroName}'. Please disambiguate by renaming macros.`,
+					`Ambiguous macro reference '${macroName}'. Please disambiguate by renaming macros.`
 				);
 			}
 
@@ -84,7 +84,7 @@ export class SingleMacroEngine {
 			this.plugin,
 			macroChoice,
 			this.choiceExecutor,
-			this.variables,
+			this.variables
 		);
 
 		// Always execute the whole macro first
@@ -94,7 +94,7 @@ export class SingleMacroEngine {
 		// Apply member access afterwards (if requested)
 		if (memberAccess?.length) {
 			for (const key of memberAccess) {
-				// @ts-ignore – dynamic descent
+				// @ts-expect-error – dynamic descent
 				result = (result as any)?.[key];
 			}
 		}

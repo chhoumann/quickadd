@@ -1,5 +1,3 @@
-
-
 interface CacheEntry {
 	values: Set<string>;
 	timestamp: number;
@@ -29,7 +27,7 @@ export class FieldSuggestionCache {
 	 * @param registerInterval Function to register the interval with Obsidian
 	 */
 	startAutomaticCleanup(registerInterval: (id: number) => number): void {
-		if (this.cleanupInterval === null && typeof window !== 'undefined') {
+		if (this.cleanupInterval === null && typeof window !== "undefined") {
 			const intervalId = window.setInterval(() => {
 				this.cleanExpired();
 			}, 60 * 1000);

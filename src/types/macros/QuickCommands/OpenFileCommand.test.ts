@@ -6,7 +6,7 @@ import { NewTabDirection } from "../../newTabDirection";
 describe("OpenFileCommand", () => {
 	it("should create a command with default values", () => {
 		const command = new OpenFileCommand();
-		
+
 		expect(command.type).toBe(CommandType.OpenFile);
 		expect(command.filePath).toBe("{{DATE}}.md");
 		expect(command.openInNewTab).toBe(false);
@@ -20,7 +20,7 @@ describe("OpenFileCommand", () => {
 			true,
 			NewTabDirection.vertical
 		);
-		
+
 		expect(command.filePath).toBe("notes/{{VALUE}}.md");
 		expect(command.openInNewTab).toBe(true);
 		expect(command.direction).toBe(NewTabDirection.vertical);
@@ -30,7 +30,7 @@ describe("OpenFileCommand", () => {
 	it("should generate unique IDs for different instances", () => {
 		const command1 = new OpenFileCommand();
 		const command2 = new OpenFileCommand();
-		
+
 		expect(command1.id).not.toBe(command2.id);
 	});
 });

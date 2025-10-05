@@ -11,7 +11,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 		inputEl: HTMLInputElement,
 		options: string[],
 		caseSensitive = false,
-		multiSelect = false,
+		multiSelect = false
 	) {
 		super(app, inputEl);
 		this.options = options;
@@ -45,7 +45,9 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 
 	getSuggestions(query: string): string[] {
 		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(query);
-		const searchQuery = this.caseSensitive ? activeTerm : activeTerm.toLowerCase();
+		const searchQuery = this.caseSensitive
+			? activeTerm
+			: activeTerm.toLowerCase();
 
 		const available = this.getRemainingOptions(alreadySelected);
 
@@ -89,13 +91,13 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 
 		// Set value with trailing comma and space only if more items available
 		this.inputEl.value = hasMoreItems
-			? alreadySelected.join(", ") + ", "
+			? `${alreadySelected.join(", ")}, `
 			: alreadySelected.join(", ");
 
 		// Move cursor to end
 		this.inputEl.setSelectionRange(
 			this.inputEl.value.length,
-			this.inputEl.value.length,
+			this.inputEl.value.length
 		);
 
 		// Trigger input event

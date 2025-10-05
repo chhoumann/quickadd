@@ -1,6 +1,12 @@
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-export type CaptureAction = "append" | "prepend" | "insertAfter" | "currentLine" | "newLineAbove" | "newLineBelow";
+export type CaptureAction =
+	| "append"
+	| "prepend"
+	| "insertAfter"
+	| "currentLine"
+	| "newLineAbove"
+	| "newLineBelow";
 
 /**
  * Gets the capture action based on choice configuration.
@@ -8,10 +14,16 @@ export type CaptureAction = "append" | "prepend" | "insertAfter" | "currentLine"
  */
 export function getCaptureAction(choice: ICaptureChoice): CaptureAction {
 	if (choice.captureToActiveFile && choice.newLineCapture?.enabled) {
-		return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
+		return choice.newLineCapture.direction === "above"
+			? "newLineAbove"
+			: "newLineBelow";
 	}
 
-	if (choice.captureToActiveFile && !choice.prepend && !choice.insertAfter.enabled) {
+	if (
+		choice.captureToActiveFile &&
+		!choice.prepend &&
+		!choice.insertAfter.enabled
+	) {
 		return "currentLine";
 	}
 

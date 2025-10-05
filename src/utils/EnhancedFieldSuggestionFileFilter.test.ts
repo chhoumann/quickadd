@@ -17,17 +17,26 @@ const createMockFile = (path: string): TFile => {
 };
 
 // Mock CachedMetadata
-const createMockMetadata = (tags?: string[], frontmatterTags?: string[]): CachedMetadata => {
+const createMockMetadata = (
+	tags?: string[],
+	frontmatterTags?: string[]
+): CachedMetadata => {
 	const metadata: any = {};
-	
+
 	if (tags) {
-		metadata.tags = tags.map(tag => ({ tag, position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }));
+		metadata.tags = tags.map((tag) => ({
+			tag,
+			position: {
+				start: { line: 0, col: 0, offset: 0 },
+				end: { line: 0, col: 0, offset: 0 },
+			},
+		}));
 	}
-	
+
 	if (frontmatterTags) {
 		metadata.frontmatter = { tags: frontmatterTags };
 	}
-	
+
 	return metadata as CachedMetadata;
 };
 
@@ -45,7 +54,10 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 		const mockMetadataCache = (file: TFile): CachedMetadata | null => {
 			const metadataMap: Record<string, CachedMetadata | null> = {
 				"folder1/file1.md": createMockMetadata(["#project", "#todo"]),
-				"folder1/subfolder/file2.md": createMockMetadata(["#project"], ["important"]),
+				"folder1/subfolder/file2.md": createMockMetadata(
+					["#project"],
+					["important"]
+				),
 				"folder2/file3.md": createMockMetadata(["#done"], ["archive"]),
 				"folder2/file4.md": createMockMetadata(["#todo", "#deprecated"]),
 				"archive/old-file.md": createMockMetadata(["#archive", "#old"]),
@@ -59,7 +71,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(6);
 		});
@@ -69,10 +81,10 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(2);
-			expect(result.map(f => f.path)).toEqual([
+			expect(result.map((f) => f.path)).toEqual([
 				"folder1/file1.md",
 				"folder1/subfolder/file2.md",
 			]);
@@ -83,12 +95,12 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(3);
-			expect(result.map(f => f.path)).toContain("folder1/file1.md");
-			expect(result.map(f => f.path)).toContain("folder2/file4.md");
-			expect(result.map(f => f.path)).toContain("root-file.md");
+			expect(result.map((f) => f.path)).toContain("folder1/file1.md");
+			expect(result.map((f) => f.path)).toContain("folder2/file4.md");
+			expect(result.map((f) => f.path)).toContain("root-file.md");
 		});
 
 		it("should exclude folders", () => {
@@ -96,10 +108,10 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(5);
-			expect(result.map(f => f.path)).not.toContain("archive/old-file.md");
+			expect(result.map((f) => f.path)).not.toContain("archive/old-file.md");
 		});
 
 		it("should exclude multiple folders", () => {
@@ -107,10 +119,10 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(3);
-			expect(result.map(f => f.path)).toEqual([
+			expect(result.map((f) => f.path)).toEqual([
 				"folder1/file1.md",
 				"folder1/subfolder/file2.md",
 				"root-file.md",
@@ -122,10 +134,10 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(5);
-			expect(result.map(f => f.path)).not.toContain("folder2/file4.md");
+			expect(result.map((f) => f.path)).not.toContain("folder2/file4.md");
 		});
 
 		it("should exclude by multiple tags (OR logic)", () => {
@@ -133,24 +145,26 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(3);
-			expect(result.map(f => f.path)).not.toContain("folder2/file4.md");
-			expect(result.map(f => f.path)).not.toContain("archive/old-file.md");
-			expect(result.map(f => f.path)).not.toContain("folder2/file3.md"); // has archive in frontmatter
+			expect(result.map((f) => f.path)).not.toContain("folder2/file4.md");
+			expect(result.map((f) => f.path)).not.toContain("archive/old-file.md");
+			expect(result.map((f) => f.path)).not.toContain("folder2/file3.md"); // has archive in frontmatter
 		});
 
 		it("should exclude specific files", () => {
-			const filters: FieldFilter = { excludeFiles: ["folder1/file1.md", "root-file.md"] };
+			const filters: FieldFilter = {
+				excludeFiles: ["folder1/file1.md", "root-file.md"],
+			};
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(4);
-			expect(result.map(f => f.path)).not.toContain("folder1/file1.md");
-			expect(result.map(f => f.path)).not.toContain("root-file.md");
+			expect(result.map((f) => f.path)).not.toContain("folder1/file1.md");
+			expect(result.map((f) => f.path)).not.toContain("root-file.md");
 		});
 
 		it("should combine inclusion and exclusion filters", () => {
@@ -161,7 +175,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].path).toBe("folder1/subfolder/file2.md");
@@ -176,11 +190,11 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(2);
-			expect(result.map(f => f.path)).toContain("folder1/file1.md");
-			expect(result.map(f => f.path)).toContain("root-file.md");
+			expect(result.map((f) => f.path)).toContain("folder1/file1.md");
+			expect(result.map((f) => f.path)).toContain("root-file.md");
 		});
 
 		it("should handle files without metadata", () => {
@@ -193,10 +207,10 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				customMetadataCache,
+				customMetadataCache
 			);
 			expect(result).toHaveLength(2);
-			expect(result.map(f => f.path)).not.toContain("folder1/file1.md");
+			expect(result.map((f) => f.path)).not.toContain("folder1/file1.md");
 		});
 
 		it("should handle tags with # prefix", () => {
@@ -206,27 +220,27 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(3);
-			expect(result.map(f => f.path)).toContain("folder1/file1.md");
-			expect(result.map(f => f.path)).toContain("folder2/file4.md");
-			expect(result.map(f => f.path)).toContain("root-file.md");
+			expect(result.map((f) => f.path)).toContain("folder1/file1.md");
+			expect(result.map((f) => f.path)).toContain("folder2/file4.md");
+			expect(result.map((f) => f.path)).toContain("root-file.md");
 		});
 
 		it("should handle folder paths with slashes", () => {
-			const filters: FieldFilter = { 
+			const filters: FieldFilter = {
 				folder: "/folder1/",
 				excludeFolders: ["/archive/"],
 			};
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(2);
-			expect(result.map(f => f.path)).toContain("folder1/file1.md");
-			expect(result.map(f => f.path)).toContain("folder1/subfolder/file2.md");
+			expect(result.map((f) => f.path)).toContain("folder1/file1.md");
+			expect(result.map((f) => f.path)).toContain("folder1/subfolder/file2.md");
 		});
 
 		it("should handle frontmatter tags for inclusion", () => {
@@ -234,7 +248,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].path).toBe("folder1/subfolder/file2.md");
@@ -245,11 +259,11 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(4);
-			expect(result.map(f => f.path)).not.toContain("folder2/file3.md");
-			expect(result.map(f => f.path)).not.toContain("archive/old-file.md");
+			expect(result.map((f) => f.path)).not.toContain("folder2/file3.md");
+			expect(result.map((f) => f.path)).not.toContain("archive/old-file.md");
 		});
 
 		it("should return empty array when all files are filtered out", () => {
@@ -259,7 +273,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(0);
 		});
@@ -273,7 +287,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
-				mockMetadataCache,
+				mockMetadataCache
 			);
 			expect(result).toHaveLength(6);
 		});

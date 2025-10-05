@@ -15,9 +15,11 @@ export class StartupMacroEngine {
 	) {}
 
 	async run(): Promise<void> {
-		const macroChoices = flattenChoices(this.choices)
-			.filter((c): c is IMacroChoice => c.type === "Macro" && (c as IMacroChoice).runOnStartup);
-		
+		const macroChoices = flattenChoices(this.choices).filter(
+			(c): c is IMacroChoice =>
+				c.type === "Macro" && (c as IMacroChoice).runOnStartup
+		);
+
 		for (const choice of macroChoices) {
 			await new MacroChoiceEngine(
 				this.app,

@@ -68,7 +68,7 @@ describe("GenericWideInputPrompt - Escape Backslashes", () => {
 		});
 
 		it("should preserve regex patterns with backslashes", () => {
-			const input = 'const regex = /\\d+\\s+\\w+/;';
+			const input = "const regex = /\\d+\\s+\\w+/;";
 			const result = prompt.escapeBackslashes(input);
 			expect(result).toBe("const regex = /\\\\d+\\\\s+\\\\w+/;");
 		});

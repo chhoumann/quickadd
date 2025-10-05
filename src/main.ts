@@ -40,7 +40,7 @@ export default class QuickAdd extends Plugin {
 		return QuickAddApi.GetApi(
 			this.app,
 			this,
-			new ChoiceExecutor(this.app, this),
+			new ChoiceExecutor(this.app, this)
 		);
 	}
 
@@ -80,7 +80,7 @@ export default class QuickAdd extends Plugin {
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.startAutomaticCleanup((intervalId) =>
-			this.registerInterval(intervalId),
+			this.registerInterval(intervalId)
 		);
 
 		this.addCommand({
@@ -124,9 +124,9 @@ export default class QuickAdd extends Plugin {
 			if (!choice) {
 				reportError(
 					new Error(
-						`URI could not find any choice named '${parameters.choice}'`,
+						`URI could not find any choice named '${parameters.choice}'`
 					),
-					"URI handler error",
+					"URI handler error"
 				);
 				return;
 			}
@@ -165,7 +165,7 @@ export default class QuickAdd extends Plugin {
 				this.app,
 				this,
 				this.settings.choices,
-				new ChoiceExecutor(this.app, this),
+				new ChoiceExecutor(this.app, this)
 			).run();
 
 		if (this.app.workspace.layoutReady) {
@@ -252,7 +252,7 @@ export default class QuickAdd extends Plugin {
 	private getChoice(
 		by: "name" | "id",
 		targetPropertyValue: string,
-		choices: IChoice[] = this.settings.choices,
+		choices: IChoice[] = this.settings.choices
 	): IChoice | null {
 		for (const choice of choices) {
 			if (choice[by] === targetPropertyValue) {
@@ -262,7 +262,7 @@ export default class QuickAdd extends Plugin {
 				const subChoice = this.getChoice(
 					by,
 					targetPropertyValue,
-					(choice as IMultiChoice).choices,
+					(choice as IMultiChoice).choices
 				);
 				if (subChoice) {
 					return subChoice;

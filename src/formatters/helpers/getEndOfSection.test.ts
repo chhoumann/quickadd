@@ -311,7 +311,6 @@ test("getEndOfSection - capture to last line, shouldConsiderSubsections OFF", ()
 	expect(result).toBe(2);
 });
 
-
 test("getMarkdownHeadings - correctly identifies headings", () => {
 	const lines = [
 		"# Heading 1",

@@ -48,14 +48,8 @@ export default class GenericInputPrompt extends Modal {
 		this.display();
 		this.open();
 
-		this.fileSuggester = new FileSuggester(
-			app,
-			this.inputComponent.inputEl
-		);
-		this.tagSuggester = new TagSuggester(
-			app,
-			this.inputComponent.inputEl
-		);
+		this.fileSuggester = new FileSuggester(app, this.inputComponent.inputEl);
+		this.tagSuggester = new TagSuggester(app, this.inputComponent.inputEl);
 	}
 
 	private display() {
@@ -83,7 +77,9 @@ export default class GenericInputPrompt extends Modal {
 		textComponent
 			.setPlaceholder(placeholder ?? "")
 			.setValue(value ?? "")
-			.onChange((value) => (this.input = value))
+			.onChange((value) => {
+				this.input = value;
+			})
 			.inputEl.addEventListener("keydown", this.submitEnterCallback);
 
 		return textComponent;
@@ -101,18 +97,13 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	private createButtonBar(mainContentContainer: HTMLDivElement) {
-		const buttonBarContainer: HTMLDivElement =
-			mainContentContainer.createDiv();
+		const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv();
 		this.createButton(
 			buttonBarContainer,
 			"Ok",
 			this.submitClickCallback
 		).setCta().buttonEl.style.marginRight = "0";
-		this.createButton(
-			buttonBarContainer,
-			"Cancel",
-			this.cancelClickCallback
-		);
+		this.createButton(buttonBarContainer, "Cancel", this.cancelClickCallback);
 
 		buttonBarContainer.style.display = "flex";
 		buttonBarContainer.style.flexDirection = "row-reverse";
@@ -121,8 +112,8 @@ export default class GenericInputPrompt extends Modal {
 		buttonBarContainer.style.gap = "0.5rem";
 	}
 
-	private submitClickCallback = (evt: MouseEvent) => this.submit();
-	private cancelClickCallback = (evt: MouseEvent) => this.cancel();
+	private submitClickCallback = (_evt: MouseEvent) => this.submit();
+	private cancelClickCallback = (_evt: MouseEvent) => this.cancel();
 
 	protected submitEnterCallback = (evt: KeyboardEvent) => {
 		if (!evt.isComposing && evt.key === "Enter") {

@@ -13,7 +13,7 @@ import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import type { FieldRequirement } from "./RequirementCollector";
 
 type PreviewComputer = (
-	values: Record<string, string>,
+	values: Record<string, string>
 ) => Promise<Record<string, string>> | Record<string, string>;
 
 export class OnePageInputModal extends Modal {
@@ -32,7 +32,7 @@ export class OnePageInputModal extends Modal {
 		app: App,
 		requirements: FieldRequirement[],
 		initial?: Map<string, unknown>,
-		computePreview?: PreviewComputer,
+		computePreview?: PreviewComputer
 	) {
 		super(app);
 		this.requirements = requirements;
@@ -45,14 +45,14 @@ export class OnePageInputModal extends Modal {
 		this.updatePreviewDebounced = debounce(
 			this.updatePreviews.bind(this),
 			150,
-			true,
+			true
 		);
 
 		this.waitForClose = new Promise<Record<string, string>>(
 			(resolve, reject) => {
 				this.resolvePromise = resolve;
 				this.rejectPromise = reject;
-			},
+			}
 		);
 
 		this.display();
@@ -84,7 +84,9 @@ export class OnePageInputModal extends Modal {
 		}
 
 		// Render fields
-		this.requirements.forEach((req) => this.renderField(req));
+		for (const req of this.requirements) {
+			this.renderField(req);
+		}
 
 		// Action bar
 		const btnRow = this.contentEl.createDiv();
@@ -93,10 +95,10 @@ export class OnePageInputModal extends Modal {
 				btn
 					.setButtonText("Submit")
 					.setCta()
-					.onClick(() => this.submit()),
+					.onClick(() => this.submit())
 			)
 			.addButton((btn) =>
-				btn.setButtonText("Cancel").onClick(() => this.cancel()),
+				btn.setButtonText("Cancel").onClick(() => this.cancel())
 			);
 	}
 
@@ -110,7 +112,7 @@ export class OnePageInputModal extends Modal {
 		switch (req.type) {
 			case "textarea": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				const input = new TextAreaComponent(setting.controlEl);
@@ -124,7 +126,7 @@ export class OnePageInputModal extends Modal {
 			}
 			case "text": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				const input = new TextComponent(setting.controlEl);
@@ -136,13 +138,15 @@ export class OnePageInputModal extends Modal {
 			}
 			case "dropdown": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				const dropdown = new DropdownComponent(setting.controlEl);
 				const options = req.options ?? [];
 				if (options.length > 0) {
-					options.forEach((opt) => dropdown.addOption(opt, opt));
+					for (const opt of options) {
+						dropdown.addOption(opt, opt);
+					}
 					dropdown.setValue(starting || options[0] || "");
 					dropdown.onChange((v) => setValue(req.id, v));
 				} else {
@@ -157,7 +161,7 @@ export class OnePageInputModal extends Modal {
 			}
 			case "date": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				// Reuse the VDateInputPrompt component behavior by creating an input with preview
@@ -217,7 +221,7 @@ export class OnePageInputModal extends Modal {
 			}
 			case "field-suggest": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				const input = new TextComponent(setting.controlEl);
@@ -235,7 +239,7 @@ export class OnePageInputModal extends Modal {
 			}
 			case "suggester": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				const input = new TextComponent(setting.controlEl);
@@ -254,7 +258,7 @@ export class OnePageInputModal extends Modal {
 							input.inputEl,
 							options,
 							caseSensitive,
-							multiSelect,
+							multiSelect
 						);
 					} catch {
 						// Non-fatal; falls back to plain text input
@@ -264,7 +268,7 @@ export class OnePageInputModal extends Modal {
 			}
 			case "file-picker": {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				if (req.description) setting.setDesc(req.description);
 				const input = new TextComponent(setting.controlEl);
@@ -276,7 +280,7 @@ export class OnePageInputModal extends Modal {
 			}
 			default: {
 				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
+					this.decorateLabel(req)
 				);
 				const input = new TextComponent(setting.controlEl);
 				input
@@ -299,7 +303,9 @@ export class OnePageInputModal extends Modal {
 
 	private submit() {
 		const out: Record<string, string> = {};
-		this.result.forEach((v, k) => (out[k] = v));
+		for (const [k, v] of this.result) {
+			out[k] = v;
+		}
 		this.close();
 		this.resolvePromise(out);
 	}
@@ -313,7 +319,9 @@ export class OnePageInputModal extends Modal {
 		if (!this.computePreview || !this.previewContainerEl) return;
 		try {
 			const values: Record<string, string> = {};
-			this.result.forEach((v, k) => (values[k] = v));
+			for (const [k, v] of this.result) {
+				values[k] = v;
+			}
 			const preview = await this.computePreview(values);
 			// Clear old preview lines (leave the label at index 0)
 			const children = Array.from(this.previewContainerEl.children);
@@ -321,7 +329,7 @@ export class OnePageInputModal extends Modal {
 				children[i].remove();
 			}
 			Object.entries(preview).forEach(([k, v]) => {
-				const row = this.previewContainerEl!.createDiv();
+				const row = this.previewContainerEl?.createDiv();
 				row.style.display = "flex";
 				row.style.gap = "0.5rem";
 				row.createEl("div", {

@@ -32,7 +32,7 @@ export class QuickAddApi {
 	public static GetApi(
 		app: App,
 		plugin: QuickAdd,
-		choiceExecutor: IChoiceExecutor,
+		choiceExecutor: IChoiceExecutor
 	) {
 		return {
 			/**
@@ -47,7 +47,13 @@ export class QuickAddApi {
 				inputs: Array<{
 					id: string;
 					label?: string;
-					type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester";
+					type:
+						| "text"
+						| "textarea"
+						| "dropdown"
+						| "date"
+						| "field-suggest"
+						| "suggester";
 					placeholder?: string;
 					defaultValue?: string;
 					options?: string[];
@@ -58,7 +64,7 @@ export class QuickAddApi {
 						caseSensitive?: boolean;
 						multiSelect?: boolean;
 					};
-				}>,
+				}>
 			): Promise<Record<string, string>> => {
 				// If all inputs already have values, return them immediately
 				const existing: Record<string, string> = {};
@@ -92,15 +98,15 @@ export class QuickAddApi {
 					const modal = new OnePageInputModal(
 						app,
 						missing,
-						choiceExecutor.variables,
+						choiceExecutor.variables
 					);
 					collected = await modal.waitForClose;
 				}
 
 				const result = { ...existing, ...collected };
-				Object.entries(result).forEach(([k, v]) =>
-					choiceExecutor.variables.set(k, v),
-				);
+				for (const [k, v] of Object.entries(result)) {
+					choiceExecutor.variables.set(k, v);
+				}
 				return result;
 			},
 			inputPrompt: (header: string, placeholder?: string, value?: string) => {
@@ -109,7 +115,7 @@ export class QuickAddApi {
 			wideInputPrompt: (
 				header: string,
 				placeholder?: string,
-				value?: string,
+				value?: string
 			) => {
 				return QuickAddApi.wideInputPrompt(app, header, placeholder, value);
 			},
@@ -126,7 +132,7 @@ export class QuickAddApi {
 				actualItems: string[],
 				placeholder?: string,
 				allowCustomInput = false,
-				options?: { renderItem?: (value: string, el: HTMLElement) => void },
+				options?: { renderItem?: (value: string, el: HTMLElement) => void }
 			) => {
 				return QuickAddApi.suggester(
 					app,
@@ -134,7 +140,7 @@ export class QuickAddApi {
 					actualItems,
 					placeholder,
 					allowCustomInput,
-					options,
+					options
 				);
 			},
 			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
@@ -142,13 +148,13 @@ export class QuickAddApi {
 			},
 			executeChoice: async (
 				choiceName: string,
-				variables?: Record<string, unknown>,
+				variables?: Record<string, unknown>
 			) => {
 				const choice: IChoice = plugin.getChoiceByName(choiceName);
 				if (!choice)
 					reportError(
 						new Error(`Choice named '${choiceName}' not found`),
-						"API executeChoice error",
+						"API executeChoice error"
 					);
 
 				if (variables) {
@@ -163,7 +169,7 @@ export class QuickAddApi {
 			format: async (
 				input: string,
 				variables?: { [key: string]: unknown },
-				shouldClearVariables = true,
+				shouldClearVariables = true
 			) => {
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -174,7 +180,7 @@ export class QuickAddApi {
 				const output = await new CompleteFormatter(
 					app,
 					plugin,
-					choiceExecutor,
+					choiceExecutor
 				).formatFileContent(input);
 
 				if (shouldClearVariables) {
@@ -193,21 +199,21 @@ export class QuickAddApi {
 						modelOptions: Partial<OpenAIModelParameters>;
 						showAssistantMessages: boolean;
 						systemPrompt: string;
-					}>,
+					}>
 				): Promise<{ [key: string]: string }> => {
 					const pluginSettings = settingsStore.getState();
 					const AISettings = pluginSettings.ai;
 
 					if (pluginSettings.disableOnlineFeatures) {
 						throw new Error(
-							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings.",
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
 						);
 					}
 
 					const formatter = QuickAddApi.GetApi(
 						app,
 						plugin,
-						choiceExecutor,
+						choiceExecutor
 					).format;
 
 					let _model: Model;
@@ -242,13 +248,13 @@ export class QuickAddApi {
 						},
 						(txt: string, variables?: Record<string, unknown>) => {
 							return formatter(txt, variables, false);
-						},
+						}
 					);
 
 					if (!assistantRes) {
 						reportError(
 							new Error("AI Assistant returned null"),
-							"AI Prompt error",
+							"AI Prompt error"
 						);
 						return {};
 					}
@@ -274,21 +280,21 @@ export class QuickAddApi {
 						chunkJoiner: string;
 						shouldMerge: boolean;
 					}>,
-					existingVariables?: Record<string, unknown>,
+					existingVariables?: Record<string, unknown>
 				) => {
 					const pluginSettings = settingsStore.getState();
 					const AISettings = pluginSettings.ai;
 
 					if (pluginSettings.disableOnlineFeatures) {
 						throw new Error(
-							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings.",
+							"Rejecting request to `prompt` via API AI module. Online features are disabled in settings."
 						);
 					}
 
 					const formatter = QuickAddApi.GetApi(
 						app,
 						plugin,
-						choiceExecutor,
+						choiceExecutor
 					).format;
 
 					let _model: Model;
@@ -332,13 +338,13 @@ export class QuickAddApi {
 							};
 
 							return formatter(txt, mergedVariables, false);
-						},
+						}
 					);
 
 					if (!assistantRes) {
 						reportError(
 							new Error("AI Assistant returned null"),
-							"Chunked AI Prompt error",
+							"Chunked AI Prompt error"
 						);
 						return {};
 					}
@@ -379,7 +385,7 @@ export class QuickAddApi {
 					if (!activeView) {
 						reportError(
 							new Error("No active view"),
-							"Could not get selected text",
+							"Could not get selected text"
 						);
 						return;
 					}
@@ -387,7 +393,7 @@ export class QuickAddApi {
 					if (!activeView.editor.somethingSelected()) {
 						reportError(
 							new Error("No text selected"),
-							"Could not get selected text",
+							"Could not get selected text"
 						);
 						return;
 					}
@@ -413,7 +419,7 @@ export class QuickAddApi {
 						folder?: string;
 						tags?: string[];
 						includeInline?: boolean;
-					},
+					}
 				) => {
 					const filters = {
 						folder: options?.folder,
@@ -426,7 +432,7 @@ export class QuickAddApi {
 					files = FieldSuggestionFileFilter.filterFiles(
 						files,
 						filters,
-						(file) => app.metadataCache.getFileCache(file),
+						(file) => app.metadataCache.getFileCache(file)
 					);
 
 					const values = new Set<string>();
@@ -454,9 +460,11 @@ export class QuickAddApi {
 							const content = await app.vault.read(file);
 							const inlineValues = InlineFieldParser.getFieldValues(
 								content,
-								fieldName,
+								fieldName
 							);
-							inlineValues.forEach((v) => values.add(v));
+							for (const v of inlineValues) {
+								values.add(v);
+							}
 						}
 					}
 
@@ -474,7 +482,7 @@ export class QuickAddApi {
 		app: App,
 		header: string,
 		placeholder?: string,
-		value?: string,
+		value?: string
 	) {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
@@ -487,14 +495,14 @@ export class QuickAddApi {
 		app: App,
 		header: string,
 		placeholder?: string,
-		value?: string,
+		value?: string
 	) {
 		try {
 			return await GenericWideInputPrompt.Prompt(
 				app,
 				header,
 				placeholder,
-				value,
+				value
 			);
 		} catch {
 			return undefined;
@@ -512,7 +520,7 @@ export class QuickAddApi {
 	public static async infoDialog(
 		app: App,
 		header: string,
-		text: string[] | string,
+		text: string[] | string
 	) {
 		try {
 			return await GenericInfoDialog.Show(app, header, text);
@@ -529,10 +537,10 @@ export class QuickAddApi {
 		actualItems: string[],
 		placeholder?: string,
 		allowCustomInput = false,
-		options?: { renderItem?: (value: string, el: HTMLElement) => void },
+		options?: { renderItem?: (value: string, el: HTMLElement) => void }
 	) {
 		try {
-			let displayedItems;
+			let displayedItems: string[];
 
 			if (typeof displayItems === "function") {
 				displayedItems = actualItems.map(displayItems);
@@ -547,10 +555,8 @@ export class QuickAddApi {
 					actualItems,
 					{
 						...(placeholder ? { placeholder } : {}),
-						...(options?.renderItem
-							? { renderItem: options.renderItem }
-							: {}),
-					},
+						...(options?.renderItem ? { renderItem: options.renderItem } : {}),
+					}
 				);
 			}
 
@@ -559,7 +565,7 @@ export class QuickAddApi {
 				displayedItems as string[],
 				actualItems,
 				placeholder,
-				options?.renderItem,
+				options?.renderItem
 			);
 		} catch {
 			return undefined;
@@ -569,7 +575,7 @@ export class QuickAddApi {
 	public static async checkboxPrompt(
 		app: App,
 		items: string[],
-		selectedItems?: string[],
+		selectedItems?: string[]
 	) {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);

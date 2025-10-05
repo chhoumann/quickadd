@@ -3,13 +3,10 @@ import {
 	FieldSuggestionParser,
 	type FieldFilter,
 } from "src/utils/FieldSuggestionParser";
-import {
-	collectFieldValuesProcessed
-} from "src/utils/FieldValueCollector";
+import { collectFieldValuesProcessed } from "src/utils/FieldValueCollector";
 import { TextInputSuggest } from "./suggest";
 
 export class FieldValueInputSuggest extends TextInputSuggest<string> {
-	private readonly fieldInput: string;
 	private readonly fieldName: string;
 	private readonly filters: FieldFilter;
 	private cachedValues: string[] | null = null;
@@ -27,7 +24,7 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 			this.cachedValues = await collectFieldValuesProcessed(
 				this.app,
 				this.fieldName,
-				this.filters,
+				this.filters
 			);
 		}
 
@@ -49,9 +46,5 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 		(event as any).fromCompletion = true;
 		this.inputEl.dispatchEvent(event);
 		this.close();
-	}
-
-	private escapeRegex(s: string): string {
-		return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	}
 }

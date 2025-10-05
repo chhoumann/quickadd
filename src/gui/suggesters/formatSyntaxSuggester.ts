@@ -58,8 +58,6 @@ interface TokenDefinition {
 }
 
 export class FormatSyntaxSuggester extends TextInputSuggest<string> {
-	private lastInput = "";
-	private lastInputType: FormatSyntaxToken;
 	private lastInputStart = 0;
 	private readonly macroNames: string[];
 	private readonly templatePaths: string[];
@@ -70,48 +68,48 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.DateFormat,
 			suggestion: "{{DATE:}}",
-			cursorOffset: 2
+			cursorOffset: 2,
 		},
 		{
 			regex: DATE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Date,
-			suggestion: DATE_SYNTAX
+			suggestion: DATE_SYNTAX,
 		},
 		{
 			regex: TIME_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Time,
-			suggestion: TIME_SYNTAX
+			suggestion: TIME_SYNTAX,
 		},
 		{
 			regex: NAME_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Name,
-			suggestion: NAME_SYNTAX
+			suggestion: NAME_SYNTAX,
 		},
 		{
 			regex: VALUE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Value,
-			suggestion: VALUE_SYNTAX
+			suggestion: VALUE_SYNTAX,
 		},
 		{
 			regex: MATH_VALUE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.MathValue,
-			suggestion: MATH_VALUE_SYNTAX
+			suggestion: MATH_VALUE_SYNTAX,
 		},
 		{
 			regex: SELECTED_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Selected,
-			suggestion: SELECTED_SYNTAX
+			suggestion: SELECTED_SYNTAX,
 		},
 		{
 			regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Clipboard,
-			suggestion: CLIPBOARD_SYNTAX
+			suggestion: CLIPBOARD_SYNTAX,
 		},
 		{
 			regex: RANDOM_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Random,
 			suggestion: "{{RANDOM:}}",
-			cursorOffset: 2
+			cursorOffset: 2,
 		},
 		{
 			regex: GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
@@ -123,13 +121,13 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Variable,
 			suggestion: "{{VALUE:}}",
-			cursorOffset: 2
+			cursorOffset: 2,
 		},
 		{
 			regex: VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.VariableDate,
 			suggestion: "{{VDATE:}}",
-			cursorOffset: 2
+			cursorOffset: 2,
 		},
 	];
 
@@ -137,22 +135,22 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		{
 			regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.LinkCurrent,
-			suggestion: LINKCURRENT_SYNTAX
+			suggestion: LINKCURRENT_SYNTAX,
 		},
 		{
 			regex: TITLE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Title,
-			suggestion: TITLE_SYNTAX
+			suggestion: TITLE_SYNTAX,
 		},
 		{
 			regex: TEMPLATE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Template,
-			suggestion: "{{TEMPLATE:"
+			suggestion: "{{TEMPLATE:",
 		},
 		{
 			regex: MACRO_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Macro,
-			suggestion: "{{MACRO:"
+			suggestion: "{{MACRO:",
 		},
 	];
 
@@ -168,8 +166,10 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		this.macroNames = flattenChoices(this.plugin.settings.choices)
 			.filter((choice) => choice.type === "Macro")
 			.map((choice) => choice.name);
-		
-		this.templatePaths = this.plugin.getTemplateFiles().map((file) => file.path);
+
+		this.templatePaths = this.plugin
+			.getTemplateFiles()
+			.map((file) => file.path);
 	}
 
 	async getSuggestions(inputStr: string): Promise<string[]> {
@@ -198,7 +198,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		// Check all token definitions
 		const allTokens = [
 			...this.tokenDefinitions,
-			...(this.suggestForFileNames ? [] : this.contextualTokens)
+			...(this.suggestForFileNames ? [] : this.contextualTokens),
 		];
 
 		for (const tokenDef of allTokens) {
@@ -228,9 +228,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				);
 			} else if (tokenDef.token === FormatSyntaxToken.Macro) {
 				suggestions.push(
-					...this.macroNames.map(
-						(macroName) => `{{MACRO:${macroName}}}`
-					)
+					...this.macroNames.map((macroName) => `{{MACRO:${macroName}}}`)
 				);
 			} else if (tokenDef.token === FormatSyntaxToken.VariableDate) {
 				// Add example suggestions for VDATE with and without default values
@@ -241,10 +239,10 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				);
 			} else if (tokenDef.token === FormatSyntaxToken.GlobalVar) {
 				// Suggest defined global variable names
-				const globals = Object.keys(this.plugin?.settings?.globalVariables ?? {});
-				suggestions.push(
-					...globals.map((name) => `{{GLOBAL_VAR:${name}}}`)
+				const globals = Object.keys(
+					this.plugin?.settings?.globalVariables ?? {}
 				);
+				suggestions.push(...globals.map((name) => `{{GLOBAL_VAR:${name}}}`));
 			}
 		}
 
@@ -253,13 +251,15 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 
 	selectSuggestion(item: string): void {
 		if (this.inputEl.selectionStart === null) return;
-		
+
 		const cursorPosition: number = this.inputEl.selectionStart;
 		const replaceStart = this.lastInputStart;
 		const replaceEnd = cursorPosition;
 
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, replaceEnd, item, { fromCompletion: true });
+		replaceRange(this.inputEl, replaceStart, replaceEnd, item, {
+			fromCompletion: true,
+		});
 
 		// Determine cursor offset dynamically based on the chosen item
 		const offset = item.includes(":") ? 2 : 0; // place before "}}" if there is a colon
@@ -277,10 +277,4 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		const highlighted = this.renderMatch(value, this.getCurrentQuery());
 		el.innerHTML = highlighted;
 	}
-
-	private getTokenDefinition(token: FormatSyntaxToken): TokenDefinition | undefined {
-		return [...this.tokenDefinitions, ...this.contextualTokens]
-			.find(def => def.token === token);
-	}
 }
-

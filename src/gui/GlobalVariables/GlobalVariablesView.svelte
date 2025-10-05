@@ -1,79 +1,82 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
-  import type { App } from "obsidian";
-  import { settingsStore } from "../../settingsStore";
-  import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-  import type QuickAdd from "../../main";
+import { onDestroy, onMount } from "svelte";
+import type { App } from "obsidian";
+import { settingsStore } from "../../settingsStore";
+import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import type QuickAdd from "../../main";
 
-  export let app: App;
-  export let plugin: QuickAdd;
+export let app: App;
+export let plugin: QuickAdd;
 
-  type GV = { name: string; value: string };
-  let items: GV[] = [];
+type GV = { name: string; value: string };
+let items: GV[] = [];
 
-  let unsubscribe: () => void;
+let unsubscribe: () => void;
 
-  function uniqueName(base: string, existing: Set<string>): string {
-    if (!existing.has(base)) return base;
-    let i = 1;
-    while (existing.has(`${base}${i}`)) i++;
-    return `${base}${i}`;
-  }
+function uniqueName(base: string, existing: Set<string>): string {
+	if (!existing.has(base)) return base;
+	let i = 1;
+	while (existing.has(`${base}${i}`)) i++;
+	return `${base}${i}`;
+}
 
-  function loadFromSettings() {
-    const state = settingsStore.getState();
-    const globals = state.globalVariables || {};
-    // Preserve insertion order of object keys
-    items = Object.keys(globals).map((k) => ({ name: k, value: globals[k] ?? "" }));
-  }
+function loadFromSettings() {
+	const state = settingsStore.getState();
+	const globals = state.globalVariables || {};
+	// Preserve insertion order of object keys
+	items = Object.keys(globals).map((k) => ({
+		name: k,
+		value: globals[k] ?? "",
+	}));
+}
 
-  function persistToSettings() {
-    const next: Record<string, string> = {};
-    for (const it of items) {
-      if (!it.name) continue;
-      next[it.name] = it.value ?? "";
-    }
-    settingsStore.setState({ globalVariables: next });
-  }
+function persistToSettings() {
+	const next: Record<string, string> = {};
+	for (const it of items) {
+		if (!it.name) continue;
+		next[it.name] = it.value ?? "";
+	}
+	settingsStore.setState({ globalVariables: next });
+}
 
-  function addVariable() {
-    const names = new Set(items.map((i) => i.name));
-    const name = uniqueName("NewVar", names);
-    items = [...items, { id: name, name, value: "" }];
-    persistToSettings();
-  }
+function _addVariable() {
+	const names = new Set(items.map((i) => i.name));
+	const name = uniqueName("NewVar", names);
+	items = [...items, { id: name, name, value: "" }];
+	persistToSettings();
+}
 
-  function deleteVariable(idx: number) {
-    items = items.filter((_, i) => i !== idx);
-    persistToSettings();
-  }
+function _deleteVariable(idx: number) {
+	items = items.filter((_, i) => i !== idx);
+	persistToSettings();
+}
 
-  // Drag-and-drop is intentionally not supported for Global Variables
+// Drag-and-drop is intentionally not supported for Global Variables
 
-  // Attach format suggester to inputs
-  function attachSuggester(el: HTMLTextAreaElement | HTMLInputElement) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const suggester = new FormatSyntaxSuggester(app, el, plugin);
-    return {
-      destroy() {
-        // Suggesters clean up themselves on blur/close; no explicit API needed
-      },
-    };
-  }
+// Attach format suggester to inputs
+function _attachSuggester(el: HTMLTextAreaElement | HTMLInputElement) {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const _suggester = new FormatSyntaxSuggester(app, el, plugin);
+	return {
+		destroy() {
+			// Suggesters clean up themselves on blur/close; no explicit API needed
+		},
+	};
+}
 
-  let debounceTimer: any;
-  function debouncedPersist(it: GV) {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      persistToSettings();
-    }, 200);
-  }
+let debounceTimer: any;
+function _debouncedPersist(_it: GV) {
+	clearTimeout(debounceTimer);
+	debounceTimer = setTimeout(() => {
+		persistToSettings();
+	}, 200);
+}
 
-  onMount(() => {
-    unsubscribe = settingsStore.subscribe(() => loadFromSettings());
-    loadFromSettings();
-  });
-  onDestroy(() => unsubscribe && unsubscribe());
+onMount(() => {
+	unsubscribe = settingsStore.subscribe(() => loadFromSettings());
+	loadFromSettings();
+});
+onDestroy(() => unsubscribe?.());
 </script>
 
 <div class="qa-gv">

@@ -31,12 +31,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		items: string[],
 		options: Partial<Options> = {}
 	) {
-		const newSuggester = new InputSuggester(
-			app,
-			displayItems,
-			items,
-			options
-		);
+		const newSuggester = new InputSuggester(app, displayItems, items, options);
 		return newSuggester.promise;
 	}
 
@@ -76,8 +71,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 
 		if (options.placeholder) this.setPlaceholder(options.placeholder);
 		if (options.limit) this.limit = options.limit;
-		if (options.emptyStateText)
-			this.emptyStateText = options.emptyStateText;
+		if (options.emptyStateText) this.emptyStateText = options.emptyStateText;
 
 		this.open();
 	}
@@ -93,10 +87,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		return [this.inputEl.value, ...this.items];
 	}
 
-	selectSuggestion(
-		value: FuzzyMatch<string>,
-		evt: MouseEvent | KeyboardEvent
-	) {
+	selectSuggestion(value: FuzzyMatch<string>, evt: MouseEvent | KeyboardEvent) {
 		this.resolved = true;
 		super.selectSuggestion(value, evt);
 	}
@@ -116,7 +107,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		}
 	}
 
-	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
+	onChooseItem(item: string, _evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
 	}

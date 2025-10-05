@@ -1,29 +1,28 @@
 <script lang="ts">
-    import ObsidianIcon from "../components/ObsidianIcon.svelte";
-    import {createEventDispatcher} from "svelte";
+import { createEventDispatcher } from "svelte";
 
-    export let dragDisabled: boolean;
-    export let showConfigureButton: boolean = true;
-    export let showDuplicateButton: boolean = true;
-    export let commandEnabled: boolean = false;
-    export let choiceName: string = "";
-    const dispatcher = createEventDispatcher();
+export let dragDisabled: boolean;
+export const showConfigureButton: boolean = true;
+export const showDuplicateButton: boolean = true;
+export const commandEnabled: boolean = false;
+export const choiceName: string = "";
+const dispatcher = createEventDispatcher();
 
-    function emitDeleteChoice() {
-        dispatcher('deleteChoice');
-    }
+function _emitDeleteChoice() {
+	dispatcher("deleteChoice");
+}
 
-    function emitConfigureChoice() {
-        dispatcher('configureChoice');
-    }
+function _emitConfigureChoice() {
+	dispatcher("configureChoice");
+}
 
-    function emitToggleCommand() {
-        dispatcher('toggleCommand');
-    }
+function _emitToggleCommand() {
+	dispatcher("toggleCommand");
+}
 
-    function emitDuplicateChoice() {
-        dispatcher('duplicateChoice');
-    }
+function _emitDuplicateChoice() {
+	dispatcher("duplicateChoice");
+}
 </script>
 
 <div class="rightButtonsContainer">

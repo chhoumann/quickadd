@@ -28,7 +28,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		input: string,
 		choice: ICaptureChoice,
 		fileContent: string,
-		file: TFile,
+		file: TFile
 	): Promise<string> {
 		this.choice = choice;
 		this.file = file;
@@ -47,7 +47,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	public async formatContent(
 		input: string,
-		choice: ICaptureChoice,
+		choice: ICaptureChoice
 	): Promise<string> {
 		this.choice = choice;
 		if (!choice) return input;
@@ -64,7 +64,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			const templaterFormatted = await templaterParseTemplate(
 				this.app,
 				formatted,
-				this.file,
+				this.file
 			);
 			if (templaterFormatted) {
 				formatted = templaterFormatted;
@@ -77,8 +77,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		if (this.choice.prepend) {
 			const shouldInsertLinebreak = !this.choice.task;
-			return `${this.fileContent}${shouldInsertLinebreak ? "\n" : ""
-				}${formatted}`;
+			return `${this.fileContent}${
+				shouldInsertLinebreak ? "\n" : ""
+			}${formatted}`;
 		}
 
 		if (this.choice.insertAfter.enabled) {
@@ -94,7 +95,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			formatted,
 			this.fileContent,
 
-			frontmatterEndPosition,
+			frontmatterEndPosition
 		);
 	}
 
@@ -135,7 +136,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				const suffix = line.slice(target.length);
 				// If suffix is only whitespace, this matches old regex behavior exactly
 				if (/^\s*$/.test(suffix)) return i;
-				
+
 				// Remember first broader prefix match as fallback
 				if (partialIndex === -1) {
 					partialIndex = i;
@@ -149,13 +150,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private async insertAfterHandler(formatted: string) {
 		// Use centralized location formatting for selector strings
 		const targetString: string = await this.formatLocationString(
-			this.choice.insertAfter.after,
+			this.choice.insertAfter.after
 		);
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 		let targetPosition = this.findInsertAfterIndex(
 			fileContentLines,
-			targetString,
+			targetString
 		);
 		const targetNotFound = targetPosition === -1;
 		if (targetNotFound) {
@@ -165,7 +166,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 			reportError(
 				new Error("Unable to find insert after line in file"),
-				"Insert After Error",
+				"Insert After Error"
 			);
 		}
 
@@ -175,7 +176,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			const endOfSectionIndex = getEndOfSection(
 				fileContentLines,
 				targetPosition,
-				!!this.choice.insertAfter.considerSubsections,
+				!!this.choice.insertAfter.considerSubsections
 			);
 
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
@@ -184,14 +185,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-			targetPosition,
+			targetPosition
 		);
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
 		// Build the line to insert using centralized location formatting
 		const insertAfterLine: string = this.replaceLinebreakInString(
-			await this.formatLocationString(this.choice.insertAfter.after),
+			await this.formatLocationString(this.choice.insertAfter.after)
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
@@ -206,7 +207,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				insertAfterLineAndFormatted,
 				this.fileContent,
 
-				frontmatterEndPosition,
+				frontmatterEndPosition
 			);
 		}
 
@@ -240,7 +241,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 					const endOfSectionIndex = getEndOfSection(
 						fileContentLines,
 						targetPosition,
-						!!this.choice.insertAfter.considerSubsections,
+						!!this.choice.insertAfter.considerSubsections
 					);
 
 					targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
@@ -249,14 +250,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				const newFileContent = this.insertTextAfterPositionInBody(
 					insertAfterLineAndFormatted,
 					this.fileContent,
-					targetPosition,
+					targetPosition
 				);
 
 				return newFileContent;
 			} catch (err) {
 				reportError(
 					err,
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`,
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`
 				);
 			}
 		}
@@ -280,7 +281,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private insertTextAfterPositionInBody(
 		text: string,
 		body: string,
-		pos: number,
+		pos: number
 	): string {
 		if (pos === -1) {
 			// For the case that there is no frontmatter and we're adding to the top of the file.

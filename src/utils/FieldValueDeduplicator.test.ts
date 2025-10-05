@@ -6,25 +6,27 @@ describe("FieldValueDeduplicator", () => {
 		it("should deduplicate basic case variations", () => {
 			const values = ["Active", "active", "ACTIVE", "Done", "DONE"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive',
+				strategy: "case-insensitive",
 				preserveFirstOccurrence: true,
-				sortResult: false
+				sortResult: false,
 			});
 
 			expect(result.values).toEqual(["Active", "Done"]);
 			expect(result.duplicatesRemoved).toBe(3);
-			expect(result.strategy).toBe('case-insensitive');
+			expect(result.strategy).toBe("case-insensitive");
 		});
 
 		it("should preserve first occurrence by default", () => {
 			const values = ["todo", "TODO", "Todo", "DONE", "done"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			// Should preserve "todo" (first) and "DONE" (first)
 			const resultSet = new Set(result.values);
-			expect(resultSet.has("todo") || resultSet.has("TODO") || resultSet.has("Todo")).toBe(true);
+			expect(
+				resultSet.has("todo") || resultSet.has("TODO") || resultSet.has("Todo")
+			).toBe(true);
 			expect(resultSet.has("DONE") || resultSet.has("done")).toBe(true);
 			expect(result.values).toHaveLength(2);
 		});
@@ -32,7 +34,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should handle unicode normalization", () => {
 			const values = ["café", "cafe", "CAFÉ", "naïve", "naive"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			expect(result.values).toHaveLength(2);
@@ -42,7 +44,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should handle empty strings and whitespace", () => {
 			const values = ["", " ", "test", "TEST", "   ", "test "];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			// Each whitespace variation should be considered different
@@ -50,9 +52,16 @@ describe("FieldValueDeduplicator", () => {
 		});
 
 		it("should handle special characters and symbols", () => {
-			const values = ["@user", "@USER", "#tag", "#TAG", "user@domain", "USER@DOMAIN"];
+			const values = [
+				"@user",
+				"@USER",
+				"#tag",
+				"#TAG",
+				"user@domain",
+				"USER@DOMAIN",
+			];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			expect(result.values).toHaveLength(3);
@@ -60,9 +69,15 @@ describe("FieldValueDeduplicator", () => {
 		});
 
 		it("should handle emoji and unicode characters", () => {
-			const values = ["🚀 Active", "🚀 ACTIVE", "✅ Done", "✅ done", "📝 Note"];
+			const values = [
+				"🚀 Active",
+				"🚀 ACTIVE",
+				"✅ Done",
+				"✅ done",
+				"📝 Note",
+			];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			expect(result.values).toHaveLength(3);
@@ -72,7 +87,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should preserve formatting differences (camelCase vs kebab-case)", () => {
 			const values = ["InProgress", "in-progress", "in_progress"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			// These should be considered different since they use different formatting conventions
@@ -85,7 +100,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should preserve case differences", () => {
 			const values = ["Active", "active", "ACTIVE", "Done"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-sensitive'
+				strategy: "case-sensitive",
 			});
 
 			expect(result.values).toHaveLength(4);
@@ -95,7 +110,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should remove exact duplicates only", () => {
 			const values = ["test", "test", "Test", "TEST"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-sensitive'
+				strategy: "case-sensitive",
 			});
 
 			expect(result.values).toHaveLength(3);
@@ -107,7 +122,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should use Set-based deduplication", () => {
 			const values = ["same", "same", "different", "same"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'exact'
+				strategy: "exact",
 			});
 
 			expect(result.values).toHaveLength(2);
@@ -119,8 +134,8 @@ describe("FieldValueDeduplicator", () => {
 		it("should sort case-insensitively while preserving original case", () => {
 			const values = ["zebra", "Apple", "banana", "ZEBRA"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive',
-				sortResult: true
+				strategy: "case-insensitive",
+				sortResult: true,
 			});
 
 			// Should be sorted: Apple, banana, zebra (case-insensitive order)
@@ -132,9 +147,9 @@ describe("FieldValueDeduplicator", () => {
 		it("should prefer title case in sorting", () => {
 			const values = ["apple", "APPLE", "Apple"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive',
+				strategy: "case-insensitive",
 				sortResult: true,
-				preserveFirstOccurrence: false
+				preserveFirstOccurrence: false,
 			});
 
 			// Should preserve title case "Apple" over others
@@ -144,8 +159,8 @@ describe("FieldValueDeduplicator", () => {
 		it("should disable sorting when requested", () => {
 			const values = ["zebra", "apple", "banana"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'exact',
-				sortResult: false
+				strategy: "exact",
+				sortResult: false,
 			});
 
 			expect(result.values).toEqual(["zebra", "apple", "banana"]);
@@ -162,7 +177,7 @@ describe("FieldValueDeduplicator", () => {
 
 			const startTime = performance.now();
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 			const endTime = performance.now();
 
@@ -179,7 +194,7 @@ describe("FieldValueDeduplicator", () => {
 
 			const startTime = performance.now();
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 			const endTime = performance.now();
 
@@ -196,7 +211,7 @@ describe("FieldValueDeduplicator", () => {
 			expect(analysis.totalValues).toBe(5);
 			expect(analysis.uniqueValues).toBe(2);
 			expect(analysis.caseVariations.size).toBe(2);
-			
+
 			// Should identify the most common variation
 			expect(analysis.mostCommonCase).toBe("active");
 		});
@@ -215,8 +230,8 @@ describe("FieldValueDeduplicator", () => {
 		it("should suggest similar values", () => {
 			const existingValues = ["Active", "InProgress", "Done", "Cancelled"];
 			const suggestions = FieldValueDeduplicator.getSuggestions(
-				"activ", 
-				existingValues, 
+				"activ",
+				existingValues,
 				0.7
 			);
 
@@ -226,8 +241,8 @@ describe("FieldValueDeduplicator", () => {
 		it("should not suggest exact matches", () => {
 			const existingValues = ["Active", "InProgress", "Done"];
 			const suggestions = FieldValueDeduplicator.getSuggestions(
-				"Active", 
-				existingValues, 
+				"Active",
+				existingValues,
 				0.8
 			);
 
@@ -235,10 +250,13 @@ describe("FieldValueDeduplicator", () => {
 		});
 
 		it("should limit suggestions to 5 items", () => {
-			const existingValues = Array.from({length: 20}, (_, i) => `similar${i}`);
+			const existingValues = Array.from(
+				{ length: 20 },
+				(_, i) => `similar${i}`
+			);
 			const suggestions = FieldValueDeduplicator.getSuggestions(
-				"simila", 
-				existingValues, 
+				"simila",
+				existingValues,
 				0.5
 			);
 
@@ -247,8 +265,8 @@ describe("FieldValueDeduplicator", () => {
 
 		it("should handle empty existing values", () => {
 			const suggestions = FieldValueDeduplicator.getSuggestions(
-				"test", 
-				[], 
+				"test",
+				[],
 				0.8
 			);
 
@@ -259,14 +277,14 @@ describe("FieldValueDeduplicator", () => {
 	describe("edge cases", () => {
 		it("should handle empty input array", () => {
 			const result = FieldValueDeduplicator.deduplicate([]);
-			
+
 			expect(result.values).toEqual([]);
 			expect(result.duplicatesRemoved).toBe(0);
 		});
 
 		it("should handle single value", () => {
 			const result = FieldValueDeduplicator.deduplicate(["single"]);
-			
+
 			expect(result.values).toEqual(["single"]);
 			expect(result.duplicatesRemoved).toBe(0);
 		});
@@ -274,7 +292,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should handle arrays with only duplicates", () => {
 			const values = ["same", "SAME", "Same"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			expect(result.values).toHaveLength(1);
@@ -285,7 +303,7 @@ describe("FieldValueDeduplicator", () => {
 			const longString = "a".repeat(1000);
 			const values = [longString, longString.toUpperCase(), "short"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			expect(result.values).toHaveLength(2);
@@ -295,7 +313,7 @@ describe("FieldValueDeduplicator", () => {
 		it("should handle strings with newlines and special whitespace", () => {
 			const values = ["line1\nline2", "LINE1\nLINE2", "tab\there", "TAB\tHERE"];
 			const result = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive'
+				strategy: "case-insensitive",
 			});
 
 			expect(result.values).toHaveLength(2);
@@ -306,17 +324,17 @@ describe("FieldValueDeduplicator", () => {
 	describe("configuration options", () => {
 		it("should respect preserveFirstOccurrence setting", () => {
 			const values = ["First", "FIRST", "second"];
-			
+
 			const preserveFirst = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive',
+				strategy: "case-insensitive",
 				preserveFirstOccurrence: true,
-				sortResult: false
+				sortResult: false,
 			});
-			
+
 			const preserveLast = FieldValueDeduplicator.deduplicate(values, {
-				strategy: 'case-insensitive',
+				strategy: "case-insensitive",
 				preserveFirstOccurrence: false,
-				sortResult: false
+				sortResult: false,
 			});
 
 			expect(preserveFirst.values[0]).toBe("First");
@@ -327,7 +345,7 @@ describe("FieldValueDeduplicator", () => {
 			const values = ["test", "TEST"];
 			const result = FieldValueDeduplicator.deduplicate(values);
 
-			expect(result.strategy).toBe('case-insensitive');
+			expect(result.strategy).toBe("case-insensitive");
 			expect(result.values).toHaveLength(1);
 		});
 	});

@@ -14,15 +14,8 @@ import { MathModal } from "../gui/MathModal";
 import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
-import {
-	FieldSuggestionParser,
-	type FieldFilter,
-} from "../utils/FieldSuggestionParser";
-import {
-	collectFieldValuesProcessedDetailed,
-	collectFieldValuesRaw,
-	generateFieldCacheKey,
-} from "../utils/FieldValueCollector";
+import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
+import { collectFieldValuesProcessedDetailed } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -35,7 +28,7 @@ export class CompleteFormatter extends Formatter {
 		protected app: App,
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
-		dateParser?: IDateParser,
+		dateParser?: IDateParser
 	) {
 		super();
 		this.dateParser = dateParser || NLDParser;
@@ -87,7 +80,7 @@ export class CompleteFormatter extends Formatter {
 		// Check for {{title}} usage in filename which would cause infinite recursion
 		if (/\{\{title\}\}/i.test(input)) {
 			throw new Error(
-				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
+				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself."
 			);
 		}
 
@@ -109,7 +102,7 @@ export class CompleteFormatter extends Formatter {
 		// Check for {{title}} usage in folder path which would cause issues
 		if (/\{\{title\}\}/i.test(folderName)) {
 			throw new Error(
-				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
+				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself."
 			);
 		}
 
@@ -140,7 +133,7 @@ export class CompleteFormatter extends Formatter {
 		return (this.variables.get(variableName) as string) ?? "";
 	}
 
-	protected async promptForValue(header?: string): Promise<string> {
+	protected async promptForValue(_header?: string): Promise<string> {
 		if (!this.value) {
 			const selectedText: string = await this.getSelectedText();
 			if (selectedText) {
@@ -164,7 +157,7 @@ export class CompleteFormatter extends Formatter {
 
 	protected async promptForVariable(
 		header?: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string },
+		context?: { type?: string; dateFormat?: string; defaultValue?: string }
 	): Promise<string> {
 		try {
 			// Use VDateInputPrompt for VDATE variables
@@ -174,12 +167,14 @@ export class CompleteFormatter extends Formatter {
 					header as string,
 					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
-					context.dateFormat,
+					context.dateFormat
 				);
 			}
 
 			// Use default prompt for other variables
-			return await new InputPrompt().factory().Prompt(this.app, header as string);
+			return await new InputPrompt()
+				.factory()
+				.Prompt(this.app, header as string);
 		} catch (error) {
 			if (isCancellationError(error)) {
 				throw new MacroAbortError("Input cancelled by user");
@@ -204,7 +199,7 @@ export class CompleteFormatter extends Formatter {
 			return await GenericSuggester.Suggest(
 				this.app,
 				suggestedValues,
-				suggestedValues,
+				suggestedValues
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
@@ -231,7 +226,7 @@ export class CompleteFormatter extends Formatter {
 				if (!filters.defaultValue) {
 					const smartDefaults = FieldValueProcessor.getSmartDefaults(
 						fieldName,
-						[],
+						[]
 					);
 					if (smartDefaults.length > 0) {
 						fallbackPrompt += `\n\nSuggested values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`;
@@ -241,7 +236,7 @@ export class CompleteFormatter extends Formatter {
 				return await GenericInputPrompt.Prompt(
 					this.app,
 					`Enter value for ${fieldName}`,
-					fallbackPrompt,
+					fallbackPrompt
 				);
 			}
 
@@ -262,18 +257,14 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	private generateCacheKey(filters: FieldFilter): string {
-		return generateFieldCacheKey(filters);
-	}
-
 	protected async getMacroValue(macroName: string): Promise<string> {
 		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
 			this.app,
 			this.plugin,
 			this.plugin.settings.choices,
-			//@ts-ignore
+			//@ts-expect-error
 			this.choiceExecutor,
-			this.variables,
+			this.variables
 		);
 		const macroOutput = (await macroEngine.runAndGetOutput(macroName)) ?? "";
 
@@ -290,7 +281,7 @@ export class CompleteFormatter extends Formatter {
 			this.app,
 			this.plugin,
 			templatePath,
-			this.choiceExecutor,
+			this.choiceExecutor
 		).run();
 	}
 
@@ -325,9 +316,9 @@ export class CompleteFormatter extends Formatter {
 				const executor = new SingleInlineScriptEngine(
 					this.app,
 					this.plugin,
-					//@ts-ignore
+					//@ts-expect-error
 					this.choiceExecutor,
-					this.variables,
+					this.variables
 				);
 				const outVal: unknown = await executor.runAndGetOutput(code);
 
@@ -343,12 +334,5 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		return output;
-	}
-
-	private async collectValuesManually(
-		fieldName: string,
-		filters: FieldFilter,
-	): Promise<Set<string>> {
-		return await collectFieldValuesRaw(this.app, fieldName, filters);
 	}
 }

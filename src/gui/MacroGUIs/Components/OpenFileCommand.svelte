@@ -1,22 +1,21 @@
 <script lang="ts">
-	import type { IOpenFileCommand } from "../../../types/macros/QuickCommands/IOpenFileCommand";
-	import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-	import { createEventDispatcher } from "svelte";
-	import type { DndEvent } from "svelte-dnd-action";
+import type { IOpenFileCommand } from "../../../types/macros/QuickCommands/IOpenFileCommand";
+import { createEventDispatcher } from "svelte";
+import type { DndEvent } from "svelte-dnd-action";
 
-	export let command: IOpenFileCommand;
-	export let dragDisabled: boolean;
-	export let startDrag: (e: CustomEvent<DndEvent>) => void;
+export let command: IOpenFileCommand;
+export let dragDisabled: boolean;
+export let startDrag: (e: CustomEvent<DndEvent>) => void;
 
-	const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-	function deleteCommand(commandId: string) {
-		dispatch("deleteCommand", commandId);
-	}
+function _deleteCommand(commandId: string) {
+	dispatch("deleteCommand", commandId);
+}
 
-	function configureCommand() {
-		dispatch("configureOpenFile", command);
-	}
+function _configureCommand() {
+	dispatch("configureOpenFile", command);
+}
 </script>
 
 <div class="quickAddCommandListItem">

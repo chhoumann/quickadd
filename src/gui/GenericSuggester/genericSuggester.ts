@@ -11,15 +11,19 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 
 	private renderItem?: SuggestRender<T>;
 
-
 	public static Suggest<T>(
 		app: App,
 		displayItems: string[],
 		items: T[],
 		placeholder?: string,
-		renderItem?: SuggestRender<T>,
+		renderItem?: SuggestRender<T>
 	) {
-		const newSuggester = new GenericSuggester(app, displayItems, items, renderItem);
+		const newSuggester = new GenericSuggester(
+			app,
+			displayItems,
+			items,
+			renderItem
+		);
 		if (placeholder) newSuggester.setPlaceholder(placeholder);
 		return newSuggester.promise;
 	}
@@ -28,7 +32,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		app: App,
 		private displayItems: string[],
 		private items: T[],
-		renderItem?: SuggestRender<T>,
+		renderItem?: SuggestRender<T>
 	) {
 		super(app);
 
@@ -48,7 +52,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			const { values, selectedItem } = this.chooser as {
 				values: {
 					item: string;
-					match: { score: number; matches: unknown[]; };
+					match: { score: number; matches: unknown[] };
 				}[];
 				selectedItem: number;
 				[key: string]: unknown;
@@ -69,10 +73,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		return this.items;
 	}
 
-	selectSuggestion(
-		value: FuzzyMatch<T>,
-		evt: MouseEvent | KeyboardEvent
-	) {
+	selectSuggestion(value: FuzzyMatch<T>, evt: MouseEvent | KeyboardEvent) {
 		this.resolved = true;
 		super.selectSuggestion(value, evt);
 	}
@@ -94,7 +95,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		}
 	}
 
-	onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void {
+	onChooseItem(item: T, _evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
 	}

@@ -74,7 +74,9 @@ describe("Macro Abort Functionality", () => {
 
 			// Invalid case should abort
 			expect(() => validateAndRun(false)).toThrow(MacroAbortError);
-			expect(() => validateAndRun(false)).toThrow("Validation failed: Invalid input");
+			expect(() => validateAndRun(false)).toThrow(
+				"Validation failed: Invalid input"
+			);
 		});
 
 		it("should demonstrate abort with error handling", () => {

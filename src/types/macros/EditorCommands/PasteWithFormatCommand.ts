@@ -20,7 +20,7 @@ export class PasteWithFormatCommand extends EditorCommand {
 
 		try {
 			// Check if advanced clipboard API is available
-			if ('read' in navigator.clipboard && navigator.clipboard.read) {
+			if ("read" in navigator.clipboard && navigator.clipboard.read) {
 				const clipboardItems = await navigator.clipboard.read();
 				let foundHtml = false;
 
@@ -47,7 +47,9 @@ export class PasteWithFormatCommand extends EditorCommand {
 			activeView.editor.replaceSelection(content);
 		} catch (error) {
 			// Fallback to regular text paste if formatted clipboard reading fails
-			log.logWarning(`Formatted paste failed. Falling back to plain text: ${error}`);
+			log.logWarning(
+				`Formatted paste failed. Falling back to plain text: ${error}`
+			);
 			try {
 				const textContent = await navigator.clipboard.readText();
 				activeView.editor.replaceSelection(textContent);

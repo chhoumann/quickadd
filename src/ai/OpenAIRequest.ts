@@ -50,8 +50,7 @@ function mapAnthropicResponseToCommon(
 		usage: {
 			promptTokens: response.usage.input_tokens,
 			completionTokens: response.usage.output_tokens,
-			totalTokens:
-				response.usage.input_tokens + response.usage.output_tokens,
+			totalTokens: response.usage.input_tokens + response.usage.output_tokens,
 		},
 		stopReason: response.stop_reason,
 		stopSequence: response.stop_sequence,
@@ -90,18 +89,18 @@ export interface AnthropicResponse {
 type GeminiPart = { text?: string } & Record<string, unknown>;
 type GeminiContent = { role: string; parts: GeminiPart[] };
 export interface GeminiResponse {
-  candidates: Array<{
-    content: GeminiContent;
-    finishReason?: string;
-    index?: number;
-    safetyRatings?: unknown[];
-  }>;
-  modelVersion?: string;
-  usageMetadata?: {
-    promptTokenCount: number;
-    candidatesTokenCount: number;
-    totalTokenCount: number;
-  };
+	candidates: Array<{
+		content: GeminiContent;
+		finishReason?: string;
+		index?: number;
+		safetyRatings?: unknown[];
+	}>;
+	modelVersion?: string;
+	usageMetadata?: {
+		promptTokenCount: number;
+		candidatesTokenCount: number;
+		totalTokenCount: number;
+	};
 }
 
 async function makeOpenAIRequest(
@@ -140,7 +139,7 @@ async function makeAnthropicRequest(
 	apiKey: string,
 	model: Model,
 	modelProvider: AIProvider,
-	modelParams: Partial<OpenAIModelParameters>,
+	_modelParams: Partial<OpenAIModelParameters>,
 	prompt: string,
 	afterRequestCallback?: () => void
 ): Promise<AnthropicResponse> {
@@ -151,7 +150,7 @@ async function makeAnthropicRequest(
 			"Content-Type": "application/json",
 			"x-api-key": apiKey,
 			"anthropic-version": "2023-06-01",
-			"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15"
+			"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
 		},
 		body: JSON.stringify({
 			model: model.name,
@@ -167,84 +166,84 @@ async function makeAnthropicRequest(
 }
 
 async function makeGeminiRequest(
-  apiKey: string,
-  model: Model,
-  modelProvider: AIProvider,
-  systemPrompt: string,
-  modelParams: Partial<OpenAIModelParameters>,
-  prompt: string,
-  afterRequestCallback?: () => void
+	apiKey: string,
+	model: Model,
+	modelProvider: AIProvider,
+	systemPrompt: string,
+	modelParams: Partial<OpenAIModelParameters>,
+	prompt: string,
+	afterRequestCallback?: () => void
 ): Promise<GeminiResponse> {
-  // Gemini uses API key as query param and different payload shape
-  const url = `${modelProvider.endpoint}/v1beta/models/${encodeURIComponent(
-    model.name
-  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+	// Gemini uses API key as query param and different payload shape
+	const url = `${modelProvider.endpoint}/v1beta/models/${encodeURIComponent(
+		model.name
+	)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-  const generationConfig: Record<string, unknown> = {};
-  if (typeof modelParams.temperature === "number") {
-    generationConfig.temperature = modelParams.temperature;
-  }
-  if (typeof modelParams.top_p === "number") {
-    generationConfig.topP = modelParams.top_p;
-  }
-  // Do NOT pass frequency_penalty / presence_penalty; Gemini does not support them
+	const generationConfig: Record<string, unknown> = {};
+	if (typeof modelParams.temperature === "number") {
+		generationConfig.temperature = modelParams.temperature;
+	}
+	if (typeof modelParams.top_p === "number") {
+		generationConfig.topP = modelParams.top_p;
+	}
+	// Do NOT pass frequency_penalty / presence_penalty; Gemini does not support them
 
-  const body: Record<string, unknown> = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }],
-      },
-    ],
-  };
+	const body: Record<string, unknown> = {
+		contents: [
+			{
+				role: "user",
+				parts: [{ text: prompt }],
+			},
+		],
+	};
 
-  if (systemPrompt && systemPrompt.trim().length > 0) {
-    // Prefer systemInstruction when available; otherwise include a system content
-    body["systemInstruction"] = {
-      role: "system",
-      parts: [{ text: systemPrompt }],
-    } as GeminiContent;
-  }
+	if (systemPrompt && systemPrompt.trim().length > 0) {
+		// Prefer systemInstruction when available; otherwise include a system content
+		body.systemInstruction = {
+			role: "system",
+			parts: [{ text: systemPrompt }],
+		} as GeminiContent;
+	}
 
-  if (Object.keys(generationConfig).length > 0) {
-    body["generationConfig"] = generationConfig;
-  }
+	if (Object.keys(generationConfig).length > 0) {
+		body.generationConfig = generationConfig;
+	}
 
-  const _response = requestUrl({
-    url,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+	const _response = requestUrl({
+		url,
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(body),
+	});
 
-  if (afterRequestCallback) afterRequestCallback();
+	if (afterRequestCallback) afterRequestCallback();
 
-  const response = await _response;
-  return response.json as GeminiResponse;
+	const response = await _response;
+	return response.json as GeminiResponse;
 }
 
 function mapGeminiResponseToCommon(response: GeminiResponse): CommonResponse {
-  const firstCandidate = response.candidates?.[0];
-  const parts = firstCandidate?.content?.parts ?? [];
-  const text = parts
-    .map((p) => (typeof p.text === "string" ? p.text : ""))
-    .join("");
+	const firstCandidate = response.candidates?.[0];
+	const parts = firstCandidate?.content?.parts ?? [];
+	const text = parts
+		.map((p) => (typeof p.text === "string" ? p.text : ""))
+		.join("");
 
-  return {
-    id: `${Date.now()}`,
-    model: response.modelVersion ?? "gemini",
-    content: text,
-    usage: {
-      promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
-      completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
-      totalTokens: response.usageMetadata?.totalTokenCount ?? 0,
-    },
-    stopReason: firstCandidate?.finishReason ?? "",
-    stopSequence: null,
-    created: Date.now(),
-  };
+	return {
+		id: `${Date.now()}`,
+		model: response.modelVersion ?? "gemini",
+		content: text,
+		usage: {
+			promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
+			completionTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+			totalTokens: response.usageMetadata?.totalTokenCount ?? 0,
+		},
+		stopReason: firstCandidate?.finishReason ?? "",
+		stopSequence: null,
+		created: Date.now(),
+	};
 }
 
 export function OpenAIRequest(
@@ -281,7 +280,7 @@ export function OpenAIRequest(
 			const restoreCursor = preventCursorChange(app);
 
 			let response: CommonResponse;
-          if (modelProvider.name === "Anthropic") {
+			if (modelProvider.name === "Anthropic") {
 				const anthropicResponse = await makeAnthropicRequest(
 					apiKey,
 					model,
@@ -291,17 +290,17 @@ export function OpenAIRequest(
 					restoreCursor
 				);
 				response = mapAnthropicResponseToCommon(anthropicResponse);
-          } else if (modelProvider.name === "Gemini") {
-            const geminiResponse = await makeGeminiRequest(
-              apiKey,
-              model,
-              modelProvider,
-              systemPrompt,
-              modelParams,
-              prompt,
-              restoreCursor
-            );
-            response = mapGeminiResponseToCommon(geminiResponse);
+			} else if (modelProvider.name === "Gemini") {
+				const geminiResponse = await makeGeminiRequest(
+					apiKey,
+					model,
+					modelProvider,
+					systemPrompt,
+					modelParams,
+					prompt,
+					restoreCursor
+				);
+				response = mapGeminiResponseToCommon(geminiResponse);
 			} else {
 				const openaiResponse = await makeOpenAIRequest(
 					apiKey,

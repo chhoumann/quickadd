@@ -1,173 +1,159 @@
 <script lang="ts">
-	import type { App } from "obsidian";
-	import { prepareFuzzySearch } from "obsidian";
-	import { settingsStore } from "src/settingsStore";
-	import { onMount } from "svelte";
-	import type QuickAdd from "../../main";
-	import {
-		type ChoiceType,
-		CommandRegistry,
-		configureChoice,
-		createChoice,
-		createToggleCommandChoice,
-		deleteChoiceWithConfirmation,
-		duplicateChoice,
-	} from "../../services/choiceService";
-	import type IChoice from "../../types/choices/IChoice";
-	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
-	import ObsidianIcon from "../components/ObsidianIcon.svelte";
-	import AddChoiceBox from "./AddChoiceBox.svelte";
-	import ChoiceList from "./ChoiceList.svelte";
-    import { moveChoice as moveChoiceService } from "../../services/choiceService";
+import type { App } from "obsidian";
+import { prepareFuzzySearch } from "obsidian";
+import { settingsStore } from "src/settingsStore";
+import { onMount } from "svelte";
+import type QuickAdd from "../../main";
+import {
+	type ChoiceType,
+	CommandRegistry,
+	configureChoice,
+	createChoice,
+	createToggleCommandChoice,
+	deleteChoiceWithConfirmation,
+	duplicateChoice,
+} from "../../services/choiceService";
+import type IChoice from "../../types/choices/IChoice";
+import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
+import { moveChoice as moveChoiceService } from "../../services/choiceService";
 
-	export let choices: IChoice[] = [];
-	export let saveChoices: (choices: IChoice[]) => void;
-	export let app: App;
-	export let plugin: QuickAdd;
+export let choices: IChoice[] = [];
+export let saveChoices: (choices: IChoice[]) => void;
+export let app: App;
+export let plugin: QuickAdd;
 
-	let filterQuery: string = ""; // not persisted
+const _filterQuery: string = ""; // not persisted
 
-	function filterChoices(list: IChoice[], query: string): IChoice[] {
-		const q = query.trim();
-		if (!q) return list;
-		const match = prepareFuzzySearch(q);
+function _filterChoices(list: IChoice[], query: string): IChoice[] {
+	const q = query.trim();
+	if (!q) return list;
+	const match = prepareFuzzySearch(q);
 
-		const walk = (c: IChoice): IChoice | null => {
-			const selfMatches = !!match(c.name ?? "");
-			if (c.type !== "Multi") {
-				return selfMatches ? c : null;
-			}
+	const walk = (c: IChoice): IChoice | null => {
+		const selfMatches = !!match(c.name ?? "");
+		if (c.type !== "Multi") {
+			return selfMatches ? c : null;
+		}
 
-			const mc = c as any; // IMultiChoice
-			const filteredChildren = (mc.choices ?? [])
-				.map((child: IChoice) => walk(child))
-				.filter(Boolean) as IChoice[];
-
-			if (selfMatches || filteredChildren.length > 0) {
-				// Clone Multi node expanded with only matching children to avoid mutating original
-				return { ...mc, collapsed: false, choices: filteredChildren } as IChoice;
-			}
-
-			return null;
-		};
-
-		return list
-			.map((c) => walk(c))
+		const mc = c as any; // IMultiChoice
+		const filteredChildren = (mc.choices ?? [])
+			.map((child: IChoice) => walk(child))
 			.filter(Boolean) as IChoice[];
-	}
 
-	// Subscribe to settings changes to keep choices in sync
-	onMount(() => {
-		const unsubSettingsStore = settingsStore.subscribe((settings) => {
-			choices = settings.choices;
-		});
+		if (selfMatches || filteredChildren.length > 0) {
+			// Clone Multi node expanded with only matching children to avoid mutating original
+			return { ...mc, collapsed: false, choices: filteredChildren } as IChoice;
+		}
 
-		return () => {
-			unsubSettingsStore();
-		};
+		return null;
+	};
+
+	return list.map((c) => walk(c)).filter(Boolean) as IChoice[];
+}
+
+// Subscribe to settings changes to keep choices in sync
+onMount(() => {
+	const unsubSettingsStore = settingsStore.subscribe((settings) => {
+		choices = settings.choices;
 	});
 
-	// Command registry for managing Obsidian commands
-	const commandRegistry = new CommandRegistry(plugin);
+	return () => {
+		unsubSettingsStore();
+	};
+});
 
-	function addChoiceToList(event: any): void {
-		const { name, type } = event.detail;
-		const newChoice = createChoice(type as ChoiceType, name);
-		choices = [...choices, newChoice];
-		saveChoices(choices);
-	}
+// Command registry for managing Obsidian commands
+const commandRegistry = new CommandRegistry(plugin);
 
-	async function deleteChoice(e: any) {
-		const choice: IChoice = e.detail.choice;
+function _addChoiceToList(event: any): void {
+	const { name, type } = event.detail;
+	const newChoice = createChoice(type as ChoiceType, name);
+	choices = [...choices, newChoice];
+	saveChoices(choices);
+}
 
-		const userConfirmed = await deleteChoiceWithConfirmation(choice, app);
-		if (!userConfirmed) return;
+async function _deleteChoice(e: any) {
+	const choice: IChoice = e.detail.choice;
 
-		// Remove choice from array (including nested choices)
-		choices = choices.filter((value) =>
-			removeChoiceHelper(choice.id, value),
+	const userConfirmed = await deleteChoiceWithConfirmation(choice, app);
+	if (!userConfirmed) return;
+
+	// Remove choice from array (including nested choices)
+	choices = choices.filter((value) => removeChoiceHelper(choice.id, value));
+	commandRegistry.disableCommand(choice);
+	saveChoices(choices);
+}
+
+function removeChoiceHelper(id: string, value: IChoice): boolean {
+	if (value.type === "Multi") {
+		(value as any).choices = (value as any).choices.filter((v: any) =>
+			removeChoiceHelper(id, v)
 		);
-		commandRegistry.disableCommand(choice);
-		saveChoices(choices);
+	}
+	return value.id !== id;
+}
+
+async function _handleConfigureChoice(e: any) {
+	const { choice: oldChoice } = e.detail;
+
+	const updatedChoice = await configureChoice(oldChoice, app, plugin);
+	if (!updatedChoice) return;
+
+	choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
+	commandRegistry.updateCommand(oldChoice, updatedChoice);
+	saveChoices(choices);
+}
+
+function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): IChoice {
+	if (oldChoice.id === newChoice.id) {
+		return { ...oldChoice, ...newChoice };
 	}
 
-	function removeChoiceHelper(id: string, value: IChoice): boolean {
-		if (value.type === "Multi") {
-			(value as any).choices = (value as any).choices.filter((v: any) =>
-				removeChoiceHelper(id, v),
-			);
-		}
-		return value.id !== id;
-	}
-
-	async function handleConfigureChoice(e: any) {
-		const { choice: oldChoice } = e.detail;
-
-		const updatedChoice = await configureChoice(oldChoice, app, plugin);
-		if (!updatedChoice) return;
-
-		choices = choices.map((choice) =>
-			updateChoiceHelper(choice, updatedChoice),
+	if (oldChoice.type === "Multi") {
+		const multiChoice = oldChoice as any;
+		const updatedChoices = multiChoice.choices.map((c: any) =>
+			updateChoiceHelper(c, newChoice)
 		);
-		commandRegistry.updateCommand(oldChoice, updatedChoice);
-		saveChoices(choices);
+		return { ...multiChoice, choices: updatedChoices };
 	}
 
-	function updateChoiceHelper(
-		oldChoice: IChoice,
-		newChoice: IChoice,
-	): IChoice {
-		if (oldChoice.id === newChoice.id) {
-			return { ...oldChoice, ...newChoice };
-		}
+	return oldChoice;
+}
 
-		if (oldChoice.type === "Multi") {
-			const multiChoice = oldChoice as any;
-			const updatedChoices = multiChoice.choices.map((c: any) =>
-				updateChoiceHelper(c, newChoice),
-			);
-			return { ...multiChoice, choices: updatedChoices };
-		}
+async function _toggleCommandForChoice(e: any) {
+	const { choice: oldChoice } = e.detail;
+	const updatedChoice = createToggleCommandChoice(oldChoice);
 
-		return oldChoice;
+	choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
+	updatedChoice.command
+		? commandRegistry.enableCommand(updatedChoice)
+		: commandRegistry.disableCommand(updatedChoice);
+	saveChoices(choices);
+}
+
+async function _handleDuplicateChoice(e: any) {
+	const { choice: sourceChoice } = e.detail;
+	const newChoice = duplicateChoice(sourceChoice);
+	choices = [...choices, newChoice];
+	saveChoices(choices);
+}
+
+function _handleMoveChoice(e: any) {
+	const { choice, targetId } = e.detail;
+	choices = moveChoiceService(choices, choice.id, targetId);
+	saveChoices(choices);
+}
+
+async function _openAISettings() {
+	const newSettings = await new AIAssistantSettingsModal(
+		app,
+		settingsStore.getState().ai
+	).waitForClose;
+
+	if (newSettings) {
+		settingsStore.setState((state) => ({ ...state, ai: newSettings }));
 	}
-
-	async function toggleCommandForChoice(e: any) {
-		const { choice: oldChoice } = e.detail;
-		const updatedChoice = createToggleCommandChoice(oldChoice);
-
-		choices = choices.map((choice) =>
-			updateChoiceHelper(choice, updatedChoice),
-		);
-		updatedChoice.command
-			? commandRegistry.enableCommand(updatedChoice)
-			: commandRegistry.disableCommand(updatedChoice);
-		saveChoices(choices);
-	}
-
-	async function handleDuplicateChoice(e: any) {
-		const { choice: sourceChoice } = e.detail;
-		const newChoice = duplicateChoice(sourceChoice);
-		choices = [...choices, newChoice];
-		saveChoices(choices);
-	}
-
-	function handleMoveChoice(e: any) {
-		const { choice, targetId } = e.detail;
-		choices = moveChoiceService(choices, choice.id, targetId);
-		saveChoices(choices);
-	}
-
-	async function openAISettings() {
-		const newSettings = await new AIAssistantSettingsModal(
-			app,
-			settingsStore.getState().ai,
-		).waitForClose;
-
-		if (newSettings) {
-			settingsStore.setState((state) => ({ ...state, ai: newSettings }));
-		}
-	}
+}
 </script>
 
 

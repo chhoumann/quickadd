@@ -27,7 +27,7 @@ export function generateFieldCacheKey(filters: FieldFilter): string {
 export async function collectFieldValuesProcessed(
 	app: App,
 	fieldName: string,
-	filters: FieldFilter,
+	filters: FieldFilter
 ): Promise<string[]> {
 	const cache = FieldSuggestionCache.getInstance();
 	const cacheKey = generateFieldCacheKey(filters);
@@ -44,7 +44,7 @@ export async function collectFieldValuesProcessed(
 export async function collectFieldValuesProcessedDetailed(
 	app: App,
 	fieldName: string,
-	filters: FieldFilter,
+	filters: FieldFilter
 ): Promise<{ values: string[]; hasDefaultValue: boolean }> {
 	const cache = FieldSuggestionCache.getInstance();
 	const cacheKey = generateFieldCacheKey(filters);
@@ -64,7 +64,7 @@ export async function collectFieldValuesProcessedDetailed(
 export async function collectFieldValuesRaw(
 	app: App,
 	fieldName: string,
-	filters: FieldFilter,
+	filters: FieldFilter
 ): Promise<Set<string>> {
 	// Try Dataview when allowed; fall back to manual collection
 	try {
@@ -75,7 +75,7 @@ export async function collectFieldValuesRaw(
 				filters.folder,
 				filters.tags,
 				filters.excludeFolders,
-				filters.excludeTags,
+				filters.excludeTags
 			);
 			if (dvValues.size > 0) return dvValues;
 		}
@@ -89,7 +89,7 @@ export async function collectFieldValuesRaw(
 async function collectFieldValuesManually(
 	app: App,
 	fieldName: string,
-	filters: FieldFilter,
+	filters: FieldFilter
 ): Promise<Set<string>> {
 	const rawValues = new Set<string>();
 
@@ -98,7 +98,7 @@ async function collectFieldValuesManually(
 	files = EnhancedFieldSuggestionFileFilter.filterFiles(
 		files,
 		filters,
-		(file: TFile) => app.metadataCache.getFileCache(file),
+		(file: TFile) => app.metadataCache.getFileCache(file)
 	);
 
 	// Process files in batches
@@ -129,7 +129,7 @@ async function collectFieldValuesManually(
 						const content = await app.vault.read(file);
 						const inlineValues = InlineFieldParser.getFieldValues(
 							content,
-							fieldName,
+							fieldName
 						);
 						inlineValues.forEach((s) => {
 							const t = String(s).trim();

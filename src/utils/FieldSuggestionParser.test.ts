@@ -12,9 +12,7 @@ describe("FieldSuggestionParser", () => {
 		});
 
 		it("should parse field name with folder filter", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:daily",
-			);
+			const result = FieldSuggestionParser.parse("fieldname|folder:daily");
 			expect(result).toEqual({
 				fieldName: "fieldname",
 				filters: { folder: "daily" },
@@ -31,7 +29,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should parse field name with multiple tag filters", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|tag:work|tag:project",
+				"fieldname|tag:work|tag:project"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -40,9 +38,7 @@ describe("FieldSuggestionParser", () => {
 		});
 
 		it("should parse field name with inline filter", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|inline:true",
-			);
+			const result = FieldSuggestionParser.parse("fieldname|inline:true");
 			expect(result).toEqual({
 				fieldName: "fieldname",
 				filters: { inline: true },
@@ -51,7 +47,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should parse field name with multiple filters", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:daily|tag:work|inline:true",
+				"fieldname|folder:daily|tag:work|inline:true"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -72,9 +68,7 @@ describe("FieldSuggestionParser", () => {
 		});
 
 		it("should skip invalid filter format", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|invalidfilter",
-			);
+			const result = FieldSuggestionParser.parse("fieldname|invalidfilter");
 			expect(result).toEqual({
 				fieldName: "fieldname",
 				filters: {},
@@ -83,7 +77,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should handle whitespace in input", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname | folder : daily | tag : work",
+				"fieldname | folder : daily | tag : work"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -96,7 +90,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should handle folder paths with slashes", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:daily/notes/work",
+				"fieldname|folder:daily/notes/work"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -106,7 +100,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should parse default value filters", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|default:Default Value",
+				"fieldname|default:Default Value"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -116,7 +110,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should parse default-empty and default-always filters", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|default:To Do|default-empty:true|default-always:false",
+				"fieldname|default:To Do|default-empty:true|default-always:false"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -130,7 +124,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should parse exclusion filters", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|exclude-folder:archive|exclude-tag:deprecated|exclude-file:template.md",
+				"fieldname|exclude-folder:archive|exclude-tag:deprecated|exclude-file:template.md"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -144,7 +138,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should parse case-sensitive filter", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|case-sensitive:true",
+				"fieldname|case-sensitive:true"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -154,7 +148,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should handle complex combinations with all filter types", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:active|tag:project|exclude-folder:archive|default:Planning|default-empty:true|case-sensitive:false",
+				"fieldname|folder:active|tag:project|exclude-folder:archive|default:Planning|default-empty:true|case-sensitive:false"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -171,7 +165,7 @@ describe("FieldSuggestionParser", () => {
 
 		it("should handle multiple exclude filters of same type", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|exclude-folder:archive|exclude-folder:old|exclude-tag:deprecated|exclude-tag:obsolete",
+				"fieldname|exclude-folder:archive|exclude-folder:old|exclude-tag:deprecated|exclude-tag:obsolete"
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",

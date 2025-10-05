@@ -27,7 +27,7 @@ const removeMacroIndirection: Migration = {
 					if (!choicesByMacroId.has(macroId)) {
 						choicesByMacroId.set(macroId, []);
 					}
-					choicesByMacroId.get(macroId)!.push(macroChoice);
+					choicesByMacroId.get(macroId)?.push(macroChoice);
 				}
 			}
 		}
@@ -38,7 +38,7 @@ const removeMacroIndirection: Migration = {
 				choicesByMacroId.get(macro.id) ??
 				allChoices.filter(
 					(c): c is IMacroChoice =>
-						c.type === "Macro" && (c as IMacroChoice).macro?.id === macro.id,
+						c.type === "Macro" && (c as IMacroChoice).macro?.id === macro.id
 				);
 
 			if (referencingChoices.length === 0) {
@@ -75,7 +75,7 @@ const removeMacroIndirection: Migration = {
 				const macroChoice = choice as IMacroChoice;
 				if ((macroChoice as any).macroId) {
 					log.logMessage(
-						`Removing orphaned macroId reference: ${(macroChoice as any).macroId}`,
+						`Removing orphaned macroId reference: ${(macroChoice as any).macroId}`
 					);
 					delete (macroChoice as any).macroId;
 				}

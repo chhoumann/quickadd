@@ -38,7 +38,7 @@ export abstract class ChoiceBuilder extends Modal {
 		new Setting(this.contentEl)
 			.setName("One-page input override")
 			.setDesc(
-				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
+				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally."
 			)
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
@@ -56,7 +56,7 @@ export abstract class ChoiceBuilder extends Modal {
 	protected addFileSearchInputToSetting(
 		setting: Setting,
 		value: string,
-		onChangeCallback: (value: string) => void,
+		onChangeCallback: (value: string) => void
 	): void {
 		setting.addSearch((searchComponent) => {
 			searchComponent.setValue(value);
@@ -68,7 +68,7 @@ export abstract class ChoiceBuilder extends Modal {
 			new GenericTextSuggester(
 				this.app,
 				searchComponent.inputEl,
-				markdownFiles,
+				markdownFiles
 			);
 
 			searchComponent.onChange(onChangeCallback);
@@ -83,13 +83,13 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 		headerEl.setText(choice.name);
 
-		headerEl.addEventListener("click", async (ev) => {
+		headerEl.addEventListener("click", async (_ev) => {
 			try {
 				const newName: string = await GenericInputPrompt.Prompt(
 					this.app,
 					choice.name,
 					"Choice name",
-					choice.name,
+					choice.name
 				);
 				if (newName !== choice.name) {
 					choice.name = newName;
@@ -198,7 +198,7 @@ export abstract class ChoiceBuilder extends Modal {
 				dropdown.setValue(
 					typeof fileOpening.mode === "string"
 						? (fileOpening.mode as string)
-						: "default",
+						: "default"
 				);
 				dropdown.onChange((value: any) => {
 					fileOpening.mode = value as FileViewMode2;
@@ -213,7 +213,7 @@ export abstract class ChoiceBuilder extends Modal {
 				.addToggle((toggle) =>
 					toggle.setValue(fileOpening.focus).onChange((value) => {
 						fileOpening.focus = value;
-					}),
+					})
 				);
 		}
 	}
@@ -222,7 +222,7 @@ export abstract class ChoiceBuilder extends Modal {
 		super.onClose();
 		this.resolvePromise(this.choice);
 		this.svelteElements.forEach((el) => {
-			if (el && el.$destroy) el.$destroy();
+			if (el?.$destroy) el.$destroy();
 		});
 
 		if (!this.didSubmit) this.rejectPromise("No answer given.");

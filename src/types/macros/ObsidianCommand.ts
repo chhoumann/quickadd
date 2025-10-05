@@ -14,5 +14,7 @@ export class ObsidianCommand extends Command implements IObsidianCommand {
 		this.commandId = commandId;
 	}
 
-	generateId = () => (this.id = uuidv4());
+	generateId = () => {
+		this.id = uuidv4();
+	};
 }

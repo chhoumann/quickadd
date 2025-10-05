@@ -20,12 +20,12 @@ export abstract class QuickAddLogger implements ILogger {
 		stack?: string,
 		originalError?: Error
 	): QuickAddError {
-		return { 
-			message, 
-			level, 
+		return {
+			message,
+			level,
 			time: Date.now(),
 			stack,
-			originalError
+			originalError,
 		};
 	}
 }

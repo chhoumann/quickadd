@@ -18,7 +18,6 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
 
 	private resolvePromise: (settings: IInfiniteAIAssistantCommand) => void;
-	private rejectPromise: (reason?: unknown) => void;
 
 	private settings: IInfiniteAIAssistantCommand;
 	private showAdvancedSettings = false;
@@ -54,7 +53,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		header.style.textAlign = "center";
 		header.style.cursor = "pointer";
 		header.style.userSelect = "none";
-		 
+
 		header.addEventListener("click", async () => {
 			try {
 				const newName = await GenericInputPrompt.Prompt(
@@ -82,8 +81,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		this.addShowAdvancedSettingsToggle(this.contentEl);
 
 		if (this.showAdvancedSettings) {
-			if (!this.settings.modelParameters)
-				this.settings.modelParameters = {};
+			if (!this.settings.modelParameters) this.settings.modelParameters = {};
 			this.addTemperatureSetting(this.contentEl);
 			this.addTopPSetting(this.contentEl);
 			this.addFrequencyPenaltySetting(this.contentEl);
@@ -114,7 +112,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				dropdown.setValue(this.settings.model);
 				dropdown.onChange((value) => {
 					this.settings.model = value;
-					
+
 					this.reload();
 				});
 			});
@@ -127,11 +125,9 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				"The name of the variable used to store the AI Assistant output, i.e. {{value:output}}."
 			)
 			.addText((text) => {
-				text.setValue(this.settings.outputVariableName).onChange(
-					(value) => {
-						this.settings.outputVariableName = value;
-					}
-				);
+				text.setValue(this.settings.outputVariableName).onChange((value) => {
+					this.settings.outputVariableName = value;
+				});
 			});
 	}
 
@@ -178,10 +174,11 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 		updateTokenCount();
 
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(
+		void (async () => {
+			formatDisplay.innerText = await displayFormatter.format(
 				this.settings.systemPrompt ?? ""
-			)))();
+			);
+		})();
 	}
 
 	addShowAdvancedSettingsToggle(container: HTMLElement) {
@@ -209,8 +206,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				slider.setLimits(0, 1, 0.1);
 				slider.setDynamicTooltip();
 				slider.setValue(
-					this.settings.modelParameters.temperature ??
-						DEFAULT_TEMPERATURE
+					this.settings.modelParameters.temperature ?? DEFAULT_TEMPERATURE
 				);
 				slider.onChange((value) => {
 					this.settings.modelParameters.temperature = value;
@@ -227,9 +223,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			.addSlider((slider) => {
 				slider.setLimits(0, 1, 0.1);
 				slider.setDynamicTooltip();
-				slider.setValue(
-					this.settings.modelParameters.top_p ?? DEFAULT_TOP_P
-				);
+				slider.setValue(this.settings.modelParameters.top_p ?? DEFAULT_TOP_P);
 				slider.onChange((value) => {
 					this.settings.modelParameters.top_p = value;
 				});
@@ -294,11 +288,9 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				"The string used to separate chunks of text. The default is a newline."
 			)
 			.addText((text) => {
-				text.setValue(this.settings.chunkSeparator).onChange(
-					(value) => {
-						this.settings.chunkSeparator = value;
-					}
-				);
+				text.setValue(this.settings.chunkSeparator).onChange((value) => {
+					this.settings.chunkSeparator = value;
+				});
 			});
 	}
 
@@ -312,9 +304,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				const model = getModelByName(this.settings.model);
 
 				if (!model) {
-					throw new Error(
-						`Model ${this.settings.model} not found in settings`
-					);
+					throw new Error(`Model ${this.settings.model} not found in settings`);
 				}
 
 				slider.setLimits(1, model.maxTokens - this.systemPromptTokenLength, 1);

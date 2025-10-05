@@ -18,16 +18,30 @@ import { isCancellationError } from "./utils/errorUtils";
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
 
-	constructor(private app: App, private plugin: QuickAdd) {}
+	constructor(
+		private app: App,
+		private plugin: QuickAdd
+	) {}
 
 	async execute(choice: IChoice): Promise<void> {
-    // One-page preflight honoring per-choice override
-    const globalEnabled = settingsStore.getState().onePageInputEnabled;
-    const override = choice.onePageInput;
-    const shouldUseOnePager = (override === "always") || (override !== "never" && globalEnabled);
-    if (shouldUseOnePager && (choice.type === "Template" || choice.type === "Capture" || choice.type === "Macro")) {
+		// One-page preflight honoring per-choice override
+		const globalEnabled = settingsStore.getState().onePageInputEnabled;
+		const override = choice.onePageInput;
+		const shouldUseOnePager =
+			override === "always" || (override !== "never" && globalEnabled);
+		if (
+			shouldUseOnePager &&
+			(choice.type === "Template" ||
+				choice.type === "Capture" ||
+				choice.type === "Macro")
+		) {
 			try {
-				await runOnePagePreflight(this.app, this.plugin as unknown as QuickAdd, this, choice);
+				await runOnePagePreflight(
+					this.app,
+					this.plugin as unknown as QuickAdd,
+					this,
+					choice
+				);
 			} catch (error) {
 				if (isCancellationError(error)) {
 					throw new MacroAbortError("One-page input cancelled by user");
@@ -38,8 +52,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 		switch (choice.type) {
 			case "Template": {
-				const templateChoice: ITemplateChoice =
-					choice as ITemplateChoice;
+				const templateChoice: ITemplateChoice = choice as ITemplateChoice;
 				await this.onChooseTemplateType(templateChoice);
 				break;
 			}

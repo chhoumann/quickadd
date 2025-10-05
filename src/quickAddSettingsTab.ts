@@ -1,4 +1,4 @@
-import type { App , TAbstractFile } from "obsidian";
+import type { App, TAbstractFile } from "obsidian";
 import { PluginSettingTab, Setting, TFolder } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
@@ -64,7 +64,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	enableTemplatePropertyTypes: false,
 	ai: {
 		defaultModel: "Ask me",
-		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,
+		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+etacdotdelta_jcdot x_{ij}$$ on a separate line, but you can write "($eta$ = learning rate, $delta_j$ = error term, $x_{ij}$ = input)" inline.`,
 		promptTemplatesFolderPath: "",
 		showAssistant: true,
 		providers: DefaultProviders,
@@ -151,11 +151,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	addTemplatePropertyTypesSetting() {
 		const setting = new Setting(this.containerEl);
-		setting.setName("Format template variables as proper property types (Beta)");
+		setting.setName(
+			"Format template variables as proper property types (Beta)"
+		);
 		setting.setDesc(
 			"When enabled, template variables in front matter will be formatted as proper Obsidian property types. " +
-			"Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. " +
-			"This is a beta feature that may have edge cases."
+				"Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. " +
+				"This is a beta feature that may have edge cases."
 		);
 		setting.addToggle((toggle) => {
 			toggle.setValue(settingsStore.getState().enableTemplatePropertyTypes);
@@ -220,7 +222,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		);
 
 		setting.addText((text) => {
-			text.setPlaceholder("templates/")
+			text
+				.setPlaceholder("templates/")
 				.setValue(settingsStore.getState().templateFolderPath)
 				.onChange((value) => {
 					settingsStore.setState({ templateFolderPath: value });
@@ -270,7 +273,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					})
 			);
 	}
-	
+
 	private addEnableRibbonIconSetting() {
 		new Setting(this.containerEl)
 			.setName("Show icon in sidebar")
@@ -278,13 +281,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			.addToggle((toggle) => {
 				toggle
 					.setValue(settingsStore.getState().enableRibbonIcon)
-					.onChange((value:boolean) => {
+					.onChange((value: boolean) => {
 						settingsStore.setState({
 							enableRibbonIcon: value,
 						});
 
 						this.display();
-					})
+					});
 			});
 	}
 }

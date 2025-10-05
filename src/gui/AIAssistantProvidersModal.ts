@@ -1,8 +1,12 @@
- 
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
-import { dedupeModels, fetchModelsDevDirectory, getModelsForProvider, mapModelsDevToQuickAdd } from "src/ai/modelsDirectory";
+import {
+	dedupeModels,
+	fetchModelsDevDirectory,
+	getModelsForProvider,
+	mapModelsDevToQuickAdd,
+} from "src/ai/modelsDirectory";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
@@ -14,7 +18,6 @@ export class AIAssistantProvidersModal extends Modal {
 	public waitForClose: Promise<AIProvider[]>;
 
 	private resolvePromise: (settings: AIProvider[]) => void;
-	private rejectPromise: (reason?: unknown) => void;
 
 	private providers: AIProvider[];
 	private selectedProvider: AIProvider | null;
@@ -63,14 +66,14 @@ export class AIAssistantProvidersModal extends Modal {
 		new Setting(container)
 			.setName("Providers")
 			.setDesc("Providers for the AI Assistant")
-            .addButton((button) => {
-                button.setButtonText("Add Provider").onClick(async () => {
-                    await new ProviderPickerModal(this.app, this.providers).waitForClose;
-                    this.reload();
-                });
+			.addButton((button) => {
+				button.setButtonText("Add Provider").onClick(async () => {
+					await new ProviderPickerModal(this.app, this.providers).waitForClose;
+					this.reload();
+				});
 
-                button.setCta();
-            });
+				button.setCta();
+			});
 
 		const providersContainer = container.createDiv("providers-container");
 		providersContainer.style.display = "flex";
@@ -115,7 +118,7 @@ export class AIAssistantProvidersModal extends Modal {
 		this.addNameSetting(container);
 		this.addEndpointSetting(container);
 		this.addApiKeySetting(container);
- 
+
 		this.addProviderModelsSetting(container);
 		this.addImportModelsFromDirectorySetting(container);
 		this.addAutoSyncSetting(container);
@@ -128,8 +131,10 @@ export class AIAssistantProvidersModal extends Modal {
 			.setName("Name")
 			.setDesc("The name of the provider")
 			.addText((text) => {
-				text.setValue(this.selectedProvider!.name).onChange((value) => {
-					this.selectedProvider!.name = value;
+				text.setValue(this.selectedProvider?.name).onChange((value) => {
+					if (this.selectedProvider) {
+						this.selectedProvider.name = value;
+					}
 				});
 			});
 	}
@@ -139,11 +144,11 @@ export class AIAssistantProvidersModal extends Modal {
 			.setName("Endpoint")
 			.setDesc("The endpoint for the AI Assistant")
 			.addText((text) => {
-				text.setValue(this.selectedProvider!.endpoint).onChange(
-					(value) => {
-						this.selectedProvider!.endpoint = value;
+				text.setValue(this.selectedProvider?.endpoint).onChange((value) => {
+					if (this.selectedProvider) {
+						this.selectedProvider.endpoint = value;
 					}
-				);
+				});
 			});
 	}
 
@@ -153,92 +158,96 @@ export class AIAssistantProvidersModal extends Modal {
 			.setDesc("The API Key for the AI Assistant")
 			.addText((text) => {
 				setPasswordOnBlur(text.inputEl);
-				text.setValue(this.selectedProvider!.apiKey).onChange(
-					(value) => {
-						this.selectedProvider!.apiKey = value;
+				text.setValue(this.selectedProvider?.apiKey).onChange((value) => {
+					if (this.selectedProvider) {
+						this.selectedProvider.apiKey = value;
 					}
-				);
+				});
 			});
 	}
 
-    addProviderModelsSetting(container: HTMLElement) {
-        const modelsContainer = container.createDiv("models-container");
-        modelsContainer.style.display = "flex";
-        modelsContainer.style.flexDirection = "column";
-        modelsContainer.style.gap = "10px";
-        modelsContainer.style.overflowY = "auto";
-        modelsContainer.style.maxHeight = "400px";
-        modelsContainer.style.padding = "10px";
+	addProviderModelsSetting(container: HTMLElement) {
+		const modelsContainer = container.createDiv("models-container");
+		modelsContainer.style.display = "flex";
+		modelsContainer.style.flexDirection = "column";
+		modelsContainer.style.gap = "10px";
+		modelsContainer.style.overflowY = "auto";
+		modelsContainer.style.maxHeight = "400px";
+		modelsContainer.style.padding = "10px";
 
-        this.selectedProvider!.models.forEach((model, i) => {
-            new Setting(modelsContainer)
-                .setName(model.name)
-                .setDesc(`Max Tokens: ${model.maxTokens}`)
-                .addButton((button) => {
-                    button.onClick(async () => {
-                        const confirmation = await GenericYesNoPrompt.Prompt(
-                            this.app,
-                            `Are you sure you want to delete ${model.name}?`
-                        );
-                        if (!confirmation) {
-                            return;
-                        }
+		this.selectedProvider?.models.forEach((model, i) => {
+			new Setting(modelsContainer)
+				.setName(model.name)
+				.setDesc(`Max Tokens: ${model.maxTokens}`)
+				.addButton((button) => {
+					button.onClick(async () => {
+						const confirmation = await GenericYesNoPrompt.Prompt(
+							this.app,
+							`Are you sure you want to delete ${model.name}?`
+						);
+						if (!confirmation) {
+							return;
+						}
 
-                        this.selectedProvider!.models.splice(i, 1);
-                        this.reload();
-                    });
-                    button.setWarning();
-                    button.setIcon("trash" as IconType);
-                });
-        });
+						this.selectedProvider?.models.splice(i, 1);
+						this.reload();
+					});
+					button.setWarning();
+					button.setIcon("trash" as IconType);
+				});
+		});
 
-        new Setting(modelsContainer)
-            .setName("Add Model")
-            .addButton((button) => {
-                button.setButtonText("Add Model").onClick(async () => {
-                    const modelName = await GenericInputPrompt.Prompt(
-                        this.app,
-                        "Model Name"
-                    );
-                    const maxTokens = await GenericInputPrompt.Prompt(
-                        this.app,
-                        "Max Tokens"
-                    );
+		new Setting(modelsContainer).setName("Add Model").addButton((button) => {
+			button.setButtonText("Add Model").onClick(async () => {
+				const modelName = await GenericInputPrompt.Prompt(
+					this.app,
+					"Model Name"
+				);
+				const maxTokens = await GenericInputPrompt.Prompt(
+					this.app,
+					"Max Tokens"
+				);
 
-                    this.selectedProvider!.models.push({
-                        name: modelName,
-                        maxTokens: parseInt(maxTokens),
-                    });
+				this.selectedProvider?.models.push({
+					name: modelName,
+					maxTokens: parseInt(maxTokens, 10),
+				});
 
-                    this.reload();
-                });
-                button.setCta();
-            });
-    }
+				this.reload();
+			});
+			button.setCta();
+		});
+	}
 
-    addImportModelsFromDirectorySetting(container: HTMLElement) {
-        new Setting(container)
-            .setName("Import models")
-            .setDesc("Browse and import models from models.dev for this provider")
-            .addButton((button) => {
-                button.setButtonText("Browse models").onClick(async () => {
-                    const res = await new ModelDirectoryModal(this.app, this.selectedProvider!).waitForClose;
-                    if (!res) return;
-                    const { imported, mode } = res;
-                    if (mode === "replace") {
-                        this.selectedProvider!.models = imported;
-                    } else {
-                        this.selectedProvider!.models = dedupeModels(
-                            this.selectedProvider!.models,
-                            imported
-                        );
-                    }
-                    new Notice(`Imported ${imported.length} models${mode === "replace" ? " (replaced)" : " (added)"}.`);
-                    this.reload();
-                });
-                button.setCta();
-            });
-    }
+	addImportModelsFromDirectorySetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Import models")
+			.setDesc("Browse and import models from models.dev for this provider")
+			.addButton((button) => {
+				button.setButtonText("Browse models").onClick(async () => {
+					if (!this.selectedProvider) return;
+					const res = await new ModelDirectoryModal(
+						this.app,
+						this.selectedProvider
+					).waitForClose;
+					if (!res) return;
+					const { imported, mode } = res;
+					if (mode === "replace") {
+						this.selectedProvider.models = imported;
+					} else {
+						this.selectedProvider.models = dedupeModels(
+							this.selectedProvider.models,
+							imported
+						);
+					}
+					new Notice(
+						`Imported ${imported.length} models${mode === "replace" ? " (replaced)" : " (added)"}.`
+					);
+					this.reload();
+				});
+				button.setCta();
+			});
+	}
 
 	addAutoSyncSetting(container: HTMLElement) {
 		new Setting(container)
@@ -249,17 +258,19 @@ export class AIAssistantProvidersModal extends Modal {
 			.addToggle((toggle) => {
 				const current = !!this.selectedProvider?.autoSyncModels;
 				toggle.setValue(current).onChange((value) => {
-					if (this.selectedProvider) this.selectedProvider.autoSyncModels = value;
+					if (this.selectedProvider)
+						this.selectedProvider.autoSyncModels = value;
 				});
 			})
 			.addButton((button) => {
 				button.setButtonText("Sync now").onClick(async () => {
+					if (!this.selectedProvider) return;
 					try {
 						await fetchModelsDevDirectory();
-						const models = await getModelsForProvider(this.selectedProvider!);
+						const models = await getModelsForProvider(this.selectedProvider);
 						const qaModels = mapModelsDevToQuickAdd(models);
-						this.selectedProvider!.models = dedupeModels(
-							this.selectedProvider!.models,
+						this.selectedProvider.models = dedupeModels(
+							this.selectedProvider.models,
 							qaModels
 						);
 						new Notice("Models synced.");

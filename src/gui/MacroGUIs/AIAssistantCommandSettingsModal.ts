@@ -21,7 +21,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
 
 	private resolvePromise: (settings: IAIAssistantCommand) => void;
-	private rejectPromise: (reason?: unknown) => void;
 
 	private settings: IAIAssistantCommand;
 	private showAdvancedSettings = false;
@@ -40,12 +39,10 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		this.settings = settings;
 
-		this.waitForClose = new Promise<IAIAssistantCommand>(
-			(resolve, reject) => {
-				this.rejectPromise = reject;
-				this.resolvePromise = resolve;
-			}
-		);
+		this.waitForClose = new Promise<IAIAssistantCommand>((resolve, reject) => {
+			this.rejectPromise = reject;
+			this.resolvePromise = resolve;
+		});
 
 		this.open();
 		this.display();
@@ -59,7 +56,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		header.style.textAlign = "center";
 		header.style.cursor = "pointer";
 		header.style.userSelect = "none";
-		 
+
 		header.addEventListener("click", async () => {
 			try {
 				const newName = await GenericInputPrompt.Prompt(
@@ -84,8 +81,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		this.addShowAdvancedSettingsToggle(this.contentEl);
 
 		if (this.showAdvancedSettings) {
-			if (!this.settings.modelParameters)
-				this.settings.modelParameters = {};
+			if (!this.settings.modelParameters) this.settings.modelParameters = {};
 			this.addTemperatureSetting(this.contentEl);
 			this.addTopPSetting(this.contentEl);
 			this.addFrequencyPenaltySetting(this.contentEl);
@@ -121,17 +117,11 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				});
 			})
 			.addText((text) => {
-				text.setValue(this.settings.promptTemplate.name).onChange(
-					(value) => {
-						this.settings.promptTemplate.name = value;
-					}
-				);
+				text.setValue(this.settings.promptTemplate.name).onChange((value) => {
+					this.settings.promptTemplate.name = value;
+				});
 
-				new GenericTextSuggester(
-					this.app,
-					text.inputEl,
-					promptTemplateFiles
-				);
+				new GenericTextSuggester(this.app, text.inputEl, promptTemplateFiles);
 			});
 	}
 
@@ -163,11 +153,9 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				"The name of the variable used to store the AI Assistant output, i.e. {{value:output}}."
 			)
 			.addText((text) => {
-				text.setValue(this.settings.outputVariableName).onChange(
-					(value) => {
-						this.settings.outputVariableName = value;
-					}
-				);
+				text.setValue(this.settings.outputVariableName).onChange((value) => {
+					this.settings.outputVariableName = value;
+				});
 			});
 	}
 
@@ -218,10 +206,11 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		updateTokenCount();
 
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(
+		void (async () => {
+			formatDisplay.innerText = await displayFormatter.format(
 				this.settings.systemPrompt ?? ""
-			)))();
+			);
+		})();
 	}
 
 	addShowAdvancedSettingsToggle(container: HTMLElement) {
@@ -249,8 +238,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				slider.setLimits(0, 1, 0.1);
 				slider.setDynamicTooltip();
 				slider.setValue(
-					this.settings.modelParameters.temperature ??
-						DEFAULT_TEMPERATURE
+					this.settings.modelParameters.temperature ?? DEFAULT_TEMPERATURE
 				);
 				slider.onChange((value) => {
 					this.settings.modelParameters.temperature = value;
@@ -267,9 +255,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.addSlider((slider) => {
 				slider.setLimits(0, 1, 0.1);
 				slider.setDynamicTooltip();
-				slider.setValue(
-					this.settings.modelParameters.top_p ?? DEFAULT_TOP_P
-				);
+				slider.setValue(this.settings.modelParameters.top_p ?? DEFAULT_TOP_P);
 				slider.onChange((value) => {
 					this.settings.modelParameters.top_p = value;
 				});

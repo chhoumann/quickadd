@@ -1,5 +1,9 @@
 import type { App } from "obsidian";
-import { GLOBAL_VAR_REGEX, TEMPLATE_REGEX, VARIABLE_REGEX } from "src/constants";
+import {
+	GLOBAL_VAR_REGEX,
+	TEMPLATE_REGEX,
+	VARIABLE_REGEX,
+} from "src/constants";
 import { Formatter } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
@@ -46,7 +50,7 @@ export class RequirementCollector extends Formatter {
 	constructor(
 		protected app: App,
 		private plugin: QuickAdd,
-		protected choiceExecutor?: IChoiceExecutor,
+		protected choiceExecutor?: IChoiceExecutor
 	) {
 		super();
 		this.dateParser = NLDParser;
@@ -101,10 +105,11 @@ export class RequirementCollector extends Formatter {
 		// Record any template inclusions for callers to handle separately
 		{
 			const re = new RegExp(TEMPLATE_REGEX.source, "gi");
-			let m: RegExpExecArray | null;
-			while ((m = re.exec(output)) !== null) {
+			let m: RegExpExecArray | null = re.exec(output);
+			while (m) {
 				const path = m[1];
 				if (path) this.templatesToScan.add(path);
+				m = re.exec(output);
 			}
 		}
 
@@ -130,10 +135,13 @@ export class RequirementCollector extends Formatter {
 	// Additional scanning for defaults/options in {{VALUE:...}} tokens
 	private scanVariableTokens(input: string) {
 		const re = new RegExp(VARIABLE_REGEX.source, "gi");
-		let match: RegExpExecArray | null;
-		while ((match = re.exec(input)) !== null) {
+		let match: RegExpExecArray | null = re.exec(input);
+		while (match) {
 			const inner = (match[1] ?? "").trim();
-			if (!inner) continue;
+			if (!inner) {
+				match = re.exec(input);
+				continue;
+			}
 
 			const pipeIndex = inner.indexOf("|");
 			let variableName = inner;
@@ -143,7 +151,10 @@ export class RequirementCollector extends Formatter {
 				variableName = inner.substring(0, pipeIndex).trim();
 			}
 
-			if (!variableName) continue;
+			if (!variableName) {
+				match = re.exec(input);
+				continue;
+			}
 
 			const hasOptions = pipeIndex === -1 && variableName.includes(",");
 			if (!this.requirements.has(variableName)) {
@@ -161,8 +172,8 @@ export class RequirementCollector extends Formatter {
 				if (defaultValue) req.defaultValue = defaultValue;
 				this.requirements.set(variableName, req);
 			} else if (defaultValue) {
-				const existing = this.requirements.get(variableName)!;
-				if (existing.defaultValue === undefined)
+				const existing = this.requirements.get(variableName);
+				if (existing && existing.defaultValue === undefined)
 					existing.defaultValue = defaultValue;
 			}
 		}
@@ -187,7 +198,7 @@ export class RequirementCollector extends Formatter {
 
 	protected async promptForVariable(
 		variableName?: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string },
+		context?: { type?: string; dateFormat?: string; defaultValue?: string }
 	): Promise<string> {
 		if (!variableName) return "";
 
@@ -262,7 +273,7 @@ export class RequirementCollector extends Formatter {
 		return "";
 	}
 
-	protected getVariableValue(variableName: string): string {
+	protected getVariableValue(_variableName: string): string {
 		// During collection, always resolve to empty string to continue scanning
 		return "";
 	}

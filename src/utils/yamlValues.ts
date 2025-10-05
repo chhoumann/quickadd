@@ -21,19 +21,19 @@
  * @returns The coerced value (Date object if @date: prefix, otherwise original value)
  */
 export function coerceYamlValue(v: unknown): unknown {
-  // Check if the value is a string with the @date: prefix
-  if (typeof v === "string" && v.startsWith("@date:")) {
-    // Extract the ISO date string (everything after "@date:")
-    const iso = v.substring(6);
+	// Check if the value is a string with the @date: prefix
+	if (typeof v === "string" && v.startsWith("@date:")) {
+		// Extract the ISO date string (everything after "@date:")
+		const iso = v.substring(6);
 
-    // Attempt to parse as a Date
-    const d = new Date(iso);
+		// Attempt to parse as a Date
+		const d = new Date(iso);
 
-    // Only return Date if it's valid (not NaN)
-    // Invalid dates fall through and return the original string
-    if (!Number.isNaN(d.getTime())) return d;
-  }
+		// Only return Date if it's valid (not NaN)
+		// Invalid dates fall through and return the original string
+		if (!Number.isNaN(d.getTime())) return d;
+	}
 
-  // Return original value for non-@date: strings and invalid dates
-  return v;
+	// Return original value for non-@date: strings and invalid dates
+	return v;
 }

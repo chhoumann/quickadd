@@ -9,7 +9,6 @@ export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputStart = 0;
 	private lastInputLength = 0;
-	private tagSet: Set<string>;
 	private sortedTags: string[];
 	private fuse: Fuse<string>;
 
@@ -66,7 +65,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 		}
 
 		// Reject if we are inside a wikilink ([[ … # … ]])
-		const lastWiki = inputBeforeCursor.lastIndexOf('[[');
+		const lastWiki = inputBeforeCursor.lastIndexOf("[[");
 		if (tagMatch.index === undefined) {
 			return [];
 		}
@@ -80,14 +79,15 @@ export class TagSuggester extends TextInputSuggest<string> {
 		this.lastInputLength = tagMatch[0].length;
 
 		// Prefix matches first
-		const prefixMatches = this.sortedTags.filter(tag =>
-			tag.toLowerCase().startsWith(tagInput.toLowerCase())
-		).slice(0, 5);
+		const prefixMatches = this.sortedTags
+			.filter((tag) => tag.toLowerCase().startsWith(tagInput.toLowerCase()))
+			.slice(0, 5);
 
 		// Then fuzzy matches
-		const fuzzyResults = this.fuse.search(tagInput)
-			.filter(result => result.score !== undefined && result.score < 0.8)
-			.map(result => result.item)
+		const fuzzyResults = this.fuse
+			.search(tagInput)
+			.filter((result) => result.score !== undefined && result.score < 0.8)
+			.map((result) => result.item)
 			.slice(0, 10);
 
 		// Combine and deduplicate, preserving prefix match priority
@@ -121,7 +121,9 @@ export class TagSuggester extends TextInputSuggest<string> {
 		// Ensure exactly one '#' in replacement
 		const replacement = item.startsWith("#") ? item : `#${item}`;
 
-		replaceRange(input, tagStart, tagEnd, replacement, { fromCompletion: true });
+		replaceRange(input, tagStart, tagEnd, replacement, {
+			fromCompletion: true,
+		});
 		this.close();
 	}
 }

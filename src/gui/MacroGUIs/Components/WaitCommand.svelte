@@ -1,26 +1,25 @@
 <script lang="ts">
-    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-    import {createEventDispatcher, onMount} from "svelte";
-    import type {DndEvent} from "svelte-dnd-action";
-    import type {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
+import { createEventDispatcher, onMount } from "svelte";
+import type { DndEvent } from "svelte-dnd-action";
+import type { IWaitCommand } from "../../../types/macros/QuickCommands/IWaitCommand";
 
-    export let command: IWaitCommand;
-    export let startDrag: (e: CustomEvent<DndEvent>) => void;
-    export let dragDisabled: boolean;
-    const dispatch = createEventDispatcher();
+export let command: IWaitCommand;
+export let startDrag: (e: CustomEvent<DndEvent>) => void;
+export let dragDisabled: boolean;
+const dispatch = createEventDispatcher();
 
-    let inputEl: HTMLInputElement;
+let inputEl: HTMLInputElement;
 
-    function deleteCommand(commandId: string) {
-        dispatch('deleteCommand', commandId);
-    }
+function _deleteCommand(commandId: string) {
+	dispatch("deleteCommand", commandId);
+}
 
-    function resizeInput() {
-        const length: number = inputEl.value.length;
-        inputEl.style.width = (length === 0 ? 2 : length) + 'ch';
-    }
+function resizeInput() {
+	const length: number = inputEl.value.length;
+	inputEl.style.width = `${length === 0 ? 2 : length}ch`;
+}
 
-    onMount(resizeInput);
+onMount(resizeInput);
 </script>
 
 <div class="quickAddCommandListItem">

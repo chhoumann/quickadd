@@ -23,7 +23,7 @@ export function parseNaturalLanguageDate(
 	if (!input || !input.trim()) {
 		return {
 			isValid: false,
-			error: "Empty input"
+			error: "Empty input",
 		};
 	}
 
@@ -39,18 +39,18 @@ export function parseNaturalLanguageDate(
 			return {
 				isValid: true,
 				isoString,
-				formatted
+				formatted,
 			};
 		} else {
 			return {
 				isValid: false,
-				error: "Unable to parse date"
+				error: "Unable to parse date",
 			};
 		}
 	} catch (error) {
 		return {
 			isValid: false,
-			error: `Parse error: ${error instanceof Error ? error.message : "Unknown error"}`
+			error: `Parse error: ${error instanceof Error ? error.message : "Unknown error"}`,
 		};
 	}
 }
@@ -61,7 +61,10 @@ export function parseNaturalLanguageDate(
  * @param format - The desired output format
  * @returns The formatted date string or null if invalid
  */
-export function formatISODate(isoString: string, format: string): string | null {
+export function formatISODate(
+	isoString: string,
+	format: string
+): string | null {
 	if (!window.moment) {
 		return null;
 	}

@@ -6,7 +6,7 @@ import type { IMacro } from "../types/macros/IMacro";
  */
 export function regenerateIds(macro: IMacro): void {
 	macro.id = uuidv4();
-	macro.commands.forEach(command => {
+	macro.commands.forEach((command) => {
 		command.id = uuidv4();
 	});
 }

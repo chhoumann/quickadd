@@ -6,7 +6,7 @@ export class ExclusiveSuggester extends TextInputSuggest<string> {
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
 		private suggestItems: string[],
-		private currentItems: string[]
+		_currentItems: string[]
 	) {
 		super(app, inputEl);
 	}

@@ -13,8 +13,8 @@ export default interface ITemplateChoice extends IChoice {
 		chooseFromSubfolders: boolean;
 	};
 	fileNameFormat: { enabled: boolean; format: string };
-	/** 
-	 * Configure link appending behavior. 
+	/**
+	 * Configure link appending behavior.
 	 * - boolean: Legacy format for backward compatibility (true = enabled with default placement)
 	 * - AppendLinkOptions: New format with configurable placement options
 	 */

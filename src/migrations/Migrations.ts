@@ -7,5 +7,8 @@ export type Migration = {
 };
 
 export type Migrations = {
-	[key in keyof Omit<QuickAddSettings["migrations"], "migrateToMacroIDFromEmbeddedMacro">]: Migration;
+	[key in keyof Omit<
+		QuickAddSettings["migrations"],
+		"migrateToMacroIDFromEmbeddedMacro"
+	>]: Migration;
 };

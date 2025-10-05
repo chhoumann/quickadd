@@ -9,7 +9,7 @@ import {
 	getVariablePromptExample,
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
-	DateFormatPreviewGenerator
+	DateFormatPreviewGenerator,
 } from "./helpers/previewHelpers";
 
 import type QuickAdd from "../main";
@@ -51,14 +51,14 @@ export class FileNameDisplayFormatter extends Formatter {
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
 		let output = input;
 		let guard = 0;
-		const re = new RegExp(GLOBAL_VAR_REGEX.source, 'gi');
+		const re = new RegExp(GLOBAL_VAR_REGEX.source, "gi");
 		while (re.test(output)) {
 			if (++guard > 5) break;
 			output = output.replace(re, (_m, rawName) => {
-				const name = String(rawName ?? '').trim();
+				const name = String(rawName ?? "").trim();
 				if (!name) return _m;
 				const snippet = this.plugin?.settings?.globalVariables?.[name];
-				return typeof snippet === 'string' ? snippet : '';
+				return typeof snippet === "string" ? snippet : "";
 			});
 		}
 		return output;
@@ -76,7 +76,6 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 
-
 	protected suggestForValue(suggestedValues: string[]) {
 		return getSuggestionPreview(suggestedValues);
 	}
@@ -91,14 +90,15 @@ export class FileNameDisplayFormatter extends Formatter {
 
 	protected async promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string }
+		_context?: { type?: string; dateFormat?: string }
 	): Promise<string> {
 		return getVariablePromptExample(variableName);
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		// Show template preview with realistic content length
-		const templateName = templatePath.split('/').pop()?.replace('.md', '') || templatePath;
+		const templateName =
+			templatePath.split("/").pop()?.replace(".md", "") || templatePath;
 		return `[${templateName} template content...]`;
 	}
 
@@ -116,57 +116,63 @@ export class FileNameDisplayFormatter extends Formatter {
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		let output: string = input;
-		
-		// Enhanced date variable preview with realistic examples
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
-			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
-			
-			if (!cleanVariableName || !cleanDateFormat) {
-				return match; // Return original if incomplete
-			}
 
-			// Generate a realistic preview using current date
-			const previewDate = new Date();
-			let formattedExample: string;
-			
-			try {
-				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
-			} catch {
-				formattedExample = `[${cleanDateFormat}]`;
+		// Enhanced date variable preview with realistic examples
+		output = output.replace(
+			new RegExp(DATE_VARIABLE_REGEX.source, "gi"),
+			(match, variableName, dateFormat) => {
+				const cleanVariableName = variableName?.trim();
+				const cleanDateFormat = dateFormat?.trim();
+
+				if (!cleanVariableName || !cleanDateFormat) {
+					return match; // Return original if incomplete
+				}
+
+				// Generate a realistic preview using current date
+				const previewDate = new Date();
+				let formattedExample: string;
+
+				try {
+					formattedExample = DateFormatPreviewGenerator.generate(
+						cleanDateFormat,
+						previewDate
+					);
+				} catch {
+					formattedExample = `[${cleanDateFormat}]`;
+				}
+
+				return formattedExample;
 			}
-			
-			return formattedExample;
-		});
-		
+		);
+
 		return output;
 	}
 
 	protected replaceRandomInString(input: string): string {
 		let output = input;
-		
+
 		// Replace {{RANDOM:n}} with a preview showing example output
 		output = output.replace(/{{RANDOM:(\d+)}}/gi, (match, length) => {
-			const len = parseInt(length);
+			const len = parseInt(length, 10);
 			if (len <= 0 || len > 100) {
 				return match; // Return original if invalid
 			}
-			
+
 			// For filename preview, show a simple example
-			const exampleChars = 'ABC123';
-			let preview = '';
+			const exampleChars = "ABC123";
+			let preview = "";
 			for (let i = 0; i < Math.min(len, 6); i++) {
 				preview += exampleChars.charAt(i % exampleChars.length);
 			}
-			
+
 			// For long strings, show ellipsis
 			if (len > 6) {
-				preview += '...';
+				preview += "...";
 			}
-			
+
 			return preview;
 		});
-		
+
 		return output;
 	}
 
