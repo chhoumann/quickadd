@@ -19,13 +19,13 @@ export default class GenericWideInputPrompt extends Modal {
 		app: App,
 		header: string,
 		placeholder?: string,
-		value?: string
+		value?: string,
 	): Promise<string> {
 		const newPromptModal = new GenericWideInputPrompt(
 			app,
 			header,
 			placeholder,
-			value
+			value,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -34,7 +34,7 @@ export default class GenericWideInputPrompt extends Modal {
 		app: App,
 		private header: string,
 		placeholder?: string,
-		value?: string
+		value?: string,
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
@@ -50,12 +50,9 @@ export default class GenericWideInputPrompt extends Modal {
 
 		this.fileSuggester = new FileSuggester(
 			app,
-			this.inputComponent.inputEl
+			this.inputComponent.inputEl,
 		);
-		this.tagSuggester = new TagSuggester(
-			app,
-			this.inputComponent.inputEl
-		);
+		this.tagSuggester = new TagSuggester(app, this.inputComponent.inputEl);
 	}
 
 	private display() {
@@ -67,7 +64,7 @@ export default class GenericWideInputPrompt extends Modal {
 		this.inputComponent = this.createInputField(
 			mainContentContainer,
 			this.placeholder,
-			this.input
+			this.input,
 		);
 		this.createButtonBar(mainContentContainer);
 	}
@@ -75,7 +72,7 @@ export default class GenericWideInputPrompt extends Modal {
 	protected createInputField(
 		container: HTMLElement,
 		placeholder?: string,
-		value?: string
+		value?: string,
 	) {
 		const textComponent = new TextAreaComponent(container);
 
@@ -93,7 +90,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private createButton(
 		container: HTMLElement,
 		text: string,
-		callback: (evt: MouseEvent) => unknown
+		callback: (evt: MouseEvent) => unknown,
 	) {
 		const btn = new ButtonComponent(container);
 		btn.setButtonText(text).onClick(callback);
@@ -107,12 +104,12 @@ export default class GenericWideInputPrompt extends Modal {
 		this.createButton(
 			buttonBarContainer,
 			"Ok",
-			this.submitClickCallback
+			this.submitClickCallback,
 		).setCta().buttonEl.style.marginRight = "0";
 		this.createButton(
 			buttonBarContainer,
 			"Cancel",
-			this.cancelClickCallback
+			this.cancelClickCallback,
 		);
 
 		buttonBarContainer.style.display = "flex";
@@ -132,8 +129,14 @@ export default class GenericWideInputPrompt extends Modal {
 		}
 	};
 
+	private escapeBackslashes(input: string): string {
+		return input.replace(/\\/g, "\\\\");
+	}
+
 	private submit() {
+		if (this.didSubmit) return;
 		this.didSubmit = true;
+		this.input = this.escapeBackslashes(this.input);
 
 		this.close();
 	}
@@ -150,7 +153,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private removeInputListener() {
 		this.inputComponent.inputEl.removeEventListener(
 			"keydown",
-			this.submitEnterCallback
+			this.submitEnterCallback,
 		);
 	}
 
