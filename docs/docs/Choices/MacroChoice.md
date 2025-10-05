@@ -97,20 +97,24 @@ User scripts are JavaScript files that extend macro functionality. They have acc
 
 :::warning Script Placement Requirements
 
-User scripts (.js files) must be placed in your Obsidian vault, but **NOT** in the `.obsidian` directory.
+User scripts (.js files) must be placed in your Obsidian vault, but **NOT** in the `.obsidian` directory or in hidden folders (folders starting with a dot).
 
 ✅ **Valid locations:**
 - `/scripts/myScript.js`
+- `/_quickadd/scripts/myScript.js`
 - `/macros/utilities/helper.js`
 - `/my-custom-folder/script.js`
-- Any folder in your vault except `.obsidian`
+- Any folder in your vault except `.obsidian` or hidden folders
 
 ❌ **Invalid locations:**
 - `/.obsidian/plugins/quickadd/scripts/myScript.js`
 - `/.obsidian/scripts/myScript.js`
+- `/.quickadd/scripts/myScript.js` (hidden folder - use `_quickadd` instead)
+- `/.scripts/myScript.js` (hidden folder - use `_scripts` instead)
 - Any path within the `.obsidian` directory
+- Any path within folders starting with a dot (.)
 
-Scripts placed in the `.obsidian` directory are intentionally ignored and will not appear in the script selection dialog.
+Scripts placed in the `.obsidian` directory or hidden folders are intentionally ignored and will not appear in the script selection dialog.
 
 :::
 

@@ -35,6 +35,7 @@ import { AIAssistantCommand } from "src/types/macros/QuickCommands/AIAssistantCo
 import { settingsStore } from "src/settingsStore";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
+import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -508,6 +509,7 @@ export class MacroBuilder extends Modal {
 
 	private async showScriptPicker(): Promise<TFile | null> {
 		if (this.javascriptFiles.length === 0) {
+			showNoScriptsFoundNotice();
 			return null;
 		}
 
