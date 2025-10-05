@@ -1,38 +1,85 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": false
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "style": {
-        "useImportType": "off"
-      }
-    }
-  },
-  "formatter": {
-    "enabled": true,
-    "formatWithErrors": false,
-    "indentStyle": "tab",
-    "indentWidth": 2,
-    "lineEnding": "lf",
-    "lineWidth": 80,
-    "attributePosition": "auto"
-  },
-  "overrides": [
-    {
-      "include": ["src/main.ts"],
-      "organizeImports": {
-        "enabled": false
-      },
-      "linter": {
-        "rules": {
-          "style": {
-            "useImportType": "off"
-          }
-        }
-      }
-    }
-  ]
+	"$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+
+	"files": {
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!**/node_modules",
+			"!**/main.js",
+			"!**/dist",
+			"!**/*.d.ts",
+			"!**/coverage",
+			"!**/build",
+			"!**/.obsidian"
+		]
+	},
+
+	"assist": { "actions": { "source": { "organizeImports": "off" } } },
+
+	"formatter": {
+		"enabled": true,
+		"formatWithErrors": false,
+		"indentStyle": "tab",
+		"indentWidth": 2,
+		"lineEnding": "lf",
+		"lineWidth": 80,
+		"attributePosition": "auto"
+	},
+
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"trailingCommas": "es5",
+			"semicolons": "always",
+			"arrowParentheses": "always",
+			"bracketSpacing": true,
+			"quoteProperties": "asNeeded"
+		}
+	},
+
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+
+			"correctness": {
+				"noUnusedVariables": "error",
+				"noUnusedImports": "error"
+			},
+
+			"suspicious": {
+				"noExplicitAny": "off"
+			},
+
+			"style": {
+				"useConst": "error",
+				"useImportType": "off"
+			},
+
+			"complexity": {
+				"noForEach": "off"
+			}
+		}
+	},
+
+	"overrides": [
+		{
+			"includes": ["**/src/main.ts"],
+			"assist": { "actions": { "source": { "organizeImports": "off" } } },
+			"linter": {
+				"rules": {
+					"style": {
+						"useImportType": "off"
+					}
+				}
+			}
+		}
+	]
 }

@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "lint": "eslint --ext .ts .",
+    "biome:check": "biome check .",
+    "biome:fix": "biome check --write .",
+    "biome:ci": "biome ci .",
+    "format": "biome format --write .",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "build-with-lint": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
@@ -47,6 +51,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@biomejs/biome": "^2.2.5",
     "builtin-modules": "^5.0.0",
     "chrono-node": "^2.8.3",
     "fuse.js": "7.1.0",
