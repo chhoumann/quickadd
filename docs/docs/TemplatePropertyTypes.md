@@ -122,6 +122,23 @@ Content here...
 | **Null** | Null literal | `null` → `null` |
 | **String** | String (unchanged) | `"text"` → `text` |
 
+### Prompting for List Values
+
+When Template Property Types is enabled, you can gather list properties directly from QuickAdd prompts by adding an `@list` hint to the variable. QuickAdd will split common input formats (comma separated, newline lists, or `- bullet` lists) into a proper YAML list before the template is saved.
+
+```yaml
+---
+tags: {{VALUE:tags@list}}
+projects: {{VALUE:projects@list(delimiter=;)}}
+---
+```
+
+- Prompting `tags@list` with `research, design, delivery` yields `tags: [research, design, delivery]`.
+- Bullet-style input such as `- item one` on separate lines is normalized automatically.
+- Use `@list(delimiter=;)` or `@list(csv)` to control how values are split when needed.
+
+The rendered note will contain real list properties, and scripts can continue to seed `QuickAdd.variables.tags` with either arrays or delimiter separated strings depending on your workflow.
+
 ### Complex Nested Structures
 
 The feature supports deeply nested data:

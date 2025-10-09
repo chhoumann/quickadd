@@ -6,8 +6,20 @@ class TestFormatter {
     private promptResponses: Map<string, string> = new Map();
     private suggesterResponses: Map<string, string> = new Map();
 
+    private getResolvedVariableValue(variableName: string): unknown {
+        if (this.variables.has(variableName)) return this.variables.get(variableName);
+        const atIndex = variableName.indexOf("@");
+        if (atIndex !== -1) {
+            const base = variableName.substring(0, atIndex);
+            if (this.variables.has(base)) return this.variables.get(base);
+        }
+        return undefined;
+    }
+
     protected getVariableValue(variableName: string): string {
-        return (this.variables.get(variableName) as string) ?? "";
+        const value = this.getResolvedVariableValue(variableName);
+        if (value === undefined || value === null) return "";
+        return typeof value === "string" ? value : value.toString();
     }
 
     protected replacer(str: string, reg: RegExp, replaceValue: string) {

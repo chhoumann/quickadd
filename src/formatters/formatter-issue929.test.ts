@@ -19,7 +19,9 @@ class Issue929TestFormatter extends Formatter {
     }
 
     protected getVariableValue(variableName: string): string {
-        return (this.variables.get(variableName) as string) ?? "";
+        const value = this.getResolvedVariableValue(variableName);
+        if (value === undefined || value === null) return "";
+        return typeof value === "string" ? value : value.toString();
     }
 
     protected suggestForValue(): string {

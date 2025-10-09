@@ -22,6 +22,8 @@ import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
+import { createListVariable, parseListInput } from "../utils/listInputParser";
+import { parseVariableNameSpec, type ListVariableHint, type VariableNameSpec } from "../utils/variableNameParser";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -35,12 +37,37 @@ export abstract class Formatter {
 	private propertyCollector: TemplatePropertyCollector = new TemplatePropertyCollector();
 
 	protected abstract format(input: string): Promise<string>;
+
+	protected getResolvedVariableValue(name: string): unknown {
+		if (this.variables.has(name)) return this.variables.get(name);
+		const base = this.extractBaseVariableName(name);
+		if (base && this.variables.has(base)) return this.variables.get(base);
+		return undefined;
+	}
+
+	protected setVariableForSpec(spec: VariableNameSpec, value: unknown): void {
+		this.variables.set(spec.canonical, value);
+		if (this.shouldMirrorToAlias(spec)) {
+			this.variables.set(spec.base, value);
+		}
+	}
+
+	private shouldMirrorToAlias(spec: VariableNameSpec): boolean {
+		return !spec.isOptionList && spec.base.length > 0 && spec.base !== spec.canonical;
+	}
+
+	private extractBaseVariableName(name: string): string | null {
+		const atIndex = name.indexOf("@");
+		if (atIndex === -1) return null;
+		const base = name.substring(0, atIndex).trim();
+		return base.length > 0 ? base : null;
+	}
+
 	
 	/** Returns true when a variable is present AND its value is neither undefined nor null.  
 	 *  An empty string is considered a valid, intentional value. */
 	protected hasConcreteVariable(name: string): boolean {
-		if (!this.variables.has(name)) return false;
-		const v = this.variables.get(name);
+		const v = this.getResolvedVariableValue(name);
 		return v !== undefined && v !== null;
 	}
 	
@@ -124,7 +151,7 @@ export abstract class Formatter {
 		let output: string = input;
 
 		if (this.variables.has("value")) {
-			this.value = this.variables.get("value") as string;
+			this.value = this.getResolvedVariableValue("value") as string;
 		}
 
 		while (NAME_VALUE_REGEX.test(output)) {
@@ -214,54 +241,62 @@ export abstract class Formatter {
 				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
 
-			let variableName = match[1];
+			let variableToken = match[1];
 			let defaultValue = "";
 
 			// Parse default value if present (syntax: {{VALUE:name|default}})
-			const pipeIndex = variableName.indexOf("|");
+			const pipeIndex = variableToken.indexOf("|");
 			if (pipeIndex !== -1) {
-				defaultValue = variableName.substring(pipeIndex + 1).trim();
-				variableName = variableName.substring(0, pipeIndex).trim();
+				defaultValue = variableToken.substring(pipeIndex + 1).trim();
+				variableToken = variableToken.substring(0, pipeIndex).trim();
 			}
 
-			// Ensure variable is set (prompt if needed)
-			if (!this.hasConcreteVariable(variableName)) {
-				const suggestedValues = variableName.split(",");
+			const spec = parseVariableNameSpec(variableToken);
+			const listHint = spec.hints.find((hint): hint is ListVariableHint => hint.kind === "list");
+
+			if (!this.hasConcreteVariable(spec.canonical)) {
 				let variableValue = "";
 
-				if (suggestedValues.length === 1) {
-					variableValue = await this.promptForVariable(variableName);
+				if (spec.isOptionList) {
+					variableValue = await this.suggestForValue(spec.suggestions);
 				} else {
-					variableValue = await this.suggestForValue(suggestedValues);
+					const promptLabel = spec.base || spec.canonical;
+					variableValue = await this.promptForVariable(promptLabel);
 				}
 
-				// Use default value if no input provided
 				if (!variableValue && defaultValue) {
 					variableValue = defaultValue;
 				}
 
-				this.variables.set(variableName, variableValue);
+				this.setVariableForSpec(spec, variableValue);
+			} else {
+				// Ensure canonical key mirrors alias-provided values (scripts may set base name directly)
+				const existing = this.getResolvedVariableValue(spec.canonical);
+				if (existing !== undefined && !this.variables.has(spec.canonical)) {
+					this.setVariableForSpec(spec, existing);
+				}
 			}
 
-			// Get the raw value from variables
-			const rawValue = this.variables.get(variableName);
-			
+			let rawValue = this.getResolvedVariableValue(spec.canonical);
 
+			if (listHint) {
+				const parsed = parseListInput(rawValue, listHint.options);
+				const listValue = createListVariable(parsed.items);
+				this.setVariableForSpec(spec, listValue);
+				rawValue = listValue;
+			}
 
-		// Offer this variable to the property collector for YAML post-processing
-		this.propertyCollector.maybeCollect({
-			input: output,
-			matchStart: match.index,
-			matchEnd: match.index + match[0].length,
-			rawValue,
-			fallbackKey: variableName,
-			featureEnabled: this.isTemplatePropertyTypesEnabled(),
-		});
+			this.propertyCollector.maybeCollect({
+				input: output,
+				matchStart: match.index,
+				matchEnd: match.index + match[0].length,
+				rawValue,
+				fallbackKey: spec.base || spec.canonical,
+				featureEnabled: this.isTemplatePropertyTypesEnabled(),
+			});
 
-			// Always use string replacement initially
-			const replacement = this.getVariableValue(variableName);
+			const replacement = this.getVariableValue(spec.canonical);
 
-			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
 			regex.lastIndex = match.index + replacement.length;
 		}
@@ -361,7 +396,7 @@ export abstract class Formatter {
 			}
 
 			if (variableName && dateFormat) {
-				const existingValue = this.variables.get(variableName) as string;
+				const existingValue = this.getResolvedVariableValue(variableName) as string;
 				
 				// Check if we already have this date variable stored
 				if (!existingValue) {
@@ -391,7 +426,7 @@ export abstract class Formatter {
 
 				// Format the date based on what's stored
 				let formattedDate = "";
-				const storedValue = this.variables.get(variableName) as string;
+				const storedValue = this.getResolvedVariableValue(variableName) as string;
 				
 				if (storedValue && storedValue.startsWith("@date:")) {
 					// It's a date variable, extract and format it
