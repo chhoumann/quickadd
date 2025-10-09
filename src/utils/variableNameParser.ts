@@ -36,7 +36,7 @@ export interface VariableNameSpec {
   suggestions: string[];
 }
 
-const HINT_PATTERN = /^([a-zA-Z0-9_-]+)(?:\((.*)\))?$/;
+const HINT_PATTERN = /^([a-zA-Z0-9_-]+)(?:\(([^)]*)\))?$/;
 
 export function parseVariableNameSpec(raw: string): VariableNameSpec {
   const canonical = raw.trim();
