@@ -42,6 +42,20 @@ describe("FieldValueProcessor", () => {
 			expect(result.hasDefaultValue).toBe(true);
 		});
 
+		it("should not duplicate default value when defaultAlways is true and already present", () => {
+			const rawValues = new Set(["To Do", "Active", "Done"]);
+			const filters: FieldFilter = {
+				defaultValue: "To Do",
+				defaultAlways: true
+			};
+
+			const result = FieldValueProcessor.processValues(rawValues, filters);
+
+			expect(result.values[0]).toBe("To Do");
+			expect(result.values.filter((value) => value === "To Do")).toHaveLength(1);
+			expect(result.hasDefaultValue).toBe(true);
+		});
+
 		it("should add default value only when empty and defaultEmpty is true", () => {
 			// Test with empty values
 			const emptyValues = new Set<string>();
