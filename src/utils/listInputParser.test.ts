@@ -76,6 +76,22 @@ describe("parseListInput - Obsidian syntax", () => {
     const result = parseListInput("[[test, a]], , [[foo]]", listHint);
     expect(result.items).toEqual(["[[test, a]]", "[[foo]]"]);
   });
+
+  it("handles malformed input with extra closing brackets gracefully", () => {
+    // Without opening brackets, commas still split (not a valid wiki-link)
+    const result = parseListInput("]]test, a]], normal", listHint);
+    expect(result.items).toEqual(["]]test", "a]]", "normal"]);
+  });
+
+  it("handles malformed input with missing closing brackets", () => {
+    const result = parseListInput("[[unclosed, alpha, beta", listHint);
+    expect(result.items).toEqual(["[[unclosed, alpha, beta"]);
+  });
+
+  it("handles mixed malformed brackets", () => {
+    const result = parseListInput("[[valid]], ]]extra, [[missing", listHint);
+    expect(result.items).toEqual(["[[valid]]", "]]extra", "[[missing"]);
+  });
 });
 
 describe("createListVariable", () => {

@@ -128,7 +128,9 @@ function splitByDelimiterBracketAware(input: string, delimiter: string): string[
 
     // Track closing brackets ]]
     if (char === "]" && nextChar === "]") {
-      bracketDepth--;
+      if (bracketDepth > 0) {
+        bracketDepth--;
+      }
       current += char + nextChar;
       i++; // Skip the next bracket
       continue;
