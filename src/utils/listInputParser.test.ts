@@ -36,6 +36,48 @@ describe("parseListInput", () => {
   });
 });
 
+describe("parseListInput - Obsidian syntax", () => {
+  it("preserves wiki-links with commas as single items", () => {
+    const result = parseListInput("[[test, a]], [[foo]]", listHint);
+    expect(result.items).toEqual(["[[test, a]]", "[[foo]]"]);
+  });
+
+  it("handles wiki-links mixed with plain text", () => {
+    const result = parseListInput("[[note, part 2]], regular item, [[another, one]]", listHint);
+    expect(result.items).toEqual(["[[note, part 2]]", "regular item", "[[another, one]]"]);
+  });
+
+  it("handles nested brackets correctly", () => {
+    const result = parseListInput("[[outer [[inner, test]]]], plain", listHint);
+    expect(result.items).toEqual(["[[outer [[inner, test]]]]", "plain"]);
+  });
+
+  it("handles wiki-links with aliases containing commas", () => {
+    const result = parseListInput("[[file|display, text]], [[other]]", listHint);
+    expect(result.items).toEqual(["[[file|display, text]]", "[[other]]"]);
+  });
+
+  it("handles single wiki-link with comma", () => {
+    const result = parseListInput("[[test, a]]", listHint);
+    expect(result.items).toEqual(["[[test, a]]"]);
+  });
+
+  it("still splits normal comma-separated values", () => {
+    const result = parseListInput("alpha, beta, gamma", listHint);
+    expect(result.items).toEqual(["alpha", "beta", "gamma"]);
+  });
+
+  it("respects bracket awareness with csv strategy", () => {
+    const result = parseListInput("[[a, b]], c", { strategy: "csv" });
+    expect(result.items).toEqual(["[[a, b]]", "c"]);
+  });
+
+  it("filters empty items with bracket syntax", () => {
+    const result = parseListInput("[[test, a]], , [[foo]]", listHint);
+    expect(result.items).toEqual(["[[test, a]]", "[[foo]]"]);
+  });
+});
+
 describe("createListVariable", () => {
   it("overrides toString with friendly join", () => {
     const list = createListVariable(["a", "b"]);

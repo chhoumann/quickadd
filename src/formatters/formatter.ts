@@ -40,8 +40,10 @@ export abstract class Formatter {
 
 	protected getResolvedVariableValue(name: string): unknown {
 		if (this.variables.has(name)) return this.variables.get(name);
-		const base = this.extractBaseVariableName(name);
-		if (base && this.variables.has(base)) return this.variables.get(base);
+		const spec = parseVariableNameSpec(name);
+		if (spec.base && spec.base !== name && this.variables.has(spec.base)) {
+			return this.variables.get(spec.base);
+		}
 		return undefined;
 	}
 
@@ -54,13 +56,6 @@ export abstract class Formatter {
 
 	private shouldMirrorToAlias(spec: VariableNameSpec): boolean {
 		return !spec.isOptionList && spec.base.length > 0 && spec.base !== spec.canonical;
-	}
-
-	private extractBaseVariableName(name: string): string | null {
-		const atIndex = name.indexOf("@");
-		if (atIndex === -1) return null;
-		const base = name.substring(0, atIndex).trim();
-		return base.length > 0 ? base : null;
 	}
 
 	

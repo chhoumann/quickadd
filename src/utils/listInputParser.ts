@@ -35,7 +35,7 @@ export function parseListInput(
   }
 
   if (strategy === "csv") {
-    return { items: splitByDelimiter(normalized, ",") };
+    return { items: splitByDelimiterBracketAware(normalized, ",") };
   }
 
   // JSON array detection (allows scripts to seed defaults like ["a", "b"])
@@ -60,12 +60,12 @@ export function parseListInput(
   }
 
   if (normalized.includes("|")) {
-    const items = splitByDelimiter(normalized, "|");
+    const items = splitByDelimiterBracketAware(normalized, "|");
     if (items.length > 1) return { items };
   }
 
   if (normalized.includes(",")) {
-    const items = splitByDelimiter(normalized, ",");
+    const items = splitByDelimiterBracketAware(normalized, ",");
     if (items.length > 1) return { items };
   }
 
@@ -86,6 +86,11 @@ export function createListVariable(items: string[]): string[] {
   return result;
 }
 
+/**
+ * Splits input by delimiter and filters out empty entries.
+ * For example, "a, , b" becomes ["a", "b"], not ["a", "", "b"].
+ * This ensures clean list output while allowing flexible user input.
+ */
 function splitByDelimiter(input: string, delimiter: string): string[] {
   const escaped = delimiter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const regex = new RegExp(`\\s*${escaped}\\s*`);
@@ -93,6 +98,58 @@ function splitByDelimiter(input: string, delimiter: string): string[] {
     .split(regex)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+/**
+ * Splits input by delimiter while respecting Obsidian bracket syntax.
+ * Delimiters inside [[wiki-links]] are ignored to prevent splitting
+ * file names like "[[note, part 2]]" into separate items.
+ *
+ * Examples:
+ * - "[[test, a]], [[foo]]" → ["[[test, a]]", "[[foo]]"]
+ * - "alpha, beta" → ["alpha", "beta"]
+ */
+function splitByDelimiterBracketAware(input: string, delimiter: string): string[] {
+  const items: string[] = [];
+  let current = "";
+  let bracketDepth = 0;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const nextChar = input[i + 1];
+
+    // Track opening brackets [[
+    if (char === "[" && nextChar === "[") {
+      bracketDepth++;
+      current += char + nextChar;
+      i++; // Skip the next bracket
+      continue;
+    }
+
+    // Track closing brackets ]]
+    if (char === "]" && nextChar === "]") {
+      bracketDepth--;
+      current += char + nextChar;
+      i++; // Skip the next bracket
+      continue;
+    }
+
+    // Split on delimiter only when not inside brackets
+    if (char === delimiter && bracketDepth === 0) {
+      const trimmed = current.trim();
+      if (trimmed) items.push(trimmed);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  // Add the last item
+  const trimmed = current.trim();
+  if (trimmed) items.push(trimmed);
+
+  return items;
 }
 
 function splitByNewlines(input: string): string[] {
