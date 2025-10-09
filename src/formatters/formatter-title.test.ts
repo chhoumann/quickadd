@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Formatter } from './formatter';
+import { getVariableValueAsString } from './test-utils';
 
 // Create a test implementation of the abstract Formatter class
 class TestFormatter extends Formatter {
@@ -18,9 +19,7 @@ class TestFormatter extends Formatter {
     }
 
     protected getVariableValue(variableName: string): string {
-        const value = this.getResolvedVariableValue(variableName);
-        if (value === undefined || value === null) return "";
-        return typeof value === "string" ? value : value.toString();
+        return getVariableValueAsString(this.variables, variableName);
     }
 
     protected suggestForValue(): string {

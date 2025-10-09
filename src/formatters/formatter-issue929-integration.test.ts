@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Formatter } from './formatter';
+import { getVariableValueAsString } from './test-utils';
 
 // Integration test that exactly reproduces issue #929 scenario
 class CaptureFormatterTest extends Formatter {
     private scriptVariables: Map<string, unknown> = new Map();
-    
+
     protected async format(input: string): Promise<string> {
         // Simulate complete formatting pipeline
         let output = input;
@@ -28,9 +29,7 @@ class CaptureFormatterTest extends Formatter {
     }
 
     protected getVariableValue(variableName: string): string {
-        const value = this.getResolvedVariableValue(variableName);
-        if (value === undefined || value === null) return "";
-        return typeof value === "string" ? value : value.toString();
+        return getVariableValueAsString(this.variables, variableName);
     }
 
     protected suggestForValue(): string {

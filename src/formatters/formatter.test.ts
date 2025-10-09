@@ -1,32 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { getVariableValueAsString, hasConcreteVariable } from './test-utils';
 
 // Create a test implementation of the abstract Formatter class
 class TestFormatter {
     protected variables: Map<string, unknown> = new Map();
     private promptCalled = false;
 
-    private getResolvedVariableValue(variableName: string): unknown {
-        if (this.variables.has(variableName)) return this.variables.get(variableName);
-        const atIndex = variableName.indexOf("@");
-        if (atIndex !== -1) {
-            const base = variableName.substring(0, atIndex);
-            if (this.variables.has(base)) return this.variables.get(base);
-        }
-        return undefined;
-    }
-
     protected getVariableValue(variableName: string): string {
-        // This is the fix we're testing
-        const value = this.getResolvedVariableValue(variableName);
-        if (value === undefined || value === null) return "";
-        return typeof value === "string" ? value : value.toString();
+        return getVariableValueAsString(this.variables, variableName);
     }
 
-    /** Returns true when a variable is present AND its value is neither undefined nor null.  
-     *  An empty string is considered a valid, intentional value. */
     protected hasConcreteVariable(name: string): boolean {
-        const value = this.getResolvedVariableValue(name);
-        return value !== undefined && value !== null;
+        return hasConcreteVariable(this.variables, name);
     }
 
     protected async promptForVariable(variableName: string): Promise<string> {
