@@ -136,6 +136,7 @@ projects: {{VALUE:projects@list(delimiter=;)}}
 - Prompting `tags@list` with `research, design, delivery` yields `tags: [research, design, delivery]`.
 - Bullet-style input such as `- item one` on separate lines is normalized automatically.
 - Use `@list(delimiter=;)` or `@list(csv)` to control how values are split when needed.
+- **Obsidian syntax is preserved**: wiki-links like `[[note, part 2]]` are treated as single items even when they contain commas, preventing incorrect splitting.
 
 The rendered note will contain real list properties, and scripts can continue to seed `QuickAdd.variables.tags` with either arrays or delimiter separated strings depending on your workflow.
 
