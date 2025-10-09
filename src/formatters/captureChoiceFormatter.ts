@@ -5,10 +5,10 @@ import {
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
-import { log } from "../logger/logManager";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
+import { getFrontmatterEndLine } from "../utils/frontmatterUtils";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
 
@@ -85,15 +85,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return (await this.insertAfterHandler(formatted)) as string;
 		}
 
-		const frontmatterEndPosition = this.file
-			? this.getFrontmatterEndPosition(this.file)
-			: null;
-		if (!frontmatterEndPosition) return `${formatted}${this.fileContent}`;
+		const frontmatterEndPosition = this.getFrontmatterEndPosition(
+			this.file,
+			this.fileContent,
+		);
+		if (frontmatterEndPosition === null) return `${formatted}${this.fileContent}`;
 
 		return this.insertTextAfterPositionInBody(
 			formatted,
 			this.fileContent,
-
 			frontmatterEndPosition,
 		);
 	}
@@ -199,13 +199,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			const frontmatterEndPosition = this.file
-				? this.getFrontmatterEndPosition(this.file)
-				: -1;
+			const frontmatterEndPosition = this.getFrontmatterEndPosition(
+				this.file,
+				this.fileContent,
+			);
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
 				this.fileContent,
-
 				frontmatterEndPosition,
 			);
 		}
@@ -262,29 +262,33 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private getFrontmatterEndPosition(file: TFile) {
-		const fileCache = this.app.metadataCache.getFileCache(file);
+	private getFrontmatterEndPosition(
+		file: TFile | null,
+		content: string,
+	): number | null {
+		if (file) {
+			const fileCache = this.app.metadataCache.getFileCache(file);
 
-		if (!fileCache || !fileCache.frontmatter) {
-			log.logMessage("could not get frontmatter. Maybe there isn't any.");
-			return -1;
+			if (fileCache?.frontmatterPosition) {
+				return fileCache.frontmatterPosition.end.line;
+			}
+
+			if (fileCache?.frontmatter) {
+				const derived = getFrontmatterEndLine(content);
+				if (derived !== null) return derived;
+			}
 		}
 
-		if (fileCache.frontmatterPosition) {
-			return fileCache.frontmatterPosition.end.line;
-		}
-
-		return -1;
+		const derivedFromContent = getFrontmatterEndLine(content);
+		return derivedFromContent;
 	}
 
 	private insertTextAfterPositionInBody(
 		text: string,
 		body: string,
-		pos: number,
+		pos: number | null,
 	): string {
-		if (pos === -1) {
-			// For the case that there is no frontmatter and we're adding to the top of the file.
-			// We already add a linebreak for the task in CaptureChoiceEngine.tsx in getCapturedContent.
+		if (pos === null || pos === -1) {
 			const shouldAddLinebreak = !this.choice.task;
 			return `${text}${shouldAddLinebreak ? "\n" : ""}${body}`;
 		}
