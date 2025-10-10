@@ -48,7 +48,7 @@ export class RequirementCollector extends Formatter {
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
 	) {
-		super();
+		super(app);
 		this.dateParser = NLDParser;
 		if (choiceExecutor) {
 			// Use a shallow copy to avoid mutating the executor's live variables

@@ -1,7 +1,12 @@
+import type { App } from 'obsidian';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Formatter } from './formatter';
 
 class TemplatePropertyTypesTestFormatter extends Formatter {
+	constructor(app?: App) {
+		super(app);
+	}
+
 	protected async format(input: string): Promise<string> {
 		return await this.replaceVariableInString(input);
 	}
@@ -62,9 +67,23 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 
 describe('Formatter template property type inference', () => {
 	let formatter: TemplatePropertyTypesTestFormatter;
+	let app: App;
+
+	const createMockApp = (typeMap: Record<string, string>): App => {
+		return {
+			metadataCache: {
+				app: {
+					metadataTypeManager: {
+						getTypeInfo: (key: string) => ({ expected: { type: typeMap[key] } }),
+					},
+				},
+			},
+		} as unknown as App;
+	};
 
 	beforeEach(() => {
-		formatter = new TemplatePropertyTypesTestFormatter();
+		app = createMockApp({ tags: 'tags', projects: 'multitext', description: 'text' });
+		formatter = new TemplatePropertyTypesTestFormatter(app);
 	});
 
 	it('collects comma-separated values as YAML arrays', async () => {
@@ -72,6 +91,13 @@ describe('Formatter template property type inference', () => {
 		await formatter.testFormat('---\ntags: {{VALUE:tags}}\n---');
 		const vars = formatter.getAndClearTemplatePropertyVars();
 		expect(vars.get('tags')).toEqual(['tag1', 'tag2', 'awesomeproject']);
+	});
+
+	it('does not collect comma text for scalar properties', async () => {
+		(formatter as any).variables.set('description', 'Hello, world');
+		await formatter.testFormat('---\ndescription: {{VALUE:description}}\n---');
+		const vars = formatter.getAndClearTemplatePropertyVars();
+		expect(vars.has('description')).toBe(false);
 	});
 
 	it('collects bullet list values as YAML arrays', async () => {

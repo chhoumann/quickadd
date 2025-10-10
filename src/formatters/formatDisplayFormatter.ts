@@ -20,7 +20,7 @@ export class FormatDisplayFormatter extends Formatter {
 		private plugin: QuickAdd,
 		dateParser?: IDateParser
 	) {
-		super();
+		super(app);
 		this.dateParser = dateParser || NLDParser;
 	}
 

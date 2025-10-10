@@ -1,3 +1,4 @@
+import type { App } from "obsidian";
 import {
 	DATE_REGEX,
 	DATE_REGEX_FORMATTED,
@@ -22,7 +23,6 @@ import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
-import { parseStructuredPropertyValueFromString } from "../utils/templatePropertyStringParser";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -31,9 +31,13 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
-	
+
 	// Tracks variables collected for YAML property post-processing
-	private propertyCollector: TemplatePropertyCollector = new TemplatePropertyCollector();
+	private readonly propertyCollector: TemplatePropertyCollector;
+
+	protected constructor(protected readonly app?: App) {
+		this.propertyCollector = new TemplatePropertyCollector(app);
+	}
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -247,17 +251,13 @@ export abstract class Formatter {
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(variableName);
-			const structuredValue =
-				propertyTypesEnabled && typeof rawValue === "string"
-					? parseStructuredPropertyValueFromString(rawValue) ?? rawValue
-					: rawValue;
 
 			// Offer this variable to the property collector for YAML post-processing
 			this.propertyCollector.maybeCollect({
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
-				rawValue: structuredValue,
+				rawValue,
 				fallbackKey: variableName,
 				featureEnabled: propertyTypesEnabled,
 			});

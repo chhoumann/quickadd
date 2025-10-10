@@ -275,31 +275,30 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return fileCache.frontmatterPosition.end.line;
 		}
 
-		if (!fileCache || !fileCache.frontmatter) {
-			log.logMessage("could not get frontmatter. Maybe there isn't any.");
-		}
-
-		if (!fallbackContent) return -1;
-
-		const yamlRange = findYamlFrontMatterRange(fallbackContent);
-		if (!yamlRange) return -1;
-
-		const [start, end] = yamlRange;
-		// Extract only the YAML block (range includes opening delimiter through closing)
-		const frontmatterBlock = fallbackContent.slice(start, end);
-		const lines = frontmatterBlock.split(/\r?\n/);
-
-		for (let i = lines.length - 1; i >= 0; i--) {
-			const trimmed = lines[i].trim();
-			if (trimmed.length === 0) continue;
-			if (trimmed === "---" || trimmed === "...") {
-				return i;
+		if (fallbackContent) {
+			const inferred = this.inferFrontmatterEndLineFromContent(fallbackContent);
+			if (inferred !== null) {
+				return inferred;
 			}
-			// If we can't find a delimiter but have content, treat current line as end
-			return i;
 		}
 
+		log.logMessage("could not get frontmatter. Maybe there isn't any.");
 		return -1;
+	}
+
+	private inferFrontmatterEndLineFromContent(content: string): number | null {
+		const yamlRange = findYamlFrontMatterRange(content);
+		if (!yamlRange) return null;
+
+		const prefix = content.slice(0, yamlRange[1]);
+		const lines = prefix.split(/\r?\n/);
+		if (lines.length === 0) return null;
+
+		if (prefix.endsWith("\n")) {
+			return lines.length - 2;
+		}
+
+		return lines.length - 1;
 	}
 
 	private insertTextAfterPositionInBody(
