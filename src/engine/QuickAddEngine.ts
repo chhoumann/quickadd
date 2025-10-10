@@ -3,6 +3,7 @@ import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
 import { coerceYamlValue } from "../utils/yamlValues";
+import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 
 /**
  * Configuration for structured variable validation
@@ -270,7 +271,9 @@ export abstract class QuickAddEngine {
 
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				for (const [key, value] of templatePropertyVars) {
-					const pathSegments = key.split('.').filter(Boolean);
+					const pathSegments = key.includes(TemplatePropertyCollector.PATH_SEPARATOR)
+						? key.split(TemplatePropertyCollector.PATH_SEPARATOR)
+						: [key];
 					const coerced = coerceYamlValue(value);
 					this.assignFrontmatterValue(frontmatter, pathSegments, coerced);
 				}

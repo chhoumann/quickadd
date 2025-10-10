@@ -5,6 +5,8 @@ import {
 	type ParseOptions,
 } from "./templatePropertyStringParser";
 
+const PATH_SEPARATOR = "\u0000";
+
 type CollectArgs = {
   input: string;
   matchStart: number;
@@ -68,7 +70,7 @@ export class TemplatePropertyCollector {
         structuredValue === null);
     if (!isStructured) return;
 
-    const mapKey = propertyPath.join('.');
+    const mapKey = propertyPath.join(PATH_SEPARATOR);
     this.map.set(mapKey, structuredValue);
   }
 
@@ -163,4 +165,6 @@ export class TemplatePropertyCollector {
     this.propertyTypeCache.set(propertyKey, normalized);
     return normalized;
   }
+
+  public static readonly PATH_SEPARATOR = PATH_SEPARATOR;
 }

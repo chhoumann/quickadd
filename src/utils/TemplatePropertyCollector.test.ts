@@ -136,6 +136,7 @@ describe("TemplatePropertyCollector", () => {
     });
 
     const result = collector.drain();
-    expect(result.get("project.sources")).toEqual(['alpha', 'beta']);
+    const key = ['project', 'sources'].join(TemplatePropertyCollector.PATH_SEPARATOR);
+    expect(result.get(key)).toEqual(['alpha', 'beta']);
   });
 });
