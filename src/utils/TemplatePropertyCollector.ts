@@ -36,25 +36,24 @@ export class TemplatePropertyCollector {
     const trimmedLine = lineContent.trim();
 
     const propertyKeyMatch = lineContent.match(/^\s*([^:]+):/);
-    let propertyKey = propertyKeyMatch ? propertyKeyMatch[1].trim() : fallbackKey;
+    const fallbackPathKey = propertyKeyMatch ? propertyKeyMatch[1].trim() : fallbackKey;
 
     const listItemPattern = /^-\s*['"]?\{\{VALUE:[^}]+\}\}['"]?\s*$/i;
-    let isListContext = false;
+    let propertyPath: string[] | null = null;
 
-    if (!context.isKeyValuePosition && listItemPattern.test(trimmedLine)) {
-      const parentKey = this.findListParentKey(input, context.lineStart, context.baseIndent ?? "");
-      if (parentKey) {
-        propertyKey = parentKey;
-        isListContext = true;
-      }
+    if (context.isKeyValuePosition) {
+      propertyPath = [fallbackPathKey];
+    } else if (listItemPattern.test(trimmedLine)) {
+      propertyPath = this.findListParentPath(input, context.lineStart, context.baseIndent ?? "");
     }
 
-    if (!context.isKeyValuePosition && !isListContext) return;
+    if (!propertyPath || propertyPath.length === 0) return;
+    const effectiveKey = propertyPath[propertyPath.length - 1];
 
     let structuredValue = rawValue;
 
     if (typeof rawValue === "string") {
-      const parsed = parseStructuredPropertyValueFromString(rawValue, this.buildParseOptions(propertyKey));
+      const parsed = parseStructuredPropertyValueFromString(rawValue, this.buildParseOptions(effectiveKey));
       if (parsed !== undefined) {
         structuredValue = parsed;
       }
@@ -69,7 +68,8 @@ export class TemplatePropertyCollector {
         structuredValue === null);
     if (!isStructured) return;
 
-    this.map.set(propertyKey, structuredValue);
+    const mapKey = propertyPath.join('.');
+    this.map.set(mapKey, structuredValue);
   }
 
   /** Returns a copy and clears the collector. */
@@ -87,8 +87,10 @@ export class TemplatePropertyCollector {
     };
   }
 
-  private findListParentKey(input: string, currentLineStart: number, currentIndent: string): string | null {
+  private findListParentPath(input: string, currentLineStart: number, currentIndent: string): string[] | null {
     let endIndex = currentLineStart - 1;
+    const path: string[] = [];
+    let targetIndent = currentIndent.length;
 
     while (endIndex >= 0) {
       const lineBreak = input.lastIndexOf("\n", endIndex);
@@ -113,15 +115,21 @@ export class TemplatePropertyCollector {
       const keyMatch = line.match(/^(\s*)([^:\n]+):/);
       if (keyMatch) {
         const indent = keyMatch[1] ?? "";
-        if (currentIndent.length >= indent.length) {
-          return keyMatch[2].trim();
+        const indentLength = indent.length;
+
+        if (indentLength < targetIndent) {
+          path.unshift(keyMatch[2].trim());
+          targetIndent = indentLength;
+          if (targetIndent === 0) {
+            break;
+          }
         }
       }
 
       endIndex = lineStart - 2;
     }
 
-    return null;
+    return path.length > 0 ? path : null;
   }
 
   private resolvePropertyType(propertyKey: string): string | null {

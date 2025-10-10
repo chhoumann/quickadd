@@ -270,8 +270,9 @@ export abstract class QuickAddEngine {
 
 			await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
 				for (const [key, value] of templatePropertyVars) {
-					// coerceYamlValue handles the @date:ISO -> Date conversion
-					frontmatter[key] = coerceYamlValue(value);
+					const pathSegments = key.split('.').filter(Boolean);
+					const coerced = coerceYamlValue(value);
+					this.assignFrontmatterValue(frontmatter, pathSegments, coerced);
 				}
 			});
 
@@ -286,5 +287,19 @@ export abstract class QuickAddEngine {
 			);
 			// Don't throw - the file was still created successfully
 		}
+	}
+
+	private assignFrontmatterValue(frontmatter: Record<string, unknown>, path: string[], value: unknown): void {
+		if (path.length === 0) return;
+		let target = frontmatter;
+		for (let i = 0; i < path.length - 1; i++) {
+			const segment = path[i];
+			const existing = target[segment];
+			if (typeof existing !== 'object' || existing === null || Array.isArray(existing)) {
+				target[segment] = {};
+			}
+			target = target[segment] as Record<string, unknown>;
+		}
+		target[path[path.length - 1]] = value;
 	}
 }

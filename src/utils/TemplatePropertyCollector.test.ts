@@ -114,4 +114,28 @@ describe("TemplatePropertyCollector", () => {
     expect(result.get("sources")).toEqual(["[[alpha]]", "[[beta]]"]);
     expect(result.has("description")).toBe(false);
   });
+
+  it("records full path for nested list variables", () => {
+    const nestedYaml = `---\n` +
+      `project:\n` +
+      `  sources:\n` +
+      `    - "{{VALUE:sources}}"\n` +
+      `---\n`;
+
+    const app = createMockApp({ sources: "multitext" });
+    const collector = new TemplatePropertyCollector(app);
+
+    const [start, end] = idxRange(nestedYaml, "{{VALUE:sources}}");
+    collector.maybeCollect({
+      input: nestedYaml,
+      matchStart: start,
+      matchEnd: end,
+      rawValue: "alpha, beta",
+      fallbackKey: "sources",
+      featureEnabled: true,
+    });
+
+    const result = collector.drain();
+    expect(result.get("project.sources")).toEqual(['alpha', 'beta']);
+  });
 });
