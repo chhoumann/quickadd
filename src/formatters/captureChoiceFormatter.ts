@@ -11,6 +11,7 @@ import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
+import { findYamlFrontMatterRange } from "../utils/yamlContext";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
@@ -86,9 +87,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const frontmatterEndPosition = this.file
-			? this.getFrontmatterEndPosition(this.file)
+			? this.getFrontmatterEndPosition(this.file, this.fileContent)
 			: null;
-		if (!frontmatterEndPosition) return `${formatted}${this.fileContent}`;
+		if (
+			frontmatterEndPosition === null ||
+			frontmatterEndPosition === undefined ||
+			frontmatterEndPosition < 0
+		)
+			return `${formatted}${this.fileContent}`;
 
 		return this.insertTextAfterPositionInBody(
 			formatted,
@@ -200,7 +206,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			CREATE_IF_NOT_FOUND_TOP
 		) {
 			const frontmatterEndPosition = this.file
-				? this.getFrontmatterEndPosition(this.file)
+				? this.getFrontmatterEndPosition(this.file, this.fileContent)
 				: -1;
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
@@ -262,19 +268,37 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private getFrontmatterEndPosition(file: TFile) {
+	private getFrontmatterEndPosition(file: TFile, fallbackContent?: string) {
 		const fileCache = this.app.metadataCache.getFileCache(file);
 
-		if (!fileCache || !fileCache.frontmatter) {
-			log.logMessage("could not get frontmatter. Maybe there isn't any.");
-			return -1;
-		}
-
-		if (fileCache.frontmatterPosition) {
+		if (fileCache?.frontmatterPosition) {
 			return fileCache.frontmatterPosition.end.line;
 		}
 
+		if (fallbackContent) {
+			const inferred = this.inferFrontmatterEndLineFromContent(fallbackContent);
+			if (inferred !== null) {
+				return inferred;
+			}
+		}
+
+		log.logMessage("could not get frontmatter. Maybe there isn't any.");
 		return -1;
+	}
+
+	private inferFrontmatterEndLineFromContent(content: string): number | null {
+		const yamlRange = findYamlFrontMatterRange(content);
+		if (!yamlRange) return null;
+
+		const prefix = content.slice(0, yamlRange[1]);
+		const lines = prefix.split(/\r?\n/);
+		if (lines.length === 0) return null;
+
+		if (prefix.endsWith("\n")) {
+			return lines.length - 2;
+		}
+
+		return lines.length - 1;
 	}
 
 	private insertTextAfterPositionInBody(

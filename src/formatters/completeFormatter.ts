@@ -37,7 +37,7 @@ export class CompleteFormatter extends Formatter {
 		protected choiceExecutor?: IChoiceExecutor,
 		dateParser?: IDateParser,
 	) {
-		super();
+		super(app);
 		this.dateParser = dateParser || NLDParser;
 		if (choiceExecutor) {
 			this.variables = choiceExecutor?.variables;

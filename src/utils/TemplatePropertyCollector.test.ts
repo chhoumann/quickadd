@@ -1,3 +1,4 @@
+import type { App } from "obsidian";
 import { describe, expect, it } from "vitest";
 import { TemplatePropertyCollector } from "./TemplatePropertyCollector";
 
@@ -5,6 +6,18 @@ function idxRange(haystack: string, needle: string): [number, number] {
   const start = haystack.indexOf(needle);
   if (start === -1) throw new Error("needle not found");
   return [start, start + needle.length];
+}
+
+function createMockApp(typeMap: Record<string, string>): App {
+  return {
+    metadataCache: {
+      app: {
+        metadataTypeManager: {
+          getTypeInfo: (key: string) => ({ expected: { type: typeMap[key] } }),
+        },
+      },
+    },
+  } as unknown as App;
 }
 
 describe("TemplatePropertyCollector", () => {
@@ -65,5 +78,65 @@ describe("TemplatePropertyCollector", () => {
     const result = c.drain();
     expect(result.get("authors")).toEqual(["J"]);
     expect(result.get("year")).toBe(2024);
+  });
+
+  it("collects list variables using parent key context", () => {
+    const listYaml = `---\n` +
+      `sources:\n` +
+      `  - "{{VALUE:sources}}"\n` +
+      `description: "{{VALUE:description}}"\n` +
+      `---\n`;
+
+    const app = createMockApp({ sources: "multitext", description: "text" });
+    const collector = new TemplatePropertyCollector(app);
+
+    const [sourcesStart, sourcesEnd] = idxRange(listYaml, "{{VALUE:sources}}");
+    collector.maybeCollect({
+      input: listYaml,
+      matchStart: sourcesStart,
+      matchEnd: sourcesEnd,
+      rawValue: "[[alpha]], [[beta]]",
+      fallbackKey: "sources",
+      featureEnabled: true,
+    });
+
+    const [descStart, descEnd] = idxRange(listYaml, "{{VALUE:description}}");
+    collector.maybeCollect({
+      input: listYaml,
+      matchStart: descStart,
+      matchEnd: descEnd,
+      rawValue: "Hello, world",
+      fallbackKey: "description",
+      featureEnabled: true,
+    });
+
+    const result = collector.drain();
+    expect(result.get("sources")).toEqual(["[[alpha]]", "[[beta]]"]);
+    expect(result.has("description")).toBe(false);
+  });
+
+  it("records full path for nested list variables", () => {
+    const nestedYaml = `---\n` +
+      `project:\n` +
+      `  sources:\n` +
+      `    - "{{VALUE:sources}}"\n` +
+      `---\n`;
+
+    const app = createMockApp({ sources: "multitext" });
+    const collector = new TemplatePropertyCollector(app);
+
+    const [start, end] = idxRange(nestedYaml, "{{VALUE:sources}}");
+    collector.maybeCollect({
+      input: nestedYaml,
+      matchStart: start,
+      matchEnd: end,
+      rawValue: "alpha, beta",
+      fallbackKey: "sources",
+      featureEnabled: true,
+    });
+
+    const result = collector.drain();
+    const key = ['project', 'sources'].join(TemplatePropertyCollector.PATH_SEPARATOR);
+    expect(result.get(key)).toEqual(['alpha', 'beta']);
   });
 });

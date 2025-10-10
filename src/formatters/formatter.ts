@@ -1,3 +1,4 @@
+import type { App } from "obsidian";
 import {
 	DATE_REGEX,
 	DATE_REGEX_FORMATTED,
@@ -30,9 +31,13 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
-	
+
 	// Tracks variables collected for YAML property post-processing
-	private propertyCollector: TemplatePropertyCollector = new TemplatePropertyCollector();
+	private readonly propertyCollector: TemplatePropertyCollector;
+
+	protected constructor(protected readonly app?: App) {
+		this.propertyCollector = new TemplatePropertyCollector(app);
+	}
 
 	protected abstract format(input: string): Promise<string>;
 	
@@ -207,6 +212,7 @@ export abstract class Formatter {
 	protected async replaceVariableInString(input: string) {
 		let output = input;
 		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
+		const propertyTypesEnabled = this.isTemplatePropertyTypesEnabled();
 		let match: RegExpExecArray | null;
 
 		while ((match = regex.exec(output)) !== null) {
@@ -245,18 +251,16 @@ export abstract class Formatter {
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(variableName);
-			
 
-
-		// Offer this variable to the property collector for YAML post-processing
-		this.propertyCollector.maybeCollect({
-			input: output,
-			matchStart: match.index,
-			matchEnd: match.index + match[0].length,
-			rawValue,
-			fallbackKey: variableName,
-			featureEnabled: this.isTemplatePropertyTypesEnabled(),
-		});
+			// Offer this variable to the property collector for YAML post-processing
+			this.propertyCollector.maybeCollect({
+				input: output,
+				matchStart: match.index,
+				matchEnd: match.index + match[0].length,
+				rawValue,
+				fallbackKey: variableName,
+				featureEnabled: propertyTypesEnabled,
+			});
 
 			// Always use string replacement initially
 			const replacement = this.getVariableValue(variableName);
