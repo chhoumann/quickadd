@@ -11,6 +11,7 @@ import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
+import { findYamlFrontMatterRange } from "../utils/yamlContext";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
@@ -86,9 +87,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const frontmatterEndPosition = this.file
-			? this.getFrontmatterEndPosition(this.file)
+			? this.getFrontmatterEndPosition(this.file, this.fileContent)
 			: null;
-		if (!frontmatterEndPosition) return `${formatted}${this.fileContent}`;
+		if (
+			frontmatterEndPosition === null ||
+			frontmatterEndPosition === undefined ||
+			frontmatterEndPosition < 0
+		)
+			return `${formatted}${this.fileContent}`;
 
 		return this.insertTextAfterPositionInBody(
 			formatted,
@@ -200,7 +206,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			CREATE_IF_NOT_FOUND_TOP
 		) {
 			const frontmatterEndPosition = this.file
-				? this.getFrontmatterEndPosition(this.file)
+				? this.getFrontmatterEndPosition(this.file, this.fileContent)
 				: -1;
 			return this.insertTextAfterPositionInBody(
 				insertAfterLineAndFormatted,
@@ -262,16 +268,35 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private getFrontmatterEndPosition(file: TFile) {
+	private getFrontmatterEndPosition(file: TFile, fallbackContent?: string) {
 		const fileCache = this.app.metadataCache.getFileCache(file);
+
+		if (fileCache?.frontmatterPosition) {
+			return fileCache.frontmatterPosition.end.line;
+		}
 
 		if (!fileCache || !fileCache.frontmatter) {
 			log.logMessage("could not get frontmatter. Maybe there isn't any.");
-			return -1;
 		}
 
-		if (fileCache.frontmatterPosition) {
-			return fileCache.frontmatterPosition.end.line;
+		if (!fallbackContent) return -1;
+
+		const yamlRange = findYamlFrontMatterRange(fallbackContent);
+		if (!yamlRange) return -1;
+
+		const [start, end] = yamlRange;
+		// Extract only the YAML block (range includes opening delimiter through closing)
+		const frontmatterBlock = fallbackContent.slice(start, end);
+		const lines = frontmatterBlock.split(/\r?\n/);
+
+		for (let i = lines.length - 1; i >= 0; i--) {
+			const trimmed = lines[i].trim();
+			if (trimmed.length === 0) continue;
+			if (trimmed === "---" || trimmed === "...") {
+				return i;
+			}
+			// If we can't find a delimiter but have content, treat current line as end
+			return i;
 		}
 
 		return -1;
