@@ -22,6 +22,7 @@ import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
+import { parseStructuredPropertyValueFromString } from "../utils/templatePropertyStringParser";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -207,6 +208,7 @@ export abstract class Formatter {
 	protected async replaceVariableInString(input: string) {
 		let output = input;
 		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
+		const propertyTypesEnabled = this.isTemplatePropertyTypesEnabled();
 		let match: RegExpExecArray | null;
 
 		while ((match = regex.exec(output)) !== null) {
@@ -245,18 +247,20 @@ export abstract class Formatter {
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(variableName);
-			
+			const structuredValue =
+				propertyTypesEnabled && typeof rawValue === "string"
+					? parseStructuredPropertyValueFromString(rawValue) ?? rawValue
+					: rawValue;
 
-
-		// Offer this variable to the property collector for YAML post-processing
-		this.propertyCollector.maybeCollect({
-			input: output,
-			matchStart: match.index,
-			matchEnd: match.index + match[0].length,
-			rawValue,
-			fallbackKey: variableName,
-			featureEnabled: this.isTemplatePropertyTypesEnabled(),
-		});
+			// Offer this variable to the property collector for YAML post-processing
+			this.propertyCollector.maybeCollect({
+				input: output,
+				matchStart: match.index,
+				matchEnd: match.index + match[0].length,
+				rawValue: structuredValue,
+				fallbackKey: variableName,
+				featureEnabled: propertyTypesEnabled,
+			});
 
 			// Always use string replacement initially
 			const replacement = this.getVariableValue(variableName);
