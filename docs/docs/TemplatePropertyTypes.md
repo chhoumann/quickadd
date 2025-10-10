@@ -122,6 +122,18 @@ Content here...
 | **Null** | Null literal | `null` → `null` |
 | **String** | String (unchanged) | `"text"` → `text` |
 
+### Respecting Obsidian Property Types
+
+QuickAdd now looks at the type you've assigned in Obsidian’s *Properties* UI for each field and formats the value accordingly:
+
+- **`tags` / multi-select (`multitext`) / list** → strings such as `foo, bar` or bullet items become proper arrays.
+- **Scalar types** (`text`, `number`, `date`, `datetime`, `checkbox`) stay as single values, even if the text contains commas or line breaks.
+- **Unknown type** → falls back to the v2.0 behaviour (we’ll still split obvious arrays like YAML lists or JSON arrays).
+
+This means you can safely type natural prose like `Hello, world` into a `description` prompt without QuickAdd turning it into a YAML list, while `sources` marked as a multi-value property will still receive a properly formatted array.
+
+> ℹ️ Tip: open the Properties panel in Obsidian and set the property type once. QuickAdd will pick it up automatically on the next run.
+
 ### Complex Nested Structures
 
 The feature supports deeply nested data:
@@ -265,6 +277,34 @@ project:
     - name: Development
       complete: false
   deadline: "2023-12-01"
+```
+
+## Captures & Fresh Templates
+
+When a capture choice creates a new file, QuickAdd now analyses the just-generated front matter instead of relying on cached metadata. The capture payload is inserted **after** the closing `---`, so YAML stays at the top of the note even on first run.
+
+For list-style placeholders inside the front matter, QuickAdd resolves the parent property and respects the type you set in Obsidian:
+
+```yaml
+---
+sources:
+  - "{{VALUE:sources}}"
+description: "{{VALUE:description}}"
+---
+```
+
+| Property type (in Obsidian) | Behaviour |
+| --------------------------- | --------- |
+| `multitext`, `tags`, `list` | `sources` becomes a YAML array (`- value`) using your prompt input. |
+| `text`, `number`, `checkbox`, `date`, `datetime` | Values remain scalars; commas or line breaks no longer force list formatting. |
+
+Example output:
+
+```yaml
+sources:
+  - [[Episode 1]]
+  - [[Episode 2]]
+description: This stays a single string, even with commas.
 ```
 
 ## Feedback & Support
