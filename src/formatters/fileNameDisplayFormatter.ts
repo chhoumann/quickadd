@@ -16,9 +16,9 @@ import type QuickAdd from "../main";
 
 export class FileNameDisplayFormatter extends Formatter {
 	constructor(
-		private app: App,
-		private plugin?: QuickAdd,
-		dateParser?: IDateParser
+		app: App,
+		private readonly plugin?: QuickAdd,
+		dateParser?: IDateParser,
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
@@ -72,7 +72,8 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getVariableExample(variableName);
 	}
 
-	protected getCurrentFileLink() {
+	protected getCurrentFileLink(): string | null {
+		if (!this.app) return null;
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 

@@ -3,6 +3,10 @@ import { Formatter } from './formatter';
 
 // Test implementation for issue #929 reproduction
 class Issue929TestFormatter extends Formatter {
+    constructor() {
+        super();
+    }
+
     protected async format(input: string): Promise<string> {
         let output = input;
         output = await this.replaceVariableInString(output);

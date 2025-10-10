@@ -4,6 +4,10 @@ import { Formatter } from "./formatter";
 type Behavior = Parameters<Formatter["setLinkToCurrentFileBehavior"]>[0];
 
 class StubFormatter extends Formatter {
+  constructor() {
+    super();
+  }
+
   private link: string | null = null;
 
   protected async format(input: string): Promise<string> {

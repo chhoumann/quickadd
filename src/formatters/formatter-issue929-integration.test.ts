@@ -3,6 +3,10 @@ import { Formatter } from './formatter';
 
 // Integration test that exactly reproduces issue #929 scenario
 class CaptureFormatterTest extends Formatter {
+    constructor() {
+        super();
+    }
+
     private scriptVariables: Map<string, unknown> = new Map();
     
     protected async format(input: string): Promise<string> {

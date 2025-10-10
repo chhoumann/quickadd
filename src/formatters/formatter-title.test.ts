@@ -3,6 +3,10 @@ import { Formatter } from './formatter';
 
 // Create a test implementation of the abstract Formatter class
 class TestFormatter extends Formatter {
+    constructor() {
+        super();
+    }
+
     protected async format(input: string): Promise<string> {
         let output = input;
         output = this.replaceTitleInString(output);

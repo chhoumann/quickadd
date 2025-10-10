@@ -16,9 +16,9 @@ import {
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
-		private app: App, 
-		private plugin: QuickAdd,
-		dateParser?: IDateParser
+		app: App,
+		private readonly plugin: QuickAdd,
+		dateParser?: IDateParser,
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
@@ -75,7 +75,8 @@ export class FormatDisplayFormatter extends Formatter {
 		return getVariableExample(variableName);
 	}
 
-	protected getCurrentFileLink() {
+	protected getCurrentFileLink(): string | null {
+		if (!this.app) return null;
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 
@@ -99,12 +100,17 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
+		const app = this.app;
+		if (!app) {
+			return `Template (app unavailable): ${templatePath}`;
+		}
+
 		try {
 			return await new SingleTemplateEngine(
-				this.app,
+				app,
 				this.plugin,
 				templatePath,
-				undefined
+				undefined,
 			).run();
 		} catch {
 			return `Template (not found): ${templatePath}`;

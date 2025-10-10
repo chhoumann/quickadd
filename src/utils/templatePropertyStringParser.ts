@@ -12,7 +12,6 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 	let current = "";
 	const stack: string[] = [];
 	let quote: string | null = null;
-	let prev = "";
 
 	for (let i = 0; i < value.length; i++) {
 		const char = value[i];
@@ -28,21 +27,18 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 					quote = null;
 				}
 			}
-			prev = char;
 			continue;
 		}
 
 		if (char === '"' || char === "'") {
 			quote = char;
 			current += char;
-			prev = char;
 			continue;
 		}
 
 		if (char in OPEN_TO_CLOSE) {
 			stack.push(OPEN_TO_CLOSE[char]);
 			current += char;
-			prev = char;
 			continue;
 		}
 
@@ -52,7 +48,6 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 				stack.pop();
 			}
 			current += char;
-			prev = char;
 			continue;
 		}
 
@@ -60,12 +55,10 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 			const trimmed = current.trim();
 			if (trimmed.length > 0) segments.push(trimmed);
 			current = "";
-			prev = char;
 			continue;
 		}
 
 		current += char;
-		prev = char;
 	}
 
 	const trimmed = current.trim();
