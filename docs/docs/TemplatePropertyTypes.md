@@ -132,7 +132,6 @@ QuickAdd now looks at the type you've assigned in Obsidian’s *Properties* UI f
 
 This means you can safely type natural prose like `Hello, world` into a `description` prompt without QuickAdd turning it into a YAML list, while `sources` marked as a multi-value property will still receive a properly formatted array.
 
-
 ### Complex Nested Structures
 
 The feature supports deeply nested data:
