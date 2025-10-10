@@ -55,4 +55,10 @@ describe('templatePropertyStringParser', () => {
 		const result = parseStructuredPropertyValueFromString('["tag1", "tag2"]');
 		expect(result).toEqual(['tag1', 'tag2']);
 	});
+
+	it('splitTopLevel handles escaped quotes within quoted segments', () => {
+		const segments = splitTopLevel('"value with \\"quote\\" inside", "second"');
+		const expectedFirst = "\"value with \\\"quote\\\" inside\"";
+		expect(segments).toEqual([expectedFirst, '"second"']);
+	});
 });

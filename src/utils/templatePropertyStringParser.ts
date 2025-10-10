@@ -19,8 +19,14 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 
 		if (quote) {
 			current += char;
-			if (char === quote && prev !== "\\") {
-				quote = null;
+			if (char === quote) {
+				let backslashCount = 0;
+				for (let j = i - 1; j >= 0 && value[j] === "\\"; j--) {
+					backslashCount++;
+				}
+				if (backslashCount % 2 === 0) {
+					quote = null;
+				}
 			}
 			prev = char;
 			continue;
