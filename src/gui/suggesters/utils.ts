@@ -69,7 +69,7 @@ export function highlightMatches(text: string, query: string): string {
 	const escapedText = escapeHtml(text);
 	const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(`(${escapedQuery})`, 'gi');
-	return escapedText.replace(regex, '<mark>$1</mark>');
+	return escapedText.replace(regex, '<mark class="qa-highlight">$1</mark>');
 }
 
 /**
@@ -85,7 +85,7 @@ export function highlightFuzzyMatches(text: string, query: string): string {
 	
 	for (let i = 0; i < textChars.length && queryIndex < queryChars.length; i++) {
 		if (textChars[i].toLowerCase() === queryChars[queryIndex]) {
-			textChars[i] = `<mark>${textChars[i]}</mark>`;
+			textChars[i] = `<mark class="qa-highlight">${textChars[i]}</mark>`;
 			queryIndex++;
 		}
 	}

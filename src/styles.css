@@ -465,3 +465,12 @@ input.is-invalid,
 textarea.is-invalid {
 	box-shadow: 0 0 0 1px var(--text-error);
 }
+
+/* Suggestion highlighting */
+.qa-highlight {
+	background-color: var(--text-selection);
+	color: var(--text-normal);
+	font-weight: 600;
+	padding: 0;
+	border-radius: 2px;
+}
