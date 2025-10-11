@@ -4,7 +4,7 @@ title: Zettelizer
 
 ![Zettelizer Demo](../Images/zettelizer_demo.gif)
 
-You can get the `.js` file for this userscript [here](/scripts/zettelizer.js).
+You can get the `.js` file for this userscript <a href="/scripts/zettelizer.js" download>here</a>.
 To install it, you can follow the same process as in the [fetch tasks from Todoist example - with video](./Capture_FetchTasksFromTodoist.md).
 
 ## Setup

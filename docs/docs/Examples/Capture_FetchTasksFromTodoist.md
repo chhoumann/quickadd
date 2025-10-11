@@ -7,7 +7,7 @@ You will also need to set it up with your API key.
 
 This is very useful for capturing tasks on the go with your phone, and then adding them to Obsidian when you get back to your computer.
 
-You will need to set up a [macro](../Choices/MacroChoice.md) with the [Todoist Script](/scripts/TodoistScript.js).
+You will need to set up a [macro](../Choices/MacroChoice.md) with the <a href="/scripts/TodoistScript.js" download>Todoist Script</a>.
 
 The script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProject`, and `GetAllTasksFromSection`.
 
