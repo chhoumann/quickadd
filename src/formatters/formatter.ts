@@ -232,22 +232,28 @@ export abstract class Formatter {
 
 			// Ensure variable is set (prompt if needed)
 			if (!this.hasConcreteVariable(variableName)) {
-				const suggestedValues = variableName.split(",");
-				let variableValue = "";
+			const suggestedValues = variableName.split(",");
+			let variableValue = "";
+			let actualDefaultValue = defaultValue;
 
-				if (suggestedValues.length === 1) {
-					variableValue = await this.promptForVariable(variableName);
-				} else {
-					variableValue = await this.suggestForValue(suggestedValues);
-				}
-
-				// Use default value if no input provided
-				if (!variableValue && defaultValue) {
-					variableValue = defaultValue;
-				}
-
-				this.variables.set(variableName, variableValue);
+			if (suggestedValues.length === 1) {
+			 variableValue = await this.promptForVariable(variableName);
+			} else {
+			// Check if defaultValue contains the |custom modifier
+			const allowCustomInput = defaultValue.toLowerCase() === "custom";
+			// If custom modifier is present, don't use it as default value
+			actualDefaultValue = allowCustomInput ? "" : defaultValue;
+			
+				variableValue = await this.suggestForValue(suggestedValues, allowCustomInput);
 			}
+
+			// Use default value if no input provided (applies to both prompt and suggester)
+			if (!variableValue && actualDefaultValue) {
+			 variableValue = actualDefaultValue;
+			}
+
+			 this.variables.set(variableName, variableValue);
+		}
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(variableName);
@@ -343,6 +349,7 @@ export abstract class Formatter {
 
 	protected abstract suggestForValue(
 		suggestedValues: string[],
+		allowCustomInput?: boolean,
 	): Promise<string> | string;
 
 	protected abstract suggestForField(variableName: string): Promise<string>;

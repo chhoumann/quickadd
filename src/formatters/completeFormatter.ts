@@ -199,8 +199,15 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	protected async suggestForValue(suggestedValues: string[]) {
+	protected async suggestForValue(suggestedValues: string[], allowCustomInput = false) {
 		try {
+			if (allowCustomInput) {
+				return await InputSuggester.Suggest(
+					this.app,
+					suggestedValues,
+					suggestedValues,
+				);
+			}
 			return await GenericSuggester.Suggest(
 				this.app,
 				suggestedValues,

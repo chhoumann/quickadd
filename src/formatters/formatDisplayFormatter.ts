@@ -80,7 +80,7 @@ export class FormatDisplayFormatter extends Formatter {
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
 	}
 
-	protected suggestForValue(suggestedValues: string[]) {
+	protected suggestForValue(suggestedValues: string[], allowCustomInput = false) {
 		return getSuggestionPreview(suggestedValues);
 	}
 

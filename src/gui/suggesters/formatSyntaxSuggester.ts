@@ -245,6 +245,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				suggestions.push(
 					...globals.map((name) => `{{GLOBAL_VAR:${name}}}`)
 				);
+			} else if (tokenDef.token === FormatSyntaxToken.Variable) {
+				// Add example suggestions for VALUE with and without custom modifier
+				suggestions.push(
+					"{{VALUE:option1,option2,option3}}",
+					"{{VALUE:option1,option2,option3|custom}}"
+				);
 			}
 		}
 
