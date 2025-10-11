@@ -121,5 +121,15 @@ describe("Suggester Utils", () => {
 			const result = highlightFuzzyMatches("Hello World", "");
 			expect(result).toBe("Hello World");
 		});
+
+		it("should escape HTML entities correctly", () => {
+			const result = highlightFuzzyMatches("R&D", "&");
+			expect(result).toBe('R<mark class="qa-highlight">&amp;</mark>D');
+		});
+
+		it("should handle HTML tags safely", () => {
+			const result = highlightFuzzyMatches("<img src=x>", "i");
+			expect(result).toBe('&lt;<mark class="qa-highlight">i</mark>mg src=x&gt;');
+		});
 	});
 });
