@@ -6,7 +6,7 @@ title: "Template - My Book Notes template"
 
 #### Installation
 
-Here's a video guide for [installing user scripts in QuickAdd](https://github.com/chhoumann/quickadd/blob/master/docs/Examples/Capture_FetchTasksFromTodoist.md#installation-video).
+Here's a video guide for [installing user scripts in QuickAdd](https://github.com/chhoumann/quickadd/blob/master/docs/docs/Examples/Capture_FetchTasksFromTodoist.md#installation-video).
 
 Basically, you'll want to create a new JavaScript file (file extension is `.js`) with the contents of the script. Then, in the script, you see the `YOUR_READWISE_TOKEN`, which is where you'll want to insert your Readwise token (find it [here](https://readwise.io/access_token)).
 
