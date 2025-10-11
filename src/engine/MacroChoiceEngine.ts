@@ -43,6 +43,7 @@ import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
+import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -163,6 +164,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		// @ts-ignore
 		if (userScript.settings) {
+			// Initialize default values for settings before executing the script
+			// @ts-ignore
+			initializeUserScriptSettings(command.settings, userScript.settings);
 			this.userScriptCommand = command;
 		}
 
