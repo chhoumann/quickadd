@@ -92,7 +92,9 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		this.valueHeader = valueHeader;
-		return await this.format(input);
+		let output = await this.format(input);
+		output = await this.replaceCurrentFileNameInString(output);
+		return output;
 	}
 
 	async formatFileContent(input: string): Promise<string> {
@@ -100,6 +102,7 @@ export class CompleteFormatter extends Formatter {
 
 		output = await this.format(output);
 		output = await this.replaceLinkToCurrentFileInString(output);
+		output = await this.replaceCurrentFileNameInString(output);
 		output = this.replaceTitleInString(output);
 
 		return output;
@@ -125,6 +128,7 @@ export class CompleteFormatter extends Formatter {
 	protected async formatLocationString(input: string): Promise<string> {
 		let output = await this.format(input);
 		output = await this.replaceLinkToCurrentFileInString(output);
+		output = await this.replaceCurrentFileNameInString(output);
 		output = this.replaceTitleInString(output);
 		return output;
 	}
@@ -134,6 +138,13 @@ export class CompleteFormatter extends Formatter {
 		if (!currentFile) return null;
 
 		return this.app.fileManager.generateMarkdownLink(currentFile, "");
+	}
+
+	protected getCurrentFileName(): string | null {
+		const currentFile = this.app.workspace.getActiveFile();
+		if (!currentFile) return null;
+
+		return currentFile.basename;
 	}
 
 	protected getVariableValue(variableName: string): string {

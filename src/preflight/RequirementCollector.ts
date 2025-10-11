@@ -281,6 +281,9 @@ export class RequirementCollector extends Formatter {
 	protected getCurrentFileLink(): string | null {
 		return null;
 	}
+	protected getCurrentFileName(): string | null {
+		return null;
+	}
 	protected async getMacroValue(_macroName: string): Promise<string> {
 		return "";
 	}

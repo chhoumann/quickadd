@@ -31,6 +31,10 @@ class CaptureFormatterTest extends Formatter {
         return null;
     }
 
+    protected getCurrentFileName(): string | null {
+        return null;
+    }
+
     protected getVariableValue(variableName: string): string {
         return (this.variables.get(variableName) as string) ?? "";
     }

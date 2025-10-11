@@ -8,18 +8,18 @@ class StubFormatter extends Formatter {
     super();
   }
 
-  private link: string | null = null;
+  private filename: string | null = null;
 
   protected async format(input: string): Promise<string> {
     return input;
   }
 
   protected getCurrentFileLink(): string | null {
-    return this.link;
+    return null;
   }
 
   protected getCurrentFileName(): string | null {
-    return null;
+    return this.filename;
   }
 
   protected async promptForValue(): Promise<string> {
@@ -63,15 +63,15 @@ class StubFormatter extends Formatter {
   }
 
   protected isTemplatePropertyTypesEnabled(): boolean {
-    return false; // Test formatter doesn't need structured YAML variable handling
+    return false;
   }
 
-  public setLink(link: string | null) {
-    this.link = link;
+  public setFilename(filename: string | null) {
+    this.filename = filename;
   }
 
   public async process(input: string): Promise<string> {
-    return await this.replaceLinkToCurrentFileInString(input);
+    return await this.replaceCurrentFileNameInString(input);
   }
 
   public setBehavior(behavior: Behavior) {
@@ -79,27 +79,43 @@ class StubFormatter extends Formatter {
   }
 }
 
-describe("Formatter link to current file behavior", () => {
+describe("Formatter filename of current file behavior", () => {
   it("throws when required and no active file", async () => {
     const formatter = new StubFormatter();
-    formatter.setLink(null);
-    await expect(formatter.process("{{LINKCURRENT}}"))
-      .rejects.toThrow("Unable to get current file path");
+    formatter.setFilename(null);
+    await expect(formatter.process("{{FILENAMECURRENT}}"))
+      .rejects.toThrow("Unable to get current file name");
   });
 
   it("silently strips placeholder when optional and no active file", async () => {
     const formatter = new StubFormatter();
     formatter.setBehavior("optional");
-    formatter.setLink(null);
-    await expect(formatter.process("Before {{LINKCURRENT}} after"))
+    formatter.setFilename(null);
+    await expect(formatter.process("Before {{FILENAMECURRENT}} after"))
       .resolves.toBe("Before  after");
   });
 
   it("replaces placeholder when active file available", async () => {
     const formatter = new StubFormatter();
     formatter.setBehavior("optional");
-    formatter.setLink("[[Note]]");
-    await expect(formatter.process("Link: {{LINKCURRENT}}"))
-      .resolves.toBe("Link: [[Note]]");
+    formatter.setFilename("My Note");
+    await expect(formatter.process("Filename: {{FILENAMECURRENT}}"))
+      .resolves.toBe("Filename: My Note");
+  });
+
+  it("handles case-insensitive replacement", async () => {
+    const formatter = new StubFormatter();
+    formatter.setBehavior("optional");
+    formatter.setFilename("Current File");
+    await expect(formatter.process("Name: {{filenamecurrent}}"))
+      .resolves.toBe("Name: Current File");
+  });
+
+  it("replaces multiple occurrences", async () => {
+    const formatter = new StubFormatter();
+    formatter.setBehavior("optional");
+    formatter.setFilename("Document");
+    await expect(formatter.process("{{FILENAMECURRENT}} - Copy of {{FILENAMECURRENT}}"))
+      .resolves.toBe("Document - Copy of Document");
   });
 });

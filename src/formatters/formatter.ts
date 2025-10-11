@@ -4,6 +4,7 @@ import {
 	DATE_REGEX_FORMATTED,
 	DATE_VARIABLE_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
+	FILE_NAME_OF_CURRENT_FILE_REGEX,
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
@@ -193,6 +194,33 @@ export abstract class Formatter {
 		return output;
 	}
 
+	protected async replaceCurrentFileNameInString(
+		input: string,
+	): Promise<string> {
+		const currentFileName = this.getCurrentFileName();
+		let output = input;
+
+		if (!currentFileName && FILE_NAME_OF_CURRENT_FILE_REGEX.test(output)) {
+			if (this.linkToCurrentFileBehavior === "required") {
+				throw new Error("Unable to get current file name. Make sure you have a file open in the editor.");
+			}
+			log.logMessage("Skipping {{FILENAMECURRENT}} replacement because no active file is available.");
+			while (FILE_NAME_OF_CURRENT_FILE_REGEX.test(output)) {
+				output = this.replacer(output, FILE_NAME_OF_CURRENT_FILE_REGEX, "");
+			}
+			return output;
+		} else if (!currentFileName) return output;
+
+		while (FILE_NAME_OF_CURRENT_FILE_REGEX.test(output))
+			output = this.replacer(
+				output,
+				FILE_NAME_OF_CURRENT_FILE_REGEX,
+				currentFileName,
+			);
+
+		return output;
+	}
+
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
 		this.linkToCurrentFileBehavior = behavior;
 	}
@@ -206,6 +234,7 @@ export abstract class Formatter {
 	}
 
 	protected abstract getCurrentFileLink(): string | null;
+	protected abstract getCurrentFileName(): string | null;
 
 
 

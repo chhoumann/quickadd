@@ -91,6 +91,13 @@ export function getCurrentFileLinkPreview(activeFile?: {basename: string, path: 
 }
 
 /**
+ * Gets a current filename preview
+ */
+export function getCurrentFileNamePreview(activeFile?: {basename: string} | null): string {
+	return activeFile?.basename || "current_filename";
+}
+
+/**
  * Enhanced date format preview generator with comprehensive pattern support
  */
 export class DateFormatPreviewGenerator {

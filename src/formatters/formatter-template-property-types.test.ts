@@ -19,6 +19,10 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 		return null;
 	}
 
+	protected getCurrentFileName(): string | null {
+		return null;
+	}
+
 	protected getVariableValue(variableName: string): string {
 		const value = this.variables.get(variableName);
 		return typeof value === 'string' ? value : '';
