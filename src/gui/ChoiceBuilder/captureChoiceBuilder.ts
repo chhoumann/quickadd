@@ -1,11 +1,5 @@
-import type { App } from "obsidian";
-import {
-	Notice,
-	Setting,
-	TextAreaComponent,
-	TextComponent,
-	ToggleComponent,
-} from "obsidian";
+import type { App, TextComponent } from "obsidian";
+import { Notice, Setting, ToggleComponent } from "obsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -18,8 +12,8 @@ import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type { LinkPlacement } from "../../types/linkPlacement";
 import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
+import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
@@ -109,14 +103,44 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const captureToFileContainer: HTMLDivElement =
 				captureToContainer.createDiv("captureToFileContainer");
 
-			// Preview row
+			new Setting(captureToFileContainer)
+				.setName("File path / format")
+				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})");
+
+			const displayFormatter: FileNameDisplayFormatter =
+				new FileNameDisplayFormatter(this.app, this.plugin);
+
 			const previewRow = captureToFileContainer.createDiv({ cls: "qa-preview-row" });
 			previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 			const formatDisplay = previewRow.createEl("span");
 			formatDisplay.setAttr("aria-live", "polite");
-			const displayFormatter: FileNameDisplayFormatter =
-				new FileNameDisplayFormatter(this.app, this.plugin);
 			formatDisplay.textContent = "Loading preview…";
+
+			const markdownFilesAndFormatSyntax = [
+				...this.app.vault.getMarkdownFiles().map((f) => f.path),
+				...FILE_NAME_FORMAT_SYNTAX,
+			];
+
+			createValidatedInput({
+				app: this.app,
+				parent: captureToFileContainer,
+				initialValue: this.choice.captureTo,
+				placeholder: "File name format",
+				suggestions: markdownFilesAndFormatSyntax,
+				maxSuggestions: 50,
+				attachSuggesters: [
+					(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
+				],
+				onChange: async (value) => {
+					this.choice.captureTo = value;
+					try {
+						formatDisplay.textContent = await displayFormatter.format(value);
+					} catch {
+						formatDisplay.textContent = "Preview unavailable";
+					}
+				},
+			});
+
 			void (async () => {
 				try {
 					formatDisplay.textContent = await displayFormatter.format(
@@ -126,34 +150,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					formatDisplay.textContent = "Preview unavailable";
 				}
 			})();
-
-			// Search input using idiomatic Obsidian Setting
-			new Setting(captureToFileContainer)
-				.setName("File path / format")
-				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})")
-				.addSearch((search) => {
-					search.setValue(this.choice.captureTo);
-					search.setPlaceholder("File name format");
-					const markdownFilesAndFormatSyntax = [
-						...this.app.vault.getMarkdownFiles().map((f) => f.path),
-						...FILE_NAME_FORMAT_SYNTAX,
-					];
-					new GenericTextSuggester(
-						this.app,
-						search.inputEl,
-						markdownFilesAndFormatSyntax,
-						50,
-					);
-					search.onChange(async (value) => {
-						this.choice.captureTo = value;
-						try {
-							formatDisplay.textContent = await displayFormatter.format(value);
-						} catch {
-							formatDisplay.textContent = "Preview unavailable";
-						}
-					});
-					new FormatSyntaxSuggester(this.app, search.inputEl, this.plugin);
-				});
 		}
 	}
 
@@ -326,29 +322,44 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addInsertAfterFields() {
-		// Build a desc fragment with static help + live preview
-		const descFragment = document.createDocumentFragment();
-		const descText = document.createElement("div");
-		descText.textContent =
+		const descText =
 			"Insert capture after specified line. Accepts format syntax. Tip: use a heading (starts with #) to target a section.";
-		descFragment.appendChild(descText);
 
-		const previewRow = document.createElement("div");
-		previewRow.classList.add("qa-preview-row");
-		const previewLabel = document.createElement("span");
-		previewLabel.textContent = "Preview: ";
-		previewLabel.classList.add("qa-preview-label");
-		const previewValue = document.createElement("span");
-		previewValue.setAttribute("aria-live", "polite");
-		previewRow.appendChild(previewLabel);
-		previewRow.appendChild(previewValue);
-		descFragment.appendChild(previewRow);
+		new Setting(this.contentEl)
+			.setName("Insert after")
+			.setDesc(descText);
 
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
 			this.plugin,
 		);
+
+		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+		const previewValue = previewRow.createEl("span");
+		previewValue.setAttribute("aria-live", "polite");
 		previewValue.innerText = "Loading preview…";
+
+		createValidatedInput({
+			app: this.app,
+			parent: this.contentEl,
+			initialValue: this.choice.insertAfter.after,
+			placeholder: "Insert after",
+			required: true,
+			requiredMessage: "Insert after line is required",
+			attachSuggesters: [
+				(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
+			],
+			onChange: async (value) => {
+				this.choice.insertAfter.after = value;
+				try {
+					previewValue.innerText = await displayFormatter.format(value);
+				} catch {
+					previewValue.innerText = "Preview unavailable";
+				}
+			},
+		});
+
 		void (async () => {
 			try {
 				previewValue.innerText = await displayFormatter.format(
@@ -358,24 +369,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				previewValue.innerText = "Preview unavailable";
 			}
 		})();
-
-		new Setting(this.contentEl)
-			.setName("Insert after")
-			.setDesc(descFragment)
-			.addText((text) => {
-				text.setPlaceholder("Insert after");
-				text.inputEl.style.width = "100%";
-				text.setValue(this.choice.insertAfter.after).onChange(async (value) => {
-					this.choice.insertAfter.after = value;
-					try {
-						previewValue.innerText = await displayFormatter.format(value);
-					} catch {
-						previewValue.innerText = "Preview unavailable";
-					}
-				});
-
-				new FormatSyntaxSuggester(this.app, text.inputEl, this.plugin);
-			});
 
 		const insertAtEndSetting: Setting = new Setting(this.contentEl);
 		insertAtEndSetting
@@ -450,7 +443,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFormatSetting() {
-		let textField: TextAreaComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
 			.setName("Capture format")
@@ -460,39 +452,45 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.setValue(this.choice.format.enabled)
 					.onChange((value) => {
 						this.choice.format.enabled = value;
-						textField.setDisabled(!value);
+						formatHandle.setDisabled(!value);
+						formatHandle.setRequired(value);
 					});
 			});
 
-		const formatInput = new TextAreaComponent(this.contentEl);
-		formatInput.setPlaceholder("Format");
-		textField = formatInput;
-		formatInput.inputEl.style.width = "100%";
-		formatInput.inputEl.style.marginBottom = "8px";
-		formatInput.inputEl.style.height = "10rem";
-		formatInput.inputEl.style.minHeight = "10rem";
-		formatInput
-			.setValue(this.choice.format.format)
-			.setDisabled(!this.choice.format.enabled);
-
-		formatInput.onChange(async (value) => {
-			this.choice.format.format = value;
-			try {
-				formatDisplay.innerText = await displayFormatter.format(value);
-			} catch {
-				formatDisplay.innerText = "Preview unavailable";
-			}
-		});
-
-		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin);
-
-		const formatDisplay: HTMLSpanElement = this.contentEl.createEl("span");
-		formatDisplay.setAttr("aria-live", "polite");
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
 			this.plugin,
 		);
+
+		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+		const formatDisplay = previewRow.createEl("span");
+		formatDisplay.setAttr("aria-live", "polite");
 		formatDisplay.innerText = "Loading preview…";
+
+		const formatHandle = createValidatedInput({
+			app: this.app,
+			parent: this.contentEl,
+			inputKind: "textarea",
+			initialValue: this.choice.format.format,
+			placeholder: "Format",
+			required: this.choice.format.enabled,
+			requiredMessage: "Capture format is required when enabled",
+			attachSuggesters: [
+				(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
+			],
+			onChange: async (value) => {
+				this.choice.format.format = value;
+				try {
+					formatDisplay.innerText = await displayFormatter.format(value);
+				} catch {
+					formatDisplay.innerText = "Preview unavailable";
+				}
+			},
+		});
+
+		formatHandle.setDisabled(!this.choice.format.enabled);
+
 		void (async () => {
 			try {
 				formatDisplay.innerText = await displayFormatter.format(
@@ -540,27 +538,31 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					}),
 			);
 
-		templateSelector = new TextComponent(this.contentEl);
-		templateSelector
-			.setValue(this.choice?.createFileIfItDoesntExist?.template ?? "")
-			.setPlaceholder("Template path")
-			.setDisabled(!this.choice?.createFileIfItDoesntExist?.createWithTemplate);
-
-		templateSelector.inputEl.style.width = "100%";
-		templateSelector.inputEl.style.marginBottom = "8px";
-
 		const templateFilePaths: string[] = this.plugin
 			.getTemplateFiles()
 			.map((f) => f.path);
-		new GenericTextSuggester(
-			this.app,
-			templateSelector.inputEl,
-			templateFilePaths,
-			50,
+
+		const templateSelectorHandle = createValidatedInput({
+			app: this.app,
+			parent: this.contentEl,
+			initialValue: this.choice?.createFileIfItDoesntExist?.template ?? "",
+			placeholder: "Template path",
+			suggestions: templateFilePaths,
+			maxSuggestions: 50,
+			validator: (raw) => {
+				const v = raw.trim();
+				if (!v) return true;
+				return templateFilePaths.includes(v) || "Template not found";
+			},
+			onChange: (value) => {
+				this.choice.createFileIfItDoesntExist.template = value;
+			},
+		});
+
+		templateSelectorHandle.setDisabled(
+			!this.choice?.createFileIfItDoesntExist?.createWithTemplate,
 		);
 
-		templateSelector.onChange((value) => {
-			this.choice.createFileIfItDoesntExist.template = value;
-		});
+		templateSelector = templateSelectorHandle.component as TextComponent;
 	}
 }

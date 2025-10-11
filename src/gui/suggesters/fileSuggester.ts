@@ -238,9 +238,13 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				const headingQuery = this.lastInput.includes('#')
 					? this.lastInput.split('#')[1]
 					: '';
-				mainText = headingQuery && heading.toLowerCase().includes(headingQuery.toLowerCase())
-					? this.renderMatch(heading, headingQuery)
-					: heading;
+				if (headingQuery && heading.toLowerCase().includes(headingQuery.toLowerCase())) {
+					const tempEl = document.createElement('span');
+					this.renderMatch(tempEl, heading, headingQuery);
+					mainText = tempEl.innerHTML;
+				} else {
+					mainText = heading;
+				}
 				subText = fileName; // Show source file name
 				pill = '<span class="qa-suggestion-pill qa-heading-pill">H</span>';
 				break;

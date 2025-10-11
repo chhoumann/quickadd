@@ -3,7 +3,7 @@ import { createPopper } from "@popperjs/core";
 import type { App, ISuggestOwner } from "obsidian";
 import { debounce, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
-import { highlightMatches } from "./utils";
+import { renderExactHighlight } from "./utils";
 
 const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
@@ -190,8 +190,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private focusEventListener: () => void;
 
 	// Highlighting function - can be overridden
-	protected renderMatch: (text: string, query: string) => string =
-		highlightMatches;
+	protected renderMatch: (el: HTMLElement, text: string, query: string) => void =
+		renderExactHighlight;
 
 	constructor(app: App, inputEl: HTMLInputElement | HTMLTextAreaElement) {
 		// Manage per-input map of suggesters keyed by their class name

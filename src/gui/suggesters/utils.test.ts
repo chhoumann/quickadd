@@ -3,8 +3,8 @@ import {
 	insertAtCursor, 
 	replaceRange, 
 	getTextBeforeCursor, 
-	highlightMatches, 
-	highlightFuzzyMatches 
+	renderExactHighlight, 
+	renderFuzzyHighlight 
 } from "./utils";
 
 // Mock HTMLInputElement for testing
@@ -89,37 +89,70 @@ describe("Suggester Utils", () => {
 		});
 	});
 
-	describe("highlightMatches", () => {
+	describe("renderExactHighlight", () => {
 		it("should highlight exact matches", () => {
-			const result = highlightMatches("Hello World", "World");
-			expect(result).toBe("Hello <mark>World</mark>");
+			const el = document.createElement("div");
+			renderExactHighlight(el, "Hello World", "World");
+			expect(el.innerHTML).toBe('Hello <mark class="qa-highlight">World</mark>');
 		});
 
 		it("should be case-insensitive", () => {
-			const result = highlightMatches("Hello World", "world");
-			expect(result).toBe("Hello <mark>World</mark>");
+			const el = document.createElement("div");
+			renderExactHighlight(el, "Hello World", "world");
+			expect(el.innerHTML).toBe('Hello <mark class="qa-highlight">World</mark>');
 		});
 
 		it("should return original text when no query", () => {
-			const result = highlightMatches("Hello World", "");
-			expect(result).toBe("Hello World");
+			const el = document.createElement("div");
+			renderExactHighlight(el, "Hello World", "");
+			expect(el.textContent).toBe("Hello World");
+		});
+
+		it("should handle XSS attempts safely", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "<script>alert(1)</script>", "alert");
+			expect(el.textContent).toContain("<script>");
+			expect(el.innerHTML).toContain("&lt;script&gt;");
+		});
+
+		it("should handle HTML entities correctly", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "R&D", "&");
+			expect(el.textContent).toBe("R&D");
 		});
 	});
 
-	describe("highlightFuzzyMatches", () => {
+	describe("renderFuzzyHighlight", () => {
 		it("should highlight individual matching characters", () => {
-			const result = highlightFuzzyMatches("Hello World", "HW");
-			expect(result).toBe("<mark>H</mark>ello <mark>W</mark>orld");
+			const el = document.createElement("div");
+			renderFuzzyHighlight(el, "Hello World", "HW");
+			expect(el.innerHTML).toBe('<mark class="qa-highlight">H</mark>ello <mark class="qa-highlight">W</mark>orld');
 		});
 
 		it("should be case-insensitive", () => {
-			const result = highlightFuzzyMatches("Hello World", "hw");
-			expect(result).toBe("<mark>H</mark>ello <mark>W</mark>orld");
+			const el = document.createElement("div");
+			renderFuzzyHighlight(el, "Hello World", "hw");
+			expect(el.innerHTML).toBe('<mark class="qa-highlight">H</mark>ello <mark class="qa-highlight">W</mark>orld');
 		});
 
 		it("should return original text when no query", () => {
-			const result = highlightFuzzyMatches("Hello World", "");
-			expect(result).toBe("Hello World");
+			const el = document.createElement("div");
+			renderFuzzyHighlight(el, "Hello World", "");
+			expect(el.textContent).toBe("Hello World");
+		});
+
+		it("should handle HTML entities correctly", () => {
+			const el = document.createElement("div");
+			renderFuzzyHighlight(el, "R&D", "&");
+			expect(el.textContent).toBe("R&D");
+			expect(el.innerHTML).toBe('R<mark class="qa-highlight">&amp;</mark>D');
+		});
+
+		it("should handle XSS attempts safely", () => {
+			const el = document.createElement("div");
+			renderFuzzyHighlight(el, "<img src=x>", "i");
+			expect(el.textContent).toContain("<img");
+			expect(el.innerHTML).toBe('&lt;<mark class="qa-highlight">i</mark>mg src=x&gt;');
 		});
 	});
 });

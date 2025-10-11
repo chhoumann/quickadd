@@ -20,9 +20,9 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type { LinkPlacement } from "../../types/linkPlacement";
 import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 import FolderList from "./FolderList.svelte";
 
@@ -70,20 +70,28 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private addTemplatePathSetting(): void {
 		new Setting(this.contentEl)
 			.setName("Template Path")
-			.setDesc("Path to the Template.")
-			.addSearch((search) => {
-				const templates: string[] = this.plugin
-					.getTemplateFiles()
-					.map((f) => f.path);
-				search.setValue(this.choice.templatePath);
-				search.setPlaceholder("Template path");
+			.setDesc("Path to the Template.");
 
-				new GenericTextSuggester(this.app, search.inputEl, templates, 50);
+		const templates: string[] = this.plugin
+			.getTemplateFiles()
+			.map((f) => f.path);
 
-				search.onChange((value) => {
-					this.choice.templatePath = value;
-				});
-			});
+		createValidatedInput({
+			app: this.app,
+			parent: this.contentEl,
+			initialValue: this.choice.templatePath,
+			placeholder: "Template path",
+			suggestions: templates,
+			maxSuggestions: 50,
+			validator: (raw) => {
+				const v = raw.trim();
+				if (!v) return true;
+				return templates.includes(v) || "Template not found";
+			},
+			onChange: (value) => {
+				this.choice.templatePath = value;
+			},
+		});
 	}
 
 	private addFileNameFormatSetting(): void {

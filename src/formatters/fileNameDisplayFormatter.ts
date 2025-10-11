@@ -45,7 +45,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			return input;
 		}
 
-		return `Preview: ${output}`;
+		return output;
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {

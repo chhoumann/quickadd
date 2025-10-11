@@ -52,34 +52,59 @@ export function getTextBeforeCursor(
 }
 
 /**
- * Default highlighting function that wraps matching text in <mark> tags
+ * Render exact match highlighting with DOM nodes (XSS-safe, handles HTML entities correctly)
  */
-export function highlightMatches(text: string, query: string): string {
-	if (!query) return text;
-	
-	const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const regex = new RegExp(`(${escapedQuery})`, 'gi');
-	return text.replace(regex, '<mark>$1</mark>');
+export function renderExactHighlight(el: HTMLElement, text: string, query: string): void {
+	el.replaceChildren();
+	if (!query) {
+		el.textContent = text;
+		return;
+	}
+
+	const lower = text.toLowerCase();
+	const q = query.toLowerCase();
+	let from = 0;
+	let idx = lower.indexOf(q, from);
+
+	while (idx !== -1) {
+		if (idx > from) el.append(document.createTextNode(text.slice(from, idx)));
+
+		const mark = document.createElement('mark');
+		mark.className = 'qa-highlight';
+		mark.textContent = text.slice(idx, idx + query.length);
+		el.append(mark);
+
+		from = idx + query.length;
+		idx = lower.indexOf(q, from);
+	}
+
+	if (from < text.length) el.append(document.createTextNode(text.slice(from)));
 }
 
 /**
- * Fuzzy match highlighting - highlights individual matching characters
+ * Render fuzzy match highlighting with DOM nodes (XSS-safe, handles HTML entities correctly)
  */
-export function highlightFuzzyMatches(text: string, query: string): string {
-	if (!query) return text;
-	
-	const queryChars = query.toLowerCase().split('');
-	const textChars = text.split('');
-	let queryIndex = 0;
-	
-	for (let i = 0; i < textChars.length && queryIndex < queryChars.length; i++) {
-		if (textChars[i].toLowerCase() === queryChars[queryIndex]) {
-			textChars[i] = `<mark>${textChars[i]}</mark>`;
-			queryIndex++;
+export function renderFuzzyHighlight(el: HTMLElement, text: string, query: string): void {
+	el.replaceChildren();
+	if (!query) {
+		el.textContent = text;
+		return;
+	}
+
+	const q = query.toLowerCase();
+	let qi = 0;
+
+	for (const ch of text) {
+		if (qi < q.length && ch.toLowerCase() === q[qi]) {
+			const mark = document.createElement('mark');
+			mark.className = 'qa-highlight';
+			mark.textContent = ch;
+			el.append(mark);
+			qi++;
+		} else {
+			el.append(document.createTextNode(ch));
 		}
 	}
-	
-	return textChars.join('');
 }
 
 /**

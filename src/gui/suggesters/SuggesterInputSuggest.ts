@@ -62,7 +62,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
-		el.innerHTML = this.renderMatch(item, this.getCurrentQuery());
+		this.renderMatch(el, item, this.getCurrentQuery());
 	}
 
 	selectSuggestion(item: string): void {
