@@ -552,6 +552,22 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const templateFilePaths: string[] = this.plugin
 			.getTemplateFiles()
 			.map((f) => f.path);
+
+		const hint = templateSelector.inputEl.parentElement?.createDiv({ cls: "qa-field-hint" });
+		hint?.setAttr("aria-live", "polite");
+		hint?.setAttr("id", "qa-create-template-path-hint");
+		templateSelector.inputEl.setAttribute("aria-describedby", "qa-create-template-path-hint");
+
+		const validate = (raw: string) => {
+			const v = raw.trim();
+			const isValid = v.length === 0 || templateFilePaths.includes(v);
+			const showError = v.length > 0 && !isValid;
+
+			templateSelector.inputEl.toggleClass("is-invalid", showError);
+			templateSelector.inputEl.setAttribute("aria-invalid", String(showError));
+			if (hint) hint.textContent = showError ? "Template not found" : "";
+		};
+
 		new GenericTextSuggester(
 			this.app,
 			templateSelector.inputEl,
@@ -559,8 +575,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			50,
 		);
 
+		validate(this.choice?.createFileIfItDoesntExist?.template ?? "");
+
 		templateSelector.onChange((value) => {
 			this.choice.createFileIfItDoesntExist.template = value;
+			validate(value);
 		});
 	}
 }

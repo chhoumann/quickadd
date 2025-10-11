@@ -15,7 +15,7 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 		const inputLowerCase: string = inputStr.toLowerCase();
 
 		const filtered = this.items.filter((item) => {
-			if (item.toLowerCase().contains(inputLowerCase)) return item;
+			return item.toLowerCase().includes(inputLowerCase);
 		});
 
 		if (!filtered) this.close();
@@ -32,6 +32,11 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
-		if (value) el.setText(value);
+		if (!value) return;
+		el.innerHTML = this.renderMatch(value, this.getCurrentQuery());
+	}
+
+	protected getCurrentQuery(): string {
+		return this.inputEl.value;
 	}
 }

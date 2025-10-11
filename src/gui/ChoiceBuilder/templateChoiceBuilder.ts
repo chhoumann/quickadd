@@ -70,20 +70,40 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private addTemplatePathSetting(): void {
 		new Setting(this.contentEl)
 			.setName("Template Path")
-			.setDesc("Path to the Template.")
-			.addSearch((search) => {
-				const templates: string[] = this.plugin
-					.getTemplateFiles()
-					.map((f) => f.path);
-				search.setValue(this.choice.templatePath);
-				search.setPlaceholder("Template path");
+			.setDesc("Path to the Template.");
 
-				new GenericTextSuggester(this.app, search.inputEl, templates, 50);
+		const templates: string[] = this.plugin
+			.getTemplateFiles()
+			.map((f) => f.path);
 
-				search.onChange((value) => {
-					this.choice.templatePath = value;
-				});
-			});
+		const templateInput = new TextComponent(this.contentEl);
+		templateInput.setPlaceholder("Template path");
+		templateInput.setValue(this.choice.templatePath);
+		templateInput.inputEl.style.width = "100%";
+		templateInput.inputEl.style.marginBottom = "8px";
+
+		const hint = this.contentEl.createDiv({ cls: "qa-field-hint" });
+		hint.setAttr("aria-live", "polite");
+		hint.setAttr("id", "qa-template-path-hint");
+		templateInput.inputEl.setAttribute("aria-describedby", "qa-template-path-hint");
+
+		const validate = (raw: string) => {
+			const v = raw.trim();
+			const isValid = v.length === 0 || templates.includes(v);
+			const showError = v.length > 0 && !isValid;
+
+			templateInput.inputEl.toggleClass("is-invalid", showError);
+			templateInput.inputEl.setAttribute("aria-invalid", String(showError));
+			hint.textContent = showError ? "Template not found" : "";
+		};
+
+		new GenericTextSuggester(this.app, templateInput.inputEl, templates, 50);
+		validate(this.choice.templatePath);
+
+		templateInput.onChange((value) => {
+			this.choice.templatePath = value;
+			validate(value);
+		});
 	}
 
 	private addFileNameFormatSetting(): void {

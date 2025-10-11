@@ -451,3 +451,17 @@
 	justify-content: center;
 	align-items: center;
 }
+
+/* Template path validation styling */
+.qa-field-hint {
+	margin-top: -4px;
+	margin-bottom: 12px;
+	font-size: 12px;
+	color: var(--text-error);
+	min-height: 16px;
+}
+
+input.is-invalid,
+textarea.is-invalid {
+	box-shadow: 0 0 0 1px var(--text-error);
+}
