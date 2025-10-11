@@ -92,12 +92,12 @@ describe("Suggester Utils", () => {
 	describe("highlightMatches", () => {
 		it("should highlight exact matches", () => {
 			const result = highlightMatches("Hello World", "World");
-			expect(result).toBe("Hello <mark>World</mark>");
+			expect(result).toBe('Hello <mark class="qa-highlight">World</mark>');
 		});
 
 		it("should be case-insensitive", () => {
 			const result = highlightMatches("Hello World", "world");
-			expect(result).toBe("Hello <mark>World</mark>");
+			expect(result).toBe('Hello <mark class="qa-highlight">World</mark>');
 		});
 
 		it("should return original text when no query", () => {
@@ -109,12 +109,12 @@ describe("Suggester Utils", () => {
 	describe("highlightFuzzyMatches", () => {
 		it("should highlight individual matching characters", () => {
 			const result = highlightFuzzyMatches("Hello World", "HW");
-			expect(result).toBe("<mark>H</mark>ello <mark>W</mark>orld");
+			expect(result).toBe('<mark class="qa-highlight">H</mark>ello <mark class="qa-highlight">W</mark>orld');
 		});
 
 		it("should be case-insensitive", () => {
 			const result = highlightFuzzyMatches("Hello World", "hw");
-			expect(result).toBe("<mark>H</mark>ello <mark>W</mark>orld");
+			expect(result).toBe('<mark class="qa-highlight">H</mark>ello <mark class="qa-highlight">W</mark>orld');
 		});
 
 		it("should return original text when no query", () => {
