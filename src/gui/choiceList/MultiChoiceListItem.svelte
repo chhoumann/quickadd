@@ -59,6 +59,12 @@
             onMove: (targetId) => dispatcher('moveChoice', { choice, targetId }),
         });
     }
+
+    function handleNestedReorder() {
+        // Nested choices were reordered; bubble up event with cloned root choices
+        // Shallow clone creates new array reference to trigger settingsStore subscription
+        dispatcher('reorderChoices', {choices: [...roots]});
+    }
 </script>
 
 <div>
@@ -108,6 +114,7 @@
                         on:toggleCommand
                         on:duplicateChoice
                         on:moveChoice
+                        on:reorderChoices={handleNestedReorder}
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}
                 />
