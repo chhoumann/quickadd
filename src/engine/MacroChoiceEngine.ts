@@ -164,6 +164,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		// @ts-ignore
 		if (userScript.settings) {
+			// Ensure command.settings exists for legacy/persisted commands
+			if (!command.settings) command.settings = {};
+
 			// Initialize default values for settings before executing the script
 			// @ts-ignore
 			initializeUserScriptSettings(command.settings, userScript.settings);
