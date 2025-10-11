@@ -3,10 +3,10 @@ title: "Macro: Add location long-lat from address"
 ---
 This is especially useful for the [Obsidian Map View plugin](https://github.com/esm7/obsidian-map-view).
 
-You can find the script [here](./Attachments/getLongLatFromAddress.js).
+You can find the script <a href="/scripts/getLongLatFromAddress.js" download>here</a>.
 Here is a [guide to installing user scripts](./Capture_FetchTasksFromTodoist.md) like this one.
 
-1. Grab the script from [this page](./Attachments/getLongLatFromAddress.js). This can be done in multiple ways:
+1. Grab the script from <a href="/scripts/getLongLatFromAddress.js" download>this page</a>. This can be done in multiple ways:
    1. By clicking the 'Raw' button, and then saving the 'page' (CTRL+S on Windows, probably command+S on Mac), or
    2. Copying the file contents and saving it as `getLongLatFromAddress.js`. The `.js` is _crucial_.
 2. Save the file to somewhere in your vault. It doesn't matter where, as long as it's in your vault.
