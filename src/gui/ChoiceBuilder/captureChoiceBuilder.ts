@@ -110,14 +110,44 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const captureToFileContainer: HTMLDivElement =
 				captureToContainer.createDiv("captureToFileContainer");
 
-			// Preview row
+			new Setting(captureToFileContainer)
+				.setName("File path / format")
+				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})");
+
+			const displayFormatter: FileNameDisplayFormatter =
+				new FileNameDisplayFormatter(this.app, this.plugin);
+
 			const previewRow = captureToFileContainer.createDiv({ cls: "qa-preview-row" });
 			previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 			const formatDisplay = previewRow.createEl("span");
 			formatDisplay.setAttr("aria-live", "polite");
-			const displayFormatter: FileNameDisplayFormatter =
-				new FileNameDisplayFormatter(this.app, this.plugin);
 			formatDisplay.textContent = "Loading preview…";
+
+			const markdownFilesAndFormatSyntax = [
+				...this.app.vault.getMarkdownFiles().map((f) => f.path),
+				...FILE_NAME_FORMAT_SYNTAX,
+			];
+
+			createValidatedInput({
+				app: this.app,
+				parent: captureToFileContainer,
+				initialValue: this.choice.captureTo,
+				placeholder: "File name format",
+				suggestions: markdownFilesAndFormatSyntax,
+				maxSuggestions: 50,
+				attachSuggesters: [
+					(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
+				],
+				onChange: async (value) => {
+					this.choice.captureTo = value;
+					try {
+						formatDisplay.textContent = await displayFormatter.format(value);
+					} catch {
+						formatDisplay.textContent = "Preview unavailable";
+					}
+				},
+			});
+
 			void (async () => {
 				try {
 					formatDisplay.textContent = await displayFormatter.format(
@@ -127,34 +157,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					formatDisplay.textContent = "Preview unavailable";
 				}
 			})();
-
-			// Search input using idiomatic Obsidian Setting
-			new Setting(captureToFileContainer)
-				.setName("File path / format")
-				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})")
-				.addSearch((search) => {
-					search.setValue(this.choice.captureTo);
-					search.setPlaceholder("File name format");
-					const markdownFilesAndFormatSyntax = [
-						...this.app.vault.getMarkdownFiles().map((f) => f.path),
-						...FILE_NAME_FORMAT_SYNTAX,
-					];
-					new GenericTextSuggester(
-						this.app,
-						search.inputEl,
-						markdownFilesAndFormatSyntax,
-						50,
-					);
-					search.onChange(async (value) => {
-						this.choice.captureTo = value;
-						try {
-							formatDisplay.textContent = await displayFormatter.format(value);
-						} catch {
-							formatDisplay.textContent = "Preview unavailable";
-						}
-					});
-					new FormatSyntaxSuggester(this.app, search.inputEl, this.plugin);
-				});
 		}
 	}
 
