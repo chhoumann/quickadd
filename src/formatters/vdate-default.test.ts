@@ -72,6 +72,10 @@ class TestFormatter extends Formatter {
         return "[[current-file]]";
     }
 
+    protected getCurrentFileName(): string | null {
+        return null;
+    }
+
     protected async promptForMathValue(): Promise<string> {
         return this.mockPromptValue || "42";
     }

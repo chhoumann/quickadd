@@ -11,6 +11,7 @@ import {
 	getVariablePromptExample,
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
+	getCurrentFileNamePreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 
@@ -38,6 +39,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceLinkToCurrentFileInString(output);
+			output = await this.replaceCurrentFileNameInString(output);
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);
@@ -78,6 +80,11 @@ export class FormatDisplayFormatter extends Formatter {
 	protected getCurrentFileLink(): string | null {
 		if (!this.app) return null;
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
+	}
+
+	protected getCurrentFileName(): string | null {
+		if (!this.app) return "current_filename";
+		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
 	}
 
 	protected suggestForValue(suggestedValues: string[], allowCustomInput = false) {

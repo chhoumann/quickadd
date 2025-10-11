@@ -8,6 +8,7 @@ export const VARIABLE_DEFAULT_SYNTAX =
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
+export const FILENAMECURRENT_SYNTAX = "{{filenamecurrent}}";
 export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
 export const CLIPBOARD_SYNTAX = "{{clipboard}}";
@@ -29,6 +30,7 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{field:<fieldname>|tag:<tagname>}}",
 	"{{field:<fieldname>|inline:true}}",
 	LINKCURRENT_SYNTAX,
+	FILENAMECURRENT_SYNTAX,
 	"{{macro:<macroname>}}",
 	"{{template:<templatepath>}}",
 	MATH_VALUE_SYNTAX,
@@ -76,6 +78,7 @@ export const DATE_VARIABLE_REGEX = new RegExp(
 	/{{VDATE:([^\n\r},]*),\s*([^\n\r}|]*)(?:\|([^\n\r}]*))?}}/i,
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
+export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
@@ -117,6 +120,9 @@ export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const LINKCURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[L]?[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
+);
+export const FILENAMECURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[F]?[I]?[L]?[E]?[N]?[A]?[M]?[E]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
 );
 export const TEMPLATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i,
