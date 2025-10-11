@@ -21,7 +21,7 @@ We use OMDb api to get the movie or TV show information. You can get an API key 
 
 We'll need to install a QuickAdd user script for this to work. I have made a video which shows you how to do so - [click here](https://www.youtube.com/watch?v=gYK3VDQsZJo&t=1730s).
 You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
-You can find the script [here](./Attachments/movies.js).
+You can find the script [here](/scripts/movies.js).
 
 1. Save the script (`movies.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.

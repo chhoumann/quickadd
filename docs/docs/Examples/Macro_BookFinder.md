@@ -11,7 +11,7 @@ We use Google books api to get the the details. You don't need an API key becaus
 
 We'll need to install a QuickAdd BookFinder script for this to work.
 You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
-You can find the script [here](./Attachments/BookFinder.js).
+You can find the script [here](/scripts/BookFinder.js).
 
 1. Save the script (`BookFinder.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.

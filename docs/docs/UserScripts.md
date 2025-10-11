@@ -864,9 +864,9 @@ ${unfinishedTasks}
 ## Example Scripts
 
 For complete working examples, see:
-- [Complete Example with All Options](./Examples/Attachments/userScriptExample.js) - Demonstrates all option types and patterns
-- [Movie Script](./Examples/Attachments/movies.js) - Fetches movie data from OMDb API
-- [Citations Manager](./Examples/Attachments/citationsManager.js) - Integrates with Obsidian Citations plugin
+- [Complete Example with All Options](/scripts/userScriptExample.js) - Demonstrates all option types and patterns
+- [Movie Script](/scripts/movies.js) - Fetches movie data from OMDb API
+- [Citations Manager](/scripts/citationsManager.js) - Integrates with Obsidian Citations plugin
 - [Book Finder](./Examples/Macro_BookFinder.md) - Searches for book information
 
 ## Additional Resources
