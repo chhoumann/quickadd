@@ -40,7 +40,7 @@ export abstract class Formatter {
 	}
 
 	protected abstract format(input: string): Promise<string>;
-	
+
 	/** Returns true when a variable is present AND its value is neither undefined nor null.  
 	 *  An empty string is considered a valid, intentional value. */
 	protected hasConcreteVariable(name: string): boolean {
@@ -48,7 +48,7 @@ export abstract class Formatter {
 		const v = this.variables.get(name);
 		return v !== undefined && v !== null;
 	}
-	
+
 	public setTitle(title: string): void {
 		// Only set title if it hasn't been manually set by a script
 		// This preserves script-provided values for {{VALUE:title}}
@@ -165,7 +165,7 @@ export abstract class Formatter {
 		return output;
 	}
 
-	 
+
 	protected async replaceLinkToCurrentFileInString(
 		input: string,
 	): Promise<string> {
@@ -232,28 +232,31 @@ export abstract class Formatter {
 
 			// Ensure variable is set (prompt if needed)
 			if (!this.hasConcreteVariable(variableName)) {
-			const suggestedValues = variableName.split(",");
-			let variableValue = "";
-			let actualDefaultValue = defaultValue;
+				const suggestedValues = variableName.split(",");
+				let variableValue = "";
+				let actualDefaultValue = defaultValue;
 
-			if (suggestedValues.length === 1) {
-			 variableValue = await this.promptForVariable(variableName);
-			} else {
-			// Check if defaultValue contains the |custom modifier
-			const allowCustomInput = defaultValue.toLowerCase() === "custom";
-			// If custom modifier is present, don't use it as default value
-			actualDefaultValue = allowCustomInput ? "" : defaultValue;
-			
-				variableValue = await this.suggestForValue(suggestedValues, allowCustomInput);
+				if (suggestedValues.length === 1) {
+					// For single-value prompts, pass default value to pre-populate the input
+					variableValue = await this.promptForVariable(variableName, {
+						defaultValue: actualDefaultValue
+					});
+				} else {
+					// Check if defaultValue contains the |custom modifier
+					const allowCustomInput = defaultValue.toLowerCase() === "custom";
+					// If custom modifier is present, don't use it as default value
+					actualDefaultValue = allowCustomInput ? "" : defaultValue;
+
+					variableValue = await this.suggestForValue(suggestedValues, allowCustomInput);
+				}
+
+				// Use default value if no input provided (applies to both prompt and suggester)
+				if (!variableValue && actualDefaultValue) {
+					variableValue = actualDefaultValue;
+				}
+
+				this.variables.set(variableName, variableValue);
 			}
-
-			// Use default value if no input provided (applies to both prompt and suggester)
-			if (!variableValue && actualDefaultValue) {
-			 variableValue = actualDefaultValue;
-			}
-
-			 this.variables.set(variableName, variableValue);
-		}
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(variableName);
@@ -364,7 +367,7 @@ export abstract class Formatter {
 			const variableName = match[1].trim();
 			const dateFormat = match[2].trim();
 			const defaultValue = match[3]?.trim() || undefined;
-			
+
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
 			if (!variableName || !dateFormat) {
@@ -373,7 +376,7 @@ export abstract class Formatter {
 
 			if (variableName && dateFormat) {
 				const existingValue = this.variables.get(variableName) as string;
-				
+
 				// Check if we already have this date variable stored
 				if (!existingValue) {
 					// Prompt for date input with VDATE context
@@ -403,11 +406,11 @@ export abstract class Formatter {
 				// Format the date based on what's stored
 				let formattedDate = "";
 				const storedValue = this.variables.get(variableName) as string;
-				
+
 				if (storedValue && storedValue.startsWith("@date:")) {
 					// It's a date variable, extract and format it
 					const isoString = storedValue.substring(6);
-					 
+
 					if (this.dateParser && window.moment) {
 						const moment = window.moment(isoString);
 						if (moment && moment.isValid()) {
@@ -477,7 +480,7 @@ export abstract class Formatter {
 
 	protected abstract promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string }
+		context?: { type?: string; dateFormat?: string; defaultValue?: string; }
 	): Promise<string>;
 
 	protected abstract getTemplateContent(templatePath: string): Promise<string>;
@@ -490,40 +493,40 @@ export abstract class Formatter {
 	 * Returns whether template property types feature is enabled in settings.
 	 */
 	protected abstract isTemplatePropertyTypesEnabled(): boolean;
-	
+
 	protected replaceRandomInString(input: string): string {
 		let output = input;
-		
+
 		while (RANDOM_REGEX.test(output)) {
 			const match = RANDOM_REGEX.exec(output);
 			if (!match || !match[1]) continue;
-			
+
 			const length = parseInt(match[1]);
 			if (length <= 0 || length > 100) {
 				throw new Error(`Random string length must be between 1 and 100. Got: ${length}`);
 			}
-			
+
 			const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 			let randomString = '';
-			
+
 			for (let i = 0; i < length; i++) {
 				randomString += chars.charAt(Math.floor(Math.random() * chars.length));
 			}
-			
+
 			output = output.replace(match[0], randomString);
 		}
-		
+
 		return output;
 	}
 
 	protected replaceTitleInString(input: string): string {
 		let output = input;
 		const title = this.getVariableValue("title");
-		
+
 		while (TITLE_REGEX.test(output)) {
 			output = this.replacer(output, TITLE_REGEX, title);
 		}
-		
+
 		return output;
 	}
 }
