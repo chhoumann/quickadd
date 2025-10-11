@@ -59,8 +59,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let folderPath = "";
 
 			if (this.choice.folder.enabled) {
-				folderPath = await this.getFolderPath();
-			}
+			folderPath = await this.getFolderPath();
+			} else {
+			// Respect Obsidian's "Default location for new notes" setting
+			const parent = this.app.fileManager.getNewFileParent(
+				this.app.workspace.getActiveFile()?.path ?? ""
+			);
+			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+		}
 
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
