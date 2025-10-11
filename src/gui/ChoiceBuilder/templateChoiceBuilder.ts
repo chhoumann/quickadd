@@ -20,6 +20,7 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type { LinkPlacement } from "../../types/linkPlacement";
 import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
@@ -76,33 +77,21 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			.getTemplateFiles()
 			.map((f) => f.path);
 
-		const templateInput = new TextComponent(this.contentEl);
-		templateInput.setPlaceholder("Template path");
-		templateInput.setValue(this.choice.templatePath);
-		templateInput.inputEl.style.width = "100%";
-		templateInput.inputEl.style.marginBottom = "8px";
-
-		const hint = this.contentEl.createDiv({ cls: "qa-field-hint" });
-		hint.setAttr("aria-live", "polite");
-		hint.setAttr("id", "qa-template-path-hint");
-		templateInput.inputEl.setAttribute("aria-describedby", "qa-template-path-hint");
-
-		const validate = (raw: string) => {
-			const v = raw.trim();
-			const isValid = v.length === 0 || templates.includes(v);
-			const showError = v.length > 0 && !isValid;
-
-			templateInput.inputEl.toggleClass("is-invalid", showError);
-			templateInput.inputEl.setAttribute("aria-invalid", String(showError));
-			hint.textContent = showError ? "Template not found" : "";
-		};
-
-		new GenericTextSuggester(this.app, templateInput.inputEl, templates, 50);
-		validate(this.choice.templatePath);
-
-		templateInput.onChange((value) => {
-			this.choice.templatePath = value;
-			validate(value);
+		createValidatedInput({
+			app: this.app,
+			parent: this.contentEl,
+			initialValue: this.choice.templatePath,
+			placeholder: "Template path",
+			suggestions: templates,
+			maxSuggestions: 50,
+			validator: (raw) => {
+				const v = raw.trim();
+				if (!v) return true;
+				return templates.includes(v) || "Template not found";
+			},
+			onChange: (value) => {
+				this.choice.templatePath = value;
+			},
 		});
 	}
 
