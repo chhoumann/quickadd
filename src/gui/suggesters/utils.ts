@@ -52,53 +52,59 @@ export function getTextBeforeCursor(
 }
 
 /**
- * Escape HTML entities to prevent XSS
+ * Render exact match highlighting with DOM nodes (XSS-safe, handles HTML entities correctly)
  */
-function escapeHtml(text: string): string {
-	const div = document.createElement('div');
-	div.textContent = text;
-	return div.innerHTML;
+export function renderExactHighlight(el: HTMLElement, text: string, query: string): void {
+	el.replaceChildren();
+	if (!query) {
+		el.textContent = text;
+		return;
+	}
+
+	const lower = text.toLowerCase();
+	const q = query.toLowerCase();
+	let from = 0;
+	let idx = lower.indexOf(q, from);
+
+	while (idx !== -1) {
+		if (idx > from) el.append(document.createTextNode(text.slice(from, idx)));
+
+		const mark = document.createElement('mark');
+		mark.className = 'qa-highlight';
+		mark.textContent = text.slice(idx, idx + query.length);
+		el.append(mark);
+
+		from = idx + query.length;
+		idx = lower.indexOf(q, from);
+	}
+
+	if (from < text.length) el.append(document.createTextNode(text.slice(from)));
 }
 
 /**
- * Default highlighting function that wraps matching text in <mark> tags
+ * Render fuzzy match highlighting with DOM nodes (XSS-safe, handles HTML entities correctly)
  */
-export function highlightMatches(text: string, query: string): string {
-	if (!query) return escapeHtml(text);
-	
-	const escapedText = escapeHtml(text);
-	const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const regex = new RegExp(`(${escapedQuery})`, 'gi');
-	return escapedText.replace(regex, '<mark class="qa-highlight">$1</mark>');
-}
+export function renderFuzzyHighlight(el: HTMLElement, text: string, query: string): void {
+	el.replaceChildren();
+	if (!query) {
+		el.textContent = text;
+		return;
+	}
 
-/**
- * Fuzzy match highlighting - highlights individual matching characters
- */
-export function highlightFuzzyMatches(text: string, query: string): string {
-	if (!query) return escapeHtml(text);
-	
-	const queryChars = query.toLowerCase().split('');
-	const textChars = text.split('');
-	let queryIndex = 0;
-	
-	const result: string[] = [];
-	for (let i = 0; i < textChars.length && queryIndex < queryChars.length; i++) {
-		const char = textChars[i];
-		if (char.toLowerCase() === queryChars[queryIndex]) {
-			result.push(`<mark class="qa-highlight">${escapeHtml(char)}</mark>`);
-			queryIndex++;
+	const q = query.toLowerCase();
+	let qi = 0;
+
+	for (const ch of text) {
+		if (qi < q.length && ch.toLowerCase() === q[qi]) {
+			const mark = document.createElement('mark');
+			mark.className = 'qa-highlight';
+			mark.textContent = ch;
+			el.append(mark);
+			qi++;
 		} else {
-			result.push(escapeHtml(char));
+			el.append(document.createTextNode(ch));
 		}
 	}
-	
-	// Add remaining characters if query finished early
-	for (let i = result.length; i < textChars.length; i++) {
-		result.push(escapeHtml(textChars[i]));
-	}
-	
-	return result.join('');
 }
 
 /**

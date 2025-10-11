@@ -33,7 +33,7 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 
 	renderSuggestion(value: string, el: HTMLElement): void {
 		if (!value) return;
-		el.innerHTML = this.renderMatch(value, this.getCurrentQuery());
+		this.renderMatch(el, value, this.getCurrentQuery());
 	}
 
 	protected getCurrentQuery(): string {

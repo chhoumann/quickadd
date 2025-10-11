@@ -106,8 +106,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 	renderSuggestion(item: string, el: HTMLElement): void {
 		// Use highlighting to show why this item matches
-		const highlighted = this.renderMatch(item, this.lastInput);
-		el.innerHTML = highlighted;
+		this.renderMatch(el, item, this.lastInput);
 	}
 
 	selectSuggestion(item: string): void {

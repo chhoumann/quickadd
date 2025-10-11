@@ -274,8 +274,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 	renderSuggestion(value: string, el: HTMLElement): void {
 		if (!value) return;
 		// Highlight using the current query fragment for accuracy
-		const highlighted = this.renderMatch(value, this.getCurrentQuery());
-		el.innerHTML = highlighted;
+		this.renderMatch(el, value, this.getCurrentQuery());
 	}
 
 	private getTokenDefinition(token: FormatSyntaxToken): TokenDefinition | undefined {
