@@ -1,11 +1,5 @@
-import type { App } from "obsidian";
-import {
-	Notice,
-	Setting,
-	TextAreaComponent,
-	TextComponent,
-	ToggleComponent,
-} from "obsidian";
+import type { App, TextComponent } from "obsidian";
+import { Notice, Setting, ToggleComponent } from "obsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -20,7 +14,6 @@ import type { LinkPlacement } from "../../types/linkPlacement";
 import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {

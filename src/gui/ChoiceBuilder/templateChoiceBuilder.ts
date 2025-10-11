@@ -23,7 +23,6 @@ import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 import FolderList from "./FolderList.svelte";
 
