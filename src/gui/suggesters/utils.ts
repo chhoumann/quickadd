@@ -52,24 +52,35 @@ export function getTextBeforeCursor(
 }
 
 /**
+ * Escape HTML entities to prevent XSS
+ */
+function escapeHtml(text: string): string {
+	const div = document.createElement('div');
+	div.textContent = text;
+	return div.innerHTML;
+}
+
+/**
  * Default highlighting function that wraps matching text in <mark> tags
  */
 export function highlightMatches(text: string, query: string): string {
-	if (!query) return text;
+	if (!query) return escapeHtml(text);
 	
-	const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const escapedText = escapeHtml(text);
+	const escapedQuery = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const regex = new RegExp(`(${escapedQuery})`, 'gi');
-	return text.replace(regex, '<mark>$1</mark>');
+	return escapedText.replace(regex, '<mark>$1</mark>');
 }
 
 /**
  * Fuzzy match highlighting - highlights individual matching characters
  */
 export function highlightFuzzyMatches(text: string, query: string): string {
-	if (!query) return text;
+	if (!query) return escapeHtml(text);
 	
+	const escapedText = escapeHtml(text);
 	const queryChars = query.toLowerCase().split('');
-	const textChars = text.split('');
+	const textChars = escapedText.split('');
 	let queryIndex = 0;
 	
 	for (let i = 0; i < textChars.length && queryIndex < queryChars.length; i++) {
