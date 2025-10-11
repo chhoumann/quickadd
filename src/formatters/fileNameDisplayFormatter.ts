@@ -78,7 +78,7 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 
-	protected suggestForValue(suggestedValues: string[]) {
+	protected suggestForValue(suggestedValues: string[], allowCustomInput = false) {
 		return getSuggestionPreview(suggestedValues);
 	}
 

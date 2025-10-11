@@ -179,7 +179,12 @@ export class CompleteFormatter extends Formatter {
 			}
 
 			// Use default prompt for other variables
-			return await new InputPrompt().factory().Prompt(this.app, header as string);
+			return await new InputPrompt().factory().Prompt(
+			this.app,
+			header as string,
+			context?.defaultValue ? context.defaultValue : undefined,
+			context?.defaultValue
+		);
 		} catch (error) {
 			if (isCancellationError(error)) {
 				throw new MacroAbortError("Input cancelled by user");
@@ -199,8 +204,15 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	protected async suggestForValue(suggestedValues: string[]) {
+	protected async suggestForValue(suggestedValues: string[], allowCustomInput = false) {
 		try {
+			if (allowCustomInput) {
+				return await InputSuggester.Suggest(
+					this.app,
+					suggestedValues,
+					suggestedValues,
+				);
+			}
 			return await GenericSuggester.Suggest(
 				this.app,
 				suggestedValues,
