@@ -126,7 +126,7 @@ export class QuickAddApi {
 				actualItems: string[],
 				placeholder?: string,
 				allowCustomInput = false,
-				options?: { renderItem?: (value: string, el: HTMLElement) => void },
+				options?: { renderItem?: (value: string, el: HTMLElement) => void; },
 			) => {
 				return QuickAddApi.suggester(
 					app,
@@ -162,7 +162,7 @@ export class QuickAddApi {
 			},
 			format: async (
 				input: string,
-				variables?: { [key: string]: unknown },
+				variables?: { [key: string]: unknown; },
 				shouldClearVariables = true,
 			) => {
 				if (variables) {
@@ -194,7 +194,7 @@ export class QuickAddApi {
 						showAssistantMessages: boolean;
 						systemPrompt: string;
 					}>,
-				): Promise<{ [key: string]: string }> => {
+				): Promise<{ [key: string]: string; }> => {
 					const pluginSettings = settingsStore.getState();
 					const AISettings = pluginSettings.ai;
 
@@ -210,22 +210,31 @@ export class QuickAddApi {
 						choiceExecutor,
 					).format;
 
+					// Normalize model input to Model object
 					let _model: Model;
-					if (typeof model === "string") {
-						const foundModel = getModelByName(model);
-						if (!foundModel) {
-							throw new Error(`Model '${model}' not found.`);
-						}
+					const modelName = typeof model === "string" ? model : model?.name;
 
-						_model = foundModel;
-					} else {
-						_model = model;
+					if (!modelName) {
+						throw new Error(`Invalid model parameter. Expected a string (e.g., "gpt-4") or object with name property (e.g., {name: "gpt-4"})`);
 					}
+
+					// Look up the model in configured providers
+					const foundModel = getModelByName(modelName);
+					if (!foundModel) {
+						throw new Error(
+							`Model '${modelName}' not found in configured providers. ` +
+							`Add it in Settings → QuickAdd → AI → Providers, or enable auto-sync for your provider.`
+						);
+					}
+					_model = foundModel;
 
 					const modelProvider = getModelProvider(_model.name);
 
 					if (!modelProvider) {
-						throw new Error(`Model '${_model.name}' not found in any provider`);
+						throw new Error(
+							`No provider configured for model '${_model.name}'. ` +
+							`Please configure a provider in Settings → QuickAdd → AI.`
+						);
 					}
 
 					const assistantRes = await Prompt(
@@ -291,22 +300,31 @@ export class QuickAddApi {
 						choiceExecutor,
 					).format;
 
+					// Normalize model input to Model object
 					let _model: Model;
-					if (typeof model === "string") {
-						const foundModel = getModelByName(model);
-						if (!foundModel) {
-							throw new Error(`Model ${model} not found.`);
-						}
+					const modelName = typeof model === "string" ? model : model?.name;
 
-						_model = foundModel;
-					} else {
-						_model = model;
+					if (!modelName) {
+						throw new Error(`Invalid model parameter. Expected a string (e.g., "gpt-4") or object with name property (e.g., {name: "gpt-4"})`);
 					}
+
+					// Look up the model in configured providers
+					const foundModel = getModelByName(modelName);
+					if (!foundModel) {
+						throw new Error(
+							`Model '${modelName}' not found in configured providers. ` +
+							`Add it in Settings → QuickAdd → AI → Providers, or enable auto-sync for your provider.`
+						);
+					}
+					_model = foundModel;
 
 					const modelProvider = getModelProvider(_model.name);
 
 					if (!modelProvider) {
-						throw new Error(`Model '${_model.name}' not found in any provider`);
+						throw new Error(
+							`No provider configured for model '${_model.name}'. ` +
+							`Please configure a provider in Settings → QuickAdd → AI.`
+						);
 					}
 
 					const assistantRes = await ChunkedPrompt(
@@ -529,7 +547,7 @@ export class QuickAddApi {
 		actualItems: string[],
 		placeholder?: string,
 		allowCustomInput = false,
-		options?: { renderItem?: (value: string, el: HTMLElement) => void },
+		options?: { renderItem?: (value: string, el: HTMLElement) => void; },
 	) {
 		try {
 			let displayedItems;

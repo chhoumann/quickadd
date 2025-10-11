@@ -466,12 +466,12 @@ const tomorrowTask = `Tasks for ${quickAddApi.date.tomorrow("dddd, MMMM D")}`;
 
 Access via `quickAddApi.ai`:
 
-### `prompt(prompt: string, model: string, settings?: object): Promise<object>`
+### `prompt(prompt: string, model: string | {name: string}, settings?: object): Promise<object>`
 Sends a prompt to an AI model and returns the response.
 
 **Parameters:**
 - `prompt`: The prompt text
-- `model`: Model name (e.g., "gpt-4", "gpt-3.5-turbo")
+- `model`: Model identifier - either a string (e.g., `"gpt-4"`) or object with name property (e.g., `{name: "gpt-4"}`). The model must be configured in Settings → QuickAdd → AI → Providers.
 - `settings`: (Optional) Configuration object:
   - `variableName`: Output variable name (default: "output")
   - `shouldAssignVariables`: Auto-assign to variables (default: false)
@@ -483,7 +483,7 @@ Sends a prompt to an AI model and returns the response.
 - `[variableName]`: The AI response
 - `[variableName]-quoted`: The response in markdown quote format
 
-**Example:**
+**Example using string:**
 ```javascript
 const result = await quickAddApi.ai.prompt(
     "Summarize this text: " + noteContent,
@@ -500,6 +500,24 @@ const result = await quickAddApi.ai.prompt(
 console.log(result.summary);
 // Use in template: {{VALUE:summary}}
 ```
+
+**Example using Model object:**
+```javascript
+const result = await quickAddApi.ai.prompt(
+    "What is the capital of France?",
+    {name: "gpt-4"},
+    {
+        variableName: "capital",
+        shouldAssignVariables: true,
+        modelOptions: {
+            temperature: 0.6,
+            max_tokens: 60
+        }
+    }
+);
+```
+
+**Note:** For newer models like `gpt-4o` or custom provider models, add them in Settings → QuickAdd → AI → Providers. Some providers support auto-sync to automatically update available models.
 
 ### `getModels(): string[]`
 Returns available AI models.
