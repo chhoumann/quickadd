@@ -18,7 +18,7 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 			return item.toLowerCase().includes(inputLowerCase);
 		});
 
-		if (!filtered) this.close();
+		if (filtered.length === 0) this.close();
 
 		const limited = filtered.slice(0, this.maxSuggestions);
 
