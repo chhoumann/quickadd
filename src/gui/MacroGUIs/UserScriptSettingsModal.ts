@@ -7,6 +7,7 @@ import QuickAdd from "../../main";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
+import { initializeUserScriptSettings } from "../../utils/userScriptSettings";
 
 type Option = { description?: string } & (
 	| {
@@ -49,24 +50,8 @@ export class UserScriptSettingsModal extends Modal {
 		this.display();
 		if (!this.command.settings) this.command.settings = {};
 
-		if (this.settings.options) {
-			for (const setting in this.settings.options) {
-				const valueIsNotSetAlready =
-					this.command.settings[setting] === undefined;
-				const defaultValueAvailable =
-					"defaultValue" in this.settings.options[setting] &&
-					this.settings.options[setting].defaultValue !== undefined;
-
-				if (
-					valueIsNotSetAlready &&
-					// Checking that the setting is an object & getting the default value...
-					defaultValueAvailable
-				) {
-					this.command.settings[setting] =
-						this.settings.options[setting].defaultValue;
-				}
-			}
-		}
+		// Initialize default values for settings
+		initializeUserScriptSettings(this.command.settings, this.settings);
 	}
 
 	protected display() {
