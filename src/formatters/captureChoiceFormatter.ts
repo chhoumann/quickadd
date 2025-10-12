@@ -25,6 +25,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	 */
 	private templaterProcessed = false;
 
+	public setDestinationFile(file: TFile): void {
+		this.file = file;
+	}
+
 	protected getCurrentFileLink(): string | null {
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;

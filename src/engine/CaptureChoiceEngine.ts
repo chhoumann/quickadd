@@ -330,6 +330,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Set the title to the existing file's basename
 		this.formatter.setTitle(file.basename);
 
+		// Set the destination file so formatters can generate proper relative links
+		this.formatter.setDestinationFile(file);
+
 		// First format pass...
 		const formatted = await this.formatter.formatContentOnly(content);
 
