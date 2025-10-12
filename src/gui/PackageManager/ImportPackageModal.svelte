@@ -489,14 +489,14 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 		</button>
 		<button
 			type="button"
-			on:click={handleImport}
+			on:click={hasImported ? close : handleImport}
 			class="primary"
-			disabled={isImporting || !loadedPackage || !analysis || hasImported}
+			disabled={isImporting || !loadedPackage || !analysis}
 		>
 			{#if isImporting}
 				Importing…
 			{:else if hasImported}
-				Imported
+				Close
 			{:else}
 				Import package
 			{/if}
