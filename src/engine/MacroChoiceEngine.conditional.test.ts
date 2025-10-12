@@ -194,4 +194,30 @@ afterAll(() => {
 
 		expect(executeCommandById).not.toHaveBeenCalled();
 	});
+
+	it("pulls variables written through QuickAdd API helpers", async () => {
+		const conditional = createConditionalCommand(
+			{
+				mode: "variable",
+				variableName: "status",
+				operator: "equals",
+				valueType: "string",
+				expectedValue: "ready",
+			},
+			"then-id",
+			"else-id"
+		);
+
+		const { engine, executeCommandById, choiceExecutor } = createEngine(
+			conditional,
+			{}
+		);
+
+		choiceExecutor.variables.set("status", "ready");
+
+		await engine.run();
+
+		expect(executeCommandById).toHaveBeenCalledWith("then-id");
+		expect(executeCommandById).not.toHaveBeenCalledWith("else-id");
+	});
 });

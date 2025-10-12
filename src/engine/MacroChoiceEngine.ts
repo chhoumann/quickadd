@@ -149,6 +149,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					await this.executeConditional(command as IConditionalCommand);
 				}
 
+				this.pullExecutorVariablesIntoParams();
 				Object.keys(this.params.variables).forEach((key) => {
 					this.choiceExecutor.variables.set(
 						key,
@@ -430,6 +431,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeConditional(command: IConditionalCommand) {
+		this.pullExecutorVariablesIntoParams();
 		const shouldRunThenBranch = await evaluateCondition(command.condition, {
 			variables: this.params.variables,
 			evaluateScriptCondition: async (condition: ScriptCondition) =>
@@ -445,6 +447,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		await this.executeCommands(branch);
+	}
+
+	private pullExecutorVariablesIntoParams() {
+		this.choiceExecutor.variables.forEach((value, key) => {
+			this.params.variables[key] = value;
+		});
 	}
 
 	private async evaluateScriptCondition(
