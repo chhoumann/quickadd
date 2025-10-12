@@ -269,6 +269,16 @@ export async function applyPackageImport(
 		}
 
 		if (decision === "overwrite" || decision === "import") {
+			if (decision === "overwrite" && choiceClone.type === "Multi") {
+				const existingChoice = findChoiceInTree(updatedChoices, finalId);
+				if (existingChoice && existingChoice.type === "Multi") {
+					preserveSkippedChildren(
+						existingChoice as IMultiChoice,
+						choiceClone as IMultiChoice,
+						importableChoiceIds,
+					);
+				}
+			}
 			const replaced = replaceChoiceInTree(updatedChoices, choiceClone);
 			if (replaced) {
 				overwrittenChoiceIds.push(finalId);
@@ -626,4 +636,40 @@ function applyOverridesToCommands(
 				break;
 		}
 	}
+}
+
+function preserveSkippedChildren(
+	existing: IMultiChoice,
+	incoming: IMultiChoice,
+	importableChoiceIds: Set<string>,
+): void {
+	const existingChildren = existing.choices ?? [];
+	const incomingChildren = incoming.choices ?? [];
+	const incomingIds = new Set(incomingChildren.map((child) => child.id));
+	const preservedChildren = [...incomingChildren];
+
+	for (const child of existingChildren) {
+		if (!importableChoiceIds.has(child.id) && !incomingIds.has(child.id)) {
+			preservedChildren.push(child);
+		}
+	}
+
+	incoming.choices = preservedChildren;
+}
+
+function findChoiceInTree(
+	choices: IChoice[],
+	targetId: string,
+): IChoice | undefined {
+	for (const choice of choices) {
+		if (choice.id === targetId) return choice;
+		if (choice.type === "Multi") {
+			const nested = findChoiceInTree(
+				(choice as IMultiChoice).choices ?? [],
+				targetId,
+			);
+			if (nested) return nested;
+		}
+	}
+	return undefined;
 }
