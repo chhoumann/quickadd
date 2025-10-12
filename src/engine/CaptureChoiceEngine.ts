@@ -17,7 +17,7 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
-	insertLinkWithPlacement,
+	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
 	isFolder,
@@ -163,19 +163,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 				if (linkOptions.enabled) {
-				const activeFile = this.app.workspace.getActiveFile();
-				if (!activeFile && linkOptions.requireActiveFile) {
-				log.logWarning("Append link is enabled but there's no active file to insert into.");
-				} else {
-				const sourcePath = activeFile?.path ?? "";
-				 insertLinkWithPlacement(
-				   this.app,
-					this.app.fileManager.generateMarkdownLink(file, sourcePath),
-					linkOptions.placement,
-					{ requireActiveView: linkOptions.requireActiveFile },
-				);
-			}
-		}
+				insertFileLinkToActiveView(this.app, file, linkOptions);
+				}
 
 			if (this.choice.openFile && file) {
 				const openExistingTab = openExistingFileTab(this.app, file);

@@ -18,7 +18,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
-	insertLinkWithPlacement,
+	insertFileLinkToActiveView,
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
@@ -168,19 +168,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (linkOptions.enabled && createdFile) {
-			const activeFile = this.app.workspace.getActiveFile();
-			if (!activeFile && linkOptions.requireActiveFile) {
-			log.logWarning("Append link is enabled but there's no active file to insert into.");
-			} else {
-			const sourcePath = activeFile?.path ?? "";
-			 insertLinkWithPlacement(
-			   this.app,
-					this.app.fileManager.generateMarkdownLink(createdFile, sourcePath),
-					linkOptions.placement,
-					{ requireActiveView: linkOptions.requireActiveFile },
-				);
+			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
 			}
-		}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
 				const openExistingTab = openExistingFileTab(this.app, createdFile);

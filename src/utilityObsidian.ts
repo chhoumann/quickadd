@@ -17,7 +17,7 @@ import type {
 	OpenFileOptions as FileOpenOptions,
 	FileViewMode2 as FileViewModeNew
 } from "./types/fileOpening";
-import type { LinkPlacement } from "./types/linkPlacement";
+import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
 
@@ -280,6 +280,39 @@ export function insertLinkWithPlacement(
 			}
 		}
 	}
+}
+
+/**
+ * Inserts a link to the specified file into the active view, respecting 
+ * Obsidian's "New link format" setting.
+ * 
+ * @param app - The Obsidian app instance
+ * @param file - The file to link to
+ * @param linkOptions - Options controlling link insertion behavior
+ * @returns True if the link was inserted, false otherwise
+ */
+export function insertFileLinkToActiveView(
+	app: App,
+	file: TFile,
+	linkOptions: AppendLinkOptions,
+): boolean {
+	if (!linkOptions?.enabled) return false;
+
+	const activeFile = app.workspace.getActiveFile();
+	if (!activeFile && linkOptions.requireActiveFile) {
+		log.logWarning("Append link is enabled but there's no active file to insert into.");
+		return false;
+	}
+
+	const sourcePath = activeFile?.path ?? "";
+	insertLinkWithPlacement(
+		app,
+		app.fileManager.generateMarkdownLink(file, sourcePath),
+		linkOptions.placement,
+		{ requireActiveView: linkOptions.requireActiveFile },
+	);
+
+	return true;
 }
 
 export function findObsidianCommand(app: App, commandId: string) {
