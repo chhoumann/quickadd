@@ -30,23 +30,44 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		this.fileIndex.ensureIndexed();
 	}
 
+	private normalizeFolderPath(p?: string | null): string {
+		if (!p || p === "/") return "";
+		return p.replace(/\/+$/, "");
+	}
+
 	private getSourcePath(): string {
 		return this.sourcePathOverride ?? this.app.workspace.getActiveFile()?.path ?? "";
 	}
 
-	private getSourceFolder(): string | undefined {
+	private getSourceFolder(): string {
 		const sourcePath = this.getSourcePath();
-		if (!sourcePath) return undefined;
+		if (!sourcePath) return "";
 
-		// If we have an override, derive folder from path string (file may not exist yet)
-		if (this.sourcePathOverride) {
-			const lastSlash = sourcePath.lastIndexOf('/');
-			return lastSlash >= 0 ? sourcePath.substring(0, lastSlash) : "";
+		// Use Obsidian's API to get the parent folder, works for both existing and non-existing paths
+		const parent = this.app.fileManager.getNewFileParent(sourcePath);
+		return this.normalizeFolderPath(parent?.path);
+	}
+
+	private resolveRelative(baseFolder: string, input: string): { folder: string; query: string } {
+		let folder = this.normalizeFolderPath(baseFolder);
+		let query = input;
+
+		// Handle ./ prefix
+		if (query.startsWith("./")) {
+			query = query.slice(2);
 		}
 
-		// Otherwise use the actual file's parent
-		const sourceFile = this.app.workspace.getActiveFile();
-		return sourceFile?.parent?.path;
+		// Handle multiple ../ prefixes
+		while (query.startsWith("../")) {
+			const parts = folder.split("/");
+			if (parts.length > 0 && parts[0] !== "") {
+				parts.pop();
+				folder = parts.join("/");
+			}
+			query = query.slice(3);
+		}
+
+		return { folder: this.normalizeFolderPath(folder), query };
 	}
 
 
@@ -88,12 +109,13 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		}
 
 		// Build search context - use source folder even if file doesn't exist yet
+		// Clear currentFile bias when using override to avoid heading/block bias from unrelated active file
 		const sourceFolder = this.getSourceFolder();
 		const activeFile = this.app.workspace.getActiveFile();
 		const context: SearchContext = {
-		 currentFile: activeFile ?? undefined,
-		currentFolder: sourceFolder
-		};
+		currentFile: this.sourcePathOverride ? undefined : (activeFile ?? undefined),
+		 currentFolder: sourceFolder
+	};
 
 	return this.fileIndex.search(fileNameInput, context, 50);
 	}
@@ -165,41 +187,24 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	}
 
 	private getRelativePathSuggestions(input: string): SearchResult[] {
-		const sourceFolderPath = this.getSourceFolder();
-		if (sourceFolderPath === undefined) return [];
+		const baseFolder = this.getSourceFolder();
+		const { folder, query } = this.resolveRelative(baseFolder, input);
 
-		let targetFolderPath = sourceFolderPath;
-
-		if (input.startsWith('../')) {
-			// Navigate up one level from source folder
-			const lastSlash = targetFolderPath.lastIndexOf('/');
-			targetFolderPath = lastSlash >= 0 ? targetFolderPath.substring(0, lastSlash) : "";
-			const remainingPath = input.substring(3);
-			if (remainingPath) {
-				return this.fileIndex.search(remainingPath, {
-					currentFolder: targetFolderPath
-				}, 20);
-			}
-		} else if (input.startsWith('./')) {
-			const remainingPath = input.substring(2);
-			if (remainingPath) {
-				return this.fileIndex.search(remainingPath, {
-					currentFolder: targetFolderPath
-				}, 20);
-			}
+		// If there's a query after the relative path, search with it
+		if (query) {
+			return this.fileIndex.search(query, {
+				currentFolder: folder
+			}, 20);
 		}
 
-		// Show all files in target folder
+		// Otherwise show all files in the target folder
 		const allResults = this.fileIndex.search('', {
-			currentFolder: targetFolderPath
+			currentFolder: folder
 		}, 50);
 
-		// Fix root folder matching - normalize paths for comparison
-		return allResults.filter(r => {
-			const fileFolder = r.file.folder === "" ? "" : r.file.folder;
-			const targetPath = targetFolderPath === "" ? "" : targetFolderPath;
-			return fileFolder === targetPath;
-		});
+		// Filter to ensure exact folder match using normalized paths
+		const normalize = (p?: string) => this.normalizeFolderPath(p || "");
+		return allResults.filter(r => normalize(r.file.folder) === normalize(folder));
 	}
 
 	private getAttachmentSuggestions(query: string): SearchResult[] {
@@ -223,7 +228,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 					blockIds: [],
 					tags: [],
 					modified: file.stat.mtime,
-					folder: file.parent?.path ?? ""
+					folder: this.normalizeFolderPath(file.parent?.path || "")
 				},
 				score: 0,
 				matchType: 'exact' as const,
