@@ -25,6 +25,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	 */
 	private templaterProcessed = false;
 
+	protected getCurrentFileLink(): string | null {
+		const currentFile = this.app.workspace.getActiveFile();
+		if (!currentFile) return null;
+
+		// Use the capture destination as the source context so relative links work correctly
+		// e.g., if active file is Projects/Idea.md and capture target is Journal/Inbox.md,
+		// we want [[Projects/Idea]], not [[Idea]]
+		const sourcePath = this.file?.path ?? currentFile.path;
+		return this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
+	}
+
 	public async formatContentWithFile(
 		input: string,
 		choice: ICaptureChoice,
