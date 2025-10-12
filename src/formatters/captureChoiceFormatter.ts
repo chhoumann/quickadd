@@ -33,6 +33,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	public setDestinationSourcePath(path: string): void {
 		this.sourcePath = path;
+		this.file = null;
 	}
 
 	protected getCurrentFileLink(): string | null {

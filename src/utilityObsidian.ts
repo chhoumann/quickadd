@@ -300,9 +300,14 @@ export function insertFileLinkToActiveView(
 	if (!linkOptions?.enabled) return false;
 
 	const activeFile = app.workspace.getActiveFile();
-	if (!activeFile) {
+	if (!activeFile && linkOptions.requireActiveFile) {
+		throw new Error("Append link is enabled but there's no active file to insert into.");
+	}
+
+	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	if (!view) {
 		if (linkOptions.requireActiveFile) {
-			throw new Error("Append link is enabled but there's no active file to insert into.");
+			throw new Error("Cannot append link because no active Markdown view is available.");
 		}
 		return false;
 	}
@@ -312,7 +317,7 @@ export function insertFileLinkToActiveView(
 		app,
 		app.fileManager.generateMarkdownLink(file, sourcePath),
 		linkOptions.placement,
-		{ requireActiveView: linkOptions.requireActiveFile },
+		{ requireActiveView: false },
 	);
 
 	return true;
