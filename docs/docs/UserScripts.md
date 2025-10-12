@@ -868,6 +868,7 @@ For complete working examples, see:
 - <a href="/scripts/movies.js" download>Movie Script</a> - Fetches movie data from OMDb API
 - <a href="/scripts/citationsManager.js" download>Citations Manager</a> - Integrates with Obsidian Citations plugin
 - [Book Finder](./Examples/Macro_BookFinder.md) - Searches for book information
+- [Migrate Dataview Properties](./Examples/Macro_MigrateDataviewProperties.md) - Migrates inline dataview properties to YAML frontmatter with configurable settings
 
 ## Additional Resources
 
