@@ -300,8 +300,7 @@ export function insertFileLinkToActiveView(
 
 	const activeFile = app.workspace.getActiveFile();
 	if (!activeFile && linkOptions.requireActiveFile) {
-		log.logWarning("Append link is enabled but there's no active file to insert into.");
-		return false;
+		throw new Error("Append link is enabled but there's no active file to insert into.");
 	}
 
 	const sourcePath = activeFile?.path ?? "";
