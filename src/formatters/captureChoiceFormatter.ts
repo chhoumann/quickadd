@@ -17,6 +17,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
 	private file: TFile | null = null;
 	private fileContent = "";
+	private sourcePath: string | null = null;
 	/**
 	 * Tracks whether the current formatter instance has already run Templater on the
 	 * capture payload.  This prevents the same content from being parsed twice in
@@ -24,6 +25,32 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	 * tp.system.prompt).
 	 */
 	private templaterProcessed = false;
+
+	public setDestinationFile(file: TFile): void {
+		this.file = file;
+		this.sourcePath = file.path;
+	}
+
+	public setDestinationSourcePath(path: string): void {
+		this.sourcePath = path;
+		this.file = null;
+	}
+
+	protected getLinkSourcePath(): string | null {
+		return this.sourcePath ?? this.file?.path ?? null;
+	}
+
+	protected getCurrentFileLink(): string | null {
+		const currentFile = this.app.workspace.getActiveFile();
+		if (!currentFile) return null;
+
+		// Use the capture destination as the source context so relative links work correctly
+		// e.g., if active file is Projects/Idea.md and capture target is Journal/Inbox.md,
+		// we want [[Projects/Idea]], not [[Idea]]
+		// Prefer sourcePath (set before file creation) over file.path, fallback to empty string
+		const sourcePath = this.sourcePath ?? this.file?.path ?? "";
+		return this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
+	}
 
 	public async formatContentWithFile(
 		input: string,

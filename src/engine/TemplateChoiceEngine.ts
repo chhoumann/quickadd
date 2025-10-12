@@ -18,7 +18,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
-	insertLinkWithPlacement,
+	insertFileLinkToActiveView,
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
@@ -168,12 +168,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (linkOptions.enabled && createdFile) {
-				insertLinkWithPlacement(
-					this.app,
-					this.app.fileManager.generateMarkdownLink(createdFile, ""),
-					linkOptions.placement,
-					{ requireActiveView: linkOptions.requireActiveFile },
-				);
+			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {

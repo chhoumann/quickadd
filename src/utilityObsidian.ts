@@ -17,7 +17,7 @@ import type {
 	OpenFileOptions as FileOpenOptions,
 	FileViewMode2 as FileViewModeNew
 } from "./types/fileOpening";
-import type { LinkPlacement } from "./types/linkPlacement";
+import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
 
@@ -154,7 +154,7 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		const editor = activeView.editor;
 		const cursor = editor.getCursor();
 		const lineNumber = cursor.line;
-		
+
 		if (direction === "above") {
 			// Insert at the beginning of the current line, add content + newline
 			editor.replaceRange(toInsert + "\n", { line: lineNumber, ch: 0 });
@@ -193,7 +193,7 @@ export function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
-	options: { requireActiveView?: boolean } = {},
+	options: { requireActiveView?: boolean; } = {},
 ) {
 	const { requireActiveView = true } = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
@@ -235,7 +235,7 @@ export function insertLinkWithPlacement(
 	 * Sorting bottom-to-top prevents indices from becoming stale while
 	 * we insert (because later lines are modified first).
 	 */
-	const asIndex = ({ line, ch }: { line: number; ch: number }) =>
+	const asIndex = ({ line, ch }: { line: number; ch: number; }) =>
 		editor.posToOffset({ line, ch });
 
 	// Sort selections by document position (descending)
@@ -273,13 +273,54 @@ export function insertLinkWithPlacement(
 			case "newLine": {
 				const lineStr = editor.getLine(head.line);
 				const eolPos = { line: head.line, ch: lineStr.length };
-				// prepend newline only if the current line isn't already empty
-				const prefix = lineStr.endsWith("\n") ? "" : "\n";
+				// prepend newline only if the current line isn't empty
+				const isLineEmpty = lineStr.length === 0;
+				const prefix = isLineEmpty ? "" : "\n";
 				editor.replaceRange(prefix + text, eolPos);
 				break;
 			}
 		}
 	}
+}
+
+/**
+ * Inserts a link to the specified file into the active view, respecting 
+ * Obsidian's "New link format" setting.
+ * 
+ * @param app - The Obsidian app instance
+ * @param file - The file to link to
+ * @param linkOptions - Options controlling link insertion behavior
+ * @returns True if the link was inserted, false otherwise
+ */
+export function insertFileLinkToActiveView(
+	app: App,
+	file: TFile,
+	linkOptions: AppendLinkOptions,
+): boolean {
+	if (!linkOptions?.enabled) return false;
+
+	const activeFile = app.workspace.getActiveFile();
+	if (!activeFile && linkOptions.requireActiveFile) {
+		throw new Error("Append link is enabled but there's no active file to insert into.");
+	}
+
+	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	if (!view) {
+		if (linkOptions.requireActiveFile) {
+			throw new Error("Cannot append link because no active Markdown view is available.");
+		}
+		return false;
+	}
+
+	const sourcePath = activeFile?.path ?? "";
+	insertLinkWithPlacement(
+		app,
+		app.fileManager.generateMarkdownLink(file, sourcePath),
+		linkOptions.placement,
+		{ requireActiveView: false },
+	);
+
+	return true;
 }
 
 export function findObsidianCommand(app: App, commandId: string) {
@@ -348,83 +389,83 @@ export type OpenFileOptions = FileOpenOptions;
  * @returns The leaf it opened into.
  */
 export async function openFile(
-  app: App,
-  fileOrPath: TFile | string,
-  options: FileOpenOptions = {}
+	app: App,
+	fileOrPath: TFile | string,
+	options: FileOpenOptions = {}
 ): Promise<WorkspaceLeaf> {
-  const {
-    location = "tab",
-    direction = "vertical",
-    mode,
-    focus = true,
-    eState,
-  } = options;
+	const {
+		location = "tab",
+		direction = "vertical",
+		mode,
+		focus = true,
+		eState,
+	} = options;
 
-  const file =
-    typeof fileOrPath === "string"
-      ? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
-      : fileOrPath;
+	const file =
+		typeof fileOrPath === "string"
+			? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
+			: fileOrPath;
 
-  if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
+	if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
 
-  // Resolve a target leaf for all supported locations
-  let leaf: WorkspaceLeaf | null;
-  switch (location) {
-    case "reuse":
-      leaf = app.workspace.getLeaf(false);
-      break;
-    case "tab":
-      leaf = app.workspace.getLeaf("tab");
-      break;
-    case "split":
-      leaf = app.workspace.getLeaf("split", direction);
-      break;
-    case "window":
-      leaf = app.workspace.getLeaf("window");
-      break;
-    case "left-sidebar":
-      leaf = app.workspace.getLeftLeaf(true);
-      break;
-    case "right-sidebar":
-      leaf = app.workspace.getRightLeaf(true);
-      break;
-    default:
-      leaf = app.workspace.getLeaf("tab");
-  }
-  if (!leaf) throw new Error("Could not obtain a workspace leaf.");
+	// Resolve a target leaf for all supported locations
+	let leaf: WorkspaceLeaf | null;
+	switch (location) {
+		case "reuse":
+			leaf = app.workspace.getLeaf(false);
+			break;
+		case "tab":
+			leaf = app.workspace.getLeaf("tab");
+			break;
+		case "split":
+			leaf = app.workspace.getLeaf("split", direction);
+			break;
+		case "window":
+			leaf = app.workspace.getLeaf("window");
+			break;
+		case "left-sidebar":
+			leaf = app.workspace.getLeftLeaf(true);
+			break;
+		case "right-sidebar":
+			leaf = app.workspace.getRightLeaf(true);
+			break;
+		default:
+			leaf = app.workspace.getLeaf("tab");
+	}
+	if (!leaf) throw new Error("Could not obtain a workspace leaf.");
 
-  // Open the file
-  await leaf.openFile(file);
+	// Open the file
+	await leaf.openFile(file);
 
-  // Optionally adjust view mode (Reading / Live Preview / Source)
-  if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
-    const vs = leaf.getViewState();
-    const next = { ...(vs.state ?? {}) };
+	// Optionally adjust view mode (Reading / Live Preview / Source)
+	if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
+		const vs = leaf.getViewState();
+		const next = { ...(vs.state ?? {}) };
 
-    if (mode === "preview" || (typeof mode === "object" && mode.mode === "preview")) {
-      next.mode = "preview";
-      delete (next as any).source;
-    } else if (mode === "source") {
-      next.mode = "source";
-      (next as any).source = true;
-    } else if (mode === "live" || mode === "live-preview") {
-      next.mode = "source";
-      (next as any).source = false; // Live Preview = source:false
-    } else if (typeof mode === "object" && mode.mode === "source") {
-      // advanced override
-      next.mode = "source";
-      (next as any).source = mode.source;
-    }
+		if (mode === "preview" || (typeof mode === "object" && mode.mode === "preview")) {
+			next.mode = "preview";
+			delete (next as any).source;
+		} else if (mode === "source") {
+			next.mode = "source";
+			(next as any).source = true;
+		} else if (mode === "live" || mode === "live-preview") {
+			next.mode = "source";
+			(next as any).source = false; // Live Preview = source:false
+		} else if (typeof mode === "object" && mode.mode === "source") {
+			// advanced override
+			next.mode = "source";
+			(next as any).source = mode.source;
+		}
 
-    // Fix eState usage - merge into state rather than passing as second param
-    await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
-  }
+		// Fix eState usage - merge into state rather than passing as second param
+		await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
+	}
 
-  if (focus) {
-    app.workspace.setActiveLeaf(leaf, { focus: true });
-  }
+	if (focus) {
+		app.workspace.setActiveLeaf(leaf, { focus: true });
+	}
 
-  return leaf;
+	return leaf;
 }
 
 /**
@@ -465,17 +506,17 @@ export async function getUserScript(command: IUserScript, app: App) {
 	}
 
 	if (file instanceof TFile) {
-		 
+
 		const req = (s: string) => window.require && window.require(s);
 		const exp: Record<string, unknown> = {};
 		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
-		 
+
 		const fn = window.eval(
 			`(function(require, module, exports) { ${fileContent} \n})`,
 		);
-		 
+
 		fn(req, mod, exp);
 
 		// @ts-ignore
@@ -489,7 +530,7 @@ export async function getUserScript(command: IUserScript, app: App) {
 			let member: string;
 			while ((member = memberAccess.shift() as string)) {
 				//@ts-ignore
-				 
+
 				script = script[member];
 			}
 		}

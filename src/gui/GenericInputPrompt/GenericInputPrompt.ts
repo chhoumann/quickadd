@@ -25,7 +25,25 @@ export default class GenericInputPrompt extends Modal {
 			app,
 			header,
 			placeholder,
-			value
+			value,
+			undefined
+		);
+		return newPromptModal.waitForClose;
+	}
+
+	public static PromptWithContext(
+		app: App,
+		header: string,
+		placeholder?: string,
+		value?: string,
+		linkSourcePath?: string
+	): Promise<string> {
+		const newPromptModal = new GenericInputPrompt(
+			app,
+			header,
+			placeholder,
+			value,
+			linkSourcePath
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -34,7 +52,8 @@ export default class GenericInputPrompt extends Modal {
 		app: App,
 		private header: string,
 		placeholder?: string,
-		value?: string
+		value?: string,
+		private linkSourcePath?: string
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
@@ -50,7 +69,8 @@ export default class GenericInputPrompt extends Modal {
 
 		this.fileSuggester = new FileSuggester(
 			app,
-			this.inputComponent.inputEl
+			this.inputComponent.inputEl,
+			{ sourcePath: this.linkSourcePath }
 		);
 		this.tagSuggester = new TagSuggester(
 			app,

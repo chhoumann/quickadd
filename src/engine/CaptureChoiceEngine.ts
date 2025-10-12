@@ -17,7 +17,7 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
-	insertLinkWithPlacement,
+	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
 	isFolder,
@@ -163,12 +163,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 				if (linkOptions.enabled) {
-					insertLinkWithPlacement(
-						this.app,
-						this.app.fileManager.generateMarkdownLink(file, ""),
-						linkOptions.placement,
-						{ requireActiveView: linkOptions.requireActiveFile },
-					);
+				insertFileLinkToActiveView(this.app, file, linkOptions);
 				}
 
 			if (this.choice.openFile && file) {
@@ -335,6 +330,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Set the title to the existing file's basename
 		this.formatter.setTitle(file.basename);
 
+		// Set the destination file so formatters can generate proper relative links
+		this.formatter.setDestinationFile(file);
+
 		// First format pass...
 		const formatted = await this.formatter.formatContentOnly(content);
 
@@ -382,6 +380,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Extract filename without extension from the full path
 		const fileBasename = filePath.split("/").pop()?.replace(/\.md$/, "") || "";
 		this.formatter.setTitle(fileBasename);
+
+		// Set the destination path so formatters can generate proper relative links
+		// even before the file is created
+		this.formatter.setDestinationSourcePath(filePath);
 
 		// First formatting pass: resolve QuickAdd placeholders and prompt for user input (e.g. {{value}})
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
