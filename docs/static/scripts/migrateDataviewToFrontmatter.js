@@ -117,11 +117,30 @@ async function start(params, settings) {
                     });
                 }
 
-                // If single value, store as string; if multiple, store as array
-                if (valuesArray.length === 1) {
-                    frontmatter[normalizedFieldName] = valuesArray[0];
-                } else if (valuesArray.length > 1) {
-                    frontmatter[normalizedFieldName] = valuesArray;
+                // Merge with existing frontmatter values instead of overwriting
+                const existingValue = frontmatter[normalizedFieldName];
+
+                if (existingValue !== undefined && existingValue !== null) {
+                    // Property already exists - merge the values
+                    const existingArray = Array.isArray(existingValue)
+                        ? existingValue
+                        : [existingValue];
+
+                    // Combine existing and new values, then deduplicate
+                    const combined = [...existingArray, ...valuesArray];
+                    const deduplicated = [...new Set(combined.map(v => String(v)))];
+
+                    // Store as string or array depending on count
+                    frontmatter[normalizedFieldName] = deduplicated.length === 1
+                        ? deduplicated[0]
+                        : deduplicated;
+                } else {
+                    // Property doesn't exist - add it
+                    if (valuesArray.length === 1) {
+                        frontmatter[normalizedFieldName] = valuesArray[0];
+                    } else if (valuesArray.length > 1) {
+                        frontmatter[normalizedFieldName] = valuesArray;
+                    }
                 }
             });
         });
@@ -278,7 +297,7 @@ function parseCommaSeparatedWithWikilinks(value) {
         }
 
         // Check for wikilink closing ]]
-        if (char === ']' && value[i - 1] === ']') {
+        if (char === ']' && nextChar === ']') {
             insideWikilink = false;
             currentValue += char;
             continue;

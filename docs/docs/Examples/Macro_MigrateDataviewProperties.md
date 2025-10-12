@@ -86,6 +86,7 @@ A comma-separated list of property names to migrate (case-insensitive). This set
 - **Case-Insensitive Matching**: Property names are matched case-insensitively
 - **Selective Migration**: Choose to migrate all properties or only specific ones
 - **Reserved Property Handling**: Special handling for Obsidian reserved properties like `tags`
+- **Frontmatter Merging**: Merges with existing frontmatter values instead of overwriting (deduplicates)
 - **Clean Output**: Removes excessive blank lines after migration
 
 ## Examples
@@ -196,6 +197,45 @@ The `tags` property is special in Obsidian:
 - The `#` symbols are stripped from tag values
 - This follows Obsidian's frontmatter convention where tags don't use `#`
 
+### Example 5: Merging with Existing Frontmatter
+
+**Input:**
+```markdown
+---
+tags:
+  - existing-tag
+Reference: "[[Existing Reference]]"
+---
+
+# My Note
+
+Tags:: #new-tag, #another-tag
+Reference:: [[New Reference]]
+Related:: [[Some Link]]
+```
+
+**Output:**
+```markdown
+---
+tags:
+  - existing-tag
+  - new-tag
+  - another-tag
+Reference:
+  - "[[Existing Reference]]"
+  - "[[New Reference]]"
+Related: "[[Some Link]]"
+---
+
+# My Note
+```
+
+The script **merges** values instead of overwriting:
+- Existing `tags` are preserved and new tags are added
+- Existing `Reference` value is kept and the new one is added
+- `Related` is added as a new property
+- All values are deduplicated
+
 ## Obsidian Reserved Properties
 
 Obsidian has special handling for certain property names in frontmatter. The script automatically handles these:
@@ -284,9 +324,10 @@ await app.vault.modify(activeFile, cleanedContent);
 - Make sure wikilinks use proper `[[` and `]]` syntax
 - Check for unmatched brackets in your wikilinks
 
-**Frontmatter duplicated:**
-- The script preserves existing frontmatter and adds new properties
-- If properties already exist in frontmatter, they will be overwritten
+**How are existing frontmatter values handled:**
+- The script merges with existing frontmatter values instead of overwriting
+- If a property already exists in frontmatter, the new values are combined and deduplicated
+- Example: If frontmatter has `tags: [project]` and inline has `Tags:: #work`, result will be `tags: [project, work]`
 
 ## Related Resources
 
