@@ -126,6 +126,7 @@ const sidebars = {
 						"Examples/Macro_Zettelizer",
 						"Examples/Macro_AddLocationLongLatFromAddress",
 						"Examples/Macro_TogglManager",
+						"Examples/Macro_MigrateDataviewProperties",
 					],
 				},
 			],
