@@ -271,13 +271,14 @@ export function insertLinkWithPlacement(
 			//  NEW-LINE
 			//////////////////////////////////////////////////////////////////
 			case "newLine": {
-				const lineStr = editor.getLine(head.line);
-				const eolPos = { line: head.line, ch: lineStr.length };
-				// prepend newline only if the current line isn't already empty
-				const prefix = lineStr.endsWith("\n") ? "" : "\n";
-				editor.replaceRange(prefix + text, eolPos);
-				break;
-			}
+			const lineStr = editor.getLine(head.line);
+			const eolPos = { line: head.line, ch: lineStr.length };
+			// prepend newline only if the current line isn't empty
+			const isLineEmpty = lineStr.length === 0;
+			const prefix = isLineEmpty ? "" : "\n";
+			editor.replaceRange(prefix + text, eolPos);
+			 break;
+		}
 		}
 	}
 }
@@ -299,8 +300,11 @@ export function insertFileLinkToActiveView(
 	if (!linkOptions?.enabled) return false;
 
 	const activeFile = app.workspace.getActiveFile();
-	if (!activeFile && linkOptions.requireActiveFile) {
-		throw new Error("Append link is enabled but there's no active file to insert into.");
+	if (!activeFile) {
+		if (linkOptions.requireActiveFile) {
+			throw new Error("Append link is enabled but there's no active file to insert into.");
+		}
+		return false;
 	}
 
 	const sourcePath = activeFile?.path ?? "";

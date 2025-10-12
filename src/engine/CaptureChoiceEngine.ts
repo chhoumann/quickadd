@@ -381,6 +381,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const fileBasename = filePath.split("/").pop()?.replace(/\.md$/, "") || "";
 		this.formatter.setTitle(fileBasename);
 
+		// Set the destination path so formatters can generate proper relative links
+		// even before the file is created
+		this.formatter.setDestinationSourcePath(filePath);
+
 		// First formatting pass: resolve QuickAdd placeholders and prompt for user input (e.g. {{value}})
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
