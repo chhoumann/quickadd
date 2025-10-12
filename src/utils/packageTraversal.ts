@@ -118,11 +118,20 @@ function collectDependenciesFromCommands(
 				);
 				break;
 			}
-		case CommandType.NestedChoice: {
-			// Nested choices are inline definitions; their dependencies are handled
-			// separately when gathering script/file assets.
-			break;
-		}
+			case CommandType.NestedChoice: {
+				const nested = command as INestedChoiceCommand;
+				const nestedChoice = nested.choice;
+				if (!nestedChoice) {
+					break;
+				}
+
+				accumulator.add(nestedChoice.id);
+				const nestedDeps = collectChoiceDependencies(nestedChoice);
+				for (const depId of nestedDeps) {
+					accumulator.add(depId);
+				}
+				break;
+			}
 			default:
 				break;
 		}

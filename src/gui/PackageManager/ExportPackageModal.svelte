@@ -433,8 +433,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
-		min-width: 520px;
-		max-height: 70vh;
+		width: min(640px, 100%);
+		min-width: 0;
+		max-height: 75vh;
 	}
 
 	header p {
@@ -446,6 +447,7 @@
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
+		flex-wrap: wrap;
 	}
 
 	.controls input {
@@ -455,6 +457,8 @@
 	.controlButtons {
 		display: flex;
 		gap: 0.5rem;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 	}
 
 	.choiceList {
@@ -586,5 +590,67 @@
 
 	.footer button.secondary {
 		background: transparent;
+	}
+
+	@media (max-width: 600px) {
+		.exportPackageModal {
+			max-height: 90vh;
+			padding-bottom: 0.5rem;
+		}
+
+		.controls {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.5rem;
+		}
+
+		.controlButtons {
+			width: 100%;
+			flex-direction: column;
+			gap: 0.5rem;
+			align-items: stretch;
+		}
+
+		.controlButtons button {
+			width: 100%;
+		}
+
+		.choiceList {
+			min-height: 160px;
+			max-height: 40vh;
+		}
+
+		.summaryGrid {
+			grid-template-columns: 1fr;
+		}
+
+		.actions {
+			gap: 0.75rem;
+		}
+
+		.actionGroup {
+			align-items: stretch;
+		}
+
+		.actionGroup button {
+			width: 100%;
+		}
+
+		.saveRow {
+			flex-direction: column;
+		}
+
+		.saveRow button {
+			width: 100%;
+		}
+
+		.footer {
+			flex-direction: column-reverse;
+			align-items: stretch;
+		}
+
+		.footer button {
+			width: 100%;
+		}
 	}
 </style>

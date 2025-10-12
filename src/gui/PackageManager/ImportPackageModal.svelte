@@ -202,10 +202,16 @@ function onAssetPathChange(path: string, event: Event) {
 		importSummary = null;
 		try {
 			const choiceDecisionsList: ChoiceImportDecision[] = analysis.choiceConflicts.map(
-				(conflict) => ({
-					choiceId: conflict.choiceId,
-					mode: choiceDecisions.get(conflict.choiceId) ?? "import",
-				}),
+				(conflict) => {
+					const rawMode = choiceDecisions.get(conflict.choiceId) ?? "import";
+					const mode =
+						conflict.exists || rawMode !== "overwrite" ? rawMode : "import";
+
+					return {
+						choiceId: conflict.choiceId,
+						mode,
+					};
+				},
 			);
 
 			const assetDecisionsList: AssetImportDecision[] =
@@ -316,17 +322,26 @@ function onAssetPathChange(path: string, event: Event) {
 					</thead>
 					<tbody>
 						{#each analysis.choiceConflicts as conflict}
+							{@const storedMode =
+								choiceDecisions.get(conflict.choiceId) ?? "import"}
+							{@const effectiveMode =
+								!conflict.exists && storedMode === "overwrite"
+									? "import"
+									: storedMode}
 							<tr>
 								<td>{conflict.name}</td>
 								<td>{formatPathHint(conflict.pathHint)}</td>
 								<td>{conflict.exists ? "Yes" : "No"}</td>
 								<td>
-								<select
-									value={choiceDecisions.get(conflict.choiceId) ?? "import"}
-									on:change={(event) => onChoiceModeChange(conflict.choiceId, event)}
-								>
+									<select
+										value={effectiveMode}
+										on:change={(event) =>
+											onChoiceModeChange(conflict.choiceId, event)}
+									>
 										<option value="import">Import</option>
-										<option value="overwrite">Overwrite</option>
+										{#if conflict.exists}
+											<option value="overwrite">Overwrite</option>
+										{/if}
 										<option value="duplicate">Duplicate</option>
 										<option value="skip">Skip</option>
 									</select>
