@@ -293,6 +293,12 @@ export function collectFileDependencies(
 			if (!command) continue;
 
 			switch (command.type) {
+				case CommandType.Choice: {
+					const choiceCommand = command as IChoiceCommand;
+					const targetEntry = catalog.get(choiceCommand.choiceId);
+					if (targetEntry) visitChoice(targetEntry.choice);
+					break;
+				}
 				case CommandType.NestedChoice: {
 					const nested = command as INestedChoiceCommand;
 					if (nested.choice) visitChoice(nested.choice);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectChoiceClosure, collectScriptDependencies } from "../../src/utils/packageTraversal";
+import { collectChoiceClosure, collectScriptDependencies, collectFileDependencies } from "../../src/utils/packageTraversal";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { ChoiceCommand } from "../../src/types/macros/ChoiceCommand";
 import { UserScript } from "../../src/types/macros/UserScript";
@@ -74,18 +74,33 @@ describe("packageTraversal", () => {
 		expect([...scripts.userScriptPaths]).toEqual(["Scripts/branch.js"]);
 	});
 
-	it("collects scripts from transitive choice dependencies", () => {
-		const parent = new MacroChoice("Parent");
-		const child = new MacroChoice("Child");
+it("collects scripts from transitive choice dependencies", () => {
+	const parent = new MacroChoice("Parent");
+	const child = new MacroChoice("Child");
 
-		child.macro.commands.push(new UserScript("Child script", "Scripts/child.js"));
-		parent.macro.commands.push(new ChoiceCommand("Run child", child.id));
+	child.macro.commands.push(new UserScript("Child script", "Scripts/child.js"));
+	parent.macro.commands.push(new ChoiceCommand("Run child", child.id));
 
-		const closure = collectChoiceClosure([parent, child], [parent.id]);
+	const closure = collectChoiceClosure([parent, child], [parent.id]);
 	const scripts = collectScriptDependencies(closure.catalog, closure.choiceIds);
 
 	expect([...scripts.userScriptPaths]).toEqual(["Scripts/child.js"]);
-	});
+	const files = collectFileDependencies(closure.catalog, closure.choiceIds);
+	expect(files.templatePaths.size).toBe(0);
+	expect(files.captureTemplatePaths.size).toBe(0);
+});
+
+it("collects file dependencies from choice commands", () => {
+	const templateChoice = new TemplateChoice("Template choice");
+	templateChoice.templatePath = "Templates/daily.md";
+
+	const macro = new MacroChoice("Macro");
+	macro.macro.commands.push(new ChoiceCommand("Run template", templateChoice.id));
+
+	const closure = collectChoiceClosure([macro, templateChoice], [macro.id]);
+	const files = collectFileDependencies(closure.catalog, closure.choiceIds);
+	expect([...files.templatePaths]).toEqual(["Templates/daily.md"]);
+});
 
 	it("collects dependencies from nested choice commands", () => {
 		const nested = new MacroChoice("Nested Macro");
