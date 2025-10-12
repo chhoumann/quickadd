@@ -44,6 +44,15 @@ import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
+import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
+import type { ScriptCondition } from "../types/macros/Conditional/types";
+import { evaluateCondition } from "./helpers/conditionalEvaluator";
+
+type ConditionalScriptRunner = () => Promise<unknown>;
+
+function getConditionalScriptCacheKey(condition: ScriptCondition): string {
+	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
+}
 
 export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
@@ -67,6 +76,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
 	private userScriptCommand: IUserScript | null;
+	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 
 	constructor(
 		app: App,
@@ -134,6 +144,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				}
 				if (command?.type === CommandType.OpenFile) {
 					await this.executeOpenFile(command as IOpenFileCommand);
+				}
+				if (command?.type === CommandType.Conditional) {
+					await this.executeConditional(command as IConditionalCommand);
 				}
 
 				Object.keys(this.params.variables).forEach((key) => {
@@ -412,8 +425,104 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 		for (const key in aiOutputVariables) {
-			this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
+				this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
 		}
+	}
+
+	private async executeConditional(command: IConditionalCommand) {
+		const shouldRunThenBranch = await evaluateCondition(command.condition, {
+			variables: this.params.variables,
+			evaluateScriptCondition: async (condition: ScriptCondition) =>
+				await this.evaluateScriptCondition(condition),
+		});
+
+		const branch = shouldRunThenBranch
+			? command.thenCommands
+			: command.elseCommands;
+
+		if (!Array.isArray(branch) || branch.length === 0) {
+			return;
+		}
+
+		await this.executeCommands(branch);
+	}
+
+	private async evaluateScriptCondition(
+		condition: ScriptCondition
+	): Promise<boolean> {
+		const cacheKey = getConditionalScriptCacheKey(condition);
+
+		let runner = this.conditionalScriptCache.get(cacheKey);
+
+		if (!runner) {
+			runner = await this.loadConditionalScript(condition);
+
+			if (!runner) return false;
+
+			this.conditionalScriptCache.set(cacheKey, runner);
+		}
+
+		let result: unknown;
+
+		try {
+			result = await runner();
+		} catch (error) {
+			reportError(
+				error,
+				`Failed to evaluate conditional script '${condition.scriptPath}'.`
+			);
+			throw error;
+		}
+
+		if (typeof result !== "boolean") {
+			log.logWarning(
+				`Conditional script '${condition.scriptPath}' must return a boolean result.`
+			);
+			return false;
+		}
+
+		return result;
+	}
+
+	private async loadConditionalScript(
+		condition: ScriptCondition
+	): Promise<ConditionalScriptRunner | null> {
+		try {
+			const script = await getUserScript(
+				this.buildConditionalUserScript(condition),
+				this.app
+			);
+
+			if (script === undefined || script === null) {
+				return null;
+			}
+
+			if (typeof script === "function") {
+				return async () => await script(this.params);
+			}
+
+			return async () => script;
+		} catch (error) {
+			reportError(
+				error,
+				`Failed to load conditional script '${condition.scriptPath}'.`
+			);
+			throw error;
+		}
+	}
+
+	private buildConditionalUserScript(
+		condition: ScriptCondition
+	): IUserScript {
+		return {
+			id: `conditional-script-${getConditionalScriptCacheKey(condition)}`,
+			name: condition.exportName
+				? `${condition.scriptPath}::${condition.exportName}`
+				: condition.scriptPath,
+			type: CommandType.UserScript,
+			path: condition.scriptPath,
+			settings: {},
+		};
 	}
 
 	private async executeOpenFile(command: IOpenFileCommand) {

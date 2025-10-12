@@ -1,11 +1,12 @@
 <script lang="ts">
-	import type { ICommand } from "../../types/macros/ICommand";
-	import {
-		type DndEvent,
-		dndzone,
-		SOURCES,
-		SHADOW_PLACEHOLDER_ITEM_ID,
-	} from "svelte-dnd-action";
+import type { ICommand } from "../../types/macros/ICommand";
+import {
+	type DndEvent,
+	dndzone,
+	SOURCES,
+	SHADOW_PLACEHOLDER_ITEM_ID,
+} from "svelte-dnd-action";
+import { createEventDispatcher } from "svelte";
 	import StandardCommand from "./Components/StandardCommand.svelte";
 	import { CommandType } from "../../types/macros/CommandType";
 	import WaitCommand from "./Components/WaitCommand.svelte";
@@ -27,14 +28,17 @@
 	import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
 	import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 	import OpenFileCommand from "./Components/OpenFileCommand.svelte";
-	import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
+import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
+import ConditionalCommand from "./Components/ConditionalCommand.svelte";
+import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 
 	export let commands: ICommand[];
-	export let deleteCommand: (commandId: string) => Promise<void>;
-	export let saveCommands: (commands: ICommand[]) => void;
-	export let app: App;
-	export let plugin: QuickAdd;
-	let dragDisabled: boolean = true;
+export let deleteCommand: (commandId: string) => Promise<void>;
+export let saveCommands: (commands: ICommand[]) => void;
+export let app: App;
+export let plugin: QuickAdd;
+let dragDisabled: boolean = true;
+const dispatch = createEventDispatcher();
 
 	export const updateCommandList: (newCommands: ICommand[]) => void = (
 		newCommands: ICommand[]
@@ -72,12 +76,24 @@
 		updateCommand(command);
 	}
 
-	function updateCommand(command: ICommand) {
-		const index = commands.findIndex((c) => c.id === command.id);
-		commands[index] = command;
+function updateCommand(command: ICommand) {
+	const index = commands.findIndex((c) => c.id === command.id);
+	commands[index] = command;
 
-		saveCommands(commands);
-	}
+	saveCommands(commands);
+}
+
+function configureConditionalCommand(e: CustomEvent<IConditionalCommand>) {
+	dispatch("configureCondition", e.detail);
+}
+
+function editConditionalThen(e: CustomEvent<IConditionalCommand>) {
+	dispatch("editThenBranch", e.detail);
+}
+
+function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
+	dispatch("editElseBranch", e.detail);
+}
 
 	async function configureChoice(e: CustomEvent) {
 		const command = e.detail;
@@ -204,6 +220,16 @@
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
 				on:updateCommand={updateCommandFromEvent}
 				on:configureOpenFile={configureOpenFile}
+			/>
+		{:else if command.type === CommandType.Conditional}
+			<ConditionalCommand
+				bind:command
+				bind:dragDisabled
+				bind:startDrag
+				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
+				on:configureCondition={configureConditionalCommand}
+				on:editThenBranch={editConditionalThen}
+				on:editElseBranch={editConditionalElse}
 			/>
 		{:else}
 			<StandardCommand
