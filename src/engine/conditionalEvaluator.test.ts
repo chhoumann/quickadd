@@ -116,9 +116,7 @@ describe("evaluateCondition", () => {
 			exportName: "default",
 		};
 
-		const evaluateScriptCondition = vi
-			.fn<[], Promise<boolean>>()
-			.mockResolvedValue(true);
+		const evaluateScriptCondition = vi.fn().mockResolvedValue(true as const);
 
 		const result = await evaluateCondition(condition, {
 			variables: {},

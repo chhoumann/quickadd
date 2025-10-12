@@ -486,7 +486,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	private async loadConditionalScript(
 		condition: ScriptCondition
-	): Promise<ConditionalScriptRunner | null> {
+	): Promise<ConditionalScriptRunner | undefined> {
 		try {
 			const script = await getUserScript(
 				this.buildConditionalUserScript(condition),
@@ -494,7 +494,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 
 			if (script === undefined || script === null) {
-				return null;
+				return undefined;
 			}
 
 			if (typeof script === "function") {

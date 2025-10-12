@@ -328,8 +328,8 @@ export class CommandSequenceEditor {
 	}
 
 	private renderAddUserScriptSetting(parent: HTMLElement) {
-		let input: TextComponent;
-		let addButton: ButtonComponent;
+		let input!: TextComponent;
+		let addButton: ButtonComponent | null = null;
 
 		const addUserScriptFromInput = () => {
 			const value: string = input.getValue();
@@ -343,7 +343,9 @@ export class CommandSequenceEditor {
 			this.addCommand(new UserScript(value, file.path));
 
 			input.setValue("");
-			addButton.buttonEl.style.display = "none";
+			if (addButton) {
+				addButton.buttonEl.style.display = "none";
+			}
 		};
 
 		new Setting(parent)
