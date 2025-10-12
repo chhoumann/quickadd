@@ -27,6 +27,7 @@
 		id: string;
 		path: string[];
 		depth: number;
+		parentId: string | null;
 	}
 
 	interface Summary {
@@ -53,14 +54,17 @@
 	};
 
 	let searchQuery = "";
-	let selectedRootIds = new Set<string>();
+	let selectedChoiceIds = new Set<string>();
+	let excludedChoiceIds = new Set<string>();
+	let rootChoiceIds: string[] = [];
 	let outputPath = generateDefaultPackagePath();
 	let exportWarnings: ExportWarnings | null = null;
 	let actionInProgress: "copy" | "save" | null = null;
 
 	$: flatChoices = flattenChoicesWithPath(allChoices);
 	$: filteredChoices = filterFlatChoices(flatChoices, searchQuery);
-	$: summary = computeSummary(allChoices, selectedRootIds);
+	$: rootChoiceIds = computeRootSelections(flatChoices, selectedChoiceIds);
+	$: summary = computeSummary(allChoices, rootChoiceIds, excludedChoiceIds);
 	$: choiceNameById = new Map<string, string>(
 		flatChoices.map((entry) => [entry.id, entry.path.join(" / ")]),
 	);
@@ -69,17 +73,25 @@
 		choices: IChoice[],
 		parentPath: string[] = [],
 		depth = 0,
+		parentId: string | null = null,
 	): FlatChoice[] {
 		const result: FlatChoice[] = [];
 		for (const choice of choices) {
 			const path = [...parentPath, choice.name];
-			result.push({ choice, id: choice.id, path, depth });
+			result.push({
+				choice,
+				id: choice.id,
+				path,
+				depth,
+				parentId,
+			});
 			if (isMultiChoice(choice)) {
 				result.push(
 					...flattenChoicesWithPath(
 						(choice as IMultiChoice).choices ?? [],
 						path,
 						depth + 1,
+						choice.id,
 					),
 				);
 			}
@@ -101,33 +113,88 @@
 		});
 	}
 
-	function toggleChoice(id: string) {
-		const next = new Set(selectedRootIds);
-		if (next.has(id)) {
-			next.delete(id);
-		} else {
-			next.add(id);
+	function getDescendantIds(choice: IChoice): string[] {
+		const ids: string[] = [];
+		if (isMultiChoice(choice)) {
+			const children = (choice as IMultiChoice).choices ?? [];
+			for (const child of children) {
+				ids.push(child.id, ...getDescendantIds(child));
+			}
 		}
-		selectedRootIds = next;
+		return ids;
+	}
+
+	function setSelectionForChoice(choice: IChoice, shouldSelect: boolean) {
+		const affectedIds = [choice.id, ...getDescendantIds(choice)];
+		if (shouldSelect) {
+			const nextSelected = new Set(selectedChoiceIds);
+			for (const id of affectedIds) {
+				nextSelected.add(id);
+			}
+			selectedChoiceIds = nextSelected;
+
+			if (excludedChoiceIds.size > 0) {
+				const nextExcluded = new Set(excludedChoiceIds);
+				for (const id of affectedIds) {
+					nextExcluded.delete(id);
+				}
+				excludedChoiceIds = nextExcluded;
+			}
+		} else {
+			const nextSelected = new Set(selectedChoiceIds);
+			for (const id of affectedIds) {
+				nextSelected.delete(id);
+			}
+			selectedChoiceIds = nextSelected;
+
+			const nextExcluded = new Set(excludedChoiceIds);
+			for (const id of affectedIds) {
+				nextExcluded.add(id);
+			}
+			excludedChoiceIds = nextExcluded;
+		}
+	}
+
+	function toggleChoice(id: string) {
+		const entry = flatChoices.find((item) => item.id === id);
+		if (!entry) return;
+		const isSelected = selectedChoiceIds.has(id);
+		setSelectionForChoice(entry.choice, !isSelected);
 		exportWarnings = null;
 	}
 
 	function selectAllFiltered() {
-		const next = new Set(selectedRootIds);
 		for (const entry of filteredChoices) {
-			next.add(entry.id);
+			setSelectionForChoice(entry.choice, true);
 		}
-		selectedRootIds = next;
 		exportWarnings = null;
 	}
 
 	function clearSelection() {
-		selectedRootIds = new Set();
+		selectedChoiceIds = new Set();
+		excludedChoiceIds = new Set();
 		exportWarnings = null;
 	}
 
-	function computeSummary(all: IChoice[], selected: Set<string>): Summary {
-		const roots = Array.from(selected);
+	function computeRootSelections(
+		flat: FlatChoice[],
+		selected: Set<string>,
+	): string[] {
+		const roots: string[] = [];
+		for (const entry of flat) {
+			if (!selected.has(entry.id)) continue;
+			if (!entry.parentId || !selected.has(entry.parentId)) {
+				roots.push(entry.id);
+			}
+		}
+		return roots;
+	}
+
+	function computeSummary(
+		all: IChoice[],
+		roots: readonly string[],
+		excluded: ReadonlySet<string>,
+	): Summary {
 		if (roots.length === 0) {
 			return {
 				rootCount: 0,
@@ -141,7 +208,9 @@
 			};
 		}
 
-		const closure = collectChoiceClosure(all, roots);
+		const closure = collectChoiceClosure(all, roots, {
+			excludedChoiceIds: excluded,
+		});
 		const scripts = collectScriptDependencies(closure.catalog, closure.choiceIds);
 		const files = collectFileDependencies(closure.catalog, closure.choiceIds);
 
@@ -166,7 +235,7 @@
 	}
 
 	async function preparePackage(): Promise<Awaited<ReturnType<typeof buildPackage>> | null> {
-		if (selectedRootIds.size === 0) {
+		if (rootChoiceIds.length === 0) {
 			new Notice("Select at least one choice to export.");
 			return null;
 		}
@@ -174,7 +243,8 @@
 		try {
 			const result = await buildPackage(app, {
 				choices: allChoices,
-				rootChoiceIds: Array.from(selectedRootIds),
+				rootChoiceIds,
+				excludedChoiceIds: Array.from(excludedChoiceIds),
 				quickAddVersion: plugin.manifest.version,
 			});
 
@@ -303,11 +373,11 @@
 				{#each filteredChoices as entry (entry.id)}
 					<li style={`padding-left: ${entry.depth * 16}px`}>
 						<label>
-							<input
-								type="checkbox"
-								checked={selectedRootIds.has(entry.id)}
-								on:change={() => toggleChoice(entry.id)}
-							/>
+						<input
+							type="checkbox"
+							checked={selectedChoiceIds.has(entry.id)}
+							on:change={() => toggleChoice(entry.id)}
+						/>
 							<span class="choiceName">{entry.path.at(-1)}</span>
 							{#if entry.path.length > 1}
 								<span class="choicePath">

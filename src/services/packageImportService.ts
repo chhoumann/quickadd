@@ -161,25 +161,59 @@ export async function applyPackageImport(
 
 	const catalog = new Map(pkg.choices.map((entry) => [entry.choice.id, entry]));
 	const importableChoiceIds = new Set<string>();
+	const importableCache = new Map<string, boolean>();
+	const importableVisiting = new Set<string>();
 
 	const isChoiceImportable = (choiceId: string): boolean => {
-		const decision = choiceDecisionMap.get(choiceId) as
-			| ChoiceImportMode
-			| undefined;
-		if (decision === "skip") return false;
-
-		const entry = catalog.get(choiceId);
-		if (!entry) return false;
-
-		if (entry.parentChoiceId) {
-			if (!catalog.has(entry.parentChoiceId)) {
-				// Parent not part of package; import decision stands alone.
-				return true;
-			}
-			return isChoiceImportable(entry.parentChoiceId);
+		if (importableCache.has(choiceId)) {
+			return importableCache.get(choiceId) as boolean;
 		}
 
-		return true;
+		if (importableVisiting.has(choiceId)) {
+			// Break potential cycles by treating the current path as importable.
+			return true;
+		}
+
+		importableVisiting.add(choiceId);
+
+		const decision = choiceDecisionMap.get(choiceId);
+		if (decision === "skip") {
+			importableCache.set(choiceId, false);
+			importableVisiting.delete(choiceId);
+			return false;
+		}
+
+		const entry = catalog.get(choiceId);
+		if (!entry) {
+			importableCache.set(choiceId, false);
+			importableVisiting.delete(choiceId);
+			return false;
+		}
+
+		const parentId = entry.parentChoiceId;
+		if (!parentId) {
+			importableCache.set(choiceId, true);
+			importableVisiting.delete(choiceId);
+			return true;
+		}
+
+		if (!catalog.has(parentId)) {
+			importableCache.set(choiceId, true);
+			importableVisiting.delete(choiceId);
+			return true;
+		}
+
+		const parentDecision = choiceDecisionMap.get(parentId);
+		if (parentDecision === "skip") {
+			importableCache.set(choiceId, true);
+			importableVisiting.delete(choiceId);
+			return true;
+		}
+
+		const result = isChoiceImportable(parentId);
+		importableCache.set(choiceId, result);
+		importableVisiting.delete(choiceId);
+		return result;
 	};
 
 	for (const entry of pkg.choices) {

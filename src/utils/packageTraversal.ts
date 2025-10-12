@@ -32,6 +32,8 @@ export interface FileDependencyCollection {
 	captureTemplatePaths: Set<string>;
 }
 
+const EMPTY_SET = new Set<string>();
+
 function isMultiChoice(choice: IChoice): choice is IMultiChoice {
 	return choice.type === "Multi";
 }
@@ -138,19 +140,31 @@ function collectDependenciesFromCommands(
 	}
 }
 
+export interface CollectChoiceClosureOptions {
+	excludedChoiceIds?: ReadonlySet<string>;
+}
+
 export function collectChoiceClosure(
 	allChoices: IChoice[],
 	rootChoiceIds: readonly string[],
+	options?: CollectChoiceClosureOptions,
 ): ChoiceClosureResult {
 	const catalog = buildChoiceCatalog(allChoices);
 	const visited = new Set<string>();
 	const missing = new Set<string>();
-	const queue: string[] = [...rootChoiceIds];
+	const excluded = options?.excludedChoiceIds ?? EMPTY_SET;
+	const queue: string[] = rootChoiceIds.filter(
+		(id) => !excluded.has(id),
+	);
 	const ordered: string[] = [];
 
 	while (queue.length > 0) {
 		const nextId = queue.shift() as string;
 		if (visited.has(nextId)) {
+			continue;
+		}
+		if (excluded.has(nextId)) {
+			visited.add(nextId);
 			continue;
 		}
 
@@ -167,6 +181,9 @@ export function collectChoiceClosure(
 		for (const depId of dependencies) {
 			if (!catalog.has(depId)) {
 				missing.add(depId);
+				continue;
+			}
+			if (excluded.has(depId)) {
 				continue;
 			}
 			queue.push(depId);

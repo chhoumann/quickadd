@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
 import type IChoice from "../types/choices/IChoice";
+import type IMultiChoice from "../types/choices/IMultiChoice";
 import type {
  QuickAddPackage,
  QuickAddPackageAsset,
@@ -21,6 +22,7 @@ export interface BuildPackageOptions {
 	rootChoiceIds: readonly string[];
 	quickAddVersion: string;
 	createdAt?: string;
+	excludedChoiceIds?: readonly string[];
 }
 
 export interface BuildPackageResult {
@@ -44,9 +46,13 @@ export async function buildPackage(
 	options: BuildPackageOptions,
 ): Promise<BuildPackageResult> {
 	const { choices, rootChoiceIds, quickAddVersion } = options;
+	const excludedIds = new Set(options.excludedChoiceIds ?? []);
 	const createdAt = options.createdAt ?? new Date().toISOString();
 
-	const closure = collectChoiceClosure(choices, rootChoiceIds);
+	const closure = collectChoiceClosure(choices, rootChoiceIds, {
+		excludedChoiceIds: excludedIds,
+	});
+	const includedChoiceIds = new Set(closure.choiceIds);
 	const scripts = collectScriptDependencies(closure.catalog, closure.choiceIds);
 	const files = collectFileDependencies(closure.catalog, closure.choiceIds);
 
@@ -58,19 +64,25 @@ export async function buildPackage(
 		(choiceId) => {
 			const entry = closure.catalog.get(choiceId);
 			if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
+			const clonedChoice = structuredClone(entry.choice);
+			pruneChoiceTree(clonedChoice, includedChoiceIds);
 			return {
-				choice: structuredClone(entry.choice),
+				choice: clonedChoice,
 				pathHint: [...entry.path],
 				parentChoiceId: entry.parentId,
 			};
 		},
 	);
 
+	const normalizedRootIds = rootChoiceIds.filter((id) =>
+		includedChoiceIds.has(id),
+	);
+
 	const pkg: QuickAddPackage = {
 		schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
 		quickAddVersion,
 		createdAt,
-		rootChoiceIds: [...rootChoiceIds],
+		rootChoiceIds: [...normalizedRootIds],
 		choices: packageChoices,
 		assets: assets.encodedAssets,
 	};
@@ -158,6 +170,28 @@ async function encodeAssets(
     }
 
 	return { encodedAssets, missingAssets };
+}
+
+function pruneChoiceTree(
+	choice: IChoice,
+	includedIds: ReadonlySet<string>,
+): void {
+	if (choice.type !== "Multi") {
+		return;
+	}
+
+	const multi = choice as IMultiChoice;
+	if (!Array.isArray(multi.choices) || multi.choices.length === 0) {
+		multi.choices = [];
+		return;
+	}
+
+	multi.choices = multi.choices
+		.filter((child) => includedIds.has(child.id))
+		.map((child) => {
+			pruneChoiceTree(child, includedIds);
+			return child;
+		});
 }
 
 export async function writePackageToVault(

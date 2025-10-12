@@ -345,6 +345,51 @@ describe("packageImportService", () => {
 		expect(result.writtenAssets).toContain("Templates/capture-new.md");
 	});
 
+	it("allows importing a child when its parent is skipped", async () => {
+		const child = new TemplateChoice("Child Template");
+		child.templatePath = "Templates/child.md";
+
+		const parent = new MultiChoice("Parent Folder");
+		parent.choices.push(child);
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [parent.id],
+			choices: [
+				{ choice: parent, pathHint: ["Parent Folder"], parentChoiceId: null },
+				{
+					choice: child,
+					pathHint: ["Parent Folder", "Child Template"],
+					parentChoiceId: parent.id,
+				},
+			],
+			assets: [],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: parent.id, mode: "skip" },
+				{ choiceId: child.id, mode: "import" },
+			],
+			assetDecisions: [],
+		});
+
+		expect(result.skippedChoiceIds).toContain(parent.id);
+		expect(result.skippedChoiceIds).not.toContain(child.id);
+
+		const importedChild = result.updatedChoices.find(
+			(choice) => choice.id === child.id,
+		);
+		expect(importedChild).toBeTruthy();
+		expect(result.addedChoiceIds).toContain(child.id);
+	});
+
 	it("applyPackageImport respects skip decisions for multi-choice children", async () => {
 		const childKeep = new TemplateChoice("Keep Template");
 		childKeep.templatePath = "Templates/keep.md";

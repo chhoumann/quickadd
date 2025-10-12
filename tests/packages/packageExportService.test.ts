@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { App } from "obsidian";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
+import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { UserScript } from "../../src/types/macros/UserScript";
@@ -198,6 +199,30 @@ describe("packageExportService", () => {
 			parent.id,
 			child.id,
 		]);
+	});
+
+	it("omits excluded children from exported multi choices", async () => {
+		const childA = new TemplateChoice("Template A");
+		const childB = new TemplateChoice("Template B");
+		const group = new MultiChoice("Group");
+		group.choices.push(childA, childB);
+
+		const app = createMockApp();
+
+		const result = await buildPackage(app, {
+			choices: [group],
+			rootChoiceIds: [group.id],
+			excludedChoiceIds: [childB.id],
+			quickAddVersion: QUICKADD_VERSION,
+		});
+
+		expect(result.pkg.choices.map((entry) => entry.choice.id)).toEqual([
+			group.id,
+			childA.id,
+		]);
+
+		const exportedGroup = result.pkg.choices[0].choice as MultiChoice;
+		expect(exportedGroup.choices?.map((choice) => choice.id)).toEqual([childA.id]);
 	});
 
 	it("writePackageToVault creates missing folders and writes file", async () => {
