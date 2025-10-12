@@ -44,6 +44,7 @@ let assetDecisions = new Map<string, AssetDecisionState>();
 let pastedContent = "";
 let isAnalyzing = false;
 let analysisToken = 0;
+let hasImported = false;
 
 function defaultAssetDestination(conflict: AssetConflict): string {
 	const templateFolder = settingsStore.getState().templateFolderPath?.trim();
@@ -136,6 +137,7 @@ function onAssetPathChange(path: string, event: Event) {
 		const trimmed = raw.trim();
 		const token = ++analysisToken;
 		importSummary = null;
+		hasImported = false;
 		if (!trimmed) {
 			loadedPackage = null;
 			analysis = null;
@@ -186,6 +188,11 @@ function onAssetPathChange(path: string, event: Event) {
 	}
 
 	async function handleImport() {
+		if (hasImported) {
+			new Notice("This package has already been imported.");
+			return;
+		}
+
 		if (!loadedPackage || !analysis) {
 			new Notice("Load a package before importing.");
 			return;
@@ -238,6 +245,7 @@ function onAssetPathChange(path: string, event: Event) {
 			assetsWritten: result.writtenAssets.length,
 			assetsSkipped: result.skippedAssets.length,
 		};
+		hasImported = true;
 
 			new Notice(
 				`Imported ${result.addedChoiceIds.length + result.overwrittenChoiceIds.length} choice${
@@ -408,10 +416,12 @@ function onAssetPathChange(path: string, event: Event) {
 			type="button"
 			on:click={handleImport}
 			class="primary"
-			disabled={isImporting || !loadedPackage || !analysis}
+			disabled={isImporting || !loadedPackage || !analysis || hasImported}
 		>
 			{#if isImporting}
 				Importing…
+			{:else if hasImported}
+				Imported
 			{:else}
 				Import package
 			{/if}
