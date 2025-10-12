@@ -162,9 +162,22 @@ export class CompleteFormatter extends Formatter {
 				this.value = selectedText;
 			} else {
 				try {
-					this.value = await new InputPrompt()
-						.factory()
-						.Prompt(this.app, this.valueHeader ?? `Enter value`);
+					const linkSourcePath = this.getLinkSourcePath();
+					if (linkSourcePath) {
+						this.value = await new InputPrompt()
+							.factory()
+							.PromptWithContext(
+								this.app,
+								this.valueHeader ?? `Enter value`,
+								undefined,
+								undefined,
+								linkSourcePath
+							);
+					} else {
+						this.value = await new InputPrompt()
+							.factory()
+							.Prompt(this.app, this.valueHeader ?? `Enter value`);
+					}
 				} catch (error) {
 					if (isCancellationError(error)) {
 						throw new MacroAbortError("Input cancelled by user");
