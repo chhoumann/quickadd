@@ -239,7 +239,7 @@ export async function applyPackageImport(
 		}
 
 		const clone = structuredClone(entry.choice);
-		const remapped = remapChoiceTree(clone, idMap);
+		const remapped = remapChoiceTree(clone, idMap, importableChoiceIds);
 		preparedChoices.set(entry.choice.id, remapped);
 	}
 
@@ -365,7 +365,11 @@ async function assetExists(app: App, path: string): Promise<boolean> {
 	}
 }
 
-function remapChoiceTree(choice: IChoice, idMap: Map<string, string>): IChoice {
+function remapChoiceTree(
+	choice: IChoice,
+	idMap: Map<string, string>,
+	importableChoiceIds: Set<string>,
+): IChoice {
 	const originalId = choice.id;
 	const finalId = idMap.get(originalId) ?? originalId;
 	choice.id = finalId;
@@ -376,15 +380,15 @@ function remapChoiceTree(choice: IChoice, idMap: Map<string, string>): IChoice {
 		if (isDuplicated) {
 			macroChoice.macro.id = uuidv4();
 		}
-		remapCommands(macroChoice.macro.commands, idMap, isDuplicated);
+		remapCommands(macroChoice.macro.commands, idMap, importableChoiceIds, isDuplicated);
 	}
 
 	if (choice.type === "Multi") {
 		const multi = choice as IMultiChoice;
 		if (Array.isArray(multi.choices)) {
-			multi.choices = multi.choices.map((child) =>
-				remapChoiceTree(child, idMap),
-			);
+			multi.choices = multi.choices
+				.filter((child) => importableChoiceIds.has(child.id))
+				.map((child) => remapChoiceTree(child, idMap, importableChoiceIds));
 		}
 	}
 
@@ -394,6 +398,7 @@ function remapChoiceTree(choice: IChoice, idMap: Map<string, string>): IChoice {
 function remapCommands(
 	commands: ICommand[],
 	idMap: Map<string, string>,
+	importableChoiceIds: Set<string>,
 	shouldRegenerateIds: boolean,
 ): void {
 	for (const command of commands) {
@@ -415,20 +420,28 @@ function remapCommands(
 				remapCommands(
 					conditional.thenCommands,
 					idMap,
+					importableChoiceIds,
 					shouldRegenerateIds,
 				);
 				remapCommands(
 					conditional.elseCommands,
 					idMap,
+					importableChoiceIds,
 					shouldRegenerateIds,
 				);
 				break;
 			}
-			case CommandType.NestedChoice: {
-				const nested = command as INestedChoiceCommand;
-				nested.choice = remapChoiceTree(nested.choice, idMap);
-				break;
+		case CommandType.NestedChoice: {
+			const nested = command as INestedChoiceCommand;
+			if (nested.choice && importableChoiceIds.has(nested.choice.id)) {
+				nested.choice = remapChoiceTree(
+					nested.choice,
+					idMap,
+					importableChoiceIds,
+				);
 			}
+			break;
+		}
 			default:
 				break;
 		}

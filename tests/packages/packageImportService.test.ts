@@ -10,6 +10,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type ITemplateChoice from "../../src/types/choices/ITemplateChoice";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type ICaptureChoice from "../../src/types/choices/ICaptureChoice";
+import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import type { IUserScript } from "../../src/types/macros/IUserScript";
 import type { IConditionalCommand } from "../../src/types/macros/Conditional/IConditionalCommand";
 import {
@@ -340,8 +341,62 @@ describe("packageImportService", () => {
 		expect(importedCapture?.createFileIfItDoesntExist?.template).toBe(
 			"Templates/capture-new.md",
 		);
-	expect(result.writtenAssets).toContain("Templates/capture-new.md");
-});
+		expect(result.writtenAssets).toContain("Templates/capture-new.md");
+	});
+
+	it("skips descendants marked as skip when importing multi choices", async () => {
+		const templateA = new TemplateChoice("Template A");
+		templateA.templatePath = "Templates/A.md";
+		const templateB = new TemplateChoice("Template B");
+		templateB.templatePath = "Templates/B.md";
+
+		const group = new MultiChoice("Group");
+		group.choices.push(templateA, templateB);
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [group.id],
+			choices: [
+				{
+					choice: group,
+					pathHint: ["Group"],
+					parentChoiceId: null,
+				},
+				{
+					choice: templateA,
+					pathHint: ["Group", "Template A"],
+					parentChoiceId: group.id,
+				},
+				{
+					choice: templateB,
+					pathHint: ["Group", "Template B"],
+					parentChoiceId: group.id,
+				},
+			],
+			assets: [],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: group.id, mode: "import" },
+				{ choiceId: templateA.id, mode: "import" },
+				{ choiceId: templateB.id, mode: "skip" },
+			],
+			assetDecisions: [],
+		});
+
+		const importedGroup = result.updatedChoices.find(
+			(choice) => choice.id === group.id,
+		) as MultiChoice | undefined;
+		expect(importedGroup).toBeTruthy();
+		expect(importedGroup?.choices?.map((c) => c.id)).toEqual([templateA.id]);
+	});
 
 	it("applyPackageImport rewrites user script command paths when destination changes", async () => {
 		const userScriptCommand: IUserScript = {
