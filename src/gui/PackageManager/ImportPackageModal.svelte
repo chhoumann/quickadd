@@ -335,46 +335,54 @@ function onAssetPathChange(path: string, event: Event) {
 		{#if loadedPackage.pkg.assets.length === 0}
 			<p>No additional assets bundled with this package.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>Original path</th>
-						<th>Kind</th>
-						<th>Existing</th>
-						<th>Destination</th>
-						<th>Action</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each analysis.assetConflicts as conflict}
-						{@const assetState = assetDecisions.get(conflict.originalPath)}
-						<tr>
-							<td>{conflict.originalPath}</td>
-							<td>{conflict.kind}</td>
-							<td>{conflict.exists ? "Yes" : "No"}</td>
-							<td>
+			<div class="assetCards">
+				{#each analysis.assetConflicts as conflict}
+					{@const assetState =
+						assetDecisions.get(conflict.originalPath) ??
+						{
+							mode: conflict.exists ? "overwrite" : "write",
+							destinationPath: defaultAssetDestination(conflict),
+						}}
+					<div class="assetCard">
+						<div class="assetHeader">
+							<div class="assetTitle">{conflict.originalPath}</div>
+							<div class="assetBadges">
+								<span class="assetBadge">{conflict.kind}</span>
+								<span
+									class={`assetBadge ${conflict.exists ? "assetBadge--warning" : "assetBadge--info"}`}
+								>
+									{conflict.exists ? "Will overwrite" : "New file"}
+								</span>
+							</div>
+						</div>
+						<div class="assetFields">
+							<label>
+								<span>Destination path</span>
 								<input
 									type="text"
-									value={assetState?.destinationPath ?? defaultAssetDestination(conflict)}
+									value={assetState.destinationPath}
 									on:input={(event) => onAssetPathChange(conflict.originalPath, event)}
 									placeholder="vault/path/to/file"
-									disabled={(assetState?.mode ?? (conflict.exists ? "overwrite" : "write")) === "skip"}
+									disabled={assetState.mode === "skip"}
 								/>
-							</td>
-							<td>
+							</label>
+							<label>
+								<span>Action</span>
 								<select
-									value={assetState?.mode ?? (conflict.exists ? "overwrite" : "write")}
+									value={assetState.mode}
 									on:change={(event) => onAssetModeChange(conflict.originalPath, event)}
 								>
 									<option value="write">Write</option>
-									<option value="overwrite">Overwrite</option>
+									{#if conflict.exists}
+										<option value="overwrite">Overwrite</option>
+									{/if}
 									<option value="skip">Skip</option>
 								</select>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+							</label>
+						</div>
+					</div>
+				{/each}
+			</div>
 		{/if}
 	</section>
 
@@ -466,30 +474,95 @@ function onAssetPathChange(path: string, event: Event) {
 
 	.choicesSection,
 	.assetsSection {
-		overflow-x: auto;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
 	}
 
-	.choicesSection table,
-	.assetsSection table {
+	.assetCards {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.assetCard {
+		border: 1px solid var(--background-modifier-border);
+		border-radius: 8px;
+		padding: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		background: var(--background-secondary);
+	}
+
+	.assetHeader {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.assetTitle {
+		font-weight: 600;
+		word-break: break-word;
+	}
+
+	.assetBadges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.assetBadge {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.1rem 0.5rem;
+		border-radius: 999px;
+		font-size: 0.75rem;
+		background: var(--background-tertiary);
+		color: var(--text-muted);
+	}
+
+	.assetBadge--warning {
+		background: var(--background-modifier-error);
+		color: var(--text-normal);
+	}
+
+	.assetBadge--info {
+		background: var(--background-modifier-border);
+		color: var(--text-normal);
+	}
+
+	.assetFields {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.assetFields label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.3rem;
+	}
+
+	.assetFields input,
+	.assetFields select {
+		width: 100%;
+	}
+
+	.choicesSection table {
 		width: 100%;
 		border-collapse: collapse;
 		table-layout: fixed;
 	}
 
 	.choicesSection th,
-	.choicesSection td,
-	.assetsSection th,
-	.assetsSection td {
+	.choicesSection td {
 		padding: 0.5rem;
 		border-bottom: 1px solid var(--background-modifier-border);
 		text-align: left;
 		word-break: break-word;
 		overflow-wrap: anywhere;
 		white-space: normal;
-	}
-
-	.assetsSection input {
-		width: 100%;
 	}
 
 	.choicesSection select,
