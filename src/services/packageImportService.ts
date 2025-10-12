@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from "uuid";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
 import {
 	isQuickAddPackage,
@@ -52,6 +54,7 @@ export interface ChoiceImportDecision {
 
 export interface AssetImportDecision {
 	originalPath: string;
+	destinationPath: string;
 	mode: AssetImportMode;
 }
 
@@ -151,11 +154,8 @@ export async function applyPackageImport(
 	const choiceDecisionMap: Map<string, ChoiceImportMode> = new Map(
 		options.choiceDecisions.map((decision) => [decision.choiceId, decision.mode]),
 	);
-	const assetDecisionMap: Map<string, AssetImportMode> = new Map(
-		options.assetDecisions.map((decision) => [
-			decision.originalPath,
-			decision.mode,
-		]),
+	const assetDecisionMap: Map<string, AssetImportDecision> = new Map(
+		options.assetDecisions.map((decision) => [decision.originalPath, decision]),
 	);
 
 	const catalog = new Map(pkg.choices.map((entry) => [entry.choice.id, entry]));
@@ -316,25 +316,34 @@ export async function applyPackageImport(
 		handledChoices.add(originalId);
 	}
 
+	const assetPathOverrides = new Map<string, string>();
 	const writtenAssets: string[] = [];
 	const skippedAssets: string[] = [];
 
 	for (const asset of pkg.assets) {
-		const explicit = assetDecisionMap.get(asset.originalPath);
-		const exists = await assetExists(app, asset.originalPath);
-		const mode = explicit ?? (exists ? "overwrite" : "write");
+		const decision = assetDecisionMap.get(asset.originalPath);
+		const destinationPathInput = decision?.destinationPath?.trim();
+		const destinationPath = destinationPathInput
+			? normalizePath(destinationPathInput)
+			: asset.originalPath;
+		const exists = await assetExists(app, destinationPath);
+		const mode =
+			decision?.mode ?? (exists ? "overwrite" : "write");
 
 		if (mode === "skip") {
-			skippedAssets.push(asset.originalPath);
+			skippedAssets.push(destinationPath);
 			continue;
 		}
 
-		if (!exists || mode === "overwrite" || mode === "write") {
-			await ensureParentFolders(app, asset.originalPath);
-			const content = Buffer.from(asset.content, "base64").toString("utf8");
-			await app.vault.adapter.write(asset.originalPath, content);
-			writtenAssets.push(asset.originalPath);
-		}
+		await ensureParentFolders(app, destinationPath);
+		const content = Buffer.from(asset.content, "base64").toString("utf8");
+		await app.vault.adapter.write(destinationPath, content);
+		writtenAssets.push(destinationPath);
+		assetPathOverrides.set(asset.originalPath, destinationPath);
+	}
+
+	for (const choice of preparedChoices.values()) {
+		applyAssetPathOverrides(choice, assetPathOverrides);
 	}
 
 	return {
@@ -508,5 +517,44 @@ async function ensureParentFolders(app: App, filePath: string): Promise<void> {
 		if (!exists) {
 			await app.vault.createFolder(current);
 		}
+	}
+}
+
+function applyAssetPathOverrides(
+	choice: IChoice,
+	pathOverrides: Map<string, string>,
+): void {
+	switch (choice.type) {
+		case "Template": {
+			const templateChoice = choice as ITemplateChoice;
+			const replacement = pathOverrides.get(templateChoice.templatePath);
+			if (replacement) {
+				templateChoice.templatePath = replacement;
+			}
+			break;
+		}
+		case "Capture": {
+			const captureChoice = choice as ICaptureChoice;
+			const templatePath = captureChoice.createFileIfItDoesntExist?.template;
+			if (templatePath) {
+				const replacement = pathOverrides.get(templatePath);
+				if (replacement) {
+					captureChoice.createFileIfItDoesntExist = {
+						...captureChoice.createFileIfItDoesntExist,
+						template: replacement,
+					};
+				}
+			}
+			break;
+		}
+		case "Multi": {
+			const multi = choice as IMultiChoice;
+			multi.choices?.forEach((child) =>
+				applyAssetPathOverrides(child, pathOverrides),
+			);
+			break;
+		}
+		default:
+			break;
 	}
 }

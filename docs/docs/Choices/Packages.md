@@ -26,13 +26,16 @@ warning so you can locate or recreate the file before distributing the package.
 
 1. Open **Settings → QuickAdd** and click **Import package…**.
 2. Paste the full contents of a `.quickadd.json` file into the text box.
-3. QuickAdd analyses the JSON automatically and lists the choices and scripts it
+3. QuickAdd analyses the JSON automatically and lists the choices and assets it
    contains:
    - **Import** adds a new choice only when its ID does not already exist.
    - **Overwrite** keeps the original ID and replaces the existing choice.
    - **Duplicate** copies the choice with new IDs so you can keep both versions.
    - **Skip** leaves the choice untouched.
-4. Pick actions for bundled scripts: **Write**, **Overwrite**, or **Skip**.
+4. For each asset, choose **Write**, **Overwrite**, or **Skip**, and adjust the
+   destination path if you want it saved elsewhere (templates default to your
+   QuickAdd template folder when set). QuickAdd automatically updates the
+   imported choices to reference the new locations.
 5. Click **Import package**. The choices list updates immediately and a notice
    summarises what changed.
 

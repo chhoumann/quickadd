@@ -1,20 +1,20 @@
 <script lang="ts">
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
-import { settingsStore } from "../../settingsStore";
-import type {
-	LoadedQuickAddPackage,
-	PackageAnalysis,
-	ChoiceImportDecision,
-	AssetImportDecision,
-	ChoiceImportMode,
-	AssetImportMode,
-} from "../../services/packageImportService";
-import {
-	analysePackage,
-	applyPackageImport,
- 	parseQuickAddPackage,
-} from "../../services/packageImportService";
+	import { settingsStore } from "../../settingsStore";
+	import type {
+		LoadedQuickAddPackage,
+		PackageAnalysis,
+		ChoiceImportDecision,
+		AssetImportDecision,
+		ChoiceImportMode,
+		AssetImportMode,
+	} from "../../services/packageImportService";
+	import {
+		analysePackage,
+		applyPackageImport,
+		parseQuickAddPackage,
+	} from "../../services/packageImportService";
 
 export let app: App;
 export let close: () => void;
@@ -32,10 +32,33 @@ let importSummary: {
 } | null = null;
 
 let choiceDecisions = new Map<string, ChoiceImportMode>();
-let assetDecisions = new Map<string, AssetImportMode>();
+
+type AssetDecisionState = {
+	mode: AssetImportMode;
+	destinationPath: string;
+};
+
+type AssetConflict = PackageAnalysis["assetConflicts"][number];
+
+let assetDecisions = new Map<string, AssetDecisionState>();
 let pastedContent = "";
 let isAnalyzing = false;
 let analysisToken = 0;
+
+function defaultAssetDestination(conflict: AssetConflict): string {
+	const templateFolder = settingsStore.getState().templateFolderPath?.trim();
+	const needsTemplateFolder =
+		conflict.kind === "template" || conflict.kind === "capture-template";
+
+	if (templateFolder && needsTemplateFolder) {
+		const baseName =
+			conflict.originalPath.split("/").pop() ?? conflict.originalPath;
+		const sanitizedFolder = templateFolder.replace(/\/+$/, "");
+		return sanitizedFolder ? `${sanitizedFolder}/${baseName}` : baseName;
+	}
+
+	return conflict.originalPath;
+}
 
 function initialiseDecisions() {
 	choiceDecisions = new Map();
@@ -49,18 +72,47 @@ function initialiseDecisions() {
 
 	for (const conflict of analysis.assetConflicts) {
 		const defaultMode = conflict.exists ? "overwrite" : "write";
-		assetDecisions.set(conflict.originalPath, defaultMode);
+		const defaultDestination = defaultAssetDestination(conflict);
+		assetDecisions.set(conflict.originalPath, {
+			mode: defaultMode,
+			destinationPath: defaultDestination,
+		});
 	}
 }
 
-function updateChoiceDecision(choiceId: string, mode: "import" | "overwrite" | "duplicate" | "skip") {
-	choiceDecisions.set(choiceId, mode);
-	choiceDecisions = new Map(choiceDecisions);
+function updateChoiceDecision(
+	choiceId: string,
+	mode: ChoiceImportMode,
+) {
+	const map = new Map(choiceDecisions);
+	map.set(choiceId, mode);
+	choiceDecisions = map;
 }
 
-function updateAssetDecision(path: string, mode: "write" | "overwrite" | "skip") {
-	assetDecisions.set(path, mode);
-	assetDecisions = new Map(assetDecisions);
+function updateAssetMode(path: string, mode: AssetImportMode) {
+	const previous =
+		assetDecisions.get(path) ??
+		({
+			mode,
+			destinationPath: path,
+		} as AssetDecisionState);
+	const next: AssetDecisionState = { ...previous, mode };
+	const map = new Map(assetDecisions);
+	map.set(path, next);
+	assetDecisions = map;
+}
+
+function updateAssetPath(path: string, value: string) {
+	const previous =
+		assetDecisions.get(path) ??
+		({
+			mode: "write",
+			destinationPath: path,
+		} as AssetDecisionState);
+	const next: AssetDecisionState = { ...previous, destinationPath: value };
+	const map = new Map(assetDecisions);
+	map.set(path, next);
+	assetDecisions = map;
 }
 
 	function onChoiceModeChange(choiceId: string, event: Event) {
@@ -69,10 +121,15 @@ function updateAssetDecision(path: string, mode: "write" | "overwrite" | "skip")
 		updateChoiceDecision(choiceId, mode);
 	}
 
-function onScriptModeChange(path: string, event: Event) {
+function onAssetModeChange(path: string, event: Event) {
 	const element = event.currentTarget as HTMLSelectElement;
 	const mode = element.value as AssetImportMode;
-	updateAssetDecision(path, mode);
+	updateAssetMode(path, mode);
+}
+
+function onAssetPathChange(path: string, event: Event) {
+	const value = (event.currentTarget as HTMLInputElement).value;
+	updateAssetPath(path, value);
 }
 
 	async function analyzePastedContent(raw: string) {
@@ -144,20 +201,30 @@ function onScriptModeChange(path: string, event: Event) {
 				}),
 			);
 
-		const assetDecisionsList: AssetImportDecision[] = analysis.assetConflicts.map(
-			(conflict) => ({
-				originalPath: conflict.originalPath,
-				mode: assetDecisions.get(conflict.originalPath) ?? (conflict.exists ? "overwrite" : "write"),
-			}),
-		);
+			const assetDecisionsList: AssetImportDecision[] =
+				analysis.assetConflicts.map((conflict) => {
+					const decisionState = assetDecisions.get(conflict.originalPath);
+					const mode =
+						decisionState?.mode ??
+						(conflict.exists ? "overwrite" : "write");
+					const destinationPath =
+						decisionState?.destinationPath?.trim() ??
+						conflict.originalPath;
 
-		const result = await applyPackageImport({
-			app,
-			existingChoices: settingsStore.getState().choices,
-			pkg: loadedPackage.pkg,
-			choiceDecisions: choiceDecisionsList,
-			assetDecisions: assetDecisionsList,
-		});
+					return {
+						originalPath: conflict.originalPath,
+						destinationPath,
+						mode,
+					};
+				});
+
+			const result = await applyPackageImport({
+				app,
+				existingChoices: settingsStore.getState().choices,
+				pkg: loadedPackage.pkg,
+				choiceDecisions: choiceDecisionsList,
+				assetDecisions: assetDecisionsList,
+			});
 
 		settingsStore.setState((state) => ({
 			...state,
@@ -221,7 +288,7 @@ function onScriptModeChange(path: string, event: Event) {
 				<strong>Choices:</strong> {analysis.choiceConflicts.length}
 			</div>
 			<div>
-				<strong>Scripts:</strong> {loadedPackage.pkg.assets.length}
+				<strong>Assets:</strong> {loadedPackage.pkg.assets.length}
 			</div>
 		</section>
 
@@ -271,32 +338,43 @@ function onScriptModeChange(path: string, event: Event) {
 			<table>
 				<thead>
 					<tr>
-						<th>Path</th>
+						<th>Original path</th>
 						<th>Kind</th>
 						<th>Existing</th>
+						<th>Destination</th>
 						<th>Action</th>
 					</tr>
-					</thead>
-					<tbody>
-						{#each analysis.assetConflicts as conflict}
-							<tr>
-								<td>{conflict.originalPath}</td>
-								<td>{conflict.kind}</td>
-								<td>{conflict.exists ? "Yes" : "No"}</td>
-								<td>
-									<select
-										value={assetDecisions.get(conflict.originalPath) ?? "write"}
-										on:change={(event) => onScriptModeChange(conflict.originalPath, event)}
-									>
-										<option value="write">Write</option>
-										<option value="overwrite">Overwrite</option>
-										<option value="skip">Skip</option>
-									</select>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+				</thead>
+				<tbody>
+					{#each analysis.assetConflicts as conflict}
+						{@const assetState = assetDecisions.get(conflict.originalPath)}
+						<tr>
+							<td>{conflict.originalPath}</td>
+							<td>{conflict.kind}</td>
+							<td>{conflict.exists ? "Yes" : "No"}</td>
+							<td>
+								<input
+									type="text"
+									value={assetState?.destinationPath ?? defaultAssetDestination(conflict)}
+									on:input={(event) => onAssetPathChange(conflict.originalPath, event)}
+									placeholder="vault/path/to/file"
+									disabled={(assetState?.mode ?? (conflict.exists ? "overwrite" : "write")) === "skip"}
+								/>
+							</td>
+							<td>
+								<select
+									value={assetState?.mode ?? (conflict.exists ? "overwrite" : "write")}
+									on:change={(event) => onAssetModeChange(conflict.originalPath, event)}
+								>
+									<option value="write">Write</option>
+									<option value="overwrite">Overwrite</option>
+									<option value="skip">Skip</option>
+								</select>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		{/if}
 	</section>
 
@@ -408,6 +486,10 @@ function onScriptModeChange(path: string, event: Event) {
 		word-break: break-word;
 		overflow-wrap: anywhere;
 		white-space: normal;
+	}
+
+	.assetsSection input {
+		width: 100%;
 	}
 
 	.choicesSection select,

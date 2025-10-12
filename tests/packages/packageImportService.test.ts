@@ -1,3 +1,4 @@
+import { Buffer } from "buffer";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import type { App } from "obsidian";
 import { CommandType } from "../../src/types/macros/CommandType";
@@ -5,6 +6,10 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import type { IChoiceCommand } from "../../src/types/macros/IChoiceCommand";
 import type { ICommand } from "../../src/types/macros/ICommand";
+import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
+import type ITemplateChoice from "../../src/types/choices/ITemplateChoice";
+import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
+import type ICaptureChoice from "../../src/types/choices/ICaptureChoice";
 import {
 	QUICKADD_PACKAGE_SCHEMA_VERSION,
 	type QuickAddPackage,
@@ -230,5 +235,109 @@ describe("packageImportService", () => {
 		const command = imported?.macro.commands[0];
 		expect(command?.type).toBe(CommandType.Choice);
 		expect((command as any)?.choiceId).not.toBe("macro-2");
+	});
+
+	it("applyPackageImport rewrites template paths when destination changes", async () => {
+		const templateChoice = new TemplateChoice("Journal Template");
+		templateChoice.templatePath = "Templates/original.md";
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [templateChoice.id],
+			choices: [
+				{
+					choice: templateChoice,
+					pathHint: ["Journal Template"],
+					parentChoiceId: null,
+				},
+			],
+			assets: [
+				{
+					kind: "template",
+					originalPath: "Templates/original.md",
+					contentEncoding: "base64",
+					content: Buffer.from("Template content").toString("base64"),
+				},
+			],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: templateChoice.id, mode: "import" },
+			],
+			assetDecisions: [
+				{
+					originalPath: "Templates/original.md",
+					destinationPath: "Templates/new.md",
+					mode: "write",
+				},
+			],
+		});
+
+		const importedChoice = result.updatedChoices.find(
+			(choice) => choice.id === templateChoice.id,
+		) as ITemplateChoice | undefined;
+		expect(importedChoice?.templatePath).toBe("Templates/new.md");
+		expect(result.writtenAssets).toContain("Templates/new.md");
+	});
+
+	it("applyPackageImport rewrites capture template paths when destination changes", async () => {
+		const captureChoice = new CaptureChoice("Daily Capture");
+		captureChoice.createFileIfItDoesntExist.enabled = true;
+		captureChoice.createFileIfItDoesntExist.createWithTemplate = true;
+		captureChoice.createFileIfItDoesntExist.template = "Templates/capture-original.md";
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [captureChoice.id],
+			choices: [
+				{
+					choice: captureChoice,
+					pathHint: ["Daily Capture"],
+					parentChoiceId: null,
+				},
+			],
+			assets: [
+				{
+					kind: "capture-template",
+					originalPath: "Templates/capture-original.md",
+					contentEncoding: "base64",
+					content: Buffer.from("Capture template").toString("base64"),
+				},
+			],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: captureChoice.id, mode: "import" },
+			],
+			assetDecisions: [
+				{
+					originalPath: "Templates/capture-original.md",
+					destinationPath: "Templates/capture-new.md",
+					mode: "write",
+				},
+			],
+		});
+
+		const importedCapture = result.updatedChoices.find(
+			(choice) => choice.id === captureChoice.id,
+		) as ICaptureChoice | undefined;
+		expect(importedCapture?.createFileIfItDoesntExist?.template).toBe(
+			"Templates/capture-new.md",
+		);
+		expect(result.writtenAssets).toContain("Templates/capture-new.md");
 	});
 });
