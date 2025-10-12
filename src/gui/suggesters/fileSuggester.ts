@@ -60,10 +60,12 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		// Handle multiple ../ prefixes
 		while (query.startsWith("../")) {
 			const parts = folder.split("/");
-			if (parts.length > 0 && parts[0] !== "") {
-				parts.pop();
-				folder = parts.join("/");
+			// If we're at root (empty folder), we can't go up - stop processing
+			if (!folder || parts.length === 0 || (parts.length === 1 && parts[0] === "")) {
+				break;
 			}
+			parts.pop();
+			folder = parts.join("/");
 			query = query.slice(3);
 		}
 
