@@ -36,6 +36,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.file = null;
 	}
 
+	protected getLinkSourcePath(): string | null {
+		return this.sourcePath ?? this.file?.path ?? null;
+	}
+
 	protected getCurrentFileLink(): string | null {
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;

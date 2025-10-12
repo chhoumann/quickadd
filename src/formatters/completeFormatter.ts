@@ -133,6 +133,10 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
+	protected getLinkSourcePath(): string | null {
+		return null;
+	}
+
 	protected getCurrentFileLink(): string | null {
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;
@@ -261,10 +265,12 @@ export class CompleteFormatter extends Formatter {
 					}
 				}
 
-				return await GenericInputPrompt.Prompt(
-					this.app,
-					`Enter value for ${fieldName}`,
-					fallbackPrompt,
+				return await GenericInputPrompt.PromptWithContext(
+				this.app,
+				`Enter value for ${fieldName}`,
+				fallbackPrompt,
+				undefined,
+				this.getLinkSourcePath() ?? undefined
 				);
 			}
 

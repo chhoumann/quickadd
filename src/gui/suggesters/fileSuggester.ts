@@ -14,17 +14,24 @@ interface HTMLElementWithTooltipCleanup extends HTMLElement {
 export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
 	private fileIndex: FileIndex;
+	private sourcePathOverride?: string;
 
 	constructor(
 		public app: App,
-		public inputEl: HTMLInputElement | HTMLTextAreaElement
+		public inputEl: HTMLInputElement | HTMLTextAreaElement,
+		options?: { sourcePath?: string }
 	) {
 		super(app, inputEl);
 
+		this.sourcePathOverride = options?.sourcePath;
 		this.fileIndex = FileIndex.getInstance(app, QuickAdd.instance);
 
 		// Initialize index in background
 		this.fileIndex.ensureIndexed();
+	}
+
+	private getSourcePath(): string {
+		return this.sourcePathOverride ?? this.app.workspace.getActiveFile()?.path ?? "";
 	}
 
 
@@ -65,11 +72,13 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			return this.getAttachmentSuggestions(fileNameInput);
 		}
 
-		// Build search context
-		const activeFile = this.app.workspace.getActiveFile();
+		// Build search context from source path override or active file
+		const sourcePath = this.getSourcePath();
+		const sourceFile = sourcePath ? this.app.vault.getAbstractFileByPath(sourcePath) as TFile | null : null;
+		const contextFile = sourceFile ?? this.app.workspace.getActiveFile();
 		const context: SearchContext = {
-			currentFile: activeFile ?? undefined,
-			currentFolder: activeFile?.parent?.path
+			currentFile: contextFile ?? undefined,
+			currentFolder: contextFile?.parent?.path
 		};
 
 		return this.fileIndex.search(fileNameInput, context, 50);
@@ -142,10 +151,12 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	}
 
 	private getRelativePathSuggestions(input: string): SearchResult[] {
-		const activeFile = this.app.workspace.getActiveFile();
-		if (!activeFile) return [];
+		const sourcePath = this.getSourcePath();
+		const sourceFile = sourcePath ? this.app.vault.getAbstractFileByPath(sourcePath) as TFile | null : null;
+		const contextFile = sourceFile ?? this.app.workspace.getActiveFile();
+		if (!contextFile) return [];
 
-		let targetFolder = activeFile.parent ?? null;
+		let targetFolder = contextFile.parent ?? null;
 
 		if (input.startsWith('../')) {
 			targetFolder = targetFolder?.parent ?? null;
@@ -431,10 +442,9 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const file = this.app.vault.getAbstractFileByPath(
 			linkFile.path
 		) as TFile;
-		const sourcePath = this.app.workspace.getActiveFile()?.path ?? "";
 		const link = this.app.fileManager.generateMarkdownLink(
 			file,
-			sourcePath,
+			this.getSourcePath(),
 			"",
 			alias ?? ""
 		);
