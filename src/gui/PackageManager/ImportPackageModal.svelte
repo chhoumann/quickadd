@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { App } from "obsidian";
-	import { Notice } from "obsidian";
+	import { Notice, normalizePath } from "obsidian";
 	import { settingsStore } from "../../settingsStore";
 	import type {
 		LoadedQuickAddPackage,
@@ -36,6 +36,7 @@ let choiceDecisions = new Map<string, ChoiceImportMode>();
 type AssetDecisionState = {
 	mode: AssetImportMode;
 	destinationPath: string;
+	destinationExists: boolean;
 };
 
 type AssetConflict = PackageAnalysis["assetConflicts"][number];
@@ -61,6 +62,13 @@ function defaultAssetDestination(conflict: AssetConflict): string {
 	return conflict.originalPath;
 }
 
+function pathExists(path: string): boolean {
+	const trimmed = path.trim();
+	if (!trimmed) return false;
+	const normalized = normalizePath(trimmed);
+	return Boolean(app.vault.getAbstractFileByPath(normalized));
+}
+
 function initialiseDecisions() {
 	choiceDecisions = new Map();
 	assetDecisions = new Map();
@@ -72,11 +80,14 @@ function initialiseDecisions() {
 	}
 
 	for (const conflict of analysis.assetConflicts) {
-		const defaultMode = conflict.exists ? "overwrite" : "write";
 		const defaultDestination = defaultAssetDestination(conflict);
+		const destinationExists =
+			conflict.exists || pathExists(defaultDestination);
+		const defaultMode = destinationExists ? "overwrite" : "write";
 		assetDecisions.set(conflict.originalPath, {
 			mode: defaultMode,
 			destinationPath: defaultDestination,
+			destinationExists,
 		});
 	}
 }
@@ -96,6 +107,7 @@ function updateAssetMode(originalPath: string, mode: AssetImportMode) {
 		({
 			mode,
 			destinationPath: originalPath,
+			destinationExists: pathExists(originalPath),
 		} as AssetDecisionState);
 	const next: AssetDecisionState = { ...previous, mode };
 	const map = new Map(assetDecisions);
@@ -109,26 +121,27 @@ function updateAssetPath(conflict: AssetConflict, value: string) {
 		({
 			mode: "write",
 			destinationPath: conflict.originalPath,
+			destinationExists: pathExists(conflict.originalPath),
 		} as AssetDecisionState);
 	const trimmed = value.trim();
+	const effectivePath = trimmed || conflict.originalPath;
+	const destinationPath = trimmed ? trimmed : value;
+	const destinationExists = pathExists(effectivePath);
 	let nextMode = previous.mode;
 
-	if (conflict.exists) {
-		const wasOriginal =
-			previous.destinationPath.trim() === conflict.originalPath;
-		const isOriginal = trimmed === conflict.originalPath;
-
-		if (!isOriginal && nextMode === "overwrite") {
-			nextMode = "write";
-		} else if (isOriginal && !wasOriginal) {
+	if (previous.mode !== "skip") {
+		if (destinationExists && previous.mode === "write") {
 			nextMode = "overwrite";
+		} else if (!destinationExists && previous.mode === "overwrite") {
+			nextMode = "write";
 		}
 	}
 
 	const next: AssetDecisionState = {
 		...previous,
 		mode: nextMode,
-		destinationPath: value,
+		destinationPath,
+		destinationExists,
 	};
 	const map = new Map(assetDecisions);
 	map.set(conflict.originalPath, next);
@@ -139,8 +152,7 @@ function resolveAssetBadge(
 	conflict: AssetConflict,
 	state: AssetDecisionState,
 ): { className: string; label: string } {
-	const trimmed = state.destinationPath?.trim?.() ?? "";
-	const isOriginal = trimmed === conflict.originalPath;
+	const destinationExists = state.destinationExists;
 
 	if (state.mode === "skip") {
 		return { className: "assetBadge--info", label: "Skipped" };
@@ -148,12 +160,15 @@ function resolveAssetBadge(
 
 	if (state.mode === "overwrite") {
 		return {
-			className: isOriginal ? "assetBadge--warning" : "assetBadge--info",
-			label: isOriginal ? "Will overwrite" : "Overwrite",
+			className: destinationExists ? "assetBadge--warning" : "assetBadge--info",
+			label: destinationExists ? "Will overwrite" : "Overwrite",
 		};
 	}
 
-	return { className: "assetBadge--info", label: "New file" };
+	return {
+		className: destinationExists ? "assetBadge--warning" : "assetBadge--info",
+		label: destinationExists ? "Will overwrite" : "New file",
+	};
 }
 
 	function onChoiceModeChange(choiceId: string, event: Event) {
@@ -257,12 +272,15 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 			const assetDecisionsList: AssetImportDecision[] =
 				analysis.assetConflicts.map((conflict) => {
 					const decisionState = assetDecisions.get(conflict.originalPath);
+					const destinationPath =
+						decisionState?.destinationPath?.trim() ||
+						conflict.originalPath;
+					const destinationExists =
+						decisionState?.destinationExists ??
+						(conflict.exists ? true : pathExists(destinationPath));
 					const mode =
 						decisionState?.mode ??
-						(conflict.exists ? "overwrite" : "write");
-					const destinationPath =
-						decisionState?.destinationPath?.trim() ??
-						conflict.originalPath;
+						(destinationExists ? "overwrite" : "write");
 
 					return {
 						originalPath: conflict.originalPath,
@@ -400,11 +418,14 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 		{:else}
 			<div class="assetCards">
 				{#each analysis.assetConflicts as conflict}
+					{@const defaultDestination = defaultAssetDestination(conflict)}
 					{@const assetState =
 						assetDecisions.get(conflict.originalPath) ??
 						{
 							mode: conflict.exists ? "overwrite" : "write",
-							destinationPath: defaultAssetDestination(conflict),
+							destinationPath: defaultDestination,
+							destinationExists:
+								conflict.exists || pathExists(defaultDestination),
 						}}
 					{@const badgeDisplay = resolveAssetBadge(conflict, assetState)}
 					<div class="assetCard">
@@ -435,7 +456,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 									on:change={(event) => onAssetModeChange(conflict.originalPath, event)}
 								>
 									<option value="write">Write</option>
-									{#if conflict.exists}
+									{#if conflict.exists || assetState.destinationExists}
 										<option value="overwrite">Overwrite</option>
 									{/if}
 									<option value="skip">Skip</option>
