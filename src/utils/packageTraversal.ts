@@ -201,12 +201,20 @@ export function collectScriptDependencies(
 	catalog: Map<string, ChoiceCatalogEntry>,
 	choiceIds: Iterable<string>,
 ): ScriptDependencyCollection {
+	const includedChoiceIds = new Set<string>(choiceIds);
 	const visitedChoices = new Set<string>();
 	const userScriptPaths = new Set<string>();
 	const conditionalScriptPaths = new Set<string>();
 
+	const shouldIncludeChoice = (choice: IChoice | null | undefined): boolean => {
+		if (!choice) return false;
+		if (!catalog.has(choice.id)) return true;
+		return includedChoiceIds.has(choice.id);
+	};
+
 	const visitChoice = (choice: IChoice) => {
 		if (!choice) return;
+		if (!shouldIncludeChoice(choice)) return;
 		if (visitedChoices.has(choice.id)) return;
 
 		visitedChoices.add(choice.id);
@@ -245,13 +253,20 @@ export function collectScriptDependencies(
 				}
 				case CommandType.Choice: {
 					const choiceCommand = command as IChoiceCommand;
+					if (!includedChoiceIds.has(choiceCommand.choiceId)) {
+						break;
+					}
 					const targetEntry = catalog.get(choiceCommand.choiceId);
-					if (targetEntry) visitChoice(targetEntry.choice);
+					if (targetEntry && shouldIncludeChoice(targetEntry.choice)) {
+						visitChoice(targetEntry.choice);
+					}
 					break;
 				}
 				case CommandType.NestedChoice: {
 					const nested = command as INestedChoiceCommand;
-					if (nested.choice) visitChoice(nested.choice);
+					if (nested.choice && shouldIncludeChoice(nested.choice)) {
+						visitChoice(nested.choice);
+					}
 					break;
 				}
 				default:
@@ -274,12 +289,20 @@ export function collectFileDependencies(
 	catalog: Map<string, ChoiceCatalogEntry>,
 	choiceIds: Iterable<string>,
 ): FileDependencyCollection {
+	const includedChoiceIds = new Set<string>(choiceIds);
 	const visitedChoices = new Set<string>();
 	const templatePaths = new Set<string>();
 	const captureTemplatePaths = new Set<string>();
 
+	const shouldIncludeChoice = (choice: IChoice | null | undefined): boolean => {
+		if (!choice) return false;
+		if (!catalog.has(choice.id)) return true;
+		return includedChoiceIds.has(choice.id);
+	};
+
 	const visitChoice = (choice: IChoice) => {
 		if (!choice) return;
+		if (!shouldIncludeChoice(choice)) return;
 		if (visitedChoices.has(choice.id)) return;
 
 		visitedChoices.add(choice.id);
@@ -315,13 +338,20 @@ export function collectFileDependencies(
 			switch (command.type) {
 				case CommandType.Choice: {
 					const choiceCommand = command as IChoiceCommand;
+					if (!includedChoiceIds.has(choiceCommand.choiceId)) {
+						break;
+					}
 					const targetEntry = catalog.get(choiceCommand.choiceId);
-					if (targetEntry) visitChoice(targetEntry.choice);
+					if (targetEntry && shouldIncludeChoice(targetEntry.choice)) {
+						visitChoice(targetEntry.choice);
+					}
 					break;
 				}
 				case CommandType.NestedChoice: {
 					const nested = command as INestedChoiceCommand;
-					if (nested.choice) visitChoice(nested.choice);
+					if (nested.choice && shouldIncludeChoice(nested.choice)) {
+						visitChoice(nested.choice);
+					}
 					break;
 				}
 				case CommandType.Conditional: {

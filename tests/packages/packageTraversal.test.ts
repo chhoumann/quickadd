@@ -102,24 +102,64 @@ it("collects file dependencies from choice commands", () => {
 	expect([...files.templatePaths]).toEqual(["Templates/daily.md"]);
 });
 
-	it("excludes explicitly omitted choices from the closure", () => {
-		const templateA = new TemplateChoice("Template A");
-		templateA.templatePath = "Templates/A.md";
-		const templateB = new TemplateChoice("Template B");
-		templateB.templatePath = "Templates/B.md";
+it("excludes explicitly omitted choices from the closure", () => {
+	const templateA = new TemplateChoice("Template A");
+	templateA.templatePath = "Templates/A.md";
+	const templateB = new TemplateChoice("Template B");
+	templateB.templatePath = "Templates/B.md";
 
-		const group = new MultiChoice("Group");
-		group.choices.push(templateA, templateB);
+	const group = new MultiChoice("Group");
+	group.choices.push(templateA, templateB);
 
-		const closure = collectChoiceClosure(
-			[group],
-			[group.id],
-			{ excludedChoiceIds: new Set([templateB.id]) },
-		);
+	const closure = collectChoiceClosure(
+		[group],
+		[group.id],
+		{ excludedChoiceIds: new Set([templateB.id]) },
+	);
 
-		expect(closure.choiceIds).toEqual([group.id, templateA.id]);
-		expect(closure.choiceIds).not.toContain(templateB.id);
+	expect(closure.choiceIds).toEqual([group.id, templateA.id]);
+	expect(closure.choiceIds).not.toContain(templateB.id);
+});
+
+it("collectFileDependencies respects excluded choices", () => {
+	const templateA = new TemplateChoice("Template A");
+	templateA.templatePath = "Templates/A.md";
+	const templateB = new TemplateChoice("Template B");
+	templateB.templatePath = "Templates/B.md";
+
+	const group = new MultiChoice("Group");
+	group.choices.push(templateA, templateB);
+
+	const closure = collectChoiceClosure(
+		[group],
+		[group.id],
+		{ excludedChoiceIds: new Set([templateB.id]) },
+	);
+
+	const files = collectFileDependencies(closure.catalog, closure.choiceIds);
+	expect([...files.templatePaths]).toEqual(["Templates/A.md"]);
+});
+
+it("collectScriptDependencies respects excluded choices", () => {
+	const macroA = new MacroChoice("Macro A");
+	macroA.macro.commands.push(
+		new UserScript("Script A", "Scripts/script-a.js"),
+	);
+	const macroB = new MacroChoice("Macro B");
+	macroB.macro.commands.push(
+		new UserScript("Script B", "Scripts/script-b.js"),
+	);
+
+	const group = new MultiChoice("Group");
+	group.choices.push(macroA, macroB);
+
+	const closure = collectChoiceClosure([group], [group.id], {
+		excludedChoiceIds: new Set([macroB.id]),
 	});
+
+	const scripts = collectScriptDependencies(closure.catalog, closure.choiceIds);
+	expect([...scripts.userScriptPaths]).toEqual(["Scripts/script-a.js"]);
+});
 
 	it("collects dependencies from nested choice commands", () => {
 		const nested = new MacroChoice("Nested Macro");

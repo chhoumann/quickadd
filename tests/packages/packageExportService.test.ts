@@ -203,7 +203,9 @@ describe("packageExportService", () => {
 
 	it("omits excluded children from exported multi choices", async () => {
 		const childA = new TemplateChoice("Template A");
+		childA.templatePath = "Templates/A.md";
 		const childB = new TemplateChoice("Template B");
+		childB.templatePath = "Templates/B.md";
 		const group = new MultiChoice("Group");
 		group.choices.push(childA, childB);
 
@@ -223,6 +225,9 @@ describe("packageExportService", () => {
 
 		const exportedGroup = result.pkg.choices[0].choice as MultiChoice;
 		expect(exportedGroup.choices?.map((choice) => choice.id)).toEqual([childA.id]);
+		const missingPaths = result.missingAssets.map((asset) => asset.path);
+		expect(missingPaths).toContain("Templates/A.md");
+		expect(missingPaths).not.toContain("Templates/B.md");
 	});
 
 	it("writePackageToVault creates missing folders and writes file", async () => {
