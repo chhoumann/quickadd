@@ -431,9 +431,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const file = this.app.vault.getAbstractFileByPath(
 			linkFile.path
 		) as TFile;
+		const sourcePath = this.app.workspace.getActiveFile()?.path ?? "";
 		const link = this.app.fileManager.generateMarkdownLink(
 			file,
-			"",
+			sourcePath,
 			"",
 			alias ?? ""
 		);

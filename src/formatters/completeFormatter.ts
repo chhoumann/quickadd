@@ -137,7 +137,8 @@ export class CompleteFormatter extends Formatter {
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;
 
-		return this.app.fileManager.generateMarkdownLink(currentFile, "");
+		const sourcePath = currentFile.path;
+		return this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
 	}
 
 	protected getCurrentFileName(): string | null {

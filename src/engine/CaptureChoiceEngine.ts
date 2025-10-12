@@ -163,13 +163,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 				if (linkOptions.enabled) {
-					insertLinkWithPlacement(
-						this.app,
-						this.app.fileManager.generateMarkdownLink(file, ""),
-						linkOptions.placement,
-						{ requireActiveView: linkOptions.requireActiveFile },
-					);
-				}
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!activeFile && linkOptions.requireActiveFile) {
+				log.logWarning("Append link is enabled but there's no active file to insert into.");
+				} else {
+				const sourcePath = activeFile?.path ?? "";
+				 insertLinkWithPlacement(
+				   this.app,
+					this.app.fileManager.generateMarkdownLink(file, sourcePath),
+					linkOptions.placement,
+					{ requireActiveView: linkOptions.requireActiveFile },
+				);
+			}
+		}
 
 			if (this.choice.openFile && file) {
 				const openExistingTab = openExistingFileTab(this.app, file);
