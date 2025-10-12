@@ -17,6 +17,7 @@ import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
+import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
 
@@ -525,6 +526,11 @@ function applyAssetPathOverrides(
 	pathOverrides: Map<string, string>,
 ): void {
 	switch (choice.type) {
+		case "Macro": {
+			const macroChoice = choice as IMacroChoice;
+			applyOverridesToCommands(macroChoice.macro.commands, pathOverrides);
+			break;
+		}
 		case "Template": {
 			const templateChoice = choice as ITemplateChoice;
 			const replacement = pathOverrides.get(templateChoice.templatePath);
@@ -556,5 +562,55 @@ function applyAssetPathOverrides(
 		}
 		default:
 			break;
+	}
+}
+
+function applyOverridesToCommands(
+	commands: ICommand[],
+	pathOverrides: Map<string, string>,
+): void {
+	for (const command of commands) {
+		if (!command) continue;
+
+		switch (command.type) {
+			case CommandType.UserScript: {
+				const userScript = command as IUserScript;
+				const replacement = pathOverrides.get(userScript.path);
+				if (replacement) {
+					userScript.path = replacement;
+				}
+				break;
+			}
+			case CommandType.Conditional: {
+				const conditional = command as IConditionalCommand;
+				if (
+					conditional.condition.mode === "script" &&
+					conditional.condition.scriptPath
+				) {
+					const replacement = pathOverrides.get(
+						conditional.condition.scriptPath,
+					);
+					if (replacement) {
+						conditional.condition = {
+							...conditional.condition,
+							scriptPath: replacement,
+						};
+					}
+				}
+
+				applyOverridesToCommands(conditional.thenCommands, pathOverrides);
+				applyOverridesToCommands(conditional.elseCommands, pathOverrides);
+				break;
+			}
+			case CommandType.NestedChoice: {
+				const nested = command as INestedChoiceCommand;
+				if (nested.choice) {
+					applyAssetPathOverrides(nested.choice, pathOverrides);
+				}
+				break;
+			}
+			default:
+				break;
+		}
 	}
 }

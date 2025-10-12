@@ -338,6 +338,137 @@ describe("packageImportService", () => {
 		expect(importedCapture?.createFileIfItDoesntExist?.template).toBe(
 			"Templates/capture-new.md",
 		);
-		expect(result.writtenAssets).toContain("Templates/capture-new.md");
+	expect(result.writtenAssets).toContain("Templates/capture-new.md");
+});
+
+	it("applyPackageImport rewrites user script command paths when destination changes", async () => {
+		const userScriptCommand: IUserScript = {
+			id: "cmd-user-script",
+			name: "Run Script",
+			type: CommandType.UserScript,
+			path: "Scripts/original.js",
+			settings: {},
+		};
+
+		const macroChoice = makeMacroChoice({
+			id: "macro-user-script",
+			name: "Macro with script",
+			commands: [userScriptCommand],
+		});
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [macroChoice.id],
+			choices: [
+				{
+					choice: macroChoice,
+					pathHint: ["Macro with script"],
+					parentChoiceId: null,
+				},
+			],
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "Scripts/original.js",
+					contentEncoding: "base64",
+					content: Buffer.from("console.log('hello');").toString("base64"),
+				},
+			],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: macroChoice.id, mode: "import" },
+			],
+			assetDecisions: [
+				{
+					originalPath: "Scripts/original.js",
+					destinationPath: "Scripts/custom.js",
+					mode: "write",
+				},
+			],
+		});
+
+		const importedMacro = result.updatedChoices.find(
+			(choice) => choice.id === macroChoice.id,
+		) as IMacroChoice | undefined;
+		const importedCommand = importedMacro?.macro.commands[0] as IUserScript | undefined;
+		expect(importedCommand?.path).toBe("Scripts/custom.js");
+		expect(result.writtenAssets).toContain("Scripts/custom.js");
+	});
+
+	it("applyPackageImport rewrites conditional script paths when destination changes", async () => {
+		const conditionalCommand: IConditionalCommand = {
+			id: "cmd-conditional",
+			name: "Check Script",
+			type: CommandType.Conditional,
+			condition: {
+				mode: "script",
+				scriptPath: "Scripts/check-original.js",
+			},
+			thenCommands: [],
+			elseCommands: [],
+		};
+
+		const macroChoice = makeMacroChoice({
+			id: "macro-conditional",
+			name: "Macro with conditional",
+			commands: [conditionalCommand],
+		});
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [macroChoice.id],
+			choices: [
+				{
+					choice: macroChoice,
+					pathHint: ["Macro with conditional"],
+					parentChoiceId: null,
+				},
+			],
+			assets: [
+				{
+					kind: "conditional-script",
+					originalPath: "Scripts/check-original.js",
+					contentEncoding: "base64",
+					content: Buffer.from("module.exports = () => true;").toString("base64"),
+				},
+			],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: macroChoice.id, mode: "import" },
+			],
+			assetDecisions: [
+				{
+					originalPath: "Scripts/check-original.js",
+					destinationPath: "Scripts/check-custom.js",
+					mode: "write",
+				},
+			],
+		});
+
+		const importedMacro = result.updatedChoices.find(
+			(choice) => choice.id === macroChoice.id,
+		) as IMacroChoice | undefined;
+		const importedConditional = importedMacro?.macro.commands[0] as IConditionalCommand | undefined;
+		expect(
+			importedConditional?.condition.mode === "script" &&
+				importedConditional.condition.scriptPath,
+		).toBe("Scripts/check-custom.js");
+		expect(result.writtenAssets).toContain("Scripts/check-custom.js");
 	});
 });
