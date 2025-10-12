@@ -17,6 +17,7 @@ The first thing you'll want to do is add a new choice. A choice can be one of fo
 -   [Capture Choice](./Choices/CaptureChoice) - Quick capture your manually written information and save it. Daily notes, work log, to-read-and-watch-later list, etc.
 -   [Macro Choice](./Choices/MacroChoice) - Macros to augment your workflow. Use the full power of Javascript programming language and Obsidian functions to do anything your want. E.g. [create a personal movie database](./Examples/Macro_MovieAndSeriesScript) by writing a movie name and getting the movie notes fully customized and filled with correct film's up-to-date data.
 -   [Multi Choice](./Choices/MultiChoice) - Folders to better organize the previous 3 choices. Usability feature, not a new functionality.
+-   [Share QuickAdd Packages](./Choices/Packages) - Bundle choices and scripts into a portable `.quickadd.json` file so you can reuse automations across vaults.
 
 In your choices, you can use [format syntax](./FormatSyntax), which is similar to the Obsidian template syntax.
 

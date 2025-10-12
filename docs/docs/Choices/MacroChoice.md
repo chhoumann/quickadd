@@ -6,6 +6,10 @@ title: Macros
 
 Macros are the most powerful feature in QuickAdd, allowing you to chain together multiple operations into automated workflows. Think of macros as custom scripts that can execute any sequence of Obsidian commands, user scripts, AI commands, and more.
 
+> **Tip:** Once you have a macro (or entire collections of choices) that you love, use the
+> [QuickAdd package exporter](./Packages) to bundle it with its dependencies and share the
+> `.quickadd.json` file with other vaults.
+
 ## What are Macros?
 
 A **macro** is a collection of commands that execute sequentially. Each macro is associated with a **macro choice**, which allows you to trigger the macro from the QuickAdd command palette.
