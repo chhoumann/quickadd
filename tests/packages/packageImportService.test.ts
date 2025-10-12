@@ -10,6 +10,8 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type ITemplateChoice from "../../src/types/choices/ITemplateChoice";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type ICaptureChoice from "../../src/types/choices/ICaptureChoice";
+import type { IUserScript } from "../../src/types/macros/IUserScript";
+import type { IConditionalCommand } from "../../src/types/macros/Conditional/IConditionalCommand";
 import {
 	QUICKADD_PACKAGE_SCHEMA_VERSION,
 	type QuickAddPackage,

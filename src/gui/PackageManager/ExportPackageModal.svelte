@@ -373,7 +373,7 @@
 					<p>Missing assets:</p>
 					<ul>
 						{#each exportWarnings.missingAssets as asset}
-							<li>{asset.originalPath} <span class="assetKind">({assetLabels[asset.kind]})</span></li>
+							<li>{asset.path} <span class="assetKind">({assetLabels[asset.kind]})</span></li>
 						{/each}
 					</ul>
 				</div>
