@@ -59,6 +59,11 @@ const sidebars = {
 					id: "Choices/MultiChoice",
 					label: "📁 Multi Choices",
 				},
+				{
+					type: "doc",
+					id: "Choices/Packages",
+					label: "📦 Share QuickAdd Packages",
+				},
 			],
 		},
 		{

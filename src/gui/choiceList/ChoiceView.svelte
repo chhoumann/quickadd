@@ -18,7 +18,7 @@
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
-    import { moveChoice as moveChoiceService } from "../../services/choiceService";
+	import { moveChoice as moveChoiceService } from "../../services/choiceService";
 
 	export let choices: IChoice[] = [];
 	export let saveChoices: (choices: IChoice[]) => void;
@@ -168,6 +168,7 @@
 			settingsStore.setState((state) => ({ ...state, ai: newSettings }));
 		}
 	}
+
 </script>
 
 
@@ -226,13 +227,11 @@
 		/>
 	{/if}
 	<div class="choiceViewBottomBar">
-		<div style="display: flex; gap: 4px;">
-			{#if !settingsStore.getState().disableOnlineFeatures}
-				<button class="mod-cta" on:click={openAISettings}
-					>AI Assistant</button
-				>
-			{/if}
-		</div>
+		{#if !settingsStore.getState().disableOnlineFeatures}
+			<button class="mod-cta" on:click={openAISettings}
+				>AI Assistant</button
+			>
+		{/if}
 		<AddChoiceBox on:addChoice={addChoiceToList} />
 	</div>
 </div>

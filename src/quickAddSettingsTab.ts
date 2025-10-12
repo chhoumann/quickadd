@@ -8,6 +8,8 @@ import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelt
 import { settingsStore } from "./settingsStore";
 import type { Model } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
+import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
+import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
 
 export interface QuickAddSettings {
 	choices: IChoice[];
@@ -99,6 +101,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		containerEl.createEl("h2", { text: "QuickAdd Settings" });
 
 		this.addChoicesSetting();
+		this.addPackagesSetting();
 		this.addUseMultiLineInputPromptSetting();
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
@@ -185,6 +188,32 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				},
 			},
 		});
+	}
+
+	private addPackagesSetting(): void {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Packages");
+		setting.setDesc("Bundle or import QuickAdd automations as reusable packages.");
+
+		setting.addButton((button) =>
+			button
+				.setButtonText("Export package…")
+				.setCta()
+				.onClick(() => {
+					const choicesSnapshot = settingsStore.getState().choices;
+					const modal = new ExportPackageModal(this.app, this.plugin, choicesSnapshot);
+					modal.open();
+				}),
+		);
+
+		setting.addButton((button) =>
+			button
+				.setButtonText("Import package…")
+				.onClick(() => {
+					const modal = new ImportPackageModal(this.app);
+					modal.open();
+				}),
+		);
 	}
 
 	private addUseMultiLineInputPromptSetting() {
