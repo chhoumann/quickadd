@@ -34,6 +34,21 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		return this.sourcePathOverride ?? this.app.workspace.getActiveFile()?.path ?? "";
 	}
 
+	private getSourceFolder(): string | undefined {
+		const sourcePath = this.getSourcePath();
+		if (!sourcePath) return undefined;
+
+		// If we have an override, derive folder from path string (file may not exist yet)
+		if (this.sourcePathOverride) {
+			const lastSlash = sourcePath.lastIndexOf('/');
+			return lastSlash >= 0 ? sourcePath.substring(0, lastSlash) : "";
+		}
+
+		// Otherwise use the actual file's parent
+		const sourceFile = this.app.workspace.getActiveFile();
+		return sourceFile?.parent?.path;
+	}
+
 
 
 	getSuggestions(inputStr: string): SearchResult[] {
@@ -72,16 +87,15 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			return this.getAttachmentSuggestions(fileNameInput);
 		}
 
-		// Build search context from source path override or active file
-		const sourcePath = this.getSourcePath();
-		const sourceFile = sourcePath ? this.app.vault.getAbstractFileByPath(sourcePath) as TFile | null : null;
-		const contextFile = sourceFile ?? this.app.workspace.getActiveFile();
+		// Build search context - use source folder even if file doesn't exist yet
+		const sourceFolder = this.getSourceFolder();
+		const activeFile = this.app.workspace.getActiveFile();
 		const context: SearchContext = {
-			currentFile: contextFile ?? undefined,
-			currentFolder: contextFile?.parent?.path
+		 currentFile: activeFile ?? undefined,
+		currentFolder: sourceFolder
 		};
 
-		return this.fileIndex.search(fileNameInput, context, 50);
+	return this.fileIndex.search(fileNameInput, context, 50);
 	}
 
 	private getHeadingSuggestions(input: string): SearchResult[] {
@@ -151,32 +165,31 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	}
 
 	private getRelativePathSuggestions(input: string): SearchResult[] {
-		const sourcePath = this.getSourcePath();
-		const sourceFile = sourcePath ? this.app.vault.getAbstractFileByPath(sourcePath) as TFile | null : null;
-		const contextFile = sourceFile ?? this.app.workspace.getActiveFile();
-		if (!contextFile) return [];
+		const sourceFolderPath = this.getSourceFolder();
+		if (sourceFolderPath === undefined) return [];
 
-		let targetFolder = contextFile.parent ?? null;
+		let targetFolderPath = sourceFolderPath;
 
 		if (input.startsWith('../')) {
-			targetFolder = targetFolder?.parent ?? null;
+			// Navigate up one level from source folder
+			const lastSlash = targetFolderPath.lastIndexOf('/');
+			targetFolderPath = lastSlash >= 0 ? targetFolderPath.substring(0, lastSlash) : "";
 			const remainingPath = input.substring(3);
 			if (remainingPath) {
 				return this.fileIndex.search(remainingPath, {
-					currentFolder: targetFolder?.path
+					currentFolder: targetFolderPath
 				}, 20);
 			}
 		} else if (input.startsWith('./')) {
 			const remainingPath = input.substring(2);
 			if (remainingPath) {
 				return this.fileIndex.search(remainingPath, {
-					currentFolder: targetFolder?.path
+					currentFolder: targetFolderPath
 				}, 20);
 			}
 		}
 
 		// Show all files in target folder
-		const targetFolderPath = targetFolder?.path ?? "";
 		const allResults = this.fileIndex.search('', {
 			currentFolder: targetFolderPath
 		}, 50);
