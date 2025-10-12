@@ -118,6 +118,17 @@ function collectDependenciesFromCommands(
 				);
 				break;
 			}
+			case CommandType.NestedChoice: {
+				const nested = command as INestedChoiceCommand;
+				if (nested.choice) {
+					accumulator.add(nested.choice.id);
+					const nestedDeps = collectChoiceDependencies(nested.choice);
+					for (const depId of nestedDeps) {
+						accumulator.add(depId);
+					}
+				}
+				break;
+			}
 			default:
 				break;
 		}

@@ -6,6 +6,7 @@ import { UserScript } from "../../src/types/macros/UserScript";
 import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { ConditionalCommand } from "../../src/types/macros/Conditional/ConditionalCommand";
+import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 
 describe("packageTraversal", () => {
 	it("collects dependent choice ids referenced by ChoiceCommand", () => {
@@ -81,8 +82,23 @@ describe("packageTraversal", () => {
 		parent.macro.commands.push(new ChoiceCommand("Run child", child.id));
 
 		const closure = collectChoiceClosure([parent, child], [parent.id]);
-		const scripts = collectScriptDependencies(closure.catalog, closure.choiceIds);
+	const scripts = collectScriptDependencies(closure.catalog, closure.choiceIds);
 
-		expect([...scripts.userScriptPaths]).toEqual(["Scripts/child.js"]);
+	expect([...scripts.userScriptPaths]).toEqual(["Scripts/child.js"]);
+	});
+
+	it("collects dependencies from nested choice commands", () => {
+		const nested = new MacroChoice("Nested Macro");
+		const target = new MacroChoice("Target Macro");
+		nested.macro.commands.push(new ChoiceCommand("Run target", target.id));
+
+		const outer = new MacroChoice("Outer Macro");
+		outer.macro.commands.push(new NestedChoiceCommand(nested));
+
+		const closure = collectChoiceClosure([outer, nested, target], [outer.id]);
+		const coveredIds = new Set(closure.choiceIds);
+		expect(coveredIds.has(nested.id)).toBe(true);
+		expect(coveredIds.has(target.id)).toBe(true);
+		expect(closure.missingChoiceIds).toHaveLength(0);
 	});
 });
