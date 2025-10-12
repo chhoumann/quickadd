@@ -1,20 +1,20 @@
-import { Buffer } from "buffer";
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
 import type IChoice from "../types/choices/IChoice";
 import type {
-	QuickAddPackage,
-	QuickAddPackageAsset,
-	QuickAddPackageChoice,
-	QuickAddPackageAssetKind,
+ QuickAddPackage,
+ QuickAddPackageAsset,
+ QuickAddPackageChoice,
+ QuickAddPackageAssetKind,
 } from "../types/packages/QuickAddPackage";
 import { QUICKADD_PACKAGE_SCHEMA_VERSION } from "../types/packages/QuickAddPackage";
 import {
-	collectChoiceClosure,
-	collectScriptDependencies,
-	collectFileDependencies,
+ collectChoiceClosure,
+ collectScriptDependencies,
+ collectFileDependencies,
 } from "../utils/packageTraversal";
 import { log } from "../logger/logManager";
+import { encodeToBase64 } from "../utils/base64";
 
 export interface BuildPackageOptions {
 	choices: IChoice[];
@@ -127,36 +127,35 @@ async function encodeAssets(
 	app: App,
 	descriptors: AssetDescriptor[],
 ): Promise<EncodedAssets> {
-	const encodedAssets: QuickAddPackageAsset[] = [];
-	const missingAssets: MissingAsset[] = [];
+   const encodedAssets: QuickAddPackageAsset[] = [];
+   const missingAssets: MissingAsset[] = [];
 
-	for (const { path, kind } of descriptors) {
-		try {
-			const exists = await app.vault.adapter.exists(path);
-			if (!exists) {
-				missingAssets.push({ path, kind });
-				log.logWarning(`QuickAdd export skipped missing ${kind}: ${path}`);
-				continue;
-			}
+   for (const { path, kind } of descriptors) {
+      try {
+        const exists = await app.vault.adapter.exists(path);
+        if (!exists) {
+          missingAssets.push({ path, kind });
+          log.logWarning(`QuickAdd export skipped missing ${kind}: ${path}`);
+          continue;
+        }
 
-			const content = await app.vault.adapter.read(path);
-			const buffer = Buffer.from(content, "utf8");
+        const content = await app.vault.adapter.read(path);
 
-			encodedAssets.push({
-				kind,
-				originalPath: path,
-				contentEncoding: "base64",
-				content: buffer.toString("base64"),
-			});
-		} catch (error) {
-			missingAssets.push({ path, kind });
-			log.logWarning(
-				`QuickAdd export failed to read ${kind} '${path}': ${
-					(error as Error)?.message ?? error
-				}`,
-			);
-		}
-	}
+        encodedAssets.push({
+          kind,
+          originalPath: path,
+          contentEncoding: "base64",
+          content: encodeToBase64(content),
+        });
+      } catch (error) {
+        missingAssets.push({ path, kind });
+        log.logWarning(
+          `QuickAdd export failed to read ${kind} '${path}': ${
+            (error as Error)?.message ?? error
+          }`,
+        );
+      }
+    }
 
 	return { encodedAssets, missingAssets };
 }

@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import type { App } from "obsidian";
 import { CommandType } from "../../src/types/macros/CommandType";
@@ -11,8 +10,10 @@ import type ITemplateChoice from "../../src/types/choices/ITemplateChoice";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type ICaptureChoice from "../../src/types/choices/ICaptureChoice";
 import { MultiChoice } from "../../src/types/choices/MultiChoice";
+import type IMultiChoice from "../../src/types/choices/IMultiChoice";
 import type { IUserScript } from "../../src/types/macros/IUserScript";
 import type { IConditionalCommand } from "../../src/types/macros/Conditional/IConditionalCommand";
+import { encodeToBase64 } from "../../src/utils/base64";
 import {
 	QUICKADD_PACKAGE_SCHEMA_VERSION,
 	type QuickAddPackage,
@@ -244,12 +245,12 @@ describe("packageImportService", () => {
 		const templateChoice = new TemplateChoice("Journal Template");
 		templateChoice.templatePath = "Templates/original.md";
 
-		const pkg: QuickAddPackage = {
-			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
-			quickAddVersion: "2.5.0",
-			createdAt: new Date().toISOString(),
-			rootChoiceIds: [templateChoice.id],
-			choices: [
+	const pkg: QuickAddPackage = {
+		schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+		quickAddVersion: "2.5.0",
+		createdAt: new Date().toISOString(),
+		rootChoiceIds: [templateChoice.id],
+		choices: [
 				{
 					choice: templateChoice,
 					pathHint: ["Journal Template"],
@@ -261,7 +262,7 @@ describe("packageImportService", () => {
 					kind: "template",
 					originalPath: "Templates/original.md",
 					contentEncoding: "base64",
-					content: Buffer.from("Template content").toString("base64"),
+				content: encodeToBase64("Template content"),
 				},
 			],
 		};
@@ -313,7 +314,7 @@ describe("packageImportService", () => {
 					kind: "capture-template",
 					originalPath: "Templates/capture-original.md",
 					contentEncoding: "base64",
-					content: Buffer.from("Capture template").toString("base64"),
+				content: encodeToBase64("Capture template"),
 				},
 			],
 		};
@@ -342,6 +343,56 @@ describe("packageImportService", () => {
 			"Templates/capture-new.md",
 		);
 		expect(result.writtenAssets).toContain("Templates/capture-new.md");
+	});
+
+	it("applyPackageImport respects skip decisions for multi-choice children", async () => {
+		const childKeep = new TemplateChoice("Keep Template");
+		childKeep.templatePath = "Templates/keep.md";
+		const childSkip = new TemplateChoice("Skip Template");
+		childSkip.templatePath = "Templates/skip.md";
+
+		const multi = new MultiChoice("Folder");
+		multi.choices.push(childKeep, childSkip);
+
+		const pkg: QuickAddPackage = {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			quickAddVersion: "2.5.0",
+			createdAt: new Date().toISOString(),
+			rootChoiceIds: [multi.id],
+			choices: [
+				{ choice: multi, pathHint: ["Folder"], parentChoiceId: null },
+				{
+					choice: childKeep,
+					pathHint: ["Folder", childKeep.name],
+					parentChoiceId: multi.id,
+				},
+				{
+					choice: childSkip,
+					pathHint: ["Folder", childSkip.name],
+					parentChoiceId: multi.id,
+				},
+			],
+			assets: [],
+		};
+
+		const mockApp = createMockApp();
+		const result = await applyPackageImport({
+			app: mockApp,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: multi.id, mode: "import" },
+				{ choiceId: childKeep.id, mode: "import" },
+				{ choiceId: childSkip.id, mode: "skip" },
+			],
+			assetDecisions: [],
+		});
+
+		const importedFolder = result.updatedChoices.find(
+			(choice) => choice.id === multi.id,
+		) as IMultiChoice | undefined;
+		expect(importedFolder).toBeTruthy();
+		expect(importedFolder?.choices.map((child) => child.id)).toEqual([childKeep.id]);
 	});
 
 	it("skips descendants marked as skip when importing multi choices", async () => {
@@ -430,7 +481,7 @@ describe("packageImportService", () => {
 					kind: "user-script",
 					originalPath: "Scripts/original.js",
 					contentEncoding: "base64",
-					content: Buffer.from("console.log('hello');").toString("base64"),
+				content: encodeToBase64("console.log('hello');"),
 				},
 			],
 		};
@@ -496,7 +547,7 @@ describe("packageImportService", () => {
 					kind: "conditional-script",
 					originalPath: "Scripts/check-original.js",
 					contentEncoding: "base64",
-					content: Buffer.from("module.exports = () => true;").toString("base64"),
+				content: encodeToBase64("module.exports = () => true;"),
 				},
 			],
 		};

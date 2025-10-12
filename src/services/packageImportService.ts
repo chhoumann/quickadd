@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
 import { v4 as uuidv4 } from "uuid";
@@ -20,6 +19,7 @@ import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INested
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
+import { decodeFromBase64 } from "../utils/base64";
 
 export interface LoadedQuickAddPackage {
 	pkg: QuickAddPackage;
@@ -269,16 +269,6 @@ export async function applyPackageImport(
 		}
 
 		if (decision === "overwrite" || decision === "import") {
-			if (decision === "overwrite" && choiceClone.type === "Multi") {
-				const existingChoice = findChoiceInTree(updatedChoices, finalId);
-				if (existingChoice && existingChoice.type === "Multi") {
-					preserveSkippedChildren(
-						existingChoice as IMultiChoice,
-						choiceClone as IMultiChoice,
-						importableChoiceIds,
-					);
-				}
-			}
 			const replaced = replaceChoiceInTree(updatedChoices, choiceClone);
 			if (replaced) {
 				overwrittenChoiceIds.push(finalId);
@@ -347,7 +337,7 @@ export async function applyPackageImport(
 		}
 
 		await ensureParentFolders(app, destinationPath);
-		const content = Buffer.from(asset.content, "base64").toString("utf8");
+		const content = decodeFromBase64(asset.content);
 		await app.vault.adapter.write(destinationPath, content);
 		writtenAssets.push(destinationPath);
 		assetPathOverrides.set(asset.originalPath, destinationPath);
@@ -636,40 +626,4 @@ function applyOverridesToCommands(
 				break;
 		}
 	}
-}
-
-function preserveSkippedChildren(
-	existing: IMultiChoice,
-	incoming: IMultiChoice,
-	importableChoiceIds: Set<string>,
-): void {
-	const existingChildren = existing.choices ?? [];
-	const incomingChildren = incoming.choices ?? [];
-	const incomingIds = new Set(incomingChildren.map((child) => child.id));
-	const preservedChildren = [...incomingChildren];
-
-	for (const child of existingChildren) {
-		if (!importableChoiceIds.has(child.id) && !incomingIds.has(child.id)) {
-			preservedChildren.push(child);
-		}
-	}
-
-	incoming.choices = preservedChildren;
-}
-
-function findChoiceInTree(
-	choices: IChoice[],
-	targetId: string,
-): IChoice | undefined {
-	for (const choice of choices) {
-		if (choice.id === targetId) return choice;
-		if (choice.type === "Multi") {
-			const nested = findChoiceInTree(
-				(choice as IMultiChoice).choices ?? [],
-				targetId,
-			);
-			if (nested) return nested;
-		}
-	}
-	return undefined;
 }

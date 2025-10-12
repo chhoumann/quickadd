@@ -1,4 +1,3 @@
-import { Buffer } from "buffer";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { App } from "obsidian";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
@@ -15,6 +14,7 @@ import {
 	writePackageToVault,
 } from "../../src/services/packageExportService";
 import { parseQuickAddPackage } from "../../src/services/packageImportService";
+import { encodeToBase64 } from "../../src/utils/base64";
 
 function createMockApp(options?: {
 	existingPaths?: Record<string, string>;
@@ -86,10 +86,7 @@ describe("packageExportService", () => {
 		const parsed = parseQuickAddPackage(serialized);
 		expect(parsed.choices).toHaveLength(1);
 
-		const expectedContent = Buffer.from(
-			"console.log('hello world');",
-			"utf8",
-		).toString("base64");
+	const expectedContent = encodeToBase64("console.log('hello world');");
 		expect(result.pkg.assets[0].content).toBe(expectedContent);
 	});
 
