@@ -60,6 +60,27 @@ In the Macro Builder, you can add different types of commands:
    - Configurable tab and split options
    - Opens files in default view mode with focus
    - Only opens existing files (no auto-creation)
+8. **Conditional** - Branch macro execution based on live data
+   - Compare macro variables using equality, numeric, or containment checks
+   - Run custom scripts that return a boolean to choose a branch
+   - Configure "then" and optional "else" command sequences from the builder
+
+### Conditional Commands
+
+Conditional commands let you branch your macro without writing boilerplate JavaScript. Each conditional includes:
+
+- **Condition mode** – Choose between comparing a macro variable or running a script that returns `true`/`false`.
+- **Variable comparisons** – Evaluate variables using operators like equals, contains, less/greater than, or basic truthiness checks. Value types (text, number, boolean) control how comparisons are coerced.
+- **Script mode** – Point to a JavaScript file in your vault (with optional exported function) that returns a boolean. The script receives the same parameters as user scripts, including access to macro variables and `params.abort`.
+- **Branch editors** – Configure the commands that should run when the condition passes or fails. Each branch is a full command sequence, so you can nest additional conditionals or reuse any macro command type.
+
+To add a conditional:
+
+1. Click the branch icon in the command bar of the Macro Builder (or any conditional branch editor).
+2. Click the settings icon on the new command to define the condition.
+3. Use the branch buttons to configure the commands that run for the **Then** and **Else** outcomes.
+
+Macros execute the matching branch in order and then continue with the rest of the macro. Branch commands share the same variable map as the outer macro, so they can read or update variables for later steps.
 
 ## Editor Commands
 

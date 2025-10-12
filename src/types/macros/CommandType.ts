@@ -8,4 +8,5 @@ export enum CommandType {
 	AIAssistant = "AIAssistant",
 	InfiniteAIAssistant = "InfiniteAIAssistant",
 	OpenFile = "OpenFile",
+	Conditional = "Conditional",
 }
