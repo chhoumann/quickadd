@@ -32,7 +32,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// Use the capture destination as the source context so relative links work correctly
 		// e.g., if active file is Projects/Idea.md and capture target is Journal/Inbox.md,
 		// we want [[Projects/Idea]], not [[Idea]]
-		const sourcePath = this.file?.path ?? currentFile.path;
+		// If this.file is not set yet (first format pass), use empty string to get vault-absolute path
+		const sourcePath = this.file?.path ?? "";
 		return this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
 	}
 
