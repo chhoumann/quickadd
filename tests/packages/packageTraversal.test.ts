@@ -161,6 +161,22 @@ it("collectScriptDependencies respects excluded choices", () => {
 	expect([...scripts.userScriptPaths]).toEqual(["Scripts/script-a.js"]);
 });
 
+	it("does not flag inline nested choices as missing dependencies", () => {
+		const template = new TemplateChoice("Inline template");
+		template.templatePath = "Templates/inline.md";
+
+		const outer = new MacroChoice("Outer Macro");
+		outer.macro.commands.push(new NestedChoiceCommand(template));
+
+		const closure = collectChoiceClosure([outer], [outer.id]);
+
+		expect(closure.choiceIds).toEqual([outer.id]);
+		expect(closure.missingChoiceIds).toHaveLength(0);
+
+		const files = collectFileDependencies(closure.catalog, closure.choiceIds);
+		expect([...files.templatePaths]).toEqual(["Templates/inline.md"]);
+	});
+
 	it("collects dependencies from nested choice commands", () => {
 		const nested = new MacroChoice("Nested Macro");
 		const target = new MacroChoice("Target Macro");

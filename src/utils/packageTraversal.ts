@@ -127,7 +127,6 @@ function collectDependenciesFromCommands(
 					break;
 				}
 
-				accumulator.add(nestedChoice.id);
 				const nestedDeps = collectChoiceDependencies(nestedChoice);
 				for (const depId of nestedDeps) {
 					accumulator.add(depId);

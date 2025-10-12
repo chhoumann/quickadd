@@ -90,30 +90,70 @@ function updateChoiceDecision(
 	choiceDecisions = map;
 }
 
-function updateAssetMode(path: string, mode: AssetImportMode) {
+function updateAssetMode(originalPath: string, mode: AssetImportMode) {
 	const previous =
-		assetDecisions.get(path) ??
+		assetDecisions.get(originalPath) ??
 		({
 			mode,
-			destinationPath: path,
+			destinationPath: originalPath,
 		} as AssetDecisionState);
 	const next: AssetDecisionState = { ...previous, mode };
 	const map = new Map(assetDecisions);
-	map.set(path, next);
+	map.set(originalPath, next);
 	assetDecisions = map;
 }
 
-function updateAssetPath(path: string, value: string) {
+function updateAssetPath(conflict: AssetConflict, value: string) {
 	const previous =
-		assetDecisions.get(path) ??
+		assetDecisions.get(conflict.originalPath) ??
 		({
 			mode: "write",
-			destinationPath: path,
+			destinationPath: conflict.originalPath,
 		} as AssetDecisionState);
-	const next: AssetDecisionState = { ...previous, destinationPath: value };
+	const trimmed = value.trim();
+	let nextMode = previous.mode;
+
+	if (conflict.exists) {
+		const wasOriginal =
+			previous.destinationPath.trim() === conflict.originalPath;
+		const isOriginal = trimmed === conflict.originalPath;
+
+		if (!isOriginal && nextMode === "overwrite") {
+			nextMode = "write";
+		} else if (isOriginal && !wasOriginal) {
+			nextMode = "overwrite";
+		}
+	}
+
+	const next: AssetDecisionState = {
+		...previous,
+		mode: nextMode,
+		destinationPath: value,
+	};
 	const map = new Map(assetDecisions);
-	map.set(path, next);
+	map.set(conflict.originalPath, next);
 	assetDecisions = map;
+}
+
+function resolveAssetBadge(
+	conflict: AssetConflict,
+	state: AssetDecisionState,
+): { className: string; label: string } {
+	const trimmed = state.destinationPath?.trim?.() ?? "";
+	const isOriginal = trimmed === conflict.originalPath;
+
+	if (state.mode === "skip") {
+		return { className: "assetBadge--info", label: "Skipped" };
+	}
+
+	if (state.mode === "overwrite") {
+		return {
+			className: isOriginal ? "assetBadge--warning" : "assetBadge--info",
+			label: isOriginal ? "Will overwrite" : "Overwrite",
+		};
+	}
+
+	return { className: "assetBadge--info", label: "New file" };
 }
 
 	function onChoiceModeChange(choiceId: string, event: Event) {
@@ -128,9 +168,9 @@ function onAssetModeChange(path: string, event: Event) {
 	updateAssetMode(path, mode);
 }
 
-function onAssetPathChange(path: string, event: Event) {
+function onAssetPathChange(conflict: AssetConflict, event: Event) {
 	const value = (event.currentTarget as HTMLInputElement).value;
-	updateAssetPath(path, value);
+	updateAssetPath(conflict, value);
 }
 
 	async function analyzePastedContent(raw: string) {
@@ -366,15 +406,14 @@ function onAssetPathChange(path: string, event: Event) {
 							mode: conflict.exists ? "overwrite" : "write",
 							destinationPath: defaultAssetDestination(conflict),
 						}}
+					{@const badgeDisplay = resolveAssetBadge(conflict, assetState)}
 					<div class="assetCard">
 						<div class="assetHeader">
 							<div class="assetTitle">{conflict.originalPath}</div>
 							<div class="assetBadges">
 								<span class="assetBadge">{conflict.kind}</span>
-								<span
-									class={`assetBadge ${conflict.exists ? "assetBadge--warning" : "assetBadge--info"}`}
-								>
-									{conflict.exists ? "Will overwrite" : "New file"}
+								<span class={`assetBadge ${badgeDisplay.className}`}>
+									{badgeDisplay.label}
 								</span>
 							</div>
 						</div>
@@ -384,7 +423,7 @@ function onAssetPathChange(path: string, event: Event) {
 								<input
 									type="text"
 									value={assetState.destinationPath}
-									on:input={(event) => onAssetPathChange(conflict.originalPath, event)}
+									on:input={(event) => onAssetPathChange(conflict, event)}
 									placeholder="vault/path/to/file"
 									disabled={assetState.mode === "skip"}
 								/>
