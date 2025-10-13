@@ -81,6 +81,8 @@ export class SingleMacroEngine {
 			throw new Error(`macro '${macroName}' does not exist.`);
 		}
 
+		const preloadedScripts = new Map<string, unknown>();
+
 		// Create a dedicated engine for this macro
 		const engine = new MacroChoiceEngine(
 			this.app,
@@ -88,6 +90,7 @@ export class SingleMacroEngine {
 			macroChoice,
 			this.choiceExecutor,
 			this.variables,
+			preloadedScripts,
 		);
 
 		if (memberAccess?.length) {
@@ -95,6 +98,7 @@ export class SingleMacroEngine {
 				engine,
 				macroChoice,
 				memberAccess,
+				preloadedScripts,
 			);
 
 			if (exportAttempt.executed) {
@@ -129,6 +133,7 @@ export class SingleMacroEngine {
 		engine: MacroChoiceEngine,
 		macroChoice: IMacroChoice,
 		memberAccess: string[],
+		preloadedScripts: Map<string, unknown>,
 	): Promise<{ executed: boolean; result?: unknown }> {
 		const commands = macroChoice.macro?.commands;
 		if (!commands?.length) {
@@ -149,8 +154,14 @@ export class SingleMacroEngine {
 		}
 
 		const exportsRef = await getUserScript(userScriptCommand, this.app);
+
 		if (exportsRef === undefined || exportsRef === null) {
 			return { executed: false };
+		}
+
+		const cacheKey = userScriptCommand.path ?? userScriptCommand.id;
+		if (cacheKey) {
+			preloadedScripts.set(cacheKey, exportsRef);
 		}
 
 		const settingsExport =
