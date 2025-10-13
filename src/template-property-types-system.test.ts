@@ -371,7 +371,8 @@ const createSystemMockPlugin = (enableFeature: boolean = true) => ({
 	settings: {
 		enableTemplatePropertyTypes: enableFeature,
 		globalVariables: {},
-		showCaptureNotification: false
+		showCaptureNotification: false,
+		showInputCancellationNotification: true
 	}
 });
 

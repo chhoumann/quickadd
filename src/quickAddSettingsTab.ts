@@ -31,6 +31,7 @@ export interface QuickAddSettings {
 	disableOnlineFeatures: boolean;
 	enableRibbonIcon: boolean;
 	showCaptureNotification: boolean;
+	showInputCancellationNotification: boolean;
 	enableTemplatePropertyTypes: boolean;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
@@ -63,6 +64,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	disableOnlineFeatures: true,
 	enableRibbonIcon: false,
 	showCaptureNotification: true,
+	showInputCancellationNotification: false,
 	enableTemplatePropertyTypes: false,
 	ai: {
 		defaultModel: "Ask me",
@@ -106,6 +108,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addTemplateFolderPathSetting();
 		this.addAnnounceUpdatesSetting();
 		this.addShowCaptureNotificationSetting();
+		this.addShowInputCancellationNotificationSetting();
 		this.addTemplatePropertyTypesSetting();
 		this.addGlobalVariablesSetting();
 		this.addOnePageInputSetting();
@@ -148,6 +151,24 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			toggle.setValue(settingsStore.getState().showCaptureNotification);
 			toggle.onChange((value) => {
 				settingsStore.setState({ showCaptureNotification: value });
+			});
+		});
+	}
+
+	addShowInputCancellationNotificationSetting() {
+		const setting = new Setting(this.containerEl);
+		setting.setName("Show Input Cancellation Notifications");
+		setting.setDesc(
+			"Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts."
+		);
+		setting.addToggle((toggle) => {
+			toggle.setValue(
+				settingsStore.getState().showInputCancellationNotification
+			);
+			toggle.onChange((value) => {
+				settingsStore.setState({
+					showInputCancellationNotification: value,
+				});
 			});
 		});
 	}

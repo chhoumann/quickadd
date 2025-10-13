@@ -235,7 +235,8 @@ const createMockPlugin = () => ({
 	settings: {
 		enableTemplatePropertyTypes: true,
 		globalVariables: {},
-		showCaptureNotification: false
+		showCaptureNotification: false,
+		showInputCancellationNotification: true
 	}
 });
 

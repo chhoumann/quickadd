@@ -100,6 +100,20 @@ export const Scope = class {
   register(hotkeys: any, callback: any) {}
 };
 
+export class Notice {
+  static instances: Array<{ message: string; timeout?: number }> = [];
+  message: string;
+  timeout?: number;
+
+  constructor(message: string, timeout?: number) {
+    this.message = message;
+    this.timeout = timeout;
+    Notice.instances.push({ message, timeout });
+  }
+
+  hide() {}
+}
+
 export { moment };
 
 // Minimal normalizePath for tests: convert Windows separators to POSIX
@@ -119,6 +133,7 @@ export default {
   FuzzySuggestModal,
   Modal,
   Scope,
+  Notice,
   moment,
   normalizePath,
 };
