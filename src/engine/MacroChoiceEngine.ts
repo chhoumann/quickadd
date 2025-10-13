@@ -285,7 +285,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 		}
 
-		if (this.userScriptCommand && obj.entry !== null) {
+		if (this.userScriptCommand && typeof obj.entry === "function") {
 			await this.runScriptWithSettings(
 				obj as {
 					entry: (

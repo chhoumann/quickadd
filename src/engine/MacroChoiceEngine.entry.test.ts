@@ -152,4 +152,27 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		expect(paramsArg).toHaveProperty("variables");
 		expect(engine["output"]).toBe("entry-result");
 	});
+
+	it("prompts the user when no entry export is defined", async () => {
+		const optionFn = vi.fn().mockResolvedValue("option-result");
+
+		mockGetUserScript.mockResolvedValue({
+			option1: optionFn,
+		});
+		mockSuggest.mockResolvedValueOnce("option1");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine["executeUserScript"](userScriptCommand);
+
+		expect(mockSuggest).toHaveBeenCalledTimes(1);
+		expect(optionFn).toHaveBeenCalledTimes(1);
+		expect(engine["output"]).toBe("option-result");
+	});
 });
