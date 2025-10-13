@@ -470,6 +470,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		await this.executeCommands(branch);
 	}
 
+	public async runSubset(commands: ICommand[]): Promise<void> {
+		if (!commands?.length) return;
+		await this.executeCommands(commands);
+	}
+
+	public setOutput(value: unknown): void {
+		this.output = value;
+	}
+
 	private pullExecutorVariablesIntoParams() {
 		this.choiceExecutor.variables.forEach((value, key) => {
 			this.params.variables[key] = value;

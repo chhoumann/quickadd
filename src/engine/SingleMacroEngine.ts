@@ -140,14 +140,19 @@ export class SingleMacroEngine {
 			return { executed: false };
 		}
 
-		const userScriptCommand = commands.find(
-			(command): command is IUserScript =>
-				command.type === CommandType.UserScript,
+		const userScriptCommandIndex = commands.findIndex(
+			(command) => command.type === CommandType.UserScript,
 		);
 
-		if (!userScriptCommand) {
+		if (userScriptCommandIndex === -1) {
 			return { executed: false };
 		}
+
+		const userScriptCandidate = commands[userScriptCommandIndex];
+		if (userScriptCandidate.type !== CommandType.UserScript) {
+			return { executed: false };
+		}
+		const userScriptCommand = userScriptCandidate as IUserScript;
 
 		if (!userScriptCommand.settings) {
 			userScriptCommand.settings = {};
@@ -185,13 +190,24 @@ export class SingleMacroEngine {
 			return { executed: false };
 		}
 
+		const preCommands = commands.slice(0, userScriptCommandIndex);
+		if (preCommands.length) {
+			await engine.runSubset(preCommands);
+		}
+
 		const result = await this.executeResolvedMember(
 			resolvedMember.value,
 			engine,
 			userScriptCommand.settings,
 		);
 
+		engine.setOutput(result);
 		this.syncVariablesFromParams(engine);
+
+		const postCommands = commands.slice(userScriptCommandIndex + 1);
+		if (postCommands.length) {
+			await engine.runSubset(postCommands);
+		}
 
 		return {
 			executed: true,
