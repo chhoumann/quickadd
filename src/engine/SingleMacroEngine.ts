@@ -4,8 +4,11 @@ import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
-import { getUserScriptMemberAccess } from "../utilityObsidian";
+import type { IUserScript } from "../types/macros/IUserScript";
+import { CommandType } from "../types/macros/CommandType";
+import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
+import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 
 export class SingleMacroEngine {
@@ -87,6 +90,10 @@ export class SingleMacroEngine {
 			this.variables,
 		);
 
+		if (memberAccess?.length) {
+			return await this.runMemberAccess(engine, macroChoice, memberAccess);
+		}
+
 		// Always execute the whole macro first
 		await engine.run();
 		let result: unknown = engine.getOutput();
@@ -111,5 +118,151 @@ export class SingleMacroEngine {
 
 	public getVariables(): Map<string, unknown> {
 		return this.variables;
+	}
+
+	private async runMemberAccess(
+		engine: MacroChoiceEngine,
+		macroChoice: IMacroChoice,
+		memberAccess: string[],
+	): Promise<string> {
+		const commands = macroChoice.macro?.commands;
+		if (!commands?.length) {
+			const message = `macro '${macroChoice.name}' does not have any commands to execute.`;
+			log.logError(message);
+			throw new Error(message);
+		}
+
+		const userScriptCommand = commands.find(
+			(command): command is IUserScript =>
+				command.type === CommandType.UserScript,
+		);
+
+		if (!userScriptCommand) {
+			const message = `macro '${macroChoice.name}' does not include a user script command.`;
+			log.logError(message);
+			throw new Error(message);
+		}
+
+		if (!userScriptCommand.settings) {
+			userScriptCommand.settings = {};
+		}
+
+		const exportsRef = await getUserScript(userScriptCommand, this.app);
+		if (exportsRef === undefined || exportsRef === null) {
+			const message = `failed to load user script for macro '${macroChoice.name}'.`;
+			log.logError(message);
+			throw new Error(message);
+		}
+
+		const settingsExport =
+			typeof exportsRef === "object" || typeof exportsRef === "function"
+				? (exportsRef as Record<string, unknown>).settings
+				: undefined;
+
+		if (settingsExport && typeof settingsExport === "object") {
+			initializeUserScriptSettings(
+				userScriptCommand.settings,
+				settingsExport as Record<string, unknown>,
+			);
+		}
+
+		const resolvedMember = this.resolveMemberAccess(
+			exportsRef,
+			memberAccess,
+			macroChoice.name,
+		);
+
+		const result = await this.executeResolvedMember(
+			resolvedMember,
+			engine,
+			userScriptCommand.settings,
+		);
+
+		this.syncVariablesFromParams(engine);
+
+		return this.formatResult(result);
+	}
+
+	private resolveMemberAccess(
+		moduleExports: unknown,
+		memberAccess: string[],
+		macroName: string,
+	): unknown {
+		let current: unknown = moduleExports;
+
+		for (const key of memberAccess) {
+			if (
+				current === undefined ||
+				current === null ||
+				(typeof current !== "object" && typeof current !== "function")
+			) {
+				const message = `macro '${macroName}' does not export member '${key}'.`;
+				log.logError(message);
+				throw new Error(message);
+			}
+
+			const container = current as Record<string, unknown>;
+
+			if (!(key in container)) {
+				const message = `macro '${macroName}' does not export member '${key}'.`;
+				log.logError(message);
+				throw new Error(message);
+			}
+
+			current = container[key];
+		}
+
+		if (current === undefined) {
+			const message = `macro '${macroName}' does not export member '${memberAccess.at(-1)}'.`;
+			log.logError(message);
+			throw new Error(message);
+		}
+
+		return current;
+	}
+
+	private async executeResolvedMember(
+		member: unknown,
+		engine: MacroChoiceEngine,
+		settings: Record<string, unknown>,
+	): Promise<unknown> {
+		// Ensure params reflect latest shared variables before executing
+		this.choiceExecutor.variables.forEach((value, key) => {
+			engine.params.variables[key] = value;
+		});
+
+		if (typeof member === "function") {
+			return await (
+				member as (
+					params: unknown,
+					settings: Record<string, unknown>,
+				) => unknown
+			)(engine.params, settings);
+		}
+
+		return member;
+	}
+
+	private syncVariablesFromParams(engine: MacroChoiceEngine) {
+		Object.keys(engine.params.variables).forEach((key) => {
+			this.choiceExecutor.variables.set(
+				key,
+				engine.params.variables[key],
+			);
+		});
+	}
+
+	private formatResult(result: unknown): string {
+		let finalResult = result;
+
+		if (finalResult && typeof finalResult === "object") {
+			try {
+				finalResult = JSON.stringify(finalResult);
+			} catch {
+				finalResult = finalResult.toString();
+			}
+		}
+
+		return (finalResult ?? "").toString();
 	}
 }
