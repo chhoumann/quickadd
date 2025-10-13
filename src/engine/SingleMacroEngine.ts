@@ -10,6 +10,7 @@ import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
@@ -191,28 +192,45 @@ export class SingleMacroEngine {
 		}
 
 		const preCommands = commands.slice(0, userScriptCommandIndex);
-		if (preCommands.length) {
-			await engine.runSubset(preCommands);
-		}
-
-		const result = await this.executeResolvedMember(
-			resolvedMember.value,
-			engine,
-			userScriptCommand.settings,
-		);
-
-		engine.setOutput(result);
-		this.syncVariablesFromParams(engine);
-
 		const postCommands = commands.slice(userScriptCommandIndex + 1);
-		if (postCommands.length) {
-			await engine.runSubset(postCommands);
-		}
 
-		return {
-			executed: true,
-			result,
-		};
+		try {
+			if (preCommands.length) {
+				await engine.runSubset(preCommands);
+			}
+
+			const result = await this.executeResolvedMember(
+				resolvedMember.value,
+				engine,
+				userScriptCommand.settings,
+			);
+
+			engine.setOutput(result);
+			this.syncVariablesFromParams(engine);
+
+			if (postCommands.length) {
+				await engine.runSubset(postCommands);
+			}
+
+			return {
+				executed: true,
+				result,
+			};
+		} catch (error) {
+			if (
+				handleMacroAbort(error, {
+					logPrefix: "Macro execution aborted",
+					noticePrefix: "Macro execution aborted",
+					defaultReason: "Macro execution aborted",
+				})
+			) {
+				return {
+					executed: true,
+					result: "",
+				};
+			}
+			throw error;
+		}
 	}
 
 	private resolveMemberAccess(

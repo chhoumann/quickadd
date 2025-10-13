@@ -49,8 +49,43 @@ vi.mock("../utilityObsidian", async () => {
 	};
 });
 
+vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({}));
+vi.mock("../gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
+vi.mock("../gui/PackageManager/ExportPackageModal.svelte", () => ({}));
+
 vi.mock("../utils/userScriptSettings", () => ({
 	initializeUserScriptSettings: mockInitializeUserScriptSettings,
+}));
+
+vi.mock("../quickAddApi", () => ({
+	QuickAddApi: {
+		GetApi: vi.fn(() => ({})),
+	},
+}));
+
+vi.mock("../quickAddSettingsTab", () => ({
+	DEFAULT_SETTINGS: {},
+	QuickAddSettingsTab: class {},
+}));
+
+vi.mock("../settingsStore", () => ({
+	settingsStore: {
+		getState: () => ({ ai: {}, disableOnlineFeatures: false }),
+	},
+}));
+
+vi.mock("../formatters/completeFormatter", () => ({
+	CompleteFormatter: class CompleteFormatterMock {},
+}));
+
+vi.mock("../ai/AIAssistant", () => ({
+	runAIAssistant: vi.fn(),
+}));
+
+vi.mock("../ai/aiHelpers", () => ({
+	getModelByName: vi.fn(),
+	getModelNames: vi.fn().mockReturnValue([]),
+	getModelProvider: vi.fn().mockReturnValue({ apiKey: "" }),
 }));
 
 describe("SingleMacroEngine member access", () => {
