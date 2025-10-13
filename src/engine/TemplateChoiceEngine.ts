@@ -22,10 +22,10 @@ import {
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
-import { reportError } from "../utils/errorUtils";
+import { isCancellationError, reportError } from "../utils/errorUtils";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { isCancellationError } from "../utils/errorUtils";
+import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -179,6 +179,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 		} catch (err) {
+			if (
+				handleMacroAbort(err, {
+					logPrefix: "Template execution aborted",
+					noticePrefix: "Template execution aborted",
+					defaultReason: "Template execution aborted",
+				})
+			) {
+				return;
+			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
 	}

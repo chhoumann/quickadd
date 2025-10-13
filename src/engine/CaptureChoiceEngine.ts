@@ -1,5 +1,4 @@
-import type { App, TFile } from "obsidian";
-import { Notice } from "obsidian";
+import { Notice, type App, type TFile } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
@@ -26,12 +25,12 @@ import {
 	overwriteTemplaterOnce,
 	templaterParseTemplate,
 } from "../utilityObsidian";
-import { reportError } from "../utils/errorUtils";
+import { isCancellationError, reportError } from "../utils/errorUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { isCancellationError } from "../utils/errorUtils";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
+import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -174,6 +173,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 			}
 		} catch (err) {
+			if (
+				handleMacroAbort(err, {
+					logPrefix: "Capture execution aborted",
+					noticePrefix: "Capture execution aborted",
+					defaultReason: "Capture aborted",
+				})
+			) {
+				return;
+			}
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
 	}

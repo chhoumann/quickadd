@@ -1,11 +1,10 @@
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App } from "obsidian";
-import { Notice } from "obsidian";
 import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
-import { reportError } from "../utils/errorUtils";
+import { reportError, isCancellationError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
@@ -42,11 +41,11 @@ import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCo
 import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { isCancellationError } from "../utils/errorUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
+import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 
@@ -158,9 +157,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 		} catch (error) {
-			if (error instanceof MacroAbortError) {
-				log.logMessage(`Macro execution aborted: ${error.message}`);
-				new Notice(`Macro execution aborted: ${error.message}`);
+			if (
+				handleMacroAbort(error, {
+					logPrefix: "Macro execution aborted",
+					noticePrefix: "Macro execution aborted",
+					defaultReason: "Macro execution aborted",
+				})
+			) {
 				return;
 			}
 			throw error;

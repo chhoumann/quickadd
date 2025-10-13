@@ -159,7 +159,14 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
 
   it('inserts capture content below frontmatter when metadata cache is empty', async () => {
     const app = createMockApp();
-    const plugin = { settings: { enableTemplatePropertyTypes: false, globalVariables: {}, showCaptureNotification: false } } as any;
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
     const formatter = new CaptureChoiceFormatter(app, plugin);
 
     const choice = createChoice();
