@@ -5,6 +5,7 @@ import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IUserScript } from "../types/macros/IUserScript";
+import type { ICommand } from "../types/macros/ICommand";
 import { CommandType } from "../types/macros/CommandType";
 import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
@@ -136,12 +137,12 @@ export class SingleMacroEngine {
 		memberAccess: string[],
 		preloadedScripts: Map<string, unknown>,
 	): Promise<{ executed: boolean; result?: unknown }> {
-		const commands = macroChoice.macro?.commands;
-		if (!commands?.length) {
+		const originalCommands = macroChoice.macro?.commands;
+		if (!originalCommands?.length) {
 			return { executed: false };
 		}
 
-		const userScriptCommandIndex = commands.findIndex(
+		const userScriptCommandIndex = originalCommands.findIndex(
 			(command) => command.type === CommandType.UserScript,
 		);
 
@@ -149,55 +150,69 @@ export class SingleMacroEngine {
 			return { executed: false };
 		}
 
-		const userScriptCandidate = commands[userScriptCommandIndex];
-		if (userScriptCandidate.type !== CommandType.UserScript) {
-			return { executed: false };
-		}
-		const userScriptCommand = userScriptCandidate as IUserScript;
-
-		if (!userScriptCommand.settings) {
-			userScriptCommand.settings = {};
-		}
-
-		const exportsRef = await getUserScript(userScriptCommand, this.app);
-
-		if (exportsRef === undefined || exportsRef === null) {
-			return { executed: false };
-		}
-
-		const cacheKey = userScriptCommand.path ?? userScriptCommand.id;
-		if (cacheKey) {
-			preloadedScripts.set(cacheKey, exportsRef);
-		}
-
-		const settingsExport =
-			typeof exportsRef === "object" || typeof exportsRef === "function"
-				? (exportsRef as Record<string, unknown>).settings
-				: undefined;
-
-		if (settingsExport && typeof settingsExport === "object") {
-			initializeUserScriptSettings(
-				userScriptCommand.settings,
-				settingsExport as Record<string, unknown>,
-			);
-		}
-
-		const resolvedMember = this.resolveMemberAccess(
-			exportsRef,
-			memberAccess,
-		);
-
-		if (!resolvedMember.found) {
-			return { executed: false };
-		}
-
-		const preCommands = commands.slice(0, userScriptCommandIndex);
-		const postCommands = commands.slice(userScriptCommandIndex + 1);
+		const preCommands = originalCommands.slice(0, userScriptCommandIndex);
 
 		try {
 			if (preCommands.length) {
 				await engine.runSubset(preCommands);
 			}
+
+			const updatedCommands = macroChoice.macro?.commands ?? originalCommands;
+			const refreshedCandidate = updatedCommands[userScriptCommandIndex];
+			if (!refreshedCandidate || refreshedCandidate.type !== CommandType.UserScript) {
+				return await this.executeFallbackRemainder(
+					engine,
+					updatedCommands.slice(userScriptCommandIndex),
+					memberAccess,
+				);
+			}
+			const userScriptCommand = refreshedCandidate as IUserScript;
+
+			if (!userScriptCommand.settings) {
+				userScriptCommand.settings = {};
+			}
+
+			const exportsRef = await getUserScript(userScriptCommand, this.app);
+
+			if (exportsRef === undefined || exportsRef === null) {
+				return await this.executeFallbackRemainder(
+					engine,
+					updatedCommands.slice(userScriptCommandIndex),
+					memberAccess,
+				);
+			}
+
+			const cacheKey = userScriptCommand.path ?? userScriptCommand.id;
+			if (cacheKey) {
+				preloadedScripts.set(cacheKey, exportsRef);
+			}
+
+			const settingsExport =
+				typeof exportsRef === "object" || typeof exportsRef === "function"
+					? (exportsRef as Record<string, unknown>).settings
+					: undefined;
+
+			if (settingsExport && typeof settingsExport === "object") {
+				initializeUserScriptSettings(
+					userScriptCommand.settings,
+					settingsExport as Record<string, unknown>,
+				);
+			}
+
+			const resolvedMember = this.resolveMemberAccess(
+				exportsRef,
+				memberAccess,
+			);
+
+			if (!resolvedMember.found) {
+				return await this.executeFallbackRemainder(
+					engine,
+					updatedCommands.slice(userScriptCommandIndex),
+					memberAccess,
+				);
+			}
+
+			const postCommands = updatedCommands.slice(userScriptCommandIndex + 1);
 
 			const result = await this.executeResolvedMember(
 				resolvedMember.value,
@@ -283,6 +298,24 @@ export class SingleMacroEngine {
 		}
 
 		return member;
+	}
+
+	private async executeFallbackRemainder(
+		engine: MacroChoiceEngine,
+		remainingCommands: ICommand[],
+		memberAccess: string[],
+	): Promise<{ executed: boolean; result?: unknown }> {
+		if (remainingCommands.length) {
+			await engine.runSubset(remainingCommands);
+		}
+
+		this.syncVariablesFromParams(engine);
+		const macroResult = engine.getOutput();
+		const result = memberAccess?.length
+			? this.applyMemberAccess(macroResult, memberAccess)
+			: macroResult;
+
+		return { executed: true, result };
 	}
 
 	private applyMemberAccess(
