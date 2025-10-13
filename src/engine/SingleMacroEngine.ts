@@ -91,7 +91,15 @@ export class SingleMacroEngine {
 		);
 
 		if (memberAccess?.length) {
-			return await this.runMemberAccess(engine, macroChoice, memberAccess);
+			const exportAttempt = await this.tryExecuteExport(
+				engine,
+				macroChoice,
+				memberAccess,
+			);
+
+			if (exportAttempt.executed) {
+				return this.formatResult(exportAttempt.result);
+			}
 		}
 
 		// Always execute the whole macro first
@@ -100,10 +108,7 @@ export class SingleMacroEngine {
 
 		// Apply member access afterwards (if requested)
 		if (memberAccess?.length) {
-			for (const key of memberAccess) {
-				// @ts-ignore – dynamic descent
-				result = (result as any)?.[key];
-			}
+			result = this.applyMemberAccess(result, memberAccess);
 		}
 
 		// Handle functions and objects properly
@@ -120,16 +125,14 @@ export class SingleMacroEngine {
 		return this.variables;
 	}
 
-	private async runMemberAccess(
+	private async tryExecuteExport(
 		engine: MacroChoiceEngine,
 		macroChoice: IMacroChoice,
 		memberAccess: string[],
-	): Promise<string> {
+	): Promise<{ executed: boolean; result?: unknown }> {
 		const commands = macroChoice.macro?.commands;
 		if (!commands?.length) {
-			const message = `macro '${macroChoice.name}' does not have any commands to execute.`;
-			log.logError(message);
-			throw new Error(message);
+			return { executed: false };
 		}
 
 		const userScriptCommand = commands.find(
@@ -138,9 +141,7 @@ export class SingleMacroEngine {
 		);
 
 		if (!userScriptCommand) {
-			const message = `macro '${macroChoice.name}' does not include a user script command.`;
-			log.logError(message);
-			throw new Error(message);
+			return { executed: false };
 		}
 
 		if (!userScriptCommand.settings) {
@@ -149,9 +150,7 @@ export class SingleMacroEngine {
 
 		const exportsRef = await getUserScript(userScriptCommand, this.app);
 		if (exportsRef === undefined || exportsRef === null) {
-			const message = `failed to load user script for macro '${macroChoice.name}'.`;
-			log.logError(message);
-			throw new Error(message);
+			return { executed: false };
 		}
 
 		const settingsExport =
@@ -169,25 +168,30 @@ export class SingleMacroEngine {
 		const resolvedMember = this.resolveMemberAccess(
 			exportsRef,
 			memberAccess,
-			macroChoice.name,
 		);
 
+		if (!resolvedMember.found) {
+			return { executed: false };
+		}
+
 		const result = await this.executeResolvedMember(
-			resolvedMember,
+			resolvedMember.value,
 			engine,
 			userScriptCommand.settings,
 		);
 
 		this.syncVariablesFromParams(engine);
 
-		return this.formatResult(result);
+		return {
+			executed: true,
+			result,
+		};
 	}
 
 	private resolveMemberAccess(
 		moduleExports: unknown,
 		memberAccess: string[],
-		macroName: string,
-	): unknown {
+	): { found: boolean; value?: unknown } {
 		let current: unknown = moduleExports;
 
 		for (const key of memberAccess) {
@@ -196,29 +200,22 @@ export class SingleMacroEngine {
 				current === null ||
 				(typeof current !== "object" && typeof current !== "function")
 			) {
-				const message = `macro '${macroName}' does not export member '${key}'.`;
-				log.logError(message);
-				throw new Error(message);
+				return { found: false };
 			}
 
 			const container = current as Record<string, unknown>;
 
 			if (!(key in container)) {
-				const message = `macro '${macroName}' does not export member '${key}'.`;
-				log.logError(message);
-				throw new Error(message);
+				return { found: false };
 			}
 
 			current = container[key];
 		}
 
-		if (current === undefined) {
-			const message = `macro '${macroName}' does not export member '${memberAccess.at(-1)}'.`;
-			log.logError(message);
-			throw new Error(message);
-		}
-
-		return current;
+		return {
+			found: true,
+			value: current,
+		};
 	}
 
 	private async executeResolvedMember(
@@ -243,6 +240,33 @@ export class SingleMacroEngine {
 		return member;
 	}
 
+	private applyMemberAccess(
+		result: unknown,
+		memberAccess: string[],
+	): unknown {
+		let current = result;
+
+		for (const key of memberAccess) {
+			if (
+				current === undefined ||
+				current === null ||
+				(typeof current !== "object" && typeof current !== "function")
+			) {
+				return undefined;
+			}
+
+			const container = current as Record<string, unknown>;
+
+			if (!(key in container)) {
+				return undefined;
+			}
+
+			current = container[key];
+		}
+
+		return current;
+	}
+
 	private syncVariablesFromParams(engine: MacroChoiceEngine) {
 		Object.keys(engine.params.variables).forEach((key) => {
 			this.choiceExecutor.variables.set(
@@ -253,16 +277,30 @@ export class SingleMacroEngine {
 	}
 
 	private formatResult(result: unknown): string {
-		let finalResult = result;
+		if (result === undefined || result === null) {
+			return "";
+		}
 
-		if (finalResult && typeof finalResult === "object") {
+		if (typeof result === "string") {
+			return result;
+		}
+
+		if (
+			typeof result === "number" ||
+			typeof result === "boolean" ||
+			typeof result === "bigint"
+		) {
+			return result.toString();
+		}
+
+		if (typeof result === "object") {
 			try {
-				finalResult = JSON.stringify(finalResult);
+				return JSON.stringify(result);
 			} catch {
-				finalResult = finalResult.toString();
+				return Object.prototype.toString.call(result);
 			}
 		}
 
-		return (finalResult ?? "").toString();
+		return String(result);
 	}
 }

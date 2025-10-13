@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SingleMacroEngine } from "./SingleMacroEngine";
+import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
@@ -50,7 +51,7 @@ vi.mock("../utils/userScriptSettings", () => ({
 }));
 
 describe("SingleMacroEngine member access", () => {
-	const app = {} as unknown as import("obsidian").App;
+	const app = {} as App;
 	const plugin = {} as unknown as QuickAdd;
 
 	let choiceExecutor: IChoiceExecutor;
@@ -169,7 +170,7 @@ describe("SingleMacroEngine member access", () => {
 		expect(choiceExecutor.variables.get("newValue")).toBe("hello");
 	});
 
-	it("throws when the requested export does not exist", async () => {
+	it("falls back to macro output when the requested export is missing", async () => {
 		const userScript: IUserScript = {
 			id: "user-script",
 			name: "Script",
@@ -185,6 +186,11 @@ describe("SingleMacroEngine member access", () => {
 			entry: vi.fn(),
 		});
 
+		const engineInstance = macroEngineFactory();
+		engineInstance.run = vi.fn().mockResolvedValue(undefined);
+		engineInstance.getOutput = vi.fn().mockReturnValue({ missing: "from-output" });
+		macroEngineFactory = () => engineInstance;
+
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
@@ -192,8 +198,10 @@ describe("SingleMacroEngine member access", () => {
 			choiceExecutor,
 		);
 
-		await expect(engine.runAndGetOutput("My Macro::missing")).rejects.toThrow(
-			"macro 'My Macro' does not export member 'missing'.",
-		);
+		const result = await engine.runAndGetOutput("My Macro::missing");
+
+		expect(engineInstance.run).toHaveBeenCalledTimes(1);
+		expect(engineInstance.getOutput).toHaveBeenCalledTimes(1);
+		expect(result).toBe("from-output");
 	});
 });

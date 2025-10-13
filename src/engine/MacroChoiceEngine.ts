@@ -179,15 +179,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		if (!command.settings) {
+			command.settings = {};
+		}
+
+		this.userScriptCommand = command;
+
 		// @ts-ignore
 		if (userScript.settings) {
-			// Ensure command.settings exists for legacy/persisted commands
-			if (!command.settings) command.settings = {};
-
 			// Initialize default values for settings before executing the script
 			// @ts-ignore
 			initializeUserScriptSettings(command.settings, userScript.settings);
-			this.userScriptCommand = command;
 		}
 
 		try {
@@ -199,9 +201,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			// Report and re-throw script errors so users can debug them
 			reportError(err, `Failed to run user script ${command.name}`);
 			throw err;
+		} finally {
+			this.userScriptCommand = null;
 		}
-
-		if (this.userScriptCommand) this.userScriptCommand = null;
 	}
 
 	private async runScriptWithSettings(
