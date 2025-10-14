@@ -76,19 +76,22 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected readonly plugin: QuickAdd;
 	private userScriptCommand: IUserScript | null;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
+	private readonly preloadedUserScripts: Map<string, unknown>;
 
 	constructor(
 		app: App,
 		plugin: QuickAdd,
 		choice: IMacroChoice,
 		choiceExecutor: IChoiceExecutor,
-		variables: Map<string, unknown>
+		variables: Map<string, unknown>,
+		preloadedUserScripts?: Map<string, unknown>
 	) {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
+		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
 		this.params = {
 			app: this.app,
 			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
@@ -173,21 +176,36 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	// Slightly modified from Templater's user script engine:
 	// https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
 	protected async executeUserScript(command: IUserScript) {
-		const userScript = await getUserScript(command, this.app);
+	const cacheKey = command.path ?? command.id;
+	let userScript: unknown | undefined;
+	if (cacheKey !== undefined) {
+		const cached = this.preloadedUserScripts.get(cacheKey);
+		if (cached !== undefined) {
+			userScript = cached;
+			this.preloadedUserScripts.delete(cacheKey);
+		}
+	}
+
+	if (userScript === undefined) {
+		userScript = await getUserScript(command, this.app);
+	}
+
 		if (!userScript) {
 			log.logError(`failed to load user script ${command.path}.`);
 			return;
 		}
 
+		if (!command.settings) {
+			command.settings = {};
+		}
+
+		this.userScriptCommand = command;
+
 		// @ts-ignore
 		if (userScript.settings) {
-			// Ensure command.settings exists for legacy/persisted commands
-			if (!command.settings) command.settings = {};
-
 			// Initialize default values for settings before executing the script
 			// @ts-ignore
 			initializeUserScriptSettings(command.settings, userScript.settings);
-			this.userScriptCommand = command;
 		}
 
 		try {
@@ -199,9 +217,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			// Report and re-throw script errors so users can debug them
 			reportError(err, `Failed to run user script ${command.name}`);
 			throw err;
+		} finally {
+			this.userScriptCommand = null;
 		}
-
-		if (this.userScriptCommand) this.userScriptCommand = null;
 	}
 
 	private async runScriptWithSettings(
@@ -283,7 +301,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 		}
 
-		if (this.userScriptCommand && obj.entry !== null) {
+		if (this.userScriptCommand && typeof obj.entry === "function") {
 			await this.runScriptWithSettings(
 				obj as {
 					entry: (
@@ -450,6 +468,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		await this.executeCommands(branch);
+	}
+
+	public async runSubset(commands: ICommand[]): Promise<void> {
+		if (!commands?.length) return;
+		await this.executeCommands(commands);
+	}
+
+	public setOutput(value: unknown): void {
+		this.output = value;
 	}
 
 	private pullExecutorVariablesIntoParams() {
