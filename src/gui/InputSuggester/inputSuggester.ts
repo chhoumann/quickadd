@@ -89,8 +89,36 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	}
 
 	getItems(): string[] {
-		if (this.inputEl.value === "") return this.items;
-		return [this.inputEl.value, ...this.items];
+		return this.items;
+	}
+
+	getSuggestions(query: string): FuzzyMatch<string>[] {
+		const suggestions = super.getSuggestions(query);
+		const customValue = this.inputEl.value;
+
+		if (!customValue) return suggestions;
+
+		if (this.items.includes(customValue)) {
+			return suggestions;
+		}
+
+		const alreadyPresent = suggestions.some(
+			(suggestion) => suggestion.item === customValue
+		);
+
+		if (alreadyPresent) {
+			return suggestions;
+		}
+
+		suggestions.push({
+			item: customValue,
+			match: {
+				score: Number.NEGATIVE_INFINITY,
+				matches: [],
+			},
+		});
+
+		return suggestions;
 	}
 
 	selectSuggestion(
