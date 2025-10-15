@@ -84,10 +84,81 @@ export const WorkspaceLeaf = class {
   openFile(){} 
 };
 
-export const FuzzySuggestModal = class {
-  constructor(app: any) {}
+export const FuzzySuggestModal = class<T = unknown> {
+  app: any;
+  inputEl: HTMLInputElement;
+  limit?: number;
+  emptyStateText?: string;
+  chooser: {
+    values: Array<{ item: T; match: { score: number; matches: Array<[number, number]>; } }>;
+    selectedItem: number;
+  };
+
+  constructor(app: any) {
+    this.app = app;
+    this.inputEl = document.createElement("input");
+    this.chooser = { values: [], selectedItem: 0 };
+  }
+
   open() {}
   close() {}
+
+  setPlaceholder(placeholder: string) {
+    this.inputEl.placeholder = placeholder;
+  }
+
+  getSuggestions(query: string) {
+    const items: T[] = (this as any).getItems?.() ?? [];
+    const normalizedQuery = query.toLowerCase();
+
+    const suggestions = items
+      .map((item) => {
+        const text: string =
+          (this as any).getItemText?.(item) ?? String(item ?? "");
+        const lowerText = text.toLowerCase();
+
+        let score = -Infinity;
+        if (!normalizedQuery) {
+          score = 0;
+        } else if (lowerText === normalizedQuery) {
+          score = 3;
+        } else if (lowerText.startsWith(normalizedQuery)) {
+          score = 2;
+        } else if (lowerText.includes(normalizedQuery)) {
+          score = 1;
+        }
+
+        return {
+          item,
+          match: {
+            score,
+            matches: [] as Array<[number, number]>,
+          },
+        };
+      })
+      .filter((suggestion) =>
+        normalizedQuery ? suggestion.match.score > -Infinity : true
+      )
+      .sort((a, b) => b.match.score - a.match.score);
+
+    this.chooser.values = suggestions as any;
+    this.chooser.selectedItem = 0;
+
+    return suggestions as any;
+  }
+
+  renderSuggestion(value: any, el: HTMLElement): void {
+    el.textContent =
+      (this as any).getItemText?.(value.item) ?? String(value.item ?? "");
+  }
+
+  onChooseSuggestion(value: any, evt: any): void {
+    (this as any).onChooseItem?.(value.item, evt);
+  }
+
+  selectSuggestion(value: any, evt: any): void {
+    this.onChooseSuggestion(value, evt);
+  }
 };
 
 export const Modal = class {
