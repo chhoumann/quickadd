@@ -32,6 +32,7 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
+	private static readonly FIELD_VARIABLE_PREFIX = "FIELD:";
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
@@ -324,17 +325,23 @@ export abstract class Formatter {
 			const fullMatch = match[1] + (match[2] || "");
 
 			if (fullMatch) {
-				if (!this.hasConcreteVariable(fullMatch)) {
+				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
+
+				if (!this.hasConcreteVariable(fieldVariableKey)) {
 					this.variables.set(
-						fullMatch,
+						fieldVariableKey,
 						await this.suggestForField(fullMatch),
 					);
 				}
 
+				const replacement = this.hasConcreteVariable(fieldVariableKey)
+					? String(this.variables.get(fieldVariableKey))
+					: this.getVariableValue(fullMatch);
+
 				output = this.replacer(
 					output,
 					FIELD_VAR_REGEX_WITH_FILTERS,
-					this.getVariableValue(fullMatch),
+					replacement,
 				);
 			} else {
 				break;
@@ -342,6 +349,10 @@ export abstract class Formatter {
 		}
 
 		return output;
+	}
+
+	private getFieldVariableKey(fieldSpecifier: string): string {
+		return `${Formatter.FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
 	}
 
 	protected abstract promptForMathValue(): Promise<string>;
