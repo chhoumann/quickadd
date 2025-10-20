@@ -61,4 +61,78 @@ describe('templatePropertyStringParser', () => {
 		const expectedFirst = "\"value with \\\"quote\\\" inside\"";
 		expect(segments).toEqual([expectedFirst, '"second"']);
 	});
+
+	describe('primitive type parsing', () => {
+		it('parses boolean true', () => {
+			const result = parseStructuredPropertyValueFromString('true');
+			expect(result).toBe(true);
+		});
+
+		it('parses boolean false', () => {
+			const result = parseStructuredPropertyValueFromString('false');
+			expect(result).toBe(false);
+		});
+
+		it('parses null', () => {
+			const result = parseStructuredPropertyValueFromString('null');
+			expect(result).toBe(null);
+		});
+
+		it('parses positive integer', () => {
+			const result = parseStructuredPropertyValueFromString('42');
+			expect(result).toBe(42);
+		});
+
+		it('parses negative integer', () => {
+			const result = parseStructuredPropertyValueFromString('-42');
+			expect(result).toBe(-42);
+		});
+
+		it('parses zero', () => {
+			const result = parseStructuredPropertyValueFromString('0');
+			expect(result).toBe(0);
+		});
+
+		it('parses positive float', () => {
+			const result = parseStructuredPropertyValueFromString('3.14');
+			expect(result).toBe(3.14);
+		});
+
+		it('parses negative float', () => {
+			const result = parseStructuredPropertyValueFromString('-3.14');
+			expect(result).toBe(-3.14);
+		});
+
+		it('parses scientific notation', () => {
+			const result = parseStructuredPropertyValueFromString('1e10');
+			expect(result).toBe(1e10);
+		});
+
+		it('parses negative scientific notation', () => {
+			const result = parseStructuredPropertyValueFromString('-1.5e-10');
+			expect(result).toBe(-1.5e-10);
+		});
+
+		it('does not parse number-like strings with extra text', () => {
+			expect(parseStructuredPropertyValueFromString('42nd')).toBeUndefined();
+			expect(parseStructuredPropertyValueFromString('3.14.15')).toBeUndefined();
+			expect(parseStructuredPropertyValueFromString('123abc')).toBeUndefined();
+		});
+
+		it('does not parse multi-line primitive values', () => {
+			expect(parseStructuredPropertyValueFromString('true\nfalse')).toBeUndefined();
+			expect(parseStructuredPropertyValueFromString('42\n43')).toBeUndefined();
+		});
+
+		it('handles whitespace around primitive values', () => {
+			expect(parseStructuredPropertyValueFromString('  true  ')).toBe(true);
+			expect(parseStructuredPropertyValueFromString('\t42\t')).toBe(42);
+			expect(parseStructuredPropertyValueFromString(' null ')).toBe(null);
+		});
+
+		it('does not parse string "True" with capital T', () => {
+			expect(parseStructuredPropertyValueFromString('True')).toBeUndefined();
+			expect(parseStructuredPropertyValueFromString('FALSE')).toBeUndefined();
+		});
+	});
 });

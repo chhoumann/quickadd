@@ -161,6 +161,28 @@ export function parseStructuredPropertyValueFromString(
 		}
 	}
 
+	// Parse primitive types: booleans, null, and numbers
+	// Only if the value is a simple single-line string without complex syntax
+	if (!normalized.includes("\n")) {
+		// Boolean: true or false
+		if (normalized === "true") return true;
+		if (normalized === "false") return false;
+
+		// Null
+		if (normalized === "null") return null;
+
+		// Number: integers or floats (including negative, scientific notation)
+		// Match: 42, -42, 3.14, -3.14, 1e10, -1.5e-10, etc.
+		// Exclude strings that start with numbers but have other text (e.g., "42nd", "3.14.15")
+		const numberPattern = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+		if (numberPattern.test(normalized)) {
+			const num = Number(normalized);
+			if (!isNaN(num) && isFinite(num)) {
+				return num;
+			}
+		}
+	}
+
 	return undefined;
 }
 
