@@ -102,7 +102,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.createEl("h2", { text: "QuickAdd Settings" });
 
-		this.addDevelopmentInfoSetting();
 		this.addChoicesSetting();
 		this.addPackagesSetting();
 		this.addUseMultiLineInputPromptSetting();
@@ -115,6 +114,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
+		this.addDevelopmentInfoSetting();
 	}
 
 	private addDevelopmentInfoSetting() {
@@ -128,10 +128,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.setDesc(
 			"Git information for developers. This section only appears in development builds."
 		);
-		setting.settingEl.style.backgroundColor = "var(--background-secondary)";
-		setting.settingEl.style.padding = "10px";
-		setting.settingEl.style.borderRadius = "5px";
-		setting.settingEl.style.marginBottom = "20px";
 
 		const infoContainer = setting.settingEl.createDiv();
 		infoContainer.style.marginTop = "10px";
