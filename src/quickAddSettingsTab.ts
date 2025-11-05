@@ -114,6 +114,42 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addOnePageInputSetting();
 		this.addDisableOnlineFeaturesSetting();
 		this.addEnableRibbonIconSetting();
+		this.addDevelopmentInfoSetting();
+	}
+
+	private addDevelopmentInfoSetting() {
+		// Only show in development builds
+		if (!__IS_DEV_BUILD__) {
+			return;
+		}
+
+		const setting = new Setting(this.containerEl);
+		setting.setName("Development Information");
+		setting.setDesc("Git information for developers.");
+
+		const infoContainer = setting.settingEl.createDiv();
+		infoContainer.style.marginTop = "10px";
+		infoContainer.style.fontFamily = "var(--font-monospace)";
+		infoContainer.style.fontSize = "0.9em";
+
+		if (__DEV_GIT_BRANCH__ !== null) {
+			const branchDiv = infoContainer.createDiv();
+			branchDiv.innerHTML = `<strong>Branch:</strong> ${__DEV_GIT_BRANCH__}`;
+			branchDiv.style.marginBottom = "5px";
+		}
+
+		if (__DEV_GIT_COMMIT__ !== null) {
+			const commitDiv = infoContainer.createDiv();
+			commitDiv.innerHTML = `<strong>Commit:</strong> ${__DEV_GIT_COMMIT__}`;
+			commitDiv.style.marginBottom = "5px";
+		}
+
+		if (__DEV_GIT_DIRTY__ !== null) {
+			const statusDiv = infoContainer.createDiv();
+			const statusText = __DEV_GIT_DIRTY__ ? "Yes (uncommitted changes)" : "No";
+			const statusColor = __DEV_GIT_DIRTY__ ? "var(--text-warning)" : "var(--text-success)";
+			statusDiv.innerHTML = `<strong>Uncommitted changes:</strong> <span style="color: ${statusColor}">${statusText}</span>`;
+		}
 	}
 
 	private addGlobalVariablesSetting() {
