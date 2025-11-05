@@ -56,6 +56,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		async formatFileName(name: string) {
 			return name;
 		}
+		getAndClearTemplatePropertyVars() {
+			return new Map();
+		}
 	}
 	return {
 		CaptureChoiceFormatter: CaptureChoiceFormatterMock,
