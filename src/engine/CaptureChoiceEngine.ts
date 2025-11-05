@@ -39,6 +39,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private formatter: CaptureChoiceFormatter;
 	private readonly plugin: QuickAdd;
 	private templatePropertyVars?: Map<string, unknown>;
+	private capturePropertyVars: Map<string, unknown> = new Map();
 
 	constructor(
 		app: App,
@@ -91,6 +92,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	async run(): Promise<void> {
 		try {
+			// Reset any pending structured values before starting a new capture run
+			this.capturePropertyVars.clear();
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.formatter.setLinkToCurrentFileBehavior(
 				linkOptions.enabled && !linkOptions.requireActiveFile
@@ -150,6 +153,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 				await overwriteTemplaterOnce(this.app, file);
+				await this.applyCapturePropertyVars(file);
 			}
 
 			// Show success notification
@@ -343,6 +347,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// First format pass...
 		const formatted = await this.formatter.formatContentOnly(content);
+		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		const fileContent: string = await this.app.vault.read(file);
 		// Second format pass, with the file content... User input (long running) should have been captured during first pass
@@ -354,6 +359,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				fileContent,
 				file,
 			);
+		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		const secondReadFileContent: string = await this.app.vault.read(file);
 
@@ -398,6 +404,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
 		const formattedCaptureContent: string =
 			await this.formatter.formatContentOnly(captureContent);
+		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		let fileContent = "";
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
@@ -455,6 +462,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			updatedFileContent,
 			file,
 		);
+		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		return { file, newFileContent, captureContent: formattedCaptureContent };
 	}
@@ -466,5 +474,36 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
+	}
+
+	private mergeCapturePropertyVars(vars: Map<string, unknown>): void {
+		if (!vars || vars.size === 0) {
+			return;
+		}
+
+		for (const [key, value] of vars) {
+			this.capturePropertyVars.set(key, value);
+		}
+
+		log.logMessage(
+			`CaptureChoiceEngine: Accumulated ${this.capturePropertyVars.size} structured capture variables`
+		);
+	}
+
+	private async applyCapturePropertyVars(file: TFile): Promise<void> {
+		if (this.capturePropertyVars.size === 0) {
+			return;
+		}
+
+		if (!this.shouldPostProcessFrontMatter(file, this.capturePropertyVars)) {
+			this.capturePropertyVars.clear();
+			return;
+		}
+
+		log.logMessage(
+			`CaptureChoiceEngine: Post-processing front matter with ${this.capturePropertyVars.size} capture variables`
+		);
+		await this.postProcessFrontMatter(file, this.capturePropertyVars);
+		this.capturePropertyVars.clear();
 	}
 }
