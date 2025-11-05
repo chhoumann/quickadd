@@ -125,9 +125,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		const setting = new Setting(this.containerEl);
 		setting.setName("Development Information");
-		setting.setDesc(
-			"Git information for developers. This section only appears in development builds."
-		);
+		setting.setDesc("Git information for developers.");
 
 		const infoContainer = setting.settingEl.createDiv();
 		infoContainer.style.marginTop = "10px";
