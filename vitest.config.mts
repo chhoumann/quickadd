@@ -21,7 +21,11 @@ export default defineConfig({
 		globals: true,
 		environment: "jsdom",
 		deps: {
-			inline: ["obsidian"],
+			optimizer: {
+				web: {
+					include: ["obsidian"],
+				},
+			},
 		},
 	},
 });

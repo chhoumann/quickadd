@@ -184,3 +184,4 @@ Behavior:
 - Preflight may import user script modules to statically read `quickadd.inputs`. This can execute module top-level code.
 - Inline scripts aren’t scanned for input declarations yet.
 - If needed, you can still prompt ad-hoc (e.g., using inputPrompt or suggester) and those values will skip future one-page prompts due to being prefilled.
+- Closing the modal without submitting triggers `MacroAbortError("Input cancelled by user")`, which stops the macro unless you catch it.

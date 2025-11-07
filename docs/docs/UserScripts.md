@@ -287,8 +287,10 @@ module.exports = async (params) => {
 **When to use `params.abort()`:**
 - Input validation failures
 - Missing required configuration
-- User cancels a confirmation prompt
+- You want to provide a custom message after catching a `MacroAbortError`
 - Prerequisites not met (e.g., required plugin not installed)
+
+Prompt cancellations already throw `MacroAbortError` and halt macros automatically, so only call `abort()` in those scenarios if you need to surface a custom message or you're stopping for a non-prompt reason.
 
 **What happens when you call `abort()`:**
 - Macro execution stops immediately
@@ -297,26 +299,43 @@ module.exports = async (params) => {
 - No error is thrown to the user
 
 **QuickAdd API methods that can be cancelled:**
-- `inputPrompt()` - Returns `undefined` if cancelled
-- `wideInputPrompt()` - Returns `undefined` if cancelled
-- `yesNoPrompt()` - Returns `undefined` if cancelled
-- `suggester()` - Aborts macro if cancelled
-- `checkboxPrompt()` - Returns `undefined` if cancelled
+- `inputPrompt()`
+- `wideInputPrompt()`
+- `yesNoPrompt()`
+- `suggester()`
+- `checkboxPrompt()`
 
-**Important:** When using the QuickAdd API, check for `undefined` to handle cancellations gracefully:
+Each of these now rejects with `MacroAbortError("Input cancelled by user")` when the user presses Escape or closes the dialog. If you do nothing, the macro will automatically stop (matching user expectations). If you want to handle cancellation in your script, wrap the call in `try/catch` and intercept the error before it reaches the macro engine.
+
+```javascript
+try {
+    const name = await quickAddApi.inputPrompt("Your name:");
+} catch (error) {
+    if (error?.name === "MacroAbortError") {
+        // Optional custom handling (e.g., cleanup) before the macro aborts
+        return;
+    }
+    throw error; // real errors should still bubble up
+}
+```
+
+**Important:** Because cancellations now throw, you should only call `abort()` yourself when you want to provide a custom message or stop execution for a non-prompt reason.
 
 ```javascript
 module.exports = async (params) => {
     const { quickAddApi, abort } = params;
     
-    const name = await quickAddApi.inputPrompt("Your name:");
-    
-    // Handle cancellation
-    if (!name) {
-        abort("Name is required");
+    let name;
+    try {
+        name = await quickAddApi.inputPrompt("Your name:");
+    } catch (error) {
+        if (error?.name === "MacroAbortError") {
+            abort("Name is required");
+            return;
+        }
+        throw error;
     }
     
-    // Safe to use name here
     console.log(`Processing: ${name}`);
 };
 ```

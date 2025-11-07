@@ -20,7 +20,7 @@ const moment = (...args: any[]) => {
 (globalThis as any).window ??= globalThis;
 (globalThis as any).window.moment = moment;
 
-export const App = class {
+export class App {
   workspace: any = {
     getActiveViewOfType: () => undefined,
     getLeaf: () => ({}),
@@ -48,43 +48,62 @@ export const App = class {
   plugins: any = {
     plugins: {},
   };
-};
+}
 
-export const TFile = class { 
+export class Plugin {
+  app: App;
+  manifest: { dir: string };
+
+  constructor() {
+    this.app = new App();
+    this.manifest = { dir: "" };
+  }
+
+  addRibbonIcon() { return { addClass() {}, setAttr() {} }; }
+  addCommand() { return { id: "", name: "" }; }
+  addSettingTab() {}
+  registerEvent() {}
+  registerInterval() {}
+  registerDomEvent() {}
+  onunload() {}
+  async onload() {}
+}
+
+export class TFile { 
   path = ""; 
   name = "";
   extension = "";
   basename = "";
   parent = null;
-};
+}
 
-export const TFolder = class {
+export class TFolder {
   path = "";
   name = "";
   children = [];
-};
+}
 
-export const MarkdownView = class { 
+export class MarkdownView { 
   editor = { 
     getCursor() {return {line:0,ch:0};}, 
     replaceSelection() {}, 
     setCursor() {} 
   }; 
   file?: any;
-};
+}
 
-export const FileView = class {
+export class FileView {
   file?: any;
-};
+}
 
-export const WorkspaceLeaf = class { 
+export class WorkspaceLeaf { 
   view: any; 
   getViewState() {return {state:{}};} 
   setViewState(){} 
   openFile(){} 
-};
+}
 
-export const FuzzySuggestModal = class<T = unknown> {
+export class FuzzySuggestModal<T = unknown> {
   app: any;
   inputEl: HTMLInputElement;
   limit?: number;
@@ -196,6 +215,7 @@ export function normalizePath(p: string): string {
 // Default export for compatibility
 export default {
   App,
+  Plugin,
   TFile,
   TFolder,
   MarkdownView,

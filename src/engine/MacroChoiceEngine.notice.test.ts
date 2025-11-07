@@ -61,6 +61,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { settingsStore } from "../settingsStore";
+import type IChoice from "../types/choices/IChoice";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -168,5 +169,87 @@ describe("MacroChoiceEngine cancellation notices", () => {
 
 		expect(noticeClass.instances).toHaveLength(1);
 		expect(noticeClass.instances[0]?.message).toContain("Invalid project name");
+});
+
+describe("MacroChoiceEngine nested choice propagation", () => {
+	it("halts subsequent commands when a nested choice cancels", async () => {
+		const app = {} as App;
+		const plugin = { settings: settingsStore.getState() } as any;
+		const nestedChoice: IChoice = {
+			id: "nested-template",
+			name: "Nested Template",
+			type: "Template",
+			command: false,
+		};
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Macro with nested choice",
+			commands: [
+				{
+					id: "nested-command",
+					name: "Nested choice",
+					type: CommandType.NestedChoice,
+					choice: nestedChoice,
+				},
+				{
+					id: "obsidian",
+					name: "Should not run",
+					type: CommandType.Obsidian,
+				} as any,
+			],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+
+		let pendingAbort: MacroAbortError | null = null;
+		const signalAbort = vi.fn((error: MacroAbortError) => {
+			pendingAbort = error;
+		});
+		const consumeAbortSignal = vi.fn(() => {
+			const error = pendingAbort;
+			pendingAbort = null;
+			return error;
+		});
+		const choiceExecutor: IChoiceExecutor = {
+			variables: new Map<string, unknown>(),
+			execute: vi.fn(async (choiceToRun) => {
+				if (choiceToRun.id === nestedChoice.id) {
+					signalAbort(new MacroAbortError("Input cancelled by user"));
+				}
+			}),
+			signalAbort,
+			consumeAbortSignal,
+		};
+
+		class ObservationMacroChoiceEngine extends MacroChoiceEngine {
+			public obsidianExecutions = 0;
+
+			protected override executeObsidianCommand(): void {
+				this.obsidianExecutions += 1;
+			}
+		}
+
+		const engine = new ObservationMacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			choiceExecutor,
+			new Map<string, unknown>(),
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.execute).toHaveBeenCalledTimes(1);
+		expect(signalAbort).toHaveBeenCalled();
+		expect(signalAbort.mock.calls.at(-1)?.[0]).toBeInstanceOf(MacroAbortError);
+		expect(consumeAbortSignal).toHaveBeenCalledTimes(1);
+		expect(engine.obsidianExecutions).toBe(0);
+	});
 });
 });

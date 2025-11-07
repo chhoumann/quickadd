@@ -12,6 +12,7 @@ import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import type { MacroAbortError } from "../errors/MacroAbortError";
 
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
@@ -103,6 +104,8 @@ export class SingleMacroEngine {
 				preloadedScripts,
 			);
 
+			this.ensureNotAborted();
+
 			if (exportAttempt.executed) {
 				return this.formatResult(exportAttempt.result);
 			}
@@ -110,6 +113,7 @@ export class SingleMacroEngine {
 
 		// Always execute the whole macro first
 		await engine.run();
+		this.ensureNotAborted();
 		let result: unknown = engine.getOutput();
 
 		// Apply member access afterwards (if requested)
@@ -155,6 +159,7 @@ export class SingleMacroEngine {
 		try {
 			if (preCommands.length) {
 				await engine.runSubset(preCommands);
+				this.ensureNotAborted();
 			}
 
 			const updatedCommands = macroChoice.macro?.commands ?? originalCommands;
@@ -219,12 +224,14 @@ export class SingleMacroEngine {
 				engine,
 				userScriptCommand.settings,
 			);
+			this.ensureNotAborted();
 
 			engine.setOutput(result);
 			this.syncVariablesFromParams(engine);
 
 			if (postCommands.length) {
 				await engine.runSubset(postCommands);
+				this.ensureNotAborted();
 			}
 
 			return {
@@ -239,10 +246,8 @@ export class SingleMacroEngine {
 					defaultReason: "Macro execution aborted",
 				})
 			) {
-				return {
-					executed: true,
-					result: "",
-				};
+				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
+				throw error;
 			}
 			throw error;
 		}
@@ -307,6 +312,7 @@ export class SingleMacroEngine {
 	): Promise<{ executed: boolean; result?: unknown }> {
 		if (remainingCommands.length) {
 			await engine.runSubset(remainingCommands);
+			this.ensureNotAborted();
 		}
 
 		this.syncVariablesFromParams(engine);
@@ -380,5 +386,12 @@ export class SingleMacroEngine {
 		}
 
 		return String(result);
+	}
+
+	private ensureNotAborted() {
+		const abort = this.choiceExecutor.consumeAbortSignal?.();
+		if (abort) {
+			throw abort;
+		}
 	}
 }

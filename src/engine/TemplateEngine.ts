@@ -17,6 +17,16 @@ import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 
+function isMacroAbortError(error: unknown): error is MacroAbortError {
+	return (
+		error instanceof MacroAbortError ||
+		(Boolean(error) &&
+			typeof error === "object" &&
+			"name" in (error as Record<string, unknown>) &&
+			(error as { name?: string }).name === "MacroAbortError")
+	);
+}
+
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
 	protected readonly templater;
@@ -170,6 +180,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return createdFile;
 		} catch (err) {
+			if (isMacroAbortError(err)) {
+				throw err;
+			}
 			reportError(err, `Could not create file with template at ${filePath}`);
 			return null;
 		}
@@ -217,6 +230,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return file;
 		} catch (err) {
+			if (isMacroAbortError(err)) {
+				throw err;
+			}
 			reportError(err, "Could not overwrite file with template");
 			return null;
 		}
@@ -250,6 +266,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 			return file;
 		} catch (err) {
+			if (isMacroAbortError(err)) {
+				throw err;
+			}
 			reportError(err, "Could not append to file with template");
 			return null;
 		}

@@ -17,10 +17,22 @@ import { isCancellationError } from "./utils/errorUtils";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
+	private pendingAbort: MacroAbortError | null = null;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
+	signalAbort(error: MacroAbortError) {
+		this.pendingAbort = error;
+	}
+
+	consumeAbortSignal(): MacroAbortError | null {
+		const abort = this.pendingAbort;
+		this.pendingAbort = null;
+		return abort ?? null;
+	}
+
 	async execute(choice: IChoice): Promise<void> {
+		this.pendingAbort = null;
     // One-page preflight honoring per-choice override
     const globalEnabled = settingsStore.getState().onePageInputEnabled;
     const override = choice.onePageInput;

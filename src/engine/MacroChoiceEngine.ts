@@ -167,6 +167,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					defaultReason: "Macro execution aborted",
 				})
 			) {
+				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
 				return;
 			}
 			throw error;
@@ -350,6 +351,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		await this.choiceExecutor.execute(targetChoice);
+		const abort = this.choiceExecutor.consumeAbortSignal?.();
+		if (abort) {
+			throw abort;
+		}
 	}
 
 	private async executeNestedChoice(command: INestedChoiceCommand) {
@@ -360,6 +365,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		await this.choiceExecutor.execute(choice);
+		const abort = this.choiceExecutor.consumeAbortSignal?.();
+		if (abort) {
+			throw abort;
+		}
 	}
 
 	private async executeEditorCommand(command: IEditorCommand) {

@@ -184,6 +184,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					defaultReason: "Capture aborted",
 				})
 			) {
+				this.choiceExecutor.signalAbort?.(err as MacroAbortError);
 				return;
 			}
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
