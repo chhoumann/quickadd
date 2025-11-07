@@ -287,8 +287,10 @@ module.exports = async (params) => {
 **When to use `params.abort()`:**
 - Input validation failures
 - Missing required configuration
-- User cancels a confirmation prompt
+- You want to provide a custom message after catching a `MacroAbortError`
 - Prerequisites not met (e.g., required plugin not installed)
+
+Prompt cancellations already throw `MacroAbortError` and halt macros automatically, so only call `abort()` in those scenarios if you need to surface a custom message or you're stopping for a non-prompt reason.
 
 **What happens when you call `abort()`:**
 - Macro execution stops immediately
