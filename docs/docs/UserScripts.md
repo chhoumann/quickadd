@@ -309,13 +309,13 @@ Each of these now rejects with `MacroAbortError("Input cancelled by user")` when
 
 ```javascript
 try {
-	const name = await quickAddApi.inputPrompt("Your name:");
+    const name = await quickAddApi.inputPrompt("Your name:");
 } catch (error) {
-	if (error?.name === "MacroAbortError") {
-		// Optional custom handling (e.g., cleanup) before the macro aborts
-		return;
-	}
-	throw error; // real errors should still bubble up
+    if (error?.name === "MacroAbortError") {
+        // Optional custom handling (e.g., cleanup) before the macro aborts
+        return;
+    }
+    throw error; // real errors should still bubble up
 }
 ```
 
@@ -323,20 +323,20 @@ try {
 
 ```javascript
 module.exports = async (params) => {
-	const { quickAddApi, abort } = params;
-	
-	let name;
-	try {
-		name = await quickAddApi.inputPrompt("Your name:");
-	} catch (error) {
-		if (error?.name === "MacroAbortError") {
-			abort("Name is required");
-			return;
-		}
-		throw error;
-	}
-	
-	console.log(`Processing: ${name}`);
+    const { quickAddApi, abort } = params;
+    
+    let name;
+    try {
+        name = await quickAddApi.inputPrompt("Your name:");
+    } catch (error) {
+        if (error?.name === "MacroAbortError") {
+            abort("Name is required");
+            return;
+        }
+        throw error;
+    }
+    
+    console.log(`Processing: ${name}`);
 };
 ```
 
