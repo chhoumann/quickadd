@@ -38,6 +38,7 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 **Behavior:**
 - Uses existing values for any ids that already exist in `variables` (including empty strings).
 - Prompts only for missing (`undefined`/`null`) inputs.
+- If the user closes the modal without submitting, the promise rejects with `MacroAbortError("Input cancelled by user")`.
 
 **Field Types:**
 - `text`: Single-line text input
@@ -115,18 +116,25 @@ Opens a prompt that asks for text input.
 - `placeholder`: (Optional) Placeholder text in the input field
 - `value`: (Optional) Default value
 
-**Returns:** Promise resolving to the entered string, or `null` if cancelled
+**Returns:** Promise resolving to the entered string.
+
+**Cancellation:** If the user cancels or presses Escape, the promise rejects with `MacroAbortError("Input cancelled by user")`. Letting it bubble will stop the macro automatically. Catch it only if your script wants to handle the cancellation itself.
 
 **Example:**
 ```javascript
-const name = await quickAddApi.inputPrompt(
-    "What's your name?",
-    "Enter your full name",
-    "John Doe"
-);
-
-if (name) {
-    console.log(`Hello, ${name}!`);
+try {
+	const name = await quickAddApi.inputPrompt(
+		"What's your name?",
+		"Enter your full name",
+		"John Doe"
+	);
+	console.log(`Hello, ${name}!`);
+} catch (error) {
+	if (error?.name === "MacroAbortError") {
+		// Optional: perform cleanup before QuickAdd aborts the macro
+		return;
+	}
+	throw error;
 }
 ```
 
@@ -135,7 +143,7 @@ Opens a wider prompt for longer text input (multi-line).
 
 **Parameters:** Same as `inputPrompt`
 
-**Returns:** Promise resolving to the entered string, or `null` if cancelled
+**Returns:** Promise resolving to the entered string. Cancelling rejects with `MacroAbortError` (same as `inputPrompt`).
 
 **Example:**
 ```javascript
@@ -153,7 +161,7 @@ Opens a confirmation dialog with Yes/No buttons.
 - `header`: The dialog title
 - `text`: (Optional) Additional explanation text
 
-**Returns:** Promise resolving to `true` (Yes) or `false` (No)
+**Returns:** Promise resolving to `true` (Yes) or `false` (No). If the user closes the dialog without answering, the promise rejects with `MacroAbortError`.
 
 **Example:**
 ```javascript
@@ -196,7 +204,7 @@ Opens a selection prompt with searchable options. Can optionally allow custom in
 - `allowCustomInput`: (Optional) When `true`, allows users to enter custom text not in `actualItems`. Defaults to `false`
 - `options.renderItem`: (Optional) Custom renderer `(value, el) => void` to control how each suggestion row is drawn
 
-**Returns:** Promise resolving to the selected value or custom input, or `null` if cancelled
+**Returns:** Promise resolving to the selected value or custom input. Cancelling rejects with `MacroAbortError`.
 
 **Examples:**
 
