@@ -317,7 +317,7 @@ describe("SingleMacroEngine member access", () => {
 		expect(result).toBe("from-output");
 	});
 
-	it("handles macro abort gracefully when the export aborts", async () => {
+	it("propagates aborts when the export aborts", async () => {
 		const userScript: IUserScript = {
 			id: "user-script",
 			name: "Script",
@@ -350,9 +350,10 @@ describe("SingleMacroEngine member access", () => {
 			choiceExecutor,
 		);
 
-		const result = await engine.runAndGetOutput("My Macro::f");
+		await expect(engine.runAndGetOutput("My Macro::f")).rejects.toBeInstanceOf(
+			MacroAbortError,
+		);
 
-		expect(result).toBe("");
 		expect(abortFn).toHaveBeenCalledTimes(1);
 		expect(engineInstance.setOutput).not.toHaveBeenCalled();
 	});

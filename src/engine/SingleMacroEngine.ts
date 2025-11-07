@@ -247,10 +247,7 @@ export class SingleMacroEngine {
 				})
 			) {
 				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
-				return {
-					executed: true,
-					result: "",
-				};
+				throw error;
 			}
 			throw error;
 		}
