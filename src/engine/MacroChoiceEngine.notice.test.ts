@@ -246,7 +246,8 @@ describe("MacroChoiceEngine nested choice propagation", () => {
 		await engine.run();
 
 		expect(choiceExecutor.execute).toHaveBeenCalledTimes(1);
-		expect(signalAbort).toHaveBeenCalledTimes(1);
+		expect(signalAbort).toHaveBeenCalled();
+		expect(signalAbort.mock.calls.at(-1)?.[0]).toBeInstanceOf(MacroAbortError);
 		expect(consumeAbortSignal).toHaveBeenCalledTimes(1);
 		expect(engine.obsidianExecutions).toBe(0);
 	});
