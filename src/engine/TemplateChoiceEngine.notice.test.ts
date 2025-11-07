@@ -40,10 +40,17 @@ vi.mock("../quickAddSettingsTab", () => {
 	};
 });
 
-const formatFileNameMock = vi.fn<(format: string, prompt: string) => Promise<string>>();
-const formatFileContentMock = vi
-	.fn<(...args: unknown[]) => Promise<string>>()
-	.mockResolvedValue("");
+const { formatFileNameMock, formatFileContentMock } = vi.hoisted(() => {
+	const formatName = vi.fn<(format: string, prompt: string) => Promise<string>>();
+	const formatContent = vi
+		.fn<(...args: unknown[]) => Promise<string>>()
+		.mockResolvedValue("");
+
+	return {
+		formatFileNameMock: formatName,
+		formatFileContentMock: formatContent,
+	};
+});
 
 vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {

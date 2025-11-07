@@ -39,7 +39,7 @@ vi.mock("../utils/userScriptSettings", () => ({
 
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("../gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("../gui/GenericInputPrompt/genericInputPrompt", () => ({
+vi.mock("../gui/GenericInputPrompt/GenericInputPrompt", () => ({
 	__esModule: true,
 	default: {
 		Prompt: mockInputPrompt,
