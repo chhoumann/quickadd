@@ -50,6 +50,25 @@ export const App = class {
   };
 };
 
+export const Plugin = class {
+  app: App;
+  manifest: { dir: string };
+
+  constructor() {
+    this.app = new App();
+    this.manifest = { dir: "" };
+  }
+
+  addRibbonIcon() { return { addClass() {}, setAttr() {} }; }
+  addCommand() { return { id: "", name: "" }; }
+  addSettingTab() {}
+  registerEvent() {}
+  registerInterval() {}
+  registerDomEvent() {}
+  onunload() {}
+  async onload() {}
+};
+
 export const TFile = class { 
   path = ""; 
   name = "";
@@ -196,6 +215,7 @@ export function normalizePath(p: string): string {
 // Default export for compatibility
 export default {
   App,
+  Plugin,
   TFile,
   TFolder,
   MarkdownView,

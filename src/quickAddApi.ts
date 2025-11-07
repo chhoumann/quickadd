@@ -164,7 +164,11 @@ export class QuickAddApi {
 				}
 
 				await choiceExecutor.execute(choice);
+				const abort = choiceExecutor.consumeAbortSignal?.();
 				choiceExecutor.variables.clear();
+				if (abort) {
+					throw abort;
+				}
 			},
 			format: async (
 				input: string,
