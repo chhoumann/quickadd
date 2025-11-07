@@ -356,4 +356,88 @@ describe("SingleMacroEngine member access", () => {
 		expect(abortFn).toHaveBeenCalledTimes(1);
 		expect(engineInstance.setOutput).not.toHaveBeenCalled();
 	});
+
+	it("propagates abort signals when export pre-commands cancel", async () => {
+		const preCommand = {
+			id: "wait-1",
+			name: "Wait",
+			type: CommandType.Wait,
+		} as ICommand;
+
+		const userScript: IUserScript = {
+			id: "user-script",
+			name: "Script",
+			type: CommandType.UserScript,
+			path: "script.js",
+			settings: {},
+		};
+
+		const macroChoice = baseMacroChoice([preCommand, userScript]);
+		const choices: IChoice[] = [macroChoice];
+
+		const engineInstance = macroEngineFactory();
+		engineInstance.runSubset = vi.fn().mockResolvedValue(undefined);
+		engineInstance.getOutput = vi.fn();
+		macroEngineFactory = () => engineInstance;
+
+		const abortError = new MacroAbortError("stop");
+		const consumeAbortSignal = vi
+			.fn<NonNullable<IChoiceExecutor["consumeAbortSignal"]>>()
+			.mockReturnValueOnce(abortError)
+			.mockReturnValue(null);
+		choiceExecutor.consumeAbortSignal = consumeAbortSignal;
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			choices,
+			choiceExecutor,
+		);
+
+		await expect(engine.runAndGetOutput("My Macro::run")).rejects.toBe(
+			abortError,
+		);
+
+		expect(engineInstance.runSubset).toHaveBeenCalledTimes(1);
+		expect(mockGetUserScript).not.toHaveBeenCalled();
+	});
+
+	it("propagates abort signals when the full macro run cancels", async () => {
+		const userScript: IUserScript = {
+			id: "user-script",
+			name: "Script",
+			type: CommandType.UserScript,
+			path: "script.js",
+			settings: {},
+		};
+
+		const macroChoice = baseMacroChoice([userScript]);
+		const choices: IChoice[] = [macroChoice];
+
+		const engineInstance = macroEngineFactory();
+		engineInstance.run = vi.fn().mockResolvedValue(undefined);
+		engineInstance.getOutput = vi.fn();
+		macroEngineFactory = () => engineInstance;
+
+		const abortError = new MacroAbortError("whole-macro");
+		const consumeAbortSignal = vi
+			.fn<NonNullable<IChoiceExecutor["consumeAbortSignal"]>>()
+			.mockReturnValueOnce(abortError)
+			.mockReturnValue(null);
+		choiceExecutor.consumeAbortSignal = consumeAbortSignal;
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			choices,
+			choiceExecutor,
+		);
+
+		await expect(engine.runAndGetOutput("My Macro")).rejects.toBe(
+			abortError,
+		);
+
+		expect(engineInstance.run).toHaveBeenCalledTimes(1);
+		expect(engineInstance.getOutput).not.toHaveBeenCalled();
+	});
 });
