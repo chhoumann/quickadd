@@ -11,13 +11,15 @@ import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { QuickAddApi } from "../quickAddApi";
 
-const { mockGetUserScript, mockInitializeUserScriptSettings, mockSuggest, mockGetApi } =
+const { mockGetUserScript, mockInitializeUserScriptSettings, mockSuggest, mockGetApi, mockInputPrompt } =
 	vi.hoisted(() => ({
 		mockGetUserScript: vi.fn(),
 		mockInitializeUserScriptSettings: vi.fn(),
 		mockSuggest: vi.fn(),
 		mockGetApi: vi.fn(() => ({})),
+		mockInputPrompt: vi.fn(),
 	}));
 
 vi.mock("../utilityObsidian", async () => {
@@ -37,6 +39,40 @@ vi.mock("../utils/userScriptSettings", () => ({
 
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("../gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
+vi.mock("../gui/GenericInputPrompt/genericInputPrompt", () => ({
+	__esModule: true,
+	default: {
+		Prompt: mockInputPrompt,
+	},
+}));
+vi.mock("../gui/GenericCheckboxPrompt/genericCheckboxPrompt", () => ({
+	__esModule: true,
+	default: { Open: vi.fn() },
+}));
+vi.mock("../gui/GenericInfoDialog/GenericInfoDialog", () => ({
+	__esModule: true,
+	default: { Show: vi.fn() },
+}));
+vi.mock("../gui/GenericWideInputPrompt/GenericWideInputPrompt", () => ({
+	__esModule: true,
+	default: { Prompt: vi.fn() },
+}));
+vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
+	__esModule: true,
+	default: { Prompt: vi.fn() },
+}));
+vi.mock("../gui/InputSuggester/inputSuggester", () => ({
+	__esModule: true,
+	default: { Suggest: vi.fn() },
+}));
+vi.mock("../preflight/OnePageInputModal", () => ({
+	OnePageInputModal: class {
+		waitForClose: Promise<never>;
+		constructor() {
+			this.waitForClose = Promise.reject("cancelled");
+		}
+	}
+}));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	__esModule: true,
@@ -54,11 +90,13 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("../quickAddApi", () => ({
-	QuickAddApi: {
-		GetApi: mockGetApi,
-	},
-}));
+vi.mock("../quickAddApi", async () => {
+	const actual = await vi.importActual<typeof import("../quickAddApi")>(
+		"../quickAddApi",
+	);
+	actual.QuickAddApi.GetApi = mockGetApi as typeof actual.QuickAddApi.GetApi;
+	return actual;
+});
 
 vi.mock("../quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -196,6 +234,8 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 		choiceExecutor = {
 			execute: vi.fn(),
 			variables,
+			signalAbort: vi.fn(),
+			consumeAbortSignal: vi.fn().mockReturnValue(null),
 		};
 		macroChoice = {
 			id: "macro-choice",
@@ -234,7 +274,9 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			type: CommandType.Choice,
 			choiceId: "target-choice",
 		};
-		choiceExecutor.execute = vi.fn().mockRejectedValue("No input given.");
+		const abortError = new MacroAbortError("Input cancelled by user");
+		choiceExecutor.execute = vi.fn().mockResolvedValue(undefined);
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(abortError);
 
 		await expect(
 			(engine as unknown as { executeChoice: (cmd: IChoiceCommand) => Promise<void> }).executeChoice(
@@ -242,6 +284,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			),
 		).rejects.toThrow(MacroAbortError);
 		expect(choiceExecutor.execute).toHaveBeenCalledWith(choice);
+		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 	});
 
 	it("wraps cancellation errors from executeNestedChoice in MacroAbortError", async () => {
@@ -264,7 +307,9 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			type: CommandType.NestedChoice,
 			choice,
 		};
-		choiceExecutor.execute = vi.fn().mockRejectedValue("no input given.");
+		const abortError = new MacroAbortError("Input cancelled by user");
+		choiceExecutor.execute = vi.fn().mockResolvedValue(undefined);
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(abortError);
 
 		await expect(
 			(engine as unknown as {
@@ -274,5 +319,30 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			}).executeNestedChoice(command),
 		).rejects.toThrow(MacroAbortError);
 		expect(choiceExecutor.execute).toHaveBeenCalledWith(choice);
+		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("QuickAddApi prompt cancellation", () => {
+	const app = {} as App;
+
+	beforeEach(() => {
+		mockInputPrompt.mockReset();
+	});
+
+	it("throws MacroAbortError when input prompt is cancelled", async () => {
+		mockInputPrompt.mockRejectedValueOnce("No input given.");
+
+		await expect(
+			QuickAddApi.inputPrompt(app, "Enter value"),
+		).rejects.toThrow(MacroAbortError);
+	});
+
+	it("still resolves undefined for other prompt errors", async () => {
+		mockInputPrompt.mockRejectedValueOnce(new Error("boom"));
+
+		await expect(
+			QuickAddApi.inputPrompt(app, "Enter value"),
+		).resolves.toBeUndefined();
 	});
 });

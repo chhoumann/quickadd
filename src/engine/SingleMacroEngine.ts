@@ -12,6 +12,7 @@ import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { MacroAbortError } from "../errors/MacroAbortError";
 
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
@@ -239,6 +240,7 @@ export class SingleMacroEngine {
 					defaultReason: "Macro execution aborted",
 				})
 			) {
+				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
 				return {
 					executed: true,
 					result: "",

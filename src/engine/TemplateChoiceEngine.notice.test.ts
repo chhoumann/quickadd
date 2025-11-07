@@ -40,9 +40,12 @@ vi.mock("../quickAddSettingsTab", () => {
 	};
 });
 
-const formatFileNameMock = vi.hoisted(() =>
-	vi.fn<(format: string, prompt: string) => Promise<string>>()
-);
+const { formatFileNameMock, formatFileContentMock } = vi.hoisted(() => {
+	return {
+		formatFileNameMock: vi.fn<(format: string, prompt: string) => Promise<string>>(),
+		formatFileContentMock: vi.fn<() => Promise<string>>().mockResolvedValue(""),
+	};
+});
 
 vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
@@ -52,8 +55,8 @@ vi.mock("../formatters/completeFormatter", () => {
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}
-		async formatFileContent() {
-			return "";
+		async formatFileContent(...args: unknown[]) {
+			return await formatFileContentMock(...args);
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map<string, unknown>();
@@ -63,6 +66,7 @@ vi.mock("../formatters/completeFormatter", () => {
 	return {
 		CompleteFormatter: CompleteFormatterMock,
 		formatFileNameMock,
+		formatFileContentMock,
 	};
 });
 
@@ -132,7 +136,10 @@ const createTemplateChoice = (): ITemplateChoice => ({
 	setFileExistsBehavior: false,
 });
 
-const createEngine = (abortMessage: string) => {
+const createEngine = (
+	abortMessage: string,
+	options: { throwDuringFileName?: boolean; stubTemplateContent?: boolean } = {},
+) => {
 	const app = {
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -155,6 +162,8 @@ const createEngine = (abortMessage: string) => {
 	const choiceExecutor: IChoiceExecutor = {
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
+		signalAbort: vi.fn(),
+		consumeAbortSignal: vi.fn(),
 	};
 
 	const engine = new TemplateChoiceEngine(
@@ -164,11 +173,23 @@ const createEngine = (abortMessage: string) => {
 		choiceExecutor,
 	);
 
-	formatFileNameMock.mockImplementation(async () => {
-		throw new MacroAbortError(abortMessage);
-	});
+	if (options.stubTemplateContent) {
+		(
+			engine as unknown as {
+				getTemplateContent: () => Promise<string>;
+			}
+		).getTemplateContent = vi.fn().mockResolvedValue("stub template");
+	}
 
-	return engine;
+	if (options.throwDuringFileName !== false) {
+		formatFileNameMock.mockImplementation(async () => {
+			throw new MacroAbortError(abortMessage);
+		});
+	} else {
+		formatFileNameMock.mockResolvedValue("Test Template");
+	}
+
+	return { engine, choiceExecutor };
 };
 
 describe("TemplateChoiceEngine cancellation notices", () => {
@@ -176,6 +197,8 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		noticeClass.instances.length = 0;
 		formatFileNameMock.mockReset();
+		formatFileContentMock.mockReset();
+		formatFileContentMock.mockResolvedValue("");
 	});
 
 	it("shows a cancellation notice when the setting is enabled", async () => {
@@ -183,7 +206,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			...settingsStore.getState(),
 			showInputCancellationNotification: true,
 		});
-		const engine = createEngine("Input cancelled by user");
+		const { engine } = createEngine("Input cancelled by user");
 
 		await engine.run();
 
@@ -199,7 +222,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			showInputCancellationNotification: false,
 		});
 
-		const engine = createEngine("Input cancelled by user");
+		const { engine } = createEngine("Input cancelled by user");
 
 		await engine.run();
 
@@ -212,7 +235,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			showInputCancellationNotification: false,
 		});
 
-		const engine = createEngine("Missing template");
+		const { engine } = createEngine("Missing template");
 
 		await engine.run();
 
@@ -220,5 +243,29 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(noticeClass.instances[0]?.message).toContain(
 			"Template execution aborted: Missing template",
 		);
+	});
+
+	it("signals abort back to the choice executor", async () => {
+		const { engine, choiceExecutor } = createEngine("Input cancelled by user");
+
+		await engine.run();
+
+		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
+		const [[error]] = (choiceExecutor.signalAbort as ReturnType<typeof vi.fn>).mock.calls;
+		expect(error).toBeInstanceOf(MacroAbortError);
+	});
+
+	it("signals abort when template content formatting is cancelled", async () => {
+		const { engine, choiceExecutor } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		formatFileContentMock.mockRejectedValueOnce(
+			new MacroAbortError("Input cancelled by user"),
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
 	});
 });

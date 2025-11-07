@@ -23,10 +23,11 @@ import type { FieldRequirement } from "./preflight/RequirementCollector";
 import { settingsStore } from "./settingsStore";
 import type IChoice from "./types/choices/IChoice";
 import { getDate } from "./utilityObsidian";
-import { reportError } from "./utils/errorUtils";
+import { isCancellationError, reportError } from "./utils/errorUtils";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
+import { MacroAbortError } from "./errors/MacroAbortError";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -87,15 +88,20 @@ export class QuickAddApi {
 					});
 				}
 
-				let collected: Record<string, string> = {};
-				if (missing.length > 0) {
-					const modal = new OnePageInputModal(
-						app,
-						missing,
-						choiceExecutor.variables,
-					);
+			let collected: Record<string, string> = {};
+			if (missing.length > 0) {
+				const modal = new OnePageInputModal(
+					app,
+					missing,
+					choiceExecutor.variables,
+				);
+				try {
 					collected = await modal.waitForClose;
+				} catch (error) {
+					throwIfPromptCancelled(error);
+					throw error;
 				}
+			}
 
 				const result = { ...existing, ...collected };
 				Object.entries(result).forEach(([k, v]) =>
@@ -496,7 +502,8 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
-		} catch {
+		} catch (error) {
+			throwIfPromptCancelled(error);
 			return undefined;
 		}
 	}
@@ -514,7 +521,8 @@ export class QuickAddApi {
 				placeholder,
 				value,
 			);
-		} catch {
+		} catch (error) {
+			throwIfPromptCancelled(error);
 			return undefined;
 		}
 	}
@@ -522,7 +530,8 @@ export class QuickAddApi {
 	public static async yesNoPrompt(app: App, header: string, text?: string) {
 		try {
 			return await GenericYesNoPrompt.Prompt(app, header, text);
-		} catch {
+		} catch (error) {
+			throwIfPromptCancelled(error);
 			return undefined;
 		}
 	}
@@ -534,7 +543,8 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericInfoDialog.Show(app, header, text);
-		} catch {
+		} catch (error) {
+			throwIfPromptCancelled(error);
 			return undefined;
 		}
 	}
@@ -579,7 +589,8 @@ export class QuickAddApi {
 				placeholder,
 				options?.renderItem,
 			);
-		} catch {
+		} catch (error) {
+			throwIfPromptCancelled(error);
 			return undefined;
 		}
 	}
@@ -591,8 +602,18 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericCheckboxPrompt.Open(app, items, selectedItems);
-		} catch {
+		} catch (error) {
+			throwIfPromptCancelled(error);
 			return undefined;
 		}
+	}
+}
+
+function throwIfPromptCancelled(error: unknown): void {
+	if (error instanceof MacroAbortError) {
+		throw error;
+	}
+	if (isCancellationError(error)) {
+		throw new MacroAbortError("Input cancelled by user");
 	}
 }

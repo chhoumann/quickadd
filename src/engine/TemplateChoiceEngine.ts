@@ -29,6 +29,7 @@ import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
+	private readonly choiceExecutor: IChoiceExecutor;
 
 	constructor(
 		app: App,
@@ -37,6 +38,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		choiceExecutor: IChoiceExecutor,
 	) {
 		super(app, plugin, choiceExecutor);
+		this.choiceExecutor = choiceExecutor;
 		this.choice = choice;
 	}
 
@@ -186,6 +188,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					defaultReason: "Template execution aborted",
 				})
 			) {
+				this.choiceExecutor.signalAbort?.(err as MacroAbortError);
 				return;
 			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);

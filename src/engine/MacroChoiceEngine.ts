@@ -167,6 +167,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					defaultReason: "Macro execution aborted",
 				})
 			) {
+				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
 				return;
 			}
 			throw error;
@@ -349,16 +350,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		try {
-			await this.choiceExecutor.execute(targetChoice);
-		} catch (error) {
-			if (error instanceof MacroAbortError) {
-				throw error;
-			}
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		await this.choiceExecutor.execute(targetChoice);
+		const abort = this.choiceExecutor.consumeAbortSignal?.();
+		if (abort) {
+			throw abort;
 		}
 	}
 
@@ -369,16 +364,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		try {
-			await this.choiceExecutor.execute(choice);
-		} catch (error) {
-			if (error instanceof MacroAbortError) {
-				throw error;
-			}
-			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
-			}
-			throw error;
+		await this.choiceExecutor.execute(choice);
+		const abort = this.choiceExecutor.consumeAbortSignal?.();
+		if (abort) {
+			throw abort;
 		}
 	}
 
