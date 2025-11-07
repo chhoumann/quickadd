@@ -349,7 +349,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.choiceExecutor.execute(targetChoice);
+		try {
+			await this.choiceExecutor.execute(targetChoice);
+		} catch (error) {
+			if (error instanceof MacroAbortError) {
+				throw error;
+			}
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 	}
 
 	private async executeNestedChoice(command: INestedChoiceCommand) {
@@ -359,7 +369,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.choiceExecutor.execute(choice);
+		try {
+			await this.choiceExecutor.execute(choice);
+		} catch (error) {
+			if (error instanceof MacroAbortError) {
+				throw error;
+			}
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
 	}
 
 	private async executeEditorCommand(command: IEditorCommand) {
