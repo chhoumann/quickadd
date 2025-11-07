@@ -90,14 +90,6 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("../quickAddApi", async () => {
-	const actual = await vi.importActual<typeof import("../quickAddApi")>(
-		"../quickAddApi",
-	);
-	actual.QuickAddApi.GetApi = mockGetApi as typeof actual.QuickAddApi.GetApi;
-	return actual;
-});
-
 vi.mock("../quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
 	QuickAddSettingsTab: class {},
@@ -252,6 +244,9 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 	});
 
 	it("wraps cancellation errors from executeChoice in MacroAbortError", async () => {
+		const getApiSpy = vi.spyOn(QuickAddApi, "GetApi");
+		getApiSpy.mockReturnValueOnce({} as any);
+
 		const engine = new MacroChoiceEngine(
 			app,
 			plugin,

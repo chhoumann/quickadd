@@ -12,7 +12,7 @@ import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
-import { MacroAbortError } from "../errors/MacroAbortError";
+import type { MacroAbortError } from "../errors/MacroAbortError";
 
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
