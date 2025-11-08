@@ -71,6 +71,7 @@ module.exports = {
 
 ## Setting types
 - `text` and `input`: A text field.
+- `textarea`: A multi-line text area.
 - `checkbox` and `toggle`: A checkbox.
 - `dropdown` and `select`: A dropdown.
 - `format`: A format field, adhering to [format syntax](../FormatSyntax.md).
