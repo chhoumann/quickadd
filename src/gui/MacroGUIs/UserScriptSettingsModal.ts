@@ -18,6 +18,12 @@ type Option = { description?: string } & (
 			defaultValue: string;
 	  }
 	| {
+			type: "textarea";
+			value: string;
+			placeholder?: string;
+			defaultValue: string;
+	  }
+	| {
 			type: "checkbox" | "toggle";
 			value: boolean;
 			defaultValue: boolean;
@@ -87,6 +93,12 @@ export class UserScriptSettingsModal extends Modal {
 					entry?.placeholder,
 					entry.secret
 				);
+			} else if (type === "textarea") {
+				setting = this.addTextArea(
+					option,
+					value as string,
+					entry?.placeholder
+				);
 			} else if (type === "checkbox" || type === "toggle") {
 				setting = this.addToggle(option, value as boolean);
 			} else if (type === "dropdown" || type === "select") {
@@ -124,6 +136,30 @@ export class UserScriptSettingsModal extends Modal {
 			if (passwordOnBlur) {
 				setPasswordOnBlur(input.inputEl);
 			}
+		});
+	}
+
+	private addTextArea(
+		name: string,
+		value: string,
+		placeholder?: string
+	) {
+		return new Setting(this.contentEl).setName(name).addTextArea((textArea) => {
+			textArea
+				.setValue(value)
+				.onChange((value) => (this.command.settings[name] = value))
+				.setPlaceholder(placeholder ?? "");
+
+			textArea.inputEl.style.width = "100%";
+			textArea.inputEl.style.maxWidth = "15rem";
+			textArea.inputEl.style.boxSizing = "border-box";
+			textArea.inputEl.style.minHeight = "100px";
+			textArea.inputEl.style.maxHeight = "300px";
+			textArea.inputEl.style.resize = "vertical";
+			textArea.inputEl.style.overflowY = "auto";
+			textArea.inputEl.style.overflowX = "hidden";
+			textArea.inputEl.style.overflowWrap = "anywhere";
+			textArea.inputEl.style.setProperty("field-sizing", "content");
 		});
 	}
 
