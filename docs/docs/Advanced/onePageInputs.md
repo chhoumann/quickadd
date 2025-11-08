@@ -95,10 +95,6 @@ Supported input fields:
   - Supports multi-select mode via `suggesterConfig.multiSelect: true`
   - Multi-select: Select multiple items, separated by commas. Suggestions stay open after each selection.
 
-In the modal these inputs are labeled “(from script)”.
-
----
-
 ## Scripts: request inputs at runtime (API)
 
 From within a script, you can open a single one-page modal to collect multiple inputs in one go using the QuickAdd API.
