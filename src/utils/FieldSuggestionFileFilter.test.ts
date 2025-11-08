@@ -1,6 +1,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
-import type { TFile, CachedMetadata } from "obsidian";
+import type { TFile, CachedMetadata, TagCache } from "obsidian";
+
+const makeTag = (tag: string): TagCache => ({
+	tag,
+	position: {
+		start: { line: 0, col: 0, offset: 0 },
+		end: { line: 0, col: 0, offset: 0 },
+	},
+});
 
 describe("FieldSuggestionFileFilter", () => {
 	let mockFiles: TFile[];
@@ -21,25 +29,25 @@ describe("FieldSuggestionFileFilter", () => {
 			[
 				"daily/2024-01-01.md",
 				{
-					tags: [{ tag: "#daily" }, { tag: "#work" }],
+					tags: [makeTag("#daily"), makeTag("#work")],
 				} as CachedMetadata,
 			],
 			[
 				"daily/2024-01-02.md",
 				{
-					tags: [{ tag: "#daily" }, { tag: "#personal" }],
+					tags: [makeTag("#daily"), makeTag("#personal")],
 				} as CachedMetadata,
 			],
 			[
 				"projects/project1.md",
 				{
-					tags: [{ tag: "#project" }, { tag: "#work" }],
+					tags: [makeTag("#project"), makeTag("#work")],
 				} as CachedMetadata,
 			],
 			[
 				"projects/work/task1.md",
 				{
-					tags: [{ tag: "#work" }, { tag: "#task" }],
+					tags: [makeTag("#work"), makeTag("#task")],
 				} as CachedMetadata,
 			],
 			["notes/random.md", {} as CachedMetadata],
@@ -325,7 +333,7 @@ describe("FieldSuggestionFileFilter", () => {
 				if (file.path === "note1.md") {
 					return {
 						frontmatter: { tags: ["Test"] },
-						tags: [{ tag: "#work" }],
+						tags: [makeTag("#work")],
 					} as CachedMetadata;
 				}
 				if (file.path === "note2.md") {
