@@ -153,7 +153,7 @@ export class UserScriptSettingsModal extends Modal {
 			textArea.inputEl.style.width = "100%";
 			textArea.inputEl.style.minHeight = "100px";
 			textArea.inputEl.style.maxHeight = "300px";
-			textArea.inputEl.style.fieldSizing = "content";
+			textArea.inputEl.style.setProperty("field-sizing", "content");
 		});
 	}
 
