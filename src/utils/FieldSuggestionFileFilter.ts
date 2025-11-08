@@ -54,18 +54,57 @@ export class FieldSuggestionFileFilter {
 		metadataCache: (file: TFile) => CachedMetadata | null,
 	): boolean {
 		const metadata = metadataCache(file);
-		if (!metadata || !metadata.tags) {
+		if (!metadata) {
 			return false;
 		}
 
-		const fileTags = metadata.tags.map((tag) =>
-			tag.tag.startsWith("#") ? tag.tag.substring(1) : tag.tag,
+		// Get all tags from the file (both frontmatter and inline)
+		const fileTags = this.getAllTags(metadata);
+
+		// Normalize required tags (remove leading # and trim)
+		const normalizedRequiredTags = requiredTags.map((tag) =>
+			tag.startsWith("#") ? tag.substring(1).trim() : tag.trim(),
 		);
 
-		// Check if file has all required tags
-		return requiredTags.every((requiredTag) =>
+		// Check if file has all required tags (AND logic)
+		return normalizedRequiredTags.every((requiredTag) =>
 			fileTags.includes(requiredTag),
 		);
+	}
+
+	private static getAllTags(metadata: CachedMetadata): string[] {
+		const tags: string[] = [];
+
+		if (metadata.frontmatter?.tags) {
+			const frontmatterTags = Array.isArray(metadata.frontmatter.tags)
+				? metadata.frontmatter.tags
+				: [metadata.frontmatter.tags];
+			
+			tags.push(...frontmatterTags.map(tag => {
+				const tagStr = typeof tag === 'string' ? tag : String(tag);
+				return tagStr.startsWith("#") ? tagStr.substring(1).trim() : tagStr.trim();
+			}));
+		}
+
+		if (metadata.frontmatter?.tag) {
+			const frontmatterTag = Array.isArray(metadata.frontmatter.tag)
+				? metadata.frontmatter.tag
+				: [metadata.frontmatter.tag];
+			
+			tags.push(...frontmatterTag.map(tag => {
+				const tagStr = typeof tag === 'string' ? tag : String(tag);
+				return tagStr.startsWith("#") ? tagStr.substring(1).trim() : tagStr.trim();
+			}));
+		}
+
+		// Get inline tags
+		if (metadata.tags) {
+			tags.push(...metadata.tags.map(tag => 
+				tag.tag.startsWith("#") ? tag.tag.substring(1).trim() : tag.tag.trim()
+			));
+		}
+
+		return tags;
 	}
 
 	private static normalizePath(path: string): string {
