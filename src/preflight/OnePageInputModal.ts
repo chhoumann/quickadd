@@ -291,9 +291,6 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private decorateLabel(req: FieldRequirement): string {
-		if (req.source === "script") {
-			return `${req.label} (from script)`;
-		}
 		return req.label;
 	}
 
