@@ -151,7 +151,7 @@ export class UserScriptSettingsModal extends Modal {
 				.setPlaceholder(placeholder ?? "");
 
 			textArea.inputEl.style.width = "100%";
-			textArea.inputEl.style.maxWidth = "100%";
+			textArea.inputEl.style.maxWidth = "15rem";
 			textArea.inputEl.style.boxSizing = "border-box";
 			textArea.inputEl.style.minHeight = "100px";
 			textArea.inputEl.style.maxHeight = "300px";
