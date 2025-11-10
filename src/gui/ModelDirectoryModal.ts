@@ -1,12 +1,7 @@
 import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider, Model } from "src/ai/Provider";
-import {
-  fetchModelsDevDirectory,
-  getModelsForProvider,
-  mapModelsDevToQuickAdd,
-  type ModelsDevModel,
-} from "src/ai/modelsDirectory";
+import { discoverProviderModels } from "src/ai/modelDiscoveryService";
 
 export class ModelDirectoryModal extends Modal {
   public waitForClose: Promise<{ imported: Model[]; mode: "add" | "replace" } | null>;
@@ -15,8 +10,8 @@ export class ModelDirectoryModal extends Modal {
   private rejectPromise: (reason?: unknown) => void;
 
   private provider: AIProvider;
-  private allModels: ModelsDevModel[] = [];
-  private filtered: ModelsDevModel[] = [];
+  private allModels: Model[] = [];
+  private filtered: Model[] = [];
   private selectedIds = new Set<string>();
   private mode: "add" | "replace" = "add";
 
@@ -35,8 +30,7 @@ export class ModelDirectoryModal extends Modal {
 
   private async loadData() {
     try {
-      await fetchModelsDevDirectory();
-      this.allModels = await getModelsForProvider(this.provider);
+      this.allModels = await discoverProviderModels(this.provider);
       this.filtered = this.allModels.slice();
     } catch (err) {
       new Notice(`Failed to load model directory: ${(err as { message?: string }).message ?? err}`);
@@ -59,7 +53,7 @@ export class ModelDirectoryModal extends Modal {
       .addText((text) => {
         text.setPlaceholder("Filter by name or id").onChange((value) => {
           const q = value.trim().toLowerCase();
-          this.filtered = this.allModels.filter((m) => m.id.toLowerCase().includes(q) || (m.name ?? "").toLowerCase().includes(q));
+          this.filtered = this.allModels.filter((m) => m.name.toLowerCase().includes(q));
           this.renderList();
         });
       })
@@ -67,7 +61,7 @@ export class ModelDirectoryModal extends Modal {
         btn.setIcon("check");
         btn.setTooltip("Select all");
         btn.onClick(() => {
-          this.filtered.forEach((m) => this.selectedIds.add(m.id));
+          this.filtered.forEach((m) => this.selectedIds.add(m.name));
           this.renderList();
         });
       })
@@ -116,17 +110,17 @@ export class ModelDirectoryModal extends Modal {
 
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.checked = this.selectedIds.has(m.id);
+      cb.checked = this.selectedIds.has(m.name);
       cb.onchange = () => {
-        if (cb.checked) this.selectedIds.add(m.id);
-        else this.selectedIds.delete(m.id);
+        if (cb.checked) this.selectedIds.add(m.name);
+        else this.selectedIds.delete(m.name);
       };
       row.appendChild(cb);
 
-      const title = row.createDiv({ text: m.name ?? m.id });
+      const title = row.createDiv({ text: m.name });
       title.style.flex = "1";
 
-      const meta = row.createDiv({ text: `${m.limit?.context ?? "?"} tokens ctx` });
+      const meta = row.createDiv({ text: `${m.maxTokens.toLocaleString()} tokens max` });
       meta.style.opacity = "0.7";
       meta.style.fontSize = "0.9em";
     }
@@ -138,8 +132,8 @@ export class ModelDirectoryModal extends Modal {
       return;
     }
     try {
-      const selection = this.allModels.filter((m) => this.selectedIds.has(m.id));
-      const qaModels = mapModelsDevToQuickAdd(selection);
+      const selection = this.allModels.filter((m) => this.selectedIds.has(m.name));
+      const qaModels = selection.map((model) => ({ ...model }));
       if (!qaModels.length) {
         new Notice("No models selected to import.");
         return;
