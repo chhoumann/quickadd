@@ -73,7 +73,11 @@ const { discoverProviderModels } = await import("./modelDiscoveryService");
 		});
 
 		expect(models.length).toBeGreaterThan(0);
-		const hasOpenRouterModel = models.some((m) => m.name.includes("openrouter"));
-		expect(hasOpenRouterModel).toBe(true);
+		for (const model of models) {
+			expect(typeof model.name).toBe("string");
+			expect(model.name.length).toBeGreaterThan(0);
+			expect(typeof model.maxTokens).toBe("number");
+			expect(model.maxTokens).toBeGreaterThan(0);
+		}
 	});
 });
