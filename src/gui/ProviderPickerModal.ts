@@ -118,6 +118,7 @@ export class ProviderPickerModal extends Modal {
                 endpoint: preset.endpoint,
                 apiKey,
                 models: [],
+                modelSource: "providerApi",
               };
               this.providers.push(provider);
               new Notice(`${preset.name} added. Click Edit to configure models.`);
@@ -134,7 +135,7 @@ export class ProviderPickerModal extends Modal {
       .setDesc("Create any custom endpoint (OpenAI-compatible or otherwise)")
       .addButton((b) => {
         b.setButtonText("Add custom...").onClick(() => {
-          const provider: AIProvider = { name: "Custom", endpoint: "", apiKey: "", models: [] };
+          const provider: AIProvider = { name: "Custom", endpoint: "", apiKey: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
           new Notice("Custom provider added. Click Edit to configure.");
           this.display();

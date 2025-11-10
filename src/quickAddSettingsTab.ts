@@ -49,6 +49,7 @@ export interface QuickAddSettings {
 		addDefaultAIProviders: boolean;
 		removeMacroIndirection: boolean;
 		migrateFileOpeningSettings: boolean;
+		setProviderModelDiscoveryMode: boolean;
 	};
 }
 
@@ -85,6 +86,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		addDefaultAIProviders: false,
 		removeMacroIndirection: false,
 		migrateFileOpeningSettings: false,
+		setProviderModelDiscoveryMode: false,
 	},
 };
 

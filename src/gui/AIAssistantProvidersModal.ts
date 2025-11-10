@@ -2,7 +2,8 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
-import { dedupeModels, fetchModelsDevDirectory, getModelsForProvider, mapModelsDevToQuickAdd } from "src/ai/modelsDirectory";
+import { dedupeModels } from "src/ai/modelsDirectory";
+import { discoverProviderModels } from "src/ai/modelDiscoveryService";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
@@ -115,7 +116,8 @@ export class AIAssistantProvidersModal extends Modal {
 		this.addNameSetting(container);
 		this.addEndpointSetting(container);
 		this.addApiKeySetting(container);
- 
+		this.addModelSourceSetting(container);
+
 		this.addProviderModelsSetting(container);
 		this.addImportModelsFromDirectorySetting(container);
 		this.addAutoSyncSetting(container);
@@ -158,6 +160,33 @@ export class AIAssistantProvidersModal extends Modal {
 						this.selectedProvider!.apiKey = value;
 					}
 				);
+			});
+	}
+
+	addModelSourceSetting(container: HTMLElement) {
+		const provider = this.selectedProvider;
+		new Setting(container)
+			.setName("Model source")
+			.setDesc(
+				"Choose where QuickAdd looks when browsing or syncing models for this provider.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption(
+					"providerApi",
+					"Provider /v1/models (requires API key)",
+				);
+				dropdown.addOption("modelsDev", "models.dev directory");
+				dropdown.addOption(
+					"auto",
+					"Automatic (try provider, fallback to models.dev)",
+				);
+				const current = provider?.modelSource ?? "providerApi";
+				dropdown.setValue(current);
+				dropdown.onChange((value) => {
+					if (!this.selectedProvider) return;
+					this.selectedProvider.modelSource = value as AIProvider["modelSource"];
+					this.reload();
+				});
 			});
 	}
 
@@ -216,13 +245,14 @@ export class AIAssistantProvidersModal extends Modal {
             });
     }
 
-    addImportModelsFromDirectorySetting(container: HTMLElement) {
-        new Setting(container)
-            .setName("Import models")
-            .setDesc("Browse and import models from models.dev for this provider")
-            .addButton((button) => {
-                button.setButtonText("Browse models").onClick(async () => {
-                    const res = await new ModelDirectoryModal(this.app, this.selectedProvider!).waitForClose;
+	addImportModelsFromDirectorySetting(container: HTMLElement) {
+		const sourceDescription = this.describeModelSource(this.selectedProvider);
+		new Setting(container)
+			.setName("Import models")
+			.setDesc(`Browse and import models from ${sourceDescription}.`)
+			.addButton((button) => {
+				button.setButtonText("Browse models").onClick(async () => {
+					const res = await new ModelDirectoryModal(this.app, this.selectedProvider!).waitForClose;
                     if (!res) return;
                     const { imported, mode } = res;
                     if (mode === "replace") {
@@ -241,10 +271,11 @@ export class AIAssistantProvidersModal extends Modal {
     }
 
 	addAutoSyncSetting(container: HTMLElement) {
+		const sourceDescription = this.describeModelSource(this.selectedProvider);
 		new Setting(container)
 			.setName("Auto-sync models")
 			.setDesc(
-				"Automatically import new models from models.dev for this provider when opening settings."
+				`Automatically import new models from ${sourceDescription} when opening settings.`,
 			)
 			.addToggle((toggle) => {
 				const current = !!this.selectedProvider?.autoSyncModels;
@@ -255,14 +286,12 @@ export class AIAssistantProvidersModal extends Modal {
 			.addButton((button) => {
 				button.setButtonText("Sync now").onClick(async () => {
 					try {
-						await fetchModelsDevDirectory();
-						const models = await getModelsForProvider(this.selectedProvider!);
-						const qaModels = mapModelsDevToQuickAdd(models);
+						const models = await discoverProviderModels(this.selectedProvider!);
 						this.selectedProvider!.models = dedupeModels(
 							this.selectedProvider!.models,
-							qaModels
+							models
 						);
-						new Notice("Models synced.");
+						new Notice(`Models synced from ${sourceDescription}.`);
 						this.reload();
 					} catch (err) {
 						new Notice(
@@ -313,6 +342,18 @@ export class AIAssistantProvidersModal extends Modal {
 			this.selectedProvider = null;
 			this.reload();
 		});
+	}
+
+	describeModelSource(provider: AIProvider | null): string {
+		const mode = provider?.modelSource ?? "providerApi";
+		switch (mode) {
+			case "modelsDev":
+				return "the models.dev directory";
+			case "auto":
+				return "the provider's /v1/models endpoint (falls back to models.dev)";
+			default:
+				return "the provider's /v1/models endpoint";
+		}
 	}
 
 	onClose(): void {

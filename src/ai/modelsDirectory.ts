@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import type { AIProvider, Model } from "./Provider";
+import type { Model } from "./Provider";
 import { settingsStore } from "src/settingsStore";
 
 export type ModelsDevModel = {
@@ -77,20 +77,6 @@ export function mapEndpointToModelsDevKey(endpoint: string): string | null {
   if (url.includes("api.githubcopilot.com")) return "github-copilot";
   if (url.includes("api.openai.com")) return "openai";
   return null;
-}
-
-export async function getModelsForProvider(
-  provider: AIProvider
-): Promise<ModelsDevModel[]> {
-  const dir = await fetchModelsDevDirectory();
-  const key = mapEndpointToModelsDevKey(provider.endpoint);
-  if (!key || !(key in dir)) {
-    throw new Error(
-      `Could not determine models.dev provider for endpoint: ${provider.endpoint}`
-    );
-  }
-  const mdp = dir[key];
-  return Object.values(mdp.models);
 }
 
 export function mapModelsDevToQuickAdd(models: ModelsDevModel[]): Model[] {

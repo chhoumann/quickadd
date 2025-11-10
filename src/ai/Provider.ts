@@ -1,10 +1,14 @@
+export type ModelDiscoveryMode = "modelsDev" | "providerApi" | "auto";
+
 export interface AIProvider {
 	name: string;
 	endpoint: string;
 	apiKey: string;
 	models: Model[];
-    /** If true, QuickAdd may auto-sync models from models.dev for this provider. */
-    autoSyncModels?: boolean;
+	/** If true, QuickAdd may auto-sync models from models.dev for this provider. */
+	autoSyncModels?: boolean;
+	/** Controls how QuickAdd discovers browseable models for this provider. */
+	modelSource: ModelDiscoveryMode;
 }
 
 export interface Model {
@@ -58,14 +62,15 @@ const OpenAIProvider: AIProvider = {
 			maxTokens: 128000,
 		},
 	],
-    autoSyncModels: false,
+	autoSyncModels: false,
+	modelSource: "modelsDev",
 };
 
 const GeminiProvider: AIProvider = {
-    name: "Gemini",
-    endpoint: "https://generativelanguage.googleapis.com",
-    apiKey: "",
-    models: [
+	name: "Gemini",
+	endpoint: "https://generativelanguage.googleapis.com",
+	apiKey: "",
+	models: [
         {
             name: "gemini-1.5-pro",
             maxTokens: 1000000,
@@ -78,8 +83,9 @@ const GeminiProvider: AIProvider = {
             name: "gemini-1.5-flash-8b",
             maxTokens: 1000000,
         },
-    ],
-    autoSyncModels: false,
+	],
+	autoSyncModels: false,
+	modelSource: "modelsDev",
 };
 
 

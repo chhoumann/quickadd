@@ -8,6 +8,7 @@ import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelea
 import addDefaultAIProviders from "./addDefaultAIProviders";
 import removeMacroIndirection from "./removeMacroIndirection";
 import migrateFileOpeningSettings from "./migrateFileOpeningSettings";
+import setProviderModelDiscoveryMode from "./setProviderModelDiscoveryMode";
 
 const migrations: Migrations = {
 	useQuickAddTemplateFolder,
@@ -17,6 +18,7 @@ const migrations: Migrations = {
 	addDefaultAIProviders,
 	removeMacroIndirection,
 	migrateFileOpeningSettings,
+	setProviderModelDiscoveryMode,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {
