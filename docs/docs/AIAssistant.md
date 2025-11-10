@@ -97,7 +97,7 @@ Notes:
 
 ### Importing and syncing models
 
-- Use the new **Model source** dropdown inside each provider to choose where QuickAdd discovers models: your provider's `/v1/models` endpoint, the public models.dev directory, or an automatic mode that tries the provider first and falls back to models.dev.
+- Use the **Model source** dropdown inside each provider to choose where QuickAdd discovers models: your provider's `/v1/models` endpoint, the public models.dev directory, or an automatic mode that tries the provider first and falls back to models.dev.
 - The "Browse models" button pulls from whichever source you selected, letting you search and multi-select models even for custom OpenAI-compatible endpoints that models.dev does not list.
 - Choose Add-only to merge or Replace to overwrite the provider's model list.
 - Enable Auto-sync to keep your model list updated; use Sync now for a manual refresh. Auto-sync honors the same model source you picked.
