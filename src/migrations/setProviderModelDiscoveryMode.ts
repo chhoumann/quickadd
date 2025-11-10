@@ -11,7 +11,7 @@ const setProviderModelDiscoveryMode: Migration = {
 		let updated = false;
 
 		for (const provider of providers) {
-			if (provider.modelSource !== "auto") {
+			if (!provider.modelSource) {
 				provider.modelSource = "auto";
 				updated = true;
 			}
