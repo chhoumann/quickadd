@@ -314,6 +314,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
+	public async formatLocationString(input: string): Promise<string> {
+		return await super.formatLocationString(input);
+	}
+
 	private getFrontmatterEndPosition(file: TFile, fallbackContent?: string) {
 		const fileCache = this.app.metadataCache.getFileCache(file);
 
