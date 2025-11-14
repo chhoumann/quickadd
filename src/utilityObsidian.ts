@@ -427,7 +427,7 @@ function resolveAnchorContext(
 		return {
 			content: working,
 			lines,
-			anchorLine: lines.length > 0 ? lines.length - 1 : -1,
+			anchorLine: findFrontmatterAnchorLineFromContent(working),
 		};
 	}
 

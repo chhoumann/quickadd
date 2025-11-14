@@ -227,15 +227,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (pendingLinkInsertion?.kind === "activeView") {
 				insertFileLinkToActiveView(this.app, file, linkOptions);
 			} else if (pendingLinkInsertion?.kind === "file") {
+				const linkInsertionOptions = {
+					placement: linkOptions.placement,
+					insertAfter: pendingLinkInsertion.insertAfter,
+					...(this.choice.prepend &&
+					pendingLinkInsertion.targetFile.path === file.path
+						? { prepend: true }
+						: {}),
+				};
+	
 				await insertLinkIntoFile(
 					this.app,
 					pendingLinkInsertion.targetFile,
 					pendingLinkInsertion.linkText,
-					{
-						placement: linkOptions.placement,
-						insertAfter: pendingLinkInsertion.insertAfter,
-						prepend: this.choice.prepend,
-					},
+					linkInsertionOptions,
 				);
 			}
 
