@@ -5,6 +5,8 @@ import type {
 	WorkspaceLeaf,
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
+import merge from "three-way-merge";
+import invariant from "./utils/invariant";
 import { log } from "./logger/logManager";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -359,10 +361,24 @@ export async function insertLinkIntoFile(
 		prepend?: boolean;
 	},
 ): Promise<void> {
-	const currentContent = await app.vault.read(targetFile);
-	const updatedContent = insertLinkIntoContent(currentContent, linkText, options);
+	const originalContent = await app.vault.read(targetFile);
+	const patchedContent = insertLinkIntoContent(originalContent, linkText, options);
+	const latestContent = await app.vault.read(targetFile);
 
-	await app.vault.modify(targetFile, updatedContent);
+	if (latestContent === originalContent) {
+		await app.vault.modify(targetFile, patchedContent);
+		return;
+	}
+
+	const res = merge(latestContent, originalContent, patchedContent);
+	invariant(
+		!res.isSuccess,
+		() =>
+			`insertLinkIntoFile: ${targetFile.path} changed before QuickAdd could append the link.\nQuickAdd could not merge those edits without conflicts, so it left the file untouched to prevent data loss.`,
+	);
+
+	const mergedContent = res.joinedResults() as string;
+	await app.vault.modify(targetFile, mergedContent);
 }
 
 type InsertAfterOptions = ICaptureChoice["insertAfter"];
