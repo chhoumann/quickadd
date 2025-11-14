@@ -10,8 +10,11 @@ import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormat
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import type { LinkPlacement } from "../../types/linkPlacement";
-import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
+import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
+import {
+	normalizeAppendLinkOptions,
+	placementSupportsEmbed,
+} from "../../types/linkPlacement";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
@@ -169,6 +172,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const normalizedOptions = normalizeAppendLinkOptions(
 			this.choice.appendLink,
 		);
+		const normalizedLinkType = normalizedOptions.linkType ?? "link";
 
 		type AppendLinkMode = "required" | "optional" | "disabled";
 		const currentMode: AppendLinkMode = normalizedOptions.enabled
@@ -197,6 +201,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								enabled: true,
 								placement: normalizedOptions.placement,
 								requireActiveFile: true,
+								linkType: normalizedLinkType,
 							};
 							break;
 						case "optional":
@@ -204,6 +209,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								enabled: true,
 								placement: normalizedOptions.placement,
 								requireActiveFile: false,
+								linkType: normalizedLinkType,
 							};
 							break;
 					}
@@ -230,14 +236,54 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							typeof currentValue === "boolean"
 								? normalizedOptions.requireActiveFile
 								: currentValue.requireActiveFile;
+						const previousLinkType =
+							typeof currentValue === "boolean"
+								? normalizedLinkType
+								: currentValue.linkType ?? normalizedLinkType;
+				const nextLinkType = placementSupportsEmbed(value)
+					? previousLinkType
+					: "link";
 
 						this.choice.appendLink = {
 							enabled: true,
 							placement: value,
 							requireActiveFile,
+							linkType: nextLinkType,
 						};
+
+						this.reload();
 					});
 				});
+
+			if (placementSupportsEmbed(normalizedOptions.placement)) {
+				const linkTypeSetting: Setting = new Setting(this.contentEl);
+				linkTypeSetting
+					.setName("Link type")
+					.setDesc("Choose whether to insert a regular link or an embed when replacing the selection.")
+					.addDropdown((dropdown) => {
+						dropdown.addOption("link", "Link");
+						dropdown.addOption("embed", "Embed");
+						dropdown.setValue(normalizedLinkType);
+						dropdown.onChange((value: LinkType) => {
+							const currentValue = this.choice.appendLink;
+							const requireActiveFile =
+								typeof currentValue === "boolean"
+									? normalizedOptions.requireActiveFile
+									: currentValue.requireActiveFile;
+							const placement =
+								typeof currentValue === "boolean"
+									? normalizedOptions.placement
+									: currentValue.placement;
+
+							this.choice.appendLink = {
+								enabled: true,
+								placement,
+								requireActiveFile,
+								linkType: value,
+							};
+						});
+					});
+			}
 		}
 	}
 

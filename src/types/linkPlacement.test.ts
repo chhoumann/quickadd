@@ -5,6 +5,7 @@ import {
 	isAppendLinkOptions,
 	normalizeAppendLinkOptions,
 	isAppendLinkEnabled,
+	placementSupportsEmbed,
 } from "./linkPlacement";
 
 describe("LinkPlacement", () => {
@@ -36,7 +37,10 @@ describe("LinkPlacement", () => {
 				placement: "afterSelection",
 				requireActiveFile: false,
 			};
-			expect(normalizeAppendLinkOptions(options)).toEqual(options);
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+			});
 		});
 
 		it("should convert true to enabled with default placement", () => {
@@ -45,6 +49,7 @@ describe("LinkPlacement", () => {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
+				linkType: "link",
 			});
 		});
 
@@ -54,7 +59,40 @@ describe("LinkPlacement", () => {
 				enabled: false,
 				placement: "replaceSelection",
 				requireActiveFile: false,
+				linkType: "link",
 			});
+		});
+
+		it("should keep embed linkType when placement supports embeds", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "embed",
+			};
+			expect(normalizeAppendLinkOptions(options)).toEqual(options);
+		});
+
+		it("should sanitize embed linkType when placement does not support embeds", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "endOfLine",
+				requireActiveFile: true,
+				linkType: "embed",
+			};
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+			});
+		});
+
+		it("should default linkType to link when omitted", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "newLine",
+				requireActiveFile: true,
+			};
+			expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
 		});
 	});
 
@@ -98,6 +136,15 @@ describe("LinkPlacement", () => {
 				};
 				expect(options.placement).toBe(placement);
 			}
+		});
+	});
+
+	describe("placementSupportsEmbed", () => {
+		it("should return true only for replaceSelection placement", () => {
+			expect(placementSupportsEmbed("replaceSelection")).toBe(true);
+			expect(placementSupportsEmbed("afterSelection")).toBe(false);
+			expect(placementSupportsEmbed("endOfLine")).toBe(false);
+			expect(placementSupportsEmbed("newLine")).toBe(false);
 		});
 	});
 });

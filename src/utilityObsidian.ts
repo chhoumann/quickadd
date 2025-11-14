@@ -18,6 +18,7 @@ import type {
 	FileViewMode2 as FileViewModeNew
 } from "./types/fileOpening";
 import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
+import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
 
@@ -230,11 +231,11 @@ export function insertLinkWithPlacement(
 	//////////////////////////////////////////////////////////////////
 
 	/**
-	 * Helper that converts a {line, ch} position to a monotonically
-	 * increasing index so we can sort selections bottom-to-top.  
-	 * Sorting bottom-to-top prevents indices from becoming stale while
-	 * we insert (because later lines are modified first).
-	 */
+		* Helper that converts a {line, ch} position to a monotonically
+		* increasing index so we can sort selections bottom-to-top.
+		* Sorting bottom-to-top prevents indices from becoming stale while
+		* we insert (because later lines are modified first).
+		*/
 	const asIndex = ({ line, ch }: { line: number; ch: number; }) =>
 		editor.posToOffset({ line, ch });
 
@@ -284,6 +285,58 @@ export function insertLinkWithPlacement(
 }
 
 /**
+	* Extracts the target path from a markdown-style link.
+	* Works with both wiki-style and markdown-style links.
+	*/
+function extractMarkdownLinkTarget(link: string): string | null {
+	const markdownPattern = /^\s*!?\[[^\]]*\]\((.+)\)\s*$/;
+	const match = link.match(markdownPattern);
+	if (!match) {
+		return null;
+	}
+
+	let target = match[1].trim();
+	if (!target) {
+		return null;
+	}
+
+	if (target.startsWith("<") && target.endsWith(">")) {
+		target = target.slice(1, -1).trim();
+	}
+
+	return target;
+}
+
+/**
+	* Converts a regular link to an embed by adding the embed prefix (!).
+	* Works with both wiki-style and markdown-style links.
+	*/
+function convertLinkToEmbed(link: string): string {
+	// Embeds must leverage wiki-style transclusions (`![[...]]`) because Obsidian interprets markdown image syntax (`![...](...)`) as attachment images, not note embeds.
+	const trimmed = link.trim();
+	if (trimmed.startsWith("![[") && trimmed.includes("]]")) {
+		return link;
+	}
+
+	const wikiOpenIndex = link.indexOf("[[");
+	const wikiCloseIndex = link.indexOf("]]", wikiOpenIndex + 2);
+	if (wikiOpenIndex !== -1 && wikiCloseIndex !== -1) {
+		const precedingChar = wikiOpenIndex > 0 ? link.charAt(wikiOpenIndex - 1) : "";
+		if (precedingChar === "!") {
+			return link;
+		}
+		return `${link.slice(0, wikiOpenIndex)}!${link.slice(wikiOpenIndex)}`;
+	}
+
+	const markdownTarget = extractMarkdownLinkTarget(link);
+	if (markdownTarget) {
+		return `![[${markdownTarget}]]`;
+	}
+
+	return link.startsWith("!") ? link : `!${link}`;
+}
+
+/**
  * Inserts a link to the specified file into the active view, respecting 
  * Obsidian's "New link format" setting.
  * 
@@ -313,9 +366,15 @@ export function insertFileLinkToActiveView(
 	}
 
 	const sourcePath = activeFile?.path ?? "";
+	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
+	const shouldEmbed =
+		linkOptions.linkType === "embed" &&
+		placementSupportsEmbed(linkOptions.placement);
+	const linkText = shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
+
 	insertLinkWithPlacement(
 		app,
-		app.fileManager.generateMarkdownLink(file, sourcePath),
+		linkText,
 		linkOptions.placement,
 		{ requireActiveView: false },
 	);
@@ -640,3 +699,8 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 		return fileTags.includes(targetTag);
 	});
 }
+
+export const __test = {
+	convertLinkToEmbed,
+	extractMarkdownLinkTarget,
+} as const;
