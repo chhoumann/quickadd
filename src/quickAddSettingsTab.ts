@@ -16,18 +16,18 @@ export interface QuickAddSettings {
 	inputPrompt: "multi-line" | "single-line";
 	devMode: boolean;
 	templateFolderPath: string;
-	announceUpdates: boolean;
+	announceUpdates: "all" | "major" | "none";
 	version: string;
 	globalVariables: Record<string, string>;
 	/**
-	 * Enables the one-page input flow that pre-collects variables
-	 * and renders a single dynamic GUI before executing a choice.
-	 */
+		* Enables the one-page input flow that pre-collects variables
+		* and renders a single dynamic GUI before executing a choice.
+		*/
 	onePageInputEnabled: boolean;
 	/**
-	 * If this is true, then the plugin is not to contact external services (e.g. OpenAI, etc.) via plugin features.
-	 * Users _can_ still use User Scripts to do so by executing arbitrary JavaScript, but that is not something the plugin controls.
-	 */
+		* If this is true, then the plugin is not to contact external services (e.g. OpenAI, etc.) via plugin features.
+		* Users _can_ still use User Scripts to do so by executing arbitrary JavaScript, but that is not something the plugin controls.
+		*/
 	disableOnlineFeatures: boolean;
 	enableRibbonIcon: boolean;
 	showCaptureNotification: boolean;
@@ -58,7 +58,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	inputPrompt: "single-line",
 	devMode: false,
 	templateFolderPath: "",
-	announceUpdates: true,
+	announceUpdates: "all",
 	version: "0.0.0",
 	globalVariables: {},
 	onePageInputEnabled: false,
@@ -76,8 +76,8 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	},
 	migrations: {
 		/**
-		 * @deprecated kept for backward compatibility; always true, ignored.
-		 */
+			* @deprecated kept for backward compatibility; always true, ignored.
+			*/
 		migrateToMacroIDFromEmbeddedMacro: true,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
@@ -171,11 +171,21 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.setDesc(
 			"Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes."
 		);
-		setting.addToggle((toggle) => {
-			toggle.setValue(settingsStore.getState().announceUpdates);
-			toggle.onChange((value) => {
-				settingsStore.setState({ announceUpdates: value });
-			});
+		setting.addDropdown((dropdown) => {
+			const currentValue = settingsStore.getState().announceUpdates;
+			dropdown
+				.addOption("all", "Show updates on each new release")
+				.addOption(
+					"major",
+					"Show updates only on major releases (new features, breaking changes)"
+				)
+				.addOption("none", "Don't show")
+				.setValue(currentValue)
+				.onChange((value) => {
+					settingsStore.setState({
+						announceUpdates: value as QuickAddSettings["announceUpdates"],
+					});
+				});
 		});
 	}
 
