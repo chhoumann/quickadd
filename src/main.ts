@@ -21,6 +21,7 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { isMajorUpdate } from "./utils/semver";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -193,7 +194,20 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData = await this.loadData();
+		const settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			loadedData,
+		) as QuickAddSettings & {
+			announceUpdates: QuickAddSettings["announceUpdates"] | boolean;
+		};
+
+		if (typeof settings.announceUpdates === "boolean") {
+			settings.announceUpdates = settings.announceUpdates ? "all" : "none";
+		}
+
+		this.settings = settings;
 	}
 
 	async saveSettings() {
@@ -291,12 +305,22 @@ export default class QuickAdd extends Plugin {
 
 		if (currentVersion === knownVersion) return;
 
+		const preference = this.settings.announceUpdates;
+		let shouldAnnounce = true;
+
+		if (preference === "none") {
+			shouldAnnounce = false;
+		} else if (preference === "major" && !isMajorUpdate(currentVersion, knownVersion)) {
+			shouldAnnounce = false;
+		}
+
 		this.settings.version = currentVersion;
 		void this.saveSettings();
 
-		if (this.settings.announceUpdates === false) return;
+		if (!shouldAnnounce) return;
 
 		const updateModal = new UpdateModal(this.app, knownVersion);
 		updateModal.open();
 	}
 }
+
