@@ -290,6 +290,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addWritePositionSetting() {
 		const positionSetting: Setting = new Setting(this.contentEl);
 		const isActiveFile = !!this.choice?.captureToActiveFile;
+
+		if (!this.choice.activeFileWritePosition) {
+			this.choice.activeFileWritePosition = "cursor";
+		}
+
 		positionSetting
 			.setName("Write position")
 			.setDesc(
@@ -298,7 +303,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					: "Where to place the capture in the target file.",
 			)
 			.addDropdown((dropdown) => {
-				const current: "top" | "after" | "bottom" | "newLineAbove" | "newLineBelow" =
+				const current =
 					this.choice.insertAfter?.enabled
 						? "after"
 						: this.choice.prepend
@@ -307,12 +312,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								? this.choice.newLineCapture.direction === "above"
 									? "newLineAbove"
 									: "newLineBelow"
-								: "top";
+								: isActiveFile && this.choice.activeFileWritePosition === "top"
+									? "activeTop"
+									: "top";
 
 				dropdown.addOption("top", isActiveFile ? "At cursor" : "Top of file");
 
-				// Add new line options only when capturing to active file
 				if (isActiveFile) {
+					dropdown.addOption("activeTop", "Top of file (after frontmatter)");
 					dropdown.addOption("newLineAbove", "New line above cursor");
 					dropdown.addOption("newLineBelow", "New line below cursor");
 				}
@@ -321,17 +328,31 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				dropdown.addOption("bottom", "Bottom of file");
 				dropdown.setValue(current);
 				dropdown.onChange((value: string) => {
-					const v = value as "top" | "after" | "bottom" | "newLineAbove" | "newLineBelow";
+					const v = value as
+						| "top"
+						| "after"
+						| "bottom"
+						| "newLineAbove"
+						| "newLineBelow"
+						| "activeTop";
 					
-					// Reset all options first
 					this.choice.prepend = false;
 					this.choice.insertAfter.enabled = false;
 					if (!this.choice.newLineCapture) {
 						this.choice.newLineCapture = { enabled: false, direction: "below" };
 					}
 					this.choice.newLineCapture.enabled = false;
+					this.choice.activeFileWritePosition = "cursor";
 					
 					if (v === "top") {
+						this.reload();
+						return;
+					}
+
+					if (v === "activeTop") {
+						if (isActiveFile) {
+							this.choice.activeFileWritePosition = "top";
+						}
 						this.reload();
 						return;
 					}

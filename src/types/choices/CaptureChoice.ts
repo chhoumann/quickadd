@@ -7,6 +7,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	appendLink: boolean | AppendLinkOptions;
 	captureTo: string;
 	captureToActiveFile: boolean;
+	activeFileWritePosition: "cursor" | "top";
 	createFileIfItDoesntExist: {
 		enabled: boolean;
 		createWithTemplate: boolean;
@@ -41,6 +42,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		this.appendLink = false;
 		this.captureTo = "";
 		this.captureToActiveFile = false;
+		this.activeFileWritePosition = "cursor";
 		this.createFileIfItDoesntExist = {
 			enabled: false,
 			createWithTemplate: false,
@@ -71,6 +73,11 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	}
 
 	public static Load(choice: ICaptureChoice): CaptureChoice {
-		return choice as CaptureChoice;
+		const loaded = choice as CaptureChoice;
+		// Ensure backward compatibility: default to "cursor" if not set
+		if (!loaded.activeFileWritePosition) {
+			loaded.activeFileWritePosition = "cursor";
+		}
+		return loaded;
 	}
 }

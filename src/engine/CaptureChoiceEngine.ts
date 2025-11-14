@@ -73,6 +73,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				msg = `Captured to current line in ${fileName}`;
 				break;
 			case "prepend":
+			case "activeFileTop":
 				msg = `Captured to top of ${fileName}`;
 				break;
 			case "append":
@@ -127,10 +128,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-			const action = getCaptureAction(this.choice);
+		const action = getCaptureAction(this.choice);
+		const isEditorInsertionAction =
+			action === "currentLine" ||
+			action === "newLineAbove" ||
+			action === "newLineBelow";
 
-			// Handle capture to active file with special actions
-			if (action === "currentLine" || action === "newLineAbove" || action === "newLineBelow") {
+		// Handle capture to active file with special actions
+		if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
@@ -158,7 +163,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
-				const action = getCaptureAction(this.choice);
 				this.showSuccessNotice(file, {
 					wasNewFile: !fileAlreadyExists,
 					action,
@@ -203,15 +207,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * Gets a formatted file path to capture content to, either the active file or a specified location.
-	 * If capturing to a folder, suggests a file within the folder to capture the content to.
-	 *
-	 * @param {boolean} shouldCaptureToActiveFile - Determines if the content should be captured to the active file.
-	 * @returns {Promise<string>} A promise that resolves to the formatted file path where the content should be captured.
-	 *
-	 * @throws {Error} Throws an error if there's no active file when trying to capture to active file,
-	 *                 if the capture path is invalid, or if the target folder is empty.
-	 */
+		* Gets a formatted file path to capture content to, either the active file or a specified location.
+		* If capturing to a folder, suggests a file within the folder to capture the content to.
+		*
+		* @param {boolean} shouldCaptureToActiveFile - Determines if the content should be captured to the active file.
+		* @returns {Promise<string>} A promise that resolves to the formatted file path where the content should be captured.
+		*
+		* @throws {Error} Throws an error if there's no active file when trying to capture to active file,
+		*                 if the capture path is invalid, or if the target folder is empty.
+		*/
 	private async getFormattedPathToCaptureTo(
 		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {

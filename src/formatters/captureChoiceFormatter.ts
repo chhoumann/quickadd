@@ -68,7 +68,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const shouldRunTemplater =
 			choice.insertAfter.enabled ||
 			choice.prepend ||
-			!choice.captureToActiveFile;
+			!choice.captureToActiveFile ||
+			choice.activeFileWritePosition === "top";
 		const formatted = await this.formatFileContent(input, shouldRunTemplater);
 		return formatted;
 	}
