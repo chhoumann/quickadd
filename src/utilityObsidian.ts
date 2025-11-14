@@ -18,6 +18,7 @@ import type {
 	FileViewMode2 as FileViewModeNew
 } from "./types/fileOpening";
 import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
+import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
 
@@ -230,11 +231,11 @@ export function insertLinkWithPlacement(
 	//////////////////////////////////////////////////////////////////
 
 	/**
-	 * Helper that converts a {line, ch} position to a monotonically
-	 * increasing index so we can sort selections bottom-to-top.  
-	 * Sorting bottom-to-top prevents indices from becoming stale while
-	 * we insert (because later lines are modified first).
-	 */
+		* Helper that converts a {line, ch} position to a monotonically
+		* increasing index so we can sort selections bottom-to-top.
+		* Sorting bottom-to-top prevents indices from becoming stale while
+		* we insert (because later lines are modified first).
+		*/
 	const asIndex = ({ line, ch }: { line: number; ch: number; }) =>
 		editor.posToOffset({ line, ch });
 
@@ -284,6 +285,23 @@ export function insertLinkWithPlacement(
 }
 
 /**
+	* Converts a regular link to an embed by adding the embed prefix (!).
+	* Works with both wiki-style and markdown-style links.
+	*/
+function convertLinkToEmbed(link: string): string {
+	if (link.startsWith("!")) {
+		return link;
+	}
+
+	const firstBracketIndex = link.indexOf("[");
+	if (firstBracketIndex === -1) {
+		return `!${link}`;
+	}
+
+	return `${link.slice(0, firstBracketIndex)}!${link.slice(firstBracketIndex)}`;
+}
+
+/**
  * Inserts a link to the specified file into the active view, respecting 
  * Obsidian's "New link format" setting.
  * 
@@ -313,9 +331,15 @@ export function insertFileLinkToActiveView(
 	}
 
 	const sourcePath = activeFile?.path ?? "";
+	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
+	const shouldEmbed =
+		linkOptions.linkType === "embed" &&
+		placementSupportsEmbed(linkOptions.placement);
+	const linkText = shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
+
 	insertLinkWithPlacement(
 		app,
-		app.fileManager.generateMarkdownLink(file, sourcePath),
+		linkText,
 		linkOptions.placement,
 		{ requireActiveView: false },
 	);

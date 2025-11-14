@@ -7,6 +7,21 @@ export type LinkPlacement =
 	| "endOfLine"         // Insert the link at the end of the current line
 	| "newLine";          // Insert the link on a new line
 
+export type LinkType = "link" | "embed";
+
+export function placementSupportsEmbed(placement: LinkPlacement): boolean {
+	return placement === "replaceSelection";
+}
+
+function sanitizeLinkType(
+	linkType: LinkType | undefined,
+	placement: LinkPlacement,
+): LinkType {
+	return linkType === "embed" && placementSupportsEmbed(placement)
+		? "embed"
+		: "link";
+}
+
 /**
  * Configuration options for appending links to content.
  * Provides granular control over link placement behavior.
@@ -21,6 +36,11 @@ export interface AppendLinkOptions {
 	 * When false, skip link insertion silently if there is no active file.
 	 */
 	requireActiveFile: boolean;
+	/**
+	 * Controls how the link renders. "embed" is only respected when placement is replaceSelection.
+	 * Defaults to "link" for legacy settings.
+	 */
+	linkType?: LinkType;
 }
 
 /**
@@ -44,12 +64,15 @@ export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): ap
  * @param appendLink - Legacy boolean or new options format
  * @returns Normalized AppendLinkOptions
  */
-export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions {
+export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions & { linkType: LinkType } {
 	if (isAppendLinkOptions(appendLink)) {
+		const placement = appendLink.placement ?? "replaceSelection";
+
 		return {
 			enabled: appendLink.enabled,
-			placement: appendLink.placement ?? "replaceSelection",
+			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
+			linkType: sanitizeLinkType(appendLink.linkType, placement),
 		};
 	}
 
@@ -58,6 +81,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 		enabled: appendLink,
 		placement: "replaceSelection", // Default placement for backward compatibility
 		requireActiveFile: appendLink ? true : false,
+		linkType: "link",
 	};
 }
 
