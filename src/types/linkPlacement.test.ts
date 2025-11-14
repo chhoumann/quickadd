@@ -36,7 +36,10 @@ describe("LinkPlacement", () => {
 				placement: "afterSelection",
 				requireActiveFile: false,
 			};
-			expect(normalizeAppendLinkOptions(options)).toEqual(options);
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+			});
 		});
 
 		it("should convert true to enabled with default placement", () => {
@@ -45,6 +48,7 @@ describe("LinkPlacement", () => {
 				enabled: true,
 				placement: "replaceSelection",
 				requireActiveFile: true,
+				linkType: "link",
 			});
 		});
 
@@ -54,6 +58,7 @@ describe("LinkPlacement", () => {
 				enabled: false,
 				placement: "replaceSelection",
 				requireActiveFile: false,
+				linkType: "link",
 			});
 		});
 	});
