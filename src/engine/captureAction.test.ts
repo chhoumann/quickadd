@@ -10,6 +10,7 @@ describe("getCaptureAction", () => {
 		command: false,
 		captureTo: "",
 		captureToActiveFile: false,
+		activeFileWritePosition: "cursor",
 		createFileIfItDoesntExist: { enabled: false, createWithTemplate: false, template: "" },
 		format: { enabled: false, format: "" },
 		prepend: false,
@@ -77,5 +78,31 @@ describe("getCaptureAction", () => {
 			newLineCapture: { enabled: true, direction: "below" }
 		});
 		expect(getCaptureAction(choice)).toBe("newLineBelow");
+	});
+
+	it("returns 'activeFileTop' when capturing to active file with write position set to top", () => {
+		const choice = createChoice({
+			captureToActiveFile: true,
+			activeFileWritePosition: "top",
+		});
+		expect(getCaptureAction(choice)).toBe("activeFileTop");
+	});
+
+	it("returns 'currentLine' when capturing to active file with default cursor position", () => {
+		const choice = createChoice({
+			captureToActiveFile: true,
+			activeFileWritePosition: "cursor",
+		});
+		expect(getCaptureAction(choice)).toBe("currentLine");
+	});
+
+	it("prioritizes 'activeFileTop' over the default append action when eligible", () => {
+		const choice = createChoice({
+			captureToActiveFile: true,
+			activeFileWritePosition: "top",
+			prepend: false,
+			insertAfter: { enabled: false, after: "", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" },
+		});
+		expect(getCaptureAction(choice)).toBe("activeFileTop");
 	});
 });

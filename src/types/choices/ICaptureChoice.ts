@@ -5,6 +5,7 @@ import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 export default interface ICaptureChoice extends IChoice {
 	captureTo: string;
 	captureToActiveFile: boolean;
+	activeFileWritePosition?: "cursor" | "top";
 	createFileIfItDoesntExist: {
 		enabled: boolean;
 		createWithTemplate: boolean;
@@ -14,10 +15,10 @@ export default interface ICaptureChoice extends IChoice {
 	/** Capture to bottom of file (after current file content). */
 	prepend: boolean;
 	/** 
-	 * Configure link appending behavior. 
-	 * - boolean: Legacy format for backward compatibility (true = enabled with default placement)
-	 * - AppendLinkOptions: New format with configurable placement options
-	 */
+		* Configure link appending behavior.
+		* - boolean: Legacy format for backward compatibility (true = enabled with default placement)
+		* - AppendLinkOptions: New format with configurable placement options
+		*/
 	appendLink: boolean | AppendLinkOptions;
 	task: boolean;
 	insertAfter: {
