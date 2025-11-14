@@ -78,25 +78,26 @@ describe("insertLinkIntoContent", () => {
 	const linkText = "[[Test Note]]";
 
 	describe("prepend behavior", () => {
-		it("inserts link at bottom when prepend=true", () => {
+		it("inserts link at top when prepend=true", () => {
 			const content = "Line 1\nLine 2\nLine 3";
 			const result = insertLinkIntoContent(content, linkText, {
 				placement: "endOfLine",
 				prepend: true,
 			});
 
-			expect(result).toBe("Line 1\nLine 2\nLine 3[[Test Note]]");
+			expect(result).toBe("[[Test Note]]Line 1\nLine 2\nLine 3");
 		});
 
-		it("inserts link at bottom with frontmatter when prepend=true", () => {
+		it("inserts link at top with frontmatter when prepend=true", () => {
 			const content = "---\ntitle: Test\n---\nBody line 1\nBody line 2";
 			const result = insertLinkIntoContent(content, linkText, {
 				placement: "endOfLine",
 				prepend: true,
 			});
 
+			// endOfLine with prepend at frontmatter inserts after frontmatter (new line)
 			expect(result).toBe(
-				"---\ntitle: Test\n---\nBody line 1\nBody line 2[[Test Note]]",
+				"---\ntitle: Test\n---\n[[Test Note]]Body line 1\nBody line 2",
 			);
 		});
 
@@ -108,6 +109,7 @@ describe("insertLinkIntoContent", () => {
 			});
 
 			expect(result).toBe("[[Test Note]]");
+// ... existing code ...
 		});
 	});
 
@@ -244,46 +246,66 @@ describe("insertLinkIntoContent", () => {
 	});
 
 	describe("placement options", () => {
+		const content = [
+			"---",
+			"title: Test",
+			"---",
+			"## Anchor",
+			"Line 1",
+			"Line 2",
+		].join("\n");
+
+		const insertAfter: ICaptureChoice["insertAfter"] = {
+			enabled: true,
+			after: "## Anchor",
+			insertAtEnd: false,
+			considerSubsections: false,
+			createIfNotFound: false,
+			createIfNotFoundLocation: "top",
+		};
+
 		it("inserts at end of line with endOfLine placement", () => {
-			const content = "Line 1\nLine 2";
 			const result = insertLinkIntoContent(content, linkText, {
 				placement: "endOfLine",
-				prepend: true,
+				insertAfter,
 			});
 
-			expect(result).toBe("Line 1\nLine 2[[Test Note]]");
+			expect(result).toBe(
+				"---\ntitle: Test\n---\n## Anchor[[Test Note]]\nLine 1\nLine 2",
+			);
 		});
 
 		it("inserts on new line with newLine placement", () => {
-			const content = "Line 1\nLine 2";
 			const result = insertLinkIntoContent(content, linkText, {
 				placement: "newLine",
-				prepend: true,
+				insertAfter,
 			});
 
-			expect(result).toBe("Line 1\nLine 2\n[[Test Note]]");
+			expect(result).toBe(
+				"---\ntitle: Test\n---\n## Anchor\n[[Test Note]]Line 1\nLine 2",
+			);
 		});
 
 		it("normalizes afterSelection to endOfLine", () => {
-			const content = "Line 1\nLine 2";
 			const result = insertLinkIntoContent(content, linkText, {
 				placement: "afterSelection",
-				prepend: true,
+				insertAfter,
 			});
 
-			// Should behave like endOfLine
-			expect(result).toBe("Line 1\nLine 2[[Test Note]]");
+			expect(result).toBe(
+				"---\ntitle: Test\n---\n## Anchor[[Test Note]]\nLine 1\nLine 2",
+			);
 		});
 
 		it("inserts after anchor line with replaceSelection placement", () => {
-			const content = "Line 1\nLine 2\nLine 3";
 			const result = insertLinkIntoContent(content, linkText, {
 				placement: "replaceSelection",
-				prepend: true,
+				insertAfter,
 			});
 
-			// replaceSelection inserts at afterLineOffset (after anchor line), which is end of content when prepend=true
-			expect(result).toBe("Line 1\nLine 2\nLine 3[[Test Note]]");
+			expect(result).toBe(
+				"---\ntitle: Test\n---\n## Anchor\n[[Test Note]]Line 1\nLine 2",
+			);
 		});
 	});
 

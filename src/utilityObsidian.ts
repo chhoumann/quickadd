@@ -323,24 +323,38 @@ export function insertLinkIntoContent(
 			: clampedAnchor + 1 < lines.length
 				? lines[clampedAnchor + 1].start
 				: workingContent.length;
+	const frontmatterAnchorLine = findFrontmatterAnchorLineFromContent(workingContent);
+	const anchorIsFrontmatter =
+		(options.prepend ?? false) &&
+		clampedAnchor === frontmatterAnchorLine &&
+		frontmatterAnchorLine !== -1;
 
-	let insertionOffset =
-		normalizedPlacement === "endOfLine" ? lineEndOffset : afterLineOffset;
+	let insertionOffset: number;
 	let payload = linkText;
 
-	if (clampedAnchor < 0 && normalizedPlacement === "endOfLine") {
-		insertionOffset = 0;
-	}
-
-	if (normalizedPlacement === "newLine") {
+	switch (normalizedPlacement) {
+		case "newLine": {
+			const offset = afterLineOffset;
+			const needsLeadingNewline =
+				offset > 0 && workingContent[offset - 1] !== "\n";
+			insertionOffset = offset;
+			payload = `${needsLeadingNewline ? "\n" : ""}${linkText}`;
+			break;
+		}
+		case "replaceSelection":
+			insertionOffset = afterLineOffset;
+			break;
+		case "endOfLine":
+			insertionOffset =
+				clampedAnchor < 0
+					? 0
+					: anchorIsFrontmatter
+						? afterLineOffset
+						: lineEndOffset;
+			break;
+		default:
 		insertionOffset = afterLineOffset;
-		const needsLeadingNewline =
-			insertionOffset > 0 && workingContent[insertionOffset - 1] !== "\n";
-		payload = `${needsLeadingNewline ? "\n" : ""}${linkText}`;
-	} else if (normalizedPlacement === "replaceSelection") {
-		insertionOffset = afterLineOffset;
-	} else if (normalizedPlacement === "endOfLine") {
-		insertionOffset = clampedAnchor < 0 ? 0 : lineEndOffset;
+		break;
 	}
 
 	return spliceString(
@@ -372,7 +386,7 @@ export async function insertLinkIntoFile(
 
 	const res = merge(latestContent, originalContent, patchedContent);
 	invariant(
-		res.isSuccess,
+		!res.conflict,
 		() =>
 			`insertLinkIntoFile: ${targetFile.path} changed before QuickAdd could append the link.
 QuickAdd could not merge those edits without conflicts, so it left the file untouched to prevent data loss.`,
