@@ -39,6 +39,14 @@ function findInsertAfterIndex(lines: string[], rawTarget: string): number {
       const suffix = line.slice(target.length);
       if (/^\s*$/.test(suffix)) return i;
       if (partialIndex === -1) partialIndex = i;
+      continue;
+    }
+
+    const targetIndex = line.indexOf(target);
+    if (targetIndex !== -1) {
+      const suffix = line.slice(targetIndex + target.length);
+      if (/^\s*$/.test(suffix)) return i;
+      if (partialIndex === -1) partialIndex = i;
     }
   }
 
@@ -147,5 +155,47 @@ describe('Insert after — {{title}} resolution', () => {
 
     expect(newContent.includes(title)).toBe(true);
     expect(newContent.includes('{{title}}')).toBe(false);
+  });
+});
+
+describe('Insert after — table separator matching', () => {
+  it('matches table separator row when target appears at end of line', () => {
+    const fileContent = [
+      '| Name          | Quantity | HH:MM |',
+      '| ------------- | -------- | ----- |',
+      '| data          | 5        | 10:00 |',
+    ].join('\n');
+
+    const target = '| ----- |';
+    const lines = fileContent.split('\n');
+    const idx = findInsertAfterIndex(lines, target);
+    
+    // Should match line 1 (index 1) where "| ----- |" appears at the end
+    expect(idx).toBe(1);
+
+    const newContent = insertTextAfterPositionInBody('| new | row |\n', fileContent, idx);
+    const expected = [
+      '| Name          | Quantity | HH:MM |',
+      '| ------------- | -------- | ----- |',
+      '| new | row |',
+      '| data          | 5        | 10:00 |',
+    ].join('\n');
+
+    expect(newContent).toBe(expected);
+  });
+
+  it('matches exact table separator row', () => {
+    const fileContent = [
+      '| Name | Quantity |',
+      '| ----- |',
+      '| data | 5 |',
+    ].join('\n');
+
+    const target = '| ----- |';
+    const lines = fileContent.split('\n');
+    const idx = findInsertAfterIndex(lines, target);
+    
+    // Should match line 1 (index 1) with exact match
+    expect(idx).toBe(1);
   });
 });

@@ -19,11 +19,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private fileContent = "";
 	private sourcePath: string | null = null;
 	/**
-	 * Tracks whether the current formatter instance has already run Templater on the
-	 * capture payload.  This prevents the same content from being parsed twice in
-	 * multi-stage formatting flows (see issue #533 – double execution when using
-	 * tp.system.prompt).
-	 */
+		* Tracks whether the current formatter instance has already run Templater on the
+		* capture payload.  This prevents the same content from being parsed twice in
+		* multi-stage formatting flows (see issue #533 – double execution when using
+		* tp.system.prompt).
+		*/
 	private templaterProcessed = false;
 
 	public setDestinationFile(file: TFile): void {
@@ -163,13 +163,31 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			// 1. Exact match wins immediately
 			if (line === target) return i;
 
-			// 2. Check for regex-compatible match (target + only whitespace suffix)
+			// 2. Check for prefix match (target + only whitespace suffix)
+			// This matches old regex behavior for lines starting with the target
 			if (line.startsWith(target)) {
 				const suffix = line.slice(target.length);
 				// If suffix is only whitespace, this matches old regex behavior exactly
 				if (/^\s*$/.test(suffix)) return i;
-				
+
 				// Remember first broader prefix match as fallback
+				if (partialIndex === -1) {
+					partialIndex = i;
+				}
+
+				continue;
+			}
+
+			// 3. Check for substring match (target appears anywhere in line with only whitespace after)
+			// This restores legacy behavior where selectors like "| ----- |" can match
+			// table separator rows where the target appears at the end
+			const targetIndex = line.indexOf(target);
+			if (targetIndex !== -1) {
+				const suffix = line.slice(targetIndex + target.length);
+				// If suffix is only whitespace, match this line
+				if (/^\s*$/.test(suffix)) return i;
+
+				// Remember first broader substring match as fallback
 				if (partialIndex === -1) {
 					partialIndex = i;
 				}
