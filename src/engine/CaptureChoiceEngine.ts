@@ -440,7 +440,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return insertAfter;
 		}
 
-		const formattedTarget = await this.formatter.formatLocationString(
+		const formattedTarget = await this.formatInsertAfterTargetSafe(
 			rawTarget,
 		);
 
@@ -448,6 +448,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			...insertAfter,
 			after: formattedTarget,
 		};
+	}
+
+	private formatInsertAfterTargetSafe(rawTarget: string): Promise<string> {
+		// formatLocationString is protected on CompleteFormatter; cast until a public wrapper exists.
+		const formatter = this.formatter as unknown as {
+			formatLocationString: (value: string) => Promise<string>;
+		};
+
+		return formatter.formatLocationString(rawTarget);
 	}
 
 	private async onFileExists(

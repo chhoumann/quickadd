@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { __test } from "./utilityObsidian";
 import { insertLinkIntoContent } from "./utilityObsidian";
-import type { LinkPlacement } from "./types/linkPlacement";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 
 const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
