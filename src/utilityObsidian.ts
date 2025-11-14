@@ -372,9 +372,10 @@ export async function insertLinkIntoFile(
 
 	const res = merge(latestContent, originalContent, patchedContent);
 	invariant(
-		!res.isSuccess,
+		res.isSuccess,
 		() =>
-			`insertLinkIntoFile: ${targetFile.path} changed before QuickAdd could append the link.\nQuickAdd could not merge those edits without conflicts, so it left the file untouched to prevent data loss.`,
+			`insertLinkIntoFile: ${targetFile.path} changed before QuickAdd could append the link.
+QuickAdd could not merge those edits without conflicts, so it left the file untouched to prevent data loss.`,
 	);
 
 	const mergedContent = res.joinedResults() as string;
