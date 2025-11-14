@@ -16,7 +16,10 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	buildLinkTextForFile,
 	insertFileLinkToActiveView,
+	insertLinkIntoContent,
+	insertLinkIntoFile,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
 	isFolder,
@@ -125,14 +128,66 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				return;
 			}
 
-			const { file, newFileContent, captureContent } =
-				await getFileAndAddContentFn(filePath, content);
+			const {
+				file,
+				newFileContent: initialNewFileContent,
+				captureContent,
+			} = await getFileAndAddContentFn(filePath, content);
+			let newFileContent = initialNewFileContent;
 
-		const action = getCaptureAction(this.choice);
-		const isEditorInsertionAction =
-			action === "currentLine" ||
-			action === "newLineAbove" ||
-			action === "newLineBelow";
+			const action = getCaptureAction(this.choice);
+			const isEditorInsertionAction =
+				action === "currentLine" ||
+				action === "newLineAbove" ||
+				action === "newLineBelow";
+
+			type PendingLinkInsertion =
+				| { kind: "activeView"; }
+				| {
+						kind: "file";
+						targetFile: TFile;
+						linkText: string;
+						insertAfter?: ICaptureChoice["insertAfter"];
+				};
+			let pendingLinkInsertion: PendingLinkInsertion | null = null;
+
+			if (linkOptions.enabled) {
+				const targetExpression = linkOptions.targetFile?.trim();
+				if (targetExpression) {
+					const linkTargetFile = await this.resolveAppendLinkTargetFile(
+						targetExpression,
+					);
+					const linkText = buildLinkTextForFile(
+						this.app,
+						file,
+						linkTargetFile.path,
+						linkOptions,
+					);
+					const insertAfterForLink =
+						await this.getFormattedInsertAfterForLinkTarget();
+
+					if (linkTargetFile.path === file.path) {
+						if (isEditorInsertionAction) {
+							pendingLinkInsertion = { kind: "activeView" };
+						} else {
+							newFileContent = insertLinkIntoContent(newFileContent, linkText, {
+								placement: linkOptions.placement,
+								insertAfter: insertAfterForLink,
+								prepend: this.choice.prepend,
+							});
+						}
+					} else {
+						pendingLinkInsertion = {
+							kind: "file",
+							targetFile: linkTargetFile,
+							linkText,
+							insertAfter: insertAfterForLink,
+						};
+					}
+				} else {
+					pendingLinkInsertion = { kind: "activeView" };
+				}
+			}
 
 		// Handle capture to active file with special actions
 		if (isEditorInsertionAction) {
@@ -169,9 +224,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-				if (linkOptions.enabled) {
+			if (pendingLinkInsertion?.kind === "activeView") {
 				insertFileLinkToActiveView(this.app, file, linkOptions);
-				}
+			} else if (pendingLinkInsertion?.kind === "file") {
+				await insertLinkIntoFile(
+					this.app,
+					pendingLinkInsertion.targetFile,
+					pendingLinkInsertion.linkText,
+					{
+						placement: linkOptions.placement,
+						insertAfter: pendingLinkInsertion.insertAfter,
+						prepend: this.choice.prepend,
+					},
+				);
+			}
 
 			if (this.choice.openFile && file) {
 				const openExistingTab = openExistingFileTab(this.app, file);
@@ -331,6 +397,57 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 		return await this.formatFilePath(targetFilePath);
+	}
+
+	private async resolveAppendLinkTargetFile(rawTarget: string): Promise<TFile> {
+		const formattedTarget = await this.formatFilePath(rawTarget);
+		let resolvedPath = formattedTarget;
+
+		if (formattedTarget.startsWith("#")) {
+			const tag = formattedTarget.replace(/\.md$/, "");
+			resolvedPath = await this.selectFileWithTag(tag);
+		} else {
+			const folderPath = formattedTarget.replace(/^\/$|\/\.md$|^\.md$/, "");
+			const captureAnywhereInVault = folderPath === "";
+			const shouldCaptureToFolder =
+				captureAnywhereInVault || isFolder(this.app, folderPath);
+
+			if (shouldCaptureToFolder) {
+				resolvedPath = await this.selectFileInFolder(
+					folderPath,
+					captureAnywhereInVault,
+				);
+			}
+		}
+
+		const targetFile = this.getFileByPath(resolvedPath);
+		invariant(
+			targetFile,
+			() => `Cannot append link – target file "${resolvedPath}" was not found.`,
+		);
+
+		return targetFile;
+	}
+
+	private async getFormattedInsertAfterForLinkTarget(): Promise<ICaptureChoice["insertAfter"] | undefined> {
+		const insertAfter = this.choice.insertAfter;
+		if (!insertAfter?.enabled) {
+			return insertAfter;
+		}
+
+		const rawTarget = insertAfter.after ?? "";
+		if (rawTarget.trim().length === 0) {
+			return insertAfter;
+		}
+
+		const formattedTarget = await this.formatter.formatLocationString(
+			rawTarget,
+		);
+
+		return {
+			...insertAfter,
+			after: formattedTarget,
+		};
 	}
 
 	private async onFileExists(

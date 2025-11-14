@@ -6,9 +6,15 @@ import type {
 } from "obsidian";
 import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
 import { log } from "./logger/logManager";
+import {
+	CREATE_IF_NOT_FOUND_BOTTOM,
+	CREATE_IF_NOT_FOUND_CURSOR,
+	CREATE_IF_NOT_FOUND_TOP,
+} from "./constants";
 import { NLDParser } from "./parsers/NLDParser";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
 import type IChoice from "./types/choices/IChoice";
+import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type { MacroChoice } from "./types/choices/MacroChoice";
 import type { MultiChoice } from "./types/choices/MultiChoice";
 import type { TemplateChoice } from "./types/choices/TemplateChoice";
@@ -21,6 +27,7 @@ import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
 import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
+import { findYamlFrontMatterRange } from "./utils/yamlContext";
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -284,6 +291,329 @@ export function insertLinkWithPlacement(
 	}
 }
 
+export function insertLinkIntoContent(
+	content: string,
+	linkText: string,
+	options: {
+		placement: LinkPlacement;
+		insertAfter?: ICaptureChoice["insertAfter"];
+		prepend?: boolean;
+	},
+): string {
+	const normalizedPlacement: LinkPlacement =
+		options.placement === "afterSelection" ? "endOfLine" : options.placement;
+
+	let workingContent = content;
+	const { content: resolvedContent, lines, anchorLine } = resolveAnchorContext(
+		workingContent,
+		options.insertAfter,
+		options.prepend ?? false,
+	);
+	workingContent = resolvedContent;
+
+	const maxAnchor = lines.length > 0 ? lines.length - 1 : -1;
+	const clampedAnchor = Math.min(Math.max(anchorLine, -1), maxAnchor);
+	const anchorInfo = clampedAnchor >= 0 ? lines[clampedAnchor] : undefined;
+	const lineEndOffset = anchorInfo ? anchorInfo.end : 0;
+	const afterLineOffset =
+		clampedAnchor < 0
+			? 0
+			: clampedAnchor + 1 < lines.length
+				? lines[clampedAnchor + 1].start
+				: workingContent.length;
+
+	let insertionOffset =
+		normalizedPlacement === "endOfLine" ? lineEndOffset : afterLineOffset;
+	let payload = linkText;
+
+	if (clampedAnchor < 0 && normalizedPlacement === "endOfLine") {
+		insertionOffset = 0;
+	}
+
+	if (normalizedPlacement === "newLine") {
+		insertionOffset = afterLineOffset;
+		const needsLeadingNewline =
+			insertionOffset > 0 && workingContent[insertionOffset - 1] !== "\n";
+		payload = `${needsLeadingNewline ? "\n" : ""}${linkText}`;
+	} else if (normalizedPlacement === "replaceSelection") {
+		insertionOffset = afterLineOffset;
+	} else if (normalizedPlacement === "endOfLine") {
+		insertionOffset = clampedAnchor < 0 ? 0 : lineEndOffset;
+	}
+
+	return spliceString(
+		workingContent,
+		insertionOffset,
+		insertionOffset,
+		payload,
+	);
+}
+
+export async function insertLinkIntoFile(
+	app: App,
+	targetFile: TFile,
+	linkText: string,
+	options: {
+		placement: LinkPlacement;
+		insertAfter?: ICaptureChoice["insertAfter"];
+		prepend?: boolean;
+	},
+): Promise<void> {
+	const currentContent = await app.vault.read(targetFile);
+	const updatedContent = insertLinkIntoContent(currentContent, linkText, options);
+
+	await app.vault.modify(targetFile, updatedContent);
+}
+
+type InsertAfterOptions = ICaptureChoice["insertAfter"];
+
+interface LineInfo {
+	start: number;
+	end: number;
+	text: string;
+}
+
+function resolveAnchorContext(
+	content: string,
+	insertAfter?: InsertAfterOptions,
+	prepend?: boolean,
+): { content: string; lines: LineInfo[]; anchorLine: number; } {
+	let working = content;
+	let lines = collectLineInfo(working);
+
+	const normalizedInsertAfter =
+		insertAfter &&
+		insertAfter.enabled &&
+		typeof insertAfter.after === "string" &&
+		insertAfter.after.trim().length > 0
+			? insertAfter
+			: undefined;
+
+	if (normalizedInsertAfter) {
+		const located = locateInsertAfterLine(working, lines, normalizedInsertAfter);
+		working = located.content;
+		lines = located.lines;
+		if (located.anchorLine !== null) {
+			return {
+				content: working,
+				lines,
+				anchorLine: located.anchorLine,
+			};
+		}
+
+		log.logMessage(
+			`insertLinkIntoFile: "${normalizedInsertAfter.after}" not found. Falling back to append.`,
+		);
+	}
+
+	if (prepend) {
+		return {
+			content: working,
+			lines,
+			anchorLine: lines.length > 0 ? lines.length - 1 : -1,
+		};
+	}
+
+	return {
+		content: working,
+		lines,
+		anchorLine: findFrontmatterAnchorLineFromContent(working),
+	};
+}
+
+function findFrontmatterAnchorLineFromContent(content: string): number {
+	const yamlRange = findYamlFrontMatterRange(content);
+	if (!yamlRange) {
+		return -1;
+	}
+
+	const [, rangeEnd] = yamlRange;
+	const frontmatterPrefix = content.slice(0, rangeEnd);
+	if (!frontmatterPrefix) {
+		return -1;
+	}
+
+	const lines = frontmatterPrefix.split(/\r?\n/);
+	if (lines.length === 0) {
+		return -1;
+	}
+
+	const lineIndex = frontmatterPrefix.endsWith("\n")
+		? lines.length - 2
+		: lines.length - 1;
+	return lineIndex >= 0 ? lineIndex : -1;
+}
+
+function locateInsertAfterLine(
+	content: string,
+	lines: LineInfo[],
+	insertAfter: InsertAfterOptions,
+): { content: string; lines: LineInfo[]; anchorLine: number | null; } {
+	const target = insertAfter.after?.trim();
+	if (!target) {
+		return { content, lines, anchorLine: null };
+	}
+
+	let matchIndex = findLineIndexByText(lines, target);
+	if (matchIndex === -1 && insertAfter.createIfNotFound) {
+		const created = createInsertAfterLine(
+			content,
+			insertAfter.after ?? target,
+			insertAfter.createIfNotFoundLocation,
+		);
+		content = created.content;
+		lines = created.lines;
+		matchIndex = created.insertedLineIndex;
+	}
+
+	if (matchIndex === -1) {
+		return { content, lines, anchorLine: null };
+	}
+
+	if (!insertAfter.insertAtEnd) {
+		return { content, lines, anchorLine: matchIndex };
+	}
+
+	const anchor = findSectionEndLineIndex(
+		lines,
+		matchIndex,
+		insertAfter.considerSubsections ?? false,
+	);
+	return { content, lines, anchorLine: anchor };
+}
+
+function collectLineInfo(content: string): LineInfo[] {
+	const lines: LineInfo[] = [];
+	let lineStart = 0;
+
+	for (let i = 0; i <= content.length; i++) {
+		const isBreak = i === content.length || content[i] === "\n";
+		if (!isBreak) continue;
+
+		lines.push({
+			start: lineStart,
+			end: i,
+			text: content.slice(lineStart, i),
+		});
+		lineStart = i + 1;
+	}
+
+	return lines.length > 0 ? lines : [{ start: 0, end: 0, text: "" }];
+}
+
+function findLineIndexByText(lines: LineInfo[], target: string): number {
+	const normalizedTarget = target.trim();
+	if (!normalizedTarget) {
+		return -1;
+	}
+
+	const hasOnlyWhitespace = (value: string) =>
+		value.length === 0 || /^\s+$/.test(value);
+
+	for (let i = 0; i < lines.length; i++) {
+		const trimmedLine = lines[i].text.trim();
+		if (trimmedLine === normalizedTarget) {
+			return i;
+		}
+
+		if (trimmedLine.startsWith(normalizedTarget)) {
+			const suffix = trimmedLine.slice(normalizedTarget.length);
+			if (hasOnlyWhitespace(suffix)) {
+				return i;
+			}
+		}
+
+		const matchIndex = trimmedLine.indexOf(normalizedTarget);
+		if (matchIndex > 0) {
+			const suffix = trimmedLine.slice(
+				matchIndex + normalizedTarget.length,
+			);
+			if (hasOnlyWhitespace(suffix)) {
+				return i;
+			}
+		}
+	}
+
+	return -1;
+}
+
+function findSectionEndLineIndex(
+	lines: LineInfo[],
+	startIndex: number,
+	includeSubsections: boolean,
+): number {
+	if (startIndex < 0 || startIndex >= lines.length) {
+		return lines.length > 0 ? lines.length - 1 : -1;
+	}
+
+	const startLevel = getHeadingLevel(lines[startIndex].text);
+	if (startLevel === null) {
+		return startIndex;
+	}
+
+	for (let i = startIndex + 1; i < lines.length; i++) {
+		const level = getHeadingLevel(lines[i].text);
+		if (level === null) {
+			continue;
+		}
+
+		if (level <= startLevel) {
+			return i - 1;
+		}
+
+		if (!includeSubsections && level > startLevel) {
+			return i - 1;
+		}
+	}
+
+	return lines.length - 1;
+}
+
+function getHeadingLevel(line: string): number | null {
+	const trimmed = line.trim();
+	if (!trimmed.startsWith("#")) {
+		return null;
+	}
+
+	const match = trimmed.match(/^(#+)/);
+	return match ? match[1].length : null;
+}
+
+function createInsertAfterLine(
+	content: string,
+	rawLine: string,
+	location?: string,
+): { content: string; lines: LineInfo[]; insertedLineIndex: number; } {
+	const targetLine = rawLine ?? "";
+	const setting = location ?? CREATE_IF_NOT_FOUND_TOP;
+
+	if (setting === CREATE_IF_NOT_FOUND_BOTTOM) {
+		const needsNewline = content.length > 0 && !content.endsWith("\n");
+		const updated = `${content}${needsNewline ? "\n" : ""}${targetLine}`;
+		const lines = collectLineInfo(updated);
+		return { content: updated, lines, insertedLineIndex: lines.length - 1 };
+	}
+
+	if (setting === CREATE_IF_NOT_FOUND_CURSOR) {
+		log.logMessage(
+			"insertLinkIntoFile: createIfNotFound \"cursor\" fallback defaults to top of file for non-editor inserts.",
+		);
+	}
+
+	const updated = targetLine + (content.length > 0 ? `\n${content}` : "");
+	const lines = collectLineInfo(updated);
+	return { content: updated, lines, insertedLineIndex: 0 };
+}
+
+function spliceString(
+	source: string,
+	start: number,
+	end: number,
+	insert: string,
+): string {
+	return `${source.slice(0, start)}${insert}${source.slice(end)}`;
+}
+
 /**
 	* Extracts the target path from a markdown-style link.
 	* Works with both wiki-style and markdown-style links.
@@ -337,6 +667,29 @@ function convertLinkToEmbed(link: string): string {
 }
 
 /**
+	* Builds link text for a file with optional embed formatting.
+	*
+	* @param app - The Obsidian app instance
+	* @param file - The file to link to
+	* @param sourcePath - The path of the source file (for relative link generation)
+	* @param linkOptions - Options controlling link type and placement
+	* @returns The formatted link text, with embed prefix if applicable
+	*/
+
+export function buildLinkTextForFile(
+	app: App,
+	file: TFile,
+	sourcePath: string,
+	linkOptions: AppendLinkOptions,
+): string {
+	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
+	const shouldEmbed =
+		linkOptions.linkType === "embed" &&
+		placementSupportsEmbed(linkOptions.placement);
+	return shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
+}
+
+/**
  * Inserts a link to the specified file into the active view, respecting 
  * Obsidian's "New link format" setting.
  * 
@@ -366,18 +719,11 @@ export function insertFileLinkToActiveView(
 	}
 
 	const sourcePath = activeFile?.path ?? "";
-	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
-	const shouldEmbed =
-		linkOptions.linkType === "embed" &&
-		placementSupportsEmbed(linkOptions.placement);
-	const linkText = shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
+	const linkText = buildLinkTextForFile(app, file, sourcePath, linkOptions);
 
-	insertLinkWithPlacement(
-		app,
-		linkText,
-		linkOptions.placement,
-		{ requireActiveView: false },
-	);
+	insertLinkWithPlacement(app, linkText, linkOptions.placement, {
+		requireActiveView: false,
+	});
 
 	return true;
 }

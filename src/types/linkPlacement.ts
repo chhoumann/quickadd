@@ -32,15 +32,20 @@ export interface AppendLinkOptions {
 	/** Where to place the appended link */
 	placement: LinkPlacement;
 	/**
-	 * When true, throw an error if no active file is available for link insertion.
-	 * When false, skip link insertion silently if there is no active file.
-	 */
+		* When true, throw an error if no active file is available for link insertion.
+		* When false, skip link insertion silently if there is no active file.
+		*/
 	requireActiveFile: boolean;
 	/**
-	 * Controls how the link renders. "embed" is only respected when placement is replaceSelection.
-	 * Defaults to "link" for legacy settings.
-	 */
+		* Controls how the link renders. "embed" is only respected when placement is replaceSelection.
+		* Defaults to "link" for legacy settings.
+		*/
 	linkType?: LinkType;
+	/**
+	* Optional formatted path (supports capture format syntax) for the file that should receive the link.
+	* When provided, the append-link operation targets that file instead of the active editor.
+	*/
+	targetFile?: string;
 }
 
 /**
@@ -73,6 +78,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
 			linkType: sanitizeLinkType(appendLink.linkType, placement),
+			targetFile: appendLink.targetFile,
 		};
 	}
 
@@ -82,6 +88,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 		placement: "replaceSelection", // Default placement for backward compatibility
 		requireActiveFile: appendLink ? true : false,
 		linkType: "link",
+		targetFile: undefined,
 	};
 }
 

@@ -173,6 +173,26 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.choice.appendLink,
 		);
 		const normalizedLinkType = normalizedOptions.linkType ?? "link";
+		const getCurrentAppendLinkOptions = () =>
+			normalizeAppendLinkOptions(this.choice.appendLink);
+		const updateAppendLinkOptions = (
+			overrides: Partial<ReturnType<typeof getCurrentAppendLinkOptions>>,
+		) => {
+			const current = getCurrentAppendLinkOptions();
+			this.choice.appendLink = {
+				enabled: overrides.enabled ?? current.enabled,
+				placement: overrides.placement ?? current.placement,
+				requireActiveFile:
+					overrides.requireActiveFile ?? current.requireActiveFile,
+				linkType: overrides.linkType ?? current.linkType,
+				targetFile: Object.prototype.hasOwnProperty.call(
+					overrides,
+					"targetFile",
+				)
+					? overrides.targetFile
+					: current.targetFile,
+			};
+		};
 
 		type AppendLinkMode = "required" | "optional" | "disabled";
 		const currentMode: AppendLinkMode = normalizedOptions.enabled
@@ -184,7 +204,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
 			.setName("Link to captured file")
-			.setDesc("Choose how QuickAdd should insert a link to the captured file in the current note.")
+			.setDesc(
+				"Choose how QuickAdd should insert a link to the captured file.",
+			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("required", "Enabled (requires active file)");
 				dropdown.addOption("optional", "Enabled (skip if no active file)");
@@ -197,20 +219,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							this.choice.appendLink = false;
 							break;
 						case "required":
-							this.choice.appendLink = {
+							updateAppendLinkOptions({
 								enabled: true,
-								placement: normalizedOptions.placement,
 								requireActiveFile: true,
-								linkType: normalizedLinkType,
-							};
+							});
 							break;
 						case "optional":
-							this.choice.appendLink = {
+							updateAppendLinkOptions({
 								enabled: true,
-								placement: normalizedOptions.placement,
 								requireActiveFile: false,
-								linkType: normalizedLinkType,
-							};
+							});
 							break;
 					}
 					this.reload();
@@ -231,25 +249,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
-						const currentValue = this.choice.appendLink;
-						const requireActiveFile =
-							typeof currentValue === "boolean"
-								? normalizedOptions.requireActiveFile
-								: currentValue.requireActiveFile;
-						const previousLinkType =
-							typeof currentValue === "boolean"
-								? normalizedLinkType
-								: currentValue.linkType ?? normalizedLinkType;
-				const nextLinkType = placementSupportsEmbed(value)
-					? previousLinkType
-					: "link";
+						const current = getCurrentAppendLinkOptions();
+						const nextLinkType = placementSupportsEmbed(value)
+							? current.linkType
+							: "link";
 
-						this.choice.appendLink = {
+						updateAppendLinkOptions({
 							enabled: true,
 							placement: value,
-							requireActiveFile,
 							linkType: nextLinkType,
-						};
+						});
 
 						this.reload();
 					});
@@ -265,24 +274,106 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						dropdown.addOption("embed", "Embed");
 						dropdown.setValue(normalizedLinkType);
 						dropdown.onChange((value: LinkType) => {
-							const currentValue = this.choice.appendLink;
-							const requireActiveFile =
-								typeof currentValue === "boolean"
-									? normalizedOptions.requireActiveFile
-									: currentValue.requireActiveFile;
-							const placement =
-								typeof currentValue === "boolean"
-									? normalizedOptions.placement
-									: currentValue.placement;
-
-							this.choice.appendLink = {
-								enabled: true,
-								placement,
-								requireActiveFile,
+							updateAppendLinkOptions({
 								linkType: value,
-							};
+							});
 						});
 					});
+			}
+
+			type AppendLinkTargetMode = "active" | "specific";
+			const currentTargetMode: AppendLinkTargetMode =
+				normalizedOptions.targetFile !== undefined ? "specific" : "active";
+
+			const targetModeSetting: Setting = new Setting(this.contentEl);
+			targetModeSetting
+				.setName("Append link to")
+				.setDesc(
+					"Insert the link into the active file or choose a specific destination.",
+				)
+				.addDropdown((dropdown) => {
+					dropdown.addOption("active", "Active file");
+					dropdown.addOption("specific", "Specific file…");
+					dropdown.setValue(currentTargetMode);
+					dropdown.onChange((value: AppendLinkTargetMode) => {
+						if (value === "active") {
+							updateAppendLinkOptions({ targetFile: undefined });
+							this.reload();
+							return;
+						}
+
+						const existingTarget =
+							getCurrentAppendLinkOptions().targetFile;
+						updateAppendLinkOptions({
+							targetFile: existingTarget ?? "",
+						});
+						this.reload();
+					});
+				});
+
+			if (currentTargetMode === "specific") {
+				const targetFileContainer = this.contentEl.createDiv({
+					cls: "qa-append-link-target-container",
+				});
+				new Setting(targetFileContainer)
+					.setName("Target file / format")
+					.setDesc(
+						"Choose a file, folder, #tag, or use format syntax (e.g., {{DATE}}).",
+					);
+
+				const displayFormatter = new FileNameDisplayFormatter(
+					this.app,
+					this.plugin,
+				);
+				const previewRow = targetFileContainer.createDiv({
+					cls: "qa-preview-row",
+				});
+				previewRow.createEl("span", {
+					text: "Preview: ",
+					cls: "qa-preview-label",
+				});
+				const previewValue = previewRow.createEl("span");
+				previewValue.setAttr("aria-live", "polite");
+				previewValue.textContent = "Enter a path to preview";
+
+				const markdownFilesAndFormatSyntax = [
+					...this.app.vault.getMarkdownFiles().map((f) => f.path),
+					...FILE_NAME_FORMAT_SYNTAX,
+				];
+
+				const updatePreview = async (rawValue: string) => {
+					const trimmedValue = rawValue.trim();
+					if (!trimmedValue.length) {
+						previewValue.textContent = "Enter a path to preview";
+						return;
+					}
+
+					try {
+						previewValue.textContent =
+							await displayFormatter.format(trimmedValue);
+					} catch {
+						previewValue.textContent = "Preview unavailable";
+					}
+				};
+
+				createValidatedInput({
+					app: this.app,
+					parent: targetFileContainer,
+					initialValue: normalizedOptions.targetFile ?? "",
+					placeholder: "File path / format",
+					suggestions: markdownFilesAndFormatSyntax,
+					maxSuggestions: 50,
+					attachSuggesters: [
+						(el) =>
+							new FormatSyntaxSuggester(this.app, el, this.plugin),
+					],
+					onChange: async (value) => {
+						updateAppendLinkOptions({ targetFile: value });
+						await updatePreview(value);
+					},
+				});
+
+				void updatePreview(normalizedOptions.targetFile ?? "");
 			}
 		}
 	}
