@@ -699,3 +699,8 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 		return fileTags.includes(targetTag);
 	});
 }
+
+export const __test = {
+	convertLinkToEmbed,
+	extractMarkdownLinkTarget,
+} as const;
