@@ -140,9 +140,9 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private deriveLocation(): OpenLocation {
 		if (this.command.location) return this.command.location;
 		if (this.command.openInNewTab) {
-			return this.command.direction ? "split" : "tab";
+			return "split";
 		}
-		return "reuse";
+		return "tab";
 	}
 
 
