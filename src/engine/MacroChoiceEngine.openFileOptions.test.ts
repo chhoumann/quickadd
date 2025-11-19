@@ -25,9 +25,27 @@ describe("buildOpenFileOptions", () => {
 		expect(options.location).toBe("right-sidebar");
 	});
 
-	it("reuses the current tab when openInNewTab is false", () => {
+	it("keeps legacy default behavior: new tab when openInNewTab is false", () => {
 		const options = buildOpenFileOptions(
-			createCommand({ openInNewTab: false })
+			createCommand({ openInNewTab: false, location: undefined })
+		);
+
+		expect(options.location).toBe("tab");
+		expect(options.direction).toBeUndefined();
+	});
+
+	it("keeps legacy default behavior: split when openInNewTab is true and no direction", () => {
+		const options = buildOpenFileOptions(
+			createCommand({ openInNewTab: true, direction: undefined, location: undefined })
+		);
+
+		expect(options.location).toBe("split");
+		expect(options.direction).toBe("vertical");
+	});
+
+	it("reuses the current tab when openInNewTab is false and location set to reuse", () => {
+		const options = buildOpenFileOptions(
+			createCommand({ openInNewTab: false, location: "reuse" })
 		);
 
 		expect(options.location).toBe("reuse");
