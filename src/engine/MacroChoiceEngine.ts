@@ -46,6 +46,7 @@ import type { IConditionalCommand } from "../types/macros/Conditional/ICondition
 import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { buildOpenFileOptions } from "./helpers/openFileOptions";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 
@@ -597,12 +598,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				return;
 			}
 
-			await openFile(this.app, file, {
-				location: command.openInNewTab ? "split" : "tab",
-				direction: command.direction === "horizontal" ? "horizontal" : "vertical",
-				focus: true,
-				mode: "default",
-			});
+			const openOptions = buildOpenFileOptions(command);
+
+			await openFile(this.app, file, openOptions);
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
 		}

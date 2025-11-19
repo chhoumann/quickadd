@@ -10,6 +10,7 @@ describe("OpenFileCommand", () => {
 		expect(command.type).toBe(CommandType.OpenFile);
 		expect(command.filePath).toBe("{{DATE}}.md");
 		expect(command.openInNewTab).toBe(false);
+		expect(command.location).toBe("reuse");
 		expect(command.name).toBe("Open file: {{DATE}}.md");
 		expect(command.id).toBeDefined();
 	});
@@ -18,12 +19,16 @@ describe("OpenFileCommand", () => {
 		const command = new OpenFileCommand(
 			"notes/{{VALUE}}.md",
 			true,
-			NewTabDirection.vertical
+			NewTabDirection.vertical,
+			"split",
+			false
 		);
 		
 		expect(command.filePath).toBe("notes/{{VALUE}}.md");
 		expect(command.openInNewTab).toBe(true);
 		expect(command.direction).toBe(NewTabDirection.vertical);
+		expect(command.location).toBe("split");
+		expect(command.focus).toBe(false);
 		expect(command.name).toBe("Open file: notes/{{VALUE}}.md");
 	});
 

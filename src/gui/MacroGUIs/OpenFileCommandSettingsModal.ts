@@ -2,6 +2,8 @@ import type { App } from "obsidian";
 import { Modal, Setting, ButtonComponent } from "obsidian";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 import { NewTabDirection } from "../../types/newTabDirection";
+import type { OpenLocation } from "../../types/fileOpening";
+import { CommandType } from "../../types/macros/CommandType";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
@@ -13,7 +15,11 @@ export class OpenFileCommandSettingsModal extends Modal {
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
 		this.originalCommand = command;
-		this.command = { ...command }; // Create a copy to avoid mutating original
+		this.command = { ...command, type: CommandType.OpenFile }; // copy and ensure type
+
+		// Backfill defaults for legacy commands
+		this.command.focus = this.command.focus ?? true;
+		this.command.location = this.command.location ?? this.deriveLocation();
 
 		this.waitForClose = new Promise<IOpenFileCommand | null>((resolve) => {
 			this.resolvePromise = resolve;
@@ -47,12 +53,9 @@ export class OpenFileCommandSettingsModal extends Modal {
 		headerEl.style.textAlign = "center";
 
 		this.addFilePathSetting();
-		this.addOpenInNewTabSetting();
-		
-		if (this.command.openInNewTab) {
-			this.addDirectionSetting();
-		}
-		
+		this.addOpenLocationSetting();
+		this.addFocusSetting();
+
 		this.addButtonBar();
 	}
 
@@ -72,37 +75,69 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 
 
-	private addOpenInNewTabSetting() {
+	private addOpenLocationSetting() {
 		new Setting(this.contentEl)
-			.setName("Open in new tab")
-			.setDesc("Open the file in a new tab")
-			.addToggle(toggle => toggle
-				.setValue(this.command.openInNewTab || false)
-				.onChange(value => {
-					this.command.openInNewTab = value;
-					// Clear direction when new tab is disabled
-					if (!value) {
-						this.command.direction = undefined;
-					}
-					this.reload();
-				})
-			);
+			.setName("Where to open")
+			.setDesc("Choose tab, split, window, or sidebar")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("reuse", "Reuse active tab")
+					.addOption("tab", "New tab")
+					.addOption("split", "Split")
+					.addOption("window", "New window")
+					.addOption("left-sidebar", "Left sidebar")
+					.addOption("right-sidebar", "Right sidebar")
+					.setValue((this.command.location ?? this.deriveLocation()).toString())
+					.onChange((value) => {
+						this.command.location = value as OpenLocation;
+						if (value !== "split") {
+							this.command.direction = undefined;
+						} else if (!this.command.direction) {
+							this.command.direction = NewTabDirection.vertical;
+						}
+						this.reload();
+					});
+			});
+
+		if ((this.command.location ?? this.deriveLocation()) === "split") {
+			this.addDirectionSetting();
+		}
 	}
 
 	private addDirectionSetting() {
 		new Setting(this.contentEl)
 			.setName("Split direction")
-			.setDesc("Which direction to split when opening in new tab")
-			.addDropdown(dropdown => {
+			.setDesc("Which direction to split when opening")
+			.addDropdown((dropdown) => {
 				dropdown
-					.addOption("", "No split")
-					.addOption(NewTabDirection.horizontal, "Horizontal")
 					.addOption(NewTabDirection.vertical, "Vertical")
-					.setValue(this.command.direction || "")
-					.onChange(value => {
-						this.command.direction = value as NewTabDirection || undefined;
+					.addOption(NewTabDirection.horizontal, "Horizontal")
+					.setValue(this.command.direction ?? NewTabDirection.vertical)
+					.onChange((value) => {
+						this.command.direction = value as NewTabDirection;
 					});
 			});
+	}
+
+	private addFocusSetting() {
+		new Setting(this.contentEl)
+			.setName("Focus opened tab")
+			.setDesc("Bring the opened file to the foreground")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.command.focus ?? true)
+					.onChange((value) => {
+						this.command.focus = value;
+					})
+			);
+	}
+
+	private deriveLocation(): OpenLocation {
+		if (this.command.location) return this.command.location;
+		if (this.command.openInNewTab) {
+			return this.command.direction ? "split" : "tab";
+		}
+		return "reuse";
 	}
 
 
@@ -110,17 +145,9 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private addButtonBar() {
 		const buttonContainer = this.contentEl.createDiv();
 		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "space-between";
+		buttonContainer.style.justifyContent = "flex-end";
+		buttonContainer.style.gap = "8px";
 		buttonContainer.style.marginTop = "20px";
-
-		const saveButton = new ButtonComponent(buttonContainer);
-		saveButton
-			.setButtonText("Save")
-			.setCta()
-			.onClick(() => {
-				this.resolveWithGuard(this.command);
-				this.close();
-			});
 
 		const cancelButton = new ButtonComponent(buttonContainer);
 		cancelButton
@@ -128,6 +155,15 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.onClick(() => {
 				// Return null to indicate cancellation
 				this.resolveWithGuard(null);
+				this.close();
+			});
+
+		const saveButton = new ButtonComponent(buttonContainer);
+		saveButton
+			.setButtonText("Save")
+			.setCta()
+			.onClick(() => {
+				this.resolveWithGuard(this.command);
 				this.close();
 			});
 	}
