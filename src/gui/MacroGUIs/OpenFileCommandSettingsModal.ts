@@ -20,6 +20,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		// Backfill defaults for legacy commands
 		this.command.focus = this.command.focus ?? true;
 		this.command.location = this.command.location ?? this.deriveLocation();
+		this.syncLegacyFlagsFromLocation(this.command.location);
 
 		this.waitForClose = new Promise<IOpenFileCommand | null>((resolve) => {
 			this.resolvePromise = resolve;
@@ -97,15 +98,33 @@ export class OpenFileCommandSettingsModal extends Modal {
 					.setValue(this.deriveLocation())
 					.onChange((value: OpenLocation) => {
 						this.command.location = value;
-						if (value === "split" && !this.command.direction) {
-							this.command.direction = NewTabDirection.vertical;
-						}
+						this.syncLegacyFlagsFromLocation(value);
 						this.reload();
 					});
 			});
 
 		if (this.deriveLocation() === "split") {
 			this.addDirectionSetting();
+		}
+	}
+
+	private syncLegacyFlagsFromLocation(value: OpenLocation) {
+		switch (value) {
+			case "split":
+				this.command.openInNewTab = true;
+				if (!this.command.direction) {
+					this.command.direction = NewTabDirection.vertical;
+				}
+				break;
+			case "tab":
+			case "reuse":
+				this.command.openInNewTab = false;
+				this.command.direction = undefined;
+				break;
+			default:
+				this.command.openInNewTab = true;
+				this.command.direction = undefined;
+				break;
 		}
 	}
 

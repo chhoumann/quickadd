@@ -25,5 +25,29 @@ export class OpenFileCommand implements IOpenFileCommand {
 		this.location = location;
 		this.focus = focus;
 		this.name = `Open file: ${this.filePath}`;
+
+		// Keep legacy flags in sync for backward compatibility (older builds read them).
+		this.applyLegacyFromLocation();
+	}
+
+	private applyLegacyFromLocation() {
+		if (!this.location) return;
+
+		switch (this.location) {
+			case "split":
+				this.openInNewTab = true;
+				if (!this.direction) this.direction = "vertical";
+				break;
+			case "tab":
+			case "reuse":
+				this.openInNewTab = false;
+				this.direction = undefined;
+				break;
+			default:
+				// window / sidebars → treat as opening new context
+				this.openInNewTab = true;
+				this.direction = undefined;
+				break;
+		}
 	}
 }

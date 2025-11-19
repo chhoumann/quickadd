@@ -32,6 +32,20 @@ describe("OpenFileCommand", () => {
 		expect(command.name).toBe("Open file: notes/{{VALUE}}.md");
 	});
 
+	it("syncs legacy flags from location when provided", () => {
+		const splitCommand = new OpenFileCommand("file.md", false, undefined, "split");
+		expect(splitCommand.openInNewTab).toBe(true);
+		expect(splitCommand.direction).toBe("vertical");
+
+		const tabCommand = new OpenFileCommand("file.md", true, undefined, "tab");
+		expect(tabCommand.openInNewTab).toBe(false);
+		expect(tabCommand.direction).toBeUndefined();
+
+		const windowCommand = new OpenFileCommand("file.md", false, undefined, "window");
+		expect(windowCommand.openInNewTab).toBe(true);
+		expect(windowCommand.direction).toBeUndefined();
+	});
+
 	it("should generate unique IDs for different instances", () => {
 		const command1 = new OpenFileCommand();
 		const command2 = new OpenFileCommand();

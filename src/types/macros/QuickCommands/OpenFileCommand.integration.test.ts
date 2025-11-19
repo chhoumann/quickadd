@@ -54,6 +54,8 @@ describe("OpenFileCommand Integration", () => {
 			// Open in sidebars
 			{ filePath: "left.md", openInNewTab: true, location: "left-sidebar" },
 			{ filePath: "right.md", openInNewTab: true, location: "right-sidebar" },
+			// Legacy: openInNewTab true without direction/location should split
+			{ filePath: "legacy.md", openInNewTab: true },
 		];
 
 		configurations.forEach(config => {
@@ -67,7 +69,11 @@ describe("OpenFileCommand Integration", () => {
 			expect(command.filePath).toBe(config.filePath);
 			expect(command.openInNewTab).toBe(config.openInNewTab);
 			expect(command.direction).toBe(config.direction);
-			expect(command.location).toBe(config.location);
+			if (config.location) {
+				expect(command.location).toBe(config.location);
+			} else {
+				expect(command.location).toBeUndefined();
+			}
 		});
 	});
 
