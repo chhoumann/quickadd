@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { OpenFileCommand } from "./OpenFileCommand";
 import { CommandType } from "../CommandType";
 import { NewTabDirection } from "../../newTabDirection";
+import type { OpenLocation } from "../../fileOpening";
 
 describe("OpenFileCommand Integration", () => {
 	it("should integrate properly with macro system", () => {
@@ -33,28 +34,46 @@ describe("OpenFileCommand Integration", () => {
 	});
 
 	it("should support all file opening configurations", () => {
-		// Test all combinations that users might configure
-		const configurations = [
+		// Test core combinations that users might configure
+		const configurations: {
+			filePath: string;
+			openInNewTab: boolean;
+			direction?: NewTabDirection;
+			location?: OpenLocation;
+		}[] = [
 			// Default: no new tab
 			{ filePath: "test.md", openInNewTab: false },
 			// Open in new tab with vertical split
-			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.vertical },
+			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.vertical, location: "split" },
 			// Open in new tab with horizontal split
-			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.horizontal },
+			{ filePath: "test.md", openInNewTab: true, direction: NewTabDirection.horizontal, location: "split" },
 			// Open in current tab
-			{ filePath: "existing.md", openInNewTab: false }
+			{ filePath: "existing.md", openInNewTab: false },
+			// Open in window
+			{ filePath: "window.md", openInNewTab: true, location: "window" },
+			// Open in sidebars
+			{ filePath: "left.md", openInNewTab: true, location: "left-sidebar" },
+			{ filePath: "right.md", openInNewTab: true, location: "right-sidebar" },
+			// Legacy: openInNewTab true without direction/location should split
+			{ filePath: "legacy.md", openInNewTab: true },
 		];
 
 		configurations.forEach(config => {
 			const command = new OpenFileCommand(
 				config.filePath,
 				config.openInNewTab,
-				config.direction
+				config.direction,
+				config.location
 			);
 
 			expect(command.filePath).toBe(config.filePath);
 			expect(command.openInNewTab).toBe(config.openInNewTab);
 			expect(command.direction).toBe(config.direction);
+			if (config.location) {
+				expect(command.location).toBe(config.location);
+			} else {
+				expect(command.location).toBeUndefined();
+			}
 		});
 	});
 

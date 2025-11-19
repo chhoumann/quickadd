@@ -451,7 +451,7 @@ export class CommandSequenceEditor {
 	private addOpenFileCommandButton(container: HTMLDivElement) {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
-			.setIcon("file")
+			.setIcon("file-search")
 			.setTooltip("Add Open File command")
 			.onClick(() => {
 				this.addCommand(new OpenFileCommand());
