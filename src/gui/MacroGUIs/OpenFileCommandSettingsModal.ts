@@ -94,7 +94,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 				}
 
 				dropdown
-					.setValue(this.command.location ?? this.deriveLocation())
+					.setValue(this.deriveLocation())
 					.onChange((value: OpenLocation) => {
 						this.command.location = value;
 						if (value === "split" && !this.command.direction) {
@@ -104,7 +104,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 					});
 			});
 
-		if ((this.command.location ?? this.deriveLocation()) === "split") {
+		if (this.deriveLocation() === "split") {
 			this.addDirectionSetting();
 		}
 	}

@@ -95,4 +95,13 @@ describe("buildOpenFileOptions", () => {
 		expect(options.location).toBe("window");
 		expect(options.focus).toBe(false);
 	});
+
+	it("defaults focus and mode when not specified", () => {
+		const options = buildOpenFileOptions(
+			createCommand({ location: "tab", focus: undefined })
+		);
+
+		expect(options.focus).toBe(true);
+		expect(options.mode).toBe("default");
+	});
 });
