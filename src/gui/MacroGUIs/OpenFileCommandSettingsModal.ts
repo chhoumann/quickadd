@@ -76,23 +76,28 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 
 	private addOpenLocationSetting() {
+		const locationOptions: { value: OpenLocation; label: string }[] = [
+			{ value: "reuse", label: "Reuse active tab" },
+			{ value: "tab", label: "New tab" },
+			{ value: "split", label: "Split" },
+			{ value: "window", label: "New window" },
+			{ value: "left-sidebar", label: "Left sidebar" },
+			{ value: "right-sidebar", label: "Right sidebar" },
+		];
+
 		new Setting(this.contentEl)
 			.setName("Where to open")
 			.setDesc("Choose tab, split, window, or sidebar")
 			.addDropdown((dropdown) => {
+				for (const { value, label } of locationOptions) {
+					dropdown.addOption(value, label);
+				}
+
 				dropdown
-					.addOption("reuse", "Reuse active tab")
-					.addOption("tab", "New tab")
-					.addOption("split", "Split")
-					.addOption("window", "New window")
-					.addOption("left-sidebar", "Left sidebar")
-					.addOption("right-sidebar", "Right sidebar")
-					.setValue((this.command.location ?? this.deriveLocation()).toString())
-					.onChange((value) => {
-						this.command.location = value as OpenLocation;
-						if (value !== "split") {
-							this.command.direction = undefined;
-						} else if (!this.command.direction) {
+					.setValue(this.command.location ?? this.deriveLocation())
+					.onChange((value: OpenLocation) => {
+						this.command.location = value;
+						if (value === "split" && !this.command.direction) {
 							this.command.direction = NewTabDirection.vertical;
 						}
 						this.reload();
@@ -121,7 +126,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addFocusSetting() {
 		new Setting(this.contentEl)
-			.setName("Focus opened tab")
+			.setName("Focus opened file")
 			.setDesc("Bring the opened file to the foreground")
 			.addToggle((toggle) =>
 				toggle
