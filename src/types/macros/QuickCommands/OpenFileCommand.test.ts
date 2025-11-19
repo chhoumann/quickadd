@@ -10,7 +10,7 @@ describe("OpenFileCommand", () => {
 		expect(command.type).toBe(CommandType.OpenFile);
 		expect(command.filePath).toBe("{{DATE}}.md");
 		expect(command.openInNewTab).toBe(false);
-		expect(command.location).toBe("reuse");
+		expect(command.location).toBeUndefined();
 		expect(command.name).toBe("Open file: {{DATE}}.md");
 		expect(command.id).toBeDefined();
 	});

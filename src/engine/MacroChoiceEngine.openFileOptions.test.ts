@@ -3,6 +3,7 @@ import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { NewTabDirection } from "../types/newTabDirection";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { CommandType } from "../types/macros/CommandType";
+import { OpenFileCommand } from "../types/macros/QuickCommands/OpenFileCommand";
 
 function createCommand(
 	overrides: Partial<IOpenFileCommand> = {}
@@ -38,6 +39,14 @@ describe("buildOpenFileOptions", () => {
 		const options = buildOpenFileOptions(
 			createCommand({ openInNewTab: true, direction: undefined, location: undefined })
 		);
+
+		expect(options.location).toBe("split");
+		expect(options.direction).toBe("vertical");
+	});
+
+	it("legacy OpenFileCommand (openInNewTab true, no direction/location) splits by default", () => {
+		const command = new OpenFileCommand("file.md", true);
+		const options = buildOpenFileOptions(command);
 
 		expect(options.location).toBe("split");
 		expect(options.direction).toBe("vertical");

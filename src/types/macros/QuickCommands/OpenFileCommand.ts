@@ -22,17 +22,8 @@ export class OpenFileCommand implements IOpenFileCommand {
 	) {
 		this.openInNewTab = openInNewTab;
 		this.direction = direction;
-		this.location = location ?? this.deriveLocation(openInNewTab, direction);
+		this.location = location;
 		this.focus = focus;
 		this.name = `Open file: ${this.filePath}`;
-	}
-
-	private deriveLocation(
-		openInNewTab: boolean,
-		direction?: NewTabDirection
-	): OpenLocation {
-		if (!openInNewTab) return "reuse";
-		if (direction) return "split";
-		return "tab";
 	}
 }

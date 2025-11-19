@@ -67,9 +67,7 @@ describe("OpenFileCommand Integration", () => {
 			expect(command.filePath).toBe(config.filePath);
 			expect(command.openInNewTab).toBe(config.openInNewTab);
 			expect(command.direction).toBe(config.direction);
-			expect(command.location).toBe(
-				config.location ?? (config.openInNewTab ? "tab" : "reuse")
-			);
+			expect(command.location).toBe(config.location);
 		});
 	});
 
