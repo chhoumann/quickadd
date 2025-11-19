@@ -1,7 +1,7 @@
 import { CommandType } from "../CommandType";
 import { nanoid } from "nanoid";
 import type { IOpenFileCommand } from "./IOpenFileCommand";
-import type { NewTabDirection } from "../../newTabDirection";
+import { NewTabDirection } from "../../newTabDirection";
 import type { OpenLocation } from "../../fileOpening";
 
 export class OpenFileCommand implements IOpenFileCommand {
@@ -36,7 +36,7 @@ export class OpenFileCommand implements IOpenFileCommand {
 		switch (this.location) {
 			case "split":
 				this.openInNewTab = true;
-				if (!this.direction) this.direction = "vertical";
+				if (!this.direction) this.direction = NewTabDirection.vertical;
 				break;
 			case "tab":
 			case "reuse":
