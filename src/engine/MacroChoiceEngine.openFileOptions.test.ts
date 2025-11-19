@@ -52,9 +52,9 @@ describe("buildOpenFileOptions", () => {
 		expect(options.direction).toBeUndefined();
 	});
 
-	it("opens a new tab without splitting when no direction is chosen", () => {
+	it("opens a new tab without splitting when location is explicitly tab", () => {
 		const options = buildOpenFileOptions(
-			createCommand({ openInNewTab: true, direction: undefined })
+			createCommand({ openInNewTab: true, direction: undefined, location: "tab" })
 		);
 
 		expect(options.location).toBe("tab");
