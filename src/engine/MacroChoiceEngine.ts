@@ -47,6 +47,7 @@ import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
+import { createVariablesProxy } from "../utils/variablesProxy";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 
@@ -93,19 +94,20 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
+		const sharedVariables =
+			variables ??
+			this.choiceExecutor.variables ??
+			new Map<string, unknown>();
+		this.choiceExecutor.variables = sharedVariables;
 		this.params = {
 			app: this.app,
 			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
-			variables: {},
+			variables: createVariablesProxy(this.choiceExecutor.variables),
 			obsidian,
 			abort: (message?: string) => {
 				throw new MacroAbortError(message);
 			},
 		};
-
-		variables?.forEach((value, key) => {
-			this.params.variables[key] = value;
-		});
 	}
 
 	async run(): Promise<void> {
@@ -126,13 +128,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async executeCommands(commands: ICommand[]) {
 		try {
 			for (const command of commands) {
-				// Always start with the freshest shared variables so each command sees
-				// updates from the previous one.
-				this.pullExecutorVariablesIntoParams();
-				const preCommandParamsSnapshot = {
-					...this.params.variables,
-				};
-
 				if (command?.type === CommandType.Obsidian)
 					this.executeObsidianCommand(command as IObsidianCommand);
 				if (command?.type === CommandType.UserScript)
@@ -158,8 +153,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				if (command?.type === CommandType.Conditional) {
 					await this.executeConditional(command as IConditionalCommand);
 				}
-
-				this.pushParamsVariablesIntoExecutor(preCommandParamsSnapshot);
 			}
 		} catch (error) {
 			if (
@@ -463,7 +456,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeConditional(command: IConditionalCommand) {
-		this.pullExecutorVariablesIntoParams();
 		const shouldRunThenBranch = await evaluateCondition(command.condition, {
 			variables: this.params.variables,
 			evaluateScriptCondition: async (condition: ScriptCondition) =>
@@ -488,34 +480,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	public setOutput(value: unknown): void {
 		this.output = value;
-	}
-
-	private pullExecutorVariablesIntoParams() {
-		this.choiceExecutor.variables.forEach((value, key) => {
-			this.params.variables[key] = value;
-		});
-	}
-
-	private pushParamsVariablesIntoExecutor(
-		preCommandSnapshot: Record<string, unknown>
-	) {
-		// Apply only the keys that changed during command execution so we don't
-		// overwrite executor updates (e.g., commands that write directly to the map).
-		Object.keys(this.params.variables).forEach((key) => {
-			if (preCommandSnapshot[key] !== this.params.variables[key]) {
-				this.choiceExecutor.variables.set(
-					key,
-					this.params.variables[key]
-				);
-			}
-		});
-
-		// If a key was removed during execution, remove it from the executor map too.
-		Object.keys(preCommandSnapshot).forEach((key) => {
-			if (!(key in this.params.variables)) {
-				this.choiceExecutor.variables.delete(key);
-			}
-		});
 	}
 
 	private async evaluateScriptCondition(
