@@ -28,12 +28,14 @@ export function createVariablesProxy(
 		ownKeys() {
 			return Array.from(store.keys());
 		},
-		getOwnPropertyDescriptor(_t, prop: string | symbol) {
-			if (typeof prop !== "string" || !store.has(prop)) return undefined;
-			return {
-				configurable: true,
-				enumerable: true,
-			};
-		},
-	});
+	getOwnPropertyDescriptor(_t, prop: string | symbol) {
+		if (typeof prop !== "string" || !store.has(prop)) return undefined;
+		return {
+			value: store.get(prop),
+			writable: true,
+			configurable: true,
+			enumerable: true,
+		};
+	},
+});
 }
