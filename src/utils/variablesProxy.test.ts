@@ -24,4 +24,45 @@ describe("createVariablesProxy", () => {
 		expect(Object.keys(proxy)).toEqual(["foo", "num"]);
 		expect(JSON.stringify(proxy)).toBe('{"foo":"bar","num":3}');
 	});
+
+	it("reflects external map mutations immediately", () => {
+		const backing = new Map<string, unknown>();
+		const proxy = createVariablesProxy(backing);
+
+		backing.set("outside", 42);
+		expect(proxy.outside).toBe(42);
+
+		backing.delete("outside");
+		expect(proxy.outside).toBeUndefined();
+		expect(Object.keys(proxy)).toEqual([]);
+	});
+
+	it("ignores symbol property access and does not throw", () => {
+		const backing = new Map<string, unknown>();
+		const proxy = createVariablesProxy(backing);
+		const sym = Symbol("test");
+
+		// @ts-expect-error accessing symbol
+		expect(proxy[sym]).toBeUndefined();
+		// @ts-expect-error setting symbol
+		proxy[sym] = "value";
+		expect(backing.size).toBe(0);
+	});
+
+	it("works with for...in and Object.assign", () => {
+		const backing = new Map<string, unknown>([
+			["x", 1],
+			["y", 2],
+		]);
+		const proxy = createVariablesProxy(backing);
+
+		const seen: string[] = [];
+		for (const key in proxy) {
+			seen.push(key);
+		}
+		expect(seen).toEqual(["x", "y"]);
+
+		const copy = Object.assign({}, proxy);
+		expect(copy).toEqual({ x: 1, y: 2 });
+	});
 });
