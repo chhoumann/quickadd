@@ -129,6 +129,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				// Always start with the freshest shared variables so each command sees
 				// updates from the previous one.
 				this.pullExecutorVariablesIntoParams();
+				const preCommandParamsSnapshot = {
+					...this.params.variables,
+				};
 
 				if (command?.type === CommandType.Obsidian)
 					this.executeObsidianCommand(command as IObsidianCommand);
@@ -156,7 +159,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					await this.executeConditional(command as IConditionalCommand);
 				}
 
-				this.pushParamsVariablesIntoExecutor();
+				this.pushParamsVariablesIntoExecutor(preCommandParamsSnapshot);
 			}
 		} catch (error) {
 			if (
@@ -493,9 +496,25 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		});
 	}
 
-	private pushParamsVariablesIntoExecutor() {
+	private pushParamsVariablesIntoExecutor(
+		preCommandSnapshot: Record<string, unknown>
+	) {
+		// Apply only the keys that changed during command execution so we don't
+		// overwrite executor updates (e.g., commands that write directly to the map).
 		Object.keys(this.params.variables).forEach((key) => {
-			this.choiceExecutor.variables.set(key, this.params.variables[key]);
+			if (preCommandSnapshot[key] !== this.params.variables[key]) {
+				this.choiceExecutor.variables.set(
+					key,
+					this.params.variables[key]
+				);
+			}
+		});
+
+		// If a key was removed during execution, remove it from the executor map too.
+		Object.keys(preCommandSnapshot).forEach((key) => {
+			if (!(key in this.params.variables)) {
+				this.choiceExecutor.variables.delete(key);
+			}
 		});
 	}
 
