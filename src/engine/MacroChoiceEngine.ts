@@ -126,6 +126,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async executeCommands(commands: ICommand[]) {
 		try {
 			for (const command of commands) {
+				// Always start with the freshest shared variables so each command sees
+				// updates from the previous one.
+				this.pullExecutorVariablesIntoParams();
+
 				if (command?.type === CommandType.Obsidian)
 					this.executeObsidianCommand(command as IObsidianCommand);
 				if (command?.type === CommandType.UserScript)
@@ -152,13 +156,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					await this.executeConditional(command as IConditionalCommand);
 				}
 
-				this.pullExecutorVariablesIntoParams();
-				Object.keys(this.params.variables).forEach((key) => {
-					this.choiceExecutor.variables.set(
-						key,
-						this.params.variables[key]
-					);
-				});
+				this.pushParamsVariablesIntoExecutor();
 			}
 		} catch (error) {
 			if (
@@ -492,6 +490,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private pullExecutorVariablesIntoParams() {
 		this.choiceExecutor.variables.forEach((value, key) => {
 			this.params.variables[key] = value;
+		});
+	}
+
+	private pushParamsVariablesIntoExecutor() {
+		Object.keys(this.params.variables).forEach((key) => {
+			this.choiceExecutor.variables.set(key, this.params.variables[key]);
 		});
 	}
 
