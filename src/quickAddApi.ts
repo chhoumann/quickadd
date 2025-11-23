@@ -273,8 +273,10 @@ export class QuickAddApi {
 					}
 
 					if (settings?.shouldAssignVariables) {
-						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
-						Object.assign(choiceExecutor.variables, assistantRes);
+						// Copy over `output` and `output-quoted` to the variables (if 'output' is variable name)
+						Object.entries(assistantRes).forEach(([key, value]) => {
+							choiceExecutor.variables.set(key, value);
+						});
 					}
 
 					return assistantRes;
@@ -372,8 +374,10 @@ export class QuickAddApi {
 					}
 
 					if (settings?.shouldAssignVariables) {
-						// Copy over `output` and `output-quoted` to the variables (if 'outout' is variable name)
-						Object.assign(choiceExecutor.variables, assistantRes);
+						// Copy over `output` and `output-quoted` to the variables (if 'output' is variable name)
+						Object.entries(assistantRes).forEach(([key, value]) => {
+							choiceExecutor.variables.set(key, value);
+						});
 					}
 
 					return assistantRes;
