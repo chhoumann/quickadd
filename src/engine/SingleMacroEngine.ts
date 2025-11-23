@@ -288,11 +288,6 @@ export class SingleMacroEngine {
 		engine: MacroChoiceEngine,
 		settings: Record<string, unknown>,
 	): Promise<unknown> {
-		// Ensure params reflect latest shared variables before executing
-		this.choiceExecutor.variables.forEach((value, key) => {
-			engine.params.variables[key] = value;
-		});
-
 		if (typeof member === "function") {
 			return await (
 				member as (

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -208,6 +208,122 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		expect(mockSuggest).toHaveBeenCalledTimes(1);
 		expect(optionFn).toHaveBeenCalledTimes(1);
 		expect(engine["output"]).toBe("option-result");
+	});
+});
+
+describe("MacroChoiceEngine user script variable propagation", () => {
+	const app = {} as App;
+	const plugin = {} as unknown as QuickAdd;
+
+	let choiceExecutor: IChoiceExecutor;
+	let variables: Map<string, unknown>;
+	let macroChoice: IMacroChoice;
+	let logs: Array<number | undefined>;
+	let getApiSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockGetUserScript.mockReset();
+		mockInitializeUserScriptSettings.mockReset();
+		mockSuggest.mockReset();
+
+		getApiSpy = vi
+			.spyOn(QuickAddApi, "GetApi")
+			.mockReturnValue({} as unknown as ReturnType<typeof QuickAddApi.GetApi>);
+
+		logs = [];
+		variables = new Map<string, unknown>();
+		choiceExecutor = {
+			execute: vi.fn(),
+			variables,
+		};
+
+		const makeScript = (index: number): IUserScript => ({
+			id: `script-${index}`,
+			name: `Script ${index}`,
+			type: CommandType.UserScript,
+			path: `script-${index}.js`,
+			settings: {},
+		});
+
+		macroChoice = {
+			id: "macro-sequence",
+			name: "Macro sequence",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-sequence",
+				name: "Macro sequence",
+				commands: [
+					makeScript(1),
+					makeScript(2),
+					makeScript(3),
+					makeScript(4),
+				],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementation((command: IUserScript) => {
+			const nextValueByPath: Record<string, number> = {
+				"script-1.js": 1,
+				"script-2.js": 2,
+				"script-3.js": 3,
+				"script-4.js": 3,
+			};
+
+			const nextValue = nextValueByPath[command.path ?? ""] ?? 0;
+
+			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
+				logs.push(params.variables.target as number | undefined);
+				if (nextValue !== 0) {
+					params.variables.target = nextValue;
+				}
+			});
+		});
+	});
+
+	afterEach(() => {
+		getApiSpy.mockRestore();
+	});
+
+	it("propagates variable mutations across sequential user scripts", async () => {
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(logs).toEqual([undefined, 1, 2, 3]);
+		expect(choiceExecutor.variables.get("target")).toBe(3);
+	});
+
+	it("merges existing executor variables into provided map without losing state", async () => {
+		const executorVariables = new Map<string, unknown>([
+			["keep", "executor"],
+		]);
+		const providedVariables = new Map<string, unknown>([
+			["override", 1],
+		]);
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			{
+				...choiceExecutor,
+				variables: executorVariables,
+			},
+			providedVariables,
+		);
+
+		expect(engine["params"].variables.keep).toBe("executor");
+		expect(engine["params"].variables.override).toBe(1);
+		expect(engine["choiceExecutor"].variables).toBe(providedVariables);
 	});
 });
 

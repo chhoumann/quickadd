@@ -47,6 +47,7 @@ import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
+import { createVariablesProxy } from "../utils/variablesProxy";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 
@@ -93,19 +94,33 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
+		const existingVariables = this.choiceExecutor.variables;
+		let sharedVariables: Map<string, unknown>;
+
+		if (variables) {
+			sharedVariables = variables;
+			// Merge any existing executor variables so we don't drop state
+			if (existingVariables && variables !== existingVariables) {
+				existingVariables.forEach((value, key) => {
+					if (!sharedVariables.has(key)) {
+						sharedVariables.set(key, value);
+					}
+				});
+			}
+		} else {
+			sharedVariables = existingVariables ?? new Map<string, unknown>();
+		}
+
+		this.choiceExecutor.variables = sharedVariables;
 		this.params = {
 			app: this.app,
 			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
-			variables: {},
+			variables: createVariablesProxy(this.choiceExecutor.variables),
 			obsidian,
 			abort: (message?: string) => {
 				throw new MacroAbortError(message);
 			},
 		};
-
-		variables?.forEach((value, key) => {
-			this.params.variables[key] = value;
-		});
 	}
 
 	async run(): Promise<void> {
@@ -151,14 +166,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				if (command?.type === CommandType.Conditional) {
 					await this.executeConditional(command as IConditionalCommand);
 				}
-
-				this.pullExecutorVariablesIntoParams();
-				Object.keys(this.params.variables).forEach((key) => {
-					this.choiceExecutor.variables.set(
-						key,
-						this.params.variables[key]
-					);
-				});
 			}
 		} catch (error) {
 			if (
@@ -462,7 +469,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeConditional(command: IConditionalCommand) {
-		this.pullExecutorVariablesIntoParams();
 		const shouldRunThenBranch = await evaluateCondition(command.condition, {
 			variables: this.params.variables,
 			evaluateScriptCondition: async (condition: ScriptCondition) =>
@@ -487,12 +493,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	public setOutput(value: unknown): void {
 		this.output = value;
-	}
-
-	private pullExecutorVariablesIntoParams() {
-		this.choiceExecutor.variables.forEach((value, key) => {
-			this.params.variables[key] = value;
-		});
 	}
 
 	private async evaluateScriptCondition(
