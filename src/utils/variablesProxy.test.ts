@@ -76,4 +76,58 @@ describe("createVariablesProxy", () => {
 		// Prototype helpers are still absent
 		expect((proxy as Record<string, unknown>).toString).toBeUndefined();
 	});
+
+	it("enumerates via Object.entries and Object.values", () => {
+		const backing = new Map<string, unknown>([
+			["a", 1],
+			["b", "two"],
+		]);
+		const proxy = createVariablesProxy(backing);
+
+		expect(Object.entries(proxy)).toEqual([
+			["a", 1],
+			["b", "two"],
+		]);
+		expect(Object.values(proxy)).toEqual([1, "two"]);
+	});
+
+	it("handles empty string and numeric string keys", () => {
+		const backing = new Map<string, unknown>();
+		const proxy = createVariablesProxy(backing);
+
+		proxy[""] = "empty";
+		proxy["123"] = 123;
+
+		expect(backing.get("")).toBe("empty");
+		expect(backing.get("123")).toBe(123);
+		expect(Object.keys(proxy)).toEqual(["", "123"]);
+	});
+
+	it("distinguishes setting undefined vs delete", () => {
+		const backing = new Map<string, unknown>();
+		const proxy = createVariablesProxy(backing);
+
+		proxy.flag = undefined;
+		expect(backing.has("flag")).toBe(true);
+		expect(backing.get("flag")).toBeUndefined();
+
+		delete proxy.flag;
+		expect(backing.has("flag")).toBe(false);
+	});
+
+	it("keeps multiple proxies over the same map in sync", () => {
+		const backing = new Map<string, unknown>();
+		const proxyA = createVariablesProxy(backing);
+		const proxyB = createVariablesProxy(backing);
+
+		proxyA.shared = "yes";
+		expect(proxyB.shared).toBe("yes");
+
+		backing.set("other", 42);
+		expect(proxyA.other).toBe(42);
+		expect(proxyB.other).toBe(42);
+
+		delete proxyB.shared;
+		expect(backing.has("shared")).toBe(false);
+	});
 });
