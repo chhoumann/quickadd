@@ -65,4 +65,16 @@ describe("createVariablesProxy", () => {
 		const copy = Object.assign({}, proxy);
 		expect(copy).toEqual({ x: 1, y: 2 });
 	});
+
+	it("supports hasOwnProperty shim without exposing full prototype", () => {
+		const backing = new Map<string, unknown>([["foo", "bar"]]);
+		const proxy = createVariablesProxy(backing);
+
+		expect(typeof proxy.hasOwnProperty).toBe("function");
+		expect(proxy.hasOwnProperty("foo")).toBe(true);
+		expect(proxy.hasOwnProperty("missing")).toBe(false);
+		// Prototype helpers are still absent
+		// @ts-expect-error toString is intentionally undefined
+		expect(proxy.toString).toBeUndefined();
+	});
 });
