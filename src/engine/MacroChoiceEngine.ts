@@ -79,6 +79,42 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private userScriptCommand: IUserScript | null;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, unknown>;
+	private buildParams(
+		app: App,
+		plugin: QuickAdd,
+		choiceExecutor: IChoiceExecutor,
+		sharedVariables: Map<string, unknown>
+	) {
+		return {
+			app,
+			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
+			variables: createVariablesProxy(sharedVariables),
+			obsidian,
+			abort: (message?: string) => {
+				throw new MacroAbortError(message);
+			},
+		};
+	}
+
+	private initSharedVariables(
+		choiceExecutor: IChoiceExecutor,
+		providedVariables?: Map<string, unknown>
+	): Map<string, unknown> {
+		const existingVariables = choiceExecutor.variables;
+
+		if (providedVariables) {
+			if (existingVariables && providedVariables !== existingVariables) {
+				existingVariables.forEach((value, key) => {
+					if (!providedVariables.has(key)) {
+						providedVariables.set(key, value);
+					}
+				});
+			}
+			return providedVariables;
+		}
+
+		return existingVariables ?? new Map<string, unknown>();
+	}
 
 	constructor(
 		app: App,
@@ -94,33 +130,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
-		const existingVariables = this.choiceExecutor.variables;
-		let sharedVariables: Map<string, unknown>;
-
-		if (variables) {
-			sharedVariables = variables;
-			// Merge any existing executor variables so we don't drop state
-			if (existingVariables && variables !== existingVariables) {
-				existingVariables.forEach((value, key) => {
-					if (!sharedVariables.has(key)) {
-						sharedVariables.set(key, value);
-					}
-				});
-			}
-		} else {
-			sharedVariables = existingVariables ?? new Map<string, unknown>();
-		}
-
+		const sharedVariables = this.initSharedVariables(
+			choiceExecutor,
+			variables
+		);
 		this.choiceExecutor.variables = sharedVariables;
-		this.params = {
-			app: this.app,
-			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
-			variables: createVariablesProxy(this.choiceExecutor.variables),
-			obsidian,
-			abort: (message?: string) => {
-				throw new MacroAbortError(message);
-			},
-		};
+		this.params = this.buildParams(app, plugin, choiceExecutor, sharedVariables);
 	}
 
 	async run(): Promise<void> {
