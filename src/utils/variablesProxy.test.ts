@@ -74,7 +74,6 @@ describe("createVariablesProxy", () => {
 		expect(proxy.hasOwnProperty("foo")).toBe(true);
 		expect(proxy.hasOwnProperty("missing")).toBe(false);
 		// Prototype helpers are still absent
-		// @ts-expect-error toString is intentionally undefined
-		expect(proxy.toString).toBeUndefined();
+		expect((proxy as Record<string, unknown>).toString).toBeUndefined();
 	});
 });
