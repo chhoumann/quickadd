@@ -301,6 +301,30 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(logs).toEqual([undefined, 1, 2, 3]);
 		expect(choiceExecutor.variables.get("target")).toBe(3);
 	});
+
+	it("merges existing executor variables into provided map without losing state", async () => {
+		const executorVariables = new Map<string, unknown>([
+			["keep", "executor"],
+		]);
+		const providedVariables = new Map<string, unknown>([
+			["override", 1],
+		]);
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			{
+				...choiceExecutor,
+				variables: executorVariables,
+			},
+			providedVariables,
+		);
+
+		expect(engine["params"].variables.keep).toBe("executor");
+		expect(engine["params"].variables.override).toBe(1);
+		expect(engine["choiceExecutor"].variables).toBe(providedVariables);
+	});
 });
 
 describe("MacroChoiceEngine choice command cancellation", () => {

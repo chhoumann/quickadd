@@ -94,10 +94,22 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
+		const existingVariables = this.choiceExecutor.variables;
 		const sharedVariables =
-			variables ??
-			this.choiceExecutor.variables ??
-			new Map<string, unknown>();
+			variables ?? existingVariables ?? new Map<string, unknown>();
+
+		// If a fresh map was provided, merge any existing executor variables
+		// so we don't accidentally drop state the caller wanted to keep.
+		if (
+			variables &&
+			existingVariables &&
+			variables !== existingVariables
+		) {
+			existingVariables.forEach((value, key) => {
+				if (!variables.has(key)) variables.set(key, value);
+			});
+		}
+
 		this.choiceExecutor.variables = sharedVariables;
 		this.params = {
 			app: this.app,
