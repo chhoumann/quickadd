@@ -28,6 +28,7 @@ import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
+import { formatISODate } from "./utils/dateParser";
 
 export class QuickAddApi {
 	public static GetApi(
@@ -88,26 +89,50 @@ export class QuickAddApi {
 					});
 				}
 
-			let collected: Record<string, string> = {};
-			if (missing.length > 0) {
-				const modal = new OnePageInputModal(
-					app,
-					missing,
-					choiceExecutor.variables,
-				);
-				try {
-					collected = await modal.waitForClose;
-				} catch (error) {
-					throwIfPromptCancelled(error);
-					throw error;
+				let collected: Record<string, string> = {};
+				if (missing.length > 0) {
+					const modal = new OnePageInputModal(
+						app,
+						missing,
+						choiceExecutor.variables,
+					);
+					try {
+						collected = await modal.waitForClose;
+					} catch (error) {
+						throwIfPromptCancelled(error);
+						throw error;
+					}
 				}
-			}
 
-				const result = { ...existing, ...collected };
-				Object.entries(result).forEach(([k, v]) =>
+				const rawResult = { ...existing, ...collected };
+
+				// Store raw values (including @date:ISO) for downstream processors
+				Object.entries(rawResult).forEach(([k, v]) =>
 					choiceExecutor.variables.set(k, v),
 				);
-				return result;
+
+				// Return user-friendly values that honor dateFormat when provided
+				const formattedResult: Record<string, string> = {};
+				for (const spec of inputs) {
+					const value = rawResult[spec.id];
+					if (value === undefined) continue;
+
+					let output = value;
+					if (
+						spec.type === "date" &&
+						spec.dateFormat &&
+						typeof value === "string" &&
+						value.startsWith("@date:")
+					) {
+						const iso = value.slice(6);
+						const formatted = formatISODate(iso, spec.dateFormat);
+						if (formatted) output = formatted;
+					}
+
+					formattedResult[spec.id] = output;
+				}
+
+				return formattedResult;
 			},
 			inputPrompt: (header: string, placeholder?: string, value?: string) => {
 				return QuickAddApi.inputPrompt(app, header, placeholder, value);
