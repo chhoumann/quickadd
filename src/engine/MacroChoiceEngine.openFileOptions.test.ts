@@ -26,12 +26,12 @@ describe("buildOpenFileOptions", () => {
 		expect(options.location).toBe("right-sidebar");
 	});
 
-	it("keeps legacy default behavior: new tab when openInNewTab is false", () => {
+	it("opens in the current tab when openInNewTab is false", () => {
 		const options = buildOpenFileOptions(
 			createCommand({ openInNewTab: false, location: undefined })
 		);
 
-		expect(options.location).toBe("tab");
+		expect(options.location).toBe("reuse");
 		expect(options.direction).toBeUndefined();
 	});
 

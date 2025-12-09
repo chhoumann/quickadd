@@ -161,7 +161,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		if (this.command.openInNewTab) {
 			return "split";
 		}
-		return "tab";
+		return "reuse";
 	}
 
 

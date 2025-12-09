@@ -42,10 +42,10 @@ export function buildOpenFileOptions(
 			: undefined;
 
 	// Legacy mapping (pre-location field):
-	// openInNewTab === false -> open in a new tab (not reuse)
+	// openInNewTab === false -> reuse the current tab
 	// openInNewTab === true without direction -> split (default vertical)
 	if (!openInNewTab) {
-		return { location: "tab", focus, mode: "default" };
+		return { location: "reuse", focus, mode: "default" };
 	}
 
 	return {
