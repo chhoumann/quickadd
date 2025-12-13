@@ -325,6 +325,95 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(engine["params"].variables.override).toBe(1);
 		expect(engine["choiceExecutor"].variables).toBe(providedVariables);
 	});
+
+	it("treats `params.variables = {...}` as replacing the backing map", async () => {
+		const assignScript: IUserScript = {
+			id: "assign-script",
+			name: "Assign Script",
+			type: CommandType.UserScript,
+			path: "assign-script.js",
+			settings: {},
+		};
+
+		const assignChoice: IMacroChoice = {
+			id: "macro-assign",
+			name: "Macro assign",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-assign",
+				name: "Macro assign",
+				commands: [assignScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
+				params.variables = { foo: "bar" };
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			assignChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("foo")).toBe("bar");
+		expect(choiceExecutor.variables.has("old")).toBe(false);
+	});
+
+	it("does not clear variables when assigned the same backing map", async () => {
+		const assignSameScript: IUserScript = {
+			id: "assign-same-script",
+			name: "Assign Same Script",
+			type: CommandType.UserScript,
+			path: "assign-same-script.js",
+			settings: {},
+		};
+
+		const assignSameChoice: IMacroChoice = {
+			id: "macro-assign-same",
+			name: "Macro assign same",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-assign-same",
+				name: "Macro assign same",
+				commands: [assignSameScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
+				params.variables = params.variables;
+				params.variables.added = 2;
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			assignSameChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("old")).toBe("value");
+		expect(choiceExecutor.variables.get("added")).toBe(2);
+	});
 });
 
 describe("MacroChoiceEngine choice command cancellation", () => {

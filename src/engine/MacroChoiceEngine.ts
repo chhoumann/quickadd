@@ -85,15 +85,40 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		choiceExecutor: IChoiceExecutor,
 		sharedVariables: Map<string, unknown>
 	) {
-		return {
+		const variablesProxy = createVariablesProxy(sharedVariables);
+
+		const params = {
 			app,
 			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
-			variables: createVariablesProxy(sharedVariables),
 			obsidian,
 			abort: (message?: string) => {
 				throw new MacroAbortError(message);
 			},
-		};
+		} as unknown as typeof this.params;
+
+		// Backward compatibility: some scripts assign `QuickAdd.variables = {...}`.
+		// Treat that as replacing the backing Map so templates can consume them.
+			Object.defineProperty(params, "variables", {
+				get: () => variablesProxy,
+				set: (next: unknown) => {
+					if (next === sharedVariables) return;
+
+					const entries =
+						next instanceof Map
+							? Array.from(next.entries())
+							: next && typeof next === "object"
+								? Object.entries(next as Record<string, unknown>)
+								: null;
+
+					sharedVariables.clear();
+
+					entries?.forEach(([key, value]) => sharedVariables.set(key, value));
+				},
+				enumerable: true,
+				configurable: false,
+			});
+
+		return params;
 	}
 
 	private initSharedVariables(
