@@ -325,6 +325,188 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(engine["params"].variables.override).toBe(1);
 		expect(engine["choiceExecutor"].variables).toBe(providedVariables);
 	});
+
+	it("treats `params.variables = {...}` as replacing the backing map", async () => {
+		const assignScript: IUserScript = {
+			id: "assign-script",
+			name: "Assign Script",
+			type: CommandType.UserScript,
+			path: "assign-script.js",
+			settings: {},
+		};
+
+		const assignChoice: IMacroChoice = {
+			id: "macro-assign",
+			name: "Macro assign",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-assign",
+				name: "Macro assign",
+				commands: [assignScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
+				params.variables = { foo: "bar" };
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			assignChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("foo")).toBe("bar");
+		expect(choiceExecutor.variables.has("old")).toBe(false);
+	});
+
+	it("does not clear variables when assigned the same backing map", async () => {
+		const assignSameScript: IUserScript = {
+			id: "assign-same-script",
+			name: "Assign Same Script",
+			type: CommandType.UserScript,
+			path: "assign-same-script.js",
+			settings: {},
+		};
+
+		const assignSameChoice: IMacroChoice = {
+			id: "macro-assign-same",
+			name: "Macro assign same",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-assign-same",
+				name: "Macro assign same",
+				commands: [assignSameScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
+				params.variables = params.variables;
+				params.variables.added = 2;
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			assignSameChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("old")).toBe("value");
+		expect(choiceExecutor.variables.get("added")).toBe(2);
+	});
+
+	it("ignores invalid reassignment of params.variables without clearing", async () => {
+		const invalidAssignScript: IUserScript = {
+			id: "invalid-assign-script",
+			name: "Invalid assign Script",
+			type: CommandType.UserScript,
+			path: "invalid-assign-script.js",
+			settings: {},
+		};
+
+		const invalidAssignChoice: IMacroChoice = {
+			id: "macro-invalid-assign",
+			name: "Macro invalid assign",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-invalid-assign",
+				name: "Macro invalid assign",
+				commands: [invalidAssignScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: any }) => {
+				params.variables = 123;
+				params.variables.added = "ok";
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			invalidAssignChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("old")).toBe("value");
+		expect(choiceExecutor.variables.get("added")).toBe("ok");
+	});
+
+	it("skips non-string Map keys when assigning params.variables", async () => {
+		const mapAssignScript: IUserScript = {
+			id: "map-assign-script",
+			name: "Map assign Script",
+			type: CommandType.UserScript,
+			path: "map-assign-script.js",
+			settings: {},
+		};
+
+		const mapAssignChoice: IMacroChoice = {
+			id: "macro-map-assign",
+			name: "Macro map assign",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-map-assign",
+				name: "Macro map assign",
+				commands: [mapAssignScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: any }) => {
+				params.variables = new Map<any, any>([
+					[1, "nope"],
+					["foo", "bar"],
+				]);
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			mapAssignChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("foo")).toBe("bar");
+		expect(choiceExecutor.variables.has("old")).toBe(false);
+		expect(choiceExecutor.variables.has(1 as any)).toBe(false);
+	});
 });
 
 describe("MacroChoiceEngine choice command cancellation", () => {
