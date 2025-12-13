@@ -96,27 +96,28 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			},
 		} as unknown as typeof this.params;
 
-		// Backward compatibility: some scripts assign `QuickAdd.variables = {...}`.
+		// Backward compatibility: some scripts assign `QuickAdd.variables = {...}`
+		// or `params.variables = {...}`.
 		// Treat that as replacing the backing Map so templates can consume them.
-			Object.defineProperty(params, "variables", {
-				get: () => variablesProxy,
-				set: (next: unknown) => {
-					if (next === sharedVariables) return;
+		Object.defineProperty(params, "variables", {
+			get: () => variablesProxy,
+			set: (next: unknown) => {
+				if (next === sharedVariables || next === variablesProxy) return;
 
-					const entries =
-						next instanceof Map
-							? Array.from(next.entries())
-							: next && typeof next === "object"
-								? Object.entries(next as Record<string, unknown>)
-								: null;
+				const entries =
+					next instanceof Map
+						? Array.from(next.entries())
+						: next && typeof next === "object"
+							? Object.entries(next as Record<string, unknown>)
+							: null;
 
-					sharedVariables.clear();
+				sharedVariables.clear();
 
-					entries?.forEach(([key, value]) => sharedVariables.set(key, value));
-				},
-				enumerable: true,
-				configurable: false,
-			});
+				entries?.forEach(([key, value]) => sharedVariables.set(key, value));
+			},
+			enumerable: true,
+			configurable: false,
+		});
 
 		return params;
 	}
