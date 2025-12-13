@@ -111,6 +111,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 							? Object.entries(next as Record<string, unknown>)
 							: null;
 
+				// Invalid assignments are ignored to avoid wiping the backing store.
+				if (!entries) return;
+
 				sharedVariables.clear();
 
 				entries?.forEach(([key, value]) => sharedVariables.set(key, value));

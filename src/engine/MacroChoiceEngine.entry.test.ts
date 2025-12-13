@@ -414,6 +414,51 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(choiceExecutor.variables.get("old")).toBe("value");
 		expect(choiceExecutor.variables.get("added")).toBe(2);
 	});
+
+	it("ignores invalid reassignment of params.variables without clearing", async () => {
+		const invalidAssignScript: IUserScript = {
+			id: "invalid-assign-script",
+			name: "Invalid assign Script",
+			type: CommandType.UserScript,
+			path: "invalid-assign-script.js",
+			settings: {},
+		};
+
+		const invalidAssignChoice: IMacroChoice = {
+			id: "macro-invalid-assign",
+			name: "Macro invalid assign",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-invalid-assign",
+				name: "Macro invalid assign",
+				commands: [invalidAssignScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: any }) => {
+				params.variables = 123;
+				params.variables.added = "ok";
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			invalidAssignChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("old")).toBe("value");
+		expect(choiceExecutor.variables.get("added")).toBe("ok");
+	});
 });
 
 describe("MacroChoiceEngine choice command cancellation", () => {
