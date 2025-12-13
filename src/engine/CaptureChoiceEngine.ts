@@ -19,11 +19,14 @@ import {
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
+	isTemplaterTriggerOnCreateEnabled,
+	jumpToNextTemplaterCursorIfPossible,
 	isFolder,
 	openExistingFileTab,
 	openFile,
 	overwriteTemplaterOnce,
 	templaterParseTemplate,
+	waitForFileToStopChanging,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -157,7 +160,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 			} else {
 				await this.app.vault.modify(file, newFileContent);
-				await overwriteTemplaterOnce(this.app, file);
+				if (this.choice.templater?.afterCapture === "wholeFile") {
+					await overwriteTemplaterOnce(this.app, file);
+				}
 				await this.applyCapturePropertyVars(file);
 			}
 
@@ -174,11 +179,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 
 			if (this.choice.openFile && file) {
-				const openExistingTab = openExistingFileTab(this.app, file);
+				const focus = this.choice.fileOpening.focus ?? true;
+				const openExistingTab = openExistingFileTab(this.app, file, focus);
 
 				if (!openExistingTab) {
 					await openFile(this.app, file, this.choice.fileOpening);
 				}
+
+				await jumpToNextTemplaterCursorIfPossible(this.app, file);
 			}
 		} catch (err) {
 			if (
@@ -440,7 +448,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		// Create the new file with the (optional) template content
-		const file: TFile = await this.createFileWithInput(filePath, fileContent);
+		const file: TFile = await this.createFileWithInput(filePath, fileContent, {
+			suppressTemplaterOnCreate:
+				this.choice.createFileIfItDoesntExist.createWithTemplate,
+		});
 
 		// Post-process front matter for template property types if we used a template
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
@@ -455,6 +466,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			fileContent
 		) {
 			await overwriteTemplaterOnce(this.app, file);
+		} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
+			await waitForFileToStopChanging(this.app, file);
 		}
 
 		// Read the file fresh from disk to avoid any potential cached content

@@ -40,4 +40,7 @@ export default interface ICaptureChoice extends IChoice {
 		mode: FileViewMode2;
 		focus: boolean;
 	};
+	templater?: {
+		afterCapture?: "none" | "wholeFile";
+	};
 }

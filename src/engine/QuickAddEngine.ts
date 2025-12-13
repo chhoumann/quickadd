@@ -2,8 +2,10 @@ import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
+import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
+import { findYamlFrontMatterRange } from "../utils/yamlContext";
 
 /**
  * Configuration for structured variable validation
@@ -204,7 +206,8 @@ export abstract class QuickAddEngine {
 
 	protected async createFileWithInput(
 		filePath: string,
-		fileContent: string
+		fileContent: string,
+		opts: { suppressTemplaterOnCreate?: boolean } = {},
 	): Promise<TFile> {
 		const dirMatch = filePath.match(/(.*)[/\\]/);
 		let dirName = "";
@@ -217,7 +220,18 @@ export abstract class QuickAddEngine {
 
 		}
 
-		return await this.app.vault.create(filePath, fileContent);
+		const createFile = () => this.app.vault.create(filePath, fileContent);
+		const yamlRange = findYamlFrontMatterRange(fileContent);
+		const body = yamlRange ? fileContent.slice(yamlRange[1]) : fileContent;
+		const noteBodyIsEmpty = body.length === 0;
+		const shouldSuppress =
+			opts.suppressTemplaterOnCreate &&
+			filePath.toLowerCase().endsWith(".md") &&
+			noteBodyIsEmpty;
+
+		return shouldSuppress
+			? await withTemplaterFileCreationSuppressed(this.app, filePath, createFile)
+			: await createFile();
 	}
 
 	/**
