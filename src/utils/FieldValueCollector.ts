@@ -66,6 +66,12 @@ export async function collectFieldValuesRaw(
 	fieldName: string,
 	filters: FieldFilter,
 ): Promise<Set<string>> {
+	const normalizedFieldName = fieldName.trim().toLowerCase();
+	if (normalizedFieldName === "tags" || normalizedFieldName === "tag") {
+		const tagValues = await collectTagValues(app, filters);
+		if (tagValues.size > 0) return tagValues;
+	}
+
 	// Try Dataview when allowed; fall back to manual collection
 	try {
 		if (!filters.inline && DataviewIntegration.isAvailable(app)) {
@@ -84,6 +90,113 @@ export async function collectFieldValuesRaw(
 	}
 
 	return await collectFieldValuesManually(app, fieldName, filters);
+}
+
+async function collectTagValues(app: App, filters: FieldFilter): Promise<Set<string>> {
+	const hasFileFilters =
+		Boolean(filters.folder) ||
+		Boolean(filters.tags?.length) ||
+		Boolean(filters.excludeFolders?.length) ||
+		Boolean(filters.excludeTags?.length) ||
+		Boolean(filters.excludeFiles?.length);
+
+	if (!hasFileFilters) {
+		const fromIndex = collectAllVaultTags(app);
+		if (fromIndex.size > 0) return fromIndex;
+	}
+
+	return await collectTagValuesFromFiles(app, filters);
+}
+
+function collectAllVaultTags(app: App): Set<string> {
+	const values = new Set<string>();
+
+	try {
+		// @ts-expect-error - getTags exists in Obsidian but is not typed
+		const tagObj = app.metadataCache.getTags?.() as
+			| Record<string, number>
+			| undefined;
+
+		if (!tagObj) return values;
+
+		for (const rawTag of Object.keys(tagObj)) {
+			const cleaned = rawTag.startsWith("#") ? rawTag.substring(1) : rawTag;
+			const tag = cleaned.trim();
+			if (tag) values.add(tag);
+		}
+	} catch {
+		// ignore and fall back to file-based collection
+	}
+
+	return values;
+}
+
+async function collectTagValuesFromFiles(
+	app: App,
+	filters: FieldFilter,
+): Promise<Set<string>> {
+	const rawValues = new Set<string>();
+
+	let files = app.vault.getMarkdownFiles();
+	files = EnhancedFieldSuggestionFileFilter.filterFiles(
+		files,
+		filters,
+		(file: TFile) => app.metadataCache.getFileCache(file),
+	);
+
+	const batchSize = 50;
+	for (let i = 0; i < files.length; i += batchSize) {
+		const batch = files.slice(i, i + batchSize);
+		const promises = batch.map(async (file) => {
+			const values = new Set<string>();
+			try {
+				const metadataCache = app.metadataCache.getFileCache(file);
+
+				// Frontmatter tags
+				const frontmatterTags: unknown = metadataCache?.frontmatter?.tags;
+				if (frontmatterTags !== undefined && frontmatterTags !== null) {
+					const tags = Array.isArray(frontmatterTags)
+						? frontmatterTags
+						: [frontmatterTags];
+
+					for (const tag of tags) {
+						const s = String(tag).trim();
+						if (s) values.add(s);
+					}
+				}
+
+				// Frontmatter tag (singular)
+				const frontmatterTag: unknown = metadataCache?.frontmatter?.tag;
+				if (frontmatterTag !== undefined && frontmatterTag !== null) {
+					const tags = Array.isArray(frontmatterTag)
+						? frontmatterTag
+						: [frontmatterTag];
+
+					for (const tag of tags) {
+						const s = String(tag).trim();
+						if (s) values.add(s);
+					}
+				}
+
+				// Inline tags
+				if (metadataCache?.tags) {
+					for (const t of metadataCache.tags) {
+						const raw = String(t.tag ?? "").trim();
+						const tag = raw.startsWith("#") ? raw.substring(1) : raw;
+						if (tag) values.add(tag);
+					}
+				}
+			} catch {}
+			return values;
+		});
+
+		const batchResults = await Promise.all(promises);
+		for (const set of batchResults) {
+			for (const v of set) rawValues.add(v);
+		}
+	}
+
+	return rawValues;
 }
 
 async function collectFieldValuesManually(
