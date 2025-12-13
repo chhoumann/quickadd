@@ -106,7 +106,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 				const entries =
 					next instanceof Map
-						? Array.from(next.entries())
+						? Array.from(next.entries()).filter(([key]) => typeof key === "string")
 						: next && typeof next === "object"
 							? Object.entries(next as Record<string, unknown>)
 							: null;

@@ -459,6 +459,54 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(choiceExecutor.variables.get("old")).toBe("value");
 		expect(choiceExecutor.variables.get("added")).toBe("ok");
 	});
+
+	it("skips non-string Map keys when assigning params.variables", async () => {
+		const mapAssignScript: IUserScript = {
+			id: "map-assign-script",
+			name: "Map assign Script",
+			type: CommandType.UserScript,
+			path: "map-assign-script.js",
+			settings: {},
+		};
+
+		const mapAssignChoice: IMacroChoice = {
+			id: "macro-map-assign",
+			name: "Macro map assign",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-map-assign",
+				name: "Macro map assign",
+				commands: [mapAssignScript],
+			} as IMacro,
+		};
+
+		mockGetUserScript.mockImplementationOnce(() => {
+			return Promise.resolve(async (params: { variables: any }) => {
+				params.variables = new Map<any, any>([
+					[1, "nope"],
+					["foo", "bar"],
+				]);
+			});
+		});
+
+		variables.set("old", "value");
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			mapAssignChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.get("foo")).toBe("bar");
+		expect(choiceExecutor.variables.has("old")).toBe(false);
+		expect(choiceExecutor.variables.has(1 as any)).toBe(false);
+	});
 });
 
 describe("MacroChoiceEngine choice command cancellation", () => {
