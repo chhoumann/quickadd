@@ -19,6 +19,7 @@ import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
 	insertFileLinkToActiveView,
+	jumpToNextTemplaterCursorIfPossible,
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
@@ -174,11 +175,18 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
-				const openExistingTab = openExistingFileTab(this.app, createdFile);
+				const focus = this.choice.fileOpening.focus ?? true;
+				const openExistingTab = openExistingFileTab(
+					this.app,
+					createdFile,
+					focus,
+				);
 
 				if (!openExistingTab) {
 					await openFile(this.app, createdFile, this.choice.fileOpening);
 				}
+
+				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);
 			}
 		} catch (err) {
 			if (

@@ -63,6 +63,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		// Behavior
 		new Setting(this.contentEl).setName("Behavior").setHeading();
+		this.addTemplaterAfterCaptureSetting();
 		if (!this.choice.captureToActiveFile) {
 			this.addOpenFileSetting("Open the captured file.");
 
@@ -71,6 +72,23 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			}
 		}
 		this.addOnePageOverrideSetting(this.choice);
+	}
+
+	private addTemplaterAfterCaptureSetting() {
+		new Setting(this.contentEl)
+			.setName("Run Templater on entire destination file after capture")
+			.setDesc(
+				"Advanced / legacy: this executes any `<% %>` anywhere in the destination file (including inside code blocks).",
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(this.choice.templater?.afterCapture === "wholeFile");
+				toggle.onChange((value) => {
+					if (!this.choice.templater) {
+						this.choice.templater = {};
+					}
+					this.choice.templater.afterCapture = value ? "wholeFile" : "none";
+				});
+			});
 	}
 
 	private addCapturedToSetting() {

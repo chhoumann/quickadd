@@ -123,11 +123,14 @@ vi.mock("../utilityObsidian", () => ({
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
+	isTemplaterTriggerOnCreateEnabled: vi.fn().mockReturnValue(false),
+	jumpToNextTemplaterCursorIfPossible: vi.fn().mockResolvedValue(undefined),
 	isFolder: vi.fn().mockReturnValue(false),
 	openExistingFileTab: vi.fn().mockReturnValue(false),
 	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
+	waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
 	getTemplater: vi.fn(() => ({})),
 }));
 
