@@ -5,7 +5,6 @@ import { log } from "../logger/logManager";
 import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
-import { findYamlFrontMatterRange } from "../utils/yamlContext";
 
 /**
  * Configuration for structured variable validation
@@ -218,21 +217,17 @@ export abstract class QuickAddEngine {
 		if (!dir || !(dir instanceof TFolder)) {
 			await this.createFolder(dirName);
 
+			}
+
+			const createFile = () => this.app.vault.create(filePath, fileContent);
+			const shouldSuppress =
+				opts.suppressTemplaterOnCreate &&
+				filePath.toLowerCase().endsWith(".md");
+
+			return shouldSuppress
+				? await withTemplaterFileCreationSuppressed(this.app, filePath, createFile)
+				: await createFile();
 		}
-
-		const createFile = () => this.app.vault.create(filePath, fileContent);
-		const yamlRange = findYamlFrontMatterRange(fileContent);
-		const body = yamlRange ? fileContent.slice(yamlRange[1]) : fileContent;
-		const noteBodyIsEmpty = body.length === 0;
-		const shouldSuppress =
-			opts.suppressTemplaterOnCreate &&
-			filePath.toLowerCase().endsWith(".md") &&
-			noteBodyIsEmpty;
-
-		return shouldSuppress
-			? await withTemplaterFileCreationSuppressed(this.app, filePath, createFile)
-			: await createFile();
-	}
 
 	/**
 	 * Determines if a file's front matter should be post-processed for template property types.

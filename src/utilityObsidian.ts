@@ -90,6 +90,49 @@ export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
 	return !!getTemplaterPlugin(app)?.settings?.trigger_on_file_creation;
 }
 
+type TemplaterFileCreationSuppressionState = {
+	count: number;
+	hadPathInitially: boolean;
+};
+
+const templaterFileCreationSuppressions = new Map<
+	string,
+	TemplaterFileCreationSuppressionState
+>();
+let activeTemplaterFileCreationSuppressions = 0;
+let templaterSuppressionTeardownLock: Promise<void> | null = null;
+
+async function maybeTeardownTemplaterAfterSuppression(
+	app: App,
+	plugin: TemplaterPluginLike,
+	pendingFiles: Set<string>,
+): Promise<void> {
+	if (activeTemplaterFileCreationSuppressions > 0) return;
+	if (pendingFiles.size !== 0) return;
+
+	if (templaterSuppressionTeardownLock) {
+		await templaterSuppressionTeardownLock;
+		return;
+	}
+
+	templaterSuppressionTeardownLock = (async () => {
+		try {
+			app.workspace.trigger("templater:all-templates-executed");
+			await plugin.templater?.functions_generator?.teardown?.();
+		} catch (err) {
+			log.logWarning(
+				`withTemplaterFileCreationSuppressed: teardown failed – ${(err as Error).message}`,
+			);
+		}
+	})();
+
+	try {
+		await templaterSuppressionTeardownLock;
+	} finally {
+		templaterSuppressionTeardownLock = null;
+	}
+}
+
 export async function withTemplaterFileCreationSuppressed<T>(
 	app: App,
 	filePath: string,
@@ -97,41 +140,59 @@ export async function withTemplaterFileCreationSuppressed<T>(
 ): Promise<T> {
 	const plugin = getTemplaterPlugin(app);
 	const pendingFiles = plugin?.templater?.files_with_pending_templates;
-	if (!isTemplaterTriggerOnCreateEnabled(app) || !(pendingFiles instanceof Set)) {
+	if (
+		!plugin ||
+		!isTemplaterTriggerOnCreateEnabled(app) ||
+		!(pendingFiles instanceof Set)
+	) {
 		return await fn();
 	}
 
-	const hadPath = pendingFiles.has(filePath);
-	if (!hadPath) {
-		pendingFiles.add(filePath);
+	activeTemplaterFileCreationSuppressions++;
+
+	let state = templaterFileCreationSuppressions.get(filePath);
+	if (!state) {
+		state = {
+			count: 0,
+			hadPathInitially: pendingFiles.has(filePath),
+		};
+		templaterFileCreationSuppressions.set(filePath, state);
+
+		if (!state.hadPathInitially) {
+			pendingFiles.add(filePath);
+		}
 	}
 
-	const startedAt = Date.now();
+	state.count++;
+
+	let fnSucceeded = false;
 	try {
-		return await fn();
+		const result = await fn();
+		fnSucceeded = true;
+		return result;
 	} finally {
-		if (!hadPath) {
-			// Templater waits ~300ms before checking this Set in its on-create handler.
-			// Keep the entry long enough to ensure the bypass is observed.
-			const minHoldMs = 350;
-			const remainingMs = minHoldMs - (Date.now() - startedAt);
-			if (remainingMs > 0) {
-				await new Promise((r) => setTimeout(r, remainingMs));
-			}
+		state.count--;
+		activeTemplaterFileCreationSuppressions--;
 
-			pendingFiles.delete(filePath);
+		if (state.count <= 0) {
+			templaterFileCreationSuppressions.delete(filePath);
 
-			// If we prevented teardown (because the Set never hit 0), emulate the
-			// "all templates executed" teardown to avoid leaving internal state around.
-			if (pendingFiles.size === 0) {
-				try {
-					app.workspace.trigger("templater:all-templates-executed");
-					await plugin?.templater?.functions_generator?.teardown?.();
-				} catch (err) {
-					log.logWarning(
-						`withTemplaterFileCreationSuppressed: teardown failed – ${(err as Error).message}`,
-					);
+			if (!state.hadPathInitially) {
+				// Templater waits ~300ms before checking this Set in its on-create handler.
+				// Keep the entry long enough to ensure the bypass is observed.
+				if (fnSucceeded) {
+					const minHoldMs = 350;
+					await new Promise((r) => setTimeout(r, minHoldMs));
 				}
+
+				pendingFiles.delete(filePath);
+
+				// By temporarily adding entries to Templater's internal Set, we can
+				// prevent its own teardown from firing when other tasks finish.
+				// When the Set is empty again (and no suppressions are active),
+				// emulate the "all templates executed" teardown to avoid leaving
+				// internal state around.
+				await maybeTeardownTemplaterAfterSuppression(app, plugin, pendingFiles);
 			}
 		}
 	}
@@ -294,6 +355,7 @@ export async function templaterParseTemplate(
 	if (!plugin || typeof parseTemplate !== "function") return templateContent;
 
 	return await parseTemplate(
+		// `run_mode: 4` maps to Templater's internal `RunMode.DynamicProcessor`.
 		{ target_file: targetFile, run_mode: 4 },
 		templateContent,
 	);

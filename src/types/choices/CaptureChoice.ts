@@ -84,8 +84,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		if (!loaded.activeFileWritePosition) {
 			loaded.activeFileWritePosition = "cursor";
 		}
-		if (!loaded.templater) {
-			loaded.templater = { afterCapture: "none" };
+		if (!loaded.templater) loaded.templater = { afterCapture: "none" };
+		if (loaded.templater.afterCapture !== "wholeFile") {
+			loaded.templater.afterCapture = "none";
 		}
 		return loaded;
 	}
