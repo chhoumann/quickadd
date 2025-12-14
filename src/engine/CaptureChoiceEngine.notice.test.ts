@@ -65,20 +65,20 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 	};
 });
 
-vi.mock("../utilityObsidian", () => ({
-	appendToCurrentLine: vi.fn(),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
-	insertFileLinkToActiveView: vi.fn(),
-	insertOnNewLineAbove: vi.fn(),
-	insertOnNewLineBelow: vi.fn(),
-	isFolder: vi.fn(() => false),
-	openExistingFileTab: vi.fn(() => false),
-	openFile: vi.fn(),
-	overwriteTemplaterOnce: vi.fn(),
-	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	getTemplater: vi.fn(() => ({})),
-}));
+	vi.mock("../utilityObsidian", () => ({
+		appendToCurrentLine: vi.fn(),
+		getMarkdownFilesInFolder: vi.fn(async () => []),
+		getMarkdownFilesWithTag: vi.fn(async () => []),
+		insertFileLinkToActiveView: vi.fn(),
+		insertOnNewLineAbove: vi.fn(),
+		insertOnNewLineBelow: vi.fn(),
+		isFolder: vi.fn(() => false),
+		openExistingFileTab: vi.fn(() => null),
+		openFile: vi.fn(),
+		overwriteTemplaterOnce: vi.fn(),
+		templaterParseTemplate: vi.fn(async (_app, content) => content),
+		getTemplater: vi.fn(() => ({})),
+	}));
 
 vi.mock("three-way-merge", () => ({
 	default: vi.fn(() => ({})),

@@ -7,6 +7,7 @@ import type QuickAdd from "../main";
 import {
 	getTemplater,
 	overwriteTemplaterOnce,
+	templaterParseTemplate,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
@@ -165,9 +166,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
 			}
 
+			const suppressTemplaterOnCreate = filePath
+				.toLowerCase()
+				.endsWith(".md");
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
-				formattedTemplateContent
+				formattedTemplateContent,
+				{ suppressTemplaterOnCreate },
 			);
 
 			// Post-process front matter for template property types BEFORE Templater
@@ -252,17 +257,21 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
 
-			const formattedTemplateContent: string =
+			let formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
+			if (file.extension === "md") {
+				formattedTemplateContent = await templaterParseTemplate(
+					this.app,
+					formattedTemplateContent,
+					file,
+				);
+			}
 			const fileContent: string = await this.app.vault.cachedRead(file);
 			const newFileContent: string =
 				section === "top"
 					? `${formattedTemplateContent}\n${fileContent}`
 					: `${fileContent}\n${formattedTemplateContent}`;
 			await this.app.vault.modify(file, newFileContent);
-
-			// Process Templater commands
-			await overwriteTemplaterOnce(this.app, file);
 
 			return file;
 		} catch (err) {

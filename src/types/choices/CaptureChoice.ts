@@ -35,6 +35,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		mode: FileViewMode2;
 		focus: boolean;
 	};
+	templater?: {
+		afterCapture?: "none" | "wholeFile";
+	};
 
 	constructor(name: string) {
 		super(name, "Capture");
@@ -70,6 +73,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			mode: "default",
 			focus: true,
 		};
+		this.templater = {
+			afterCapture: "none",
+		};
 	}
 
 	public static Load(choice: ICaptureChoice): CaptureChoice {
@@ -77,6 +83,10 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		// Ensure backward compatibility: default to "cursor" if not set
 		if (!loaded.activeFileWritePosition) {
 			loaded.activeFileWritePosition = "cursor";
+		}
+		if (!loaded.templater) loaded.templater = { afterCapture: "none" };
+		if (loaded.templater.afterCapture !== "wholeFile") {
+			loaded.templater.afterCapture = "none";
 		}
 		return loaded;
 	}

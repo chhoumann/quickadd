@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
+import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 
@@ -204,7 +205,8 @@ export abstract class QuickAddEngine {
 
 	protected async createFileWithInput(
 		filePath: string,
-		fileContent: string
+		fileContent: string,
+		opts: { suppressTemplaterOnCreate?: boolean } = {},
 	): Promise<TFile> {
 		const dirMatch = filePath.match(/(.*)[/\\]/);
 		let dirName = "";
@@ -215,10 +217,17 @@ export abstract class QuickAddEngine {
 		if (!dir || !(dir instanceof TFolder)) {
 			await this.createFolder(dirName);
 
-		}
+			}
 
-		return await this.app.vault.create(filePath, fileContent);
-	}
+			const createFile = () => this.app.vault.create(filePath, fileContent);
+			const shouldSuppress =
+				opts.suppressTemplaterOnCreate &&
+				filePath.toLowerCase().endsWith(".md");
+
+			return shouldSuppress
+				? await withTemplaterFileCreationSuppressed(this.app, filePath, createFile)
+				: await createFile();
+		}
 
 	/**
 	 * Determines if a file's front matter should be post-processed for template property types.
