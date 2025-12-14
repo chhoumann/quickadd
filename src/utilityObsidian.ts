@@ -376,6 +376,9 @@ export async function jumpToNextTemplaterCursorIfPossible(
 	const plugin = getTemplaterPlugin(app);
 	const autoJumpEnabled = !!plugin?.settings?.auto_jump_to_cursor;
 	const jump = plugin?.editor_handler?.jump_to_next_cursor_location;
+
+	if (!autoJumpEnabled) return;
+
 	if (typeof jump === "function") {
 		try {
 			await jump(file, true);
@@ -384,10 +387,8 @@ export async function jumpToNextTemplaterCursorIfPossible(
 			log.logWarning(
 				`jumpToNextTemplaterCursorIfPossible: API failed – ${(err as Error).message}`,
 			);
+			}
 		}
-	}
-
-	if (!autoJumpEnabled) return;
 
 	try {
 		(
