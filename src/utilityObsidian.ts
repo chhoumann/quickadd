@@ -22,7 +22,7 @@ import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
 
-type TemplaterPluginLike = {
+export type TemplaterPluginLike = {
 	settings?: {
 		trigger_on_file_creation?: boolean;
 		auto_jump_to_cursor?: boolean;
