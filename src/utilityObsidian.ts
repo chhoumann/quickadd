@@ -102,6 +102,13 @@ const templaterFileCreationSuppressions = new Map<
 let activeTemplaterFileCreationSuppressions = 0;
 let templaterSuppressionTeardownLock: Promise<void> | null = null;
 
+// Templater waits ~300ms before checking `files_with_pending_templates` in its
+// on-create handler. We hold the entry slightly longer to ensure the bypass is
+// observed.
+// Tested with templater-obsidian v2.x; may need adjustment if Templater internals
+// change.
+const TEMPLATER_PENDING_CHECK_BUFFER_MS = 350;
+
 async function maybeTeardownTemplaterAfterSuppression(
 	app: App,
 	plugin: TemplaterPluginLike,
@@ -174,18 +181,16 @@ export async function withTemplaterFileCreationSuppressed<T>(
 		state.count--;
 		activeTemplaterFileCreationSuppressions--;
 
-		if (state.count <= 0) {
-			templaterFileCreationSuppressions.delete(filePath);
+			if (state.count <= 0) {
+				templaterFileCreationSuppressions.delete(filePath);
 
-			if (!state.hadPathInitially) {
-				// Templater waits ~300ms before checking this Set in its on-create handler.
-				// Keep the entry long enough to ensure the bypass is observed.
-				if (fnSucceeded) {
-					const minHoldMs = 350;
-					await new Promise((r) => setTimeout(r, minHoldMs));
-				}
+				if (!state.hadPathInitially) {
+					if (fnSucceeded) {
+						const minHoldMs = TEMPLATER_PENDING_CHECK_BUFFER_MS;
+						await new Promise((r) => setTimeout(r, minHoldMs));
+					}
 
-				pendingFiles.delete(filePath);
+					pendingFiles.delete(filePath);
 
 				// By temporarily adding entries to Templater's internal Set, we can
 				// prevent its own teardown from firing when other tasks finish.
@@ -817,7 +822,8 @@ export async function openFile(
 }
 
 /**
- * If there is no existing tab which opened the file, return false, else return true.
+ * Finds an already-open leaf that is displaying `file` and optionally focuses it.
+ * Returns the leaf if found, otherwise `null`.
  */
 export function openExistingFileTab(
 	app: App,

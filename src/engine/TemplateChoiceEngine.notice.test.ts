@@ -75,14 +75,14 @@ vi.mock("../formatters/completeFormatter", () => {
 	};
 });
 
-vi.mock("../utilityObsidian", () => ({
-	getTemplater: vi.fn(() => ({})),
-	overwriteTemplaterOnce: vi.fn(),
-	getAllFolderPathsInVault: vi.fn(async () => []),
-	insertFileLinkToActiveView: vi.fn(),
-	openExistingFileTab: vi.fn(() => false),
-	openFile: vi.fn(),
-}));
+	vi.mock("../utilityObsidian", () => ({
+		getTemplater: vi.fn(() => ({})),
+		overwriteTemplaterOnce: vi.fn(),
+		getAllFolderPathsInVault: vi.fn(async () => []),
+		insertFileLinkToActiveView: vi.fn(),
+		openExistingFileTab: vi.fn(() => null),
+		openFile: vi.fn(),
+	}));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: {
