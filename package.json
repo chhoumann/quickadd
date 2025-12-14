@@ -1,6 +1,6 @@
 {
   "name": "quickadd",
-  "version": "2.9.1",
+  "version": "2.9.2",
   "description": "Quickly add new pages or content to your vault.",
   "main": "main.js",
   "scripts": {
