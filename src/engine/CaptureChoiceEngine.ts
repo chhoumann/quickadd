@@ -26,7 +26,7 @@ import {
 	openFile,
 	overwriteTemplaterOnce,
 	templaterParseTemplate,
-	waitForFileToStopChanging,
+	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -467,7 +467,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		) {
 			await overwriteTemplaterOnce(this.app, file);
 		} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
-			await waitForFileToStopChanging(this.app, file);
+			await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
 		}
 
 		// Read the file fresh from disk to avoid any potential cached content

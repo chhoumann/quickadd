@@ -37,6 +37,7 @@ export type TemplaterPluginLike = {
 		functions_generator?: { teardown?: () => Promise<void> };
 	};
 	editor_handler?: {
+		plugin?: unknown;
 		jump_to_next_cursor_location?: (
 			file?: TFile | null,
 			auto_jump?: boolean,
@@ -88,6 +89,41 @@ export function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
 
 export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
 	return !!getTemplaterPlugin(app)?.settings?.trigger_on_file_creation;
+}
+
+export async function waitForTemplaterTriggerOnCreateToComplete(
+	app: App,
+	file: TFile,
+	opts: { timeoutMs?: number; appearTimeoutMs?: number } = {},
+): Promise<void> {
+	if (file.extension !== "md") return;
+	if (!isTemplaterTriggerOnCreateEnabled(app)) return;
+
+	const plugin = getTemplaterPlugin(app);
+	const pendingFiles = plugin?.templater?.files_with_pending_templates;
+	if (!(pendingFiles instanceof Set)) {
+		await waitForFileToStopChanging(app, file, {
+			timeoutMs: opts.timeoutMs ?? 5000,
+			gracePeriodMs: opts.appearTimeoutMs ?? 2500,
+			quietPeriodMs: 200,
+		});
+		return;
+	}
+
+	const { timeoutMs = 5000, appearTimeoutMs = 2500 } = opts;
+	const start = Date.now();
+
+	while (Date.now() - start < appearTimeoutMs) {
+		if (pendingFiles.has(file.path)) break;
+		await new Promise((r) => setTimeout(r, 50));
+	}
+
+	while (Date.now() - start < timeoutMs) {
+		if (!pendingFiles.has(file.path)) break;
+		await new Promise((r) => setTimeout(r, 50));
+	}
+
+	await waitForFileSettle(app, file, 800);
 }
 
 type TemplaterFileCreationSuppressionState = {
@@ -302,8 +338,9 @@ export async function overwriteTemplaterOnce(
 	if (file.extension !== "md") return;
 
 	const plugin = getTemplaterPlugin(app);
-	const overwrite = plugin?.templater?.overwrite_file_commands;
-	if (!plugin || typeof overwrite !== "function") return;
+	const templater = plugin?.templater;
+	const overwrite = templater?.overwrite_file_commands;
+	if (!plugin || !templater || typeof overwrite !== "function") return;
 
 	const { skipIfNoTags = true, postWait = true } = opts;
 
@@ -327,7 +364,8 @@ export async function overwriteTemplaterOnce(
 		}
 
 		try {
-			await overwrite(file);
+			// Preserve Templater's internal `this` context.
+			await overwrite.call(templater, file);
 			if (postWait) {
 				await waitForFileSettle(app, file, 800);
 			}
@@ -356,10 +394,14 @@ export async function templaterParseTemplate(
 	if (targetFile.extension !== "md") return templateContent;
 
 	const plugin = getTemplaterPlugin(app);
-	const parseTemplate = plugin?.templater?.parse_template;
-	if (!plugin || typeof parseTemplate !== "function") return templateContent;
+	const templater = plugin?.templater;
+	const parseTemplate = templater?.parse_template;
+	if (!plugin || !templater || typeof parseTemplate !== "function")
+		return templateContent;
 
-	return await parseTemplate(
+	// Preserve Templater's internal `this` context.
+	return await parseTemplate.call(
+		templater,
 		// `run_mode: 4` maps to Templater's internal `RunMode.DynamicProcessor`.
 		{ target_file: targetFile, run_mode: 4 },
 		templateContent,
@@ -375,20 +417,22 @@ export async function jumpToNextTemplaterCursorIfPossible(
 
 	const plugin = getTemplaterPlugin(app);
 	const autoJumpEnabled = !!plugin?.settings?.auto_jump_to_cursor;
-	const jump = plugin?.editor_handler?.jump_to_next_cursor_location;
+	const editorHandler = plugin?.editor_handler;
+	const jump = editorHandler?.jump_to_next_cursor_location;
 
 	if (!autoJumpEnabled) return;
 
 	if (typeof jump === "function") {
 		try {
-			await jump(file, true);
+			// Preserve Templater's internal `this` context.
+			await jump.call(editorHandler, file, true);
 			return;
 		} catch (err) {
 			log.logWarning(
 				`jumpToNextTemplaterCursorIfPossible: API failed – ${(err as Error).message}`,
 			);
-			}
 		}
+	}
 
 	try {
 		(
