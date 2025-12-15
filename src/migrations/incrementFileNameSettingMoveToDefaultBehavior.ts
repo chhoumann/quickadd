@@ -1,6 +1,7 @@
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
+import { deepClone } from "src/utils/deepClone";
 import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import { isOldTemplateChoice } from "./helpers/isOldTemplateChoice";
@@ -48,13 +49,13 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
 	 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
-		const choicesCopy = structuredClone(plugin.settings.choices);
+		const choicesCopy = deepClone(plugin.settings.choices);
 		const choices = recursiveRemoveIncrementFileName(choicesCopy);
 
-		const macrosCopy = structuredClone((plugin.settings as any).macros || []);
+		const macrosCopy = deepClone((plugin.settings as any).macros || []);
 		const macros = removeIncrementFileName(macrosCopy);
 
-		plugin.settings.choices = structuredClone(choices);
+		plugin.settings.choices = deepClone(choices);
 		
 		// Save the migrated macros back to settings - later migrations still need it
 		(plugin.settings as any).macros = macros;

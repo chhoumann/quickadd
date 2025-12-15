@@ -21,6 +21,7 @@ import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
 import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
+import { deepClone } from "./utils/deepClone";
 
 export type TemplaterPluginLike = {
 	settings?: {
@@ -945,7 +946,7 @@ export function excludeKeys<T extends object, K extends keyof T>(
 	sourceObj: T,
 	except: K[],
 ): Omit<T, K> {
-	const obj = structuredClone(sourceObj);
+	const obj = deepClone(sourceObj);
 
 	for (const key of except) {
 		delete obj[key];

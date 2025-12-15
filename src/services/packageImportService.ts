@@ -20,6 +20,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
 import { decodeFromBase64 } from "../utils/base64";
+import { deepClone } from "../utils/deepClone";
 
 export interface LoadedQuickAddPackage {
 	pkg: QuickAddPackage;
@@ -259,7 +260,7 @@ export async function applyPackageImport(
 		idMap.set(entry.choice.id, newId);
 	}
 
-	const updatedChoices = structuredClone(existingChoices);
+	const updatedChoices = deepClone(existingChoices);
 	const addedChoiceIds: string[] = [];
 	const overwrittenChoiceIds: string[] = [];
 	const skippedChoiceIds: string[] = [];
@@ -272,10 +273,10 @@ export async function applyPackageImport(
 			continue;
 		}
 
-		const clone = structuredClone(entry.choice);
-		const remapped = remapChoiceTree(clone, idMap, importableChoiceIds);
-		preparedChoices.set(entry.choice.id, remapped);
-	}
+			const clone = deepClone(entry.choice);
+			const remapped = remapChoiceTree(clone, idMap, importableChoiceIds);
+			preparedChoices.set(entry.choice.id, remapped);
+		}
 
 	const handledChoices = new Set<string>();
 

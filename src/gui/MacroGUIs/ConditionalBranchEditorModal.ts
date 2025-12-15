@@ -3,18 +3,11 @@ import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { ICommand } from "../../types/macros/ICommand";
+import { deepClone } from "../../utils/deepClone";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
 } from "./CommandSequenceEditor";
-
-function cloneCommands(commands: ICommand[]): ICommand[] {
-	if (typeof structuredClone === "function") {
-		return structuredClone(commands);
-	}
-
-	return JSON.parse(JSON.stringify(commands)) as ICommand[];
-}
 
 interface ConditionalBranchEditorModalOptions {
 	app: App;
@@ -40,7 +33,7 @@ export class ConditionalBranchEditorModal extends Modal {
 		this.plugin = options.plugin;
 		this.choices = options.choices;
 		this.conditionalHandlers = options.conditionalHandlers;
-		this.workingCommands = cloneCommands(options.commands);
+		this.workingCommands = deepClone(options.commands);
 
 		this.waitForClose = new Promise<ICommand[] | null>((resolve) => {
 			this.resolvePromise = resolve;
