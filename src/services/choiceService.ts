@@ -18,6 +18,7 @@ import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { excludeKeys } from "../utilityObsidian";
 import { regenerateIds } from "../utils/macroUtils";
+import { deepClone } from "../utils/deepClone";
 
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 	Template: TemplateChoice,
@@ -49,9 +50,7 @@ export function duplicateChoice(choice: IChoice): IChoice {
 	Object.assign(newChoice, excludeKeys(choice, ["id", "name"]));
 
 	if (choice.type === "Macro") {
-		(newChoice as IMacroChoice).macro = structuredClone(
-			(choice as IMacroChoice).macro,
-		);
+		(newChoice as IMacroChoice).macro = deepClone((choice as IMacroChoice).macro);
 		regenerateIds((newChoice as IMacroChoice).macro);
 	}
 

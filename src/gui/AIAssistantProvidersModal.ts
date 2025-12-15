@@ -6,6 +6,7 @@ import { dedupeModels } from "src/ai/modelsDirectory";
 import { discoverProviderModels } from "src/ai/modelDiscoveryService";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
+import { deepClone } from "src/utils/deepClone";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
@@ -101,14 +102,14 @@ export class AIAssistantProvidersModal extends Modal {
 					button.setWarning();
 					button.setIcon("trash" as IconType);
 				})
-				.addButton((button) => {
-					button.setButtonText("Edit").onClick(() => {
-						this.selectedProvider = provider;
-						this._selectedProviderClone = structuredClone(provider);
+					.addButton((button) => {
+						button.setButtonText("Edit").onClick(() => {
+							this.selectedProvider = provider;
+							this._selectedProviderClone = deepClone(provider);
 
-						this.reload();
+							this.reload();
+						});
 					});
-				});
 		});
 	}
 

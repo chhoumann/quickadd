@@ -9,6 +9,7 @@ import addDefaultAIProviders from "./addDefaultAIProviders";
 import removeMacroIndirection from "./removeMacroIndirection";
 import migrateFileOpeningSettings from "./migrateFileOpeningSettings";
 import setProviderModelDiscoveryMode from "./setProviderModelDiscoveryMode";
+import { deepClone } from "src/utils/deepClone";
 
 const migrations: Migrations = {
 	useQuickAddTemplateFolder,
@@ -38,7 +39,7 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 			`Running migration ${migration}: ${migrations[migration].description}`
 		);
 
-		const backup = structuredClone(plugin.settings);
+		const backup = deepClone(plugin.settings);
 
 		try {
 			await migrations[migration].migrate(plugin);

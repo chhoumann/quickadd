@@ -1,6 +1,7 @@
 import type QuickAdd from "src/main";
 import { settingsStore } from "src/settingsStore";
 import type { Migration } from "./Migrations";
+import { deepClone } from "src/utils/deepClone";
 
 const setProviderModelDiscoveryMode: Migration = {
 	description:
@@ -25,7 +26,7 @@ const setProviderModelDiscoveryMode: Migration = {
 			...state,
 			ai: {
 				...state.ai,
-				providers: structuredClone(providers),
+				providers: deepClone(providers),
 			},
 		}));
 	},

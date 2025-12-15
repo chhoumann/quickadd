@@ -10,12 +10,13 @@ import type {
 } from "../types/packages/QuickAddPackage";
 import { QUICKADD_PACKAGE_SCHEMA_VERSION } from "../types/packages/QuickAddPackage";
 import {
- collectChoiceClosure,
- collectScriptDependencies,
- collectFileDependencies,
+	collectChoiceClosure,
+	collectScriptDependencies,
+	collectFileDependencies,
 } from "../utils/packageTraversal";
 import { log } from "../logger/logManager";
 import { encodeToBase64 } from "../utils/base64";
+import { deepClone } from "../utils/deepClone";
 
 export interface BuildPackageOptions {
 	choices: IChoice[];
@@ -61,15 +62,15 @@ export async function buildPackage(
 	const assets = await encodeAssets(app, assetDescriptors);
 
 	const packageChoices: QuickAddPackageChoice[] = closure.choiceIds.map(
-		(choiceId) => {
-			const entry = closure.catalog.get(choiceId);
-			if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
-			const clonedChoice = structuredClone(entry.choice);
-			pruneChoiceTree(clonedChoice, includedChoiceIds);
-			return {
-				choice: clonedChoice,
-				pathHint: [...entry.path],
-				parentChoiceId: entry.parentId,
+			(choiceId) => {
+				const entry = closure.catalog.get(choiceId);
+				if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
+				const clonedChoice = deepClone(entry.choice);
+				pruneChoiceTree(clonedChoice, includedChoiceIds);
+				return {
+					choice: clonedChoice,
+					pathHint: [...entry.path],
+					parentChoiceId: entry.parentId,
 			};
 		},
 	);

@@ -4,6 +4,7 @@ import { isCaptureChoice } from "./helpers/isCaptureChoice";
 import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration } from "./Migrations";
+import { deepClone } from "src/utils/deepClone";
 
 function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
@@ -48,10 +49,10 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 		"Mutual exclusion of insertAfter and writeToBottomOfFile settings. If insertAfter is enabled, writeToBottomOfFile is disabled. To support changes in settings UI.",
 	 
 	migrate: async (plugin) => {
-		const choicesCopy = structuredClone(plugin.settings.choices);
+		const choicesCopy = deepClone(plugin.settings.choices);
 		const choices = recursiveMigrateSettingInChoices(choicesCopy);
 
-		const macrosCopy = structuredClone((plugin.settings as any).macros || []);
+		const macrosCopy = deepClone((plugin.settings as any).macros || []);
 		const macros = migrateSettingsInMacros(macrosCopy);
 
 		plugin.settings.choices = choices;
