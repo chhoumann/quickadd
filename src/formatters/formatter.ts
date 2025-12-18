@@ -130,15 +130,23 @@ export abstract class Formatter {
 	protected async replaceValueInString(input: string): Promise<string> {
 		let output: string = input;
 
-		if (this.variables.has("value")) {
-			this.value = this.variables.get("value") as string;
+		// Fast path: nothing to do.
+		if (!NAME_VALUE_REGEX.test(output)) return output;
+
+		// Preserve programmatic VALUE injection via reserved variable name `value`.
+		if (this.hasConcreteVariable("value")) {
+			this.value = String(this.variables.get("value"));
 		}
 
-		while (NAME_VALUE_REGEX.test(output)) {
-			if (!this.value) this.value = await this.promptForValue();
-
-			output = this.replacer(output, NAME_VALUE_REGEX, this.value);
+		// Prompt only once per formatter run (empty string is a valid value).
+		if (this.value === undefined) {
+			this.value = await this.promptForValue();
 		}
+
+		// Replace all occurrences in a single non-recursive pass.
+		// Important: use a replacer function so `$` in user input is treated literally.
+		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
+		output = output.replace(regex, () => this.value);
 
 		return output;
 	}
@@ -358,13 +366,21 @@ export abstract class Formatter {
 	protected abstract promptForMathValue(): Promise<string>;
 
 	protected async replaceMathValueInString(input: string) {
-		let output: string = input;
+		// Build the output by scanning the current input once.
+		// This avoids infinite replacement loops when the provided math input contains {{MVALUE}}.
+		const regex = new RegExp(MATH_VALUE_REGEX.source, "gi");
 
-		while (MATH_VALUE_REGEX.test(output)) {
-			const mathstr = await this.promptForMathValue();
-			output = this.replacer(output, MATH_VALUE_REGEX, mathstr);
+		let output = "";
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
+
+		while ((match = regex.exec(input)) !== null) {
+			output += input.slice(lastIndex, match.index);
+			output += await this.promptForMathValue();
+			lastIndex = match.index + match[0].length;
 		}
 
+		output += input.slice(lastIndex);
 		return output;
 	}
 
