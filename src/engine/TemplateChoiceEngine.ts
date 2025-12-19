@@ -203,6 +203,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 	}
 
+	/**
+	 * Resolve an existing file by path with a case-insensitive fallback.
+	 *
+	 * Obsidian's in-memory file index is case-sensitive, but on
+	 * case-insensitive filesystems adapter.exists can still return true.
+	 * If a direct lookup fails, scan the vault for a single case-insensitive
+	 * match. Multiple matches are treated as ambiguous and return null.
+	 */
 	private findExistingFile(filePath: string): TFile | null {
 		const direct = this.app.vault.getAbstractFileByPath(filePath);
 		if (direct instanceof TFile) return direct;
@@ -217,8 +225,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 		if (matches.length === 1) return matches[0];
 		if (matches.length > 1) {
+			const matchList = matches.map((match) => match.path).join(", ");
 			log.logError(
-				`Multiple files match '${filePath}' when ignoring case.`,
+				`Multiple files match '${filePath}' when ignoring case: ${matchList}`,
 			);
 		}
 
