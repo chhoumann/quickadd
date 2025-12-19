@@ -43,10 +43,10 @@ export class MultiChoiceSettingsModal extends Modal {
 		new Setting(this.contentEl)
 			.setName("Placeholder")
 			.setDesc(
-				"Shown in the choice picker search box when this multi choice opens.",
+				"Shown in the choice picker search box when this multi choice opens. Leave blank to use the multi name.",
 			)
 			.addText((text) => {
-				text.setPlaceholder("Select an option...");
+				text.setPlaceholder("Defaults to the multi name");
 				text.setValue(this.placeholder).onChange((value) => {
 					this.placeholder = value;
 				});
