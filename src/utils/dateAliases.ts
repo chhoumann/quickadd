@@ -57,33 +57,31 @@ export function formatDateAliasLines(aliases: DateAliasMap): string {
 		.join("\n");
 }
 
-export function getDateAliasSummary(
+export function getOrderedDateAliases(
 	aliases: DateAliasMap,
-	limit = 3,
-): string {
+): Array<[string, string]> {
 	const entries = Object.entries(aliases);
-	if (entries.length === 0 || limit <= 0) return "";
+	if (entries.length === 0) return [];
 
 	const preferredKeys = ["t", "tm", "yd"];
 	const preferred = preferredKeys
 		.filter((key) => aliases[key])
 		.map((key) => [key, aliases[key]] as const);
 
-	if (preferred.length > 0) {
-		return preferred
-			.slice(0, limit)
-			.map(([key, value]) => `${key}=${value}`)
-			.join(", ");
-	}
+	const used = new Set(preferred.map(([key]) => key));
+	const remaining = entries
+		.filter(([key]) => !used.has(key))
+		.sort((a, b) => {
+			const lenDiff = a[0].length - b[0].length;
+			if (lenDiff !== 0) return lenDiff;
+			return a[0].localeCompare(b[0]);
+		});
 
-	const ordered = entries.sort((a, b) => {
-		const lenDiff = a[0].length - b[0].length;
-		if (lenDiff !== 0) return lenDiff;
-		return a[0].localeCompare(b[0]);
-	});
+	return [...preferred, ...remaining];
+}
 
-	return ordered
-		.slice(0, Math.max(0, limit))
+export function formatDateAliasInline(aliases: DateAliasMap): string {
+	return getOrderedDateAliases(aliases)
 		.map(([key, value]) => `${key}=${value}`)
 		.join(", ");
 }

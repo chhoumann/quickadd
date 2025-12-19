@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+	formatDateAliasInline,
 	formatDateAliasLines,
-	getDateAliasSummary,
+	getOrderedDateAliases,
 	normalizeDateInput,
 	parseDateAliasLines,
 } from "./dateAliases";
@@ -35,8 +36,19 @@ describe("dateAliases", () => {
 		expect(formatted).toBe("tm = tomorrow\nyd = yesterday");
 	});
 
-	it("builds a short alias summary", () => {
-		const summary = getDateAliasSummary({
+	it("orders aliases with preferred keys first", () => {
+		const ordered = getOrderedDateAliases({
+			foo: "bar",
+			tm: "tomorrow",
+			yd: "yesterday",
+			t: "today",
+		});
+		expect(ordered[0][0]).toBe("t");
+		expect(ordered[1][0]).toBe("tm");
+	});
+
+	it("formats aliases inline", () => {
+		const summary = formatDateAliasInline({
 			tm: "tomorrow",
 			yd: "yesterday",
 		});
