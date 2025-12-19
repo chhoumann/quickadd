@@ -1,5 +1,6 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
+import { log } from "src/logger/logManager";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -14,6 +15,12 @@ type Options = {
 	renderItem: SuggestRender<string> | undefined;
 };
 
+const normalizeDisplayItem = (value: unknown): string => {
+	if (typeof value === "string") return value;
+	if (value == null) return "";
+	return String(value);
+};
+
 /**
  * Similar to GenericSuggester, except users can write their own input, and it gets added to the list of suggestions.
  */
@@ -24,6 +31,9 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	private resolved: boolean;
 
 	private renderItem?: SuggestRender<string>;
+	private displayItems: string[];
+	private items: string[];
+	private warnedOnEmptyDisplay = false;
 
 	public static Suggest(
 		app: App,
@@ -42,11 +52,14 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 
 	public constructor(
 		app: App,
-		private displayItems: string[],
-		private items: string[],
+		displayItems: string[],
+		items: string[],
 		options: Partial<Options> = {}
 	) {
 		super(app);
+
+		this.items = items;
+		this.displayItems = displayItems.map((value) => normalizeDisplayItem(value));
 
 		this.promise = new Promise<string>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -75,17 +88,29 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		});
 
 		if (options.placeholder) this.setPlaceholder(options.placeholder);
-		if (options.limit) this.limit = options.limit;
+		if (typeof options.limit === "number") {
+			this.limit = options.limit;
+		}
 		if (options.emptyStateText)
 			this.emptyStateText = options.emptyStateText;
 
+		if (this.displayItems.length !== this.items.length) {
+			this.displayItems = this.items.map((item, index) => {
+				const displayItem = this.displayItems[index];
+				return normalizeDisplayItem(displayItem ?? item);
+			});
+		}
+
+		this.warnIfEmptyDisplay();
 		this.open();
 	}
 
 	getItemText(item: string): string {
 		if (item === this.inputEl.value) return item;
 
-		return this.displayItems[this.items.indexOf(item)];
+		const index = this.items.indexOf(item);
+		const displayItem = index >= 0 ? this.displayItems[index] : undefined;
+		return normalizeDisplayItem(displayItem ?? item);
 	}
 
 	getItems(): string[] {
@@ -153,5 +178,20 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		super.onClose();
 
 		if (!this.resolved) this.rejectPromise("no input given.");
+	}
+
+	private warnIfEmptyDisplay(): void {
+		if (this.warnedOnEmptyDisplay) return;
+
+		const hasEmptyDisplay = this.displayItems.some(
+			(displayItem) => displayItem.length === 0,
+		);
+
+		if (hasEmptyDisplay) {
+			this.warnedOnEmptyDisplay = true;
+			log.logWarning(
+				"QuickAdd suggester received empty display values. Check your displayItems mapping.",
+			);
+		}
 	}
 }

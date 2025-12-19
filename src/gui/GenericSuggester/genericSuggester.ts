@@ -1,7 +1,14 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
+import { log } from "src/logger/logManager";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
+
+const normalizeDisplayItem = (value: unknown): string => {
+	if (typeof value === "string") return value;
+	if (value == null) return "";
+	return String(value);
+};
 
 export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private resolvePromise: (value: T) => void;
@@ -10,6 +17,9 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private resolved: boolean;
 
 	private renderItem?: SuggestRender<T>;
+	private displayItems: string[];
+	private items: T[];
+	private warnedOnEmptyDisplay = false;
 
 
 	public static Suggest<T>(
@@ -26,13 +36,15 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 
 	public constructor(
 		app: App,
-		private displayItems: string[],
-		private items: T[],
+		displayItems: string[],
+		items: T[],
 		renderItem?: SuggestRender<T>,
 	) {
 		super(app);
 
 		this.renderItem = renderItem;
+		this.items = items;
+		this.displayItems = displayItems.map((value) => normalizeDisplayItem(value));
 
 		this.promise = new Promise<T>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -58,11 +70,21 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			this.inputEl.value = values[selectedItem].item ?? value;
 		});
 
+		if (this.displayItems.length !== this.items.length) {
+			this.displayItems = this.items.map((item, index) => {
+				const displayItem = this.displayItems[index];
+				return normalizeDisplayItem(displayItem ?? item);
+			});
+		}
+
+		this.warnIfEmptyDisplay();
 		this.open();
 	}
 
 	getItemText(item: T): string {
-		return this.displayItems[this.items.indexOf(item)];
+		const index = this.items.indexOf(item);
+		const displayItem = index >= 0 ? this.displayItems[index] : undefined;
+		return normalizeDisplayItem(displayItem ?? item);
 	}
 
 	getItems(): T[] {
@@ -103,5 +125,20 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		super.onClose();
 
 		if (!this.resolved) this.rejectPromise("no input given.");
+	}
+
+	private warnIfEmptyDisplay(): void {
+		if (this.warnedOnEmptyDisplay) return;
+
+		const hasEmptyDisplay = this.displayItems.some(
+			(displayItem) => displayItem.length === 0,
+		);
+
+		if (hasEmptyDisplay) {
+			this.warnedOnEmptyDisplay = true;
+			log.logWarning(
+				"QuickAdd suggester received empty display values. Check your displayItems mapping.",
+			);
+		}
 	}
 }
