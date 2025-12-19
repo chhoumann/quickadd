@@ -77,7 +77,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 		const nextPlaceholder = isBack
 			? this.placeholderStack[this.placeholderStack.length - 1]
-			: multi.placeholder?.trim() || undefined;
+			: multi.placeholder?.trim() || multi.name;
 		const nextStack = isBack
 			? this.placeholderStack.slice(0, -1)
 			: [...this.placeholderStack, this.currentPlaceholder];
