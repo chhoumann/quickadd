@@ -5,17 +5,17 @@ import type { App, TFile, Vault, MetadataCache, Workspace } from 'obsidian';
 // Test-specific subclass that allows resetting the singleton
 class TestableFileIndex extends FileIndex {
 	static reset(): void {
-		if (TestableFileIndex.instance) {
+		if (FileIndex.instance) {
 			// Clear any pending timeouts
-			if ((TestableFileIndex.instance as any).reindexTimeout !== null) {
-				clearTimeout((TestableFileIndex.instance as any).reindexTimeout);
+			if ((FileIndex.instance as any).reindexTimeout !== null) {
+				clearTimeout((FileIndex.instance as any).reindexTimeout);
 			}
-			if ((TestableFileIndex.instance as any).fuseUpdateTimeout !== null) {
-				clearTimeout((TestableFileIndex.instance as any).fuseUpdateTimeout);
+			if ((FileIndex.instance as any).fuseUpdateTimeout !== null) {
+				clearTimeout((FileIndex.instance as any).fuseUpdateTimeout);
 			}
-			// Clear the instance
-			TestableFileIndex.instance = null as any;
 		}
+		// Clear the instance
+		FileIndex.instance = null as any;
 	}
 }
 
@@ -189,9 +189,10 @@ describe('FileIndex', () => {
 			}));
 
 			// Initial index – ensure all batched timers run so both files are indexed
-			await freshIndex.ensureIndexed();
+			const indexPromise = freshIndex.ensureIndexed();
 			// Flush any pending timers (including 0-ms ones) used inside performReindex()
 			await vi.runAllTimersAsync();
+			await indexPromise;
 			expect(freshIndex.getIndexedFileCount()).toBeGreaterThanOrEqual(1);
 
 			// Spy on the methods - use proper type assertion
@@ -340,6 +341,28 @@ describe('FileIndex', () => {
 	});
 
 	describe('search functionality', () => {
+		it('should match normalized query against decomposed filenames', async () => {
+			const nfcName = 'Rücken-Fit';
+			const nfdName = nfcName.normalize('NFD');
+			const files = [
+				{
+					path: `${nfdName}.md`,
+					basename: nfdName,
+					extension: 'md',
+					parent: { path: '' },
+					stat: { mtime: Date.now() }
+				}
+			] as TFile[];
+
+			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
+			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
+
+			await fileIndex.ensureIndexed();
+			const results = fileIndex.search('Rü', {}, 10);
+
+			expect(results.some(result => result.file.basename === nfdName)).toBe(true);
+		});
+
 		it.skip('should return exact matches first', async () => {
 			const files = [
 				{ path: 'test.md', basename: 'test' },

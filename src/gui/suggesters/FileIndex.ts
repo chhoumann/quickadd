@@ -1,7 +1,7 @@
 import type { App, Plugin } from "obsidian";
 import { TFile } from "obsidian";
 import Fuse from "fuse.js";
-import { sanitizeHeading } from "./utils";
+import { normalizeForFuse, normalizeForSearch, sanitizeHeading } from "./utils";
 
 export interface IndexedFile {
 	path: string;
@@ -69,6 +69,29 @@ const FUSE_UPDATE_DEBOUNCE_MS = 100;
 // Regex to test if a character is alphanumeric (used for word boundary detection)
 const ALPHANUMERIC_REGEX = /\w/;
 
+const normalizeFuseValue = (value: unknown): unknown => {
+	if (typeof value === "string") return normalizeForFuse(value);
+	if (Array.isArray(value)) {
+		return value.map((entry) =>
+			typeof entry === "string" ? normalizeForFuse(entry) : entry
+		);
+	}
+	return value;
+};
+
+const resolvePath = (obj: IndexedFile, path: string | string[]): unknown => {
+	if (Array.isArray(path)) {
+		return path.reduce((acc: any, key) => acc?.[key], obj as any);
+	}
+	if (path.includes(".")) {
+		return path.split(".").reduce((acc: any, key) => acc?.[key], obj as any);
+	}
+	return (obj as any)[path];
+};
+
+const getFuseValue = (obj: IndexedFile, path: string | string[]): unknown =>
+	normalizeFuseValue(resolvePath(obj, path));
+
 // Configurable search ranking weights
 export const SearchWeights = {
 	base: {
@@ -131,7 +154,8 @@ export class FileIndex {
 			ignoreLocation: true,
 			findAllMatches: true,
 			shouldSort: false, // We'll handle sorting ourselves
-			includeMatches: true // Include match information to detect alias hits
+			includeMatches: true, // Include match information to detect alias hits
+			getFn: getFuseValue
 		};
 
 		this.fuseStrict = new Fuse<IndexedFile>([], {
@@ -459,7 +483,8 @@ export class FileIndex {
 
 	search(query: string, context: SearchContext = {}, limit = 50): SearchResult[] {
 		const results: SearchResult[] = [];
-		const queryLower = query.toLowerCase();
+		const queryLower = normalizeForSearch(query);
+		const fuseQuery = normalizeForFuse(query);
 
 		// Handle global heading search when query contains '#'
 		if (query.includes('#')) {
@@ -474,7 +499,7 @@ export class FileIndex {
 
 		// 1. Exact matches (basename and aliases) - Tier 0
 		for (const file of allFiles) {
-			if (file.basename.toLowerCase() === queryLower) {
+			if (normalizeForSearch(file.basename) === queryLower) {
 				results.push({
 					file,
 					score: this.calculateScore(file, query, context, this.effectiveWeights.base.basenameExact, 'exact'),
@@ -491,7 +516,7 @@ export class FileIndex {
 			if (addedPaths.has(file.path)) continue;
 			
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase() === queryLower) {
+				if (normalizeForSearch(alias) === queryLower) {
 					results.push({
 						file,
 						score: this.calculateScore(file, query, context, this.effectiveWeights.base.aliasExact, 'alias'),
@@ -506,8 +531,9 @@ export class FileIndex {
 
 		// 1.5. Prefix matches (basename) - Tier 1
 		for (const file of allFiles) {
-			if (file.basename.toLowerCase().startsWith(queryLower) && 
-				file.basename.toLowerCase() !== queryLower && // not exact (already added)
+			const basenameLower = normalizeForSearch(file.basename);
+			if (basenameLower.startsWith(queryLower) && 
+				basenameLower !== queryLower && // not exact (already added)
 				!addedPaths.has(file.path)) {
 				results.push({
 					file,
@@ -522,8 +548,9 @@ export class FileIndex {
 		// 2. Prefix alias matches - Tier 1
 		for (const file of allFiles) {
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase().startsWith(queryLower) && 
-					alias.toLowerCase() !== queryLower &&  // not exact (already added)
+				const aliasLower = normalizeForSearch(alias);
+				if (aliasLower.startsWith(queryLower) && 
+					aliasLower !== queryLower &&  // not exact (already added)
 					!addedPaths.has(file.path)) {
 					results.push({
 						file,
@@ -540,10 +567,11 @@ export class FileIndex {
 		for (const file of allFiles) {
 			if (addedPaths.has(file.path)) continue;
 			
-			const idx = file.basename.toLowerCase().indexOf(queryLower);
+			const basenameLower = normalizeForSearch(file.basename);
+			const idx = basenameLower.indexOf(queryLower);
 			if (idx > 0) { // not at start (that would be prefix)
 				// Check if match starts at word boundary
-				const charBefore = file.basename[idx - 1];
+				const charBefore = basenameLower[idx - 1];
 				if (!ALPHANUMERIC_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
@@ -557,11 +585,11 @@ export class FileIndex {
 		}
 
 		// 3. Fuzzy search with adaptive threshold - Tier 3 and below
-		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
+		let fuseResults = this.fuseStrict.search(fuseQuery, { limit: limit * 2 });
 
 		// Relax threshold if we have too few results
 		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
-			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
+			fuseResults = this.fuseRelaxed.search(fuseQuery, { limit: limit * 2 });
 		}
 
 		for (const result of fuseResults) {
@@ -599,7 +627,7 @@ export class FileIndex {
 			for (const unresolvedLink of this.unresolvedLinks) {
 				if (unresolvedCount >= unresolvedLimit) break;
 				
-				if (unresolvedLink.toLowerCase().includes(queryLower)) {
+				if (normalizeForSearch(unresolvedLink).includes(queryLower)) {
 					results.push({
 						file: {
 							path: unresolvedLink,
@@ -654,14 +682,14 @@ export class FileIndex {
 		}
 
 		// Length penalty - calculate first as it's used by alias penalty
-		const queryLower = query.toLowerCase();
+		const queryLower = normalizeForSearch(query);
 		let titleLength = file.basename.length;
 		
 		// For alias matches, find the actual matched alias to get correct length
 		if (matchType === 'alias' && file.aliases.length > 0) {
 			// Find which alias was matched
 			const matchedAlias = file.aliases.find(alias => 
-				alias.toLowerCase().includes(queryLower)
+				normalizeForSearch(alias).includes(queryLower)
 			);
 			if (matchedAlias) {
 				titleLength = matchedAlias.length;
@@ -683,15 +711,15 @@ export class FileIndex {
 		}
 
 		// Position bonus - earlier matches are better
-		let textToSearch = file.basename.toLowerCase();
+		let textToSearch = normalizeForSearch(file.basename);
 		
 		// For alias matches, find the actual matched alias for position calculation
 		if (matchType === 'alias' && file.aliases.length > 0) {
 			const matchedAlias = file.aliases.find(alias => 
-				alias.toLowerCase().includes(queryLower)
+				normalizeForSearch(alias).includes(queryLower)
 			);
 			if (matchedAlias) {
-				textToSearch = matchedAlias.toLowerCase();
+				textToSearch = normalizeForSearch(matchedAlias);
 			}
 		}
 		
@@ -706,7 +734,7 @@ export class FileIndex {
 
 	private searchWithHeadings(query: string, context: SearchContext, limit: number): SearchResult[] {
 		const [filePart, headingPartRaw] = query.split('#');
-		const headingPart = headingPartRaw.toLowerCase();
+		const headingPart = normalizeForSearch(headingPartRaw ?? "");
 		const results: SearchResult[] = [];
 
 		// Prevent infinite recursion by doing a simple search if no file part
@@ -722,7 +750,7 @@ export class FileIndex {
 				for (const heading of file.headings) {
 					if (resultCount >= maxResults) break;
 					
-					if (heading.toLowerCase().includes(headingPart)) {
+					if (normalizeForSearch(heading).includes(headingPart)) {
 						results.push({
 							file,
 							score: this.calculateScore(file, query, context, 0.1),
@@ -740,7 +768,7 @@ export class FileIndex {
 			
 			for (const fileResult of fileResults) {
 				for (const heading of fileResult.file.headings) {
-					if (heading.toLowerCase().includes(headingPart)) {
+					if (normalizeForSearch(heading).includes(headingPart)) {
 						results.push({
 							file: fileResult.file,
 							score: fileResult.score + 0.05,
@@ -760,7 +788,8 @@ export class FileIndex {
 	private searchFiles(query: string, context: SearchContext, limit: number): SearchResult[] {
 		// Direct file search without heading handling to avoid recursion
 		const results: SearchResult[] = [];
-		const queryLower = query.toLowerCase();
+		const queryLower = normalizeForSearch(query);
+		const fuseQuery = normalizeForFuse(query);
 		const addedPaths = new Set<string>();
 		
 		// Pre-create array from fileMap for better performance
@@ -768,7 +797,7 @@ export class FileIndex {
 
 		// 1. Exact matches (basename and aliases) - Tier 0
 		for (const file of allFiles) {
-			if (file.basename.toLowerCase() === queryLower) {
+			if (normalizeForSearch(file.basename) === queryLower) {
 				results.push({
 					file,
 					score: this.calculateScore(file, query, context, -1000, 'exact'),
@@ -785,7 +814,7 @@ export class FileIndex {
 			if (addedPaths.has(file.path)) continue;
 			
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase() === queryLower) {
+				if (normalizeForSearch(alias) === queryLower) {
 					results.push({
 						file,
 						score: this.calculateScore(file, query, context, this.effectiveWeights.base.aliasExact, 'alias'),
@@ -800,8 +829,9 @@ export class FileIndex {
 
 		// 1.5. Prefix matches (basename) - Tier 1
 		for (const file of allFiles) {
-			if (file.basename.toLowerCase().startsWith(queryLower) && 
-				file.basename.toLowerCase() !== queryLower &&
+			const basenameLower = normalizeForSearch(file.basename);
+			if (basenameLower.startsWith(queryLower) && 
+				basenameLower !== queryLower &&
 				!addedPaths.has(file.path)) {
 				results.push({
 					file,
@@ -816,8 +846,9 @@ export class FileIndex {
 		// 2. Prefix alias matches - Tier 1
 		for (const file of allFiles) {
 			for (const alias of file.aliases) {
-				if (alias.toLowerCase().startsWith(queryLower) && 
-					alias.toLowerCase() !== queryLower &&
+				const aliasLower = normalizeForSearch(alias);
+				if (aliasLower.startsWith(queryLower) && 
+					aliasLower !== queryLower &&
 					!addedPaths.has(file.path)) {
 					results.push({
 						file,
@@ -834,10 +865,11 @@ export class FileIndex {
 		for (const file of allFiles) {
 			if (addedPaths.has(file.path)) continue;
 			
-			const idx = file.basename.toLowerCase().indexOf(queryLower);
+			const basenameLower = normalizeForSearch(file.basename);
+			const idx = basenameLower.indexOf(queryLower);
 			if (idx > 0) { // not at start (that would be prefix)
 				// Check if match starts at word boundary
-				const charBefore = file.basename[idx - 1];
+				const charBefore = basenameLower[idx - 1];
 				if (!ALPHANUMERIC_REGEX.test(charBefore)) { // Previous char is not alphanumeric
 					results.push({
 						file,
@@ -851,9 +883,9 @@ export class FileIndex {
 		}
 
 		// 3. Fuzzy search - Tier 3 and below
-		let fuseResults = this.fuseStrict.search(query, { limit: limit * 2 });
+		let fuseResults = this.fuseStrict.search(fuseQuery, { limit: limit * 2 });
 		if (fuseResults.length < this.effectiveWeights.thresholds.fuzzyRelaxCount) {
-			fuseResults = this.fuseRelaxed.search(query, { limit: limit * 2 });
+			fuseResults = this.fuseRelaxed.search(fuseQuery, { limit: limit * 2 });
 		}
 
 		for (const result of fuseResults) {
