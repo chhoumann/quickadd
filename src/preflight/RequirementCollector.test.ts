@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RequirementCollector } from "./RequirementCollector";
+import { parseValueToken } from "src/utils/valueSyntax";
 
 // Light stubs for app/plugin
 const makeApp = () => ({
@@ -26,8 +27,9 @@ describe("RequirementCollector", () => {
     const app = makeApp();
     const plugin = makePlugin();
     const rc = new RequirementCollector(app, plugin);
+    const multiToken = "low,medium,high|label:Priority";
     await rc.scanString(
-      "{{VALUE:title|label:Snake cased name}} and {{VALUE:low,medium,high|label:Priority}}",
+      `{{VALUE:title|label:Snake cased name}} and {{VALUE:${multiToken}}}`,
     );
 
     const reqs = Array.from(rc.requirements.values());
@@ -35,8 +37,10 @@ describe("RequirementCollector", () => {
 
     expect(byId["title"].label).toBe("title");
     expect(byId["title"].description).toBe("Snake cased name");
-    expect(byId["low,medium,high::Priority"].label).toBe("Priority");
-    expect(byId["low,medium,high::Priority"].type).toBe("dropdown");
+    const parsed = parseValueToken(multiToken);
+    expect(parsed).not.toBeNull();
+    expect(byId[parsed!.variableKey].label).toBe("Priority");
+    expect(byId[parsed!.variableKey].type).toBe("dropdown");
   });
 
   it("collects VDATE with format and default", async () => {
