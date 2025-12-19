@@ -14,7 +14,7 @@ import {
 	getCurrentFileNamePreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
-import { VALUE_LABEL_KEY_DELIMITER } from "../utils/valueSyntax";
+import { getValueVariableBaseName } from "../utils/valueSyntax";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -77,8 +77,7 @@ export class FormatDisplayFormatter extends Formatter {
 	protected getVariableValue(variableName: string): string {
 		const stored = this.variables.get(variableName);
 		if (typeof stored === "string") return stored;
-		const baseName =
-			variableName.split(VALUE_LABEL_KEY_DELIMITER)[0] ?? variableName;
+		const baseName = getValueVariableBaseName(variableName);
 		return getVariableExample(baseName);
 	}
 

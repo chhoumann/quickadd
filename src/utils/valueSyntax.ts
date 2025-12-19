@@ -24,6 +24,12 @@ export function buildValueVariableKey(
 		: variableName;
 }
 
+export function getValueVariableBaseName(variableKey: string): string {
+	const delimiterIndex = variableKey.indexOf(VALUE_LABEL_KEY_DELIMITER);
+	if (delimiterIndex === -1) return variableKey;
+	return variableKey.slice(0, delimiterIndex);
+}
+
 type ParsedOptions = {
 	label?: string;
 	defaultValue: string;
