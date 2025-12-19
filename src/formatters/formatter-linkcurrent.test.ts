@@ -30,27 +30,45 @@ class StubFormatter extends Formatter {
     return "";
   }
 
-  protected getVariableValue(): string {
+  protected getVariableValue(_variableName: string): string {
     return "";
   }
 
-  protected async suggestForValue(): Promise<string> {
+  protected async suggestForValue(
+    _suggestedValues: string[],
+    _allowCustomInput?: boolean,
+    _context?: { placeholder?: string; variableKey?: string },
+  ): Promise<string> {
     return "";
   }
 
-  protected async suggestForField(): Promise<string> {
+  protected async suggestForField(_variableName: string): Promise<string> {
     return "";
   }
 
-  protected async getMacroValue(): Promise<string> {
+  protected async getMacroValue(
+    _macroName: string,
+    _context?: { label?: string },
+  ): Promise<string> {
     return "";
   }
 
-  protected async promptForVariable(): Promise<string> {
+  protected async promptForVariable(
+    _variableName: string,
+    _context?: {
+      type?: string;
+      dateFormat?: string;
+      defaultValue?: string;
+      label?: string;
+      description?: string;
+      placeholder?: string;
+      variableKey?: string;
+    },
+  ): Promise<string> {
     return "";
   }
 
-  protected async getTemplateContent(): Promise<string> {
+  protected async getTemplateContent(_templatePath: string): Promise<string> {
     return "";
   }
 

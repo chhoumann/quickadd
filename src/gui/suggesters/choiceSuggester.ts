@@ -9,27 +9,37 @@ import type { IChoiceExecutor } from "../../IChoiceExecutor";
 
 const backLabel = "← Back";
 
+type ChoiceSuggesterOptions = {
+	choiceExecutor?: IChoiceExecutor;
+	placeholder?: string;
+	placeholderStack?: Array<string | undefined>;
+};
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private choiceExecutor: IChoiceExecutor = new ChoiceExecutor(
 		this.app,
 		this.plugin
 	);
+	private placeholderStack: Array<string | undefined> = [];
+	private currentPlaceholder?: string;
 
 	public static Open(
 		plugin: QuickAdd,
 		choices: IChoice[],
-		choiceExecutor?: IChoiceExecutor
+		options?: ChoiceSuggesterOptions
 	) {
-		new ChoiceSuggester(plugin, choices, choiceExecutor).open();
+		new ChoiceSuggester(plugin, choices, options).open();
 	}
 
 	constructor(
 		private plugin: QuickAdd,
 		private choices: IChoice[],
-		choiceExecutor?: IChoiceExecutor
+		options?: ChoiceSuggesterOptions
 	) {
 		super(plugin.app);
-		if (choiceExecutor) this.choiceExecutor = choiceExecutor;
+		if (options?.choiceExecutor) this.choiceExecutor = options.choiceExecutor;
+		this.placeholderStack = options?.placeholderStack ?? [];
+		this.currentPlaceholder = options?.placeholder?.trim() || undefined;
+		if (this.currentPlaceholder) this.setPlaceholder(this.currentPlaceholder);
 	}
 
 	renderSuggestion(item: FuzzyMatch<IChoice>, el: HTMLElement): void {
@@ -59,10 +69,23 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	private onChooseMultiType(multi: IMultiChoice) {
 		const choices = [...multi.choices];
+		const isBack = multi.name === backLabel;
 
-		if (multi.name !== backLabel)
+		if (!isBack) {
 			choices.push(new MultiChoice(backLabel).addChoices(this.choices));
+		}
 
-		ChoiceSuggester.Open(this.plugin, choices);
+		const nextPlaceholder = isBack
+			? this.placeholderStack[this.placeholderStack.length - 1]
+			: multi.placeholder?.trim() || undefined;
+		const nextStack = isBack
+			? this.placeholderStack.slice(0, -1)
+			: [...this.placeholderStack, this.currentPlaceholder];
+
+		ChoiceSuggester.Open(this.plugin, choices, {
+			choiceExecutor: this.choiceExecutor,
+			placeholder: nextPlaceholder,
+			placeholderStack: nextStack,
+		});
 	}
 }

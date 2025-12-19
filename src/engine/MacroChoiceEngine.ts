@@ -79,6 +79,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private userScriptCommand: IUserScript | null;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, unknown>;
+	private readonly promptLabel?: string;
 	private buildParams(
 		app: App,
 		plugin: QuickAdd,
@@ -151,7 +152,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		choice: IMacroChoice,
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, unknown>,
-		preloadedUserScripts?: Map<string, unknown>
+		preloadedUserScripts?: Map<string, unknown>,
+		promptLabel?: string,
 	) {
 		super(app);
 		this.choice = choice;
@@ -159,6 +161,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.macro = choice?.macro;
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
+		this.promptLabel = promptLabel;
 		const sharedVariables = this.initSharedVariables(
 			choiceExecutor,
 			variables
@@ -372,7 +375,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const selected: string = await GenericSuggester.Suggest(
 				this.app,
 				keys,
-				keys
+				keys,
+				this.promptLabel,
 			);
 
 			await this.userScriptDelegator(obj[selected]);

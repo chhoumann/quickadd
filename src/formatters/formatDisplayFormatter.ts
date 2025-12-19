@@ -14,6 +14,7 @@ import {
 	getCurrentFileNamePreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
+import { VALUE_LABEL_DELIMITER } from "../utils/valueSyntax";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -74,7 +75,10 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		return getVariableExample(variableName);
+		const stored = this.variables.get(variableName);
+		if (typeof stored === "string") return stored;
+		const baseName = variableName.split(VALUE_LABEL_DELIMITER)[0] ?? variableName;
+		return getVariableExample(baseName);
 	}
 
 	protected getCurrentFileLink(): string | null {
@@ -87,11 +91,18 @@ export class FormatDisplayFormatter extends Formatter {
 		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
 	}
 
-	protected suggestForValue(suggestedValues: string[], allowCustomInput = false) {
+	protected suggestForValue(
+		suggestedValues: string[],
+		allowCustomInput = false,
+		_context?: { placeholder?: string; variableKey?: string },
+	) {
 		return getSuggestionPreview(suggestedValues);
 	}
 
-	protected getMacroValue(macroName: string) {
+	protected getMacroValue(
+		macroName: string,
+		_context?: { label?: string },
+	) {
 		return getMacroPreview(macroName);
 	}
 
@@ -101,7 +112,15 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string }
+		context?: {
+			type?: string;
+			dateFormat?: string;
+			defaultValue?: string;
+			label?: string;
+			description?: string;
+			placeholder?: string;
+			variableKey?: string;
+		}
 	): Promise<string> {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}

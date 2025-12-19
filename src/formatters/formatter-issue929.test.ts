@@ -30,11 +30,15 @@ class Issue929TestFormatter extends Formatter {
         return (this.variables.get(variableName) as string) ?? "";
     }
 
-    protected suggestForValue(): string {
+    protected suggestForValue(
+        _suggestedValues: string[],
+        _allowCustomInput?: boolean,
+        _context?: { placeholder?: string; variableKey?: string },
+    ): string {
         return "";
     }
 
-    protected suggestForField(): Promise<string> {
+    protected suggestForField(_variableName: string): Promise<string> {
         return Promise.resolve("");
     }
 
@@ -42,15 +46,29 @@ class Issue929TestFormatter extends Formatter {
         return Promise.resolve("");
     }
 
-    protected getMacroValue(): string {
+    protected getMacroValue(
+        _macroName: string,
+        _context?: { label?: string },
+    ): string {
         return "";
     }
 
-    protected promptForVariable(): Promise<string> {
+    protected promptForVariable(
+        _variableName: string,
+        _context?: {
+            type?: string;
+            dateFormat?: string;
+            defaultValue?: string;
+            label?: string;
+            description?: string;
+            placeholder?: string;
+            variableKey?: string;
+        },
+    ): Promise<string> {
         return Promise.resolve("");
     }
 
-    protected getTemplateContent(): Promise<string> {
+    protected getTemplateContent(_templatePath: string): Promise<string> {
         return Promise.resolve("");
     }
 

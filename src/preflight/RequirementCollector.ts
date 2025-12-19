@@ -4,6 +4,7 @@ import { Formatter } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
+import { parseValueToken } from "src/utils/valueSyntax";
 
 export type FieldType =
 	| "text"
@@ -135,33 +136,50 @@ export class RequirementCollector extends Formatter {
 			const inner = (match[1] ?? "").trim();
 			if (!inner) continue;
 
-			const pipeIndex = inner.indexOf("|");
-			let variableName = inner;
-			let defaultValue: string | undefined;
-			if (pipeIndex !== -1) {
-				defaultValue = inner.substring(pipeIndex + 1).trim();
-				variableName = inner.substring(0, pipeIndex).trim();
-			}
+			const parsed = parseValueToken(inner);
+			if (!parsed) continue;
+
+			const {
+				variableName,
+				variableKey,
+				label,
+				defaultValue,
+				allowCustomInput,
+				suggestedValues,
+				hasOptions,
+			} = parsed;
 
 			if (!variableName) continue;
 
-			const hasOptions = pipeIndex === -1 && variableName.includes(",");
-			if (!this.requirements.has(variableName)) {
+			const displayLabel = hasOptions && label ? label : variableName;
+			const description = !hasOptions && label ? label : undefined;
+			const requirementId = variableKey;
+
+			if (!this.requirements.has(requirementId)) {
 				const req: FieldRequirement = {
-					id: variableName,
-					label: variableName,
-					type: hasOptions ? "dropdown" : "text",
+					id: requirementId,
+					label: displayLabel,
+					type: hasOptions
+						? allowCustomInput
+							? "suggester"
+							: "dropdown"
+						: "text",
+					description,
 				};
 				if (hasOptions) {
-					req.options = variableName
-						.split(",")
-						.map((s) => s.trim())
-						.filter(Boolean);
+					req.options = suggestedValues;
+					if (allowCustomInput) {
+						req.suggesterConfig = {
+							allowCustomInput: true,
+							caseSensitive: false,
+							multiSelect: false,
+						};
+					}
 				}
 				if (defaultValue) req.defaultValue = defaultValue;
-				this.requirements.set(variableName, req);
+				this.requirements.set(requirementId, req);
 			} else if (defaultValue) {
-				const existing = this.requirements.get(variableName)!;
+				const existing = this.requirements.get(requirementId)!;
 				if (existing.defaultValue === undefined)
 					existing.defaultValue = defaultValue;
 			}
@@ -187,19 +205,29 @@ export class RequirementCollector extends Formatter {
 
 	protected async promptForVariable(
 		variableName?: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string },
+		context?: {
+			type?: string;
+			dateFormat?: string;
+			defaultValue?: string;
+			label?: string;
+			description?: string;
+			placeholder?: string;
+			variableKey?: string;
+		},
 	): Promise<string> {
 		if (!variableName) return "";
+		const key = context?.variableKey ?? variableName;
 
 		// VDATE variables
 		if (context?.type === "VDATE" && context.dateFormat) {
-			if (!this.requirements.has(variableName)) {
-				this.requirements.set(variableName, {
-					id: variableName,
+			if (!this.requirements.has(key)) {
+				this.requirements.set(key, {
+					id: key,
 					label: variableName,
 					type: "date",
 					defaultValue: context.defaultValue,
 					dateFormat: context.dateFormat,
+					description: context.description,
 					source: "collected",
 				});
 			}
@@ -207,13 +235,14 @@ export class RequirementCollector extends Formatter {
 		}
 
 		// Generic named variables
-		if (!this.requirements.has(variableName)) {
+		if (!this.requirements.has(key)) {
 			// Detect simple comma-separated option lists
 			const hasOptions = variableName.includes(",");
 			const req: FieldRequirement = {
-				id: variableName,
+				id: key,
 				label: variableName,
 				type: hasOptions ? "dropdown" : "text",
+				description: context?.description,
 				source: "collected",
 			};
 			if (hasOptions) {
@@ -223,7 +252,7 @@ export class RequirementCollector extends Formatter {
 					.filter(Boolean);
 			}
 			if (context?.defaultValue) req.defaultValue = context.defaultValue;
-			this.requirements.set(variableName, req);
+			this.requirements.set(key, req);
 		}
 
 		return context?.defaultValue ?? "";
@@ -255,7 +284,11 @@ export class RequirementCollector extends Formatter {
 		return "";
 	}
 
-	protected async suggestForValue(_suggestedValues: string[]): Promise<string> {
+	protected async suggestForValue(
+		_suggestedValues: string[],
+		_allowCustomInput?: boolean,
+		_context?: { placeholder?: string; variableKey?: string },
+	): Promise<string> {
 		// No-op here because scanVariableTokens already records a requirement for
 		// anonymous option lists (e.g., {{VALUE:low,medium,high}}) under the exact
 		// token content as id, which the runtime formatter will look up.
@@ -284,7 +317,10 @@ export class RequirementCollector extends Formatter {
 	protected getCurrentFileName(): string | null {
 		return null;
 	}
-	protected async getMacroValue(_macroName: string): Promise<string> {
+	protected async getMacroValue(
+		_macroName: string,
+		_context?: { label?: string },
+	): Promise<string> {
 		return "";
 	}
 

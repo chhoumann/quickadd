@@ -240,6 +240,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 						(macroName) => `{{MACRO:${macroName}}}`
 					)
 				);
+				suggestions.push("{{MACRO:MyMacro|Label}}");
 			} else if (tokenDef.token === FormatSyntaxToken.VariableDate) {
 				// Add example suggestions for VDATE with and without default values
 				suggestions.push(
@@ -257,7 +258,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				// Add example suggestions for VALUE with and without custom modifier
 				suggestions.push(
 					"{{VALUE:option1,option2,option3}}",
-					"{{VALUE:option1,option2,option3|custom}}"
+					"{{VALUE:option1,option2,option3|custom}}",
+					"{{VALUE:title::Helper text}}",
+					"{{VALUE:option1,option2::Pick one}}"
 				);
 			}
 		}
@@ -296,4 +299,3 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			.find(def => def.token === token);
 	}
 }
-

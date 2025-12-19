@@ -22,6 +22,23 @@ describe("RequirementCollector", () => {
     expect(byId["low,medium,high"].type).toBe("dropdown");
   });
 
+  it("collects VALUE labels for single and multi inputs", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString(
+      "{{VALUE:title::Snake cased name}} and {{VALUE:low,medium,high::Priority}}",
+    );
+
+    const reqs = Array.from(rc.requirements.values());
+    const byId = Object.fromEntries(reqs.map((r) => [r.id, r]));
+
+    expect(byId["title"].label).toBe("title");
+    expect(byId["title"].description).toBe("Snake cased name");
+    expect(byId["low,medium,high::Priority"].label).toBe("Priority");
+    expect(byId["low,medium,high::Priority"].type).toBe("dropdown");
+  });
+
   it("collects VDATE with format and default", async () => {
     const app = makeApp();
     const plugin = makePlugin();
