@@ -272,6 +272,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				const headingQuery = this.lastInput.includes('#')
 					? this.lastInput.split('#')[1]
 					: '';
+				const headingQueryNormalized = normalizeForSearch(headingQuery ?? "");
 				if (headingQuery && normalizeForSearch(heading).includes(headingQueryNormalized)) {
 					const tempEl = document.createElement('span');
 					this.renderMatch(tempEl, heading, headingQuery);

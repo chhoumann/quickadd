@@ -69,14 +69,14 @@ const FUSE_UPDATE_DEBOUNCE_MS = 100;
 // Regex to test if a character is alphanumeric (used for word boundary detection)
 const ALPHANUMERIC_REGEX = /\w/;
 
-const normalizeFuseValue = (value: unknown): unknown => {
+const normalizeFuseValue = (value: unknown): string | string[] => {
 	if (typeof value === "string") return normalizeForFuse(value);
 	if (Array.isArray(value)) {
-		return value.map((entry) =>
-			typeof entry === "string" ? normalizeForFuse(entry) : entry
-		);
+		return value
+			.filter((entry): entry is string => typeof entry === "string")
+			.map((entry) => normalizeForFuse(entry));
 	}
-	return value;
+	return "";
 };
 
 const resolvePath = (obj: IndexedFile, path: string | string[]): unknown => {
@@ -89,7 +89,7 @@ const resolvePath = (obj: IndexedFile, path: string | string[]): unknown => {
 	return (obj as any)[path];
 };
 
-const getFuseValue = (obj: IndexedFile, path: string | string[]): unknown =>
+const getFuseValue = (obj: IndexedFile, path: string | string[]): string | string[] =>
 	normalizeFuseValue(resolvePath(obj, path));
 
 // Configurable search ranking weights
