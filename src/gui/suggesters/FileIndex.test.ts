@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { itPerf } from '../../../tests/perfUtils';
 import { FileIndex } from './FileIndex';
 import { normalizeForSearch } from './utils';
 import type { App, TFile, Vault, MetadataCache, Workspace } from 'obsidian';
@@ -423,7 +424,7 @@ describe('FileIndex', () => {
 	});
 
 	describe('performance', () => {
-		it.skip('should handle large vaults efficiently', async () => {
+		itPerf('should handle large vaults efficiently', async () => {
 			// Mock a large number of files
 			const mockFiles = Array.from({ length: 1000 }, (_, i) => ({
 				path: `file-${i}.md`,

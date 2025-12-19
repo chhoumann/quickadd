@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import type { TFile } from 'obsidian';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { itPerf } from '../../tests/perfUtils';
 import { log } from '../logger/logManager';
 
 // Mock logger to capture error messages
@@ -179,16 +180,24 @@ describe('Template Property Types Feature Flag & Edge Cases', () => {
 			// Create large array
 			const largeArray = new Array(10000).fill(0).map((_, i) => ({ id: i, data: `item-${i}` }));
 			formatter.setVariable('bigData', largeArray);
-			
+
+			formatter.formatContent('items: {{bigData}}');
+
+			const vars = formatter.getAndClearTemplatePropertyVars();
+			expect(vars.get('items')).toBe(largeArray);
+		});
+
+		itPerf('formats very large data structures within budget', () => {
+			const formatter = new TestFormatter(mockApp, mockPlugin);
+
+			const largeArray = new Array(10000).fill(0).map((_, i) => ({ id: i, data: `item-${i}` }));
+			formatter.setVariable('bigData', largeArray);
+
 			const start = performance.now();
 			formatter.formatContent('items: {{bigData}}');
 			const duration = performance.now() - start;
 			
-			// Should complete within reasonable time (< 1 second)
 			expect(duration).toBeLessThan(1000);
-			
-			const vars = formatter.getAndClearTemplatePropertyVars();
-			expect(vars.get('items')).toBe(largeArray);
 		});
 		
 		it('should handle undefined and null values properly', () => {
@@ -329,17 +338,33 @@ describe('Template Property Types Feature Flag & Edge Cases', () => {
 				template += `prop${i}: {{var${i}}}\n`;
 			}
 			
-			const start = performance.now();
 			formatter.formatContent(template);
 			const vars = formatter.getAndClearTemplatePropertyVars();
-			const duration = performance.now() - start;
 			
 			expect(vars.size).toBe(1000);
-			expect(duration).toBeLessThan(2000); // Should complete within 2 seconds
 			
 			// After clearing, should be empty
 			const clearedVars = formatter.getAndClearTemplatePropertyVars();
 			expect(clearedVars.size).toBe(0);
+		});
+
+		itPerf('formats large variable maps within budget', () => {
+			const formatter = new TestFormatter(mockApp, mockPlugin);
+
+			for (let i = 0; i < 1000; i++) {
+				formatter.setVariable(`var${i}`, { data: `value${i}` });
+			}
+
+			let template = '';
+			for (let i = 0; i < 1000; i++) {
+				template += `prop${i}: {{var${i}}}\n`;
+			}
+
+			const start = performance.now();
+			formatter.formatContent(template);
+			const duration = performance.now() - start;
+
+			expect(duration).toBeLessThan(2000);
 		});
 	});
 });

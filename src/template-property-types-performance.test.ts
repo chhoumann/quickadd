@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, vi, type MockedFunction } from 'vitest';
+import { describePerf } from '../tests/perfUtils';
 import type { TFile } from 'obsidian';
 import type QuickAdd from '../src/main';
 
@@ -177,7 +178,7 @@ class MockTemplateEngine {
 	}
 }
 
-describe('Template Property Types Performance Tests', () => {
+describePerf('Template Property Types Performance Tests', () => {
 	let mockPlugin: QuickAdd;
 	let mockApp: any;
 	let templateEngine: MockTemplateEngine;
