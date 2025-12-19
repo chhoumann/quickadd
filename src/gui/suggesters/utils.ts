@@ -2,6 +2,12 @@
  * Utility functions for text manipulation in suggesters
  */
 
+export function normalizeDisplayItem(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (value == null) return "";
+	return String(value);
+}
+
 /**
  * Insert text at cursor position
  */
