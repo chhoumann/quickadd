@@ -1,6 +1,6 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
-import { log } from "src/logger/logManager";
+import { log, toError } from "src/logger/logManager";
 import { normalizeDisplayItem } from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
@@ -104,8 +104,11 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		try {
 			el.empty();
 			this.renderItem(value.item, el);
-		} catch {
+		} catch (error) {
 			// Fallback to default rendering if custom render throws
+			const err = toError(error);
+			err.message = `Custom renderItem threw an error; falling back to default rendering. ${err.message}`;
+			log.logWarning(err);
 			el.empty();
 			super.renderSuggestion(value, el);
 		}
