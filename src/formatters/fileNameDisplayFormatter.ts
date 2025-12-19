@@ -1,4 +1,4 @@
-import { Formatter } from "./formatter";
+import { Formatter, type PromptContext } from "./formatter";
 import type { App } from "obsidian";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -109,15 +109,7 @@ export class FileNameDisplayFormatter extends Formatter {
 
 	protected async promptForVariable(
 		variableName: string,
-		context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		}
+		context?: PromptContext
 	): Promise<string> {
 		return getVariablePromptExample(variableName);
 	}

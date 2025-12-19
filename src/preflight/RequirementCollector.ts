@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { GLOBAL_VAR_REGEX, TEMPLATE_REGEX, VARIABLE_REGEX } from "src/constants";
-import { Formatter } from "src/formatters/formatter";
+import { Formatter, type PromptContext } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
@@ -205,15 +205,7 @@ export class RequirementCollector extends Formatter {
 
 	protected async promptForVariable(
 		variableName?: string,
-		context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		},
+		context?: PromptContext,
 	): Promise<string> {
 		if (!variableName) return "";
 		const key = context?.variableKey ?? variableName;

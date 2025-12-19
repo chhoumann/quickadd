@@ -24,7 +24,7 @@ import {
 	generateFieldCacheKey,
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
-import { Formatter } from "./formatter";
+import { Formatter, type PromptContext } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 
@@ -192,15 +192,7 @@ export class CompleteFormatter extends Formatter {
 
 	protected async promptForVariable(
 		header?: string,
-		context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		},
+		context?: PromptContext,
 	): Promise<string> {
 		try {
 			// Use VDateInputPrompt for VDATE variables
@@ -217,7 +209,7 @@ export class CompleteFormatter extends Formatter {
 			// Use default prompt for other variables
 			return await new InputPrompt().factory().Prompt(
 				this.app,
-				(header as string) ?? context?.label ?? "Enter value",
+				header ?? context?.label ?? "Enter value",
 				context?.placeholder ??
 					(context?.defaultValue ? context.defaultValue : undefined),
 				context?.defaultValue,

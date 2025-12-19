@@ -1,4 +1,4 @@
-import { Formatter } from "./formatter";
+import { Formatter, type PromptContext } from "./formatter";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
@@ -112,15 +112,7 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected promptForVariable(
 		variableName: string,
-		context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		}
+		context?: PromptContext
 	): Promise<string> {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}

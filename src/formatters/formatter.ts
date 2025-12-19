@@ -31,6 +31,16 @@ import { parseMacroToken } from "../utils/macroSyntax";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
+export interface PromptContext {
+	type?: string;
+	dateFormat?: string;
+	defaultValue?: string;
+	label?: string;
+	description?: string;
+	placeholder?: string;
+	variableKey?: string;
+}
+
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
@@ -563,15 +573,7 @@ export abstract class Formatter {
 
 	protected abstract promptForVariable(
 		variableName: string,
-		context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		}
+		context?: PromptContext,
 	): Promise<string>;
 
 	protected abstract getTemplateContent(templatePath: string): Promise<string>;
