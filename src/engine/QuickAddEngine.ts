@@ -168,12 +168,17 @@ export abstract class QuickAddEngine {
 		}
 	}
 
+	protected stripLeadingSlash(path: string): string {
+		return path.replace(/^\/+/, "");
+	}
+
 	protected normalizeMarkdownFilePath(
 		folderPath: string,
 		fileName: string
 	): string {
-		const actualFolderPath: string = folderPath ? `${folderPath}/` : "";
-		const formattedFileName: string = fileName.replace(
+		const safeFolderPath = this.stripLeadingSlash(folderPath);
+		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
+		const formattedFileName: string = this.stripLeadingSlash(fileName).replace(
 			MARKDOWN_FILE_EXTENSION_REGEX,
 			""
 		);
