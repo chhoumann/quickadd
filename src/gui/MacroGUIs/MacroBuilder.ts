@@ -84,6 +84,7 @@ export class MacroBuilder extends Modal {
 			const newName: string = await GenericInputPrompt.Prompt(
 				this.app,
 				`Update name for ${this.choice.name}`,
+				this.choice.name,
 				this.choice.name
 			);
 			if (!newName) return;

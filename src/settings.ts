@@ -51,7 +51,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	persistInputPromptDrafts: true,
 	devMode: false,
 	templateFolderPath: "",
-	announceUpdates: "all",
+	announceUpdates: "major",
 	version: "0.0.0",
 	globalVariables: {},
 	onePageInputEnabled: false,
