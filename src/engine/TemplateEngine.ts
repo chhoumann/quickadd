@@ -99,12 +99,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		fileName: string,
 		templatePath: string
 	): string {
-		const actualFolderPath: string = folderPath ? `${folderPath}/` : "";
+		const safeFolderPath = this.stripLeadingSlash(folderPath);
+		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = fileName.replace(
-			MARKDOWN_FILE_EXTENSION_REGEX,
-			""
-		).replace(CANVAS_FILE_EXTENSION_REGEX, "");
+		const formattedFileName: string = this.stripLeadingSlash(fileName)
+			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
+			.replace(CANVAS_FILE_EXTENSION_REGEX, "");
 		return `${actualFolderPath}${formattedFileName}${extension}`;
 	}
 
@@ -284,7 +284,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		let correctTemplatePath: string = templatePath;
+		let correctTemplatePath: string = this.stripLeadingSlash(templatePath);
 		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
 			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath))
 			correctTemplatePath += ".md";

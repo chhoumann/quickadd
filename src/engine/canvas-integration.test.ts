@@ -53,6 +53,10 @@ describe('Canvas Template Integration', () => {
 	});
 
 	describe('File path normalization', () => {
+		const stripLeadingSlash = (path: string): string => {
+			return path.replace(/^\/+/, "");
+		};
+
 		const normalizeTemplateFilePath = (
 			folderPath: string,
 			fileName: string,
@@ -61,9 +65,10 @@ describe('Canvas Template Integration', () => {
 			const MARKDOWN_REGEX = new RegExp(/\.md$/);
 			const CANVAS_REGEX = new RegExp(/\.canvas$/);
 			
-			const actualFolderPath = folderPath ? `${folderPath}/` : "";
+			const safeFolderPath = stripLeadingSlash(folderPath);
+			const actualFolderPath = safeFolderPath ? `${safeFolderPath}/` : "";
 			const extension = CANVAS_REGEX.test(templatePath) ? ".canvas" : ".md";
-			const formattedFileName = fileName
+			const formattedFileName = stripLeadingSlash(fileName)
 				.replace(MARKDOWN_REGEX, "")
 				.replace(CANVAS_REGEX, "");
 			return `${actualFolderPath}${formattedFileName}${extension}`;
@@ -87,6 +92,11 @@ describe('Canvas Template Integration', () => {
 		it('should strip existing extensions', () => {
 			expect(normalizeTemplateFilePath('', 'MyFile.md', 'template.canvas'))
 				.toBe('MyFile.canvas');
+		});
+
+		it('should strip leading slashes from folder and file names', () => {
+			expect(normalizeTemplateFilePath('/Templates', '/MyFile', 'template.md'))
+				.toBe('Templates/MyFile.md');
 		});
 	});
 

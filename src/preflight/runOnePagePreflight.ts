@@ -94,12 +94,13 @@ async function collectForCaptureChoice(
 
 	// If captureTo indicates a folder or tag, offer a file picker requirement
 	const formattedTarget = choice.captureTo?.trim() ?? "";
-	const isTagTarget = formattedTarget.startsWith("#");
-	const trimmedPath = formattedTarget.replace(/\/$|\.md$/g, "");
+	const normalizedTarget = formattedTarget.replace(/^\/+/, "");
+	const isTagTarget = normalizedTarget.startsWith("#");
+	const trimmedPath = normalizedTarget.replace(/\/$|\.md$/g, "");
 	const isFolderTarget =
-		!isTagTarget && (formattedTarget === "" || isFolder(app, trimmedPath));
+		!isTagTarget && (normalizedTarget === "" || isFolder(app, trimmedPath));
 	// Heuristics: if target ends with '/' or contains unresolved tokens, we likely need a picker
-	const looksLikeFolderBySuffix = formattedTarget.endsWith("/");
+	const looksLikeFolderBySuffix = normalizedTarget.endsWith("/");
 	const containsFormatTokens = /{{[^}]+}}/.test(choice.captureTo ?? "");
 
 	if (
@@ -111,9 +112,9 @@ async function collectForCaptureChoice(
 	) {
 		let files: TFile[] = [];
 		if (isTagTarget) {
-			files = getMarkdownFilesWithTag(app, formattedTarget);
+			files = getMarkdownFilesWithTag(app, normalizedTarget);
 		} else {
-			const folder = formattedTarget.replace(/^\/$|\/\.md$|^\.md$/, "");
+			const folder = normalizedTarget.replace(/^\/$|\/\.md$|^\.md$/, "");
 			const base =
 				folder === "" ? "" : folder.endsWith("/") ? folder : `${folder}/`;
 			files = getMarkdownFilesInFolder(app, base);

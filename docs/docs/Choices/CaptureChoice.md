@@ -28,6 +28,7 @@ This also supports the [format syntax](/FormatSyntax.md). You can even write a f
 For example, you might have a folder called `CRM/people`. In this folder, you have a note for the people in your life. You can type `CRM/people` in the _Capture To_ field, and QuickAdd will ask you which file to capture to. You can then type `John Doe` in the suggester, and QuickAdd will create a file called `John Doe.md` in the `CRM/people` folder.
 
 You could also write nothing - or `/` - in the _Capture To_ field. This will open the suggester with all of your files in it, and you can select or type the name of the file you want to capture to.
+Paths are vault-relative. A leading `/` is ignored (except a lone `/`, which opens the file picker for the whole vault).
 
 Capturing to a folder will show all files in that folder. This means that files in nested folders will also appear.
 

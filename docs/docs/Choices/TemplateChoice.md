@@ -5,7 +5,7 @@ title: Template
 The template choice type is not meant to be a replacement for [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use both QuickAdd format syntax in a Templater template - and both will work.
 
 ## Mandatory
-**Template Path**. This is a path to the template you wish to insert.
+**Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
 
 QuickAdd supports both markdown (`.md`) and canvas (`.canvas`) templates. When using a canvas template, the created file will also be a canvas file with the same extension.
 
