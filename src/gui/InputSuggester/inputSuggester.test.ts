@@ -41,4 +41,25 @@ describe("InputSuggester", () => {
 
 		expect(matchingEntries).toHaveLength(1);
 	});
+
+	it("aligns displayItems length with items length", () => {
+		const shortDisplay = ["Alpha"];
+		const shortItems = ["Alpha", "Beta", "Gamma"];
+		const shortSuggester = new InputSuggester(app, shortDisplay, shortItems);
+		const shortDisplayItems = (shortSuggester as any).displayItems as string[];
+
+		expect(shortDisplayItems).toHaveLength(shortItems.length);
+		expect(shortDisplayItems[0]).toBe("Alpha");
+		expect(shortDisplayItems[1]).toBe("Beta");
+		expect(shortDisplayItems[2]).toBe("Gamma");
+
+		const longDisplay = ["Alpha", "Beta", "Gamma"];
+		const longItems = ["Alpha", "Beta"];
+		const longSuggester = new InputSuggester(app, longDisplay, longItems);
+		const longDisplayItems = (longSuggester as any).displayItems as string[];
+
+		expect(longDisplayItems).toHaveLength(longItems.length);
+		expect(longDisplayItems[0]).toBe("Alpha");
+		expect(longDisplayItems[1]).toBe("Beta");
+	});
 });
