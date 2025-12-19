@@ -5,8 +5,10 @@ export const NAME_SYNTAX = "{{name}}";
 export const VARIABLE_SYNTAX = "{{value:<variable name>}}";
 export const VARIABLE_DEFAULT_SYNTAX =
 	"{{value:<variable name>|<default value>}}";
+export const VARIABLE_DEFAULT_OPTION_SYNTAX =
+	"{{value:<variable name>|default:<value>}}";
 export const VARIABLE_LABEL_SYNTAX =
-	"{{value:<variable name>::<helper text>}}";
+	"{{value:<variable name>|label:<helper text>}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
@@ -27,6 +29,7 @@ export const FORMAT_SYNTAX: string[] = [
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
 	VARIABLE_DEFAULT_SYNTAX,
+	VARIABLE_DEFAULT_OPTION_SYNTAX,
 	VARIABLE_LABEL_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	"{{field:<fieldname>|folder:<path>}}",
@@ -53,6 +56,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	NAME_SYNTAX,
 	VARIABLE_SYNTAX,
 	VARIABLE_DEFAULT_SYNTAX,
+	VARIABLE_DEFAULT_OPTION_SYNTAX,
 	VARIABLE_LABEL_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	RANDOM_SYNTAX,

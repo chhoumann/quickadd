@@ -27,7 +27,7 @@ describe("RequirementCollector", () => {
     const plugin = makePlugin();
     const rc = new RequirementCollector(app, plugin);
     await rc.scanString(
-      "{{VALUE:title::Snake cased name}} and {{VALUE:low,medium,high::Priority}}",
+      "{{VALUE:title|label:Snake cased name}} and {{VALUE:low,medium,high|label:Priority}}",
     );
 
     const reqs = Array.from(rc.requirements.values());

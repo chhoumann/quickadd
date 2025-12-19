@@ -259,8 +259,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				suggestions.push(
 					"{{VALUE:option1,option2,option3}}",
 					"{{VALUE:option1,option2,option3|custom}}",
-					"{{VALUE:title::Helper text}}",
-					"{{VALUE:option1,option2::Pick one}}"
+					"{{VALUE:title|label:Helper text}}",
+					"{{VALUE:option1,option2|label:Pick one}}",
+					"{{VALUE:title|label:Snake case|default:My_Title}}"
 				);
 			}
 		}

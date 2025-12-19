@@ -1,4 +1,6 @@
-export const VALUE_LABEL_DELIMITER = "::";
+export const VALUE_LABEL_KEY_DELIMITER = "::";
+
+const VALUE_OPTION_KEYS = new Set(["label", "default", "custom"]);
 
 export type ParsedValueToken = {
 	raw: string;
@@ -11,64 +13,125 @@ export type ParsedValueToken = {
 	hasOptions: boolean;
 };
 
-type LabelSplit = {
-	variableName: string;
+type ParsedOptions = {
 	label?: string;
+	defaultValue: string;
+	allowCustomInput: boolean;
+	usesOptions: boolean;
 };
 
-function splitLabel(raw: string): LabelSplit {
-	const trimmed = raw.trim();
-	if (!trimmed) return { variableName: "" };
+function parseBoolean(value?: string): boolean {
+	if (!value) return true;
+	const normalized = value.trim().toLowerCase();
+	if (["false", "no", "0", "off"].includes(normalized)) return false;
+	return true;
+}
 
-	const doubleColonIndex = trimmed.indexOf(VALUE_LABEL_DELIMITER);
-	if (doubleColonIndex !== -1) {
-		const variableName = trimmed.slice(0, doubleColonIndex).trim();
-		const label = trimmed.slice(doubleColonIndex + VALUE_LABEL_DELIMITER.length).trim();
-		if (label) return { variableName, label };
-		return { variableName };
+function hasRecognizedOption(part: string): boolean {
+	const trimmed = part.trim();
+	if (!trimmed) return false;
+	if (!trimmed.includes(":")) return false;
+	const key = trimmed.split(":", 1)[0]?.trim().toLowerCase();
+	return !!key && VALUE_OPTION_KEYS.has(key);
+}
+
+function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions {
+	if (optionParts.length === 0) {
+		return {
+			defaultValue: "",
+			allowCustomInput: false,
+			usesOptions: false,
+		};
 	}
 
-	// Support legacy shorthand for single-value labels, but avoid tags/options lists.
-	if (!trimmed.includes(",") && !trimmed.startsWith("#")) {
-		const hashIndex = trimmed.indexOf("#");
-		if (hashIndex > 0) {
-			const variableName = trimmed.slice(0, hashIndex).trim();
-			const label = trimmed.slice(hashIndex + 1).trim();
-			if (label) return { variableName, label };
+	const hasExplicitOption = optionParts.some(hasRecognizedOption);
+	const hasCustomFlag =
+		hasOptions &&
+		optionParts.some(
+			(part) => part.trim().toLowerCase() === "custom",
+		);
+	const usesOptions = hasExplicitOption || hasCustomFlag;
+
+	if (!usesOptions) {
+		return {
+			defaultValue: optionParts.join("|").trim(),
+			allowCustomInput: false,
+			usesOptions: false,
+		};
+	}
+
+	let label: string | undefined;
+	let defaultValue = "";
+	let allowCustomInput = false;
+
+	for (const part of optionParts) {
+		const trimmed = part.trim();
+		if (!trimmed) continue;
+
+		if (hasOptions && trimmed.toLowerCase() === "custom") {
+			allowCustomInput = true;
+			continue;
+		}
+
+		const colonIndex = trimmed.indexOf(":");
+		if (colonIndex === -1) continue;
+		const key = trimmed.slice(0, colonIndex).trim().toLowerCase();
+		const value = trimmed.slice(colonIndex + 1).trim();
+		if (!VALUE_OPTION_KEYS.has(key)) continue;
+
+		switch (key) {
+			case "label":
+				if (value) label = value;
+				break;
+			case "default":
+				defaultValue = value;
+				break;
+			case "custom":
+				allowCustomInput = parseBoolean(value);
+				break;
+			default:
+				break;
 		}
 	}
 
-	return { variableName: trimmed };
+	return {
+		label,
+		defaultValue,
+		allowCustomInput,
+		usesOptions: true,
+	};
 }
 
 export function parseValueToken(raw: string): ParsedValueToken | null {
 	if (!raw) return null;
 
-	const pipeIndex = raw.indexOf("|");
-	const variablePart = pipeIndex === -1 ? raw : raw.slice(0, pipeIndex);
-	const rawDefaultValue = pipeIndex === -1 ? "" : raw.slice(pipeIndex + 1).trim();
+	const parts = raw.split("|");
+	const variablePart = (parts.shift() ?? "").trim();
+	if (!variablePart) return null;
 
-	const { variableName, label } = splitLabel(variablePart);
-	if (!variableName) return null;
-
-	const suggestedValues = variableName
+	const suggestedValues = variablePart
 		.split(",")
 		.map((value) => value.trim())
 		.filter(Boolean);
 	const hasOptions = suggestedValues.length > 1;
 
-	const allowCustomInput =
-		hasOptions && rawDefaultValue.toLowerCase() === "custom";
-	const defaultValue = allowCustomInput ? "" : rawDefaultValue;
+	const options = parseOptions(parts, hasOptions);
+	let { label, defaultValue, allowCustomInput } = options;
+
+	if (!options.usesOptions) {
+		const legacyDefault = defaultValue;
+		allowCustomInput = hasOptions && legacyDefault.toLowerCase() === "custom";
+		defaultValue = allowCustomInput ? "" : legacyDefault;
+	}
 
 	const variableKey =
 		hasOptions && label
-			? `${variableName}${VALUE_LABEL_DELIMITER}${label}`
-			: variableName;
+			? `${variablePart}${VALUE_LABEL_KEY_DELIMITER}${label}`
+			: variablePart;
 
 	return {
 		raw,
-		variableName,
+		variableName: variablePart,
 		variableKey,
 		label,
 		defaultValue,
