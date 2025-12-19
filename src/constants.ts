@@ -38,7 +38,7 @@ export const FORMAT_SYNTAX: string[] = [
 	LINKCURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX,
 	"{{macro:<macroname>}}",
-	"{{macro:<macroname>|<label>}}",
+	"{{macro:<macroname>|label:<label>}}",
 	"{{template:<templatepath>}}",
 	MATH_VALUE_SYNTAX,
 	SELECTED_SYNTAX,

@@ -240,7 +240,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 						(macroName) => `{{MACRO:${macroName}}}`
 					)
 				);
-				suggestions.push("{{MACRO:MyMacro|Label}}");
+				suggestions.push("{{MACRO:MyMacro|label:Label}}");
 			} else if (tokenDef.token === FormatSyntaxToken.VariableDate) {
 				// Add example suggestions for VDATE with and without default values
 				suggestions.push(
