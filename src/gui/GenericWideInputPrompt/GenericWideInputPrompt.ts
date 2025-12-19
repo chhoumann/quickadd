@@ -3,6 +3,7 @@ import { ButtonComponent, Modal, TextAreaComponent } from "obsidian";
 import { FileSuggester } from "../suggesters/fileSuggester";
 import { TagSuggester } from "../suggesters/tagSuggester";
 import { InputPromptDraftStore } from "../../utils/InputPromptDraftStore";
+import { settingsStore } from "../../settingsStore";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -69,9 +70,11 @@ export default class GenericWideInputPrompt extends Modal {
 			placeholder: this.placeholder,
 			linkSourcePath: this.linkSourcePath,
 		});
-		const draft = this.draftStore.get(this.draftKey);
-		if (draft !== undefined) {
-			this.input = draft;
+		if (this.shouldPersistDrafts()) {
+			const draft = this.draftStore.get(this.draftKey);
+			if (draft !== undefined) {
+				this.input = draft;
+			}
 		}
 		this.initialValue = this.input;
 
@@ -199,6 +202,8 @@ export default class GenericWideInputPrompt extends Modal {
 	}
 
 	private persistDraft() {
+		if (!this.shouldPersistDrafts()) return;
+
 		if (this.didSubmit) {
 			this.draftStore.clear(this.draftKey);
 			return;
@@ -219,6 +224,10 @@ export default class GenericWideInputPrompt extends Modal {
 			"keydown",
 			this.submitEnterCallback,
 		);
+	}
+
+	private shouldPersistDrafts(): boolean {
+		return settingsStore.getState().persistInputPromptDrafts;
 	}
 
 	onOpen() {

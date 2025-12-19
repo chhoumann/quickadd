@@ -39,7 +39,10 @@ export class InputPromptDraftStore {
 	}
 
 	get(key: string): string | undefined {
-		return this.drafts.get(key)?.value;
+		const entry = this.drafts.get(key);
+		if (!entry) return undefined;
+		entry.timestamp = Date.now();
+		return entry.value;
 	}
 
 	set(key: string, value: string): void {

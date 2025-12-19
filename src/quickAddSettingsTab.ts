@@ -16,10 +16,12 @@ import type { Model } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
+import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 
 export interface QuickAddSettings {
 	choices: IChoice[];
 	inputPrompt: "multi-line" | "single-line";
+	persistInputPromptDrafts: boolean;
 	devMode: boolean;
 	templateFolderPath: string;
 	announceUpdates: "all" | "major" | "none";
@@ -62,6 +64,7 @@ export interface QuickAddSettings {
 export const DEFAULT_SETTINGS: QuickAddSettings = {
 	choices: [],
 	inputPrompt: "single-line",
+	persistInputPromptDrafts: true,
 	devMode: false,
 	templateFolderPath: "",
 	announceUpdates: "all",
@@ -129,6 +132,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		const inputGroup = this.createSettingGroup("Input");
 		this.addUseMultiLineInputPromptSetting(inputGroup);
+		this.addPersistInputPromptDraftsSetting(inputGroup);
 		this.addOnePageInputSetting(inputGroup);
 
 		const templatesGroup = this.createSettingGroup("Templates & Properties");
@@ -417,6 +421,26 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 								settingsStore.setState({
 									inputPrompt: "single-line",
 								});
+							}
+						}),
+				);
+		});
+	}
+
+	private addPersistInputPromptDraftsSetting(group: SettingGroupLike) {
+		group.addSetting((setting) => {
+			setting
+				.setName("Persist Input Prompt Drafts")
+				.setDesc(
+					"Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(settingsStore.getState().persistInputPromptDrafts)
+						.onChange((value) => {
+							settingsStore.setState({ persistInputPromptDrafts: value });
+							if (!value) {
+								InputPromptDraftStore.getInstance().clearAll();
 							}
 						}),
 				);
