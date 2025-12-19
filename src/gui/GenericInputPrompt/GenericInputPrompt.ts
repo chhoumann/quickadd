@@ -205,12 +205,12 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	onClose() {
-		super.onClose();
 		if (!this.didSubmit) {
 			this.syncInputFromEl();
 		}
 		this.persistDraft();
 		this.resolveInput();
 		this.removeInputListener();
+		super.onClose();
 	}
 }
