@@ -92,13 +92,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			if (await this.app.vault.adapter.exists(filePath)) {
-				const file = this.app.vault.getAbstractFileByPath(filePath);
+				const file = this.findExistingFile(filePath);
 				if (
 					!(file instanceof TFile) ||
 					(file.extension !== "md" && file.extension !== "canvas")
 				) {
 					log.logError(
-						`'${filePath}' already exists and is not a valid markdown or canvas file.`,
+						`'${filePath}' already exists but could not be resolved as a markdown or canvas file.`,
 					);
 					return;
 				}
@@ -201,6 +201,37 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
+	}
+
+	/**
+	 * Resolve an existing file by path with a case-insensitive fallback.
+	 *
+	 * Obsidian's in-memory file index is case-sensitive, but on
+	 * case-insensitive filesystems adapter.exists can still return true.
+	 * If a direct lookup fails, scan the vault for a single case-insensitive
+	 * match. Multiple matches are treated as ambiguous and return null.
+	 */
+	private findExistingFile(filePath: string): TFile | null {
+		const direct = this.app.vault.getAbstractFileByPath(filePath);
+		if (direct instanceof TFile) return direct;
+		if (direct) return null;
+
+		// On case-insensitive filesystems, adapter.exists can return true even when
+		// Obsidian's case-sensitive path index can't resolve the file.
+		const lowerPath = filePath.toLowerCase();
+		const matches = this.app.vault
+			.getFiles()
+			.filter((file) => file.path.toLowerCase() === lowerPath);
+
+		if (matches.length === 1) return matches[0];
+		if (matches.length > 1) {
+			const matchList = matches.map((match) => match.path).join(", ");
+			log.logError(
+				`Multiple files match '${filePath}' when ignoring case: ${matchList}`,
+			);
+		}
+
+		return null;
 	}
 
 	private async formatFolderPaths(folders: string[]) {

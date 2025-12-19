@@ -98,14 +98,14 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
 }));
 
-import type { App } from "obsidian";
+import { TFile, type App } from "obsidian";
 import { Notice } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { settingsStore } from "../settingsStore";
-import { fileExistsAppendToBottom } from "../constants";
+import { fileExistsAppendToBottom, fileExistsOverwriteFile } from "../constants";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -158,6 +158,7 @@ const createEngine = (
 				exists: vi.fn(async () => false),
 			},
 			getAbstractFileByPath: vi.fn(),
+			getFiles: vi.fn(() => []),
 			create: vi.fn(),
 			modify: vi.fn(),
 		},
@@ -194,7 +195,7 @@ const createEngine = (
 		formatFileNameMock.mockResolvedValue("Test Template");
 	}
 
-	return { engine, choiceExecutor };
+	return { engine, choiceExecutor, app };
 };
 
 describe("TemplateChoiceEngine cancellation notices", () => {
@@ -272,5 +273,60 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		await engine.run();
 
 		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("TemplateChoiceEngine file casing resolution", () => {
+	beforeEach(() => {
+		settingsStore.setState(structuredClone(defaultSettingsState));
+		formatFileNameMock.mockReset();
+		formatFileContentMock.mockReset();
+		formatFileContentMock.mockResolvedValue("");
+	});
+
+	it("overwrites existing files when the path casing differs", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+
+		const existingFile = new TFile();
+		existingFile.path = "Bug report.md";
+		existingFile.name = "Bug report.md";
+		existingFile.extension = "md";
+		existingFile.basename = "Bug report";
+
+		engine.choice.fileExistsMode = fileExistsOverwriteFile;
+		engine.choice.setFileExistsBehavior = true;
+		formatFileNameMock.mockResolvedValueOnce("Bug Report");
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			null,
+		);
+		(app.vault.getFiles as ReturnType<typeof vi.fn>).mockReturnValue([
+			existingFile,
+		]);
+
+		const overwriteSpy = vi
+			.spyOn(
+				engine as unknown as {
+					overwriteFileWithTemplate: (
+						file: TFile,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"overwriteFileWithTemplate",
+			)
+			.mockResolvedValue(existingFile);
+
+		await engine.run();
+
+		expect(overwriteSpy).toHaveBeenCalledWith(
+			existingFile,
+			engine.choice.templatePath,
+		);
 	});
 });
