@@ -12,4 +12,4 @@ Make sure the multi is unfolded (as it is in the screenshot). Click the drag han
 
 ## Placeholder text
 
-You can optionally set a placeholder for each Multi choice. This text shows up in the choice picker search box when you open the multi, which is handy for complex menus or grouped workflows. Leave it empty to keep the default placeholder.
+You can optionally set a placeholder for each Multi choice. This text shows up in the choice picker search box when you open the multi, which is handy for complex menus or grouped workflows. Leave it empty to use the multi name as the placeholder.
