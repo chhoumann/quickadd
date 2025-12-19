@@ -65,8 +65,11 @@ export function getOrderedDateAliases(
 
 	const preferredKeys = ["t", "tm", "yd"];
 	const preferred = preferredKeys
-		.filter((key) => aliases[key])
-		.map((key) => [key, aliases[key]] as const);
+		.map((key) => {
+			const value = aliases[key];
+			return value ? ([key, value] as [string, string]) : null;
+		})
+		.filter((entry): entry is [string, string] => entry !== null);
 
 	const used = new Set(preferred.map(([key]) => key));
 	const remaining = entries

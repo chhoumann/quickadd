@@ -1,11 +1,11 @@
 import type { App, TAbstractFile } from "obsidian";
+import type { TextAreaComponent } from "obsidian";
 import {
 	BaseComponent,
 	PluginSettingTab,
 	Setting,
 	SettingGroup,
 	TFolder,
-	TextAreaComponent,
 } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
