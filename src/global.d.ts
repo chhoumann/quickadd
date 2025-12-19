@@ -1,4 +1,4 @@
-import type { BaseComponent, IconName, Plugin, Setting } from "obsidian";
+import type { BaseComponent, IconName, Plugin } from "obsidian";
 
 declare module "obsidian" {
 	interface App {
