@@ -35,7 +35,7 @@ declare module "obsidian" {
 		addComponent<T extends BaseComponent>(cb: (el: HTMLElement) => T): this;
 	}
 
-	class SettingGroup {
+	export class SettingGroup {
 		constructor(containerEl: HTMLElement);
 		setHeading(text: string | DocumentFragment): this;
 		addClass(cls: string): this;
