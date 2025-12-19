@@ -2,8 +2,7 @@ import type { App } from "obsidian";
 import { ButtonComponent, Modal, TextComponent } from "obsidian";
 import { FileSuggester } from "../suggesters/fileSuggester";
 import { TagSuggester } from "../suggesters/tagSuggester";
-import { InputPromptDraftStore } from "../../utils/InputPromptDraftStore";
-import { settingsStore } from "../../settingsStore";
+import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -11,13 +10,10 @@ export default class GenericInputPrompt extends Modal {
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private didSubmit = false;
-	private didChange = false;
 	private inputComponent: TextComponent;
 	protected input: string;
 	private readonly placeholder: string;
-	private readonly initialValue: string;
-	private readonly draftKey: string;
-	private readonly draftStore = InputPromptDraftStore.getInstance();
+	private readonly draftHandler: InputPromptDraftHandler;
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;
 
@@ -63,20 +59,13 @@ export default class GenericInputPrompt extends Modal {
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
-		this.input = value ?? "";
-		this.draftKey = this.draftStore.makeKey({
+		this.draftHandler = new InputPromptDraftHandler({
 			kind: "single",
 			header: this.header,
 			placeholder: this.placeholder,
 			linkSourcePath: this.linkSourcePath,
 		});
-		if (this.shouldPersistDrafts()) {
-			const draft = this.draftStore.get(this.draftKey);
-			if (draft !== undefined) {
-				this.input = draft;
-			}
-		}
-		this.initialValue = this.input;
+		this.input = this.draftHandler.hydrate(value ?? "");
 
 		this.waitForClose = new Promise<string>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -187,7 +176,7 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	protected onInputChanged(value: string) {
-		this.didChange = true;
+		this.draftHandler.markChanged();
 		this.input = value;
 	}
 
@@ -198,21 +187,7 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	private persistDraft() {
-		if (!this.shouldPersistDrafts()) return;
-
-		if (this.didSubmit) {
-			this.draftStore.clear(this.draftKey);
-			return;
-		}
-
-		if (!this.didChange || this.input === this.initialValue) return;
-
-		if (!this.input.trim()) {
-			this.draftStore.clear(this.draftKey);
-			return;
-		}
-
-		this.draftStore.set(this.draftKey, this.input);
+		this.draftHandler.persist(this.input, this.didSubmit);
 	}
 
 	private removeInputListener() {
@@ -220,10 +195,6 @@ export default class GenericInputPrompt extends Modal {
 			"keydown",
 			this.submitEnterCallback
 		);
-	}
-
-	private shouldPersistDrafts(): boolean {
-		return settingsStore.getState().persistInputPromptDrafts;
 	}
 
 	onOpen() {
