@@ -1,6 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log } from "src/logger/logManager";
+import { normalizeDisplayItem } from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -13,12 +14,6 @@ type Options = {
 		? string
 		: never;
 	renderItem: SuggestRender<string> | undefined;
-};
-
-const normalizeDisplayItem = (value: unknown): string => {
-	if (typeof value === "string") return value;
-	if (value == null) return "";
-	return String(value);
 };
 
 /**

@@ -1,14 +1,9 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log } from "src/logger/logManager";
+import { normalizeDisplayItem } from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
-
-const normalizeDisplayItem = (value: unknown): string => {
-	if (typeof value === "string") return value;
-	if (value == null) return "";
-	return String(value);
-};
 
 export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private resolvePromise: (value: T) => void;
