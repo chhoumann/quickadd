@@ -150,9 +150,9 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		for (const file of candidateFiles) {
 			const headings = this.fileIndex.getHeadings(file);
 
-		const filteredHeadings = headings
-			.filter(h => headingQuery === '' || normalizeForSearch(h).includes(headingQueryNormalized))
-			.slice(0, 20);
+			const filteredHeadings = headings
+				.filter(h => headingQuery === '' || normalizeForSearch(h).includes(headingQueryNormalized))
+				.slice(0, 20);
 
 			for (const heading of filteredHeadings) {
 				results.push({
@@ -172,6 +172,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private getBlockSuggestions(input: string): SearchResult[] {
 		// Split on the full "#^" sequence to correctly separate file name and block query
 		const [fileName, blockQuery] = input.split('#^');
+		const blockQueryNormalized = normalizeForSearch(blockQuery ?? "");
 		const fileResults = this.fileIndex.search(fileName, {}, 1);
 
 		if (fileResults.length === 0) return [];
@@ -180,7 +181,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const blockIds = this.fileIndex.getBlockIds(file);
 
 		return blockIds
-			.filter(b => blockQuery === '' || b.toLowerCase().includes(blockQuery.toLowerCase()))
+			.filter(b => blockQuery === '' || normalizeForSearch(b).includes(blockQueryNormalized))
 			.slice(0, 20)
 			.map(blockId => ({
 				file,
