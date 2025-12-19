@@ -12,13 +12,12 @@ export function parseMacroToken(raw: string): ParsedMacroToken | null {
 	}
 
 	const macroName = raw.slice(0, pipeIndex).trim();
-	const labelPart = raw.slice(pipeIndex + 1).trim();
 	if (!macroName) return null;
 
-	let label = labelPart;
-	if (labelPart.toLowerCase().startsWith("label:")) {
-		label = labelPart.slice("label:".length).trim();
-	}
+	const labelPart = raw.slice(pipeIndex + 1).trim();
+	if (!labelPart) return { macroName };
+	if (!labelPart.toLowerCase().startsWith("label:")) return null;
+	const label = labelPart.slice("label:".length).trim();
 
 	return {
 		macroName,
