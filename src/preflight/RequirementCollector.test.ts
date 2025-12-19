@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RequirementCollector } from "./RequirementCollector";
-import { parseValueToken } from "src/utils/valueSyntax";
+import { buildValueVariableKey } from "src/utils/valueSyntax";
 
 // Light stubs for app/plugin
 const makeApp = () => ({
@@ -37,10 +37,13 @@ describe("RequirementCollector", () => {
 
     expect(byId["title"].label).toBe("title");
     expect(byId["title"].description).toBe("Snake cased name");
-    const parsed = parseValueToken(multiToken);
-    expect(parsed).not.toBeNull();
-    expect(byId[parsed!.variableKey].label).toBe("Priority");
-    expect(byId[parsed!.variableKey].type).toBe("dropdown");
+    const variableKey = buildValueVariableKey(
+      "low,medium,high",
+      "Priority",
+      true,
+    );
+    expect(byId[variableKey].label).toBe("Priority");
+    expect(byId[variableKey].type).toBe("dropdown");
   });
 
   it("collects VDATE with format and default", async () => {

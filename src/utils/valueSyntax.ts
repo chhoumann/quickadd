@@ -14,6 +14,16 @@ export type ParsedValueToken = {
 	hasOptions: boolean;
 };
 
+export function buildValueVariableKey(
+	variableName: string,
+	label: string | undefined,
+	hasOptions: boolean,
+): string {
+	return hasOptions && label
+		? `${variableName}${VALUE_LABEL_KEY_DELIMITER}${label}`
+		: variableName;
+}
+
 type ParsedOptions = {
 	label?: string;
 	defaultValue: string;
@@ -125,10 +135,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		defaultValue = allowCustomInput ? "" : legacyDefault;
 	}
 
-	const variableKey =
-		hasOptions && label
-			? `${variablePart}${VALUE_LABEL_KEY_DELIMITER}${label}`
-			: variablePart;
+	const variableKey = buildValueVariableKey(variablePart, label, hasOptions);
 
 	return {
 		raw,
