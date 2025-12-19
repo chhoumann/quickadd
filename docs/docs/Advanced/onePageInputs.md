@@ -23,6 +23,7 @@ This feature is currently in Beta.
 
 ## Date UX
 - Date fields support natural language (e.g., “today”, “next friday”).
+- Short aliases like `t` (today), `tm` (tomorrow), and `yd` (yesterday) are supported and configurable in settings.
 - The modal shows a formatted preview and stores a normalized `@date:ISO` internally.
 
 ## FIELD UX

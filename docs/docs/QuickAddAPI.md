@@ -44,7 +44,7 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 - `text`: Single-line text input
 - `textarea`: Multi-line text input
 - `dropdown`: Fixed dropdown menu (no search, must select from list)
-- `date`: Date input with natural language support
+- `date`: Date input with natural language support (short aliases like `t`, `tm`, `yd` are supported and configurable in settings)
 - `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
 - `suggester`: **NEW** - Searchable autocomplete with custom options (allows custom input)
   - Supports multi-select mode via `suggesterConfig.multiSelect: true` for comma-separated selections

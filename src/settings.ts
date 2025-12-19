@@ -1,6 +1,7 @@
 import type { Model } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import type IChoice from "./types/choices/IChoice";
+import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
 
 export interface QuickAddSettings {
 	choices: IChoice[];
@@ -25,6 +26,7 @@ export interface QuickAddSettings {
 	showCaptureNotification: boolean;
 	showInputCancellationNotification: boolean;
 	enableTemplatePropertyTypes: boolean;
+	dateAliases: Record<string, string>;
 	ai: {
 		defaultModel: Model["name"] | "Ask me";
 		defaultSystemPrompt: string;
@@ -60,6 +62,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	showCaptureNotification: true,
 	showInputCancellationNotification: false,
 	enableTemplatePropertyTypes: false,
+	dateAliases: DEFAULT_DATE_ALIASES,
 	ai: {
 		defaultModel: "Ask me",
 		defaultSystemPrompt: `As an AI assistant within Obsidian, your primary goal is to help users manage their ideas and knowledge more effectively. Format your responses using Markdown syntax. Please use the [[Obsidian]] link format. You can write aliases for the links by writing [[Obsidian|the alias after the pipe symbol]]. To use mathematical notation, use LaTeX syntax. LaTeX syntax for larger equations should be on separate lines, surrounded with double dollar signs ($$). You can also inline math expressions by wrapping it in $ symbols. For example, use $$w_{ij}^{\text{new}}:=w_{ij}^{\text{current}}+\eta\cdot\delta_j\cdot x_{ij}$$ on a separate line, but you can write "($\eta$ = learning rate, $\delta_j$ = error term, $x_{ij}$ = input)" inline.`,

@@ -52,6 +52,24 @@ describe("dateParser", () => {
 			expect(result.isoString).toBe("2025-06-21T00:00:00.000Z");
 		});
 
+		it("should normalize aliases before parsing", () => {
+			const mockDateParser = {
+				parseDate: vi.fn().mockReturnValue({
+					moment: {
+						isValid: () => true,
+						toISOString: () => "2025-06-21T00:00:00.000Z",
+						format: () => "2025-06-21",
+					},
+				}),
+			};
+
+			parseNaturalLanguageDate("tm 5pm", undefined, mockDateParser, {
+				tm: "tomorrow",
+			});
+
+			expect(mockDateParser.parseDate).toHaveBeenCalledWith("tomorrow 5pm");
+		});
+
 		it("should return error when date parsing fails", () => {
 			const result = parseNaturalLanguageDate("invalid date");
 

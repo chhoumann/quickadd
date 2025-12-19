@@ -2,6 +2,11 @@ import type { App, Debouncer } from "obsidian";
 import { TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { parseNaturalLanguageDate } from "../../utils/dateParser";
+import { settingsStore } from "../../settingsStore";
+import {
+	formatDateAliasInline,
+	getOrderedDateAliases,
+} from "../../utils/dateAliases";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	private previewEl: HTMLElement;
@@ -106,6 +111,33 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.previewEl.style.fontFamily = "var(--font-monospace)";
 		this.previewEl.textContent = VDateInputPrompt.PREVIEW_PLACEHOLDER;
 		this.previewEl.style.color = "var(--text-normal)";
+
+		const aliasEntries = getOrderedDateAliases(
+			settingsStore.getState().dateAliases,
+		);
+		if (aliasEntries.length > 0) {
+			const aliasDetails = previewContainer.createEl("details", {
+				cls: "vdate-alias-details",
+			});
+			aliasDetails.style.marginTop = "0.25rem";
+
+			const aliasSummary = aliasDetails.createEl("summary", {
+				text: `Aliases (${aliasEntries.length})`,
+			});
+			aliasSummary.style.fontSize = "0.85em";
+			aliasSummary.style.color = "var(--text-muted)";
+
+			const aliasList = aliasDetails.createEl("div", {
+				cls: "vdate-alias-list",
+			});
+			aliasList.textContent = formatDateAliasInline(
+				settingsStore.getState().dateAliases,
+			);
+			aliasList.style.marginTop = "0.25rem";
+			aliasList.style.fontSize = "0.85em";
+			aliasList.style.color = "var(--text-muted)";
+			aliasList.style.fontFamily = "var(--font-monospace)";
+		}
 	}
 
 	private updatePreview() {

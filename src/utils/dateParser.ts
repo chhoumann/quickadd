@@ -1,5 +1,8 @@
 import { NLDParser } from "../parsers/NLDParser";
 import type { IDateParser } from "../parsers/IDateParser";
+import { settingsStore } from "../settingsStore";
+import type { DateAliasMap } from "./dateAliases";
+import { normalizeDateInput } from "./dateAliases";
 
 export interface ParsedDate {
 	isValid: boolean;
@@ -18,7 +21,8 @@ export interface ParsedDate {
 export function parseNaturalLanguageDate(
 	input: string,
 	format?: string,
-	dateParser: IDateParser = NLDParser
+	dateParser: IDateParser = NLDParser,
+	aliases?: DateAliasMap,
 ): ParsedDate {
 	if (!input || !input.trim()) {
 		return {
@@ -28,7 +32,9 @@ export function parseNaturalLanguageDate(
 	}
 
 	try {
-		const parseResult = dateParser.parseDate(input);
+		const aliasMap = aliases ?? settingsStore.getState().dateAliases;
+		const normalizedInput = normalizeDateInput(input, aliasMap);
+		const parseResult = dateParser.parseDate(normalizedInput);
 
 		if (parseResult?.moment?.isValid()) {
 			const isoString = parseResult.moment.toISOString();
