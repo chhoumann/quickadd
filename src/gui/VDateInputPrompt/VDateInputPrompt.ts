@@ -69,8 +69,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			.setPlaceholder(placeholder ?? "")
 			.setValue(value ?? "")
 			.onChange((newValue) => {
+				this.onInputChanged(newValue);
 				this.currentInput = newValue;
-				this.input = newValue; // Keep parent's input in sync  
 				this.updatePreviewDebounced();
 			})
 			.inputEl.addEventListener("keydown", this.submitEnterCallback);

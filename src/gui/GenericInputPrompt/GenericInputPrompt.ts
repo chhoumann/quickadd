@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { ButtonComponent, Modal, TextComponent } from "obsidian";
 import { FileSuggester } from "../suggesters/fileSuggester";
 import { TagSuggester } from "../suggesters/tagSuggester";
+import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -12,6 +13,7 @@ export default class GenericInputPrompt extends Modal {
 	private inputComponent: TextComponent;
 	protected input: string;
 	private readonly placeholder: string;
+	private readonly draftHandler: InputPromptDraftHandler;
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;
 
@@ -57,7 +59,13 @@ export default class GenericInputPrompt extends Modal {
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
-		this.input = value ?? "";
+		this.draftHandler = new InputPromptDraftHandler({
+			kind: "single",
+			header: this.header,
+			placeholder: this.placeholder,
+			linkSourcePath: this.linkSourcePath,
+		});
+		this.input = this.draftHandler.hydrate(value ?? "");
 
 		this.waitForClose = new Promise<string>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -103,7 +111,7 @@ export default class GenericInputPrompt extends Modal {
 		textComponent
 			.setPlaceholder(placeholder ?? "")
 			.setValue(value ?? "")
-			.onChange((value) => (this.input = value))
+			.onChange((value) => this.onInputChanged(value))
 			.inputEl.addEventListener("keydown", this.submitEnterCallback);
 
 		return textComponent;
@@ -152,6 +160,7 @@ export default class GenericInputPrompt extends Modal {
 	};
 
 	private submit() {
+		this.input = this.inputComponent?.inputEl?.value ?? this.input;
 		this.didSubmit = true;
 
 		this.close();
@@ -164,6 +173,21 @@ export default class GenericInputPrompt extends Modal {
 	private resolveInput() {
 		if (!this.didSubmit) this.rejectPromise("No input given.");
 		else this.resolvePromise(this.input);
+	}
+
+	protected onInputChanged(value: string) {
+		this.draftHandler.markChanged();
+		this.input = value;
+	}
+
+	private syncInputFromEl() {
+		if (this.inputComponent?.inputEl) {
+			this.input = this.inputComponent.inputEl.value;
+		}
+	}
+
+	private persistDraft() {
+		this.draftHandler.persist(this.input, this.didSubmit);
 	}
 
 	private removeInputListener() {
@@ -181,8 +205,12 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	onClose() {
-		super.onClose();
+		if (!this.didSubmit) {
+			this.syncInputFromEl();
+		}
+		this.persistDraft();
 		this.resolveInput();
 		this.removeInputListener();
+		super.onClose();
 	}
 }

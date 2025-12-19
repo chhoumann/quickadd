@@ -1,8 +1,9 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
 import type { TFile } from "obsidian";
 import { Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, QuickAddSettingsTab } from "./quickAddSettingsTab";
-import type { QuickAddSettings } from "./quickAddSettingsTab";
+import { QuickAddSettingsTab } from "./quickAddSettingsTab";
+import { DEFAULT_SETTINGS } from "./settings";
+import type { QuickAddSettings } from "./settings";
 import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
@@ -323,4 +324,3 @@ export default class QuickAdd extends Plugin {
 		updateModal.open();
 	}
 }
-
