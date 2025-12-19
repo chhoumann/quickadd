@@ -228,8 +228,11 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			.map(file => ({
 				file: {
 					path: file.path,
+					pathNormalized: normalizeForSearch(file.path),
 					basename: file.basename,
+					basenameNormalized: normalizeForSearch(file.basename),
 					aliases: [],
+					aliasesNormalized: [],
 					headings: [],
 					blockIds: [],
 					tags: [],
