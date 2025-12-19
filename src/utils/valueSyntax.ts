@@ -1,4 +1,5 @@
-export const VALUE_LABEL_KEY_DELIMITER = "::";
+// Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
+export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
 const VALUE_OPTION_KEYS = new Set(["label", "default", "custom"]);
 
