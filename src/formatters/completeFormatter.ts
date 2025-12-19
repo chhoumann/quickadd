@@ -24,7 +24,7 @@ import {
 	generateFieldCacheKey,
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
-import { Formatter } from "./formatter";
+import { Formatter, type PromptContext } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 
@@ -192,14 +192,14 @@ export class CompleteFormatter extends Formatter {
 
 	protected async promptForVariable(
 		header?: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string },
+		context?: PromptContext,
 	): Promise<string> {
 		try {
 			// Use VDateInputPrompt for VDATE variables
 			if (context?.type === "VDATE" && context.dateFormat) {
 				return await VDateInputPrompt.Prompt(
 					this.app,
-					header as string,
+					(header as string) ?? context.label ?? "Enter date",
 					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
 					context.dateFormat,
@@ -208,11 +208,13 @@ export class CompleteFormatter extends Formatter {
 
 			// Use default prompt for other variables
 			return await new InputPrompt().factory().Prompt(
-			this.app,
-			header as string,
-			context?.defaultValue ? context.defaultValue : undefined,
-			context?.defaultValue
-		);
+				this.app,
+				header ?? context?.label ?? "Enter value",
+				context?.placeholder ??
+					(context?.defaultValue ? context.defaultValue : undefined),
+				context?.defaultValue,
+				context?.description,
+			);
 		} catch (error) {
 			if (isCancellationError(error)) {
 				throw new MacroAbortError("Input cancelled by user");
@@ -232,19 +234,29 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	protected async suggestForValue(suggestedValues: string[], allowCustomInput = false) {
+	protected async suggestForValue(
+		suggestedValues: string[],
+		allowCustomInput = false,
+		context?: { placeholder?: string; variableKey?: string },
+	) {
 		try {
 			if (allowCustomInput) {
 				return await InputSuggester.Suggest(
 					this.app,
 					suggestedValues,
 					suggestedValues,
+					{
+						...(context?.placeholder
+							? { placeholder: context.placeholder }
+							: {}),
+					},
 				);
 			}
 			return await GenericSuggester.Suggest(
 				this.app,
 				suggestedValues,
 				suggestedValues,
+				context?.placeholder,
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
@@ -308,7 +320,10 @@ export class CompleteFormatter extends Formatter {
 		return generateFieldCacheKey(filters);
 	}
 
-	protected async getMacroValue(macroName: string): Promise<string> {
+	protected async getMacroValue(
+		macroName: string,
+		context?: { label?: string },
+	): Promise<string> {
 		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
 			this.app,
 			this.plugin,
@@ -317,7 +332,8 @@ export class CompleteFormatter extends Formatter {
 			this.choiceExecutor,
 			this.variables,
 		);
-		const macroOutput = (await macroEngine.runAndGetOutput(macroName)) ?? "";
+		const macroOutput =
+			(await macroEngine.runAndGetOutput(macroName, context)) ?? "";
 
 		// Copy variables from macro execution
 		macroEngine.getVariables().forEach((value, key) => {

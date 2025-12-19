@@ -2,9 +2,9 @@ import type { App } from "obsidian";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import { CaptureChoiceBuilder } from "../gui/ChoiceBuilder/captureChoiceBuilder";
 import { TemplateChoiceBuilder } from "../gui/ChoiceBuilder/templateChoiceBuilder";
-import GenericInputPrompt from "../gui/GenericInputPrompt/GenericInputPrompt";
 import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import { MacroBuilder } from "../gui/MacroGUIs/MacroBuilder";
+import { MultiChoiceSettingsModal } from "../gui/MultiChoiceSettingsModal";
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
@@ -40,10 +40,12 @@ export function duplicateChoice(choice: IChoice): IChoice {
 	const newChoice = createChoice(choice.type, `${choice.name} (copy)`);
 
 	if (choice.type === "Multi") {
-		(newChoice as IMultiChoice).choices = (choice as IMultiChoice).choices.map(
-			duplicateChoice,
-		);
-		return newChoice;
+		const newMulti = newChoice as IMultiChoice;
+		const sourceMulti = choice as IMultiChoice;
+		newMulti.choices = sourceMulti.choices.map(duplicateChoice);
+		newMulti.placeholder = sourceMulti.placeholder;
+		newMulti.collapsed = sourceMulti.collapsed;
+		return newMulti;
 	}
 
 	// copy simple props except id/name
@@ -129,15 +131,14 @@ export async function configureChoice(
 	plugin: QuickAdd,
 ): Promise<IChoice | undefined> {
 	if (choice.type === "Multi") {
-		const name = await GenericInputPrompt.Prompt(
-			app,
-			`Rename ${choice.name}`,
-			"",
-			choice.name,
-		);
-		if (!name) return undefined;
-
-		return { ...choice, name };
+		try {
+			return await new MultiChoiceSettingsModal(
+				app,
+				choice as IMultiChoice,
+			).waitForClose;
+		} catch {
+			return undefined;
+		}
 	}
 
 	const builder = getChoiceBuilder(choice, app, plugin);

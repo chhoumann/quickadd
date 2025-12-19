@@ -33,13 +33,24 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
-    // One-page preflight honoring per-choice override
-    const globalEnabled = settingsStore.getState().onePageInputEnabled;
-    const override = choice.onePageInput;
-    const shouldUseOnePager = (override === "always") || (override !== "never" && globalEnabled);
-    if (shouldUseOnePager && (choice.type === "Template" || choice.type === "Capture" || choice.type === "Macro")) {
+		// One-page preflight honoring per-choice override.
+		const globalEnabled = settingsStore.getState().onePageInputEnabled;
+		const override = choice.onePageInput;
+		const shouldUseOnePager =
+			override === "always" || (override !== "never" && globalEnabled);
+		if (
+			shouldUseOnePager &&
+			(choice.type === "Template" ||
+				choice.type === "Capture" ||
+				choice.type === "Macro")
+		) {
 			try {
-				await runOnePagePreflight(this.app, this.plugin as unknown as QuickAdd, this, choice);
+				await runOnePagePreflight(
+					this.app,
+					this.plugin as unknown as QuickAdd,
+					this,
+					choice,
+				);
 			} catch (error) {
 				if (isCancellationError(error)) {
 					throw new MacroAbortError("One-page input cancelled by user");
@@ -111,6 +122,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private onChooseMultiType(multiChoice: IMultiChoice) {
-		ChoiceSuggester.Open(this.plugin, multiChoice.choices, this);
+		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
+			choiceExecutor: this,
+			placeholder: multiChoice.placeholder,
+		});
 	}
 }

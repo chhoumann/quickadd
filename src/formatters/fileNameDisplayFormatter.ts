@@ -1,4 +1,4 @@
-import { Formatter } from "./formatter";
+import { Formatter, type PromptContext } from "./formatter";
 import type { App } from "obsidian";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -12,6 +12,7 @@ import {
 	getCurrentFileNamePreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
+import { getValueVariableBaseName } from "../utils/valueSyntax";
 
 import type QuickAdd from "../main";
 
@@ -71,7 +72,10 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		return getVariableExample(variableName);
+		const stored = this.variables.get(variableName);
+		if (typeof stored === "string") return stored;
+		const baseName = getValueVariableBaseName(variableName);
+		return getVariableExample(baseName);
 	}
 
 	protected getCurrentFileLink(): string | null {
@@ -84,7 +88,11 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
 	}
 
-	protected suggestForValue(suggestedValues: string[], allowCustomInput = false) {
+	protected suggestForValue(
+		suggestedValues: string[],
+		allowCustomInput = false,
+		_context?: { placeholder?: string; variableKey?: string },
+	) {
 		return getSuggestionPreview(suggestedValues);
 	}
 
@@ -92,13 +100,16 @@ export class FileNameDisplayFormatter extends Formatter {
 		return Promise.resolve("calculation_result");
 	}
 
-	protected getMacroValue(macroName: string) {
+	protected getMacroValue(
+		macroName: string,
+		_context?: { label?: string },
+	) {
 		return getMacroPreview(macroName);
 	}
 
 	protected async promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string }
+		context?: PromptContext
 	): Promise<string> {
 		return getVariablePromptExample(variableName);
 	}

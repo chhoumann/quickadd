@@ -42,7 +42,10 @@ export class SingleMacroEngine {
 		}
 	}
 
-	public async runAndGetOutput(macroName: string): Promise<string> {
+	public async runAndGetOutput(
+		macroName: string,
+		context?: { label?: string },
+	): Promise<string> {
 		const { basename, memberAccess } = getUserScriptMemberAccess(macroName);
 
 		// ------------------------------------------------------------------
@@ -94,6 +97,7 @@ export class SingleMacroEngine {
 			this.choiceExecutor,
 			this.variables,
 			preloadedScripts,
+			context?.label,
 		);
 
 		if (memberAccess?.length) {

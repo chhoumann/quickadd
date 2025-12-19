@@ -5,6 +5,7 @@ import type IMultiChoice from "./IMultiChoice";
 export class MultiChoice extends Choice implements IMultiChoice {
 	choices: IChoice[] = [];
 	collapsed: boolean;
+	placeholder?: string;
 
 	constructor(name: string) {
 		super(name, "Multi");

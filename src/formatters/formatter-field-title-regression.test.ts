@@ -51,11 +51,26 @@ class FieldTitleFormatter extends Formatter {
 		return null;
 	}
 
-	protected suggestForValue(): string {
+	protected suggestForValue(
+		_suggestedValues: string[],
+		_allowCustomInput?: boolean,
+		_context?: { placeholder?: string; variableKey?: string },
+	): string {
 		return "";
 	}
 
-	protected async promptForVariable(): Promise<string> {
+	protected async promptForVariable(
+		_variableName: string,
+		_context?: {
+			type?: string;
+			dateFormat?: string;
+			defaultValue?: string;
+			label?: string;
+			description?: string;
+			placeholder?: string;
+			variableKey?: string;
+		},
+	): Promise<string> {
 		return "";
 	}
 
@@ -63,11 +78,14 @@ class FieldTitleFormatter extends Formatter {
 		return "";
 	}
 
-	protected getMacroValue(): string {
+	protected getMacroValue(
+		_macroName: string,
+		_context?: { label?: string },
+	): string {
 		return "";
 	}
 
-	protected async getTemplateContent(): Promise<string> {
+	protected async getTemplateContent(_templatePath: string): Promise<string> {
 		return "";
 	}
 

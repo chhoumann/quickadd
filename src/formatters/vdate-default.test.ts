@@ -36,13 +36,24 @@ class TestFormatter extends Formatter {
         return input;
     }
 
-    protected getMacroValue(macroName: string): string {
+    protected getMacroValue(
+        macroName: string,
+        _context?: { label?: string },
+    ): string {
         return `[macro:${macroName}]`;
     }
 
     protected async promptForVariable(
         variableName: string,
-        context?: { type?: string; dateFormat?: string; defaultValue?: string }
+        context?: {
+            type?: string;
+            dateFormat?: string;
+            defaultValue?: string;
+            label?: string;
+            description?: string;
+            placeholder?: string;
+            variableKey?: string;
+        }
     ): Promise<string> {
         // If a default value is provided and no mock value is set, use the default
         if (context?.defaultValue && !this.mockPromptValue) {
@@ -55,11 +66,15 @@ class TestFormatter extends Formatter {
         return `[template:${templatePath}]`;
     }
 
-    protected async suggestForValue(suggestedValues: string[]): Promise<string> {
+    protected async suggestForValue(
+        suggestedValues: string[],
+        _allowCustomInput?: boolean,
+        _context?: { placeholder?: string; variableKey?: string },
+    ): Promise<string> {
         return suggestedValues[0] || "";
     }
 
-    protected async suggestForField(variableName: string): Promise<string> {
+    protected async suggestForField(_variableName: string): Promise<string> {
         return "";
     }
 

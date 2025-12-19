@@ -26,8 +26,20 @@ import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
+import { parseValueToken } from "../utils/valueSyntax";
+import { parseMacroToken } from "../utils/macroSyntax";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
+
+export interface PromptContext {
+	type?: string;
+	dateFormat?: string;
+	defaultValue?: string;
+	label?: string;
+	description?: string;
+	placeholder?: string;
+	variableKey?: string;
+}
 
 export abstract class Formatter {
 	protected value: string;
@@ -260,46 +272,54 @@ export abstract class Formatter {
 				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
 
-			let variableName = match[1];
-			let defaultValue = "";
-
-			// Parse default value if present (syntax: {{VALUE:name|default}})
-			const pipeIndex = variableName.indexOf("|");
-			if (pipeIndex !== -1) {
-				defaultValue = variableName.substring(pipeIndex + 1).trim();
-				variableName = variableName.substring(0, pipeIndex).trim();
+			const parsed = parseValueToken(match[1]);
+			if (!parsed) {
+				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
 
-			// Ensure variable is set (prompt if needed)
-			if (!this.hasConcreteVariable(variableName)) {
-				const suggestedValues = variableName.split(",");
-				let variableValue = "";
-				let actualDefaultValue = defaultValue;
+			const {
+				variableName,
+				variableKey,
+				label,
+				defaultValue,
+				allowCustomInput,
+				suggestedValues,
+				hasOptions,
+			} = parsed;
 
-				if (suggestedValues.length === 1) {
+			// Ensure variable is set (prompt if needed)
+			if (!this.hasConcreteVariable(variableKey)) {
+				let variableValue = "";
+				const helperText =
+					!hasOptions && label ? label : undefined;
+				const suggesterPlaceholder =
+					hasOptions && label ? label : undefined;
+
+				if (!hasOptions) {
 					// For single-value prompts, pass default value to pre-populate the input
 					variableValue = await this.promptForVariable(variableName, {
-						defaultValue: actualDefaultValue
+						defaultValue,
+						description: helperText,
+						variableKey,
 					});
 				} else {
-					// Check if defaultValue contains the |custom modifier
-					const allowCustomInput = defaultValue.toLowerCase() === "custom";
-					// If custom modifier is present, don't use it as default value
-					actualDefaultValue = allowCustomInput ? "" : defaultValue;
-
-					variableValue = await this.suggestForValue(suggestedValues, allowCustomInput);
+					variableValue = await this.suggestForValue(
+						suggestedValues,
+						allowCustomInput,
+						{ placeholder: suggesterPlaceholder, variableKey },
+					);
 				}
 
 				// Use default value if no input provided (applies to both prompt and suggester)
-				if (!variableValue && actualDefaultValue) {
-					variableValue = actualDefaultValue;
+				if (!variableValue && defaultValue) {
+					variableValue = defaultValue;
 				}
 
-				this.variables.set(variableName, variableValue);
+				this.variables.set(variableKey, variableValue);
 			}
 
 			// Get the raw value from variables
-			const rawValue = this.variables.get(variableName);
+			const rawValue = this.variables.get(variableKey);
 
 			// Offer this variable to the property collector for YAML post-processing
 			this.propertyCollector.maybeCollect({
@@ -312,7 +332,7 @@ export abstract class Formatter {
 			});
 
 			// Always use string replacement initially
-			const replacement = this.getVariableValue(variableName);
+			const replacement = this.getVariableValue(variableKey);
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
@@ -393,8 +413,17 @@ export abstract class Formatter {
 			const exec = MACRO_REGEX.exec(output);
 			if (!exec || !exec[1]) continue;
 
-			const macroName = exec[1];
-			const macroOutput = await this.getMacroValue(macroName);
+			const parsed = parseMacroToken(exec[1]);
+			if (!parsed) {
+				output = this.replacer(output, MACRO_REGEX, "");
+				continue;
+			}
+
+			const { macroName, label } = parsed;
+			const macroOutput = await this.getMacroValue(
+				macroName,
+				label ? { label } : undefined,
+			);
 
 			output = this.replacer(
 				output,
@@ -411,6 +440,7 @@ export abstract class Formatter {
 	protected abstract suggestForValue(
 		suggestedValues: string[],
 		allowCustomInput?: boolean,
+		context?: { placeholder?: string; variableKey?: string },
 	): Promise<string> | string;
 
 	protected abstract suggestForField(variableName: string): Promise<string>;
@@ -536,11 +566,14 @@ export abstract class Formatter {
 	}
 
 
-	protected abstract getMacroValue(macroName: string): Promise<string> | string;
+	protected abstract getMacroValue(
+		macroName: string,
+		context?: { label?: string },
+	): Promise<string> | string;
 
 	protected abstract promptForVariable(
 		variableName: string,
-		context?: { type?: string; dateFormat?: string; defaultValue?: string; }
+		context?: PromptContext,
 	): Promise<string>;
 
 	protected abstract getTemplateContent(templatePath: string): Promise<string>;

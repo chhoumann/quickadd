@@ -14,6 +14,7 @@ export default class GenericInputPrompt extends Modal {
 	protected input: string;
 	private readonly placeholder: string;
 	private readonly draftHandler: InputPromptDraftHandler;
+	private readonly description?: string;
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;
 
@@ -21,14 +22,16 @@ export default class GenericInputPrompt extends Modal {
 		app: App,
 		header: string,
 		placeholder?: string,
-		value?: string
+		value?: string,
+		description?: string,
 	): Promise<string> {
 		const newPromptModal = new GenericInputPrompt(
 			app,
 			header,
 			placeholder,
 			value,
-			undefined
+			undefined,
+			description,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -38,14 +41,16 @@ export default class GenericInputPrompt extends Modal {
 		header: string,
 		placeholder?: string,
 		value?: string,
-		linkSourcePath?: string
+		linkSourcePath?: string,
+		description?: string,
 	): Promise<string> {
 		const newPromptModal = new GenericInputPrompt(
 			app,
 			header,
 			placeholder,
 			value,
-			linkSourcePath
+			linkSourcePath,
+			description,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -55,10 +60,12 @@ export default class GenericInputPrompt extends Modal {
 		private header: string,
 		placeholder?: string,
 		value?: string,
-		private linkSourcePath?: string
+		private linkSourcePath?: string,
+		description?: string,
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
+		this.description = description?.trim() || undefined;
 		this.draftHandler = new InputPromptDraftHandler({
 			kind: "single",
 			header: this.header,
@@ -90,6 +97,14 @@ export default class GenericInputPrompt extends Modal {
 		this.containerEl.addClass("quickAddModal", "qaInputPrompt");
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
+
+		if (this.description) {
+			const descriptionEl = this.contentEl.createDiv({
+				text: this.description,
+				cls: "setting-item-description",
+			});
+			descriptionEl.style.marginBottom = "0.75rem";
+		}
 
 		const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
 		this.inputComponent = this.createInputField(
