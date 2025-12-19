@@ -6,13 +6,14 @@ import { Notice } from "obsidian";
  */
 export function showNoScriptsFoundNotice(): void {
 	const notice = new Notice("", 10000);
-	notice.noticeEl.empty();
-	notice.noticeEl.createEl("div", {
+	const messageEl = notice.messageEl ?? notice.containerEl ?? notice.noticeEl;
+	messageEl.empty();
+	messageEl.createEl("div", {
 		text: "No JavaScript files found",
 		cls: "quickadd-notice-title",
 	});
 
-	const content = notice.noticeEl.createDiv();
+	const content = messageEl.createDiv();
 	content.createEl("div", {
 		text: "QuickAdd cannot find any .js files in your vault.",
 	});

@@ -16,6 +16,252 @@ const moment = (...args: any[]) => {
   };
 };
 
+export class BaseComponent {
+  disabled = false;
+
+  then(cb: (component: this) => any): this {
+    cb(this);
+    return this;
+  }
+
+  setDisabled(disabled: boolean): this {
+    this.disabled = disabled;
+    return this;
+  }
+}
+
+export class ButtonComponent extends BaseComponent {
+  buttonEl: HTMLButtonElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.buttonEl = document.createElement("button");
+    containerEl.appendChild(this.buttonEl);
+  }
+
+  setButtonText(text: string): this {
+    this.buttonEl.textContent = text;
+    return this;
+  }
+
+  setCta(): this {
+    return this;
+  }
+
+  setTooltip(): this {
+    return this;
+  }
+
+  setIcon(): this {
+    return this;
+  }
+
+  setClass(): this {
+    return this;
+  }
+
+  onClick(cb: () => void): this {
+    this.buttonEl.addEventListener("click", cb);
+    return this;
+  }
+}
+
+export class ToggleComponent extends BaseComponent {
+  toggleEl: HTMLInputElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.toggleEl = document.createElement("input");
+    this.toggleEl.type = "checkbox";
+    containerEl.appendChild(this.toggleEl);
+  }
+
+  setValue(value: boolean): this {
+    this.toggleEl.checked = value;
+    return this;
+  }
+
+  setTooltip(): this {
+    return this;
+  }
+
+  onChange(cb: (value: boolean) => void): this {
+    this.toggleEl.addEventListener("change", () => cb(this.toggleEl.checked));
+    return this;
+  }
+}
+
+export class DropdownComponent extends BaseComponent {
+  selectEl: HTMLSelectElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.selectEl = document.createElement("select");
+    containerEl.appendChild(this.selectEl);
+  }
+
+  addOption(value: string, text: string): this {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    this.selectEl.appendChild(option);
+    return this;
+  }
+
+  setValue(value: string): this {
+    this.selectEl.value = value;
+    return this;
+  }
+
+  onChange(cb: (value: string) => void): this {
+    this.selectEl.addEventListener("change", () => cb(this.selectEl.value));
+    return this;
+  }
+}
+
+export class TextComponent extends BaseComponent {
+  inputEl: HTMLInputElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.inputEl = document.createElement("input");
+    containerEl.appendChild(this.inputEl);
+  }
+
+  setPlaceholder(value: string): this {
+    this.inputEl.placeholder = value;
+    return this;
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  setTooltip(): this {
+    return this;
+  }
+
+  onChange(cb: (value: string) => void): this {
+    this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
+    return this;
+  }
+}
+
+export class Setting {
+  settingEl: HTMLElement;
+  infoEl: HTMLElement;
+  nameEl: HTMLElement;
+  descEl: HTMLElement;
+  controlEl: HTMLElement;
+  components: BaseComponent[] = [];
+
+  constructor(containerEl: HTMLElement) {
+    this.settingEl = document.createElement("div");
+    this.infoEl = document.createElement("div");
+    this.nameEl = document.createElement("div");
+    this.descEl = document.createElement("div");
+    this.controlEl = document.createElement("div");
+    this.settingEl.appendChild(this.infoEl);
+    this.settingEl.appendChild(this.controlEl);
+    containerEl.appendChild(this.settingEl);
+  }
+
+  setName(name: string | DocumentFragment): this {
+    if (typeof name === "string") {
+      this.nameEl.textContent = name;
+    } else {
+      this.nameEl.appendChild(name);
+    }
+    if (!this.infoEl.contains(this.nameEl)) this.infoEl.appendChild(this.nameEl);
+    return this;
+  }
+
+  setDesc(desc: string | DocumentFragment): this {
+    if (typeof desc === "string") {
+      this.descEl.textContent = desc;
+    } else {
+      this.descEl.appendChild(desc);
+    }
+    if (!this.infoEl.contains(this.descEl)) this.infoEl.appendChild(this.descEl);
+    return this;
+  }
+
+  setClass(): this {
+    return this;
+  }
+
+  setTooltip(): this {
+    return this;
+  }
+
+  setHeading(): this {
+    return this;
+  }
+
+  setDisabled(): this {
+    return this;
+  }
+
+  addButton(cb: (component: ButtonComponent) => any): this {
+    cb(new ButtonComponent(this.controlEl));
+    return this;
+  }
+
+  addToggle(cb: (component: ToggleComponent) => any): this {
+    cb(new ToggleComponent(this.controlEl));
+    return this;
+  }
+
+  addText(cb: (component: TextComponent) => any): this {
+    cb(new TextComponent(this.controlEl));
+    return this;
+  }
+
+  addDropdown(cb: (component: DropdownComponent) => any): this {
+    cb(new DropdownComponent(this.controlEl));
+    return this;
+  }
+
+  addComponent<T extends BaseComponent>(cb: (el: HTMLElement) => T): this {
+    const el = document.createElement("div");
+    this.controlEl.appendChild(el);
+    const component = cb(el);
+    this.components.push(component);
+    return this;
+  }
+}
+
+export class SettingGroup {
+  groupEl: HTMLElement;
+
+  constructor(containerEl: HTMLElement) {
+    this.groupEl = document.createElement("div");
+    containerEl.appendChild(this.groupEl);
+  }
+
+  setHeading(text: string | DocumentFragment): this {
+    const headingEl = document.createElement("h3");
+    if (typeof text === "string") {
+      headingEl.textContent = text;
+    } else {
+      headingEl.appendChild(text);
+    }
+    this.groupEl.appendChild(headingEl);
+    return this;
+  }
+
+  addClass(cls: string): this {
+    this.groupEl.classList.add(cls);
+    return this;
+  }
+
+  addSetting(cb: (setting: Setting) => void): this {
+    cb(new Setting(this.groupEl));
+    return this;
+  }
+}
+
 // Ensure window and global moment are available
 (globalThis as any).window ??= globalThis;
 (globalThis as any).window.moment = moment;
@@ -67,6 +313,20 @@ export class Plugin {
   registerDomEvent() {}
   onunload() {}
   async onload() {}
+}
+
+export class PluginSettingTab {
+  app: App;
+  containerEl: HTMLElement;
+  icon?: string;
+
+  constructor(app: App, _plugin?: Plugin) {
+    this.app = app;
+    this.containerEl = document.createElement("div");
+  }
+
+  display() {}
+  hide() {}
 }
 
 export class TFile { 
@@ -192,10 +452,18 @@ export const Scope = class {
 
 export class Notice {
   static instances: Array<{ message: string; timeout?: number }> = [];
+  noticeEl: HTMLElement;
+  containerEl: HTMLElement;
+  messageEl: HTMLElement;
   message: string;
   timeout?: number;
 
   constructor(message: string, timeout?: number) {
+    this.containerEl = document.createElement("div");
+    this.messageEl = document.createElement("div");
+    this.noticeEl = this.messageEl;
+    this.containerEl.appendChild(this.messageEl);
+    this.messageEl.textContent = message;
     this.message = message;
     this.timeout = timeout;
     Notice.instances.push({ message, timeout });
@@ -215,7 +483,15 @@ export function normalizePath(p: string): string {
 // Default export for compatibility
 export default {
   App,
+  BaseComponent,
+  ButtonComponent,
+  ToggleComponent,
+  DropdownComponent,
+  TextComponent,
   Plugin,
+  PluginSettingTab,
+  Setting,
+  SettingGroup,
   TFile,
   TFolder,
   MarkdownView,
