@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
-import type { QuickAddSettings } from "./quickAddSettingsTab";
-import { DEFAULT_SETTINGS } from "./quickAddSettingsTab";
+import type { QuickAddSettings } from "./settings";
+import { DEFAULT_SETTINGS } from "./settings";
 import { deepClone } from "./utils/deepClone";
 
 type SettingsState = QuickAddSettings;
