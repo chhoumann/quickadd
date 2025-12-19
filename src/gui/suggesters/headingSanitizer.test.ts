@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { itPerf } from '../../../tests/perfUtils';
 import { sanitizeHeading } from './utils';
 
 describe('sanitizeHeading', () => {
@@ -50,7 +51,7 @@ describe('sanitizeHeading', () => {
 	});
 	
 	// Performance test - ensure regex caching works
-	it('performs well with many calls', () => {
+	itPerf('performs well with many calls', () => {
 		const heading = '**Important** [[Note|Alias]] with ![[image.png]]';
 		const start = performance.now();
 		

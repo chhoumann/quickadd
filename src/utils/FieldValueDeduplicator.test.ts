@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { describePerf } from "../../tests/perfUtils";
 import { FieldValueDeduplicator } from "./FieldValueDeduplicator";
 
 describe("FieldValueDeduplicator", () => {
@@ -152,7 +153,7 @@ describe("FieldValueDeduplicator", () => {
 		});
 	});
 
-	describe("performance with large datasets", () => {
+	describePerf("performance with large datasets", () => {
 		it("should handle 1000+ values efficiently", () => {
 			const values: string[] = [];
 			for (let i = 0; i < 1000; i++) {
