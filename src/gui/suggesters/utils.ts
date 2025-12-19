@@ -8,6 +8,10 @@ export function normalizeDisplayItem(value: unknown): string {
 	return String(value);
 }
 
+export function normalizeForSearch(value: string): string {
+	return value.normalize("NFC").toLowerCase();
+}
+
 /**
  * Insert text at cursor position
  */

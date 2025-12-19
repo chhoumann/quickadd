@@ -5,6 +5,7 @@ import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
+import { normalizeForSearch } from "./utils";
 import QuickAdd from "../../main";
 
 interface HTMLElementWithTooltipCleanup extends HTMLElement {
@@ -125,6 +126,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private getHeadingSuggestions(input: string): SearchResult[] {
 		const [fileName, headingQuery] = input.split('#');
 		const noFileSpecified = fileName.trim() === '';
+		const headingQueryNormalized = normalizeForSearch(headingQuery ?? "");
 
 		// Determine candidate files based on whether file part was specified
 		let candidateFiles: IndexedFile[] = [];
@@ -149,7 +151,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			const headings = this.fileIndex.getHeadings(file);
 
 			const filteredHeadings = headings
-				.filter(h => headingQuery === '' || h.toLowerCase().includes(headingQuery.toLowerCase()))
+				.filter(h => headingQuery === '' || normalizeForSearch(h).includes(headingQueryNormalized))
 				.slice(0, 20);
 
 			for (const heading of filteredHeadings) {
@@ -170,6 +172,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private getBlockSuggestions(input: string): SearchResult[] {
 		// Split on the full "#^" sequence to correctly separate file name and block query
 		const [fileName, blockQuery] = input.split('#^');
+		const blockQueryNormalized = normalizeForSearch(blockQuery ?? "");
 		const fileResults = this.fileIndex.search(fileName, {}, 1);
 
 		if (fileResults.length === 0) return [];
@@ -178,7 +181,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		const blockIds = this.fileIndex.getBlockIds(file);
 
 		return blockIds
-			.filter(b => blockQuery === '' || b.toLowerCase().includes(blockQuery.toLowerCase()))
+			.filter(b => blockQuery === '' || normalizeForSearch(b).includes(blockQueryNormalized))
 			.slice(0, 20)
 			.map(blockId => ({
 				file,
@@ -213,10 +216,11 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		// Get all files, not just markdown
 		const allFiles = this.app.vault.getFiles();
 		const attachmentExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf', 'mp4', 'webm', 'mov', 'canvas'];
+		const queryLower = normalizeForSearch(query);
 
 		const attachmentFiles = allFiles.filter(file =>
 			attachmentExtensions.includes(file.extension.toLowerCase()) &&
-			(query === '' || file.basename.toLowerCase().includes(query.toLowerCase()))
+			(query === '' || normalizeForSearch(file.basename).includes(queryLower))
 		);
 
 		return attachmentFiles
@@ -224,8 +228,11 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			.map(file => ({
 				file: {
 					path: file.path,
+					pathNormalized: normalizeForSearch(file.path),
 					basename: file.basename,
+					basenameNormalized: normalizeForSearch(file.basename),
 					aliases: [],
+					aliasesNormalized: [],
 					headings: [],
 					blockIds: [],
 					tags: [],
@@ -269,7 +276,8 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				const headingQuery = this.lastInput.includes('#')
 					? this.lastInput.split('#')[1]
 					: '';
-				if (headingQuery && heading.toLowerCase().includes(headingQuery.toLowerCase())) {
+				const headingQueryNormalized = normalizeForSearch(headingQuery ?? "");
+				if (headingQuery && normalizeForSearch(heading).includes(headingQueryNormalized)) {
 					const tempEl = document.createElement('span');
 					this.renderMatch(tempEl, heading, headingQuery);
 					mainText = tempEl.innerHTML;

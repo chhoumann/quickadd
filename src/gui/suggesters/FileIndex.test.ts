@@ -1,21 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FileIndex } from './FileIndex';
+import { normalizeForSearch } from './utils';
 import type { App, TFile, Vault, MetadataCache, Workspace } from 'obsidian';
 
 // Test-specific subclass that allows resetting the singleton
 class TestableFileIndex extends FileIndex {
 	static reset(): void {
-		if (TestableFileIndex.instance) {
+		if (FileIndex.instance) {
 			// Clear any pending timeouts
-			if ((TestableFileIndex.instance as any).reindexTimeout !== null) {
-				clearTimeout((TestableFileIndex.instance as any).reindexTimeout);
+			if ((FileIndex.instance as any).reindexTimeout !== null) {
+				clearTimeout((FileIndex.instance as any).reindexTimeout);
 			}
-			if ((TestableFileIndex.instance as any).fuseUpdateTimeout !== null) {
-				clearTimeout((TestableFileIndex.instance as any).fuseUpdateTimeout);
+			if ((FileIndex.instance as any).fuseUpdateTimeout !== null) {
+				clearTimeout((FileIndex.instance as any).fuseUpdateTimeout);
 			}
-			// Clear the instance
-			TestableFileIndex.instance = null as any;
 		}
+		// Clear the instance
+		FileIndex.instance = null as any;
 	}
 }
 
@@ -49,6 +50,32 @@ const createMockApp = (): App => {
 	} as App;
 };
 
+const createMockIndexedFile = (overrides: {
+	path: string;
+	basename: string;
+	aliases?: string[];
+	headings?: string[];
+	blockIds?: string[];
+	tags?: string[];
+	modified?: number;
+	folder?: string;
+}) => {
+	const aliases = overrides.aliases ?? [];
+	return {
+		path: overrides.path,
+		pathNormalized: normalizeForSearch(overrides.path),
+		basename: overrides.basename,
+		basenameNormalized: normalizeForSearch(overrides.basename),
+		aliases,
+		aliasesNormalized: aliases.map((alias) => normalizeForSearch(alias)),
+		headings: overrides.headings ?? [],
+		blockIds: overrides.blockIds ?? [],
+		tags: overrides.tags ?? [],
+		modified: overrides.modified ?? Date.now(),
+		folder: overrides.folder ?? ''
+	};
+};
+
 describe('FileIndex', () => {
 	let mockApp: App;
 	let fileIndex: FileIndex;
@@ -66,16 +93,11 @@ describe('FileIndex', () => {
 
 	describe('scoring system', () => {
 		it('should boost same-folder files', () => {
-			const mockFile = {
+			const mockFile = createMockIndexedFile({
 				path: 'folder/test.md',
 				basename: 'test',
-				aliases: [],
-				headings: [],
-				blockIds: [],
-				tags: [],
-				modified: Date.now(),
 				folder: 'folder'
-			};
+			});
 
 			const context = { currentFolder: 'folder' };
 			const score = (fileIndex as any).calculateScore(mockFile, 'test', context, 0.5);
@@ -84,16 +106,11 @@ describe('FileIndex', () => {
 		});
 
 		it('should penalize alias match types', () => {
-			const mockFile = {
+			const mockFile = createMockIndexedFile({
 				path: 'test.md',
 				basename: 'test',
-				aliases: ['exact-match'],
-				headings: [],
-				blockIds: [],
-				tags: [],
-				modified: Date.now(),
-				folder: ''
-			};
+				aliases: ['exact-match']
+			});
 
 			const score = (fileIndex as any).calculateScore(mockFile, 'exact-match', {}, 0.5, 'alias');
 
@@ -101,16 +118,11 @@ describe('FileIndex', () => {
 		});
 
 		it('should rank basename matches better than alias matches', () => {
-			const mockFile = {
+			const mockFile = createMockIndexedFile({
 				path: 'test.md',
 				basename: 'test',
-				aliases: ['my-alias'],
-				headings: [],
-				blockIds: [],
-				tags: [],
-				modified: Date.now(),
-				folder: ''
-			};
+				aliases: ['my-alias']
+			});
 
 			const aliasScore = (fileIndex as any).calculateScore(mockFile, 'my-alias', {}, 0.5, 'alias');
 			const basenameScore = (fileIndex as any).calculateScore(mockFile, 'test', {}, 0.5, 'exact');
@@ -119,27 +131,17 @@ describe('FileIndex', () => {
 		});
 
 		it('should boost files with tag overlap', () => {
-			const currentFile = {
+			const currentFile = createMockIndexedFile({
 				path: 'current.md',
 				basename: 'current',
-				aliases: [],
-				headings: [],
-				blockIds: [],
-				tags: ['#shared-tag'],
-				modified: Date.now(),
-				folder: ''
-			};
+				tags: ['#shared-tag']
+			});
 
-			const testFile = {
+			const testFile = createMockIndexedFile({
 				path: 'test.md',
 				basename: 'test',
-				aliases: [],
-				headings: [],
-				blockIds: [],
-				tags: ['#shared-tag', '#other-tag'],
-				modified: Date.now(),
-				folder: ''
-			};
+				tags: ['#shared-tag', '#other-tag']
+			});
 
 			// Simulate current file in map
 			(fileIndex as any).fileMap.set('current.md', currentFile);
@@ -189,9 +191,10 @@ describe('FileIndex', () => {
 			}));
 
 			// Initial index – ensure all batched timers run so both files are indexed
-			await freshIndex.ensureIndexed();
+			const indexPromise = freshIndex.ensureIndexed();
 			// Flush any pending timers (including 0-ms ones) used inside performReindex()
 			await vi.runAllTimersAsync();
+			await indexPromise;
 			expect(freshIndex.getIndexedFileCount()).toBeGreaterThanOrEqual(1);
 
 			// Spy on the methods - use proper type assertion
@@ -340,6 +343,28 @@ describe('FileIndex', () => {
 	});
 
 	describe('search functionality', () => {
+		it('should match normalized query against decomposed filenames', async () => {
+			const nfcName = 'Rücken-Fit';
+			const nfdName = nfcName.normalize('NFD');
+			const files = [
+				{
+					path: `${nfdName}.md`,
+					basename: nfdName,
+					extension: 'md',
+					parent: { path: '' },
+					stat: { mtime: Date.now() }
+				}
+			] as TFile[];
+
+			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
+			mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
+
+			await fileIndex.ensureIndexed();
+			const results = fileIndex.search('Rü', {}, 10);
+
+			expect(results.some(result => result.file.basename === nfdName)).toBe(true);
+		});
+
 		it.skip('should return exact matches first', async () => {
 			const files = [
 				{ path: 'test.md', basename: 'test' },
