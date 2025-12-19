@@ -10,6 +10,8 @@ import {
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
+import { getDateAliasSummary } from "src/utils/dateAliases";
+import { settingsStore } from "src/settingsStore";
 import type { FieldRequirement } from "./RequirementCollector";
 
 type PreviewComputer = (
@@ -179,6 +181,16 @@ export class OnePageInputModal extends Modal {
 				preview.style.marginTop = "0.25rem";
 				preview.style.fontSize = "0.9em";
 				preview.style.fontFamily = "var(--font-monospace)";
+				const aliasSummary = getDateAliasSummary(
+					settingsStore.getState().dateAliases,
+				);
+				if (aliasSummary) {
+					const aliasHint = container.createDiv();
+					aliasHint.setText(`Aliases: ${aliasSummary}`);
+					aliasHint.style.marginTop = "0.25rem";
+					aliasHint.style.fontSize = "0.85em";
+					aliasHint.style.color = "var(--text-muted)";
+				}
 				const updatePreview = (val: string) => {
 					const inputVal = (val ?? "").trim();
 					if (!inputVal && req.defaultValue) {

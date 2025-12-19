@@ -24,6 +24,8 @@ import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
+import { settingsStore } from "../settingsStore";
+import { normalizeDateInput } from "../utils/dateAliases";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -444,7 +446,9 @@ export abstract class Formatter {
 
 					if (!this.dateParser) throw new Error("Date parser is not available");
 
-					const parseAttempt = this.dateParser.parseDate(dateInput);
+					const aliasMap = settingsStore.getState().dateAliases;
+					const normalizedInput = normalizeDateInput(dateInput, aliasMap);
+					const parseAttempt = this.dateParser.parseDate(normalizedInput);
 
 					if (parseAttempt) {
 						// Store the ISO string with a special prefix

@@ -2,6 +2,8 @@ import type { App, Debouncer } from "obsidian";
 import { TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { parseNaturalLanguageDate } from "../../utils/dateParser";
+import { settingsStore } from "../../settingsStore";
+import { getDateAliasSummary } from "../../utils/dateAliases";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	private previewEl: HTMLElement;
@@ -106,6 +108,19 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.previewEl.style.fontFamily = "var(--font-monospace)";
 		this.previewEl.textContent = VDateInputPrompt.PREVIEW_PLACEHOLDER;
 		this.previewEl.style.color = "var(--text-normal)";
+
+		const aliasSummary = getDateAliasSummary(
+			settingsStore.getState().dateAliases,
+		);
+		if (aliasSummary) {
+			const aliasHint = previewContainer.createEl("div", {
+				text: `Aliases: ${aliasSummary}`,
+				cls: "vdate-alias-hint",
+			});
+			aliasHint.style.marginTop = "0.25rem";
+			aliasHint.style.fontSize = "0.85em";
+			aliasHint.style.color = "var(--text-muted)";
+		}
 	}
 
 	private updatePreview() {

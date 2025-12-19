@@ -5,6 +5,7 @@ import {
 	Setting,
 	SettingGroup,
 	TFolder,
+	TextAreaComponent,
 } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
@@ -16,6 +17,11 @@ import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
+import {
+	DEFAULT_DATE_ALIASES,
+	formatDateAliasLines,
+	parseDateAliasLines,
+} from "./utils/dateAliases";
 
 type SettingGroupLike = {
 	addSetting(cb: (setting: Setting) => void): void;
@@ -52,6 +58,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.addUseMultiLineInputPromptSetting(inputGroup);
 		this.addPersistInputPromptDraftsSetting(inputGroup);
 		this.addOnePageInputSetting(inputGroup);
+		this.addDateAliasesSetting(inputGroup);
 
 		const templatesGroup = this.createSettingGroup("Templates & Properties");
 		this.addTemplateFolderPathSetting(templatesGroup);
@@ -409,6 +416,61 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 							settingsStore.setState({ onePageInputEnabled: value });
 						}),
 				);
+		});
+	}
+
+	private addDateAliasesSetting(group: SettingGroupLike) {
+		group.addSetting((setting) => {
+			setting.setName("Date aliases");
+			setting.setDesc(
+				"Shortcodes for natural language date parsing. " +
+					"One per line: alias = phrase. Example: tm = tomorrow.",
+			);
+			setting.settingEl.style.alignItems = "flex-start";
+			setting.controlEl.style.display = "flex";
+			setting.controlEl.style.flexWrap = "wrap";
+			setting.controlEl.style.gap = "0.5rem";
+			setting.controlEl.style.alignItems = "flex-start";
+			setting.controlEl.style.flex = "1 1 320px";
+			setting.controlEl.style.minWidth = "240px";
+
+			let textAreaRef: TextAreaComponent | null = null;
+
+			setting.addTextArea((textArea) => {
+				textAreaRef = textArea;
+				textArea
+					.setPlaceholder("t = today\ntm = tomorrow\nyd = yesterday")
+					.setValue(
+						formatDateAliasLines(settingsStore.getState().dateAliases),
+					)
+					.onChange((value) => {
+						settingsStore.setState({
+							dateAliases: parseDateAliasLines(value),
+						});
+					});
+				textArea.inputEl.style.width = "100%";
+				textArea.inputEl.style.minHeight = "6rem";
+				textArea.inputEl.style.flex = "1 1 280px";
+				textArea.inputEl.style.maxWidth = "100%";
+				textArea.inputEl.style.boxSizing = "border-box";
+			});
+
+			setting.addButton((button) => {
+				button
+					.setButtonText("Reset to defaults")
+					.onClick(() => {
+						settingsStore.setState({
+							dateAliases: DEFAULT_DATE_ALIASES,
+						});
+						if (textAreaRef) {
+							textAreaRef.setValue(
+								formatDateAliasLines(DEFAULT_DATE_ALIASES),
+							);
+						}
+					});
+				button.buttonEl.style.alignSelf = "flex-start";
+				button.buttonEl.style.whiteSpace = "nowrap";
+			});
 		});
 	}
 
