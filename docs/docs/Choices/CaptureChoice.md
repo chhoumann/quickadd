@@ -58,6 +58,17 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 ## Insert after
 
 Insert After will allow you to insert the text after some line with the specified text.
+If the matched line is followed by one or more blank lines (including whitespace-only
+lines), QuickAdd inserts after those blank lines to preserve spacing under headings.
+
+Example (Insert After `# H` with content `X`):
+
+```markdown
+# H
+
+X
+A
+```
 
 With Insert After, you can also enable `Insert at end of section` and `Consider subsections`.
 You can see an explanation of these below.

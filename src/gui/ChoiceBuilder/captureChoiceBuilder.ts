@@ -439,7 +439,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addInsertAfterFields() {
 		const descText =
-			"Insert capture after specified line. Accepts format syntax. Tip: use a heading (starts with #) to target a section.";
+			"Insert capture after specified line. Accepts format syntax. " +
+			"Tip: use a heading (starts with #) to target a section. " +
+			"If the matched line is followed by blank lines, QuickAdd inserts after them to preserve spacing.";
 
 		new Setting(this.contentEl)
 			.setName("Insert after")
