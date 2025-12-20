@@ -111,7 +111,7 @@ const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice =
   prepend: false,
   appendLink: false,
   task: false,
-  insertAfter: { enabled: false, after: '', insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: '' },
+  insertAfter: { enabled: false, after: '', insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: '', blankLineAfterMatchMode: 'auto' },
   newLineCapture: { enabled: false, direction: 'below' },
   openFile: false,
   fileOpening: { location: 'tab', direction: 'vertical', mode: 'default', focus: true },
@@ -205,7 +205,10 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     return { formatter, file };
   };
 
-  const createInsertAfterChoice = (after: string): ICaptureChoice =>
+  const createInsertAfterChoice = (
+    after: string,
+    blankLineAfterMatchMode?: 'auto' | 'skip' | 'none',
+  ): ICaptureChoice =>
     createChoice({
       insertAfter: {
         enabled: true,
@@ -214,10 +217,11 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
         considerSubsections: false,
         createIfNotFound: false,
         createIfNotFoundLocation: '',
+        blankLineAfterMatchMode,
       },
     });
 
-  it('skips one blank line after the match', async () => {
+  it('auto mode skips one blank line after a heading match', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '', 'A'].join('\n');
@@ -232,7 +236,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     expect(result).toBe(['# H', '', 'X', 'A'].join('\n'));
   });
 
-  it('skips multiple blank lines after the match', async () => {
+  it('auto mode skips multiple blank lines after a heading match', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '', '', 'A'].join('\n');
@@ -247,7 +251,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     expect(result).toBe(['# H', '', '', 'X', 'A'].join('\n'));
   });
 
-  it('treats whitespace-only lines as blank', async () => {
+  it('auto mode treats whitespace-only lines as blank', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '   \t', 'A'].join('\n');
@@ -262,7 +266,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     expect(result).toBe(['# H', '   \t', 'X', 'A'].join('\n'));
   });
 
-  it('keeps behavior unchanged when no blank lines follow', async () => {
+  it('auto mode keeps behavior unchanged when no blank lines follow', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', 'A'].join('\n');
@@ -277,7 +281,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     expect(result).toBe(['# H', 'X', 'A'].join('\n'));
   });
 
-  it('keeps behavior unchanged when match is at EOF', async () => {
+  it('auto mode keeps behavior unchanged when match is at EOF', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
     const fileContent = '# H';
@@ -292,7 +296,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     expect(result).toBe('# H\nX\n');
   });
 
-  it('handles CRLF content when skipping blank lines', async () => {
+  it('auto mode handles CRLF content when skipping blank lines', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
     const fileContent = '# H\r\n\r\nA';
@@ -305,5 +309,50 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     );
 
     expect(result).toBe('# H\r\n\r\nX\nA');
+  });
+
+  it('auto mode does not skip blanks for non-heading matches', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('- Item 1');
+    const fileContent = ['- Item 1', '', '- Item 2'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['- Item 1', 'X', '', '- Item 2'].join('\n'));
+  });
+
+  it('always skip mode skips blank lines after non-heading matches', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('- Item 1', 'skip');
+    const fileContent = ['- Item 1', '', '- Item 2'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['- Item 1', '', 'X', '- Item 2'].join('\n'));
+  });
+
+  it('never skip mode inserts immediately after the match', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H', 'none');
+    const fileContent = ['# H', '', 'A'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['# H', 'X', '', 'A'].join('\n'));
   });
 });

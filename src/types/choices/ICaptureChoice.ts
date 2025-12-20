@@ -2,6 +2,8 @@ import type IChoice from "./IChoice";
 import type { AppendLinkOptions } from "../linkPlacement";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
+export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
+
 export default interface ICaptureChoice extends IChoice {
 	captureTo: string;
 	captureToActiveFile: boolean;
@@ -33,6 +35,7 @@ export default interface ICaptureChoice extends IChoice {
 		considerSubsections: boolean;
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
+		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
 	};
 	newLineCapture: {
 		enabled: boolean;
