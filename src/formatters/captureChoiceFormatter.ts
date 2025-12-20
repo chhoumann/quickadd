@@ -7,6 +7,7 @@ import {
 } from "../constants";
 import { log } from "../logger/logManager";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import type { BlankLineAfterMatchMode } from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { CompleteFormatter } from "./completeFormatter";
@@ -212,12 +213,30 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return partialIndex; // -1 if no match at all
 	}
 
+	private shouldSkipBlankLinesAfterMatch(
+		mode: BlankLineAfterMatchMode,
+		line: string,
+	): boolean {
+		if (mode === "skip") return true;
+		if (mode === "none") return false;
+		return this.isAtxHeading(line);
+	}
+
+	private isAtxHeading(line: string): boolean {
+		return /^\s{0,3}#{1,6}\s+\S/.test(line);
+	}
+
 	private findInsertAfterPositionWithBlankLines(
 		lines: string[],
 		matchIndex: number,
 		body: string,
+		mode: BlankLineAfterMatchMode,
 	): number {
 		if (matchIndex < 0) return matchIndex;
+
+		const matchLine = lines[matchIndex] ?? "";
+		const shouldSkip = this.shouldSkipBlankLinesAfterMatch(mode, matchLine);
+		if (!shouldSkip) return matchIndex;
 
 		// Ignore the trailing empty line that results from split("\n") when the
 		// file ends with a newline. This preserves existing EOF behavior.
@@ -271,10 +290,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
 		} else {
+			const blankLineMode =
+				this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto";
 			targetPosition = this.findInsertAfterPositionWithBlankLines(
 				fileContentLines,
 				targetPosition,
 				this.fileContent,
+				blankLineMode,
 			);
 		}
 

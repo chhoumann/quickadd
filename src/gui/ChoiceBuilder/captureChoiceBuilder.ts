@@ -441,7 +441,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const descText =
 			"Insert capture after specified line. Accepts format syntax. " +
 			"Tip: use a heading (starts with #) to target a section. " +
-			"If the matched line is followed by blank lines, QuickAdd inserts after them to preserve spacing.";
+			"Blank line handling is configurable below.";
 
 		new Setting(this.contentEl)
 			.setName("Insert after")
@@ -497,8 +497,44 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice.insertAfter?.insertAtEnd)
-					.onChange((value) => (this.choice.insertAfter.insertAtEnd = value)),
+					.onChange((value) => {
+						this.choice.insertAfter.insertAtEnd = value;
+						this.reload();
+					}),
 			);
+
+		if (!this.choice.insertAfter?.blankLineAfterMatchMode) {
+			this.choice.insertAfter.blankLineAfterMatchMode = "auto";
+		}
+
+		const blankLineModeDesc =
+			"Controls whether Insert After skips existing blank lines after the matched line.";
+		const insertAtEndEnabled = !!this.choice.insertAfter?.insertAtEnd;
+		const blankLineModeSetting: Setting = new Setting(this.contentEl);
+		blankLineModeSetting
+			.setName("Blank lines after match")
+			.setDesc(
+				insertAtEndEnabled
+					? "Not used when inserting at end of section."
+					: blankLineModeDesc,
+			)
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("auto", "Auto (headings only)")
+						.addOption("skip", "Always skip")
+						.addOption("none", "Never skip")
+						.setValue(
+							this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
+						)
+						.onChange((value) => {
+							this.choice.insertAfter.blankLineAfterMatchMode = value as
+								| "auto"
+								| "skip"
+							| "none";
+					});
+				dropdown.setDisabled(insertAtEndEnabled);
+			});
+		blankLineModeSetting.setDisabled(insertAtEndEnabled);
 
 		new Setting(this.contentEl)
 			.setName("Consider subsections")

@@ -1,5 +1,6 @@
 import { Choice } from "./Choice";
 import type ICaptureChoice from "./ICaptureChoice";
+import type { BlankLineAfterMatchMode } from "./ICaptureChoice";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 
@@ -22,6 +23,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		considerSubsections: boolean;
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
+		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
 	};
 	newLineCapture: {
 		enabled: boolean;
@@ -60,6 +62,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			considerSubsections: false,
 			createIfNotFound: false,
 			createIfNotFoundLocation: "top",
+			blankLineAfterMatchMode: "auto",
 		};
 		this.newLineCapture = {
 			enabled: false,
@@ -88,6 +91,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		if (!loaded.templater) loaded.templater = { afterCapture: "none" };
 		if (loaded.templater.afterCapture !== "wholeFile") {
 			loaded.templater.afterCapture = "none";
+		}
+		if (loaded.insertAfter && !loaded.insertAfter.blankLineAfterMatchMode) {
+			loaded.insertAfter.blankLineAfterMatchMode = "auto";
 		}
 		return loaded;
 	}
