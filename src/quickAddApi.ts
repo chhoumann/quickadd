@@ -16,6 +16,7 @@ import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInputPrompt";
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import InputSuggester from "./gui/InputSuggester/inputSuggester";
+import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import { OnePageInputModal } from "./preflight/OnePageInputModal";
@@ -136,6 +137,16 @@ export class QuickAddApi {
 			},
 			inputPrompt: (header: string, placeholder?: string, value?: string) => {
 				return QuickAddApi.inputPrompt(app, header, placeholder, value);
+			},
+			datePrompt: (
+				header: string,
+				options?: {
+					placeholder?: string;
+					defaultValue?: string;
+					dateFormat?: string;
+				},
+			) => {
+				return QuickAddApi.datePrompt(app, header, options);
 			},
 			wideInputPrompt: (
 				header: string,
@@ -535,6 +546,37 @@ export class QuickAddApi {
 	) {
 		try {
 			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
+		} catch (error) {
+			throwIfPromptCancelled(error);
+			return undefined;
+		}
+	}
+
+	public static async datePrompt(
+		app: App,
+		header: string,
+		options?: {
+			placeholder?: string;
+			defaultValue?: string;
+			dateFormat?: string;
+		},
+	) {
+		try {
+			const value = await VDateInputPrompt.Prompt(
+				app,
+				header,
+				options?.placeholder,
+				options?.defaultValue,
+				options?.dateFormat,
+			);
+			if (value && value.startsWith("@date:")) {
+				const iso = value.slice(6);
+				const formatted = options?.dateFormat
+					? formatISODate(iso, options.dateFormat)
+					: null;
+				return formatted ?? iso;
+			}
+			return value;
 		} catch (error) {
 			throwIfPromptCancelled(error);
 			return undefined;

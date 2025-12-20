@@ -472,24 +472,30 @@ export abstract class Formatter {
 						variableName,
 						{ type: "VDATE", dateFormat, defaultValue }
 					);
-					this.variables.set(variableName, dateInput);
-
-					if (!this.dateParser) throw new Error("Date parser is not available");
-
-					const aliasMap = settingsStore.getState().dateAliases;
-					const normalizedInput = normalizeDateInput(dateInput, aliasMap);
-					const parseAttempt = this.dateParser.parseDate(normalizedInput);
-
-					if (parseAttempt) {
-						// Store the ISO string with a special prefix
-						this.variables.set(
-							variableName,
-							`@date:${parseAttempt.moment.toISOString()}`,
-						);
+					if (dateInput?.startsWith("@date:")) {
+						this.variables.set(variableName, dateInput);
 					} else {
-						throw new Error(
-							`unable to parse date variable ${dateInput}`,
+						if (!this.dateParser)
+							throw new Error("Date parser is not available");
+
+						const aliasMap = settingsStore.getState().dateAliases;
+						const normalizedInput = normalizeDateInput(
+							dateInput,
+							aliasMap,
 						);
+						const parseAttempt = this.dateParser.parseDate(normalizedInput);
+
+						if (parseAttempt) {
+							// Store the ISO string with a special prefix
+							this.variables.set(
+								variableName,
+								`@date:${parseAttempt.moment.toISOString()}`,
+							);
+						} else {
+							throw new Error(
+								`unable to parse date variable ${dateInput}`,
+							);
+						}
 					}
 				}
 

@@ -171,6 +171,105 @@
   opacity: 0.8;
 }
 
+.qa-date-input {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.qa-date-picker {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 0.5rem;
+	background-color: var(--background-modifier-form-field);
+}
+
+.qa-date-picker__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	margin-bottom: 0.25rem;
+}
+
+.qa-date-picker__nav {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 0.15rem 0.5rem;
+	cursor: pointer;
+}
+
+.qa-date-picker__nav:hover {
+	background: var(--background-modifier-hover);
+}
+
+.qa-date-picker__label {
+	font-weight: 600;
+}
+
+.qa-date-picker__weekdays {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	text-align: center;
+	margin-bottom: 0.25rem;
+}
+
+.qa-date-picker__grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+}
+
+.qa-date-picker__day {
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	padding: 0.35rem 0;
+	cursor: pointer;
+}
+
+.qa-date-picker__day:hover {
+	background: var(--background-modifier-hover);
+}
+
+.qa-date-picker__day.is-outside {
+	opacity: 0.4;
+}
+
+.qa-date-picker__day.is-today {
+	border-color: var(--interactive-accent);
+}
+
+.qa-date-picker__day.is-selected {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.qa-date-picker__actions {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+	justify-content: flex-end;
+}
+
+.qa-date-picker__action {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	padding: 0.2rem 0.6rem;
+	font-size: 0.75rem;
+	cursor: pointer;
+}
+
+.qa-date-picker__action:hover {
+	background: var(--background-modifier-hover);
+}
+
 /* Priority indicators - subtle left border */
 .qa-suggest-exact::before {
   content: '';
