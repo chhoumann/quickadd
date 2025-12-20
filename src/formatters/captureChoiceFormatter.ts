@@ -198,6 +198,31 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return partialIndex; // -1 if no match at all
 	}
 
+	private findInsertAfterPositionWithBlankLines(
+		lines: string[],
+		matchIndex: number,
+		body: string,
+	): number {
+		if (matchIndex < 0) return matchIndex;
+
+		// Ignore the trailing empty line that results from split("\n") when the
+		// file ends with a newline. This preserves existing EOF behavior.
+		const scanLimit = body.endsWith("\n")
+			? Math.max(lines.length - 1, 0)
+			: lines.length;
+		let position = matchIndex;
+
+		for (let i = matchIndex + 1; i < scanLimit; i++) {
+			if (lines[i].trim().length === 0) {
+				position = i;
+				continue;
+			}
+			break;
+		}
+
+		return position;
+	}
+
 	private async insertAfterHandler(formatted: string) {
 		// Use centralized location formatting for selector strings
 		const targetString: string = await this.formatLocationString(
@@ -231,6 +256,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 
 			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
+		} else {
+			targetPosition = this.findInsertAfterPositionWithBlankLines(
+				fileContentLines,
+				targetPosition,
+				this.fileContent,
+			);
 		}
 
 		return this.insertTextAfterPositionInBody(

@@ -178,3 +178,132 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
     expect(result).toBe(['---', 'tags: ["a"]', '---', 'Captured line', '# Template Body'].join('\n'));
   });
 });
+
+describe('CaptureChoiceFormatter insert after blank lines', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (global as any).navigator = {
+      clipboard: {
+        readText: vi.fn().mockResolvedValue(''),
+      },
+    };
+  });
+
+  const createFormatter = () => {
+    const app = createMockApp();
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
+    const formatter = new CaptureChoiceFormatter(app, plugin);
+    const file = createTFile('Test.md');
+
+    return { formatter, file };
+  };
+
+  const createInsertAfterChoice = (after: string): ICaptureChoice =>
+    createChoice({
+      insertAfter: {
+        enabled: true,
+        after,
+        insertAtEnd: false,
+        considerSubsections: false,
+        createIfNotFound: false,
+        createIfNotFoundLocation: '',
+      },
+    });
+
+  it('skips one blank line after the match', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const fileContent = ['# H', '', 'A'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['# H', '', 'X', 'A'].join('\n'));
+  });
+
+  it('skips multiple blank lines after the match', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const fileContent = ['# H', '', '', 'A'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['# H', '', '', 'X', 'A'].join('\n'));
+  });
+
+  it('treats whitespace-only lines as blank', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const fileContent = ['# H', '   \t', 'A'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['# H', '   \t', 'X', 'A'].join('\n'));
+  });
+
+  it('keeps behavior unchanged when no blank lines follow', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const fileContent = ['# H', 'A'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['# H', 'X', 'A'].join('\n'));
+  });
+
+  it('keeps behavior unchanged when match is at EOF', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const fileContent = '# H';
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe('# H\nX\n');
+  });
+
+  it('handles CRLF content when skipping blank lines', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const fileContent = '# H\r\n\r\nA';
+
+    const result = await formatter.formatContentWithFile(
+      'X\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe('# H\r\n\r\nX\nA');
+  });
+});
