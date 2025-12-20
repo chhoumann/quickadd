@@ -14,6 +14,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		template: string;
 	};
 	format: { enabled: boolean; format: string };
+	useSelectionAsCaptureValue?: boolean;
 	insertAfter: {
 		enabled: boolean;
 		after: string;

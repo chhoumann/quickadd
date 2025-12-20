@@ -18,6 +18,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private file: TFile | null = null;
 	private fileContent = "";
 	private sourcePath: string | null = null;
+	private useSelectionAsCaptureValue = true;
 	/**
 		* Tracks whether the current formatter instance has already run Templater on the
 		* capture payload.  This prevents the same content from being parsed twice in
@@ -34,6 +35,19 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	public setDestinationSourcePath(path: string): void {
 		this.sourcePath = path;
 		this.file = null;
+	}
+
+	public setUseSelectionAsCaptureValue(value: boolean): void {
+		this.useSelectionAsCaptureValue = value;
+	}
+
+	protected shouldUseSelectionForValue(): boolean {
+		return this.useSelectionAsCaptureValue;
+	}
+
+	protected async getSelectedTextForValue(): Promise<string> {
+		const selectedText = await this.getSelectedText();
+		return selectedText.trim().length > 0 ? selectedText : "";
 	}
 
 	protected getLinkSourcePath(): string | null {

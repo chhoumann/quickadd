@@ -63,7 +63,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		// Behavior
 		new Setting(this.contentEl).setName("Behavior").setHeading();
-		this.addTemplaterAfterCaptureSetting();
 		if (!this.choice.captureToActiveFile) {
 			this.addOpenFileSetting("Open the captured file.");
 
@@ -71,6 +70,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				this.addFileOpeningSetting("captured");
 			}
 		}
+		this.addSelectionAsValueSetting();
+		this.addTemplaterAfterCaptureSetting();
 		this.addOnePageOverrideSetting(this.choice);
 	}
 
@@ -87,6 +88,36 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						this.choice.templater = {};
 					}
 					this.choice.templater.afterCapture = value ? "wholeFile" : "none";
+				});
+			});
+	}
+
+	private addSelectionAsValueSetting() {
+		new Setting(this.contentEl)
+			.setName("Use editor selection as default value")
+			.setDesc(
+				"Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					"": "Follow global setting",
+					enabled: "Use selection",
+					disabled: "Ignore selection",
+				});
+				const override = this.choice.useSelectionAsCaptureValue;
+				dropdown.setValue(
+					typeof override === "boolean"
+						? override
+							? "enabled"
+							: "disabled"
+						: "",
+				);
+				dropdown.onChange((value) => {
+					if (value === "") {
+						this.choice.useSelectionAsCaptureValue = undefined;
+						return;
+					}
+					this.choice.useSelectionAsCaptureValue = value === "enabled";
 				});
 			});
 	}

@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { TFile } from "obsidian";
+import { MarkdownView, TFile } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
@@ -135,6 +135,12 @@ async function collectForCaptureChoice(
 	return collector;
 }
 
+function getEditorSelection(app: App): string {
+	const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+	if (!activeView) return "";
+	return activeView.editor.getSelection();
+}
+
 export async function runOnePagePreflight(
 	app: App,
 	plugin: QuickAdd,
@@ -159,6 +165,23 @@ export async function runOnePagePreflight(
 				choiceExecutor,
 				choice as ICaptureChoice,
 			);
+			const captureChoice = choice as ICaptureChoice;
+			const selectionOverride = captureChoice.useSelectionAsCaptureValue;
+			const globalSelectionAsValue =
+				plugin.settings.useSelectionAsCaptureValue ?? true;
+			const useSelectionAsCaptureValue =
+				typeof selectionOverride === "boolean"
+					? selectionOverride
+					: globalSelectionAsValue;
+			if (useSelectionAsCaptureValue) {
+				const existingValue = choiceExecutor.variables.get("value");
+				if (existingValue === undefined || existingValue === null) {
+					const selectedText = getEditorSelection(app);
+					if (selectedText.trim().length > 0) {
+						choiceExecutor.variables.set("value", selectedText);
+					}
+				}
+			}
 		} else if (choice.type === "Macro") {
 			// Phase 2 (limited): Collect declared inputs from user scripts in the macro
 			const macro = choice as IMacroChoice;

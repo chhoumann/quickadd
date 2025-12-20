@@ -7,6 +7,10 @@ export interface QuickAddSettings {
 	choices: IChoice[];
 	inputPrompt: "multi-line" | "single-line";
 	persistInputPromptDrafts: boolean;
+	/**
+		* When enabled, Capture uses the current editor selection as the default {{VALUE}}.
+		*/
+	useSelectionAsCaptureValue: boolean;
 	devMode: boolean;
 	templateFolderPath: string;
 	announceUpdates: "all" | "major" | "none";
@@ -51,6 +55,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	choices: [],
 	inputPrompt: "single-line",
 	persistInputPromptDrafts: true,
+	useSelectionAsCaptureValue: true,
 	devMode: false,
 	templateFolderPath: "",
 	announceUpdates: "major",

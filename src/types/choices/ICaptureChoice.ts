@@ -12,6 +12,11 @@ export default interface ICaptureChoice extends IChoice {
 		template: string;
 	};
 	format: { enabled: boolean; format: string };
+	/**
+		* Override whether editor selection should be used as the default {{VALUE}}.
+		* Undefined means follow the global setting.
+		*/
+	useSelectionAsCaptureValue?: boolean;
 	/** Capture to bottom of file (after current file content). */
 	prepend: boolean;
 	/** 

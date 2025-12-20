@@ -155,35 +155,45 @@ export class CompleteFormatter extends Formatter {
 		return (this.variables.get(variableName) as string) ?? "";
 	}
 
+	protected shouldUseSelectionForValue(): boolean {
+		return true;
+	}
+
+	protected async getSelectedTextForValue(): Promise<string> {
+		return await this.getSelectedText();
+	}
+
 	protected async promptForValue(header?: string): Promise<string> {
-		if (!this.value) {
-			const selectedText: string = await this.getSelectedText();
-			if (selectedText) {
-				this.value = selectedText;
-			} else {
-				try {
-					const linkSourcePath = this.getLinkSourcePath();
-					if (linkSourcePath) {
-						this.value = await new InputPrompt()
-							.factory()
-							.PromptWithContext(
-								this.app,
-								this.valueHeader ?? `Enter value`,
-								undefined,
-								undefined,
-								linkSourcePath
-							);
-					} else {
-						this.value = await new InputPrompt()
-							.factory()
-							.Prompt(this.app, this.valueHeader ?? `Enter value`);
-					}
-				} catch (error) {
-					if (isCancellationError(error)) {
-						throw new MacroAbortError("Input cancelled by user");
-					}
-					throw error;
+		if (this.value === undefined) {
+			if (this.shouldUseSelectionForValue()) {
+				const selectedText: string = await this.getSelectedTextForValue();
+				if (selectedText) {
+					this.value = selectedText;
+					return this.value;
 				}
+			}
+			try {
+				const linkSourcePath = this.getLinkSourcePath();
+				if (linkSourcePath) {
+					this.value = await new InputPrompt()
+						.factory()
+						.PromptWithContext(
+							this.app,
+							this.valueHeader ?? `Enter value`,
+							undefined,
+							undefined,
+							linkSourcePath
+						);
+				} else {
+					this.value = await new InputPrompt()
+						.factory()
+						.Prompt(this.app, this.valueHeader ?? `Enter value`);
+				}
+			} catch (error) {
+				if (isCancellationError(error)) {
+					throw new MacroAbortError("Input cancelled by user");
+				}
+				throw error;
 			}
 		}
 
