@@ -31,9 +31,13 @@ const getWeekdayLabels = (weekStartsOn: number): string[] => {
 	const formatter = new Intl.DateTimeFormat(undefined, {
 		weekday: "short",
 	});
-	const base = new Date(Date.UTC(2021, 7, 1));
+	const base = new Date(2021, 7, 1);
 	const labels = Array.from({ length: 7 }, (_, i) => {
-		const date = new Date(base.getTime() + i * 86400000);
+		const date = new Date(
+			base.getFullYear(),
+			base.getMonth(),
+			base.getDate() + i,
+		);
 		return formatter.format(date);
 	});
 	return labels.slice(weekStartsOn).concat(labels.slice(0, weekStartsOn));
@@ -55,17 +59,22 @@ const toDateKey = (date: Date): string =>
 
 const parseIsoToDate = (iso?: string): Date | null => {
 	if (!iso) return null;
+	const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+	if (dateOnlyMatch) {
+		const [, year, month, day] = dateOnlyMatch;
+		return new Date(
+			Number.parseInt(year, 10),
+			Number.parseInt(month, 10) - 1,
+			Number.parseInt(day, 10),
+		);
+	}
 	const parsed = new Date(iso);
 	if (Number.isNaN(parsed.getTime())) return null;
 	return parsed;
 };
 
 const toIsoFromParts = (year: number, month: number, day: number): string => {
-	const moment = window.moment;
-	if (moment) {
-		return moment({ year, month, day }).startOf("day").toISOString();
-	}
-	return new Date(year, month, day).toISOString();
+	return formatDateKey(year, month, day);
 };
 
 export const createDatePicker = (
