@@ -7,6 +7,7 @@ import {
 	debounce,
 	type App,
 } from "obsidian";
+import { createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
@@ -165,25 +166,44 @@ export class OnePageInputModal extends Modal {
 					this.decorateLabel(req),
 				);
 				if (req.description) setting.setDesc(req.description);
-				// Reuse the VDateInputPrompt component behavior by creating an input with preview
-				const container = setting.controlEl.createDiv();
+				const container = setting.controlEl.createDiv({
+					cls: "qa-date-input",
+				});
 				const input = new TextComponent(container);
 				const placeholder =
 					"Enter a date (e.g., 'today', 'next friday', '2025-12-25')";
 
-				// Friendly display: if initial is @date:ISO, show formatted text instead
+				let selectedIso: string | undefined;
 				let displayValue = starting;
-				if (starting?.startsWith("@date:") && req.dateFormat) {
-					const iso = starting.slice(6);
-					const formatted = formatISODate(iso, req.dateFormat);
-					if (formatted) displayValue = formatted;
+				if (starting?.startsWith("@date:")) {
+					selectedIso = starting.slice(6);
+					const formatted = req.dateFormat
+						? formatISODate(selectedIso, req.dateFormat)
+						: undefined;
+					displayValue =
+						formatted ??
+						(selectedIso.length >= 10 ? selectedIso.slice(0, 10) : selectedIso);
 				}
+
 				input.setPlaceholder(placeholder).setValue(displayValue ?? "");
+
+				const pickerContainer = container.createDiv({
+					cls: "qa-date-picker-container",
+				});
+				const datePicker = createDatePicker({
+					container: pickerContainer,
+					initialIso: selectedIso,
+					onSelect: (iso) => {
+						if (iso) applyPickerSelection(iso);
+						else clearPickerSelection();
+					},
+				});
 
 				const preview = container.createDiv();
 				preview.style.marginTop = "0.25rem";
 				preview.style.fontSize = "0.9em";
 				preview.style.fontFamily = "var(--font-monospace)";
+
 				const aliasEntries = getOrderedDateAliases(
 					settingsStore.getState().dateAliases,
 				);
@@ -206,40 +226,101 @@ export class OnePageInputModal extends Modal {
 					aliasList.style.color = "var(--text-muted)";
 					aliasList.style.fontFamily = "var(--font-monospace)";
 				}
+
+				const formatIsoForDisplay = (iso: string) => {
+					if (req.dateFormat) {
+						const formatted = formatISODate(iso, req.dateFormat);
+						if (formatted) return formatted;
+					}
+					return iso.length >= 10 ? iso.slice(0, 10) : iso;
+				};
+
+				const renderPreview = (text: string, isError: boolean) => {
+					preview.setText(text);
+					preview.style.color = isError
+						? "var(--text-error)"
+						: "var(--text-normal)";
+				};
+
+				const syncSelection = (iso?: string) => {
+					datePicker.setSelectedIso(iso);
+				};
+
+				const applyPickerSelection = (iso: string) => {
+					selectedIso = iso;
+					const display = formatIsoForDisplay(iso);
+					input.inputEl.value = display;
+					setValue(req.id, `@date:${iso}`);
+					renderPreview(display, false);
+					syncSelection(iso);
+				};
+
+				const clearPickerSelection = () => {
+					input.inputEl.value = "";
+					updatePreview("");
+				};
+
 				const updatePreview = (val: string) => {
 					const inputVal = (val ?? "").trim();
 					if (!inputVal && req.defaultValue) {
-						preview.setText(`Default → ${req.defaultValue}`);
-						preview.style.color = "var(--text-muted)";
-						// Store the default immediately so runtime respects it without re-asking
-						setValue(req.id, req.defaultValue);
+						const parsed = parseNaturalLanguageDate(
+							req.defaultValue,
+							req.dateFormat,
+						);
+						if (parsed.isValid && parsed.isoString) {
+							selectedIso = parsed.isoString;
+							setValue(req.id, `@date:${parsed.isoString}`);
+							syncSelection(parsed.isoString);
+							const formatted =
+								parsed.formatted ??
+								formatIsoForDisplay(parsed.isoString);
+							renderPreview(formatted, false);
+							return;
+						}
+						renderPreview(parsed.error || "Unable to parse date", true);
+						setValue(req.id, "");
+						syncSelection();
 						return;
 					}
 					if (!inputVal) {
-						preview.setText("Preview will appear here");
-						preview.style.color = "var(--text-muted)";
-						// Keep empty to represent intentional empty
+						selectedIso = undefined;
 						setValue(req.id, "");
+						syncSelection();
+						renderPreview("Preview will appear here", false);
 						return;
 					}
 
-					// Live-parse natural language dates and preview the formatted value
+					if (inputVal.startsWith("@date:")) {
+						const iso = inputVal.slice(6).trim();
+						if (iso) {
+							applyPickerSelection(iso);
+							return;
+						}
+					}
+
 					const parsed = parseNaturalLanguageDate(inputVal, req.dateFormat);
-					if (parsed.isValid && parsed.formatted && parsed.isoString) {
-						preview.setText(parsed.formatted);
-						preview.style.color = "var(--text-normal)";
-						// Store normalized value for execution
+					if (parsed.isValid && parsed.isoString) {
+						selectedIso = parsed.isoString;
 						setValue(req.id, `@date:${parsed.isoString}`);
+						syncSelection(parsed.isoString);
+						const formatted =
+							parsed.formatted ?? formatIsoForDisplay(parsed.isoString);
+						renderPreview(formatted, false);
 					} else {
-						preview.setText(parsed.error || "Unable to parse date");
-						preview.style.color = "var(--text-error)";
-						// Keep value empty to avoid committing invalid dates
+						selectedIso = undefined;
 						setValue(req.id, "");
+						syncSelection();
+						renderPreview(parsed.error || "Unable to parse date", true);
 					}
 				};
+
 				input.onChange((v) => updatePreview(v));
-				// Initialize preview
-				updatePreview(displayValue ?? "");
+
+				if (selectedIso) {
+					applyPickerSelection(selectedIso);
+				} else {
+					updatePreview(displayValue ?? "");
+				}
 				break;
 			}
 			case "field-suggest": {

@@ -189,6 +189,16 @@ describe('VDATE Default Value Support', () => {
             expect(result).toBe("Test YYYY-MM-DD-formatted");
         });
 
+        it('should accept @date: values returned from prompts', async () => {
+            const input = "Test {{VDATE:date,YYYY-MM-DD}}";
+            formatter.setMockPromptValue("@date:2025-08-01T00:00:00.000Z");
+
+            const result = await formatter.testReplaceDateVariableInString(input);
+
+            expect(formatter.testDateParser.parseDate).not.toHaveBeenCalled();
+            expect(result).toBe("Test YYYY-MM-DD-formatted");
+        });
+
         it('should use user input over default value', async () => {
             const input = "Test {{VDATE:date,YYYY-MM-DD|today}}";
             formatter.setMockPromptValue("tomorrow");

@@ -10,7 +10,7 @@ export default class GenericInputPrompt extends Modal {
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private didSubmit = false;
-	private inputComponent: TextComponent;
+	protected inputComponent: TextComponent;
 	protected input: string;
 	private readonly placeholder: string;
 	private readonly draftHandler: InputPromptDraftHandler;
@@ -174,8 +174,13 @@ export default class GenericInputPrompt extends Modal {
 		}
 	};
 
+	protected transformInputOnSubmit(input: string): string {
+		return input;
+	}
+
 	private submit() {
-		this.input = this.inputComponent?.inputEl?.value ?? this.input;
+		const rawInput = this.inputComponent?.inputEl?.value ?? this.input;
+		this.input = this.transformInputOnSubmit(rawInput);
 		this.didSubmit = true;
 
 		this.close();
