@@ -518,16 +518,18 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					? "Not used when inserting at end of section."
 					: blankLineModeDesc,
 			)
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("auto", "Auto (headings only)")
-					.addOption("skip", "Always skip")
-					.addOption("none", "Never skip")
-					.setValue(this.choice.insertAfter.blankLineAfterMatchMode)
-					.onChange((value) => {
-						this.choice.insertAfter.blankLineAfterMatchMode = value as
-							| "auto"
-							| "skip"
+				.addDropdown((dropdown) => {
+					dropdown
+						.addOption("auto", "Auto (headings only)")
+						.addOption("skip", "Always skip")
+						.addOption("none", "Never skip")
+						.setValue(
+							this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
+						)
+						.onChange((value) => {
+							this.choice.insertAfter.blankLineAfterMatchMode = value as
+								| "auto"
+								| "skip"
 							| "none";
 					});
 				dropdown.setDisabled(insertAtEndEnabled);
