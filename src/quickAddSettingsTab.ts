@@ -57,6 +57,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		const inputGroup = this.createSettingGroup("Input");
 		this.addUseMultiLineInputPromptSetting(inputGroup);
 		this.addPersistInputPromptDraftsSetting(inputGroup);
+		this.addUseSelectionAsValueSetting(inputGroup);
 		this.addOnePageInputSetting(inputGroup);
 		this.addDateAliasesSetting(inputGroup);
 
@@ -367,6 +368,23 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 							if (!value) {
 								InputPromptDraftStore.getInstance().clearAll();
 							}
+						}),
+				);
+		});
+	}
+
+	private addUseSelectionAsValueSetting(group: SettingGroupLike) {
+		group.addSetting((setting) => {
+			setting
+				.setName("Use editor selection as default Capture value")
+				.setDesc(
+					"When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(settingsStore.getState().useSelectionAsCaptureValue)
+						.onChange((value) => {
+							settingsStore.setState({ useSelectionAsCaptureValue: value });
 						}),
 				);
 		});

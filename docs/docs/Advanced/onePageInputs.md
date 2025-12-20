@@ -32,6 +32,7 @@ This feature is currently in Beta.
 ## Skipping the modal
 - If all required inputs already have values (e.g., prefilled by an earlier macro step), the modal will not open.
 - Empty string is considered an intentional value and will not prompt again.
+- For Capture choices, a non-empty editor selection will prefill `{{VALUE}}` during preflight when selection-as-value is enabled.
 
 Note: For date fields with a default, leaving the input blank will apply the default automatically at submit time.
 

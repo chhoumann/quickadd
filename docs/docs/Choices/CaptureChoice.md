@@ -42,6 +42,7 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 
 -   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
 -   _Task_ will format your captured text as a task.
+-   _Use editor selection as default value_ controls whether the current editor selection is used as `{{VALUE}}`. Choose **Follow global setting**, **Use selection**, or **Ignore selection** (global default lives in Settings > Input). This does not affect `{{SELECTED}}`.
 -   _Write to bottom of file_ will put whatever you enter at the bottom of the file.
 -   _Append link_ will append a link to the file you have open in the file you're capturing to. You can choose between three modes:
     -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused
@@ -119,7 +120,7 @@ Content
 Capture format lets you specify the exact format that you want what you're capturing to be inserted as.
 You can do practically anything here. Think of it as a mini template.
 
-If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will just insert whatever you enter in the prompt that appears when activating the Capture.
+If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will insert whatever you enter in the prompt, or (if selection-as-value is enabled) the current editor selection.
 
 You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
 

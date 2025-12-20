@@ -104,6 +104,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					? "optional"
 					: "required",
 			);
+			const selectionOverride = this.choice.useSelectionAsCaptureValue;
+			const globalSelectionAsValue =
+				this.plugin.settings.useSelectionAsCaptureValue ?? true;
+			const useSelectionAsCaptureValue =
+				typeof selectionOverride === "boolean"
+					? selectionOverride
+					: globalSelectionAsValue;
+			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
 			const filePath = await this.getFormattedPathToCaptureTo(
 				this.choice.captureToActiveFile,
