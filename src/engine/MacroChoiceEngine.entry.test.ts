@@ -45,6 +45,12 @@ vi.mock("../gui/GenericInputPrompt/GenericInputPrompt", () => ({
 		Prompt: mockInputPrompt,
 	},
 }));
+vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
+	__esModule: true,
+	default: {
+		Prompt: vi.fn(),
+	},
+}));
 vi.mock("../gui/GenericCheckboxPrompt/genericCheckboxPrompt", () => ({
 	__esModule: true,
 	default: { Open: vi.fn() },
