@@ -10,12 +10,11 @@ class TestFormatter {
         return (this.variables.get(variableName) as string) ?? "";
     }
 
-    /** Returns true when a variable is present AND its value is neither undefined nor null.  
-     *  An empty string is considered a valid, intentional value. */
+    /** Returns true when a variable is present AND its value is not undefined.
+     *  Null and empty string are considered intentional values. */
     protected hasConcreteVariable(name: string): boolean {
         if (!this.variables.has(name)) return false;
-        const v = this.variables.get(name);
-        return v !== undefined && v !== null;
+        return this.variables.get(name) !== undefined;
     }
 
     protected async promptForVariable(variableName: string): Promise<string> {
@@ -172,11 +171,11 @@ describe('Formatter - Variable Handling', () => {
             expect(formatter.wasPromptCalled()).toBe(true);
         });
 
-        it('should prompt when variable is null', async () => {
+        it('should not prompt when variable is null', async () => {
             formatter.setVariable('nullVar', null);
             const result = await formatter.testReplaceVariableInString('Rating: {{VALUE:nullVar}}');
-            expect(result).toBe('Rating: prompted_value');
-            expect(formatter.wasPromptCalled()).toBe(true);
+            expect(result).toBe('Rating: ');
+            expect(formatter.wasPromptCalled()).toBe(false);
         });
 
         it('should preserve non-empty string values without prompting', async () => {

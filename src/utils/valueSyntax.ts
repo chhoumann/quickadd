@@ -30,6 +30,45 @@ export function getValueVariableBaseName(variableKey: string): string {
 	return variableKey.slice(0, delimiterIndex);
 }
 
+function findCaseInsensitiveMatch(
+	vars: Map<string, unknown>,
+	candidate: string,
+): string | null {
+	const lower = candidate.toLowerCase();
+	let match: string | null = null;
+
+	for (const key of vars.keys()) {
+		if (key.toLowerCase() !== lower) continue;
+		if (vars.get(key) === undefined) continue;
+		if (match) return null;
+		match = key;
+	}
+
+	return match;
+}
+
+export function resolveExistingVariableKey(
+	vars: Map<string, unknown>,
+	variableKey: string,
+): string | null {
+	if (!variableKey) return null;
+
+	const candidates = [variableKey];
+	const baseKey = getValueVariableBaseName(variableKey);
+	if (baseKey !== variableKey) candidates.push(baseKey);
+
+	for (const candidate of candidates) {
+		if (vars.has(candidate) && vars.get(candidate) !== undefined) {
+			return candidate;
+		}
+
+		const match = findCaseInsensitiveMatch(vars, candidate);
+		if (match) return match;
+	}
+
+	return null;
+}
+
 type ParsedOptions = {
 	label?: string;
 	defaultValue: string;
