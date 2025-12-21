@@ -170,12 +170,12 @@ describe('Issue #929 Integration Test: Full Macro Flow', () => {
     });
 
     it('should handle edge case: null/undefined from script', async () => {
-        // Script sets null (which should be treated as "no value set")
+        // Script sets null (treated as explicit value)
         formatter.simulateScriptSetVariable('title', null);
         formatter.setTitle('File Basename');
         
         const result = await formatter.formatCapture('{{VALUE:title}}');
-        expect(result).toBe('File Basename'); // Should fall back to file basename
+        expect(result).toBe(''); // Null is intentional -> empty string
         
         // Reset and test undefined
         formatter = new CaptureFormatterTest();

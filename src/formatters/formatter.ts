@@ -26,7 +26,10 @@ import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
-import { parseValueToken } from "../utils/valueSyntax";
+import {
+	parseValueToken,
+	resolveExistingVariableKey,
+} from "../utils/valueSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
@@ -57,12 +60,11 @@ export abstract class Formatter {
 
 	protected abstract format(input: string): Promise<string>;
 
-	/** Returns true when a variable is present AND its value is neither undefined nor null.  
-	 *  An empty string is considered a valid, intentional value. */
+	/** Returns true when a variable is present AND its value is not undefined.
+	 *  Null and empty string are considered intentional values. */
 	protected hasConcreteVariable(name: string): boolean {
 		if (!this.variables.has(name)) return false;
-		const v = this.variables.get(name);
-		return v !== undefined && v !== null;
+		return this.variables.get(name) !== undefined;
 	}
 
 	public setTitle(title: string): void {
@@ -149,7 +151,8 @@ export abstract class Formatter {
 
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
-			this.value = String(this.variables.get("value"));
+			const existingValue = this.variables.get("value");
+			this.value = existingValue === null ? "" : String(existingValue);
 		}
 
 		// Prompt only once per formatter run (empty string is a valid value).
@@ -287,8 +290,13 @@ export abstract class Formatter {
 				hasOptions,
 			} = parsed;
 
+			const resolvedKey = resolveExistingVariableKey(
+				this.variables,
+				variableKey,
+			);
+
 			// Ensure variable is set (prompt if needed)
-			if (!this.hasConcreteVariable(variableKey)) {
+			if (!resolvedKey) {
 				let variableValue = "";
 				const helperText =
 					!hasOptions && label ? label : undefined;
@@ -318,8 +326,10 @@ export abstract class Formatter {
 				this.variables.set(variableKey, variableValue);
 			}
 
+			const effectiveKey = resolvedKey ?? variableKey;
+
 			// Get the raw value from variables
-			const rawValue = this.variables.get(variableKey);
+			const rawValue = this.variables.get(effectiveKey);
 
 			// Offer this variable to the property collector for YAML post-processing
 			this.propertyCollector.maybeCollect({
@@ -332,7 +342,7 @@ export abstract class Formatter {
 			});
 
 			// Always use string replacement initially
-			const replacement = this.getVariableValue(variableKey);
+			const replacement = this.getVariableValue(effectiveKey);
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);

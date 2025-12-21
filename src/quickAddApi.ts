@@ -31,6 +31,22 @@ import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { formatISODate } from "./utils/dateParser";
 
+function snapshotVariables(
+	vars: Map<string, unknown>,
+): Array<[string, unknown]> {
+	return Array.from(vars.entries());
+}
+
+function restoreVariables(
+	vars: Map<string, unknown>,
+	snapshot: Array<[string, unknown]>,
+): void {
+	vars.clear();
+	for (const [key, value] of snapshot) {
+		vars.set(key, value);
+	}
+}
+
 export class QuickAddApi {
 	public static GetApi(
 		app: App,
@@ -211,6 +227,10 @@ export class QuickAddApi {
 				variables?: { [key: string]: unknown; },
 				shouldClearVariables = true,
 			) => {
+				const snapshot = shouldClearVariables
+					? snapshotVariables(choiceExecutor.variables)
+					: null;
+
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
 						choiceExecutor.variables.set(key, variables[key]);
@@ -223,8 +243,8 @@ export class QuickAddApi {
 					choiceExecutor,
 				).formatFileContent(input);
 
-				if (shouldClearVariables) {
-					choiceExecutor.variables.clear();
+				if (shouldClearVariables && snapshot) {
+					restoreVariables(choiceExecutor.variables, snapshot);
 				}
 
 				return output;

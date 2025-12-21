@@ -25,6 +25,7 @@ import {
 	RequirementCollector,
 	type FieldRequirement,
 } from "./RequirementCollector";
+import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 
 async function readTemplate(app: App, path: string): Promise<string> {
 	const addExt =
@@ -234,10 +235,13 @@ export async function runOnePagePreflight(
 		if (requirements.length === 0) return false; // Nothing to collect
 
 		// Only prompt for unresolved inputs (variables missing or null). Empty string is intentional.
-		const unresolved: FieldRequirement[] = requirements.filter((req) => {
-			const v = choiceExecutor.variables.get(req.id) as unknown;
-			return v === undefined || v === null;
-		});
+		const unresolved: FieldRequirement[] = requirements.filter(
+			(req) =>
+				!resolveExistingVariableKey(
+					choiceExecutor.variables,
+					req.id,
+				),
+		);
 
 		if (unresolved.length === 0) return false; // Everything prefilled, skip modal
 
