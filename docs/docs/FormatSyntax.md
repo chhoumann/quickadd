@@ -13,6 +13,7 @@ title: Format syntax
 | `{{VALUE:<variable name>\|label:<helper text>}}`     | Adds helper text to the prompt for a single-value input. The helper appears below the header and is useful for reminders or instructions. For multi-value lists, use the same syntax to label the suggester (e.g., `{{VALUE:Red,Green,Blue\|label:Pick a color}}`). |
 | `{{VALUE:<variable name>\|<default>}}`        | Same as above, but with a default value. For single-value prompts (e.g., `{{VALUE:name\|Anonymous}}`), the default is pre-populated in the input field - press Enter to accept or clear/edit it. For multi-value suggesters without `\|custom`, you must select one of the provided options (no default applies). If you combine options like `\|label:...`, use `\|default:<value>` instead of the shorthand (mixing option keys with a bare default is not supported). |
 | `{{VALUE:<variable name>\|default:<value>}}`        | Option-form default value, required when combining with other options like `\|label:`. Example: `{{VALUE:title\|label:Snake case\|default:My_Title}}`. |
+| `{{VALUE\|type:multiline}}` / `{{VALUE:<variable>\|type:multiline}}` | Forces a multi-line input prompt/textarea for that VALUE token. Only supported for single-value prompts (no comma options / `\|custom`). Overrides the global "Use Multi-line Input Prompt" setting. If `\|type:` is present, shorthand defaults like `\|Some value` are ignored; use `\|default:` instead. |
 | `{{VALUE:<options>\|custom}}`        | Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue\|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `\|custom` with a shorthand default value - use `\|default:` if you need both. |
 | `{{LINKCURRENT}}`                          | A link to the file from which the template or capture was triggered (`[[link]]` format). When the append-link setting is set to **Enabled (skip if no active file)**, this token resolves to an empty string instead of throwing an error if no note is focused. |
 | `{{FILENAMECURRENT}}`                      | The basename (without extension) of the file from which the template or capture was triggered. Honors the same **required/optional** behavior as `{{LINKCURRENT}}` - when optional and no active file exists, resolves to an empty string. |
@@ -26,3 +27,12 @@ title: Format syntax
 | `{{CLIPBOARD}}` | The current clipboard content. Will be empty if clipboard access fails due to permissions or security restrictions. |
 | `{{RANDOM:<length>}}` | Generates a random alphanumeric string of the specified length (1-100). Useful for creating unique identifiers, block references, or temporary codes. Example: `{{RANDOM:6}}` generates something like `3YusT5`. |
 | `{{TITLE}}` | The final rendered filename (without extension) of the note being created or captured to. |
+
+### Mixed-mode example
+
+Use single-line for a title and multi-line for a body:
+
+```markdown
+- {{VALUE:Title|label:Title}}
+{{VALUE:Body|type:multiline|label:Body}}
+```

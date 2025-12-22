@@ -27,8 +27,9 @@ import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import {
+	parseAnonymousValueOptions,
 	parseValueToken,
-	resolveExistingVariableKey,
+	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
 
@@ -42,6 +43,7 @@ export interface PromptContext {
 	description?: string;
 	placeholder?: string;
 	variableKey?: string;
+	inputType?: ValueInputType;
 }
 
 export abstract class Formatter {
@@ -50,6 +52,7 @@ export abstract class Formatter {
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 	private static readonly FIELD_VARIABLE_PREFIX = "FIELD:";
+	protected valuePromptContext?: PromptContext;
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
@@ -60,11 +63,12 @@ export abstract class Formatter {
 
 	protected abstract format(input: string): Promise<string>;
 
-	/** Returns true when a variable is present AND its value is not undefined.
-	 *  Null and empty string are considered intentional values. */
+	/** Returns true when a variable is present AND its value is neither undefined nor null.  
+	 *  An empty string is considered a valid, intentional value. */
 	protected hasConcreteVariable(name: string): boolean {
 		if (!this.variables.has(name)) return false;
-		return this.variables.get(name) !== undefined;
+		const v = this.variables.get(name);
+		return v !== undefined && v !== null;
 	}
 
 	public setTitle(title: string): void {
@@ -149,10 +153,11 @@ export abstract class Formatter {
 		// Fast path: nothing to do.
 		if (!NAME_VALUE_REGEX.test(output)) return output;
 
+		this.valuePromptContext = this.getValuePromptContext(output);
+
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
-			const existingValue = this.variables.get("value");
-			this.value = existingValue === null ? "" : String(existingValue);
+			this.value = String(this.variables.get("value"));
 		}
 
 		// Prompt only once per formatter run (empty string is a valid value).
@@ -166,6 +171,35 @@ export abstract class Formatter {
 		output = output.replace(regex, () => this.value);
 
 		return output;
+	}
+
+	private getValuePromptContext(input: string): PromptContext | undefined {
+		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
+		let match: RegExpExecArray | null;
+		let context: PromptContext | undefined;
+
+		while ((match = regex.exec(input)) !== null) {
+			const token = match[0];
+			const inner = token.slice(2, -2);
+			const optionsIndex = inner.indexOf("|");
+			if (optionsIndex === -1) continue;
+			const rawOptions = inner.slice(optionsIndex);
+
+			const parsed = parseAnonymousValueOptions(rawOptions);
+			if (!context) context = {};
+
+			if (!context.description && parsed.label) {
+				context.description = parsed.label;
+			}
+			if (!context.defaultValue && parsed.defaultValue) {
+				context.defaultValue = parsed.defaultValue;
+			}
+			if (parsed.inputType === "multiline") {
+				context.inputType = "multiline";
+			}
+		}
+
+		return context;
 	}
 
 	protected async replaceSelectedInString(input: string): Promise<string> {
@@ -290,13 +324,8 @@ export abstract class Formatter {
 				hasOptions,
 			} = parsed;
 
-			const resolvedKey = resolveExistingVariableKey(
-				this.variables,
-				variableKey,
-			);
-
 			// Ensure variable is set (prompt if needed)
-			if (!resolvedKey) {
+			if (!this.hasConcreteVariable(variableKey)) {
 				let variableValue = "";
 				const helperText =
 					!hasOptions && label ? label : undefined;
@@ -308,6 +337,7 @@ export abstract class Formatter {
 					variableValue = await this.promptForVariable(variableName, {
 						defaultValue,
 						description: helperText,
+						inputType: parsed.inputType,
 						variableKey,
 					});
 				} else {
@@ -326,10 +356,8 @@ export abstract class Formatter {
 				this.variables.set(variableKey, variableValue);
 			}
 
-			const effectiveKey = resolvedKey ?? variableKey;
-
 			// Get the raw value from variables
-			const rawValue = this.variables.get(effectiveKey);
+			const rawValue = this.variables.get(variableKey);
 
 			// Offer this variable to the property collector for YAML post-processing
 			this.propertyCollector.maybeCollect({
@@ -342,7 +370,7 @@ export abstract class Formatter {
 			});
 
 			// Always use string replacement initially
-			const replacement = this.getVariableValue(effectiveKey);
+			const replacement = this.getVariableValue(variableKey);
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);

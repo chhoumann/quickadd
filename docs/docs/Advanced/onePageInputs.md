@@ -18,6 +18,7 @@ This feature is currently in Beta.
 - Format variables in filenames, templates, and capture content:
   - `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`
   - Nested `{{TEMPLATE:path}}` are scanned recursively.
+- `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` render as textareas in the one-page modal.
 - Capture target file when capturing to a folder or tag.
 - Script-declared inputs (from user scripts inside macros), if provided.
 

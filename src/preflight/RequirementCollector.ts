@@ -156,6 +156,11 @@ export class RequirementCollector extends Formatter {
 			const requirementId = variableKey;
 
 			if (!this.requirements.has(requirementId)) {
+				const baseInputType =
+					parsed.inputType === "multiline" ||
+					this.plugin.settings.inputPrompt === "multi-line"
+						? "textarea"
+						: "text";
 				const req: FieldRequirement = {
 					id: requirementId,
 					label: displayLabel,
@@ -163,7 +168,7 @@ export class RequirementCollector extends Formatter {
 						? allowCustomInput
 							? "suggester"
 							: "dropdown"
-						: "text",
+						: baseInputType,
 					description,
 				};
 				if (hasOptions) {
@@ -194,9 +199,12 @@ export class RequirementCollector extends Formatter {
 				id: key,
 				label: header || "Enter value",
 				type:
+					this.valuePromptContext?.inputType === "multiline" ||
 					this.plugin.settings.inputPrompt === "multi-line"
 						? "textarea"
 						: "text",
+				description: this.valuePromptContext?.description,
+				defaultValue: this.valuePromptContext?.defaultValue,
 				source: "collected",
 			});
 		}
@@ -230,10 +238,15 @@ export class RequirementCollector extends Formatter {
 		if (!this.requirements.has(key)) {
 			// Detect simple comma-separated option lists
 			const hasOptions = variableName.includes(",");
+			const baseInputType =
+				context?.inputType === "multiline" ||
+				this.plugin.settings.inputPrompt === "multi-line"
+					? "textarea"
+					: "text";
 			const req: FieldRequirement = {
 				id: key,
 				label: variableName,
-				type: hasOptions ? "dropdown" : "text",
+				type: hasOptions ? "dropdown" : baseInputType,
 				description: context?.description,
 				source: "collected",
 			};

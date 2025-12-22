@@ -174,20 +174,28 @@ export class CompleteFormatter extends Formatter {
 			}
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
+				const promptFactory = new InputPrompt().factory(
+					this.valuePromptContext?.inputType,
+				);
+				const defaultValue = this.valuePromptContext?.defaultValue;
+				const description = this.valuePromptContext?.description;
 				if (linkSourcePath) {
-					this.value = await new InputPrompt()
-						.factory()
-						.PromptWithContext(
-							this.app,
-							this.valueHeader ?? `Enter value`,
-							undefined,
-							undefined,
-							linkSourcePath
-						);
+					this.value = await promptFactory.PromptWithContext(
+						this.app,
+						this.valueHeader ?? `Enter value`,
+						undefined,
+						defaultValue,
+						linkSourcePath,
+						description,
+					);
 				} else {
-					this.value = await new InputPrompt()
-						.factory()
-						.Prompt(this.app, this.valueHeader ?? `Enter value`);
+					this.value = await promptFactory.Prompt(
+						this.app,
+						this.valueHeader ?? `Enter value`,
+						undefined,
+						defaultValue,
+						description,
+					);
 				}
 			} catch (error) {
 				if (isCancellationError(error)) {
@@ -217,7 +225,7 @@ export class CompleteFormatter extends Formatter {
 			}
 
 			// Use default prompt for other variables
-			return await new InputPrompt().factory().Prompt(
+			return await new InputPrompt().factory(context?.inputType).Prompt(
 				this.app,
 				header ?? context?.label ?? "Enter value",
 				context?.placeholder ??
