@@ -63,12 +63,11 @@ export abstract class Formatter {
 
 	protected abstract format(input: string): Promise<string>;
 
-	/** Returns true when a variable is present AND its value is neither undefined nor null.  
-	 *  An empty string is considered a valid, intentional value. */
+	/** Returns true when a variable is present AND its value is not undefined.
+	 *  Null and empty string are considered intentional values. */
 	protected hasConcreteVariable(name: string): boolean {
 		if (!this.variables.has(name)) return false;
-		const v = this.variables.get(name);
-		return v !== undefined && v !== null;
+		return this.variables.get(name) !== undefined;
 	}
 
 	public setTitle(title: string): void {
