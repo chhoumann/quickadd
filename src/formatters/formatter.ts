@@ -29,6 +29,7 @@ import { normalizeDateInput } from "../utils/dateAliases";
 import {
 	parseAnonymousValueOptions,
 	parseValueToken,
+	resolveExistingVariableKey,
 	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
@@ -156,7 +157,8 @@ export abstract class Formatter {
 
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
-			this.value = String(this.variables.get("value"));
+			const existingValue = this.variables.get("value");
+			this.value = existingValue === null ? "" : String(existingValue);
 		}
 
 		// Prompt only once per formatter run (empty string is a valid value).
@@ -323,8 +325,13 @@ export abstract class Formatter {
 				hasOptions,
 			} = parsed;
 
+			const resolvedKey = resolveExistingVariableKey(
+				this.variables,
+				variableKey,
+			);
+
 			// Ensure variable is set (prompt if needed)
-			if (!this.hasConcreteVariable(variableKey)) {
+			if (!resolvedKey) {
 				let variableValue = "";
 				const helperText =
 					!hasOptions && label ? label : undefined;
@@ -355,8 +362,10 @@ export abstract class Formatter {
 				this.variables.set(variableKey, variableValue);
 			}
 
+			const effectiveKey = resolvedKey ?? variableKey;
+
 			// Get the raw value from variables
-			const rawValue = this.variables.get(variableKey);
+			const rawValue = this.variables.get(effectiveKey);
 
 			// Offer this variable to the property collector for YAML post-processing
 			this.propertyCollector.maybeCollect({
@@ -369,7 +378,7 @@ export abstract class Formatter {
 			});
 
 			// Always use string replacement initially
-			const replacement = this.getVariableValue(variableKey);
+			const replacement = this.getVariableValue(effectiveKey);
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
