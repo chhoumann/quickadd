@@ -14,7 +14,7 @@ export type ParsedValueToken = {
 	allowCustomInput: boolean;
 	suggestedValues: string[];
 	hasOptions: boolean;
-	inputType?: ValueInputType;
+	inputTypeOverride?: ValueInputType;
 };
 
 export function buildValueVariableKey(
@@ -77,7 +77,7 @@ type ParsedOptions = {
 	defaultValue: string;
 	allowCustomInput: boolean;
 	usesOptions: boolean;
-	inputType?: string;
+	inputTypeOverride?: string;
 };
 
 function parseBoolean(value?: string): boolean {
@@ -123,7 +123,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 	let label: string | undefined;
 	let defaultValue = "";
 	let allowCustomInput = false;
-	let inputType: string | undefined;
+	let inputTypeOverride: string | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -151,7 +151,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 				allowCustomInput = parseBoolean(value);
 				break;
 			case "type":
-				if (value) inputType = value;
+				if (value) inputTypeOverride = value;
 				break;
 			default:
 				break;
@@ -163,7 +163,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		defaultValue,
 		allowCustomInput,
 		usesOptions: true,
-		inputType,
+		inputTypeOverride,
 	};
 }
 
@@ -215,7 +215,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 	}
 
 	const tokenDisplay = `{{VALUE:${raw}}}`;
-	const inputType = resolveInputType(options.inputType, {
+	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
 		tokenDisplay,
 		hasOptions,
 		allowCustomInput,
@@ -232,7 +232,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		allowCustomInput,
 		suggestedValues,
 		hasOptions,
-		inputType,
+		inputTypeOverride,
 	};
 }
 
@@ -241,7 +241,7 @@ export function parseAnonymousValueOptions(
 ): {
 	label?: string;
 	defaultValue: string;
-	inputType?: ValueInputType;
+	inputTypeOverride?: ValueInputType;
 } {
 	const normalized = rawOptions.startsWith("|")
 		? rawOptions.slice(1)
@@ -262,7 +262,7 @@ export function parseAnonymousValueOptions(
 	}
 
 	const tokenDisplay = `{{VALUE${rawOptions}}}`;
-	const inputType = resolveInputType(options.inputType, {
+	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
 		tokenDisplay,
 		hasOptions: false,
 		allowCustomInput: options.allowCustomInput,
@@ -271,6 +271,6 @@ export function parseAnonymousValueOptions(
 	return {
 		label,
 		defaultValue,
-		inputType,
+		inputTypeOverride,
 	};
 }

@@ -44,7 +44,7 @@ export interface PromptContext {
 	description?: string;
 	placeholder?: string;
 	variableKey?: string;
-	inputType?: ValueInputType;
+	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
 }
 
 export abstract class Formatter {
@@ -195,8 +195,8 @@ export abstract class Formatter {
 			if (!context.defaultValue && parsed.defaultValue) {
 				context.defaultValue = parsed.defaultValue;
 			}
-			if (parsed.inputType === "multiline") {
-				context.inputType = "multiline";
+			if (parsed.inputTypeOverride === "multiline") {
+				context.inputTypeOverride = "multiline";
 			}
 		}
 
@@ -343,7 +343,7 @@ export abstract class Formatter {
 					variableValue = await this.promptForVariable(variableName, {
 						defaultValue,
 						description: helperText,
-						inputType: parsed.inputType,
+						inputTypeOverride: parsed.inputTypeOverride,
 						variableKey,
 					});
 				} else {

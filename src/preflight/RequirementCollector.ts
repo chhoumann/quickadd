@@ -157,7 +157,7 @@ export class RequirementCollector extends Formatter {
 
 			if (!this.requirements.has(requirementId)) {
 				const baseInputType =
-					parsed.inputType === "multiline" ||
+					parsed.inputTypeOverride === "multiline" ||
 					this.plugin.settings.inputPrompt === "multi-line"
 						? "textarea"
 						: "text";
@@ -199,7 +199,7 @@ export class RequirementCollector extends Formatter {
 				id: key,
 				label: header || "Enter value",
 				type:
-					this.valuePromptContext?.inputType === "multiline" ||
+					this.valuePromptContext?.inputTypeOverride === "multiline" ||
 					this.plugin.settings.inputPrompt === "multi-line"
 						? "textarea"
 						: "text",
@@ -239,7 +239,7 @@ export class RequirementCollector extends Formatter {
 			// Detect simple comma-separated option lists
 			const hasOptions = variableName.includes(",");
 			const baseInputType =
-				context?.inputType === "multiline" ||
+				context?.inputTypeOverride === "multiline" ||
 				this.plugin.settings.inputPrompt === "multi-line"
 					? "textarea"
 					: "text";

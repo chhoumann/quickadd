@@ -53,7 +53,7 @@ describe("parseValueToken", () => {
 			"Body|type:multiline|label:Notes|default:Hello",
 		);
 		expect(parsed?.variableName).toBe("Body");
-		expect(parsed?.inputType).toBe("multiline");
+		expect(parsed?.inputTypeOverride).toBe("multiline");
 		expect(parsed?.label).toBe("Notes");
 		expect(parsed?.defaultValue).toBe("Hello");
 	});
@@ -61,20 +61,20 @@ describe("parseValueToken", () => {
 	it("ignores shorthand default when type is present", () => {
 		const parsed = parseValueToken("Body|Hello|type:multiline");
 		expect(parsed?.defaultValue).toBe("");
-		expect(parsed?.inputType).toBe("multiline");
+		expect(parsed?.inputTypeOverride).toBe("multiline");
 	});
 
 	it("warns and ignores unknown type values", () => {
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const parsed = parseValueToken("Body|type:wide");
-		expect(parsed?.inputType).toBeUndefined();
+		expect(parsed?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
 
 	it("warns and ignores type for option lists", () => {
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const parsed = parseValueToken("Red,Green|type:multiline");
-		expect(parsed?.inputType).toBeUndefined();
+		expect(parsed?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
 });
@@ -88,7 +88,7 @@ describe("parseAnonymousValueOptions", () => {
 		const parsed = parseAnonymousValueOptions(
 			"|type:multiline|label:Notes|default:Hello",
 		);
-		expect(parsed.inputType).toBe("multiline");
+		expect(parsed.inputTypeOverride).toBe("multiline");
 		expect(parsed.label).toBe("Notes");
 		expect(parsed.defaultValue).toBe("Hello");
 	});
@@ -96,7 +96,7 @@ describe("parseAnonymousValueOptions", () => {
 	it("warns and ignores unknown type for unnamed VALUE tokens", () => {
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const parsed = parseAnonymousValueOptions("|type:wide");
-		expect(parsed.inputType).toBeUndefined();
+		expect(parsed.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
 });

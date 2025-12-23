@@ -175,7 +175,7 @@ export class CompleteFormatter extends Formatter {
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
-					this.valuePromptContext?.inputType,
+					this.valuePromptContext?.inputTypeOverride,
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
 				const description = this.valuePromptContext?.description;
@@ -225,7 +225,7 @@ export class CompleteFormatter extends Formatter {
 			}
 
 			// Use default prompt for other variables
-			return await new InputPrompt().factory(context?.inputType).Prompt(
+			return await new InputPrompt().factory(context?.inputTypeOverride).Prompt(
 				this.app,
 				header ?? context?.label ?? "Enter value",
 				context?.placeholder ??
