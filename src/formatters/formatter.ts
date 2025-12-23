@@ -27,8 +27,10 @@ import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import {
+	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
+	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
 
@@ -42,6 +44,7 @@ export interface PromptContext {
 	description?: string;
 	placeholder?: string;
 	variableKey?: string;
+	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
 }
 
 export abstract class Formatter {
@@ -50,6 +53,7 @@ export abstract class Formatter {
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 	private static readonly FIELD_VARIABLE_PREFIX = "FIELD:";
+	protected valuePromptContext?: PromptContext;
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
@@ -149,6 +153,8 @@ export abstract class Formatter {
 		// Fast path: nothing to do.
 		if (!NAME_VALUE_REGEX.test(output)) return output;
 
+		this.valuePromptContext = this.getValuePromptContext(output);
+
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
 			const existingValue = this.variables.get("value");
@@ -166,6 +172,35 @@ export abstract class Formatter {
 		output = output.replace(regex, () => this.value);
 
 		return output;
+	}
+
+	private getValuePromptContext(input: string): PromptContext | undefined {
+		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
+		let match: RegExpExecArray | null;
+		let context: PromptContext | undefined;
+
+		while ((match = regex.exec(input)) !== null) {
+			const token = match[0];
+			const inner = token.slice(2, -2);
+			const optionsIndex = inner.indexOf("|");
+			if (optionsIndex === -1) continue;
+			const rawOptions = inner.slice(optionsIndex);
+
+			const parsed = parseAnonymousValueOptions(rawOptions);
+			if (!context) context = {};
+
+			if (!context.description && parsed.label) {
+				context.description = parsed.label;
+			}
+			if (!context.defaultValue && parsed.defaultValue) {
+				context.defaultValue = parsed.defaultValue;
+			}
+			if (parsed.inputTypeOverride === "multiline") {
+				context.inputTypeOverride = "multiline";
+			}
+		}
+
+		return context;
 	}
 
 	protected async replaceSelectedInString(input: string): Promise<string> {
@@ -308,6 +343,7 @@ export abstract class Formatter {
 					variableValue = await this.promptForVariable(variableName, {
 						defaultValue,
 						description: helperText,
+						inputTypeOverride: parsed.inputTypeOverride,
 						variableKey,
 					});
 				} else {

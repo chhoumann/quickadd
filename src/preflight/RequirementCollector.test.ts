@@ -7,7 +7,14 @@ const makeApp = () => ({
   workspace: { getActiveFile: () => null },
   vault: { getAbstractFileByPath: () => null, cachedRead: async () => "" },
 } as any);
-const makePlugin = () => ({ } as any);
+const makePlugin = (overrides: Record<string, unknown> = {}) =>
+  ({
+    settings: {
+      inputPrompt: "single-line",
+      globalVariables: {},
+      ...overrides,
+    },
+  } as any);
 
 describe("RequirementCollector", () => {
   it("collects VALUE with default and options", async () => {
@@ -65,5 +72,36 @@ describe("RequirementCollector", () => {
     await rc.scanString("{{TEMPLATE:Templates/Note}}" );
 
     expect(rc.templatesToScan.size === 0 || rc.templatesToScan.has("Templates/Note")).toBe(true);
+  });
+
+  it("uses textarea for VALUE tokens with type:multiline", async () => {
+    const app = makeApp();
+    const plugin = makePlugin({ inputPrompt: "single-line" });
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{VALUE:Body|type:multiline}}" );
+
+    const requirement = rc.requirements.get("Body");
+    expect(requirement?.type).toBe("textarea");
+  });
+
+  it("uses textarea for unnamed VALUE with type:multiline", async () => {
+    const app = makeApp();
+    const plugin = makePlugin({ inputPrompt: "single-line" });
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{VALUE|type:multiline|label:Notes}}" );
+
+    const requirement = rc.requirements.get("value");
+    expect(requirement?.type).toBe("textarea");
+    expect(requirement?.description).toBe("Notes");
+  });
+
+  it("respects global multiline setting for named VALUE tokens", async () => {
+    const app = makeApp();
+    const plugin = makePlugin({ inputPrompt: "multi-line" });
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{VALUE:title}}" );
+
+    const requirement = rc.requirements.get("title");
+    expect(requirement?.type).toBe("textarea");
   });
 });

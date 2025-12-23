@@ -404,9 +404,22 @@ export class OnePageInputModal extends Modal {
 
 	private submit() {
 		const out: Record<string, string> = {};
-		this.result.forEach((v, k) => (out[k] = v));
+		const requirementsById = new Map(
+			this.requirements.map((req) => [req.id, req]),
+		);
+		this.result.forEach((v, k) => {
+			const requirement = requirementsById.get(k);
+			out[k] =
+				requirement?.type === "textarea"
+					? this.escapeBackslashes(v)
+					: v;
+		});
 		this.close();
 		this.resolvePromise(out);
+	}
+
+	private escapeBackslashes(input: string): string {
+		return input.replace(/\\/g, "\\\\");
 	}
 
 	private cancel() {
