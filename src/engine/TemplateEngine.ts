@@ -14,6 +14,12 @@ import InputSuggester from "../gui/InputSuggester/inputSuggester";
 import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
+import {
+	INVALID_FOLDER_CHARS_REGEX,
+	INVALID_FOLDER_CONTROL_CHARS_REGEX,
+	INVALID_FOLDER_TRAILING_CHARS_REGEX,
+	isReservedWindowsDeviceName,
+} from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -46,31 +52,6 @@ type FolderSelection = {
 	isAllowed: boolean;
 	isEmpty: boolean;
 };
-
-const RESERVED_WINDOWS_DEVICE_NAMES = new Set([
-	"CON",
-	"PRN",
-	"AUX",
-	"NUL",
-	"COM1",
-	"COM2",
-	"COM3",
-	"COM4",
-	"COM5",
-	"COM6",
-	"COM7",
-	"COM8",
-	"COM9",
-	"LPT1",
-	"LPT2",
-	"LPT3",
-	"LPT4",
-	"LPT5",
-	"LPT6",
-	"LPT7",
-	"LPT8",
-	"LPT9",
-]);
 
 class InvalidFolderPathError extends Error {
 	constructor(message: string) {
@@ -320,35 +301,31 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			throw new InvalidFolderPathError("Folder name cannot be '.' or '..'.");
 		}
 
-		if (/[\u0000-\u001F]/u.test(segment)) {
+		if (INVALID_FOLDER_CONTROL_CHARS_REGEX.test(segment)) {
 			throw new InvalidFolderPathError(
 				"Folder name cannot contain control characters.",
 			);
 		}
 
-		if (/[\\/:*?"<>|]/u.test(segment)) {
+		if (INVALID_FOLDER_CHARS_REGEX.test(segment)) {
 			throw new InvalidFolderPathError(
 				"Folder name cannot contain any of the following characters: \\ / : * ? \" < > |",
 			);
 		}
 
-		if (/[. ]$/u.test(segment)) {
+		if (INVALID_FOLDER_TRAILING_CHARS_REGEX.test(segment)) {
 			throw new InvalidFolderPathError(
 				"Folder name cannot end with a space or a period.",
 			);
 		}
 
 		const normalized = segment.replace(/[. ]+$/u, "");
-		const base = normalized.split(".")[0]?.toUpperCase();
-		if (base && this.isReservedWindowsName(base)) {
+		const base = normalized.split(".")[0] ?? "";
+		if (base && isReservedWindowsDeviceName(base)) {
 			throw new InvalidFolderPathError(
 				"Folder name cannot be a reserved name like CON, PRN, AUX, NUL, COM1-9, or LPT1-9.",
 			);
 		}
-	}
-
-	private isReservedWindowsName(name: string): boolean {
-		return RESERVED_WINDOWS_DEVICE_NAMES.has(name);
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
