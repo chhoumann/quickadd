@@ -47,6 +47,13 @@ type FolderSelection = {
 	isEmpty: boolean;
 };
 
+class InvalidFolderPathError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "InvalidFolderPathError";
+	}
+}
+
 function isMacroAbortError(error: unknown): error is MacroAbortError {
 	return (
 		error instanceof MacroAbortError ||
@@ -217,14 +224,16 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			}
 
 			try {
-				await this.ensureFolderExists(selection);
+				this.validateFolderPath(selection.resolved);
 			} catch (error) {
-				if (this.isInvalidPathError(error)) {
-					this.showInvalidFolderNotice(error);
+				if (error instanceof InvalidFolderPathError) {
+					new Notice(error.message);
 					continue;
 				}
 				throw error;
 			}
+
+			await this.ensureFolderExists(selection);
 
 			return selection;
 		}
@@ -247,15 +256,19 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return "";
 		}
 
-		try {
-			await this.ensureFolderExists(selection);
-		} catch (error) {
-			if (this.isInvalidPathError(error)) {
-				this.showInvalidFolderNotice(error);
-				return "";
+		if (selection.resolved) {
+			try {
+				this.validateFolderPath(selection.resolved);
+			} catch (error) {
+				if (error instanceof InvalidFolderPathError) {
+					new Notice(error.message);
+					return "";
+				}
+				throw error;
 			}
-			throw error;
 		}
+
+		await this.ensureFolderExists(selection);
 		return selection.resolved;
 	}
 
@@ -263,32 +276,28 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 	}
 
-	private isInvalidPathError(error: unknown): error is Error {
-		if (!(error instanceof Error)) return false;
-		return (
-			error.message.includes("File name cannot contain") ||
-			error.message.includes("File name cannot be empty") ||
-			error.message.includes("File name cannot start with")
-		);
-	}
+	private validateFolderPath(path: string): void {
+		const trimmed = path.trim();
+		if (!trimmed) return;
 
-	private showInvalidFolderNotice(error: Error): void {
-		new Notice(this.formatInvalidFolderMessage(error.message));
-	}
+		const segments = trimmed.split("/");
+		for (const segment of segments) {
+			if (!segment) {
+				throw new InvalidFolderPathError("Folder name cannot be empty.");
+			}
 
-	private formatInvalidFolderMessage(message: string): string {
-		const invalidCharsMatch = message.match(
-			/^File name cannot contain any of the following characters:\s*(.+)$/u,
-		);
-		if (invalidCharsMatch?.[1]) {
-			return `Folder name cannot contain any of the following characters: ${invalidCharsMatch[1]}`;
+			if (segment === "." || segment === "..") {
+				throw new InvalidFolderPathError(
+					"Folder name cannot be '.' or '..'.",
+				);
+			}
+
+			if (/[\\:]/u.test(segment)) {
+				throw new InvalidFolderPathError(
+					"Folder name cannot contain any of the following characters: \\ / :",
+				);
+			}
 		}
-
-		if (message.startsWith("File name ")) {
-			return `Folder name ${message.slice("File name ".length)}`;
-		}
-
-		return "Invalid folder name.";
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
