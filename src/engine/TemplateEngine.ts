@@ -86,26 +86,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return await this.handleSingleSelection(context);
 		}
 
-		while (true) {
-			const raw = await this.promptForFolder(context);
-			const selection = await this.resolveSelection(raw, context);
+		const selection = await this.promptUntilAllowed(context);
+		if (selection.isEmpty) return "";
 
-			if (selection.isEmpty) {
-				if (!selection.isAllowed) {
-					this.showFolderNotAllowedNotice(context.allowedRoots);
-					continue;
-				}
-				return "";
-			}
-
-			if (!selection.isAllowed) {
-				this.showFolderNotAllowedNotice(context.allowedRoots);
-				continue;
-			}
-
-			await this.ensureFolderExists(selection);
-			return selection.resolved;
-		}
+		await this.ensureFolderExists(selection);
+		return selection.resolved;
 	}
 
 	private buildFolderSelectionContext(
@@ -211,6 +196,31 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			isAllowed,
 			isEmpty,
 		};
+	}
+
+	private async promptUntilAllowed(
+		context: FolderSelectionContext,
+	): Promise<FolderSelection> {
+		// Keep prompting until the user provides an allowed selection or cancels.
+		for (;;) {
+			const raw = await this.promptForFolder(context);
+			const selection = await this.resolveSelection(raw, context);
+
+			if (selection.isEmpty) {
+				if (!selection.isAllowed) {
+					this.showFolderNotAllowedNotice(context.allowedRoots);
+					continue;
+				}
+				return selection;
+			}
+
+			if (!selection.isAllowed) {
+				this.showFolderNotAllowedNotice(context.allowedRoots);
+				continue;
+			}
+
+			return selection;
+		}
 	}
 
 	private async ensureFolderExists(selection: FolderSelection): Promise<void> {
