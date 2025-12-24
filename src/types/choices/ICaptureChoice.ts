@@ -35,6 +35,8 @@ export default interface ICaptureChoice extends IChoice {
 		considerSubsections: boolean;
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
+		inline?: boolean;
+		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
 	};
 	newLineCapture: {

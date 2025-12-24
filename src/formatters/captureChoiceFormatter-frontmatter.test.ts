@@ -38,6 +38,11 @@ vi.mock('../gui/VDateInputPrompt/VDateInputPrompt', () => ({
   },
 }));
 
+vi.mock('../utils/errorUtils', () => ({
+  __esModule: true,
+  reportError: vi.fn(),
+}));
+
 vi.mock('../gui/MathModal', () => ({
   __esModule: true,
   MathModal: {
@@ -98,6 +103,7 @@ vi.mock('../main', () => ({
 }));
 
 import { CaptureChoiceFormatter } from './captureChoiceFormatter';
+import { reportError } from '../utils/errorUtils';
 
 const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
   id: 'test',
@@ -111,7 +117,7 @@ const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice =
   prepend: false,
   appendLink: false,
   task: false,
-  insertAfter: { enabled: false, after: '', insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: '', blankLineAfterMatchMode: 'auto' },
+  insertAfter: { enabled: false, after: '', insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: '', inline: false, replaceExisting: false, blankLineAfterMatchMode: 'auto' },
   newLineCapture: { enabled: false, direction: 'below' },
   openFile: false,
   fileOpening: { location: 'tab', direction: 'vertical', mode: 'default', focus: true },
@@ -354,5 +360,177 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     );
 
     expect(result).toBe(['# H', 'X', '', 'A'].join('\n'));
+  });
+});
+
+describe('CaptureChoiceFormatter insert after inline', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (global as any).navigator = {
+      clipboard: {
+        readText: vi.fn().mockResolvedValue(''),
+      },
+    };
+  });
+
+  const createFormatter = () => {
+    const app = createMockApp();
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
+    const formatter = new CaptureChoiceFormatter(app, plugin);
+    const file = createTFile('Inline.md');
+
+    return { formatter, file };
+  };
+
+  const createInlineChoice = (
+    after: string,
+    overrides: Partial<ICaptureChoice['insertAfter']> = {},
+  ): ICaptureChoice =>
+    createChoice({
+      insertAfter: {
+        enabled: true,
+        after,
+        insertAtEnd: false,
+        considerSubsections: false,
+        createIfNotFound: false,
+        createIfNotFoundLocation: 'top',
+        inline: true,
+        replaceExisting: false,
+        blankLineAfterMatchMode: 'auto',
+        ...overrides,
+      },
+    });
+
+  it('inserts inline at match end and preserves suffix', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Status:', { replaceExisting: false });
+    const fileContent = 'Status: pending';
+
+    const result = await formatter.formatContentWithFile(
+      ' done',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe('Status: done pending');
+  });
+
+  it('replaces to end-of-line when enabled, preserving newline', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Status: ', { replaceExisting: true });
+    const fileContent = ['Status: pending', 'Next'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'done',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['Status: done', 'Next'].join('\n'));
+  });
+
+  it('replace mode behaves like append when target is at end-of-line', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('pending', { replaceExisting: true });
+    const fileContent = 'Status: pending';
+
+    const result = await formatter.formatContentWithFile(
+      '!',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe('Status: pending!');
+  });
+
+  it('creates a single inline line when target is not found', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Status: ', {
+      createIfNotFound: true,
+      createIfNotFoundLocation: 'top',
+    });
+    const fileContent = '# Header';
+
+    const result = await formatter.formatContentWithFile(
+      'done',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['Status: done', '# Header'].join('\n'));
+  });
+
+  it('does not modify the file when target is missing and create-if-not-found is off', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Missing: ', { createIfNotFound: false });
+    const fileContent = 'Status: pending';
+
+    const result = await formatter.formatContentWithFile(
+      'done',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(fileContent);
+    expect(reportError).toHaveBeenCalled();
+  });
+
+  it('updates only the first match', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Tag: ', { replaceExisting: true });
+    const fileContent = ['Tag: a', 'Tag: b'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'X',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(['Tag: X', 'Tag: b'].join('\n'));
+  });
+
+  it('works with capture to active file enabled', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Status: ', { replaceExisting: true });
+    choice.captureToActiveFile = true;
+    const fileContent = 'Status: pending';
+
+    const result = await formatter.formatContentWithFile(
+      'done',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe('Status: done');
+  });
+
+  it('reports an error and leaves content unchanged when target contains a newline', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInlineChoice('Status:\n', { replaceExisting: true });
+    const fileContent = 'Status:\npending';
+
+    const result = await formatter.formatContentWithFile(
+      'done',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(fileContent);
+    expect(reportError).toHaveBeenCalled();
   });
 });
