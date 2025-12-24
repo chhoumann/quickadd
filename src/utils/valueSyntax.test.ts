@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import {
 	buildValueVariableKey,
+	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
 } from "./valueSyntax";
 
 describe("parseValueToken", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it("ignores empty label values", () => {
 		const parsed = parseValueToken("title|label:");
 		expect(parsed).not.toBeNull();
@@ -41,6 +46,58 @@ describe("parseValueToken", () => {
 		const parsed = parseValueToken("a,b|custom|default:High");
 		expect(parsed?.allowCustomInput).toBe(true);
 		expect(parsed?.defaultValue).toBe("High");
+	});
+
+	it("parses multiline type with label and default", () => {
+		const parsed = parseValueToken(
+			"Body|type:multiline|label:Notes|default:Hello",
+		);
+		expect(parsed?.variableName).toBe("Body");
+		expect(parsed?.inputTypeOverride).toBe("multiline");
+		expect(parsed?.label).toBe("Notes");
+		expect(parsed?.defaultValue).toBe("Hello");
+	});
+
+	it("ignores shorthand default when type is present", () => {
+		const parsed = parseValueToken("Body|Hello|type:multiline");
+		expect(parsed?.defaultValue).toBe("");
+		expect(parsed?.inputTypeOverride).toBe("multiline");
+	});
+
+	it("warns and ignores unknown type values", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("Body|type:wide");
+		expect(parsed?.inputTypeOverride).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("warns and ignores type for option lists", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("Red,Green|type:multiline");
+		expect(parsed?.inputTypeOverride).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalled();
+	});
+});
+
+describe("parseAnonymousValueOptions", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("parses multiline type for unnamed VALUE tokens", () => {
+		const parsed = parseAnonymousValueOptions(
+			"|type:multiline|label:Notes|default:Hello",
+		);
+		expect(parsed.inputTypeOverride).toBe("multiline");
+		expect(parsed.label).toBe("Notes");
+		expect(parsed.defaultValue).toBe("Hello");
+	});
+
+	it("warns and ignores unknown type for unnamed VALUE tokens", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseAnonymousValueOptions("|type:wide");
+		expect(parsed.inputTypeOverride).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalled();
 	});
 });
 

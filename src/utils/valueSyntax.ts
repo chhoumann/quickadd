@@ -1,7 +1,9 @@
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
-const VALUE_OPTION_KEYS = new Set(["label", "default", "custom"]);
+export type ValueInputType = "multiline";
+
+const VALUE_OPTION_KEYS = new Set(["label", "default", "custom", "type"]);
 
 export type ParsedValueToken = {
 	raw: string;
@@ -12,6 +14,7 @@ export type ParsedValueToken = {
 	allowCustomInput: boolean;
 	suggestedValues: string[];
 	hasOptions: boolean;
+	inputTypeOverride?: ValueInputType;
 };
 
 export function buildValueVariableKey(
@@ -74,6 +77,7 @@ type ParsedOptions = {
 	defaultValue: string;
 	allowCustomInput: boolean;
 	usesOptions: boolean;
+	inputTypeOverride?: string;
 };
 
 function parseBoolean(value?: string): boolean {
@@ -119,6 +123,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 	let label: string | undefined;
 	let defaultValue = "";
 	let allowCustomInput = false;
+	let inputTypeOverride: string | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -145,6 +150,9 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 			case "custom":
 				allowCustomInput = parseBoolean(value);
 				break;
+			case "type":
+				if (value) inputTypeOverride = value;
+				break;
 			default:
 				break;
 		}
@@ -155,7 +163,33 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		defaultValue,
 		allowCustomInput,
 		usesOptions: true,
+		inputTypeOverride,
 	};
+}
+
+function resolveInputType(
+	rawType: string | undefined,
+	{
+		tokenDisplay,
+		hasOptions,
+		allowCustomInput,
+	}: { tokenDisplay: string; hasOptions: boolean; allowCustomInput: boolean },
+): ValueInputType | undefined {
+	if (!rawType) return undefined;
+	const normalized = rawType.trim().toLowerCase();
+	if (normalized !== "multiline") {
+		console.warn(
+			`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline.`,
+		);
+		return undefined;
+	}
+	if (hasOptions || allowCustomInput) {
+		console.warn(
+			`QuickAdd: Ignoring type:multiline for option-list VALUE token "${tokenDisplay}".`,
+		);
+		return undefined;
+	}
+	return "multiline";
 }
 
 export function parseValueToken(raw: string): ParsedValueToken | null {
@@ -180,6 +214,13 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		defaultValue = allowCustomInput ? "" : legacyDefault;
 	}
 
+	const tokenDisplay = `{{VALUE:${raw}}}`;
+	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
+		tokenDisplay,
+		hasOptions,
+		allowCustomInput,
+	});
+
 	const variableKey = buildValueVariableKey(variablePart, label, hasOptions);
 
 	return {
@@ -191,5 +232,45 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		allowCustomInput,
 		suggestedValues,
 		hasOptions,
+		inputTypeOverride,
+	};
+}
+
+export function parseAnonymousValueOptions(
+	rawOptions: string,
+): {
+	label?: string;
+	defaultValue: string;
+	inputTypeOverride?: ValueInputType;
+} {
+	const normalized = rawOptions.startsWith("|")
+		? rawOptions.slice(1)
+		: rawOptions;
+	const parts = normalized
+		.split("|")
+		.map((part) => part.trim())
+		.filter(Boolean);
+
+	if (parts.length === 0) {
+		return { defaultValue: "" };
+	}
+
+	const options = parseOptions(parts, false);
+	let { label, defaultValue } = options;
+	if (!options.usesOptions) {
+		defaultValue = defaultValue.trim();
+	}
+
+	const tokenDisplay = `{{VALUE${rawOptions}}}`;
+	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
+		tokenDisplay,
+		hasOptions: false,
+		allowCustomInput: options.allowCustomInput,
+	});
+
+	return {
+		label,
+		defaultValue,
+		inputTypeOverride,
 	};
 }
