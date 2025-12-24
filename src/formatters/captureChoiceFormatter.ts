@@ -497,6 +497,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			}
 		}
 
+		log.logWarning(
+			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
+		);
 		return this.fileContent;
 	}
 
