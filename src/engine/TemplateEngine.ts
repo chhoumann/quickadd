@@ -47,6 +47,31 @@ type FolderSelection = {
 	isEmpty: boolean;
 };
 
+const RESERVED_WINDOWS_DEVICE_NAMES = new Set([
+	"CON",
+	"PRN",
+	"AUX",
+	"NUL",
+	"COM1",
+	"COM2",
+	"COM3",
+	"COM4",
+	"COM5",
+	"COM6",
+	"COM7",
+	"COM8",
+	"COM9",
+	"LPT1",
+	"LPT2",
+	"LPT3",
+	"LPT4",
+	"LPT5",
+	"LPT6",
+	"LPT7",
+	"LPT8",
+	"LPT9",
+]);
+
 class InvalidFolderPathError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -282,22 +307,48 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 		const segments = trimmed.split("/");
 		for (const segment of segments) {
-			if (!segment) {
-				throw new InvalidFolderPathError("Folder name cannot be empty.");
-			}
-
-			if (segment === "." || segment === "..") {
-				throw new InvalidFolderPathError(
-					"Folder name cannot be '.' or '..'.",
-				);
-			}
-
-			if (/[\\:]/u.test(segment)) {
-				throw new InvalidFolderPathError(
-					"Folder name cannot contain any of the following characters: \\ / :",
-				);
-			}
+			this.validateFolderSegment(segment);
 		}
+	}
+
+	private validateFolderSegment(segment: string): void {
+		if (!segment) {
+			throw new InvalidFolderPathError("Folder name cannot be empty.");
+		}
+
+		if (segment === "." || segment === "..") {
+			throw new InvalidFolderPathError("Folder name cannot be '.' or '..'.");
+		}
+
+		if (/[\u0000-\u001F]/u.test(segment)) {
+			throw new InvalidFolderPathError(
+				"Folder name cannot contain control characters.",
+			);
+		}
+
+		if (/[\\/:*?"<>|]/u.test(segment)) {
+			throw new InvalidFolderPathError(
+				"Folder name cannot contain any of the following characters: \\ / : * ? \" < > |",
+			);
+		}
+
+		if (/[. ]$/u.test(segment)) {
+			throw new InvalidFolderPathError(
+				"Folder name cannot end with a space or a period.",
+			);
+		}
+
+		const normalized = segment.replace(/[. ]+$/u, "");
+		const base = normalized.split(".")[0]?.toUpperCase();
+		if (base && this.isReservedWindowsName(base)) {
+			throw new InvalidFolderPathError(
+				"Folder name cannot be a reserved name like CON, PRN, AUX, NUL, COM1-9, or LPT1-9.",
+			);
+		}
+	}
+
+	private isReservedWindowsName(name: string): boolean {
+		return RESERVED_WINDOWS_DEVICE_NAMES.has(name);
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
