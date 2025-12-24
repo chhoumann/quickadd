@@ -280,7 +280,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return "";
 			}
 
-			return this.getOrCreateFolder([activeFile.parent.path]);
+			return await this.getOrCreateFolder([activeFile.parent.path]);
 		}
 
 		return await this.getOrCreateFolder(folders);

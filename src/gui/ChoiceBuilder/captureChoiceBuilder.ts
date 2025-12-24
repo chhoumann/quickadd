@@ -439,7 +439,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addInsertAfterFields() {
 		const descText =
-			"Insert capture after specified line. Accepts format syntax. " +
+			"Insert capture after specified text. Accepts format syntax. " +
 			"Tip: use a heading (starts with #) to target a section. " +
 			"Blank line handling is configurable below.";
 
@@ -464,7 +464,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			initialValue: this.choice.insertAfter.after,
 			placeholder: "Insert after",
 			required: true,
-			requiredMessage: "Insert after line is required",
+			requiredMessage: "Insert after text is required",
 			attachSuggesters: [
 				(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
 			],
@@ -488,82 +488,121 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			}
 		})();
 
-		const insertAtEndSetting: Setting = new Setting(this.contentEl);
-		insertAtEndSetting
-			.setName("Insert at end of section")
+		if (this.choice.insertAfter.inline === undefined) {
+			this.choice.insertAfter.inline = false;
+		}
+
+		if (this.choice.insertAfter.replaceExisting === undefined) {
+			this.choice.insertAfter.replaceExisting = false;
+		}
+
+		new Setting(this.contentEl)
+			.setName("Inline insertion")
 			.setDesc(
-				"Place the text at the end of the matched section instead of the top.",
+				"Insert captured content on the same line, immediately after the matched text (no newline added).",
 			)
 			.addToggle((toggle) =>
 				toggle
-					.setValue(this.choice.insertAfter?.insertAtEnd)
+					.setValue(!!this.choice.insertAfter?.inline)
 					.onChange((value) => {
-						this.choice.insertAfter.insertAtEnd = value;
+						this.choice.insertAfter.inline = value;
 						this.reload();
 					}),
 			);
 
-		if (!this.choice.insertAfter?.blankLineAfterMatchMode) {
-			this.choice.insertAfter.blankLineAfterMatchMode = "auto";
+		if (this.choice.insertAfter.inline) {
+			new Setting(this.contentEl)
+				.setName("Replace existing value")
+				.setDesc("Replace everything after the matched text up to end-of-line.")
+				.addToggle((toggle) =>
+					toggle
+						.setValue(!!this.choice.insertAfter?.replaceExisting)
+						.onChange(
+							(value) => (this.choice.insertAfter.replaceExisting = value),
+						),
+				);
 		}
 
-		const blankLineModeDesc =
-			"Controls whether Insert After skips existing blank lines after the matched line.";
-		const insertAtEndEnabled = !!this.choice.insertAfter?.insertAtEnd;
-		const blankLineModeSetting: Setting = new Setting(this.contentEl);
-		blankLineModeSetting
-			.setName("Blank lines after match")
-			.setDesc(
-				insertAtEndEnabled
-					? "Not used when inserting at end of section."
-					: blankLineModeDesc,
-			)
-				.addDropdown((dropdown) => {
-					dropdown
-						.addOption("auto", "Auto (headings only)")
-						.addOption("skip", "Always skip")
-						.addOption("none", "Never skip")
-						.setValue(
-							this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
-						)
+		const inlineEnabled = !!this.choice.insertAfter?.inline;
+
+		if (!inlineEnabled) {
+			const insertAtEndSetting: Setting = new Setting(this.contentEl);
+			insertAtEndSetting
+				.setName("Insert at end of section")
+				.setDesc(
+					"Place the text at the end of the matched section instead of the top.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.choice.insertAfter?.insertAtEnd)
 						.onChange((value) => {
-							this.choice.insertAfter.blankLineAfterMatchMode = value as
-								| "auto"
-								| "skip"
-							| "none";
-					});
-				dropdown.setDisabled(insertAtEndEnabled);
-			});
-		blankLineModeSetting.setDisabled(insertAtEndEnabled);
+							this.choice.insertAfter.insertAtEnd = value;
+							this.reload();
+						}),
+				);
 
-		new Setting(this.contentEl)
-			.setName("Consider subsections")
-			.setDesc(
-				"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.choice.insertAfter?.considerSubsections)
-					.onChange((value) => {
-						if (!value) {
-							this.choice.insertAfter.considerSubsections = false;
-							return;
-						}
+			if (!this.choice.insertAfter?.blankLineAfterMatchMode) {
+				this.choice.insertAfter.blankLineAfterMatchMode = "auto";
+			}
 
-						const targetIsHeading =
-							this.choice.insertAfter.after.startsWith("#");
-						if (targetIsHeading) {
-							this.choice.insertAfter.considerSubsections = value;
-						} else {
-							this.choice.insertAfter.considerSubsections = false;
-							// reset the toggle to match state and inform user
-							toggle.setValue(false);
-							new Notice(
-								"Consider subsections requires the target to be a heading (starts with #)",
-							);
-						}
-					}),
-			);
+			const blankLineModeDesc =
+				"Controls whether Insert After skips existing blank lines after the matched line.";
+			const insertAtEndEnabled = !!this.choice.insertAfter?.insertAtEnd;
+			const blankLineModeSetting: Setting = new Setting(this.contentEl);
+			blankLineModeSetting
+				.setName("Blank lines after match")
+				.setDesc(
+					insertAtEndEnabled
+						? "Not used when inserting at end of section."
+						: blankLineModeDesc,
+				)
+					.addDropdown((dropdown) => {
+						dropdown
+							.addOption("auto", "Auto (headings only)")
+							.addOption("skip", "Always skip")
+							.addOption("none", "Never skip")
+							.setValue(
+								this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
+							)
+							.onChange((value) => {
+								this.choice.insertAfter.blankLineAfterMatchMode = value as
+									| "auto"
+									| "skip"
+									| "none";
+						});
+					dropdown.setDisabled(insertAtEndEnabled);
+				});
+			blankLineModeSetting.setDisabled(insertAtEndEnabled);
+
+			new Setting(this.contentEl)
+				.setName("Consider subsections")
+				.setDesc(
+					"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section.",
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.choice.insertAfter?.considerSubsections)
+						.onChange((value) => {
+							if (!value) {
+								this.choice.insertAfter.considerSubsections = false;
+								return;
+							}
+
+							const targetIsHeading =
+								this.choice.insertAfter.after.startsWith("#");
+							if (targetIsHeading) {
+								this.choice.insertAfter.considerSubsections = value;
+							} else {
+								this.choice.insertAfter.considerSubsections = false;
+								// reset the toggle to match state and inform user
+								toggle.setValue(false);
+								new Notice(
+									"Consider subsections requires the target to be a heading (starts with #)",
+								);
+							}
+						}),
+				);
+		}
 
 		const createLineIfNotFound: Setting = new Setting(this.contentEl);
 		createLineIfNotFound

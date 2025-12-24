@@ -262,6 +262,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter.after,
 		);
 
+		if (this.choice.insertAfter?.inline) {
+			return await this.insertAfterInlineHandler(formatted, targetString);
+		}
+
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
 		let targetPosition = this.findInsertAfterIndex(
 			fileContentLines,
@@ -304,6 +308,64 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			formatted,
 			this.fileContent,
 			targetPosition,
+		);
+	}
+
+	private hasInlineTargetLinebreak(target: string): boolean {
+		return target.includes("\n") || target.includes("\r");
+	}
+
+	private getInlineEndOfLine(startIndex: number): number {
+		const newlineIndex = this.fileContent.indexOf("\n", startIndex);
+		if (newlineIndex === -1) return this.fileContent.length;
+		if (newlineIndex > 0 && this.fileContent[newlineIndex - 1] === "\r") {
+			return newlineIndex - 1;
+		}
+		return newlineIndex;
+	}
+
+	private async insertAfterInlineHandler(
+		formatted: string,
+		targetString: string,
+	): Promise<string> {
+		if (this.hasInlineTargetLinebreak(targetString)) {
+			reportError(
+				new Error("Inline insert after target must be a single line."),
+				"Insert After Inline Error",
+			);
+			return this.fileContent;
+		}
+
+		const matchIndex = this.fileContent.indexOf(targetString);
+		if (matchIndex === -1) {
+			if (this.choice.insertAfter?.createIfNotFound) {
+				return await this.createInlineInsertAfterIfNotFound(
+					formatted,
+					targetString,
+				);
+			}
+
+			reportError(
+				new Error("Unable to find insert after text in file."),
+				"Insert After Inline Error",
+			);
+			return this.fileContent;
+		}
+
+		const matchEnd = matchIndex + targetString.length;
+		if (this.choice.insertAfter?.replaceExisting) {
+			const endOfLine = this.getInlineEndOfLine(matchEnd);
+			return (
+				this.fileContent.slice(0, matchEnd) +
+				formatted +
+				this.fileContent.slice(endOfLine)
+			);
+		}
+
+		return (
+			this.fileContent.slice(0, matchEnd) +
+			formatted +
+			this.fileContent.slice(matchEnd)
 		);
 	}
 
@@ -379,6 +441,66 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				);
 			}
 		}
+	}
+
+	private async createInlineInsertAfterIfNotFound(
+		formatted: string,
+		targetString: string,
+	): Promise<string> {
+		const insertAfterLineAndFormatted = `${targetString}${formatted}`;
+
+		if (
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_TOP
+		) {
+			const frontmatterEndPosition = this.file
+				? this.getFrontmatterEndPosition(this.file, this.fileContent)
+				: -1;
+			return this.insertTextAfterPositionInBody(
+				insertAfterLineAndFormatted,
+				this.fileContent,
+				frontmatterEndPosition,
+			);
+		}
+
+		if (
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_BOTTOM
+		) {
+			return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
+		}
+
+		if (
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_CURSOR
+		) {
+			try {
+				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+				if (!activeView) {
+					throw new Error("No active view.");
+				}
+
+				const cursor = activeView.editor.getCursor();
+				const targetPosition = cursor.line;
+
+				return this.insertTextAfterPositionInBody(
+					insertAfterLineAndFormatted,
+					this.fileContent,
+					targetPosition,
+				);
+			} catch (err) {
+				reportError(
+					err,
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`,
+				);
+			}
+		}
+
+		log.logWarning(
+			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
+		);
+		return this.fileContent;
 	}
 
 	private getFrontmatterEndPosition(file: TFile, fallbackContent?: string) {

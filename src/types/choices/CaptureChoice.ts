@@ -23,6 +23,8 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		considerSubsections: boolean;
 		createIfNotFound: boolean;
 		createIfNotFoundLocation: string;
+		inline?: boolean;
+		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
 	};
 	newLineCapture: {
@@ -62,6 +64,8 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			considerSubsections: false,
 			createIfNotFound: false,
 			createIfNotFoundLocation: "top",
+			inline: false,
+			replaceExisting: false,
 			blankLineAfterMatchMode: "auto",
 		};
 		this.newLineCapture = {
@@ -94,6 +98,12 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		}
 		if (loaded.insertAfter && !loaded.insertAfter.blankLineAfterMatchMode) {
 			loaded.insertAfter.blankLineAfterMatchMode = "auto";
+		}
+		if (loaded.insertAfter && loaded.insertAfter.inline === undefined) {
+			loaded.insertAfter.inline = false;
+		}
+		if (loaded.insertAfter && loaded.insertAfter.replaceExisting === undefined) {
+			loaded.insertAfter.replaceExisting = false;
 		}
 		return loaded;
 	}
