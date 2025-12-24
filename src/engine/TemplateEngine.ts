@@ -278,7 +278,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		if (selection.isEmpty) return "";
 		if (!selection.isAllowed) {
 			this.showFolderNotAllowedNotice(context.allowedRoots);
-			return "";
+			throw new MacroAbortError("Selected folder not allowed.");
 		}
 
 		if (selection.resolved) {
