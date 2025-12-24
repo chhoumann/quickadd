@@ -273,7 +273,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	private showInvalidFolderNotice(error: Error): void {
-		new Notice(error.message);
+		const message = error.message.replace(/^File name\b/, "Folder name");
+		new Notice(message);
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
