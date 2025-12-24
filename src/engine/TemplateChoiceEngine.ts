@@ -248,6 +248,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const folders: string[] = await this.formatFolderPaths([
 			...this.choice.folder.folders,
 		]);
+		const currentFolder = this.getCurrentFolderSuggestion();
+		const topItems = currentFolder ? [currentFolder] : [];
 
 		if (
 			this.choice.folder?.chooseFromSubfolders &&
@@ -262,12 +264,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return folders.some((f) => folder.startsWith(f));
 			});
 
-			return await this.getOrCreateFolder(subfolders);
+			return await this.getOrCreateFolder(subfolders, {
+				allowCreate: true,
+				allowedRoots: folders,
+				topItems,
+			});
 		}
 
 		if (this.choice.folder?.chooseWhenCreatingNote) {
 			const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
-			return await this.getOrCreateFolder(allFoldersInVault);
+			return await this.getOrCreateFolder(allFoldersInVault, {
+				allowCreate: true,
+				topItems,
+			});
 		}
 
 		if (this.choice.folder?.createInSameFolderAsActiveFile) {
@@ -280,9 +289,29 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return "";
 			}
 
-			return await this.getOrCreateFolder([activeFile.parent.path]);
+			return this.getOrCreateFolder([activeFile.parent.path], {
+				allowCreate: true,
+				topItems,
+			});
 		}
 
-		return await this.getOrCreateFolder(folders);
+		return await this.getOrCreateFolder(folders, {
+			allowCreate: true,
+			allowedRoots: folders,
+			topItems,
+		});
+	}
+
+	private getCurrentFolderSuggestion():
+		| { path: string; label: string }
+		| null {
+		const activeFile = this.app.workspace.getActiveFile();
+		const parent = activeFile?.parent;
+		if (!activeFile || !parent) return null;
+		const path = parent.path ?? "";
+		return {
+			path,
+			label: "<current folder>",
+		};
 	}
 }

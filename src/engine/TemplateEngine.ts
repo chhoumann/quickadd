@@ -2,7 +2,7 @@ import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
 import type { App } from "obsidian";
-import { TFile } from "obsidian";
+import { Notice, TFile } from "obsidian";
 import type QuickAdd from "../main";
 import {
 	getTemplater,
@@ -10,6 +10,7 @@ import {
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import InputSuggester from "../gui/InputSuggester/inputSuggester";
 import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
@@ -17,6 +18,13 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
+
+type FolderChoiceOptions = {
+	allowCreate?: boolean;
+	placeholder?: string;
+	allowedRoots?: string[];
+	topItems?: Array<{ path: string; label: string }>;
+};
 
 function isMacroAbortError(error: unknown): error is MacroAbortError {
 	return (
@@ -47,32 +55,218 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		| Promise<string>
 		| Promise<{ file: TFile; content: string }>;
 
-	protected async getOrCreateFolder(folders: string[]): Promise<string> {
-		let folderPath: string;
+	protected async getOrCreateFolder(
+		folders: string[],
+		options: FolderChoiceOptions = {},
+	): Promise<string> {
+		const allowCreate = options.allowCreate ?? false;
+		const normalizedAllowedRoots = options.allowedRoots?.map((root) =>
+			this.normalizeFolderPath(root),
+		);
+		const {
+			items,
+			displayItems,
+			normalizedItems,
+			canonicalByNormalized,
+			displayByNormalized,
+		} = this.buildFolderSuggestions(
+			folders,
+			options.topItems ?? [],
+			normalizedAllowedRoots,
+		);
 
-		if (folders.length > 1) {
-			try {
-				folderPath = await GenericSuggester.Suggest(
-					this.app,
-					folders,
-					folders
-				);
-				if (!folderPath) throw new Error("No folder selected.");
-			} catch (error) {
-				// Always abort on cancelled input
-				if (isCancellationError(error)) {
-					throw new MacroAbortError("Input cancelled by user");
+		const existingSet = new Set(normalizedItems);
+		let folderPath = "";
+
+		if (items.length > 1 || (allowCreate && items.length === 0)) {
+			while (true) {
+				try {
+					if (allowCreate) {
+						folderPath = await InputSuggester.Suggest(
+							this.app,
+							displayItems,
+							items,
+							{
+								placeholder:
+									options.placeholder ??
+									"Choose a folder or type to create one",
+								renderItem: (item, el) => {
+									this.renderFolderSuggestion(
+										item,
+										el,
+										existingSet,
+										displayByNormalized,
+									);
+								},
+							},
+						);
+					} else {
+						folderPath = await GenericSuggester.Suggest(
+							this.app,
+							displayItems,
+							items,
+							options.placeholder,
+						);
+					}
+					if (!folderPath) throw new Error("No folder selected.");
+				} catch (error) {
+					// Always abort on cancelled input
+					if (isCancellationError(error)) {
+						throw new MacroAbortError("Input cancelled by user");
+					}
+					throw error;
 				}
-				throw error;
+
+				const normalized = this.normalizeFolderPath(folderPath);
+				if (!normalized) {
+					if (
+						normalizedAllowedRoots &&
+						normalizedAllowedRoots.length > 0 &&
+						!this.isPathAllowed("", normalizedAllowedRoots)
+					) {
+						this.showFolderNotAllowedNotice(normalizedAllowedRoots);
+						continue;
+					}
+					return "";
+				}
+
+				const canonical = canonicalByNormalized.get(normalized);
+				const resolved = canonical ?? normalized;
+
+				if (!allowCreate) {
+					if (resolved) await this.createFolder(resolved);
+					return resolved;
+				}
+
+				const exists =
+					canonical !== undefined ||
+					(await this.app.vault.adapter.exists(resolved));
+				if (exists) return resolved;
+
+				if (
+					normalizedAllowedRoots &&
+					normalizedAllowedRoots.length > 0 &&
+					!this.isPathAllowed(resolved, normalizedAllowedRoots)
+				) {
+					this.showFolderNotAllowedNotice(normalizedAllowedRoots);
+					continue;
+				}
+
+				await this.createFolder(resolved);
+				return resolved;
 			}
-		} else {
-			folderPath = folders[0];
 		}
 
-		if (folderPath) await this.createFolder(folderPath);
-		else folderPath = "";
+		folderPath = items[0] ?? "";
 
-		return folderPath;
+		const normalized = this.normalizeFolderPath(folderPath);
+		if (!normalized) return "";
+
+		if (allowCreate) {
+			const canonical = canonicalByNormalized.get(normalized);
+			const resolved = canonical ?? normalized;
+			const exists =
+				canonical !== undefined ||
+				(await this.app.vault.adapter.exists(resolved));
+			if (!exists) await this.createFolder(resolved);
+			return resolved;
+		}
+
+		await this.createFolder(normalized);
+		return normalized;
+	}
+
+	private normalizeFolderPath(path: string): string {
+		return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+	}
+
+	private isPathAllowed(path: string, roots: string[]): boolean {
+		const normalizedPath = this.normalizeFolderPath(path);
+		for (const root of roots) {
+			if (!root) return true;
+			if (normalizedPath === root) return true;
+			if (normalizedPath.startsWith(`${root}/`)) return true;
+		}
+		return false;
+	}
+
+	private showFolderNotAllowedNotice(roots: string[]): void {
+		const displayRoots = roots.map((root) => (root ? root : "/"));
+		const list =
+			displayRoots.length > 3
+				? `${displayRoots.slice(0, 3).join(", ")}...`
+				: displayRoots.join(", ");
+		new Notice(`Folder must be under: ${list}`);
+	}
+
+	private buildFolderSuggestions(
+		folders: string[],
+		topItems: Array<{ path: string; label: string }>,
+		allowedRoots?: string[],
+	): {
+		items: string[];
+		displayItems: string[];
+		normalizedItems: string[];
+		canonicalByNormalized: Map<string, string>;
+		displayByNormalized: Map<string, string>;
+	} {
+		const items: string[] = [];
+		const displayItems: string[] = [];
+		const normalizedItems: string[] = [];
+		const canonicalByNormalized = new Map<string, string>();
+		const displayByNormalized = new Map<string, string>();
+		const seen = new Set<string>();
+
+		const addItem = (path: string, label?: string) => {
+			const normalized = this.normalizeFolderPath(path);
+			if (seen.has(normalized)) return;
+			if (
+				allowedRoots &&
+				allowedRoots.length > 0 &&
+				!this.isPathAllowed(normalized, allowedRoots)
+			) {
+				return;
+			}
+			seen.add(normalized);
+			items.push(path);
+			displayItems.push(label ?? path);
+			normalizedItems.push(normalized);
+			canonicalByNormalized.set(normalized, path);
+			if (label) displayByNormalized.set(normalized, label);
+		};
+
+		for (const item of topItems) addItem(item.path, item.label);
+		for (const folder of folders) addItem(folder);
+
+		return {
+			items,
+			displayItems,
+			normalizedItems,
+			canonicalByNormalized,
+			displayByNormalized,
+		};
+	}
+
+	private renderFolderSuggestion(
+		item: string,
+		el: HTMLElement,
+		existingSet: Set<string>,
+		displayByNormalized: Map<string, string>,
+	): void {
+		el.empty();
+		const normalized = this.normalizeFolderPath(item);
+		const display = displayByNormalized.get(normalized);
+		if (display) {
+			el.setText(display);
+			return;
+		}
+
+		if (existingSet.has(normalized)) {
+			el.setText(item);
+			return;
+		}
+
+		el.setText(`Create folder: ${item}`);
 	}
 
 	protected async getFormattedFilePath(
