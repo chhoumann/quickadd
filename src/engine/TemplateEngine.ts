@@ -259,25 +259,25 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const display = displayByNormalized.get(normalized);
 		const displayPath = item || "/";
 		const isExisting = existingSet.has(normalized);
-		const mainText = display ?? displayPath;
-		const subText = display && display !== displayPath
-			? displayPath
-			: !isExisting
-				? "Create folder"
-				: "";
+		let mainText = display ?? displayPath;
+		let subText = "";
+
+		if (display === "<current folder>") {
+			mainText = displayPath;
+			subText = "Current folder";
+		} else if (display && display !== displayPath) {
+			mainText = displayPath;
+			subText = display;
+		} else if (!isExisting) {
+			mainText = displayPath;
+			subText = "Create folder";
+		}
 
 		const content = el.createDiv("qa-suggestion-content");
 		content.createSpan({
 			cls: "suggestion-main-text",
 			text: mainText,
 		});
-
-		if (!isExisting) {
-			content.createSpan({
-				cls: "qa-suggestion-pill qa-create-pill",
-				text: "create",
-			});
-		}
 
 		if (subText) {
 			el.createSpan({
