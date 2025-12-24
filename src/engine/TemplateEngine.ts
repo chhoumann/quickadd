@@ -254,36 +254,26 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		displayByNormalized: Map<string, string>,
 	): void {
 		el.empty();
-		el.classList.add("qaFileSuggestionItem");
+		el.classList.add("mod-complex");
 		const normalized = this.normalizeFolderPath(item);
 		const display = displayByNormalized.get(normalized);
 		const displayPath = item || "/";
 		const isExisting = existingSet.has(normalized);
-		let mainText = display ?? displayPath;
-		let subText = "";
+		let indicator = "";
 
 		if (display === "<current folder>") {
-			mainText = displayPath;
-			subText = "Current folder";
-		} else if (display && display !== displayPath) {
-			mainText = displayPath;
-			subText = display;
+			indicator = "Current folder";
 		} else if (!isExisting) {
-			mainText = displayPath;
-			subText = "Create folder";
+			indicator = "Create folder";
 		}
 
-		const content = el.createDiv("qa-suggestion-content");
-		content.createSpan({
-			cls: "suggestion-main-text",
-			text: mainText,
-		});
+		const content = el.createDiv("suggestion-content");
+		const title = content.createDiv("suggestion-title");
+		title.createSpan({ text: displayPath });
 
-		if (subText) {
-			el.createSpan({
-				cls: "suggestion-sub-text",
-				text: subText,
-			});
+		if (indicator) {
+			const aux = el.createDiv("suggestion-aux");
+			aux.createEl("kbd", { cls: "suggestion-hotkey", text: indicator });
 		}
 	}
 
