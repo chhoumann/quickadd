@@ -273,8 +273,22 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	private showInvalidFolderNotice(error: Error): void {
-		const message = error.message.replace(/^File name\b/, "Folder name");
-		new Notice(message);
+		new Notice(this.formatInvalidFolderMessage(error.message));
+	}
+
+	private formatInvalidFolderMessage(message: string): string {
+		const invalidCharsMatch = message.match(
+			/^File name cannot contain any of the following characters:\s*(.+)$/u,
+		);
+		if (invalidCharsMatch?.[1]) {
+			return `Folder name cannot contain any of the following characters: ${invalidCharsMatch[1]}`;
+		}
+
+		if (message.startsWith("File name ")) {
+			return `Folder name ${message.slice("File name ".length)}`;
+		}
+
+		return "Invalid folder name.";
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
