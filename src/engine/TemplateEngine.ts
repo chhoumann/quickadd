@@ -87,10 +87,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		}
 
 		const selection = await this.promptUntilAllowed(context);
-		if (selection.isEmpty) return "";
-
-		await this.ensureFolderExists(selection);
-		return selection.resolved;
+		return selection.isEmpty ? "" : selection.resolved;
 	}
 
 	private buildFolderSelectionContext(
@@ -219,6 +216,16 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				continue;
 			}
 
+			try {
+				await this.ensureFolderExists(selection);
+			} catch (error) {
+				if (this.isInvalidPathError(error)) {
+					this.showInvalidFolderNotice(error);
+					continue;
+				}
+				throw error;
+			}
+
 			return selection;
 		}
 	}
@@ -240,12 +247,33 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return "";
 		}
 
-		await this.ensureFolderExists(selection);
+		try {
+			await this.ensureFolderExists(selection);
+		} catch (error) {
+			if (this.isInvalidPathError(error)) {
+				this.showInvalidFolderNotice(error);
+				return "";
+			}
+			throw error;
+		}
 		return selection.resolved;
 	}
 
 	private normalizeFolderPath(path: string): string {
 		return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+	}
+
+	private isInvalidPathError(error: unknown): error is Error {
+		if (!(error instanceof Error)) return false;
+		return (
+			error.message.includes("File name cannot contain") ||
+			error.message.includes("File name cannot be empty") ||
+			error.message.includes("File name cannot start with")
+		);
+	}
+
+	private showInvalidFolderNotice(error: Error): void {
+		new Notice(error.message);
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
