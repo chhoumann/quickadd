@@ -26,6 +26,27 @@ type FolderChoiceOptions = {
 	topItems?: Array<{ path: string; label: string }>;
 };
 
+type FolderSelectionContext = {
+	items: string[];
+	displayItems: string[];
+	normalizedItems: string[];
+	canonicalByNormalized: Map<string, string>;
+	displayByNormalized: Map<string, string>;
+	existingSet: Set<string>;
+	allowCreate: boolean;
+	allowedRoots: string[];
+	placeholder?: string;
+};
+
+type FolderSelection = {
+	raw: string;
+	normalized: string;
+	resolved: string;
+	exists: boolean;
+	isAllowed: boolean;
+	isEmpty: boolean;
+};
+
 function isMacroAbortError(error: unknown): error is MacroAbortError {
 	return (
 		error instanceof MacroAbortError ||
@@ -59,10 +80,42 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		folders: string[],
 		options: FolderChoiceOptions = {},
 	): Promise<string> {
+		const context = this.buildFolderSelectionContext(folders, options);
+
+		if (!this.shouldPromptForFolder(context)) {
+			return await this.handleSingleSelection(context);
+		}
+
+		while (true) {
+			const raw = await this.promptForFolder(context);
+			const selection = await this.resolveSelection(raw, context);
+
+			if (selection.isEmpty) {
+				if (!selection.isAllowed) {
+					this.showFolderNotAllowedNotice(context.allowedRoots);
+					continue;
+				}
+				return "";
+			}
+
+			if (!selection.isAllowed) {
+				this.showFolderNotAllowedNotice(context.allowedRoots);
+				continue;
+			}
+
+			await this.ensureFolderExists(selection);
+			return selection.resolved;
+		}
+	}
+
+	private buildFolderSelectionContext(
+		folders: string[],
+		options: FolderChoiceOptions,
+	): FolderSelectionContext {
 		const allowCreate = options.allowCreate ?? false;
-		const normalizedAllowedRoots = options.allowedRoots?.map((root) =>
-			this.normalizeFolderPath(root),
-		);
+		const allowedRoots =
+			options.allowedRoots?.map((root) => this.normalizeFolderPath(root)) ?? [];
+
 		const {
 			items,
 			displayItems,
@@ -72,108 +125,113 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		} = this.buildFolderSuggestions(
 			folders,
 			options.topItems ?? [],
-			normalizedAllowedRoots,
+			allowedRoots.length > 0 ? allowedRoots : undefined,
 		);
 
-		const existingSet = new Set(normalizedItems);
-		let folderPath = "";
+		return {
+			items,
+			displayItems,
+			normalizedItems,
+			canonicalByNormalized,
+			displayByNormalized,
+			existingSet: new Set(normalizedItems),
+			allowCreate,
+			allowedRoots,
+			placeholder: options.placeholder,
+		};
+	}
 
-		if (items.length > 1 || (allowCreate && items.length === 0)) {
-			while (true) {
-				try {
-					if (allowCreate) {
-						folderPath = await InputSuggester.Suggest(
-							this.app,
-							displayItems,
-							items,
-							{
-								placeholder:
-									options.placeholder ??
-									"Choose a folder or type to create one",
-								renderItem: (item, el) => {
-									this.renderFolderSuggestion(
-										item,
-										el,
-										existingSet,
-										displayByNormalized,
-									);
-								},
-							},
-						);
-					} else {
-						folderPath = await GenericSuggester.Suggest(
-							this.app,
-							displayItems,
-							items,
-							options.placeholder,
-						);
-					}
-					if (!folderPath) throw new Error("No folder selected.");
-				} catch (error) {
-					// Always abort on cancelled input
-					if (isCancellationError(error)) {
-						throw new MacroAbortError("Input cancelled by user");
-					}
-					throw error;
-				}
+	private shouldPromptForFolder(context: FolderSelectionContext): boolean {
+		return (
+			context.items.length > 1 ||
+			(context.allowCreate && context.items.length === 0)
+		);
+	}
 
-				const normalized = this.normalizeFolderPath(folderPath);
-				if (!normalized) {
-					if (
-						normalizedAllowedRoots &&
-						normalizedAllowedRoots.length > 0 &&
-						!this.isPathAllowed("", normalizedAllowedRoots)
-					) {
-						this.showFolderNotAllowedNotice(normalizedAllowedRoots);
-						continue;
-					}
-					return "";
-				}
-
-				const canonical = canonicalByNormalized.get(normalized);
-				const resolved = canonical ?? normalized;
-
-				if (!allowCreate) {
-					if (resolved) await this.createFolder(resolved);
-					return resolved;
-				}
-
-				const exists =
-					canonical !== undefined ||
-					(await this.app.vault.adapter.exists(resolved));
-				if (exists) return resolved;
-
-				if (
-					normalizedAllowedRoots &&
-					normalizedAllowedRoots.length > 0 &&
-					!this.isPathAllowed(resolved, normalizedAllowedRoots)
-				) {
-					this.showFolderNotAllowedNotice(normalizedAllowedRoots);
-					continue;
-				}
-
-				await this.createFolder(resolved);
-				return resolved;
+	private async promptForFolder(context: FolderSelectionContext): Promise<string> {
+		try {
+			if (context.allowCreate) {
+				return await InputSuggester.Suggest(
+					this.app,
+					context.displayItems,
+					context.items,
+					{
+						placeholder:
+							context.placeholder ?? "Choose a folder or type to create one",
+						renderItem: (item, el) => {
+							this.renderFolderSuggestion(
+								item,
+								el,
+								context.existingSet,
+								context.displayByNormalized,
+							);
+						},
+					},
+				);
 			}
+
+			return await GenericSuggester.Suggest(
+				this.app,
+				context.displayItems,
+				context.items,
+				context.placeholder,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
 		}
+	}
 
-		folderPath = items[0] ?? "";
+	private async resolveSelection(
+		raw: string,
+		context: FolderSelectionContext,
+	): Promise<FolderSelection> {
+		const normalized = this.normalizeFolderPath(raw);
+		const isEmpty = normalized.length === 0;
+		const canonical = context.canonicalByNormalized.get(normalized);
+		const resolved = canonical ?? normalized;
 
-		const normalized = this.normalizeFolderPath(folderPath);
-		if (!normalized) return "";
-
-		if (allowCreate) {
-			const canonical = canonicalByNormalized.get(normalized);
-			const resolved = canonical ?? normalized;
-			const exists =
-				canonical !== undefined ||
+		const exists = isEmpty
+			? false
+			: canonical !== undefined ||
 				(await this.app.vault.adapter.exists(resolved));
-			if (!exists) await this.createFolder(resolved);
-			return resolved;
+
+		const isAllowed =
+			context.allowedRoots.length === 0
+				? true
+				: this.isPathAllowed(isEmpty ? "" : resolved, context.allowedRoots);
+
+		return {
+			raw,
+			normalized,
+			resolved,
+			exists,
+			isAllowed,
+			isEmpty,
+		};
+	}
+
+	private async ensureFolderExists(selection: FolderSelection): Promise<void> {
+		if (selection.isEmpty || selection.exists) return;
+		await this.createFolder(selection.resolved);
+	}
+
+	private async handleSingleSelection(
+		context: FolderSelectionContext,
+	): Promise<string> {
+		const raw = context.items[0] ?? "";
+		const selection = await this.resolveSelection(raw, context);
+
+		if (selection.isEmpty) return "";
+		if (!selection.isAllowed) {
+			this.showFolderNotAllowedNotice(context.allowedRoots);
+			return "";
 		}
 
-		await this.createFolder(normalized);
-		return normalized;
+		await this.ensureFolderExists(selection);
+		return selection.resolved;
 	}
 
 	private normalizeFolderPath(path: string): string {
