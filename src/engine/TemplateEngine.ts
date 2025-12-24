@@ -254,19 +254,37 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		displayByNormalized: Map<string, string>,
 	): void {
 		el.empty();
+		el.classList.add("qaFileSuggestionItem");
 		const normalized = this.normalizeFolderPath(item);
 		const display = displayByNormalized.get(normalized);
-		if (display) {
-			el.setText(display);
-			return;
+		const displayPath = item || "/";
+		const isExisting = existingSet.has(normalized);
+		const mainText = display ?? displayPath;
+		const subText = display && display !== displayPath
+			? displayPath
+			: !isExisting
+				? "Create folder"
+				: "";
+
+		const content = el.createDiv("qa-suggestion-content");
+		content.createSpan({
+			cls: "suggestion-main-text",
+			text: mainText,
+		});
+
+		if (!isExisting) {
+			content.createSpan({
+				cls: "qa-suggestion-pill qa-create-pill",
+				text: "create",
+			});
 		}
 
-		if (existingSet.has(normalized)) {
-			el.setText(item);
-			return;
+		if (subText) {
+			el.createSpan({
+				cls: "suggestion-sub-text",
+				text: subText,
+			});
 		}
-
-		el.setText(`Create folder: ${item}`);
 	}
 
 	protected async getFormattedFilePath(
