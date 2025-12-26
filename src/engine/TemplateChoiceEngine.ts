@@ -1,4 +1,4 @@
-import { MarkdownView, TFile, type App } from "obsidian";
+import { MarkdownView, TFile, type App, parseYaml } from "obsidian";
 import invariant from "src/utils/invariant";
 import {
 	fileExistsAppendToBottom,
@@ -249,38 +249,23 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 		const { frontmatter, body } = this.splitFrontmatter(templaterContent);
 		const hasBody = body.trim().length > 0;
-		const hasFrontmatter = frontmatter?.trim().length;
+
+		if (frontmatter) {
+			await this.applyFrontmatterProperties(activeFile, frontmatter);
+		}
 
 		if (insertion.placement === "top" || insertion.placement === "bottom") {
 			const fileContent = await this.app.vault.read(activeFile);
-			let nextContent = this.applyFrontmatterInsertion(
-				fileContent,
-				frontmatter,
-			);
-			if (hasBody) {
-				nextContent =
-					insertion.placement === "top"
-						? this.insertBodyAtTop(nextContent, body)
-						: this.insertBodyAtBottom(nextContent, body);
-			}
+			const nextContent = hasBody
+				? insertion.placement === "top"
+					? this.insertBodyAtTop(fileContent, body)
+					: this.insertBodyAtBottom(fileContent, body)
+				: fileContent;
 			if (nextContent !== fileContent) {
 				await this.app.vault.modify(activeFile, nextContent);
 			}
-		} else {
-			if (hasFrontmatter) {
-				const fileContent = await this.app.vault.read(activeFile);
-				const nextContent = this.applyFrontmatterInsertion(
-					fileContent,
-					frontmatter,
-				);
-				if (nextContent !== fileContent) {
-					await this.app.vault.modify(activeFile, nextContent);
-				}
-			}
-
-			if (hasBody) {
-				this.insertBodyIntoEditor(body, insertion.placement);
-			}
+		} else if (hasBody) {
+			this.insertBodyIntoEditor(body, insertion.placement);
 		}
 
 		if (this.shouldPostProcessFrontMatter(activeFile, templateVars)) {
@@ -382,27 +367,45 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		};
 	}
 
-	private applyFrontmatterInsertion(
-		content: string,
-		frontmatter: string | null,
-	): string {
-		if (!frontmatter || frontmatter.trim().length === 0) {
-			return content;
+	private async applyFrontmatterProperties(
+		file: TFile,
+		frontmatter: string,
+	): Promise<void> {
+		const trimmed = frontmatter.trim();
+		if (!trimmed) return;
+
+		let parsed: unknown;
+		try {
+			parsed = parseYaml(trimmed);
+		} catch (error) {
+			log.logWarning(
+				`Template insertion: failed to parse frontmatter for ${file.path}: ${String(
+					error,
+				)}`,
+			);
+			return;
 		}
 
-		const trimmedInsert = frontmatter.trimEnd();
-		const match = TemplateChoiceEngine.FRONTMATTER_REGEX.exec(content);
-		if (!match) {
-			return `---\n${trimmedInsert}\n---\n${content}`;
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			log.logWarning(
+				`Template insertion: frontmatter did not parse to an object for ${file.path}.`,
+			);
+			return;
 		}
 
-		const existing = match[2];
-		const merged =
-			existing.trim().length === 0
-				? trimmedInsert
-				: `${existing.trimEnd()}\n${trimmedInsert}`;
-
-		return `${match[1]}${merged}${match[3]}${content.slice(match[0].length)}`;
+		try {
+			await this.app.fileManager.processFrontMatter(file, (fm) => {
+				for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+					fm[key] = value;
+				}
+			});
+		} catch (error) {
+			log.logWarning(
+				`Template insertion: failed to apply frontmatter for ${file.path}: ${String(
+					error,
+				)}`,
+			);
+		}
 	}
 
 	private insertBodyAtTop(content: string, body: string): string {
