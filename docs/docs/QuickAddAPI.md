@@ -426,6 +426,18 @@ Sets the clipboard contents.
 await quickAddApi.utility.setClipboard("Hello, World!");
 ```
 
+### `getSelection(): string`
+Gets the currently selected text in the active editor. Returns an empty string if
+there is no active editor or no selection.
+
+**Example:**
+```javascript
+const selection = quickAddApi.utility.getSelection();
+if (selection) {
+    console.log("Selected:", selection);
+}
+```
+
 Combined example:
 ```javascript
 // Transform clipboard contents

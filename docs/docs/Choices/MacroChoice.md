@@ -188,6 +188,20 @@ module.exports = async (params) => {
 };
 ```
 
+### Getting the current selection
+
+Use the utility helper to read the active editor selection. It returns an empty
+string when nothing is selected or no editor is active.
+
+```javascript
+module.exports = async (params) => {
+    const selection = params.quickAddApi.utility.getSelection();
+    if (selection) {
+        params.variables.selectedText = selection;
+    }
+};
+```
+
 ### Accessing Other Plugins
 
 Scripts can interact with other Obsidian plugins:
