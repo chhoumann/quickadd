@@ -103,7 +103,7 @@ async function collectForTemplateChoice(
 			}
 			collector.templatesToScan.clear();
 		};
-		await walk(choice.templatePath);
+		await walk(templatePath);
 	}
 
 	return collector;
