@@ -395,8 +395,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 		try {
 			await this.app.fileManager.processFrontMatter(file, (fm) => {
-				for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-					fm[key] = value;
+				for (const [key, value] of Object.entries(
+					parsed as Record<string, unknown>,
+				)) {
+					fm[key] = this.mergeFrontmatterValue(fm[key], value);
 				}
 			});
 		} catch (error) {
@@ -406,6 +408,34 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				)}`,
 			);
 		}
+	}
+
+	private mergeFrontmatterValue(
+		existing: unknown,
+		incoming: unknown,
+	): unknown {
+		if (Array.isArray(existing) && Array.isArray(incoming)) {
+			return [...existing, ...incoming];
+		}
+
+		if (this.isPlainObject(existing) && this.isPlainObject(incoming)) {
+			const merged: Record<string, unknown> = { ...existing };
+			for (const [key, value] of Object.entries(incoming)) {
+				merged[key] = this.mergeFrontmatterValue(merged[key], value);
+			}
+			return merged;
+		}
+
+		return incoming;
+	}
+
+	private isPlainObject(value: unknown): value is Record<string, unknown> {
+		return (
+			typeof value === "object" &&
+			value !== null &&
+			!Array.isArray(value) &&
+			value.constructor === Object
+		);
 	}
 
 	private insertBodyAtTop(content: string, body: string): string {
