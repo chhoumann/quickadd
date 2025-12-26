@@ -43,7 +43,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	private readonly originalCommand: IConditionalCommand;
 	private workingCommand: IConditionalCommand;
 	private isResolved = false;
-	private javascriptFiles: TFile[] = [];
+	private scriptFiles: TFile[] = [];
 
 	constructor(app: App, command: IConditionalCommand) {
 		super(app);
@@ -76,7 +76,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	private loadJavascriptFiles() {
-		this.javascriptFiles = this.app.vault
+		this.scriptFiles = this.app.vault
 			.getFiles()
 			.filter((file) => USER_SCRIPT_FILE_EXTENSION_REGEX.test(file.path));
 	}
@@ -257,12 +257,12 @@ export class ConditionalCommandSettingsModal extends Modal {
 					.setButtonText("Browse")
 					.setTooltip("Select a script file")
 					.onClick(async () => {
-						if (this.javascriptFiles.length === 0) {
+						if (this.scriptFiles.length === 0) {
 							showNoScriptsFoundNotice();
 							return;
 						}
 
-						const scriptNames = this.javascriptFiles.map((f) => f.path);
+						const scriptNames = this.scriptFiles.map((f) => f.path);
 						const selected = await InputSuggester.Suggest(
 							this.app,
 							scriptNames,

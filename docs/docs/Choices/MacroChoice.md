@@ -154,7 +154,7 @@ contain **exactly one** fenced `js` or `javascript` code block; everything else
 is ignored. If you need to target an exported member, include it in the command
 name:
 
-```
+```text
 script.md::exportName
 ```
 
