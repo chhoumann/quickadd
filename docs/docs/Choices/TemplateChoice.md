@@ -5,11 +5,38 @@ title: Template
 The template choice type is not meant to be a replacement for [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use both QuickAdd format syntax in a Templater template - and both will work.
 
 ## Mandatory
-**Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
+**Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored. When **Insert into active note** is enabled, this path is only required if the template source is set to **Use template path**.
 
 QuickAdd supports both markdown (`.md`) and canvas (`.canvas`) templates. When using a canvas template, the created file will also be a canvas file with the same extension.
 
 ## Optional
+### Insert into active note
+Enable **Insert into active note** to insert the template content into the currently active Markdown note instead of creating a new file.
+
+When enabled, QuickAdd requires an active Markdown note. The following settings are ignored because no new file is created:
+- File name format
+- Create in folder
+- Append link
+- File already exists behavior
+- Open file
+
+**Insertion placement** controls where content is inserted:
+- **Current line (cursor)**
+- **Replace selection**
+- **After selection**
+- **End of line**
+- **New line above**
+- **New line below**
+- **Top of note**
+- **Bottom of note**
+
+**Template source** controls how the template is chosen:
+- **Use template path** – use the Template Path setting
+- **Prompt for template at runtime** – choose a template file when running the choice
+- **Use another Template choice** – select another Template choice and reuse its template path (only the template path is reused; other settings on that choice are ignored)
+
+If the template contains YAML frontmatter, QuickAdd merges it into the active note's frontmatter. The rest of the template is inserted according to the placement you choose.
+
 **File Name Format**. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
 
