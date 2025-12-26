@@ -1,4 +1,5 @@
 import type ITemplateChoice from "./ITemplateChoice";
+import { DEFAULT_TEMPLATE_INSERTION } from "./ITemplateChoice";
 import { Choice } from "./Choice";
 import type { fileExistsChoices } from "src/constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
@@ -24,6 +25,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 	templatePath: string;
 	fileExistsMode: (typeof fileExistsChoices)[number];
 	setFileExistsBehavior: boolean;
+	insertion: ITemplateChoice["insertion"];
 
 	constructor(name: string) {
 		super(name, "Template");
@@ -47,6 +49,11 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		};
 		this.fileExistsMode = "Increment the file name";
 		this.setFileExistsBehavior = false;
+		this.insertion = {
+			enabled: DEFAULT_TEMPLATE_INSERTION.enabled,
+			placement: DEFAULT_TEMPLATE_INSERTION.placement,
+			templateSource: { ...DEFAULT_TEMPLATE_INSERTION.templateSource },
+		};
 	}
 
 	public static Load(choice: ITemplateChoice): TemplateChoice {

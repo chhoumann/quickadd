@@ -11,6 +11,7 @@ import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { normalizeTemplateInsertionConfig } from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { ICommand } from "src/types/macros/ICommand";
 import type { IUserScript } from "src/types/macros/IUserScript";
@@ -20,6 +21,7 @@ import {
 	getUserScript,
 	isFolder,
 } from "src/utilityObsidian";
+import { flattenChoices } from "src/utils/choiceUtils";
 import { OnePageInputModal } from "./OnePageInputModal";
 import {
 	RequirementCollector,
@@ -45,21 +47,51 @@ async function collectForTemplateChoice(
 	choice: ITemplateChoice,
 ) {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
+	const insertion = normalizeTemplateInsertionConfig(choice.insertion);
+	const insertionEnabled = insertion.enabled;
 
 	// File name format
-	if (choice.fileNameFormat?.enabled) {
+	if (!insertionEnabled && choice.fileNameFormat?.enabled) {
 		await collector.scanString(choice.fileNameFormat.format);
 	}
 
 	// Folder paths that may contain variables
-	if (choice.folder?.enabled) {
+	if (!insertionEnabled && choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
 			await collector.scanString(folder);
 		}
 	}
 
 	// Template content + nested templates
-	if (choice.templatePath) {
+	let templatePath: string | undefined = choice.templatePath;
+	if (insertionEnabled) {
+		switch (insertion.templateSource.type) {
+			case "path":
+				templatePath = insertion.templateSource.value ?? choice.templatePath;
+				break;
+			case "choice": {
+				const target = insertion.templateSource.value;
+				if (target) {
+					const allChoices = flattenChoices(plugin.settings.choices);
+					const templateChoice = allChoices.find(
+						(c) =>
+							c.type === "Template" &&
+							(c.id === target || c.name === target),
+					) as ITemplateChoice | undefined;
+					templatePath = templateChoice?.templatePath;
+				} else {
+					templatePath = undefined;
+				}
+				break;
+			}
+			case "prompt":
+			default:
+				templatePath = insertion.templateSource.value ?? undefined;
+				break;
+		}
+	}
+
+	if (templatePath) {
 		const visited = new Set<string>();
 		const walk = async (path: string) => {
 			if (visited.has(path)) return;

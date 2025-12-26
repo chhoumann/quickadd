@@ -1,5 +1,4 @@
-import type { App } from "obsidian";
-import { TFile } from "obsidian";
+import { MarkdownView, TFile, type App } from "obsidian";
 import invariant from "src/utils/invariant";
 import {
 	fileExistsAppendToBottom,
@@ -11,19 +10,32 @@ import {
 	VALUE_SYNTAX,
 } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
+	normalizeTemplateInsertionConfig,
+	type TemplateInsertionConfig,
+	type TemplateInsertionPlacement,
+} from "../types/choices/ITemplateChoice";
+import { normalizeAppendLinkOptions, type LinkPlacement } from "../types/linkPlacement";
+import {
+	appendToCurrentLine,
 	getAllFolderPathsInVault,
+	insertLinkWithPlacement,
 	insertFileLinkToActiveView,
+	insertOnNewLineAbove,
+	insertOnNewLineBelow,
 	jumpToNextTemplaterCursorIfPossible,
 	openExistingFileTab,
 	openFile,
+	templaterParseTemplate,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { flattenChoices } from "../utils/choiceUtils";
+import { findYamlFrontMatterRange } from "../utils/yamlContext";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -31,6 +43,8 @@ import { handleMacroAbort } from "../utils/macroAbortHandler";
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
 	private readonly choiceExecutor: IChoiceExecutor;
+	private static readonly FRONTMATTER_REGEX =
+		/^(\s*---\r?\n)([\s\S]*?)(\r?\n(?:---|\.\.\.)\s*(?:\r?\n|$))/;
 
 	constructor(
 		app: App,
@@ -45,6 +59,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 	public async run(): Promise<void> {
 		try {
+			const insertion = normalizeTemplateInsertionConfig(this.choice.insertion);
+			if (insertion.enabled) {
+				await this.runInsertion(insertion);
+				return;
+			}
+
 			invariant(this.choice.templatePath, () => {
 				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
 						? "Template path is empty."
@@ -201,6 +221,262 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
+	}
+
+	private async runInsertion(insertion: TemplateInsertionConfig): Promise<void> {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			throw new MacroAbortError("No active file to insert into.");
+		}
+		if (activeFile.extension !== "md") {
+			throw new MacroAbortError("Active file is not a Markdown note.");
+		}
+
+		const templatePath = await this.resolveInsertionTemplatePath(insertion);
+		invariant(templatePath, () => {
+			return `Invalid template path for ${this.choice.name}. ${
+				templatePath?.length === 0 ? "Template path is empty." : ""
+			}`;
+		});
+
+		const { content: formattedTemplate, templateVars } =
+			await this.formatTemplateForFile(templatePath, activeFile);
+		const templaterContent = await templaterParseTemplate(
+			this.app,
+			formattedTemplate,
+			activeFile,
+		);
+
+		const { frontmatter, body } = this.splitFrontmatter(templaterContent);
+		const hasBody = body.trim().length > 0;
+		const hasFrontmatter = frontmatter?.trim().length;
+
+		if (insertion.placement === "top" || insertion.placement === "bottom") {
+			const fileContent = await this.app.vault.read(activeFile);
+			let nextContent = this.applyFrontmatterInsertion(
+				fileContent,
+				frontmatter,
+			);
+			if (hasBody) {
+				nextContent =
+					insertion.placement === "top"
+						? this.insertBodyAtTop(nextContent, body)
+						: this.insertBodyAtBottom(nextContent, body);
+			}
+			if (nextContent !== fileContent) {
+				await this.app.vault.modify(activeFile, nextContent);
+			}
+		} else {
+			if (hasFrontmatter) {
+				const fileContent = await this.app.vault.read(activeFile);
+				const nextContent = this.applyFrontmatterInsertion(
+					fileContent,
+					frontmatter,
+				);
+				if (nextContent !== fileContent) {
+					await this.app.vault.modify(activeFile, nextContent);
+				}
+			}
+
+			if (hasBody) {
+				this.insertBodyIntoEditor(body, insertion.placement);
+			}
+		}
+
+		if (this.shouldPostProcessFrontMatter(activeFile, templateVars)) {
+			await this.postProcessFrontMatter(activeFile, templateVars);
+		}
+	}
+
+	private async resolveInsertionTemplatePath(
+		insertion: TemplateInsertionConfig,
+	): Promise<string> {
+		switch (insertion.templateSource.type) {
+			case "prompt":
+				return await this.promptForTemplatePath();
+			case "choice":
+				return await this.resolveTemplatePathFromChoice(
+					insertion.templateSource.value,
+				);
+			case "path":
+			default:
+				return insertion.templateSource.value ?? this.choice.templatePath;
+		}
+	}
+
+	private async promptForTemplatePath(): Promise<string> {
+		const templates = this.plugin.getTemplateFiles().map((file) => file.path);
+		try {
+			return await InputSuggester.Suggest(this.app, templates, templates, {
+				placeholder: "Template path",
+			});
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
+	}
+
+	private async resolveTemplatePathFromChoice(
+		choiceIdOrName?: string,
+	): Promise<string> {
+		const templateChoices = flattenChoices(this.plugin.settings.choices).filter(
+			(choice) => choice.type === "Template",
+		) as ITemplateChoice[];
+
+		invariant(
+			templateChoices.length > 0,
+			"No Template choices available to select from.",
+		);
+
+		let selectedChoice: ITemplateChoice | undefined;
+		if (choiceIdOrName) {
+			selectedChoice = templateChoices.find(
+				(choice) =>
+					choice.id === choiceIdOrName || choice.name === choiceIdOrName,
+			);
+		}
+
+		if (!selectedChoice) {
+			const displayItems = templateChoices.map((choice) =>
+				choice.templatePath
+					? `${choice.name} (${choice.templatePath})`
+					: choice.name,
+			);
+			try {
+				selectedChoice = await GenericSuggester.Suggest(
+					this.app,
+					displayItems,
+					templateChoices,
+					"Select Template choice",
+				);
+			} catch (error) {
+				if (isCancellationError(error)) {
+					throw new MacroAbortError("Input cancelled by user");
+				}
+				throw error;
+			}
+		}
+
+		invariant(
+			selectedChoice?.templatePath,
+			`Template choice "${selectedChoice?.name ?? "Unknown"}" has no template path.`,
+		);
+
+		return selectedChoice.templatePath;
+	}
+
+	private splitFrontmatter(content: string): {
+		frontmatter: string | null;
+		body: string;
+	} {
+		const match = TemplateChoiceEngine.FRONTMATTER_REGEX.exec(content);
+		if (!match) {
+			return { frontmatter: null, body: content };
+		}
+
+		return {
+			frontmatter: match[2],
+			body: content.slice(match[0].length),
+		};
+	}
+
+	private applyFrontmatterInsertion(
+		content: string,
+		frontmatter: string | null,
+	): string {
+		if (!frontmatter || frontmatter.trim().length === 0) {
+			return content;
+		}
+
+		const trimmedInsert = frontmatter.trimEnd();
+		const match = TemplateChoiceEngine.FRONTMATTER_REGEX.exec(content);
+		if (!match) {
+			return `---\n${trimmedInsert}\n---\n${content}`;
+		}
+
+		const existing = match[2];
+		const merged =
+			existing.trim().length === 0
+				? trimmedInsert
+				: `${existing.trimEnd()}\n${trimmedInsert}`;
+
+		return `${match[1]}${merged}${match[3]}${content.slice(match[0].length)}`;
+	}
+
+	private insertBodyAtTop(content: string, body: string): string {
+		if (!body || body.trim().length === 0) {
+			return content;
+		}
+
+		const yamlRange = findYamlFrontMatterRange(content);
+		const insertIndex = yamlRange ? yamlRange[1] : 0;
+		const prefix = content.slice(0, insertIndex);
+		const suffix = content.slice(insertIndex);
+
+		return this.joinWithNewlines(prefix, body, suffix);
+	}
+
+	private insertBodyAtBottom(content: string, body: string): string {
+		if (!body || body.trim().length === 0) {
+			return content;
+		}
+
+		return this.joinWithNewlines(content, body, "");
+	}
+
+	private insertBodyIntoEditor(
+		body: string,
+		placement: TemplateInsertionPlacement,
+	): void {
+		if (!body || body.trim().length === 0) {
+			return;
+		}
+
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!view) {
+			throw new MacroAbortError("No active Markdown view.");
+		}
+
+		switch (placement) {
+			case "currentLine":
+				appendToCurrentLine(body, this.app);
+				break;
+			case "newLineAbove":
+				insertOnNewLineAbove(body, this.app);
+				break;
+			case "newLineBelow":
+				insertOnNewLineBelow(body, this.app);
+				break;
+			case "replaceSelection":
+			case "afterSelection":
+			case "endOfLine":
+				insertLinkWithPlacement(this.app, body, placement as LinkPlacement);
+				break;
+			default:
+				throw new Error(`Unknown insertion placement: ${placement}`);
+		}
+	}
+
+	private joinWithNewlines(prefix: string, insert: string, suffix: string): string {
+		if (!insert || insert.length === 0) {
+			return `${prefix}${suffix}`;
+		}
+
+		let output = prefix;
+		if (output && !output.endsWith("\n") && !insert.startsWith("\n")) {
+			output += "\n";
+		}
+
+		output += insert;
+
+		if (suffix && !output.endsWith("\n") && !suffix.startsWith("\n")) {
+			output += "\n";
+		}
+
+		output += suffix;
+		return output;
 	}
 
 	/**
