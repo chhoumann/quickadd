@@ -11,9 +11,7 @@ import {
 	getDefaultValueTypeForOperator,
 	requiresExpectedValue,
 } from "../../utils/conditionalHelpers";
-import {
-	JAVASCRIPT_FILE_EXTENSION_REGEX
-} from "../../constants";
+import { USER_SCRIPT_FILE_EXTENSION_REGEX } from "../../constants";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 
@@ -80,7 +78,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	private loadJavascriptFiles() {
 		this.javascriptFiles = this.app.vault
 			.getFiles()
-			.filter((file) => JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path));
+			.filter((file) => USER_SCRIPT_FILE_EXTENSION_REGEX.test(file.path));
 	}
 
 	private reload() {
@@ -244,7 +242,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 
 		new Setting(this.contentEl)
 			.setName("Script path")
-			.setDesc("Vault-relative path to the JavaScript file.")
+			.setDesc("Vault-relative path to the script file.")
 			.addText((text) => {
 				input = text;
 				text
@@ -270,8 +268,8 @@ export class ConditionalCommandSettingsModal extends Modal {
 							scriptNames,
 							scriptNames,
 							{
-								placeholder: "Select a JavaScript file",
-								emptyStateText: "No .js files found in your vault",
+								placeholder: "Select a script file",
+								emptyStateText: "No .js or .md files found in your vault",
 							}
 						);
 

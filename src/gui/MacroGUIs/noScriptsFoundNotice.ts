@@ -1,7 +1,7 @@
 import { Notice } from "obsidian";
 
 /**
- * Shows a notice to the user when no JavaScript files are found in their vault.
+ * Shows a notice to the user when no script files are found in their vault.
  * Provides helpful guidance on where to place scripts and links to documentation.
  */
 export function showNoScriptsFoundNotice(): void {
@@ -9,13 +9,13 @@ export function showNoScriptsFoundNotice(): void {
 	const messageEl = notice.messageEl ?? notice.containerEl ?? notice.noticeEl;
 	messageEl.empty();
 	messageEl.createEl("div", {
-		text: "No JavaScript files found",
+		text: "No script files found",
 		cls: "quickadd-notice-title",
 	});
 
 	const content = messageEl.createDiv();
 	content.createEl("div", {
-		text: "QuickAdd cannot find any .js files in your vault.",
+		text: "QuickAdd cannot find any .js or .md files in your vault.",
 	});
 	content.createEl("br");
 	content.createEl("div", { text: "Please make sure your scripts are:" });
@@ -25,7 +25,7 @@ export function showNoScriptsFoundNotice(): void {
 	content.createEl("div", {
 		text: "✓ Not in hidden folders (starting with a dot)",
 	});
-	content.createEl("div", { text: "✓ Have a .js extension" });
+	content.createEl("div", { text: "✓ Have a .js or .md extension" });
 	content.createEl("br");
 
 	const link = content.createEl("a", {

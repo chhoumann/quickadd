@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { __test } from "./utilityObsidian";
 
-const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
+const {
+	convertLinkToEmbed,
+	extractMarkdownLinkTarget,
+	extractSingleJavascriptCodeBlock,
+} = __test;
 
 describe("convertLinkToEmbed", () => {
 	it("converts wiki links to embeds", () => {
@@ -69,5 +73,62 @@ describe("extractMarkdownLinkTarget", () => {
 
 	it("returns null for empty targets", () => {
 		expect(extractMarkdownLinkTarget("[Label]()")).toBeNull();
+	});
+});
+
+describe("extractSingleJavascriptCodeBlock", () => {
+	it("returns code when exactly one js block is present", () => {
+		const note = [
+			"# Script Note",
+			"",
+			"```js",
+			"module.exports = async () => {};",
+			"```",
+		].join("\n");
+
+		expect(extractSingleJavascriptCodeBlock(note)).toEqual({
+			code: "module.exports = async () => {};",
+		});
+	});
+
+	it("ignores non-js fences when one js block is present", () => {
+		const note = [
+			"```json",
+			"{ \"ok\": true }",
+			"```",
+			"",
+			"```javascript",
+			"module.exports = async () => {};",
+			"```",
+		].join("\n");
+
+		expect(extractSingleJavascriptCodeBlock(note)?.code).toBe(
+			"module.exports = async () => {};"
+		);
+	});
+
+	it("returns null when there are multiple js blocks", () => {
+		const note = [
+			"```js",
+			"const a = 1;",
+			"```",
+			"```javascript",
+			"const b = 2;",
+			"```",
+		].join("\n");
+
+		expect(extractSingleJavascriptCodeBlock(note)).toBeNull();
+	});
+
+	it("returns null when no js blocks exist", () => {
+		const note = [
+			"# Script Note",
+			"",
+			"```json",
+			"{ \"ok\": true }",
+			"```",
+		].join("\n");
+
+		expect(extractSingleJavascriptCodeBlock(note)).toBeNull();
 	});
 });

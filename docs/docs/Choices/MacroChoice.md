@@ -115,17 +115,21 @@ The **Paste with format** command preserves rich formatting when pasting content
 
 ## User Scripts
 
-User scripts are JavaScript files that extend macro functionality. They have access to:
+User scripts are JavaScript code stored in `.js` files (or markdown notes with a
+single `js`/`javascript` code block). They have access to:
 - The Obsidian app object
 - The QuickAdd API
 - A variables object for passing data between commands
 
 :::warning Script Placement Requirements
 
-User scripts (.js files) must be placed in your Obsidian vault, but **NOT** in the `.obsidian` directory or in hidden folders (folders starting with a dot).
+User scripts (`.js` files, or `.md` notes with a single `js`/`javascript` code
+block) must be placed in your Obsidian vault, but **NOT** in the `.obsidian`
+directory or in hidden folders (folders starting with a dot).
 
 ✅ **Valid locations:**
 - `/scripts/myScript.js`
+- `/scripts/myScript.md`
 - `/_quickadd/scripts/myScript.js`
 - `/macros/utilities/helper.js`
 - `/my-custom-folder/script.js`
@@ -142,6 +146,17 @@ User scripts (.js files) must be placed in your Obsidian vault, but **NOT** in t
 Scripts placed in the `.obsidian` directory or hidden folders are intentionally ignored and will not appear in the script selection dialog.
 
 :::
+
+### Markdown-Backed Scripts (.md)
+
+QuickAdd also supports scripts stored inside markdown notes. The note must
+contain **exactly one** fenced `js` or `javascript` code block; everything else
+is ignored. If you need to target an exported member, include it in the command
+name:
+
+```
+script.md::exportName
+```
 
 ### Basic Script Structure
 

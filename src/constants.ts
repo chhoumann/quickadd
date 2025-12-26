@@ -93,6 +93,7 @@ export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
+export const USER_SCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.(js|md)$/i);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/i);
 export const GLOBAL_VAR_REGEX = new RegExp(/{{GLOBAL_VAR:([^\n\r}]*)}}/i);

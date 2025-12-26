@@ -1,6 +1,9 @@
 # User Scripts
 
-User scripts are JavaScript files that extend QuickAdd's functionality with custom code. They can be used within macros to perform complex operations, integrate with external APIs, and automate sophisticated workflows.
+User scripts are JavaScript code stored in `.js` files (or markdown notes with a
+single `js`/`javascript` code block). They can be used within macros to perform
+complex operations, integrate with external APIs, and automate sophisticated
+workflows.
 
 > 📚 **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
 
@@ -32,6 +35,26 @@ async function start(params, settings) {
     // Your code here
 }
 ```
+
+## Markdown-Backed Scripts (.md)
+
+QuickAdd can also run scripts stored inside markdown notes. To do this, the note
+must contain **exactly one** fenced code block tagged `js` or `javascript`
+(case-insensitive). All other text in the note is ignored.
+
+Example note:
+
+````md
+# My Script Note
+
+This note documents what the script does.
+
+```js
+module.exports = async (params) => {
+    // Your code here
+};
+```
+````
 
 ## Script Parameters
 
