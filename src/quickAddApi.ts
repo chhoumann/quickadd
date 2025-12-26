@@ -461,6 +461,15 @@ export class QuickAddApi {
 				setClipboard: async (text: string) => {
 					return await navigator.clipboard.writeText(text);
 				},
+				getSelection: () => {
+					const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+
+					if (!activeView) {
+						return "";
+					}
+
+					return activeView.editor.getSelection() ?? "";
+				},
 				getSelectedText: () => {
 					const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 
