@@ -543,6 +543,26 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		}
 	}
 
+	protected async formatTemplateForFile(
+		templatePath: string,
+		targetFile: TFile,
+	): Promise<{ content: string; templateVars: Map<string, unknown> }> {
+		const templateContent: string = await this.getTemplateContent(templatePath);
+
+		// Use the target file's basename as the title
+		this.formatter.setTitle(targetFile.basename);
+
+		const formattedTemplateContent: string =
+			await this.formatter.formatFileContent(templateContent);
+
+		const templateVars = this.formatter.getAndClearTemplatePropertyVars();
+
+		return {
+			content: formattedTemplateContent,
+			templateVars,
+		};
+	}
+
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
 		this.formatter.setLinkToCurrentFileBehavior(behavior);
 	}
