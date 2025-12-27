@@ -35,7 +35,7 @@ When enabled, QuickAdd requires an active Markdown note. The following settings 
 - **Prompt for template at runtime** – choose a template file when running the choice
 - **Use another Template choice** – select another Template choice and reuse its template path (only the template path is reused; other settings on that choice are ignored)
 
-If the template contains YAML frontmatter, QuickAdd merges it into the active note's frontmatter. The rest of the template is inserted according to the placement you choose.
+If the template contains YAML frontmatter, QuickAdd merges it into the active note's frontmatter (objects deep-merge, arrays concatenate, scalars are overwritten by the template). The rest of the template is inserted according to the placement you choose.
 
 **File Name Format**. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
