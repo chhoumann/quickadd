@@ -5,12 +5,12 @@
     "test": "Tester QuickAdd (dev)"
   },
   "ribbon": {
-    "icon": "QuickAdd"
+    "icon": "Ouvrir QuickAdd"
   },
   "settings": {
     "headers": {
       "choices": "Choix & Packages",
-      "input": "Saisie (Input)",
+      "input": "Saisie",
       "templates": "Modèles & Propriétés",
       "notifications": "Notifications",
       "globals": "Variables Globales",
@@ -21,8 +21,8 @@
     "packages": {
       "name": "Packages",
       "desc": "Regroupez ou importez des automatisations QuickAdd sous forme de packages réutilisables.",
-      "export": "Exporter le package…",
-      "import": "Importer le package…"
+      "export": "Exporter le package...",
+      "import": "Importer le package..."
     },
     "announce": {
       "name": "Annoncer les mises à jour",
@@ -72,7 +72,7 @@
       "name": "Désactiver IA & En ligne",
       "desc": "Empêche le plugin de faire des requêtes externes (comme OpenAI). Vous devez désactiver cette option pour utiliser l'Assistant IA."
     },
-    "ribbon": {
+    "ribbon_options": {
       "name": "Afficher l'icône latérale",
       "desc": "Ajoute l'icône QuickAdd au ruban latéral gauche. Nécessite un rechargement."
     },
@@ -88,7 +88,7 @@
   },
   "builder": {
     "open": "Ouvrir",
-    "viewMode": "Mode de vue",
+    "viewMode": "Mode d'affichage",
     "location": "Emplacement d'ouverture",
     "one_page_override": {
       "name": "Forçage de la saisie sur une page",
@@ -99,13 +99,13 @@
     },
     "file_path_placeholder": "Chemin du fichier",
     "choice_name": "Nom du choix",
-    "split_direction": "Direction de la séparation",
-    "focus_pane": "Focus sur le nouveau panneau",
+    "split_direction": "Orientation de la séparation",
+    "focus_pane": "Focus sur le panneau",
     "descriptions": {
-      "location": "Où ouvrir le fichier",
-      "split": "Direction pour les panneaux séparés",
-      "view_mode": "Comment afficher le fichier ouvert",
-      "focus": "Mettre le focus sur l'onglet immédiatement après l'ouverture"
+      "location": "Où ouvrir le fichier créé ou capturé.",
+      "split": "Direction si vous choisissez de séparer le panneau.",
+      "view_mode": "Comment afficher le fichier ouvert (Lecture ou Édition).",
+      "focus": "Mettre le focus sur l'onglet immédiatement après l'ouverture."
     },
     "options": {
       "reuse": "Réutiliser l'onglet actuel",
