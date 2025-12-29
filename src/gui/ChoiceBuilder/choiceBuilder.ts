@@ -5,6 +5,7 @@ import type IChoice from "../../types/choices/IChoice";
 import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import { t } from "../../i18n/i18n";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
@@ -36,7 +37,7 @@ export abstract class ChoiceBuilder extends Modal {
 
 	protected addOnePageOverrideSetting(choice: IChoice): void {
 		new Setting(this.contentEl)
-			.setName("One-page input override")
+			.setName(t("builder.one_page_override"))
 			.setDesc(
 				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
 			)
@@ -111,7 +112,7 @@ export abstract class ChoiceBuilder extends Modal {
 		if (choice.openFile === undefined) return; // Guard: nothing to configure
 
 		new Setting(this.contentEl)
-			.setName("Open")
+			.setName(t("builder.open"))
 			.setDesc(description)
 			.addToggle((toggle) => {
 				toggle.setValue(choice.openFile);
@@ -149,7 +150,7 @@ export abstract class ChoiceBuilder extends Modal {
 
 		// Location selector
 		new Setting(this.contentEl)
-			.setName("File Opening Location")
+			.setName(t("builder.file_opening_location"))
 			.setDesc(`Where to open the ${contextLabel} file`)
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
@@ -170,7 +171,7 @@ export abstract class ChoiceBuilder extends Modal {
 		// Split direction – only if location === "split"
 		if (fileOpening.location === "split") {
 			new Setting(this.contentEl)
-				.setName("Split Direction")
+				.setName(t("builder.split_direction"))
 				.setDesc("Direction for split panes")
 				.addDropdown((dropdown) => {
 					dropdown.addOptions({
@@ -186,7 +187,7 @@ export abstract class ChoiceBuilder extends Modal {
 
 		// View mode selector
 		new Setting(this.contentEl)
-			.setName("View Mode")
+			.setName(t("builder.view_mode"))
 			.setDesc("How to display the opened file")
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
@@ -208,7 +209,7 @@ export abstract class ChoiceBuilder extends Modal {
 		// Focus toggle – only show for non-reuse locations
 		if (fileOpening.location !== "reuse") {
 			new Setting(this.contentEl)
-				.setName("Focus new pane")
+				.setName(t("builder.focus_pane"))
 				.setDesc("Focus the opened tab immediately after opening")
 				.addToggle((toggle) =>
 					toggle.setValue(fileOpening.focus).onChange((value) => {
