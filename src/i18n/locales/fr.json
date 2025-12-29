@@ -4,6 +4,9 @@
     "reload": "Recharger QuickAdd (dev)",
     "test": "Tester QuickAdd (dev)"
   },
+  "ribbon": {
+    "icon": "QuickAdd"
+  },
   "settings": {
     "headers": {
       "choices": "Choix & Packages",
@@ -66,7 +69,7 @@
       "name": "Désactiver IA & En ligne",
       "desc": "Empêche le plugin de faire des requêtes externes (comme OpenAI)."
     },
-    "ribbon": {
+    "ribbon_options": {
       "name": "Afficher l'icône latérale",
       "desc": "Ajoute l'icône QuickAdd au ruban latéral gauche."
     },
@@ -117,6 +120,9 @@
     },
     "common": {
       "template": "Modèle",
+      "template_path": "Chemin du modèle",
+      "template_not_found": "Modèle introuvable",
+      "add": "Ajouter",
       "location": "Emplacement",
       "linking": "Liaison (Links)",
       "behavior": "Comportement",
@@ -130,11 +136,15 @@
       "path": "Chemin du modèle",
       "path_desc": "Chemin vers le fichier modèle.",
       "file_name_format": "Format du nom de fichier",
+      "file_name_format_desc": "Définir le format du nom de fichier.",
       "folder": "Créer dans le dossier",
       "folder_desc": "Créer le fichier dans ce dossier.",
+      "folder_path": "Chemin du dossier",
       "choose_folder": "Choisir le dossier lors de la création",
       "include_subfolders": "Inclure les sous-dossiers",
+      "include_subfolders_desc": "Proposer de choisir parmi les dossiers sélectionnés et leurs sous-dossiers.",
       "same_folder": "Créer dans le même dossier que le fichier actif",
+      "same_folder_desc": "Crée le fichier dans le même dossier que le fichier actuellement actif.",
       "conflict": "Comportement si le fichier existe déjà",
       "conflict_desc": "Action par défaut au lieu de demander à l'utilisateur.",
       "conflict_options": {
@@ -149,12 +159,20 @@
       "to": "Capturer vers",
       "to_desc": "Chemin du fichier cible. Supporte la syntaxe de format.",
       "active_file": "Capturer vers le fichier actif",
+      "file_path": "Chemin / Format",
+      "file_path_desc": "Choisir un fichier ou utiliser une syntaxe (ex: {{DATE}})",
+      "file_name_format": "Format du nom de fichier",
+      "open_file_desc": "Ouvrir le fichier capturé.",
       "task": "Tâche",
       "task_desc": "Formate la valeur comme une tâche à cocher.",
       "format": "Format de capture",
       "format_desc": "Définir le format du texte capturé.",
+      "format_required": "Le format de capture est requis s'il est activé",
       "create_if_missing": "Créer le fichier s'il n'existe pas",
+      "create_if_missing_tooltip": "Créer le fichier s'il n'existe pas",
       "create_with_template": "Créer avec un modèle spécifique",
+      "templater_after_capture": "Lancer Templater après la capture",
+      "templater_after_capture_desc": "Avancé : exécute les codes `<% %>` dans tout le fichier de destination.",
       "write_pos": "Position d'écriture",
       "write_pos_desc": "Où placer la capture dans le fichier.",
       "pos_options": {
@@ -166,18 +184,45 @@
         "newline_above": "Nouvelle ligne au-dessus",
         "newline_below": "Nouvelle ligne en-dessous"
       },
+      "selection_options": {
+        "use": "Utiliser la sélection",
+        "ignore": "Ignorer la sélection"
+      },
       "insert_after": "Insérer après",
       "insert_after_desc": "Insérer après le texte spécifié. Accepte la syntaxe de format.",
+      "insert_after_required": "Le texte 'Insérer après' est requis",
       "inline": "Insertion en ligne (Inline)",
       "inline_desc": "Insère sur la même ligne, juste après le texte trouvé.",
+      "replace_existing": "Remplacer la valeur existante",
+      "replace_existing_desc": "Remplace tout après le texte trouvé jusqu'à la fin de la ligne.",
       "insert_end_section": "Insérer à la fin de la section",
-      "consider_subsections": "Inclure les sous-sections"
+      "insert_end_section_desc": "Place le texte à la fin de la section trouvée au lieu du début.",
+      "blank_lines_after_match": "Lignes vides après correspondance",
+      "blank_lines_desc": "Contrôle si l'insertion doit sauter les lignes vides existantes.",
+      "blank_lines_not_used": "Non utilisé lors de l'insertion en fin de section.",
+      "blank_lines_options": {
+        "auto": "Auto (titres uniquement)",
+        "skip": "Toujours sauter",
+        "none": "Ne jamais sauter"
+      },
+      "consider_subsections": "Inclure les sous-sections",
+      "consider_subsections_desc": "Inclure aussi les sous-sections (nécessite que la cible soit un titre #).",
+      "consider_subsections_notice": "L'option nécessite que la cible soit un titre (commence par #)",
+      "create_line_if_not_found": "Créer la ligne si non trouvée",
+      "create_line_if_not_found_desc": "Crée la ligne 'Insérer après' si elle n'existe pas.",
+      "position_options": {
+        "top": "Haut",
+        "bottom": "Bas",
+        "cursor": "Curseur"
+      }
     },
     "append_link": {
       "name": "Lien vers le fichier créé/capturé",
       "desc": "Insérer un lien vers ce fichier dans la note actuelle.",
       "placement": "Placement du lien",
+      "placement_desc": "Où placer le lien lors de l'ajout.",
       "type": "Type de lien",
+      "type_desc": "Choisir entre un lien simple ou une intégration (embed) lors du remplacement.",
       "options": {
         "required": "Activé (requiert un fichier actif)",
         "optional": "Activé (ignorer si aucun fichier actif)",
@@ -199,6 +244,24 @@
       "then": "Branche Alors (Then)",
       "else": "Branche Sinon (Else)",
       "edit": "Modifier :"
+    },
+    "abort": "Exécution de la macro interrompue",
+    "input_cancelled": "Saisie annulée par l'utilisateur",
+    "errors": {
+      "no_commands": "Aucune commande dans la macro pour le choix : ",
+      "load_script_failed": "Échec du chargement du script utilisateur : ",
+      "run_script_failed": "Échec de l'exécution du script utilisateur : ",
+      "script_invalid": "Le script utilisateur est invalide pour le choix : ",
+      "script_empty": "Le script utilisateur est un objet vide pour le choix : ",
+      "choice_not_found": "Le choix n'a pas pu être trouvé.",
+      "nested_choice_invalid": "Le choix imbriqué est invalide dans : ",
+      "ai_disabled": "Requête OpenAI bloquée : Les fonctionnalités en ligne sont désactivées dans les paramètres.",
+      "model_not_found": "Modèle introuvable : ",
+      "provider_not_found": "Fournisseur introuvable pour le modèle : ",
+      "conditional_boolean": "Le script conditionnel doit renvoyer un booléen : ",
+      "open_file_traversal": "OpenFile : Traversée de chemin interdite dans ",
+      "open_file_missing": "OpenFile : Fichier inexistant ou invalide : ",
+      "open_file_failed": "OpenFile : Échec de l'ouverture du fichier : "
     }
   }
 }
