@@ -129,8 +129,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addDevelopmentInfoSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Development Information");
-			setting.setDesc("Git information for developers.");
+			setting.setName(t("settings.dev.info_name"));
+			setting.setDesc(t("settings.dev.info_desc"));
 
 			const infoContainer = setting.settingEl.createDiv();
 			infoContainer.style.marginTop = "10px";
@@ -139,25 +139,25 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 			if (__DEV_GIT_BRANCH__ !== null) {
 				const branchDiv = infoContainer.createDiv();
-				branchDiv.innerHTML = `<strong>Branch:</strong> ${__DEV_GIT_BRANCH__}`;
+				branchDiv.innerHTML = `<strong>${t("settings.dev.branch")}:</strong> ${__DEV_GIT_BRANCH__}`;
 				branchDiv.style.marginBottom = "5px";
 			}
 
 			if (__DEV_GIT_COMMIT__ !== null) {
 				const commitDiv = infoContainer.createDiv();
-				commitDiv.innerHTML = `<strong>Commit:</strong> ${__DEV_GIT_COMMIT__}`;
+				commitDiv.innerHTML = `<strong>${t("settings.dev.commit")}:</strong> ${__DEV_GIT_COMMIT__}`;
 				commitDiv.style.marginBottom = "5px";
 			}
 
 			if (__DEV_GIT_DIRTY__ !== null) {
 				const statusDiv = infoContainer.createDiv();
 				const statusText = __DEV_GIT_DIRTY__
-					? "Yes (uncommitted changes)"
-					: "No";
+					? `${t("settings.dev.yes")} (${t("settings.dev.changes")})`
+					: t("settings.dev.no");
 				const statusColor = __DEV_GIT_DIRTY__
 					? "var(--text-warning)"
 					: "var(--text-success)";
-				statusDiv.innerHTML = `<strong>Uncommitted changes:</strong> <span style="color: ${statusColor}">${statusText}</span>`;
+				statusDiv.innerHTML = `<strong>${t("settings.dev.changes")}:</strong> <span style="color: ${statusColor}">${statusText}</span>`;
 			}
 		});
 	}
@@ -218,9 +218,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addPackagesSetting(group: SettingGroupLike): void {
 		group.addSetting((setting) => {
 			setting.setName(t("settings.packages.name"));
-			setting.setDesc(
-				"Bundle or import QuickAdd automations as reusable packages.",
-			);
+			setting.setDesc(t("settings.packages.desc"));
 
 			setting.addButton((button) =>
 				button
@@ -249,18 +247,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addAnnounceUpdatesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting.setName(t("settings.announce.name"));
-			setting.setDesc(
-				"Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
-			);
+			setting.setDesc(t("settings.announce.desc"));
 			setting.addDropdown((dropdown) => {
 				const currentValue = settingsStore.getState().announceUpdates;
 				dropdown
-					.addOption("all", "Show updates on each new release")
-					.addOption(
-						"major",
-						"Show updates only on major releases (new features, breaking changes)",
-					)
-					.addOption("none", "Don't show")
+					.addOption("all", t("settings.announce.all"))
+					.addOption("major", t("settings.announce.major"))
+					.addOption("none", t("settings.announce.none"))
 					.setValue(currentValue)
 					.onChange((value) => {
 						settingsStore.setState({
@@ -274,9 +267,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addShowCaptureNotificationSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting.setName(t("settings.capture_notif.name"));
-			setting.setDesc(
-				"Display a notification when content is captured successfully to confirm the operation completed.",
-			);
+			setting.setDesc(t("settings.capture_notif.desc"));
 			setting.addToggle((toggle) => {
 				toggle.setValue(settingsStore.getState().showCaptureNotification);
 				toggle.onChange((value) => {
@@ -289,9 +280,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addShowInputCancellationNotificationSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting.setName(t("settings.cancel_notif.name"));
-			setting.setDesc(
-				"Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts.",
-			);
+			setting.setDesc(t("settings.cancel_notif.desc"));
 			setting.addToggle((toggle) => {
 				toggle.setValue(
 					settingsStore.getState().showInputCancellationNotification,
@@ -307,14 +296,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addTemplatePropertyTypesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName(
-				"Format template variables as proper property types (Beta)",
-			);
-			setting.setDesc(
-				"When enabled, template variables in front matter will be formatted as proper Obsidian property types. " +
-					"Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. " +
-					"This is a beta feature that may have edge cases.",
-			);
+			setting.setName(t("settings.template_properties.name"));
+			setting.setDesc(t("settings.template_properties.desc"));
 			setting.addToggle((toggle) => {
 				toggle.setValue(settingsStore.getState().enableTemplatePropertyTypes);
 				toggle.onChange((value) => {
@@ -332,9 +315,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		group.addSetting((setting) => {
 			setting
 				.setName(t("settings.multiline.name"))
-				.setDesc(
-					"Use multi-line input prompt instead of single-line input prompt",
-				)
+				.setDesc(t("settings.multiline.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.plugin.settings.inputPrompt === "multi-line")
@@ -358,9 +339,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		group.addSetting((setting) => {
 			setting
 				.setName(t("settings.persist.name"))
-				.setDesc(
-					"Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.",
-				)
+				.setDesc(t("settings.persist.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().persistInputPromptDrafts)
@@ -378,9 +357,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		group.addSetting((setting) => {
 			setting
 				.setName(t("settings.selection_capture.name"))
-				.setDesc(
-					"When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}.",
-				)
+				.setDesc(t("settings.selection_capture.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().useSelectionAsCaptureValue)
@@ -394,9 +371,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addTemplateFolderPathSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting.setName(t("settings.template_folder.name"));
-			setting.setDesc(
-				"Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd.",
-			);
+			setting.setDesc(t("settings.template_folder.desc"));
 
 			setting.addText((text) => {
 				text
@@ -425,9 +400,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		group.addSetting((setting) => {
 			setting
 				.setName(t("settings.one_page.name"))
-				.setDesc(
-					"Experimental. Resolve variables up front and show a single dynamic form before executing Template/Capture choices. See Advanced → One-page Inputs in docs.",
-				)
+				.setDesc(t("settings.one_page.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().onePageInputEnabled)
@@ -441,10 +414,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addDateAliasesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting.setName(t("settings.date_aliases.name"));
-			setting.setDesc(
-				"Shortcodes for natural language date parsing. " +
-					"One per line: alias = phrase. Example: tm = tomorrow.",
-			);
+			setting.setDesc(t("settings.date_aliases.desc"));
 			setting.settingEl.style.alignItems = "flex-start";
 			setting.controlEl.style.display = "flex";
 			setting.controlEl.style.flexWrap = "wrap";
@@ -497,9 +467,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		group.addSetting((setting) => {
 			setting
 				.setName(t("settings.disable_online.name"))
-				.setDesc(
-					"This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
-				)
+				.setDesc(t("settings.disable_online.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().disableOnlineFeatures)
@@ -518,9 +486,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		group.addSetting((setting) => {
 			setting
 				.setName(t("settings.ribbon.name"))
-				.setDesc(
-					"Add QuickAdd icon to the sidebar ribbon. Requires a reload.",
-				)
+				.setDesc(t("settings.ribbon.desc"))
 				.addToggle((toggle) => {
 					toggle
 						.setValue(settingsStore.getState().enableRibbonIcon)
