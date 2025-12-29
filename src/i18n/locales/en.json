@@ -26,18 +26,18 @@
     },
     "announce": {
       "name": "Announce Updates",
-      "desc": "Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
+      "desc": "Display release notes when a new version is installed.",
       "all": "Show updates on each new release",
       "major": "Show updates only on major releases",
       "none": "Don't show"
     },
     "capture_notif": {
       "name": "Show Capture Notifications",
-      "desc": "Display a notification when content is captured successfully to confirm the operation completed."
+      "desc": "Display a notification when content is captured successfully."
     },
     "cancel_notif": {
       "name": "Show Input Cancellation Notifications",
-      "desc": "Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts."
+      "desc": "Display a notification when an input prompt is cancelled."
     },
     "multiline": {
       "name": "Use Multi-line Input Prompt",
@@ -45,40 +45,40 @@
     },
     "persist": {
       "name": "Persist Input Prompt Drafts",
-      "desc": "Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session."
+      "desc": "Keep drafts when closing input prompts so they can be restored on reopen."
     },
     "selection_capture": {
       "name": "Use editor selection as default Capture value",
-      "desc": "When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}."
+      "desc": "When enabled, Capture uses the current editor selection as {{VALUE}}."
     },
     "template_folder": {
       "name": "Template Folder Path",
-      "desc": "Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd."
+      "desc": "Path to the folder where templates are stored."
     },
     "template_properties": {
       "name": "Format template variables as proper property types (Beta)",
-      "desc": "When enabled, template variables in front matter will be formatted as proper Obsidian property types (Arrays, Numbers, Booleans)."
+      "desc": "When enabled, template variables in front matter will be formatted as proper Obsidian property types."
     },
     "one_page": {
       "name": "One-page input for choices (Beta)",
-      "desc": "Experimental. Resolve variables up front and show a single dynamic form before executing Template/Capture choices."
+      "desc": "Resolve variables up front and show a single dynamic form."
     },
     "date_aliases": {
       "name": "Date aliases",
-      "desc": "Shortcodes for natural language date parsing. One per line: alias = phrase. Example: tm = tomorrow.",
-      "reset": "Reset to defaults"
+      "desc": "Shortcodes for natural language date parsing (e.g. tm = tomorrow).",
+      "reset": "Reset"
     },
     "disable_online": {
       "name": "Disable AI & Online features",
-      "desc": "Prevents the plugin from making requests to external providers like OpenAI. You need to disable this setting to use the AI Assistant."
+      "desc": "Prevents the plugin from making requests to external providers like OpenAI."
     },
     "ribbon_options": {
       "name": "Show icon in sidebar",
-      "desc": "Add QuickAdd icon to the sidebar ribbon. Requires a reload."
+      "desc": "Add QuickAdd icon to the sidebar ribbon."
     },
     "dev": {
       "info_name": "Development Information",
-      "info_desc": "Git information for developers.",
+      "info_desc": "Git information.",
       "branch": "Branch",
       "commit": "Commit",
       "changes": "Uncommitted changes",
@@ -87,6 +87,81 @@
     }
   },
   "builder": {
+    "common": {
+      "template": "Template",
+      "location": "Location",
+      "linking": "Linking",
+      "behavior": "Behavior",
+      "content": "Content",
+      "position": "Position",
+      "preview": "Preview: ",
+      "loading": "Loading...",
+      "unavailable": "Unavailable"
+    },
+    "template": {
+      "path": "Template Path",
+      "path_desc": "Path to the Template.",
+      "file_name_format": "File name format",
+      "folder": "Create in folder",
+      "folder_desc": "Create the file in the specified folder.",
+      "choose_folder": "Choose folder when creating a new note",
+      "include_subfolders": "Include subfolders",
+      "same_folder": "Create in same folder as active file",
+      "conflict": "Set default behavior if file already exists",
+      "conflict_desc": "Set default behavior rather then prompting user.",
+      "conflict_options": {
+        "nothing": "Do nothing",
+        "overwrite": "Overwrite",
+        "increment": "Increment file name",
+        "append_bottom": "Append to bottom",
+        "append_top": "Append to top"
+      }
+    },
+    "capture": {
+      "to": "Capture to",
+      "to_desc": "Target file path. Supports format syntax.",
+      "active_file": "Capture to active file",
+      "task": "Task",
+      "task_desc": "Formats the value as a task.",
+      "format": "Capture format",
+      "format_desc": "Set the format of the capture.",
+      "create_if_missing": "Create file if it doesn't exist",
+      "create_with_template": "Create file with given template",
+      "write_pos": "Write position",
+      "write_pos_desc": "Where to place the capture in the file.",
+      "pos_options": {
+        "top": "Top of file",
+        "bottom": "Bottom of file",
+        "cursor": "At cursor",
+        "after": "After line...",
+        "active_top": "Top (after frontmatter)",
+        "newline_above": "New line above",
+        "newline_below": "New line below"
+      },
+      "insert_after": "Insert after",
+      "insert_after_desc": "Insert capture after specified text. Accepts format syntax.",
+      "inline": "Inline insertion",
+      "inline_desc": "Insert captured content on the same line.",
+      "insert_end_section": "Insert at end of section",
+      "consider_subsections": "Consider subsections"
+    },
+    "append_link": {
+      "name": "Link to file",
+      "desc": "Choose how QuickAdd should insert a link to the file in the current note.",
+      "placement": "Link placement",
+      "type": "Link type",
+      "options": {
+        "required": "Enabled (requires active file)",
+        "optional": "Enabled (skip if no active file)",
+        "disabled": "Disabled",
+        "replace": "Replace selection",
+        "after": "After selection",
+        "eol": "End of line",
+        "newline": "New line",
+        "link": "Link",
+        "embed": "Embed"
+      }
+    },
     "open": "Open",
     "viewMode": "View Mode",
     "location": "File Opening Location",
