@@ -4,6 +4,9 @@
     "reload": "Recharger QuickAdd (dev)",
     "test": "Tester QuickAdd (dev)"
   },
+  "ribbon": {
+    "icon": "QuickAdd"
+  },
   "settings": {
     "headers": {
       "choices": "Choix & Packages",
@@ -23,12 +26,100 @@
     },
     "announce": {
       "name": "Annoncer les mises à jour",
-      "desc": "Affiche les notes de version lors de l'installation d'une nouvelle version."
+      "desc": "Affiche les notes de version lors de l'installation d'une nouvelle version (nouvelles fonctionnalités, correctifs, etc).",
+      "all": "Afficher à chaque nouvelle version",
+      "major": "Uniquement les versions majeures",
+      "none": "Ne jamais afficher"
+    },
+    "capture_notif": {
+      "name": "Notifications de capture",
+      "desc": "Affiche une notification lorsqu'un contenu est capturé avec succès pour confirmer l'opération."
+    },
+    "cancel_notif": {
+      "name": "Notifications d'annulation",
+      "desc": "Affiche une notification lorsqu'une invite de saisie est annulée. Désactivez ceci pour éviter les alertes superflues."
+    },
+    "multiline": {
+      "name": "Saisie multiligne",
+      "desc": "Utilise une zone de texte multiligne au lieu d'une ligne simple pour les invites de saisie."
+    },
+    "persist": {
+      "name": "Conserver les brouillons",
+      "desc": "Garde les brouillons lors de la fermeture des invites pour les restaurer à la réouverture (pour la session en cours)."
+    },
+    "selection_capture": {
+      "name": "Utiliser la sélection comme valeur par défaut",
+      "desc": "Si activé, la capture utilise le texte sélectionné pour {{VALUE}} et peut sauter l'invite. Sinon, la capture demande toujours {{VALUE}}."
+    },
+    "template_folder": {
+      "name": "Dossier des modèles",
+      "desc": "Chemin du dossier où sont stockés les modèles. Utilisé pour la suggestion de fichiers lors de la configuration."
+    },
+    "template_properties": {
+      "name": "Formater les variables comme propriétés (Beta)",
+      "desc": "Si activé, les variables dans le frontmatter seront formatées selon le type de propriété Obsidian (Listes, Nombres, Cases à cocher)."
+    },
+    "one_page": {
+      "name": "Saisie sur une page (Beta)",
+      "desc": "Expérimental. Résout les variables à l'avance et affiche un formulaire unique avant d'exécuter les choix de Modèle/Capture."
+    },
+    "date_aliases": {
+      "name": "Alias de date",
+      "desc": "Raccourcis pour l'analyse des dates en langage naturel. Un par ligne : alias = phrase. Exemple : tm = tomorrow.",
+      "reset": "Réinitialiser"
+    },
+    "disable_online": {
+      "name": "Désactiver IA & En ligne",
+      "desc": "Empêche le plugin de faire des requêtes externes (comme OpenAI). Vous devez désactiver cette option pour utiliser l'Assistant IA."
+    },
+    "ribbon": {
+      "name": "Afficher l'icône latérale",
+      "desc": "Ajoute l'icône QuickAdd au ruban latéral gauche. Nécessite un rechargement."
+    },
+    "dev": {
+      "info_name": "Informations de développement",
+      "info_desc": "Informations Git pour les développeurs.",
+      "branch": "Branche",
+      "commit": "Commit",
+      "changes": "Changements non validés",
+      "yes": "Oui",
+      "no": "Non"
     }
   },
   "builder": {
     "open": "Ouvrir",
     "viewMode": "Mode de vue",
-    "location": "Emplacement d'ouverture du fichier"
+    "location": "Emplacement d'ouverture",
+    "one_page_override": {
+      "name": "Forçage de la saisie sur une page",
+      "desc": "Remplace le paramètre global pour ce choix.",
+      "follow": "Suivre le paramètre global",
+      "always": "Toujours",
+      "never": "Jamais"
+    },
+    "file_path_placeholder": "Chemin du fichier",
+    "choice_name": "Nom du choix",
+    "split_direction": "Direction de la séparation",
+    "focus_pane": "Focus sur le nouveau panneau",
+    "descriptions": {
+      "location": "Où ouvrir le fichier",
+      "split": "Direction pour les panneaux séparés",
+      "view_mode": "Comment afficher le fichier ouvert",
+      "focus": "Mettre le focus sur l'onglet immédiatement après l'ouverture"
+    },
+    "options": {
+      "reuse": "Réutiliser l'onglet actuel",
+      "tab": "Nouvel onglet",
+      "split": "Séparer le panneau",
+      "window": "Nouvelle fenêtre",
+      "left": "Barre latérale gauche",
+      "right": "Barre latérale droite",
+      "source": "Source",
+      "preview": "Lecture",
+      "live": "Live Preview",
+      "default": "Défaut",
+      "vertical": "Vertical",
+      "horizontal": "Horizontal"
+    }
   }
 }
