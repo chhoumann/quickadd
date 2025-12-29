@@ -13,6 +13,7 @@ import {
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
+import { t } from "../../i18n/i18n";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -83,7 +84,7 @@ export class MacroBuilder extends Modal {
 		headerEl.addEventListener("click", async () => {
 			const newName: string = await GenericInputPrompt.Prompt(
 				this.app,
-				`Update name for ${this.choice.name}`,
+				`${t("macro.renaming")} ${this.choice.name}`,
 				this.choice.name,
 				this.choice.name
 			);
@@ -98,8 +99,8 @@ export class MacroBuilder extends Modal {
 
 	private addRunOnStartupSetting(): void {
 		new Setting(this.contentEl)
-			.setName("Run on startup")
-			.setDesc("Execute this macro when Obsidian starts")
+			.setName(t("macro.run_on_startup"))
+			.setDesc(t("macro.run_on_startup_desc"))
 			.addToggle(toggle => toggle
 				.setValue(this.choice.runOnStartup)
 				.onChange(value => {
@@ -153,12 +154,12 @@ export class MacroBuilder extends Modal {
 		command: IConditionalCommand,
 		branch: "then" | "else"
 	): Promise<boolean> {
-		const title = branch === "then" ? "Then branch" : "Else branch";
+		const title = branch === "then" ? t("macro.branches.then") : t("macro.branches.else");
 		const modal = new ConditionalBranchEditorModal({
 			app: this.app,
 			plugin: this.plugin,
 			choices: this.choices,
-			title: `Edit ${title} commands`,
+			title: `${t("macro.branches.edit")} ${title}`,
 			commands: branch === "then" ? command.thenCommands : command.elseCommands,
 			conditionalHandlers: this.buildConditionalHandlers(),
 		});

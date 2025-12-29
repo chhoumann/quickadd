@@ -28,6 +28,7 @@ import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 import FolderList from "./FolderList.svelte";
+import { t } from "../../i18n/i18n";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -48,22 +49,22 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.addCenteredChoiceNameHeader(this.choice);
 
 		// Template
-		new Setting(this.contentEl).setName("Template").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.template")).setHeading();
 		this.addTemplatePathSetting();
 		this.addFileNameFormatSetting();
 
 		// Location
-		new Setting(this.contentEl).setName("Location").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.location")).setHeading();
 		this.addFolderSetting();
 
 		// Linking
-		new Setting(this.contentEl).setName("Linking").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.linking")).setHeading();
 		this.addAppendLinkSetting();
 
 		// Behavior
-		new Setting(this.contentEl).setName("Behavior").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.behavior")).setHeading();
 		this.addFileAlreadyExistsSetting();
-		this.addOpenFileSetting("Open the created file.");
+		this.addOpenFileSetting(t("builder.descriptions.location"));
 		if (this.choice.openFile) {
 			this.addFileOpeningSetting("created");
 		}
@@ -72,8 +73,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 	private addTemplatePathSetting(): void {
 		new Setting(this.contentEl)
-			.setName("Template Path")
-			.setDesc("Path to the Template.");
+			.setName(t("builder.template.path"))
+			.setDesc(t("builder.template.path_desc"));
 
 		const templates: string[] = this.plugin
 			.getTemplateFiles()
@@ -83,7 +84,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			app: this.app,
 			parent: this.contentEl,
 			initialValue: this.choice.templatePath,
-			placeholder: "Template path",
+			placeholder: t("builder.template.path"),
 			suggestions: templates,
 			maxSuggestions: 50,
 			validator: (raw) => {
@@ -101,7 +102,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		let textField: TextComponent;
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
-			.setName("File name format")
+			.setName(t("builder.template.file_name_format"))
 			.setDesc("Set the file name format.")
 			.addToggle((toggleComponent) => {
 				toggleComponent
@@ -114,24 +115,24 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 		// Desc + preview row
 		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
-		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+		previewRow.createEl("span", { text: t("builder.common.preview"), cls: "qa-preview-label" });
 		const formatDisplay = previewRow.createEl("span");
 		formatDisplay.setAttr("aria-live", "polite");
 		const displayFormatter: FileNameDisplayFormatter =
 			new FileNameDisplayFormatter(this.app, this.plugin);
-		formatDisplay.textContent = "Loading preview…";
+		formatDisplay.textContent = t("builder.common.loading");
 		void (async () => {
 			try {
 				formatDisplay.textContent = await displayFormatter.format(
 					this.choice.fileNameFormat.format,
 				);
 			} catch {
-				formatDisplay.textContent = "Preview unavailable";
+				formatDisplay.textContent = t("builder.common.unavailable");
 			}
 		})();
 
 		const formatInput = new TextComponent(this.contentEl);
-		formatInput.setPlaceholder("File name format");
+		formatInput.setPlaceholder(t("builder.template.file_name_format"));
 		textField = formatInput;
 		formatInput.inputEl.style.width = "100%";
 		formatInput.inputEl.style.marginBottom = "8px";
@@ -144,7 +145,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				try {
 					formatDisplay.textContent = await displayFormatter.format(value);
 				} catch {
-					formatDisplay.textContent = "Preview unavailable";
+					formatDisplay.textContent = t("builder.common.unavailable");
 				}
 			});
 
@@ -154,10 +155,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private addFolderSetting(): void {
 		const folderSetting: Setting = new Setting(this.contentEl);
 		folderSetting
-			.setName("Create in folder")
-			.setDesc(
-				"Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in.",
-			)
+			.setName(t("builder.template.folder"))
+			.setDesc(t("builder.template.folder_desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.folder.enabled);
 				toggle.onChange((value) => {
@@ -175,7 +174,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				"chooseFolderWhenCreatingNoteContainer",
 			);
 			chooseFolderWhenCreatingNoteContainer.createEl("span", {
-				text: "Choose folder when creating a new note",
+				text: t("builder.template.choose_folder"),
 			});
 			const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(
 				chooseFolderWhenCreatingNoteContainer,
@@ -196,7 +195,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 			const stn = new Setting(chooseFolderFromSubfolderContainer);
 			stn
-				.setName("Include subfolders")
+				.setName(t("builder.template.include_subfolders"))
 				.setDesc(
 					"Get prompted to choose from both the selected folders and their subfolders when creating the note.",
 				)
@@ -215,7 +214,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				this.contentEl,
 			);
 			createInSameFolderAsActiveFileSetting
-				.setName("Create in same folder as active file")
+				.setName(t("builder.template.same_folder"))
 				.setDesc(
 					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file.",
 				)
@@ -316,12 +315,12 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
-			.setName("Link to created file")
-			.setDesc("Choose how QuickAdd should insert a link to the created file in the current note.")
+			.setName(t("builder.append_link.name"))
+			.setDesc(t("builder.append_link.desc"))
 			.addDropdown((dropdown) => {
-				dropdown.addOption("required", "Enabled (requires active file)");
-				dropdown.addOption("optional", "Enabled (skip if no active file)");
-				dropdown.addOption("disabled", "Disabled");
+				dropdown.addOption("required", t("builder.append_link.options.required"));
+				dropdown.addOption("optional", t("builder.append_link.options.optional"));
+				dropdown.addOption("disabled", t("builder.append_link.options.disabled"));
 
 				dropdown.setValue(currentMode);
 				dropdown.onChange((value: AppendLinkMode) => {
@@ -354,13 +353,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		if (currentMode !== "disabled") {
 			const placementSetting: Setting = new Setting(this.contentEl);
 			placementSetting
-				.setName("Link placement")
+				.setName(t("builder.append_link.placement"))
 				.setDesc("Where to place the link when appending")
 				.addDropdown((dropdown) => {
-					dropdown.addOption("replaceSelection", "Replace selection");
-					dropdown.addOption("afterSelection", "After selection");
-					dropdown.addOption("endOfLine", "End of line");
-					dropdown.addOption("newLine", "New line");
+					dropdown.addOption("replaceSelection", t("builder.append_link.options.replace"));
+					dropdown.addOption("afterSelection", t("builder.append_link.options.after"));
+					dropdown.addOption("endOfLine", t("builder.append_link.options.eol"));
+					dropdown.addOption("newLine", t("builder.append_link.options.newline"));
 
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
@@ -390,11 +389,11 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			if (placementSupportsEmbed(normalizedOptions.placement)) {
 				const linkTypeSetting: Setting = new Setting(this.contentEl);
 				linkTypeSetting
-					.setName("Link type")
+					.setName(t("builder.append_link.type"))
 					.setDesc("Choose whether replacing the selection should insert a link or an embed.")
 					.addDropdown((dropdown) => {
-						dropdown.addOption("link", "Link");
-						dropdown.addOption("embed", "Embed");
+						dropdown.addOption("link", t("builder.append_link.options.link"));
+						dropdown.addOption("embed", t("builder.append_link.options.embed"));
 						dropdown.setValue(normalizedLinkType);
 						dropdown.onChange((value: LinkType) => {
 							const currentValue = this.choice.appendLink;
@@ -422,10 +421,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private addFileAlreadyExistsSetting(): void {
 		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
 		fileAlreadyExistsSetting
-			.setName("Set default behavior if file already exists")
-			.setDesc(
-				"Set default behavior rather then prompting user on what to do if a file already exists.",
-			)
+			.setName(t("builder.template.conflict"))
+			.setDesc(t("builder.template.conflict_desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
 				toggle.onChange((value) => {
@@ -439,11 +436,11 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					this.choice.fileExistsMode = fileExistsDoNothing;
 
 				dropdown
-					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
-					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
-					.addOption(fileExistsIncrement, fileExistsIncrement)
-					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
-					.addOption(fileExistsDoNothing, fileExistsDoNothing)
+					.addOption(fileExistsAppendToBottom, t("builder.template.conflict_options.append_bottom"))
+					.addOption(fileExistsAppendToTop, t("builder.template.conflict_options.append_top"))
+					.addOption(fileExistsIncrement, t("builder.template.conflict_options.increment"))
+					.addOption(fileExistsOverwriteFile, t("builder.template.conflict_options.overwrite"))
+					.addOption(fileExistsDoNothing, t("builder.template.conflict_options.nothing"))
 					.setValue(this.choice.fileExistsMode)
 					.onChange(
 						(value: (typeof fileExistsChoices)[number]) =>

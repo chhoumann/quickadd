@@ -22,6 +22,7 @@ import {
 	formatDateAliasLines,
 	parseDateAliasLines,
 } from "./utils/dateAliases";
+import { t } from "./i18n/i18n";
 
 type SettingGroupLike = {
 	addSetting(cb: (setting: Setting) => void): void;
@@ -50,37 +51,37 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		const choicesGroup = this.createSettingGroup("Choices & Packages");
+		const choicesGroup = this.createSettingGroup(t("settings.headers.choices"));
 		this.addChoicesSetting(choicesGroup);
 		this.addPackagesSetting(choicesGroup);
 
-		const inputGroup = this.createSettingGroup("Input");
+		const inputGroup = this.createSettingGroup(t("settings.headers.input"));
 		this.addUseMultiLineInputPromptSetting(inputGroup);
 		this.addPersistInputPromptDraftsSetting(inputGroup);
 		this.addUseSelectionAsValueSetting(inputGroup);
 		this.addOnePageInputSetting(inputGroup);
 		this.addDateAliasesSetting(inputGroup);
 
-		const templatesGroup = this.createSettingGroup("Templates & Properties");
+		const templatesGroup = this.createSettingGroup(t("settings.headers.templates"));
 		this.addTemplateFolderPathSetting(templatesGroup);
 		this.addTemplatePropertyTypesSetting(templatesGroup);
 
-		const notificationsGroup = this.createSettingGroup("Notifications");
+		const notificationsGroup = this.createSettingGroup(t("settings.headers.notifications"));
 		this.addAnnounceUpdatesSetting(notificationsGroup);
 		this.addShowCaptureNotificationSetting(notificationsGroup);
 		this.addShowInputCancellationNotificationSetting(notificationsGroup);
 
-		const globalsGroup = this.createSettingGroup("Global Variables");
+		const globalsGroup = this.createSettingGroup(t("settings.headers.globals"));
 		this.addGlobalVariablesSetting(globalsGroup);
 
-		const onlineGroup = this.createSettingGroup("AI & Online");
+		const onlineGroup = this.createSettingGroup(t("settings.headers.ai_online"));
 		this.addDisableOnlineFeaturesSetting(onlineGroup);
 
-		const appearanceGroup = this.createSettingGroup("Appearance");
+		const appearanceGroup = this.createSettingGroup(t("settings.headers.appearance"));
 		this.addEnableRibbonIconSetting(appearanceGroup);
 
 		if (__IS_DEV_BUILD__) {
-			const devGroup = this.createSettingGroup("Developer");
+			const devGroup = this.createSettingGroup(t("settings.headers.dev"));
 			this.addDevelopmentInfoSetting(devGroup);
 		}
 	}
@@ -128,8 +129,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addDevelopmentInfoSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Development Information");
-			setting.setDesc("Git information for developers.");
+			setting.setName(t("settings.dev.info_name"));
+			setting.setDesc(t("settings.dev.info_desc"));
 
 			const infoContainer = setting.settingEl.createDiv();
 			infoContainer.style.marginTop = "10px";
@@ -138,25 +139,32 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 			if (__DEV_GIT_BRANCH__ !== null) {
 				const branchDiv = infoContainer.createDiv();
-				branchDiv.innerHTML = `<strong>Branch:</strong> ${__DEV_GIT_BRANCH__}`;
+				const branchLabel = branchDiv.createEl("strong");
+				branchLabel.textContent = `${t("settings.dev.branch")}:`;
+				branchDiv.appendText(` ${__DEV_GIT_BRANCH__}`);
 				branchDiv.style.marginBottom = "5px";
 			}
 
 			if (__DEV_GIT_COMMIT__ !== null) {
 				const commitDiv = infoContainer.createDiv();
-				commitDiv.innerHTML = `<strong>Commit:</strong> ${__DEV_GIT_COMMIT__}`;
+				const commitLabel = commitDiv.createEl("strong");
+				commitLabel.textContent = `${t("settings.dev.commit")}:`;
+				commitDiv.appendText(` ${__DEV_GIT_COMMIT__}`);
 				commitDiv.style.marginBottom = "5px";
 			}
 
 			if (__DEV_GIT_DIRTY__ !== null) {
 				const statusDiv = infoContainer.createDiv();
+				const statusLabel = statusDiv.createEl("strong");
+				statusLabel.textContent = `${t("settings.dev.changes")}:`;
 				const statusText = __DEV_GIT_DIRTY__
-					? "Yes (uncommitted changes)"
-					: "No";
-				const statusColor = __DEV_GIT_DIRTY__
+					? `${t("settings.dev.yes")} (${t("settings.dev.changes")})`
+					: t("settings.dev.no");
+				const statusSpan = statusDiv.createEl("span");
+				statusSpan.textContent = ` ${statusText}`;
+				statusSpan.style.color = __DEV_GIT_DIRTY__
 					? "var(--text-warning)"
 					: "var(--text-success)";
-				statusDiv.innerHTML = `<strong>Uncommitted changes:</strong> <span style="color: ${statusColor}">${statusText}</span>`;
 			}
 		});
 	}
@@ -216,14 +224,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addPackagesSetting(group: SettingGroupLike): void {
 		group.addSetting((setting) => {
-			setting.setName("Packages");
-			setting.setDesc(
-				"Bundle or import QuickAdd automations as reusable packages.",
-			);
+			setting.setName(t("settings.packages.name"));
+			setting.setDesc(t("settings.packages.desc"));
 
 			setting.addButton((button) =>
 				button
-					.setButtonText("Export package…")
+					.setButtonText(t("settings.packages.export"))
 					.setCta()
 					.onClick(() => {
 						const choicesSnapshot = settingsStore.getState().choices;
@@ -237,7 +243,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			);
 
 			setting.addButton((button) =>
-				button.setButtonText("Import package…").onClick(() => {
+				button.setButtonText(t("settings.packages.import")).onClick(() => {
 					const modal = new ImportPackageModal(this.app);
 					modal.open();
 				}),
@@ -247,19 +253,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addAnnounceUpdatesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Announce Updates");
-			setting.setDesc(
-				"Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
-			);
+			setting.setName(t("settings.announce.name"));
+			setting.setDesc(t("settings.announce.desc"));
 			setting.addDropdown((dropdown) => {
 				const currentValue = settingsStore.getState().announceUpdates;
 				dropdown
-					.addOption("all", "Show updates on each new release")
-					.addOption(
-						"major",
-						"Show updates only on major releases (new features, breaking changes)",
-					)
-					.addOption("none", "Don't show")
+					.addOption("all", t("settings.announce.all"))
+					.addOption("major", t("settings.announce.major"))
+					.addOption("none", t("settings.announce.none"))
 					.setValue(currentValue)
 					.onChange((value) => {
 						settingsStore.setState({
@@ -272,10 +273,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addShowCaptureNotificationSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Show Capture Notifications");
-			setting.setDesc(
-				"Display a notification when content is captured successfully to confirm the operation completed.",
-			);
+			setting.setName(t("settings.capture_notif.name"));
+			setting.setDesc(t("settings.capture_notif.desc"));
 			setting.addToggle((toggle) => {
 				toggle.setValue(settingsStore.getState().showCaptureNotification);
 				toggle.onChange((value) => {
@@ -287,10 +286,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addShowInputCancellationNotificationSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Show Input Cancellation Notifications");
-			setting.setDesc(
-				"Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts.",
-			);
+			setting.setName(t("settings.cancel_notif.name"));
+			setting.setDesc(t("settings.cancel_notif.desc"));
 			setting.addToggle((toggle) => {
 				toggle.setValue(
 					settingsStore.getState().showInputCancellationNotification,
@@ -306,14 +303,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addTemplatePropertyTypesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName(
-				"Format template variables as proper property types (Beta)",
-			);
-			setting.setDesc(
-				"When enabled, template variables in front matter will be formatted as proper Obsidian property types. " +
-					"Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. " +
-					"This is a beta feature that may have edge cases.",
-			);
+			setting.setName(t("settings.template_properties.name"));
+			setting.setDesc(t("settings.template_properties.desc"));
 			setting.addToggle((toggle) => {
 				toggle.setValue(settingsStore.getState().enableTemplatePropertyTypes);
 				toggle.onChange((value) => {
@@ -330,14 +321,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addUseMultiLineInputPromptSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName("Use Multi-line Input Prompt")
-				.setDesc(
-					"Use multi-line input prompt instead of single-line input prompt",
-				)
+				.setName(t("settings.multiline.name"))
+				.setDesc(t("settings.multiline.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.plugin.settings.inputPrompt === "multi-line")
-						.setTooltip("Use multi-line input prompt")
+						.setTooltip(t("settings.multiline.name"))
 						.onChange((value) => {
 							if (value) {
 								settingsStore.setState({
@@ -356,10 +345,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addPersistInputPromptDraftsSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName("Persist Input Prompt Drafts")
-				.setDesc(
-					"Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.",
-				)
+				.setName(t("settings.persist.name"))
+				.setDesc(t("settings.persist.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().persistInputPromptDrafts)
@@ -376,10 +363,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addUseSelectionAsValueSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName("Use editor selection as default Capture value")
-				.setDesc(
-					"When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}.",
-				)
+				.setName(t("settings.selection_capture.name"))
+				.setDesc(t("settings.selection_capture.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().useSelectionAsCaptureValue)
@@ -392,10 +377,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addTemplateFolderPathSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Template Folder Path");
-			setting.setDesc(
-				"Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd.",
-			);
+			setting.setName(t("settings.template_folder.name"));
+			setting.setDesc(t("settings.template_folder.desc"));
 
 			setting.addText((text) => {
 				text
@@ -423,10 +406,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addOnePageInputSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName("One-page input for choices (Beta)")
-				.setDesc(
-					"Experimental. Resolve variables up front and show a single dynamic form before executing Template/Capture choices. See Advanced → One-page Inputs in docs.",
-				)
+				.setName(t("settings.one_page.name"))
+				.setDesc(t("settings.one_page.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().onePageInputEnabled)
@@ -439,11 +420,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private addDateAliasesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
-			setting.setName("Date aliases");
-			setting.setDesc(
-				"Shortcodes for natural language date parsing. " +
-					"One per line: alias = phrase. Example: tm = tomorrow.",
-			);
+			setting.setName(t("settings.date_aliases.name"));
+			setting.setDesc(t("settings.date_aliases.desc"));
 			setting.settingEl.style.alignItems = "flex-start";
 			setting.controlEl.style.display = "flex";
 			setting.controlEl.style.flexWrap = "wrap";
@@ -475,7 +453,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 			setting.addButton((button) => {
 				button
-					.setButtonText("Reset to defaults")
+					.setButtonText(t("settings.date_aliases.reset"))
 					.onClick(() => {
 						settingsStore.setState({
 							dateAliases: DEFAULT_DATE_ALIASES,
@@ -495,10 +473,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addDisableOnlineFeaturesSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName("Disable AI & Online features")
-				.setDesc(
-					"This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
-				)
+				.setName(t("settings.disable_online.name"))
+				.setDesc(t("settings.disable_online.desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(settingsStore.getState().disableOnlineFeatures)
@@ -516,10 +492,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addEnableRibbonIconSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName("Show icon in sidebar")
-				.setDesc(
-					"Add QuickAdd icon to the sidebar ribbon. Requires a reload.",
-				)
+				.setName(t("settings.ribbon_options.name"))
+				.setDesc(t("settings.ribbon_options.desc"))
 				.addToggle((toggle) => {
 					toggle
 						.setValue(settingsStore.getState().enableRibbonIcon)

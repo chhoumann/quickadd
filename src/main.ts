@@ -23,6 +23,7 @@ import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
+import { t } from "./i18n/i18n";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -59,7 +60,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "runQuickAdd",
-			name: "Run QuickAdd",
+			name: t("commands.run"),
 			callback: () => {
 				ChoiceSuggester.Open(this, this.settings.choices);
 			},
@@ -67,7 +68,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "reloadQuickAdd",
-			name: "Reload QuickAdd (dev)",
+			name: t("commands.reload"),
 			checkCallback: (checking) => {
 				if (checking) {
 					return this.settings.devMode;
@@ -87,7 +88,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "testQuickAdd",
-			name: "Test QuickAdd (dev)",
+			name: t("commands.test"),
 			checkCallback: (checking) => {
 				if (checking) {
 					return this.settings.devMode;
@@ -150,7 +151,7 @@ export default class QuickAdd extends Plugin {
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
 
 		if (this.settings.enableRibbonIcon) {
-			this.addRibbonIcon("file-plus", "QuickAdd", () => {
+			this.addRibbonIcon("file-plus", t("ribbon.icon"), () => {
 				ChoiceSuggester.Open(this, this.settings.choices);
 			});
 		}
