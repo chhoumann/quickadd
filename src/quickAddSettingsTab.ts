@@ -139,25 +139,32 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 			if (__DEV_GIT_BRANCH__ !== null) {
 				const branchDiv = infoContainer.createDiv();
-				branchDiv.innerHTML = `<strong>${t("settings.dev.branch")}:</strong> ${__DEV_GIT_BRANCH__}`;
+				const branchLabel = branchDiv.createEl("strong");
+				branchLabel.textContent = `${t("settings.dev.branch")}:`;
+				branchDiv.appendText(` ${__DEV_GIT_BRANCH__}`);
 				branchDiv.style.marginBottom = "5px";
 			}
 
 			if (__DEV_GIT_COMMIT__ !== null) {
 				const commitDiv = infoContainer.createDiv();
-				commitDiv.innerHTML = `<strong>${t("settings.dev.commit")}:</strong> ${__DEV_GIT_COMMIT__}`;
+				const commitLabel = commitDiv.createEl("strong");
+				commitLabel.textContent = `${t("settings.dev.commit")}:`;
+				commitDiv.appendText(` ${__DEV_GIT_COMMIT__}`);
 				commitDiv.style.marginBottom = "5px";
 			}
 
 			if (__DEV_GIT_DIRTY__ !== null) {
 				const statusDiv = infoContainer.createDiv();
+				const statusLabel = statusDiv.createEl("strong");
+				statusLabel.textContent = `${t("settings.dev.changes")}:`;
 				const statusText = __DEV_GIT_DIRTY__
 					? `${t("settings.dev.yes")} (${t("settings.dev.changes")})`
 					: t("settings.dev.no");
-				const statusColor = __DEV_GIT_DIRTY__
+				const statusSpan = statusDiv.createEl("span");
+				statusSpan.textContent = ` ${statusText}`;
+				statusSpan.style.color = __DEV_GIT_DIRTY__
 					? "var(--text-warning)"
 					: "var(--text-success)";
-				statusDiv.innerHTML = `<strong>${t("settings.dev.changes")}:</strong> <span style="color: ${statusColor}">${statusText}</span>`;
 			}
 		});
 	}
