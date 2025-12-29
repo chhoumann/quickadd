@@ -4,9 +4,6 @@
     "reload": "Reload QuickAdd (dev)",
     "test": "Test QuickAdd (dev)"
   },
-  "ribbon": {
-    "icon": "QuickAdd"
-  },
   "settings": {
     "headers": {
       "choices": "Choices & Packages",
@@ -21,15 +18,12 @@
     "packages": {
       "name": "Packages",
       "desc": "Bundle or import QuickAdd automations as reusable packages.",
-      "export": "Export package...",
-      "import": "Import package..."
+      "export": "Export package…",
+      "import": "Import package…"
     },
     "announce": {
       "name": "Announce Updates",
-      "desc": "Display release notes when a new version is installed.",
-      "all": "Show updates on each new release",
-      "major": "Show updates only on major releases",
-      "none": "Don't show"
+      "desc": "Display release notes when a new version is installed."
     },
     "capture_notif": {
       "name": "Show Capture Notifications",
@@ -72,7 +66,7 @@
       "name": "Disable AI & Online features",
       "desc": "Prevents the plugin from making requests to external providers like OpenAI."
     },
-    "ribbon_options": {
+    "ribbon": {
       "name": "Show icon in sidebar",
       "desc": "Add QuickAdd icon to the sidebar ribbon."
     },
@@ -87,6 +81,40 @@
     }
   },
   "builder": {
+    "open": "Open",
+    "viewMode": "View Mode",
+    "location": "File Opening Location",
+    "one_page_override": {
+      "name": "One-page input override",
+      "desc": "Override the global setting for this choice.",
+      "follow": "Follow global setting",
+      "always": "Always",
+      "never": "Never"
+    },
+    "file_path_placeholder": "File path",
+    "choice_name": "Choice name",
+    "split_direction": "Split Direction",
+    "focus_pane": "Focus new pane",
+    "descriptions": {
+      "location": "Where to open the file",
+      "split": "Direction for split panes",
+      "view_mode": "How to display the opened file",
+      "focus": "Focus the opened tab immediately after opening"
+    },
+    "options": {
+      "reuse": "Reuse current tab",
+      "tab": "New tab",
+      "split": "Split pane",
+      "window": "New window",
+      "left": "Left sidebar",
+      "right": "Right sidebar",
+      "source": "Source",
+      "preview": "Preview",
+      "live": "Live Preview",
+      "default": "Default",
+      "vertical": "Vertical",
+      "horizontal": "Horizontal"
+    },
     "common": {
       "template": "Template",
       "location": "Location",
@@ -161,40 +189,16 @@
         "link": "Link",
         "embed": "Embed"
       }
-    },
-    "open": "Open",
-    "viewMode": "View Mode",
-    "location": "File Opening Location",
-    "one_page_override": {
-      "name": "One-page input override",
-      "desc": "Override the global setting for this choice.",
-      "follow": "Follow global setting",
-      "always": "Always",
-      "never": "Never"
-    },
-    "file_path_placeholder": "File path",
-    "choice_name": "Choice name",
-    "split_direction": "Split Direction",
-    "focus_pane": "Focus new pane",
-    "descriptions": {
-      "location": "Where to open the file",
-      "split": "Direction for split panes",
-      "view_mode": "How to display the opened file",
-      "focus": "Focus the opened tab immediately after opening"
-    },
-    "options": {
-      "reuse": "Reuse current tab",
-      "tab": "New tab",
-      "split": "Split pane",
-      "window": "New window",
-      "left": "Left sidebar",
-      "right": "Right sidebar",
-      "source": "Source",
-      "preview": "Preview",
-      "live": "Live Preview",
-      "default": "Default",
-      "vertical": "Vertical",
-      "horizontal": "Horizontal"
+    }
+  },
+  "macro": {
+    "run_on_startup": "Run on startup",
+    "run_on_startup_desc": "Execute this macro when Obsidian starts.",
+    "renaming": "Update name for",
+    "branches": {
+      "then": "Then branch",
+      "else": "Else branch",
+      "edit": "Edit"
     }
   }
 }
