@@ -4,6 +4,9 @@
     "reload": "Reload QuickAdd (dev)",
     "test": "Test QuickAdd (dev)"
   },
+  "ribbon": {
+    "icon": "QuickAdd"
+  },
   "settings": {
     "headers": {
       "choices": "Choices & Packages",
@@ -18,8 +21,8 @@
     "packages": {
       "name": "Packages",
       "desc": "Bundle or import QuickAdd automations as reusable packages.",
-      "export": "Export package…",
-      "import": "Import package…"
+      "export": "Export package...",
+      "import": "Import package..."
     },
     "announce": {
       "name": "Announce Updates",
@@ -66,7 +69,7 @@
       "name": "Disable AI & Online features",
       "desc": "Prevents the plugin from making requests to external providers like OpenAI."
     },
-    "ribbon": {
+    "ribbon_options": {
       "name": "Show icon in sidebar",
       "desc": "Add QuickAdd icon to the sidebar ribbon."
     },
@@ -117,6 +120,9 @@
     },
     "common": {
       "template": "Template",
+      "template_path": "Template path",
+      "template_not_found": "Template not found",
+      "add": "Add",
       "location": "Location",
       "linking": "Linking",
       "behavior": "Behavior",
@@ -130,11 +136,15 @@
       "path": "Template Path",
       "path_desc": "Path to the Template.",
       "file_name_format": "File name format",
+      "file_name_format_desc": "Set the file name format.",
       "folder": "Create in folder",
       "folder_desc": "Create the file in the specified folder.",
+      "folder_path": "Folder path",
       "choose_folder": "Choose folder when creating a new note",
       "include_subfolders": "Include subfolders",
+      "include_subfolders_desc": "Get prompted to choose from both the selected folders and their subfolders when creating the note.",
       "same_folder": "Create in same folder as active file",
+      "same_folder_desc": "Creates the file in the same folder as the currently active file.",
       "conflict": "Set default behavior if file already exists",
       "conflict_desc": "Set default behavior rather then prompting user.",
       "conflict_options": {
@@ -149,12 +159,20 @@
       "to": "Capture to",
       "to_desc": "Target file path. Supports format syntax.",
       "active_file": "Capture to active file",
+      "file_path": "File path / format",
+      "file_path_desc": "Choose a file or use format syntax (e.g., {{DATE}})",
+      "file_name_format": "File name format",
+      "open_file_desc": "Open the captured file.",
       "task": "Task",
       "task_desc": "Formats the value as a task.",
       "format": "Capture format",
       "format_desc": "Set the format of the capture.",
+      "format_required": "Capture format is required when enabled",
       "create_if_missing": "Create file if it doesn't exist",
+      "create_if_missing_tooltip": "Create file if it doesn't exist",
       "create_with_template": "Create file with given template",
+      "templater_after_capture": "Run Templater on entire destination file after capture",
+      "templater_after_capture_desc": "Advanced / legacy: this executes any `<% %>` anywhere in the destination file.",
       "write_pos": "Write position",
       "write_pos_desc": "Where to place the capture in the file.",
       "pos_options": {
@@ -166,18 +184,45 @@
         "newline_above": "New line above",
         "newline_below": "New line below"
       },
+      "selection_options": {
+        "use": "Use selection",
+        "ignore": "Ignore selection"
+      },
       "insert_after": "Insert after",
       "insert_after_desc": "Insert capture after specified text. Accepts format syntax.",
+      "insert_after_required": "Insert after text is required",
       "inline": "Inline insertion",
       "inline_desc": "Insert captured content on the same line.",
+      "replace_existing": "Replace existing value",
+      "replace_existing_desc": "Replace everything after the matched text up to end-of-line.",
       "insert_end_section": "Insert at end of section",
-      "consider_subsections": "Consider subsections"
+      "insert_end_section_desc": "Place the text at the end of the matched section instead of the top.",
+      "blank_lines_after_match": "Blank lines after match",
+      "blank_lines_desc": "Controls whether Insert After skips existing blank lines after the matched line.",
+      "blank_lines_not_used": "Not used when inserting at end of section.",
+      "blank_lines_options": {
+        "auto": "Auto (headings only)",
+        "skip": "Always skip",
+        "none": "Never skip"
+      },
+      "consider_subsections": "Consider subsections",
+      "consider_subsections_desc": "Also include the section's subsections (requires target to be a heading starting with #).",
+      "consider_subsections_notice": "Consider subsections requires the target to be a heading (starts with #)",
+      "create_line_if_not_found": "Create line if not found",
+      "create_line_if_not_found_desc": "Creates the 'insert after' line if it is not found.",
+      "position_options": {
+        "top": "Top",
+        "bottom": "Bottom",
+        "cursor": "Cursor"
+      }
     },
     "append_link": {
       "name": "Link to file",
       "desc": "Choose how QuickAdd should insert a link to the file in the current note.",
       "placement": "Link placement",
+      "placement_desc": "Where to place the link when appending",
       "type": "Link type",
+      "type_desc": "Choose whether replacing the selection should insert a link or an embed.",
       "options": {
         "required": "Enabled (requires active file)",
         "optional": "Enabled (skip if no active file)",
@@ -199,6 +244,24 @@
       "then": "Then branch",
       "else": "Else branch",
       "edit": "Edit"
+    },
+    "abort": "Macro execution aborted",
+    "input_cancelled": "Input cancelled by user",
+    "errors": {
+      "no_commands": "No commands in the macro for choice: ",
+      "load_script_failed": "Failed to load user script: ",
+      "run_script_failed": "Failed to run user script: ",
+      "script_invalid": "User script is invalid for choice: ",
+      "script_empty": "User script is an empty object for choice: ",
+      "choice_not_found": "Choice could not be found.",
+      "nested_choice_invalid": "Choice is invalid in: ",
+      "ai_disabled": "Blocking request to OpenAI: Online features are disabled in settings.",
+      "model_not_found": "Model not found: ",
+      "provider_not_found": "Provider not found for model: ",
+      "conditional_boolean": "Conditional script must return a boolean result: ",
+      "open_file_traversal": "OpenFile: Path traversal not allowed in ",
+      "open_file_missing": "OpenFile: Does not exist or is not a file: ",
+      "open_file_failed": "OpenFile: Failed to open file: "
     }
   }
 }
