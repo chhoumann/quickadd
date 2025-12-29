@@ -18,6 +18,7 @@ import {
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
+import { t } from "../../i18n/i18n";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
@@ -40,7 +41,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		this.addCenteredChoiceNameHeader(this.choice);
 
 		// Location
-		new Setting(this.contentEl).setName("Location").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.location")).setHeading();
 		this.addCapturedToSetting();
 		if (!this.choice?.captureToActiveFile) {
 			this.addCreateIfNotExistsSetting();
@@ -49,20 +50,20 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		}
 
 		// Position
-		new Setting(this.contentEl).setName("Position").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.position")).setHeading();
 		this.addWritePositionSetting();
 
 		// Linking
-		new Setting(this.contentEl).setName("Linking").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.linking")).setHeading();
 		this.addAppendLinkSetting();
 
 		// Content
-		new Setting(this.contentEl).setName("Content").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.content")).setHeading();
 		this.addTaskSetting();
 		this.addFormatSetting();
 
 		// Behavior
-		new Setting(this.contentEl).setName("Behavior").setHeading();
+		new Setting(this.contentEl).setName(t("builder.common.behavior")).setHeading();
 		if (!this.choice.captureToActiveFile) {
 			this.addOpenFileSetting("Open the captured file.");
 
@@ -94,13 +95,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addSelectionAsValueSetting() {
 		new Setting(this.contentEl)
-			.setName("Use editor selection as default value")
-			.setDesc(
-				"Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}.",
-			)
+			.setName(t("settings.selection_capture.name"))
+			.setDesc(t("settings.selection_capture.desc"))
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
-					"": "Follow global setting",
+					"": t("builder.one_page_override.follow"),
 					enabled: "Use selection",
 					disabled: "Ignore selection",
 				});
@@ -124,8 +123,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addCapturedToSetting() {
 		new Setting(this.contentEl)
-			.setName("Capture to")
-			.setDesc("Target file path. Supports format syntax.");
+			.setName(t("builder.capture.to"))
+			.setDesc(t("builder.capture.to_desc"));
 
 		const captureToContainer: HTMLDivElement =
 			this.contentEl.createDiv("captureToContainer");
@@ -134,7 +133,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			captureToContainer.createDiv("captureToActiveFileContainer");
 		const captureToActiveFileText: HTMLSpanElement =
 			captureToActiveFileContainer.createEl("span");
-		captureToActiveFileText.textContent = "Capture to active file";
+		captureToActiveFileText.textContent = t("builder.capture.active_file");
 		const captureToActiveFileToggle: ToggleComponent = new ToggleComponent(
 			captureToActiveFileContainer,
 		);
@@ -143,7 +142,6 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.choice.captureToActiveFile = value;
 			
 			// Reset new line capture settings when switching away from active file
-			// since those options are only available for active file capture
 			if (!value && this.choice.newLineCapture?.enabled) {
 				this.choice.newLineCapture.enabled = false;
 			}
@@ -163,10 +161,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				new FileNameDisplayFormatter(this.app, this.plugin);
 
 			const previewRow = captureToFileContainer.createDiv({ cls: "qa-preview-row" });
-			previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+			previewRow.createEl("span", { text: t("builder.common.preview"), cls: "qa-preview-label" });
 			const formatDisplay = previewRow.createEl("span");
 			formatDisplay.setAttr("aria-live", "polite");
-			formatDisplay.textContent = "Loading preview…";
+			formatDisplay.textContent = t("builder.common.loading");
 
 			const markdownFilesAndFormatSyntax = [
 				...this.app.vault.getMarkdownFiles().map((f) => f.path),
@@ -188,7 +186,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					try {
 						formatDisplay.textContent = await displayFormatter.format(value);
 					} catch {
-						formatDisplay.textContent = "Preview unavailable";
+						formatDisplay.textContent = t("builder.common.unavailable");
 					}
 				},
 			});
@@ -199,7 +197,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						this.choice.captureTo,
 					);
 				} catch {
-					formatDisplay.textContent = "Preview unavailable";
+					formatDisplay.textContent = t("builder.common.unavailable");
 				}
 			})();
 		}
@@ -208,8 +206,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addTaskSetting() {
 		const taskSetting: Setting = new Setting(this.contentEl);
 		taskSetting
-			.setName("Task")
-			.setDesc("Formats the value as a task.")
+			.setName(t("builder.capture.task"))
+			.setDesc(t("builder.capture.task_desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.task);
 				toggle.onChange((value) => (this.choice.task = value));
@@ -232,12 +230,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const appendLinkSetting: Setting = new Setting(this.contentEl);
 		appendLinkSetting
-			.setName("Link to captured file")
-			.setDesc("Choose how QuickAdd should insert a link to the captured file in the current note.")
+			.setName(t("builder.append_link.name"))
+			.setDesc(t("builder.append_link.desc"))
 			.addDropdown((dropdown) => {
-				dropdown.addOption("required", "Enabled (requires active file)");
-				dropdown.addOption("optional", "Enabled (skip if no active file)");
-				dropdown.addOption("disabled", "Disabled");
+				dropdown.addOption("required", t("builder.append_link.options.required"));
+				dropdown.addOption("optional", t("builder.append_link.options.optional"));
+				dropdown.addOption("disabled", t("builder.append_link.options.disabled"));
 
 				dropdown.setValue(currentMode);
 				dropdown.onChange((value: AppendLinkMode) => {
@@ -270,13 +268,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		if (currentMode !== "disabled") {
 			const placementSetting: Setting = new Setting(this.contentEl);
 			placementSetting
-				.setName("Link placement")
+				.setName(t("builder.append_link.placement"))
 				.setDesc("Where to place the link when appending")
 				.addDropdown((dropdown) => {
-					dropdown.addOption("replaceSelection", "Replace selection");
-					dropdown.addOption("afterSelection", "After selection");
-					dropdown.addOption("endOfLine", "End of line");
-					dropdown.addOption("newLine", "New line");
+					dropdown.addOption("replaceSelection", t("builder.append_link.options.replace"));
+					dropdown.addOption("afterSelection", t("builder.append_link.options.after"));
+					dropdown.addOption("endOfLine", t("builder.append_link.options.eol"));
+					dropdown.addOption("newLine", t("builder.append_link.options.newline"));
 
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
@@ -307,11 +305,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			if (placementSupportsEmbed(normalizedOptions.placement)) {
 				const linkTypeSetting: Setting = new Setting(this.contentEl);
 				linkTypeSetting
-					.setName("Link type")
+					.setName(t("builder.append_link.type"))
 					.setDesc("Choose whether to insert a regular link or an embed when replacing the selection.")
 					.addDropdown((dropdown) => {
-						dropdown.addOption("link", "Link");
-						dropdown.addOption("embed", "Embed");
+						dropdown.addOption("link", t("builder.append_link.options.link"));
+						dropdown.addOption("embed", t("builder.append_link.options.embed"));
 						dropdown.setValue(normalizedLinkType);
 						dropdown.onChange((value: LinkType) => {
 							const currentValue = this.choice.appendLink;
@@ -345,12 +343,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		}
 
 		positionSetting
-			.setName("Write position")
-			.setDesc(
-				isActiveFile
-					? "Where to place the capture in the current file."
-					: "Where to place the capture in the target file.",
-			)
+			.setName(t("builder.capture.write_pos"))
+			.setDesc(t("builder.capture.write_pos_desc"))
 			.addDropdown((dropdown) => {
 				const current =
 					this.choice.insertAfter?.enabled
@@ -365,16 +359,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 									? "activeTop"
 									: "top";
 
-				dropdown.addOption("top", isActiveFile ? "At cursor" : "Top of file");
+				dropdown.addOption("top", isActiveFile ? t("builder.capture.pos_options.cursor") : t("builder.capture.pos_options.top"));
 
 				if (isActiveFile) {
-					dropdown.addOption("activeTop", "Top of file (after frontmatter)");
-					dropdown.addOption("newLineAbove", "New line above cursor");
-					dropdown.addOption("newLineBelow", "New line below cursor");
+					dropdown.addOption("activeTop", t("builder.capture.pos_options.active_top"));
+					dropdown.addOption("newLineAbove", t("builder.capture.pos_options.newline_above"));
+					dropdown.addOption("newLineBelow", t("builder.capture.pos_options.newline_below"));
 				}
 				
-				dropdown.addOption("after", "After line…");
-				dropdown.addOption("bottom", "Bottom of file");
+				dropdown.addOption("after", t("builder.capture.pos_options.after"));
+				dropdown.addOption("bottom", t("builder.capture.pos_options.bottom"));
 				dropdown.setValue(current);
 				dropdown.onChange((value: string) => {
 					const v = value as
@@ -438,14 +432,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addInsertAfterFields() {
-		const descText =
-			"Insert capture after specified text. Accepts format syntax. " +
-			"Tip: use a heading (starts with #) to target a section. " +
-			"Blank line handling is configurable below.";
-
 		new Setting(this.contentEl)
-			.setName("Insert after")
-			.setDesc(descText);
+			.setName(t("builder.capture.insert_after"))
+			.setDesc(t("builder.capture.insert_after_desc"));
 
 		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
 			this.app,
@@ -453,10 +442,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		);
 
 		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
-		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+		previewRow.createEl("span", { text: t("builder.common.preview"), cls: "qa-preview-label" });
 		const previewValue = previewRow.createEl("span");
 		previewValue.setAttribute("aria-live", "polite");
-		previewValue.innerText = "Loading preview…";
+		previewValue.innerText = t("builder.common.loading");
 
 		createValidatedInput({
 			app: this.app,
@@ -473,7 +462,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				try {
 					previewValue.innerText = await displayFormatter.format(value);
 				} catch {
-					previewValue.innerText = "Preview unavailable";
+					previewValue.innerText = t("builder.common.unavailable");
 				}
 			},
 		});
@@ -484,7 +473,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					this.choice.insertAfter.after,
 				);
 			} catch {
-				previewValue.innerText = "Preview unavailable";
+				previewValue.innerText = t("builder.common.unavailable");
 			}
 		})();
 
@@ -497,10 +486,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		}
 
 		new Setting(this.contentEl)
-			.setName("Inline insertion")
-			.setDesc(
-				"Insert captured content on the same line, immediately after the matched text (no newline added).",
-			)
+			.setName(t("builder.capture.inline"))
+			.setDesc(t("builder.capture.inline_desc"))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(!!this.choice.insertAfter?.inline)
@@ -528,7 +515,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		if (!inlineEnabled) {
 			const insertAtEndSetting: Setting = new Setting(this.contentEl);
 			insertAtEndSetting
-				.setName("Insert at end of section")
+				.setName(t("builder.capture.insert_end_section"))
 				.setDesc(
 					"Place the text at the end of the matched section instead of the top.",
 				)
@@ -575,9 +562,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			blankLineModeSetting.setDisabled(insertAtEndEnabled);
 
 			new Setting(this.contentEl)
-				.setName("Consider subsections")
+				.setName(t("builder.capture.consider_subsections"))
 				.setDesc(
-					"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section.",
+					"Also include the section’s subsections (requires target to be a heading starting with #).",
 				)
 				.addToggle((toggle) =>
 					toggle
@@ -638,8 +625,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addFormatSetting() {
 		const enableSetting = new Setting(this.contentEl);
 		enableSetting
-			.setName("Capture format")
-			.setDesc("Set the format of the capture.")
+			.setName(t("builder.capture.format"))
+			.setDesc(t("builder.capture.format_desc"))
 			.addToggle((toggleComponent) => {
 				toggleComponent
 					.setValue(this.choice.format.enabled)
@@ -656,10 +643,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		);
 
 		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
-		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+		previewRow.createEl("span", { text: t("builder.common.preview"), cls: "qa-preview-label" });
 		const formatDisplay = previewRow.createEl("span");
 		formatDisplay.setAttr("aria-live", "polite");
-		formatDisplay.innerText = "Loading preview…";
+		formatDisplay.innerText = t("builder.common.loading");
 
 		const formatHandle = createValidatedInput({
 			app: this.app,
@@ -677,7 +664,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				try {
 					formatDisplay.innerText = await displayFormatter.format(value);
 				} catch {
-					formatDisplay.innerText = "Preview unavailable";
+					formatDisplay.innerText = t("builder.common.unavailable");
 				}
 			},
 		});
@@ -690,7 +677,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					this.choice.format.format,
 				);
 			} catch {
-				formatDisplay.innerText = "Preview unavailable";
+				formatDisplay.innerText = t("builder.common.unavailable");
 			}
 		})();
 	}
@@ -705,7 +692,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const createFileIfItDoesntExist: Setting = new Setting(this.contentEl);
 		createFileIfItDoesntExist
-			.setName("Create file if it doesn't exist")
+			.setName(t("builder.capture.create_if_missing"))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice?.createFileIfItDoesntExist?.enabled)
@@ -721,7 +708,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		let templateSelector: TextComponent;
 		const createWithTemplateSetting = new Setting(this.contentEl);
 		createWithTemplateSetting
-			.setName("Create file with given template.")
+			.setName(t("builder.capture.create_with_template"))
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice.createFileIfItDoesntExist?.createWithTemplate)
