@@ -26,74 +26,149 @@
     },
     "announce": {
       "name": "Annoncer les mises à jour",
-      "desc": "Affiche les notes de version lors de l'installation d'une nouvelle version (nouvelles fonctionnalités, correctifs, etc).",
+      "desc": "Affiche les notes de version lors de l'installation d'une nouvelle version.",
       "all": "Afficher à chaque nouvelle version",
       "major": "Uniquement les versions majeures",
       "none": "Ne jamais afficher"
     },
     "capture_notif": {
       "name": "Notifications de capture",
-      "desc": "Affiche une notification lorsqu'un contenu est capturé avec succès pour confirmer l'opération."
+      "desc": "Affiche une notification lorsqu'un contenu est capturé avec succès."
     },
     "cancel_notif": {
       "name": "Notifications d'annulation",
-      "desc": "Affiche une notification lorsqu'une invite de saisie est annulée. Désactivez ceci pour éviter les alertes superflues."
+      "desc": "Affiche une notification lorsqu'une invite de saisie est annulée."
     },
     "multiline": {
       "name": "Saisie multiligne",
-      "desc": "Utilise une zone de texte multiligne au lieu d'une ligne simple pour les invites de saisie."
+      "desc": "Utilise une zone de texte multiligne pour les invites de saisie."
     },
     "persist": {
       "name": "Conserver les brouillons",
-      "desc": "Garde les brouillons lors de la fermeture des invites pour les restaurer à la réouverture (pour la session en cours)."
+      "desc": "Garde les brouillons lors de la fermeture des invites pour les restaurer."
     },
     "selection_capture": {
       "name": "Utiliser la sélection comme valeur par défaut",
-      "desc": "Si activé, la capture utilise le texte sélectionné pour {{VALUE}} et peut sauter l'invite. Sinon, la capture demande toujours {{VALUE}}."
+      "desc": "Si activé, la capture utilise le texte sélectionné pour {{VALUE}}."
     },
     "template_folder": {
       "name": "Dossier des modèles",
-      "desc": "Chemin du dossier où sont stockés les modèles. Utilisé pour la suggestion de fichiers lors de la configuration."
+      "desc": "Chemin du dossier où sont stockés les modèles."
     },
     "template_properties": {
       "name": "Formater les variables comme propriétés (Beta)",
-      "desc": "Si activé, les variables dans le frontmatter seront formatées selon le type de propriété Obsidian (Listes, Nombres, Cases à cocher)."
+      "desc": "Formate les variables du frontmatter selon le type de propriété Obsidian."
     },
     "one_page": {
       "name": "Saisie sur une page (Beta)",
-      "desc": "Expérimental. Résout les variables à l'avance et affiche un formulaire unique avant d'exécuter les choix de Modèle/Capture."
+      "desc": "Affiche un formulaire unique avant d'exécuter les choix."
     },
     "date_aliases": {
       "name": "Alias de date",
-      "desc": "Raccourcis pour l'analyse des dates en langage naturel. Un par ligne : alias = phrase. Exemple : tm = tomorrow.",
+      "desc": "Raccourcis pour l'analyse des dates (ex: tm = tomorrow).",
       "reset": "Réinitialiser"
     },
     "disable_online": {
       "name": "Désactiver IA & En ligne",
-      "desc": "Empêche le plugin de faire des requêtes externes (comme OpenAI). Vous devez désactiver cette option pour utiliser l'Assistant IA."
+      "desc": "Empêche le plugin de faire des requêtes externes (comme OpenAI)."
     },
     "ribbon_options": {
       "name": "Afficher l'icône latérale",
-      "desc": "Ajoute l'icône QuickAdd au ruban latéral gauche. Nécessite un rechargement."
+      "desc": "Ajoute l'icône QuickAdd au ruban latéral gauche."
     },
     "dev": {
-      "info_name": "Informations de développement",
-      "info_desc": "Informations Git pour les développeurs.",
+      "info_name": "Infos dev",
+      "info_desc": "Infos Git.",
       "branch": "Branche",
       "commit": "Commit",
-      "changes": "Changements non validés",
+      "changes": "Changements",
       "yes": "Oui",
       "no": "Non"
     }
   },
   "builder": {
+    "common": {
+      "template": "Modèle",
+      "location": "Emplacement",
+      "linking": "Liaison (Links)",
+      "behavior": "Comportement",
+      "content": "Contenu",
+      "position": "Position",
+      "preview": "Aperçu : ",
+      "loading": "Chargement...",
+      "unavailable": "Indisponible"
+    },
+    "template": {
+      "path": "Chemin du modèle",
+      "path_desc": "Chemin vers le fichier modèle.",
+      "file_name_format": "Format du nom de fichier",
+      "folder": "Créer dans le dossier",
+      "folder_desc": "Créer le fichier dans ce dossier.",
+      "choose_folder": "Choisir le dossier lors de la création",
+      "include_subfolders": "Inclure les sous-dossiers",
+      "same_folder": "Créer dans le même dossier que le fichier actif",
+      "conflict": "Comportement si le fichier existe déjà",
+      "conflict_desc": "Action par défaut au lieu de demander à l'utilisateur.",
+      "conflict_options": {
+        "nothing": "Ne rien faire",
+        "overwrite": "Écraser",
+        "increment": "Incrémenter le nom",
+        "append_bottom": "Ajouter à la fin",
+        "append_top": "Ajouter au début"
+      }
+    },
+    "capture": {
+      "to": "Capturer vers",
+      "to_desc": "Chemin du fichier cible. Supporte la syntaxe de format.",
+      "active_file": "Capturer vers le fichier actif",
+      "task": "Tâche",
+      "task_desc": "Formate la valeur comme une tâche à cocher.",
+      "format": "Format de capture",
+      "format_desc": "Définir le format du texte capturé.",
+      "create_if_missing": "Créer le fichier s'il n'existe pas",
+      "create_with_template": "Créer avec un modèle spécifique",
+      "write_pos": "Position d'écriture",
+      "write_pos_desc": "Où placer la capture dans le fichier.",
+      "pos_options": {
+        "top": "Haut du fichier",
+        "bottom": "Bas du fichier",
+        "cursor": "Au curseur",
+        "after": "Après la ligne...",
+        "active_top": "Haut (après frontmatter)",
+        "newline_above": "Nouvelle ligne au-dessus",
+        "newline_below": "Nouvelle ligne en-dessous"
+      },
+      "insert_after": "Insérer après",
+      "insert_after_desc": "Insérer après le texte spécifié. Accepte la syntaxe de format.",
+      "inline": "Insertion en ligne (Inline)",
+      "inline_desc": "Insère sur la même ligne, juste après le texte trouvé.",
+      "insert_end_section": "Insérer à la fin de la section",
+      "consider_subsections": "Inclure les sous-sections"
+    },
+    "append_link": {
+      "name": "Lien vers le fichier créé/capturé",
+      "desc": "Insérer un lien vers ce fichier dans la note actuelle.",
+      "placement": "Placement du lien",
+      "type": "Type de lien",
+      "options": {
+        "required": "Activé (requiert un fichier actif)",
+        "optional": "Activé (ignorer si aucun fichier actif)",
+        "disabled": "Désactivé",
+        "replace": "Remplacer la sélection",
+        "after": "Après la sélection",
+        "eol": "Fin de ligne",
+        "newline": "Nouvelle ligne",
+        "link": "Lien",
+        "embed": "Intégration (Embed)"
+      }
+    },
     "open": "Ouvrir",
     "viewMode": "Mode d'affichage",
     "location": "Emplacement d'ouverture",
     "one_page_override": {
       "name": "Forçage de la saisie sur une page",
       "desc": "Remplace le paramètre global pour ce choix.",
-      "follow": "Suivre le paramètre global",
+      "follow": "Suivre global",
       "always": "Toujours",
       "never": "Jamais"
     },
@@ -102,18 +177,18 @@
     "split_direction": "Orientation de la séparation",
     "focus_pane": "Focus sur le panneau",
     "descriptions": {
-      "location": "Où ouvrir le fichier créé ou capturé.",
-      "split": "Direction si vous choisissez de séparer le panneau.",
-      "view_mode": "Comment afficher le fichier ouvert (Lecture ou Édition).",
-      "focus": "Mettre le focus sur l'onglet immédiatement après l'ouverture."
+      "location": "Où ouvrir le fichier.",
+      "split": "Direction de la séparation.",
+      "view_mode": "Comment afficher le fichier.",
+      "focus": "Mettre le focus sur l'onglet."
     },
     "options": {
-      "reuse": "Réutiliser l'onglet actuel",
+      "reuse": "Réutiliser l'onglet",
       "tab": "Nouvel onglet",
       "split": "Séparer le panneau",
       "window": "Nouvelle fenêtre",
-      "left": "Barre latérale gauche",
-      "right": "Barre latérale droite",
+      "left": "Barre gauche",
+      "right": "Barre droite",
       "source": "Source",
       "preview": "Lecture",
       "live": "Live Preview",
