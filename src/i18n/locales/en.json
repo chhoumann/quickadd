@@ -21,8 +21,8 @@
     "packages": {
       "name": "Packages",
       "desc": "Bundle or import QuickAdd automations as reusable packages.",
-      "export": "Export package…",
-      "import": "Import package…"
+      "export": "Export package...",
+      "import": "Import package..."
     },
     "announce": {
       "name": "Announce Updates",
@@ -72,7 +72,7 @@
       "name": "Disable AI & Online features",
       "desc": "Prevents the plugin from making requests to external providers like OpenAI. You need to disable this setting to use the AI Assistant."
     },
-    "ribbon": {
+    "ribbon_options": {
       "name": "Show icon in sidebar",
       "desc": "Add QuickAdd icon to the sidebar ribbon. Requires a reload."
     },
