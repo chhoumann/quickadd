@@ -37,15 +37,13 @@ export abstract class ChoiceBuilder extends Modal {
 
 	protected addOnePageOverrideSetting(choice: IChoice): void {
 		new Setting(this.contentEl)
-			.setName(t("builder.one_page_override"))
-			.setDesc(
-				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
-			)
+			.setName(t("builder.one_page_override.name"))
+			.setDesc(t("builder.one_page_override.desc"))
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
-					"": "Follow global setting",
-					always: "Always",
-					never: "Never",
+					"": t("builder.one_page_override.follow"),
+					always: t("builder.one_page_override.always"),
+					never: t("builder.one_page_override.never"),
 				});
 				dropdown.setValue((choice.onePageInput ?? "") as string);
 				dropdown.onChange((val: string) => {
@@ -61,7 +59,7 @@ export abstract class ChoiceBuilder extends Modal {
 	): void {
 		setting.addSearch((searchComponent) => {
 			searchComponent.setValue(value);
-			searchComponent.setPlaceholder("File path");
+			searchComponent.setPlaceholder(t("builder.file_path_placeholder"));
 
 			const markdownFiles: string[] = this.app.vault
 				.getMarkdownFiles()
@@ -89,7 +87,7 @@ export abstract class ChoiceBuilder extends Modal {
 				const newName: string = await GenericInputPrompt.Prompt(
 					this.app,
 					choice.name,
-					"Choice name",
+					t("builder.choice_name"),
 					choice.name,
 				);
 				if (newName !== choice.name) {
@@ -150,16 +148,16 @@ export abstract class ChoiceBuilder extends Modal {
 
 		// Location selector
 		new Setting(this.contentEl)
-			.setName(t("builder.file_opening_location"))
-			.setDesc(`Where to open the ${contextLabel} file`)
+			.setName(t("builder.location"))
+			.setDesc(t("builder.descriptions.location"))
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
-					reuse: "Reuse current tab",
-					tab: "New tab",
-					split: "Split pane",
-					window: "New window",
-					"left-sidebar": "Left sidebar",
-					"right-sidebar": "Right sidebar",
+					reuse: t("builder.options.reuse"),
+					tab: t("builder.options.tab"),
+					split: t("builder.options.split"),
+					window: t("builder.options.window"),
+					"left-sidebar": t("builder.options.left"),
+					"right-sidebar": t("builder.options.right"),
 				});
 				dropdown.setValue(fileOpening.location);
 				dropdown.onChange((value: any) => {
@@ -172,11 +170,11 @@ export abstract class ChoiceBuilder extends Modal {
 		if (fileOpening.location === "split") {
 			new Setting(this.contentEl)
 				.setName(t("builder.split_direction"))
-				.setDesc("Direction for split panes")
+				.setDesc(t("builder.descriptions.split"))
 				.addDropdown((dropdown) => {
 					dropdown.addOptions({
-						vertical: "Vertical",
-						horizontal: "Horizontal",
+						vertical: t("builder.options.vertical"),
+						horizontal: t("builder.options.horizontal"),
 					});
 					dropdown.setValue(fileOpening.direction);
 					dropdown.onChange((value: any) => {
@@ -187,14 +185,14 @@ export abstract class ChoiceBuilder extends Modal {
 
 		// View mode selector
 		new Setting(this.contentEl)
-			.setName(t("builder.view_mode"))
-			.setDesc("How to display the opened file")
+			.setName(t("builder.viewMode"))
+			.setDesc(t("builder.descriptions.view_mode"))
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
-					source: "Source",
-					preview: "Preview",
-					live: "Live Preview",
-					default: "Default",
+					source: t("builder.options.source"),
+					preview: t("builder.options.preview"),
+					live: t("builder.options.live"),
+					default: t("builder.options.default"),
 				});
 				dropdown.setValue(
 					typeof fileOpening.mode === "string"
@@ -210,7 +208,7 @@ export abstract class ChoiceBuilder extends Modal {
 		if (fileOpening.location !== "reuse") {
 			new Setting(this.contentEl)
 				.setName(t("builder.focus_pane"))
-				.setDesc("Focus the opened tab immediately after opening")
+				.setDesc(t("builder.descriptions.focus"))
 				.addToggle((toggle) =>
 					toggle.setValue(fileOpening.focus).onChange((value) => {
 						fileOpening.focus = value;
