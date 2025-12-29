@@ -65,7 +65,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		// Behavior
 		new Setting(this.contentEl).setName(t("builder.common.behavior")).setHeading();
 		if (!this.choice.captureToActiveFile) {
-			this.addOpenFileSetting("Open the captured file.");
+			this.addOpenFileSetting(t("builder.capture.open_file_desc"));
 
 			if (this.choice.openFile) {
 				this.addFileOpeningSetting("captured");
@@ -78,10 +78,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	private addTemplaterAfterCaptureSetting() {
 		new Setting(this.contentEl)
-			.setName("Run Templater on entire destination file after capture")
-			.setDesc(
-				"Advanced / legacy: this executes any `<% %>` anywhere in the destination file (including inside code blocks).",
-			)
+			.setName(t("builder.capture.templater_after_capture"))
+			.setDesc(t("builder.capture.templater_after_capture_desc"))
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.templater?.afterCapture === "wholeFile");
 				toggle.onChange((value) => {
@@ -100,8 +98,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.addDropdown((dropdown) => {
 				dropdown.addOptions({
 					"": t("builder.one_page_override.follow"),
-					enabled: "Use selection",
-					disabled: "Ignore selection",
+					enabled: t("builder.capture.selection_options.use"),
+					disabled: t("builder.capture.selection_options.ignore"),
 				});
 				const override = this.choice.useSelectionAsCaptureValue;
 				dropdown.setValue(
@@ -154,8 +152,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				captureToContainer.createDiv("captureToFileContainer");
 
 			new Setting(captureToFileContainer)
-				.setName("File path / format")
-				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})");
+				.setName(t("builder.capture.file_path"))
+				.setDesc(t("builder.capture.file_path_desc"));
 
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app, this.plugin);
@@ -175,7 +173,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				app: this.app,
 				parent: captureToFileContainer,
 				initialValue: this.choice.captureTo,
-				placeholder: "File name format",
+				placeholder: t("builder.capture.file_name_format"),
 				suggestions: markdownFilesAndFormatSyntax,
 				maxSuggestions: 50,
 				attachSuggesters: [
@@ -269,7 +267,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const placementSetting: Setting = new Setting(this.contentEl);
 			placementSetting
 				.setName(t("builder.append_link.placement"))
-				.setDesc("Where to place the link when appending")
+				.setDesc(t("builder.append_link.placement_desc"))
 				.addDropdown((dropdown) => {
 					dropdown.addOption("replaceSelection", t("builder.append_link.options.replace"));
 					dropdown.addOption("afterSelection", t("builder.append_link.options.after"));
@@ -306,7 +304,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				const linkTypeSetting: Setting = new Setting(this.contentEl);
 				linkTypeSetting
 					.setName(t("builder.append_link.type"))
-					.setDesc("Choose whether to insert a regular link or an embed when replacing the selection.")
+					.setDesc(t("builder.append_link.type_desc"))
 					.addDropdown((dropdown) => {
 						dropdown.addOption("link", t("builder.append_link.options.link"));
 						dropdown.addOption("embed", t("builder.append_link.options.embed"));
@@ -451,9 +449,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			app: this.app,
 			parent: this.contentEl,
 			initialValue: this.choice.insertAfter.after,
-			placeholder: "Insert after",
+			placeholder: t("builder.capture.insert_after"),
 			required: true,
-			requiredMessage: "Insert after text is required",
+			requiredMessage: t("builder.capture.insert_after_required"),
 			attachSuggesters: [
 				(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
 			],
@@ -499,8 +497,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		if (this.choice.insertAfter.inline) {
 			new Setting(this.contentEl)
-				.setName("Replace existing value")
-				.setDesc("Replace everything after the matched text up to end-of-line.")
+				.setName(t("builder.capture.replace_existing"))
+				.setDesc(t("builder.capture.replace_existing_desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(!!this.choice.insertAfter?.replaceExisting)
@@ -516,9 +514,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const insertAtEndSetting: Setting = new Setting(this.contentEl);
 			insertAtEndSetting
 				.setName(t("builder.capture.insert_end_section"))
-				.setDesc(
-					"Place the text at the end of the matched section instead of the top.",
-				)
+				.setDesc(t("builder.capture.insert_end_section_desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.choice.insertAfter?.insertAtEnd)
@@ -532,22 +528,20 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				this.choice.insertAfter.blankLineAfterMatchMode = "auto";
 			}
 
-			const blankLineModeDesc =
-				"Controls whether Insert After skips existing blank lines after the matched line.";
 			const insertAtEndEnabled = !!this.choice.insertAfter?.insertAtEnd;
 			const blankLineModeSetting: Setting = new Setting(this.contentEl);
 			blankLineModeSetting
-				.setName("Blank lines after match")
+				.setName(t("builder.capture.blank_lines_after_match"))
 				.setDesc(
 					insertAtEndEnabled
-						? "Not used when inserting at end of section."
-						: blankLineModeDesc,
+						? t("builder.capture.blank_lines_not_used")
+						: t("builder.capture.blank_lines_desc"),
 				)
 					.addDropdown((dropdown) => {
 						dropdown
-							.addOption("auto", "Auto (headings only)")
-							.addOption("skip", "Always skip")
-							.addOption("none", "Never skip")
+							.addOption("auto", t("builder.capture.blank_lines_options.auto"))
+							.addOption("skip", t("builder.capture.blank_lines_options.skip"))
+							.addOption("none", t("builder.capture.blank_lines_options.none"))
 							.setValue(
 								this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
 							)
@@ -563,9 +557,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 			new Setting(this.contentEl)
 				.setName(t("builder.capture.consider_subsections"))
-				.setDesc(
-					"Also include the section’s subsections (requires target to be a heading starting with #).",
-				)
+				.setDesc(t("builder.capture.consider_subsections_desc"))
 				.addToggle((toggle) =>
 					toggle
 						.setValue(this.choice.insertAfter?.considerSubsections)
@@ -583,9 +575,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								this.choice.insertAfter.considerSubsections = false;
 								// reset the toggle to match state and inform user
 								toggle.setValue(false);
-								new Notice(
-									"Consider subsections requires the target to be a heading (starts with #)",
-								);
+								new Notice(t("builder.capture.consider_subsections_notice"));
 							}
 						}),
 				);
@@ -593,8 +583,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const createLineIfNotFound: Setting = new Setting(this.contentEl);
 		createLineIfNotFound
-			.setName("Create line if not found")
-			.setDesc("Creates the 'insert after' line if it is not found.")
+			.setName(t("builder.capture.create_line_if_not_found"))
+			.setDesc(t("builder.capture.create_line_if_not_found_desc"))
 			.addToggle((toggle) => {
 				if (!this.choice.insertAfter?.createIfNotFound)
 					this.choice.insertAfter.createIfNotFound = false; // Set to default
@@ -611,9 +601,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						CREATE_IF_NOT_FOUND_TOP; // Set to default
 
 				dropdown
-					.addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
-					.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
-					.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
+					.addOption(CREATE_IF_NOT_FOUND_TOP, t("builder.capture.position_options.top"))
+					.addOption(CREATE_IF_NOT_FOUND_BOTTOM, t("builder.capture.position_options.bottom"))
+					.addOption(CREATE_IF_NOT_FOUND_CURSOR, t("builder.capture.position_options.cursor"))
 					.setValue(this.choice.insertAfter?.createIfNotFoundLocation)
 					.onChange(
 						(value) =>
@@ -653,9 +643,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			parent: this.contentEl,
 			inputKind: "textarea",
 			initialValue: this.choice.format.format,
-			placeholder: "Format",
+			placeholder: t("builder.capture.format"),
 			required: this.choice.format.enabled,
-			requiredMessage: "Capture format is required when enabled",
+			requiredMessage: t("builder.capture.format_required"),
 			attachSuggesters: [
 				(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
 			],
@@ -696,7 +686,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.choice?.createFileIfItDoesntExist?.enabled)
-					.setTooltip("Create file if it doesn't exist")
+					.setTooltip(t("builder.capture.create_if_missing_tooltip"))
 					.onChange((value) => {
 						this.choice.createFileIfItDoesntExist.enabled = value;
 						this.reload();
@@ -726,13 +716,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			app: this.app,
 			parent: this.contentEl,
 			initialValue: this.choice?.createFileIfItDoesntExist?.template ?? "",
-			placeholder: "Template path",
+			placeholder: t("builder.common.template_path"),
 			suggestions: templateFilePaths,
 			maxSuggestions: 50,
 			validator: (raw) => {
 				const v = raw.trim();
 				if (!v) return true;
-				return templateFilePaths.includes(v) || "Template not found";
+				return templateFilePaths.includes(v) || t("builder.common.template_not_found");
 			},
 			onChange: (value) => {
 				this.choice.createFileIfItDoesntExist.template = value;
