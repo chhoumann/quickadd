@@ -485,8 +485,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private addEnableRibbonIconSetting(group: SettingGroupLike) {
 		group.addSetting((setting) => {
 			setting
-				.setName(t("settings.ribbon.name"))
-				.setDesc(t("settings.ribbon.desc"))
+				.setName(t("settings.ribbon_options.name"))
+				.setDesc(t("settings.ribbon_options.desc"))
 				.addToggle((toggle) => {
 					toggle
 						.setValue(settingsStore.getState().enableRibbonIcon)
