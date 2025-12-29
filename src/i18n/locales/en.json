@@ -4,6 +4,9 @@
     "reload": "Reload QuickAdd (dev)",
     "test": "Test QuickAdd (dev)"
   },
+  "ribbon": {
+    "icon": "QuickAdd"
+  },
   "settings": {
     "headers": {
       "choices": "Choices & Packages",
@@ -23,12 +26,100 @@
     },
     "announce": {
       "name": "Announce Updates",
-      "desc": "Display release notes when a new version is installed."
+      "desc": "Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
+      "all": "Show updates on each new release",
+      "major": "Show updates only on major releases",
+      "none": "Don't show"
+    },
+    "capture_notif": {
+      "name": "Show Capture Notifications",
+      "desc": "Display a notification when content is captured successfully to confirm the operation completed."
+    },
+    "cancel_notif": {
+      "name": "Show Input Cancellation Notifications",
+      "desc": "Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts."
+    },
+    "multiline": {
+      "name": "Use Multi-line Input Prompt",
+      "desc": "Use multi-line input prompt instead of single-line input prompt."
+    },
+    "persist": {
+      "name": "Persist Input Prompt Drafts",
+      "desc": "Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session."
+    },
+    "selection_capture": {
+      "name": "Use editor selection as default Capture value",
+      "desc": "When enabled, Capture uses the current editor selection as {{VALUE}} and may skip the prompt. When disabled, Capture always prompts for {{VALUE}}."
+    },
+    "template_folder": {
+      "name": "Template Folder Path",
+      "desc": "Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd."
+    },
+    "template_properties": {
+      "name": "Format template variables as proper property types (Beta)",
+      "desc": "When enabled, template variables in front matter will be formatted as proper Obsidian property types (Arrays, Numbers, Booleans)."
+    },
+    "one_page": {
+      "name": "One-page input for choices (Beta)",
+      "desc": "Experimental. Resolve variables up front and show a single dynamic form before executing Template/Capture choices."
+    },
+    "date_aliases": {
+      "name": "Date aliases",
+      "desc": "Shortcodes for natural language date parsing. One per line: alias = phrase. Example: tm = tomorrow.",
+      "reset": "Reset to defaults"
+    },
+    "disable_online": {
+      "name": "Disable AI & Online features",
+      "desc": "Prevents the plugin from making requests to external providers like OpenAI. You need to disable this setting to use the AI Assistant."
+    },
+    "ribbon": {
+      "name": "Show icon in sidebar",
+      "desc": "Add QuickAdd icon to the sidebar ribbon. Requires a reload."
+    },
+    "dev": {
+      "info_name": "Development Information",
+      "info_desc": "Git information for developers.",
+      "branch": "Branch",
+      "commit": "Commit",
+      "changes": "Uncommitted changes",
+      "yes": "Yes",
+      "no": "No"
     }
   },
   "builder": {
     "open": "Open",
     "viewMode": "View Mode",
-    "location": "File Opening Location"
+    "location": "File Opening Location",
+    "one_page_override": {
+      "name": "One-page input override",
+      "desc": "Override the global setting for this choice.",
+      "follow": "Follow global setting",
+      "always": "Always",
+      "never": "Never"
+    },
+    "file_path_placeholder": "File path",
+    "choice_name": "Choice name",
+    "split_direction": "Split Direction",
+    "focus_pane": "Focus new pane",
+    "descriptions": {
+      "location": "Where to open the file",
+      "split": "Direction for split panes",
+      "view_mode": "How to display the opened file",
+      "focus": "Focus the opened tab immediately after opening"
+    },
+    "options": {
+      "reuse": "Reuse current tab",
+      "tab": "New tab",
+      "split": "Split pane",
+      "window": "New window",
+      "left": "Left sidebar",
+      "right": "Right sidebar",
+      "source": "Source",
+      "preview": "Preview",
+      "live": "Live Preview",
+      "default": "Default",
+      "vertical": "Vertical",
+      "horizontal": "Horizontal"
+    }
   }
 }
