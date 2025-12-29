@@ -1,0 +1,34 @@
+{
+  "commands": {
+    "run": "Run QuickAdd",
+    "reload": "Reload QuickAdd (dev)",
+    "test": "Test QuickAdd (dev)"
+  },
+  "settings": {
+    "headers": {
+      "choices": "Choices & Packages",
+      "input": "Input",
+      "templates": "Templates & Properties",
+      "notifications": "Notifications",
+      "globals": "Global Variables",
+      "ai_online": "AI & Online",
+      "appearance": "Appearance",
+      "dev": "Developer"
+    },
+    "packages": {
+      "name": "Packages",
+      "desc": "Bundle or import QuickAdd automations as reusable packages.",
+      "export": "Export package…",
+      "import": "Import package…"
+    },
+    "announce": {
+      "name": "Announce Updates",
+      "desc": "Display release notes when a new version is installed."
+    }
+  },
+  "builder": {
+    "open": "Open",
+    "viewMode": "View Mode",
+    "location": "File Opening Location"
+  }
+}
