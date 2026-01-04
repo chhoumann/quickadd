@@ -179,8 +179,14 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		const container = this.contentEl.createEl("div");
 		const tokenCount = container.createEl("span");
 		tokenCount.style.color = "var(--text-muted-color)";
+		const tokenCountNote = container.createEl("div", {
+			text: "Exact for OpenAI models; estimates for others.",
+		});
+		tokenCountNote.style.color = "var(--text-muted-color)";
+		tokenCountNote.style.fontSize = "var(--font-ui-smaller)";
 
 		container.appendChild(tokenCount);
+		container.appendChild(tokenCountNote);
 
 		const textAreaComponent = new TextAreaComponent(contentEl);
 		textAreaComponent
