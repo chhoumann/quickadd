@@ -1,5 +1,7 @@
 import type { TiktokenModel } from "js-tiktoken";
-import { encodingForModel, getEncoding } from "js-tiktoken";
+import { Tiktoken, getEncodingNameForModel } from "js-tiktoken/lite";
+import cl100k_base from "js-tiktoken/ranks/cl100k_base";
+import o200k_base from "js-tiktoken/ranks/o200k_base";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "src/errors/MacroAbortError";
@@ -14,19 +16,40 @@ import type { Model } from "./Provider";
 import { getModelMaxTokens } from "./aiHelpers";
 import { makeNoticeHandler } from "./makeNoticeHandler";
 
-export const getTokenCount = (text: string, model: Model) => {
-	// gpt-3.5-turbo-16k is a special case - it isn't in the library list yet. Same with gpt-4-1106-preview and gpt-3.5-turbo-1106.
-	let m = model.name === "gpt-3.5-turbo-16k" ? "gpt-3.5-turbo" : model.name;
-	m = m === "gpt-4-1106-preview" ? "gpt-4" : m;
-	m = m === "gpt-3.5-turbo-1106" ? "gpt-3.5-turbo" : m;
+type Encoding = ConstructorParameters<typeof Tiktoken>[0];
 
-	// kind of hacky, but we'll be using this general heuristic to support non-openai models
+const encodings: Record<string, Encoding> = {
+	cl100k_base,
+	o200k_base,
+};
+const encodingCache = new Map<string, Tiktoken>();
+
+function getEncoding(name: string) {
+	const encodingName = name in encodings ? name : "cl100k_base";
+	const cached = encodingCache.get(encodingName);
+	if (cached) return cached;
+
+	const encoding = new Tiktoken(encodings[encodingName]);
+	encodingCache.set(encodingName, encoding);
+	return encoding;
+}
+
+export const getTokenCount = (text: string, model: Model) => {
+	// Use best-effort for non-OpenAI/unknown models by falling back to cl100k.
+	let encodingName = "cl100k_base";
 	try {
-		return encodingForModel(m as TiktokenModel).encode(text).length;
+		encodingName = getEncodingNameForModel(model.name as TiktokenModel);
 	} catch {
-		const enc = getEncoding("cl100k_base");
-		return enc.encode(text).length;
+		encodingName = "cl100k_base";
 	}
+
+	if (encodingName === "p50k_base" || encodingName === "p50k_edit") {
+		encodingName = "cl100k_base";
+	} else if (encodingName === "r50k_base" || encodingName === "gpt2") {
+		encodingName = "cl100k_base";
+	}
+
+	return getEncoding(encodingName).encode(text).length;
 };
 
 async function repeatUntilResolved(

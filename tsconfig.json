@@ -7,7 +7,7 @@
 		"target": "ES2020",
 		"allowJs": true,
 		"noImplicitAny": true,
-		"moduleResolution": "node",
+		"moduleResolution": "bundler",
 		"importHelpers": true,
 		"isolatedModules": true,
 		"types": ["svelte", "node"],
