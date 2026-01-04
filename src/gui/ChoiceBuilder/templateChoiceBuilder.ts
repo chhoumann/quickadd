@@ -17,11 +17,17 @@ import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormat
 import { log } from "../../logger/logManager";
 import type QuickAdd from "../../main";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+import {
+	normalizeTemplateInsertionConfig,
+	type TemplateInsertionPlacement,
+	type TemplateInsertionSourceType,
+} from "../../types/choices/ITemplateChoice";
 import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
+import { flattenChoices } from "../../utils/choiceUtils";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
@@ -47,27 +53,154 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.containerEl.addClass("templateChoiceBuilder");
 		this.addCenteredChoiceNameHeader(this.choice);
 
+		const insertion = this.ensureInsertionConfig();
+		const insertionEnabled = insertion.enabled;
+
+		// Destination
+		new Setting(this.contentEl).setName("Destination").setHeading();
+		this.addInsertionSetting(insertion);
+
 		// Template
 		new Setting(this.contentEl).setName("Template").setHeading();
-		this.addTemplatePathSetting();
-		this.addFileNameFormatSetting();
+		if (insertionEnabled) {
+			this.addTemplateSourceSetting(insertion);
+		}
+		if (!insertionEnabled || insertion.templateSource.type === "path") {
+			this.addTemplatePathSetting();
+		}
+		if (!insertionEnabled) {
+			this.addFileNameFormatSetting();
+		}
 
-		// Location
-		new Setting(this.contentEl).setName("Location").setHeading();
-		this.addFolderSetting();
+		if (!insertionEnabled) {
+			// Location
+			new Setting(this.contentEl).setName("Location").setHeading();
+			this.addFolderSetting();
 
-		// Linking
-		new Setting(this.contentEl).setName("Linking").setHeading();
-		this.addAppendLinkSetting();
+			// Linking
+			new Setting(this.contentEl).setName("Linking").setHeading();
+			this.addAppendLinkSetting();
+		}
 
 		// Behavior
 		new Setting(this.contentEl).setName("Behavior").setHeading();
-		this.addFileAlreadyExistsSetting();
-		this.addOpenFileSetting("Open the created file.");
-		if (this.choice.openFile) {
-			this.addFileOpeningSetting("created");
+		if (!insertionEnabled) {
+			this.addFileAlreadyExistsSetting();
+			this.addOpenFileSetting("Open the created file.");
+			if (this.choice.openFile) {
+				this.addFileOpeningSetting("created");
+			}
 		}
 		this.addOnePageOverrideSetting(this.choice);
+	}
+
+	private ensureInsertionConfig() {
+		this.choice.insertion = normalizeTemplateInsertionConfig(this.choice.insertion);
+		return this.choice.insertion;
+	}
+
+	private addInsertionSetting(insertion: NonNullable<ITemplateChoice["insertion"]>): void {
+		new Setting(this.contentEl)
+			.setName("Insert into active note")
+			.setDesc(
+				"Insert the template into the active note instead of creating a new file.",
+			)
+			.addToggle((toggle) => {
+				toggle.setValue(insertion.enabled);
+				toggle.onChange((value) => {
+					insertion.enabled = value;
+					this.choice.insertion = insertion;
+					this.reload();
+				});
+			});
+
+		if (insertion.enabled) {
+			new Setting(this.contentEl)
+				.setName("Insertion placement")
+				.setDesc("Where to insert the template content in the active note.")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("currentLine", "Current line (cursor)");
+					dropdown.addOption("replaceSelection", "Replace selection");
+					dropdown.addOption("afterSelection", "After selection");
+					dropdown.addOption("endOfLine", "End of line");
+					dropdown.addOption("newLineAbove", "New line above");
+					dropdown.addOption("newLineBelow", "New line below");
+					dropdown.addOption("top", "Top of note");
+					dropdown.addOption("bottom", "Bottom of note");
+
+					dropdown.setValue(insertion.placement);
+					dropdown.onChange((value: TemplateInsertionPlacement) => {
+						insertion.placement = value;
+					});
+				});
+		}
+	}
+
+	private addTemplateSourceSetting(
+		insertion: NonNullable<ITemplateChoice["insertion"]>,
+	): void {
+		new Setting(this.contentEl)
+			.setName("Template source")
+			.setDesc("Choose where the template content should come from.")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("path", "Use template path");
+				dropdown.addOption("prompt", "Prompt for template at runtime");
+				dropdown.addOption("choice", "Use another Template choice");
+
+				dropdown.setValue(insertion.templateSource.type);
+				dropdown.onChange((value: TemplateInsertionSourceType) => {
+					insertion.templateSource.type = value;
+					if (value !== "choice") {
+						insertion.templateSource.value = undefined;
+					}
+					this.reload();
+				});
+			});
+
+		if (insertion.templateSource.type === "choice") {
+			this.addTemplateChoiceSourceSetting(insertion);
+		}
+	}
+
+	private addTemplateChoiceSourceSetting(
+		insertion: NonNullable<ITemplateChoice["insertion"]>,
+	): void {
+		const templateChoices = flattenChoices(this.plugin.settings.choices)
+			.filter((choice) => choice.type === "Template") as ITemplateChoice[];
+
+		const setting = new Setting(this.contentEl)
+			.setName("Template choice")
+			.setDesc("Select which Template choice to pull the template from.");
+
+		const promptValue = "__prompt__";
+		if (templateChoices.length === 0) {
+			setting.setDesc("No Template choices available to select.");
+			return;
+		}
+
+		setting.addDropdown((dropdown) => {
+			dropdown.addOption(promptValue, "Prompt at runtime");
+			for (const choice of templateChoices) {
+				const label = choice.templatePath
+					? `${choice.name} (${choice.templatePath})`
+					: choice.name;
+				dropdown.addOption(choice.id, label);
+			}
+
+			let currentValue = insertion.templateSource.value ?? promptValue;
+			if (
+				currentValue !== promptValue &&
+				!templateChoices.some((choice) => choice.id === currentValue)
+			) {
+				dropdown.addOption(currentValue, `Unknown choice (${currentValue})`);
+			}
+
+			dropdown.setValue(currentValue);
+			dropdown.onChange((value: string) => {
+				insertion.templateSource.value =
+					value === promptValue ? undefined : value;
+			});
+		});
 	}
 
 	private addTemplatePathSetting(): void {
