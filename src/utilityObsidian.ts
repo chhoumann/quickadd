@@ -898,6 +898,61 @@ export function openExistingFileTab(
 	return null;
 }
 
+function extractSingleJavascriptCodeBlock(
+	markdown: string,
+): { code: string } | null {
+	const lines = markdown.split(/\r?\n/);
+	const blocks: string[] = [];
+	let inFence = false;
+	let fenceLength = 0;
+	let isJsFence = false;
+	let current: string[] = [];
+
+	const isJsLanguage = (language?: string) => {
+		const normalized = (language ?? "").toLowerCase();
+		return normalized === "js" || normalized === "javascript";
+	};
+
+	for (const line of lines) {
+		if (!inFence) {
+			const match = line.match(/^\s*(`{3,})(.*)$/);
+			if (!match) continue;
+
+			const marker = match[1];
+			const info = match[2]?.trim() ?? "";
+			const language = info.split(/\s+/)[0];
+
+			inFence = true;
+			fenceLength = marker.length;
+			isJsFence = isJsLanguage(language);
+			if (isJsFence) {
+				current = [];
+			}
+			continue;
+		}
+
+		const closingMatch = line.match(/^\s*(`{3,})\s*$/);
+		if (closingMatch && closingMatch[1].length >= fenceLength) {
+			if (isJsFence) {
+				blocks.push(current.join("\n"));
+			}
+			inFence = false;
+			fenceLength = 0;
+			isJsFence = false;
+			continue;
+		}
+
+		if (isJsFence) {
+			current.push(line);
+		}
+	}
+
+	if (inFence) return null;
+	if (blocks.length !== 1) return null;
+
+	return { code: blocks[0] };
+}
+
 // Slightly modified version of Templater's user script import implementation
 // Source: https://github.com/SilentVoid13/Templater
 export async function getUserScript(command: IUserScript, app: App) {
@@ -915,9 +970,21 @@ export async function getUserScript(command: IUserScript, app: App) {
 		const mod = { exports: exp };
 
 		const fileContent = await app.vault.read(file);
+		let scriptSource = fileContent;
+		if (file.extension === "md") {
+			const extracted = extractSingleJavascriptCodeBlock(fileContent);
+			if (!extracted) {
+				log.logWarning(
+					`User script note '${file.path}' must contain exactly one ` +
+						"```js``` or ```javascript``` fenced code block.",
+				);
+				return;
+			}
+			scriptSource = extracted.code;
+		}
 
 		const fn = window.eval(
-			`(function(require, module, exports) { ${fileContent} \n})`,
+			`(function(require, module, exports) { ${scriptSource} \n})`,
 		);
 
 		fn(req, mod, exp);
@@ -1047,4 +1114,5 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 export const __test = {
 	convertLinkToEmbed,
 	extractMarkdownLinkTarget,
+	extractSingleJavascriptCodeBlock,
 } as const;

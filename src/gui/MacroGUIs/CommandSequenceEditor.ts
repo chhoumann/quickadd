@@ -16,7 +16,7 @@ import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 import { NestedChoiceCommand } from "../../types/macros/QuickCommands/NestedChoiceCommand";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
-import { JAVASCRIPT_FILE_EXTENSION_REGEX } from "../../constants";
+import { USER_SCRIPT_FILE_EXTENSION_REGEX } from "../../constants";
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
@@ -114,7 +114,7 @@ export class CommandSequenceEditor {
 	private loadJavascriptFiles(): void {
 		this.javascriptFiles = this.app.vault
 			.getFiles()
-			.filter((file) => JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path));
+			.filter((file) => USER_SCRIPT_FILE_EXTENSION_REGEX.test(file.path));
 	}
 
 	private renderCommandList(parent: HTMLElement) {
@@ -335,9 +335,38 @@ export class CommandSequenceEditor {
 			const value: string = input.getValue();
 			const scriptBasename = getUserScriptMemberAccess(value).basename;
 
-			const file = this.javascriptFiles.find(
+			if (!scriptBasename) return;
+
+			const byPath = this.javascriptFiles.find(
+				(f) => f.path === scriptBasename
+			);
+			if (byPath) {
+				this.addCommand(new UserScript(value, byPath.path));
+				input.setValue("");
+				if (addButton) {
+					addButton.buttonEl.style.display = "none";
+				}
+				return;
+			}
+
+			const byName = this.javascriptFiles.filter(
+				(f) => f.name === scriptBasename
+			);
+			if (byName.length === 1) {
+				this.addCommand(new UserScript(value, byName[0].path));
+				input.setValue("");
+				if (addButton) {
+					addButton.buttonEl.style.display = "none";
+				}
+				return;
+			}
+
+			const byBasename = this.javascriptFiles.filter(
 				(f) => f.basename === scriptBasename
 			);
+			if (byBasename.length !== 1) return;
+
+			const file = byBasename[0];
 			if (!file) return;
 
 			this.addCommand(new UserScript(value, file.path));
@@ -359,7 +388,7 @@ export class CommandSequenceEditor {
 				new GenericTextSuggester(
 					this.app,
 					textComponent.inputEl,
-					this.javascriptFiles.map((f) => f.basename)
+					this.javascriptFiles.map((f) => f.name)
 				);
 
 				textComponent.inputEl.addEventListener(
@@ -378,7 +407,7 @@ export class CommandSequenceEditor {
 					.onClick(async () => {
 						const selected = await this.showScriptPicker();
 						if (selected) {
-							this.addCommand(new UserScript(selected.basename, selected.path));
+							this.addCommand(new UserScript(selected.name, selected.path));
 						}
 					})
 			)
@@ -494,20 +523,20 @@ export class CommandSequenceEditor {
 			return null;
 		}
 
-		const scriptNames = this.javascriptFiles.map((f) => f.basename);
+		const scriptNames = this.javascriptFiles.map((f) => f.path);
 		const selected = await InputSuggester.Suggest(
 			this.app,
 			scriptNames,
 			scriptNames,
 			{
-				placeholder: "Select a JavaScript file",
-				emptyStateText: "No .js files found in your vault",
+				placeholder: "Select a script file",
+				emptyStateText: "No .js or .md files found in your vault",
 			}
 		);
 
 		if (!selected) return null;
 
-		return this.javascriptFiles.find((f) => f.basename === selected) ?? null;
+		return this.javascriptFiles.find((f) => f.path === selected) ?? null;
 	}
 
 	private addCommand(command: ICommand) {
