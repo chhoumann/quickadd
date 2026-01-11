@@ -51,6 +51,16 @@ describe("backfillFileOpeningDefaults migration", () => {
 			name: "Conditional Capture",
 			type: "Capture",
 		};
+		const conditionalElseTemplate = {
+			id: "conditional-else-template",
+			name: "Conditional Else Template",
+			type: "Template",
+		};
+		const legacyMacroCapture = {
+			id: "legacy-macro-capture",
+			name: "Legacy Macro Capture",
+			type: "Capture",
+		};
 
 		const multiChoice = {
 			id: "multi",
@@ -91,7 +101,12 @@ describe("backfillFileOpeningDefaults migration", () => {
 								choice: conditionalCapture,
 							},
 						],
-						elseCommands: [],
+						elseCommands: [
+							{
+								type: CommandType.NestedChoice,
+								choice: conditionalElseTemplate,
+							},
+						],
 					},
 				],
 			},
@@ -106,6 +121,18 @@ describe("backfillFileOpeningDefaults migration", () => {
 					multiChoice,
 					macroWithNested,
 					macroWithConditional,
+				],
+				macros: [
+					{
+						id: "legacy-macro",
+						name: "Legacy Macro",
+						commands: [
+							{
+								type: CommandType.NestedChoice,
+								choice: legacyMacroCapture,
+							},
+						],
+					},
 				],
 				migrations: {},
 			},
@@ -145,6 +172,18 @@ describe("backfillFileOpeningDefaults migration", () => {
 			focus: true,
 		});
 		expect(conditionalCapture.fileOpening).toEqual({
+			location: "tab",
+			direction: "vertical",
+			mode: "default",
+			focus: true,
+		});
+		expect(conditionalElseTemplate.fileOpening).toEqual({
+			location: "tab",
+			direction: "vertical",
+			mode: "default",
+			focus: true,
+		});
+		expect(legacyMacroCapture.fileOpening).toEqual({
 			location: "tab",
 			direction: "vertical",
 			mode: "default",
