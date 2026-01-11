@@ -24,6 +24,7 @@ import {
 	openFile,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -175,7 +176,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
-				const focus = this.choice.fileOpening.focus ?? true;
+				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+				const focus = fileOpening.focus ?? true;
 				const openExistingTab = openExistingFileTab(
 					this.app,
 					createdFile,
@@ -183,7 +185,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 
 				if (!openExistingTab) {
-					await openFile(this.app, createdFile, this.choice.fileOpening);
+					await openFile(this.app, createdFile, fileOpening);
 				}
 
 				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);

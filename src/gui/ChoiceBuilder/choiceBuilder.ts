@@ -3,6 +3,10 @@ import type { SvelteComponent } from "svelte";
 import { log } from "../../logger/logManager";
 import type IChoice from "../../types/choices/IChoice";
 import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
+import {
+	normalizeFileOpening,
+	type FileOpeningSettings,
+} from "../../utils/fileOpeningDefaults";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 
@@ -130,22 +134,9 @@ export abstract class ChoiceBuilder extends Modal {
 	 */
 	protected addFileOpeningSetting(contextLabel: string): void {
 		const choice: any = this.choice as any;
-		if (choice.fileOpening === undefined) {
-			// Provide sane defaults if none exist yet
-			choice.fileOpening = {
-				location: "tab" as OpenLocation,
-				direction: "vertical",
-				mode: "default" as FileViewMode2,
-				focus: true,
-			};
-		}
+		choice.fileOpening = normalizeFileOpening(choice.fileOpening);
 
-		const fileOpening = choice.fileOpening as {
-			location: OpenLocation;
-			direction: "vertical" | "horizontal";
-			mode: FileViewMode2;
-			focus: boolean;
-		};
+		const fileOpening = choice.fileOpening as FileOpeningSettings;
 
 		// Location selector
 		new Setting(this.contentEl)

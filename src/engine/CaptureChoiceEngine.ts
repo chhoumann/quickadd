@@ -29,6 +29,7 @@ import {
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
@@ -184,14 +185,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 				if (linkOptions.enabled) {
 				insertFileLinkToActiveView(this.app, file, linkOptions);
-				}
+			}
 
 			if (this.choice.openFile && file) {
-				const focus = this.choice.fileOpening.focus ?? true;
+				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+				const focus = fileOpening.focus ?? true;
 				const openExistingTab = openExistingFileTab(this.app, file, focus);
 
 				if (!openExistingTab) {
-					await openFile(this.app, file, this.choice.fileOpening);
+					await openFile(this.app, file, fileOpening);
 				}
 
 				await jumpToNextTemplaterCursorIfPossible(this.app, file);
