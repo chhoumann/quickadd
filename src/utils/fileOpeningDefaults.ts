@@ -14,9 +14,7 @@ export const DEFAULT_FILE_OPENING: FileOpeningSettings = {
 	focus: true,
 };
 
-export function normalizeFileOpening<
-	TExtras extends Record<string, unknown> = Record<string, unknown>,
->(
+export function normalizeFileOpening<TExtras extends object = {}>(
 	fileOpening?: (Partial<FileOpeningSettings> & TExtras) | null,
 	options?: { fillMissingOnly?: boolean },
 ): FileOpeningSettings & TExtras {

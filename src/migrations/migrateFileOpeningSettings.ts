@@ -29,7 +29,7 @@ const migrateFileOpeningSettings: Migration = {
 			const legacyMode = (templateOrCaptureChoice as any).openFileInMode;
 			const legacyTab = coerceLegacyOpenFileInNewTab(legacyTabRaw);
 			
-			if (!templateOrCaptureChoice.fileOpening && legacyTabRaw) {
+			if (!templateOrCaptureChoice.fileOpening && legacyTab) {
 				// Ensure legacy fields have defaults
 				const tabSettings = {
 					enabled: legacyTab?.enabled ?? false,

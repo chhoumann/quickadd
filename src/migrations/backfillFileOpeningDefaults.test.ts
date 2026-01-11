@@ -10,9 +10,24 @@ vi.mock("src/logger/logManager", () => ({
 
 import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 
+type TestChoice = {
+	id: string;
+	name: string;
+	type: "Capture" | "Template" | "Macro" | "Multi";
+	fileOpening?: unknown;
+	openFileInNewTab?: unknown;
+	openFileInMode?: unknown;
+	choices?: TestChoice[];
+	macro?: {
+		id: string;
+		name: string;
+		commands: unknown[];
+	};
+};
+
 describe("backfillFileOpeningDefaults migration", () => {
 	it("backfills missing fileOpening across nested choices and legacy settings", async () => {
-		const captureLegacy = {
+		const captureLegacy: TestChoice = {
 			id: "capture-legacy",
 			name: "Capture Legacy",
 			type: "Capture",
@@ -23,12 +38,12 @@ describe("backfillFileOpeningDefaults migration", () => {
 			},
 			openFileInMode: "source",
 		};
-		const captureMissing = {
+		const captureMissing: TestChoice = {
 			id: "capture-missing",
 			name: "Capture Missing",
 			type: "Capture",
 		};
-		const templatePartial = {
+		const templatePartial: TestChoice = {
 			id: "template-partial",
 			name: "Template Partial",
 			type: "Template",
@@ -36,40 +51,40 @@ describe("backfillFileOpeningDefaults migration", () => {
 				location: "window",
 			},
 		};
-		const nestedCapture = {
+		const nestedCapture: TestChoice = {
 			id: "nested-capture",
 			name: "Nested Capture",
 			type: "Capture",
 		};
-		const nestedTemplate = {
+		const nestedTemplate: TestChoice = {
 			id: "nested-template",
 			name: "Nested Template",
 			type: "Template",
 		};
-		const conditionalCapture = {
+		const conditionalCapture: TestChoice = {
 			id: "conditional-capture",
 			name: "Conditional Capture",
 			type: "Capture",
 		};
-		const conditionalElseTemplate = {
+		const conditionalElseTemplate: TestChoice = {
 			id: "conditional-else-template",
 			name: "Conditional Else Template",
 			type: "Template",
 		};
-		const legacyMacroCapture = {
+		const legacyMacroCapture: TestChoice = {
 			id: "legacy-macro-capture",
 			name: "Legacy Macro Capture",
 			type: "Capture",
 		};
 
-		const multiChoice = {
+		const multiChoice: TestChoice = {
 			id: "multi",
 			name: "Multi",
 			type: "Multi",
 			choices: [nestedCapture],
 		};
 
-		const macroWithNested = {
+		const macroWithNested: TestChoice = {
 			id: "macro-nested",
 			name: "Macro Nested",
 			type: "Macro",
@@ -85,7 +100,7 @@ describe("backfillFileOpeningDefaults migration", () => {
 			},
 		};
 
-		const macroWithConditional = {
+		const macroWithConditional: TestChoice = {
 			id: "macro-conditional",
 			name: "Macro Conditional",
 			type: "Macro",
