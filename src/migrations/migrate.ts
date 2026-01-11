@@ -8,6 +8,7 @@ import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelea
 import addDefaultAIProviders from "./addDefaultAIProviders";
 import removeMacroIndirection from "./removeMacroIndirection";
 import migrateFileOpeningSettings from "./migrateFileOpeningSettings";
+import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 import setProviderModelDiscoveryMode from "./setProviderModelDiscoveryMode";
 import { deepClone } from "src/utils/deepClone";
 
@@ -19,6 +20,7 @@ const migrations: Migrations = {
 	addDefaultAIProviders,
 	removeMacroIndirection,
 	migrateFileOpeningSettings,
+	backfillFileOpeningDefaults,
 	setProviderModelDiscoveryMode,
 };
 

@@ -3,6 +3,7 @@ import type ICaptureChoice from "./ICaptureChoice";
 import type { BlankLineAfterMatchMode } from "./ICaptureChoice";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
+import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
 	appendLink: boolean | AppendLinkOptions;
@@ -75,12 +76,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		this.prepend = false;
 		this.task = false;
 		this.openFile = false;
-		this.fileOpening = {
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		};
+		this.fileOpening = normalizeFileOpening();
 		this.templater = {
 			afterCapture: "none",
 		};
