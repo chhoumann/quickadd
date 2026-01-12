@@ -37,6 +37,7 @@ vi.mock("../quickAddSettingsTab", () => {
 			addDefaultAIProviders: false,
 			removeMacroIndirection: false,
 			migrateFileOpeningSettings: false,
+			backfillFileOpeningDefaults: false,
 		},
 	};
 

@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { openFile } from "../utilityObsidian";
 
 const { setUseSelectionAsCaptureValueMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
@@ -128,6 +129,7 @@ const createExecutor = (): IChoiceExecutor => ({
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
 		setUseSelectionAsCaptureValueMock.mockClear();
+		vi.mocked(openFile).mockClear();
 	});
 
 	it("uses global setting when no override is set", async () => {
@@ -167,5 +169,43 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		await engine.run();
 
 		expect(setUseSelectionAsCaptureValueMock).toHaveBeenCalledWith(true);
+	});
+
+	it("defaults fileOpening when missing", async () => {
+		const choice = createChoice({
+			openFile: true,
+			fileOpening: undefined as unknown as ICaptureChoice["fileOpening"],
+			captureToActiveFile: true,
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "content",
+			captureContent: "content",
+		});
+
+		await engine.run();
+
+		expect(openFile).toHaveBeenCalledWith(
+			expect.anything(),
+			file,
+			expect.objectContaining({
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: true,
+			}),
+		);
 	});
 });

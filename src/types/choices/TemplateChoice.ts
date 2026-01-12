@@ -3,6 +3,7 @@ import { Choice } from "./Choice";
 import type { fileExistsChoices } from "src/constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
+import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean | AppendLinkOptions;
@@ -39,12 +40,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		};
 		this.appendLink = false;
 		this.openFile = false;
-		this.fileOpening = {
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		};
+		this.fileOpening = normalizeFileOpening();
 		this.fileExistsMode = "Increment the file name";
 		this.setFileExistsBehavior = false;
 	}
