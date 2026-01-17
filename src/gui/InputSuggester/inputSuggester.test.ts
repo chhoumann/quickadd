@@ -42,6 +42,18 @@ describe("InputSuggester", () => {
 		expect(matchingEntries).toHaveLength(1);
 	});
 
+	it("tolerates undefined query input", () => {
+		const suggester = new InputSuggester(
+			app,
+			["Alpha file", "Beta note"],
+			["Alpha file", "Beta note"]
+		);
+
+		expect(() =>
+			suggester.getSuggestions(undefined as unknown as string),
+		).not.toThrow();
+	});
+
 	it("aligns displayItems length with items length", () => {
 		const shortDisplay = ["Alpha"];
 		const shortItems = ["Alpha", "Beta", "Gamma"];
