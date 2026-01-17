@@ -88,7 +88,8 @@ const config = {
             label: '🔧 API',
           },
           {
-            to: '/docs/Examples/Macro_BookFinder',
+            type: 'doc',
+            docId: 'Examples/Macro_BookFinder',
             position: 'left',
             label: '💡 Examples',
           },
