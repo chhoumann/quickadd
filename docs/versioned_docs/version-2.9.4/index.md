@@ -31,24 +31,24 @@ QuickAdd also features a powerful [suggester system](./SuggesterSystem) that pro
 
 Take a look at some examples...
 
--   [Capture: Add Journal Entry](docs/Examples/Capture_AddJournalEntry.md)
--   [Macro: Log book to daily journal](docs/Examples/Macro_LogBookToDailyJournal.md)
--   [Template: Add an Inbox Item](docs/Examples/Template_AddAnInboxItem.md)
--   [Macro: Move all notes with a tag to a certain folder](docs/Examples/Macro_MoveNotesWithATagToAFolder.md)
--   [Template: Automatically create a new book note with notes & highlights from Readwise](docs/Examples/Template_AutomaticBookNotesFromReadwise.md)
--   [Capture: Add a task to a Kanban board](docs/Examples/Capture_AddTaskToKanbanBoard.md)
--   [Macro: Easily change properties in your daily note (requires MetaEdit)](docs/Examples/Macro_ChangePropertyInDailyNotes.md)
--   [Capture: Fetch tasks from Todoist and capture to a file](docs/Examples/Capture_FetchTasksFromTodoist.md)
--   [Macro: Zettelizer - easily create new notes from headings while keeping the contents in the file](docs/Examples/Macro_Zettelizer.md)
--   [Macro: Obsidian Map View plugin helper - insert location from address](docs/Examples/Macro_AddLocationLongLatFromAddress.md)
--   [Macro: Toggl Manager - set preset Toggl Track time entries and start them from Obsidian](docs/Examples/Macro_TogglManager.md)
+-   [Capture: Add Journal Entry](./Examples/Capture_AddJournalEntry.md)
+-   [Macro: Log book to daily journal](./Examples/Macro_LogBookToDailyJournal.md)
+-   [Template: Add an Inbox Item](./Examples/Template_AddAnInboxItem.md)
+-   [Macro: Move all notes with a tag to a certain folder](./Examples/Macro_MoveNotesWithATagToAFolder.md)
+-   [Template: Automatically create a new book note with notes & highlights from Readwise](./Examples/Template_AutomaticBookNotesFromReadwise.md)
+-   [Capture: Add a task to a Kanban board](./Examples/Capture_AddTaskToKanbanBoard.md)
+-   [Macro: Easily change properties in your daily note (requires MetaEdit)](./Examples/Macro_ChangePropertyInDailyNotes.md)
+-   [Capture: Fetch tasks from Todoist and capture to a file](./Examples/Capture_FetchTasksFromTodoist.md)
+-   [Macro: Zettelizer - easily create new notes from headings while keeping the contents in the file](./Examples/Macro_Zettelizer.md)
+-   [Macro: Obsidian Map View plugin helper - insert location from address](./Examples/Macro_AddLocationLongLatFromAddress.md)
+-   [Macro: Toggl Manager - set preset Toggl Track time entries and start them from Obsidian](./Examples/Macro_TogglManager.md)
 -   [How I Read Research Papers with Obsidian and Zotero](https://bagerbach.com/blog/how-i-read-research-papers-with-obsidian-and-zotero/)
 -   [How I Import Literature Notes into Obsidian](https://bagerbach.com/blog/importing-source-notes-to-obsidian)
--   [Macro: Fetching movies and TV shows into your vault](docs/Examples/Macro_MovieAndSeriesScript.md)
+-   [Macro: Fetching movies and TV shows into your vault](./Examples/Macro_MovieAndSeriesScript.md)
 
 ### Create powerful scripts and macros to automate my workflow
 
-Take a look at the [QuickAdd API](docs/QuickAddAPI.md), [format syntax](docs/FormatSyntax.md), [inline scripts](docs/InlineScripts.md), and [macros](docs/Choices/MacroChoice.md).
+Take a look at the [QuickAdd API](./QuickAddAPI.md), [format syntax](./FormatSyntax.md), [inline scripts](./InlineScripts.md), and [macros](./Choices/MacroChoice.md).
 
 ### Use QuickAdd even when Obsidian is minimized / in the background
 
