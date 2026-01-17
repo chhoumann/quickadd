@@ -11,9 +11,7 @@ import {
 	getDefaultValueTypeForOperator,
 	requiresExpectedValue,
 } from "../../utils/conditionalHelpers";
-import {
-	JAVASCRIPT_FILE_EXTENSION_REGEX
-} from "../../constants";
+import { USER_SCRIPT_FILE_EXTENSION_REGEX } from "../../constants";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 
@@ -45,7 +43,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	private readonly originalCommand: IConditionalCommand;
 	private workingCommand: IConditionalCommand;
 	private isResolved = false;
-	private javascriptFiles: TFile[] = [];
+	private scriptFiles: TFile[] = [];
 
 	constructor(app: App, command: IConditionalCommand) {
 		super(app);
@@ -78,9 +76,9 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	private loadJavascriptFiles() {
-		this.javascriptFiles = this.app.vault
+		this.scriptFiles = this.app.vault
 			.getFiles()
-			.filter((file) => JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path));
+			.filter((file) => USER_SCRIPT_FILE_EXTENSION_REGEX.test(file.path));
 	}
 
 	private reload() {
@@ -244,7 +242,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 
 		new Setting(this.contentEl)
 			.setName("Script path")
-			.setDesc("Vault-relative path to the JavaScript file.")
+			.setDesc("Vault-relative path to the script file.")
 			.addText((text) => {
 				input = text;
 				text
@@ -259,19 +257,19 @@ export class ConditionalCommandSettingsModal extends Modal {
 					.setButtonText("Browse")
 					.setTooltip("Select a script file")
 					.onClick(async () => {
-						if (this.javascriptFiles.length === 0) {
+						if (this.scriptFiles.length === 0) {
 							showNoScriptsFoundNotice();
 							return;
 						}
 
-						const scriptNames = this.javascriptFiles.map((f) => f.path);
+						const scriptNames = this.scriptFiles.map((f) => f.path);
 						const selected = await InputSuggester.Suggest(
 							this.app,
 							scriptNames,
 							scriptNames,
 							{
-								placeholder: "Select a JavaScript file",
-								emptyStateText: "No .js files found in your vault",
+								placeholder: "Select a script file",
+								emptyStateText: "No .js or .md files found in your vault",
 							}
 						);
 
