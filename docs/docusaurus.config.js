@@ -35,10 +35,20 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
           editUrl:
             'https://github.com/chhoumann/quickadd/tree/master/docs/',
+          lastVersion: '2.9.4',
+          versions: {
+            current: {
+              label: 'Next 🚧',
+              path: 'next',
+              banner: 'unreleased',
+            },
+            '2.9.4': {
+              label: '2.9.4',
+              path: '',
+            },
+          },
         },
         blog: {
           showReadingTime: true,
@@ -60,6 +70,11 @@ const config = {
       navbar: {
         title: 'QuickAdd',
         items: [
+          {
+            type: 'docsVersionDropdown',
+            position: 'left',
+            dropdownActiveClassDisabled: true,
+          },
           {
             type: 'doc',
             docId: 'index',

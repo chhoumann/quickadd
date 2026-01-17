@@ -27,5 +27,22 @@ Vitest (configured in `vitest.config.mts`) runs under jsdom and cannot load real
 ## Commit & Pull Request Guidelines
 Follow Conventional Commits (`feat:`, `fix:`, `test:`, `release(version): ...`) so semantic-release can determine versions. Keep generated files in the same commit as the changes that produced them. Pull requests must include a concise summary, reproduction steps or screenshots for UI changes, linked issues when relevant, and explicit notes on release or migration impact. Request review from maintainers closest to the touched area.
 
+## Documentation Versioning
+Docs live in `docs/` and use Docusaurus with versioned documentation. The current (unreleased) docs are in `docs/docs/`, while stable snapshots live in `docs/versioned_docs/version-X.Y.Z/`.
+
+**When releasing a new version:**
+```bash
+cd docs && bun run docusaurus docs:version X.Y.Z
+```
+This snapshots `docs/docs/` as the new stable version. Update `docs/docusaurus.config.js` to set `lastVersion` to the new version and add an entry under `versions`.
+
+**Structure:**
+- `docs/docs/` → "Next" (unreleased, shows warning banner)
+- `docs/versioned_docs/version-X.Y.Z/` → stable release docs
+- `docs/versions.json` → list of versioned snapshots
+- `docs/versioned_sidebars/` → sidebar configs for each version
+
+Keep docs in sync: update `docs/docs/` when adding features, and snapshot when releasing.
+
 ## Agent Playbook
 Automation or scripted work should surface disruptive operations in the PR description and rerun `bun run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.
