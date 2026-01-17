@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { TextInputSuggest } from "./suggest";
+import { normalizeDisplayItem, normalizeQuery } from "./utils";
 
 export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private options: string[];
@@ -14,7 +15,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 		multiSelect = false,
 	) {
 		super(app, inputEl);
-		this.options = options;
+		this.options = options.map((option) => normalizeDisplayItem(option));
 		this.caseSensitive = caseSensitive;
 		this.multiSelect = multiSelect;
 
@@ -44,7 +45,8 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	}
 
 	getSuggestions(query: string): string[] {
-		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(query);
+		const safeQuery = normalizeQuery(query);
+		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(safeQuery);
 		const searchQuery = this.caseSensitive ? activeTerm : activeTerm.toLowerCase();
 
 		const available = this.getRemainingOptions(alreadySelected);

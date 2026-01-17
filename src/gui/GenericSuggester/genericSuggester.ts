@@ -1,7 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log, toError } from "src/logger/logManager";
-import { normalizeDisplayItem } from "../suggesters/utils";
+import { normalizeDisplayItem, normalizeQuery } from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -84,6 +84,11 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 
 	getItems(): T[] {
 		return this.items;
+	}
+
+	getSuggestions(query: string): FuzzyMatch<T>[] {
+		const safeQuery = normalizeQuery(query);
+		return super.getSuggestions(safeQuery);
 	}
 
 	selectSuggestion(

@@ -1,5 +1,6 @@
-import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
+import { TextInputSuggest } from "./suggest";
+import { normalizeDisplayItem, normalizeQuery } from "./utils";
 
 export class GenericTextSuggester extends TextInputSuggest<string> {
 	constructor(
@@ -9,10 +10,11 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 		private maxSuggestions = Infinity
 	) {
 		super(app, inputEl);
+		this.items = items.map((item) => normalizeDisplayItem(item));
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		const inputLowerCase: string = inputStr.toLowerCase();
+		const inputLowerCase = normalizeQuery(inputStr).toLowerCase();
 
 		const filtered = this.items.filter((item) => {
 			return item.toLowerCase().includes(inputLowerCase);

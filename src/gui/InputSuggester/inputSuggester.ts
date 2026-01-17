@@ -1,7 +1,7 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log, toError } from "src/logger/logManager";
-import { normalizeDisplayItem } from "../suggesters/utils";
+import { normalizeDisplayItem, normalizeQuery } from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -113,8 +113,9 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	}
 
 	getSuggestions(query: string): FuzzyMatch<string>[] {
-		const suggestions = super.getSuggestions(query);
-		const customValue = this.inputEl.value;
+		const safeQuery = normalizeQuery(query);
+		const suggestions = super.getSuggestions(safeQuery);
+		const customValue = normalizeQuery(this.inputEl.value);
 
 		if (!customValue) return suggestions;
 

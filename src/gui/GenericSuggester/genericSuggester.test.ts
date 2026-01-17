@@ -18,4 +18,13 @@ describe("GenericSuggester", () => {
 		expect(() => suggester.getSuggestions("1")).not.toThrow();
 	});
 
+	it("tolerates undefined query input", () => {
+		const items = ["Alpha", "Beta"];
+		const suggester = new GenericSuggester(app, items, items);
+
+		expect(() =>
+			suggester.getSuggestions(undefined as unknown as string),
+		).not.toThrow();
+	});
+
 });

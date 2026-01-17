@@ -17,6 +17,7 @@ import GenericWideInputPrompt from "./gui/GenericWideInputPrompt/GenericWideInpu
 import GenericYesNoPrompt from "./gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import InputSuggester from "./gui/InputSuggester/inputSuggester";
 import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
+import { normalizeDisplayItem } from "./gui/suggesters/utils";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type QuickAdd from "./main";
 import { OnePageInputModal } from "./preflight/OnePageInputModal";
@@ -671,6 +672,7 @@ export class QuickAddApi {
 			} else {
 				displayedItems = displayItems;
 			}
+			displayedItems = displayedItems.map((item) => normalizeDisplayItem(item));
 
 			if (allowCustomInput) {
 				return await InputSuggester.Suggest(
