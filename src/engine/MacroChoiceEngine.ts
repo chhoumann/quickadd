@@ -29,6 +29,7 @@ import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/Se
 import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "src/ai/AIAssistant";
+import { resolveProviderApiKey } from "src/ai/providerSecrets";
 import { settingsStore } from "src/settingsStore";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 import {
@@ -494,10 +495,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			);
 		}
 
+		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
+
 		const aiOutputVariables = await runAIAssistant(
 			this.app,
 			{
-				apiKey: modelProvider.apiKey,
+				apiKey,
 				model,
 				outputVariableName: command.outputVariableName,
 				promptTemplate: command.promptTemplate,

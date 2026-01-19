@@ -28,18 +28,21 @@ type ProviderApiResponse =
 	| { data?: ProviderApiModel[] }
 	| { object?: string; data?: ProviderApiModel[] };
 
-export async function discoverProviderModels(provider: AIProvider): Promise<Model[]> {
+export async function discoverProviderModels(
+	provider: AIProvider,
+	apiKeyOverride?: string | null,
+): Promise<Model[]> {
 	const mode: ModelDiscoveryMode = provider.modelSource ?? "providerApi";
 	if (mode === "modelsDev") {
 		return fetchViaModelsDev(provider);
 	}
 	if (mode === "providerApi") {
-		return fetchViaProviderApi(provider);
+		return fetchViaProviderApi(provider, apiKeyOverride);
 	}
 
 	// auto: try provider API first, fall back to models.dev when possible
 	try {
-		return await fetchViaProviderApi(provider);
+		return await fetchViaProviderApi(provider, apiKeyOverride);
 	} catch (err) {
 		const fallbackKey = mapEndpointToModelsDevKey(provider.endpoint);
 		if (!fallbackKey) {
@@ -70,7 +73,10 @@ async function fetchViaModelsDev(provider: AIProvider, previousError?: unknown):
 	}
 }
 
-async function fetchViaProviderApi(provider: AIProvider): Promise<Model[]> {
+async function fetchViaProviderApi(
+	provider: AIProvider,
+	apiKeyOverride?: string | null,
+): Promise<Model[]> {
 	const { disableOnlineFeatures } = settingsStore.getState();
 	if (disableOnlineFeatures) {
 		throw new Error("Online features are disabled — enable them to browse provider models.");
@@ -82,8 +88,9 @@ async function fetchViaProviderApi(provider: AIProvider): Promise<Model[]> {
 	const url = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
 
 	const headers: Record<string, string> = {};
-	if (provider.apiKey) {
-		headers.Authorization = `Bearer ${provider.apiKey}`;
+	const apiKey = apiKeyOverride ?? provider.apiKey ?? "";
+	if (apiKey) {
+		headers.Authorization = `Bearer ${apiKey}`;
 	}
 
 	let data: ProviderApiResponse;

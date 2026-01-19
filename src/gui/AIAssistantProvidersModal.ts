@@ -1,11 +1,11 @@
  
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
+import { ButtonComponent, Modal, Notice, SecretComponent, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { dedupeModels } from "src/ai/modelsDirectory";
 import { discoverProviderModels } from "src/ai/modelDiscoveryService";
+import { resolveProviderApiKey } from "src/ai/providerSecrets";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
-import { setPasswordOnBlur } from "src/utils/setPasswordOnBlur";
 import { deepClone } from "src/utils/deepClone";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
@@ -151,17 +151,24 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
 	addApiKeySetting(container: HTMLElement) {
+		const hasLegacyKey =
+			!!this.selectedProvider?.apiKey && !this.selectedProvider?.apiKeyRef;
+		const description = hasLegacyKey
+			? "Legacy API key detected. Select a SecretStorage entry to migrate."
+			: "Select a secret from SecretStorage";
+
 		new Setting(container)
 			.setName("API Key")
-			.setDesc("The API Key for the AI Assistant")
-			.addText((text) => {
-				setPasswordOnBlur(text.inputEl);
-				text.setValue(this.selectedProvider!.apiKey).onChange(
-					(value) => {
-						this.selectedProvider!.apiKey = value;
-					}
-				);
-			});
+			.setDesc(description)
+			.addComponent((el) =>
+				new SecretComponent(this.app, el)
+					.setValue(this.selectedProvider?.apiKeyRef ?? "")
+					.onChange((value) => {
+						if (!this.selectedProvider) return;
+						this.selectedProvider.apiKeyRef = value;
+						this.selectedProvider.apiKey = "";
+					}),
+			);
 	}
 
 	addModelSourceSetting(container: HTMLElement) {
@@ -287,7 +294,14 @@ export class AIAssistantProvidersModal extends Modal {
 			.addButton((button) => {
 				button.setButtonText("Sync now").onClick(async () => {
 					try {
-						const models = await discoverProviderModels(this.selectedProvider!);
+						const apiKey = await resolveProviderApiKey(
+							this.app,
+							this.selectedProvider!,
+						);
+						const models = await discoverProviderModels(
+							this.selectedProvider!,
+							apiKey,
+						);
 						this.selectedProvider!.models = dedupeModels(
 							this.selectedProvider!.models,
 							models

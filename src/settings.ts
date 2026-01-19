@@ -49,6 +49,7 @@ export interface QuickAddSettings {
 		migrateFileOpeningSettings: boolean;
 		backfillFileOpeningDefaults: boolean;
 		setProviderModelDiscoveryMode: boolean;
+		migrateProviderApiKeysToSecretStorage: boolean;
 	};
 }
 
@@ -90,5 +91,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateFileOpeningSettings: false,
 		backfillFileOpeningDefaults: false,
 		setProviderModelDiscoveryMode: false,
+		migrateProviderApiKeysToSecretStorage: false,
 	},
 };

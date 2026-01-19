@@ -1,5 +1,5 @@
 import type { App} from "obsidian";
-import { Modal, Notice, Setting } from "obsidian";
+import { Modal, Notice, SecretComponent, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
 
@@ -67,13 +67,15 @@ export class ProviderPickerModal extends Modal {
         doc.rel = "noopener noreferrer";
       }
 
+      let apiKeyRef = "";
       const apiSetting = new Setting(card)
         .setName("API Key")
-        .addText((text) => {
-          text.setPlaceholder("paste key...");
-          text.inputEl.style.width = "100%";
-          text.onChange((v) => (text.inputEl.dataset["qa_key"] = v));
-        });
+        .setDesc("Select a secret from SecretStorage")
+        .addComponent((el) => new SecretComponent(this.app, el)
+          .setValue(apiKeyRef)
+          .onChange((value) => {
+            apiKeyRef = value;
+          }));
 
       // Make the API key input stack vertically to avoid squishing on narrow screens
       apiSetting.settingEl.style.display = "flex";
@@ -83,7 +85,7 @@ export class ProviderPickerModal extends Modal {
       apiSetting.addButton((b) => {
           b.setButtonText("Connect").setCta().onClick(() => {
             try {
-              const apiKey = (card.querySelector("input") as HTMLInputElement)?.dataset?.["qa_key"] ?? "";
+              const selectedSecret = apiKeyRef.trim();
 
               // Basic validation
               try {
@@ -108,7 +110,7 @@ export class ProviderPickerModal extends Modal {
                 "api.deepseek.com",
               ].some((s) => lower.includes(s));
 
-              if (likelyRequiresKey && !apiKey) {
+              if (likelyRequiresKey && !selectedSecret) {
                 new Notice(`${preset.name} requires an API key.`);
                 return;
               }
@@ -116,7 +118,8 @@ export class ProviderPickerModal extends Modal {
               const provider: AIProvider = {
                 name: preset.name,
                 endpoint: preset.endpoint,
-                apiKey,
+                apiKey: "",
+                apiKeyRef: selectedSecret,
                 models: [],
                 modelSource: "providerApi",
               };
@@ -135,7 +138,7 @@ export class ProviderPickerModal extends Modal {
       .setDesc("Create any custom endpoint (OpenAI-compatible or otherwise)")
       .addButton((b) => {
         b.setButtonText("Add custom...").onClick(() => {
-          const provider: AIProvider = { name: "Custom", endpoint: "", apiKey: "", models: [], modelSource: "providerApi" };
+          const provider: AIProvider = { name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
           new Notice("Custom provider added. Click Edit to configure.");
           this.display();

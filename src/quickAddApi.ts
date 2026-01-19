@@ -8,6 +8,7 @@ import {
 } from "./ai/aiHelpers";
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
 import type { Model } from "./ai/Provider";
+import { resolveProviderApiKey } from "./ai/providerSecrets";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
@@ -304,12 +305,14 @@ export class QuickAddApi {
 						);
 					}
 
+					const apiKey = await resolveProviderApiKey(app, modelProvider);
+
 					const assistantRes = await Prompt(
 						app,
 						{
 							model: _model,
 							prompt,
-							apiKey: modelProvider.apiKey,
+							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName: settings?.variableName ?? "output",
 							showAssistantMessages: settings?.showAssistantMessages ?? true,
@@ -396,6 +399,8 @@ export class QuickAddApi {
 						);
 					}
 
+					const apiKey = await resolveProviderApiKey(app, modelProvider);
+
 					const assistantRes = await ChunkedPrompt(
 						app,
 						{
@@ -403,7 +408,7 @@ export class QuickAddApi {
 							text,
 							promptTemplate,
 							chunkSeparator: settings?.chunkSeparator ?? /\n/,
-							apiKey: modelProvider.apiKey,
+							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName: settings?.variableName ?? "output",
 							showAssistantMessages: settings?.showAssistantMessages ?? true,

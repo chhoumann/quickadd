@@ -148,6 +148,26 @@ export class TextComponent extends BaseComponent {
   }
 }
 
+export class SecretComponent extends BaseComponent {
+  inputEl: HTMLInputElement;
+
+  constructor(_app: App, containerEl: HTMLElement) {
+    super();
+    this.inputEl = document.createElement("input");
+    containerEl.appendChild(this.inputEl);
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  onChange(cb: (value: string) => void): this {
+    this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
+    return this;
+  }
+}
+
 export class Setting {
   settingEl: HTMLElement;
   infoEl: HTMLElement;
@@ -267,6 +287,17 @@ export class SettingGroup {
 (globalThis as any).window.moment = moment;
 
 export class App {
+  private secretStore = new Map<string, string>();
+  secretStorage = {
+    getSecret: (name: string) => this.secretStore.get(name) ?? null,
+    setSecret: (name: string, value: string) => {
+      this.secretStore.set(name, value);
+    },
+    listSecrets: () => Array.from(this.secretStore.keys()),
+    delete: async (name: string) => {
+      this.secretStore.delete(name);
+    },
+  };
   workspace: any = {
     getActiveViewOfType: () => undefined,
     getLeaf: () => ({}),
