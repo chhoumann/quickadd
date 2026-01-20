@@ -70,6 +70,13 @@ export async function storeProviderApiKeyInSecretStorage(
 		candidate = `${base}-${suffix}`;
 	}
 
-	await Promise.resolve(app.secretStorage.setSecret(candidate, trimmed));
-	return candidate;
+	try {
+		await Promise.resolve(app.secretStorage.setSecret(candidate, trimmed));
+		return candidate;
+	} catch (err) {
+		log.logWarning(
+			`Failed to write SecretStorage entry "${candidate}": ${(err as Error).message ?? err}`,
+		);
+		return null;
+	}
 }
