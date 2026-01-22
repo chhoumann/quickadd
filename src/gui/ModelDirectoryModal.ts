@@ -148,9 +148,7 @@ export class ModelDirectoryModal extends Modal {
   }
 
   onClose(): void {
-    if (!this.selectedIds || this.selectedIds.size === 0) {
-      this.resolvePromise(null);
-    }
+    this.resolvePromise(null);
     super.onClose();
   }
 }
