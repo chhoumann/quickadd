@@ -15,6 +15,7 @@ export class ModelDirectoryModal extends Modal {
   private filtered: Model[] = [];
   private selectedIds = new Set<string>();
   private mode: "add" | "replace" = "add";
+  private resolved = false;
 
   constructor(app: App, provider: AIProvider) {
     super(app);
@@ -140,6 +141,7 @@ export class ModelDirectoryModal extends Modal {
         new Notice("No models selected to import.");
         return;
       }
+      this.resolved = true;
       this.resolvePromise({ imported: qaModels, mode: this.mode });
       this.close();
     } catch (err) {
@@ -148,7 +150,9 @@ export class ModelDirectoryModal extends Modal {
   }
 
   onClose(): void {
-    this.resolvePromise(null);
+    if (!this.resolved) {
+      this.resolvePromise(null);
+    }
     super.onClose();
   }
 }
