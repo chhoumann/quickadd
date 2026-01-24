@@ -48,7 +48,10 @@ Here are a few providers that are known to work with QuickAdd:
 
 Paid providers expose their own API, which you can use with QuickAdd. Free providers, such as Ollama, are also supported.
 
-By default, QuickAdd will add the OpenAI and Gemini providers. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings. This now opens a preset picker with common providers (OpenAI, Gemini, Groq, Together, OpenRouter, etc.). Paste your API key and click Connect to add the provider. You can also add a custom provider.
+By default, QuickAdd will add the OpenAI and Gemini providers. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings. This now opens a preset picker with common providers (OpenAI, Gemini, Groq, Together, OpenRouter, etc.). Select or create a SecretStorage entry for your API key and click Connect to add the provider. You can also add a custom provider.
+
+QuickAdd stores provider API keys in Obsidian's SecretStorage. The provider settings only keep the secret name, not the key itself.
+Existing provider API keys are migrated into SecretStorage automatically.
 
 Here's a video showcasing adding Groq as a provider:
 
@@ -70,7 +73,7 @@ Ollama binds to the port `11434` ([src](https://github.com/ollama/ollama/blob/ma
 ```
 Name: Ollama
 URL: http://localhost:11434/v1
-Api Key: (empty)
+API Key secret: (empty)
 ```
 
 And that's it! You can now use Ollama as a provider in QuickAdd.
@@ -83,7 +86,7 @@ Gemini is supported out of the box.
 ```
 Name: Gemini
 URL: https://generativelanguage.googleapis.com
-API Key: (AI Studio API key)
+API Key secret: (AI Studio API key)
 Models (add one or more):
   - gemini-1.5-pro (Max Tokens: 1000000)
   - gemini-1.5-flash (Max Tokens: 1000000)
@@ -106,7 +109,7 @@ Notes:
 
 Within the main AI Assistant settings accessible via QuickAdd settings, you can configure the following options:
 
--   Providers: Configure provider endpoints and API keys.
+-   Providers: Configure provider endpoints and API key secrets (SecretStorage).
 -   Prompt Templates Folder: The location where all your prompt templates reside.
 -   Default model: The default OpenAI model to be used.
 -   Show Assistant: Toggle for status messages.

@@ -3,6 +3,9 @@ export type ModelDiscoveryMode = "modelsDev" | "providerApi" | "auto";
 export interface AIProvider {
 	name: string;
 	endpoint: string;
+	/** SecretStorage key name for this provider's API key. */
+	apiKeyRef?: string;
+	/** Legacy plaintext API key stored in settings (migrated to SecretStorage). */
 	apiKey: string;
 	models: Model[];
 	/** If true, QuickAdd may auto-sync models from models.dev for this provider. */

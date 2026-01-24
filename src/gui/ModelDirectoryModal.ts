@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider, Model } from "src/ai/Provider";
 import { discoverProviderModels } from "src/ai/modelDiscoveryService";
+import { resolveProviderApiKey } from "src/ai/providerSecrets";
 
 export class ModelDirectoryModal extends Modal {
   public waitForClose: Promise<{ imported: Model[]; mode: "add" | "replace" } | null>;
@@ -14,6 +15,7 @@ export class ModelDirectoryModal extends Modal {
   private filtered: Model[] = [];
   private selectedIds = new Set<string>();
   private mode: "add" | "replace" = "add";
+  private resolved = false;
 
   constructor(app: App, provider: AIProvider) {
     super(app);
@@ -30,7 +32,8 @@ export class ModelDirectoryModal extends Modal {
 
   private async loadData() {
     try {
-      this.allModels = await discoverProviderModels(this.provider);
+      const apiKey = await resolveProviderApiKey(this.app, this.provider);
+      this.allModels = await discoverProviderModels(this.provider, apiKey);
       this.filtered = this.allModels.slice();
     } catch (err) {
       new Notice(`Failed to load model directory: ${(err as { message?: string }).message ?? err}`);
@@ -138,6 +141,7 @@ export class ModelDirectoryModal extends Modal {
         new Notice("No models selected to import.");
         return;
       }
+      this.resolved = true;
       this.resolvePromise({ imported: qaModels, mode: this.mode });
       this.close();
     } catch (err) {
@@ -146,7 +150,7 @@ export class ModelDirectoryModal extends Modal {
   }
 
   onClose(): void {
-    if (!this.selectedIds || this.selectedIds.size === 0) {
+    if (!this.resolved) {
       this.resolvePromise(null);
     }
     super.onClose();
