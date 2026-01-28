@@ -31,9 +31,14 @@ export type TemplaterPluginLike = {
 	templater?: {
 		overwrite_file_commands?: (f: TFile) => Promise<void>;
 		parse_template?: (
-			opt: { target_file: TFile; run_mode: number },
+			opt: { target_file: TFile; run_mode: number; frontmatter?: Record<string, unknown> },
 			content: string,
 		) => Promise<string>;
+		create_running_config?: (
+			template_file: TFile | undefined,
+			target_file: TFile,
+			run_mode: number,
+		) => { target_file: TFile; run_mode: number; frontmatter: Record<string, unknown> };
 		files_with_pending_templates?: Set<string>;
 		functions_generator?: { teardown?: () => Promise<void> };
 	};
@@ -400,13 +405,19 @@ export async function templaterParseTemplate(
 	if (!plugin || !templater || typeof parseTemplate !== "function")
 		return templateContent;
 
-	// Preserve Templater's internal `this` context.
-	return await parseTemplate.call(
-		templater,
-		// `run_mode: 4` maps to Templater's internal `RunMode.DynamicProcessor`.
-		{ target_file: targetFile, run_mode: 4 },
-		templateContent,
-	);
+	// Use Templater's create_running_config if available for forward compatibility.
+	// This ensures we get a properly initialized config object with all required fields,
+	// even if Templater adds new required fields in future versions.
+	// Fallback to manual config for older Templater versions.
+	const createConfig = templater.create_running_config;
+	const config =
+		typeof createConfig === "function"
+			? createConfig.call(templater, undefined, targetFile, 4)
+			: // `run_mode: 4` = RunMode.DynamicProcessor
+			// `frontmatter: {}` required since Templater 2.18.0
+			{ target_file: targetFile, run_mode: 4, frontmatter: {} };
+
+	return await parseTemplate.call(templater, config, templateContent);
 }
 
 export async function jumpToNextTemplaterCursorIfPossible(
@@ -677,9 +688,9 @@ function convertLinkToEmbed(link: string): string {
 }
 
 /**
- * Inserts a link to the specified file into the active view, respecting 
+ * Inserts a link to the specified file into the active view, respecting
  * Obsidian's "New link format" setting.
- * 
+ *
  * @param app - The Obsidian app instance
  * @param file - The file to link to
  * @param linkOptions - Options controlling link insertion behavior
@@ -765,26 +776,26 @@ export type OpenFileOptions = FileOpenOptions;
 
 /**
  * Open a file (by TFile or vault path) with precise control over location and mode.
- * 
+ *
  * @example
  * // Open in a new tab
  * await openFile(app, "daily/2024-01-01.md", { location: "tab" });
- * 
+ *
  * @example
  * // Split vertically in source mode
- * await openFile(app, file, { 
- *   location: "split", 
- *   direction: "vertical", 
- *   mode: "source" 
+ * await openFile(app, file, {
+ *   location: "split",
+ *   direction: "vertical",
+ *   mode: "source"
  * });
- * 
+ *
  * @example
  * // Open in sidebar without focus
- * await openFile(app, file, { 
- *   location: "right-sidebar", 
- *   focus: false 
+ * await openFile(app, file, {
+ *   location: "right-sidebar",
+ *   focus: false
  * });
- * 
+ *
  * @returns The leaf it opened into.
  */
 export async function openFile(
