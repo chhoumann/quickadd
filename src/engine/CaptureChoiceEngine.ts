@@ -457,26 +457,39 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.templatePropertyVars = templateVars;
 		}
 
+		// Determine Templater execution strategy:
+		// If trigger-on-create is enabled, let Templater's auto-trigger handle it.
+		// If disabled, suppress auto-trigger and run explicitly via overwriteTemplaterOnce.
+		// This mutual exclusion prevents the double-execution race in #1084.
+		const triggerOnCreate = isTemplaterTriggerOnCreateEnabled(this.app);
+		const createWithTemplate = this.choice.createFileIfItDoesntExist.createWithTemplate;
+
+		// If relying on auto-trigger, do NOT suppress it
+		const suppressTemplaterOnCreate = createWithTemplate && !triggerOnCreate;
+
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent, {
-			suppressTemplaterOnCreate:
-				this.choice.createFileIfItDoesntExist.createWithTemplate,
+			suppressTemplaterOnCreate,
 		});
 
 		// Post-process front matter for template property types if we used a template
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
+		if (createWithTemplate &&
 			this.templatePropertyVars &&
 			this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
 			await this.postProcessFrontMatter(file, this.templatePropertyVars);
 		}
 
-		// Process Templater commands in the template if a template was used
-		if (
-			this.choice.createFileIfItDoesntExist.createWithTemplate &&
-			fileContent
-		) {
-			await overwriteTemplaterOnce(this.app, file);
-		} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
+		// Run Templater exactly once: either via auto-trigger or explicit call
+		if (createWithTemplate && fileContent) {
+			if (triggerOnCreate) {
+				// Let Templater's trigger-on-create handle it, just wait for completion
+				await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+			} else {
+				// Trigger-on-create is disabled, run explicitly
+				await overwriteTemplaterOnce(this.app, file);
+			}
+		} else if (triggerOnCreate) {
+			// No template but trigger-on-create is enabled, wait for it
 			await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
 		}
 
