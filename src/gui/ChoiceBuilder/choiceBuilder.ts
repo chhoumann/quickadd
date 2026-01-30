@@ -162,11 +162,11 @@ export abstract class ChoiceBuilder extends Modal {
 		if (fileOpening.location === "split") {
 			new Setting(this.contentEl)
 				.setName("Split Direction")
-				.setDesc("Direction for split panes")
+				.setDesc("How to arrange the new pane relative to the current one")
 				.addDropdown((dropdown) => {
 					dropdown.addOptions({
-						vertical: "Vertical",
-						horizontal: "Horizontal",
+						vertical: "Split right",
+						horizontal: "Split down",
 					});
 					dropdown.setValue(fileOpening.direction);
 					dropdown.onChange((value: any) => {

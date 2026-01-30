@@ -131,11 +131,11 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private addDirectionSetting() {
 		new Setting(this.contentEl)
 			.setName("Split direction")
-			.setDesc("Which direction to split when opening")
+			.setDesc("How to arrange the new pane relative to the current one")
 			.addDropdown((dropdown) => {
 				dropdown
-					.addOption(NewTabDirection.vertical, "Vertical")
-					.addOption(NewTabDirection.horizontal, "Horizontal")
+					.addOption(NewTabDirection.vertical, "Split right")
+					.addOption(NewTabDirection.horizontal, "Split down")
 					.setValue(this.command.direction ?? NewTabDirection.vertical)
 					.onChange((value) => {
 						this.command.direction = value as NewTabDirection;
