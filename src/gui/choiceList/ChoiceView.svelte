@@ -16,7 +16,7 @@
 	import type IChoice from "../../types/choices/IChoice";
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
-	import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
+	import { promptRenameChoice } from "../choiceRename";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import { moveChoice as moveChoiceService } from "../../services/choiceService";
@@ -137,25 +137,15 @@
 		const { choice } = e.detail;
 		if (!choice) return;
 
-		try {
-			const newName = await GenericInputPrompt.Prompt(
-				app,
-				choice.name,
-				"Choice name",
-				choice.name,
-			);
-			const trimmed = newName.trim();
-			if (!trimmed || trimmed === choice.name) return;
+		const newName = await promptRenameChoice(app, choice.name);
+		if (!newName) return;
 
-			const updatedChoice = { ...choice, name: trimmed };
-			choices = choices.map((entry) =>
-				updateChoiceHelper(entry, updatedChoice),
-			);
-			commandRegistry.updateCommand(choice, updatedChoice);
-			saveChoices(choices);
-		} catch {
-			// Swallow cancellation/no input.
-		}
+		const updatedChoice = { ...choice, name: newName };
+		choices = choices.map((entry) =>
+			updateChoiceHelper(entry, updatedChoice),
+		);
+		commandRegistry.updateCommand(choice, updatedChoice);
+		saveChoices(choices);
 	}
 
 	async function toggleCommandForChoice(e: any) {

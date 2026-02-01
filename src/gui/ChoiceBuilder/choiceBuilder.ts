@@ -1,14 +1,13 @@
 import { type App, Modal, Setting, setIcon } from "obsidian";
 import type { SvelteComponent } from "svelte";
-import { log } from "../../logger/logManager";
 import type IChoice from "../../types/choices/IChoice";
 import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import {
 	normalizeFileOpening,
 	type FileOpeningSettings,
 } from "../../utils/fileOpeningDefaults";
-import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import { promptRenameChoice } from "../choiceRename";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
@@ -96,20 +95,10 @@ export abstract class ChoiceBuilder extends Modal {
 		setIcon(iconEl, "pencil");
 
 		headerEl.addEventListener("click", async (ev) => {
-			try {
-				const newName: string = await GenericInputPrompt.Prompt(
-					this.app,
-					choice.name,
-					"Choice name",
-					choice.name,
-				);
-				if (newName !== choice.name) {
-					choice.name = newName;
-					textEl.setText(newName);
-				}
-			} catch {
-				log.logMessage(`No new name given for ${choice.name}`);
-			}
+			const newName = await promptRenameChoice(this.app, choice.name);
+			if (!newName) return;
+			choice.name = newName;
+			textEl.setText(newName);
 		});
 	}
 
