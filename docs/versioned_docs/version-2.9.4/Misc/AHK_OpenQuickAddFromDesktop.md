@@ -36,7 +36,7 @@ SetTitleMatchMode, RegEx
 !^+g::
     WinActivate, i) Obsidian
 
-    Run "obsidian://advanced-uri?vault=<YOUR_VAULT_NAME>&commandname=QuickAdd: Run QuickAdd"
+    Run "obsidian://advanced-uri?vault=<YOUR_VAULT_NAME>&commandname=QuickAdd:%20Run%20QuickAdd"
 Return
 ```
 
@@ -56,7 +56,7 @@ So, you can replace the `!^+g` with any hotkey of your choosing.
 
 You can trigger QuickAdd via the Advanced URI using any launcher or automation tool you prefer:
 
-- Open URL: `obsidian://advanced-uri?vault=<YOUR_VAULT_NAME>&commandname=QuickAdd: Run QuickAdd`
+- Open URL: `obsidian://advanced-uri?vault=<YOUR_VAULT_NAME>&commandname=QuickAdd:%20Run%20QuickAdd`
 
 Examples:
 - macOS Shortcuts: add an “Open URLs” action with the URI; assign a keyboard shortcut.
