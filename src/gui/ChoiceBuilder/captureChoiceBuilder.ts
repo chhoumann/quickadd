@@ -15,6 +15,7 @@ import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
+import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
@@ -125,7 +126,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addCapturedToSetting() {
 		new Setting(this.contentEl)
 			.setName("Capture to")
-			.setDesc("Target file path. Supports format syntax.");
+			.setDesc(
+				"Vault-relative path. Supports format syntax (use trailing '/' for folders).",
+			);
 
 		const captureToContainer: HTMLDivElement =
 			this.contentEl.createDiv("captureToContainer");
@@ -157,7 +160,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 			new Setting(captureToFileContainer)
 				.setName("File path / format")
-				.setDesc("Choose a file or use format syntax (e.g., {{DATE}})");
+				.setDesc(
+					"Choose a file, folder, or format syntax (e.g., {{DATE}})",
+				);
 
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app, this.plugin);
@@ -168,10 +173,17 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			formatDisplay.setAttr("aria-live", "polite");
 			formatDisplay.textContent = "Loading preview…";
 
-			const markdownFilesAndFormatSyntax = [
-				...this.app.vault.getMarkdownFiles().map((f) => f.path),
-				...FILE_NAME_FORMAT_SYNTAX,
-			];
+			const folderPaths = getAllFolderPathsInVault(this.app)
+				.filter((path) => path.length > 0)
+				.map((path) => (path.endsWith("/") ? path : `${path}/`));
+
+			const markdownFilesAndFormatSyntax = Array.from(
+				new Set([
+					...folderPaths,
+					...this.app.vault.getMarkdownFiles().map((f) => f.path),
+					...FILE_NAME_FORMAT_SYNTAX,
+				]),
+			);
 
 			createValidatedInput({
 				app: this.app,

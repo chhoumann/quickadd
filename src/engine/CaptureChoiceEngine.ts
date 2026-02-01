@@ -31,6 +31,7 @@ import {
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
@@ -130,12 +131,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					getFileAndAddContentFn = ((path, capture, _options) =>
 						this.onCreateFileIfItDoesntExist(path, capture, linkOptions)
 					) as typeof this.onCreateFileIfItDoesntExist;
-			} else {
-				log.logWarning(
-					`The file ${filePath} does not exist and "Create file if it doesn't exist" is disabled.`,
-				);
-				return;
-			}
+				} else {
+					throw new ChoiceAbortError(
+						`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
+					);
+				}
 
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
@@ -258,27 +258,75 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		const captureTo = this.choice.captureTo;
-		const formattedCaptureTo = await this.formatFilePath(captureTo);
+		const formattedCaptureTo = await this.formatter.formatFileName(
+			captureTo,
+			this.choice.name,
+		);
+		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
-		// Removing the trailing slash from the capture to path because otherwise isFolder will fail
-		// to get the folder.
-		const folderPath = formattedCaptureTo.replace(/^\/$|\/\.md$|^\.md$/, "");
-		// Empty string means we suggest to capture anywhere in the vault.
-		const captureAnywhereInVault = folderPath === "";
-		const shouldCaptureToFolder =
-			captureAnywhereInVault || isFolder(this.app, folderPath);
-		const shouldCaptureWithTag = formattedCaptureTo.startsWith("#");
+		switch (resolution.kind) {
+			case "vault":
+				return this.selectFileInFolder("", true);
+			case "tag":
+				return this.selectFileWithTag(resolution.tag);
+			case "folder":
+				return this.selectFileInFolder(resolution.folder, false);
+			case "file":
+				return this.normalizeMarkdownFilePath("", resolution.path);
+		}
+	}
 
-		if (shouldCaptureToFolder) {
-			return this.selectFileInFolder(folderPath, captureAnywhereInVault);
+	private resolveCaptureTarget(
+		formattedCaptureTo: string,
+	):
+		| { kind: "vault" }
+		| { kind: "tag"; tag: string }
+		| { kind: "folder"; folder: string }
+		| { kind: "file"; path: string } {
+		// Resolution order:
+		// 1) empty => vault picker
+		// 2) #tag => tag picker
+		// 3) trailing "/" => folder picker (explicit)
+		// 4) ".md" => file
+		// 5) ambiguous => folder if it exists and no same-name file exists; else file
+		const normalizedCaptureTo = this.stripLeadingSlash(
+			formattedCaptureTo.trim(),
+		);
+
+		if (normalizedCaptureTo === "") {
+			return { kind: "vault" };
 		}
 
-		if (shouldCaptureWithTag) {
-			const tag = formattedCaptureTo.replace(/\.md$/, "");
-			return this.selectFileWithTag(tag);
+		if (normalizedCaptureTo.startsWith("#")) {
+			return {
+				kind: "tag",
+				tag: normalizedCaptureTo.replace(/\.md$/, ""),
+			};
 		}
 
-		return formattedCaptureTo;
+		const endsWithSlash = normalizedCaptureTo.endsWith("/");
+		const folderPath = normalizedCaptureTo.replace(/\/+$/, "");
+
+		if (endsWithSlash) {
+			return { kind: "folder", folder: folderPath };
+		}
+
+		if (normalizedCaptureTo.endsWith(".md")) {
+			return { kind: "file", path: normalizedCaptureTo };
+		}
+
+		// Guard against ambiguity where a folder and file share the same name.
+		const fileCandidatePath = this.normalizeMarkdownFilePath("", folderPath);
+		const fileCandidate = this.app.vault.getAbstractFileByPath(
+			fileCandidatePath,
+		);
+		const fileExists = !!fileCandidate;
+
+		if (isFolder(this.app, folderPath) && !fileExists) {
+			return { kind: "folder", folder: folderPath };
+		}
+
+		return { kind: "file", path: normalizedCaptureTo };
 	}
 
 	private async selectFileInFolder(
