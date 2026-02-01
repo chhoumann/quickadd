@@ -311,6 +311,21 @@ test("getEndOfSection - capture to last line, shouldConsiderSubsections OFF", ()
 	expect(result).toBe(2);
 });
 
+test("getEndOfSection - target heading with only subsections, should not consider subsections", () => {
+	const lines = [
+		"## Insert", // target (0)
+		"1",
+		"2", // result (2)
+		"### Subsection",
+		"sub content",
+	];
+
+	const targetLine = 0;
+
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(2);
+});
+
 
 test("getMarkdownHeadings - correctly identifies headings", () => {
 	const lines = [
