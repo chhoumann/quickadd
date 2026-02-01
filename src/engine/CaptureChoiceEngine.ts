@@ -283,6 +283,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		| { kind: "tag"; tag: string }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
+		// Resolution order:
+		// 1) empty => vault picker
+		// 2) #tag => tag picker
+		// 3) trailing "/" => folder picker (explicit)
+		// 4) ".md" => file
+		// 5) ambiguous => folder if it exists and no same-name file exists; else file
 		const normalizedCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
 		);
@@ -309,10 +315,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return { kind: "file", path: normalizedCaptureTo };
 		}
 
-		const fileCandidatePath = this.normalizeMarkdownFilePath(
-			"",
-			folderPath,
-		);
+		// Guard against ambiguity where a folder and file share the same name.
+		const fileCandidatePath = this.normalizeMarkdownFilePath("", folderPath);
 		const fileCandidate = this.app.vault.getAbstractFileByPath(
 			fileCandidatePath,
 		);
