@@ -298,6 +298,79 @@ describe('FileIndex', () => {
 		});
 	});
 
+	describe('alias extraction', () => {
+		it('should split comma-separated alias strings', async () => {
+			const files = [
+				{
+					path: 'test.md',
+					basename: 'test',
+					extension: 'md',
+					parent: { path: '' },
+					stat: { mtime: Date.now() }
+				}
+			] as TFile[];
+
+			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
+			mockApp.metadataCache.getFileCache = vi.fn(() => ({
+				frontmatter: { aliases: 'hello, world' }
+			}));
+
+			await fileIndex.ensureIndexed();
+
+			const helloResults = fileIndex.search('hello', {}, 10);
+			const worldResults = fileIndex.search('world', {}, 10);
+
+			expect(helloResults.some(result =>
+				result.matchType === 'alias' && result.displayText === 'hello'
+			)).toBe(true);
+			expect(worldResults.some(result =>
+				result.matchType === 'alias' && result.displayText === 'world'
+			)).toBe(true);
+		});
+
+		it('should read aliases from case-insensitive keys', async () => {
+			const files = [
+				{
+					path: 'upper.md',
+					basename: 'upper',
+					extension: 'md',
+					parent: { path: '' },
+					stat: { mtime: Date.now() }
+				},
+				{
+					path: 'note.md',
+					basename: 'note',
+					extension: 'md',
+					parent: { path: '' },
+					stat: { mtime: Date.now() }
+				}
+			] as TFile[];
+
+			(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
+			mockApp.metadataCache.getFileCache = vi.fn((file) => {
+				if (file.path === 'upper.md') {
+					return { frontmatter: { Aliases: ['Caps'] } };
+				}
+				if (file.path === 'note.md') {
+					return { frontmatter: { aLiAs: 'Mixed' } };
+				}
+				return { frontmatter: {} };
+			});
+
+			await fileIndex.ensureIndexed();
+
+			const capsResults = fileIndex.search('caps', {}, 10);
+			const mixedResults = fileIndex.search('mixed', {}, 10);
+
+			expect(capsResults.some(result =>
+				result.matchType === 'alias' && result.displayText === 'Caps'
+			)).toBe(true);
+			expect(mixedResults.some(result =>
+				result.matchType === 'alias' && result.displayText === 'Mixed'
+			)).toBe(true);
+		});
+	});
+
 	describe('heading search', () => {
 		it.skip('should support global heading search with #', async () => {
 			// Create files with headings

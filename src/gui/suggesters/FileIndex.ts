@@ -283,18 +283,39 @@ export class FileIndex {
 		this.updateUnresolvedLinks();
 	}
 
+	private extractAliases(frontmatter?: Record<string, unknown>): string[] {
+		if (!frontmatter) return [];
+
+		const aliases: string[] = [];
+		for (const [key, value] of Object.entries(frontmatter)) {
+			const lowerKey = key.toLowerCase();
+			if (lowerKey !== 'alias' && lowerKey !== 'aliases') continue;
+
+			if (typeof value === 'string') {
+				const splitAliases = value
+					.split(',')
+					.map((alias) => alias.trim())
+					.filter((alias) => alias.length > 0);
+				aliases.push(...splitAliases);
+			} else if (Array.isArray(value)) {
+				aliases.push(
+					...value
+						.filter((alias) => typeof alias === 'string')
+						.map((alias) => alias.trim())
+						.filter((alias) => alias.length > 0)
+				);
+			}
+		}
+
+		return aliases;
+	}
+
 	private createIndexedFile(file: TFile): IndexedFile {
 		const fileCache = this.app.metadataCache.getFileCache(file);
 		const frontmatter = fileCache?.frontmatter;
-		
-		// Extract aliases
-		const aliases: string[] = [];
-		const aliasData = frontmatter?.alias ?? frontmatter?.aliases;
-		if (typeof aliasData === 'string') {
-			aliases.push(aliasData);
-		} else if (Array.isArray(aliasData)) {
-			aliases.push(...aliasData.filter(a => typeof a === 'string'));
-		}
+
+		// Extract aliases (case-insensitive keys, handle comma-separated strings)
+		const aliases = this.extractAliases(frontmatter as Record<string, unknown> | undefined);
 		const aliasesNormalized = aliases.map((alias) => normalizeForSearch(alias));
 
 		// Extract and sanitize headings at index time
