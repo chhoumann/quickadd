@@ -533,6 +533,7 @@ Break complex macros into smaller, reusable parts:
 - Ensure plugins are enabled before running the macro
 
 **Variables not passing between commands**
+- `{{VALUE}}` / `{{NAME}}` are per-template; use `{{VALUE:sharedName}}` to reuse one prompt across a macro
 - Ensure you're using the correct syntax: `{{VALUE:variableName}}`
 - Variables must be set before they're used
 - Check that variable names match exactly (case-sensitive)
