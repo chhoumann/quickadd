@@ -3,7 +3,7 @@ import type { App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { openFile } from "../utilityObsidian";
+import { isFolder, openFile } from "../utilityObsidian";
 
 const { setUseSelectionAsCaptureValueMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
@@ -74,6 +74,7 @@ const createApp = () =>
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
+			getAbstractFileByPath: vi.fn(() => null),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -207,5 +208,60 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 				focus: true,
 			}),
 		);
+	});
+});
+
+describe("CaptureChoiceEngine capture target resolution", () => {
+	beforeEach(() => {
+		vi.mocked(isFolder).mockReset();
+	});
+
+	it("treats folder path without trailing slash as folder when folder exists", () => {
+		const app = createApp();
+		vi.mocked(isFolder).mockReturnValue(true);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "journals" }),
+			createExecutor(),
+		);
+
+		const result = (engine as any).resolveCaptureTarget("journals");
+
+		expect(result).toEqual({ kind: "folder", folder: "journals" });
+	});
+
+	it("treats trailing slash as folder even when folder does not exist", () => {
+		const app = createApp();
+		vi.mocked(isFolder).mockReturnValue(false);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "journals/" }),
+			createExecutor(),
+		);
+
+		const result = (engine as any).resolveCaptureTarget("journals/");
+
+		expect(result).toEqual({ kind: "folder", folder: "journals" });
+	});
+
+	it("treats folder path as file when a file exists", () => {
+		const app = createApp();
+		vi.mocked(isFolder).mockReturnValue(true);
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue({} as any);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "journals" }),
+			createExecutor(),
+		);
+
+		const result = (engine as any).resolveCaptureTarget("journals");
+
+		expect(result).toEqual({ kind: "file", path: "journals" });
 	});
 });

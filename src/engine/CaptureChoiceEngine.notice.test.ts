@@ -240,4 +240,48 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			"Capture execution aborted: Target file missing",
 		);
 	});
+
+	it("shows a notice when the target file is missing and create is disabled", async () => {
+		settingsStore.setState({
+			...settingsStore.getState(),
+			showInputCancellationNotification: false,
+		});
+
+		const app = {
+			vault: {
+				adapter: {
+					exists: vi.fn(async () => false),
+				},
+				getAbstractFileByPath: vi.fn(),
+				modify: vi.fn(),
+				create: vi.fn(),
+			},
+			workspace: {
+				getActiveFile: vi.fn(() => null),
+			},
+			fileManager: {
+				getNewFileParent: vi.fn(() => ({ path: "" })),
+			},
+		} as unknown as App;
+
+		const plugin = { settings: settingsStore.getState() } as any;
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			plugin,
+			createCaptureChoice(),
+			choiceExecutor,
+		);
+
+		await engine.run();
+
+		expect(noticeClass.instances).toHaveLength(1);
+		expect(noticeClass.instances[0]?.message).toContain(
+			"Capture execution aborted: Target file missing",
+		);
+	});
 });
