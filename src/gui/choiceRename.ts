@@ -8,8 +8,8 @@ export async function promptRenameChoice(
 	try {
 		const newName = await GenericInputPrompt.Prompt(
 			app,
-			currentName,
 			"Choice name",
+			undefined,
 			currentName,
 		);
 		const trimmed = newName.trim();
