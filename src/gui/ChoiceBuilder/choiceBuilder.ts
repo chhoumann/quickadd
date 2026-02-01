@@ -1,4 +1,4 @@
-import { type App, Modal, Setting } from "obsidian";
+import { type App, Modal, Setting, setIcon } from "obsidian";
 import type { SvelteComponent } from "svelte";
 import { log } from "../../logger/logManager";
 import type IChoice from "../../types/choices/IChoice";
@@ -85,7 +85,15 @@ export abstract class ChoiceBuilder extends Modal {
 		const headerEl: HTMLHeadingElement = this.contentEl.createEl("h2", {
 			cls: "choiceNameHeader",
 		});
-		headerEl.setText(choice.name);
+		const textEl = headerEl.createSpan({
+			text: choice.name,
+			cls: "choiceNameHeaderText",
+		});
+		const iconEl = headerEl.createSpan({
+			cls: "choiceNameHeaderIcon",
+			attr: { "aria-hidden": "true" },
+		});
+		setIcon(iconEl, "pencil");
 
 		headerEl.addEventListener("click", async (ev) => {
 			try {
@@ -97,7 +105,7 @@ export abstract class ChoiceBuilder extends Modal {
 				);
 				if (newName !== choice.name) {
 					choice.name = newName;
-					headerEl.setText(newName);
+					textEl.setText(newName);
 				}
 			} catch {
 				log.logMessage(`No new name given for ${choice.name}`);

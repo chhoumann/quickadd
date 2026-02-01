@@ -52,6 +52,7 @@
 
     function onContextMenu(evt: MouseEvent) {
         showChoiceContextMenu(app, evt, choice, roots, {
+            onRename: () => dispatcher('renameChoice', { choice }),
             onToggle: () => toggleCommandForChoice(),
             onConfigure: () => configureChoice(),
             onDuplicate: () => duplicateChoice(),
@@ -114,6 +115,7 @@
                         on:toggleCommand
                         on:duplicateChoice
                         on:moveChoice
+                        on:renameChoice
                         on:reorderChoices={handleNestedReorder}
                         bind:multiChoice={choice}
                         bind:choices={choice.choices}

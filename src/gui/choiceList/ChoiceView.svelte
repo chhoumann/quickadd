@@ -16,6 +16,7 @@
 	import type IChoice from "../../types/choices/IChoice";
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import { moveChoice as moveChoiceService } from "../../services/choiceService";
@@ -132,6 +133,31 @@
 		return oldChoice;
 	}
 
+	async function handleRenameChoice(e: any) {
+		const { choice } = e.detail;
+		if (!choice) return;
+
+		try {
+			const newName = await GenericInputPrompt.Prompt(
+				app,
+				choice.name,
+				"Choice name",
+				choice.name,
+			);
+			const trimmed = newName.trim();
+			if (!trimmed || trimmed === choice.name) return;
+
+			const updatedChoice = { ...choice, name: trimmed };
+			choices = choices.map((entry) =>
+				updateChoiceHelper(entry, updatedChoice),
+			);
+			commandRegistry.updateCommand(choice, updatedChoice);
+			saveChoices(choices);
+		} catch {
+			// Swallow cancellation/no input.
+		}
+	}
+
 	async function toggleCommandForChoice(e: any) {
 		const { choice: oldChoice } = e.detail;
 		const updatedChoice = createToggleCommandChoice(oldChoice);
@@ -209,6 +235,7 @@
 			on:configureChoice={handleConfigureChoice}
 			on:toggleCommand={toggleCommandForChoice}
 			on:duplicateChoice={handleDuplicateChoice}
+			on:renameChoice={handleRenameChoice}
 			on:moveChoice={handleMoveChoice}
 			on:reorderChoices={(e) => saveChoices(e.detail.choices)}
 		/>
@@ -223,6 +250,7 @@
 			on:configureChoice={handleConfigureChoice}
 			on:toggleCommand={toggleCommandForChoice}
 			on:duplicateChoice={handleDuplicateChoice}
+			on:renameChoice={handleRenameChoice}
 			on:moveChoice={handleMoveChoice}
 		/>
 	{/if}

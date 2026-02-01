@@ -73,6 +73,7 @@
                     on:configureChoice
                     on:toggleCommand
                     on:duplicateChoice
+                    on:renameChoice
                     on:moveChoice
                     startDrag={startDrag}
                     bind:choice
@@ -86,6 +87,7 @@
                     on:configureChoice
                     on:toggleCommand
                     on:duplicateChoice
+                    on:renameChoice
                     on:moveChoice
                     on:reorderChoices
                     startDrag={startDrag}
