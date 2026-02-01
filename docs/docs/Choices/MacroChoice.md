@@ -69,6 +69,28 @@ In the Macro Builder, you can add different types of commands:
    - Run custom scripts that return a boolean to choose a branch
    - Configure "then" and optional "else" command sequences from the builder
 
+### Add a User Script Command
+
+Macros do not contain JavaScript code directly. Your code lives in a `.js` file
+inside your vault, and the macro simply runs that file.
+
+Create a new script file such as `scripts/my-macro.js` and make sure it is not
+inside `.obsidian` or any folder whose name starts with a dot. QuickAdd ignores
+scripts in those locations, so they will not show up in the script picker.
+
+Open the Macro Builder, add a **User Script** command, and select your script
+file. If the script exports multiple functions, QuickAdd will ask which export
+to run. You can also set an output variable name so later commands can reuse the
+result.
+
+If your goal is to insert text into a note, use a **Template** or **Capture**
+choice and run it from the macro using a **Nested Choice** command. This is the
+intended way to write content. No YAML frontmatter is required.
+
+If your script calls APIs from other plugins, those plugins must be installed
+and enabled in your vault. You do not need any extra plugins just to run user
+scripts in macros.
+
 ### Conditional Commands
 
 Conditional commands let you branch your macro without writing boilerplate JavaScript. Each conditional includes:
