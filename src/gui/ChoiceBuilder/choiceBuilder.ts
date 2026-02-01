@@ -11,19 +11,15 @@ import { promptRenameChoice } from "../choiceRename";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
-	private rejectPromise: (reason?: unknown) => void;
-	private input: IChoice;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
-	private didSubmit = false;
 	protected svelteElements: SvelteComponent[] = [];
 
 	protected constructor(app: App) {
 		super(app);
 
-		this.waitForClose = new Promise<IChoice>((resolve, reject) => {
+		this.waitForClose = new Promise<IChoice>((resolve) => {
 			this.resolvePromise = resolve;
-			this.rejectPromise = reject;
 		});
 
 		this.containerEl.addClass("quickAddModal");
@@ -208,12 +204,9 @@ export abstract class ChoiceBuilder extends Modal {
 
 	onClose() {
 		super.onClose();
-		this.resolvePromise(this.choice);
 		this.svelteElements.forEach((el) => {
 			if (el && el.$destroy) el.$destroy();
 		});
-
-		if (!this.didSubmit) this.rejectPromise("No answer given.");
-		else this.resolvePromise(this.input);
+		this.resolvePromise(this.choice);
 	}
 }
