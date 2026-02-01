@@ -36,10 +36,20 @@
 
 .choiceNameHeader {
 	text-align: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
 }
 
 .choiceNameHeader:hover {
 	cursor: pointer;
+}
+
+.choiceNameHeaderIcon {
+	display: inline-flex;
+	align-items: center;
+	opacity: 0.5;
 }
 
 .folderInputContainer {

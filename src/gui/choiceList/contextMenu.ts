@@ -49,6 +49,7 @@ function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
 }
 
 type MenuActions = {
+  onRename: () => void;
   onToggle: () => void;
   onConfigure: () => void;
   onDuplicate: () => void;
@@ -79,6 +80,7 @@ export function showChoiceContextMenu(
         .setIcon("zap")
         .onClick(actions.onToggle),
     )
+    .addItem((item) => item.setTitle("Rename").setIcon("pencil").onClick(actions.onRename))
     .addItem((item) => item.setTitle("Configure").setIcon("settings").onClick(actions.onConfigure))
     .addItem((item) => item.setTitle("Duplicate").setIcon("copy").onClick(actions.onDuplicate))
     .addItem((item) => item.setTitle("Delete").setIcon("trash-2").onClick(actions.onDelete))

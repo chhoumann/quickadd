@@ -1,30 +1,25 @@
-import { type App, Modal, Setting } from "obsidian";
+import { type App, Modal, Setting, setIcon } from "obsidian";
 import type { SvelteComponent } from "svelte";
-import { log } from "../../logger/logManager";
 import type IChoice from "../../types/choices/IChoice";
 import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import {
 	normalizeFileOpening,
 	type FileOpeningSettings,
 } from "../../utils/fileOpeningDefaults";
-import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import { promptRenameChoice } from "../choiceRename";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
-	private rejectPromise: (reason?: unknown) => void;
-	private input: IChoice;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
-	private didSubmit = false;
 	protected svelteElements: SvelteComponent[] = [];
 
 	protected constructor(app: App) {
 		super(app);
 
-		this.waitForClose = new Promise<IChoice>((resolve, reject) => {
+		this.waitForClose = new Promise<IChoice>((resolve) => {
 			this.resolvePromise = resolve;
-			this.rejectPromise = reject;
 		});
 
 		this.containerEl.addClass("quickAddModal");
@@ -85,23 +80,21 @@ export abstract class ChoiceBuilder extends Modal {
 		const headerEl: HTMLHeadingElement = this.contentEl.createEl("h2", {
 			cls: "choiceNameHeader",
 		});
-		headerEl.setText(choice.name);
+		const textEl = headerEl.createSpan({
+			text: choice.name,
+			cls: "choiceNameHeaderText",
+		});
+		const iconEl = headerEl.createSpan({
+			cls: "choiceNameHeaderIcon",
+			attr: { "aria-hidden": "true" },
+		});
+		setIcon(iconEl, "pencil");
 
 		headerEl.addEventListener("click", async (ev) => {
-			try {
-				const newName: string = await GenericInputPrompt.Prompt(
-					this.app,
-					choice.name,
-					"Choice name",
-					choice.name,
-				);
-				if (newName !== choice.name) {
-					choice.name = newName;
-					headerEl.setText(newName);
-				}
-			} catch {
-				log.logMessage(`No new name given for ${choice.name}`);
-			}
+			const newName = await promptRenameChoice(this.app, choice.name);
+			if (!newName) return;
+			choice.name = newName;
+			textEl.setText(newName);
 		});
 	}
 
@@ -211,12 +204,9 @@ export abstract class ChoiceBuilder extends Modal {
 
 	onClose() {
 		super.onClose();
-		this.resolvePromise(this.choice);
 		this.svelteElements.forEach((el) => {
 			if (el && el.$destroy) el.$destroy();
 		});
-
-		if (!this.didSubmit) this.rejectPromise("No answer given.");
-		else this.resolvePromise(this.input);
+		this.resolvePromise(this.choice);
 	}
 }

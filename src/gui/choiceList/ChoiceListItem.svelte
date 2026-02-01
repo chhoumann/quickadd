@@ -47,6 +47,7 @@
 
 	function onContextMenu(evt: MouseEvent) {
 		showChoiceContextMenu(app, evt, choice, roots, {
+			onRename: () => dispatcher("renameChoice", { choice }),
 			onToggle: () => toggleCommandForChoice(),
 			onConfigure: () => configureChoice(),
 			onDuplicate: () => duplicateChoice(),
