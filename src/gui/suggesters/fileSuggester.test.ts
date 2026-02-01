@@ -211,6 +211,42 @@ describe('FileSuggester - Issue #838 and #839', () => {
             expect(basenameIndex).toBeLessThan(aliasIndex);
         });
     });
+
+    describe('Issue #509 - Duplicate aliases should show multiple files', () => {
+        it('should return all files that share the same exact alias', async () => {
+            // Reset the singleton instance
+            (FileIndex as any).instance = null;
+
+            const testFiles = [
+                createMockFile('Notes/Caleb.md', 'Caleb'),
+                createMockFile('Notes/Zeb.md', 'Zeb'),
+            ];
+
+            vi.mocked(mockApp.metadataCache.getFileCache).mockImplementation((file: TFile) => {
+                if (file.basename === 'Caleb' || file.basename === 'Zeb') {
+                    return {
+                        frontmatter: {
+                            aliases: ['doctor']
+                        }
+                    };
+                }
+                return null;
+            });
+
+            vi.mocked(mockApp.vault.getFiles).mockReturnValue(testFiles);
+            vi.mocked(mockApp.vault.getMarkdownFiles).mockReturnValue(testFiles);
+
+            const testIndex = FileIndex.getInstance(mockApp as App, mockPlugin);
+            await testIndex.ensureIndexed();
+
+            const results = testIndex.search('doctor');
+            expect(results.length).toBeGreaterThanOrEqual(2);
+
+            const doctorMatches = results.filter(r => r.matchType === 'alias' && r.displayText === 'doctor');
+            expect(doctorMatches.some(r => r.file.basename === 'Caleb')).toBe(true);
+            expect(doctorMatches.some(r => r.file.basename === 'Zeb')).toBe(true);
+        });
+    });
 });
 
 describe('FileSuggester - Substring search with long aliases', () => {
