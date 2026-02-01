@@ -177,11 +177,9 @@ function findNextHeading(
 	fromIdxInBody: number,
 	headings: Heading[],
 ): number | null {
-	const nextheading = headings.findIndex(
-		(heading) => heading.line > fromIdxInBody,
-	);
+	const nextHeading = headings.find((heading) => heading.line > fromIdxInBody);
 
-	return nextheading === -1 ? null : nextheading;
+	return nextHeading ? nextHeading.line : null;
 }
 
 function findPriorIdx<T>(
