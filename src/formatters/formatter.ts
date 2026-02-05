@@ -509,7 +509,7 @@ export abstract class Formatter {
 			}
 
 			if (variableName && dateFormat) {
-				const existingValue = this.variables.get(variableName) as string;
+				const existingValue = this.variables.get(variableName);
 
 				// Check if we already have this date variable stored
 				if (!existingValue) {
@@ -547,9 +547,38 @@ export abstract class Formatter {
 
 				// Format the date based on what's stored
 				let formattedDate = "";
-				const storedValue = this.variables.get(variableName) as string;
+				let storedValue = this.variables.get(variableName);
 
-				if (storedValue && storedValue.startsWith("@date:")) {
+				// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain string,
+				// attempt to coerce it into the internal @date:ISO form so formatting works.
+				if (
+					typeof storedValue === "string" &&
+					storedValue &&
+					!storedValue.startsWith("@date:")
+				) {
+					if (this.dateParser) {
+						const aliasMap = settingsStore.getState().dateAliases;
+						const normalizedInput = normalizeDateInput(storedValue, aliasMap);
+						const parseAttempt = this.dateParser.parseDate(normalizedInput);
+
+						// Keep backwards compatibility: only coerce if we can parse it.
+						if (parseAttempt) {
+							const iso = parseAttempt.moment.toISOString();
+							const coerced = `@date:${iso}`;
+							this.variables.set(variableName, coerced);
+							storedValue = coerced;
+						}
+					}
+				} else if (storedValue instanceof Date) {
+					// Some callers may pass actual Date objects through the JS API.
+					if (!Number.isNaN(storedValue.getTime())) {
+						const coerced = `@date:${storedValue.toISOString()}`;
+						this.variables.set(variableName, coerced);
+						storedValue = coerced;
+					}
+				}
+
+				if (typeof storedValue === "string" && storedValue.startsWith("@date:")) {
 					// It's a date variable, extract and format it
 					const isoString = storedValue.substring(6);
 
@@ -559,9 +588,12 @@ export abstract class Formatter {
 							formattedDate = moment.format(dateFormat);
 						}
 					}
-				} else if (storedValue) {
+				} else if (typeof storedValue === "string" && storedValue) {
 					// Backward compatibility: use the stored value as-is
 					formattedDate = storedValue;
+				} else if (storedValue != null) {
+					// Fallback: avoid throwing if a non-string value is stored.
+					formattedDate = `${storedValue}`;
 				}
 
 				// Replace the specific match rather than using regex again
