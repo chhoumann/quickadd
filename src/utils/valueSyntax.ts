@@ -1,3 +1,5 @@
+import { parsePipeKeyValue, splitPipeParts, stripLeadingPipe } from "./pipeSyntax";
+
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
@@ -92,9 +94,9 @@ function parseBoolean(value?: string): boolean {
 function hasRecognizedOption(part: string): boolean {
 	const trimmed = part.trim();
 	if (!trimmed) return false;
-	if (!trimmed.includes(":")) return false;
-	const key = trimmed.split(":", 1)[0]?.trim().toLowerCase();
-	return !!key && VALUE_OPTION_KEYS.has(key);
+	const parsed = parsePipeKeyValue(trimmed);
+	if (!parsed) return false;
+	return VALUE_OPTION_KEYS.has(parsed.key);
 }
 
 function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions {
@@ -137,10 +139,9 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 			continue;
 		}
 
-		const colonIndex = trimmed.indexOf(":");
-		if (colonIndex === -1) continue;
-		const key = trimmed.slice(0, colonIndex).trim().toLowerCase();
-		const value = trimmed.slice(colonIndex + 1).trim();
+		const parsed = parsePipeKeyValue(trimmed);
+		if (!parsed) continue;
+		const { key, value } = parsed;
 		if (!VALUE_OPTION_KEYS.has(key)) continue;
 
 		switch (key) {
@@ -202,7 +203,7 @@ function resolveInputType(
 export function parseValueToken(raw: string): ParsedValueToken | null {
 	if (!raw) return null;
 
-	const parts = raw.split("|");
+	const parts = splitPipeParts(raw);
 	const variablePart = (parts.shift() ?? "").trim();
 	if (!variablePart) return null;
 
@@ -252,11 +253,8 @@ export function parseAnonymousValueOptions(
 	defaultValue: string;
 	inputTypeOverride?: ValueInputType;
 } {
-	const normalized = rawOptions.startsWith("|")
-		? rawOptions.slice(1)
-		: rawOptions;
-	const parts = normalized
-		.split("|")
+	const normalized = stripLeadingPipe(rawOptions);
+	const parts = splitPipeParts(normalized)
 		.map((part) => part.trim())
 		.filter(Boolean);
 
