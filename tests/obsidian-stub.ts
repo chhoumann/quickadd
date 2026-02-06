@@ -511,6 +511,15 @@ export function normalizePath(p: string): string {
   return p.replace(/\\/g, '/');
 }
 
+// Minimal debounce for tests: execute immediately.
+export function debounce<T extends (...args: any[]) => any>(
+  fn: T,
+  _wait: number,
+  _resetTimer?: boolean,
+): T {
+  return fn;
+}
+
 // Default export for compatibility
 export default {
   App,
@@ -534,4 +543,5 @@ export default {
   Notice,
   moment,
   normalizePath,
+  debounce,
 };

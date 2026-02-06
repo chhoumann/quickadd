@@ -122,13 +122,13 @@ describe("Formatter case: pipe option", () => {
 		expect(result).toBe("a=My New Blog b=my-new-blog c=MY NEW BLOG");
 	});
 
-	it("supports snake/camel/pascal/title/lower transforms", async () => {
+	it("supports snake/camel/pascal/title/lower/slug transforms", async () => {
 		formatter.setValueResponse("my new blog");
 		const result = await formatter.testFormat(
-			"snake={{VALUE|case:snake}} camel={{VALUE|case:camel}} pascal={{VALUE|case:pascal}} title={{VALUE|case:title}} lower={{VALUE|case:lower}}",
+			"snake={{VALUE|case:snake}} camel={{VALUE|case:camel}} pascal={{VALUE|case:pascal}} title={{VALUE|case:title}} lower={{VALUE|case:lower}} slug={{VALUE|case:slug}}",
 		);
 		expect(result).toBe(
-			"snake=my_new_blog camel=myNewBlog pascal=MyNewBlog title=My New Blog lower=my new blog",
+			"snake=my_new_blog camel=myNewBlog pascal=MyNewBlog title=My New Blog lower=my new blog slug=my-new-blog",
 		);
 	});
 
