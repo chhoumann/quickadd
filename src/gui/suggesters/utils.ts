@@ -16,6 +16,11 @@ export function normalizeForSearch(value: string): string {
 	return value.normalize("NFC").toLowerCase();
 }
 
+// Display-only helper: keep stored path intact, but hide trailing ".md" in UI labels.
+export function stripMdExtensionForDisplay(value: string): string {
+	return value.toLowerCase().endsWith(".md") ? value.slice(0, -3) : value;
+}
+
 /**
  * Insert text at cursor position
  */
