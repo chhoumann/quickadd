@@ -43,7 +43,7 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 		let displayQuery = stripMdExtensionForDisplay(this.getCurrentQuery());
 		if (
 			value.toLowerCase().endsWith(".md") &&
-			displayQuery.startsWith(`${displayValue}.`)
+			displayQuery.toLowerCase().startsWith(`${displayValue.toLowerCase()}.`)
 		) {
 			displayQuery = displayValue;
 		}

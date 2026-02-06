@@ -35,6 +35,22 @@ describe("GenericTextSuggester", () => {
 			expect(renderMatch).toHaveBeenCalledWith(el, "Note", "Note");
 		});
 
+		it("normalizes query when suggestion and query casing differ", () => {
+			const el = document.createElement("div");
+			const renderMatch = vi.fn();
+
+			GenericTextSuggester.prototype.renderSuggestion.call(
+				{
+					getCurrentQuery: () => "note.m",
+					renderMatch,
+				} as any,
+				"Note.MD",
+				el,
+			);
+
+			expect(renderMatch).toHaveBeenCalledWith(el, "Note", "Note");
+		});
+
 		it("does not change query normalization for non-markdown files", () => {
 			const el = document.createElement("div");
 			const renderMatch = vi.fn();
@@ -52,4 +68,3 @@ describe("GenericTextSuggester", () => {
 		});
 	});
 });
-
