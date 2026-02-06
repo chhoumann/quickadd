@@ -9,6 +9,8 @@ export const VARIABLE_DEFAULT_OPTION_SYNTAX =
 	"{{value:<variable name>|default:<value>}}";
 export const VARIABLE_LABEL_SYNTAX =
 	"{{value:<variable name>|label:<helper text>}}";
+export const VALUE_CASE_SYNTAX = "{{value|case:kebab}}";
+export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
@@ -27,6 +29,8 @@ export const FORMAT_SYNTAX: string[] = [
 	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
+	VALUE_CASE_SYNTAX,
+	VARIABLE_CASE_SYNTAX,
 	VARIABLE_SYNTAX,
 	VARIABLE_DEFAULT_SYNTAX,
 	VARIABLE_DEFAULT_OPTION_SYNTAX,
@@ -54,6 +58,8 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
+	VALUE_CASE_SYNTAX,
+	VARIABLE_CASE_SYNTAX,
 	VARIABLE_SYNTAX,
 	VARIABLE_DEFAULT_SYNTAX,
 	VARIABLE_DEFAULT_OPTION_SYNTAX,

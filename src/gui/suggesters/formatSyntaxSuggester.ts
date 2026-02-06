@@ -196,7 +196,35 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			return [];
 		}
 
-		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions
+		// Special-case: suggest casing styles when typing `|case:` inside VALUE/NAME tokens.
+		{
+			const caseMatch = inputSegment.match(
+				/^\{\{(?:VALUE|NAME)[^\n\r}]*\|case:([a-z-]*)$/i,
+			);
+			if (caseMatch) {
+				const fragment = caseMatch[1] ?? "";
+				const normalizedFragment = fragment.toLowerCase();
+				const styles = [
+					"kebab",
+					"snake",
+					"camel",
+					"pascal",
+					"title",
+					"lower",
+					"upper",
+					"slug",
+				];
+
+				this.lastInput = fragment;
+				this.lastInputStart = cursorPosition - fragment.length;
+
+				return styles.filter((style) =>
+					style.startsWith(normalizedFragment),
+				);
+			}
+		}
+
+		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions.
 		if (inputSegment.includes(":")) {
 			return [];
 		}

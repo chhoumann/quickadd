@@ -1,3 +1,5 @@
+import { parsePipeKeyValue, splitPipeParts } from "./pipeSyntax";
+
 export interface FieldFilter {
 	folder?: string;
 	tags?: string[];
@@ -23,20 +25,17 @@ export class FieldSuggestionParser {
 		fieldName: string;
 		filters: FieldFilter;
 	} {
-		const parts = input.split("|").map((p) => p.trim());
+		const parts = splitPipeParts(input).map((p) => p.trim());
 		const fieldName = parts[0];
 		const filters: FieldFilter = {};
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
-			const colonIndex = filterPart.indexOf(":");
+			const parsed = parsePipeKeyValue(filterPart);
+			if (!parsed) continue; // Skip invalid filter format
 
-			if (colonIndex === -1) {
-				continue; // Skip invalid filter format
-			}
-
-			const filterType = filterPart.substring(0, colonIndex).trim();
-			const filterValue = filterPart.substring(colonIndex + 1).trim();
+			const filterType = parsed.key;
+			const filterValue = parsed.value;
 
 			switch (filterType) {
 				case "folder":

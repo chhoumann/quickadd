@@ -26,6 +26,7 @@ import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
+import { transformCase } from "../utils/caseTransform";
 import {
 	parseAnonymousValueOptions,
 	parseValueToken,
@@ -169,7 +170,14 @@ export abstract class Formatter {
 		// Replace all occurrences in a single non-recursive pass.
 		// Important: use a replacer function so `$` in user input is treated literally.
 		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
-		output = output.replace(regex, () => this.value);
+		output = output.replace(regex, (token) => {
+			const inner = token.slice(2, -2);
+			const optionsIndex = inner.indexOf("|");
+			if (optionsIndex === -1) return this.value;
+			const rawOptions = inner.slice(optionsIndex);
+			const parsed = parseAnonymousValueOptions(rawOptions);
+			return transformCase(this.value, parsed.caseStyle);
+		});
 
 		return output;
 	}
@@ -319,6 +327,7 @@ export abstract class Formatter {
 				variableName,
 				variableKey,
 				label,
+				caseStyle,
 				defaultValue,
 				allowCustomInput,
 				suggestedValues,
@@ -366,19 +375,24 @@ export abstract class Formatter {
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(effectiveKey);
+			const rawValueForCollector =
+				caseStyle && typeof rawValue === "string"
+					? transformCase(rawValue, caseStyle)
+					: rawValue;
 
 			// Offer this variable to the property collector for YAML post-processing
 			this.propertyCollector.maybeCollect({
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
-				rawValue,
+				rawValue: rawValueForCollector,
 				fallbackKey: variableName,
 				featureEnabled: propertyTypesEnabled,
 			});
 
 			// Always use string replacement initially
-			const replacement = this.getVariableValue(effectiveKey);
+			const rawReplacement = this.getVariableValue(effectiveKey);
+			const replacement = transformCase(rawReplacement, caseStyle);
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);

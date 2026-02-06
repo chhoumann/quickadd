@@ -36,6 +36,17 @@ describe("parseValueToken", () => {
 		expect(parsed?.defaultValue).toBe("label");
 	});
 
+	it("parses case style without treating it as legacy default", () => {
+		const parsed = parseValueToken("title|case:kebab");
+		expect(parsed?.caseStyle).toBe("kebab");
+		expect(parsed?.defaultValue).toBe("");
+	});
+
+	it("parses title case style", () => {
+		const parsed = parseValueToken("title|case:title");
+		expect(parsed?.caseStyle).toBe("title");
+	});
+
 	it("parses custom boolean values", () => {
 		expect(parseValueToken("a,b|custom:")?.allowCustomInput).toBe(true);
 		expect(parseValueToken("a,b|custom:false")?.allowCustomInput).toBe(false);
@@ -89,6 +100,15 @@ describe("parseAnonymousValueOptions", () => {
 			"|type:multiline|label:Notes|default:Hello",
 		);
 		expect(parsed.inputTypeOverride).toBe("multiline");
+		expect(parsed.label).toBe("Notes");
+		expect(parsed.defaultValue).toBe("Hello");
+	});
+
+	it("parses case style for unnamed VALUE tokens", () => {
+		const parsed = parseAnonymousValueOptions(
+			"|case:kebab|label:Notes|default:Hello",
+		);
+		expect(parsed.caseStyle).toBe("kebab");
 		expect(parsed.label).toBe("Notes");
 		expect(parsed.defaultValue).toBe("Hello");
 	});
