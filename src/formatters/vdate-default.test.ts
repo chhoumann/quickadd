@@ -244,6 +244,19 @@ describe('VDATE Default Value Support', () => {
             expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("today");
             expect(result).toBe("Date1: YYYY-MM-DD-formatted Date2: MM/DD/YYYY-formatted");
         });
+
+        it('should parse and format pre-seeded string variables used in VDATE', async () => {
+            // Mirrors issue #1074: variables passed via API/URL are plain strings.
+            formatter.variables.set('date', '2026-12-31');
+
+            const result = await formatter.testReplaceDateVariableInString(
+                "Test {{VDATE:date,YYYY-MM-DD}}",
+            );
+
+            // The formatter should attempt to parse the existing string into a date.
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("2026-12-31");
+            expect(result).toBe("Test YYYY-MM-DD-formatted");
+        });
     });
 
     describe('Edge Cases', () => {
