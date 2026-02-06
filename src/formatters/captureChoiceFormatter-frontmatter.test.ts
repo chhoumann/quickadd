@@ -534,3 +534,40 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     expect(reportError).toHaveBeenCalled();
   });
 });
+
+describe('CaptureChoiceFormatter append task newline regression (issue #124)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (global as any).navigator = {
+      clipboard: {
+        readText: vi.fn().mockResolvedValue(''),
+      },
+    };
+  });
+
+  it('inserts a newline before an appended task when the file does not end with a newline', async () => {
+    const app = createMockApp();
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
+    const formatter = new CaptureChoiceFormatter(app, plugin);
+
+    const choice = createChoice({ prepend: true, task: true });
+    const file = createTFile('Test.md');
+    const fileContent = '- [ ] Old task';
+
+    const result = await formatter.formatContentWithFile(
+      '- [ ] New task\n',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe('- [ ] Old task\n- [ ] New task\n');
+  });
+});
