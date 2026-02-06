@@ -120,9 +120,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		if (this.choice.prepend) {
+			// When appending to the end of a file, ensure the capture starts on a new line.
+			// Notes are not guaranteed to end with a trailing newline (see issue #124).
 			const shouldInsertLinebreak = !this.choice.task;
-			return `${this.fileContent}${shouldInsertLinebreak ? "\n" : ""
-				}${formatted}`;
+			const needsLeadingNewline =
+				this.fileContent.length > 0 &&
+				!this.fileContent.endsWith("\n") &&
+				!formatted.startsWith("\n");
+			const separator = shouldInsertLinebreak || needsLeadingNewline ? "\n" : "";
+
+			return `${this.fileContent}${separator}${formatted}`;
 		}
 
 		if (this.choice.insertAfter.enabled) {
