@@ -40,7 +40,13 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 	renderSuggestion(value: string, el: HTMLElement): void {
 		if (!value) return;
 		const displayValue = stripMdExtensionForDisplay(value);
-		const displayQuery = stripMdExtensionForDisplay(this.getCurrentQuery());
+		let displayQuery = stripMdExtensionForDisplay(this.getCurrentQuery());
+		if (
+			value.toLowerCase().endsWith(".md") &&
+			displayQuery.startsWith(`${displayValue}.`)
+		) {
+			displayQuery = displayValue;
+		}
 		this.renderMatch(el, displayValue, displayQuery);
 	}
 
