@@ -7,6 +7,8 @@ import type QuickAdd from "../main";
 import {
 	getTemplater,
 	overwriteTemplaterOnce,
+	isTemplaterTriggerOnCreateEnabled,
+	waitForTemplaterTriggerOnCreateToComplete,
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
@@ -516,9 +518,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
 			}
 
-			const suppressTemplaterOnCreate = filePath
-				.toLowerCase()
-				.endsWith(".md");
+			// Determine Templater execution strategy:
+			// If trigger-on-create is enabled, let Templater's auto-trigger handle it.
+			// If disabled, suppress auto-trigger and run explicitly via overwriteTemplaterOnce.
+			// This mutual exclusion prevents the double-execution race in #1084.
+			const triggerOnCreate = isTemplaterTriggerOnCreateEnabled(this.app);
+			const suppressTemplaterOnCreate = !triggerOnCreate && filePath.toLowerCase().endsWith(".md");
+
 			const createdFile: TFile = await this.createFileWithInput(
 				filePath,
 				formattedTemplateContent,
@@ -530,8 +536,14 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				await this.postProcessFrontMatter(createdFile, templateVars);
 			}
 
-			// Process Templater commands for template choices
-			await overwriteTemplaterOnce(this.app, createdFile);
+			// Run Templater exactly once: either via auto-trigger or explicit call
+			if (triggerOnCreate) {
+				// Let Templater's trigger-on-create handle it, just wait for completion
+				await waitForTemplaterTriggerOnCreateToComplete(this.app, createdFile);
+			} else {
+				// Trigger-on-create is disabled, run explicitly
+				await overwriteTemplaterOnce(this.app, createdFile);
+			}
 
 			return createdFile;
 		} catch (err) {
