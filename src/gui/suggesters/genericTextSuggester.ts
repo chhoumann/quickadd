@@ -1,6 +1,10 @@
 import type { App } from "obsidian";
 import { TextInputSuggest } from "./suggest";
-import { normalizeDisplayItem, normalizeQuery } from "./utils";
+import {
+	normalizeDisplayItem,
+	normalizeQuery,
+	stripMdExtensionForDisplay,
+} from "./utils";
 
 export class GenericTextSuggester extends TextInputSuggest<string> {
 	constructor(
@@ -35,7 +39,15 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 
 	renderSuggestion(value: string, el: HTMLElement): void {
 		if (!value) return;
-		this.renderMatch(el, value, this.getCurrentQuery());
+		const displayValue = stripMdExtensionForDisplay(value);
+		let displayQuery = stripMdExtensionForDisplay(this.getCurrentQuery());
+		if (
+			value.toLowerCase().endsWith(".md") &&
+			displayQuery.toLowerCase().startsWith(`${displayValue.toLowerCase()}.`)
+		) {
+			displayQuery = displayValue;
+		}
+		this.renderMatch(el, displayValue, displayQuery);
 	}
 
 	protected getCurrentQuery(): string {

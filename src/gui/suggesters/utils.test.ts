@@ -4,7 +4,8 @@ import {
 	replaceRange, 
 	getTextBeforeCursor, 
 	renderExactHighlight, 
-	renderFuzzyHighlight 
+	renderFuzzyHighlight,
+	stripMdExtensionForDisplay,
 } from "./utils";
 
 // Mock HTMLInputElement for testing
@@ -153,6 +154,29 @@ describe("Suggester Utils", () => {
 			renderFuzzyHighlight(el, "<img src=x>", "i");
 			expect(el.textContent).toContain("<img");
 			expect(el.innerHTML).toBe('&lt;<mark class="qa-highlight">i</mark>mg src=x&gt;');
+		});
+	});
+
+	describe("stripMdExtensionForDisplay", () => {
+		it("strips only a trailing .md extension (case-insensitive)", () => {
+			expect(stripMdExtensionForDisplay("file.md")).toBe("file");
+			expect(stripMdExtensionForDisplay("folder/file.md")).toBe("folder/file");
+			expect(stripMdExtensionForDisplay("FILE.MD")).toBe("FILE");
+		});
+
+		it("does not strip other extensions", () => {
+			expect(stripMdExtensionForDisplay("file.js")).toBe("file.js");
+			expect(stripMdExtensionForDisplay("file.canvas")).toBe("file.canvas");
+		});
+
+		it("does not strip .md when it is not the final suffix", () => {
+			expect(stripMdExtensionForDisplay("file.md.backup")).toBe(
+				"file.md.backup",
+			);
+			expect(stripMdExtensionForDisplay("file.md.md")).toBe("file.md");
+			expect(stripMdExtensionForDisplay("{{TEMPLATE:folder/file.md}}")).toBe(
+				"{{TEMPLATE:folder/file.md}}",
+			);
 		});
 	});
 });
