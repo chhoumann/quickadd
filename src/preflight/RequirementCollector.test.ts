@@ -53,6 +53,27 @@ describe("RequirementCollector", () => {
     expect(byId[variableKey].type).toBe("dropdown");
   });
 
+  it("does not treat case option as a legacy default for named VALUE", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{VALUE:title|case:kebab}}");
+
+    const requirement = rc.requirements.get("title");
+    expect(requirement?.defaultValue).toBeUndefined();
+  });
+
+  it("does not treat case option as a legacy default for unnamed VALUE", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{VALUE|case:kebab|label:Notes}}");
+
+    const requirement = rc.requirements.get("value");
+    expect(requirement?.description).toBe("Notes");
+    expect(requirement?.defaultValue).toBeUndefined();
+  });
+
   it("collects VDATE with format and default", async () => {
     const app = makeApp();
     const plugin = makePlugin();

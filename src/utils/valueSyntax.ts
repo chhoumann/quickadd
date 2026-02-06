@@ -3,13 +3,14 @@ export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
 export type ValueInputType = "multiline";
 
-const VALUE_OPTION_KEYS = new Set(["label", "default", "custom", "type"]);
+const VALUE_OPTION_KEYS = new Set(["label", "default", "custom", "type", "case"]);
 
 export type ParsedValueToken = {
 	raw: string;
 	variableName: string;
 	variableKey: string;
 	label?: string;
+	caseStyle?: string;
 	defaultValue: string;
 	allowCustomInput: boolean;
 	suggestedValues: string[];
@@ -74,6 +75,7 @@ export function resolveExistingVariableKey(
 
 type ParsedOptions = {
 	label?: string;
+	caseStyle?: string;
 	defaultValue: string;
 	allowCustomInput: boolean;
 	usesOptions: boolean;
@@ -121,6 +123,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 	}
 
 	let label: string | undefined;
+	let caseStyle: string | undefined;
 	let defaultValue = "";
 	let allowCustomInput = false;
 	let inputTypeOverride: string | undefined;
@@ -144,6 +147,9 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 			case "label":
 				if (value) label = value;
 				break;
+			case "case":
+				if (value) caseStyle = value;
+				break;
 			case "default":
 				defaultValue = value;
 				break;
@@ -160,6 +166,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 
 	return {
 		label,
+		caseStyle,
 		defaultValue,
 		allowCustomInput,
 		usesOptions: true,
@@ -206,7 +213,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 	const hasOptions = suggestedValues.length > 1;
 
 	const options = parseOptions(parts, hasOptions);
-	let { label, defaultValue, allowCustomInput } = options;
+	let { label, caseStyle, defaultValue, allowCustomInput } = options;
 
 	if (!options.usesOptions) {
 		const legacyDefault = defaultValue;
@@ -228,6 +235,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		variableName: variablePart,
 		variableKey,
 		label,
+		caseStyle,
 		defaultValue,
 		allowCustomInput,
 		suggestedValues,
@@ -240,6 +248,7 @@ export function parseAnonymousValueOptions(
 	rawOptions: string,
 ): {
 	label?: string;
+	caseStyle?: string;
 	defaultValue: string;
 	inputTypeOverride?: ValueInputType;
 } {
@@ -256,7 +265,7 @@ export function parseAnonymousValueOptions(
 	}
 
 	const options = parseOptions(parts, false);
-	let { label, defaultValue } = options;
+	let { label, caseStyle, defaultValue } = options;
 	if (!options.usesOptions) {
 		defaultValue = defaultValue.trim();
 	}
@@ -270,6 +279,7 @@ export function parseAnonymousValueOptions(
 
 	return {
 		label,
+		caseStyle,
 		defaultValue,
 		inputTypeOverride,
 	};
