@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { __test } from "./utilityObsidian";
+import {
+	__test,
+	areSameVaultFilePath,
+	normalizeVaultFilePath,
+} from "./utilityObsidian";
 
 const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
 
@@ -69,5 +73,40 @@ describe("extractMarkdownLinkTarget", () => {
 
 	it("returns null for empty targets", () => {
 		expect(extractMarkdownLinkTarget("[Label]()")).toBeNull();
+	});
+});
+
+describe("normalizeVaultFilePath", () => {
+	it("normalizes redundant separators", () => {
+		expect(normalizeVaultFilePath("notes//capture.md")).toBe(
+			"notes/capture.md",
+		);
+	});
+
+	it("removes leading slashes", () => {
+		expect(normalizeVaultFilePath("/notes/capture.md")).toBe(
+			"notes/capture.md",
+		);
+	});
+
+	it("normalizes windows path separators", () => {
+		expect(normalizeVaultFilePath("notes\\\\capture.md")).toBe(
+			"notes/capture.md",
+		);
+	});
+});
+
+describe("areSameVaultFilePath", () => {
+	it("matches logically equivalent vault paths", () => {
+		expect(areSameVaultFilePath("notes//capture.md", "notes/capture.md")).toBe(
+			true,
+		);
+		expect(areSameVaultFilePath("/notes/capture.md", "notes/capture.md")).toBe(
+			true,
+		);
+	});
+
+	it("keeps case-sensitive mismatches distinct", () => {
+		expect(areSameVaultFilePath("notes/Foo.md", "notes/foo.md")).toBe(false);
 	});
 });

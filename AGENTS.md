@@ -10,6 +10,8 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
 ## Tooling & GitHub
 - Use `bun` for package management and scripts. Avoid npm/yarn/pnpm.
 - Use the GitHub CLI (`gh`) for issues, PRs, and releases.
+- When resolving a GitHub issue, use `gh issue develop <issue-number>` to
+  create/link the working branch before implementation.
 
 ## Build, Test, and Development Commands
 - `bun run dev`: watch-mode bundle via `esbuild.config.mjs`, regenerating `main.js` as you edit.
@@ -46,3 +48,56 @@ Keep docs in sync: update `docs/docs/` when adding features, and snapshot when r
 
 ## Agent Playbook
 Automation or scripted work should surface disruptive operations in the PR description and rerun `bun run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.
+
+## Dev workflow
+Always use the `obsidian` cli to test changes in the dev vault.
+
+Obsidian CLI is a command line interface that lets you control Obsidian from your terminal for scripting, automation, and integration with external tools.
+
+Anything you can do in Obsidian can be done from the command line. Obsidian CLI even includes developer commands to access developer tools, inspect elements, take screenshots, reload plugins, and more.
+
+## Obsidian Dev Vault Workflow
+- Always target the `dev` vault when using the Obsidian CLI by passing
+  `vault=dev` on every command.
+- Dev vault root path: `/Users/christian/Developer/dev_vault/dev/`.
+- QuickAdd plugin path in the vault:
+  `/Users/christian/Developer/dev_vault/dev/.obsidian/plugins/quickadd`.
+- Run `bun run dev` in this repository to generate/update `main.js` for
+  development.
+- Reload QuickAdd after build/deploy with:
+  `obsidian plugin:reload vault=dev id=quickadd`.
+- In this setup, the vault plugin `main.js` is symlinked to
+  `/Users/christian/Developer/quickadd/main.js`, so rebuilding updates
+  the active plugin code directly.
+
+## Obsidian DevTools Workflow
+- Developer commands are available through `obsidian`:
+  `devtools`, `dev:debug`, `dev:cdp`, `dev:errors`, `dev:screenshot`,
+  `dev:console`, `dev:css`, `dev:dom`, `dev:mobile`, and `eval`.
+- Keep `vault=dev` on every developer command as well.
+- Standard log-inspection sequence:
+  1. `obsidian dev:debug vault=dev on`
+  2. `obsidian dev:console vault=dev clear`
+  3. `obsidian dev:errors vault=dev clear`
+  4. Trigger a QuickAdd action, for example:
+     `obsidian command vault=dev id=quickadd:testQuickAdd`
+  5. Read logs:
+     `obsidian dev:console vault=dev limit=200`
+  6. Check runtime errors:
+     `obsidian dev:errors vault=dev`
+  7. Detach when done:
+     `obsidian dev:debug vault=dev off`
+
+## Evidence-First Bug Triage
+- Default bug workflow: reproduce in Obsidian first, then implement fix, then
+  verify in Obsidian again, then add/adjust unit tests for regression coverage.
+- Do not assume a reported bug still exists. Issues may already be fixed by
+  unrelated changes; confirm current behavior before changing code.
+- For reproduction, prefer real user conditions over synthetic tests
+  (hotkeys, choice settings, workspace/tab layout, and platform specifics).
+- When debugging command-triggered behavior, test both paths:
+  hotkey execution and direct command execution (`obsidian command ...`).
+- Record evidence from `tabs`, `workspace`, `dev:console`, and `dev:errors`
+  before and after the action being tested.
+- If not reproducible after solid evidence gathering, respond with exact tested
+  setup and ask for a fresh issue with versions, config, and repro artifacts.
