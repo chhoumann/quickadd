@@ -4,7 +4,7 @@ import type {
 	TAbstractFile,
 	WorkspaceLeaf,
 } from "obsidian";
-import { FileView, MarkdownView, TFile, TFolder } from "obsidian";
+import { FileView, MarkdownView, normalizePath, TFile, TFolder } from "obsidian";
 import { log } from "./logger/logManager";
 import { NLDParser } from "./parsers/NLDParser";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
@@ -878,6 +878,15 @@ export async function openFile(
 	return leaf;
 }
 
+export function normalizeVaultFilePath(path: string): string {
+	const normalized = normalizePath(path).replace(/\/{2,}/g, "/");
+	return normalized.replace(/^\/+/, "");
+}
+
+export function areSameVaultFilePath(a: string, b: string): boolean {
+	return normalizeVaultFilePath(a) === normalizeVaultFilePath(b);
+}
+
 /**
  * Finds an already-open leaf that is displaying `file` and optionally focuses it.
  * Returns the leaf if found, otherwise `null`.
@@ -893,7 +902,10 @@ export function openExistingFileTab(
 		const view = m_leaf.view;
 		if (view instanceof FileView) {
 			if (view.file) {
-				if (file.path === view.file.path) {
+				if (
+					view.file === file ||
+					areSameVaultFilePath(file.path, view.file.path)
+				) {
 					leaf = m_leaf;
 					return;
 				}
