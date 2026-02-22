@@ -140,4 +140,10 @@ If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will inse
 
 You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
 
+If your capture format includes an inline `js quickadd` block and you need to
+transform user input, prefer reading input in script code through
+`this.quickAddApi.inputPrompt(...)` and/or assigning script variables on
+`this.variables`. Avoid relying on `{{VALUE}}` inside JavaScript string
+literals. See [Inline scripts](/InlineScripts.md#execution-order-and-value).
+
 In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.
