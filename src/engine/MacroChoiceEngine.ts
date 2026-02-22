@@ -464,6 +464,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			case EditorCommandType.MoveCursorToLineEnd:
 				MoveCursorToLineEndCommand.run(this.app);
 				break;
+			default: {
+				const exhaustiveCheck: never = command.editorCommandType;
+				throw new Error(`Unhandled editor command type: ${exhaustiveCheck}`);
+			}
 		}
 	}
 

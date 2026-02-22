@@ -35,24 +35,31 @@ const callExecuteEditorCommand = async (editorCommandType: EditorCommandType) =>
 };
 
 describe("MacroChoiceEngine editor command dispatch", () => {
+	let fileStartSpy: ReturnType<typeof vi.spyOn>;
+	let fileEndSpy: ReturnType<typeof vi.spyOn>;
+	let lineStartSpy: ReturnType<typeof vi.spyOn>;
+	let lineEndSpy: ReturnType<typeof vi.spyOn>;
+
 	beforeEach(() => {
 		vi.restoreAllMocks();
 	});
 
-	it("dispatches MoveCursorToFileStart", async () => {
-		const fileStartSpy = vi
+	beforeEach(() => {
+		fileStartSpy = vi
 			.spyOn(MoveCursorToFileStartCommand, "run")
 			.mockImplementation(() => undefined);
-		const fileEndSpy = vi
+		fileEndSpy = vi
 			.spyOn(MoveCursorToFileEndCommand, "run")
 			.mockImplementation(() => undefined);
-		const lineStartSpy = vi
+		lineStartSpy = vi
 			.spyOn(MoveCursorToLineStartCommand, "run")
 			.mockImplementation(() => undefined);
-		const lineEndSpy = vi
+		lineEndSpy = vi
 			.spyOn(MoveCursorToLineEndCommand, "run")
 			.mockImplementation(() => undefined);
+	});
 
+	it("dispatches MoveCursorToFileStart", async () => {
 		const app = await callExecuteEditorCommand(
 			EditorCommandType.MoveCursorToFileStart
 		);
@@ -64,19 +71,6 @@ describe("MacroChoiceEngine editor command dispatch", () => {
 	});
 
 	it("dispatches MoveCursorToFileEnd", async () => {
-		const fileStartSpy = vi
-			.spyOn(MoveCursorToFileStartCommand, "run")
-			.mockImplementation(() => undefined);
-		const fileEndSpy = vi
-			.spyOn(MoveCursorToFileEndCommand, "run")
-			.mockImplementation(() => undefined);
-		const lineStartSpy = vi
-			.spyOn(MoveCursorToLineStartCommand, "run")
-			.mockImplementation(() => undefined);
-		const lineEndSpy = vi
-			.spyOn(MoveCursorToLineEndCommand, "run")
-			.mockImplementation(() => undefined);
-
 		const app = await callExecuteEditorCommand(
 			EditorCommandType.MoveCursorToFileEnd
 		);
@@ -88,19 +82,6 @@ describe("MacroChoiceEngine editor command dispatch", () => {
 	});
 
 	it("dispatches MoveCursorToLineStart", async () => {
-		const fileStartSpy = vi
-			.spyOn(MoveCursorToFileStartCommand, "run")
-			.mockImplementation(() => undefined);
-		const fileEndSpy = vi
-			.spyOn(MoveCursorToFileEndCommand, "run")
-			.mockImplementation(() => undefined);
-		const lineStartSpy = vi
-			.spyOn(MoveCursorToLineStartCommand, "run")
-			.mockImplementation(() => undefined);
-		const lineEndSpy = vi
-			.spyOn(MoveCursorToLineEndCommand, "run")
-			.mockImplementation(() => undefined);
-
 		const app = await callExecuteEditorCommand(
 			EditorCommandType.MoveCursorToLineStart
 		);
@@ -112,19 +93,6 @@ describe("MacroChoiceEngine editor command dispatch", () => {
 	});
 
 	it("dispatches MoveCursorToLineEnd", async () => {
-		const fileStartSpy = vi
-			.spyOn(MoveCursorToFileStartCommand, "run")
-			.mockImplementation(() => undefined);
-		const fileEndSpy = vi
-			.spyOn(MoveCursorToFileEndCommand, "run")
-			.mockImplementation(() => undefined);
-		const lineStartSpy = vi
-			.spyOn(MoveCursorToLineStartCommand, "run")
-			.mockImplementation(() => undefined);
-		const lineEndSpy = vi
-			.spyOn(MoveCursorToLineEndCommand, "run")
-			.mockImplementation(() => undefined);
-
 		const app = await callExecuteEditorCommand(
 			EditorCommandType.MoveCursorToLineEnd
 		);
