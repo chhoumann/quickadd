@@ -2,7 +2,11 @@ import type { App } from "obsidian";
 import { requestUrl } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { settingsStore } from "src/settingsStore";
-import { getTokenCount } from "./AIAssistant";
+import {
+	beginAIRequestLogEntry,
+	finishAIRequestLogEntry,
+	getTokenCount,
+} from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
@@ -277,6 +281,19 @@ export function OpenAIRequest(
 			throw new Error(`Model ${model.name} not found with any provider.`);
 		}
 
+		const requestStart = Date.now();
+		const requestLogId = beginAIRequestLogEntry({
+			provider: modelProvider.name,
+			endpoint: modelProvider.endpoint,
+			model: model.name,
+			systemPrompt,
+			prompt,
+			modelOptions: modelParams,
+		});
+		log.logMessage(
+			`[AI Request ${requestLogId}] Started ${modelProvider.name}/${model.name}`
+		);
+
 		try {
 			const restoreCursor = preventCursorChange(app);
 
@@ -315,13 +332,36 @@ export function OpenAIRequest(
 				response = mapOpenAIResponseToCommon(openaiResponse);
 			}
 
+			const durationMs = Date.now() - requestStart;
+
+			finishAIRequestLogEntry(requestLogId, {
+				status: "success",
+				durationMs,
+				usage: response.usage,
+			});
+			log.logMessage(
+				`[AI Request ${requestLogId}] Success in ${durationMs}ms`
+			);
+
 			return response;
 		} catch (error) {
+			const errorMessage =
+				(error as { message?: string }).message ?? String(error);
+			const durationMs = Date.now() - requestStart;
+
+			finishAIRequestLogEntry(requestLogId, {
+				status: "error",
+				durationMs,
+				errorMessage,
+			});
+			log.logMessage(
+				`[AI Request ${requestLogId}] Failed in ${durationMs}ms: ${errorMessage}`
+			);
+
 			log.logError(error as Error);
 			throw new Error(
-				`Error while making request to ${modelProvider.name}: ${
-					(error as { message: string }).message
-				}`
+				`Error while making request to ${modelProvider.name}: ${errorMessage}`,
+				{ cause: error }
 			);
 		}
 	};
