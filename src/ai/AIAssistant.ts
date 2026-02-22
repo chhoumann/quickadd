@@ -86,20 +86,17 @@ export function beginAIRequestLogEntry(
 	entry: Omit<AIRequestLogEntry, "id" | "createdAt" | "status">
 ): string {
 	const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	const createdAt = Date.now();
 
 	aiRequestLogEntries.push({
-		id,
-		createdAt: Date.now(),
-		status: "pending",
 		...entry,
+		modelOptions: { ...(entry.modelOptions ?? {}) },
+		id,
+		createdAt,
+		status: "pending",
 	});
 
-	if (aiRequestLogEntries.length > MAX_AI_REQUEST_LOG_ENTRIES) {
-		aiRequestLogEntries.splice(
-			0,
-			aiRequestLogEntries.length - MAX_AI_REQUEST_LOG_ENTRIES
-		);
-	}
+	trimAIRequestLogEntries();
 
 	return id;
 }
@@ -115,16 +112,40 @@ export function finishAIRequestLogEntry(
 	entry.durationMs = result.durationMs;
 	entry.usage = result.usage;
 	entry.errorMessage = result.errorMessage;
+
+	trimAIRequestLogEntries();
 }
 
 export function getAIRequestLogEntries(limit = 10): AIRequestLogEntry[] {
-	const boundedLimit =
-		Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 10;
+	if (!Number.isFinite(limit)) {
+		limit = 10;
+	}
+
+	const boundedLimit = Math.floor(limit);
+	if (boundedLimit <= 0) return [];
 
 	return aiRequestLogEntries
 		.slice(-boundedLimit)
 		.map(cloneRequestLogEntry)
 		.reverse();
+}
+
+function trimAIRequestLogEntries() {
+	if (aiRequestLogEntries.length <= MAX_AI_REQUEST_LOG_ENTRIES) return;
+
+	let overflow = aiRequestLogEntries.length - MAX_AI_REQUEST_LOG_ENTRIES;
+	while (overflow > 0) {
+		const oldestCompletedIndex = aiRequestLogEntries.findIndex(
+			(item) => item.status !== "pending"
+		);
+		if (oldestCompletedIndex === -1) {
+			// Avoid dropping in-flight entries. We'll trim once requests finish.
+			break;
+		}
+
+		aiRequestLogEntries.splice(oldestCompletedIndex, 1);
+		overflow -= 1;
+	}
 }
 
 export function getAIRequestLogEntryById(

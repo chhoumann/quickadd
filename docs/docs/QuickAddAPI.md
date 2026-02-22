@@ -583,7 +583,9 @@ Returns recent in-memory AI request logs (newest first).
 
 **Notes:**
 - Logs are stored in memory only (not persisted to vault files).
-- QuickAdd keeps up to 25 recent entries.
+- QuickAdd keeps up to 25 completed entries.
+- If more than 25 requests are still in-flight (`pending`), those pending entries
+  are kept until they finish, then older completed entries are trimmed.
 
 **Example:**
 ```javascript

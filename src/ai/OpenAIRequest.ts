@@ -360,7 +360,8 @@ export function OpenAIRequest(
 
 			log.logError(error as Error);
 			throw new Error(
-				`Error while making request to ${modelProvider.name}: ${errorMessage}`
+				`Error while making request to ${modelProvider.name}: ${errorMessage}`,
+				{ cause: error }
 			);
 		}
 	};

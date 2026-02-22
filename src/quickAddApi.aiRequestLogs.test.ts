@@ -94,7 +94,53 @@ describe("QuickAddApi.ai request logs", () => {
 		expect(api.ai.getLastRequestLog()).toBeNull();
 	});
 
-	it("retains only the latest 25 request logs", () => {
+	it("retains only the latest 25 completed request logs", () => {
+		const ids: string[] = [];
+
+		for (let i = 0; i < 30; i += 1) {
+			const id =
+				beginAIRequestLogEntry({
+					provider: "OpenAI",
+					endpoint: "https://api.openai.com/v1",
+					model: `model-${i}`,
+					systemPrompt: "system",
+					prompt: `prompt-${i}`,
+					modelOptions: {},
+				});
+			ids.push(id);
+			finishAIRequestLogEntry(id, {
+				status: "success",
+				durationMs: 1,
+				usage: {
+					promptTokens: 1,
+					completionTokens: 1,
+					totalTokens: 2,
+				},
+			});
+		}
+
+		const oldestId = ids[0];
+		const newestId = ids[ids.length - 1];
+
+		expect(api.ai.getRequestLogs(50)).toHaveLength(25);
+		expect(api.ai.getRequestLogById(oldestId)).toBeNull();
+		expect(api.ai.getRequestLogById(newestId)?.id).toBe(newestId);
+	});
+
+	it("returns empty list when limit is 0", () => {
+		beginAIRequestLogEntry({
+			provider: "OpenAI",
+			endpoint: "https://api.openai.com/v1",
+			model: "gpt-5-nano",
+			systemPrompt: "system",
+			prompt: "prompt",
+			modelOptions: {},
+		});
+
+		expect(api.ai.getRequestLogs(0)).toHaveLength(0);
+	});
+
+	it("does not evict pending entries before they finish", () => {
 		const ids: string[] = [];
 
 		for (let i = 0; i < 30; i += 1) {
@@ -106,15 +152,29 @@ describe("QuickAddApi.ai request logs", () => {
 					systemPrompt: "system",
 					prompt: `prompt-${i}`,
 					modelOptions: {},
-				})
+				}),
 			);
 		}
 
-		const oldestId = ids[0];
-		const newestId = ids[ids.length - 1];
+		expect(api.ai.getRequestLogs(100)).toHaveLength(30);
+		expect(api.ai.getRequestLogById(ids[0])?.status).toBe("pending");
 
-		expect(api.ai.getRequestLogs(50)).toHaveLength(25);
-		expect(api.ai.getRequestLogById(oldestId)).toBeNull();
-		expect(api.ai.getRequestLogById(newestId)?.id).toBe(newestId);
+		for (const id of ids) {
+			finishAIRequestLogEntry(id, {
+				status: "success",
+				durationMs: 1,
+				usage: {
+					promptTokens: 1,
+					completionTokens: 1,
+					totalTokens: 2,
+				},
+			});
+		}
+
+		expect(api.ai.getRequestLogs(100)).toHaveLength(25);
+		expect(api.ai.getRequestLogById(ids[0])).toBeNull();
+		expect(api.ai.getRequestLogById(ids[ids.length - 1])?.id).toBe(
+			ids[ids.length - 1],
+		);
 	});
 });
