@@ -1,5 +1,4 @@
 import { Notice } from "obsidian";
-import { log } from "src/logger/logManager";
 
 const noticeMsg = (task: string, message: string) =>
 	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
@@ -21,9 +20,7 @@ export function makeNoticeHandler(showMessages: boolean): NoticeHandler {
     }
 
     return {
-        setMessage: (status: string, msg: string) => {
-            log.logMessage(`(${status}) ${msg}`);
-        },
+        setMessage: () => { },
         hide: () => { },
     };
 }

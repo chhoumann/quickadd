@@ -1,6 +1,14 @@
 import type { App } from "obsidian";
 import { MarkdownView } from "obsidian";
-import { ChunkedPrompt, getTokenCount, Prompt } from "./ai/AIAssistant";
+import {
+	ChunkedPrompt,
+	clearAIRequestLogEntries,
+	getAIRequestLogEntryById,
+	getAIRequestLogEntries,
+	getLastAIRequestLogEntry,
+	getTokenCount,
+	Prompt,
+} from "./ai/AIAssistant";
 import {
 	getModelByName,
 	getModelNames,
@@ -458,6 +466,18 @@ export class QuickAddApi {
 				},
 				countTokens(text: string, model: Model) {
 					return getTokenCount(text, model);
+				},
+				getRequestLogs(limit = 10) {
+					return getAIRequestLogEntries(limit);
+				},
+				getRequestLogById(id: string) {
+					return getAIRequestLogEntryById(id);
+				},
+				getLastRequestLog() {
+					return getLastAIRequestLogEntry();
+				},
+				clearRequestLogs() {
+					clearAIRequestLogEntries();
 				},
 			},
 			utility: {

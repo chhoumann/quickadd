@@ -12,6 +12,8 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
 - Use the GitHub CLI (`gh`) for issues, PRs, and releases.
 - When resolving a GitHub issue, use `gh issue develop <issue-number>` to
   create/link the working branch before implementation.
+- GitHub does not allow approving your own PR from the same account; do not
+  block merge waiting for self-approval.
 
 ## Build, Test, and Development Commands
 - `bun run dev`: watch-mode bundle via `esbuild.config.mjs`, regenerating `main.js` as you edit.
@@ -58,14 +60,17 @@ Anything you can do in Obsidian can be done from the command line. Obsidian CLI 
 
 ## Obsidian Dev Vault Workflow
 - Always target the `dev` vault when using the Obsidian CLI by passing
-  `vault=dev` on every command.
+  `vault=dev` as a prefix argument before the command:
+  `obsidian vault=dev <command> ...`.
+- Critical: do not use suffix form (`obsidian <command> vault=dev ...`).
+  It may resolve to the wrong vault due to CLI parsing behavior.
 - Dev vault root path: `/Users/christian/Developer/dev_vault/dev/`.
 - QuickAdd plugin path in the vault:
   `/Users/christian/Developer/dev_vault/dev/.obsidian/plugins/quickadd`.
 - Run `bun run dev` in this repository to generate/update `main.js` for
   development.
 - Reload QuickAdd after build/deploy with:
-  `obsidian plugin:reload vault=dev id=quickadd`.
+  `obsidian vault=dev plugin:reload id=quickadd`.
 - In this setup, the vault plugin `main.js` is symlinked to
   `/Users/christian/Developer/quickadd/main.js`, so rebuilding updates
   the active plugin code directly.
@@ -74,19 +79,23 @@ Anything you can do in Obsidian can be done from the command line. Obsidian CLI 
 - Developer commands are available through `obsidian`:
   `devtools`, `dev:debug`, `dev:cdp`, `dev:errors`, `dev:screenshot`,
   `dev:console`, `dev:css`, `dev:dom`, `dev:mobile`, and `eval`.
-- Keep `vault=dev` on every developer command as well.
+- Keep `vault=dev` as a prefix argument on every developer command as well.
+- `dev:console` and `dev:errors` are only reliable while debugger capture is
+  attached (`obsidian vault=dev dev:debug on`).
+- For non-trivial `obsidian eval` code, use a heredoc/file and pass it to
+  `code=...` to avoid shell-quoting corruption.
 - Standard log-inspection sequence:
-  1. `obsidian dev:debug vault=dev on`
-  2. `obsidian dev:console vault=dev clear`
-  3. `obsidian dev:errors vault=dev clear`
+  1. `obsidian vault=dev dev:debug on`
+  2. `obsidian vault=dev dev:console clear`
+  3. `obsidian vault=dev dev:errors clear`
   4. Trigger a QuickAdd action, for example:
-     `obsidian command vault=dev id=quickadd:testQuickAdd`
+     `obsidian vault=dev command id=quickadd:testQuickAdd`
   5. Read logs:
-     `obsidian dev:console vault=dev limit=200`
+     `obsidian vault=dev dev:console limit=200`
   6. Check runtime errors:
-     `obsidian dev:errors vault=dev`
+     `obsidian vault=dev dev:errors`
   7. Detach when done:
-     `obsidian dev:debug vault=dev off`
+     `obsidian vault=dev dev:debug off`
 
 ## Evidence-First Bug Triage
 - Default bug workflow: reproduce in Obsidian first, then implement fix, then
@@ -99,5 +108,18 @@ Anything you can do in Obsidian can be done from the command line. Obsidian CLI 
   hotkey execution and direct command execution (`obsidian command ...`).
 - Record evidence from `tabs`, `workspace`, `dev:console`, and `dev:errors`
   before and after the action being tested.
+- For pane/tab diagnostics, treat `workspace ... ids` as authoritative layout
+  evidence and use `tabs` as a quick summary.
 - If not reproducible after solid evidence gathering, respond with exact tested
   setup and ask for a fresh issue with versions, config, and repro artifacts.
+
+## CLI-Verifiable Development
+- Verifiability is required: work is not complete until behavior can be checked
+  through the Obsidian CLI in the `dev` vault.
+- If a flow is UI-only (for example forms/modals), add a CLI-native verification
+  seam first (command/API entrypoint, inspectable state, and deterministic logs).
+- Prefer verification paths that can run both manually and scripted:
+  command execution, `eval`, `dev:console`, `dev:errors`, `tabs`, and
+  `workspace`.
+- Add or update automated tests around the new seam so regressions are caught
+  without depending on manual modal interaction.

@@ -567,6 +567,49 @@ if (tokenCount > 4000) {
 }
 ```
 
+### `getRequestLogs(limit?: number): Array<object>`
+Returns recent in-memory AI request logs (newest first).
+
+**What each entry includes:**
+- `id`: unique request id (also shown in console lifecycle logs)
+- `createdAt`: timestamp
+- `provider`, `endpoint`, `model`
+- `systemPrompt`, `prompt` (the final sent text)
+- `modelOptions`
+- `status`: `pending | success | error`
+- `durationMs`
+- `usage` (when available)
+- `errorMessage` (when failed)
+
+**Notes:**
+- Logs are stored in memory only (not persisted to vault files).
+- QuickAdd keeps up to 25 recent entries.
+
+**Example:**
+```javascript
+const logs = quickAddApi.ai.getRequestLogs(10);
+const latest = logs[0];
+console.log(latest?.id, latest?.status, latest?.model);
+```
+
+### `getLastRequestLog(): object | null`
+Returns the latest AI request log entry, or `null` if none exist.
+
+### `getRequestLogById(id: string): object | null`
+Returns a specific AI request log entry by id.
+
+**Example:**
+```javascript
+const last = quickAddApi.ai.getLastRequestLog();
+if (!last) return;
+
+const sameRequest = quickAddApi.ai.getRequestLogById(last.id);
+console.log(sameRequest?.prompt);
+```
+
+### `clearRequestLogs(): void`
+Clears all in-memory AI request logs.
+
 ## Complete Example: Research Assistant
 
 Here's a comprehensive example combining multiple API features:
