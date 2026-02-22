@@ -86,6 +86,7 @@
           "npmPublish": false
         }
       ],
+      "./scripts/release/docs-versioning-plugin.cjs",
       [
         "@semantic-release/git",
         {
@@ -93,7 +94,10 @@
             "package.json",
             "package-lock.json",
             "manifest.json",
-            "versions.json"
+            "versions.json",
+            "docs/versions.json",
+            "docs/versioned_docs/**/*",
+            "docs/versioned_sidebars/*.json"
           ],
           "message": "release(version): Release ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
         }

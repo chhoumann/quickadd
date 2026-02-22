@@ -58,13 +58,14 @@ jobs:
                 path: |
                     **/node_modules
                     ~/.bun/install/cache
-                key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+                key: ${{ runner.os }}-bun-${{ hashFiles('bun.lockb', 'docs/bun.lock') }}
                 restore-keys: |
                     ${{ runner.os }}-bun-
 
             - name: Install dependencies
               run: |
                   bun install
+                  cd docs && bun install
 
             # Validate version before release (tag protection)
             - name: Validate release
