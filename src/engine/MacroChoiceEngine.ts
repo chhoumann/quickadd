@@ -26,6 +26,10 @@ import { PasteCommand } from "../types/macros/EditorCommands/PasteCommand";
 import { PasteWithFormatCommand } from "../types/macros/EditorCommands/PasteWithFormatCommand";
 import { SelectActiveLineCommand } from "../types/macros/EditorCommands/SelectActiveLineCommand";
 import { SelectLinkOnActiveLineCommand } from "../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
+import { MoveCursorToFileStartCommand } from "../types/macros/EditorCommands/MoveCursorToFileStartCommand";
+import { MoveCursorToFileEndCommand } from "../types/macros/EditorCommands/MoveCursorToFileEndCommand";
+import { MoveCursorToLineStartCommand } from "../types/macros/EditorCommands/MoveCursorToLineStartCommand";
+import { MoveCursorToLineEndCommand } from "../types/macros/EditorCommands/MoveCursorToLineEndCommand";
 import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "src/ai/AIAssistant";
@@ -448,6 +452,22 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			case EditorCommandType.SelectLinkOnActiveLine:
 				SelectLinkOnActiveLineCommand.run(this.app);
 				break;
+			case EditorCommandType.MoveCursorToFileStart:
+				MoveCursorToFileStartCommand.run(this.app);
+				break;
+			case EditorCommandType.MoveCursorToFileEnd:
+				MoveCursorToFileEndCommand.run(this.app);
+				break;
+			case EditorCommandType.MoveCursorToLineStart:
+				MoveCursorToLineStartCommand.run(this.app);
+				break;
+			case EditorCommandType.MoveCursorToLineEnd:
+				MoveCursorToLineEndCommand.run(this.app);
+				break;
+			default: {
+				const exhaustiveCheck: never = command.editorCommandType;
+				throw new Error(`Unhandled editor command type: ${exhaustiveCheck}`);
+			}
 		}
 	}
 

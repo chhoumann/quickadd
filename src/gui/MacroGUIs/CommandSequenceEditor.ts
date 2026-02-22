@@ -31,6 +31,10 @@ import { PasteCommand } from "../../types/macros/EditorCommands/PasteCommand";
 import { PasteWithFormatCommand } from "../../types/macros/EditorCommands/PasteWithFormatCommand";
 import { SelectActiveLineCommand } from "../../types/macros/EditorCommands/SelectActiveLineCommand";
 import { SelectLinkOnActiveLineCommand } from "../../types/macros/EditorCommands/SelectLinkOnActiveLineCommand";
+import { MoveCursorToFileStartCommand } from "../../types/macros/EditorCommands/MoveCursorToFileStartCommand";
+import { MoveCursorToFileEndCommand } from "../../types/macros/EditorCommands/MoveCursorToFileEndCommand";
+import { MoveCursorToLineStartCommand } from "../../types/macros/EditorCommands/MoveCursorToLineStartCommand";
+import { MoveCursorToLineEndCommand } from "../../types/macros/EditorCommands/MoveCursorToLineEndCommand";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import type { IconType } from "../../types/IconType";
 import { settingsStore } from "../../settingsStore";
@@ -289,6 +293,18 @@ export class CommandSequenceEditor {
 				case EditorCommandType.SelectLinkOnActiveLine:
 					command = new SelectLinkOnActiveLineCommand();
 					break;
+				case EditorCommandType.MoveCursorToFileStart:
+					command = new MoveCursorToFileStartCommand();
+					break;
+				case EditorCommandType.MoveCursorToFileEnd:
+					command = new MoveCursorToFileEndCommand();
+					break;
+				case EditorCommandType.MoveCursorToLineStart:
+					command = new MoveCursorToLineStartCommand();
+					break;
+				case EditorCommandType.MoveCursorToLineEnd:
+					command = new MoveCursorToLineEndCommand();
+					break;
 				default:
 					log.logError("invalid editor command type");
 					throw new Error("invalid editor command type");
@@ -320,6 +336,22 @@ export class CommandSequenceEditor {
 					.addOption(
 						EditorCommandType.SelectLinkOnActiveLine,
 						EditorCommandType.SelectLinkOnActiveLine
+					)
+					.addOption(
+						EditorCommandType.MoveCursorToFileStart,
+						EditorCommandType.MoveCursorToFileStart
+					)
+					.addOption(
+						EditorCommandType.MoveCursorToFileEnd,
+						EditorCommandType.MoveCursorToFileEnd
+					)
+					.addOption(
+						EditorCommandType.MoveCursorToLineStart,
+						EditorCommandType.MoveCursorToLineStart
+					)
+					.addOption(
+						EditorCommandType.MoveCursorToLineEnd,
+						EditorCommandType.MoveCursorToLineEnd
 					);
 			})
 			.addButton((button) =>
