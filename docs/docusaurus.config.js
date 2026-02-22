@@ -5,6 +5,15 @@ const {themes} = require('prism-react-renderer');
 const lightCodeTheme = themes.github;
 const darkCodeTheme = themes.dracula;
 
+let docsVersions = [];
+try {
+  docsVersions = require('./versions.json');
+} catch {
+  docsVersions = [];
+}
+
+const latestStableVersion = docsVersions[0];
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'QuickAdd',
@@ -37,17 +46,21 @@ const config = {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
             'https://github.com/chhoumann/quickadd/tree/master/docs/',
-          lastVersion: '2.9.4',
+          ...(latestStableVersion ? {lastVersion: latestStableVersion} : {}),
           versions: {
             current: {
               label: 'Next 🚧',
               path: 'next',
               banner: 'unreleased',
             },
-            '2.9.4': {
-              label: '2.9.4',
-              path: '',
-            },
+            ...(latestStableVersion
+              ? {
+                  [latestStableVersion]: {
+                    label: latestStableVersion,
+                    path: '',
+                  },
+                }
+              : {}),
           },
         },
         blog: {
