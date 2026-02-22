@@ -204,6 +204,25 @@ test("getEndOfSection - capture to end of section with a leading tag, should not
 	expect(result).toBe(5);
 });
 
+test("getEndOfSection - heading section with markdown table separators", () => {
+	const lines = [
+		"# Notes",
+		"",
+		"## Time", // target (2)
+		"| Price | Account | receiver | Name |",
+		"| --- | --- | --- | --- |",
+		"| 22 | boc | rstr | breakfast |",
+		"| 45 | boc | rstr | lunch |", // result (6)
+		"## Next",
+		"content",
+	];
+
+	const targetLine = 2;
+
+	const result = getEndOfSection(lines, targetLine, false);
+	expect(result).toBe(6);
+});
+
 test("getEndOfSection - target is heading, should consider subsections", () => {
 	const lines = [
 		"# Notes", // target (0)
