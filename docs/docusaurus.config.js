@@ -4,7 +4,14 @@
 const {themes} = require('prism-react-renderer');
 const lightCodeTheme = themes.github;
 const darkCodeTheme = themes.dracula;
-const docsVersions = require('./versions.json');
+
+let docsVersions = [];
+try {
+  docsVersions = require('./versions.json');
+} catch {
+  docsVersions = [];
+}
+
 const latestStableVersion = docsVersions[0];
 
 /** @type {import('@docusaurus/types').Config} */
