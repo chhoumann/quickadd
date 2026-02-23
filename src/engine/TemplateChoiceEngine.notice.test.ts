@@ -161,6 +161,7 @@ const createEngine = (
 			},
 			getAbstractFileByPath: vi.fn(),
 			getFiles: vi.fn(() => []),
+			createFolder: vi.fn(),
 			create: vi.fn(),
 			modify: vi.fn(),
 		},
@@ -328,6 +329,129 @@ describe("TemplateChoiceEngine file casing resolution", () => {
 
 		expect(overwriteSpy).toHaveBeenCalledWith(
 			existingFile,
+			engine.choice.templatePath,
+		);
+	});
+});
+
+describe("TemplateChoiceEngine destination path resolution", () => {
+	beforeEach(() => {
+		settingsStore.setState(structuredClone(defaultSettingsState));
+		formatFileNameMock.mockReset();
+		formatFileContentMock.mockReset();
+		formatFileContentMock.mockResolvedValue("");
+	});
+
+	it("treats slash-separated filename formats as vault-relative paths when the first segment exists", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce(
+			"03_Aufgabenmanagement/ToDos/Issue1116",
+		);
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
+		});
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async (path: string) => path === "03_Aufgabenmanagement",
+		);
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"03_Aufgabenmanagement/ToDos/Issue1116.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("keeps Obsidian default location behavior for plain file names", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:name}}";
+
+		formatFileNameMock.mockResolvedValueOnce("Issue1116");
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
+		});
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"03_Aufgabenmanagement/ToDos/W-Tanso/Issue1116.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("keeps relative subpaths under the default location when the first segment does not exist at vault root", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce("tasks/Issue1116");
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
+		});
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async () => false,
+		);
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"03_Aufgabenmanagement/ToDos/W-Tanso/tasks/Issue1116.md",
 			engine.choice.templatePath,
 		);
 	});

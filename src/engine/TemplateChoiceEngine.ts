@@ -63,26 +63,33 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let folderPath = "";
 
 			if (this.choice.folder.enabled) {
-			folderPath = await this.getFolderPath();
+				folderPath = await this.getFolderPath();
 			} else {
-			// Respect Obsidian's "Default location for new notes" setting
-			const parent = this.app.fileManager.getNewFileParent(
-				this.app.workspace.getActiveFile()?.path ?? ""
-			);
-			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
-		}
+				// Respect Obsidian's "Default location for new notes" setting
+				const parent = this.app.fileManager.getNewFileParent(
+					this.app.workspace.getActiveFile()?.path ?? "",
+				);
+				folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+			}
 
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
 				: VALUE_SYNTAX;
-			const formattedName = await this.formatter.formatFileName(
-				format,
-				this.choice.name,
+			const formattedName = this.stripDuplicateFolderPrefix(
+				await this.formatter.formatFileName(
+					format,
+					this.choice.name,
+				),
+				folderPath,
 			);
-			
+			const treatAsVaultRelativePath =
+				await this.shouldTreatFormattedNameAsVaultRelativePath(
+					formattedName,
+					folderPath,
+				);
 
 			let filePath = this.normalizeTemplateFilePath(
-				folderPath,
+				treatAsVaultRelativePath ? "" : folderPath,
 				formattedName,
 				this.choice.templatePath,
 			);
@@ -302,6 +309,39 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			allowedRoots: folders,
 			topItems,
 		});
+	}
+
+	private stripDuplicateFolderPrefix(fileName: string, folderPath: string): string {
+		const normalizedFolder = this.stripLeadingSlash(folderPath);
+		const normalizedFileName = this.stripLeadingSlash(fileName);
+
+		if (!normalizedFolder) return normalizedFileName;
+		if (!normalizedFileName.startsWith(`${normalizedFolder}/`)) {
+			return normalizedFileName;
+		}
+
+		return normalizedFileName.slice(normalizedFolder.length + 1);
+	}
+
+	private async shouldTreatFormattedNameAsVaultRelativePath(
+		formattedName: string,
+		folderPath: string,
+	): Promise<boolean> {
+		if (this.choice.folder.enabled) return false;
+
+		const normalizedFileName = this.stripLeadingSlash(formattedName);
+		if (!normalizedFileName.includes("/")) return false;
+
+		const normalizedFolder = this.stripLeadingSlash(folderPath);
+		if (!normalizedFolder) return true;
+
+		const [firstSegment] = normalizedFileName.split("/");
+		if (!firstSegment) return false;
+
+		// Preserve legacy "relative subpath under default note location" behavior.
+		// Only skip default folder prefixing when the first path segment exists at
+		// vault root, which indicates an explicit vault-relative destination.
+		return await this.app.vault.adapter.exists(firstSegment);
 	}
 
 	private getCurrentFolderSuggestion():
