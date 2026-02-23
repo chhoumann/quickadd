@@ -382,6 +382,41 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		);
 	});
 
+	it("does not drop default-folder prefix after duplicate-prefix stripping", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce("projects/docs/readme");
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "projects",
+		});
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"projects/docs/readme.md",
+			engine.choice.templatePath,
+		);
+	});
+
 	it("keeps Obsidian default location behavior for plain file names", async () => {
 		const { engine, app } = createEngine("ignored", {
 			throwDuringFileName: false,

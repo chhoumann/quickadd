@@ -75,22 +75,23 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
 				: VALUE_SYNTAX;
-			const formattedName = this.stripDuplicateFolderPrefix(
-				await this.formatter.formatFileName(
-					format,
-					this.choice.name,
-				),
+			const formattedName = await this.formatter.formatFileName(
+				format,
+				this.choice.name,
+			);
+			const { fileName, strippedPrefix } = this.stripDuplicateFolderPrefix(
+				formattedName,
 				folderPath,
 			);
 			const treatAsVaultRelativePath =
 				await this.shouldTreatFormattedNameAsVaultRelativePath(
 					formattedName,
-					folderPath,
+					strippedPrefix,
 				);
 
 			let filePath = this.normalizeTemplateFilePath(
 				treatAsVaultRelativePath ? "" : folderPath,
-				formattedName,
+				fileName,
 				this.choice.templatePath,
 			);
 
@@ -311,37 +312,42 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		});
 	}
 
-	private stripDuplicateFolderPrefix(fileName: string, folderPath: string): string {
+	private stripDuplicateFolderPrefix(
+		fileName: string,
+		folderPath: string,
+	): { fileName: string; strippedPrefix: boolean } {
 		const normalizedFolder = this.stripLeadingSlash(folderPath);
 		const normalizedFileName = this.stripLeadingSlash(fileName);
 
-		if (!normalizedFolder) return normalizedFileName;
+		if (!normalizedFolder) {
+			return { fileName: normalizedFileName, strippedPrefix: false };
+		}
 		if (!normalizedFileName.startsWith(`${normalizedFolder}/`)) {
-			return normalizedFileName;
+			return { fileName: normalizedFileName, strippedPrefix: false };
 		}
 
-		return normalizedFileName.slice(normalizedFolder.length + 1);
+		return {
+			fileName: normalizedFileName.slice(normalizedFolder.length + 1),
+			strippedPrefix: true,
+		};
 	}
 
 	private async shouldTreatFormattedNameAsVaultRelativePath(
 		formattedName: string,
-		folderPath: string,
+		strippedPrefix: boolean,
 	): Promise<boolean> {
 		if (this.choice.folder.enabled) return false;
+		if (strippedPrefix) return false;
 
-		const normalizedFileName = this.stripLeadingSlash(formattedName);
+		const normalizedFileName = formattedName.trim();
 		if (!normalizedFileName.includes("/")) return false;
+		if (normalizedFileName.startsWith("./")) return false;
+		if (normalizedFileName.startsWith("/")) return true;
 
-		const normalizedFolder = this.stripLeadingSlash(folderPath);
-		if (!normalizedFolder) return true;
-
-		const [firstSegment] = normalizedFileName.split("/");
-		if (!firstSegment) return false;
-
-		// Preserve legacy "relative subpath under default note location" behavior.
-		// Only skip default folder prefixing when the first path segment exists at
-		// vault root, which indicates an explicit vault-relative destination.
-		return await this.app.vault.adapter.exists(firstSegment);
+		const slashCount = normalizedFileName.split("/").length - 1;
+		// Keep one-level subpaths (e.g. "tasks/note") relative to Obsidian's
+		// default folder, while treating deeper paths as vault-relative.
+		return slashCount >= 2;
 	}
 
 	private getCurrentFolderSuggestion():
