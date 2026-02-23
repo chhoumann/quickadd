@@ -5,6 +5,7 @@ export type CaptureCursorPosition = {
 
 export type CaptureInsertion = {
 	boundaryOffsetInPrevious: number;
+	cursorOffsetInNext: number;
 	cursorPositionInNext: CaptureCursorPosition;
 };
 
@@ -37,6 +38,7 @@ export function getCaptureInsertion(
 
 	return {
 		boundaryOffsetInPrevious: insertedRange.start,
+		cursorOffsetInNext: cursorOffset,
 		cursorPositionInNext: toLineAndCh(nextContent, cursorOffset),
 	};
 }
@@ -173,6 +175,7 @@ function findBestBoundaryCandidate(
 	const candidateOffsets = collectCandidateOffsets(
 		content,
 		beforeContext,
+		afterContext,
 		approxOffset,
 	);
 	let bestOffset: number | null = null;
@@ -213,9 +216,35 @@ function findBestBoundaryCandidate(
 function collectCandidateOffsets(
 	content: string,
 	beforeContext: string,
+	afterContext: string,
 	approxOffset: number,
 ): number[] {
 	if (beforeContext.length === 0) {
+		if (afterContext.length === 0) {
+			return [0];
+		}
+
+		const afterCandidates: number[] = [];
+		let searchFrom = 0;
+		while (searchFrom <= content.length) {
+			const index = content.indexOf(afterContext, searchFrom);
+			if (index === -1) {
+				break;
+			}
+
+			afterCandidates.push(index);
+			if (afterCandidates.length >= 64) {
+				break;
+			}
+			searchFrom = index + 1;
+		}
+
+		if (afterCandidates.length > 0) {
+			return afterCandidates
+				.sort((a, b) => Math.abs(a - approxOffset) - Math.abs(b - approxOffset))
+				.slice(0, 16);
+		}
+
 		return [0];
 	}
 

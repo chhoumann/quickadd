@@ -16,6 +16,7 @@ describe("getCaptureCursorPosition", () => {
 
 		expect(getCaptureInsertion(before, after)).toEqual({
 			boundaryOffsetInPrevious: 4,
+			cursorOffsetInNext: 5,
 			cursorPositionInNext: { line: 1, ch: 0 },
 		});
 	});
@@ -48,5 +49,15 @@ describe("getCaptureCursorPosition", () => {
 		expect(
 			mapCaptureCursorPositionFromBoundary(previous, next, previous.length),
 		).toEqual({ line: 2, ch: 0 });
+	});
+
+	it("maps zero-offset boundaries using after-context matches", () => {
+		const previous = "Captured\nBody";
+		const next = "Title\nCaptured\nBody";
+
+		expect(mapCaptureCursorPositionFromBoundary(previous, next, 0)).toEqual({
+			line: 1,
+			ch: 0,
+		});
 	});
 });

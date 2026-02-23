@@ -355,6 +355,90 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		expect(setCursor).toHaveBeenCalledWith({ line: 2, ch: 0 });
 	});
 
+	it("moves top-insert cursor when final content prepends text", async () => {
+		const app = createApp();
+		vi.mocked(app.vault.read).mockResolvedValue("Title\nCaptured\nBody");
+
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+
+		const setCursor = vi.fn();
+		const openedLeaf = {
+			view: {
+				editor: { setCursor },
+			},
+		} as any;
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		vi.mocked(openExistingFileTab).mockReturnValue(null);
+		vi.mocked(openFile).mockResolvedValue(openedLeaf);
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			existingFileContent: "Body",
+			newFileContent: "Captured\nBody",
+			captureContent: "Captured",
+		});
+
+		await engine.run();
+
+		expect(setCursor).toHaveBeenCalledWith({ line: 1, ch: 0 });
+	});
+
+	it("keeps original cursor when final content is unchanged", async () => {
+		const app = createApp();
+		vi.mocked(app.vault.read).mockResolvedValue("cba\ncba");
+
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+
+		const setCursor = vi.fn();
+		const openedLeaf = {
+			view: {
+				editor: { setCursor },
+			},
+		} as any;
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		vi.mocked(openExistingFileTab).mockReturnValue(null);
+		vi.mocked(openFile).mockResolvedValue(openedLeaf);
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			existingFileContent: "cb",
+			newFileContent: "cba\ncba",
+			captureContent: "a\ncba",
+		});
+
+		await engine.run();
+
+		expect(setCursor).toHaveBeenCalledWith({ line: 0, ch: 2 });
+	});
+
 	it("keeps cursor on capture when unrelated earlier sections are rewritten", async () => {
 		const app = createApp();
 		vi.mocked(app.vault.read).mockResolvedValue(

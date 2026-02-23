@@ -201,12 +201,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 						);
 					}
 
-					captureCursorPosition =
-						mapCaptureCursorPositionFromBoundary(
-							existingFileContent,
-							contentForCursor,
-							captureInsertion.boundaryOffsetInPrevious,
-						) ?? captureInsertion.cursorPositionInNext;
+					if (contentForCursor !== newFileContent) {
+						captureCursorPosition =
+							mapCaptureCursorPositionFromBoundary(
+								newFileContent,
+								contentForCursor,
+								captureInsertion.cursorOffsetInNext,
+							) ??
+							mapCaptureCursorPositionFromBoundary(
+								existingFileContent,
+								contentForCursor,
+								captureInsertion.boundaryOffsetInPrevious,
+							) ?? captureInsertion.cursorPositionInNext;
+					}
 				}
 			}
 
