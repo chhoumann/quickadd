@@ -156,7 +156,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				action === "currentLine" ||
 				action === "newLineAbove" ||
 				action === "newLineBelow";
-			const captureInsertion = isEditorInsertionAction
+			const shouldTrackCaptureCursor =
+				this.choice.openFile && !isEditorInsertionAction;
+			const captureInsertion = !shouldTrackCaptureCursor
 				? null
 				: getCaptureInsertion(existingFileContent, newFileContent);
 			let captureCursorPosition: { line: number; ch: number; } | null =
