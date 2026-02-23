@@ -3,7 +3,12 @@ import type { App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { isFolder, openFile } from "../utilityObsidian";
+import {
+	isFolder,
+	jumpToNextTemplaterCursorIfPossible,
+	openExistingFileTab,
+	openFile,
+} from "../utilityObsidian";
 
 const { setUseSelectionAsCaptureValueMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
@@ -75,6 +80,8 @@ const createApp = () =>
 				exists: vi.fn(async () => false),
 			},
 			getAbstractFileByPath: vi.fn(() => null),
+			modify: vi.fn(async () => {}),
+			read: vi.fn(async () => ""),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -131,6 +138,8 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
 		setUseSelectionAsCaptureValueMock.mockClear();
 		vi.mocked(openFile).mockClear();
+		vi.mocked(openExistingFileTab).mockClear();
+		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockClear();
 	});
 
 	it("uses global setting when no override is set", async () => {
@@ -192,6 +201,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
+			existingFileContent: "content",
 			newFileContent: "content",
 			captureContent: "content",
 		});
@@ -208,6 +218,88 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 				focus: true,
 			}),
 		);
+	});
+
+	it("moves cursor to inserted capture location after opening a new leaf", async () => {
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+
+		const setCursor = vi.fn();
+		const openedLeaf = {
+			view: {
+				editor: { setCursor },
+			},
+		} as any;
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		vi.mocked(openExistingFileTab).mockReturnValue(null);
+		vi.mocked(openFile).mockResolvedValue(openedLeaf);
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			existingFileContent: "Header\nBody",
+			newFileContent: "Header\nBody\nCaptured",
+			captureContent: "Captured",
+		});
+
+		await engine.run();
+
+		expect(setCursor).toHaveBeenCalledWith({ line: 2, ch: 0 });
+		expect(jumpToNextTemplaterCursorIfPossible).toHaveBeenCalledWith(
+			expect.anything(),
+			file,
+		);
+	});
+
+	it("moves cursor when reusing an already-open tab", async () => {
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+
+		const setCursor = vi.fn();
+		const existingLeaf = {
+			view: {
+				editor: { setCursor },
+			},
+		} as any;
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		vi.mocked(openExistingFileTab).mockReturnValue(existingLeaf);
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			existingFileContent: "Header",
+			newFileContent: "Header\nCaptured",
+			captureContent: "Captured",
+		});
+
+		await engine.run();
+
+		expect(openFile).not.toHaveBeenCalled();
+		expect(setCursor).toHaveBeenCalledWith({ line: 1, ch: 0 });
 	});
 });
 

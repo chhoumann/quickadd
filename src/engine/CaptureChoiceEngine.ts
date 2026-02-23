@@ -35,9 +35,17 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
+import { getCaptureCursorPosition } from "./captureCursor";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
+
+interface CaptureUpdateResult {
+	file: TFile;
+	existingFileContent: string;
+	newFileContent: string;
+	captureContent: string;
+}
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -137,17 +145,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					);
 				}
 
-			const { file, newFileContent, captureContent } =
+			const { file, existingFileContent, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-		const action = getCaptureAction(this.choice);
-		const isEditorInsertionAction =
-			action === "currentLine" ||
-			action === "newLineAbove" ||
-			action === "newLineBelow";
+			const action = getCaptureAction(this.choice);
+			const isEditorInsertionAction =
+				action === "currentLine" ||
+				action === "newLineAbove" ||
+				action === "newLineBelow";
+			const captureCursorPosition = isEditorInsertionAction
+				? null
+				: getCaptureCursorPosition(existingFileContent, newFileContent);
 
-		// Handle capture to active file with special actions
-		if (isEditorInsertionAction) {
+			// Handle capture to active file with special actions
+			if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
@@ -183,17 +194,36 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-				if (linkOptions.enabled) {
+			if (linkOptions.enabled) {
 				insertFileLinkToActiveView(this.app, file, linkOptions);
 			}
 
 			if (this.choice.openFile && file) {
 				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
 				const focus = fileOpening.focus ?? true;
-				const openExistingTab = openExistingFileTab(this.app, file, focus);
+				let openedLeaf = openExistingFileTab(this.app, file, focus);
 
-				if (!openExistingTab) {
-					await openFile(this.app, file, fileOpening);
+				if (!openedLeaf) {
+					openedLeaf = await openFile(this.app, file, fileOpening);
+				}
+
+				const editor = (
+					openedLeaf?.view as
+						| {
+							editor?: {
+								setCursor?: (position: { line: number; ch: number; }) => void;
+							};
+						}
+						| undefined
+				)?.editor;
+				if (captureCursorPosition && typeof editor?.setCursor === "function") {
+					try {
+						editor.setCursor(captureCursorPosition);
+					} catch (err) {
+						log.logWarning(
+							`Unable to set capture cursor position in '${file.path}': ${(err as Error).message}`,
+						);
+					}
 				}
 
 				await jumpToNextTemplaterCursorIfPossible(this.app, file);
@@ -402,11 +432,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async onFileExists(
 		filePath: string,
 		content: string,
-	): Promise<{
-		file: TFile;
-		newFileContent: string;
-		captureContent: string;
-	}> {
+	): Promise<CaptureUpdateResult> {
 		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
@@ -450,18 +476,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			newFileContent = res.joinedResults() as string;
 		}
 
-		return { file, newFileContent, captureContent: formatted };
+		return {
+			file,
+			existingFileContent: secondReadFileContent,
+			newFileContent,
+			captureContent: formatted,
+		};
 	}
 
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
 		linkOptions?: AppendLinkOptions,
-	): Promise<{
-		file: TFile;
-		newFileContent: string;
-		captureContent: string;
-	}> {
+	): Promise<CaptureUpdateResult> {
 		// Extract filename without extension from the full path
 		const fileBasename = filePath.split("/").pop()?.replace(/\.md$/, "") || "";
 		this.formatter.setTitle(fileBasename);
@@ -540,7 +567,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
-		return { file, newFileContent, captureContent: formattedCaptureContent };
+		return {
+			file,
+			existingFileContent: updatedFileContent,
+			newFileContent,
+			captureContent: formattedCaptureContent,
+		};
 	}
 
 	private async formatFilePath(captureTo: string) {
