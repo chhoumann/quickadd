@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
+import { TFolder } from "obsidian";
 import invariant from "src/utils/invariant";
 import {
 	fileExistsAppendToBottom,
@@ -63,14 +64,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let folderPath = "";
 
 			if (this.choice.folder.enabled) {
-			folderPath = await this.getFolderPath();
+				folderPath = await this.getFolderPath();
 			} else {
-			// Respect Obsidian's "Default location for new notes" setting
-			const parent = this.app.fileManager.getNewFileParent(
-				this.app.workspace.getActiveFile()?.path ?? ""
-			);
-			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
-		}
+				// Respect Obsidian's "Default location for new notes" setting
+				const parent = this.app.fileManager.getNewFileParent(
+					this.app.workspace.getActiveFile()?.path ?? "",
+				);
+				folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+			}
 
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
@@ -79,11 +80,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				format,
 				this.choice.name,
 			);
-			
+			const { fileName, strippedPrefix } = this.stripDuplicateFolderPrefix(
+				formattedName,
+				folderPath,
+			);
+			const treatAsVaultRelativePath =
+				this.shouldTreatFormattedNameAsVaultRelativePath(
+					formattedName,
+					strippedPrefix,
+				);
 
 			let filePath = this.normalizeTemplateFilePath(
-				folderPath,
-				formattedName,
+				treatAsVaultRelativePath ? "" : folderPath,
+				fileName,
 				this.choice.templatePath,
 			);
 
@@ -302,6 +311,46 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			allowedRoots: folders,
 			topItems,
 		});
+	}
+
+	private stripDuplicateFolderPrefix(
+		fileName: string,
+		folderPath: string,
+	): { fileName: string; strippedPrefix: boolean } {
+		const normalizedFolder = this.stripLeadingSlash(folderPath);
+		const normalizedFileName = this.stripLeadingSlash(fileName);
+
+		if (!normalizedFolder) {
+			return { fileName: normalizedFileName, strippedPrefix: false };
+		}
+		if (!normalizedFileName.startsWith(`${normalizedFolder}/`)) {
+			return { fileName: normalizedFileName, strippedPrefix: false };
+		}
+
+		return {
+			fileName: normalizedFileName.slice(normalizedFolder.length + 1),
+			strippedPrefix: true,
+		};
+	}
+
+	private shouldTreatFormattedNameAsVaultRelativePath(
+		formattedName: string,
+		strippedPrefix: boolean,
+	): boolean {
+		if (this.choice.folder.enabled) return false;
+		if (strippedPrefix) return false;
+
+		const normalizedFileName = formattedName.trim();
+		if (!normalizedFileName.includes("/")) return false;
+		if (normalizedFileName.startsWith("./")) return false;
+
+		if (normalizedFileName.startsWith("/")) return true;
+
+		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
+		if (!firstSegment) return false;
+
+		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);
+		return rootEntry instanceof TFolder;
 	}
 
 	private getCurrentFolderSuggestion():
