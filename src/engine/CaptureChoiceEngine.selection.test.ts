@@ -354,6 +354,80 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		// We should now use the final post-processed file content.
 		expect(setCursor).toHaveBeenCalledWith({ line: 2, ch: 0 });
 	});
+
+	it("keeps cursor on capture when unrelated earlier sections are rewritten", async () => {
+		const app = createApp();
+		vi.mocked(app.vault.read).mockResolvedValue(
+			"Title: updated\nBody\nCaptured",
+		);
+
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+
+		const setCursor = vi.fn();
+		const openedLeaf = {
+			view: {
+				editor: { setCursor },
+			},
+		} as any;
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		vi.mocked(openExistingFileTab).mockReturnValue(null);
+		vi.mocked(openFile).mockResolvedValue(openedLeaf);
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			existingFileContent: "Title: old\nBody",
+			newFileContent: "Title: old\nBody\nCaptured",
+			captureContent: "Captured",
+		});
+
+		await engine.run();
+
+		expect(setCursor).toHaveBeenCalledWith({ line: 2, ch: 0 });
+	});
+
+	it("skips final cursor recomputation when openFile is disabled", async () => {
+		const app = createApp();
+		const choice = createChoice({
+			openFile: false,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			existingFileContent: "Body",
+			newFileContent: "Body\nCaptured",
+			captureContent: "Captured",
+		});
+
+		await engine.run();
+
+		expect(app.vault.read).not.toHaveBeenCalled();
+	});
 });
 
 describe("CaptureChoiceEngine capture target resolution", () => {

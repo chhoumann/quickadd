@@ -35,7 +35,10 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
-import { getCaptureCursorPosition } from "./captureCursor";
+import {
+	getCaptureInsertion,
+	mapCaptureCursorPositionFromBoundary,
+} from "./captureCursor";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
@@ -153,7 +156,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				action === "currentLine" ||
 				action === "newLineAbove" ||
 				action === "newLineBelow";
-			let captureCursorPosition: { line: number; ch: number; } | null = null;
+			const captureInsertion = isEditorInsertionAction
+				? null
+				: getCaptureInsertion(existingFileContent, newFileContent);
+			let captureCursorPosition: { line: number; ch: number; } | null =
+				captureInsertion?.cursorPositionInNext ?? null;
 
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
@@ -182,18 +189,23 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					await overwriteTemplaterOnce(this.app, file);
 				}
 				await this.applyCapturePropertyVars(file);
-				let contentForCursor = newFileContent;
-				try {
-					contentForCursor = await this.app.vault.read(file);
-				} catch (err) {
-					log.logWarning(
-						`Unable to read final capture content for cursor positioning in '${file.path}': ${(err as Error).message}`,
-					);
+				if (this.choice.openFile && captureInsertion) {
+					let contentForCursor = newFileContent;
+					try {
+						contentForCursor = await this.app.vault.read(file);
+					} catch (err) {
+						log.logWarning(
+							`Unable to read final capture content for cursor positioning in '${file.path}': ${(err as Error).message}`,
+						);
+					}
+
+					captureCursorPosition =
+						mapCaptureCursorPositionFromBoundary(
+							existingFileContent,
+							contentForCursor,
+							captureInsertion.boundaryOffsetInPrevious,
+						) ?? captureInsertion.cursorPositionInNext;
 				}
-				captureCursorPosition = getCaptureCursorPosition(
-					existingFileContent,
-					contentForCursor,
-				);
 			}
 
 			// Show success notification
