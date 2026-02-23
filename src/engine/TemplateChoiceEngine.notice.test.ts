@@ -342,7 +342,7 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		formatFileContentMock.mockResolvedValue("");
 	});
 
-	it("treats slash-separated filename formats as vault-relative paths when the first segment exists", async () => {
+	it("treats deep slash-separated filename formats as vault-relative paths", async () => {
 		const { engine, app } = createEngine("ignored", {
 			throwDuringFileName: false,
 			stubTemplateContent: true,
@@ -370,14 +370,46 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
 			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
 		});
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
-			async (path: string) => path === "03_Aufgabenmanagement",
-		);
 
 		await engine.run();
 
 		expect(createSpy).toHaveBeenCalledWith(
 			"03_Aufgabenmanagement/ToDos/Issue1116.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("treats leading-slash filename formats as vault-relative paths", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce("/Projects/Issue1116");
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
+		});
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Projects/Issue1116.md",
 			engine.choice.templatePath,
 		);
 	});
@@ -487,6 +519,43 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 
 		expect(createSpy).toHaveBeenCalledWith(
 			"03_Aufgabenmanagement/ToDos/W-Tanso/tasks/Issue1116.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("never treats filename formats as vault-relative when create in folder is enabled", async () => {
+		const { engine } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+		vi.spyOn(
+			engine as unknown as {
+				getFolderPath: () => Promise<string>;
+			},
+			"getFolderPath",
+		).mockResolvedValue("ConfiguredFolder");
+
+		engine.choice.folder.enabled = true;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+		formatFileNameMock.mockResolvedValueOnce("RootLike/Path/Issue1116");
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"ConfiguredFolder/RootLike/Path/Issue1116.md",
 			engine.choice.templatePath,
 		);
 	});

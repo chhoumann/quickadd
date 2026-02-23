@@ -84,7 +84,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				folderPath,
 			);
 			const treatAsVaultRelativePath =
-				await this.shouldTreatFormattedNameAsVaultRelativePath(
+				this.shouldTreatFormattedNameAsVaultRelativePath(
 					formattedName,
 					strippedPrefix,
 				);
@@ -332,10 +332,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		};
 	}
 
-	private async shouldTreatFormattedNameAsVaultRelativePath(
+	private shouldTreatFormattedNameAsVaultRelativePath(
 		formattedName: string,
 		strippedPrefix: boolean,
-	): Promise<boolean> {
+	): boolean {
 		if (this.choice.folder.enabled) return false;
 		if (strippedPrefix) return false;
 
