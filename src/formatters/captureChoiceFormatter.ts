@@ -558,7 +558,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const splitContent = body.split("\n");
 		const pre = splitContent.slice(0, pos + 1).join("\n");
 		const post = splitContent.slice(pos + 1).join("\n");
+		const needsSeparatorBeforePost =
+			post.length > 0 && !text.endsWith("\n") && !text.endsWith("\r");
+		const postPrefix = needsSeparatorBeforePost ? "\n" : "";
 
-		return `${pre}\n${text}${post}`;
+		return `${pre}\n${text}${postPrefix}${post}`;
 	}
 }

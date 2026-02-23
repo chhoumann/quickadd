@@ -183,6 +183,34 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
 
     expect(result).toBe(['---', 'tags: ["a"]', '---', 'Captured line', '# Template Body'].join('\n'));
   });
+
+  it('keeps line boundaries when inserted content below frontmatter has no trailing newline', async () => {
+    const app = createMockApp();
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
+    const formatter = new CaptureChoiceFormatter(app, plugin);
+
+    const choice = createChoice();
+    const file = createTFile('New Note.md');
+    const fileContent = ['---', 'title: Hard Top', '---', 'Body line A', 'Body line B'].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'HARD_TOP_TOKEN',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(
+      ['---', 'title: Hard Top', '---', 'HARD_TOP_TOKEN', 'Body line A', 'Body line B'].join('\n'),
+    );
+  });
 });
 
 describe('CaptureChoiceFormatter insert after blank lines', () => {
@@ -360,6 +388,52 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     );
 
     expect(result).toBe(['# H', 'X', '', 'A'].join('\n'));
+  });
+
+  it('insertAtEnd keeps section boundary when formatted text has no trailing newline', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createChoice({
+      insertAfter: {
+        enabled: true,
+        after: '## H2',
+        insertAtEnd: true,
+        considerSubsections: true,
+        createIfNotFound: false,
+        createIfNotFoundLocation: '',
+        inline: false,
+        replaceExisting: false,
+        blankLineAfterMatchMode: 'auto',
+      },
+    });
+    const fileContent = [
+      '# Root',
+      '## H2',
+      'text',
+      '### Child',
+      'child text',
+      '## Next',
+      'next text',
+    ].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      'END_SECTION_CAPTURE',
+      choice,
+      fileContent,
+      file,
+    );
+
+    expect(result).toBe(
+      [
+        '# Root',
+        '## H2',
+        'text',
+        '### Child',
+        'END_SECTION_CAPTURE',
+        'child text',
+        '## Next',
+        'next text',
+      ].join('\n'),
+    );
   });
 });
 
