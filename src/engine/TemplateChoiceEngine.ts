@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
+import { TFolder } from "obsidian";
 import invariant from "src/utils/invariant";
 import {
 	fileExistsAppendToBottom,
@@ -342,12 +343,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const normalizedFileName = formattedName.trim();
 		if (!normalizedFileName.includes("/")) return false;
 		if (normalizedFileName.startsWith("./")) return false;
+
 		if (normalizedFileName.startsWith("/")) return true;
 
-		const slashCount = normalizedFileName.split("/").length - 1;
-		// Keep one-level subpaths (e.g. "tasks/note") relative to Obsidian's
-		// default folder, while treating deeper paths as vault-relative.
-		return slashCount >= 2;
+		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
+		if (!firstSegment) return false;
+
+		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);
+		return rootEntry instanceof TFolder;
 	}
 
 	private getCurrentFolderSuggestion():

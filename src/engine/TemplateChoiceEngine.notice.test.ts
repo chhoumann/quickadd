@@ -100,7 +100,7 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
 }));
 
-import { TFile, type App } from "obsidian";
+import { TFile, TFolder, type App } from "obsidian";
 import { Notice } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -370,6 +370,17 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
 			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
 		});
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockImplementation(
+			(path: string) => {
+				if (path === "03_Aufgabenmanagement") {
+					const folder = new TFolder();
+					folder.path = "03_Aufgabenmanagement";
+					folder.name = "03_Aufgabenmanagement";
+					return folder;
+				}
+				return null;
+			},
+		);
 
 		await engine.run();
 
@@ -440,6 +451,9 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
 			path: "projects",
 		});
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			null,
+		);
 
 		await engine.run();
 
@@ -475,7 +489,9 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
 			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
 		});
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			null,
+		);
 
 		await engine.run();
 
@@ -511,14 +527,103 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
 			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
 		});
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
-			async () => false,
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockImplementation(
+			(path: string) => {
+				if (path === "tasks") return null;
+				return null;
+			},
 		);
 
 		await engine.run();
 
 		expect(createSpy).toHaveBeenCalledWith(
 			"03_Aufgabenmanagement/ToDos/W-Tanso/tasks/Issue1116.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("keeps deep relative subpaths under the default location when root segment is missing", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce("sub/tasks/Issue1116");
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "03_Aufgabenmanagement/ToDos/W-Tanso",
+		});
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			null,
+		);
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"03_Aufgabenmanagement/ToDos/W-Tanso/sub/tasks/Issue1116.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("does not treat root-level files as folder roots for vault-relative detection", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce("notes/Session");
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue({
+			path: "DailyNotes",
+		});
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockImplementation(
+			(path: string) => {
+				if (path === "notes") {
+					const file = new TFile();
+					file.path = "notes";
+					file.name = "notes";
+					file.basename = "notes";
+					file.extension = "";
+					return file;
+				}
+				return null;
+			},
+		);
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"DailyNotes/notes/Session.md",
 			engine.choice.templatePath,
 		);
 	});
