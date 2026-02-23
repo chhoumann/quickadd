@@ -153,9 +153,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				action === "currentLine" ||
 				action === "newLineAbove" ||
 				action === "newLineBelow";
-			const captureCursorPosition = isEditorInsertionAction
-				? null
-				: getCaptureCursorPosition(existingFileContent, newFileContent);
+			let captureCursorPosition: { line: number; ch: number; } | null = null;
 
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
@@ -184,6 +182,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					await overwriteTemplaterOnce(this.app, file);
 				}
 				await this.applyCapturePropertyVars(file);
+				let contentForCursor = newFileContent;
+				try {
+					contentForCursor = await this.app.vault.read(file);
+				} catch (err) {
+					log.logWarning(
+						`Unable to read final capture content for cursor positioning in '${file.path}': ${(err as Error).message}`,
+					);
+				}
+				captureCursorPosition = getCaptureCursorPosition(
+					existingFileContent,
+					contentForCursor,
+				);
 			}
 
 			// Show success notification
