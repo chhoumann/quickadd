@@ -466,7 +466,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 						!!this.choice.insertAfter.considerSubsections,
 					);
 
-					targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
+					targetPosition = this.findInsertAfterPositionAtSectionEnd(
+						fileContentLines,
+						endOfSectionIndex ?? fileContentLines.length - 1,
+						this.fileContent,
+					);
 				}
 
 				const newFileContent = this.insertTextAfterPositionInBody(

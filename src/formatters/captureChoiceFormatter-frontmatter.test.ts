@@ -386,7 +386,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const formatter = new CaptureChoiceFormatter(app, plugin);
     const file = createTFile('EndOfSection.md');
 
-    return { formatter, file };
+    return { app, formatter, file };
   };
 
   const createInsertAfterChoice = (
@@ -492,6 +492,32 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
 
     expect(result).toBe(
       ['# Journal', '', '18:13', 'Test5', '', '10:00', 'Some data', ''].join('\n'),
+    );
+  });
+
+  it('uses EOF spacing logic when create-if-not-found inserts at cursor with insert-at-end', async () => {
+    const { app, formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Missing', {
+      createIfNotFound: true,
+      createIfNotFoundLocation: 'cursor',
+    });
+    (app.workspace.getActiveViewOfType as any).mockReturnValue({
+      editor: {
+        getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),
+        getSelection: vi.fn().mockReturnValue(''),
+      },
+    });
+    const initial = ['# Journal', '', '10:00', 'Some data', '', ''].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      '18:14\nTest6\n\n',
+      choice,
+      initial,
+      file,
+    );
+
+    expect(result).toBe(
+      ['# Journal', '', '10:00', 'Some data', '', '# Missing', '18:14', 'Test6', '', ''].join('\n'),
     );
   });
 });
