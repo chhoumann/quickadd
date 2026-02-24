@@ -98,9 +98,12 @@ export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
+export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
-export const TEMPLATE_REGEX = new RegExp(/{{TEMPLATE:([^\n\r}]*.md)}}/i);
+export const TEMPLATE_REGEX = new RegExp(
+	/{{TEMPLATE:([^\n\r}]*\.(?:md|canvas|base))}}/i,
+);
 export const GLOBAL_VAR_REGEX = new RegExp(/{{GLOBAL_VAR:([^\n\r}]*)}}/i);
 export const INLINE_JAVASCRIPT_REGEX = new RegExp(
 	/`{3,}js quickadd([\s\S]*?)`{3,}/,

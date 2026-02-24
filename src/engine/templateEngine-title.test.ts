@@ -125,6 +125,11 @@ describe('TemplateEngine - Title Handling', () => {
             expect(engine.getFormatterTitle()).toBe('CanvasDoc');
         });
 
+        it('should extract title from .base filename', async () => {
+            await engine.testCreateFileWithTemplate('folder/Kanban.base', 'template.base');
+            expect(engine.getFormatterTitle()).toBe('Kanban');
+        });
+
         it('should format content with title replacement', async () => {
             const mockFormatter = (engine as any).formatter;
             

@@ -105,10 +105,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const file = this.findExistingFile(filePath);
 				if (
 					!(file instanceof TFile) ||
-					(file.extension !== "md" && file.extension !== "canvas")
+					(file.extension !== "md" &&
+						file.extension !== "canvas" &&
+						file.extension !== "base")
 				) {
 					log.logError(
-						`'${filePath}' already exists but could not be resolved as a markdown or canvas file.`,
+						`'${filePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
 				}
