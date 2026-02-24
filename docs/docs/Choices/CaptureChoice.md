@@ -16,6 +16,10 @@ Allows to quickly capture your input and save it from anywhere in Obsidian, with
 _Capture To_ is the name of the file you are capturing to.
 You can choose to either enable _Capture to active file_, or you can enter a file name in the _File Name_ input field.
 
+QuickAdd treats file names as basename-first by default:
+- If you do **not** provide an extension, QuickAdd creates/targets a Markdown file (`.md`).
+- If you provide an explicit extension (for example `Project.base`), QuickAdd keeps that extension.
+
 This field also supports the [format syntax](/FormatSyntax.md), which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
