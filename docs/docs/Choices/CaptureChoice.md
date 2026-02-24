@@ -18,7 +18,8 @@ You can choose to either enable _Capture to active file_, or you can enter a fil
 
 QuickAdd treats file names as basename-first by default:
 - If you do **not** provide an extension, QuickAdd creates/targets a Markdown file (`.md`).
-- If you provide an explicit extension (for example `Project.base`), QuickAdd keeps that extension.
+- If you provide an explicit supported extension (for example `.md` or `.canvas`), QuickAdd keeps that extension.
+- Capture to `.base` files is not supported. Use a Template choice for `.base` workflows.
 
 This field also supports the [format syntax](/FormatSyntax.md), which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.

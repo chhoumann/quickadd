@@ -4,6 +4,8 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { isFolder, openFile } from "../utilityObsidian";
+import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
 const { setUseSelectionAsCaptureValueMock, setTitleMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
@@ -270,7 +272,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(result).toEqual({ kind: "file", path: "journals" });
 	});
 
-	it("preserves explicit .base capture target paths", async () => {
+	it("rejects explicit .base capture target paths", () => {
 		const app = createApp();
 		const engine = new CaptureChoiceEngine(
 			app,
@@ -279,9 +281,28 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			createExecutor(),
 		);
 
-		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+		expect(() =>
+			(engine as any).resolveCaptureTarget("Boards/Kanban.base"),
+		).toThrow(ChoiceAbortError);
+	});
 
-		expect(result).toBe("Boards/Kanban.base");
+	it("rejects preselected .base capture target paths", async () => {
+		const app = createApp();
+		const executor = createExecutor();
+		executor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Boards/Kanban.base",
+		);
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(),
+			executor,
+		);
+
+		await expect(
+			(engine as any).getFormattedPathToCaptureTo(false),
+		).rejects.toBeInstanceOf(ChoiceAbortError);
 	});
 
 	it("preserves explicit .canvas capture target paths", async () => {
@@ -298,7 +319,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(result).toBe("Boards/Map.canvas");
 	});
 
-	it("uses extensionless title for created .base/.canvas capture files", async () => {
+	it("uses extensionless title for created .canvas capture files", async () => {
 		const app = createApp() as any;
 		app.vault.read = vi.fn(async () => "");
 
@@ -322,15 +343,10 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		}));
 
 		await (engine as any).onCreateFileIfItDoesntExist(
-			"Boards/Kanban.base",
-			"capture",
-		);
-		await (engine as any).onCreateFileIfItDoesntExist(
 			"Boards/Map.canvas",
 			"capture",
 		);
 
-		expect(setTitleMock).toHaveBeenCalledWith("Kanban");
 		expect(setTitleMock).toHaveBeenCalledWith("Map");
 	});
 });

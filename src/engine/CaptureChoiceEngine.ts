@@ -251,7 +251,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			typeof preselected === "string" &&
 			preselected.length > 0
 		) {
-			return preselected;
+			return this.normalizeCaptureFilePath(preselected);
 		}
 
 		if (shouldCaptureToActiveFile) {
@@ -308,6 +308,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			};
 		}
 
+		if (BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)) {
+			throw new ChoiceAbortError(
+				`Capture to '.base' files is not supported (${normalizedCaptureTo}). Use a Template choice instead.`,
+			);
+		}
+
 		const endsWithSlash = normalizedCaptureTo.endsWith("/");
 		const folderPath = normalizedCaptureTo.replace(/\/+$/, "");
 
@@ -317,8 +323,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		if (
 			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedCaptureTo) ||
-			CANVAS_FILE_EXTENSION_REGEX.test(normalizedCaptureTo) ||
-			BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)
 		) {
 			return { kind: "file", path: normalizedCaptureTo };
 		}
@@ -562,10 +567,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private normalizeCaptureFilePath(path: string): string {
 		const normalizedPath = this.stripLeadingSlash(path);
+		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
+			throw new ChoiceAbortError(
+				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
+			);
+		}
 		if (
 			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedPath) ||
-			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath) ||
-			BASE_FILE_EXTENSION_REGEX.test(normalizedPath)
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath)
 		) {
 			return normalizedPath;
 		}
