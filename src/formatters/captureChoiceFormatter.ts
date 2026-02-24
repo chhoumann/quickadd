@@ -263,6 +263,37 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return position;
 	}
 
+	private findInsertAfterPositionAtSectionEnd(
+		lines: string[],
+		sectionEndIndex: number,
+		body: string,
+	): number {
+		if (sectionEndIndex < 0) return sectionEndIndex;
+
+		let position = sectionEndIndex;
+		let i = sectionEndIndex + 1;
+
+		while (i < lines.length && lines[i].trim().length === 0) {
+			position = i;
+			i++;
+		}
+
+		// Preserve current behavior when there are no trailing blank lines or when
+		// blanks are followed by content (e.g. before a new heading).
+		if (position === sectionEndIndex || i !== lines.length) {
+			return sectionEndIndex;
+		}
+
+		// split("\n") keeps a trailing empty string when content ends in "\n".
+		// We keep one trailing slot so the next insertion preserves capture spacing
+		// without introducing an extra blank line before the inserted text.
+		if (body.endsWith("\n")) {
+			return Math.max(sectionEndIndex, position - 1);
+		}
+
+		return position;
+	}
+
 	private async insertAfterHandler(formatted: string) {
 		// Use centralized location formatting for selector strings
 		const targetString: string = await this.formatLocationString(
@@ -299,7 +330,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				!!this.choice.insertAfter.considerSubsections,
 			);
 
-			targetPosition = endOfSectionIndex ?? fileContentLines.length - 1;
+			targetPosition = this.findInsertAfterPositionAtSectionEnd(
+				fileContentLines,
+				endOfSectionIndex ?? fileContentLines.length - 1,
+				this.fileContent,
+			);
 		} else {
 			const blankLineMode =
 				this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto";
