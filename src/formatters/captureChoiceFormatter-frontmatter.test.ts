@@ -363,6 +363,165 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
   });
 });
 
+describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (global as any).navigator = {
+      clipboard: {
+        readText: vi.fn().mockResolvedValue(''),
+      },
+    };
+  });
+
+  const createFormatter = () => {
+    const app = createMockApp();
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
+    const formatter = new CaptureChoiceFormatter(app, plugin);
+    const file = createTFile('EndOfSection.md');
+
+    return { app, formatter, file };
+  };
+
+  const createInsertAfterChoice = (
+    after: string,
+    overrides: Partial<ICaptureChoice['insertAfter']> = {},
+  ): ICaptureChoice =>
+    createChoice({
+      insertAfter: {
+        enabled: true,
+        after,
+        insertAtEnd: true,
+        considerSubsections: false,
+        createIfNotFound: false,
+        createIfNotFoundLocation: '',
+        inline: false,
+        replaceExisting: false,
+        blankLineAfterMatchMode: 'auto',
+        ...overrides,
+      },
+    });
+
+  it('preserves trailing format spacing across repeated insert-at-end captures at EOF', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Journal');
+    const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
+
+    const first = await formatter.formatContentWithFile(
+      '18:11\nTest\n\n',
+      choice,
+      initial,
+      file,
+    );
+
+    const second = await formatter.formatContentWithFile(
+      '18:12\nTest2\n\n',
+      choice,
+      first,
+      file,
+    );
+
+    expect(second).toBe(
+      ['# Journal', '', '10:00', 'Some data', '18:11', 'Test', '', '18:12', 'Test2', '', ''].join('\n'),
+    );
+  });
+
+  it('keeps expected spacing for leading-newline capture formats', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Journal');
+    const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
+
+    const first = await formatter.formatContentWithFile(
+      '\n18:11\nTest3',
+      choice,
+      initial,
+      file,
+    );
+
+    const second = await formatter.formatContentWithFile(
+      '\n18:12\nTest4',
+      choice,
+      first,
+      file,
+    );
+
+    expect(second).toBe(
+      ['# Journal', '', '10:00', 'Some data', '', '18:11', 'Test3', '', '18:12', 'Test4'].join('\n'),
+    );
+  });
+
+  it('preserves spacing for non-heading insert-at-end targets at EOF', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('Target');
+    const initial = ['Target', 'Existing', ''].join('\n');
+
+    const first = await formatter.formatContentWithFile(
+      'One\n\n',
+      choice,
+      initial,
+      file,
+    );
+
+    const second = await formatter.formatContentWithFile(
+      'Two\n\n',
+      choice,
+      first,
+      file,
+    );
+
+    expect(second).toBe(['Target', 'Existing', 'One', '', 'Two', '', ''].join('\n'));
+  });
+
+  it('does not change behavior when insert-at-end is disabled', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Journal', { insertAtEnd: false });
+    const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      '18:13\nTest5\n\n',
+      choice,
+      initial,
+      file,
+    );
+
+    expect(result).toBe(
+      ['# Journal', '', '18:13', 'Test5', '', '10:00', 'Some data', ''].join('\n'),
+    );
+  });
+
+  it('uses EOF spacing logic when create-if-not-found inserts at cursor with insert-at-end', async () => {
+    const { app, formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Missing', {
+      createIfNotFound: true,
+      createIfNotFoundLocation: 'cursor',
+    });
+    (app.workspace.getActiveViewOfType as any).mockReturnValue({
+      editor: {
+        getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),
+        getSelection: vi.fn().mockReturnValue(''),
+      },
+    });
+    const initial = ['# Journal', '', '10:00', 'Some data', '', ''].join('\n');
+
+    const result = await formatter.formatContentWithFile(
+      '18:14\nTest6\n\n',
+      choice,
+      initial,
+      file,
+    );
+
+    expect(result).toBe(
+      ['# Journal', '', '10:00', 'Some data', '', '# Missing', '18:14', 'Test6', '', ''].join('\n'),
+    );
+  });
+});
+
 describe('CaptureChoiceFormatter insert after inline', () => {
   beforeEach(() => {
     vi.resetAllMocks();
