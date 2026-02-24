@@ -478,6 +478,28 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     expect(second).toBe(['Target', 'Existing', 'One', '', 'Two', '', ''].join('\n'));
   });
 
+  it('preserves insertion order when format has no trailing newline and EOF blanks exist', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# H');
+    const initial = ['# H', 'A', '', ''].join('\n');
+
+    const first = await formatter.formatContentWithFile(
+      'X',
+      choice,
+      initial,
+      file,
+    );
+
+    const second = await formatter.formatContentWithFile(
+      'Y',
+      choice,
+      first,
+      file,
+    );
+
+    expect(second).toBe(['# H', 'A', 'X', 'Y'].join('\n'));
+  });
+
   it('does not change behavior when insert-at-end is disabled', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# Journal', { insertAtEnd: false });

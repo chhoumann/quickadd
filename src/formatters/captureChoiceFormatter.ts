@@ -266,7 +266,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private findInsertAfterPositionAtSectionEnd(
 		lines: string[],
 		sectionEndIndex: number,
-		body: string,
+		fileContent: string,
+		insertedText: string,
 	): number {
 		if (sectionEndIndex < 0) return sectionEndIndex;
 
@@ -284,10 +285,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return sectionEndIndex;
 		}
 
+		// For entries without trailing newline, keep insertion anchored at the
+		// section end so repeated captures preserve order.
+		if (!insertedText.endsWith("\n")) {
+			return sectionEndIndex;
+		}
+
 		// split("\n") keeps a trailing empty string when content ends in "\n".
 		// We keep one trailing slot so the next insertion preserves capture spacing
 		// without introducing an extra blank line before the inserted text.
-		if (body.endsWith("\n")) {
+		if (fileContent.endsWith("\n")) {
 			return Math.max(sectionEndIndex, position - 1);
 		}
 
@@ -334,6 +341,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				fileContentLines,
 				endOfSectionIndex ?? fileContentLines.length - 1,
 				this.fileContent,
+				formatted,
 			);
 		} else {
 			const blankLineMode =
@@ -470,8 +478,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 						fileContentLines,
 						endOfSectionIndex ?? fileContentLines.length - 1,
 						this.fileContent,
+						insertAfterLineAndFormatted,
 					);
-				}
+					}
 
 				const newFileContent = this.insertTextAfterPositionInBody(
 					insertAfterLineAndFormatted,
