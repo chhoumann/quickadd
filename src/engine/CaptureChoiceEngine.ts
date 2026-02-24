@@ -33,6 +33,7 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -469,8 +470,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		newFileContent: string;
 		captureContent: string;
 	}> {
-		// Extract filename without extension from the full path
-		const fileBasename = filePath.split("/").pop()?.replace(/\.md$/, "") || "";
+		// Extract filename without extension from the full path.
+		const fileBasename = basenameWithoutMdOrCanvas(filePath);
 		this.formatter.setTitle(fileBasename);
 
 		// Set the destination path so formatters can generate proper relative links

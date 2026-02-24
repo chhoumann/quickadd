@@ -5,8 +5,9 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { isFolder, openFile } from "../utilityObsidian";
 
-const { setUseSelectionAsCaptureValueMock } = vi.hoisted(() => ({
+const { setUseSelectionAsCaptureValueMock, setTitleMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
+	setTitleMock: vi.fn(),
 }));
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -15,7 +16,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		setUseSelectionAsCaptureValue(value: boolean) {
 			setUseSelectionAsCaptureValueMock(value);
 		}
-		setTitle() {}
+		setTitle(value: string) {
+			setTitleMock(value);
+		}
 		setDestinationFile() {}
 		setDestinationSourcePath() {}
 		async formatContentOnly(content: string) {
@@ -130,6 +133,7 @@ const createExecutor = (): IChoiceExecutor => ({
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
 		setUseSelectionAsCaptureValueMock.mockClear();
+		setTitleMock.mockClear();
 		vi.mocked(openFile).mockClear();
 	});
 
@@ -214,6 +218,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 describe("CaptureChoiceEngine capture target resolution", () => {
 	beforeEach(() => {
 		vi.mocked(isFolder).mockReset();
+		setTitleMock.mockClear();
 	});
 
 	it("treats folder path without trailing slash as folder when folder exists", () => {
@@ -291,5 +296,41 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const result = await (engine as any).getFormattedPathToCaptureTo(false);
 
 		expect(result).toBe("Boards/Map.canvas");
+	});
+
+	it("uses extensionless title for created .base/.canvas capture files", async () => {
+		const app = createApp() as any;
+		app.vault.read = vi.fn(async () => "");
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		(engine as any).createFileWithInput = vi.fn(async (path: string) => ({
+			path,
+			basename: path.split("/").pop()?.replace(/\.(base|canvas)$/i, "") ?? "",
+			extension: path.endsWith(".base") ? "base" : "canvas",
+		}));
+
+		await (engine as any).onCreateFileIfItDoesntExist(
+			"Boards/Kanban.base",
+			"capture",
+		);
+		await (engine as any).onCreateFileIfItDoesntExist(
+			"Boards/Map.canvas",
+			"capture",
+		);
+
+		expect(setTitleMock).toHaveBeenCalledWith("Kanban");
+		expect(setTitleMock).toHaveBeenCalledWith("Map");
 	});
 });
