@@ -4,6 +4,9 @@ import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
@@ -264,17 +267,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
-		switch (resolution.kind) {
-			case "vault":
-				return this.selectFileInFolder("", true);
-			case "tag":
-				return this.selectFileWithTag(resolution.tag);
-			case "folder":
-				return this.selectFileInFolder(resolution.folder, false);
-			case "file":
-				return this.normalizeMarkdownFilePath("", resolution.path);
+			switch (resolution.kind) {
+				case "vault":
+					return this.selectFileInFolder("", true);
+				case "tag":
+					return this.selectFileWithTag(resolution.tag);
+				case "folder":
+					return this.selectFileInFolder(resolution.folder, false);
+				case "file":
+					return this.normalizeCaptureFilePath(resolution.path);
+			}
 		}
-	}
 
 	private resolveCaptureTarget(
 		formattedCaptureTo: string,
@@ -287,7 +290,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// 1) empty => vault picker
 		// 2) #tag => tag picker
 		// 3) trailing "/" => folder picker (explicit)
-		// 4) ".md" => file
+		// 4) known file extension => file
 		// 5) ambiguous => folder if it exists and no same-name file exists; else file
 		const normalizedCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
@@ -311,7 +314,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return { kind: "folder", folder: folderPath };
 		}
 
-		if (normalizedCaptureTo.endsWith(".md")) {
+		if (
+			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedCaptureTo) ||
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedCaptureTo) ||
+			BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)
+		) {
 			return { kind: "file", path: normalizedCaptureTo };
 		}
 
@@ -549,7 +556,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.choice.name,
 		);
 
-		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
+		return this.normalizeCaptureFilePath(formattedCaptureTo);
+	}
+
+	private normalizeCaptureFilePath(path: string): string {
+		const normalizedPath = this.stripLeadingSlash(path);
+		if (
+			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedPath) ||
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath) ||
+			BASE_FILE_EXTENSION_REGEX.test(normalizedPath)
+		) {
+			return normalizedPath;
+		}
+
+		return this.normalizeMarkdownFilePath("", normalizedPath);
 	}
 
 	private mergeCapturePropertyVars(vars: Map<string, unknown>): void {

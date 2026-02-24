@@ -264,4 +264,32 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		expect(result).toEqual({ kind: "file", path: "journals" });
 	});
+
+	it("preserves explicit .base capture target paths", async () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Boards/Kanban.base" }),
+			createExecutor(),
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Boards/Kanban.base");
+	});
+
+	it("preserves explicit .canvas capture target paths", async () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Boards/Map.canvas" }),
+			createExecutor(),
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Boards/Map.canvas");
+	});
 });
