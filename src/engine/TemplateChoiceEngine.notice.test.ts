@@ -332,6 +332,50 @@ describe("TemplateChoiceEngine file casing resolution", () => {
 			engine.choice.templatePath,
 		);
 	});
+
+	it("supports existing .base files for overwrite mode", async () => {
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+
+		const existingFile = new TFile();
+		existingFile.path = "Board.base";
+		existingFile.name = "Board.base";
+		existingFile.extension = "base";
+		existingFile.basename = "Board";
+
+		engine.choice.templatePath = "Templates/Board.base";
+		engine.choice.fileExistsMode = fileExistsOverwriteFile;
+		engine.choice.setFileExistsBehavior = true;
+		formatFileNameMock.mockResolvedValueOnce("Board");
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFile,
+		);
+
+		const overwriteSpy = vi
+			.spyOn(
+				engine as unknown as {
+					overwriteFileWithTemplate: (
+						file: TFile,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"overwriteFileWithTemplate",
+			)
+			.mockResolvedValue(existingFile);
+
+		await engine.run();
+
+		expect(overwriteSpy).toHaveBeenCalledWith(
+			existingFile,
+			"Templates/Board.base",
+		);
+	});
 });
 
 describe("TemplateChoiceEngine destination path resolution", () => {

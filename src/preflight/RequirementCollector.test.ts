@@ -95,6 +95,15 @@ describe("RequirementCollector", () => {
     expect(rc.templatesToScan.size === 0 || rc.templatesToScan.has("Templates/Note")).toBe(true);
   });
 
+  it("records .base TEMPLATE references for recursive scanning", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{TEMPLATE:Templates/Kanban.base}}" );
+
+    expect(rc.templatesToScan.has("Templates/Kanban.base")).toBe(true);
+  });
+
   it("uses textarea for VALUE tokens with type:multiline", async () => {
     const app = makeApp();
     const plugin = makePlugin({ inputPrompt: "single-line" });

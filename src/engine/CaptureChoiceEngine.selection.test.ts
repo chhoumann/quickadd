@@ -4,9 +4,12 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { isFolder, openFile } from "../utilityObsidian";
+import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
-const { setUseSelectionAsCaptureValueMock } = vi.hoisted(() => ({
+const { setUseSelectionAsCaptureValueMock, setTitleMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
+	setTitleMock: vi.fn(),
 }));
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -15,7 +18,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		setUseSelectionAsCaptureValue(value: boolean) {
 			setUseSelectionAsCaptureValueMock(value);
 		}
-		setTitle() {}
+		setTitle(value: string) {
+			setTitleMock(value);
+		}
 		setDestinationFile() {}
 		setDestinationSourcePath() {}
 		async formatContentOnly(content: string) {
@@ -130,6 +135,7 @@ const createExecutor = (): IChoiceExecutor => ({
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
 		setUseSelectionAsCaptureValueMock.mockClear();
+		setTitleMock.mockClear();
 		vi.mocked(openFile).mockClear();
 	});
 
@@ -214,6 +220,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 describe("CaptureChoiceEngine capture target resolution", () => {
 	beforeEach(() => {
 		vi.mocked(isFolder).mockReset();
+		setTitleMock.mockClear();
 	});
 
 	it("treats folder path without trailing slash as folder when folder exists", () => {
@@ -263,5 +270,83 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const result = (engine as any).resolveCaptureTarget("journals");
 
 		expect(result).toEqual({ kind: "file", path: "journals" });
+	});
+
+	it("rejects explicit .base capture target paths", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Boards/Kanban.base" }),
+			createExecutor(),
+		);
+
+		expect(() =>
+			(engine as any).resolveCaptureTarget("Boards/Kanban.base"),
+		).toThrow(ChoiceAbortError);
+	});
+
+	it("rejects preselected .base capture target paths", async () => {
+		const app = createApp();
+		const executor = createExecutor();
+		executor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Boards/Kanban.base",
+		);
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(),
+			executor,
+		);
+
+		await expect(
+			(engine as any).getFormattedPathToCaptureTo(false),
+		).rejects.toBeInstanceOf(ChoiceAbortError);
+	});
+
+	it("preserves explicit .canvas capture target paths", async () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Boards/Map.canvas" }),
+			createExecutor(),
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Boards/Map.canvas");
+	});
+
+	it("uses extensionless title for created .canvas capture files", async () => {
+		const app = createApp() as any;
+		app.vault.read = vi.fn(async () => "");
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		(engine as any).createFileWithInput = vi.fn(async (path: string) => ({
+			path,
+			basename: path.split("/").pop()?.replace(/\.(base|canvas)$/i, "") ?? "",
+			extension: path.endsWith(".base") ? "base" : "canvas",
+		}));
+
+		await (engine as any).onCreateFileIfItDoesntExist(
+			"Boards/Map.canvas",
+			"capture",
+		);
+
+		expect(setTitleMock).toHaveBeenCalledWith("Map");
 	});
 });

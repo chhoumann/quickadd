@@ -11,7 +11,11 @@ import {
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
-import { MARKDOWN_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
+import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import {
@@ -441,6 +445,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		if (CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
 			return ".canvas";
 		}
+		if (BASE_FILE_EXTENSION_REGEX.test(templatePath)) {
+			return ".base";
+		}
 		return ".md";
 	}
 
@@ -454,7 +461,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const extension = this.getTemplateExtension(templatePath);
 		const formattedFileName: string = this.stripLeadingSlash(fileName)
 			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
-			.replace(CANVAS_FILE_EXTENSION_REGEX, "");
+			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
+			.replace(BASE_FILE_EXTENSION_REGEX, "");
 		return `${actualFolderPath}${formattedFileName}${extension}`;
 	}
 
@@ -463,7 +471,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		let newFileName = fileName;
 
 		// Determine the extension from the filename and construct a matching regex
-		const extension = CANVAS_FILE_EXTENSION_REGEX.test(fileName) ? ".canvas" : ".md";
+		let extension = ".md";
+		if (CANVAS_FILE_EXTENSION_REGEX.test(fileName)) {
+			extension = ".canvas";
+		} else if (BASE_FILE_EXTENSION_REGEX.test(fileName)) {
+			extension = ".base";
+		}
 		const extPattern = extension.replace(/\./g, "\\.");
 		const numberWithExtRegex = new RegExp(`(\\d*)${extPattern}$`);
 		const exec = numberWithExtRegex.exec(fileName);
@@ -501,8 +514,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				templatePath
 			);
 
-				// Extract filename without extension from the full path (supports .md and .canvas)
-				const fileBasename = basenameWithoutMdOrCanvas(filePath);
+			// Extract filename without extension from the full path.
+			const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			this.formatter.setTitle(fileBasename);
 
 			const formattedTemplateContent: string =
@@ -636,7 +649,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		let correctTemplatePath: string = this.stripLeadingSlash(templatePath);
 		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
-			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath))
+			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath) &&
+			!BASE_FILE_EXTENSION_REGEX.test(templatePath))
 			correctTemplatePath += ".md";
 
 		const templateFile =

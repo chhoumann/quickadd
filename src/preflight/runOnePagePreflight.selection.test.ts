@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import { TFile, type App } from "obsidian";
+import { fileExistsAppendToBottom } from "src/constants";
 import { runOnePagePreflight } from "./runOnePagePreflight";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
 
 const { modalOpenMock } = vi.hoisted(() => ({
 	modalOpenMock: vi.fn(),
@@ -97,6 +99,33 @@ const createExecutor = (): IChoiceExecutor => ({
 	variables: new Map<string, unknown>(),
 });
 
+const createTemplateChoice = (templatePath: string): ITemplateChoice =>
+	({
+		id: "template-choice-id",
+		name: "Template Choice",
+		type: "Template",
+		command: false,
+		templatePath,
+		folder: {
+			enabled: false,
+			folders: [],
+			chooseWhenCreatingNote: false,
+			createInSameFolderAsActiveFile: false,
+			chooseFromSubfolders: false,
+		},
+		fileNameFormat: { enabled: false, format: "{{VALUE}}" },
+		appendLink: false,
+		openFile: false,
+		fileOpening: {
+			location: "tab",
+			direction: "vertical",
+			mode: "default",
+			focus: true,
+		},
+		fileExistsMode: fileExistsAppendToBottom,
+		setFileExistsBehavior: false,
+	}) as ITemplateChoice;
+
 describe("runOnePagePreflight selection-as-value", () => {
 	beforeEach(() => {
 		modalOpenMock.mockClear();
@@ -148,5 +177,59 @@ describe("runOnePagePreflight selection-as-value", () => {
 		expect(result).toBe(true);
 		expect(executor.variables.get("value")).toBe("Manual");
 		expect(modalOpenMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("runOnePagePreflight template extension handling", () => {
+	beforeEach(() => {
+		modalOpenMock.mockClear();
+		modalResult = {};
+	});
+
+	it("reads .base template files without forcing .md", async () => {
+		const templateFile = new TFile();
+		templateFile.path = "Templates/Kanban.base";
+		templateFile.name = "Kanban.base";
+		templateFile.basename = "Kanban";
+		templateFile.extension = "base";
+
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+			},
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) =>
+					path === "Templates/Kanban.base" ? templateFile : null,
+				),
+				cachedRead: vi.fn(async () => "{{VALUE:boardName}}"),
+			},
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+
+		const executor = createExecutor();
+		modalResult = { boardName: "Project Board" };
+
+		const result = await runOnePagePreflight(
+			app,
+			plugin,
+			executor,
+			createTemplateChoice("Templates/Kanban.base"),
+		);
+
+		expect(result).toBe(true);
+		expect(modalOpenMock).toHaveBeenCalledTimes(1);
+		expect(app.vault.getAbstractFileByPath).toHaveBeenCalledWith(
+			"Templates/Kanban.base",
+		);
+		expect(app.vault.getAbstractFileByPath).not.toHaveBeenCalledWith(
+			"Templates/Kanban.base.md",
+		);
 	});
 });

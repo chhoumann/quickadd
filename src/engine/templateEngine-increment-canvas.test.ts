@@ -85,4 +85,12 @@ describe('TemplateEngine - incrementFileName for .canvas', () => {
     const out = await engine.testIncrement('Doc.md');
     expect(out).toBe('Doc1.md');
   });
+
+  it('works similarly for .base', async () => {
+    (mockApp.vault.adapter.exists as any)
+      .mockResolvedValueOnce(true)  // Board.base exists
+      .mockResolvedValueOnce(false);
+    const out = await engine.testIncrement('Board.base');
+    expect(out).toBe('Board1.base');
+  });
 });

@@ -16,6 +16,11 @@ Allows to quickly capture your input and save it from anywhere in Obsidian, with
 _Capture To_ is the name of the file you are capturing to.
 You can choose to either enable _Capture to active file_, or you can enter a file name in the _File Name_ input field.
 
+QuickAdd treats file names as basename-first by default:
+- If you do **not** provide an extension, QuickAdd creates/targets a Markdown file (`.md`).
+- If you provide an explicit supported extension (for example `.md` or `.canvas`), QuickAdd keeps that extension.
+- Capture to `.base` files is not supported. Use a Template choice for `.base` workflows.
+
 This field also supports the [format syntax](/FormatSyntax.md), which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
@@ -139,6 +144,8 @@ You can do practically anything here. Think of it as a mini template.
 If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will insert whatever you enter in the prompt, or (if selection-as-value is enabled) the current editor selection.
 
 You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
+
+If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](/Examples/Capture_InsertBaseTemplateIntoActiveFile.md).
 
 If your capture format includes an inline `js quickadd` block and you need to
 transform user input, prefer reading input in script code through

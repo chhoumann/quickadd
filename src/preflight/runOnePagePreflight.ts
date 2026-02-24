@@ -2,6 +2,8 @@ import type { App } from "obsidian";
 import { MarkdownView, TFile } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 } from "src/constants";
@@ -29,7 +31,9 @@ import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 
 async function readTemplate(app: App, path: string): Promise<string> {
 	const addExt =
-		!MARKDOWN_FILE_EXTENSION_REGEX.test(path) && !path.endsWith(".canvas");
+		!MARKDOWN_FILE_EXTENSION_REGEX.test(path) &&
+		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
+		!BASE_FILE_EXTENSION_REGEX.test(path);
 	const normalized = addExt ? `${path}.md` : path;
 	const f = app.vault.getAbstractFileByPath(normalized);
 	if (f instanceof TFile) {

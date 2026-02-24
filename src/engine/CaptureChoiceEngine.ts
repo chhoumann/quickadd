@@ -4,6 +4,9 @@ import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
@@ -30,6 +33,7 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -247,7 +251,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			typeof preselected === "string" &&
 			preselected.length > 0
 		) {
-			return preselected;
+			return this.normalizeCaptureFilePath(preselected);
 		}
 
 		if (shouldCaptureToActiveFile) {
@@ -264,17 +268,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
-		switch (resolution.kind) {
-			case "vault":
-				return this.selectFileInFolder("", true);
-			case "tag":
-				return this.selectFileWithTag(resolution.tag);
-			case "folder":
-				return this.selectFileInFolder(resolution.folder, false);
-			case "file":
-				return this.normalizeMarkdownFilePath("", resolution.path);
+			switch (resolution.kind) {
+				case "vault":
+					return this.selectFileInFolder("", true);
+				case "tag":
+					return this.selectFileWithTag(resolution.tag);
+				case "folder":
+					return this.selectFileInFolder(resolution.folder, false);
+				case "file":
+					return this.normalizeCaptureFilePath(resolution.path);
+			}
 		}
-	}
 
 	private resolveCaptureTarget(
 		formattedCaptureTo: string,
@@ -287,7 +291,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// 1) empty => vault picker
 		// 2) #tag => tag picker
 		// 3) trailing "/" => folder picker (explicit)
-		// 4) ".md" => file
+		// 4) known file extension => file
 		// 5) ambiguous => folder if it exists and no same-name file exists; else file
 		const normalizedCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
@@ -304,6 +308,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			};
 		}
 
+		if (BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)) {
+			throw new ChoiceAbortError(
+				`Capture to '.base' files is not supported (${normalizedCaptureTo}). Use a Template choice instead.`,
+			);
+		}
+
 		const endsWithSlash = normalizedCaptureTo.endsWith("/");
 		const folderPath = normalizedCaptureTo.replace(/\/+$/, "");
 
@@ -311,7 +321,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return { kind: "folder", folder: folderPath };
 		}
 
-		if (normalizedCaptureTo.endsWith(".md")) {
+		if (
+			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedCaptureTo) ||
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)
+		) {
 			return { kind: "file", path: normalizedCaptureTo };
 		}
 
@@ -462,8 +475,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		newFileContent: string;
 		captureContent: string;
 	}> {
-		// Extract filename without extension from the full path
-		const fileBasename = filePath.split("/").pop()?.replace(/\.md$/, "") || "";
+		// Extract filename without extension from the full path.
+		const fileBasename = basenameWithoutMdOrCanvas(filePath);
 		this.formatter.setTitle(fileBasename);
 
 		// Set the destination path so formatters can generate proper relative links
@@ -549,7 +562,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.choice.name,
 		);
 
-		return this.normalizeMarkdownFilePath("", formattedCaptureTo);
+		return this.normalizeCaptureFilePath(formattedCaptureTo);
+	}
+
+	private normalizeCaptureFilePath(path: string): string {
+		const normalizedPath = this.stripLeadingSlash(path);
+		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
+			throw new ChoiceAbortError(
+				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
+			);
+		}
+		if (
+			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedPath) ||
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath)
+		) {
+			return normalizedPath;
+		}
+
+		return this.normalizeMarkdownFilePath("", normalizedPath);
 	}
 
 	private mergeCapturePropertyVars(vars: Map<string, unknown>): void {

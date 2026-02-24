@@ -109,6 +109,7 @@ const sidebars = {
 						"Examples/Capture_AddJournalEntry",
 						"Examples/Capture_AddTaskToKanbanBoard",
 						"Examples/Capture_FetchTasksFromTodoist",
+						"Examples/Capture_InsertBaseTemplateIntoActiveFile",
 					],
 				},
 				{
