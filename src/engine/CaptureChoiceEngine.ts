@@ -314,20 +314,28 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return null;
 		}
 
-		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
-		if (!nodeId) {
-			return null;
-		}
-
 		invariant(
 			this.choice.captureTo?.trim().length > 0,
 			"Canvas node capture requires a target .canvas file path.",
 		);
 
 		const targetPath = await this.formatFilePath(this.choice.captureTo);
-		if (!CANVAS_FILE_EXTENSION_REGEX.test(targetPath)) {
+		const isCanvasTarget = CANVAS_FILE_EXTENSION_REGEX.test(targetPath);
+		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
+
+		if (!isCanvasTarget) {
+			if (!nodeId) {
+				return null;
+			}
+
 			throw new ChoiceAbortError(
 				"Canvas node capture requires the target path to resolve to a .canvas file.",
+			);
+		}
+
+		if (!nodeId) {
+			throw new ChoiceAbortError(
+				"Canvas node capture requires a target canvas node id.",
 			);
 		}
 
