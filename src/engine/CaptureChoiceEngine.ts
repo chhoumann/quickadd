@@ -89,9 +89,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			case "currentLine":
 				msg = `Captured to current line in ${fileName}`;
 				break;
+			case "newLineAbove":
+				msg = `Captured on a new line above cursor in ${fileName}`;
+				break;
+			case "newLineBelow":
+				msg = `Captured on a new line below cursor in ${fileName}`;
+				break;
 			case "prepend":
 			case "activeFileTop":
 				msg = `Captured to top of ${fileName}`;
+				break;
+			case "activeFileBottom":
+				msg = `Captured to bottom of ${fileName}`;
 				break;
 			case "append":
 				msg = `Captured to ${fileName}`;
@@ -103,6 +112,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: `Captured to ${fileName}`;
 				break;
 			}
+			default:
+				msg = `Captured to ${fileName}`;
+				break;
 		}
 
 		new Notice(msg, DEFAULT_NOTICE_DURATION);

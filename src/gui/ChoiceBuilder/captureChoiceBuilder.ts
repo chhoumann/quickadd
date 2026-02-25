@@ -324,6 +324,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		clearButton.addEventListener("click", () => {
 			applyNodeId("");
+			renderList(filterInput.getValue());
 		});
 
 		useActiveSelectionButton.addEventListener("click", () => {
@@ -464,17 +465,19 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private getActiveCanvasSelectionNodeIdForPath(
 		canvasPath: string,
 	): string | null {
-		const activeLeaf = this.app.workspace.activeLeaf as
-			{
-				view?: {
-					getViewType?: () => string;
-					file?: { path?: string };
-					canvas?: {
-						selection?: Set<{ id?: string }>;
+		const mostRecentLeaf = this.app.workspace.getMostRecentLeaf?.() as
+			| {
+					view?: {
+						getViewType?: () => string;
+						file?: { path?: string };
+						canvas?: {
+							selection?: Set<{ id?: string }>;
+						};
 					};
-				};
-			} | undefined;
-		const view = activeLeaf?.view;
+			  }
+			| null
+			| undefined;
+		const view = mostRecentLeaf?.view;
 		if (!view || view.getViewType?.() !== "canvas") {
 			return null;
 		}
@@ -550,8 +553,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					(node): node is {
 						id: string;
 						type?: string;
-						text?: string;
-						file?: string | { path?: string };
+						text?: unknown;
+						file?: unknown;
 						x?: number;
 						y?: number;
 						width?: number;
@@ -571,7 +574,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 					const coords = this.describeCanvasNodeCoordinates(node);
 					if (nodeType === "text") {
-						const lines = (node.text ?? "")
+						const rawText = typeof node.text === "string" ? node.text : "";
+						const lines = rawText
 							.split("\n")
 							.map((line) => line.trim())
 							.filter((line) => line.length > 0);
@@ -594,10 +598,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					}
 
 					if (nodeType === "file") {
-						const filePath =
-							typeof node.file === "string"
-								? node.file
-								: node.file?.path ?? "(missing file path)";
+						const filePath = this.getCanvasNodeFilePath(node.file);
 						const title = this.truncatePickerText(
 							filePath.split("/").pop() ?? filePath,
 							90,
@@ -616,7 +617,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						};
 					}
 
-					const title = `Unsupported node (${node.type ?? "unknown"})`;
+					const nodeTypeLabel =
+						typeof node.type === "string" && node.type.length > 0
+							? node.type
+							: "unknown";
+					const title = `Unsupported node (${nodeTypeLabel})`;
 					const subtitle = coords || "Type is not currently capturable";
 					return {
 						id: node.id,
@@ -644,6 +649,23 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		} catch {
 			return [];
 		}
+	}
+
+	private getCanvasNodeFilePath(fileField: unknown): string {
+		if (typeof fileField === "string") {
+			return fileField;
+		}
+
+		if (
+			fileField &&
+			typeof fileField === "object" &&
+			"path" in fileField &&
+			typeof (fileField as { path?: unknown }).path === "string"
+		) {
+			return (fileField as { path: string }).path;
+		}
+
+		return "(missing file path)";
 	}
 
 	private describeCanvasNodeCoordinates(node: {

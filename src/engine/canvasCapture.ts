@@ -38,7 +38,7 @@ type WorkspaceLeafLike = {
 };
 
 type WorkspaceLike = {
-	activeLeaf?: WorkspaceLeafLike;
+	getMostRecentLeaf?: () => WorkspaceLeafLike | null;
 	getActiveFile?: () => TFile | null;
 };
 
@@ -166,7 +166,7 @@ function isTFileLike(file: TAbstractFile | null): file is TFile {
 }
 
 function getActiveCanvasView(app: CanvasAppLike): CanvasViewLike | null {
-	const activeView = app.workspace.activeLeaf?.view;
+	const activeView = app.workspace.getMostRecentLeaf?.()?.view;
 	if (!activeView || activeView.getViewType?.() !== "canvas") return null;
 	return activeView;
 }
