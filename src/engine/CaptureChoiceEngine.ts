@@ -156,6 +156,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				return;
 			}
 
+			if (
+				canvasTarget?.kind === "file" &&
+				action === "insertAfter" &&
+				this.choice.insertAfter?.createIfNotFound &&
+				this.choice.insertAfter?.createIfNotFoundLocation === "cursor"
+			) {
+				throw new ChoiceAbortError(
+					"Canvas file cards do not support creating missing insert-after targets at cursor. Use top or bottom.",
+				);
+			}
+
 			const filePath =
 				canvasTarget?.kind === "file"
 					? canvasTarget.targetFile.path
