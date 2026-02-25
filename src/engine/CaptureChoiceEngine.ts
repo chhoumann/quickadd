@@ -99,11 +99,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			case "activeFileTop":
 				msg = `Captured to top of ${fileName}`;
 				break;
-			case "activeFileBottom":
-				msg = `Captured to bottom of ${fileName}`;
-				break;
 			case "append":
-				msg = `Captured to ${fileName}`;
+				msg = `Captured to bottom of ${fileName}`;
 				break;
 			case "insertAfter": {
 				const heading = this.choice.insertAfter.after;
