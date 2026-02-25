@@ -76,6 +76,7 @@ export type ConfiguredCanvasCaptureTarget =
 			kind: "text";
 			source: "configured";
 			canvasFile: TFile;
+			rawCanvas: string;
 			canvasData: StoredCanvasData;
 			nodeData: CanvasDataNodeLike;
 			nodeIndex: number;
@@ -350,6 +351,7 @@ export async function resolveConfiguredCanvasCaptureTarget(
 			kind: "text",
 			source: "configured",
 			canvasFile: abstractCanvasFile,
+			rawCanvas,
 			canvasData,
 			nodeData,
 			nodeIndex,
@@ -402,6 +404,13 @@ export async function setCanvasTextCaptureContent(
 
 		target.canvas.requestSave?.();
 		return;
+	}
+
+	const latestRawCanvas = await app.vault.read(target.canvasFile);
+	if (latestRawCanvas !== target.rawCanvas) {
+		throw new ChoiceAbortError(
+			"Canvas target changed while capture was running. Re-run capture to avoid overwriting newer Canvas edits.",
+		);
 	}
 
 	target.nodeData.text = nextText;

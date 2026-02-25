@@ -227,6 +227,50 @@ describe("canvasCapture", () => {
 		expect(updated.nodes[0].text).toBe("Updated");
 	});
 
+	it("aborts configured text-node write when canvas changed concurrently", async () => {
+		const canvasFile = {
+			path: "Boards/Plan.canvas",
+			basename: "Plan",
+			extension: "canvas",
+		};
+		let modifyCalls = 0;
+		let readCalls = 0;
+		const initial = JSON.stringify({
+			nodes: [{ id: "t1", type: "text", text: "Current" }],
+		});
+		const changed = JSON.stringify({
+			nodes: [{ id: "t1", type: "text", text: "Changed elsewhere" }],
+		});
+
+		const app = createApp({
+			vault: {
+				getAbstractFileByPath: (path: string) =>
+					path === "Boards/Plan.canvas" ? (canvasFile as any) : null,
+				read: async () => {
+					readCalls += 1;
+					return readCalls === 1 ? initial : changed;
+				},
+				modify: async () => {
+					modifyCalls += 1;
+				},
+			},
+		});
+
+		const target = await resolveConfiguredCanvasCaptureTarget(
+			app,
+			"Boards/Plan.canvas",
+			"t1",
+			"append",
+		);
+		expect(target.kind).toBe("text");
+		if (target.kind !== "text") return;
+
+		await expect(
+			setCanvasTextCaptureContent(app, target, "Updated"),
+		).rejects.toThrow("Canvas target changed while capture was running");
+		expect(modifyCalls).toBe(0);
+	});
+
 	it("fails configured canvas capture when node id does not exist", async () => {
 		const canvasFile = {
 			path: "Boards/Plan.canvas",
