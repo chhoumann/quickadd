@@ -5,6 +5,7 @@ import {
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 	FILE_NAME_FORMAT_SYNTAX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../../constants";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
@@ -338,6 +339,20 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				return;
 			}
 
+			const selectedOption = nodeOptions.find(
+				(option) => option.id === activeSelectionNodeId,
+			);
+			if (!selectedOption) {
+				new Notice(
+					"Canvas nodes are still loading. Wait a moment and try again.",
+				);
+				return;
+			}
+			if (!selectedOption.capturable) {
+				new Notice(selectedOption.capturableReason);
+				return;
+			}
+
 			applyNodeId(activeSelectionNodeId);
 			renderList(filterInput.getValue());
 		});
@@ -357,6 +372,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			title: string;
 			subtitle: string;
 			searchText: string;
+			capturable: boolean;
+			capturableReason: string;
 		}> = [];
 
 		const renderList = (query: string) => {
@@ -415,15 +432,25 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					cls: "qa-canvas-node-item-actions",
 				});
 				const useButton = itemActions.createEl("button", {
-					text: isSelected ? "Selected" : "Use node",
+					text:
+						isSelected && option.capturable
+							? "Selected"
+							: option.capturable
+								? "Use node"
+								: "Unavailable",
 				});
-				if (isSelected) {
+				if (isSelected && option.capturable) {
 					useButton.addClass("mod-cta");
 				}
-				useButton.addEventListener("click", () => {
-					applyNodeId(option.id);
-					renderList(filterInput.getValue());
-				});
+				if (!option.capturable) {
+					useButton.setDisabled(true);
+					useButton.title = option.capturableReason;
+				} else {
+					useButton.addEventListener("click", () => {
+						applyNodeId(option.id);
+						renderList(filterInput.getValue());
+					});
+				}
 
 				const copyButton = itemActions.createEl("button", {
 					text: "Copy ID",
@@ -535,6 +562,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		title: string;
 		subtitle: string;
 		searchText: string;
+		capturable: boolean;
+		capturableReason: string;
 	}>> {
 		try {
 			const raw = await this.app.vault.cachedRead(canvasFile);
@@ -594,11 +623,17 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							title,
 							subtitle,
 							searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
+							capturable: true,
+							capturableReason: "",
 						};
 					}
 
 					if (nodeType === "file") {
 						const filePath = this.getCanvasNodeFilePath(node.file);
+						const isMarkdownFile = MARKDOWN_FILE_EXTENSION_REGEX.test(filePath);
+						const capturableReason = isMarkdownFile
+							? ""
+							: "Canvas file cards must link to markdown files (.md).";
 						const title = this.truncatePickerText(
 							filePath.split("/").pop() ?? filePath,
 							90,
@@ -607,6 +642,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						if (coords) {
 							subtitleParts.push(coords);
 						}
+						if (!isMarkdownFile) {
+							subtitleParts.push("Not capturable in this version");
+						}
 						const subtitle = subtitleParts.join(" · ");
 						return {
 							id: node.id,
@@ -614,6 +652,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							title,
 							subtitle,
 							searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
+							capturable: isMarkdownFile,
+							capturableReason,
 						};
 					}
 
@@ -629,6 +669,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						title,
 						subtitle,
 						searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
+						capturable: false,
+						capturableReason: "This Canvas node type is not capturable.",
 					};
 				});
 
