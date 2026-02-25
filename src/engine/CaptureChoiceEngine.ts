@@ -84,6 +84,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		const shouldAppendToBottom =
+			this.choice.prepend ||
+			(this.choice.captureToActiveFile &&
+				this.choice.activeFileWritePosition === "bottom");
+
 		let msg = "";
 		switch (action) {
 			case "currentLine":
@@ -95,12 +100,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			case "newLineBelow":
 				msg = `Captured on a new line below cursor in ${fileName}`;
 				break;
-			case "prepend":
 			case "activeFileTop":
 				msg = `Captured to top of ${fileName}`;
 				break;
+			case "prepend":
 			case "append":
-				msg = `Captured to bottom of ${fileName}`;
+				msg = shouldAppendToBottom
+					? `Captured to bottom of ${fileName}`
+					: `Captured to top of ${fileName}`;
 				break;
 			case "insertAfter": {
 				const heading = this.choice.insertAfter.after;
