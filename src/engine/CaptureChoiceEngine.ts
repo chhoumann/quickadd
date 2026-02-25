@@ -39,6 +39,14 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
+import {
+	getCanvasTextCaptureContent,
+	resolveActiveCanvasCaptureTarget,
+	resolveConfiguredCanvasCaptureTarget,
+	setCanvasTextCaptureContent,
+	type CanvasTextCaptureTarget,
+	type ConfiguredCanvasCaptureTarget,
+} from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
@@ -119,39 +127,56 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: globalSelectionAsValue;
 			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
-			const filePath = await this.getFormattedPathToCaptureTo(
-				this.choice.captureToActiveFile,
-			);
+			const action = getCaptureAction(this.choice);
+			const activeCanvasTarget = this.choice.captureToActiveFile
+				? resolveActiveCanvasCaptureTarget(this.app, action)
+				: null;
+			const configuredCanvasTarget =
+				await this.resolveConfiguredCanvasTarget(action);
+			const canvasTarget = activeCanvasTarget ?? configuredCanvasTarget;
+
+			if (canvasTarget?.kind === "text") {
+				await this.handleCanvasTextCapture(canvasTarget, action, linkOptions);
+				return;
+			}
+
+			const filePath =
+				canvasTarget?.kind === "file"
+					? canvasTarget.targetFile.path
+					: await this.getFormattedPathToCaptureTo(this.choice.captureToActiveFile);
 			const content = this.getCaptureContent();
 
-			let getFileAndAddContentFn: typeof this.onFileExists;
+			type GetFileAndAddContentFn = (
+				path: string,
+				capture: string,
+				linkOptions?: AppendLinkOptions,
+			) => Promise<{ file: TFile; newFileContent: string; captureContent: string }>;
+			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
 
 			if (fileAlreadyExists) {
-				getFileAndAddContentFn = this.onFileExists.bind(
-					this,
-				) as typeof this.onFileExists;
-				} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
-					getFileAndAddContentFn = ((path, capture, _options) =>
-						this.onCreateFileIfItDoesntExist(path, capture, linkOptions)
-					) as typeof this.onCreateFileIfItDoesntExist;
-				} else {
-					throw new ChoiceAbortError(
-						`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
-					);
-				}
+				getFileAndAddContentFn =
+					this.onFileExists.bind(this) as GetFileAndAddContentFn;
+			} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
+				getFileAndAddContentFn = ((path, capture, _options) =>
+					this.onCreateFileIfItDoesntExist(path, capture, linkOptions)
+				) as GetFileAndAddContentFn;
+			} else {
+				throw new ChoiceAbortError(
+					`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
+				);
+			}
 
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-		const action = getCaptureAction(this.choice);
-		const isEditorInsertionAction =
-			action === "currentLine" ||
-			action === "newLineAbove" ||
-			action === "newLineBelow";
+			const isEditorInsertionAction =
+				action === "currentLine" ||
+				action === "newLineAbove" ||
+				action === "newLineBelow";
 
-		// Handle capture to active file with special actions
-		if (isEditorInsertionAction) {
+			// Handle capture to active file with special actions
+			if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
@@ -215,6 +240,103 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
+	}
+
+	private async handleCanvasTextCapture(
+		target: CanvasTextCaptureTarget,
+		action: CaptureAction,
+		linkOptions: AppendLinkOptions,
+	): Promise<void> {
+		if (
+			action === "currentLine" ||
+			action === "newLineAbove" ||
+			action === "newLineBelow"
+		) {
+			throw new ChoiceAbortError(
+				"Canvas text cards support top, bottom, and insert-after positions only.",
+			);
+		}
+
+		if (
+			action === "insertAfter" &&
+			this.choice.insertAfter?.createIfNotFound &&
+			this.choice.insertAfter?.createIfNotFoundLocation === "cursor"
+		) {
+			throw new ChoiceAbortError(
+				"Canvas text cards do not support creating missing insert-after targets at cursor. Use top or bottom.",
+			);
+		}
+
+		const file = target.canvasFile;
+		this.formatter.setTitle(basenameWithoutMdOrCanvas(file.basename));
+		this.formatter.setDestinationFile(file);
+		this.formatter.setDestinationSourcePath(file.path);
+
+		const captureTemplate = this.getCaptureContent();
+		const existingText = getCanvasTextCaptureContent(target);
+		const nextText = await this.formatter.formatContentWithFile(
+			captureTemplate,
+			this.choice,
+			existingText,
+			file,
+		);
+
+		await setCanvasTextCaptureContent(this.app, target, nextText);
+
+		if (this.plugin.settings.showCaptureNotification) {
+			this.showSuccessNotice(file, {
+				wasNewFile: false,
+				action,
+			});
+		}
+
+		if (linkOptions.enabled) {
+			insertFileLinkToActiveView(this.app, file, linkOptions);
+		}
+
+		if (this.choice.openFile && file) {
+			const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+			const focus = fileOpening.focus ?? true;
+			const openExistingTab = openExistingFileTab(this.app, file, focus);
+
+			if (!openExistingTab) {
+				await openFile(this.app, file, fileOpening);
+			}
+
+			await jumpToNextTemplaterCursorIfPossible(this.app, file);
+		}
+	}
+
+	private async resolveConfiguredCanvasTarget(
+		action: CaptureAction,
+	): Promise<ConfiguredCanvasCaptureTarget | null> {
+		if (this.choice.captureToActiveFile) {
+			return null;
+		}
+
+		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
+		if (!nodeId) {
+			return null;
+		}
+
+		invariant(
+			this.choice.captureTo?.trim().length > 0,
+			"Canvas node capture requires a target .canvas file path.",
+		);
+
+		const targetPath = await this.formatFilePath(this.choice.captureTo);
+		if (!CANVAS_FILE_EXTENSION_REGEX.test(targetPath)) {
+			throw new ChoiceAbortError(
+				"Canvas node capture requires the target path to resolve to a .canvas file.",
+			);
+		}
+
+		return await resolveConfiguredCanvasCaptureTarget(
+			this.app,
+			targetPath,
+			nodeId,
+			action,
+		);
 	}
 
 	private getCaptureContent(): string {

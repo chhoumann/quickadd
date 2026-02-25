@@ -43,9 +43,9 @@ describe("getCaptureAction", () => {
 		expect(getCaptureAction(choice)).toBe("append");
 	});
 
-	it("prioritizes currentLine over prepend when both are set", () => {
+	it("treats legacy active-file prepend as bottom append", () => {
 		const choice = createChoice({ captureToActiveFile: true, prepend: true });
-		expect(getCaptureAction(choice)).toBe("prepend"); // prepend takes precedence
+		expect(getCaptureAction(choice)).toBe("append");
 	});
 
 	it("prioritizes insertAfter over prepend when both are set", () => {
@@ -94,6 +94,14 @@ describe("getCaptureAction", () => {
 			activeFileWritePosition: "cursor",
 		});
 		expect(getCaptureAction(choice)).toBe("currentLine");
+	});
+
+	it("returns 'append' when capturing to active file at bottom", () => {
+		const choice = createChoice({
+			captureToActiveFile: true,
+			activeFileWritePosition: "bottom",
+		});
+		expect(getCaptureAction(choice)).toBe("append");
 	});
 
 	it("prioritizes 'activeFileTop' over the default append action when eligible", () => {

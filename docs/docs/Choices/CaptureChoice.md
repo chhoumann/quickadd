@@ -48,7 +48,7 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 -   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
 -   _Task_ will format your captured text as a task.
 -   _Use editor selection as default value_ controls whether the current editor selection is used as `{{VALUE}}`. Choose **Follow global setting**, **Use selection**, or **Ignore selection** (global default lives in Settings > Input). This does not affect `{{SELECTED}}`.
--   _Write to bottom of file_ will put whatever you enter at the bottom of the file.
+-   _Write position_ controls where Capture writes: top, bottom, after line, and active-file cursor modes.
 -   _Append link_ will append a link to the file you have open in the file you're capturing to. You can choose between three modes:
     -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused
     -   **Enabled (skip if no active file)** – inserts the link when possible and silently drops `{{LINKCURRENT}}` if nothing is open
@@ -59,6 +59,74 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
+
+## Canvas Capture Notes
+
+QuickAdd supports two Canvas capture workflows:
+
+- Capture to one selected card in the active Canvas view
+- Capture to a specific card in a specific `.canvas` file
+
+### 1) Capture to selected card in active Canvas
+
+This mode is enabled when **Capture to active file** is on and the active leaf
+is a Canvas.
+
+Supported card targets:
+
+- Text cards
+- File cards that point to markdown files
+
+### 2) Capture to specific card in specific `.canvas` file
+
+This mode is enabled when **Capture to active file** is off, the capture path
+resolves to a `.canvas` file, and **Target canvas node** is set.
+
+When the capture path is a `.canvas` file, QuickAdd shows a node picker that
+helps you choose a node id directly from that board.
+
+### Write position support in Canvas
+
+- Text cards support: **Top of file**, **Bottom of file**, **After line...**
+- File cards (markdown targets) support: **Top of file**, **Bottom of file**, **After line...**
+- Canvas does not support cursor-based modes: **At cursor**, **New line above cursor**, **New line below cursor**
+
+If **Capture to active file** is enabled and you leave the default write
+position at **At cursor**, capture will abort in Canvas until you switch to a
+supported mode.
+
+Canvas capture requires exactly one selected card in selected-card mode. If the
+selection is missing, multi-select, or unsupported, QuickAdd aborts with a
+notice instead of writing to the wrong place.
+
+A dedicated Canvas walkthrough page will return in a future update.
+
+### Canvas Capture FAQ
+
+**Why did my capture abort in Canvas?**
+
+Most often one of these is true:
+
+- No card is selected
+- More than one card is selected
+- The selected card type is unsupported
+- The selected write mode is cursor-based
+
+**Can I target a specific card in a Canvas file?**
+
+Yes. Set capture path to a `.canvas` file and choose a **Target canvas node**.
+
+**Does "At cursor" work in Canvas cards?**
+
+No. Use top, bottom, or insert-after placement.
+
+**Can I capture to a file card that points to a Canvas file?**
+
+No. File-card capture supports markdown targets only.
+
+**Can I still create new Canvas files from templates?**
+
+Yes. Template choices support `.canvas` templates.
 
 ## Insert after
 

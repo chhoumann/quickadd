@@ -11,9 +11,17 @@ export function getCaptureAction(choice: ICaptureChoice): CaptureAction {
 		return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
 	}
 
-	if (choice.captureToActiveFile && !choice.prepend && !choice.insertAfter.enabled) {
+	if (choice.captureToActiveFile && !choice.insertAfter.enabled) {
 		if (choice.activeFileWritePosition === "top") {
 			return "activeFileTop";
+		}
+
+		if (choice.activeFileWritePosition === "bottom") {
+			return "append";
+		}
+
+		if (choice.prepend) {
+			return "append";
 		}
 
 		return "currentLine";

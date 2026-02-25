@@ -7,7 +7,8 @@ export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 export default interface ICaptureChoice extends IChoice {
 	captureTo: string;
 	captureToActiveFile: boolean;
-	activeFileWritePosition?: "cursor" | "top";
+	captureToCanvasNodeId?: string;
+	activeFileWritePosition?: "cursor" | "top" | "bottom";
 	createFileIfItDoesntExist: {
 		enabled: boolean;
 		createWithTemplate: boolean;

@@ -84,7 +84,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			choice.insertAfter.enabled ||
 			choice.prepend ||
 			!choice.captureToActiveFile ||
-			choice.activeFileWritePosition === "top";
+			choice.activeFileWritePosition === "top" ||
+			choice.activeFileWritePosition === "bottom";
 		const formatted = await this.formatFileContent(input, shouldRunTemplater);
 		return formatted;
 	}
@@ -119,7 +120,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
 
-		if (this.choice.prepend) {
+		const shouldAppendToBottom =
+			this.choice.prepend ||
+			(this.choice.captureToActiveFile &&
+				this.choice.activeFileWritePosition === "bottom");
+
+		if (shouldAppendToBottom) {
 			// When appending to the end of a file, ensure the capture starts on a new line.
 			// Notes are not guaranteed to end with a trailing newline (see issue #124).
 			const shouldInsertLinebreak = !this.choice.task;
