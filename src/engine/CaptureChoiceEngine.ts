@@ -308,7 +308,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const file = target.canvasFile;
 		this.formatter.setTitle(basenameWithoutMdOrCanvas(file.basename));
 		this.formatter.setDestinationFile(file);
-		this.formatter.setDestinationSourcePath(file.path);
 
 		const captureTemplate = this.getCaptureContent();
 		const existingText = getCanvasTextCaptureContent(target);
