@@ -314,12 +314,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return null;
 		}
 
-		invariant(
-			this.choice.captureTo?.trim().length > 0,
-			"Canvas node capture requires a target .canvas file path.",
-		);
+		const rawCaptureTo = this.choice.captureTo?.trim() ?? "";
+		if (!rawCaptureTo) {
+			return null;
+		}
 
-		const targetPath = await this.formatFilePath(this.choice.captureTo);
+		const targetPath = await this.formatFilePath(rawCaptureTo);
 		const isCanvasTarget = CANVAS_FILE_EXTENSION_REGEX.test(targetPath);
 		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
 

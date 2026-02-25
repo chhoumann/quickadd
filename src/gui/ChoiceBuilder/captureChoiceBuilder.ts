@@ -208,11 +208,17 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
 				],
 				onChange: async (value) => {
+					const previousCanvasPath = this.normalizeVaultPath(this.choice.captureTo);
 					const wasCanvasTarget = this.isCanvasTargetPath(this.choice.captureTo);
 					this.choice.captureTo = value;
+					const nextCanvasPath = this.normalizeVaultPath(value);
 					const isCanvasTarget = this.isCanvasTargetPath(value);
+					const canvasPathChanged =
+						wasCanvasTarget &&
+						isCanvasTarget &&
+						previousCanvasPath !== nextCanvasPath;
 
-					if (!isCanvasTarget) {
+					if (!isCanvasTarget || canvasPathChanged) {
 						this.choice.captureToCanvasNodeId = "";
 					}
 
@@ -222,7 +228,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						formatDisplay.textContent = "Preview unavailable";
 					}
 
-					if (wasCanvasTarget !== isCanvasTarget) {
+					if (wasCanvasTarget !== isCanvasTarget || canvasPathChanged) {
 						this.reload();
 					}
 				},
