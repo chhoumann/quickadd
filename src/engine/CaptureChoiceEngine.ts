@@ -153,6 +153,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				canvasTarget?.kind === "file"
 					? canvasTarget.targetFile.path
 					: await this.getFormattedPathToCaptureTo(this.choice.captureToActiveFile);
+
+			if (
+				!canvasTarget &&
+				!this.choice.captureToActiveFile &&
+				CANVAS_FILE_EXTENSION_REGEX.test(filePath)
+			) {
+				throw new ChoiceAbortError(
+					"Capture to a .canvas file requires a target canvas node id.",
+				);
+			}
+
 			const content = this.getCaptureContent();
 
 			type GetFileAndAddContentFn = (
@@ -324,27 +335,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		const rawCaptureTo = this.choice.captureTo?.trim() ?? "";
-		if (!rawCaptureTo) {
+		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
+
+		if (!rawCaptureTo || !nodeId) {
 			return null;
 		}
 
 		const targetPath = await this.formatFilePath(rawCaptureTo);
-		const isCanvasTarget = CANVAS_FILE_EXTENSION_REGEX.test(targetPath);
-		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
-
-		if (!isCanvasTarget) {
-			if (!nodeId) {
-				return null;
-			}
-
+		if (!CANVAS_FILE_EXTENSION_REGEX.test(targetPath)) {
 			throw new ChoiceAbortError(
 				"Canvas node capture requires the target path to resolve to a .canvas file.",
-			);
-		}
-
-		if (!nodeId) {
-			throw new ChoiceAbortError(
-				"Canvas node capture requires a target canvas node id.",
 			);
 		}
 
