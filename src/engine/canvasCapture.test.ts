@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { App } from "obsidian";
 import {
-	applyCaptureToCanvasTextNode,
 	getCanvasActionUnsupportedReason,
 	getCanvasTextCaptureContent,
 	mergeCanvasTextAtBottom,
@@ -260,28 +259,6 @@ describe("canvasCapture", () => {
 		expect(mergeCanvasTextAtBottom("line1\n", "line2")).toBe("line1\nline2");
 	});
 
-	it("applies capture to text nodes via setText when available", () => {
-		let lastValue = "";
-		const target = {
-			kind: "text",
-			source: "active",
-			canvas: {
-				requestSave: () => {},
-			},
-			canvasFile: { path: "Canvas.canvas", basename: "Canvas" },
-			node: {
-				type: "text",
-				text: "existing",
-				setText: (value: string) => {
-					lastValue = value;
-				},
-			},
-			nodeData: null,
-		} as const;
-
-		applyCaptureToCanvasTextNode(target as any, "capture", "activeFileTop");
-		expect(lastValue).toBe("capture\nexisting");
-	});
 
 	it("reports unsupported reasons by action", () => {
 		expect(

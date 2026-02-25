@@ -436,22 +436,3 @@ export function mergeCanvasTextAtBottom(
 	return `${existingText}${needsSeparator ? "\n" : ""}${captureContent}`;
 }
 
-export function applyCaptureToCanvasTextNode(
-	target: Extract<CanvasCaptureTarget, { kind: "text" }>,
-	captureContent: string,
-	action: CaptureAction,
-): void {
-	const existingText = getCanvasTextCaptureContent(target);
-	const nextText =
-		action === "activeFileTop"
-			? mergeCanvasTextAtTop(existingText, captureContent)
-			: mergeCanvasTextAtBottom(existingText, captureContent);
-
-	if (typeof target.node.setText === "function") {
-		target.node.setText(nextText);
-	} else {
-		target.node.text = nextText;
-	}
-
-	target.canvas.requestSave?.();
-}

@@ -440,7 +440,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const canvasFile = this.resolveStaticCanvasTargetFile(canvasTargetPath);
 			if (!canvasFile) {
 				renderEmpty(
-					"Node picker works for direct .canvas file paths that exist in your vault.",
+					"Node picker works for direct .canvas paths that already exist in your vault. Format syntax paths cannot be listed here.",
 				);
 				return;
 			}

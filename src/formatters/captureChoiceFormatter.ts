@@ -120,6 +120,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
 
+		// Historical note: `prepend` is a legacy flag name that means
+		// append-to-bottom behavior.
 		const shouldAppendToBottom =
 			this.choice.prepend ||
 			(this.choice.captureToActiveFile &&
