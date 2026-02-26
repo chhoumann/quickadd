@@ -993,6 +993,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const obviousCanvasTarget =
 			typeof this.choice.captureTo === "string" &&
 			this.choice.captureTo.trim().toLowerCase().endsWith(".canvas");
+		const hasActiveCanvasView =
+			this.app.workspace.activeLeaf?.view?.getViewType?.() === "canvas";
 		const usesCursorMode =
 			isActiveFile &&
 			!this.choice.insertAfter.enabled &&
@@ -1003,7 +1005,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.choice.newLineCapture?.enabled || usesCursorMode;
 
 		if (!usesUnsupportedCanvasMode) return;
-		if (!isActiveFile && !obviousCanvasTarget) return;
+		if (isActiveFile ? !hasActiveCanvasView : !obviousCanvasTarget) return;
 
 		const warning = this.contentEl.createDiv({ cls: "setting-item-description" });
 		warning.setText(

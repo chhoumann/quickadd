@@ -168,9 +168,9 @@ function isTFileLike(file: TAbstractFile | null): file is TFile {
 }
 
 function getActiveCanvasView(app: CanvasAppLike): CanvasViewLike | null {
-	const mostRecentLeaf =
-		app.workspace.getMostRecentLeaf?.() ?? app.workspace.activeLeaf ?? null;
-	const activeView = mostRecentLeaf?.view;
+	const preferredLeaf =
+		app.workspace.activeLeaf ?? app.workspace.getMostRecentLeaf?.() ?? null;
+	const activeView = preferredLeaf?.view;
 	if (!activeView || activeView.getViewType?.() !== "canvas") return null;
 	return activeView;
 }

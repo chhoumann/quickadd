@@ -330,7 +330,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		if (linkOptions.enabled) {
-			insertFileLinkToActiveView(this.app, file, linkOptions);
+			const hasActiveMarkdownView =
+				this.app.workspace.activeLeaf?.view?.getViewType?.() === "markdown";
+			const hasActiveFile = !!this.app.workspace.getActiveFile();
+			const shouldSkipRequiredLinkInsertion =
+				linkOptions.requireActiveFile && (!hasActiveFile || !hasActiveMarkdownView);
+
+			if (!shouldSkipRequiredLinkInsertion) {
+				insertFileLinkToActiveView(this.app, file, linkOptions);
+			}
 		}
 
 		if (this.choice.openFile && file) {
