@@ -443,7 +443,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					useButton.addClass("mod-cta");
 				}
 				if (!option.capturable) {
-					useButton.setDisabled(true);
+					useButton.disabled = true;
 					useButton.title = option.capturableReason;
 				} else {
 					useButton.addEventListener("click", () => {
