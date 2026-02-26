@@ -100,11 +100,12 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		if (
 			loaded.captureToActiveFile &&
 			loaded.prepend &&
-			loaded.activeFileWritePosition !== "top" &&
 			!loaded.insertAfter?.enabled &&
 			!loaded.newLineCapture?.enabled
 		) {
-			loaded.activeFileWritePosition = "bottom";
+			if (loaded.activeFileWritePosition !== "top") {
+				loaded.activeFileWritePosition = "bottom";
+			}
 			loaded.prepend = false;
 		}
 		if (!loaded.templater) loaded.templater = { afterCapture: "none" };

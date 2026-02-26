@@ -16,6 +16,20 @@ describe("CaptureChoice.Load", () => {
 		expect(loaded.prepend).toBe(false);
 	});
 
+	it("clears legacy prepend flag when active-file write position is top", () => {
+		const legacy = new CaptureChoice("LegacyTop");
+		legacy.captureToActiveFile = true;
+		legacy.prepend = true;
+		legacy.activeFileWritePosition = "top";
+		legacy.insertAfter.enabled = false;
+		legacy.newLineCapture.enabled = false;
+
+		const loaded = CaptureChoice.Load(legacy as any);
+
+		expect(loaded.activeFileWritePosition).toBe("top");
+		expect(loaded.prepend).toBe(false);
+	});
+
 	it("does not migrate when capture is not active-file", () => {
 		const choice = new CaptureChoice("NonActive");
 		choice.captureToActiveFile = false;
