@@ -370,9 +370,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		const targetPath = await this.formatFilePath(rawCaptureTo);
 		if (!CANVAS_FILE_EXTENSION_REGEX.test(targetPath)) {
-			throw new ChoiceAbortError(
-				"Canvas node capture requires the target path to resolve to a .canvas file.",
-			);
+			return null;
 		}
 
 		return await resolveConfiguredCanvasCaptureTarget(
