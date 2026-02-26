@@ -87,7 +87,8 @@ export type ConfiguredCanvasCaptureTarget =
 			source: "configured";
 			canvasFile: TFile;
 			nodeData: CanvasDataNodeLike;
-			targetFile: TFile;
+			targetPath: string;
+			targetFile?: TFile;
 	  };
 
 export type CanvasTextCaptureTarget =
@@ -196,10 +197,9 @@ function getSingleSelectedCanvasNode(canvas: CanvasLike): CanvasNodeLike {
 	return selected[0];
 }
 
-function resolveCanvasFileTarget(
-	app: CanvasAppLike,
+function resolveCanvasFileTargetPath(
 	node: CanvasNodeLike | CanvasDataNodeLike,
-): TFile {
+): string {
 	const linkedPath = resolveCanvasNodeFilePath(node);
 	if (!linkedPath) {
 		throw new ChoiceAbortError(
@@ -207,20 +207,50 @@ function resolveCanvasFileTarget(
 		);
 	}
 
-	const linked = app.vault.getAbstractFileByPath(linkedPath);
-	if (!isTFileLike(linked)) {
-		throw new ChoiceAbortError(
-			`Selected Canvas file card target not found: ${linkedPath}`,
-		);
-	}
-
-	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(linked.path)) {
+	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(linkedPath)) {
 		throw new ChoiceAbortError(
 			"Canvas file card targets markdown files only in this version.",
 		);
 	}
 
+	return linkedPath;
+}
+
+function resolveActiveCanvasFileTarget(
+	app: CanvasAppLike,
+	node: CanvasNodeLike | CanvasDataNodeLike,
+): TFile {
+	const targetPath = resolveCanvasFileTargetPath(node);
+	const linked = app.vault.getAbstractFileByPath(targetPath);
+	if (!isTFileLike(linked)) {
+		throw new ChoiceAbortError(
+			`Selected Canvas file card target not found: ${targetPath}`,
+		);
+	}
+
 	return linked;
+}
+
+function resolveConfiguredCanvasFileTarget(
+	app: CanvasAppLike,
+	node: CanvasNodeLike | CanvasDataNodeLike,
+): { targetPath: string; targetFile?: TFile } {
+	const targetPath = resolveCanvasFileTargetPath(node);
+	const linked = app.vault.getAbstractFileByPath(targetPath);
+	if (!linked) {
+		return { targetPath };
+	}
+
+	if (!isTFileLike(linked)) {
+		throw new ChoiceAbortError(
+			`Selected Canvas file card target not found: ${targetPath}`,
+		);
+	}
+
+	return {
+		targetPath,
+		targetFile: linked,
+	};
 }
 
 function parseStoredCanvasData(raw: string, path: string): StoredCanvasData {
@@ -301,7 +331,7 @@ export function resolveActiveCanvasCaptureTarget(
 		source: "active",
 		canvasFile,
 		node: fileBackedNode,
-		targetFile: resolveCanvasFileTarget(canvasApp, fileBackedNode),
+		targetFile: resolveActiveCanvasFileTarget(canvasApp, fileBackedNode),
 	};
 }
 
@@ -362,12 +392,17 @@ export async function resolveConfiguredCanvasCaptureTarget(
 	}
 
 	const canvasApp = app as unknown as CanvasAppLike;
+	const { targetPath, targetFile } = resolveConfiguredCanvasFileTarget(
+		canvasApp,
+		nodeData,
+	);
 	return {
 		kind: "file",
 		source: "configured",
 		canvasFile: abstractCanvasFile,
 		nodeData,
-		targetFile: resolveCanvasFileTarget(canvasApp, nodeData),
+		targetPath,
+		targetFile,
 	};
 }
 

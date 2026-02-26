@@ -144,7 +144,15 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		);
 		captureToActiveFileToggle.setValue(this.choice?.captureToActiveFile);
 		captureToActiveFileToggle.onChange((value) => {
+			const wasActiveBottomMode =
+				!!this.choice.captureToActiveFile &&
+				this.choice.activeFileWritePosition === "bottom";
+
 			this.choice.captureToActiveFile = value;
+
+			if (!value && wasActiveBottomMode) {
+				this.choice.prepend = true;
+			}
 
 			// Reset new line capture settings when switching away from active file
 			// since those options are only available for active file capture

@@ -169,7 +169,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			const filePath =
 				canvasTarget?.kind === "file"
-					? canvasTarget.targetFile.path
+					? canvasTarget.source === "configured"
+						? canvasTarget.targetFile?.path ?? canvasTarget.targetPath
+						: canvasTarget.targetFile.path
 					: await this.getFormattedPathToCaptureTo(this.choice.captureToActiveFile);
 
 			if (
