@@ -3,8 +3,6 @@ import type { App } from "obsidian";
 import {
 	getCanvasActionUnsupportedReason,
 	getCanvasTextCaptureContent,
-	mergeCanvasTextAtBottom,
-	mergeCanvasTextAtTop,
 	resolveActiveCanvasCaptureTarget,
 	resolveConfiguredCanvasCaptureTarget,
 	setCanvasTextCaptureContent,
@@ -83,6 +81,29 @@ describe("canvasCapture", () => {
 		);
 	});
 
+	it("rejects unsupported cursor action for file cards", () => {
+		const app = createApp({
+			workspace: {
+				activeLeaf: {
+					view: {
+						getViewType: () => "canvas",
+						file: { path: "Canvas.canvas", basename: "Canvas" },
+						canvas: {
+							selection: new Set([
+								{ type: "file", file: { path: "Folder/Note.md" } },
+							]),
+						},
+					},
+				},
+				getActiveFile: () => ({ path: "Canvas.canvas", basename: "Canvas" }),
+			},
+		});
+
+		expect(() => resolveActiveCanvasCaptureTarget(app, "currentLine")).toThrow(
+			"cursor-based capture modes",
+		);
+	});
+
 	it("resolves markdown file card targets", () => {
 		const markdownFile = {
 			path: "Folder/Note.md",
@@ -116,7 +137,9 @@ describe("canvasCapture", () => {
 		expect(target).not.toBeNull();
 		expect(target?.kind).toBe("file");
 		if (target?.kind === "file") {
+			expect(target.canvasFile.path).toBe("Canvas.canvas");
 			expect(target.targetFile.path).toBe("Folder/Note.md");
+			expect(target.targetFile.path).not.toBe(target.canvasFile.path);
 		}
 	});
 
@@ -294,13 +317,6 @@ describe("canvasCapture", () => {
 				"append",
 			),
 		).rejects.toThrow("was not found");
-	});
-
-	it("merges text at top and bottom with newline safeguards", () => {
-		expect(mergeCanvasTextAtTop("line2", "line1")).toBe("line1\nline2");
-		expect(mergeCanvasTextAtBottom("line1", "line2")).toBe("line1\nline2");
-		expect(mergeCanvasTextAtTop("\nline2", "line1")).toBe("line1\nline2");
-		expect(mergeCanvasTextAtBottom("line1\n", "line2")).toBe("line1\nline2");
 	});
 
 

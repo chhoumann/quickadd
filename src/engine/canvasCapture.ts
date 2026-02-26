@@ -458,28 +458,3 @@ export async function setCanvasTextCaptureContent(
 		JSON.stringify(target.canvasData, null, 2),
 	);
 }
-
-export function mergeCanvasTextAtTop(
-	existingText: string,
-	captureContent: string,
-): string {
-	if (!existingText) return captureContent;
-	if (!captureContent) return existingText;
-
-	const needsSeparator =
-		!captureContent.endsWith("\n") && !existingText.startsWith("\n");
-	return `${captureContent}${needsSeparator ? "\n" : ""}${existingText}`;
-}
-
-export function mergeCanvasTextAtBottom(
-	existingText: string,
-	captureContent: string,
-): string {
-	if (!existingText) return captureContent;
-	if (!captureContent) return existingText;
-
-	const needsSeparator =
-		!existingText.endsWith("\n") && !captureContent.startsWith("\n");
-	return `${existingText}${needsSeparator ? "\n" : ""}${captureContent}`;
-}
-

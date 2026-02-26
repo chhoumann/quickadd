@@ -349,4 +349,107 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		expect(setTitleMock).toHaveBeenCalledWith("Map");
 	});
+
+	it("routes active canvas file-card capture to linked markdown path", async () => {
+		const canvasFile = {
+			path: "Boards/Map.canvas",
+			basename: "Map",
+			extension: "canvas",
+		};
+		const linkedFile = {
+			path: "Folder/Note.md",
+			basename: "Note",
+			extension: "md",
+		};
+		const app = createApp() as any;
+		app.workspace.activeLeaf = {
+			view: {
+				getViewType: () => "canvas",
+				file: canvasFile,
+				canvas: {
+					selection: new Set([
+						{ type: "file", file: { path: "Folder/Note.md" } },
+					]),
+				},
+			},
+		};
+		app.workspace.getActiveFile = vi.fn(() => canvasFile);
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Folder/Note.md" ? linkedFile : null,
+		);
+		app.vault.modify = vi.fn(async () => {});
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureToActiveFile: true,
+				activeFileWritePosition: "top",
+			}),
+			createExecutor(),
+		);
+
+		const fileExistsMock = vi.fn(async () => true);
+		const onFileExistsMock = vi.fn(async () => ({
+			file: linkedFile,
+			newFileContent: "updated",
+			captureContent: "capture",
+		}));
+		(engine as any).fileExists = fileExistsMock;
+		(engine as any).onFileExists = onFileExistsMock;
+
+		await engine.run();
+
+		expect(fileExistsMock).toHaveBeenCalledWith("Folder/Note.md");
+		expect(fileExistsMock).not.toHaveBeenCalledWith("Boards/Map.canvas");
+		expect(onFileExistsMock).toHaveBeenCalledWith(
+			"Folder/Note.md",
+			expect.any(String),
+		);
+		expect(app.vault.modify).toHaveBeenCalledWith(linkedFile, "updated");
+	});
+
+	it("aborts cursor-mode capture for active canvas file cards before writes", async () => {
+		const canvasFile = {
+			path: "Boards/Map.canvas",
+			basename: "Map",
+			extension: "canvas",
+		};
+		const app = createApp() as any;
+		app.workspace.activeLeaf = {
+			view: {
+				getViewType: () => "canvas",
+				file: canvasFile,
+				canvas: {
+					selection: new Set([
+						{ type: "file", file: { path: "Folder/Note.md" } },
+					]),
+				},
+			},
+		};
+		app.workspace.getActiveFile = vi.fn(() => canvasFile);
+		app.vault.getAbstractFileByPath = vi.fn();
+		app.vault.modify = vi.fn(async () => {});
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureToActiveFile: true,
+			}),
+			createExecutor(),
+		);
+
+		const fileExistsMock = vi.fn();
+		const onFileExistsMock = vi.fn();
+		(engine as any).fileExists = fileExistsMock;
+		(engine as any).onFileExists = onFileExistsMock;
+
+		await engine.run();
+
+		expect(app.vault.getAbstractFileByPath).not.toHaveBeenCalled();
+		expect(fileExistsMock).not.toHaveBeenCalled();
+		expect(onFileExistsMock).not.toHaveBeenCalled();
+		expect(app.vault.modify).not.toHaveBeenCalled();
+	});
 });
