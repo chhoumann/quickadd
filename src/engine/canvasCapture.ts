@@ -455,6 +455,6 @@ export async function setCanvasTextCaptureContent(
 	target.canvasData.nodes[target.nodeIndex] = target.nodeData;
 	await app.vault.modify(
 		target.canvasFile,
-		JSON.stringify(target.canvasData, null, 2),
+		JSON.stringify(target.canvasData, null, "\t"),
 	);
 }

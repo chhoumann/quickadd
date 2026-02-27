@@ -285,6 +285,8 @@ describe("canvasCapture", () => {
 		};
 		expect(updated.nodes[0].id).toBe("t1");
 		expect(updated.nodes[0].text).toBe("Updated");
+		expect(modified).toContain('\t"nodes": [');
+		expect(modified).not.toContain('  "nodes": [');
 	});
 
 	it("aborts configured text-node write when canvas changed concurrently", async () => {
