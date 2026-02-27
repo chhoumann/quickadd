@@ -304,12 +304,17 @@ export function parseAnonymousValueOptions(
 	}
 
 	const options = parseOptions(parts, false);
+	const tokenDisplay = `{{VALUE${rawOptions}}}`;
+	if (options.displayValuesRaw !== undefined) {
+		throw new Error(
+			`QuickAdd: VALUE option "text" is only supported for option-list tokens in "${tokenDisplay}".`,
+		);
+	}
 	let { label, caseStyle, defaultValue } = options;
 	if (!options.usesOptions) {
 		defaultValue = defaultValue.trim();
 	}
 
-	const tokenDisplay = `{{VALUE${rawOptions}}}`;
 	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
 		tokenDisplay,
 		hasOptions: false,

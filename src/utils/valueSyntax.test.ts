@@ -143,6 +143,12 @@ describe("parseAnonymousValueOptions", () => {
 		expect(parsed.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
+
+	it("throws when text mappings are used on unnamed VALUE tokens", () => {
+		expect(() => parseAnonymousValueOptions("|text:Alpha,Beta")).toThrow(
+			/only supported for option-list/i,
+		);
+	});
 });
 
 describe("resolveExistingVariableKey", () => {
