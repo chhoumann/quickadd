@@ -143,6 +143,43 @@ describe("canvasCapture", () => {
 		}
 	});
 
+	it("resolves markdown file card targets with uppercase .MD extension", () => {
+		const markdownFile = {
+			path: "Folder/Note.MD",
+			basename: "Note",
+			extension: "md",
+		};
+		const app = createApp({
+			workspace: {
+				activeLeaf: {
+					view: {
+						getViewType: () => "canvas",
+						file: { path: "Canvas.canvas", basename: "Canvas" },
+						canvas: {
+							selection: new Set([
+								{ type: "file", file: { path: "Folder/Note.MD" } },
+							]),
+						},
+					},
+				},
+				getActiveFile: () => ({ path: "Canvas.canvas", basename: "Canvas" }),
+			},
+			vault: {
+				getAbstractFileByPath: (path: string) =>
+					path === "Folder/Note.MD" ? (markdownFile as any) : null,
+				read: async () => "",
+				modify: async () => {},
+			},
+		});
+
+		const target = resolveActiveCanvasCaptureTarget(app, "prepend");
+		expect(target).not.toBeNull();
+		expect(target?.kind).toBe("file");
+		if (target?.kind === "file") {
+			expect(target.targetFile.path).toBe("Folder/Note.MD");
+		}
+	});
+
 	it("rejects non-markdown file card targets", () => {
 		const canvasFile = {
 			path: "Folder/Other.canvas",

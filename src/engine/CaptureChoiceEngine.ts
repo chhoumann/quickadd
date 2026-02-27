@@ -1,4 +1,4 @@
-import { Notice, type App, type TFile } from "obsidian";
+import { MarkdownView, Notice, type App, type TFile } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
@@ -122,6 +122,48 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
+	}
+
+	private hasActiveMarkdownCaptureContext(): boolean {
+		const hasActiveFile = !!this.app.workspace.getActiveFile();
+		const hasActiveMarkdownView =
+			!!this.app.workspace.getActiveViewOfType(MarkdownView);
+		return hasActiveFile && hasActiveMarkdownView;
+	}
+
+	private shouldSkipRequiredCanvasLinkInsertion(
+		linkOptions: AppendLinkOptions,
+		isCanvasTriggered: boolean,
+	): boolean {
+		return (
+			isCanvasTriggered &&
+			linkOptions.requireActiveFile &&
+			!this.hasActiveMarkdownCaptureContext()
+		);
+	}
+
+	private insertCaptureLink(
+		file: TFile,
+		linkOptions: AppendLinkOptions,
+		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
+	): void {
+		if (!linkOptions.enabled) {
+			return;
+		}
+
+		if (
+			this.shouldSkipRequiredCanvasLinkInsertion(linkOptions, isCanvasTriggered)
+		) {
+			if (this.plugin.settings.showCaptureNotification) {
+				new Notice(
+					"Canvas capture skipped link insertion because no Markdown editor is focused.",
+					DEFAULT_NOTICE_DURATION,
+				);
+			}
+			return;
+		}
+
+		insertFileLinkToActiveView(this.app, file, linkOptions);
 	}
 
 	async run(): Promise<void> {
@@ -252,9 +294,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-				if (linkOptions.enabled) {
-				insertFileLinkToActiveView(this.app, file, linkOptions);
-			}
+			this.insertCaptureLink(file, linkOptions, {
+				isCanvasTriggered: !!canvasTarget,
+			});
 
 			if (this.choice.openFile && file) {
 				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
@@ -329,17 +371,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 		}
 
-		if (linkOptions.enabled) {
-			const hasActiveMarkdownView =
-				this.app.workspace.activeLeaf?.view?.getViewType?.() === "markdown";
-			const hasActiveFile = !!this.app.workspace.getActiveFile();
-			const shouldSkipRequiredLinkInsertion =
-				linkOptions.requireActiveFile && (!hasActiveFile || !hasActiveMarkdownView);
-
-			if (!shouldSkipRequiredLinkInsertion) {
-				insertFileLinkToActiveView(this.app, file, linkOptions);
-			}
-		}
+		this.insertCaptureLink(file, linkOptions, {
+			isCanvasTriggered: true,
+		});
 
 		if (this.choice.openFile && file) {
 			const fileOpening = normalizeFileOpening(this.choice.fileOpening);

@@ -542,6 +542,47 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
       ['# Journal', '', '10:00', 'Some data', '', '# Missing', '18:14', 'Test6', '', ''].join('\n'),
     );
   });
+
+  it('aborts when insert-after target is missing and create-if-not-found is disabled', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Missing', {
+      createIfNotFound: false,
+    });
+    const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
+
+    await expect(
+      formatter.formatContentWithFile(
+        '18:15\nTest7\n\n',
+        choice,
+        initial,
+        file,
+      ),
+    ).rejects.toThrow(
+      "Insert-after target not found: '# Missing'.",
+    );
+  });
+
+  it('aborts when create-if-not-found cursor fallback has no active markdown view', async () => {
+    const { app, formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Missing', {
+      createIfNotFound: true,
+      createIfNotFoundLocation: 'cursor',
+      insertAtEnd: false,
+    });
+    (app.workspace.getActiveViewOfType as any).mockReturnValue(null);
+    const initial = ['# Journal', '10:00', 'Some data'].join('\n');
+
+    await expect(
+      formatter.formatContentWithFile(
+        '18:16\nTest8\n\n',
+        choice,
+        initial,
+        file,
+      ),
+    ).rejects.toThrow(
+      "Unable to insert line '# Missing' at cursor position.",
+    );
+  });
 });
 
 describe('CaptureChoiceFormatter insert after inline', () => {
@@ -652,20 +693,21 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     expect(result).toBe(['Status: done', '# Header'].join('\n'));
   });
 
-  it('does not modify the file when target is missing and create-if-not-found is off', async () => {
+  it('aborts when inline target is missing and create-if-not-found is off', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInlineChoice('Missing: ', { createIfNotFound: false });
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
-      'done',
-      choice,
-      fileContent,
-      file,
+    await expect(
+      formatter.formatContentWithFile(
+        'done',
+        choice,
+        fileContent,
+        file,
+      ),
+    ).rejects.toThrow(
+      "Inline insert-after target not found: 'Missing: '.",
     );
-
-    expect(result).toBe(fileContent);
-    expect(reportError).toHaveBeenCalled();
   });
 
   it('updates only the first match', async () => {

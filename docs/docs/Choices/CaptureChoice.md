@@ -50,7 +50,7 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 -   _Use editor selection as default value_ controls whether the current editor selection is used as `{{VALUE}}`. Choose **Follow global setting**, **Use selection**, or **Ignore selection** (global default lives in Settings > Input). This does not affect `{{SELECTED}}`.
 -   _Write position_ controls where Capture writes: top, bottom, after line, and active-file cursor modes.
 -   _Append link_ will append a link to the file you have open in the file you're capturing to. You can choose between three modes:
-    -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused
+    -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused (except Canvas-triggered capture, where link insertion is skipped)
     -   **Enabled (skip if no active file)** – inserts the link when possible and silently drops `{{LINKCURRENT}}` if nothing is open
     -   **Disabled** – never append a link
 
@@ -98,6 +98,10 @@ supported mode.
 Canvas capture requires exactly one selected card in selected-card mode. If the
 selection is missing, multi-select, or unsupported, QuickAdd aborts with a
 notice instead of writing to the wrong place.
+
+When append-link is set to **Enabled (requires active file)** and capture runs
+from a Canvas card without a focused Markdown editor, the capture still writes
+and link insertion is skipped.
 
 A dedicated Canvas walkthrough page will return in a future update.
 
