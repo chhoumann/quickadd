@@ -94,9 +94,13 @@ export class FormatDisplayFormatter extends Formatter {
 	protected suggestForValue(
 		suggestedValues: string[],
 		allowCustomInput = false,
-		_context?: { placeholder?: string; variableKey?: string },
+		context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+		},
 	) {
-		return getSuggestionPreview(suggestedValues);
+		return getSuggestionPreview(context?.displayValues ?? suggestedValues);
 	}
 
 	protected getMacroValue(

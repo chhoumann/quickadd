@@ -5,7 +5,14 @@ export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
 export type ValueInputType = "multiline";
 
-const VALUE_OPTION_KEYS = new Set(["label", "default", "custom", "type", "case"]);
+const VALUE_OPTION_KEYS = new Set([
+	"label",
+	"default",
+	"custom",
+	"type",
+	"case",
+	"text",
+]);
 
 export type ParsedValueToken = {
 	raw: string;
@@ -16,6 +23,7 @@ export type ParsedValueToken = {
 	defaultValue: string;
 	allowCustomInput: boolean;
 	suggestedValues: string[];
+	displayValues?: string[];
 	hasOptions: boolean;
 	inputTypeOverride?: ValueInputType;
 };
@@ -82,6 +90,7 @@ type ParsedOptions = {
 	allowCustomInput: boolean;
 	usesOptions: boolean;
 	inputTypeOverride?: string;
+	displayValuesRaw?: string;
 };
 
 function parseBoolean(value?: string): boolean {
@@ -129,6 +138,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 	let defaultValue = "";
 	let allowCustomInput = false;
 	let inputTypeOverride: string | undefined;
+	let displayValuesRaw: string | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -160,6 +170,9 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 			case "type":
 				if (value) inputTypeOverride = value;
 				break;
+			case "text":
+				displayValuesRaw = value;
+				break;
 			default:
 				break;
 		}
@@ -172,6 +185,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		allowCustomInput,
 		usesOptions: true,
 		inputTypeOverride,
+		displayValuesRaw,
 	};
 }
 
@@ -228,6 +242,32 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		hasOptions,
 		allowCustomInput,
 	});
+	let displayValues: string[] | undefined;
+
+	if (options.displayValuesRaw !== undefined) {
+		if (!hasOptions) {
+			throw new Error(
+				`QuickAdd: VALUE option "text" is only supported for option-list tokens in "${tokenDisplay}".`,
+			);
+		}
+
+		displayValues = options.displayValuesRaw
+			.split(",")
+			.map((value) => value.trim())
+			.filter(Boolean);
+
+		if (displayValues.length !== suggestedValues.length) {
+			throw new Error(
+				`QuickAdd: VALUE token "${tokenDisplay}" must define the same number of text entries and item entries.`,
+			);
+		}
+
+		if (new Set(displayValues).size !== displayValues.length) {
+			throw new Error(
+				`QuickAdd: VALUE token "${tokenDisplay}" has duplicate text entries. Text entries must be unique.`,
+			);
+		}
+	}
 
 	const variableKey = buildValueVariableKey(variablePart, label, hasOptions);
 
@@ -240,6 +280,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		defaultValue,
 		allowCustomInput,
 		suggestedValues,
+		displayValues,
 		hasOptions,
 		inputTypeOverride,
 	};

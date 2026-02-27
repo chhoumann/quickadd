@@ -9,6 +9,8 @@ export const VARIABLE_DEFAULT_OPTION_SYNTAX =
 	"{{value:<variable name>|default:<value>}}";
 export const VARIABLE_LABEL_SYNTAX =
 	"{{value:<variable name>|label:<helper text>}}";
+export const VARIABLE_TEXT_SYNTAX =
+	"{{value:<items>|text:<display items>}}";
 export const VALUE_CASE_SYNTAX = "{{value|case:kebab}}";
 export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
@@ -35,6 +37,7 @@ export const FORMAT_SYNTAX: string[] = [
 	VARIABLE_DEFAULT_SYNTAX,
 	VARIABLE_DEFAULT_OPTION_SYNTAX,
 	VARIABLE_LABEL_SYNTAX,
+	VARIABLE_TEXT_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	"{{field:<fieldname>|folder:<path>}}",
 	"{{field:<fieldname>|tag:<tagname>}}",
@@ -64,6 +67,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VARIABLE_DEFAULT_SYNTAX,
 	VARIABLE_DEFAULT_OPTION_SYNTAX,
 	VARIABLE_LABEL_SYNTAX,
+	VARIABLE_TEXT_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	RANDOM_SYNTAX,
 ];

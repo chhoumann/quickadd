@@ -23,6 +23,7 @@ export interface FieldRequirement {
 	placeholder?: string;
 	defaultValue?: string;
 	options?: string[]; // for dropdowns and suggesters
+	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	// Additional metadata
 	dateFormat?: string; // for VDATE
 	filters?: string; // serialized filters for FIELD variables
@@ -146,6 +147,7 @@ export class RequirementCollector extends Formatter {
 				defaultValue,
 				allowCustomInput,
 				suggestedValues,
+				displayValues,
 				hasOptions,
 			} = parsed;
 
@@ -173,6 +175,7 @@ export class RequirementCollector extends Formatter {
 				};
 				if (hasOptions) {
 					req.options = suggestedValues;
+					if (displayValues) req.displayOptions = displayValues;
 					if (allowCustomInput) {
 						req.suggesterConfig = {
 							allowCustomInput: true,
@@ -183,10 +186,13 @@ export class RequirementCollector extends Formatter {
 				}
 				if (defaultValue) req.defaultValue = defaultValue;
 				this.requirements.set(requirementId, req);
-			} else if (defaultValue) {
+			} else {
 				const existing = this.requirements.get(requirementId)!;
-				if (existing.defaultValue === undefined)
+				if (defaultValue && existing.defaultValue === undefined)
 					existing.defaultValue = defaultValue;
+				if (!existing.displayOptions && displayValues) {
+					existing.displayOptions = displayValues;
+				}
 			}
 		}
 	}
