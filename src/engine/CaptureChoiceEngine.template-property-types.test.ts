@@ -273,4 +273,103 @@ describe("CaptureChoiceEngine template property types", () => {
 		expect(processFrontMatter).toHaveBeenCalledTimes(1);
 		expect(appliedFrontmatter?.tags).toEqual(["foo", "bar"]);
 	});
+
+	it("aborts missing insert-after target without modifying file or applying property vars", async () => {
+		const targetPath = "Journal/Test.md";
+		const existingFile = {
+			path: targetPath,
+			name: "Test.md",
+			basename: "Test",
+			extension: "md",
+		} as unknown as TFile;
+		const modify = vi.fn(async () => {});
+
+		const app = {
+			vault: {
+				adapter: {
+					exists: vi.fn(async (path: string) => path === targetPath),
+				},
+				getAbstractFileByPath: vi.fn((path: string) =>
+					path === targetPath ? existingFile : null,
+				),
+				read: vi.fn(async () => ["# Existing", "Body"].join("\n")),
+				modify,
+				cachedRead: vi.fn(),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn().mockReturnValue(""),
+				processFrontMatter: vi.fn(),
+			},
+			workspace: {
+				getActiveFile: vi.fn().mockReturnValue(null),
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+			},
+			metadataCache: {
+				getFileCache: vi.fn().mockReturnValue(null),
+			},
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				enableTemplatePropertyTypes: true,
+				globalVariables: {},
+				showCaptureNotification: true,
+				showInputCancellationNotification: false,
+			},
+		} as any;
+
+		const choice: ICaptureChoice = {
+			id: "capture-insert-after-abort",
+			name: "Insert After Abort",
+			type: "Capture",
+			command: false,
+			captureTo: targetPath,
+			captureToActiveFile: false,
+			createFileIfItDoesntExist: {
+				enabled: false,
+				createWithTemplate: false,
+				template: "",
+			},
+			format: {
+				enabled: true,
+				format: "Captured",
+			},
+			prepend: false,
+			appendLink: false,
+			task: false,
+			insertAfter: {
+				enabled: true,
+				after: "# Missing",
+				insertAtEnd: false,
+				considerSubsections: false,
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+			newLineCapture: {
+				enabled: false,
+				direction: "below",
+			},
+			openFile: false,
+			fileOpening: {
+				location: "tab",
+				direction: "vertical",
+				mode: "source",
+				focus: false,
+			},
+		};
+
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		const applyCapturePropertyVars = vi.fn(async () => {});
+		(engine as any).applyCapturePropertyVars = applyCapturePropertyVars;
+
+		await engine.run();
+
+		expect(modify).not.toHaveBeenCalled();
+		expect(applyCapturePropertyVars).not.toHaveBeenCalled();
+	});
 });

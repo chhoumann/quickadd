@@ -10,6 +10,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { BlankLineAfterMatchMode } from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
 import { findYamlFrontMatterRange } from "../utils/yamlContext";
@@ -84,7 +85,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			choice.insertAfter.enabled ||
 			choice.prepend ||
 			!choice.captureToActiveFile ||
-			choice.activeFileWritePosition === "top";
+			choice.activeFileWritePosition === "top" ||
+			choice.activeFileWritePosition === "bottom";
 		const formatted = await this.formatFileContent(input, shouldRunTemplater);
 		return formatted;
 	}
@@ -119,7 +121,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const formattedContentIsEmpty = formatted.trim() === "";
 		if (formattedContentIsEmpty) return this.fileContent;
 
-		if (this.choice.prepend) {
+		// Historical note: `prepend` is a legacy flag name that means
+		// append-to-bottom behavior.
+		const shouldAppendToBottom =
+			this.choice.prepend ||
+			(this.choice.captureToActiveFile &&
+				this.choice.activeFileWritePosition === "bottom");
+
+		if (shouldAppendToBottom) {
 			// When appending to the end of a file, ensure the capture starts on a new line.
 			// Notes are not guaranteed to end with a trailing newline (see issue #124).
 			const shouldInsertLinebreak = !this.choice.task;
@@ -322,9 +331,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				return await this.createInsertAfterIfNotFound(formatted);
 			}
 
-			reportError(
-				new Error("Unable to find insert after line in file"),
-				"Insert After Error",
+			throw new ChoiceAbortError(
+				`Insert-after target not found: '${targetString}'.`,
 			);
 		}
 
@@ -395,11 +403,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				);
 			}
 
-			reportError(
-				new Error("Unable to find insert after text in file."),
-				"Insert After Inline Error",
+			throw new ChoiceAbortError(
+				`Inline insert-after target not found: '${targetString}'.`,
 			);
-			return this.fileContent;
 		}
 
 		const matchEnd = matchIndex + targetString.length;
@@ -480,7 +486,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 						this.fileContent,
 						insertAfterLineAndFormatted,
 					);
-					}
+				}
 
 				const newFileContent = this.insertTextAfterPositionInBody(
 					insertAfterLineAndFormatted,
@@ -489,13 +495,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				);
 
 				return newFileContent;
-			} catch (err) {
-				reportError(
-					err,
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`,
+			} catch {
+				throw new ChoiceAbortError(
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position.`,
 				);
 			}
 		}
+
+		throw new ChoiceAbortError(
+			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
+		);
 	}
 
 	private async createInlineInsertAfterIfNotFound(
@@ -544,18 +553,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 					this.fileContent,
 					targetPosition,
 				);
-			} catch (err) {
-				reportError(
-					err,
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position`,
+			} catch {
+				throw new ChoiceAbortError(
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position.`,
 				);
 			}
 		}
 
-		log.logWarning(
+		throw new ChoiceAbortError(
 			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
 		);
-		return this.fileContent;
 	}
 
 	private getFrontmatterEndPosition(file: TFile, fallbackContent?: string) {

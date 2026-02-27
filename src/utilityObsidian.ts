@@ -506,18 +506,21 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		const editor = activeView.editor;
 		const cursor = editor.getCursor();
 		const lineNumber = cursor.line;
-
+		const insertedLines = toInsert.split("\n");
+		const insertedLineCount = insertedLines.length;
+		const lastInsertedLineLength =
+			insertedLines[insertedLineCount - 1]?.length ?? 0;
 		if (direction === "above") {
 			// Insert at the beginning of the current line, add content + newline
 			editor.replaceRange(toInsert + "\n", { line: lineNumber, ch: 0 });
 			// Move cursor to end of inserted content (before the newline)
-			editor.setCursor({ line: lineNumber, ch: toInsert.length });
+			editor.setCursor({ line: lineNumber + insertedLineCount - 1, ch: lastInsertedLineLength });
 		} else {
 			// Insert at the end of the current line, add newline + content
 			const currentLine = editor.getLine(lineNumber);
 			editor.replaceRange("\n" + toInsert, { line: lineNumber, ch: currentLine.length });
 			// Move cursor to end of inserted content
-			editor.setCursor({ line: lineNumber + 1, ch: toInsert.length });
+			editor.setCursor({ line: lineNumber + insertedLineCount, ch: lastInsertedLineLength });
 		}
 	} catch {
 		log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);

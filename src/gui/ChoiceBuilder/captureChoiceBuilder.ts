@@ -1,10 +1,11 @@
-import type { App, TextComponent } from "obsidian";
-import { Notice, Setting, ToggleComponent } from "obsidian";
+import type { App, TFile } from "obsidian";
+import { Notice, Setting, TextComponent, ToggleComponent } from "obsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 	FILE_NAME_FORMAT_SYNTAX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../../constants";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
@@ -143,8 +144,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		);
 		captureToActiveFileToggle.setValue(this.choice?.captureToActiveFile);
 		captureToActiveFileToggle.onChange((value) => {
+			const wasActiveBottomMode =
+				!!this.choice.captureToActiveFile &&
+				this.choice.activeFileWritePosition === "bottom";
+
 			this.choice.captureToActiveFile = value;
-			
+
+			if (!value && wasActiveBottomMode) {
+				this.choice.prepend = true;
+			}
+
 			// Reset new line capture settings when switching away from active file
 			// since those options are only available for active file capture
 			if (!value && this.choice.newLineCapture?.enabled) {
@@ -155,14 +164,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		});
 
 		if (!this.choice?.captureToActiveFile) {
+			if (!this.isCanvasTargetPath(this.choice.captureTo)) {
+				this.choice.captureToCanvasNodeId = "";
+			}
+
 			const captureToFileContainer: HTMLDivElement =
 				captureToContainer.createDiv("captureToFileContainer");
 
 			new Setting(captureToFileContainer)
 				.setName("File path / format")
-				.setDesc(
-					"Choose a file, folder, or format syntax (e.g., {{DATE}})",
-				);
+				.setDesc("Choose a file, folder, or format syntax (e.g., {{DATE}})");
 
 			const displayFormatter: FileNameDisplayFormatter =
 				new FileNameDisplayFormatter(this.app, this.plugin);
@@ -174,13 +185,23 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			formatDisplay.textContent = "Loading preview…";
 
 			const folderPaths = getAllFolderPathsInVault(this.app)
-				.filter((path) => path.length > 0)
-				.map((path) => (path.endsWith("/") ? path : `${path}/`));
+				.filter((folderPath) => folderPath.length > 0)
+				.map((folderPath) =>
+					folderPath.endsWith("/") ? folderPath : folderPath + "/",
+				);
+			const markdownPaths = this.app.vault
+				.getMarkdownFiles()
+				.map((file) => file.path);
+			const canvasPaths = this.app.vault
+				.getFiles()
+				.filter((file) => file.extension === "canvas")
+				.map((file) => file.path);
 
-			const markdownFilesAndFormatSyntax = Array.from(
+			const captureTargetSuggestions = Array.from(
 				new Set([
 					...folderPaths,
-					...this.app.vault.getMarkdownFiles().map((f) => f.path),
+					...markdownPaths,
+					...canvasPaths,
 					...FILE_NAME_FORMAT_SYNTAX,
 				]),
 			);
@@ -190,17 +211,34 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				parent: captureToFileContainer,
 				initialValue: this.choice.captureTo,
 				placeholder: "File name format",
-				suggestions: markdownFilesAndFormatSyntax,
+				suggestions: captureTargetSuggestions,
 				maxSuggestions: 50,
 				attachSuggesters: [
 					(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
 				],
 				onChange: async (value) => {
+					const previousCanvasPath = this.normalizeVaultPath(this.choice.captureTo);
+					const wasCanvasTarget = this.isCanvasTargetPath(this.choice.captureTo);
 					this.choice.captureTo = value;
+					const nextCanvasPath = this.normalizeVaultPath(value);
+					const isCanvasTarget = this.isCanvasTargetPath(value);
+					const canvasPathChanged =
+						wasCanvasTarget &&
+						isCanvasTarget &&
+						previousCanvasPath !== nextCanvasPath;
+
+					if (!isCanvasTarget || canvasPathChanged) {
+						this.choice.captureToCanvasNodeId = "";
+					}
+
 					try {
 						formatDisplay.textContent = await displayFormatter.format(value);
 					} catch {
 						formatDisplay.textContent = "Preview unavailable";
+					}
+
+					if (wasCanvasTarget !== isCanvasTarget || canvasPathChanged) {
+						this.reload();
 					}
 				},
 			});
@@ -214,7 +252,496 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					formatDisplay.textContent = "Preview unavailable";
 				}
 			})();
+
+			if (this.isCanvasTargetPath(this.choice.captureTo)) {
+				let nodeIdInputRef: TextComponent | null = null;
+
+				new Setting(captureToFileContainer)
+					.setName("Target canvas node")
+					.setDesc(
+						"Choose a card from the canvas below, or paste an exact node id.",
+					)
+					.addText((textInput) => {
+						nodeIdInputRef = textInput;
+						textInput.setPlaceholder("Canvas node id");
+						textInput.setValue(this.choice.captureToCanvasNodeId ?? "");
+						textInput.onChange((value) => {
+							this.choice.captureToCanvasNodeId = value.trim();
+						});
+					});
+
+				captureToFileContainer.createDiv({
+					cls: "qa-canvas-node-helper",
+					text: "Tip: open this canvas and select one card to grab its id instantly.",
+				});
+
+				this.renderCanvasNodePicker(
+					captureToFileContainer,
+					this.choice.captureTo,
+					nodeIdInputRef,
+				);
+			}
 		}
+	}
+
+	private renderCanvasNodePicker(
+		container: HTMLDivElement,
+		canvasTargetPath: string,
+		nodeIdInputRef: TextComponent | null,
+	): void {
+		const picker = container.createDiv({ cls: "qa-canvas-node-picker" });
+		const actions = picker.createDiv({ cls: "qa-canvas-node-actions" });
+		const openCanvasButton = actions.createEl("button", {
+			text: "Open target canvas",
+		});
+		const useActiveSelectionButton = actions.createEl("button", {
+			text: "Use selected in open canvas",
+		});
+		const clearButton = actions.createEl("button", {
+			text: "Clear",
+		});
+
+		const filterContainer = picker.createDiv({ cls: "qa-canvas-node-filter" });
+		const filterInput = new TextComponent(filterContainer);
+		filterInput.setPlaceholder(
+			"Filter by card text, file path, or node id…",
+		);
+
+		const status = picker.createDiv({
+			cls: "qa-canvas-node-status",
+			text: "Loading canvas nodes…",
+		});
+		const list = picker.createDiv({ cls: "qa-canvas-node-list" });
+
+		const applyNodeId = (nodeId: string) => {
+			this.choice.captureToCanvasNodeId = nodeId;
+			nodeIdInputRef?.setValue(nodeId);
+		};
+
+		openCanvasButton.addEventListener("click", () => {
+			const canvasFile = this.resolveStaticCanvasTargetFile(canvasTargetPath);
+			if (!canvasFile) {
+				new Notice("Target canvas file was not found.");
+				return;
+			}
+
+			void this.app.workspace
+				.getLeaf(true)
+				.openFile(canvasFile)
+				.catch(() => new Notice("Could not open target canvas."));
+		});
+
+		clearButton.addEventListener("click", () => {
+			applyNodeId("");
+			renderList(filterInput.getValue());
+		});
+
+		useActiveSelectionButton.addEventListener("click", () => {
+			const activeSelectionNodeId = this.getActiveCanvasSelectionNodeIdForPath(
+				canvasTargetPath,
+			);
+			if (!activeSelectionNodeId) {
+				new Notice(
+					"Open the target canvas and select exactly one card to use this action.",
+				);
+				return;
+			}
+
+			const selectedOption = nodeOptions.find(
+				(option) => option.id === activeSelectionNodeId,
+			);
+			if (!selectedOption) {
+				new Notice(
+					"Canvas nodes are still loading. Wait a moment and try again.",
+				);
+				return;
+			}
+			if (!selectedOption.capturable) {
+				new Notice(selectedOption.capturableReason);
+				return;
+			}
+
+			applyNodeId(activeSelectionNodeId);
+			renderList(filterInput.getValue());
+		});
+
+		const renderEmpty = (message: string) => {
+			status.setText(message);
+			list.empty();
+			list.createDiv({
+				cls: "qa-canvas-node-empty",
+				text: message,
+			});
+		};
+
+		let nodeOptions: Array<{
+			id: string;
+			type: "text" | "file" | "other";
+			title: string;
+			subtitle: string;
+			searchText: string;
+			capturable: boolean;
+			capturableReason: string;
+		}> = [];
+
+		const renderList = (query: string) => {
+			const normalizedQuery = query.trim().toLowerCase();
+			const filteredOptions = normalizedQuery.length
+				? nodeOptions.filter((option) => option.searchText.includes(normalizedQuery))
+				: nodeOptions;
+
+			status.setText(
+				`Showing ${filteredOptions.length} of ${nodeOptions.length} nodes`,
+			);
+			list.empty();
+
+			if (filteredOptions.length === 0) {
+				list.createDiv({
+					cls: "qa-canvas-node-empty",
+					text: "No nodes match the current filter.",
+				});
+				return;
+			}
+
+			const selectedNodeId = (this.choice.captureToCanvasNodeId ?? "").trim();
+
+			for (const option of filteredOptions) {
+				const item = list.createDiv({ cls: "qa-canvas-node-item" });
+				const isSelected = selectedNodeId === option.id;
+				if (isSelected) {
+					item.addClass("is-selected");
+				}
+
+				const header = item.createDiv({ cls: "qa-canvas-node-item-header" });
+				const typeBadge = header.createEl("span", {
+					cls: "qa-canvas-node-type",
+					text:
+						option.type === "text"
+							? "TEXT"
+							: option.type === "file"
+								? "FILE"
+								: "NODE",
+				});
+				typeBadge.addClass(`is-${option.type}`);
+				header.createEl("span", {
+					cls: "qa-canvas-node-title",
+					text: option.title,
+				});
+
+				item.createDiv({
+					cls: "qa-canvas-node-subtitle",
+					text: option.subtitle,
+				});
+
+				const meta = item.createDiv({ cls: "qa-canvas-node-meta" });
+				meta.createEl("code", { text: option.id });
+
+				const itemActions = item.createDiv({
+					cls: "qa-canvas-node-item-actions",
+				});
+				const useButton = itemActions.createEl("button", {
+					text:
+						isSelected && option.capturable
+							? "Selected"
+							: option.capturable
+								? "Use node"
+								: "Unavailable",
+				});
+				if (isSelected && option.capturable) {
+					useButton.addClass("mod-cta");
+				}
+				if (!option.capturable) {
+					useButton.disabled = true;
+					useButton.title = option.capturableReason;
+				} else {
+					useButton.addEventListener("click", () => {
+						applyNodeId(option.id);
+						renderList(filterInput.getValue());
+					});
+				}
+
+				const copyButton = itemActions.createEl("button", {
+					text: "Copy ID",
+				});
+				copyButton.addEventListener("click", async () => {
+					try {
+						await navigator.clipboard.writeText(option.id);
+						new Notice(`Copied node id ${option.id}`);
+					} catch {
+						new Notice("Could not copy node id automatically.");
+					}
+				});
+			}
+		};
+
+		filterInput.onChange((value) => {
+			renderList(value);
+		});
+
+		void (async () => {
+			const canvasFile = this.resolveStaticCanvasTargetFile(canvasTargetPath);
+			if (!canvasFile) {
+				renderEmpty(
+					"Node picker works for direct .canvas paths that already exist in your vault. Format syntax paths cannot be listed here.",
+				);
+				return;
+			}
+
+			nodeOptions = await this.readCanvasNodeOptions(canvasFile);
+			if (nodeOptions.length === 0) {
+				renderEmpty("No selectable nodes found in the target canvas.");
+				return;
+			}
+
+			renderList("");
+		})();
+	}
+
+	private getActiveCanvasSelectionNodeIdForPath(
+		canvasPath: string,
+	): string | null {
+		const mostRecentLeaf = this.app.workspace.getMostRecentLeaf?.() as
+			| {
+					view?: {
+						getViewType?: () => string;
+						file?: { path?: string };
+						canvas?: {
+							selection?: Set<{ id?: string }>;
+						};
+					};
+			  }
+			| null
+			| undefined;
+		const view = mostRecentLeaf?.view;
+		if (!view || view.getViewType?.() !== "canvas") {
+			return null;
+		}
+
+		const targetPath = this.normalizeVaultPath(canvasPath);
+		const activeCanvasPath = this.normalizeVaultPath(
+			view.file?.path ?? this.app.workspace.getActiveFile()?.path ?? "",
+		);
+		if (!targetPath || targetPath !== activeCanvasPath) {
+			return null;
+		}
+
+		const selectedNodes = view.canvas?.selection
+			? Array.from(view.canvas.selection)
+			: [];
+		if (selectedNodes.length !== 1) {
+			return null;
+		}
+
+		const nodeId = selectedNodes[0]?.id;
+		return typeof nodeId === "string" && nodeId.length > 0 ? nodeId : null;
+	}
+
+	private normalizeVaultPath(path: string): string {
+		return path.trim().replace(/^\/+/, "");
+	}
+
+	private isCanvasTargetPath(path: string): boolean {
+		return path.trim().toLowerCase().endsWith(".canvas");
+	}
+
+	private resolveStaticCanvasTargetFile(path: string): TFile | null {
+		const trimmedPath = this.normalizeVaultPath(path);
+		if (!trimmedPath || trimmedPath.includes("{{")) {
+			return null;
+		}
+
+		const abstractFile = this.app.vault.getAbstractFileByPath(trimmedPath);
+		if (!abstractFile) {
+			return null;
+		}
+
+		if (!("extension" in abstractFile) || abstractFile.extension !== "canvas") {
+			return null;
+		}
+
+		return abstractFile as TFile;
+	}
+
+	private async readCanvasNodeOptions(
+		canvasFile: TFile,
+	): Promise<Array<{
+		id: string;
+		type: "text" | "file" | "other";
+		title: string;
+		subtitle: string;
+		searchText: string;
+		capturable: boolean;
+		capturableReason: string;
+	}>> {
+		try {
+			const raw = await this.app.vault.cachedRead(canvasFile);
+			const parsed: unknown = JSON.parse(raw);
+			if (!parsed || typeof parsed !== "object") {
+				return [];
+			}
+
+			const nodes = (parsed as { nodes?: unknown }).nodes;
+			if (!Array.isArray(nodes)) {
+				return [];
+			}
+
+			const options = nodes
+				.filter(
+					(node): node is {
+						id: string;
+						type?: string;
+						text?: unknown;
+						file?: unknown;
+						x?: number;
+						y?: number;
+						width?: number;
+						height?: number;
+					} =>
+						!!node &&
+						typeof node === "object" &&
+						typeof (node as { id?: unknown }).id === "string",
+				)
+				.map((node) => {
+					const nodeType: "text" | "file" | "other" =
+						node.type === "text"
+							? "text"
+							: node.type === "file"
+								? "file"
+								: "other";
+
+					const coords = this.describeCanvasNodeCoordinates(node);
+					if (nodeType === "text") {
+						const rawText = typeof node.text === "string" ? node.text : "";
+						const lines = rawText
+							.split("\n")
+							.map((line) => line.trim())
+							.filter((line) => line.length > 0);
+						const title =
+							this.truncatePickerText(lines[0] ?? "(empty text card)", 90);
+						const subtitleParts = [
+							`${lines.length} line${lines.length === 1 ? "" : "s"}`,
+						];
+						if (coords) {
+							subtitleParts.push(coords);
+						}
+						const subtitle = subtitleParts.join(" · ");
+						return {
+							id: node.id,
+							type: nodeType,
+							title,
+							subtitle,
+							searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
+							capturable: true,
+							capturableReason: "",
+						};
+					}
+
+					if (nodeType === "file") {
+						const filePath = this.getCanvasNodeFilePath(node.file);
+						const isMarkdownFile = MARKDOWN_FILE_EXTENSION_REGEX.test(filePath);
+						const capturableReason = isMarkdownFile
+							? ""
+							: "Canvas file cards must link to markdown files (.md).";
+						const title = this.truncatePickerText(
+							filePath.split("/").pop() ?? filePath,
+							90,
+						);
+						const subtitleParts = [this.truncatePickerText(filePath, 120)];
+						if (coords) {
+							subtitleParts.push(coords);
+						}
+						if (!isMarkdownFile) {
+							subtitleParts.push("Not capturable in this version");
+						}
+						const subtitle = subtitleParts.join(" · ");
+						return {
+							id: node.id,
+							type: nodeType,
+							title,
+							subtitle,
+							searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
+							capturable: isMarkdownFile,
+							capturableReason,
+						};
+					}
+
+					const nodeTypeLabel =
+						typeof node.type === "string" && node.type.length > 0
+							? node.type
+							: "unknown";
+					const title = `Unsupported node (${nodeTypeLabel})`;
+					const subtitle = coords || "Type is not currently capturable";
+					return {
+						id: node.id,
+						type: nodeType,
+						title,
+						subtitle,
+						searchText: `${node.id} ${title} ${subtitle}`.toLowerCase(),
+						capturable: false,
+						capturableReason: "This Canvas node type is not capturable.",
+					};
+				});
+
+			const typeOrder: Record<"text" | "file" | "other", number> = {
+				text: 0,
+				file: 1,
+				other: 2,
+			};
+
+			return options.sort((a, b) => {
+				const typeDiff = typeOrder[a.type] - typeOrder[b.type];
+				if (typeDiff !== 0) {
+					return typeDiff;
+				}
+
+				return a.title.localeCompare(b.title);
+			});
+		} catch {
+			return [];
+		}
+	}
+
+	private getCanvasNodeFilePath(fileField: unknown): string {
+		if (typeof fileField === "string") {
+			return fileField;
+		}
+
+		if (
+			fileField &&
+			typeof fileField === "object" &&
+			"path" in fileField &&
+			typeof (fileField as { path?: unknown }).path === "string"
+		) {
+			return (fileField as { path: string }).path;
+		}
+
+		return "(missing file path)";
+	}
+
+	private describeCanvasNodeCoordinates(node: {
+		x?: number;
+		y?: number;
+		width?: number;
+		height?: number;
+	}): string {
+		if (
+			typeof node.x !== "number" ||
+			typeof node.y !== "number" ||
+			typeof node.width !== "number" ||
+			typeof node.height !== "number"
+		) {
+			return "";
+		}
+
+		return `${Math.round(node.x)},${Math.round(node.y)} · ${Math.round(node.width)}x${Math.round(node.height)}`;
+	}
+
+	private truncatePickerText(value: string, maxLength: number): string {
+		if (value.length <= maxLength) {
+			return value;
+		}
+
+		return value.slice(0, maxLength - 1) + "…";
 	}
 
 	private addTaskSetting() {
@@ -364,18 +891,22 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					: "Where to place the capture in the target file.",
 			)
 			.addDropdown((dropdown) => {
-				const current =
-					this.choice.insertAfter?.enabled
-						? "after"
-						: this.choice.prepend
-							? "bottom"
-							: this.choice.newLineCapture?.enabled
-								? this.choice.newLineCapture.direction === "above"
-									? "newLineAbove"
-									: "newLineBelow"
-								: isActiveFile && this.choice.activeFileWritePosition === "top"
-									? "activeTop"
-									: "top";
+				const current = this.choice.insertAfter?.enabled
+					? "after"
+					: this.choice.newLineCapture?.enabled
+						? this.choice.newLineCapture.direction === "above"
+							? "newLineAbove"
+							: "newLineBelow"
+						: isActiveFile
+							? this.choice.activeFileWritePosition === "top"
+								? "activeTop"
+								: this.choice.activeFileWritePosition === "bottom" ||
+									this.choice.prepend
+									? "bottom"
+									: "top"
+							: this.choice.prepend
+								? "bottom"
+								: "top";
 
 				dropdown.addOption("top", isActiveFile ? "At cursor" : "Top of file");
 
@@ -406,6 +937,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					this.choice.activeFileWritePosition = "cursor";
 					
 					if (v === "top") {
+						if (!isActiveFile) {
+							this.choice.prepend = false;
+						}
 						this.reload();
 						return;
 					}
@@ -419,7 +953,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					}
 
 					if (v === "bottom") {
-						this.choice.prepend = true;
+						if (isActiveFile) {
+							this.choice.activeFileWritePosition = "bottom";
+						} else {
+							this.choice.prepend = true;
+						}
 						this.reload();
 						return;
 					}
@@ -447,6 +985,32 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		if (this.choice.insertAfter.enabled) {
 			this.addInsertAfterFields();
 		}
+
+		this.addCanvasModeCompatibilityNotice(isActiveFile);
+	}
+
+	private addCanvasModeCompatibilityNotice(isActiveFile: boolean) {
+		const obviousCanvasTarget =
+			typeof this.choice.captureTo === "string" &&
+			this.choice.captureTo.trim().toLowerCase().endsWith(".canvas");
+		const hasActiveCanvasView =
+			this.app.workspace.activeLeaf?.view?.getViewType?.() === "canvas";
+		const usesCursorMode =
+			isActiveFile &&
+			!this.choice.insertAfter.enabled &&
+			!this.choice.newLineCapture?.enabled &&
+			(this.choice.activeFileWritePosition ?? "cursor") === "cursor" &&
+			!this.choice.prepend;
+		const usesUnsupportedCanvasMode =
+			this.choice.newLineCapture?.enabled || usesCursorMode;
+
+		if (!usesUnsupportedCanvasMode) return;
+		if (isActiveFile ? !hasActiveCanvasView : !obviousCanvasTarget) return;
+
+		const warning = this.contentEl.createDiv({ cls: "setting-item-description" });
+		warning.setText(
+			"Canvas note: 'At cursor' and 'New line above/below cursor' are not supported for Canvas card capture. Use top, bottom, or insert-after placement.",
+		);
 	}
 
 	private addInsertAfterFields() {

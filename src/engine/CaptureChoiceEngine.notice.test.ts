@@ -106,6 +106,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { settingsStore } from "../settingsStore";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
@@ -153,7 +154,7 @@ const createCaptureChoice = (): ICaptureChoice => ({
 	},
 });
 
-const createEngine = (abortMessage: string) => {
+const createEngine = (abortError: Error) => {
 	const app = {
 		vault: {
 			adapter: {
@@ -185,7 +186,7 @@ const createEngine = (abortMessage: string) => {
 	);
 
 	(engine as any).getFormattedPathToCaptureTo = vi.fn(async () => {
-		throw new MacroAbortError(abortMessage);
+		throw abortError;
 	});
 
 	return engine;
@@ -202,7 +203,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			...settingsStore.getState(),
 			showInputCancellationNotification: true,
 		});
-		const engine = createEngine("Input cancelled by user");
+		const engine = createEngine(new MacroAbortError("Input cancelled by user"));
 
 		await engine.run();
 
@@ -218,7 +219,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			showInputCancellationNotification: false,
 		});
 
-		const engine = createEngine("Input cancelled by user");
+		const engine = createEngine(new MacroAbortError("Input cancelled by user"));
 
 		await engine.run();
 
@@ -231,13 +232,31 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			showInputCancellationNotification: false,
 		});
 
-		const engine = createEngine("Target file missing");
+		const engine = createEngine(new MacroAbortError("Target file missing"));
 
 		await engine.run();
 
 		expect(noticeClass.instances).toHaveLength(1);
 		expect(noticeClass.instances[0]?.message).toContain(
 			"Capture execution aborted: Target file missing",
+		);
+	});
+
+	it("shows notices for choice abort errors even when input cancellation notifications are disabled", async () => {
+		settingsStore.setState({
+			...settingsStore.getState(),
+			showInputCancellationNotification: false,
+		});
+
+		const engine = createEngine(
+			new ChoiceAbortError("Insert-after target not found: '# Missing'."),
+		);
+
+		await engine.run();
+
+		expect(noticeClass.instances).toHaveLength(1);
+		expect(noticeClass.instances[0]?.message).toContain(
+			"Capture execution aborted: Insert-after target not found: '# Missing'.",
 		);
 	});
 

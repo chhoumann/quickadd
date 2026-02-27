@@ -1,4 +1,4 @@
-import { Notice, type App, type TFile } from "obsidian";
+import { MarkdownView, Notice, type App, type TFile } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
@@ -39,6 +39,14 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
+import {
+	getCanvasTextCaptureContent,
+	resolveActiveCanvasCaptureTarget,
+	resolveConfiguredCanvasCaptureTarget,
+	setCanvasTextCaptureContent,
+	type CanvasTextCaptureTarget,
+	type ConfiguredCanvasCaptureTarget,
+} from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
@@ -76,17 +84,30 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		const shouldAppendToBottom =
+			this.choice.prepend ||
+			(this.choice.captureToActiveFile &&
+				this.choice.activeFileWritePosition === "bottom");
+
 		let msg = "";
 		switch (action) {
 			case "currentLine":
 				msg = `Captured to current line in ${fileName}`;
 				break;
-			case "prepend":
+			case "newLineAbove":
+				msg = `Captured on a new line above cursor in ${fileName}`;
+				break;
+			case "newLineBelow":
+				msg = `Captured on a new line below cursor in ${fileName}`;
+				break;
 			case "activeFileTop":
 				msg = `Captured to top of ${fileName}`;
 				break;
+			case "prepend":
 			case "append":
-				msg = `Captured to ${fileName}`;
+				msg = shouldAppendToBottom
+					? `Captured to bottom of ${fileName}`
+					: `Captured to top of ${fileName}`;
 				break;
 			case "insertAfter": {
 				const heading = this.choice.insertAfter.after;
@@ -95,9 +116,54 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: `Captured to ${fileName}`;
 				break;
 			}
+			default:
+				msg = `Captured to ${fileName}`;
+				break;
 		}
 
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
+	}
+
+	private hasActiveMarkdownCaptureContext(): boolean {
+		const hasActiveFile = !!this.app.workspace.getActiveFile();
+		const hasActiveMarkdownView =
+			!!this.app.workspace.getActiveViewOfType(MarkdownView);
+		return hasActiveFile && hasActiveMarkdownView;
+	}
+
+	private shouldSkipRequiredCanvasLinkInsertion(
+		linkOptions: AppendLinkOptions,
+		isCanvasTriggered: boolean,
+	): boolean {
+		return (
+			isCanvasTriggered &&
+			linkOptions.requireActiveFile &&
+			!this.hasActiveMarkdownCaptureContext()
+		);
+	}
+
+	private insertCaptureLink(
+		file: TFile,
+		linkOptions: AppendLinkOptions,
+		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
+	): void {
+		if (!linkOptions.enabled) {
+			return;
+		}
+
+		if (
+			this.shouldSkipRequiredCanvasLinkInsertion(linkOptions, isCanvasTriggered)
+		) {
+			if (this.plugin.settings.showCaptureNotification) {
+				new Notice(
+					"Canvas capture skipped link insertion because no Markdown editor is focused.",
+					DEFAULT_NOTICE_DURATION,
+				);
+			}
+			return;
+		}
+
+		insertFileLinkToActiveView(this.app, file, linkOptions);
 	}
 
 	async run(): Promise<void> {
@@ -119,39 +185,80 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: globalSelectionAsValue;
 			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
-			const filePath = await this.getFormattedPathToCaptureTo(
-				this.choice.captureToActiveFile,
-			);
+			const action = getCaptureAction(this.choice);
+			const activeCanvasTarget = this.choice.captureToActiveFile
+				? resolveActiveCanvasCaptureTarget(this.app, action)
+				: null;
+			const configuredCanvasTarget =
+				await this.resolveConfiguredCanvasTarget(action);
+			const canvasTarget = activeCanvasTarget ?? configuredCanvasTarget;
+
+			if (canvasTarget?.kind === "text") {
+				await this.handleCanvasTextCapture(canvasTarget, action, linkOptions);
+				return;
+			}
+
+			if (
+				canvasTarget?.kind === "file" &&
+				action === "insertAfter" &&
+				this.choice.insertAfter?.createIfNotFound &&
+				this.choice.insertAfter?.createIfNotFoundLocation === "cursor"
+			) {
+				throw new ChoiceAbortError(
+					"Canvas file cards do not support creating missing insert-after targets at cursor. Use top or bottom.",
+				);
+			}
+
+			const filePath =
+				canvasTarget?.kind === "file"
+					? canvasTarget.source === "configured"
+						? canvasTarget.targetFile?.path ?? canvasTarget.targetPath
+						: canvasTarget.targetFile.path
+					: await this.getFormattedPathToCaptureTo(this.choice.captureToActiveFile);
+
+			if (
+				!canvasTarget &&
+				!this.choice.captureToActiveFile &&
+				CANVAS_FILE_EXTENSION_REGEX.test(filePath)
+			) {
+				throw new ChoiceAbortError(
+					"Capture to a .canvas file requires a target canvas node id.",
+				);
+			}
+
 			const content = this.getCaptureContent();
 
-			let getFileAndAddContentFn: typeof this.onFileExists;
+			type GetFileAndAddContentFn = (
+				path: string,
+				capture: string,
+				linkOptions?: AppendLinkOptions,
+			) => Promise<{ file: TFile; newFileContent: string; captureContent: string }>;
+			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
 
 			if (fileAlreadyExists) {
-				getFileAndAddContentFn = this.onFileExists.bind(
-					this,
-				) as typeof this.onFileExists;
-				} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
-					getFileAndAddContentFn = ((path, capture, _options) =>
-						this.onCreateFileIfItDoesntExist(path, capture, linkOptions)
-					) as typeof this.onCreateFileIfItDoesntExist;
-				} else {
-					throw new ChoiceAbortError(
-						`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
-					);
-				}
+				getFileAndAddContentFn =
+					this.onFileExists.bind(this) as GetFileAndAddContentFn;
+			} else if (this.choice?.createFileIfItDoesntExist?.enabled) {
+				getFileAndAddContentFn = ((path, capture, _options) =>
+					this.onCreateFileIfItDoesntExist(path, capture, linkOptions)
+				) as GetFileAndAddContentFn;
+			} else {
+				throw new ChoiceAbortError(
+					`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
+				);
+			}
 
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
-		const action = getCaptureAction(this.choice);
-		const isEditorInsertionAction =
-			action === "currentLine" ||
-			action === "newLineAbove" ||
-			action === "newLineBelow";
+			const isEditorInsertionAction =
+				action === "currentLine" ||
+				action === "newLineAbove" ||
+				action === "newLineBelow";
 
-		// Handle capture to active file with special actions
-		if (isEditorInsertionAction) {
+			// Handle capture to active file with special actions
+			if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
@@ -187,9 +294,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-				if (linkOptions.enabled) {
-				insertFileLinkToActiveView(this.app, file, linkOptions);
-			}
+			this.insertCaptureLink(file, linkOptions, {
+				isCanvasTriggered: !!canvasTarget,
+			});
 
 			if (this.choice.openFile && file) {
 				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
@@ -215,6 +322,97 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
+	}
+
+	private async handleCanvasTextCapture(
+		target: CanvasTextCaptureTarget,
+		action: CaptureAction,
+		linkOptions: AppendLinkOptions,
+	): Promise<void> {
+		if (
+			action === "currentLine" ||
+			action === "newLineAbove" ||
+			action === "newLineBelow"
+		) {
+			throw new ChoiceAbortError(
+				"Canvas text cards support top, bottom, and insert-after positions only.",
+			);
+		}
+
+		if (
+			action === "insertAfter" &&
+			this.choice.insertAfter?.createIfNotFound &&
+			this.choice.insertAfter?.createIfNotFoundLocation === "cursor"
+		) {
+			throw new ChoiceAbortError(
+				"Canvas text cards do not support creating missing insert-after targets at cursor. Use top or bottom.",
+			);
+		}
+
+		const file = target.canvasFile;
+		this.formatter.setTitle(basenameWithoutMdOrCanvas(file.basename));
+		this.formatter.setDestinationFile(file);
+
+		const captureTemplate = this.getCaptureContent();
+		const existingText = getCanvasTextCaptureContent(target);
+		const nextText = await this.formatter.formatContentWithFile(
+			captureTemplate,
+			this.choice,
+			existingText,
+			file,
+		);
+
+		await setCanvasTextCaptureContent(this.app, target, nextText);
+
+		if (this.plugin.settings.showCaptureNotification) {
+			this.showSuccessNotice(file, {
+				wasNewFile: false,
+				action,
+			});
+		}
+
+		this.insertCaptureLink(file, linkOptions, {
+			isCanvasTriggered: true,
+		});
+
+		if (this.choice.openFile && file) {
+			const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+			const focus = fileOpening.focus ?? true;
+			const openExistingTab = openExistingFileTab(this.app, file, focus);
+
+			if (!openExistingTab) {
+				await openFile(this.app, file, fileOpening);
+			}
+
+			await jumpToNextTemplaterCursorIfPossible(this.app, file);
+		}
+	}
+
+	private async resolveConfiguredCanvasTarget(
+		action: CaptureAction,
+	): Promise<ConfiguredCanvasCaptureTarget | null> {
+		if (this.choice.captureToActiveFile) {
+			return null;
+		}
+
+		const rawCaptureTo = this.choice.captureTo?.trim() ?? "";
+		const nodeId = this.choice.captureToCanvasNodeId?.trim() ?? "";
+
+		if (!rawCaptureTo || !nodeId) {
+			return null;
+		}
+
+		const targetPath = await this.formatFilePath(rawCaptureTo);
+		if (!CANVAS_FILE_EXTENSION_REGEX.test(targetPath)) {
+			return null;
+		}
+
+		return await resolveConfiguredCanvasCaptureTarget(
+			this.app,
+			targetPath,
+			nodeId,
+			action,
+		);
 	}
 
 	private getCaptureContent(): string {

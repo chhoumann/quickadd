@@ -96,9 +96,9 @@ export const DATE_VARIABLE_REGEX = new RegExp(
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
-export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/);
-export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/);
-export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/);
+export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/i);
+export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/i);
+export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/i);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(

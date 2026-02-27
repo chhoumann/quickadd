@@ -9,7 +9,8 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	appendLink: boolean | AppendLinkOptions;
 	captureTo: string;
 	captureToActiveFile: boolean;
-	activeFileWritePosition: "cursor" | "top";
+	captureToCanvasNodeId: string;
+	activeFileWritePosition: "cursor" | "top" | "bottom";
 	createFileIfItDoesntExist: {
 		enabled: boolean;
 		createWithTemplate: boolean;
@@ -51,6 +52,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		this.appendLink = false;
 		this.captureTo = "";
 		this.captureToActiveFile = false;
+		this.captureToCanvasNodeId = "";
 		this.activeFileWritePosition = "cursor";
 		this.createFileIfItDoesntExist = {
 			enabled: false,
@@ -85,8 +87,26 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	public static Load(choice: ICaptureChoice): CaptureChoice {
 		const loaded = choice as CaptureChoice;
 		// Ensure backward compatibility: default to "cursor" if not set
-		if (!loaded.activeFileWritePosition) {
+		if (
+			loaded.activeFileWritePosition !== "cursor" &&
+			loaded.activeFileWritePosition !== "top" &&
+			loaded.activeFileWritePosition !== "bottom"
+		) {
 			loaded.activeFileWritePosition = "cursor";
+		}
+		if (typeof loaded.captureToCanvasNodeId !== "string") {
+			loaded.captureToCanvasNodeId = "";
+		}
+		if (
+			loaded.captureToActiveFile &&
+			loaded.prepend &&
+			!loaded.insertAfter?.enabled &&
+			!loaded.newLineCapture?.enabled
+		) {
+			if (loaded.activeFileWritePosition !== "top") {
+				loaded.activeFileWritePosition = "bottom";
+			}
+			loaded.prepend = false;
 		}
 		if (!loaded.templater) loaded.templater = { afterCapture: "none" };
 		if (loaded.templater.afterCapture !== "wholeFile") {
