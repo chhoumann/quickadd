@@ -53,6 +53,27 @@ describe("RequirementCollector", () => {
     expect(byId[variableKey].type).toBe("dropdown");
   });
 
+  it("collects VALUE text mappings for option lists", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{VALUE:🔼,⏫|text:Normal,High}}");
+
+    const requirement = rc.requirements.get("🔼,⏫");
+    expect(requirement?.options).toEqual(["🔼", "⏫"]);
+    expect(requirement?.displayOptions).toEqual(["Normal", "High"]);
+  });
+
+  it("throws when VALUE text mappings have mismatched lengths", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+
+    await expect(
+      rc.scanString("{{VALUE:a,b|text:Only One}}"),
+    ).rejects.toThrow(/same number of text entries and item entries/i);
+  });
+
   it("does not treat case option as a legacy default for named VALUE", async () => {
     const app = makeApp();
     const plugin = makePlugin();

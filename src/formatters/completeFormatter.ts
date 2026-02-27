@@ -255,13 +255,18 @@ export class CompleteFormatter extends Formatter {
 	protected async suggestForValue(
 		suggestedValues: string[],
 		allowCustomInput = false,
-		context?: { placeholder?: string; variableKey?: string },
+		context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+		},
 	) {
 		try {
+			const displayValues = context?.displayValues ?? suggestedValues;
 			if (allowCustomInput) {
 				return await InputSuggester.Suggest(
 					this.app,
-					suggestedValues,
+					displayValues,
 					suggestedValues,
 					{
 						...(context?.placeholder
@@ -272,7 +277,7 @@ export class CompleteFormatter extends Formatter {
 			}
 			return await GenericSuggester.Suggest(
 				this.app,
-				suggestedValues,
+				displayValues,
 				suggestedValues,
 				context?.placeholder,
 			);

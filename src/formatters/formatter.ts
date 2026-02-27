@@ -331,6 +331,7 @@ export abstract class Formatter {
 				defaultValue,
 				allowCustomInput,
 				suggestedValues,
+				displayValues,
 				hasOptions,
 			} = parsed;
 
@@ -359,7 +360,11 @@ export abstract class Formatter {
 					variableValue = await this.suggestForValue(
 						suggestedValues,
 						allowCustomInput,
-						{ placeholder: suggesterPlaceholder, variableKey },
+						{
+							placeholder: suggesterPlaceholder,
+							variableKey,
+							displayValues,
+						},
 					);
 				}
 
@@ -500,7 +505,11 @@ export abstract class Formatter {
 	protected abstract suggestForValue(
 		suggestedValues: string[],
 		allowCustomInput?: boolean,
-		context?: { placeholder?: string; variableKey?: string },
+		context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+		},
 	): Promise<string> | string;
 
 	protected abstract suggestForField(variableName: string): Promise<string>;

@@ -17,6 +17,7 @@ import {
 } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import type { FieldRequirement } from "./RequirementCollector";
+import { mapMappedSuggesterValue } from "./suggesterValueMapping";
 
 type PreviewComputer = (
 	values: Record<string, string>,
@@ -147,8 +148,12 @@ export class OnePageInputModal extends Modal {
 				if (req.description) setting.setDesc(req.description);
 				const dropdown = new DropdownComponent(setting.controlEl);
 				const options = req.options ?? [];
+				const displayOptions = req.displayOptions ?? options;
 				if (options.length > 0) {
-					options.forEach((opt) => dropdown.addOption(opt, opt));
+					options.forEach((opt, index) => {
+						const display = displayOptions[index] ?? opt;
+						dropdown.addOption(opt, display);
+					});
 					dropdown.setValue(starting || options[0] || "");
 					dropdown.onChange((v) => setValue(req.id, v));
 				} else {
@@ -346,21 +351,44 @@ export class OnePageInputModal extends Modal {
 					this.decorateLabel(req),
 				);
 				if (req.description) setting.setDesc(req.description);
+				const options = req.options ?? [];
+				const displayOptions = req.displayOptions ?? options;
+				const displayToValue = new Map<string, string>();
+				const valueToDisplay = new Map<string, string>();
+				options.forEach((value, index) => {
+					const display = displayOptions[index] ?? value;
+					displayToValue.set(display, value);
+					if (!valueToDisplay.has(value)) {
+						valueToDisplay.set(value, display);
+					}
+				});
+				const startingDisplay = valueToDisplay.get(starting) ?? starting;
 				const input = new TextComponent(setting.controlEl);
 				input
 					.setPlaceholder(req.placeholder ?? "Type to search...")
-					.setValue(starting)
+					.setValue(startingDisplay)
 					.onChange((v) => setValue(req.id, v));
+				input.inputEl.addEventListener("input", (event) => {
+					const fromCompletion = Boolean((event as any).fromCompletion);
+					const rawInput = input.inputEl.value;
+					const storedValue = mapMappedSuggesterValue(
+						rawInput,
+						displayToValue,
+						fromCompletion,
+					);
+					if (storedValue !== rawInput || fromCompletion) {
+						setValue(req.id, storedValue);
+					}
+				});
 				// Attach suggester if options are provided
-				const options = req.options ?? [];
-				if (options.length > 0) {
+				if (displayOptions.length > 0) {
 					try {
 						const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
 						const multiSelect = req.suggesterConfig?.multiSelect ?? false;
 						new SuggesterInputSuggest(
 							this.app,
 							input.inputEl,
-							options,
+							displayOptions,
 							caseSensitive,
 							multiSelect,
 						);

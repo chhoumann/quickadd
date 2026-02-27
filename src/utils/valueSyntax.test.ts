@@ -53,10 +53,34 @@ describe("parseValueToken", () => {
 		expect(parseValueToken("a,b|custom:0")?.allowCustomInput).toBe(false);
 	});
 
+	it("parses text mappings for option lists", () => {
+		const parsed = parseValueToken("a,b|text:Alpha,Beta");
+		expect(parsed?.suggestedValues).toEqual(["a", "b"]);
+		expect(parsed?.displayValues).toEqual(["Alpha", "Beta"]);
+	});
+
 	it("allows custom plus explicit default", () => {
 		const parsed = parseValueToken("a,b|custom|default:High");
 		expect(parsed?.allowCustomInput).toBe(true);
 		expect(parsed?.defaultValue).toBe("High");
+	});
+
+	it("throws when text mappings are used on single-value tokens", () => {
+		expect(() => parseValueToken("title|text:Title")).toThrow(
+			/only supported for option-list/i,
+		);
+	});
+
+	it("throws when text mappings and items have different lengths", () => {
+		expect(() => parseValueToken("a,b|text:Alpha")).toThrow(
+			/same number of text entries and item entries/i,
+		);
+	});
+
+	it("throws when text mappings contain duplicate labels", () => {
+		expect(() => parseValueToken("a,b|text:Alpha,Alpha")).toThrow(
+			/duplicate text entries/i,
+		);
 	});
 
 	it("parses multiline type with label and default", () => {
@@ -118,6 +142,12 @@ describe("parseAnonymousValueOptions", () => {
 		const parsed = parseAnonymousValueOptions("|type:wide");
 		expect(parsed.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("throws when text mappings are used on unnamed VALUE tokens", () => {
+		expect(() => parseAnonymousValueOptions("|text:Alpha,Beta")).toThrow(
+			/only supported for option-list/i,
+		);
 	});
 });
 
