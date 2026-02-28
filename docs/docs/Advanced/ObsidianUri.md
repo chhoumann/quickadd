@@ -4,6 +4,9 @@ title: Open QuickAdd from a URI
 
 QuickAdd choices can be launched from external scripts or apps such as Shortcuts on Mac and iOS, through the use of the `obsidian://quickadd` URI.
 
+If you prefer shell scripting, see [QuickAdd CLI](./CLI.md) for native Obsidian
+CLI handlers.
+
 ```
 obsidian://quickadd?choice=<YOUR_CHOICE_NAME>[&value-VALUE_NAME=...]
 ```
