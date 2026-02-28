@@ -187,7 +187,7 @@ async function collectForCaptureChoice(
 		if (isTagTarget) {
 			files = getMarkdownFilesWithTag(app, normalizedTarget);
 		} else {
-			const folder = normalizedTarget.replace(/^\/$|\/\.md$|^\.md$/, "");
+			const folder = normalizedTarget.replace(/(?:\/|\.md)+$/g, "");
 			const base =
 				folder === "" ? "" : folder.endsWith("/") ? folder : `${folder}/`;
 			files = getMarkdownFilesInFolder(app, base);
