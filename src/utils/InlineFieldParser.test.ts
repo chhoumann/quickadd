@@ -47,8 +47,8 @@ type:: task
 			expect(result.get("type")).toEqual(new Set(["task", "meeting"]));
 		});
 
-		it("should ignore fields in code blocks", () => {
-			const content = `
+			it("should ignore fields in code blocks", () => {
+				const content = `
 Real field:: value1
 \`\`\`
 code:: should-be-ignored
@@ -60,9 +60,23 @@ field2:: value2
 
 			expect(result.has("code")).toBe(false);
 			expect(result.has("inline")).toBe(false);
-			expect(result.get("Real field")).toEqual(new Set(["value1"]));
-			expect(result.get("field2")).toEqual(new Set(["value2"]));
-		});
+				expect(result.get("Real field")).toEqual(new Set(["value1"]));
+				expect(result.get("field2")).toEqual(new Set(["value2"]));
+			});
+
+			it("should ignore inline fields in fenced blocks after an empty fenced block", () => {
+				const content = `
+Id:: outside
+\`\`\`
+\`\`\`
+\`\`\`ad-note
+Id:: inside
+\`\`\`
+				`;
+				const result = InlineFieldParser.parseInlineFields(content);
+
+				expect(result.get("Id")).toEqual(new Set(["outside"]));
+			});
 
 		it("should include fields inside allowlisted fenced code blocks", () => {
 			const content = `

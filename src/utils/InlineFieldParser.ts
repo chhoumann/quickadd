@@ -6,7 +6,7 @@ export class InlineFieldParser {
 
 	private static readonly FRONTMATTER_REGEX = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
 	private static readonly FENCED_CODE_BLOCK_REGEX =
-		/(`{3,})([^\r\n`]*)\r?\n([\s\S]*?)\r?\n\1/g;
+		/(`{3,})([^\r\n`]*)\r?\n([\s\S]*?)(?:\r?\n)?\1/g;
 	private static readonly INLINE_CODE_SPAN_REGEX = /`[^`]*`/g;
 
 	/**
