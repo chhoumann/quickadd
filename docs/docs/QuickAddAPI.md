@@ -732,6 +732,7 @@ Retrieves all unique values for a specific field across your vault.
   - `folder`: Only search in specific folder (e.g., "daily/notes")
   - `tags`: Only search in files with specific tags (array)
   - `includeInline`: Include Dataview inline fields (default: false)
+  - `includeInlineCodeBlocks`: Include inline fields inside specific fenced code block types when `includeInline` is true (e.g., `["ad-note"]`)
 
 **Returns:** Promise resolving to sorted array of unique field values
 
@@ -770,6 +771,18 @@ const clients = await quickAddApi.fieldSuggestions.getFieldValues(
     { 
         folder: "work/projects",
         includeInline: true 
+    }
+);
+```
+
+Include inline fields in specific code block types:
+```javascript
+const ids = await quickAddApi.fieldSuggestions.getFieldValues(
+    "Id",
+    {
+        folder: "work/projects",
+        includeInline: true,
+        includeInlineCodeBlocks: ["ad-note"]
     }
 );
 ```

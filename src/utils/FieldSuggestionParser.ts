@@ -4,6 +4,7 @@ export interface FieldFilter {
 	folder?: string;
 	tags?: string[];
 	inline?: boolean;
+	inlineCodeBlocks?: string[];
 	defaultValue?: string;
 	defaultEmpty?: boolean;
 	defaultAlways?: boolean;
@@ -53,6 +54,17 @@ export class FieldSuggestionParser {
 					break;
 				case "inline":
 					filters.inline = filterValue.toLowerCase() === "true";
+					break;
+				case "inline-code-blocks":
+					if (!filters.inlineCodeBlocks) {
+						filters.inlineCodeBlocks = [];
+					}
+					filters.inlineCodeBlocks.push(
+						...filterValue
+							.split(",")
+							.map((value) => value.trim().toLowerCase())
+							.filter((value) => value.length > 0),
+					);
 					break;
 				case "default":
 					filters.defaultValue = filterValue;

@@ -42,6 +42,7 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{field:<fieldname>|folder:<path>}}",
 	"{{field:<fieldname>|tag:<tagname>}}",
 	"{{field:<fieldname>|inline:true}}",
+	"{{field:<fieldname>|inline:true|inline-code-blocks:ad-note}}",
 	LINKCURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX,
 	"{{macro:<macroname>}}",

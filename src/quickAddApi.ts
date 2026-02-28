@@ -536,12 +536,17 @@ export class QuickAddApi {
 						folder?: string;
 						tags?: string[];
 						includeInline?: boolean;
+						includeInlineCodeBlocks?: string[];
 					},
 				) => {
+					const inlineCodeBlocks = options?.includeInlineCodeBlocks
+						?.map((value) => value.trim().toLowerCase())
+						.filter((value) => value.length > 0);
 					const filters = {
 						folder: options?.folder,
 						tags: options?.tags,
 						inline: options?.includeInline ?? false,
+						inlineCodeBlocks,
 					};
 
 					// Get all markdown files and apply filters
@@ -578,6 +583,9 @@ export class QuickAddApi {
 							const inlineValues = InlineFieldParser.getFieldValues(
 								content,
 								fieldName,
+								{
+									includeCodeBlocks: inlineCodeBlocks,
+								},
 							);
 							inlineValues.forEach((v) => values.add(v));
 						}
