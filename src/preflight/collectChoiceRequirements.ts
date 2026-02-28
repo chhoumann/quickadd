@@ -21,6 +21,7 @@ import {
 	getUserScript,
 	isFolder,
 } from "src/utilityObsidian";
+import { log } from "src/logger/logManager";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import {
 	RequirementCollector,
@@ -174,14 +175,12 @@ async function collectForCaptureChoice(
 	const isFolderTarget =
 		!isTagTarget && (normalizedTarget === "" || isFolder(app, trimmedPath));
 	const looksLikeFolderBySuffix = normalizedTarget.endsWith("/");
-	const containsFormatTokens = /{{[^}]+}}/.test(choice.captureTo ?? "");
 
 	if (
 		!choice.captureToActiveFile &&
 		(isTagTarget ||
 			isFolderTarget ||
-			looksLikeFolderBySuffix ||
-			containsFormatTokens)
+			looksLikeFolderBySuffix)
 	) {
 		let files: TFile[] = [];
 		if (isTagTarget) {
@@ -244,8 +243,13 @@ async function collectMacroScriptRequirements(
 				const requirement = toFieldRequirement(input);
 				if (requirement) requirements.push(requirement);
 			}
-		} catch {
-			// Ignore script spec errors in preflight collection.
+		} catch (error) {
+			const scriptPath = userScriptCommand.path ?? userScriptCommand.id;
+			const message =
+				error instanceof Error ? error.message : String(error);
+			log.logWarning(
+				`Preflight could not inspect user script '${scriptPath}': ${message}`,
+			);
 		}
 	}
 

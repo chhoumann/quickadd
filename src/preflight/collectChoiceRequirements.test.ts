@@ -12,11 +12,13 @@ const {
 	getMarkdownFilesWithTagMock,
 	getUserScriptMock,
 	isFolderMock,
+	logWarningMock,
 } = vi.hoisted(() => ({
 	getMarkdownFilesInFolderMock: vi.fn(() => []),
 	getMarkdownFilesWithTagMock: vi.fn(() => []),
 	getUserScriptMock: vi.fn(),
 	isFolderMock: vi.fn(() => false),
+	logWarningMock: vi.fn(),
 }));
 
 vi.mock("src/utilityObsidian", () => ({
@@ -24,6 +26,12 @@ vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
 	getUserScript: getUserScriptMock,
 	isFolder: isFolderMock,
+}));
+
+vi.mock("src/logger/logManager", () => ({
+	log: {
+		logWarning: logWarningMock,
+	},
 }));
 
 function createMacroChoice(script: IUserScript): IMacroChoice {
@@ -101,6 +109,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		getMarkdownFilesWithTagMock.mockReset();
 		getUserScriptMock.mockReset();
 		isFolderMock.mockReset();
+		logWarningMock.mockReset();
 		getMarkdownFilesInFolderMock.mockReturnValue([]);
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
 		isFolderMock.mockReturnValue(false);
@@ -178,6 +187,24 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 
 		expect(requirements).toEqual([]);
 	});
+
+	it("logs a warning when script metadata cannot be inspected", async () => {
+		getUserScriptMock.mockRejectedValue(new Error("script load failed"));
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createMacroChoice(scriptCommand),
+		);
+
+		expect(requirements).toEqual([]);
+		expect(logWarningMock).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"Preflight could not inspect user script 'script.js'",
+			),
+		);
+	});
 });
 
 describe("collectChoiceRequirements - capture targets", () => {
@@ -198,6 +225,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		getMarkdownFilesInFolderMock.mockReset();
 		getMarkdownFilesWithTagMock.mockReset();
 		isFolderMock.mockReset();
+		logWarningMock.mockReset();
 		getMarkdownFilesInFolderMock.mockReturnValue([]);
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
 	});
@@ -216,5 +244,24 @@ describe("collectChoiceRequirements - capture targets", () => {
 			app,
 			"Projects/",
 		);
+	});
+
+	it("does not force capture target dropdown for tokenized file paths", async () => {
+		isFolderMock.mockReturnValue(false);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("Projects/{{VALUE}}.md"),
+		);
+
+		expect(getMarkdownFilesInFolderMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === "QA_INTERNAL_CAPTURE_TARGET_FILE_PATH",
+			),
+		).toBe(false);
 	});
 });
