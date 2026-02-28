@@ -4,16 +4,26 @@ export class InlineFieldParser {
 	private static readonly INLINE_FIELD_REGEX =
 		/(?:^|[\n\r])[ \t]*(?![-*+][ \t]+\[[ xX]\])([^:\n\r]+?)::[ \t]*(.*)$/gmu;
 
+	private static readonly FRONTMATTER_REGEX = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
+	private static readonly FENCED_CODE_BLOCK_REGEX =
+		/(`{3,})([^\r\n`]*)\r?\n([\s\S]*?)(?:\r?\n[ \t]*|[ \t]*)\1/g;
+	private static readonly INLINE_CODE_SPAN_REGEX = /`[^`]*`/g;
+
 	/**
 	 * Extracts inline fields from the content of a file
 	 * @param content The file content to parse
 	 * @returns Map of field names to their values
 	 */
-	static parseInlineFields(content: string): Map<string, Set<string>> {
+	static parseInlineFields(
+		content: string,
+		options?: {
+			includeCodeBlocks?: string[];
+		},
+	): Map<string, Set<string>> {
 		const fields = new Map<string, Set<string>>();
 
-		// Remove code blocks and frontmatter to avoid false positives
-		const cleanedContent = this.removeCodeBlocksAndFrontmatter(content);
+		// Remove frontmatter and code spans, and include only explicitly allowlisted fences.
+		const cleanedContent = this.removeCodeBlocksAndFrontmatter(content, options);
 
 		let match;
 		while (
@@ -49,16 +59,44 @@ export class InlineFieldParser {
 		return fields;
 	}
 
-	private static removeCodeBlocksAndFrontmatter(content: string): string {
-		// Remove frontmatter (handle both Unix and Windows line endings)
-		const frontmatterRegex = /^---\r?\n[\s\S]*?\r?\n---\r?\n/;
-		content = content.replace(frontmatterRegex, "");
+	private static removeCodeBlocksAndFrontmatter(
+		content: string,
+		options?: {
+			includeCodeBlocks?: string[];
+		},
+	): string {
+		content = content.replace(this.FRONTMATTER_REGEX, "");
+		content = this.filterFencedCodeBlocks(content, options?.includeCodeBlocks);
+		return content.replace(this.INLINE_CODE_SPAN_REGEX, "");
+	}
 
-		// Remove code blocks (both ``` and `)
-		const codeBlockRegex = /```[\s\S]*?```|`[^`]*`/g;
-		content = content.replace(codeBlockRegex, "");
+	private static filterFencedCodeBlocks(
+		content: string,
+		includeCodeBlocks?: string[],
+	): string {
+		const allowlistedTypes = new Set(
+			(includeCodeBlocks ?? [])
+				.map((type) => type.trim().toLowerCase())
+				.filter((type) => type.length > 0),
+		);
 
-		return content;
+		return content.replace(
+			this.FENCED_CODE_BLOCK_REGEX,
+			(_fullMatch, _fence, infoString, body: string) => {
+				const normalizedType = String(infoString)
+					.trim()
+					.split(/\s+/)[0]
+					?.toLowerCase();
+				if (
+					allowlistedTypes.size > 0 &&
+					normalizedType &&
+					allowlistedTypes.has(normalizedType)
+				) {
+					return body;
+				}
+				return "";
+			},
+		);
 	}
 
 	/**
@@ -67,8 +105,14 @@ export class InlineFieldParser {
 	 * @param fieldName The field name to look for
 	 * @returns Set of values for the field, or empty set if not found
 	 */
-	static getFieldValues(content: string, fieldName: string): Set<string> {
-		const fields = this.parseInlineFields(content);
+	static getFieldValues(
+		content: string,
+		fieldName: string,
+		options?: {
+			includeCodeBlocks?: string[];
+		},
+	): Set<string> {
+		const fields = this.parseInlineFields(content, options);
 		return fields.get(fieldName) || new Set();
 	}
 }

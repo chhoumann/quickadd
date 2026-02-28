@@ -47,8 +47,8 @@ type:: task
 			expect(result.get("type")).toEqual(new Set(["task", "meeting"]));
 		});
 
-		it("should ignore fields in code blocks", () => {
-			const content = `
+			it("should ignore fields in code blocks", () => {
+				const content = `
 Real field:: value1
 \`\`\`
 code:: should-be-ignored
@@ -60,8 +60,67 @@ field2:: value2
 
 			expect(result.has("code")).toBe(false);
 			expect(result.has("inline")).toBe(false);
-			expect(result.get("Real field")).toEqual(new Set(["value1"]));
-			expect(result.get("field2")).toEqual(new Set(["value2"]));
+				expect(result.get("Real field")).toEqual(new Set(["value1"]));
+				expect(result.get("field2")).toEqual(new Set(["value2"]));
+			});
+
+			it("should ignore inline fields in fenced blocks after an empty fenced block", () => {
+				const content = `
+Id:: outside
+\`\`\`
+\`\`\`
+\`\`\`ad-note
+Id:: inside
+\`\`\`
+				`;
+				const result = InlineFieldParser.parseInlineFields(content);
+
+				expect(result.get("Id")).toEqual(new Set(["outside"]));
+			});
+
+			it("should parse allowlisted fenced blocks with indented closing fences", () => {
+				const content = `
+    \`\`\`ad-note
+Id:: 121212
+    \`\`\`
+				`;
+				const result = InlineFieldParser.parseInlineFields(content, {
+					includeCodeBlocks: ["ad-note"],
+				});
+
+				expect(result.get("Id")).toEqual(new Set(["121212"]));
+			});
+
+		it("should include fields inside allowlisted fenced code blocks", () => {
+			const content = `
+Id:: 343434
+
+\`\`\`ad-note
+Id:: 121212
+\`\`\`
+
+\`\`\`js
+Id:: 999999
+\`\`\`
+			`;
+			const result = InlineFieldParser.parseInlineFields(content, {
+				includeCodeBlocks: ["ad-note"],
+			});
+
+			expect(result.get("Id")).toEqual(new Set(["343434", "121212"]));
+		});
+
+		it("should match allowlisted fenced code block types case-insensitively", () => {
+			const content = `
+\`\`\`Ad-Note title="Meta data"
+Id:: 121212
+\`\`\`
+			`;
+			const result = InlineFieldParser.parseInlineFields(content, {
+				includeCodeBlocks: ["ad-note"],
+			});
+
+			expect(result.get("Id")).toEqual(new Set(["121212"]));
 		});
 
 		it("should ignore fields in frontmatter", () => {
@@ -108,8 +167,7 @@ regular:: this should be parsed
 		});
 
 		it("should handle field names with numbers and hyphens", () => {
-			const content =
-				"field-1:: value1\nfield_2:: value2\nfield3:: value3";
+			const content = "field-1:: value1\nfield_2:: value2\nfield3:: value3";
 			const result = InlineFieldParser.parseInlineFields(content);
 
 			expect(result.get("field-1")).toEqual(new Set(["value1"]));
@@ -128,10 +186,7 @@ regular:: this should be parsed
 
 		it("should return empty set for non-existent field", () => {
 			const content = "status:: active";
-			const result = InlineFieldParser.getFieldValues(
-				content,
-				"nonexistent",
-			);
+			const result = InlineFieldParser.getFieldValues(content, "nonexistent");
 
 			expect(result).toEqual(new Set());
 		});
@@ -165,6 +220,23 @@ regular:: this should be parsed
 			const content = "status:: complete\r\ntag:: important\r\n";
 			const result = InlineFieldParser.getFieldValues(content, "status");
 			expect(result).toEqual(new Set(["complete"]));
+		});
+
+		it("should only include allowlisted fenced code block values", () => {
+			const content = `
+Id:: 343434
+\`\`\`ad-note
+Id:: 121212
+\`\`\`
+\`\`\`js
+Id:: 999999
+\`\`\`
+			`;
+			const result = InlineFieldParser.getFieldValues(content, "Id", {
+				includeCodeBlocks: ["ad-note"],
+			});
+
+			expect(result).toEqual(new Set(["343434", "121212"]));
 		});
 	});
 });

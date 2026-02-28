@@ -29,4 +29,34 @@ describe("Issue #671 - {{FIELD:tags}} suggestions", () => {
 			expect.arrayContaining(["ai/technology", "cook/hoven"]),
 		);
 	});
+
+	it("includes inline fields inside allowlisted code blocks only when configured", async () => {
+		const app = new App();
+		const file = { path: "folder/note.md" } as any;
+
+		app.vault.getMarkdownFiles = () => [file];
+		app.metadataCache.getFileCache = () => ({ frontmatter: {} } as any);
+		app.vault.read = vi.fn(async () => `
+Id:: 343434
+\`\`\`ad-note
+Id:: 121212
+\`\`\`
+\`\`\`js
+Id:: 999999
+\`\`\`
+`);
+
+		const withoutCodeBlockAllowlist = await collectFieldValuesProcessed(
+			app,
+			"Id",
+			{ inline: true },
+		);
+		const withCodeBlockAllowlist = await collectFieldValuesProcessed(app, "Id", {
+			inline: true,
+			inlineCodeBlocks: ["ad-note"],
+		});
+
+		expect(withoutCodeBlockAllowlist).toEqual(["343434"]);
+		expect(withCodeBlockAllowlist).toEqual(["121212", "343434"]);
+	});
 });

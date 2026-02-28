@@ -49,6 +49,19 @@ describe("FieldSuggestionParser", () => {
 			});
 		});
 
+		it("should parse inline code block allowlist filter", () => {
+			const result = FieldSuggestionParser.parse(
+				"fieldname|inline:true|inline-code-blocks:ad-note, dataview",
+			);
+			expect(result).toEqual({
+				fieldName: "fieldname",
+				filters: {
+					inline: true,
+					inlineCodeBlocks: ["ad-note", "dataview"],
+				},
+			});
+		});
+
 		it("should parse field name with multiple filters", () => {
 			const result = FieldSuggestionParser.parse(
 				"fieldname|folder:daily|tag:work|inline:true",

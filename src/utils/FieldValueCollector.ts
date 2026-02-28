@@ -11,6 +11,9 @@ export function generateFieldCacheKey(filters: FieldFilter): string {
 	if (filters.folder) parts.push(`folder:${filters.folder}`);
 	if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
 	if (filters.inline) parts.push("inline:true");
+	if (filters.inlineCodeBlocks?.length) {
+		parts.push(`inline-code-blocks:${filters.inlineCodeBlocks.join(",")}`);
+	}
 	if (filters.caseSensitive) parts.push("case-sensitive:true");
 	if (filters.excludeFolders)
 		parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
@@ -243,6 +246,9 @@ async function collectFieldValuesManually(
 						const inlineValues = InlineFieldParser.getFieldValues(
 							content,
 							fieldName,
+							{
+								includeCodeBlocks: filters.inlineCodeBlocks,
+							},
 						);
 						inlineValues.forEach((s) => {
 							const t = String(s).trim();
