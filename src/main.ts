@@ -23,6 +23,7 @@ import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
+import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -160,6 +161,16 @@ export default class QuickAdd extends Plugin {
 		this.addCommandsForChoices(this.settings.choices);
 
 		await migrate(this);
+
+		const registerCli = () => {
+			registerQuickAddCliHandlers(this);
+		};
+
+		if (this.app.workspace.layoutReady) {
+			registerCli();
+		} else {
+			this.app.workspace.onLayoutReady(registerCli);
+		}
 
 		// Run startup macros after migrations are complete
 		const launchStartupMacros = () =>

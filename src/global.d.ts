@@ -1,10 +1,27 @@
-import type { BaseComponent, IconName, Plugin } from "obsidian";
+import type {
+	BaseComponent,
+	IconName,
+	Plugin as ObsidianPlugin,
+} from "obsidian";
 
 declare module "obsidian" {
+	interface CliData {
+		[key: string]: string | "true";
+	}
+
+	interface CliFlag {
+		value?: string;
+		description: string;
+		required?: boolean;
+	}
+
+	type CliFlags = Record<string, CliFlag>;
+	type CliHandler = (params: CliData) => string | Promise<string>;
+
 	interface App {
 		plugins: {
 			plugins: {
-				[pluginId: string]: Plugin & {
+				[pluginId: string]: ObsidianPlugin & {
 					[pluginImplementations: string]: unknown;
 				};
 			};
@@ -13,7 +30,7 @@ declare module "obsidian" {
 		};
 		internalPlugins: {
 			plugins: {
-				[pluginId: string]: Plugin & {
+				[pluginId: string]: ObsidianPlugin & {
 					[pluginImplementations: string]: unknown;
 				};
 			};
@@ -44,5 +61,14 @@ declare module "obsidian" {
 
 	interface SettingTab {
 		icon: IconName;
+	}
+
+	interface Plugin {
+		registerCliHandler?: (
+			command: string,
+			description: string,
+			flags: CliFlags | null,
+			handler: CliHandler,
+		) => void;
 	}
 }
