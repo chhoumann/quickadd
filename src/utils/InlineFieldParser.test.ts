@@ -78,6 +78,19 @@ Id:: inside
 				expect(result.get("Id")).toEqual(new Set(["outside"]));
 			});
 
+			it("should parse allowlisted fenced blocks with indented closing fences", () => {
+				const content = `
+    \`\`\`ad-note
+Id:: 121212
+    \`\`\`
+				`;
+				const result = InlineFieldParser.parseInlineFields(content, {
+					includeCodeBlocks: ["ad-note"],
+				});
+
+				expect(result.get("Id")).toEqual(new Set(["121212"]));
+			});
+
 		it("should include fields inside allowlisted fenced code blocks", () => {
 			const content = `
 Id:: 343434
