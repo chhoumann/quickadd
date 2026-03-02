@@ -13,6 +13,7 @@ import {
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
 import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { withPreservedUiContext } from "../ui/preserveUiContext";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
@@ -94,9 +95,10 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	}
 
 	private reload(): void {
-		this.contentEl.empty();
-
-		this.display();
+		withPreservedUiContext(this.contentEl, () => {
+			this.contentEl.empty();
+			this.display();
+		});
 	}
 
 	addModelSetting(container: HTMLElement) {

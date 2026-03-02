@@ -13,6 +13,7 @@ import {
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
+import { withPreservedUiContext } from "../ui/preserveUiContext";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -109,9 +110,11 @@ export class MacroBuilder extends Modal {
 	}
 
 	private reload() {
-		this.commandEditor?.destroy();
-		this.commandEditor = null;
-		this.display();
+		withPreservedUiContext(this.contentEl, () => {
+			this.commandEditor?.destroy();
+			this.commandEditor = null;
+			this.display();
+		});
 	}
 
 	private addCommandEditor() {

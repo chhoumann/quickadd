@@ -11,6 +11,7 @@ import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
 import type { IconType } from "src/types/IconType";
+import { withPreservedUiContext } from "./ui/preserveUiContext";
 
 export class AIAssistantProvidersModal extends Modal {
 	public waitForClose: Promise<AIProvider[]>;
@@ -56,9 +57,10 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
 	private reload(): void {
-		this.contentEl.empty();
-
-		this.display();
+		withPreservedUiContext(this.contentEl, () => {
+			this.contentEl.empty();
+			this.display();
+		});
 	}
 
 	addProvidersSetting(container: HTMLElement) {

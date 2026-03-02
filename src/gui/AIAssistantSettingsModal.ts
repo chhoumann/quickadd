@@ -6,6 +6,7 @@ import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
 import { getModelNames } from "src/ai/aiHelpers";
+import { withPreservedUiContext } from "./ui/preserveUiContext";
 
 type AIAssistantSettings = QuickAddSettings["ai"];
 
@@ -53,9 +54,10 @@ export class AIAssistantSettingsModal extends Modal {
 	}
 
 	private reload(): void {
-		this.contentEl.empty();
-
-		this.display();
+		withPreservedUiContext(this.contentEl, () => {
+			this.contentEl.empty();
+			this.display();
+		});
 	}
 
 	addProvidersSetting(container: HTMLElement) {

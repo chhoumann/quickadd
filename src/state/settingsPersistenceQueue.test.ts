@@ -48,6 +48,7 @@ describe("SettingsPersistenceQueue", () => {
 			lastFlushedRevision: 3,
 			writesStarted: 1,
 			writesCompleted: 1,
+			writesFailed: 0,
 		});
 	});
 
@@ -102,7 +103,7 @@ describe("SettingsPersistenceQueue", () => {
 		expect(writes).toEqual(["revision-1"]);
 	});
 
-	it("captures an immutable snapshot when scheduling", async () => {
+	it("captures a snapshot at write time", async () => {
 		const writes: QuickAddSettings[] = [];
 		const queue = new SettingsPersistenceQueue(
 			async (settings) => {
@@ -124,8 +125,8 @@ describe("SettingsPersistenceQueue", () => {
 		if (!persisted) {
 			throw new Error("Expected a persisted snapshot");
 		}
-		expect(persisted.version).toBe("revision-1");
-		expect(persisted.globalVariables.__revision).toBe("1");
+		expect(persisted.version).toBe("revision-mutated");
+		expect(persisted.globalVariables.__revision).toBe("mutated");
 	});
 
 	it("always persists the latest revision under delayed async writes", async () => {
@@ -153,5 +154,44 @@ describe("SettingsPersistenceQueue", () => {
 
 		expect(diskRevision).toBe("revision-50");
 		expect(queue.getStats().lastFlushedRevision).toBe(50);
+	});
+
+	it("bounds flush retries when writes keep failing", async () => {
+		let attempts = 0;
+		const queue = new SettingsPersistenceQueue(
+			async () => {
+				attempts += 1;
+				throw new Error(`write-failed-${attempts}`);
+			},
+			{ debounceMs: 0, maxWaitMs: 0 },
+		);
+
+		queue.schedule(settingsWithRevision(1));
+
+		await expect(
+			queue.flushNow({ maxRetryAttempts: 2, timeoutMs: 1_000 }),
+		).rejects.toThrow(/retry limit/i);
+
+		expect(attempts).toBe(3);
+		expect(queue.getStats().writesFailed).toBe(3);
+	});
+
+	it("times out flushNow when an in-flight save never resolves", async () => {
+		const queue = new SettingsPersistenceQueue(
+			async () => {
+				await new Promise(() => {});
+			},
+			{ debounceMs: 0, maxWaitMs: 0 },
+		);
+
+		queue.schedule(settingsWithRevision(1));
+		const flushPromise = queue.flushNow({
+			maxRetryAttempts: 0,
+			timeoutMs: 25,
+		});
+		const rejection = expect(flushPromise).rejects.toThrow(/timed out/i);
+
+		await vi.advanceTimersByTimeAsync(30);
+		await rejection;
 	});
 });

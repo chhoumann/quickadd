@@ -56,10 +56,26 @@ function createPlugin(choices: IChoice[]) {
 	const handlers: RegisteredCliHandler[] = [];
 	const { byName, byId } = flattenChoices(choices);
 
+	const debugStats = {
+		persistence: {
+			scheduledRevisions: 1,
+			flushedRevisions: 1,
+			lastFlushedRevision: 1,
+			writesStarted: 1,
+			writesCompleted: 1,
+			writesFailed: 0,
+		},
+		ui: {
+			choiceBuilderMounts: 0,
+			choiceBuilderReloads: 0,
+		},
+	};
+
 	const plugin = {
 		app: {},
 		settings: {
 			choices,
+			devMode: true,
 		},
 		getChoiceByName: vi.fn((name: string) => {
 			const choice = byName.get(name);
@@ -81,6 +97,9 @@ function createPlugin(choices: IChoice[]) {
 				handlers.push({ command, description, flags, handler });
 			},
 		),
+		getDebugStats: vi.fn(() => debugStats),
+		resetDebugStats: vi.fn(() => true),
+		flushDebugPersistence: vi.fn(async () => debugStats.persistence),
 	} as unknown as QuickAdd & {
 		registerCliHandler: (
 			command: string,
@@ -88,6 +107,9 @@ function createPlugin(choices: IChoice[]) {
 			flags: CliFlags | null,
 			handler: (params: CliData) => string | Promise<string>,
 		) => void;
+		getDebugStats: () => unknown;
+		resetDebugStats: () => boolean;
+		flushDebugPersistence: () => Promise<unknown>;
 	};
 
 	return { plugin, handlers };
@@ -162,6 +184,7 @@ describe("registerQuickAddCliHandlers", () => {
 			"quickadd:run",
 			"quickadd:list",
 			"quickadd:check",
+			"quickadd:debug",
 		]);
 	});
 
@@ -285,5 +308,45 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.requiredInputCount).toBe(1);
 		expect(payload.missingInputCount).toBe(1);
 		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("returns debug stats through quickadd:debug", async () => {
+		const { plugin, handlers } = createPlugin([
+			templateChoice,
+			macroChoice,
+			multiChoice,
+		]);
+		registerQuickAddCliHandlers(plugin);
+		const debug = handlers.find((handler) => handler.command === "quickadd:debug");
+		expect(debug).toBeDefined();
+
+		const output = await Promise.resolve(
+			debug!.handler({ action: "get" }),
+		);
+		const payload = JSON.parse(String(output));
+
+		expect(payload.ok).toBe(true);
+		expect(payload.action).toBe("get");
+		expect(payload.stats.persistence.writesCompleted).toBe(1);
+	});
+
+	it("blocks debug handler when devMode is disabled", async () => {
+		const { plugin, handlers } = createPlugin([
+			templateChoice,
+			macroChoice,
+			multiChoice,
+		]);
+		plugin.settings.devMode = false;
+		registerQuickAddCliHandlers(plugin);
+		const debug = handlers.find((handler) => handler.command === "quickadd:debug");
+		expect(debug).toBeDefined();
+
+		const output = await Promise.resolve(
+			debug!.handler({ action: "get" }),
+		);
+		const payload = JSON.parse(String(output));
+
+		expect(payload.ok).toBe(false);
+		expect(payload.error).toMatch(/devMode/i);
 	});
 });

@@ -5,6 +5,7 @@ import type { OpenLocation } from "../../types/fileOpening";
 import { NewTabDirection } from "../../types/newTabDirection";
 import { CommandType } from "../../types/macros/CommandType";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
+import { resolveOpenFileCommandModalResult } from "./openFileCommandModalResult";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
@@ -33,8 +34,12 @@ export class OpenFileCommandSettingsModal extends Modal {
 	onClose() {
 		super.onClose();
 		if (!this.isResolved) {
-			this.draftSession.discard();
-			this.resolveWithGuard(null);
+			// Close icon and Escape are treated as explicit dismiss/cancel.
+			const result = resolveOpenFileCommandModalResult(
+				"dismiss",
+				this.draftSession,
+			);
+			this.resolveWithGuard(result);
 		}
 	}
 
@@ -199,8 +204,11 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 		const cancelButton = new ButtonComponent(buttonContainer);
 		cancelButton.setButtonText("Cancel").onClick(() => {
-			this.draftSession.discard();
-			this.resolveWithGuard(null);
+			const result = resolveOpenFileCommandModalResult(
+				"cancel",
+				this.draftSession,
+			);
+			this.resolveWithGuard(result);
 			this.close();
 		});
 
@@ -209,8 +217,11 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.setButtonText("Save")
 			.setCta()
 			.onClick(() => {
-				const committed = this.draftSession.commit();
-				this.resolveWithGuard(committed);
+				const result = resolveOpenFileCommandModalResult(
+					"save",
+					this.draftSession,
+				);
+				this.resolveWithGuard(result);
 				this.close();
 			});
 	}

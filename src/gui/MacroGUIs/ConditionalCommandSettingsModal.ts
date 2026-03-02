@@ -16,6 +16,7 @@ import {
 } from "../../constants";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
+import { withPreservedUiContext } from "../ui/preserveUiContext";
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
 	return condition.mode === "variable"
@@ -84,7 +85,9 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	private reload() {
-		this.display();
+		withPreservedUiContext(this.contentEl, () => {
+			this.display();
+		});
 	}
 
 	private display() {

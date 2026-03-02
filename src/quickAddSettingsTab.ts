@@ -506,11 +506,9 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 							settingsStore.setState({
 								disableOnlineFeatures: value,
 							});
-
-							this.display();
 						}),
 				);
-		});
+			});
 	}
 
 	private addEnableRibbonIconSetting(group: SettingGroupLike) {
@@ -527,10 +525,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 							settingsStore.setState({
 								enableRibbonIcon: value,
 							});
-
-							this.display();
 						});
 				});
-		});
+			});
 	}
 }

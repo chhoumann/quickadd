@@ -6,17 +6,23 @@ export interface SettingsPersistenceQueueOptions {
 	maxWaitMs: number;
 }
 
+export interface FlushNowOptions {
+	timeoutMs: number;
+	maxRetryAttempts: number;
+}
+
 export interface SettingsPersistenceStats {
 	scheduledRevisions: number;
 	flushedRevisions: number;
 	lastFlushedRevision: number;
 	writesStarted: number;
 	writesCompleted: number;
+	writesFailed: number;
 }
 
 type PendingRevision = {
 	revision: number;
-	settings: QuickAddSettings;
+	settingsRef: QuickAddSettings;
 	firstScheduledAt: number;
 	lastScheduledAt: number;
 };
@@ -24,6 +30,11 @@ type PendingRevision = {
 const DEFAULT_OPTIONS: SettingsPersistenceQueueOptions = {
 	debounceMs: 150,
 	maxWaitMs: 1000,
+};
+
+const DEFAULT_FLUSH_OPTIONS: FlushNowOptions = {
+	timeoutMs: 10_000,
+	maxRetryAttempts: 3,
 };
 
 export class SettingsPersistenceQueue {
@@ -35,6 +46,7 @@ export class SettingsPersistenceQueue {
 		lastFlushedRevision: 0,
 		writesStarted: 0,
 		writesCompleted: 0,
+		writesFailed: 0,
 	};
 
 	private pending: PendingRevision | null = null;
@@ -61,7 +73,7 @@ export class SettingsPersistenceQueue {
 
 		this.pending = {
 			revision,
-			settings: deepClone(next),
+			settingsRef: next,
 			firstScheduledAt: this.pending?.firstScheduledAt ?? now,
 			lastScheduledAt: now,
 		};
@@ -71,12 +83,31 @@ export class SettingsPersistenceQueue {
 		return revision;
 	}
 
-	async flushNow(): Promise<void> {
+	async flushNow(options?: Partial<FlushNowOptions>): Promise<void> {
+		const resolvedOptions: FlushNowOptions = {
+			...DEFAULT_FLUSH_OPTIONS,
+			...(options ?? {}),
+		};
+		const startedAt = Date.now();
+		let retryCount = 0;
+
 		this.flushRequested = true;
 		this.ensureLoop();
 		this.wakeLoop();
 
 		while (this.pending || this.loopPromise) {
+			const elapsed = Date.now() - startedAt;
+			if (elapsed > resolvedOptions.timeoutMs) {
+				const cause = this.lastError;
+				this.flushRequested = false;
+				this.lastError = undefined;
+				throw this.buildFlushError(
+					`flushNow timed out after ${resolvedOptions.timeoutMs}ms.`,
+					cause,
+					retryCount,
+				);
+			}
+
 			if (!this.loopPromise && this.pending) {
 				this.ensureLoop();
 			}
@@ -84,19 +115,43 @@ export class SettingsPersistenceQueue {
 
 			const currentLoop = this.loopPromise;
 			if (!currentLoop) {
-				break;
+				continue;
 			}
 
-			await currentLoop;
+			const remainingMs = resolvedOptions.timeoutMs - elapsed;
+			const completed = await this.waitForPromiseOrTimeout(
+				currentLoop,
+				Math.max(1, remainingMs),
+			);
+			if (!completed) {
+				const cause = this.lastError;
+				this.flushRequested = false;
+				this.lastError = undefined;
+				throw this.buildFlushError(
+					`flushNow timed out after ${resolvedOptions.timeoutMs}ms.`,
+					cause,
+					retryCount,
+				);
+			}
+
+			if (this.lastError !== undefined) {
+				retryCount += 1;
+				if (retryCount > resolvedOptions.maxRetryAttempts) {
+					const cause = this.lastError;
+					this.flushRequested = false;
+					this.lastError = undefined;
+					throw this.buildFlushError(
+						`flushNow exceeded retry limit (${resolvedOptions.maxRetryAttempts}).`,
+						cause,
+						retryCount,
+					);
+				}
+
+				this.lastError = undefined;
+			}
 		}
 
 		this.flushRequested = false;
-
-		if (this.lastError !== undefined) {
-			const err = this.lastError;
-			this.lastError = undefined;
-			throw err;
-		}
 	}
 
 	getStats(): SettingsPersistenceStats {
@@ -112,13 +167,9 @@ export class SettingsPersistenceQueue {
 			return;
 		}
 
-		this.loopPromise = this.runLoop()
-			.catch((error) => {
-				this.lastError = error;
-			})
-			.finally(() => {
-				this.loopPromise = null;
-			});
+		this.loopPromise = this.runLoop().finally(() => {
+			this.loopPromise = null;
+		});
 	}
 
 	private wakeLoop(): void {
@@ -140,9 +191,11 @@ export class SettingsPersistenceQueue {
 
 			this.pending = null;
 			this.stats.writesStarted += 1;
+			const snapshot = deepClone(pending.settingsRef);
 
 			try {
-				await this.saveFn(pending.settings);
+				await this.saveFn(snapshot);
+				this.lastError = undefined;
 				this.stats.writesCompleted += 1;
 				this.stats.flushedRevisions += 1;
 				this.stats.lastFlushedRevision = pending.revision;
@@ -162,12 +215,16 @@ export class SettingsPersistenceQueue {
 					};
 				}
 
+				this.stats.writesFailed += 1;
 				this.lastError = error;
 
-				// Avoid hot-looping if save repeatedly fails.
-				await this.waitForSignal(
-					Math.max(this.options.debounceMs, 50),
-				);
+				if (!this.flushRequested) {
+					// Background mode: back off before the next attempt.
+					await this.waitForSignal(Math.max(this.options.debounceMs, 50));
+				}
+
+				// Exit loop so flushNow can apply retry bounds deterministically.
+				return;
 			}
 		}
 	}
@@ -204,5 +261,33 @@ export class SettingsPersistenceQueue {
 			this.waitResolve = complete;
 			timer = setTimeout(complete, timeoutMs);
 		});
+	}
+
+	private buildFlushError(
+		message: string,
+		cause: unknown,
+		retryCount: number,
+	): Error {
+		const suffix =
+			cause instanceof Error
+				? ` Last error: ${cause.message}`
+				: cause !== undefined
+					? ` Last error: ${String(cause)}`
+					: "";
+		const err = new Error(`${message} Retries: ${retryCount}.${suffix}`);
+		(err as Error & { cause?: unknown }).cause = cause;
+		return err;
+	}
+
+	private async waitForPromiseOrTimeout(
+		promise: Promise<void>,
+		timeoutMs: number,
+	): Promise<boolean> {
+		return await Promise.race<boolean>([
+			promise.then(() => true),
+			new Promise<boolean>((resolve) => {
+				setTimeout(() => resolve(false), timeoutMs);
+			}),
+		]);
 	}
 }

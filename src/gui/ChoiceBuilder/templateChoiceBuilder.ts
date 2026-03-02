@@ -17,22 +17,23 @@ import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormat
 import { log } from "../../logger/logManager";
 import type QuickAdd from "../../main";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
-import {
-	normalizeFileOpening,
-	type FileOpeningSettings,
-} from "../../utils/fileOpeningDefaults";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { withPreservedUiContext } from "../ui/preserveUiContext";
 import { ChoiceBuilder } from "./choiceBuilder";
 import FolderList from "./FolderList.svelte";
+import {
+	renderFileOpeningSettings,
+	renderOnePageOverrideSetting,
+	renderOpenFileToggleSetting,
+} from "./sharedBehaviorSettings";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -82,14 +83,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 	private renderSection(parent: HTMLDivElement | null, render: () => void): void {
 		if (!parent) return;
-		parent.empty();
-		const previousParent = this.renderParentOverride;
-		this.renderParentOverride = parent;
-		try {
-			render();
-		} finally {
-			this.renderParentOverride = previousParent;
-		}
+		withPreservedUiContext(parent, () => {
+			parent.empty();
+			const previousParent = this.renderParentOverride;
+			this.renderParentOverride = parent;
+			try {
+				render();
+			} finally {
+				this.renderParentOverride = previousParent;
+			}
+		});
 	}
 
 	private destroyFolderList(): void {
@@ -133,22 +136,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	protected addOnePageOverrideSetting(choice: ITemplateChoice): void {
-		new Setting(this.renderParentEl)
-			.setName("One-page input override")
-			.setDesc(
-				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
-			)
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					"": "Follow global setting",
-					always: "Always",
-					never: "Never",
-				});
-				dropdown.setValue((choice.onePageInput ?? "") as string);
-				dropdown.onChange((val: string) => {
-					choice.onePageInput = val === "" ? undefined : (val as any);
-				});
-			});
+		renderOnePageOverrideSetting({
+			parent: this.renderParentEl,
+			value: choice.onePageInput as string | undefined,
+			onChange: (value) => {
+				choice.onePageInput = value as any;
+			},
+		});
 	}
 
 	private addTemplatePathSetting(): void {
@@ -500,87 +494,24 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addOpenFileBehaviorSetting(): void {
-		new Setting(this.renderParentEl)
-			.setName("Open")
-			.setDesc("Open the created file.")
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.openFile);
-				toggle.onChange((value) => {
-					this.choice.openFile = value;
-					this.renderBehaviorSection();
-				});
-			});
+		renderOpenFileToggleSetting({
+			parent: this.renderParentEl,
+			value: this.choice.openFile,
+			description: "Open the created file.",
+			onChange: (value) => {
+				this.choice.openFile = value;
+				this.renderBehaviorSection();
+			},
+		});
 	}
 
 	private addFileOpeningBehaviorSetting(): void {
-		this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
-		const fileOpening = this.choice.fileOpening as FileOpeningSettings;
-
-		new Setting(this.renderParentEl)
-			.setName("File Opening Location")
-			.setDesc("Where to open the created file")
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					reuse: "Reuse current tab",
-					tab: "New tab",
-					split: "Split pane",
-					window: "New window",
-					"left-sidebar": "Left sidebar",
-					"right-sidebar": "Right sidebar",
-				});
-				dropdown.setValue(fileOpening.location);
-				dropdown.onChange((value: string) => {
-					fileOpening.location = value as OpenLocation;
-					this.renderBehaviorSection();
-				});
-			});
-
-		if (fileOpening.location === "split") {
-			new Setting(this.renderParentEl)
-				.setName("Split Direction")
-				.setDesc("How to arrange the new pane relative to the current one")
-				.addDropdown((dropdown) => {
-					dropdown.addOptions({
-						vertical: "Split right",
-						horizontal: "Split down",
-					});
-					dropdown.setValue(fileOpening.direction);
-					dropdown.onChange((value: string) => {
-						fileOpening.direction = value as "vertical" | "horizontal";
-					});
-				});
-		}
-
-		new Setting(this.renderParentEl)
-			.setName("View Mode")
-			.setDesc("How to display the opened file")
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					source: "Source",
-					preview: "Preview",
-					live: "Live Preview",
-					default: "Default",
-				});
-				dropdown.setValue(
-					typeof fileOpening.mode === "string"
-						? (fileOpening.mode as string)
-						: "default",
-				);
-				dropdown.onChange((value: string) => {
-					fileOpening.mode = value as FileViewMode2;
-				});
-			});
-
-		if (fileOpening.location !== "reuse") {
-			new Setting(this.renderParentEl)
-				.setName("Focus new pane")
-				.setDesc("Focus the opened tab immediately after opening")
-				.addToggle((toggle) =>
-					toggle.setValue(fileOpening.focus).onChange((value) => {
-						fileOpening.focus = value;
-					}),
-				);
-		}
+		this.choice.fileOpening = renderFileOpeningSettings({
+			parent: this.renderParentEl,
+			contextLabel: "created",
+			fileOpening: this.choice.fileOpening,
+			onLocationChange: () => this.renderBehaviorSection(),
+		});
 	}
 
 	private addFileAlreadyExistsSetting(): void {

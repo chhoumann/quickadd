@@ -16,6 +16,7 @@ import {
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
 import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { withPreservedUiContext } from "../ui/preserveUiContext";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -96,9 +97,10 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	private reload(): void {
-		this.contentEl.empty();
-
-		this.display();
+		withPreservedUiContext(this.contentEl, () => {
+			this.contentEl.empty();
+			this.display();
+		});
 	}
 
 	addPromptTemplateSetting(container: HTMLElement) {

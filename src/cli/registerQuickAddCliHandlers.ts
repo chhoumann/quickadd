@@ -36,6 +36,15 @@ interface RegisterCliHandlerTarget {
 	) => void;
 }
 
+interface DebugCliTarget {
+	getDebugStats?: () => {
+		persistence: unknown;
+		ui: unknown;
+	} | null;
+	resetDebugStats?: () => boolean;
+	flushDebugPersistence?: () => Promise<unknown>;
+}
+
 const RUN_FLAGS: CliFlags = {
 	choice: {
 		value: "<name>",
@@ -79,6 +88,13 @@ const CHECK_FLAGS: CliFlags = {
 	},
 };
 
+const DEBUG_FLAGS: CliFlags = {
+	action: {
+		value: "<get|reset|flush>",
+		description: "Debug action (default: get)",
+	},
+};
+
 const RESERVED_RUN_PARAMS = new Set<string>(["choice", "id", "vars", "ui"]);
 const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars"]);
 
@@ -87,6 +103,7 @@ const CLI_COMMANDS = {
 	run: "quickadd:run",
 	list: "quickadd:list",
 	check: "quickadd:check",
+	debug: "quickadd:debug",
 } as const;
 
 const SUPPORTED_LIST_TYPES = new Set(["template", "capture", "macro", "multi"]);
@@ -403,6 +420,64 @@ async function checkChoiceHandler(
 	}
 }
 
+async function debugHandler(plugin: QuickAdd, params: CliData): Promise<string> {
+	const actionRaw = typeof params.action === "string" ? params.action : "get";
+	const action = actionRaw.trim().toLowerCase();
+	const debugTarget = plugin as unknown as DebugCliTarget;
+
+	if (!plugin.settings.devMode) {
+		return serialize({
+			ok: false,
+			command: CLI_COMMANDS.debug,
+			error: "Debug commands are available only when devMode is enabled.",
+		});
+	}
+
+	if (action === "get") {
+		return serialize({
+			ok: true,
+			command: CLI_COMMANDS.debug,
+			action: "get",
+			stats: debugTarget.getDebugStats?.() ?? null,
+		});
+	}
+
+	if (action === "reset") {
+		const reset = debugTarget.resetDebugStats?.() ?? false;
+		return serialize({
+			ok: reset,
+			command: CLI_COMMANDS.debug,
+			action: "reset",
+			stats: debugTarget.getDebugStats?.() ?? null,
+		});
+	}
+
+	if (action === "flush") {
+		try {
+			const persistence = await debugTarget.flushDebugPersistence?.();
+			return serialize({
+				ok: true,
+				command: CLI_COMMANDS.debug,
+				action: "flush",
+				persistence: persistence ?? null,
+			});
+		} catch (error) {
+			return serialize({
+				ok: false,
+				command: CLI_COMMANDS.debug,
+				action: "flush",
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+
+	return serialize({
+		ok: false,
+		command: CLI_COMMANDS.debug,
+		error: `Invalid action '${actionRaw}'. Use get, reset, or flush.`,
+	});
+}
+
 export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 	const cliTarget = plugin as unknown as RegisterCliHandlerTarget;
 	if (typeof cliTarget.registerCliHandler !== "function") {
@@ -438,6 +513,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Check missing inputs for a QuickAdd choice",
 		CHECK_FLAGS,
 		(params: CliData) => checkChoiceHandler(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.debug,
+		"Inspect QuickAdd debug stats",
+		DEBUG_FLAGS,
+		(params: CliData) => debugHandler(plugin, params),
 	);
 
 	log.logMessage("Registered QuickAdd CLI handlers.");

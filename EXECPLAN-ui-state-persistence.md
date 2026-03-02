@@ -18,6 +18,13 @@ After this change, a QuickAdd user will be able to edit complex settings (especi
 - [x] (2026-03-02 15:20Z) Implemented Milestone 2: added `uiStore`, `createDraftSession`, tests, and migrated `OpenFileCommandSettingsModal` to draft-session flow without reload-driven re-rendering.
 - [x] (2026-03-02 16:10Z) Implemented Milestone 3 goals via section-scoped rerendering in Capture/Template builders (no full-modal reloads); this deviates from the original “single-mount Svelte editor” implementation detail.
 - [x] (2026-03-02 16:23Z) Implemented Milestone 4: added dev verification seam (`window.__quickaddDebug`), UI reload counters, persistence burst metrics, and validated via Obsidian CLI + full lint/test/build.
+- [x] (2026-03-02 17:40Z) Implemented Follow-up 1: queue failure hardening via bounded `flushNow` retries/timeouts and deterministic failure reporting.
+- [x] (2026-03-02 17:40Z) Implemented Follow-up 2: reduced clone pressure by moving snapshot cloning to write time (coalesced bursts clone once per flush attempt).
+- [x] (2026-03-02 17:42Z) Implemented Follow-up 3: formalized OpenFile modal close semantics through shared result resolver + unit tests for save/cancel/dismiss.
+- [x] (2026-03-02 17:43Z) Implemented Follow-up 4: applied UI-context preservation to section-level rerenders in Capture/Template builders.
+- [x] (2026-03-02 17:45Z) Implemented Follow-up 5: extracted shared behavior-section helpers for one-page override and file opening controls.
+- [x] (2026-03-02 17:48Z) Implemented Follow-up 6: added integration tests for queue + `settingsStore` subscription/dispose lifecycle.
+- [x] (2026-03-02 17:53Z) Implemented Follow-up 7: added stable CLI debug command surface (`quickadd:debug`) while retaining namespace compatibility.
 
 ## Surprises & Discoveries
 
@@ -146,6 +153,110 @@ Key outcomes:
 
 Remaining limitation:
 - Milestone 3 implementation uses section-scoped rerendering in TypeScript builders rather than new Svelte editor components, so focus can still reset within the rerendered section itself. Full single-mount Svelte migration can be done as follow-up if stricter focus invariants are required.
+
+Follow-up completion update (2026-03-02):
+- Queue hardening and performance follow-ups are now implemented and covered by new/updated tests.
+- Open-file modal semantics are explicit and unit-tested.
+- Section-level focus preservation and behavior deduplication are implemented in Capture/Template builders.
+- CLI-verifiable debug operations are now exposed through `quickadd:debug` (get/reset/flush), not only a global namespace.
+- Full validation rerun succeeded: lint, full test suite, and build-with-lint.
+
+## Senior Review Follow-up Backlog
+
+This section captures a fresh-eyes senior-engineering pass after Milestones 1-4 completion. Items are prioritized for reliability first, then maintainability and observability.
+
+### Follow-up 1 (High): Persistence queue failure hardening
+
+Problem:
+- `flushNow()` can enter an effectively unbounded retry loop if `saveFn` keeps failing because failed revisions are re-queued and flush mode bypasses debounce delay.
+
+Scope:
+- Add bounded retry behavior and explicit timeout/cancellation support for `flushNow()`.
+- Surface terminal failures through logger/reporting path.
+- Ensure queue state remains coherent when retries are exhausted.
+
+Validation:
+- New deterministic tests for repeated save failures with retry exhaustion.
+- Verify `flushNow()` rejects predictably within timeout bounds.
+- Confirm no busy-looping under persistent write failure.
+
+### Follow-up 2 (High): Reduce persistence snapshot cost
+
+Problem:
+- Full deep clone on every `schedule()` can become expensive for large settings trees and high-frequency updates.
+
+Scope:
+- Evaluate delayed snapshotting (clone at write time), or immutable structural sharing strategy.
+- Keep stale-write protections and deterministic semantics unchanged.
+
+Validation:
+- Add micro-benchmark test/seam for burst schedule cost.
+- Confirm coalescing semantics and latest-revision durability remain unchanged.
+
+### Follow-up 3 (Medium): Modal close semantics formalization (Open File)
+
+Problem:
+- Open-file settings modal now treats close/X/Escape as cancel (`null`), which should be intentional and explicitly tested.
+
+Scope:
+- Document expected behavior for Save, Cancel button, close icon, and Escape.
+- Add modal-level tests to prevent regressions in resolve semantics.
+
+Validation:
+- Tests proving each closure path returns intended value.
+- Runtime sanity check in Obsidian for keyboard and click closure paths.
+
+### Follow-up 4 (Medium): Preserve focus/caret through section rerenders
+
+Problem:
+- Full-modal teardown is removed, but section-level rerenders still replace DOM and can reset focus/caret within that section.
+
+Scope:
+- Apply `preserveUiContext` (or equivalent) to section rerender helpers.
+- Prioritize high-churn inputs in Capture/Template flows.
+
+Validation:
+- Add verification seam counters per section rerender path.
+- CLI/eval checks demonstrating focus identity stability during representative toggles.
+
+### Follow-up 5 (Medium): Capture/Template builder deduplication
+
+Problem:
+- Capture and Template builders now duplicate behavior-rendering logic (open-file settings, one-page override variants, section orchestration).
+
+Scope:
+- Extract shared helpers/base abstractions for behavior section rendering and common controls.
+- Preserve choice-specific differences while reducing drift risk.
+
+Validation:
+- Type-safe shared helper coverage.
+- No behavior regressions in existing builder tests and manual verification.
+
+### Follow-up 6 (Medium): Integration coverage for queue + plugin lifecycle
+
+Problem:
+- Unit tests cover queue behavior, but plugin lifecycle integration paths (subscription + unload flush) need direct regression protection.
+
+Scope:
+- Add integration tests around `main.ts` lifecycle boundaries with mocked persistence sink.
+- Include migration and save paths that call `saveSettings()`.
+
+Validation:
+- Tests proving latest revision persisted across load/mutate/unload cycles.
+- Failure-path test proving unload flush does not silently hang.
+
+### Follow-up 7 (Low): Stabilize debug surface for CLI verification
+
+Problem:
+- `window.__quickaddDebug` is useful but global APIs can drift and are less discoverable than explicit command seams.
+
+Scope:
+- Promote debug operations to a stable dev command/API surface consumed by CLI eval/command workflows.
+- Keep current namespace as compatibility shim during transition.
+
+Validation:
+- CLI transcript using only stable seam.
+- Backward-compatible behavior during deprecation window for global namespace access.
 
 ## Context and Orientation
 
