@@ -2,6 +2,7 @@
 	import type { App } from "obsidian";
 	import { prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
+	import { uiStore } from "src/state/uiStore";
 	import { onMount } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
@@ -26,7 +27,8 @@
 	export let app: App;
 	export let plugin: QuickAdd;
 
-	let filterQuery: string = ""; // not persisted
+	let filterQuery: string = uiStore.getState().choiceFilterQuery;
+	let disableOnlineFeatures = settingsStore.getState().disableOnlineFeatures;
 
 	function filterChoices(list: IChoice[], query: string): IChoice[] {
 		const q = query.trim();
@@ -61,12 +63,23 @@
 	onMount(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
 			choices = settings.choices;
+			disableOnlineFeatures = settings.disableOnlineFeatures;
+		});
+		const unsubUiStore = uiStore.subscribe((state) => {
+			if (state.choiceFilterQuery !== filterQuery) {
+				filterQuery = state.choiceFilterQuery;
+			}
 		});
 
 		return () => {
 			unsubSettingsStore();
+			unsubUiStore();
 		};
 	});
+
+	$: if (uiStore.getState().choiceFilterQuery !== filterQuery) {
+		uiStore.setState({ choiceFilterQuery: filterQuery });
+	}
 
 	// Command registry for managing Obsidian commands
 	const commandRegistry = new CommandRegistry(plugin);
@@ -245,7 +258,7 @@
 		/>
 	{/if}
 	<div class="choiceViewBottomBar">
-		{#if !settingsStore.getState().disableOnlineFeatures}
+		{#if !disableOnlineFeatures}
 			<button class="mod-cta" on:click={openAISettings}
 				>AI Assistant</button
 			>

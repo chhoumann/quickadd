@@ -24,6 +24,11 @@ import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssis
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
+import { SettingsPersistenceQueue } from "./state/settingsPersistenceQueue";
+import {
+	getQuickAddUiDebugStats,
+	resetQuickAddUiDebugStats,
+} from "./gui/ui/uiStateDebug";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -34,10 +39,31 @@ interface DefinedUriParameters {
 
 type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
+interface QuickAddDebugApi {
+	getStats: () => {
+		persistence: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
+		ui: ReturnType<typeof getQuickAddUiDebugStats>;
+	};
+	resetStats: () => void;
+	flushNow: () => Promise<ReturnType<SettingsPersistenceQueue["getStats"]> | null>;
+	measureWriteBurst: (
+		mutate: () => void | Promise<void>,
+	) => Promise<{
+		before: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
+		after: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
+		writesDuringBurst: number;
+	}>;
+	checkFocusStability: (
+		action: () => void | Promise<void>,
+	) => Promise<boolean>;
+}
+
 export default class QuickAdd extends Plugin {
 	static instance: QuickAdd;
 	settings: QuickAddSettings;
-	private unsubscribeSettingsStore: () => void;
+	private unsubscribeSettingsStore: () => void = () => {};
+	private persistenceQueue: SettingsPersistenceQueue | null = null;
+	private readonly debugNamespace = "__quickaddDebug";
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(
@@ -52,10 +78,18 @@ export default class QuickAdd extends Plugin {
 		QuickAdd.instance = this;
 
 		await this.loadSettings();
+		this.persistenceQueue = new SettingsPersistenceQueue(async (settings) => {
+			this.settings = settings;
+			await this.saveData(settings);
+		});
 		settingsStore.setState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
+			const devModeChanged = settings.devMode !== this.settings.devMode;
 			this.settings = settings;
-			void this.saveSettings();
+			this.persistenceQueue?.schedule(settings);
+			if (devModeChanged) {
+				this.registerDebugNamespace();
+			}
 		});
 
 		this.addCommand({
@@ -161,6 +195,7 @@ export default class QuickAdd extends Plugin {
 		this.addCommandsForChoices(this.settings.choices);
 
 		await migrate(this);
+		this.registerDebugNamespace();
 
 		const registerCli = () => {
 			registerQuickAddCliHandlers(this);
@@ -191,7 +226,14 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
-		this.unsubscribeSettingsStore?.call(this);
+		this.unsubscribeSettingsStore.call(this);
+
+		const queue = this.persistenceQueue;
+		this.persistenceQueue = null;
+		void queue?.dispose().catch((error) => {
+			reportError(error, "Failed to flush QuickAdd settings on unload");
+		});
+		this.unregisterDebugNamespace();
 
 		// Clear the error log to prevent memory leaks
 		LogManager.loggers.forEach((logger) => {
@@ -223,6 +265,12 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async saveSettings() {
+		if (this.persistenceQueue) {
+			this.persistenceQueue.schedule(this.settings);
+			await this.persistenceQueue.flushNow();
+			return;
+		}
+
 		await this.saveData(this.settings);
 	}
 
@@ -333,5 +381,57 @@ export default class QuickAdd extends Plugin {
 
 		const updateModal = new UpdateModal(this.app, knownVersion);
 		updateModal.open();
+	}
+
+	private registerDebugNamespace(): void {
+		this.unregisterDebugNamespace();
+
+		if (!this.settings.devMode) {
+			return;
+		}
+
+		const debugApi: QuickAddDebugApi = {
+			getStats: () => ({
+				persistence: this.persistenceQueue?.getStats() ?? null,
+				ui: getQuickAddUiDebugStats(),
+			}),
+			resetStats: () => {
+				resetQuickAddUiDebugStats();
+			},
+			flushNow: async () => {
+				await this.persistenceQueue?.flushNow();
+				return this.persistenceQueue?.getStats() ?? null;
+			},
+			measureWriteBurst: async (mutate) => {
+				const before = this.persistenceQueue?.getStats() ?? null;
+				await mutate();
+				await this.persistenceQueue?.flushNow();
+				const after = this.persistenceQueue?.getStats() ?? null;
+				const writesDuringBurst =
+					before && after
+						? after.writesCompleted - before.writesCompleted
+						: 0;
+
+				return {
+					before,
+					after,
+					writesDuringBurst,
+				};
+			},
+			checkFocusStability: async (action) => {
+				const activeBefore = document.activeElement;
+				await action();
+				return document.activeElement === activeBefore;
+			},
+		};
+
+		(globalThis as any)[this.debugNamespace] = debugApi;
+	}
+
+	private unregisterDebugNamespace(): void {
+		const value = (globalThis as any)[this.debugNamespace];
+		if (value) {
+			delete (globalThis as any)[this.debugNamespace];
+		}
 	}
 }
