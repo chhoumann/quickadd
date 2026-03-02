@@ -1,26 +1,22 @@
 import type { App } from "obsidian";
-import { Modal, Setting, ButtonComponent } from "obsidian";
-import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
-import { NewTabDirection } from "../../types/newTabDirection";
+import { ButtonComponent, Modal, Setting } from "obsidian";
+import { createDraftSession, type DraftSession } from "../../state/createDraftSession";
 import type { OpenLocation } from "../../types/fileOpening";
+import { NewTabDirection } from "../../types/newTabDirection";
 import { CommandType } from "../../types/macros/CommandType";
+import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
 	private resolvePromise: (command: IOpenFileCommand | null) => void;
-	private command: IOpenFileCommand;
-	private originalCommand: IOpenFileCommand;
+	private draftSession: DraftSession<IOpenFileCommand>;
 	private isResolved = false;
+	private splitDirectionSettingEl: HTMLElement | null = null;
 
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
-		this.originalCommand = command;
-		this.command = { ...command, type: CommandType.OpenFile }; // copy and ensure type
-
-		// Backfill defaults for legacy commands
-		this.command.focus = this.command.focus ?? true;
-		this.command.location = this.command.location ?? this.deriveLocation();
-		this.syncLegacyFlagsFromLocation(this.command.location);
+		const draft = this.createCommandDraft(command);
+		this.draftSession = createDraftSession(draft);
 
 		this.waitForClose = new Promise<IOpenFileCommand | null>((resolve) => {
 			this.resolvePromise = resolve;
@@ -30,11 +26,15 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.open();
 	}
 
+	private get draft(): IOpenFileCommand {
+		return this.draftSession.draft;
+	}
+
 	onClose() {
 		super.onClose();
 		if (!this.isResolved) {
-			this.resolvePromise(this.command);
-			this.isResolved = true;
+			this.draftSession.discard();
+			this.resolveWithGuard(null);
 		}
 	}
 
@@ -43,6 +43,18 @@ export class OpenFileCommandSettingsModal extends Modal {
 			this.resolvePromise(value);
 			this.isResolved = true;
 		}
+	}
+
+	private createCommandDraft(command: IOpenFileCommand): IOpenFileCommand {
+		const draft: IOpenFileCommand = {
+			...command,
+			type: CommandType.OpenFile,
+		};
+
+		draft.focus = draft.focus ?? true;
+		draft.location = draft.location ?? this.deriveLocationFrom(draft);
+		this.syncLegacyFlagsFromLocation(draft.location, draft);
+		return draft;
 	}
 
 	private display() {
@@ -55,26 +67,26 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 		this.addFilePathSetting();
 		this.addOpenLocationSetting();
+		this.addDirectionSetting();
 		this.addFocusSetting();
-
 		this.addButtonBar();
+		this.syncDirectionSettingVisibility();
 	}
 
 	private addFilePathSetting() {
 		new Setting(this.contentEl)
 			.setName("File path")
 			.setDesc("Path to the file. Supports formatting like {{DATE}}, {{VALUE}}, etc.")
-			.addText(text => text
-				.setPlaceholder("{{DATE}}todo.md")
-				.setValue(this.command.filePath)
-				.onChange(value => {
-					this.command.filePath = value;
-					this.command.name = `Open file: ${value}`;
-				})
+			.addText((text) =>
+				text
+					.setPlaceholder("{{DATE}}todo.md")
+					.setValue(this.draft.filePath)
+					.onChange((value) => {
+						this.draft.filePath = value;
+						this.draft.name = `Open file: ${value}`;
+					}),
 			);
 	}
-
-
 
 	private addOpenLocationSetting() {
 		const locationOptions: { value: OpenLocation; label: string }[] = [
@@ -95,52 +107,62 @@ export class OpenFileCommandSettingsModal extends Modal {
 				}
 
 				dropdown
-					.setValue(this.deriveLocation())
+					.setValue(this.draft.location ?? this.deriveLocation())
 					.onChange((value: OpenLocation) => {
-						this.command.location = value;
-						this.syncLegacyFlagsFromLocation(value);
-						this.reload();
+						this.draft.location = value;
+						this.syncLegacyFlagsFromLocation(value, this.draft);
+						this.syncDirectionSettingVisibility();
 					});
 			});
-
-		if (this.deriveLocation() === "split") {
-			this.addDirectionSetting();
-		}
 	}
 
-	private syncLegacyFlagsFromLocation(value: OpenLocation) {
+	private syncLegacyFlagsFromLocation(
+		value: OpenLocation,
+		command: IOpenFileCommand,
+	) {
 		switch (value) {
 			case "split":
-				this.command.openInNewTab = true;
-				if (!this.command.direction) {
-					this.command.direction = NewTabDirection.vertical;
+				command.openInNewTab = true;
+				if (!command.direction) {
+					command.direction = NewTabDirection.vertical;
 				}
 				break;
 			case "tab":
 			case "reuse":
-				this.command.openInNewTab = false;
-				this.command.direction = undefined;
+				command.openInNewTab = false;
+				command.direction = undefined;
 				break;
 			default:
-				this.command.openInNewTab = true;
-				this.command.direction = undefined;
+				command.openInNewTab = true;
+				command.direction = undefined;
 				break;
 		}
 	}
 
 	private addDirectionSetting() {
-		new Setting(this.contentEl)
+		const setting = new Setting(this.contentEl)
 			.setName("Split direction")
 			.setDesc("How to arrange the new pane relative to the current one")
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption(NewTabDirection.vertical, "Split right")
 					.addOption(NewTabDirection.horizontal, "Split down")
-					.setValue(this.command.direction ?? NewTabDirection.vertical)
+					.setValue(this.draft.direction ?? NewTabDirection.vertical)
 					.onChange((value) => {
-						this.command.direction = value as NewTabDirection;
+						this.draft.direction = value as NewTabDirection;
 					});
 			});
+
+		this.splitDirectionSettingEl = setting.settingEl;
+	}
+
+	private syncDirectionSettingVisibility() {
+		if (!this.splitDirectionSettingEl) {
+			return;
+		}
+
+		const isSplit = this.deriveLocation() === "split";
+		this.splitDirectionSettingEl.style.display = isSplit ? "" : "none";
 	}
 
 	private addFocusSetting() {
@@ -149,22 +171,24 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.setDesc("Bring the opened file to the foreground")
 			.addToggle((toggle) =>
 				toggle
-					.setValue(this.command.focus ?? true)
+					.setValue(this.draft.focus ?? true)
 					.onChange((value) => {
-						this.command.focus = value;
-					})
+						this.draft.focus = value;
+					}),
 			);
 	}
 
 	private deriveLocation(): OpenLocation {
-		if (this.command.location) return this.command.location;
-		if (this.command.openInNewTab) {
+		return this.deriveLocationFrom(this.draft);
+	}
+
+	private deriveLocationFrom(command: IOpenFileCommand): OpenLocation {
+		if (command.location) return command.location;
+		if (command.openInNewTab) {
 			return "split";
 		}
 		return "reuse";
 	}
-
-
 
 	private addButtonBar() {
 		const buttonContainer = this.contentEl.createDiv();
@@ -174,25 +198,20 @@ export class OpenFileCommandSettingsModal extends Modal {
 		buttonContainer.style.marginTop = "20px";
 
 		const cancelButton = new ButtonComponent(buttonContainer);
-		cancelButton
-			.setButtonText("Cancel")
-			.onClick(() => {
-				// Return null to indicate cancellation
-				this.resolveWithGuard(null);
-				this.close();
-			});
+		cancelButton.setButtonText("Cancel").onClick(() => {
+			this.draftSession.discard();
+			this.resolveWithGuard(null);
+			this.close();
+		});
 
 		const saveButton = new ButtonComponent(buttonContainer);
 		saveButton
 			.setButtonText("Save")
 			.setCta()
 			.onClick(() => {
-				this.resolveWithGuard(this.command);
+				const committed = this.draftSession.commit();
+				this.resolveWithGuard(committed);
 				this.close();
 			});
-	}
-
-	private reload() {
-		this.display();
 	}
 }

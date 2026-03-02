@@ -11,18 +11,29 @@ import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormat
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import {
+	normalizeFileOpening,
+	type FileOpeningSettings,
+} from "../../utils/fileOpeningDefaults";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
+	private renderParentOverride: HTMLElement | null = null;
+	private locationSectionEl: HTMLDivElement | null = null;
+	private positionSectionEl: HTMLDivElement | null = null;
+	private linkingSectionEl: HTMLDivElement | null = null;
+	private contentSectionEl: HTMLDivElement | null = null;
+	private behaviorSectionEl: HTMLDivElement | null = null;
 
 	constructor(
 		app: App,
@@ -41,44 +52,190 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		this.addCenteredChoiceNameHeader(this.choice);
 
-		// Location
-		new Setting(this.contentEl).setName("Location").setHeading();
-		this.addCapturedToSetting();
-		if (!this.choice?.captureToActiveFile) {
-			this.addCreateIfNotExistsSetting();
-			if (this.choice?.createFileIfItDoesntExist?.enabled)
-				this.addCreateWithTemplateSetting();
+		this.locationSectionEl = this.contentEl.createDiv();
+		this.positionSectionEl = this.contentEl.createDiv();
+		this.linkingSectionEl = this.contentEl.createDiv();
+		this.contentSectionEl = this.contentEl.createDiv();
+		this.behaviorSectionEl = this.contentEl.createDiv();
+
+		this.renderLocationSection();
+		this.renderPositionSection();
+		this.renderLinkingSection();
+		this.renderContentSection();
+		this.renderBehaviorSection();
+	}
+
+	private get renderParentEl(): HTMLElement {
+		return this.renderParentOverride ?? this.contentEl;
+	}
+
+	private renderSection(parent: HTMLDivElement | null, render: () => void): void {
+		if (!parent) return;
+		parent.empty();
+		const previousParent = this.renderParentOverride;
+		this.renderParentOverride = parent;
+		try {
+			render();
+		} finally {
+			this.renderParentOverride = previousParent;
 		}
+	}
 
-		// Position
-		new Setting(this.contentEl).setName("Position").setHeading();
-		this.addWritePositionSetting();
-
-		// Linking
-		new Setting(this.contentEl).setName("Linking").setHeading();
-		this.addAppendLinkSetting();
-
-		// Content
-		new Setting(this.contentEl).setName("Content").setHeading();
-		this.addTaskSetting();
-		this.addFormatSetting();
-
-		// Behavior
-		new Setting(this.contentEl).setName("Behavior").setHeading();
-		if (!this.choice.captureToActiveFile) {
-			this.addOpenFileSetting("Open the captured file.");
-
-			if (this.choice.openFile) {
-				this.addFileOpeningSetting("captured");
+	private renderLocationSection(): void {
+		this.renderSection(this.locationSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Location").setHeading();
+			this.addCapturedToSetting();
+			if (!this.choice?.captureToActiveFile) {
+				this.addCreateIfNotExistsSetting();
+				if (this.choice?.createFileIfItDoesntExist?.enabled) {
+					this.addCreateWithTemplateSetting();
+				}
 			}
+		});
+	}
+
+	private renderPositionSection(): void {
+		this.renderSection(this.positionSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Position").setHeading();
+			this.addWritePositionSetting();
+		});
+	}
+
+	private renderLinkingSection(): void {
+		this.renderSection(this.linkingSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Linking").setHeading();
+			this.addAppendLinkSetting();
+		});
+	}
+
+	private renderContentSection(): void {
+		this.renderSection(this.contentSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Content").setHeading();
+			this.addTaskSetting();
+			this.addFormatSetting();
+		});
+	}
+
+	private renderBehaviorSection(): void {
+		this.renderSection(this.behaviorSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Behavior").setHeading();
+			if (!this.choice.captureToActiveFile) {
+				this.addOpenFileBehaviorSetting();
+				if (this.choice.openFile) {
+					this.addFileOpeningBehaviorSetting();
+				}
+			}
+			this.addSelectionAsValueSetting();
+			this.addTemplaterAfterCaptureSetting();
+			this.addOnePageOverrideSetting(this.choice);
+		});
+	}
+
+	protected addOnePageOverrideSetting(choice: ICaptureChoice): void {
+		new Setting(this.renderParentEl)
+			.setName("One-page input override")
+			.setDesc(
+				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					"": "Follow global setting",
+					always: "Always",
+					never: "Never",
+				});
+				dropdown.setValue((choice.onePageInput ?? "") as string);
+				dropdown.onChange((val: string) => {
+					choice.onePageInput = val === "" ? undefined : (val as any);
+				});
+			});
+	}
+
+	private addOpenFileBehaviorSetting(): void {
+		new Setting(this.renderParentEl)
+			.setName("Open")
+			.setDesc("Open the captured file.")
+			.addToggle((toggle) => {
+				toggle.setValue(this.choice.openFile);
+				toggle.onChange((value) => {
+					this.choice.openFile = value;
+					this.renderBehaviorSection();
+				});
+			});
+	}
+
+	private addFileOpeningBehaviorSetting(): void {
+		this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
+		const fileOpening = this.choice.fileOpening as FileOpeningSettings;
+
+		new Setting(this.renderParentEl)
+			.setName("File Opening Location")
+			.setDesc("Where to open the captured file")
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					reuse: "Reuse current tab",
+					tab: "New tab",
+					split: "Split pane",
+					window: "New window",
+					"left-sidebar": "Left sidebar",
+					"right-sidebar": "Right sidebar",
+				});
+				dropdown.setValue(fileOpening.location);
+				dropdown.onChange((value: string) => {
+					fileOpening.location = value as OpenLocation;
+					this.renderBehaviorSection();
+				});
+			});
+
+		if (fileOpening.location === "split") {
+			new Setting(this.renderParentEl)
+				.setName("Split Direction")
+				.setDesc("How to arrange the new pane relative to the current one")
+				.addDropdown((dropdown) => {
+					dropdown.addOptions({
+						vertical: "Split right",
+						horizontal: "Split down",
+					});
+					dropdown.setValue(fileOpening.direction);
+					dropdown.onChange((value: string) => {
+						fileOpening.direction = value as "vertical" | "horizontal";
+					});
+				});
 		}
-		this.addSelectionAsValueSetting();
-		this.addTemplaterAfterCaptureSetting();
-		this.addOnePageOverrideSetting(this.choice);
+
+		new Setting(this.renderParentEl)
+			.setName("View Mode")
+			.setDesc("How to display the opened file")
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					source: "Source",
+					preview: "Preview",
+					live: "Live Preview",
+					default: "Default",
+				});
+				dropdown.setValue(
+					typeof fileOpening.mode === "string"
+						? (fileOpening.mode as string)
+						: "default",
+				);
+				dropdown.onChange((value: string) => {
+					fileOpening.mode = value as FileViewMode2;
+				});
+			});
+
+		if (fileOpening.location !== "reuse") {
+			new Setting(this.renderParentEl)
+				.setName("Focus new pane")
+				.setDesc("Focus the opened tab immediately after opening")
+				.addToggle((toggle) =>
+					toggle.setValue(fileOpening.focus).onChange((value) => {
+						fileOpening.focus = value;
+					}),
+				);
+		}
 	}
 
 	private addTemplaterAfterCaptureSetting() {
-		new Setting(this.contentEl)
+		new Setting(this.renderParentEl)
 			.setName("Run Templater on entire destination file after capture")
 			.setDesc(
 				"Advanced / legacy: this executes any `<% %>` anywhere in the destination file (including inside code blocks).",
@@ -95,7 +252,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addSelectionAsValueSetting() {
-		new Setting(this.contentEl)
+		new Setting(this.renderParentEl)
 			.setName("Use editor selection as default value")
 			.setDesc(
 				"Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}.",
@@ -125,14 +282,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addCapturedToSetting() {
-		new Setting(this.contentEl)
+		new Setting(this.renderParentEl)
 			.setName("Capture to")
 			.setDesc(
 				"Vault-relative path. Supports format syntax (use trailing '/' for folders).",
 			);
 
 		const captureToContainer: HTMLDivElement =
-			this.contentEl.createDiv("captureToContainer");
+			this.renderParentEl.createDiv("captureToContainer");
 
 		const captureToActiveFileContainer: HTMLDivElement =
 			captureToContainer.createDiv("captureToActiveFileContainer");
@@ -160,7 +317,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				this.choice.newLineCapture.enabled = false;
 			}
 
-			this.reload();
+			this.renderLocationSection();
+			this.renderPositionSection();
+			this.renderBehaviorSection();
 		});
 
 		if (!this.choice?.captureToActiveFile) {
@@ -238,7 +397,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					}
 
 					if (wasCanvasTarget !== isCanvasTarget || canvasPathChanged) {
-						this.reload();
+						this.renderLocationSection();
 					}
 				},
 			});
@@ -745,7 +904,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addTaskSetting() {
-		const taskSetting: Setting = new Setting(this.contentEl);
+		const taskSetting: Setting = new Setting(this.renderParentEl);
 		taskSetting
 			.setName("Task")
 			.setDesc("Formats the value as a task.")
@@ -769,7 +928,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				: "optional"
 			: "disabled";
 
-		const appendLinkSetting: Setting = new Setting(this.contentEl);
+		const appendLinkSetting: Setting = new Setting(this.renderParentEl);
 		appendLinkSetting
 			.setName("Link to captured file")
 			.setDesc("Choose how QuickAdd should insert a link to the captured file in the current note.")
@@ -801,13 +960,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							};
 							break;
 					}
-					this.reload();
+					this.renderLinkingSection();
 				});
 			});
 
 		// Only show placement dropdown when append link is enabled
 		if (currentMode !== "disabled") {
-			const placementSetting: Setting = new Setting(this.contentEl);
+			const placementSetting: Setting = new Setting(this.renderParentEl);
 			placementSetting
 				.setName("Link placement")
 				.setDesc("Where to place the link when appending")
@@ -828,9 +987,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							typeof currentValue === "boolean"
 								? normalizedLinkType
 								: currentValue.linkType ?? normalizedLinkType;
-				const nextLinkType = placementSupportsEmbed(value)
-					? previousLinkType
-					: "link";
+						const nextLinkType = placementSupportsEmbed(value)
+							? previousLinkType
+							: "link";
 
 						this.choice.appendLink = {
 							enabled: true,
@@ -839,12 +998,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							linkType: nextLinkType,
 						};
 
-						this.reload();
+						this.renderLinkingSection();
 					});
 				});
 
 			if (placementSupportsEmbed(normalizedOptions.placement)) {
-				const linkTypeSetting: Setting = new Setting(this.contentEl);
+				const linkTypeSetting: Setting = new Setting(this.renderParentEl);
 				linkTypeSetting
 					.setName("Link type")
 					.setDesc("Choose whether to insert a regular link or an embed when replacing the selection.")
@@ -876,7 +1035,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addWritePositionSetting() {
-		const positionSetting: Setting = new Setting(this.contentEl);
+		const positionSetting: Setting = new Setting(this.renderParentEl);
 		const isActiveFile = !!this.choice?.captureToActiveFile;
 
 		if (!this.choice.activeFileWritePosition) {
@@ -940,7 +1099,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						if (!isActiveFile) {
 							this.choice.prepend = false;
 						}
-						this.reload();
+						this.renderPositionSection();
 						return;
 					}
 
@@ -948,7 +1107,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						if (isActiveFile) {
 							this.choice.activeFileWritePosition = "top";
 						}
-						this.reload();
+						this.renderPositionSection();
 						return;
 					}
 
@@ -958,27 +1117,27 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						} else {
 							this.choice.prepend = true;
 						}
-						this.reload();
+						this.renderPositionSection();
 						return;
 					}
 					
 					if (v === "newLineAbove") {
 						this.choice.newLineCapture.enabled = true;
 						this.choice.newLineCapture.direction = "above";
-						this.reload();
+						this.renderPositionSection();
 						return;
 					}
 					
 					if (v === "newLineBelow") {
 						this.choice.newLineCapture.enabled = true;
 						this.choice.newLineCapture.direction = "below";
-						this.reload();
+						this.renderPositionSection();
 						return;
 					}
 
 					// after line
 					this.choice.insertAfter.enabled = true;
-					this.reload();
+					this.renderPositionSection();
 				});
 			});
 
@@ -1007,7 +1166,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		if (!usesUnsupportedCanvasMode) return;
 		if (isActiveFile ? !hasActiveCanvasView : !obviousCanvasTarget) return;
 
-		const warning = this.contentEl.createDiv({ cls: "setting-item-description" });
+		const warning = this.renderParentEl.createDiv({
+			cls: "setting-item-description",
+		});
 		warning.setText(
 			"Canvas note: 'At cursor' and 'New line above/below cursor' are not supported for Canvas card capture. Use top, bottom, or insert-after placement.",
 		);
@@ -1019,7 +1180,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			"Tip: use a heading (starts with #) to target a section. " +
 			"Blank line handling is configurable below.";
 
-		new Setting(this.contentEl)
+		new Setting(this.renderParentEl)
 			.setName("Insert after")
 			.setDesc(descText);
 
@@ -1028,7 +1189,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.plugin,
 		);
 
-		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		const previewRow = this.renderParentEl.createDiv({ cls: "qa-preview-row" });
 		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 		const previewValue = previewRow.createEl("span");
 		previewValue.setAttribute("aria-live", "polite");
@@ -1036,7 +1197,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		createValidatedInput({
 			app: this.app,
-			parent: this.contentEl,
+			parent: this.renderParentEl,
 			initialValue: this.choice.insertAfter.after,
 			placeholder: "Insert after",
 			required: true,
@@ -1072,7 +1233,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.choice.insertAfter.replaceExisting = false;
 		}
 
-		new Setting(this.contentEl)
+		new Setting(this.renderParentEl)
 			.setName("Inline insertion")
 			.setDesc(
 				"Insert captured content on the same line, immediately after the matched text (no newline added).",
@@ -1082,12 +1243,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.setValue(!!this.choice.insertAfter?.inline)
 					.onChange((value) => {
 						this.choice.insertAfter.inline = value;
-						this.reload();
+						this.renderPositionSection();
 					}),
 			);
 
 		if (this.choice.insertAfter.inline) {
-			new Setting(this.contentEl)
+			new Setting(this.renderParentEl)
 				.setName("Replace existing value")
 				.setDesc("Replace everything after the matched text up to end-of-line.")
 				.addToggle((toggle) =>
@@ -1102,7 +1263,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const inlineEnabled = !!this.choice.insertAfter?.inline;
 
 		if (!inlineEnabled) {
-			const insertAtEndSetting: Setting = new Setting(this.contentEl);
+			const insertAtEndSetting: Setting = new Setting(this.renderParentEl);
 			insertAtEndSetting
 				.setName("Insert at end of section")
 				.setDesc(
@@ -1113,7 +1274,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						.setValue(this.choice.insertAfter?.insertAtEnd)
 						.onChange((value) => {
 							this.choice.insertAfter.insertAtEnd = value;
-							this.reload();
+							this.renderPositionSection();
 						}),
 				);
 
@@ -1124,7 +1285,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			const blankLineModeDesc =
 				"Controls whether Insert After skips existing blank lines after the matched line.";
 			const insertAtEndEnabled = !!this.choice.insertAfter?.insertAtEnd;
-			const blankLineModeSetting: Setting = new Setting(this.contentEl);
+			const blankLineModeSetting: Setting = new Setting(this.renderParentEl);
 			blankLineModeSetting
 				.setName("Blank lines after match")
 				.setDesc(
@@ -1150,7 +1311,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				});
 			blankLineModeSetting.setDisabled(insertAtEndEnabled);
 
-			new Setting(this.contentEl)
+			new Setting(this.renderParentEl)
 				.setName("Consider subsections")
 				.setDesc(
 					"Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section.",
@@ -1180,7 +1341,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				);
 		}
 
-		const createLineIfNotFound: Setting = new Setting(this.contentEl);
+		const createLineIfNotFound: Setting = new Setting(this.renderParentEl);
 		createLineIfNotFound
 			.setName("Create line if not found")
 			.setDesc("Creates the 'insert after' line if it is not found.")
@@ -1212,7 +1373,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFormatSetting() {
-		const enableSetting = new Setting(this.contentEl);
+		const enableSetting = new Setting(this.renderParentEl);
 		enableSetting
 			.setName("Capture format")
 			.setDesc("Set the format of the capture.")
@@ -1231,7 +1392,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.plugin,
 		);
 
-		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		const previewRow = this.renderParentEl.createDiv({ cls: "qa-preview-row" });
 		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 		const formatDisplay = previewRow.createEl("span");
 		formatDisplay.setAttr("aria-live", "polite");
@@ -1239,7 +1400,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const formatHandle = createValidatedInput({
 			app: this.app,
-			parent: this.contentEl,
+			parent: this.renderParentEl,
 			inputKind: "textarea",
 			initialValue: this.choice.format.format,
 			placeholder: "Format",
@@ -1279,7 +1440,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				template: "",
 			};
 
-		const createFileIfItDoesntExist: Setting = new Setting(this.contentEl);
+		const createFileIfItDoesntExist: Setting = new Setting(this.renderParentEl);
 		createFileIfItDoesntExist
 			.setName("Create file if it doesn't exist")
 			.addToggle((toggle) =>
@@ -1288,14 +1449,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.setTooltip("Create file if it doesn't exist")
 					.onChange((value) => {
 						this.choice.createFileIfItDoesntExist.enabled = value;
-						this.reload();
+						this.renderLocationSection();
 					}),
 			);
 	}
 
 	private addCreateWithTemplateSetting() {
 		let templateSelector: TextComponent;
-		const createWithTemplateSetting = new Setting(this.contentEl);
+		const createWithTemplateSetting = new Setting(this.renderParentEl);
 		createWithTemplateSetting
 			.setName("Create file with given template.")
 			.addToggle((toggle) =>
@@ -1313,7 +1474,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const templateSelectorHandle = createValidatedInput({
 			app: this.app,
-			parent: this.contentEl,
+			parent: this.renderParentEl,
 			initialValue: this.choice?.createFileIfItDoesntExist?.template ?? "",
 			placeholder: "Template path",
 			suggestions: templateFilePaths,

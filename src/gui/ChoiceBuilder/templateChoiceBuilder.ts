@@ -17,12 +17,17 @@ import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormat
 import { log } from "../../logger/logManager";
 import type QuickAdd from "../../main";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import {
+	normalizeFileOpening,
+	type FileOpeningSettings,
+} from "../../utils/fileOpeningDefaults";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -31,6 +36,12 @@ import FolderList from "./FolderList.svelte";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
+	private renderParentOverride: HTMLElement | null = null;
+	private templateSectionEl: HTMLDivElement | null = null;
+	private locationSectionEl: HTMLDivElement | null = null;
+	private linkingSectionEl: HTMLDivElement | null = null;
+	private behaviorSectionEl: HTMLDivElement | null = null;
+	private folderListEl: FolderList | null = null;
 
 	constructor(
 		app: App,
@@ -45,33 +56,103 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 	protected display() {
 		this.containerEl.addClass("templateChoiceBuilder");
+		this.contentEl.empty();
+		this.destroyFolderList();
 		this.addCenteredChoiceNameHeader(this.choice);
 
-		// Template
-		new Setting(this.contentEl).setName("Template").setHeading();
-		this.addTemplatePathSetting();
-		this.addFileNameFormatSetting();
+		this.templateSectionEl = this.contentEl.createDiv();
+		this.locationSectionEl = this.contentEl.createDiv();
+		this.linkingSectionEl = this.contentEl.createDiv();
+		this.behaviorSectionEl = this.contentEl.createDiv();
 
-		// Location
-		new Setting(this.contentEl).setName("Location").setHeading();
-		this.addFolderSetting();
+		this.renderTemplateSection();
+		this.renderLocationSection();
+		this.renderLinkingSection();
+		this.renderBehaviorSection();
+	}
 
-		// Linking
-		new Setting(this.contentEl).setName("Linking").setHeading();
-		this.addAppendLinkSetting();
+	onClose() {
+		this.destroyFolderList();
+		super.onClose();
+	}
 
-		// Behavior
-		new Setting(this.contentEl).setName("Behavior").setHeading();
-		this.addFileAlreadyExistsSetting();
-		this.addOpenFileSetting("Open the created file.");
-		if (this.choice.openFile) {
-			this.addFileOpeningSetting("created");
+	private get renderParentEl(): HTMLElement {
+		return this.renderParentOverride ?? this.contentEl;
+	}
+
+	private renderSection(parent: HTMLDivElement | null, render: () => void): void {
+		if (!parent) return;
+		parent.empty();
+		const previousParent = this.renderParentOverride;
+		this.renderParentOverride = parent;
+		try {
+			render();
+		} finally {
+			this.renderParentOverride = previousParent;
 		}
-		this.addOnePageOverrideSetting(this.choice);
+	}
+
+	private destroyFolderList(): void {
+		this.folderListEl?.$destroy();
+		this.folderListEl = null;
+	}
+
+	private renderTemplateSection(): void {
+		this.renderSection(this.templateSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Template").setHeading();
+			this.addTemplatePathSetting();
+			this.addFileNameFormatSetting();
+		});
+	}
+
+	private renderLocationSection(): void {
+		this.destroyFolderList();
+		this.renderSection(this.locationSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Location").setHeading();
+			this.addFolderSetting();
+		});
+	}
+
+	private renderLinkingSection(): void {
+		this.renderSection(this.linkingSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Linking").setHeading();
+			this.addAppendLinkSetting();
+		});
+	}
+
+	private renderBehaviorSection(): void {
+		this.renderSection(this.behaviorSectionEl, () => {
+			new Setting(this.renderParentEl).setName("Behavior").setHeading();
+			this.addFileAlreadyExistsSetting();
+			this.addOpenFileBehaviorSetting();
+			if (this.choice.openFile) {
+				this.addFileOpeningBehaviorSetting();
+			}
+			this.addOnePageOverrideSetting(this.choice);
+		});
+	}
+
+	protected addOnePageOverrideSetting(choice: ITemplateChoice): void {
+		new Setting(this.renderParentEl)
+			.setName("One-page input override")
+			.setDesc(
+				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					"": "Follow global setting",
+					always: "Always",
+					never: "Never",
+				});
+				dropdown.setValue((choice.onePageInput ?? "") as string);
+				dropdown.onChange((val: string) => {
+					choice.onePageInput = val === "" ? undefined : (val as any);
+				});
+			});
 	}
 
 	private addTemplatePathSetting(): void {
-		new Setting(this.contentEl)
+		new Setting(this.renderParentEl)
 			.setName("Template Path")
 			.setDesc("Path to the Template.");
 
@@ -81,7 +162,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 		createValidatedInput({
 			app: this.app,
-			parent: this.contentEl,
+			parent: this.renderParentEl,
 			initialValue: this.choice.templatePath,
 			placeholder: "Template path",
 			suggestions: templates,
@@ -99,7 +180,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 	private addFileNameFormatSetting(): void {
 		let textField: TextComponent;
-		const enableSetting = new Setting(this.contentEl);
+		const enableSetting = new Setting(this.renderParentEl);
 		enableSetting
 			.setName("File name format")
 			.setDesc("Set the file name format.")
@@ -112,8 +193,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 					});
 			});
 
-		// Desc + preview row
-		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		const previewRow = this.renderParentEl.createDiv({ cls: "qa-preview-row" });
 		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
 		const formatDisplay = previewRow.createEl("span");
 		formatDisplay.setAttr("aria-live", "polite");
@@ -130,7 +210,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 		})();
 
-		const formatInput = new TextComponent(this.contentEl);
+		const formatInput = new TextComponent(this.renderParentEl);
 		formatInput.setPlaceholder("File name format");
 		textField = formatInput;
 		formatInput.inputEl.style.width = "100%";
@@ -152,7 +232,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFolderSetting(): void {
-		const folderSetting: Setting = new Setting(this.contentEl);
+		const folderSetting: Setting = new Setting(this.renderParentEl);
 		folderSetting
 			.setName("Create in folder")
 			.setDesc(
@@ -162,7 +242,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				toggle.setValue(this.choice.folder.enabled);
 				toggle.onChange((value) => {
 					this.choice.folder.enabled = value;
-					this.reload();
+					this.renderLocationSection();
 				});
 			});
 
@@ -171,7 +251,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		}
 
 		if (!this.choice.folder?.createInSameFolderAsActiveFile) {
-			const chooseFolderWhenCreatingNoteContainer = this.contentEl.createDiv(
+			const chooseFolderWhenCreatingNoteContainer = this.renderParentEl.createDiv(
 				"chooseFolderWhenCreatingNoteContainer",
 			);
 			chooseFolderWhenCreatingNoteContainer.createEl("span", {
@@ -184,7 +264,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				.setValue(this.choice.folder?.chooseWhenCreatingNote)
 				.onChange((value) => {
 					this.choice.folder.chooseWhenCreatingNote = value;
-					this.reload();
+					this.renderLocationSection();
 				});
 
 			if (!this.choice.folder?.chooseWhenCreatingNote) {
@@ -192,7 +272,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 
 			const chooseFolderFromSubfolderContainer: HTMLDivElement =
-				this.contentEl.createDiv("chooseFolderFromSubfolderContainer");
+				this.renderParentEl.createDiv("chooseFolderFromSubfolderContainer");
 
 			const stn = new Setting(chooseFolderFromSubfolderContainer);
 			stn
@@ -205,14 +285,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						.setValue(this.choice.folder?.chooseFromSubfolders)
 						.onChange((value) => {
 							this.choice.folder.chooseFromSubfolders = value;
-							this.reload();
 						}),
 				);
 		}
 
 		if (!this.choice.folder?.chooseWhenCreatingNote) {
 			const createInSameFolderAsActiveFileSetting: Setting = new Setting(
-				this.contentEl,
+				this.renderParentEl,
 			);
 			createInSameFolderAsActiveFileSetting
 				.setName("Create in same folder as active file")
@@ -224,14 +303,14 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						.setValue(this.choice.folder?.createInSameFolderAsActiveFile)
 						.onChange((value) => {
 							this.choice.folder.createInSameFolderAsActiveFile = value;
-							this.reload();
+							this.renderLocationSection();
 						}),
 				);
 		}
 	}
 
 	private addFolderSelector() {
-		const folderSelectionContainer: HTMLDivElement = this.contentEl.createDiv(
+		const folderSelectionContainer: HTMLDivElement = this.renderParentEl.createDiv(
 			"folderSelectionContainer",
 		);
 		const folderList: HTMLDivElement =
@@ -251,8 +330,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				},
 			},
 		});
-
-		this.svelteElements.push(folderListEl);
+		this.folderListEl = folderListEl;
 
 		const inputContainer = folderSelectionContainer.createDiv(
 			"folderInputContainer",
@@ -301,7 +379,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addAppendLinkSetting(): void {
-		// Normalize to ensure we're always working with the new format internally
 		const normalizedOptions = normalizeAppendLinkOptions(
 			this.choice.appendLink,
 		);
@@ -314,10 +391,12 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				: "optional"
 			: "disabled";
 
-		const appendLinkSetting: Setting = new Setting(this.contentEl);
+		const appendLinkSetting: Setting = new Setting(this.renderParentEl);
 		appendLinkSetting
 			.setName("Link to created file")
-			.setDesc("Choose how QuickAdd should insert a link to the created file in the current note.")
+			.setDesc(
+				"Choose how QuickAdd should insert a link to the created file in the current note.",
+			)
 			.addDropdown((dropdown) => {
 				dropdown.addOption("required", "Enabled (requires active file)");
 				dropdown.addOption("optional", "Enabled (skip if no active file)");
@@ -346,13 +425,12 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 							};
 							break;
 					}
-					this.reload();
+					this.renderLinkingSection();
 				});
 			});
 
-		// Only show placement dropdown when append link is enabled
 		if (currentMode !== "disabled") {
-			const placementSetting: Setting = new Setting(this.contentEl);
+			const placementSetting: Setting = new Setting(this.renderParentEl);
 			placementSetting
 				.setName("Link placement")
 				.setDesc("Where to place the link when appending")
@@ -383,15 +461,17 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 							requireActiveFile,
 							linkType: nextLinkType,
 						};
-						this.reload();
+						this.renderLinkingSection();
 					});
 				});
 
 			if (placementSupportsEmbed(normalizedOptions.placement)) {
-				const linkTypeSetting: Setting = new Setting(this.contentEl);
+				const linkTypeSetting: Setting = new Setting(this.renderParentEl);
 				linkTypeSetting
 					.setName("Link type")
-					.setDesc("Choose whether replacing the selection should insert a link or an embed.")
+					.setDesc(
+						"Choose whether replacing the selection should insert a link or an embed.",
+					)
 					.addDropdown((dropdown) => {
 						dropdown.addOption("link", "Link");
 						dropdown.addOption("embed", "Embed");
@@ -419,8 +499,92 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		}
 	}
 
+	private addOpenFileBehaviorSetting(): void {
+		new Setting(this.renderParentEl)
+			.setName("Open")
+			.setDesc("Open the created file.")
+			.addToggle((toggle) => {
+				toggle.setValue(this.choice.openFile);
+				toggle.onChange((value) => {
+					this.choice.openFile = value;
+					this.renderBehaviorSection();
+				});
+			});
+	}
+
+	private addFileOpeningBehaviorSetting(): void {
+		this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
+		const fileOpening = this.choice.fileOpening as FileOpeningSettings;
+
+		new Setting(this.renderParentEl)
+			.setName("File Opening Location")
+			.setDesc("Where to open the created file")
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					reuse: "Reuse current tab",
+					tab: "New tab",
+					split: "Split pane",
+					window: "New window",
+					"left-sidebar": "Left sidebar",
+					"right-sidebar": "Right sidebar",
+				});
+				dropdown.setValue(fileOpening.location);
+				dropdown.onChange((value: string) => {
+					fileOpening.location = value as OpenLocation;
+					this.renderBehaviorSection();
+				});
+			});
+
+		if (fileOpening.location === "split") {
+			new Setting(this.renderParentEl)
+				.setName("Split Direction")
+				.setDesc("How to arrange the new pane relative to the current one")
+				.addDropdown((dropdown) => {
+					dropdown.addOptions({
+						vertical: "Split right",
+						horizontal: "Split down",
+					});
+					dropdown.setValue(fileOpening.direction);
+					dropdown.onChange((value: string) => {
+						fileOpening.direction = value as "vertical" | "horizontal";
+					});
+				});
+		}
+
+		new Setting(this.renderParentEl)
+			.setName("View Mode")
+			.setDesc("How to display the opened file")
+			.addDropdown((dropdown) => {
+				dropdown.addOptions({
+					source: "Source",
+					preview: "Preview",
+					live: "Live Preview",
+					default: "Default",
+				});
+				dropdown.setValue(
+					typeof fileOpening.mode === "string"
+						? (fileOpening.mode as string)
+						: "default",
+				);
+				dropdown.onChange((value: string) => {
+					fileOpening.mode = value as FileViewMode2;
+				});
+			});
+
+		if (fileOpening.location !== "reuse") {
+			new Setting(this.renderParentEl)
+				.setName("Focus new pane")
+				.setDesc("Focus the opened tab immediately after opening")
+				.addToggle((toggle) =>
+					toggle.setValue(fileOpening.focus).onChange((value) => {
+						fileOpening.focus = value;
+					}),
+				);
+		}
+	}
+
 	private addFileAlreadyExistsSetting(): void {
-		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
+		const fileAlreadyExistsSetting: Setting = new Setting(this.renderParentEl);
 		fileAlreadyExistsSetting
 			.setName("Set default behavior if file already exists")
 			.setDesc(

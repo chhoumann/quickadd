@@ -8,12 +8,18 @@ import {
 } from "../../utils/fileOpeningDefaults";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { promptRenameChoice } from "../choiceRename";
+import { withPreservedUiContext } from "../ui/preserveUiContext";
+import {
+	recordChoiceBuilderMount,
+	recordChoiceBuilderReload,
+} from "../ui/uiStateDebug";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
 	protected svelteElements: SvelteComponent[] = [];
+	protected disposables: Array<() => void> = [];
 
 	protected constructor(app: App) {
 		super(app);
@@ -23,14 +29,35 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 
 		this.containerEl.addClass("quickAddModal");
+		recordChoiceBuilderMount();
 		this.open();
 	}
 
 	protected abstract display(): unknown;
 
 	protected reload() {
-		this.contentEl.empty();
-		this.display();
+		recordChoiceBuilderReload();
+		withPreservedUiContext(this.contentEl, () => {
+			this.cleanupRenderScope();
+			this.contentEl.empty();
+			this.display();
+		});
+	}
+
+	protected cleanupRenderScope(): void {
+		for (const el of this.svelteElements) {
+			if (el && el.$destroy) el.$destroy();
+		}
+		this.svelteElements = [];
+
+		for (const dispose of this.disposables) {
+			dispose();
+		}
+		this.disposables = [];
+	}
+
+	protected registerDisposable(dispose: () => void): void {
+		this.disposables.push(dispose);
 	}
 
 	protected addOnePageOverrideSetting(choice: IChoice): void {
@@ -204,9 +231,7 @@ export abstract class ChoiceBuilder extends Modal {
 
 	onClose() {
 		super.onClose();
-		this.svelteElements.forEach((el) => {
-			if (el && el.$destroy) el.$destroy();
-		});
+		this.cleanupRenderScope();
 		this.resolvePromise(this.choice);
 	}
 }
