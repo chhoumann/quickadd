@@ -1,9 +1,10 @@
-import { Modal, ButtonComponent } from "obsidian";
+import { Modal } from "obsidian";
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { ICommand } from "../../types/macros/ICommand";
 import { deepClone } from "../../utils/deepClone";
+import { renderModalActionBar } from "./modalActionBar";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
@@ -81,25 +82,16 @@ export class ConditionalBranchEditorModal extends Modal {
 	}
 
 	private renderButtonBar() {
-		const buttonContainer = this.contentEl.createDiv();
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "flex-end";
-		buttonContainer.style.gap = "12px";
-		buttonContainer.style.marginTop = "20px";
-
-		new ButtonComponent(buttonContainer)
-			.setButtonText("Cancel")
-			.onClick(() => {
+		renderModalActionBar({
+			parent: this.contentEl,
+			onCancel: () => {
 				this.resolve(null);
 				this.close();
-			});
-
-		new ButtonComponent(buttonContainer)
-			.setCta()
-			.setButtonText("Save")
-			.onClick(() => {
+			},
+			onSave: () => {
 				this.resolve(this.workingCommands);
 				this.close();
-			});
+			},
+		});
 	}
 }

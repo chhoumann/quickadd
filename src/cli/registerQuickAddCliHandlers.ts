@@ -7,10 +7,12 @@ import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
 } from "../preflight/collectChoiceRequirements";
+import { flattenChoicesWithPath } from "../utils/choiceUtils";
+import { toError } from "../utils/errorUtils";
 import type IChoice from "../types/choices/IChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
 
 type ChoiceType = IChoice["type"];
+type DebugAction = "get" | "reset" | "flush";
 
 interface CliChoiceSummary {
 	id: string;
@@ -37,12 +39,14 @@ interface RegisterCliHandlerTarget {
 }
 
 interface DebugCliTarget {
-	getDebugStats?: () => {
-		persistence: unknown;
-		ui: unknown;
+	getDebugApi?: () => {
+		getStats: () => {
+			persistence: unknown;
+			ui: unknown;
+		};
+		resetStats: () => void;
+		flushNow: () => Promise<unknown>;
 	} | null;
-	resetDebugStats?: () => boolean;
-	flushDebugPersistence?: () => Promise<unknown>;
 }
 
 const RUN_FLAGS: CliFlags = {
@@ -95,6 +99,12 @@ const DEBUG_FLAGS: CliFlags = {
 	},
 };
 
+const DEBUG_ACTIONS = {
+	get: "get",
+	reset: "reset",
+	flush: "flush",
+} as const satisfies Record<DebugAction, DebugAction>;
+
 const RESERVED_RUN_PARAMS = new Set<string>(["choice", "id", "vars", "ui"]);
 const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars"]);
 
@@ -128,11 +138,7 @@ function parseVarsJson(value: string): Record<string, unknown> {
 	try {
 		parsed = JSON.parse(value);
 	} catch (error) {
-		throw new Error(
-			`Invalid vars JSON: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
+		throw toError(error, "Invalid vars JSON");
 	}
 
 	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
@@ -164,34 +170,6 @@ function extractVariables(
 	}
 
 	return variables;
-}
-
-function flattenChoices(
-	choices: IChoice[],
-	segments: string[] = [],
-): CliChoiceSummary[] {
-	const flattened: CliChoiceSummary[] = [];
-
-	for (const choice of choices) {
-		const pathSegments = [...segments, choice.name];
-		const path = pathSegments.join(" / ");
-		const isMulti = choice.type === "Multi";
-		flattened.push({
-			id: choice.id,
-			name: choice.name,
-			type: choice.type,
-			command: choice.command,
-			path,
-			runnable: !isMulti,
-		});
-
-		if (isMulti) {
-			const multiChoice = choice as IMultiChoice;
-			flattened.push(...flattenChoices(multiChoice.choices, pathSegments));
-		}
-	}
-
-	return flattened;
 }
 
 function resolveChoiceFromParams(plugin: QuickAdd, params: CliData): IChoice {
@@ -321,7 +299,7 @@ async function runChoiceHandler(
 		return serialize({
 			ok: false,
 			command,
-			error: error instanceof Error ? error.message : String(error),
+			error: toError(error).message,
 		});
 	}
 }
@@ -340,7 +318,20 @@ function listChoicesHandler(plugin: QuickAdd, params: CliData): string {
 			});
 		}
 
-		const allChoices = flattenChoices(plugin.settings.choices);
+		const allChoices = flattenChoicesWithPath(plugin.settings.choices).map(
+			({ choice, pathSegments }) => {
+				const isMulti = choice.type === "Multi";
+				const summary: CliChoiceSummary = {
+					id: choice.id,
+					name: choice.name,
+					type: choice.type,
+					command: choice.command,
+					path: pathSegments.join(" / "),
+					runnable: !isMulti,
+				};
+				return summary;
+			},
+		);
 		const choices = allChoices.filter((choice) => {
 			if (
 				requestedType &&
@@ -362,7 +353,7 @@ function listChoicesHandler(plugin: QuickAdd, params: CliData): string {
 		return serialize({
 			ok: false,
 			command: CLI_COMMANDS.list,
-			error: error instanceof Error ? error.message : String(error),
+			error: toError(error).message,
 		});
 	}
 }
@@ -415,15 +406,24 @@ async function checkChoiceHandler(
 		return serialize({
 			ok: false,
 			command: CLI_COMMANDS.check,
-			error: error instanceof Error ? error.message : String(error),
+			error: toError(error).message,
 		});
 	}
 }
 
+function parseDebugAction(actionRaw: string | undefined): DebugAction | null {
+	const normalized = (actionRaw ?? DEBUG_ACTIONS.get).trim().toLowerCase();
+	if (normalized === DEBUG_ACTIONS.get) return DEBUG_ACTIONS.get;
+	if (normalized === DEBUG_ACTIONS.reset) return DEBUG_ACTIONS.reset;
+	if (normalized === DEBUG_ACTIONS.flush) return DEBUG_ACTIONS.flush;
+	return null;
+}
+
 async function debugHandler(plugin: QuickAdd, params: CliData): Promise<string> {
-	const actionRaw = typeof params.action === "string" ? params.action : "get";
-	const action = actionRaw.trim().toLowerCase();
+	const actionRaw = typeof params.action === "string" ? params.action : undefined;
+	const action = parseDebugAction(actionRaw);
 	const debugTarget = plugin as unknown as DebugCliTarget;
+	const debugApi = debugTarget.getDebugApi?.() ?? null;
 
 	if (!plugin.settings.devMode) {
 		return serialize({
@@ -433,40 +433,48 @@ async function debugHandler(plugin: QuickAdd, params: CliData): Promise<string> 
 		});
 	}
 
-	if (action === "get") {
+	if (!debugApi) {
+		return serialize({
+			ok: false,
+			command: CLI_COMMANDS.debug,
+			error: "Debug API is unavailable.",
+		});
+	}
+
+	if (action === DEBUG_ACTIONS.get) {
 		return serialize({
 			ok: true,
 			command: CLI_COMMANDS.debug,
-			action: "get",
-			stats: debugTarget.getDebugStats?.() ?? null,
+			action: DEBUG_ACTIONS.get,
+			stats: debugApi.getStats(),
 		});
 	}
 
-	if (action === "reset") {
-		const reset = debugTarget.resetDebugStats?.() ?? false;
+	if (action === DEBUG_ACTIONS.reset) {
+		debugApi.resetStats();
 		return serialize({
-			ok: reset,
+			ok: true,
 			command: CLI_COMMANDS.debug,
-			action: "reset",
-			stats: debugTarget.getDebugStats?.() ?? null,
+			action: DEBUG_ACTIONS.reset,
+			stats: debugApi.getStats(),
 		});
 	}
 
-	if (action === "flush") {
+	if (action === DEBUG_ACTIONS.flush) {
 		try {
-			const persistence = await debugTarget.flushDebugPersistence?.();
+			const persistence = await debugApi.flushNow();
 			return serialize({
 				ok: true,
 				command: CLI_COMMANDS.debug,
-				action: "flush",
+				action: DEBUG_ACTIONS.flush,
 				persistence: persistence ?? null,
 			});
 		} catch (error) {
 			return serialize({
 				ok: false,
 				command: CLI_COMMANDS.debug,
-				action: "flush",
-				error: error instanceof Error ? error.message : String(error),
+				action: DEBUG_ACTIONS.flush,
+				error: toError(error).message,
 			});
 		}
 	}
@@ -474,7 +482,7 @@ async function debugHandler(plugin: QuickAdd, params: CliData): Promise<string> 
 	return serialize({
 		ok: false,
 		command: CLI_COMMANDS.debug,
-		error: `Invalid action '${actionRaw}'. Use get, reset, or flush.`,
+		error: `Invalid action '${actionRaw ?? ""}'. Use get, reset, or flush.`,
 	});
 }
 

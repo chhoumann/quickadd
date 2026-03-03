@@ -1,10 +1,11 @@
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Setting } from "obsidian";
+import { Modal, Setting } from "obsidian";
 import { createDraftSession, type DraftSession } from "../../state/createDraftSession";
 import type { OpenLocation } from "../../types/fileOpening";
 import { NewTabDirection } from "../../types/newTabDirection";
 import { CommandType } from "../../types/macros/CommandType";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
+import { renderModalActionBar } from "./modalActionBar";
 import { resolveOpenFileCommandModalResult } from "./openFileCommandModalResult";
 
 export class OpenFileCommandSettingsModal extends Modal {
@@ -196,33 +197,25 @@ export class OpenFileCommandSettingsModal extends Modal {
 	}
 
 	private addButtonBar() {
-		const buttonContainer = this.contentEl.createDiv();
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "flex-end";
-		buttonContainer.style.gap = "8px";
-		buttonContainer.style.marginTop = "20px";
-
-		const cancelButton = new ButtonComponent(buttonContainer);
-		cancelButton.setButtonText("Cancel").onClick(() => {
-			const result = resolveOpenFileCommandModalResult(
-				"cancel",
-				this.draftSession,
-			);
-			this.resolveWithGuard(result);
-			this.close();
-		});
-
-		const saveButton = new ButtonComponent(buttonContainer);
-		saveButton
-			.setButtonText("Save")
-			.setCta()
-			.onClick(() => {
+		renderModalActionBar({
+			parent: this.contentEl,
+			gapPx: 8,
+			onCancel: () => {
+				const result = resolveOpenFileCommandModalResult(
+					"cancel",
+					this.draftSession,
+				);
+				this.resolveWithGuard(result);
+				this.close();
+			},
+			onSave: () => {
 				const result = resolveOpenFileCommandModalResult(
 					"save",
 					this.draftSession,
 				);
 				this.resolveWithGuard(result);
 				this.close();
-			});
+			},
+		});
 	}
 }

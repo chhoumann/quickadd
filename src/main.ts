@@ -41,21 +41,30 @@ type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
 interface QuickAddDebugApi {
 	getStats: () => {
-		persistence: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
+		persistence: QuickAddPersistenceStats | null;
 		ui: ReturnType<typeof getQuickAddUiDebugStats>;
 	};
 	resetStats: () => void;
-	flushNow: () => Promise<ReturnType<SettingsPersistenceQueue["getStats"]> | null>;
+	flushNow: () => Promise<QuickAddPersistenceStats | null>;
 	measureWriteBurst: (
 		mutate: () => void | Promise<void>,
 	) => Promise<{
-		before: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
-		after: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
+		before: QuickAddPersistenceStats | null;
+		after: QuickAddPersistenceStats | null;
 		writesDuringBurst: number;
 	}>;
 	checkFocusStability: (
 		action: () => void | Promise<void>,
 	) => Promise<boolean>;
+}
+
+interface QuickAddPersistenceStats {
+	scheduledRevisions: number;
+	flushedRevisions: number;
+	lastFlushedRevision: number;
+	writesStarted: number;
+	writesCompleted: number;
+	writesFailed: number;
 }
 
 export default class QuickAdd extends Plugin {
@@ -64,6 +73,12 @@ export default class QuickAdd extends Plugin {
 	private unsubscribeSettingsStore: () => void = () => {};
 	private persistenceQueue: SettingsPersistenceQueue | null = null;
 	private readonly debugNamespace = "__quickaddDebug";
+	private templateFilesCache:
+		| {
+				folderPath: string;
+				files: TFile[];
+		  }
+		| null = null;
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(
@@ -82,11 +97,25 @@ export default class QuickAdd extends Plugin {
 			this.settings = settings;
 			await this.saveData(settings);
 		});
+		const invalidateTemplateFilesCache = () => {
+			this.templateFilesCache = null;
+		};
+		this.registerEvent(this.app.vault.on("create", invalidateTemplateFilesCache));
+		this.registerEvent(this.app.vault.on("delete", invalidateTemplateFilesCache));
+		this.registerEvent(this.app.vault.on("rename", invalidateTemplateFilesCache));
+		this.registerEvent(this.app.vault.on("modify", invalidateTemplateFilesCache));
+
 		settingsStore.setState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
-			const devModeChanged = settings.devMode !== this.settings.devMode;
+			const previousSettings = this.settings;
+			const devModeChanged = settings.devMode !== previousSettings.devMode;
+			if (settings.templateFolderPath !== previousSettings.templateFolderPath) {
+				this.templateFilesCache = null;
+			}
 			this.settings = settings;
-			this.persistenceQueue?.schedule(settings);
+			if (settings !== previousSettings) {
+				this.persistenceQueue?.schedule(settings);
+			}
 			if (devModeChanged) {
 				this.registerDebugNamespace();
 			}
@@ -353,10 +382,21 @@ export default class QuickAdd extends Plugin {
 
 	public getTemplateFiles(): TFile[] {
 		if (!String.isString(this.settings.templateFolderPath)) return [];
+		const folderPath = this.settings.templateFolderPath;
+		const cached = this.templateFilesCache;
+		if (cached && cached.folderPath === folderPath) {
+			return cached.files;
+		}
 
-		return this.app.vault
-			.getFiles()
-			.filter((file) => file.path.startsWith(this.settings.templateFolderPath));
+		const files = this.app.vault
+			.getMarkdownFiles()
+			.filter((file) => file.path.startsWith(folderPath));
+		this.templateFilesCache = {
+			folderPath,
+			files,
+		};
+
+		return files;
 	}
 
 	private announceUpdate() {
@@ -401,99 +441,44 @@ export default class QuickAdd extends Plugin {
 		}
 	}
 
-	public getDebugStats(): {
-		persistence: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
-		ui: ReturnType<typeof getQuickAddUiDebugStats>;
-	} | null {
+	public getDebugApi(): QuickAddDebugApi | null {
 		if (!this.settings.devMode) {
 			return null;
 		}
 
 		return {
-			persistence: this.persistenceQueue?.getStats() ?? null,
-			ui: getQuickAddUiDebugStats(),
-		};
-	}
-
-	public resetDebugStats(): boolean {
-		if (!this.settings.devMode) {
-			return false;
-		}
-
-		resetQuickAddUiDebugStats();
-		return true;
-	}
-
-	public async flushDebugPersistence(): Promise<
-		ReturnType<SettingsPersistenceQueue["getStats"]> | null
-	> {
-		if (!this.settings.devMode) {
-			return null;
-		}
-
-		await this.persistenceQueue?.flushNow();
-		return this.persistenceQueue?.getStats() ?? null;
-	}
-
-	public async measureDebugWriteBurst(
-		mutate: () => void | Promise<void>,
-	): Promise<{
-		before: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
-		after: ReturnType<SettingsPersistenceQueue["getStats"]> | null;
-		writesDuringBurst: number;
-	} | null> {
-		if (!this.settings.devMode) {
-			return null;
-		}
-
-		const before = this.persistenceQueue?.getStats() ?? null;
-		await mutate();
-		await this.persistenceQueue?.flushNow();
-		const after = this.persistenceQueue?.getStats() ?? null;
-		const writesDuringBurst =
-			before && after ? after.writesCompleted - before.writesCompleted : 0;
-
-		return {
-			before,
-			after,
-			writesDuringBurst,
-		};
-	}
-
-	public async checkDebugFocusStability(
-		action: () => void | Promise<void>,
-	): Promise<boolean | null> {
-		if (!this.settings.devMode) {
-			return null;
-		}
-
-		const activeBefore = document.activeElement;
-		await action();
-		return document.activeElement === activeBefore;
-	}
-
-	private getDebugApi(): QuickAddDebugApi | null {
-		if (!this.settings.devMode) {
-			return null;
-		}
-
-		return {
-			getStats: () => this.getDebugStats() ?? {
-				persistence: null,
+			getStats: () => ({
+				persistence: this.persistenceQueue?.getStats() ?? null,
 				ui: getQuickAddUiDebugStats(),
-			},
+			}),
 			resetStats: () => {
-				void this.resetDebugStats();
+				resetQuickAddUiDebugStats();
 			},
-			flushNow: () => this.flushDebugPersistence(),
-			measureWriteBurst: async (mutate) =>
-				(await this.measureDebugWriteBurst(mutate)) ?? {
-					before: null,
-					after: null,
-					writesDuringBurst: 0,
-				},
-			checkFocusStability: async (action) =>
-				(await this.checkDebugFocusStability(action)) ?? false,
+			flushNow: async () => {
+				await this.persistenceQueue?.flushNow();
+				return this.persistenceQueue?.getStats() ?? null;
+			},
+			measureWriteBurst: async (mutate) => {
+				const before = this.persistenceQueue?.getStats() ?? null;
+				await mutate();
+				await this.persistenceQueue?.flushNow();
+				const after = this.persistenceQueue?.getStats() ?? null;
+				const writesDuringBurst =
+					before && after
+						? after.writesCompleted - before.writesCompleted
+						: 0;
+
+				return {
+					before,
+					after,
+					writesDuringBurst,
+				};
+			},
+			checkFocusStability: async (action) => {
+				const activeBefore = document.activeElement;
+				await action();
+				return document.activeElement === activeBefore;
+			},
 		};
 	}
 }

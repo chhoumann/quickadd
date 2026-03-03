@@ -79,4 +79,42 @@ describe("withPreservedUiContext", () => {
 		expect(restoredSecondInput.selectionStart).toBe(1);
 		expect(restoredSecondInput.selectionEnd).toBe(2);
 	});
+
+	it("supports immediate-only restore without requestAnimationFrame", () => {
+		const rafSpy = vi
+			.spyOn(window, "requestAnimationFrame")
+			.mockImplementation((cb) => {
+				cb(0);
+				return 1;
+			});
+
+		document.body.innerHTML = `
+			<div class="modal">
+				<div class="modal-content" style="overflow:auto;max-height:120px;">
+					<div id="root"></div>
+				</div>
+			</div>
+		`;
+
+		const root = document.getElementById("root") as HTMLDivElement;
+		const modalContent = document.querySelector(
+			".modal-content",
+		) as HTMLDivElement;
+		root.innerHTML = '<input data-qa-key="immediate.test" value="abcdef" />';
+		const input = root.querySelector("input") as HTMLInputElement;
+		modalContent.scrollTop = 33;
+		input.focus();
+
+		withPreservedUiContext(
+			root,
+			() => {
+				root.innerHTML = '<input data-qa-key="immediate.test" value="abcdef" />';
+				modalContent.scrollTop = 0;
+			},
+			{ restorePhase: "immediate" },
+		);
+
+		expect(rafSpy).not.toHaveBeenCalled();
+		expect(modalContent.scrollTop).toBe(33);
+	});
 });

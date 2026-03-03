@@ -25,6 +25,8 @@ After this change, a QuickAdd user will be able to edit complex settings (especi
 - [x] (2026-03-02 17:45Z) Implemented Follow-up 5: extracted shared behavior-section helpers for one-page override and file opening controls.
 - [x] (2026-03-02 17:48Z) Implemented Follow-up 6: added integration tests for queue + `settingsStore` subscription/dispose lifecycle.
 - [x] (2026-03-02 17:53Z) Implemented Follow-up 7: added stable CLI debug command surface (`quickadd:debug`) while retaining namespace compatibility.
+- [x] (2026-03-02 21:38Z) Added full simplification feedback backlog from Claude pass (`claude -p "/simplify but don't fix, just give the feedback"`).
+- [x] (2026-03-02 21:52Z) Implemented simplification backlog items across builder deduplication, CLI utility reuse, draft-session consistency, queue/preserve-ui refinements, and targeted efficiency cleanups; reran tests/build + Obsidian CLI verification.
 
 ## Surprises & Discoveries
 
@@ -257,6 +259,86 @@ Scope:
 Validation:
 - CLI transcript using only stable seam.
 - Backward-compatible behavior during deprecation window for global namespace access.
+
+## Simplification Feedback Backlog (Claude Pass, 2026-03-02)
+
+This section captures all feedback items from the Claude simplification pass.
+Items are tracked individually even where they overlap previously completed work.
+
+### Code Reuse
+
+- [x] [High] Remove dead base-class methods from
+      `src/gui/ChoiceBuilder/choiceBuilder.ts`:
+      `addOnePageOverrideSetting`,
+      `addOpenFileSetting`,
+      `addFileOpeningSetting`.
+- [x] [High] Deduplicate identical `renderSection` implementations in
+      `src/gui/ChoiceBuilder/captureChoiceBuilder.ts` and
+      `src/gui/ChoiceBuilder/templateChoiceBuilder.ts` by moving shared logic
+      to base class.
+- [x] [High] Avoid reimplementing flattening logic in
+      `src/cli/registerQuickAddCliHandlers.ts`; extend/reuse
+      `src/utils/choiceUtils.ts:flattenChoices` with optional path segments.
+- [x] [High] Replace repeated `instanceof Error ? error.message : String(error)`
+      handling in CLI with shared `src/utils/errorUtils.ts:toError`.
+- [x] [Low] Replace `checkObjectDiff` usage in
+      `src/gui/AIAssistant/AIAssistantProvidersModal.ts` with
+      `createDraftSession().isDirty()` where appropriate.
+- [x] [Low] Extract a shared save/cancel modal action bar helper used by:
+      `src/gui/MacroGUIs/OpenFileCommandSettingsModal.ts`,
+      `src/gui/MacroGUIs/ConditionalCommandSettingsModal.ts`,
+      `src/gui/MacroGUIs/ConditionalBranchEditorModal.ts`.
+
+### Code Quality
+
+- [x] [Medium] Simplify `flushNow` in
+      `src/state/settingsPersistenceQueue.ts` by separating timeout, retry, and
+      loop-wake responsibilities.
+- [x] [Medium] Document and/or refactor double-restore behavior in
+      `src/gui/utils/preserveUiContext.ts:scheduleRestore` to make intent
+      explicit and controllable.
+- [x] [Medium] Consolidate debug API access in `src/main.ts`:
+      prefer `getDebugApi(): QuickAddDebugApi | null` over multiple pass-through
+      debug methods and avoid leaking queue internals in public return types.
+- [x] [Medium] Migrate `src/gui/AIAssistant/AIAssistantProvidersModal.ts` to
+      `DraftSession` pattern for consistency with Open File modal editing.
+- [x] [Low] Remove dual source of truth for `filterQuery` in
+      `src/gui/ChoiceView.svelte` (local state vs `uiStore` field).
+- [x] [Low] Revisit `scheduledRevisions` stat in
+      `src/state/settingsPersistenceQueue.ts`; rename or remove to avoid
+      misleading metrics.
+- [x] [Low] Simplify no-op conditional branch in
+      `src/gui/MacroGUIs/ConditionalCommandSettingsModal.ts:cloneCondition`.
+- [x] [Low] Replace stringly-typed debug actions (`"get"`, `"reset"`, `"flush"`)
+      in `src/cli/registerQuickAddCliHandlers.ts` with typed constants/union.
+
+### Efficiency
+
+- [x] [Medium] Reduce repeated `querySelectorAll` work in
+      `src/gui/utils/preserveUiContext.ts` by reusing scroll target discovery
+      across capture + restore passes.
+- [x] [Medium] Add caching or memoization for vault-wide scans triggered by
+      section rerenders in:
+      `src/gui/ChoiceBuilder/captureChoiceBuilder.ts` and
+      `src/gui/ChoiceBuilder/templateChoiceBuilder.ts`.
+- [x] [Medium] Optimize `createDraftSession().isDirty()` in
+      `src/state/createDraftSession.ts` for repeated checks (dirty flag and/or
+      incremental tracking).
+- [x] [Medium] Cancel losing timeout in
+      `src/state/settingsPersistenceQueue.ts:waitForPromiseOrTimeout`.
+- [x] [Medium] Reconsider timeout window reset across retries in
+      `src/state/settingsPersistenceQueue.ts` so max wait does not scale by
+      retry count under persistent failure.
+- [x] [Low] Avoid scheduling persistence writes on semantically unchanged
+      settings in `src/main.ts` subscriber path.
+- [x] [Low] Memoize `prepareFuzzySearch` usage in
+      `src/gui/ChoiceView.svelte` when inputs are unchanged.
+- [x] [Low] Add cleanup/eviction strategy for stale `collapsedChoiceIds` in
+      `src/gui/stores/uiStore.ts`.
+- [x] [Low] Avoid full-vault template scans on every request in
+      `src/main.ts:getTemplateFiles` (cache/index by folder path).
+- [ ] [Low] Revisit `api` getter allocation pattern in `src/main.ts` to avoid
+      constructing a new `ChoiceExecutor` per access.
 
 ## Context and Orientation
 

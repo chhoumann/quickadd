@@ -97,9 +97,11 @@ function createPlugin(choices: IChoice[]) {
 				handlers.push({ command, description, flags, handler });
 			},
 		),
-		getDebugStats: vi.fn(() => debugStats),
-		resetDebugStats: vi.fn(() => true),
-		flushDebugPersistence: vi.fn(async () => debugStats.persistence),
+		getDebugApi: vi.fn(() => ({
+			getStats: () => debugStats,
+			resetStats: () => undefined,
+			flushNow: async () => debugStats.persistence,
+		})),
 	} as unknown as QuickAdd & {
 		registerCliHandler: (
 			command: string,
@@ -107,9 +109,11 @@ function createPlugin(choices: IChoice[]) {
 			flags: CliFlags | null,
 			handler: (params: CliData) => string | Promise<string>,
 		) => void;
-		getDebugStats: () => unknown;
-		resetDebugStats: () => boolean;
-		flushDebugPersistence: () => Promise<unknown>;
+		getDebugApi: () => {
+			getStats: () => unknown;
+			resetStats: () => void;
+			flushNow: () => Promise<unknown>;
+		};
 	};
 
 	return { plugin, handlers };

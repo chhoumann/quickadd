@@ -1,12 +1,6 @@
-import { type App, Modal, Setting, setIcon } from "obsidian";
+import { type App, Modal, setIcon } from "obsidian";
 import type { SvelteComponent } from "svelte";
 import type IChoice from "../../types/choices/IChoice";
-import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
-import {
-	normalizeFileOpening,
-	type FileOpeningSettings,
-} from "../../utils/fileOpeningDefaults";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { promptRenameChoice } from "../choiceRename";
 import { withPreservedUiContext } from "../ui/preserveUiContext";
 import {
@@ -20,6 +14,7 @@ export abstract class ChoiceBuilder extends Modal {
 	abstract choice: IChoice;
 	protected svelteElements: SvelteComponent[] = [];
 	protected disposables: Array<() => void> = [];
+	protected renderParentOverride: HTMLElement | null = null;
 
 	protected constructor(app: App) {
 		super(app);
@@ -60,47 +55,25 @@ export abstract class ChoiceBuilder extends Modal {
 		this.disposables.push(dispose);
 	}
 
-	protected addOnePageOverrideSetting(choice: IChoice): void {
-		new Setting(this.contentEl)
-			.setName("One-page input override")
-			.setDesc(
-				"Override the global setting for this choice. 'Always' forces the one-page modal even if disabled globally; 'Never' disables it even if enabled globally.",
-			)
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					"": "Follow global setting",
-					always: "Always",
-					never: "Never",
-				});
-				dropdown.setValue((choice.onePageInput ?? "") as string);
-				dropdown.onChange((val: string) => {
-					choice.onePageInput = val === "" ? undefined : (val as any);
-				});
-			});
+	protected get renderParentEl(): HTMLElement {
+		return this.renderParentOverride ?? this.contentEl;
 	}
 
-	protected addFileSearchInputToSetting(
-		setting: Setting,
-		value: string,
-		onChangeCallback: (value: string) => void,
+	protected renderSection(
+		parent: HTMLDivElement | null,
+		render: () => void,
 	): void {
-		setting.addSearch((searchComponent) => {
-			searchComponent.setValue(value);
-			searchComponent.setPlaceholder("File path");
-
-			const markdownFiles: string[] = this.app.vault
-				.getMarkdownFiles()
-				.map((f) => f.path);
-			new GenericTextSuggester(
-				this.app,
-				searchComponent.inputEl,
-				markdownFiles,
-			);
-
-			searchComponent.onChange(onChangeCallback);
+		if (!parent) return;
+		withPreservedUiContext(parent, () => {
+			parent.empty();
+			const previousParent = this.renderParentOverride;
+			this.renderParentOverride = parent;
+			try {
+				render();
+			} finally {
+				this.renderParentOverride = previousParent;
+			}
 		});
-
-		return;
 	}
 
 	protected addCenteredChoiceNameHeader(choice: IChoice): void {
@@ -123,110 +96,6 @@ export abstract class ChoiceBuilder extends Modal {
 			choice.name = newName;
 			textEl.setText(newName);
 		});
-	}
-
-	/**
-	 * Adds a toggle that controls whether the resulting file should be opened.
-	 * @param description Description explaining what file will be opened (e.g. "Open the file that is captured to.")
-	 */
-	protected addOpenFileSetting(description: string): void {
-		// We intentionally cast to `any` because not all IChoice implementations have openFile.
-		const choice: any = this.choice as any;
-		if (choice.openFile === undefined) return; // Guard: nothing to configure
-
-		new Setting(this.contentEl)
-			.setName("Open")
-			.setDesc(description)
-			.addToggle((toggle) => {
-				toggle.setValue(choice.openFile);
-				toggle.onChange((value) => {
-					choice.openFile = value;
-					this.reload();
-				});
-			});
-	}
-
-	/**
-	 * Renders the UI for configuring where and how to open a file after it is created/updated.
-	 * This is shared between multiple ChoiceBuilder implementations.
-	 *
-	 * @param contextLabel Text to use in descriptions (e.g. "captured" | "created")
-	 */
-	protected addFileOpeningSetting(contextLabel: string): void {
-		const choice: any = this.choice as any;
-		choice.fileOpening = normalizeFileOpening(choice.fileOpening);
-
-		const fileOpening = choice.fileOpening as FileOpeningSettings;
-
-		// Location selector
-		new Setting(this.contentEl)
-			.setName("File Opening Location")
-			.setDesc(`Where to open the ${contextLabel} file`)
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					reuse: "Reuse current tab",
-					tab: "New tab",
-					split: "Split pane",
-					window: "New window",
-					"left-sidebar": "Left sidebar",
-					"right-sidebar": "Right sidebar",
-				});
-				dropdown.setValue(fileOpening.location);
-				dropdown.onChange((value: any) => {
-					fileOpening.location = value as OpenLocation;
-					this.reload();
-				});
-			});
-
-		// Split direction – only if location === "split"
-		if (fileOpening.location === "split") {
-			new Setting(this.contentEl)
-				.setName("Split Direction")
-				.setDesc("How to arrange the new pane relative to the current one")
-				.addDropdown((dropdown) => {
-					dropdown.addOptions({
-						vertical: "Split right",
-						horizontal: "Split down",
-					});
-					dropdown.setValue(fileOpening.direction);
-					dropdown.onChange((value: any) => {
-						fileOpening.direction = value;
-					});
-				});
-		}
-
-		// View mode selector
-		new Setting(this.contentEl)
-			.setName("View Mode")
-			.setDesc("How to display the opened file")
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					source: "Source",
-					preview: "Preview",
-					live: "Live Preview",
-					default: "Default",
-				});
-				dropdown.setValue(
-					typeof fileOpening.mode === "string"
-						? (fileOpening.mode as string)
-						: "default",
-				);
-				dropdown.onChange((value: any) => {
-					fileOpening.mode = value as FileViewMode2;
-				});
-			});
-
-		// Focus toggle – only show for non-reuse locations
-		if (fileOpening.location !== "reuse") {
-			new Setting(this.contentEl)
-				.setName("Focus new pane")
-				.setDesc("Focus the opened tab immediately after opening")
-				.addToggle((toggle) =>
-					toggle.setValue(fileOpening.focus).onChange((value) => {
-						fileOpening.focus = value;
-					}),
-				);
-		}
 	}
 
 	onClose() {

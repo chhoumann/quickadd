@@ -27,13 +27,31 @@
 	export let app: App;
 	export let plugin: QuickAdd;
 
-	let filterQuery: string = uiStore.getState().choiceFilterQuery;
+	let filterQuery = "";
 	let disableOnlineFeatures = settingsStore.getState().disableOnlineFeatures;
+	let cachedFuzzyQuery = "";
+	let cachedFuzzyMatcher: ((value: string) => boolean) | null = null;
+
+	function getFuzzyMatcher(query: string): ((value: string) => boolean) | null {
+		if (query === "") {
+			cachedFuzzyQuery = "";
+			cachedFuzzyMatcher = null;
+			return null;
+		}
+
+		if (query !== cachedFuzzyQuery || cachedFuzzyMatcher === null) {
+			cachedFuzzyQuery = query;
+			cachedFuzzyMatcher = prepareFuzzySearch(query);
+		}
+
+		return cachedFuzzyMatcher;
+	}
 
 	function filterChoices(list: IChoice[], query: string): IChoice[] {
 		const q = query.trim();
 		if (!q) return list;
-		const match = prepareFuzzySearch(q);
+		const match = getFuzzyMatcher(q);
+		if (!match) return list;
 
 		const walk = (c: IChoice): IChoice | null => {
 			const selfMatches = !!match(c.name ?? "");
@@ -59,27 +77,34 @@
 			.filter(Boolean) as IChoice[];
 	}
 
+	function collectChoiceIds(list: IChoice[]): Set<string> {
+		const ids = new Set<string>();
+		const walk = (choice: IChoice) => {
+			ids.add(choice.id);
+			if (choice.type === "Multi") {
+				for (const child of (choice as any).choices ?? []) {
+					walk(child);
+				}
+			}
+		};
+		for (const choice of list) {
+			walk(choice);
+		}
+		return ids;
+	}
+
 	// Subscribe to settings changes to keep choices in sync
 	onMount(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
 			choices = settings.choices;
 			disableOnlineFeatures = settings.disableOnlineFeatures;
-		});
-		const unsubUiStore = uiStore.subscribe((state) => {
-			if (state.choiceFilterQuery !== filterQuery) {
-				filterQuery = state.choiceFilterQuery;
-			}
+			uiStore.pruneCollapsedChoiceIds(collectChoiceIds(settings.choices));
 		});
 
 		return () => {
 			unsubSettingsStore();
-			unsubUiStore();
 		};
 	});
-
-	$: if (uiStore.getState().choiceFilterQuery !== filterQuery) {
-		uiStore.setState({ choiceFilterQuery: filterQuery });
-	}
 
 	// Command registry for managing Obsidian commands
 	const commandRegistry = new CommandRegistry(plugin);

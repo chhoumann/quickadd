@@ -77,7 +77,7 @@ export class SettingsPersistenceQueue {
 			firstScheduledAt: this.pending?.firstScheduledAt ?? now,
 			lastScheduledAt: now,
 		};
-		this.stats.scheduledRevisions = revision;
+		this.stats.scheduledRevisions += 1;
 		this.ensureLoop();
 		this.wakeLoop();
 		return revision;
@@ -92,66 +92,61 @@ export class SettingsPersistenceQueue {
 		let retryCount = 0;
 
 		this.flushRequested = true;
-		this.ensureLoop();
-		this.wakeLoop();
+		try {
+			for (;;) {
+				if (!this.pending && !this.loopPromise) {
+					return;
+				}
 
-		while (this.pending || this.loopPromise) {
-			const elapsed = Date.now() - startedAt;
-			if (elapsed > resolvedOptions.timeoutMs) {
-				const cause = this.lastError;
-				this.flushRequested = false;
-				this.lastError = undefined;
-				throw this.buildFlushError(
-					`flushNow timed out after ${resolvedOptions.timeoutMs}ms.`,
-					cause,
-					retryCount,
+				const remainingMs = this.getRemainingTimeoutMs(
+					startedAt,
+					resolvedOptions.timeoutMs,
 				);
-			}
+				if (remainingMs <= 0) {
+					throw this.buildAndClearFlushError(
+						`flushNow timed out after ${resolvedOptions.timeoutMs}ms.`,
+						retryCount,
+					);
+				}
 
-			if (!this.loopPromise && this.pending) {
-				this.ensureLoop();
-			}
-			this.wakeLoop();
+				if (!this.loopPromise && this.pending) {
+					this.ensureLoop();
+				}
+				this.wakeLoop();
 
-			const currentLoop = this.loopPromise;
-			if (!currentLoop) {
-				continue;
-			}
+				const currentLoop = this.loopPromise;
+				if (!currentLoop) {
+					continue;
+				}
 
-			const remainingMs = resolvedOptions.timeoutMs - elapsed;
-			const completed = await this.waitForPromiseOrTimeout(
-				currentLoop,
-				Math.max(1, remainingMs),
-			);
-			if (!completed) {
-				const cause = this.lastError;
-				this.flushRequested = false;
-				this.lastError = undefined;
-				throw this.buildFlushError(
-					`flushNow timed out after ${resolvedOptions.timeoutMs}ms.`,
-					cause,
-					retryCount,
+				const completed = await this.waitForPromiseOrTimeout(
+					currentLoop,
+					remainingMs,
 				);
-			}
+				if (!completed) {
+					throw this.buildAndClearFlushError(
+						`flushNow timed out after ${resolvedOptions.timeoutMs}ms.`,
+						retryCount,
+					);
+				}
 
-			if (this.lastError !== undefined) {
+				if (this.lastError === undefined) {
+					continue;
+				}
+
 				retryCount += 1;
 				if (retryCount > resolvedOptions.maxRetryAttempts) {
-					const cause = this.lastError;
-					this.flushRequested = false;
-					this.lastError = undefined;
-					throw this.buildFlushError(
+					throw this.buildAndClearFlushError(
 						`flushNow exceeded retry limit (${resolvedOptions.maxRetryAttempts}).`,
-						cause,
 						retryCount,
 					);
 				}
 
 				this.lastError = undefined;
 			}
+		} finally {
+			this.flushRequested = false;
 		}
-
-		this.flushRequested = false;
 	}
 
 	getStats(): SettingsPersistenceStats {
@@ -210,7 +205,7 @@ export class SettingsPersistenceQueue {
 					const now = Date.now();
 					this.pending = {
 						...pending,
-						firstScheduledAt: now,
+						firstScheduledAt: pending.firstScheduledAt,
 						lastScheduledAt: now,
 					};
 				}
@@ -221,6 +216,7 @@ export class SettingsPersistenceQueue {
 				if (!this.flushRequested) {
 					// Background mode: back off before the next attempt.
 					await this.waitForSignal(Math.max(this.options.debounceMs, 50));
+					continue;
 				}
 
 				// Exit loop so flushNow can apply retry bounds deterministically.
@@ -279,15 +275,36 @@ export class SettingsPersistenceQueue {
 		return err;
 	}
 
+	private buildAndClearFlushError(message: string, retryCount: number): Error {
+		const cause = this.lastError;
+		this.lastError = undefined;
+		return this.buildFlushError(message, cause, retryCount);
+	}
+
+	private getRemainingTimeoutMs(startedAt: number, timeoutMs: number): number {
+		const elapsed = Date.now() - startedAt;
+		return timeoutMs - elapsed;
+	}
+
 	private async waitForPromiseOrTimeout(
 		promise: Promise<void>,
 		timeoutMs: number,
 	): Promise<boolean> {
-		return await Promise.race<boolean>([
-			promise.then(() => true),
-			new Promise<boolean>((resolve) => {
-				setTimeout(() => resolve(false), timeoutMs);
-			}),
-		]);
+		return await new Promise<boolean>((resolve, reject) => {
+			const timer = setTimeout(() => {
+				resolve(false);
+			}, timeoutMs);
+
+			promise.then(
+				() => {
+					clearTimeout(timer);
+					resolve(true);
+				},
+				(error) => {
+					clearTimeout(timer);
+					reject(error);
+				},
+			);
+		});
 	}
 }

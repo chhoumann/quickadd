@@ -70,4 +70,17 @@ describe("createDraftSession", () => {
 		});
 		expect(session.isDirty()).toBe(false);
 	});
+
+	it("tracks array mutations and supports reverting to clean state", () => {
+		const session = createDraftSession({
+			items: ["a", "b"],
+		});
+
+		expect(session.isDirty()).toBe(false);
+		session.draft.items.push("c");
+		expect(session.isDirty()).toBe(true);
+
+		session.draft.items.pop();
+		expect(session.isDirty()).toBe(false);
+	});
 });

@@ -1,6 +1,7 @@
 export interface PreservedUiContextOptions {
 	scrollRootSelector?: string;
 	restoreFocus?: boolean;
+	restorePhase?: "immediate" | "animationFrame" | "both";
 }
 
 type ScrollSnapshot = {
@@ -192,9 +193,9 @@ function findActiveElement(
 function restoreUiSnapshot(
 	root: HTMLElement,
 	snapshot: UiSnapshot,
+	scrollTargets: Map<string, HTMLElement>,
 	options?: PreservedUiContextOptions,
 ) {
-	const scrollTargets = getScrollTargets(root, options);
 	for (const scroll of snapshot.scroll) {
 		const target = scrollTargets.get(scroll.key);
 		if (!target) continue;
@@ -234,15 +235,30 @@ function scheduleRestore(
 	snapshot: UiSnapshot,
 	options?: PreservedUiContextOptions,
 ) {
-	restoreUiSnapshot(root, snapshot, options);
+	// "both" is the default to handle immediate sync rebuilds and layout work
+	// that lands on the next frame; callers can now opt into a single phase.
+	const restoreTargets = getScrollTargets(root, options);
+	const restore = () => restoreUiSnapshot(root, snapshot, restoreTargets, options);
+	const phase = options?.restorePhase ?? "both";
+	if (phase === "immediate" || phase === "both") {
+		restore();
+	}
 
 	const win = root.ownerDocument.defaultView;
 	if (!win) return;
 
-	if (typeof win.requestAnimationFrame === "function") {
+	if (
+		(phase === "animationFrame" || phase === "both") &&
+		typeof win.requestAnimationFrame === "function"
+	) {
 		win.requestAnimationFrame(() => {
-			restoreUiSnapshot(root, snapshot, options);
+			restore();
 		});
+		return;
+	}
+
+	if (phase === "animationFrame") {
+		restore();
 	}
 }
 

@@ -26,7 +26,6 @@ import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { withPreservedUiContext } from "../ui/preserveUiContext";
 import { ChoiceBuilder } from "./choiceBuilder";
 import FolderList from "./FolderList.svelte";
 import {
@@ -37,12 +36,12 @@ import {
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
-	private renderParentOverride: HTMLElement | null = null;
 	private templateSectionEl: HTMLDivElement | null = null;
 	private locationSectionEl: HTMLDivElement | null = null;
 	private linkingSectionEl: HTMLDivElement | null = null;
 	private behaviorSectionEl: HTMLDivElement | null = null;
 	private folderListEl: FolderList | null = null;
+	private allFolderPathsCache: string[] | null = null;
 
 	constructor(
 		app: App,
@@ -61,10 +60,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		this.destroyFolderList();
 		this.addCenteredChoiceNameHeader(this.choice);
 
-		this.templateSectionEl = this.contentEl.createDiv();
-		this.locationSectionEl = this.contentEl.createDiv();
-		this.linkingSectionEl = this.contentEl.createDiv();
-		this.behaviorSectionEl = this.contentEl.createDiv();
+		this.templateSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.locationSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.linkingSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.behaviorSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
 
 		this.renderTemplateSection();
 		this.renderLocationSection();
@@ -77,27 +84,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		super.onClose();
 	}
 
-	private get renderParentEl(): HTMLElement {
-		return this.renderParentOverride ?? this.contentEl;
-	}
-
-	private renderSection(parent: HTMLDivElement | null, render: () => void): void {
-		if (!parent) return;
-		withPreservedUiContext(parent, () => {
-			parent.empty();
-			const previousParent = this.renderParentOverride;
-			this.renderParentOverride = parent;
-			try {
-				render();
-			} finally {
-				this.renderParentOverride = previousParent;
-			}
-		});
-	}
-
 	private destroyFolderList(): void {
 		this.folderListEl?.$destroy();
 		this.folderListEl = null;
+	}
+
+	private getAllFolderPaths(): string[] {
+		if (!this.allFolderPathsCache) {
+			this.allFolderPathsCache = getAllFolderPathsInVault(this.app);
+		}
+		return this.allFolderPathsCache;
 	}
 
 	private renderTemplateSection(): void {
@@ -131,17 +127,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			if (this.choice.openFile) {
 				this.addFileOpeningBehaviorSetting();
 			}
-			this.addOnePageOverrideSetting(this.choice);
-		});
-	}
-
-	protected addOnePageOverrideSetting(choice: ITemplateChoice): void {
-		renderOnePageOverrideSetting({
-			parent: this.renderParentEl,
-			value: choice.onePageInput as string | undefined,
-			onChange: (value) => {
-				choice.onePageInput = value as any;
-			},
+			renderOnePageOverrideSetting({
+				parent: this.renderParentEl,
+				value: this.choice.onePageInput as string | undefined,
+				onChange: (value) => {
+					this.choice.onePageInput = value as any;
+				},
+			});
 		});
 	}
 
@@ -332,7 +324,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const folderInput = new TextComponent(inputContainer);
 		folderInput.inputEl.style.width = "100%";
 		folderInput.setPlaceholder("Folder path");
-		const allFolders: string[] = getAllFolderPathsInVault(this.app);
+		const allFolders = this.getAllFolderPaths();
 
 		const suggester = new ExclusiveSuggester(
 			this.app,

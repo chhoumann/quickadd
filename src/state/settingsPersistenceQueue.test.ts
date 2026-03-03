@@ -194,4 +194,28 @@ describe("SettingsPersistenceQueue", () => {
 		await vi.advanceTimersByTimeAsync(30);
 		await rejection;
 	});
+
+	it("retries transient failures in background mode", async () => {
+		let attempts = 0;
+		const writes: string[] = [];
+		const queue = new SettingsPersistenceQueue(
+			async (settings) => {
+				attempts += 1;
+				if (attempts === 1) {
+					throw new Error("transient-failure");
+				}
+				writes.push(settings.version);
+			},
+			{ debounceMs: 25, maxWaitMs: 100 },
+		);
+
+		queue.schedule(settingsWithRevision(1));
+		await vi.advanceTimersByTimeAsync(25);
+		await vi.advanceTimersByTimeAsync(50);
+		await queue.flushNow();
+
+		expect(attempts).toBe(2);
+		expect(writes).toEqual(["revision-1"]);
+		expect(queue.getStats().writesFailed).toBe(1);
+	});
 });

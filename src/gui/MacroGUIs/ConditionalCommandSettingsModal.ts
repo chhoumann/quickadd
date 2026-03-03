@@ -1,5 +1,5 @@
 import type { App, DropdownComponent, TextComponent, TFile } from "obsidian";
-import { ButtonComponent, Modal, Setting } from "obsidian";
+import { Modal, Setting } from "obsidian";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import type {
 	ConditionalCondition,
@@ -17,11 +17,10 @@ import {
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import { withPreservedUiContext } from "../ui/preserveUiContext";
+import { renderModalActionBar } from "./modalActionBar";
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
-	return condition.mode === "variable"
-		? { ...condition }
-		: { ...condition };
+	return { ...condition };
 }
 
 function createDefaultVariableCondition(): VariableCondition {
@@ -301,27 +300,18 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	private renderButtonBar() {
-		const buttonContainer = this.contentEl.createDiv();
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "flex-end";
-		buttonContainer.style.gap = "12px";
-		buttonContainer.style.marginTop = "20px";
-
-		new ButtonComponent(buttonContainer)
-			.setButtonText("Cancel")
-			.onClick(() => {
+		renderModalActionBar({
+			parent: this.contentEl,
+			onCancel: () => {
 				this.resolve(null);
 				this.close();
-			});
-
-		new ButtonComponent(buttonContainer)
-			.setCta()
-			.setButtonText("Save")
-			.onClick(() => {
+			},
+			onSave: () => {
 				this.applyChanges();
 				this.resolve(this.originalCommand);
 				this.close();
-			});
+			},
+		});
 	}
 
 	private applyChanges() {

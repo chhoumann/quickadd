@@ -19,7 +19,6 @@ import {
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { withPreservedUiContext } from "../ui/preserveUiContext";
 import { ChoiceBuilder } from "./choiceBuilder";
 import {
 	renderFileOpeningSettings,
@@ -29,12 +28,12 @@ import {
 
 export class CaptureChoiceBuilder extends ChoiceBuilder {
 	choice: ICaptureChoice;
-	private renderParentOverride: HTMLElement | null = null;
 	private locationSectionEl: HTMLDivElement | null = null;
 	private positionSectionEl: HTMLDivElement | null = null;
 	private linkingSectionEl: HTMLDivElement | null = null;
 	private contentSectionEl: HTMLDivElement | null = null;
 	private behaviorSectionEl: HTMLDivElement | null = null;
+	private captureTargetSuggestionsCache: string[] | null = null;
 
 	constructor(
 		app: App,
@@ -53,35 +52,27 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		this.addCenteredChoiceNameHeader(this.choice);
 
-		this.locationSectionEl = this.contentEl.createDiv();
-		this.positionSectionEl = this.contentEl.createDiv();
-		this.linkingSectionEl = this.contentEl.createDiv();
-		this.contentSectionEl = this.contentEl.createDiv();
-		this.behaviorSectionEl = this.contentEl.createDiv();
+		this.locationSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.positionSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.linkingSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.contentSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
+		this.behaviorSectionEl = this.contentEl.createDiv({
+			cls: "qa-choice-section",
+		});
 
 		this.renderLocationSection();
 		this.renderPositionSection();
 		this.renderLinkingSection();
 		this.renderContentSection();
 		this.renderBehaviorSection();
-	}
-
-	private get renderParentEl(): HTMLElement {
-		return this.renderParentOverride ?? this.contentEl;
-	}
-
-	private renderSection(parent: HTMLDivElement | null, render: () => void): void {
-		if (!parent) return;
-		withPreservedUiContext(parent, () => {
-			parent.empty();
-			const previousParent = this.renderParentOverride;
-			this.renderParentOverride = parent;
-			try {
-				render();
-			} finally {
-				this.renderParentOverride = previousParent;
-			}
-		});
 	}
 
 	private renderLocationSection(): void {
@@ -95,6 +86,35 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				}
 			}
 		});
+	}
+
+	private getCaptureTargetSuggestions(): string[] {
+		if (this.captureTargetSuggestionsCache) {
+			return this.captureTargetSuggestionsCache;
+		}
+
+		const folderPaths = getAllFolderPathsInVault(this.app)
+			.filter((folderPath) => folderPath.length > 0)
+			.map((folderPath) =>
+				folderPath.endsWith("/") ? folderPath : `${folderPath}/`,
+			);
+		const markdownPaths = this.app.vault
+			.getMarkdownFiles()
+			.map((file) => file.path);
+		const canvasPaths = this.app.vault
+			.getFiles()
+			.filter((file) => file.extension === "canvas")
+			.map((file) => file.path);
+
+		this.captureTargetSuggestionsCache = Array.from(
+			new Set([
+				...folderPaths,
+				...markdownPaths,
+				...canvasPaths,
+				...FILE_NAME_FORMAT_SYNTAX,
+			]),
+		);
+		return this.captureTargetSuggestionsCache;
 	}
 
 	private renderPositionSection(): void {
@@ -130,17 +150,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			}
 			this.addSelectionAsValueSetting();
 			this.addTemplaterAfterCaptureSetting();
-			this.addOnePageOverrideSetting(this.choice);
-		});
-	}
-
-	protected addOnePageOverrideSetting(choice: ICaptureChoice): void {
-		renderOnePageOverrideSetting({
-			parent: this.renderParentEl,
-			value: choice.onePageInput as string | undefined,
-			onChange: (value) => {
-				choice.onePageInput = value as any;
-			},
+			renderOnePageOverrideSetting({
+				parent: this.renderParentEl,
+				value: this.choice.onePageInput as string | undefined,
+				onChange: (value) => {
+					this.choice.onePageInput = value as any;
+				},
+			});
 		});
 	}
 
@@ -274,34 +290,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			formatDisplay.setAttr("aria-live", "polite");
 			formatDisplay.textContent = "Loading preview…";
 
-			const folderPaths = getAllFolderPathsInVault(this.app)
-				.filter((folderPath) => folderPath.length > 0)
-				.map((folderPath) =>
-					folderPath.endsWith("/") ? folderPath : folderPath + "/",
-				);
-			const markdownPaths = this.app.vault
-				.getMarkdownFiles()
-				.map((file) => file.path);
-			const canvasPaths = this.app.vault
-				.getFiles()
-				.filter((file) => file.extension === "canvas")
-				.map((file) => file.path);
-
-			const captureTargetSuggestions = Array.from(
-				new Set([
-					...folderPaths,
-					...markdownPaths,
-					...canvasPaths,
-					...FILE_NAME_FORMAT_SYNTAX,
-				]),
-			);
-
 			createValidatedInput({
 				app: this.app,
 				parent: captureToFileContainer,
 				initialValue: this.choice.captureTo,
 				placeholder: "File name format",
-				suggestions: captureTargetSuggestions,
+				suggestions: this.getCaptureTargetSuggestions(),
 				maxSuggestions: 50,
 				attachSuggesters: [
 					(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),

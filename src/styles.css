@@ -66,6 +66,19 @@
 	max-height: 70%;
 }
 
+.quickAddModal .qa-choice-section + .qa-choice-section {
+	margin-top: 1rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.captureChoiceBuilder .modal-content > div + div,
+.templateChoiceBuilder .modal-content > div + div {
+	margin-top: 1rem;
+	padding-top: 1rem;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
 /* Preview row styling for Choice Builders */
 .quickAddModal .qa-preview-row {
 	margin: 6px 0;
