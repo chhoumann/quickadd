@@ -123,127 +123,143 @@ function renderSettingWithInput(
 describe("ModalReloadController", () => {
 	it("restores modal scroll position and focused input after reload", () => {
 		const harness = createModalHarness();
-		const transitions: string[] = [];
+		let controller: ModalReloadController | null = null;
+		try {
+			const transitions: string[] = [];
 
-		const initial = renderSettingWithInput(harness.contentEl, {
-			settingName: "Show advanced settings",
-			placeholder: "advanced-input",
-		});
-		expect(initial.input).not.toBeNull();
+			const initial = renderSettingWithInput(harness.contentEl, {
+				settingName: "Show advanced settings",
+				placeholder: "advanced-input",
+			});
+			expect(initial.input).not.toBeNull();
 
-		initial.input!.focus();
-		initial.input!.setSelectionRange(1, 3);
-		harness.modalEl.scrollTop = 260;
+			initial.input!.focus();
+			initial.input!.setSelectionRange(1, 3);
+			harness.modalEl.scrollTop = 260;
 
-		let renderedInput: HTMLInputElement | null = null;
-		const controller = new ModalReloadController({
-			modalEl: harness.modalEl,
-			contentEl: harness.contentEl,
-			render: () => {
-				renderedInput = renderSettingWithInput(harness.contentEl, {
-					settingName: "Show advanced settings",
-					placeholder: "advanced-input",
-				}).input;
-			},
-			onTransition: (from, to, reason) => {
-				transitions.push(`${from}->${to}:${reason}`);
-			},
-		});
+			let renderedInput: HTMLInputElement | null = null;
+			const reloadController = new ModalReloadController({
+				modalEl: harness.modalEl,
+				contentEl: harness.contentEl,
+				render: () => {
+					renderedInput = renderSettingWithInput(harness.contentEl, {
+						settingName: "Show advanced settings",
+						placeholder: "advanced-input",
+					}).input;
+				},
+				onTransition: (from, to, reason) => {
+					transitions.push(`${from}->${to}:${reason}`);
+				},
+			});
+			controller = reloadController;
 
-		controller.requestReload("toggle-advanced");
+			reloadController.requestReload("toggle-advanced");
 
-		expect(harness.metrics.getScrollTop()).toBe(260);
-		expect(document.activeElement).toBe(renderedInput);
-		expect((document.activeElement as HTMLInputElement).selectionStart).toBe(1);
-		expect((document.activeElement as HTMLInputElement).selectionEnd).toBe(3);
-		expect(transitions).toEqual([
-			"idle->capturing:toggle-advanced",
-			"capturing->rendering:toggle-advanced",
-			"rendering->restoring:toggle-advanced",
-			"restoring->idle:toggle-advanced",
-		]);
-
-		controller.destroy();
-		harness.destroy();
+			expect(harness.metrics.getScrollTop()).toBe(260);
+			expect(document.activeElement).toBe(renderedInput);
+			expect((document.activeElement as HTMLInputElement).selectionStart).toBe(1);
+			expect((document.activeElement as HTMLInputElement).selectionEnd).toBe(3);
+			expect(transitions).toEqual([
+				"idle->capturing:toggle-advanced",
+				"capturing->rendering:toggle-advanced",
+				"rendering->restoring:toggle-advanced",
+				"restoring->idle:toggle-advanced",
+			]);
+		} finally {
+			controller?.destroy();
+			harness.destroy();
+		}
 	});
 
 	it("clamps restored scroll position when rendered content becomes shorter", () => {
 		const harness = createModalHarness();
-		const initial = renderSettingWithInput(harness.contentEl);
-		expect(initial.input).not.toBeNull();
-		initial.input!.focus();
+		let controller: ModalReloadController | null = null;
+		try {
+			const initial = renderSettingWithInput(harness.contentEl);
+			expect(initial.input).not.toBeNull();
+			initial.input!.focus();
 
-		harness.modalEl.scrollTop = 550;
+			harness.modalEl.scrollTop = 550;
 
-		const controller = new ModalReloadController({
-			modalEl: harness.modalEl,
-			contentEl: harness.contentEl,
-			render: () => {
-				harness.metrics.setScrollHeight(300);
-				harness.metrics.setClientHeight(200);
-				renderSettingWithInput(harness.contentEl);
-			},
-		});
+			const reloadController = new ModalReloadController({
+				modalEl: harness.modalEl,
+				contentEl: harness.contentEl,
+				render: () => {
+					harness.metrics.setScrollHeight(300);
+					harness.metrics.setClientHeight(200);
+					renderSettingWithInput(harness.contentEl);
+				},
+			});
+			controller = reloadController;
 
-		controller.requestReload("content-shorter");
-		expect(harness.metrics.getScrollTop()).toBe(100);
-
-		controller.destroy();
-		harness.destroy();
+			reloadController.requestReload("content-shorter");
+			expect(harness.metrics.getScrollTop()).toBe(100);
+		} finally {
+			controller?.destroy();
+			harness.destroy();
+		}
 	});
 
 	it("falls back to another control in the same setting when focused control disappears", () => {
 		const harness = createModalHarness();
-		const initial = renderSettingWithInput(harness.contentEl, {
-			settingName: "Model source",
-			placeholder: "source-input",
-			includeButton: true,
-		});
-		expect(initial.input).not.toBeNull();
-		initial.input!.focus();
+		let controller: ModalReloadController | null = null;
+		try {
+			const initial = renderSettingWithInput(harness.contentEl, {
+				settingName: "Model source",
+				placeholder: "source-input",
+				includeButton: true,
+			});
+			expect(initial.input).not.toBeNull();
+			initial.input!.focus();
 
-		let fallbackButton: HTMLButtonElement | null = null;
-		const controller = new ModalReloadController({
-			modalEl: harness.modalEl,
-			contentEl: harness.contentEl,
-			render: () => {
-				const rendered = renderSettingWithInput(harness.contentEl, {
-					settingName: "Model source",
-					includeInput: false,
-					includeButton: true,
-				});
-				fallbackButton = rendered.button;
-			},
-		});
+			let fallbackButton: HTMLButtonElement | null = null;
+			const reloadController = new ModalReloadController({
+				modalEl: harness.modalEl,
+				contentEl: harness.contentEl,
+				render: () => {
+					const rendered = renderSettingWithInput(harness.contentEl, {
+						settingName: "Model source",
+						includeInput: false,
+						includeButton: true,
+					});
+					fallbackButton = rendered.button;
+				},
+			});
+			controller = reloadController;
 
-		controller.requestReload("remove-input");
-		expect(document.activeElement).toBe(fallbackButton);
-
-		controller.destroy();
-		harness.destroy();
+			reloadController.requestReload("remove-input");
+			expect(document.activeElement).toBe(fallbackButton);
+		} finally {
+			controller?.destroy();
+			harness.destroy();
+		}
 	});
 
 	it("does not throw when no focusable controls exist after reload", () => {
 		const harness = createModalHarness();
-		const initial = renderSettingWithInput(harness.contentEl, {
-			settingName: "Result",
-		});
-		expect(initial.input).not.toBeNull();
-		initial.input!.focus();
-		harness.modalEl.scrollTop = 140;
+		let controller: ModalReloadController | null = null;
+		try {
+			const initial = renderSettingWithInput(harness.contentEl, {
+				settingName: "Result",
+			});
+			expect(initial.input).not.toBeNull();
+			initial.input!.focus();
+			harness.modalEl.scrollTop = 140;
 
-		const controller = new ModalReloadController({
-			modalEl: harness.modalEl,
-			contentEl: harness.contentEl,
-			render: () => {
-				harness.contentEl.innerHTML = "<div>No controls</div>";
-			},
-		});
+			const reloadController = new ModalReloadController({
+				modalEl: harness.modalEl,
+				contentEl: harness.contentEl,
+				render: () => {
+					harness.contentEl.innerHTML = "<div>No controls</div>";
+				},
+			});
+			controller = reloadController;
 
-		expect(() => controller.requestReload("empty-render")).not.toThrow();
-		expect(harness.metrics.getScrollTop()).toBe(140);
-
-		controller.destroy();
-		harness.destroy();
+			expect(() => reloadController.requestReload("empty-render")).not.toThrow();
+			expect(harness.metrics.getScrollTop()).toBe(140);
+		} finally {
+			controller?.destroy();
+			harness.destroy();
+		}
 	});
 });

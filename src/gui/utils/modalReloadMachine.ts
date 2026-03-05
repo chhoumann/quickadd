@@ -366,8 +366,11 @@ export class ModalReloadController {
 		}
 
 		this.processing = true;
-		this.actor.send({ type: "REQUEST", reason });
-		this.processing = false;
+		try {
+			this.actor.send({ type: "REQUEST", reason });
+		} finally {
+			this.processing = false;
+		}
 
 		if (!this.pendingReason) return;
 		const pending = this.pendingReason;

@@ -122,19 +122,19 @@ Run these commands from `/Users/christian/Developer/quickadd`.
 
 2. Implement shared controller and tests.
 
-    # edit src/gui/utils/modalReloadMachine.ts
-    # edit src/gui/utils/modalReloadMachine.test.ts
+    - edit `src/gui/utils/modalReloadMachine.ts`
+    - edit `src/gui/utils/modalReloadMachine.test.ts`
 
 3. Integrate controller into modal classes in scope.
 
-    # edit src/gui/ChoiceBuilder/choiceBuilder.ts
-    # edit src/gui/MacroGUIs/ConditionalCommandSettingsModal.ts
-    # edit src/gui/MacroGUIs/OpenFileCommandSettingsModal.ts
-    # edit src/gui/MacroGUIs/MacroBuilder.ts
-    # edit src/gui/MacroGUIs/AIAssistantCommandSettingsModal.ts
-    # edit src/gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal.ts
-    # edit src/gui/AIAssistantSettingsModal.ts
-    # edit src/gui/AIAssistantProvidersModal.ts
+    - edit `src/gui/ChoiceBuilder/choiceBuilder.ts`
+    - edit `src/gui/MacroGUIs/ConditionalCommandSettingsModal.ts`
+    - edit `src/gui/MacroGUIs/OpenFileCommandSettingsModal.ts`
+    - edit `src/gui/MacroGUIs/MacroBuilder.ts`
+    - edit `src/gui/MacroGUIs/AIAssistantCommandSettingsModal.ts`
+    - edit `src/gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal.ts`
+    - edit `src/gui/AIAssistantSettingsModal.ts`
+    - edit `src/gui/AIAssistantProvidersModal.ts`
 
 4. Run automated checks.
 

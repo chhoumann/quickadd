@@ -385,6 +385,7 @@ export class AIAssistantProvidersModal extends Modal {
 			this.selectedProvider = null;
 			this.reload();
 			this.open();
+			return;
 		}
 
 		this.reloadController.destroy();
