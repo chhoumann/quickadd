@@ -8,14 +8,12 @@ import {
 } from "../../utils/fileOpeningDefaults";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { promptRenameChoice } from "../choiceRename";
-import { ModalReloadController } from "../utils/modalReloadMachine";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
 	protected svelteElements: SvelteComponent[] = [];
-	private readonly reloadController: ModalReloadController;
 
 	protected constructor(app: App) {
 		super(app);
@@ -26,20 +24,13 @@ export abstract class ChoiceBuilder extends Modal {
 
 		this.containerEl.addClass("quickAddModal");
 		this.open();
-		this.reloadController = new ModalReloadController({
-			modalEl: this.modalEl,
-			contentEl: this.contentEl,
-			render: () => {
-				this.contentEl.empty();
-				this.display();
-			},
-		});
 	}
 
 	protected abstract display(): unknown;
 
 	protected reload() {
-		this.reloadController.requestReload("choice-builder:reload");
+		this.contentEl.empty();
+		this.display();
 	}
 
 	protected addOnePageOverrideSetting(choice: IChoice): void {
@@ -212,7 +203,6 @@ export abstract class ChoiceBuilder extends Modal {
 	}
 
 	onClose() {
-		this.reloadController.destroy();
 		super.onClose();
 		this.svelteElements.forEach((el) => {
 			if (el && el.$destroy) el.$destroy();
