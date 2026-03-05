@@ -4,6 +4,7 @@ import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFil
 import { NewTabDirection } from "../../types/newTabDirection";
 import type { OpenLocation } from "../../types/fileOpening";
 import { CommandType } from "../../types/macros/CommandType";
+import { ModalReloadController } from "../utils/modalReloadMachine";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
@@ -11,7 +12,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private command: IOpenFileCommand;
 	private originalCommand: IOpenFileCommand;
 	private isResolved = false;
-	private directionSettingContainer: HTMLElement | null = null;
+	private readonly reloadController: ModalReloadController;
 
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
@@ -26,12 +27,20 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.waitForClose = new Promise<IOpenFileCommand | null>((resolve) => {
 			this.resolvePromise = resolve;
 		});
+		this.reloadController = new ModalReloadController({
+			modalEl: this.modalEl,
+			contentEl: this.contentEl,
+			render: () => {
+				this.display();
+			},
+		});
 
 		this.display();
 		this.open();
 	}
 
 	onClose() {
+		this.reloadController.destroy();
 		super.onClose();
 		if (!this.isResolved) {
 			this.resolvePromise(this.command);
@@ -49,7 +58,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private display() {
 		this.containerEl.addClass("quickAddModal", "openFileCommandSettingsModal");
 		this.contentEl.empty();
-		this.directionSettingContainer = null;
 
 		const headerEl = this.contentEl.createEl("h2");
 		headerEl.textContent = "Open File Command Settings";
@@ -101,14 +109,13 @@ export class OpenFileCommandSettingsModal extends Modal {
 					.onChange((value: OpenLocation) => {
 						this.command.location = value;
 						this.syncLegacyFlagsFromLocation(value);
-						this.renderDirectionSetting();
+						this.reload();
 					});
 			});
 
-		this.directionSettingContainer = this.contentEl.createDiv(
-			"openFileCommandSettingsModal__splitDirection"
-		);
-		this.renderDirectionSetting();
+		if (this.deriveLocation() === "split") {
+			this.addDirectionSetting();
+		}
 	}
 
 	private syncLegacyFlagsFromLocation(value: OpenLocation) {
@@ -131,8 +138,8 @@ export class OpenFileCommandSettingsModal extends Modal {
 		}
 	}
 
-	private addDirectionSetting(container: HTMLElement) {
-		new Setting(container)
+	private addDirectionSetting() {
+		new Setting(this.contentEl)
 			.setName("Split direction")
 			.setDesc("How to arrange the new pane relative to the current one")
 			.addDropdown((dropdown) => {
@@ -144,13 +151,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 						this.command.direction = value as NewTabDirection;
 					});
 			});
-	}
-
-	private renderDirectionSetting() {
-		if (!this.directionSettingContainer) return;
-		this.directionSettingContainer.empty();
-		if (this.deriveLocation() !== "split") return;
-		this.addDirectionSetting(this.directionSettingContainer);
 	}
 
 	private addFocusSetting() {
@@ -202,4 +202,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 			});
 	}
 
+	private reload() {
+		this.reloadController.requestReload("open-file-command:reload");
+	}
 }

@@ -19,7 +19,6 @@ The user-visible proof is simple: in a dev modal that currently jumps (the exist
 - [x] (2026-03-05 06:16Z) Verified with `bun run test`, `bun run build`, `bun run build-with-lint`, and Obsidian CLI runtime probes in `vault=dev`.
 - [x] (2026-03-05 06:44Z) Hardened reload queue handling by replacing recursive pending-reload replay with iterative draining and added two regression tests for re-entrant/coalesced reload requests.
 - [x] (2026-03-05 07:56Z) Implemented phase-2 in-place UI updates for AI command settings modals so `Show advanced settings` no longer triggers full modal reload, and removed non-infinite model-change/name-edit reloads by refreshing UI elements directly.
-- [x] (2026-03-05 08:06Z) Implemented phase-3 in-place subsection rendering for `OpenFileCommandSettingsModal` and `ConditionalCommandSettingsModal`, removing full reload dependency for location/type/operator/value-type UI pivots.
 
 ## Surprises & Discoveries
 
@@ -43,9 +42,6 @@ The user-visible proof is simple: in a dev modal that currently jumps (the exist
 
 - Observation: `Show advanced settings` can be updated as a local section re-render without changing surrounding settings rows.
   Evidence: CLI probe in `quickadd:testQuickAdd` showed `scrollTop` remained `220` and active element stayed `TEXTAREA` while modal height increased after toggle.
-
-- Observation: split-direction and conditional-form pivots can be isolated to dedicated subsection containers without redrawing the full modal.
-  Evidence: both modals now update only their dynamic containers (`openFileCommandSettingsModal__splitDirection`, `conditionalSettingsModal__conditionConfig`) while keeping static controls mounted.
 
 ## Decision Log
 
@@ -73,10 +69,6 @@ The user-visible proof is simple: in a dev modal that currently jumps (the exist
   Rationale: this is a high-frequency interaction and does not require rebuilding unrelated controls; local re-render removes unnecessary modal churn.
   Date/Author: 2026-03-05 / Codex
 
-- Decision: remove `ModalReloadController` from `OpenFileCommandSettingsModal` and `ConditionalCommandSettingsModal` after converting their dynamic sections to in-place rendering.
-  Rationale: these flows no longer require full modal redraw for their conditional UI, so keeping reload orchestration adds complexity without value.
-  Date/Author: 2026-03-05 / Codex
-
 ## Outcomes & Retrospective
 
 Implemented outcome matches purpose: reload-driven modal jumps are now handled through an FSM-based controller that captures and restores UI position. Scoped modal classes no longer call direct full-refresh reload logic without restoration.
@@ -89,9 +81,8 @@ Validation results:
 - Obsidian CLI runtime probe (`vault=dev`) confirms preserved scroll/focus on model-change reload in the test modal.
 - Post-merge hardening: `modalReloadMachine` now has 6 passing tests, including queued and coalesced reload behavior during render re-entrancy.
 - Phase-2 follow-up: `Show advanced settings` in both AI command settings modals now updates in place (no full reload); CLI probe confirms stable scroll/focus with non-zero scroll range.
-- Phase-3 follow-up: `OpenFileCommandSettingsModal` and `ConditionalCommandSettingsModal` now re-render only dynamic subsections rather than full modal content for conditional UI changes.
 
-Remaining gap: this change reduces reload frequency in AI and macro command settings flows but does not eliminate reloads across all modal classes. Further follow-up can convert additional conditional UI paths (for example `CaptureChoiceBuilder`, `TemplateChoiceBuilder`, and provider/model editors) to fine-grained section updates.
+Remaining gap: this change reduces reload frequency in AI command settings flows but does not eliminate reloads across all modal classes. Further follow-up can convert additional conditional UI paths (for example `CaptureChoiceBuilder`, `TemplateChoiceBuilder`, and provider/model editors) to fine-grained section updates.
 
 ## Context and Orientation
 
@@ -293,4 +284,3 @@ Revision Note (2026-03-05): Initial ExecPlan created in response to issue #1130 
 Revision Note (2026-03-05): Updated after implementation to reflect completed milestones, final validation evidence, and runtime probe adjustments needed to distinguish true preservation from expected scroll clamping.
 Revision Note (2026-03-05): Updated after merge with queue-drain hardening and additional controller regression tests for re-entrant reload requests.
 Revision Note (2026-03-05): Updated for phase-2 partial migration that removes full reloads from advanced-settings toggles in AI command settings modals and records new CLI evidence.
-Revision Note (2026-03-05): Updated for phase-3 partial migration that replaces reload-driven conditional sections in Open File and Conditional command settings modals with in-place container rerenders.
