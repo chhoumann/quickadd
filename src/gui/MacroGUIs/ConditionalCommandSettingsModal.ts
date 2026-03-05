@@ -46,7 +46,6 @@ export class ConditionalCommandSettingsModal extends Modal {
 	private workingCommand: IConditionalCommand;
 	private isResolved = false;
 	private javascriptFiles: TFile[] = [];
-	private conditionConfigContainer: HTMLElement | null = null;
 
 	constructor(app: App, command: IConditionalCommand) {
 		super(app);
@@ -84,10 +83,13 @@ export class ConditionalCommandSettingsModal extends Modal {
 			.filter((file) => JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path));
 	}
 
+	private reload() {
+		this.display();
+	}
+
 	private display() {
 		this.containerEl.addClass("quickAddModal", "conditionalSettingsModal");
 		this.contentEl.empty();
-		this.conditionConfigContainer = null;
 
 		const headerEl = this.contentEl.createEl("h2", {
 			text: "Configure Conditional Command",
@@ -95,30 +97,13 @@ export class ConditionalCommandSettingsModal extends Modal {
 		headerEl.style.textAlign = "center";
 
 		this.renderModeSelector();
-		this.conditionConfigContainer = this.contentEl.createDiv(
-			"conditionalSettingsModal__conditionConfig"
-		);
-		this.renderConditionConfiguration();
-
-		this.renderButtonBar();
-	}
-
-	private renderConditionConfiguration() {
-		if (!this.conditionConfigContainer) return;
-		this.conditionConfigContainer.empty();
-
 		if (this.workingCommand.condition.mode === "variable") {
-			this.renderVariableConfiguration(
-				this.conditionConfigContainer,
-				this.workingCommand.condition
-			);
-			return;
+			this.renderVariableConfiguration(this.workingCommand.condition);
+		} else {
+			this.renderScriptConfiguration(this.workingCommand.condition);
 		}
 
-		this.renderScriptConfiguration(
-			this.conditionConfigContainer,
-			this.workingCommand.condition
-		);
+		this.renderButtonBar();
 	}
 
 	private renderModeSelector() {
@@ -136,28 +121,22 @@ export class ConditionalCommandSettingsModal extends Modal {
 							value === "variable"
 								? createDefaultVariableCondition()
 								: createDefaultScriptCondition();
-						this.renderConditionConfiguration();
+						this.reload();
 					});
 			});
 	}
 
-	private renderVariableConfiguration(
-		container: HTMLElement,
-		condition: VariableCondition
-	) {
-		this.renderVariableNameSetting(container, condition);
-		this.renderOperatorSetting(container, condition);
-		this.renderValueTypeSetting(container, condition);
+	private renderVariableConfiguration(condition: VariableCondition) {
+		this.renderVariableNameSetting(condition);
+		this.renderOperatorSetting(condition);
+		this.renderValueTypeSetting(condition);
 		if (requiresExpectedValue(condition.operator)) {
-			this.renderExpectedValueSetting(container, condition);
+			this.renderExpectedValueSetting(condition);
 		}
 	}
 
-	private renderVariableNameSetting(
-		container: HTMLElement,
-		condition: VariableCondition
-	) {
-		new Setting(container)
+	private renderVariableNameSetting(condition: VariableCondition) {
+		new Setting(this.contentEl)
 			.setName("Variable name")
 			.setDesc("Name of the macro variable to inspect (without the $ prefix).")
 			.addText((text) =>
@@ -170,10 +149,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 			);
 	}
 
-	private renderOperatorSetting(
-		container: HTMLElement,
-		condition: VariableCondition
-	) {
+	private renderOperatorSetting(condition: VariableCondition) {
 		const operators: Array<{ value: VariableCondition["operator"]; label: string }> = [
 			{ value: "equals", label: "Equals" },
 			{ value: "notEquals", label: "Does not equal" },
@@ -187,7 +163,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 			{ value: "isFalsy", label: "Is falsy" },
 		];
 
-		new Setting(container)
+		new Setting(this.contentEl)
 			.setName("Operator")
 			.setDesc("How to compare the variable value.")
 			.addDropdown((dropdown: DropdownComponent) => {
@@ -206,16 +182,13 @@ export class ConditionalCommandSettingsModal extends Modal {
 					if (!requiresExpectedValue(condition.operator)) {
 						delete condition.expectedValue;
 					}
-					this.renderConditionConfiguration();
+					this.reload();
 				});
 			});
 	}
 
-	private renderValueTypeSetting(
-		container: HTMLElement,
-		condition: VariableCondition
-	) {
-		new Setting(container)
+	private renderValueTypeSetting(condition: VariableCondition) {
+		new Setting(this.contentEl)
 			.setName("Value type")
 			.setDesc("How to interpret the comparison value.")
 			.addDropdown((dropdown) => {
@@ -226,17 +199,14 @@ export class ConditionalCommandSettingsModal extends Modal {
 					.setValue(condition.valueType)
 					.onChange((value) => {
 						condition.valueType = value as VariableCondition["valueType"];
-						this.renderConditionConfiguration();
+						this.reload();
 					});
 			});
 	}
 
-	private renderExpectedValueSetting(
-		container: HTMLElement,
-		condition: VariableCondition
-	) {
+	private renderExpectedValueSetting(condition: VariableCondition) {
 		if (condition.valueType === "boolean") {
-			new Setting(container)
+			new Setting(this.contentEl)
 				.setName("Expected value")
 				.setDesc("Choose true or false.")
 				.addDropdown((dropdown) => {
@@ -251,7 +221,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 			return;
 		}
 
-		new Setting(container)
+		new Setting(this.contentEl)
 			.setName("Expected value")
 			.setDesc("Value to compare against.")
 			.addText((text: TextComponent) => {
@@ -264,21 +234,15 @@ export class ConditionalCommandSettingsModal extends Modal {
 			});
 	}
 
-	private renderScriptConfiguration(
-		container: HTMLElement,
-		condition: ScriptCondition
-	) {
-		this.renderScriptPathSetting(container, condition);
-		this.renderScriptExportSetting(container, condition);
+	private renderScriptConfiguration(condition: ScriptCondition) {
+		this.renderScriptPathSetting(condition);
+		this.renderScriptExportSetting(condition);
 	}
 
-	private renderScriptPathSetting(
-		container: HTMLElement,
-		condition: ScriptCondition
-	) {
+	private renderScriptPathSetting(condition: ScriptCondition) {
 		let input: TextComponent;
 
-		new Setting(container)
+		new Setting(this.contentEl)
 			.setName("Script path")
 			.setDesc("Vault-relative path to the JavaScript file.")
 			.addText((text) => {
@@ -319,11 +283,8 @@ export class ConditionalCommandSettingsModal extends Modal {
 			);
 	}
 
-	private renderScriptExportSetting(
-		container: HTMLElement,
-		condition: ScriptCondition
-	) {
-		new Setting(container)
+	private renderScriptExportSetting(condition: ScriptCondition) {
+		new Setting(this.contentEl)
 			.setName("Export name")
 			.setDesc("Optional export or member to call (use :: to access nested members).")
 			.addText((text) =>

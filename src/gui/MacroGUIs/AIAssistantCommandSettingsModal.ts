@@ -16,7 +16,6 @@ import {
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
 import { getModelByName, getModelNames } from "src/ai/aiHelpers";
-import { ModalReloadController } from "../utils/modalReloadMachine";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -26,9 +25,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	private settings: IAIAssistantCommand;
 	private showAdvancedSettings = false;
-	private readonly reloadController: ModalReloadController;
-	private advancedSettingsContainer: HTMLElement | null = null;
-	private refreshTokenCountText: (() => void) | null = null;
 
 	private get systemPromptTokenLength(): number {
 		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
@@ -50,23 +46,12 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				this.resolvePromise = resolve;
 			}
 		);
-		this.reloadController = new ModalReloadController({
-			modalEl: this.modalEl,
-			contentEl: this.contentEl,
-			render: () => {
-				this.display();
-			},
-		});
 
 		this.open();
 		this.display();
 	}
 
 	private display(): void {
-		this.contentEl.empty();
-		this.advancedSettingsContainer = null;
-		this.refreshTokenCountText = null;
-
 		const header = this.contentEl.createEl("h2", {
 			text: `${this.settings.name} Settings`,
 		});
@@ -86,7 +71,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 				if (newName && newName !== this.settings.name) {
 					this.settings.name = newName;
-					header.setText(`${this.settings.name} Settings`);
+					this.reload();
 				}
 			} catch {} // no new name, don't need exceptional state for that
 		});
@@ -97,16 +82,23 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		this.addOutputVariableNameSetting(this.contentEl);
 
 		this.addShowAdvancedSettingsToggle(this.contentEl);
-		this.advancedSettingsContainer = this.contentEl.createDiv(
-			"qa-ai-advanced-settings"
-		);
-		this.renderAdvancedSettingsSection();
+
+		if (this.showAdvancedSettings) {
+			if (!this.settings.modelParameters)
+				this.settings.modelParameters = {};
+			this.addTemperatureSetting(this.contentEl);
+			this.addTopPSetting(this.contentEl);
+			this.addFrequencyPenaltySetting(this.contentEl);
+			this.addPresencePenaltySetting(this.contentEl);
+		}
 
 		this.addSystemPromptSetting(this.contentEl);
 	}
 
 	private reload(): void {
-		this.reloadController.requestReload("ai-assistant-command:reload");
+		this.contentEl.empty();
+
+		this.display();
 	}
 
 	addPromptTemplateSetting(container: HTMLElement) {
@@ -158,7 +150,8 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				dropdown.setValue(this.settings.model);
 				dropdown.onChange((value) => {
 					this.settings.model = value;
-					this.refreshTokenCountText?.();
+
+					this.reload();
 				});
 			});
 	}
@@ -228,7 +221,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 					: "select a model to calculate"
 			}`;
 		}, 50);
-		this.refreshTokenCountText = () => updateTokenCount();
 
 		updateTokenCount();
 
@@ -247,26 +239,10 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.addToggle((toggle) => {
 				toggle.setValue(this.showAdvancedSettings);
 				toggle.onChange((value) => {
-					if (value === this.showAdvancedSettings) return;
 					this.showAdvancedSettings = value;
-					this.renderAdvancedSettingsSection();
+					this.reload();
 				});
 			});
-	}
-
-	private renderAdvancedSettingsSection(): void {
-		if (!this.advancedSettingsContainer) return;
-
-		this.advancedSettingsContainer.empty();
-		if (!this.showAdvancedSettings) return;
-		if (!this.settings.modelParameters) {
-			this.settings.modelParameters = {};
-		}
-
-		this.addTemperatureSetting(this.advancedSettingsContainer);
-		this.addTopPSetting(this.advancedSettingsContainer);
-		this.addFrequencyPenaltySetting(this.advancedSettingsContainer);
-		this.addPresencePenaltySetting(this.advancedSettingsContainer);
 	}
 
 	addTemperatureSetting(container: HTMLElement) {
@@ -345,7 +321,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	onClose(): void {
-		this.reloadController.destroy();
 		this.resolvePromise(this.settings);
 		super.onClose();
 	}

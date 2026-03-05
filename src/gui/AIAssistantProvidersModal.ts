@@ -11,7 +11,6 @@ import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
 import type { IconType } from "src/types/IconType";
-import { ModalReloadController } from "./utils/modalReloadMachine";
 
 export class AIAssistantProvidersModal extends Modal {
 	public waitForClose: Promise<AIProvider[]>;
@@ -23,7 +22,6 @@ export class AIAssistantProvidersModal extends Modal {
 	private selectedProvider: AIProvider | null;
 
 	private _selectedProviderClone: AIProvider | null;
-	private readonly reloadController: ModalReloadController;
 
 	constructor(providers: AIProvider[], app: App) {
 		super(app);
@@ -33,14 +31,6 @@ export class AIAssistantProvidersModal extends Modal {
 		this.waitForClose = new Promise<AIProvider[]>((resolve, reject) => {
 			this.rejectPromise = reject;
 			this.resolvePromise = resolve;
-		});
-		this.reloadController = new ModalReloadController({
-			modalEl: this.modalEl,
-			contentEl: this.contentEl,
-			render: () => {
-				this.contentEl.empty();
-				this.display();
-			},
 		});
 
 		this.open();
@@ -66,7 +56,9 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
 	private reload(): void {
-		this.reloadController.requestReload("ai-assistant-providers:reload");
+		this.contentEl.empty();
+
+		this.display();
 	}
 
 	addProvidersSetting(container: HTMLElement) {
@@ -385,10 +377,8 @@ export class AIAssistantProvidersModal extends Modal {
 			this.selectedProvider = null;
 			this.reload();
 			this.open();
-			return;
 		}
 
-		this.reloadController.destroy();
 		this.resolvePromise(this.providers);
 		super.onClose();
 	}

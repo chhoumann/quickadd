@@ -11,7 +11,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private command: IOpenFileCommand;
 	private originalCommand: IOpenFileCommand;
 	private isResolved = false;
-	private directionSettingContainer: HTMLElement | null = null;
 
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
@@ -49,7 +48,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private display() {
 		this.containerEl.addClass("quickAddModal", "openFileCommandSettingsModal");
 		this.contentEl.empty();
-		this.directionSettingContainer = null;
 
 		const headerEl = this.contentEl.createEl("h2");
 		headerEl.textContent = "Open File Command Settings";
@@ -101,14 +99,13 @@ export class OpenFileCommandSettingsModal extends Modal {
 					.onChange((value: OpenLocation) => {
 						this.command.location = value;
 						this.syncLegacyFlagsFromLocation(value);
-						this.renderDirectionSetting();
+						this.reload();
 					});
 			});
 
-		this.directionSettingContainer = this.contentEl.createDiv(
-			"openFileCommandSettingsModal__splitDirection"
-		);
-		this.renderDirectionSetting();
+		if (this.deriveLocation() === "split") {
+			this.addDirectionSetting();
+		}
 	}
 
 	private syncLegacyFlagsFromLocation(value: OpenLocation) {
@@ -131,8 +128,8 @@ export class OpenFileCommandSettingsModal extends Modal {
 		}
 	}
 
-	private addDirectionSetting(container: HTMLElement) {
-		new Setting(container)
+	private addDirectionSetting() {
+		new Setting(this.contentEl)
 			.setName("Split direction")
 			.setDesc("How to arrange the new pane relative to the current one")
 			.addDropdown((dropdown) => {
@@ -144,13 +141,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 						this.command.direction = value as NewTabDirection;
 					});
 			});
-	}
-
-	private renderDirectionSetting() {
-		if (!this.directionSettingContainer) return;
-		this.directionSettingContainer.empty();
-		if (this.deriveLocation() !== "split") return;
-		this.addDirectionSetting(this.directionSettingContainer);
 	}
 
 	private addFocusSetting() {
@@ -202,4 +192,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 			});
 	}
 
+	private reload() {
+		this.display();
+	}
 }

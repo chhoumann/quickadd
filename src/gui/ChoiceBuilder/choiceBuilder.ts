@@ -8,15 +8,12 @@ import {
 } from "../../utils/fileOpeningDefaults";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { promptRenameChoice } from "../choiceRename";
-import { ModalReloadController } from "../utils/modalReloadMachine";
 
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
 	protected svelteElements: SvelteComponent[] = [];
-	private readonly reloadController: ModalReloadController;
-	private fileOpeningSectionContainer: HTMLElement | null = null;
 
 	protected constructor(app: App) {
 		super(app);
@@ -27,20 +24,13 @@ export abstract class ChoiceBuilder extends Modal {
 
 		this.containerEl.addClass("quickAddModal");
 		this.open();
-		this.reloadController = new ModalReloadController({
-			modalEl: this.modalEl,
-			contentEl: this.contentEl,
-			render: () => {
-				this.contentEl.empty();
-				this.display();
-			},
-		});
 	}
 
 	protected abstract display(): unknown;
 
 	protected reload() {
-		this.reloadController.requestReload("choice-builder:reload");
+		this.contentEl.empty();
+		this.display();
 	}
 
 	protected addOnePageOverrideSetting(choice: IChoice): void {
@@ -112,10 +102,7 @@ export abstract class ChoiceBuilder extends Modal {
 	 * Adds a toggle that controls whether the resulting file should be opened.
 	 * @param description Description explaining what file will be opened (e.g. "Open the file that is captured to.")
 	 */
-	protected addOpenFileSetting(
-		description: string,
-		contextLabel?: string,
-	): void {
+	protected addOpenFileSetting(description: string): void {
 		// We intentionally cast to `any` because not all IChoice implementations have openFile.
 		const choice: any = this.choice as any;
 		if (choice.openFile === undefined) return; // Guard: nothing to configure
@@ -123,38 +110,13 @@ export abstract class ChoiceBuilder extends Modal {
 		new Setting(this.contentEl)
 			.setName("Open")
 			.setDesc(description)
-				.addToggle((toggle) => {
-					toggle.setValue(choice.openFile);
-					toggle.onChange((value) => {
-						choice.openFile = value;
-						if (!contextLabel) {
-							this.reload();
-							return;
-						}
-
-						this.renderFileOpeningSection(contextLabel);
-					});
+			.addToggle((toggle) => {
+				toggle.setValue(choice.openFile);
+				toggle.onChange((value) => {
+					choice.openFile = value;
+					this.reload();
 				});
-
-		if (!contextLabel) return;
-
-		this.fileOpeningSectionContainer = this.contentEl.createDiv(
-			"choiceBuilder__fileOpeningSection",
-		);
-		this.renderFileOpeningSection(contextLabel);
-	}
-
-	private renderFileOpeningSection(contextLabel: string): void {
-		if (!this.fileOpeningSectionContainer) return;
-
-		this.fileOpeningSectionContainer.empty();
-		const choice: any = this.choice as any;
-		if (!choice.openFile) return;
-
-		this.addFileOpeningSettingsToContainer(
-			this.fileOpeningSectionContainer,
-			contextLabel,
-		);
+			});
 	}
 
 	/**
@@ -164,20 +126,13 @@ export abstract class ChoiceBuilder extends Modal {
 	 * @param contextLabel Text to use in descriptions (e.g. "captured" | "created")
 	 */
 	protected addFileOpeningSetting(contextLabel: string): void {
-		this.addFileOpeningSettingsToContainer(this.contentEl, contextLabel);
-	}
-
-	private addFileOpeningSettingsToContainer(
-		container: HTMLElement,
-		contextLabel: string,
-	): void {
 		const choice: any = this.choice as any;
 		choice.fileOpening = normalizeFileOpening(choice.fileOpening);
 
 		const fileOpening = choice.fileOpening as FileOpeningSettings;
 
 		// Location selector
-		new Setting(container)
+		new Setting(this.contentEl)
 			.setName("File Opening Location")
 			.setDesc(`Where to open the ${contextLabel} file`)
 			.addDropdown((dropdown) => {
@@ -192,18 +147,13 @@ export abstract class ChoiceBuilder extends Modal {
 				dropdown.setValue(fileOpening.location);
 				dropdown.onChange((value: any) => {
 					fileOpening.location = value as OpenLocation;
-					if (this.fileOpeningSectionContainer) {
-						this.renderFileOpeningSection(contextLabel);
-						return;
-					}
-
 					this.reload();
 				});
 			});
 
 		// Split direction – only if location === "split"
 		if (fileOpening.location === "split") {
-			new Setting(container)
+			new Setting(this.contentEl)
 				.setName("Split Direction")
 				.setDesc("How to arrange the new pane relative to the current one")
 				.addDropdown((dropdown) => {
@@ -219,7 +169,7 @@ export abstract class ChoiceBuilder extends Modal {
 		}
 
 		// View mode selector
-		new Setting(container)
+		new Setting(this.contentEl)
 			.setName("View Mode")
 			.setDesc("How to display the opened file")
 			.addDropdown((dropdown) => {
@@ -241,7 +191,7 @@ export abstract class ChoiceBuilder extends Modal {
 
 		// Focus toggle – only show for non-reuse locations
 		if (fileOpening.location !== "reuse") {
-			new Setting(container)
+			new Setting(this.contentEl)
 				.setName("Focus new pane")
 				.setDesc("Focus the opened tab immediately after opening")
 				.addToggle((toggle) =>
@@ -253,7 +203,6 @@ export abstract class ChoiceBuilder extends Modal {
 	}
 
 	onClose() {
-		this.reloadController.destroy();
 		super.onClose();
 		this.svelteElements.forEach((el) => {
 			if (el && el.$destroy) el.$destroy();
