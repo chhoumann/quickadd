@@ -16,6 +16,7 @@ import {
 } from "../../constants";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
+import { ModalReloadController } from "../utils/modalReloadMachine";
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
 	return condition.mode === "variable"
@@ -46,6 +47,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	private workingCommand: IConditionalCommand;
 	private isResolved = false;
 	private javascriptFiles: TFile[] = [];
+	private readonly reloadController: ModalReloadController;
 
 	constructor(app: App, command: IConditionalCommand) {
 		super(app);
@@ -58,6 +60,13 @@ export class ConditionalCommandSettingsModal extends Modal {
 		this.waitForClose = new Promise<IConditionalCommand | null>((resolve) => {
 			this.resolvePromise = resolve;
 		});
+		this.reloadController = new ModalReloadController({
+			modalEl: this.modalEl,
+			contentEl: this.contentEl,
+			render: () => {
+				this.display();
+			},
+		});
 
 		this.loadJavascriptFiles();
 		this.display();
@@ -65,6 +74,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	onClose() {
+		this.reloadController.destroy();
 		super.onClose();
 		if (!this.isResolved) {
 			this.resolve(null);
@@ -84,7 +94,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	private reload() {
-		this.display();
+		this.reloadController.requestReload("conditional-settings:reload");
 	}
 
 	private display() {

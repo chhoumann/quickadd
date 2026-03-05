@@ -13,6 +13,7 @@ import {
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
+import { ModalReloadController } from "../utils/modalReloadMachine";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -40,6 +41,7 @@ export class MacroBuilder extends Modal {
 	private commandEditor: CommandSequenceEditor | null = null;
 	private resolvePromise: (choice: IMacroChoice) => void;
 	private plugin: QuickAdd;
+	private readonly reloadController: ModalReloadController;
 
 	constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, choices: IChoice[]) {
 		super(app);
@@ -53,12 +55,22 @@ export class MacroBuilder extends Modal {
 				this.resolvePromise = resolve;
 			}
 		);
+		this.reloadController = new ModalReloadController({
+			modalEl: this.modalEl,
+			contentEl: this.contentEl,
+			render: () => {
+				this.commandEditor?.destroy();
+				this.commandEditor = null;
+				this.display();
+			},
+		});
 
 		this.display();
 		this.open();
 	}
 
 	onClose() {
+		this.reloadController.destroy();
 		super.onClose();
 		this.resolvePromise(this.choice);
 		this.commandEditor?.destroy();
@@ -109,9 +121,7 @@ export class MacroBuilder extends Modal {
 	}
 
 	private reload() {
-		this.commandEditor?.destroy();
-		this.commandEditor = null;
-		this.display();
+		this.reloadController.requestReload("macro-builder:reload");
 	}
 
 	private addCommandEditor() {
