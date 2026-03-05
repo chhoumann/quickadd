@@ -367,15 +367,15 @@ export class ModalReloadController {
 
 		this.processing = true;
 		try {
-			this.actor.send({ type: "REQUEST", reason });
+			let nextReason: string | null = reason;
+			while (nextReason) {
+				this.actor.send({ type: "REQUEST", reason: nextReason });
+				nextReason = this.pendingReason;
+				this.pendingReason = null;
+			}
 		} finally {
 			this.processing = false;
 		}
-
-		if (!this.pendingReason) return;
-		const pending = this.pendingReason;
-		this.pendingReason = null;
-		this.requestReload(pending);
 	}
 
 	getLastSnapshot(): ModalUiSnapshot | null {
