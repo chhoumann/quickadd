@@ -24,7 +24,6 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	private settings: IInfiniteAIAssistantCommand;
 	private showAdvancedSettings = false;
 	private readonly reloadController: ModalReloadController;
-	private advancedSettingsContainer: HTMLElement | null = null;
 
 	private get systemPromptTokenLength(): number {
 		const model = getModelByName(this.settings.model);
@@ -47,6 +46,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			modalEl: this.modalEl,
 			contentEl: this.contentEl,
 			render: () => {
+				this.contentEl.empty();
 				this.display();
 			},
 		});
@@ -57,8 +57,6 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 	private display(): void {
 		this.contentEl.empty();
-		this.advancedSettingsContainer = null;
-
 		const header = this.contentEl.createEl("h2", {
 			text: `${this.settings.name} Settings`,
 		});
@@ -78,7 +76,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 				if (newName && newName !== this.settings.name) {
 					this.settings.name = newName;
-					header.setText(`${this.settings.name} Settings`);
+					this.reload();
 				}
 			} catch {} // no new name, don't need exceptional state for that
 		});
@@ -92,10 +90,15 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		this.addOutputVariableNameSetting(this.contentEl);
 
 		this.addShowAdvancedSettingsToggle(this.contentEl);
-		this.advancedSettingsContainer = this.contentEl.createDiv(
-			"qa-ai-advanced-settings"
-		);
-		this.renderAdvancedSettingsSection();
+
+		if (this.showAdvancedSettings) {
+			if (!this.settings.modelParameters)
+				this.settings.modelParameters = {};
+			this.addTemperatureSetting(this.contentEl);
+			this.addTopPSetting(this.contentEl);
+			this.addFrequencyPenaltySetting(this.contentEl);
+			this.addPresencePenaltySetting(this.contentEl);
+		}
 
 		this.addSystemPromptSetting(this.contentEl);
 	}
@@ -204,26 +207,10 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			.addToggle((toggle) => {
 				toggle.setValue(this.showAdvancedSettings);
 				toggle.onChange((value) => {
-					if (value === this.showAdvancedSettings) return;
 					this.showAdvancedSettings = value;
-					this.renderAdvancedSettingsSection();
+					this.reload();
 				});
 			});
-	}
-
-	private renderAdvancedSettingsSection(): void {
-		if (!this.advancedSettingsContainer) return;
-
-		this.advancedSettingsContainer.empty();
-		if (!this.showAdvancedSettings) return;
-		if (!this.settings.modelParameters) {
-			this.settings.modelParameters = {};
-		}
-
-		this.addTemperatureSetting(this.advancedSettingsContainer);
-		this.addTopPSetting(this.advancedSettingsContainer);
-		this.addFrequencyPenaltySetting(this.advancedSettingsContainer);
-		this.addPresencePenaltySetting(this.advancedSettingsContainer);
 	}
 
 	addTemperatureSetting(container: HTMLElement) {
