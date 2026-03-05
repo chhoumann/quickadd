@@ -17,7 +17,6 @@ The user-visible proof is simple: in a dev modal that currently jumps (the exist
 - [x] (2026-03-05 06:14Z) Implemented shared FSM-based modal reload controller in `src/gui/utils/modalReloadMachine.ts` with unit tests in `src/gui/utils/modalReloadMachine.test.ts`.
 - [x] (2026-03-05 06:15Z) Integrated reload controller into scoped modals (`ChoiceBuilder`, Macro settings modals, AI settings modals) and replaced direct full-refresh `reload()` implementations.
 - [x] (2026-03-05 06:16Z) Verified with `bun run test`, `bun run build`, `bun run build-with-lint`, and Obsidian CLI runtime probes in `vault=dev`.
-- [x] (2026-03-05 06:44Z) Hardened reload queue handling by replacing recursive pending-reload replay with iterative draining and added two regression tests for re-entrant/coalesced reload requests.
 
 ## Surprises & Discoveries
 
@@ -35,9 +34,6 @@ The user-visible proof is simple: in a dev modal that currently jumps (the exist
 
 - Observation: model dropdown reload is a stable-height probe and demonstrates the intended preservation behavior.
   Evidence: in runtime probe, `shellScrollTop` remained `168` before and after model change, and focus stayed on `TEXTAREA`.
-
-- Observation: `requestReload()` can be called re-entrantly during `render()`, so pending replay should avoid recursion.
-  Evidence: added tests where render triggers queued reload(s), asserting two render passes and latest-reason coalescing.
 
 ## Decision Log
 
@@ -57,10 +53,6 @@ The user-visible proof is simple: in a dev modal that currently jumps (the exist
   Rationale: unlike advanced-settings toggles, model-change keeps modal height stable, so preserved scroll can be measured directly instead of clamped to zero by layout shrink.
   Date/Author: 2026-03-05 / Codex
 
-- Decision: replace recursive pending reload replay with iterative queue draining in `ModalReloadController.requestReload`.
-  Rationale: iterative draining preserves behavior while removing recursive call chains during re-entrant reload scenarios.
-  Date/Author: 2026-03-05 / Codex
-
 ## Outcomes & Retrospective
 
 Implemented outcome matches purpose: reload-driven modal jumps are now handled through an FSM-based controller that captures and restores UI position. Scoped modal classes no longer call direct full-refresh reload logic without restoration.
@@ -71,7 +63,6 @@ Validation results:
 - `bun run build`: passed.
 - `bun run build-with-lint`: passed.
 - Obsidian CLI runtime probe (`vault=dev`) confirms preserved scroll/focus on model-change reload in the test modal.
-- Post-merge hardening: `modalReloadMachine` now has 6 passing tests, including queued and coalesced reload behavior during render re-entrancy.
 
 Remaining gap: this change stabilizes reload behavior, but does not yet eliminate reloads entirely. Follow-up work can convert high-churn sections to fine-grained updates to reduce rerenders further.
 
@@ -273,4 +264,3 @@ Integration rule for every migrated modal:
 
 Revision Note (2026-03-05): Initial ExecPlan created in response to issue #1130 and user request to pursue an FSM-based solution rather than ad-hoc `reload()` calls.
 Revision Note (2026-03-05): Updated after implementation to reflect completed milestones, final validation evidence, and runtime probe adjustments needed to distinguish true preservation from expected scroll clamping.
-Revision Note (2026-03-05): Updated after merge with queue-drain hardening and additional controller regression tests for re-entrant reload requests.
