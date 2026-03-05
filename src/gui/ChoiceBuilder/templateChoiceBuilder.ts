@@ -63,7 +63,10 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		// Behavior
 		new Setting(this.contentEl).setName("Behavior").setHeading();
 		this.addFileAlreadyExistsSetting();
-		this.addOpenFileSetting("Open the created file.", "created");
+		this.addOpenFileSetting("Open the created file.");
+		if (this.choice.openFile) {
+			this.addFileOpeningSetting("created");
+		}
 		this.addOnePageOverrideSetting(this.choice);
 	}
 

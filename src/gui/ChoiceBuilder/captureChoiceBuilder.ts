@@ -66,7 +66,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		// Behavior
 		new Setting(this.contentEl).setName("Behavior").setHeading();
 		if (!this.choice.captureToActiveFile) {
-			this.addOpenFileSetting("Open the captured file.", "captured");
+			this.addOpenFileSetting("Open the captured file.");
+
+			if (this.choice.openFile) {
+				this.addFileOpeningSetting("captured");
+			}
 		}
 		this.addSelectionAsValueSetting();
 		this.addTemplaterAfterCaptureSetting();
