@@ -16,6 +16,7 @@ import {
 } from "src/ai/OpenAIModelParameters";
 import { getTokenCount } from "src/ai/AIAssistant";
 import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { ModalReloadController } from "../utils/modalReloadMachine";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -25,6 +26,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	private settings: IAIAssistantCommand;
 	private showAdvancedSettings = false;
+	private readonly reloadController: ModalReloadController;
 
 	private get systemPromptTokenLength(): number {
 		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
@@ -46,6 +48,14 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				this.resolvePromise = resolve;
 			}
 		);
+		this.reloadController = new ModalReloadController({
+			modalEl: this.modalEl,
+			contentEl: this.contentEl,
+			render: () => {
+				this.contentEl.empty();
+				this.display();
+			},
+		});
 
 		this.open();
 		this.display();
@@ -96,9 +106,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	private reload(): void {
-		this.contentEl.empty();
-
-		this.display();
+		this.reloadController.requestReload("ai-assistant-command:reload");
 	}
 
 	addPromptTemplateSetting(container: HTMLElement) {
@@ -321,6 +329,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	onClose(): void {
+		this.reloadController.destroy();
 		this.resolvePromise(this.settings);
 		super.onClose();
 	}

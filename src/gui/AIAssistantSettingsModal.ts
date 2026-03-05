@@ -6,6 +6,7 @@ import QuickAdd from "src/main";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
 import { getModelNames } from "src/ai/aiHelpers";
+import { ModalReloadController } from "./utils/modalReloadMachine";
 
 type AIAssistantSettings = QuickAddSettings["ai"];
 
@@ -16,6 +17,7 @@ export class AIAssistantSettingsModal extends Modal {
 	private rejectPromise: (reason?: unknown) => void;
 
 	private settings: AIAssistantSettings;
+	private readonly reloadController: ModalReloadController;
 
 	constructor(app: App, settings: AIAssistantSettings) {
 		super(app);
@@ -28,6 +30,14 @@ export class AIAssistantSettingsModal extends Modal {
 				this.resolvePromise = resolve;
 			}
 		);
+		this.reloadController = new ModalReloadController({
+			modalEl: this.modalEl,
+			contentEl: this.contentEl,
+			render: () => {
+				this.contentEl.empty();
+				this.display();
+			},
+		});
 
 		this.open();
 		this.display();
@@ -53,9 +63,7 @@ export class AIAssistantSettingsModal extends Modal {
 	}
 
 	private reload(): void {
-		this.contentEl.empty();
-
-		this.display();
+		this.reloadController.requestReload("ai-assistant-settings:reload");
 	}
 
 	addProvidersSetting(container: HTMLElement) {
@@ -156,6 +164,7 @@ export class AIAssistantSettingsModal extends Modal {
 	}
 
 	onClose(): void {
+		this.reloadController.destroy();
 		this.resolvePromise(this.settings);
 		super.onClose();
 	}

@@ -4,6 +4,7 @@ import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFil
 import { NewTabDirection } from "../../types/newTabDirection";
 import type { OpenLocation } from "../../types/fileOpening";
 import { CommandType } from "../../types/macros/CommandType";
+import { ModalReloadController } from "../utils/modalReloadMachine";
 
 export class OpenFileCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IOpenFileCommand | null>;
@@ -11,6 +12,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 	private command: IOpenFileCommand;
 	private originalCommand: IOpenFileCommand;
 	private isResolved = false;
+	private readonly reloadController: ModalReloadController;
 
 	constructor(app: App, command: IOpenFileCommand) {
 		super(app);
@@ -25,12 +27,20 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.waitForClose = new Promise<IOpenFileCommand | null>((resolve) => {
 			this.resolvePromise = resolve;
 		});
+		this.reloadController = new ModalReloadController({
+			modalEl: this.modalEl,
+			contentEl: this.contentEl,
+			render: () => {
+				this.display();
+			},
+		});
 
 		this.display();
 		this.open();
 	}
 
 	onClose() {
+		this.reloadController.destroy();
 		super.onClose();
 		if (!this.isResolved) {
 			this.resolvePromise(this.command);
@@ -193,6 +203,6 @@ export class OpenFileCommandSettingsModal extends Modal {
 	}
 
 	private reload() {
-		this.display();
+		this.reloadController.requestReload("open-file-command:reload");
 	}
 }
