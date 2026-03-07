@@ -117,6 +117,7 @@ const sidebars = {
 					label: "📄 Template Examples",
 					items: [
 						"Examples/Template_AddAnInboxItem",
+						"Examples/Template_CreateMOCNoteWithLinkDashboard",
 						"Examples/Template_AutomaticBookNotesFromReadwise",
 					],
 				},

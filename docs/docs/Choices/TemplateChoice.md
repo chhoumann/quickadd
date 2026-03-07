@@ -8,6 +8,8 @@ The template choice type is not meant to be a replacement for [Templater](https:
 **Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
 
 QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`) templates. The created file uses the same extension as the template.
+If you want a new markdown note to include a live embedded Base dashboard, see
+[Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).
 
 ## Optional
 **File Name Format**. You can specify a format for the file name, which is based on the format syntax - which you can see further down this page.

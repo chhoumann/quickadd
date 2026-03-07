@@ -218,6 +218,9 @@ If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will inse
 You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
 
 If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](/Examples/Capture_InsertBaseTemplateIntoActiveFile.md).
+If you want QuickAdd to create a brand new note that already contains an
+embedded Base, use a Template choice instead. See
+[Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).
 
 If your capture format includes an inline `js quickadd` block and you need to
 transform user input, prefer reading input in script code through
