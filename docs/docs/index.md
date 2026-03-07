@@ -34,6 +34,7 @@ Take a look at some examples...
 -   [Capture: Add Journal Entry](docs/Examples/Capture_AddJournalEntry.md)
 -   [Macro: Log book to daily journal](docs/Examples/Macro_LogBookToDailyJournal.md)
 -   [Template: Add an Inbox Item](docs/Examples/Template_AddAnInboxItem.md)
+-   [Template: Create an MOC note with a link dashboard](docs/Examples/Template_CreateMOCNoteWithLinkDashboard.md)
 -   [Macro: Move all notes with a tag to a certain folder](docs/Examples/Macro_MoveNotesWithATagToAFolder.md)
 -   [Template: Automatically create a new book note with notes & highlights from Readwise](docs/Examples/Template_AutomaticBookNotesFromReadwise.md)
 -   [Capture: Add a task to a Kanban board](docs/Examples/Capture_AddTaskToKanbanBoard.md)
