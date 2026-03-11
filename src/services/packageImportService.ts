@@ -166,6 +166,12 @@ export async function applyPackageImport(
 	const importableVisiting = new Set<string>();
 
 	const isChoiceImportable = (choiceId: string): boolean => {
+		const finalizeImportable = (isImportable: boolean): boolean => {
+			importableCache.set(choiceId, isImportable);
+			importableVisiting.delete(choiceId);
+			return isImportable;
+		};
+
 		if (importableCache.has(choiceId)) {
 			return importableCache.get(choiceId) as boolean;
 		}
@@ -179,42 +185,30 @@ export async function applyPackageImport(
 
 		const decision = choiceDecisionMap.get(choiceId);
 		if (decision === "skip") {
-			importableCache.set(choiceId, false);
-			importableVisiting.delete(choiceId);
-			return false;
+			return finalizeImportable(false);
 		}
 
 		const entry = catalog.get(choiceId);
 		if (!entry) {
-			importableCache.set(choiceId, false);
-			importableVisiting.delete(choiceId);
-			return false;
+			return finalizeImportable(false);
 		}
 
 		const parentId = entry.parentChoiceId;
 		if (!parentId) {
-			importableCache.set(choiceId, true);
-			importableVisiting.delete(choiceId);
-			return true;
+			return finalizeImportable(true);
 		}
 
 		if (!catalog.has(parentId)) {
-			importableCache.set(choiceId, true);
-			importableVisiting.delete(choiceId);
-			return true;
+			return finalizeImportable(true);
 		}
 
 		const parentDecision = choiceDecisionMap.get(parentId);
 		if (parentDecision === "skip") {
-			importableCache.set(choiceId, true);
-			importableVisiting.delete(choiceId);
-			return true;
+			return finalizeImportable(true);
 		}
 
 		const result = isChoiceImportable(parentId);
-		importableCache.set(choiceId, result);
-		importableVisiting.delete(choiceId);
-		return result;
+		return finalizeImportable(result);
 	};
 
 	for (const entry of pkg.choices) {
@@ -227,27 +221,29 @@ export async function applyPackageImport(
 	const idMap = new Map<string, string>();
 
 	const isDuplicated = (choiceId: string): boolean => {
+		const markDuplicated = (): true => {
+			duplicatedOriginalIds.add(choiceId);
+			return true;
+		};
+
 		if (!importableChoiceIds.has(choiceId)) return false;
 		const cached = duplicatedOriginalIds.has(choiceId);
 		if (cached) return true;
 
 		const decision = choiceDecisionMap.get(choiceId);
 		if (decision === "duplicate") {
-			duplicatedOriginalIds.add(choiceId);
-			return true;
+			return markDuplicated();
 		}
 
 		const parentId = catalog.get(choiceId)?.parentChoiceId ?? null;
 		if (!parentId) return false;
 		const parentDecision = choiceDecisionMap.get(parentId);
 		if (parentDecision === "duplicate") {
-			duplicatedOriginalIds.add(choiceId);
-			return true;
+			return markDuplicated();
 		}
 		if (!importableChoiceIds.has(parentId)) return false;
 		if (isDuplicated(parentId)) {
-			duplicatedOriginalIds.add(choiceId);
-			return true;
+			return markDuplicated();
 		}
 
 		return false;
