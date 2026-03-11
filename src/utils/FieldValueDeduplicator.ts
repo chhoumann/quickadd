@@ -57,7 +57,7 @@ export class FieldValueDeduplicator {
 	 * Simple Set-based deduplication
 	 */
 	private static deduplicateExact(values: string[]): string[] {
-		return Array.from(new Set(values));
+		return this.deduplicateWithSet(values);
 	}
 
 	/**
@@ -72,6 +72,10 @@ export class FieldValueDeduplicator {
 				return true;
 			});
 		}
+		return this.deduplicateWithSet(values);
+	}
+
+	private static deduplicateWithSet(values: string[]): string[] {
 		return Array.from(new Set(values));
 	}
 
