@@ -218,35 +218,49 @@ export async function applyPackageImport(
 	}
 
 	const duplicatedOriginalIds = new Set<string>();
+	const nonDuplicatedOriginalIds = new Set<string>();
+	const visitingIds = new Set<string>();
 	const idMap = new Map<string, string>();
 
 	const isDuplicated = (choiceId: string): boolean => {
 		const markDuplicated = (): true => {
 			duplicatedOriginalIds.add(choiceId);
+			nonDuplicatedOriginalIds.delete(choiceId);
 			return true;
+		};
+		const markNotDuplicated = (): false => {
+			nonDuplicatedOriginalIds.add(choiceId);
+			return false;
 		};
 
 		if (!importableChoiceIds.has(choiceId)) return false;
 		const cached = duplicatedOriginalIds.has(choiceId);
 		if (cached) return true;
+		if (nonDuplicatedOriginalIds.has(choiceId)) return false;
+		if (visitingIds.has(choiceId)) return markNotDuplicated();
 
-		const decision = choiceDecisionMap.get(choiceId);
-		if (decision === "duplicate") {
-			return markDuplicated();
-		}
+		visitingIds.add(choiceId);
+		try {
+			const decision = choiceDecisionMap.get(choiceId);
+			if (decision === "duplicate") {
+				return markDuplicated();
+			}
 
-		const parentId = catalog.get(choiceId)?.parentChoiceId ?? null;
-		if (!parentId) return false;
-		const parentDecision = choiceDecisionMap.get(parentId);
-		if (parentDecision === "duplicate") {
-			return markDuplicated();
-		}
-		if (!importableChoiceIds.has(parentId)) return false;
-		if (isDuplicated(parentId)) {
-			return markDuplicated();
-		}
+			const parentId = catalog.get(choiceId)?.parentChoiceId ?? null;
+			if (!parentId) return markNotDuplicated();
+			const parentDecision = choiceDecisionMap.get(parentId);
+			if (parentDecision === "duplicate") {
+				return markDuplicated();
+			}
+			if (!importableChoiceIds.has(parentId)) return markNotDuplicated();
+			if (isDuplicated(parentId)) {
+				return markDuplicated();
+			}
 
-		return false;
+			return markNotDuplicated();
+		} finally {
+			visitingIds.delete(choiceId);
+		}
 	};
 
 	for (const entry of pkg.choices) {
