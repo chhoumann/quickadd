@@ -69,7 +69,7 @@ export async function waitForFileSettle(app: App, file: TFile, timeoutMs = 500) 
 		// Poll with exponential backoff until the mtime is stable or we hit the timeout.
 		let pollIntervalMs = 30;
 		while (Date.now() - start < timeoutMs) {
-			await new Promise((r) => setTimeout(r, pollIntervalMs));
+			await sleep(pollIntervalMs);
 			const current = await adapter.stat(file.path);
 			if (!current) return; // stat failed; abort waiting.
 			if (current.mtime === previousMtime) return;
@@ -97,6 +97,10 @@ export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
 	return !!getTemplaterPlugin(app)?.settings?.trigger_on_file_creation;
 }
 
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function waitForTemplaterTriggerOnCreateToComplete(
 	app: App,
 	file: TFile,
@@ -121,12 +125,12 @@ export async function waitForTemplaterTriggerOnCreateToComplete(
 
 	while (Date.now() - start < appearTimeoutMs) {
 		if (pendingFiles.has(file.path)) break;
-		await new Promise((r) => setTimeout(r, 50));
+		await sleep(50);
 	}
 
 	while (Date.now() - start < timeoutMs) {
 		if (!pendingFiles.has(file.path)) break;
-		await new Promise((r) => setTimeout(r, 50));
+		await sleep(50);
 	}
 
 	await waitForFileSettle(app, file, 800);
@@ -223,16 +227,16 @@ export async function withTemplaterFileCreationSuppressed<T>(
 		state.count--;
 		activeTemplaterFileCreationSuppressions--;
 
-			if (state.count <= 0) {
-				templaterFileCreationSuppressions.delete(filePath);
+		if (state.count <= 0) {
+			templaterFileCreationSuppressions.delete(filePath);
 
-				if (!state.hadPathInitially) {
-					if (fnSucceeded) {
-						const minHoldMs = TEMPLATER_PENDING_CHECK_BUFFER_MS;
-						await new Promise((r) => setTimeout(r, minHoldMs));
-					}
+			if (!state.hadPathInitially) {
+				if (fnSucceeded) {
+					const minHoldMs = TEMPLATER_PENDING_CHECK_BUFFER_MS;
+					await sleep(minHoldMs);
+				}
 
-					pendingFiles.delete(filePath);
+				pendingFiles.delete(filePath);
 
 				// By temporarily adding entries to Templater's internal Set, we can
 				// prevent its own teardown from firing when other tasks finish.
@@ -274,7 +278,7 @@ export async function waitForFileToStopChanging(
 
 		let pollIntervalMs = 50;
 		while (Date.now() - start < timeoutMs) {
-			await new Promise((r) => setTimeout(r, pollIntervalMs));
+			await sleep(pollIntervalMs);
 			const current = await adapter.stat(file.path);
 			if (!current) return;
 
