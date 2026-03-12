@@ -992,7 +992,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addCanvasModeCompatibilityNotice(isActiveFile: boolean) {
 		const obviousCanvasTarget =
 			typeof this.choice.captureTo === "string" &&
-			this.choice.captureTo.trim().toLowerCase().endsWith(".canvas");
+			this.isCanvasTargetPath(this.choice.captureTo);
 		const hasActiveCanvasView =
 			this.app.workspace.activeLeaf?.view?.getViewType?.() === "canvas";
 		const usesCursorMode =
