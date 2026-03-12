@@ -50,6 +50,61 @@ function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
 	return choice.type === "Capture";
 }
 
+function shouldIncludeChoice(
+	choice: IChoice | null | undefined,
+	catalog: Map<string, ChoiceCatalogEntry>,
+	includedChoiceIds: ReadonlySet<string>,
+): boolean {
+	if (!choice) return false;
+	if (!catalog.has(choice.id)) return true;
+	return includedChoiceIds.has(choice.id);
+}
+
+function visitReferencedChoiceFromCommand(
+	command: ICommand,
+	catalog: Map<string, ChoiceCatalogEntry>,
+	includedChoiceIds: ReadonlySet<string>,
+	visitChoice: (choice: IChoice) => void,
+): boolean {
+	switch (command.type) {
+		case CommandType.Choice: {
+			const choiceCommand = command as IChoiceCommand;
+			if (!includedChoiceIds.has(choiceCommand.choiceId)) {
+				return true;
+			}
+
+			const targetEntry = catalog.get(choiceCommand.choiceId);
+			if (
+				targetEntry &&
+				shouldIncludeChoice(
+					targetEntry.choice,
+					catalog,
+					includedChoiceIds,
+				)
+			) {
+				visitChoice(targetEntry.choice);
+			}
+			return true;
+		}
+		case CommandType.NestedChoice: {
+			const nested = command as INestedChoiceCommand;
+			if (
+				nested.choice &&
+				shouldIncludeChoice(
+					nested.choice,
+					catalog,
+					includedChoiceIds,
+				)
+			) {
+				visitChoice(nested.choice);
+			}
+			return true;
+		}
+		default:
+			return false;
+	}
+}
+
 function buildChoiceCatalog(
 	allChoices: IChoice[],
 ): Map<string, ChoiceCatalogEntry> {
@@ -205,15 +260,9 @@ export function collectScriptDependencies(
 	const userScriptPaths = new Set<string>();
 	const conditionalScriptPaths = new Set<string>();
 
-	const shouldIncludeChoice = (choice: IChoice | null | undefined): boolean => {
-		if (!choice) return false;
-		if (!catalog.has(choice.id)) return true;
-		return includedChoiceIds.has(choice.id);
-	};
-
 	const visitChoice = (choice: IChoice) => {
 		if (!choice) return;
-		if (!shouldIncludeChoice(choice)) return;
+		if (!shouldIncludeChoice(choice, catalog, includedChoiceIds)) return;
 		if (visitedChoices.has(choice.id)) return;
 
 		visitedChoices.add(choice.id);
@@ -232,6 +281,16 @@ export function collectScriptDependencies(
 	const visitCommands = (commands: ICommand[]) => {
 		for (const command of commands) {
 			if (!command) continue;
+			if (
+				visitReferencedChoiceFromCommand(
+					command,
+					catalog,
+					includedChoiceIds,
+					visitChoice,
+				)
+			) {
+				continue;
+			}
 
 			switch (command.type) {
 				case CommandType.UserScript: {
@@ -248,24 +307,6 @@ export function collectScriptDependencies(
 
 					visitCommands(conditional.thenCommands);
 					visitCommands(conditional.elseCommands);
-					break;
-				}
-				case CommandType.Choice: {
-					const choiceCommand = command as IChoiceCommand;
-					if (!includedChoiceIds.has(choiceCommand.choiceId)) {
-						break;
-					}
-					const targetEntry = catalog.get(choiceCommand.choiceId);
-					if (targetEntry && shouldIncludeChoice(targetEntry.choice)) {
-						visitChoice(targetEntry.choice);
-					}
-					break;
-				}
-				case CommandType.NestedChoice: {
-					const nested = command as INestedChoiceCommand;
-					if (nested.choice && shouldIncludeChoice(nested.choice)) {
-						visitChoice(nested.choice);
-					}
 					break;
 				}
 				default:
@@ -293,15 +334,9 @@ export function collectFileDependencies(
 	const templatePaths = new Set<string>();
 	const captureTemplatePaths = new Set<string>();
 
-	const shouldIncludeChoice = (choice: IChoice | null | undefined): boolean => {
-		if (!choice) return false;
-		if (!catalog.has(choice.id)) return true;
-		return includedChoiceIds.has(choice.id);
-	};
-
 	const visitChoice = (choice: IChoice) => {
 		if (!choice) return;
-		if (!shouldIncludeChoice(choice)) return;
+		if (!shouldIncludeChoice(choice, catalog, includedChoiceIds)) return;
 		if (visitedChoices.has(choice.id)) return;
 
 		visitedChoices.add(choice.id);
@@ -333,26 +368,18 @@ export function collectFileDependencies(
 	const visitCommands = (commands: ICommand[]) => {
 		for (const command of commands) {
 			if (!command) continue;
+			if (
+				visitReferencedChoiceFromCommand(
+					command,
+					catalog,
+					includedChoiceIds,
+					visitChoice,
+				)
+			) {
+				continue;
+			}
 
 			switch (command.type) {
-				case CommandType.Choice: {
-					const choiceCommand = command as IChoiceCommand;
-					if (!includedChoiceIds.has(choiceCommand.choiceId)) {
-						break;
-					}
-					const targetEntry = catalog.get(choiceCommand.choiceId);
-					if (targetEntry && shouldIncludeChoice(targetEntry.choice)) {
-						visitChoice(targetEntry.choice);
-					}
-					break;
-				}
-				case CommandType.NestedChoice: {
-					const nested = command as INestedChoiceCommand;
-					if (nested.choice && shouldIncludeChoice(nested.choice)) {
-						visitChoice(nested.choice);
-					}
-					break;
-				}
 				case CommandType.Conditional: {
 					const conditional = command as IConditionalCommand;
 					visitCommands(conditional.thenCommands);
