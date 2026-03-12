@@ -1,6 +1,25 @@
 import type { OpenFileOptions } from "../../types/fileOpening";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
 
+function getSplitDirection(
+	direction: IOpenFileCommand["direction"],
+	fallback: "vertical" | undefined = undefined
+): "horizontal" | "vertical" | undefined {
+	return direction === "horizontal" || direction === "vertical"
+		? direction
+		: fallback;
+}
+
+function createOpenFileOptions(
+	location: NonNullable<OpenFileOptions["location"]>,
+	focus: boolean,
+	direction?: OpenFileOptions["direction"]
+): OpenFileOptions {
+	return direction
+		? { location, direction, focus, mode: "default" }
+		: { location, focus, mode: "default" };
+}
+
 export function buildOpenFileOptions(
 	command: IOpenFileCommand
 ): OpenFileOptions {
@@ -9,49 +28,36 @@ export function buildOpenFileOptions(
 	if (command.location) {
 		switch (command.location) {
 			case "reuse":
-				return { location: "reuse", focus, mode: "default" };
+				return createOpenFileOptions("reuse", focus);
 			case "tab":
-				return { location: "tab", focus, mode: "default" };
+				return createOpenFileOptions("tab", focus);
 			case "split": {
-				const direction =
-					command.direction === "horizontal" || command.direction === "vertical"
-						? command.direction
-						: "vertical";
-				return {
-					location: "split",
-					direction,
+				return createOpenFileOptions(
+					"split",
 					focus,
-					mode: "default",
-				};
+					getSplitDirection(command.direction, "vertical")
+				);
 			}
 			case "window":
-				return { location: "window", focus, mode: "default" };
+				return createOpenFileOptions("window", focus);
 			case "left-sidebar":
-				return { location: "left-sidebar", focus, mode: "default" };
+				return createOpenFileOptions("left-sidebar", focus);
 			case "right-sidebar":
-				return { location: "right-sidebar", focus, mode: "default" };
+				return createOpenFileOptions("right-sidebar", focus);
 			default:
 				break; // fall back to legacy fields
 		}
 	}
 
 	const openInNewTab = command.openInNewTab ?? false;
-	const legacyDirection =
-		command.direction === "horizontal" || command.direction === "vertical"
-			? command.direction
-			: undefined;
+	const legacyDirection = getSplitDirection(command.direction);
 
 	// Legacy mapping (pre-location field):
 	// openInNewTab === false -> reuse the current tab
 	// openInNewTab === true without direction -> split (default vertical)
 	if (!openInNewTab) {
-		return { location: "reuse", focus, mode: "default" };
+		return createOpenFileOptions("reuse", focus);
 	}
 
-	return {
-		location: "split",
-		direction: legacyDirection ?? "vertical",
-		focus,
-		mode: "default",
-	};
+	return createOpenFileOptions("split", focus, legacyDirection ?? "vertical");
 }
