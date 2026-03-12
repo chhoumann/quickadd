@@ -8,7 +8,6 @@ import {
 	fileExistsOverwriteFile,
 	getFileExistsAutomationDescription,
 	getFileExistsBehaviorModeDescription,
-	getFileExistsSettingDescription,
 } from "./constants";
 
 describe("file exists helper copy", () => {
@@ -23,12 +22,12 @@ describe("file exists helper copy", () => {
 			"Replaces the existing file content with the template.",
 		);
 		expect(getFileExistsBehaviorModeDescription(fileExistsIncrement)).toBe(
-			"Changes trailing digits only. Example: Note009.md -> Note010.md.",
+			"Changes trailing digits only. Example: Draft009.md -> Draft010.md.",
 		);
 		expect(
 			getFileExistsBehaviorModeDescription(fileExistsDuplicateSuffix),
 		).toBe(
-			"Keeps the original name and adds a duplicate marker. Example: tt0780504.md -> tt0780504 (1).md.",
+			"Keeps the original name and adds a duplicate marker. Example: Project Plan.md -> Project Plan (1).md.",
 		);
 		expect(getFileExistsBehaviorModeDescription(fileExistsDoNothing)).toBe(
 			"Leaves the file unchanged and opens the existing file.",
@@ -41,15 +40,6 @@ describe("file exists helper copy", () => {
 		);
 		expect(getFileExistsAutomationDescription(false)).toBe(
 			"QuickAdd prompts you each time the target file already exists.",
-		);
-	});
-
-	it("combines automatic behavior and selected mode into one setting description", () => {
-		expect(getFileExistsSettingDescription(false, fileExistsDuplicateSuffix)).toBe(
-			"QuickAdd prompts you each time the target file already exists.",
-		);
-		expect(getFileExistsSettingDescription(true, fileExistsDuplicateSuffix)).toBe(
-			"QuickAdd applies the selected behavior without asking. Keeps the original name and adds a duplicate marker. Example: tt0780504.md -> tt0780504 (1).md.",
 		);
 	});
 });

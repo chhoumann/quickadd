@@ -218,9 +218,9 @@ export const fileExistsModeDescriptions: Record<FileExistsMode, string> = {
 	[fileExistsOverwriteFile]:
 		"Replaces the existing file content with the template.",
 	[fileExistsIncrement]:
-		"Changes trailing digits only. Example: Note009.md -> Note010.md.",
+		"Changes trailing digits only. Example: Draft009.md -> Draft010.md.",
 	[fileExistsDuplicateSuffix]:
-		"Keeps the original name and adds a duplicate marker. Example: tt0780504.md -> tt0780504 (1).md.",
+		"Keeps the original name and adds a duplicate marker. Example: Project Plan.md -> Project Plan (1).md.",
 	[fileExistsDoNothing]:
 		"Leaves the file unchanged and opens the existing file.",
 };
@@ -235,18 +235,6 @@ export function getFileExistsAutomationDescription(
 	return setAutomatically
 		? "QuickAdd applies the selected behavior without asking."
 		: "QuickAdd prompts you each time the target file already exists.";
-}
-export function getFileExistsSettingDescription(
-	setAutomatically: boolean,
-	mode: FileExistsMode,
-): string {
-	if (!setAutomatically) {
-		return getFileExistsAutomationDescription(false);
-	}
-
-	return `${getFileExistsAutomationDescription(true)} ${getFileExistsBehaviorModeDescription(
-		mode,
-	)}`;
 }
 
 // == MISC == //

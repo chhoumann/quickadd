@@ -12,7 +12,7 @@ import {
 	fileExistsDoNothing,
 	fileExistsDuplicateSuffix,
 	fileExistsIncrement,
-	getFileExistsSettingDescription,
+	getFileExistsBehaviorModeDescription,
 	fileExistsModeLabels,
 	fileExistsOverwriteFile,
 } from "src/constants";
@@ -71,6 +71,29 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			this.addFileOpeningSetting("created");
 		}
 		this.addOnePageOverrideSetting(this.choice);
+	}
+
+	private getExistingFileBehaviorCategory(): "prompt" | "update" | "create" | "keep" {
+		if (!this.choice.setFileExistsBehavior) {
+			return "prompt";
+		}
+
+		if (
+			this.choice.fileExistsMode === fileExistsAppendToBottom ||
+			this.choice.fileExistsMode === fileExistsAppendToTop ||
+			this.choice.fileExistsMode === fileExistsOverwriteFile
+		) {
+			return "update";
+		}
+
+		if (
+			this.choice.fileExistsMode === fileExistsIncrement ||
+			this.choice.fileExistsMode === fileExistsDuplicateSuffix
+		) {
+			return "create";
+		}
+
+		return "keep";
 	}
 
 	private addTemplatePathSetting(): void {
@@ -426,61 +449,82 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		if (!this.choice.fileExistsMode)
 			this.choice.fileExistsMode = fileExistsDoNothing;
 
-		const setting = new Setting(this.contentEl)
+		const behaviorCategory = this.getExistingFileBehaviorCategory();
+
+		new Setting(this.contentEl)
 			.setName("If the target file already exists")
 			.setDesc(
-				getFileExistsSettingDescription(
-					this.choice.setFileExistsBehavior,
-					this.choice.fileExistsMode,
-				),
+				"Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.",
 			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.setFileExistsBehavior);
-				toggle.onChange((value) => {
-					this.choice.setFileExistsBehavior = value;
+			.addDropdown((dropdown) => {
+				dropdown.addOption("prompt", "Ask every time");
+				dropdown.addOption("update", "Update existing file");
+				dropdown.addOption("create", "Create another file");
+				dropdown.addOption("keep", "Keep existing file");
+				dropdown.setValue(behaviorCategory);
+				dropdown.onChange((value) => {
+					switch (value) {
+						case "prompt":
+							this.choice.setFileExistsBehavior = false;
+							break;
+						case "update":
+							this.choice.setFileExistsBehavior = true;
+							if (
+								this.choice.fileExistsMode !== fileExistsAppendToBottom &&
+								this.choice.fileExistsMode !== fileExistsAppendToTop &&
+								this.choice.fileExistsMode !== fileExistsOverwriteFile
+							) {
+								this.choice.fileExistsMode = fileExistsAppendToBottom;
+							}
+							break;
+						case "create":
+							this.choice.setFileExistsBehavior = true;
+							if (
+								this.choice.fileExistsMode !== fileExistsIncrement &&
+								this.choice.fileExistsMode !== fileExistsDuplicateSuffix
+							) {
+								this.choice.fileExistsMode = fileExistsDuplicateSuffix;
+							}
+							break;
+						case "keep":
+							this.choice.setFileExistsBehavior = true;
+							this.choice.fileExistsMode = fileExistsDoNothing;
+							break;
+					}
 					this.reload();
 				});
 			});
 
-		if (this.choice.setFileExistsBehavior) {
-			setting.addDropdown((dropdown) => {
-				dropdown.selectEl.style.marginLeft = "10px";
-				dropdown
-					.addOption(
-						fileExistsAppendToBottom,
-						fileExistsModeLabels[fileExistsAppendToBottom],
-					)
-					.addOption(
-						fileExistsAppendToTop,
-						fileExistsModeLabels[fileExistsAppendToTop],
-					)
-					.addOption(
-						fileExistsOverwriteFile,
-						fileExistsModeLabels[fileExistsOverwriteFile],
-					)
-					.addOption(
-						fileExistsIncrement,
-						fileExistsModeLabels[fileExistsIncrement],
-					)
-					.addOption(
-						fileExistsDuplicateSuffix,
-						fileExistsModeLabels[fileExistsDuplicateSuffix],
-					)
-					.addOption(
-						fileExistsDoNothing,
-						fileExistsModeLabels[fileExistsDoNothing],
-					)
-					.setValue(this.choice.fileExistsMode)
-					.onChange(
-						(value: (typeof fileExistsChoices)[number]) => {
-							this.choice.fileExistsMode = value;
-							setting.descEl.textContent = getFileExistsSettingDescription(
-								this.choice.setFileExistsBehavior,
-								value,
-							);
-						},
-					);
-			});
+		if (behaviorCategory === "prompt") {
+			return;
 		}
+
+		if (behaviorCategory === "keep") {
+			return;
+		}
+
+		const isUpdateBehavior = behaviorCategory === "update";
+		const selectedModes = isUpdateBehavior
+			? [
+					fileExistsAppendToBottom,
+					fileExistsAppendToTop,
+					fileExistsOverwriteFile,
+				]
+			: [fileExistsIncrement, fileExistsDuplicateSuffix];
+
+		new Setting(this.contentEl)
+			.setName(isUpdateBehavior ? "Update action" : "New file naming")
+			.setDesc(getFileExistsBehaviorModeDescription(this.choice.fileExistsMode))
+			.addDropdown((dropdown) => {
+				selectedModes.forEach((mode) => {
+					dropdown.addOption(mode, fileExistsModeLabels[mode]);
+				});
+				dropdown.setValue(this.choice.fileExistsMode).onChange(
+					(value: (typeof fileExistsChoices)[number]) => {
+						this.choice.fileExistsMode = value;
+						this.reload();
+					},
+				);
+			});
 	}
 }
