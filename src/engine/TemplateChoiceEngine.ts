@@ -7,7 +7,9 @@ import {
 	fileExistsAppendToTop,
 	fileExistsChoices,
 	fileExistsDoNothing,
+	fileExistsDuplicateSuffix,
 	fileExistsIncrement,
+	fileExistsModeLabels,
 	fileExistsOverwriteFile,
 	VALUE_SYNTAX,
 } from "../constants";
@@ -90,19 +92,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					strippedPrefix,
 				);
 
-			let filePath = this.normalizeTemplateFilePath(
+			const targetFilePath = this.normalizeTemplateFilePath(
 				treatAsVaultRelativePath ? "" : folderPath,
 				fileName,
 				this.choice.templatePath,
 			);
 
-			if (this.choice.fileExistsMode === fileExistsIncrement)
-				filePath = await this.incrementFileName(filePath);
-
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
-			if (await this.app.vault.adapter.exists(filePath)) {
-				const file = this.findExistingFile(filePath);
+			if (await this.app.vault.adapter.exists(targetFilePath)) {
+				const file = this.findExistingFile(targetFilePath);
 				if (
 					!(file instanceof TFile) ||
 					(file.extension !== "md" &&
@@ -110,20 +109,20 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						file.extension !== "base")
 				) {
 					log.logError(
-						`'${filePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
+						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
 				}
 
-				let userChoice: (typeof fileExistsChoices)[number] =
-					this.choice.fileExistsMode;
+				let userChoice = this.choice.fileExistsMode;
 
 				if (!this.choice.setFileExistsBehavior) {
 					try {
 						userChoice = await GenericSuggester.Suggest(
 							this.app,
+							fileExistsChoices.map((choice) => fileExistsModeLabels[choice]),
 							[...fileExistsChoices],
-							[...fileExistsChoices],
+							"If the target file already exists",
 						);
 					} catch (error) {
 						if (isCancellationError(error)) {
@@ -160,9 +159,21 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						log.logMessage(`Opening existing file: ${file.path}`);
 						break;
 					case fileExistsIncrement: {
-						const incrementFileName = await this.incrementFileName(filePath);
+						const incrementFileName = await this.resolveCollisionFilePath(
+							targetFilePath,
+							userChoice,
+						);
 						createdFile = await this.createFileWithTemplate(
 							incrementFileName,
+							this.choice.templatePath,
+						);
+						break;
+					}
+					case fileExistsDuplicateSuffix: {
+						const duplicateSuffixFileName =
+							await this.resolveCollisionFilePath(targetFilePath, userChoice);
+						createdFile = await this.createFileWithTemplate(
+							duplicateSuffixFileName,
 							this.choice.templatePath,
 						);
 						break;
@@ -173,11 +184,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			} else {
 				createdFile = await this.createFileWithTemplate(
-					filePath,
+					targetFilePath,
 					this.choice.templatePath,
 				);
 				if (!createdFile) {
-					log.logWarning(`Could not create file '${filePath}'.`);
+					log.logWarning(`Could not create file '${targetFilePath}'.`);
 					return;
 				}
 			}

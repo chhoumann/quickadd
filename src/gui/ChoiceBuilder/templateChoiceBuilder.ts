@@ -10,7 +10,10 @@ import {
 	fileExistsAppendToBottom,
 	fileExistsAppendToTop,
 	fileExistsDoNothing,
+	fileExistsDuplicateSuffix,
 	fileExistsIncrement,
+	getFileExistsSettingDescription,
+	fileExistsModeLabels,
 	fileExistsOverwriteFile,
 } from "src/constants";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
@@ -420,35 +423,64 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFileAlreadyExistsSetting(): void {
-		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
-		fileAlreadyExistsSetting
-			.setName("Set default behavior if file already exists")
+		if (!this.choice.fileExistsMode)
+			this.choice.fileExistsMode = fileExistsDoNothing;
+
+		const setting = new Setting(this.contentEl)
+			.setName("If the target file already exists")
 			.setDesc(
-				"Set default behavior rather then prompting user on what to do if a file already exists.",
+				getFileExistsSettingDescription(
+					this.choice.setFileExistsBehavior,
+					this.choice.fileExistsMode,
+				),
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.choice.setFileExistsBehavior);
 				toggle.onChange((value) => {
 					this.choice.setFileExistsBehavior = value;
+					this.reload();
 				});
-			})
-			.addDropdown((dropdown) => {
+			});
+
+		if (this.choice.setFileExistsBehavior) {
+			setting.addDropdown((dropdown) => {
 				dropdown.selectEl.style.marginLeft = "10px";
-
-				if (!this.choice.fileExistsMode)
-					this.choice.fileExistsMode = fileExistsDoNothing;
-
 				dropdown
-					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
-					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
-					.addOption(fileExistsIncrement, fileExistsIncrement)
-					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
-					.addOption(fileExistsDoNothing, fileExistsDoNothing)
+					.addOption(
+						fileExistsAppendToBottom,
+						fileExistsModeLabels[fileExistsAppendToBottom],
+					)
+					.addOption(
+						fileExistsAppendToTop,
+						fileExistsModeLabels[fileExistsAppendToTop],
+					)
+					.addOption(
+						fileExistsOverwriteFile,
+						fileExistsModeLabels[fileExistsOverwriteFile],
+					)
+					.addOption(
+						fileExistsIncrement,
+						fileExistsModeLabels[fileExistsIncrement],
+					)
+					.addOption(
+						fileExistsDuplicateSuffix,
+						fileExistsModeLabels[fileExistsDuplicateSuffix],
+					)
+					.addOption(
+						fileExistsDoNothing,
+						fileExistsModeLabels[fileExistsDoNothing],
+					)
 					.setValue(this.choice.fileExistsMode)
 					.onChange(
-						(value: (typeof fileExistsChoices)[number]) =>
-							(this.choice.fileExistsMode = value),
+						(value: (typeof fileExistsChoices)[number]) => {
+							this.choice.fileExistsMode = value;
+							setting.descEl.textContent = getFileExistsSettingDescription(
+								this.choice.setFileExistsBehavior,
+								value,
+							);
+						},
 					);
 			});
+		}
 	}
 }

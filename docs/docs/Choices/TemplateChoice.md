@@ -31,20 +31,21 @@ When either enabled mode is selected, you can choose where the link is placed:
 - **New line** - Places the link on a new line below the cursor
 
 
-**Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
+**If the target file already exists**. Choose what QuickAdd should do when the target file already exists. Turn on **Use selected behavior automatically** to apply the selected mode without prompting, or turn it off to choose each time.
 
 **Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
 
 ## File Already Exists Behavior
 
-When a file with the target name already exists, QuickAdd will prompt you with several options:
+When a file with the target name already exists, QuickAdd can either prompt you or apply the selected behavior automatically:
 
-- **Append to the bottom of the file**: Adds the template content to the end of the existing file
-- **Append to the top of the file**: Adds the template content to the beginning of the existing file  
-- **Overwrite the file**: Replaces the entire file content with the template
-- **Increment the file name**: Creates a new file with a number suffix (e.g., `note1.md`)
-- **Nothing**: Opens the existing file without modification
+- **Append to bottom**: Adds the template content to the end of the existing file
+- **Append to top**: Adds the template content to the beginning of the existing file
+- **Overwrite file**: Replaces the entire file content with the template
+- **Increment trailing number**: Creates a new file by incrementing trailing digits while preserving zero padding when present (for example, `note009.md` becomes `note010.md`)
+- **Append duplicate suffix**: Creates a new file by preserving the full base name and adding ` (1)`, ` (2)`, and so on (for example, `note.md` becomes `note (1).md`)
+- **Do nothing**: Opens the existing file without modification
 
-**Note**: When you select "Nothing", the existing file will automatically open, making it easy to quickly access files that already exist without needing to enable the "Open" setting.
+**Note**: When you select "Do nothing", the existing file will automatically open, making it easy to quickly access files that already exist without needing to enable the "Open" setting.
 
 ![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)

@@ -191,14 +191,63 @@ export const fileExistsAppendToBottom =
 	"Append to the bottom of the file" as const;
 export const fileExistsAppendToTop = "Append to the top of the file" as const;
 export const fileExistsOverwriteFile = "Overwrite the file" as const;
+export const fileExistsDuplicateSuffix = "Append duplicate suffix" as const;
 export const fileExistsDoNothing = "Nothing" as const;
 export const fileExistsChoices = [
 	fileExistsAppendToBottom,
 	fileExistsAppendToTop,
 	fileExistsOverwriteFile,
 	fileExistsIncrement,
+	fileExistsDuplicateSuffix,
 	fileExistsDoNothing,
 ] as const;
+export type FileExistsMode = (typeof fileExistsChoices)[number];
+export const fileExistsModeLabels: Record<FileExistsMode, string> = {
+	[fileExistsAppendToBottom]: "Append to bottom",
+	[fileExistsAppendToTop]: "Append to top",
+	[fileExistsOverwriteFile]: "Overwrite file",
+	[fileExistsIncrement]: "Increment trailing number",
+	[fileExistsDuplicateSuffix]: "Append duplicate suffix",
+	[fileExistsDoNothing]: "Do nothing",
+};
+export const fileExistsModeDescriptions: Record<FileExistsMode, string> = {
+	[fileExistsAppendToBottom]:
+		"Adds the template content to the end of the existing file.",
+	[fileExistsAppendToTop]:
+		"Adds the template content to the beginning of the existing file.",
+	[fileExistsOverwriteFile]:
+		"Replaces the existing file content with the template.",
+	[fileExistsIncrement]:
+		"Changes trailing digits only. Example: Note009.md -> Note010.md.",
+	[fileExistsDuplicateSuffix]:
+		"Keeps the original name and adds a duplicate marker. Example: tt0780504.md -> tt0780504 (1).md.",
+	[fileExistsDoNothing]:
+		"Leaves the file unchanged and opens the existing file.",
+};
+export function getFileExistsBehaviorModeDescription(
+	mode: FileExistsMode,
+): string {
+	return fileExistsModeDescriptions[mode];
+}
+export function getFileExistsAutomationDescription(
+	setAutomatically: boolean,
+): string {
+	return setAutomatically
+		? "QuickAdd applies the selected behavior without asking."
+		: "QuickAdd prompts you each time the target file already exists.";
+}
+export function getFileExistsSettingDescription(
+	setAutomatically: boolean,
+	mode: FileExistsMode,
+): string {
+	if (!setAutomatically) {
+		return getFileExistsAutomationDescription(false);
+	}
+
+	return `${getFileExistsAutomationDescription(true)} ${getFileExistsBehaviorModeDescription(
+		mode,
+	)}`;
+}
 
 // == MISC == //
 export const WIKI_LINK_REGEX = new RegExp(/\[\[([^\]]*)\]\]/);

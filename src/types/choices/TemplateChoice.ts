@@ -1,6 +1,6 @@
 import type ITemplateChoice from "./ITemplateChoice";
 import { Choice } from "./Choice";
-import type { fileExistsChoices } from "src/constants";
+import type { FileExistsMode } from "src/constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
@@ -23,7 +23,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		focus: boolean;
 	};
 	templatePath: string;
-	fileExistsMode: (typeof fileExistsChoices)[number];
+	fileExistsMode: FileExistsMode;
 	setFileExistsBehavior: boolean;
 
 	constructor(name: string) {

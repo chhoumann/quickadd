@@ -85,7 +85,7 @@ outgoing links for this note.
 - **File Name Format**: `{{VALUE:moc_title}}`
 - **Create in folder**: your MOC folder, for example `MOCs`
 - **Open**: enabled
-- **File already exists behavior**: `Increment the file name`
+- **If the target file already exists**: `Increment trailing number`
 
 4. Run the Template choice and enter a title such as `Alpha Project`.
 

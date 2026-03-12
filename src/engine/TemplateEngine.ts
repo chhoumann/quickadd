@@ -16,6 +16,7 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
+import type { FileExistsMode } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import {
@@ -466,43 +467,80 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		return `${actualFolderPath}${formattedFileName}${extension}`;
 	}
 
-	protected async incrementFileName(fileName: string) {
+	protected async resolveCollisionFilePath(
+		fileName: string,
+		mode: FileExistsMode,
+	): Promise<string> {
+		switch (mode) {
+			case "Increment the file name":
+				return await this.incrementFileName(fileName);
+			case "Append duplicate suffix":
+				return await this.appendDuplicateSuffix(fileName);
+			default:
+				return fileName;
+		}
+	}
+
+	protected async incrementFileName(fileName: string): Promise<string> {
 		const fileExists = await this.app.vault.adapter.exists(fileName);
-		let newFileName = fileName;
+		if (!fileExists) {
+			return fileName;
+		}
 
-		// Determine the extension from the filename and construct a matching regex
-		let extension = ".md";
+		const { basename, extension } = this.splitCollisionFileName(fileName);
+		const match = basename.match(/^(.*?)(\d+)$/);
+		const nextBasename = match
+			? `${match[1]}${String(parseInt(match[2], 10) + 1).padStart(
+					match[2].length,
+					"0",
+				)}`
+			: `${basename}1`;
+		const nextFileName = `${nextBasename}${extension}`;
+
+		if (await this.app.vault.adapter.exists(nextFileName)) {
+			return await this.incrementFileName(nextFileName);
+		}
+
+		return nextFileName;
+	}
+
+	protected async appendDuplicateSuffix(fileName: string): Promise<string> {
+		const fileExists = await this.app.vault.adapter.exists(fileName);
+		if (!fileExists) {
+			return fileName;
+		}
+
+		const { basename, extension } = this.splitCollisionFileName(fileName);
+		const match = basename.match(/^(.*) \((\d+)\)$/);
+		const nextBasename = match
+			? `${match[1]} (${parseInt(match[2], 10) + 1})`
+			: `${basename} (1)`;
+		const nextFileName = `${nextBasename}${extension}`;
+
+		if (await this.app.vault.adapter.exists(nextFileName)) {
+			return await this.appendDuplicateSuffix(nextFileName);
+		}
+
+		return nextFileName;
+	}
+
+	private splitCollisionFileName(fileName: string) {
 		if (CANVAS_FILE_EXTENSION_REGEX.test(fileName)) {
-			extension = ".canvas";
-		} else if (BASE_FILE_EXTENSION_REGEX.test(fileName)) {
-			extension = ".base";
+			return {
+				basename: fileName.replace(CANVAS_FILE_EXTENSION_REGEX, ""),
+				extension: ".canvas",
+			};
 		}
-		const extPattern = extension.replace(/\./g, "\\.");
-		const numberWithExtRegex = new RegExp(`(\\d*)${extPattern}$`);
-		const exec = numberWithExtRegex.exec(fileName);
-		const numStr = exec?.[1];
-
-		if (fileExists && numStr !== undefined) {
-			if (numStr.length > 0) {
-				const number = parseInt(numStr, 10);
-				if (Number.isNaN(number)) {
-					throw new Error("detected numbers but couldn't get them.");
-				}
-				newFileName = newFileName.replace(numberWithExtRegex, `${number + 1}${extension}`);
-			} else {
-				// No digits previously; insert 1 before extension
-				newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
-			}
-		} else if (fileExists) {
-			// No match; simply append 1 before the extension
-			newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
+		if (BASE_FILE_EXTENSION_REGEX.test(fileName)) {
+			return {
+				basename: fileName.replace(BASE_FILE_EXTENSION_REGEX, ""),
+				extension: ".base",
+			};
 		}
-
-		const newFileExists = await this.app.vault.adapter.exists(newFileName);
-		if (newFileExists)
-			newFileName = await this.incrementFileName(newFileName);
-
-		return newFileName;
+		return {
+			basename: fileName.replace(MARKDOWN_FILE_EXTENSION_REGEX, ""),
+			extension: ".md",
+		};
 	}
 
 	protected async createFileWithTemplate(
