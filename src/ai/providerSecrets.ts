@@ -17,22 +17,30 @@ function buildSecretBase(provider: AIProvider): string {
 	return `${SECRET_PREFIX}-${toSecretId(name)}`;
 }
 
+async function readSecretStorageEntry(
+	app: App | undefined,
+	secretName: string,
+): Promise<string | null> {
+	if (!app?.secretStorage?.getSecret) return null;
+
+	try {
+		return await Promise.resolve(app.secretStorage.getSecret(secretName));
+	} catch (err) {
+		log.logWarning(
+			`Failed to read SecretStorage entry "${secretName}": ${(err as Error).message ?? err}`,
+		);
+		return null;
+	}
+}
+
 export async function resolveProviderApiKey(
 	app: App | undefined,
 	provider: AIProvider,
 ): Promise<string> {
 	const secretName = provider.apiKeyRef?.trim();
-	if (secretName && app?.secretStorage?.getSecret) {
-		try {
-			const secret = await Promise.resolve(
-				app.secretStorage.getSecret(secretName),
-			);
-			if (secret) return secret;
-		} catch (err) {
-			log.logWarning(
-				`Failed to read SecretStorage entry "${secretName}": ${(err as Error).message ?? err}`,
-			);
-		}
+	if (secretName) {
+		const secret = await readSecretStorageEntry(app, secretName);
+		if (secret) return secret;
 	}
 
 	return provider.apiKey ?? "";
@@ -52,16 +60,7 @@ export async function storeProviderApiKeyInSecretStorage(
 	let suffix = 1;
 
 	while (true) {
-		let existing: string | null = null;
-		try {
-			existing = await Promise.resolve(
-				app.secretStorage.getSecret(candidate),
-			);
-		} catch (err) {
-			log.logWarning(
-				`Failed to read SecretStorage entry "${candidate}": ${(err as Error).message ?? err}`,
-			);
-		}
+		const existing = await readSecretStorageEntry(app, candidate);
 
 		if (!existing) break;
 		if (existing === trimmed) return candidate;
