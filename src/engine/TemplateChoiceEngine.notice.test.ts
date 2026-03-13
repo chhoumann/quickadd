@@ -107,7 +107,6 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { settingsStore } from "../settingsStore";
-import { fileExistsAppendToBottom, fileExistsOverwriteFile } from "../constants";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -139,8 +138,7 @@ const createTemplateChoice = (): ITemplateChoice => ({
 		mode: "source",
 		focus: false,
 	},
-	fileExistsMode: fileExistsAppendToBottom,
-	setFileExistsBehavior: false,
+	fileExistsBehavior: { kind: "prompt" },
 });
 
 const createEngine = (
@@ -299,8 +297,7 @@ describe("TemplateChoiceEngine file casing resolution", () => {
 		existingFile.extension = "md";
 		existingFile.basename = "Bug report";
 
-		engine.choice.fileExistsMode = fileExistsOverwriteFile;
-		engine.choice.setFileExistsBehavior = true;
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "overwrite" };
 		formatFileNameMock.mockResolvedValueOnce("Bug Report");
 
 		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -346,8 +343,7 @@ describe("TemplateChoiceEngine file casing resolution", () => {
 		existingFile.basename = "Board";
 
 		engine.choice.templatePath = "Templates/Board.base";
-		engine.choice.fileExistsMode = fileExistsOverwriteFile;
-		engine.choice.setFileExistsBehavior = true;
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "overwrite" };
 		formatFileNameMock.mockResolvedValueOnce("Board");
 
 		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(

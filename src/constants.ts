@@ -185,57 +185,5 @@ export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH =
 	"__qa.captureTargetFilePath";
 
-// == File Exists (Template Choice) == //
-export const fileExistsIncrement = "Increment the file name" as const;
-export const fileExistsAppendToBottom =
-	"Append to the bottom of the file" as const;
-export const fileExistsAppendToTop = "Append to the top of the file" as const;
-export const fileExistsOverwriteFile = "Overwrite the file" as const;
-export const fileExistsDuplicateSuffix = "Append duplicate suffix" as const;
-export const fileExistsDoNothing = "Nothing" as const;
-export const fileExistsChoices = [
-	fileExistsAppendToBottom,
-	fileExistsAppendToTop,
-	fileExistsOverwriteFile,
-	fileExistsIncrement,
-	fileExistsDuplicateSuffix,
-	fileExistsDoNothing,
-] as const;
-export type FileExistsMode = (typeof fileExistsChoices)[number];
-export const fileExistsModeLabels: Record<FileExistsMode, string> = {
-	[fileExistsAppendToBottom]: "Append to bottom",
-	[fileExistsAppendToTop]: "Append to top",
-	[fileExistsOverwriteFile]: "Overwrite file",
-	[fileExistsIncrement]: "Increment trailing number",
-	[fileExistsDuplicateSuffix]: "Append duplicate suffix",
-	[fileExistsDoNothing]: "Do nothing",
-};
-export const fileExistsModeDescriptions: Record<FileExistsMode, string> = {
-	[fileExistsAppendToBottom]:
-		"Adds the template content to the end of the existing file.",
-	[fileExistsAppendToTop]:
-		"Adds the template content to the beginning of the existing file.",
-	[fileExistsOverwriteFile]:
-		"Replaces the existing file content with the template.",
-	[fileExistsIncrement]:
-		"Changes trailing digits only. Example: Draft009.md -> Draft010.md.",
-	[fileExistsDuplicateSuffix]:
-		"Keeps the original name and adds a duplicate marker. Example: Project Plan.md -> Project Plan (1).md.",
-	[fileExistsDoNothing]:
-		"Leaves the file unchanged and opens the existing file.",
-};
-export function getFileExistsBehaviorModeDescription(
-	mode: FileExistsMode,
-): string {
-	return fileExistsModeDescriptions[mode];
-}
-export function getFileExistsAutomationDescription(
-	setAutomatically: boolean,
-): string {
-	return setAutomatically
-		? "QuickAdd applies the selected behavior without asking."
-		: "QuickAdd prompts you each time the target file already exists.";
-}
-
 // == MISC == //
 export const WIKI_LINK_REGEX = new RegExp(/\[\[([^\]]*)\]\]/);

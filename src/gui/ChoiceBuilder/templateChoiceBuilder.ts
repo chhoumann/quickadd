@@ -5,20 +5,18 @@ import {
 	TextComponent,
 	ToggleComponent,
 } from "obsidian";
-import type { fileExistsChoices } from "src/constants";
-import {
-	fileExistsAppendToBottom,
-	fileExistsAppendToTop,
-	fileExistsDoNothing,
-	fileExistsDuplicateSuffix,
-	fileExistsIncrement,
-	getFileExistsBehaviorModeDescription,
-	fileExistsModeLabels,
-	fileExistsOverwriteFile,
-} from "src/constants";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
 import type QuickAdd from "../../main";
+import {
+	fileExistsBehaviorCategoryOptions,
+	getBehaviorCategory,
+	getDefaultBehaviorForCategory,
+	getFileExistsMode,
+	getModesForCategory,
+	type FileExistsBehaviorCategoryId,
+	type FileExistsModeId,
+} from "../../template/fileExistsPolicy";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
@@ -71,29 +69,6 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			this.addFileOpeningSetting("created");
 		}
 		this.addOnePageOverrideSetting(this.choice);
-	}
-
-	private getExistingFileBehaviorCategory(): "prompt" | "update" | "create" | "keep" {
-		if (!this.choice.setFileExistsBehavior) {
-			return "prompt";
-		}
-
-		if (
-			this.choice.fileExistsMode === fileExistsAppendToBottom ||
-			this.choice.fileExistsMode === fileExistsAppendToTop ||
-			this.choice.fileExistsMode === fileExistsOverwriteFile
-		) {
-			return "update";
-		}
-
-		if (
-			this.choice.fileExistsMode === fileExistsIncrement ||
-			this.choice.fileExistsMode === fileExistsDuplicateSuffix
-		) {
-			return "create";
-		}
-
-		return "keep";
 	}
 
 	private addTemplatePathSetting(): void {
@@ -446,10 +421,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFileAlreadyExistsSetting(): void {
-		if (!this.choice.fileExistsMode)
-			this.choice.fileExistsMode = fileExistsDoNothing;
-
-		const behaviorCategory = this.getExistingFileBehaviorCategory();
+		this.choice.fileExistsBehavior ??= { kind: "prompt" };
+		const behaviorCategory = getBehaviorCategory(this.choice.fileExistsBehavior);
 
 		new Setting(this.contentEl)
 			.setName("If the target file already exists")
@@ -457,40 +430,15 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 				"Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.",
 			)
 			.addDropdown((dropdown) => {
-				dropdown.addOption("prompt", "Ask every time");
-				dropdown.addOption("update", "Update existing file");
-				dropdown.addOption("create", "Create another file");
-				dropdown.addOption("keep", "Keep existing file");
+				fileExistsBehaviorCategoryOptions.forEach((option) => {
+					dropdown.addOption(option.id, option.label);
+				});
 				dropdown.setValue(behaviorCategory);
-				dropdown.onChange((value) => {
-					switch (value) {
-						case "prompt":
-							this.choice.setFileExistsBehavior = false;
-							break;
-						case "update":
-							this.choice.setFileExistsBehavior = true;
-							if (
-								this.choice.fileExistsMode !== fileExistsAppendToBottom &&
-								this.choice.fileExistsMode !== fileExistsAppendToTop &&
-								this.choice.fileExistsMode !== fileExistsOverwriteFile
-							) {
-								this.choice.fileExistsMode = fileExistsAppendToBottom;
-							}
-							break;
-						case "create":
-							this.choice.setFileExistsBehavior = true;
-							if (
-								this.choice.fileExistsMode !== fileExistsIncrement &&
-								this.choice.fileExistsMode !== fileExistsDuplicateSuffix
-							) {
-								this.choice.fileExistsMode = fileExistsDuplicateSuffix;
-							}
-							break;
-						case "keep":
-							this.choice.setFileExistsBehavior = true;
-							this.choice.fileExistsMode = fileExistsDoNothing;
-							break;
-					}
+				dropdown.onChange((value: FileExistsBehaviorCategoryId) => {
+					this.choice.fileExistsBehavior = getDefaultBehaviorForCategory(
+						value,
+						this.choice.fileExistsBehavior,
+					);
 					this.reload();
 				});
 			});
@@ -504,27 +452,28 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		}
 
 		const isUpdateBehavior = behaviorCategory === "update";
-		const selectedModes = isUpdateBehavior
-			? [
-					fileExistsAppendToBottom,
-					fileExistsAppendToTop,
-					fileExistsOverwriteFile,
-				]
-			: [fileExistsIncrement, fileExistsDuplicateSuffix];
+		const selectedModes = getModesForCategory(
+			isUpdateBehavior ? "update" : "create",
+		);
+		const selectedMode =
+			this.choice.fileExistsBehavior.kind === "apply"
+				? this.choice.fileExistsBehavior.mode
+				: selectedModes[0].id;
 
 		new Setting(this.contentEl)
 			.setName(isUpdateBehavior ? "Update action" : "New file naming")
-			.setDesc(getFileExistsBehaviorModeDescription(this.choice.fileExistsMode))
+			.setDesc(getFileExistsMode(selectedMode).description)
 			.addDropdown((dropdown) => {
 				selectedModes.forEach((mode) => {
-					dropdown.addOption(mode, fileExistsModeLabels[mode]);
+					dropdown.addOption(mode.id, mode.label);
 				});
-				dropdown.setValue(this.choice.fileExistsMode).onChange(
-					(value: (typeof fileExistsChoices)[number]) => {
-						this.choice.fileExistsMode = value;
+				dropdown.setValue(selectedMode).onChange((value: FileExistsModeId) => {
+					this.choice.fileExistsBehavior = {
+						kind: "apply",
+						mode: value,
+					};
 						this.reload();
-					},
-				);
+				});
 			});
 	}
 }

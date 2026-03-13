@@ -1,7 +1,7 @@
 import type IChoice from "./IChoice";
-import type { FileExistsMode } from "src/constants";
 import type { AppendLinkOptions } from "../linkPlacement";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
+import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
 
 export default interface ITemplateChoice extends IChoice {
 	templatePath: string;
@@ -26,6 +26,5 @@ export default interface ITemplateChoice extends IChoice {
 		mode: FileViewMode2;
 		focus: boolean;
 	};
-	fileExistsMode: FileExistsMode;
-	setFileExistsBehavior: boolean;
+	fileExistsBehavior: TemplateFileExistsBehavior;
 }

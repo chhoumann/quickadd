@@ -2,21 +2,17 @@ import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import invariant from "src/utils/invariant";
-import {
-	fileExistsAppendToBottom,
-	fileExistsAppendToTop,
-	fileExistsChoices,
-	fileExistsDoNothing,
-	fileExistsDuplicateSuffix,
-	fileExistsIncrement,
-	fileExistsModeLabels,
-	fileExistsOverwriteFile,
-	VALUE_SYNTAX,
-} from "../constants";
+import { VALUE_SYNTAX } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
+import {
+	getFileExistsMode,
+	getPromptModes,
+	resolveCreateNewCollisionFilePath,
+	type FileExistsModeId,
+} from "../template/fileExistsPolicy";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
@@ -101,33 +97,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			if (await this.app.vault.adapter.exists(targetFilePath)) {
-				let userChoice = this.choice.fileExistsMode;
-
-				if (!this.choice.setFileExistsBehavior) {
-					try {
-						userChoice = await GenericSuggester.Suggest(
-							this.app,
-							fileExistsChoices.map((choice) => fileExistsModeLabels[choice]),
-							[...fileExistsChoices],
-							"If the target file already exists",
-						);
-					} catch (error) {
-						if (isCancellationError(error)) {
-							throw new MacroAbortError("Input cancelled by user");
-						}
-						throw error;
-					}
-				}
-
-				const requiresExistingFile =
-					userChoice !== fileExistsIncrement &&
-					userChoice !== fileExistsDuplicateSuffix;
-				const existingFile = requiresExistingFile
+				const modeId = await this.getSelectedFileExistsMode();
+				const mode = getFileExistsMode(modeId);
+				const existingFile = mode.requiresExistingFile
 					? this.findExistingFile(targetFilePath)
 					: null;
 
 				if (
-					requiresExistingFile &&
+					mode.requiresExistingFile &&
 					(!(existingFile instanceof TFile) ||
 						(existingFile.extension !== "md" &&
 							existingFile.extension !== "canvas" &&
@@ -139,56 +116,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					return;
 				}
 
-				switch (userChoice) {
-					case fileExistsAppendToTop:
-						createdFile = await this.appendToFileWithTemplate(
-							existingFile!,
-							this.choice.templatePath,
-							"top",
-						);
-						break;
-					case fileExistsAppendToBottom:
-						createdFile = await this.appendToFileWithTemplate(
-							existingFile!,
-							this.choice.templatePath,
-							"bottom",
-						);
-						break;
-					case fileExistsOverwriteFile:
-						createdFile = await this.overwriteFileWithTemplate(
-							existingFile!,
-							this.choice.templatePath,
-						);
-						break;
-					case fileExistsDoNothing:
-						createdFile = existingFile!;
-						shouldAutoOpen = true; // Auto-open existing file when user chooses "Nothing"
-						log.logMessage(`Opening existing file: ${existingFile!.path}`);
-						break;
-					case fileExistsIncrement: {
-						const incrementFileName = await this.resolveCollisionFilePath(
-							targetFilePath,
-							userChoice,
-						);
-						createdFile = await this.createFileWithTemplate(
-							incrementFileName,
-							this.choice.templatePath,
-						);
-						break;
-					}
-					case fileExistsDuplicateSuffix: {
-						const duplicateSuffixFileName =
-							await this.resolveCollisionFilePath(targetFilePath, userChoice);
-						createdFile = await this.createFileWithTemplate(
-							duplicateSuffixFileName,
-							this.choice.templatePath,
-						);
-						break;
-					}
-					default:
-						log.logWarning("File not written to.");
-						return;
-				}
+				({ createdFile, shouldAutoOpen } = await this.applyFileExistsMode(
+					modeId,
+					targetFilePath,
+					existingFile,
+				));
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					targetFilePath,
@@ -231,6 +163,93 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return;
 			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);
+		}
+	}
+
+	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {
+		if (this.choice.fileExistsBehavior.kind === "apply") {
+			return this.choice.fileExistsBehavior.mode;
+		}
+
+		const promptModes = getPromptModes();
+
+		try {
+			return await GenericSuggester.Suggest(
+				this.app,
+				promptModes.map((mode) => mode.label),
+				promptModes.map((mode) => mode.id),
+				"If the target file already exists",
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+			throw error;
+		}
+	}
+
+	private async applyFileExistsMode(
+		modeId: FileExistsModeId,
+		targetFilePath: string,
+		existingFile: TFile | null,
+	): Promise<{ createdFile: TFile | null; shouldAutoOpen: boolean }> {
+		const mode = getFileExistsMode(modeId);
+
+		switch (mode.resolutionKind) {
+			case "modifyExisting":
+				return {
+					createdFile: await this.applyExistingFileUpdate(
+						mode.id,
+						existingFile!,
+					),
+					shouldAutoOpen: false,
+				};
+			case "createNew": {
+				const nextFilePath = await resolveCreateNewCollisionFilePath(
+					targetFilePath,
+					mode.id,
+					async (path) => await this.app.vault.adapter.exists(path),
+				);
+
+				return {
+					createdFile: await this.createFileWithTemplate(
+						nextFilePath,
+						this.choice.templatePath,
+					),
+					shouldAutoOpen: false,
+				};
+			}
+			case "reuseExisting":
+				log.logMessage(`Opening existing file: ${existingFile!.path}`);
+				return {
+					createdFile: existingFile,
+					shouldAutoOpen: true,
+				};
+		}
+	}
+
+	private async applyExistingFileUpdate(
+		modeId: "appendTop" | "appendBottom" | "overwrite",
+		existingFile: TFile,
+	): Promise<TFile | null> {
+		switch (modeId) {
+			case "appendTop":
+				return await this.appendToFileWithTemplate(
+					existingFile,
+					this.choice.templatePath,
+					"top",
+				);
+			case "appendBottom":
+				return await this.appendToFileWithTemplate(
+					existingFile,
+					this.choice.templatePath,
+					"bottom",
+				);
+			case "overwrite":
+				return await this.overwriteFileWithTemplate(
+					existingFile,
+					this.choice.templatePath,
+				);
 		}
 	}
 

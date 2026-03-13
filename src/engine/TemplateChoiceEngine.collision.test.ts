@@ -104,15 +104,9 @@ import { TFile, TFolder, type App } from "obsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { settingsStore } from "../settingsStore";
+import { getPromptModes } from "../template/fileExistsPolicy";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
-import {
-	fileExistsAppendToBottom,
-	fileExistsDoNothing,
-	fileExistsDuplicateSuffix,
-	fileExistsIncrement,
-	fileExistsModeLabels,
-} from "../constants";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -138,8 +132,7 @@ const createTemplateChoice = (): ITemplateChoice => ({
 		mode: "source",
 		focus: false,
 	},
-	fileExistsMode: fileExistsAppendToBottom,
-	setFileExistsBehavior: false,
+	fileExistsBehavior: { kind: "prompt" },
 });
 
 const createExistingFile = (path: string) => {
@@ -211,20 +204,21 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		const { app, engine } = createEngine();
 		const existingFile = createExistingFile("Test Template.md");
 
-		engine.choice.fileExistsMode = fileExistsIncrement;
-		engine.choice.setFileExistsBehavior = false;
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
 
 		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
 			existingFile,
 		);
-		vi.mocked(GenericSuggester.Suggest).mockResolvedValue(fileExistsDoNothing);
-
-		const incrementSpy = vi.spyOn(
+		vi.mocked(GenericSuggester.Suggest).mockResolvedValue("doNothing");
+		const createSpy = vi.spyOn(
 			engine as unknown as {
-				incrementFileName: (filePath: string) => Promise<string>;
+				createFileWithTemplate: (
+					filePath: string,
+					templatePath: string,
+				) => Promise<TFile | null>;
 			},
-			"incrementFileName",
+			"createFileWithTemplate",
 		);
 
 		await engine.run();
@@ -232,38 +226,27 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		expect(GenericSuggester.Suggest).toHaveBeenCalledWith(
 			app,
 			expect.arrayContaining([
-				fileExistsModeLabels[fileExistsIncrement],
-				fileExistsModeLabels[fileExistsDuplicateSuffix],
+				getPromptModes().find((mode) => mode.id === "increment")?.label,
+				getPromptModes().find((mode) => mode.id === "duplicateSuffix")?.label,
 			]),
-			expect.any(Array),
+			expect.arrayContaining(["appendBottom", "increment", "duplicateSuffix"]),
 			"If the target file already exists",
 		);
-		expect(incrementSpy).not.toHaveBeenCalled();
+		expect(createSpy).not.toHaveBeenCalled();
 		expect(app.vault.adapter.exists).toHaveBeenCalledWith("Test Template.md");
 	});
 
 	it("creates an incremented file from the original target after prompting", async () => {
 		const { app, engine } = createEngine();
-		const existingFile = createExistingFile("Test Template.md");
 		const createdFile = createExistingFile("Test Template1.md");
 
-		engine.choice.fileExistsMode = fileExistsIncrement;
-		engine.choice.setFileExistsBehavior = false;
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
 
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
-		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
-			existingFile,
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async (path: string) => path === "Test Template.md",
 		);
-		vi.mocked(GenericSuggester.Suggest).mockResolvedValue(fileExistsIncrement);
+		vi.mocked(GenericSuggester.Suggest).mockResolvedValue("increment");
 
-		const incrementSpy = vi
-			.spyOn(
-				engine as unknown as {
-					incrementFileName: (filePath: string) => Promise<string>;
-				},
-				"incrementFileName",
-			)
-			.mockResolvedValue("Test Template1.md");
 		const createSpy = vi
 			.spyOn(
 				engine as unknown as {
@@ -278,7 +261,6 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 		await engine.run();
 
-		expect(incrementSpy).toHaveBeenCalledWith("Test Template.md");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Test Template1.md",
 			engine.choice.templatePath,
@@ -287,28 +269,15 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 	it("creates a duplicate-suffix file from the original target after prompting", async () => {
 		const { app, engine } = createEngine();
-		const existingFile = createExistingFile("Test Template.md");
 		const createdFile = createExistingFile("Test Template (1).md");
 
-		engine.choice.fileExistsMode = fileExistsIncrement;
-		engine.choice.setFileExistsBehavior = false;
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
 
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
-		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
-			existingFile,
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async (path: string) => path === "Test Template.md",
 		);
-		vi.mocked(GenericSuggester.Suggest).mockResolvedValue(
-			fileExistsDuplicateSuffix,
-		);
+		vi.mocked(GenericSuggester.Suggest).mockResolvedValue("duplicateSuffix");
 
-		const duplicateSpy = vi
-			.spyOn(
-				engine as unknown as {
-					appendDuplicateSuffix: (filePath: string) => Promise<string>;
-				},
-				"appendDuplicateSuffix",
-			)
-			.mockResolvedValue("Test Template (1).md");
 		const createSpy = vi
 			.spyOn(
 				engine as unknown as {
@@ -323,7 +292,6 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 		await engine.run();
 
-		expect(duplicateSpy).toHaveBeenCalledWith("Test Template.md");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Test Template (1).md",
 			engine.choice.templatePath,
@@ -335,25 +303,16 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		const existingFolder = createExistingFolder("Test Template.md");
 		const createdFile = createExistingFile("Test Template (1).md");
 
-		engine.choice.fileExistsMode = fileExistsIncrement;
-		engine.choice.setFileExistsBehavior = false;
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
 
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async (path: string) => path === "Test Template.md",
+		);
 		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
 			existingFolder,
 		);
-		vi.mocked(GenericSuggester.Suggest).mockResolvedValue(
-			fileExistsDuplicateSuffix,
-		);
+		vi.mocked(GenericSuggester.Suggest).mockResolvedValue("duplicateSuffix");
 
-		const duplicateSpy = vi
-			.spyOn(
-				engine as unknown as {
-					appendDuplicateSuffix: (filePath: string) => Promise<string>;
-				},
-				"appendDuplicateSuffix",
-			)
-			.mockResolvedValue("Test Template (1).md");
 		const createSpy = vi
 			.spyOn(
 				engine as unknown as {
@@ -368,7 +327,6 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 		await engine.run();
 
-		expect(duplicateSpy).toHaveBeenCalledWith("Test Template.md");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Test Template (1).md",
 			engine.choice.templatePath,
@@ -377,25 +335,14 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 	it("increments automatically when auto behavior is on", async () => {
 		const { app, engine } = createEngine();
-		const existingFile = createExistingFile("Test Template.md");
 		const createdFile = createExistingFile("Test Template1.md");
 
-		engine.choice.fileExistsMode = fileExistsIncrement;
-		engine.choice.setFileExistsBehavior = true;
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "increment" };
 
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
-		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
-			existingFile,
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async (path: string) => path === "Test Template.md",
 		);
 
-		const incrementSpy = vi
-			.spyOn(
-				engine as unknown as {
-					incrementFileName: (filePath: string) => Promise<string>;
-				},
-				"incrementFileName",
-			)
-			.mockResolvedValue("Test Template1.md");
 		const createSpy = vi
 			.spyOn(
 				engine as unknown as {
@@ -411,7 +358,6 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		await engine.run();
 
 		expect(GenericSuggester.Suggest).not.toHaveBeenCalled();
-		expect(incrementSpy).toHaveBeenCalledWith("Test Template.md");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Test Template1.md",
 			engine.choice.templatePath,
@@ -420,25 +366,17 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 	it("applies duplicate suffix automatically when auto behavior is on", async () => {
 		const { app, engine } = createEngine();
-		const existingFile = createExistingFile("Test Template.md");
 		const createdFile = createExistingFile("Test Template (1).md");
 
-		engine.choice.fileExistsMode = fileExistsDuplicateSuffix;
-		engine.choice.setFileExistsBehavior = true;
+		engine.choice.fileExistsBehavior = {
+			kind: "apply",
+			mode: "duplicateSuffix",
+		};
 
-		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
-		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
-			existingFile,
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockImplementation(
+			async (path: string) => path === "Test Template.md",
 		);
 
-		const duplicateSpy = vi
-			.spyOn(
-				engine as unknown as {
-					appendDuplicateSuffix: (filePath: string) => Promise<string>;
-				},
-				"appendDuplicateSuffix",
-			)
-			.mockResolvedValue("Test Template (1).md");
 		const createSpy = vi
 			.spyOn(
 				engine as unknown as {
@@ -454,7 +392,6 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		await engine.run();
 
 		expect(GenericSuggester.Suggest).not.toHaveBeenCalled();
-		expect(duplicateSpy).toHaveBeenCalledWith("Test Template.md");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Test Template (1).md",
 			engine.choice.templatePath,

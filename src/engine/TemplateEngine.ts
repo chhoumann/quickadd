@@ -16,7 +16,6 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
-import type { FileExistsMode } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import {
@@ -465,82 +464,6 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
 			.replace(BASE_FILE_EXTENSION_REGEX, "");
 		return `${actualFolderPath}${formattedFileName}${extension}`;
-	}
-
-	protected async resolveCollisionFilePath(
-		fileName: string,
-		mode: FileExistsMode,
-	): Promise<string> {
-		switch (mode) {
-			case "Increment the file name":
-				return await this.incrementFileName(fileName);
-			case "Append duplicate suffix":
-				return await this.appendDuplicateSuffix(fileName);
-			default:
-				return fileName;
-		}
-	}
-
-	protected async incrementFileName(fileName: string): Promise<string> {
-		const fileExists = await this.app.vault.adapter.exists(fileName);
-		if (!fileExists) {
-			return fileName;
-		}
-
-		const { basename, extension } = this.splitCollisionFileName(fileName);
-		const match = basename.match(/^(.*?)(\d+)$/);
-		const nextBasename = match
-			? `${match[1]}${String(parseInt(match[2], 10) + 1).padStart(
-					match[2].length,
-					"0",
-				)}`
-			: `${basename}1`;
-		const nextFileName = `${nextBasename}${extension}`;
-
-		if (await this.app.vault.adapter.exists(nextFileName)) {
-			return await this.incrementFileName(nextFileName);
-		}
-
-		return nextFileName;
-	}
-
-	protected async appendDuplicateSuffix(fileName: string): Promise<string> {
-		const fileExists = await this.app.vault.adapter.exists(fileName);
-		if (!fileExists) {
-			return fileName;
-		}
-
-		const { basename, extension } = this.splitCollisionFileName(fileName);
-		const match = basename.match(/^(.*) \((\d+)\)$/);
-		const nextBasename = match
-			? `${match[1]} (${parseInt(match[2], 10) + 1})`
-			: `${basename} (1)`;
-		const nextFileName = `${nextBasename}${extension}`;
-
-		if (await this.app.vault.adapter.exists(nextFileName)) {
-			return await this.appendDuplicateSuffix(nextFileName);
-		}
-
-		return nextFileName;
-	}
-
-	private splitCollisionFileName(fileName: string) {
-		if (CANVAS_FILE_EXTENSION_REGEX.test(fileName)) {
-			return {
-				basename: fileName.replace(CANVAS_FILE_EXTENSION_REGEX, ""),
-				extension: ".canvas",
-			};
-		}
-		if (BASE_FILE_EXTENSION_REGEX.test(fileName)) {
-			return {
-				basename: fileName.replace(BASE_FILE_EXTENSION_REGEX, ""),
-				extension: ".base",
-			};
-		}
-		return {
-			basename: fileName.replace(MARKDOWN_FILE_EXTENSION_REGEX, ""),
-			extension: ".md",
-		};
 	}
 
 	protected async createFileWithTemplate(
