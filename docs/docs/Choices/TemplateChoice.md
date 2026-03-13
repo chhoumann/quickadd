@@ -31,21 +31,54 @@ When either enabled mode is selected, you can choose where the link is placed:
 - **New line** - Places the link on a new line below the cursor
 
 
-**If the target file already exists**. Choose what QuickAdd should do when the target file already exists. Turn on **Use selected behavior automatically** to apply the selected mode without prompting, or turn it off to choose each time.
+**If the target file already exists**. Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.
 
 **Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
 
 ## File Already Exists Behavior
 
-When a file with the target name already exists, QuickAdd can either prompt you or apply the selected behavior automatically:
+When a file with the target name already exists, the setting works in two steps:
+
+- **If the target file already exists**:
+  choose one of these high-level behaviors:
+  **Ask every time**, **Update existing file**, **Create another file**, or
+  **Keep existing file**
+- **Update action**:
+  shown only when you choose **Update existing file**
+- **New file naming**:
+  shown only when you choose **Create another file**
+
+### Ask Every Time
+
+QuickAdd prompts you to choose one of these actions each time the target path
+already exists:
+
+- **Append to bottom**
+- **Append to top**
+- **Overwrite file**
+- **Increment trailing number**
+- **Append duplicate suffix**
+- **Do nothing**
+
+### Update Existing File
+
+These options modify the existing markdown, canvas, or base file:
 
 - **Append to bottom**: Adds the template content to the end of the existing file
 - **Append to top**: Adds the template content to the beginning of the existing file
-- **Overwrite file**: Replaces the entire file content with the template
-- **Increment trailing number**: Creates a new file by incrementing trailing digits while preserving zero padding when present (for example, `note009.md` becomes `note010.md`)
-- **Append duplicate suffix**: Creates a new file by preserving the full base name and adding ` (1)`, ` (2)`, and so on (for example, `note.md` becomes `note (1).md`)
-- **Do nothing**: Opens the existing file without modification
+- **Overwrite file**: Replaces the existing file content with the template
 
-**Note**: When you select "Do nothing", the existing file will automatically open, making it easy to quickly access files that already exist without needing to enable the "Open" setting.
+### Create Another File
 
-![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)
+These options keep the existing file untouched and create a new file instead:
+
+- **Increment trailing number**: Changes trailing digits only while preserving zero padding when present. For example, `note009.md` becomes `note010.md`.
+- **Append duplicate suffix**: Keeps the full base name and adds ` (1)`, ` (2)`, and so on. For example, `note.md` becomes `note (1).md`.
+
+### Keep Existing File
+
+Selecting **Keep existing file** applies the same result as choosing
+**Do nothing** from the prompt:
+
+- **Do nothing**: Leaves the existing file unchanged and opens it
+  automatically. This does not require the separate **Open** setting.
