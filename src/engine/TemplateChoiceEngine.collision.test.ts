@@ -27,6 +27,7 @@ vi.mock("../quickAddSettingsTab", () => {
 			migrateToMacroIDFromEmbeddedMacro: true,
 			useQuickAddTemplateFolder: false,
 			incrementFileNameSettingMoveToDefaultBehavior: false,
+			consolidateFileExistsBehavior: false,
 			mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
 			setVersionAfterUpdateModalRelease: false,
 			addDefaultAIProviders: false,
@@ -396,5 +397,23 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			"Test Template (1).md",
 			engine.choice.templatePath,
 		);
+	});
+
+	it("falls back to prompt behavior when fileExistsBehavior is missing at runtime", async () => {
+		const { app, engine } = createEngine();
+		const existingFile = createExistingFile("Test Template.md");
+
+		(engine.choice as any).fileExistsBehavior = undefined;
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFile,
+		);
+		vi.mocked(GenericSuggester.Suggest).mockResolvedValue("doNothing");
+
+		await engine.run();
+
+		expect(GenericSuggester.Suggest).toHaveBeenCalledTimes(1);
+		expect(engine.choice.fileExistsBehavior).toEqual({ kind: "prompt" });
 	});
 });

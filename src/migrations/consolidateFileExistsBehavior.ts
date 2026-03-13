@@ -10,10 +10,10 @@ import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration } from "./Migrations";
 
-function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
+function normalizeChoices(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
 		if (isMultiChoice(choice)) {
-			choice.choices = recursiveRemoveIncrementFileName(choice.choices);
+			choice.choices = normalizeChoices(choice.choices);
 		}
 
 		if (isTemplateChoice(choice)) {
@@ -24,15 +24,12 @@ function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 	return choices;
 }
 
-function removeIncrementFileName(macros: IMacro[]): IMacro[] {
+function normalizeMacros(macros: IMacro[]): IMacro[] {
 	for (const macro of macros) {
 		if (!Array.isArray(macro.commands)) continue;
 
 		for (const command of macro.commands) {
-			if (
-				isNestedChoiceCommand(command) &&
-				isTemplateChoice(command.choice)
-			) {
+			if (isNestedChoiceCommand(command) && isTemplateChoice(command.choice)) {
 				normalizeTemplateChoice(command.choice);
 			}
 		}
@@ -41,29 +38,17 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 	return macros;
 }
 
-const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
+const consolidateFileExistsBehavior: Migration = {
 	description:
-		"Template file collision settings consolidated into a single behavior model",
-	 
+		"Re-run template file collision normalization for users with older migration state",
+
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const choicesCopy = deepClone(plugin.settings.choices);
-		const choices = recursiveRemoveIncrementFileName(choicesCopy);
-
 		const macrosCopy = deepClone((plugin.settings as any).macros || []);
-		const macros = removeIncrementFileName(macrosCopy);
 
-		plugin.settings.choices = deepClone(choices);
-		
-		// Save the migrated macros back to settings - later migrations still need it
-		(plugin.settings as any).macros = macros;
-		
-		/* DO NOT delete macros here – later migrations still need it
-		// Clean up legacy macros array if it exists
-		if ('macros' in plugin.settings) {
-			delete (plugin.settings as any).macros;
-		}
-		*/
+		plugin.settings.choices = deepClone(normalizeChoices(choicesCopy));
+		(plugin.settings as any).macros = normalizeMacros(macrosCopy);
 	},
 };
 
-export default incrementFileNameSettingMoveToDefaultBehavior;
+export default consolidateFileExistsBehavior;

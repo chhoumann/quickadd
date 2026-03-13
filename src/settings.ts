@@ -42,6 +42,7 @@ export interface QuickAddSettings {
 		migrateToMacroIDFromEmbeddedMacro: boolean;
 		useQuickAddTemplateFolder: boolean;
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
+		consolidateFileExistsBehavior: boolean;
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: boolean;
 		setVersionAfterUpdateModalRelease: boolean;
 		addDefaultAIProviders: boolean;
@@ -84,6 +85,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateToMacroIDFromEmbeddedMacro: true,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
+		consolidateFileExistsBehavior: false,
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
 		setVersionAfterUpdateModalRelease: false,
 		addDefaultAIProviders: false,

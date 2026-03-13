@@ -167,6 +167,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {
+		this.choice.fileExistsBehavior ??= { kind: "prompt" };
+
 		if (this.choice.fileExistsBehavior.kind === "apply") {
 			return this.choice.fileExistsBehavior.mode;
 		}

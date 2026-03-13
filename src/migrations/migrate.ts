@@ -3,6 +3,7 @@ import type QuickAdd from "src/main";
 import type { Migrations } from "./Migrations";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
+import consolidateFileExistsBehavior from "./consolidateFileExistsBehavior";
 import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionInsertAfterAndWriteToBottomOfFile";
 import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelease";
 import addDefaultAIProviders from "./addDefaultAIProviders";
@@ -16,6 +17,7 @@ import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSec
 const migrations: Migrations = {
 	useQuickAddTemplateFolder,
 	incrementFileNameSettingMoveToDefaultBehavior,
+	consolidateFileExistsBehavior,
 	mutualExclusionInsertAfterAndWriteToBottomOfFile,
 	setVersionAfterUpdateModalRelease,
 	addDefaultAIProviders,
