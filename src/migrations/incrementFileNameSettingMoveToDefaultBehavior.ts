@@ -2,13 +2,28 @@ import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type { IMacro } from "src/types/macros/IMacro";
 import { deepClone } from "src/utils/deepClone";
-import {
-	isTemplateChoice,
-	normalizeTemplateChoice,
-} from "./helpers/normalizeTemplateFileExistsBehavior";
 import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration } from "./Migrations";
+
+type OldTemplateChoice = {
+	type?: string;
+	incrementFileName?: boolean;
+	setFileExistsBehavior?: boolean;
+	fileExistsMode?: unknown;
+};
+
+function isOldTemplateChoice(
+	choice: unknown,
+): choice is IChoice & OldTemplateChoice {
+	return (
+		typeof choice === "object" &&
+		choice !== null &&
+		"type" in choice &&
+		(choice as { type?: string }).type === "Template" &&
+		"incrementFileName" in choice
+	);
+}
 
 function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
@@ -16,8 +31,10 @@ function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 			choice.choices = recursiveRemoveIncrementFileName(choice.choices);
 		}
 
-		if (isTemplateChoice(choice)) {
-			normalizeTemplateChoice(choice);
+		if (isOldTemplateChoice(choice)) {
+			choice.setFileExistsBehavior = true;
+			choice.fileExistsMode = "Increment the file name";
+			delete choice.incrementFileName;
 		}
 	}
 
@@ -31,9 +48,11 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 		for (const command of macro.commands) {
 			if (
 				isNestedChoiceCommand(command) &&
-				isTemplateChoice(command.choice)
+				isOldTemplateChoice(command.choice)
 			) {
-				normalizeTemplateChoice(command.choice);
+				command.choice.setFileExistsBehavior = true;
+				command.choice.fileExistsMode = "Increment the file name";
+				delete command.choice.incrementFileName;
 			}
 		}
 	}
@@ -43,7 +62,7 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 
 const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
-		"Template file collision settings consolidated into a single behavior model",
+		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
 	 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const choicesCopy = deepClone(plugin.settings.choices);

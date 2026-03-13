@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import migration from "./incrementFileNameSettingMoveToDefaultBehavior";
 
 describe("incrementFileNameSettingMoveToDefaultBehavior migration", () => {
-	it("migrates legacy incrementFileName choices to the new behavior model", async () => {
+	it("migrates legacy incrementFileName choices to the old split behavior model", async () => {
 		const plugin = {
 			settings: {
 				choices: [
@@ -20,14 +20,13 @@ describe("incrementFileNameSettingMoveToDefaultBehavior migration", () => {
 		await migration.migrate(plugin);
 
 		expect(plugin.settings.choices[0]).toMatchObject({
-			fileExistsBehavior: { kind: "apply", mode: "increment" },
+			setFileExistsBehavior: true,
+			fileExistsMode: "Increment the file name",
 		});
 		expect(plugin.settings.choices[0].incrementFileName).toBeUndefined();
-		expect(plugin.settings.choices[0].fileExistsMode).toBeUndefined();
-		expect(plugin.settings.choices[0].setFileExistsBehavior).toBeUndefined();
 	});
 
-	it("migrates split legacy settings on template choices", async () => {
+	it("leaves already-split legacy settings unchanged", async () => {
 		const plugin = {
 			settings: {
 				choices: [
@@ -53,14 +52,18 @@ describe("incrementFileNameSettingMoveToDefaultBehavior migration", () => {
 		await migration.migrate(plugin);
 
 		expect(plugin.settings.choices[0]).toMatchObject({
-			fileExistsBehavior: { kind: "prompt" },
+			setFileExistsBehavior: false,
+			fileExistsMode: "Append to the bottom of the file",
 		});
 		expect(plugin.settings.choices[1]).toMatchObject({
-			fileExistsBehavior: { kind: "apply", mode: "duplicateSuffix" },
+			setFileExistsBehavior: true,
+			fileExistsMode: "Append duplicate suffix",
 		});
+		expect(plugin.settings.choices[0].fileExistsBehavior).toBeUndefined();
+		expect(plugin.settings.choices[1].fileExistsBehavior).toBeUndefined();
 	});
 
-	it("migrates nested macro command template choices", async () => {
+	it("migrates nested macro command template choices to the old split behavior model", async () => {
 		const plugin = {
 			settings: {
 				choices: [],
@@ -76,8 +79,7 @@ describe("incrementFileNameSettingMoveToDefaultBehavior migration", () => {
 									id: "template-choice",
 									name: "Template",
 									type: "Template",
-									setFileExistsBehavior: true,
-									fileExistsMode: "Overwrite the file",
+									incrementFileName: true,
 								},
 							},
 						],
@@ -89,13 +91,9 @@ describe("incrementFileNameSettingMoveToDefaultBehavior migration", () => {
 		await migration.migrate(plugin);
 
 		expect(plugin.settings.macros[0].commands[0].choice).toMatchObject({
-			fileExistsBehavior: { kind: "apply", mode: "overwrite" },
+			setFileExistsBehavior: true,
+			fileExistsMode: "Increment the file name",
 		});
-		expect(
-			plugin.settings.macros[0].commands[0].choice.fileExistsMode,
-		).toBeUndefined();
-		expect(
-			plugin.settings.macros[0].commands[0].choice.setFileExistsBehavior,
-		).toBeUndefined();
+		expect(plugin.settings.macros[0].commands[0].choice.incrementFileName).toBeUndefined();
 	});
 });
