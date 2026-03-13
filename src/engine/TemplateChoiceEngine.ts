@@ -101,19 +101,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			if (await this.app.vault.adapter.exists(targetFilePath)) {
-				const file = this.findExistingFile(targetFilePath);
-				if (
-					!(file instanceof TFile) ||
-					(file.extension !== "md" &&
-						file.extension !== "canvas" &&
-						file.extension !== "base")
-				) {
-					log.logError(
-						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
-					);
-					return;
-				}
-
 				let userChoice = this.choice.fileExistsMode;
 
 				if (!this.choice.setFileExistsBehavior) {
@@ -132,31 +119,51 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					}
 				}
 
+				const requiresExistingFile =
+					userChoice !== fileExistsIncrement &&
+					userChoice !== fileExistsDuplicateSuffix;
+				const existingFile = requiresExistingFile
+					? this.findExistingFile(targetFilePath)
+					: null;
+
+				if (
+					requiresExistingFile &&
+					(!(existingFile instanceof TFile) ||
+						(existingFile.extension !== "md" &&
+							existingFile.extension !== "canvas" &&
+							existingFile.extension !== "base"))
+				) {
+					log.logError(
+						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
+					);
+					return;
+				}
+
 				switch (userChoice) {
 					case fileExistsAppendToTop:
 						createdFile = await this.appendToFileWithTemplate(
-							file,
+							existingFile!,
 							this.choice.templatePath,
 							"top",
 						);
 						break;
 					case fileExistsAppendToBottom:
 						createdFile = await this.appendToFileWithTemplate(
-							file,
+							existingFile!,
 							this.choice.templatePath,
 							"bottom",
 						);
 						break;
 					case fileExistsOverwriteFile:
 						createdFile = await this.overwriteFileWithTemplate(
-							file,
+							existingFile!,
 							this.choice.templatePath,
 						);
 						break;
 					case fileExistsDoNothing:
-						createdFile = file;
+						createdFile = existingFile!;
 						shouldAutoOpen = true; // Auto-open existing file when user chooses "Nothing"
-						log.logMessage(`Opening existing file: ${file.path}`);
+						log.logMessage(`Opening existing file: ${existingFile!.path}`);
 						break;
 					case fileExistsIncrement: {
 						const incrementFileName = await this.resolveCollisionFilePath(

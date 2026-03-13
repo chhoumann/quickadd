@@ -100,7 +100,7 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
 }));
 
-import { TFile, type App } from "obsidian";
+import { TFile, TFolder, type App } from "obsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { settingsStore } from "../settingsStore";
@@ -149,6 +149,13 @@ const createExistingFile = (path: string) => {
 	file.extension = "md";
 	file.basename = file.name.replace(/\.md$/, "");
 	return file;
+};
+
+const createExistingFolder = (path: string) => {
+	const folder = new TFolder();
+	folder.path = path;
+	folder.name = path.split("/").pop() ?? path;
+	return folder;
 };
 
 const createEngine = () => {
@@ -289,6 +296,51 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
 			existingFile,
+		);
+		vi.mocked(GenericSuggester.Suggest).mockResolvedValue(
+			fileExistsDuplicateSuffix,
+		);
+
+		const duplicateSpy = vi
+			.spyOn(
+				engine as unknown as {
+					appendDuplicateSuffix: (filePath: string) => Promise<string>;
+				},
+				"appendDuplicateSuffix",
+			)
+			.mockResolvedValue("Test Template (1).md");
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		await engine.run();
+
+		expect(duplicateSpy).toHaveBeenCalledWith("Test Template.md");
+		expect(createSpy).toHaveBeenCalledWith(
+			"Test Template (1).md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("allows create-another-file modes when the collision target resolves to a folder", async () => {
+		const { app, engine } = createEngine();
+		const existingFolder = createExistingFolder("Test Template.md");
+		const createdFile = createExistingFile("Test Template (1).md");
+
+		engine.choice.fileExistsMode = fileExistsIncrement;
+		engine.choice.setFileExistsBehavior = false;
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFolder,
 		);
 		vi.mocked(GenericSuggester.Suggest).mockResolvedValue(
 			fileExistsDuplicateSuffix,
