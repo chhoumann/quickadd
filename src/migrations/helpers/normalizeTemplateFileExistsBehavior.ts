@@ -27,15 +27,15 @@ export function migrateFileExistsBehavior(
 		return choice.fileExistsBehavior;
 	}
 
-	if (choice.incrementFileName) {
-		return { kind: "apply", mode: "increment" };
-	}
-
 	if (choice.setFileExistsBehavior) {
 		return {
 			kind: "apply",
 			mode: mapLegacyFileExistsModeToId(choice.fileExistsMode) ?? "increment",
 		};
+	}
+
+	if (choice.incrementFileName) {
+		return { kind: "apply", mode: "increment" };
 	}
 
 	return { kind: "prompt" };

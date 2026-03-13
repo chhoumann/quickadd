@@ -27,6 +27,30 @@ describe("consolidateFileExistsBehavior migration", () => {
 		expect(plugin.settings.choices[0].setFileExistsBehavior).toBeUndefined();
 	});
 
+	it("prefers explicit legacy fileExistsMode over incrementFileName when both are present", async () => {
+		const plugin = {
+			settings: {
+				choices: [
+					{
+						id: "template-choice",
+						name: "Template",
+						type: "Template",
+						incrementFileName: true,
+						setFileExistsBehavior: true,
+						fileExistsMode: "Append duplicate suffix",
+					},
+				],
+				macros: [],
+			},
+		} as any;
+
+		await migration.migrate(plugin);
+
+		expect(plugin.settings.choices[0]).toMatchObject({
+			fileExistsBehavior: { kind: "apply", mode: "duplicateSuffix" },
+		});
+	});
+
 	it("normalizes nested macro command template choices", async () => {
 		const plugin = {
 			settings: {
