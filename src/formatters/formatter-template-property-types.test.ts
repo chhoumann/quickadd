@@ -24,8 +24,7 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 	}
 
 	protected getVariableValue(variableName: string): string {
-		const value = this.variables.get(variableName);
-		return typeof value === 'string' ? value : '';
+		return (this.variables.get(variableName) as string) ?? '';
 	}
 
 	protected suggestForValue(
@@ -85,6 +84,14 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 	public async testFormat(input: string): Promise<string> {
 		return await this.format(input);
 	}
+
+	public async testFormatWithTemplatePropertyCollection(
+		input: string,
+	): Promise<string> {
+		return await this.withTemplatePropertyCollection(() =>
+			this.testFormat(input),
+		);
+	}
 }
 
 describe('Formatter template property type inference', () => {
@@ -110,37 +117,68 @@ describe('Formatter template property type inference', () => {
 
 	it('collects comma-separated values as YAML arrays', async () => {
 		(formatter as any).variables.set('tags', 'tag1, tag2, awesomeproject');
-		await formatter.testFormat('---\ntags: {{VALUE:tags}}\n---');
+		await formatter.testFormatWithTemplatePropertyCollection(
+			'---\ntags: {{VALUE:tags}}\n---',
+		);
 		const vars = formatter.getAndClearTemplatePropertyVars();
 		expect(vars.get('tags')).toEqual(['tag1', 'tag2', 'awesomeproject']);
 	});
 
 	it('does not collect comma text for scalar properties', async () => {
 		(formatter as any).variables.set('description', 'Hello, world');
-		await formatter.testFormat('---\ndescription: {{VALUE:description}}\n---');
+		await formatter.testFormatWithTemplatePropertyCollection(
+			'---\ndescription: {{VALUE:description}}\n---',
+		);
 		const vars = formatter.getAndClearTemplatePropertyVars();
 		expect(vars.has('description')).toBe(false);
 	});
 
 	it('collects bullet list values as YAML arrays', async () => {
 		(formatter as any).variables.set('projects', '- project1\n- project2');
-		await formatter.testFormat('---\nprojects: {{VALUE:projects}}\n---');
+		await formatter.testFormatWithTemplatePropertyCollection(
+			'---\nprojects: {{VALUE:projects}}\n---',
+		);
 		const vars = formatter.getAndClearTemplatePropertyVars();
 		expect(vars.get('projects')).toEqual(['project1', 'project2']);
 	});
 
-	it('uses a YAML-safe placeholder for collected arrays before post-processing', async () => {
+	it('preserves raw structured replacements outside template property collection', async () => {
 		(formatter as any).variables.set('tags', ['[[John Doe]]', '[[Jane Doe]]']);
 		const output = await formatter.testFormat('---\ntags: {{VALUE:tags}}\n---');
+		const vars = formatter.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe('---\ntags: [[John Doe]],[[Jane Doe]]\n---');
+		expect(vars.size).toBe(0);
+	});
+
+	it('uses a YAML-safe placeholder for collected arrays before post-processing', async () => {
+		(formatter as any).variables.set('tags', ['[[John Doe]]', '[[Jane Doe]]']);
+		const output = await formatter.testFormatWithTemplatePropertyCollection(
+			'---\ntags: {{VALUE:tags}}\n---',
+		);
 		const vars = formatter.getAndClearTemplatePropertyVars();
 
 		expect(output).toBe('---\ntags: []\n---');
 		expect(vars.get('tags')).toEqual(['[[John Doe]]', '[[Jane Doe]]']);
 	});
 
+	it('does not apply case transforms to YAML placeholders', async () => {
+		(formatter as any).variables.set('done', null);
+		const output =
+			await formatter.testFormatWithTemplatePropertyCollection(
+				'---\ndone: {{VALUE:done|case:upper}}\n---',
+			);
+		const vars = formatter.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe('---\ndone: null\n---');
+		expect(vars.get('done')).toBeNull();
+	});
+
 	it('ignores wiki links with commas to avoid incorrect splitting', async () => {
 		(formatter as any).variables.set('source', '[[test, a]]');
-		await formatter.testFormat('---\nsource: {{VALUE:source}}\n---');
+		await formatter.testFormatWithTemplatePropertyCollection(
+			'---\nsource: {{VALUE:source}}\n---',
+		);
 		const vars = formatter.getAndClearTemplatePropertyVars();
 		expect(vars.has('source')).toBe(false);
 	});

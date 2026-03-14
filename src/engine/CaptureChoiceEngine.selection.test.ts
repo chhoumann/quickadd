@@ -23,6 +23,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		}
 		setDestinationFile() {}
 		setDestinationSourcePath() {}
+		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async formatContentOnly(content: string) {
 			return content;
 		}

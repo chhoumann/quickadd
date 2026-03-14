@@ -74,18 +74,51 @@ async function runChoice(name: string, vars: Record<string, unknown>) {
 	});
 }
 
-async function runChoiceAndWaitForContent(
+async function runChoiceAndWaitForFile(
 	name: string,
 	vars: Record<string, unknown>,
 	file: string,
-	expected: string,
 ) {
 	await runChoice(name, vars);
-	return sandbox.waitForContent(
-		file,
-		(content) => content.includes(expected),
-		WAIT_OPTS,
-	);
+	await sandbox.waitForExists(file, WAIT_OPTS);
+}
+
+async function waitForFrontmatter(
+	file: string,
+	predicate: (frontmatter: Record<string, unknown> | null) => boolean,
+) {
+	const filePath = sandbox.path(file);
+	return obsidian.waitFor(async () => {
+		const rawFrontmatter = await obsidian.dev.eval(
+			`(() => {
+				const file = app.vault.getFileByPath(${JSON.stringify(filePath)});
+				if (!file) return null;
+				return app.metadataCache.getFileCache(file)?.frontmatter ?? null;
+			})()`,
+		);
+		const frontmatter =
+			rawFrontmatter && typeof rawFrontmatter === "object"
+				? (rawFrontmatter as Record<string, unknown>)
+				: null;
+
+		return predicate(frontmatter) ? frontmatter : undefined;
+	}, WAIT_OPTS);
+}
+
+async function runTeardownStep(
+	label: string,
+	step: () => Promise<unknown> | unknown,
+	errors: unknown[],
+) {
+	try {
+		await step();
+	} catch (error) {
+		errors.push(error);
+		console.warn(
+			`template-property-links teardown failed during ${label}`,
+			error,
+		);
+	}
 }
 
 beforeAll(async () => {
@@ -107,11 +140,21 @@ beforeAll(async () => {
 }, 30_000);
 
 afterAll(async () => {
-	await qa.restoreData();
-	await qa.reload();
-	await sandbox.cleanup();
-	await clearVaultRunLockMarker(obsidian).catch(() => {});
-	await lock?.release();
+	const errors: unknown[] = [];
+
+	await runTeardownStep("restoreData", () => qa?.restoreData?.(), errors);
+	await runTeardownStep("reload", () => qa?.reload?.(), errors);
+	await runTeardownStep("sandbox cleanup", () => sandbox?.cleanup?.(), errors);
+	await runTeardownStep(
+		"clear vault run lock marker",
+		() => (obsidian ? clearVaultRunLockMarker(obsidian) : undefined),
+		errors,
+	);
+	await runTeardownStep("release vault lock", () => lock?.release(), errors);
+
+	if (errors.length > 0) {
+		throw errors[0];
+	}
 }, 15_000);
 
 beforeEach((ctx) => {
@@ -160,29 +203,36 @@ describe("issue 1140: list properties with links", () => {
 	}, 15_000);
 
 	it("formats a single wikilink list item as a YAML list", async () => {
-		const content = await runChoiceAndWaitForContent(
+		await runChoiceAndWaitForFile(
 			"__qa-test-1140-single-link",
 			{ authors: ["[[John Doe]]"] },
 			"qa-1140-single-link.md",
-			'  - "[[John Doe]]"',
+		);
+		const frontmatter = await waitForFrontmatter(
+			"qa-1140-single-link.md",
+			(value) =>
+				Array.isArray(value?.authors) && value.authors.length === 1,
 		);
 
-		expect(content).toContain("authors:");
-		expect(content).toContain('  - "[[John Doe]]"');
-		expect(content).not.toContain("authors: [[John Doe]]");
+		expect(frontmatter).toMatchObject({
+			authors: ["[[John Doe]]"],
+		});
 	});
 
 	it("formats multiple wikilinks as separate YAML list items", async () => {
-		const content = await runChoiceAndWaitForContent(
+		await runChoiceAndWaitForFile(
 			"__qa-test-1140-multi-link",
 			{ authors: ["[[John Doe]]", "[[Jane Doe]]"] },
 			"qa-1140-multi-link.md",
-			'  - "[[Jane Doe]]"',
+		);
+		const frontmatter = await waitForFrontmatter(
+			"qa-1140-multi-link.md",
+			(value) =>
+				Array.isArray(value?.authors) && value.authors.length === 2,
 		);
 
-		expect(content).toContain("authors:");
-		expect(content).toContain('  - "[[John Doe]]"');
-		expect(content).toContain('  - "[[Jane Doe]]"');
-		expect(content).not.toContain("authors: [[John Doe]],[[Jane Doe]]");
+		expect(frontmatter).toMatchObject({
+			authors: ["[[John Doe]]", "[[Jane Doe]]"],
+		});
 	});
 });

@@ -628,18 +628,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.formatter.setDestinationFile(file);
 
 		// First format pass...
-		const formatted = await this.formatter.formatContentOnly(content);
+		const formatted = await this.formatter.withTemplatePropertyCollection(
+			() => this.formatter.formatContentOnly(content),
+		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		const fileContent: string = await this.app.vault.read(file);
 		// Second format pass, with the file content... User input (long running) should have been captured during first pass
 		// So this pass is to insert the formatted capture value into the file content, depending on the user's settings
 		const formattedFileContent: string =
-			await this.formatter.formatContentWithFile(
-				formatted,
-				this.choice,
-				fileContent,
-				file,
+			await this.formatter.withTemplatePropertyCollection(() =>
+				this.formatter.formatContentWithFile(
+					formatted,
+					this.choice,
+					fileContent,
+					file,
+				),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
@@ -685,7 +689,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
 		const formattedCaptureContent: string =
-			await this.formatter.formatContentOnly(captureContent);
+			await this.formatter.withTemplatePropertyCollection(() =>
+				this.formatter.formatContentOnly(captureContent),
+			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		let fileContent = "";
@@ -743,12 +749,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// after the initial Templater run on newly created files.
 		const updatedFileContent: string = await this.app.vault.read(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
-		const newFileContent: string = await this.formatter.formatContentWithFile(
-			formattedCaptureContent,
-			this.choice,
-			updatedFileContent,
-			file,
-		);
+		const newFileContent: string =
+			await this.formatter.withTemplatePropertyCollection(() =>
+				this.formatter.formatContentWithFile(
+					formattedCaptureContent,
+					this.choice,
+					updatedFileContent,
+					file,
+				),
+			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		return { file, newFileContent, captureContent: formattedCaptureContent };

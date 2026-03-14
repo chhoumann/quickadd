@@ -59,6 +59,7 @@ export abstract class Formatter {
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
+	private templatePropertyCollectionDepth = 0;
 
 	protected constructor(protected readonly app?: App) {
 		this.propertyCollector = new TemplatePropertyCollector(app);
@@ -303,6 +304,23 @@ export abstract class Formatter {
 		return this.propertyCollector.drain();
 	}
 
+	/**
+	 * Runs a formatting operation in a scope where structured YAML values should
+	 * be collected and replaced with temporary placeholders for later
+	 * `processFrontMatter()` post-processing.
+	 */
+	public async withTemplatePropertyCollection<T>(
+		work: () => Promise<T>,
+	): Promise<T> {
+		this.templatePropertyCollectionDepth += 1;
+
+		try {
+			return await work();
+		} finally {
+			this.templatePropertyCollectionDepth -= 1;
+		}
+	}
+
 	protected abstract getCurrentFileLink(): string | null;
 	protected abstract getCurrentFileName(): string | null;
 
@@ -393,15 +411,16 @@ export abstract class Formatter {
 				matchEnd: match.index + match[0].length,
 				rawValue: rawValueForCollector,
 				fallbackKey: variableName,
-				featureEnabled: propertyTypesEnabled,
+				featureEnabled:
+					propertyTypesEnabled &&
+					this.templatePropertyCollectionDepth > 0,
 			});
 
 			// Keep the interim frontmatter YAML-parseable until post-processing
 			// writes the real structured value back through Obsidian.
-			const rawReplacement =
-				getYamlPlaceholder(structuredYamlValue) ??
-				this.getVariableValue(effectiveKey);
-			const replacement = transformCase(rawReplacement, caseStyle);
+			const placeholder = getYamlPlaceholder(structuredYamlValue);
+			const replacement = placeholder ??
+				transformCase(this.getVariableValue(effectiveKey), caseStyle);
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
