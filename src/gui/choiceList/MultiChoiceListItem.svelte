@@ -4,9 +4,10 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import {createEventDispatcher} from "svelte";
-	import { Component, htmlToMarkdown, MarkdownRenderer, type App } from "obsidian";
+	import { Component, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
     import { showChoiceContextMenu } from "./contextMenu";
+	import { renderChoiceName } from "./renderChoiceName";
 
     export let choice: IMultiChoice;
     export let roots: IChoice[];
@@ -39,14 +40,7 @@
 
 	$: {
 		if (nameElement) {
-			nameElement.innerHTML = "";
-			const nameHTML = htmlToMarkdown(choice.name);
-			MarkdownRenderer.renderMarkdown(
-				nameHTML,
-				nameElement,
-				"/",
-				cmp
-			);
+			renderChoiceName(choice.name, nameElement, cmp);
 		}
 	}
 

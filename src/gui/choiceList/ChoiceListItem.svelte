@@ -2,8 +2,9 @@
 	import type IChoice from "../../types/choices/IChoice";
 	import RightButtons from "./ChoiceItemRightButtons.svelte";
 	import { createEventDispatcher } from "svelte";
-	import { Component, htmlToMarkdown, MarkdownRenderer, type App } from "obsidian";
+	import { Component, type App } from "obsidian";
 	import { showChoiceContextMenu } from "./contextMenu";
+	import { renderChoiceName } from "./renderChoiceName";
 
 	export let choice: IChoice;
 	export let app: App;
@@ -34,14 +35,7 @@
 
 	$: {
 		if (nameElement) {
-			nameElement.innerHTML = "";
-			const nameHTML = htmlToMarkdown(choice.name);
-			MarkdownRenderer.renderMarkdown(
-				nameHTML,
-				nameElement,
-				"/",
-				cmp
-			);
+			renderChoiceName(choice.name, nameElement, cmp);
 		}
 	}
 
