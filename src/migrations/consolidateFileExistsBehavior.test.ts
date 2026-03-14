@@ -89,6 +89,12 @@ describe("consolidateFileExistsBehavior migration", () => {
 		).toMatchObject({
 			fileExistsBehavior: { kind: "apply", mode: "duplicateSuffix" },
 		});
+		expect(
+			plugin.settings.choices[0].macro.commands[0].choice.fileExistsMode,
+		).toBeUndefined();
+		expect(
+			plugin.settings.choices[0].macro.commands[0].choice.setFileExistsBehavior,
+		).toBeUndefined();
 	});
 
 	it("normalizes nested macro command template choices in legacy macros", async () => {
@@ -122,6 +128,12 @@ describe("consolidateFileExistsBehavior migration", () => {
 		expect(plugin.settings.macros[0].commands[0].choice).toMatchObject({
 			fileExistsBehavior: { kind: "prompt" },
 		});
+		expect(
+			plugin.settings.macros[0].commands[0].choice.fileExistsMode,
+		).toBeUndefined();
+		expect(
+			plugin.settings.macros[0].commands[0].choice.setFileExistsBehavior,
+		).toBeUndefined();
 	});
 
 	it("normalizes template choices nested in conditional macro branches", async () => {
@@ -174,9 +186,39 @@ describe("consolidateFileExistsBehavior migration", () => {
 			fileExistsBehavior: { kind: "apply", mode: "duplicateSuffix" },
 		});
 		expect(
+			plugin.settings.macros[0].commands[0].thenCommands[0].choice
+				.fileExistsMode,
+		).toBeUndefined();
+		expect(
+			plugin.settings.macros[0].commands[0].thenCommands[0].choice
+				.setFileExistsBehavior,
+		).toBeUndefined();
+		expect(
 			plugin.settings.macros[0].commands[0].elseCommands[0].choice,
 		).toMatchObject({
 			fileExistsBehavior: { kind: "prompt" },
 		});
+		expect(
+			plugin.settings.macros[0].commands[0].elseCommands[0].choice
+				.fileExistsMode,
+		).toBeUndefined();
+		expect(
+			plugin.settings.macros[0].commands[0].elseCommands[0].choice
+				.setFileExistsBehavior,
+		).toBeUndefined();
+	});
+
+	it("treats malformed persisted choice and macro collections as empty arrays", async () => {
+		const plugin = {
+			settings: {
+				choices: { invalid: true },
+				macros: "invalid",
+			},
+		} as any;
+
+		await migration.migrate(plugin);
+
+		expect(plugin.settings.choices).toEqual([]);
+		expect(plugin.settings.macros).toEqual([]);
 	});
 });

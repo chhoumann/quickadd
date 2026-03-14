@@ -12,10 +12,15 @@ const consolidateFileExistsBehavior: Migration = {
 		"Re-run template file collision normalization for users with older migration state",
 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
-		plugin.settings.choices = deepClone(plugin.settings.choices);
-		(plugin.settings as any).macros = deepClone(
-			(plugin.settings as any).macros || [],
-		);
+		const choices = Array.isArray(plugin.settings.choices)
+			? plugin.settings.choices
+			: [];
+		const macros = Array.isArray((plugin.settings as any).macros)
+			? (plugin.settings as any).macros
+			: [];
+
+		plugin.settings.choices = deepClone(choices);
+		(plugin.settings as any).macros = deepClone(macros);
 
 		walkAllChoices(plugin, (choice) => {
 			if (isTemplateChoice(choice)) {
