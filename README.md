@@ -22,6 +22,19 @@ QuickAdd can be installed through the community plugin browser in Obsidian, or t
 
 For detailed instructions and examples on using QuickAdd, see the [QuickAdd documentation](https://quickadd.obsidian.guide/).
 
+## Development
+
+QuickAdd uses `bun` for local development tasks:
+
+- `bun run test` runs the unit test suite.
+- `bun run build` type-checks and bundles the plugin.
+- `bun run test:e2e` runs Obsidian-backed end-to-end tests.
+
+The E2E suite is local-only today. It depends on a locally installed Obsidian
+app, the `obsidian` CLI being available on `PATH`, and the `dev` vault being
+open and reachable. Failed E2E runs may write artifacts to
+`.obsidian-e2e-artifacts/`.
+
 ## Support
 
 If you have any questions or encounter any problems while using QuickAdd, you can use the [community discussions](https://github.com/chhoumann/quickadd/discussions) for support.
