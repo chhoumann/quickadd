@@ -82,6 +82,19 @@ async function runChoice(name: string) {
 	await obsidian.exec("quickadd:run", { choice: name });
 }
 
+function expectOrderedSubstrings(
+	content: string,
+	first: string,
+	second: string,
+) {
+	const firstIndex = content.indexOf(first);
+	const secondIndex = content.indexOf(second);
+
+	expect(firstIndex).toBeGreaterThanOrEqual(0);
+	expect(secondIndex).toBeGreaterThanOrEqual(0);
+	expect(firstIndex).toBeLessThan(secondIndex);
+}
+
 /** Run a QuickAdd choice and wait for a new file to appear. */
 async function runChoiceAndWaitFor(name: string, expectedFile: string) {
 	await runChoice(name);
@@ -111,10 +124,7 @@ function findChoice(data: QuickAddData, id: string) {
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
-	obsidian = createObsidianClient({
-		vault: VAULT,
-		defaultExecOptions: { allowNonZeroExit: true },
-	});
+	obsidian = createObsidianClient({ vault: VAULT });
 	await obsidian.verify();
 
 	lock = await acquireVaultRunLock({
@@ -233,13 +243,17 @@ describe("functional: file collision behaviors", () => {
 	it("T09: append to bottom", async () => {
 		await seedFile("qa-t09-append-bot.md", "ORIGINAL_BOTTOM_TEST");
 		const content = await runChoiceAndWaitForContent("__qa-test-t09-abot", "qa-t09-append-bot.md", TPL_CONTENT);
-		expect(content).toContain("ORIGINAL_BOTTOM_TEST");
+		expectOrderedSubstrings(
+			content,
+			"ORIGINAL_BOTTOM_TEST",
+			TPL_CONTENT,
+		);
 	});
 
 	it("T10: append to top", async () => {
 		await seedFile("qa-t10-append-top.md", "ORIGINAL_TOP_TEST");
 		const content = await runChoiceAndWaitForContent("__qa-test-t10-atop", "qa-t10-append-top.md", TPL_CONTENT);
-		expect(content).toContain("ORIGINAL_TOP_TEST");
+		expectOrderedSubstrings(content, TPL_CONTENT, "ORIGINAL_TOP_TEST");
 	});
 
 	it("T11: overwrite", async () => {
