@@ -466,45 +466,6 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		return `${actualFolderPath}${formattedFileName}${extension}`;
 	}
 
-	protected async incrementFileName(fileName: string) {
-		const fileExists = await this.app.vault.adapter.exists(fileName);
-		let newFileName = fileName;
-
-		// Determine the extension from the filename and construct a matching regex
-		let extension = ".md";
-		if (CANVAS_FILE_EXTENSION_REGEX.test(fileName)) {
-			extension = ".canvas";
-		} else if (BASE_FILE_EXTENSION_REGEX.test(fileName)) {
-			extension = ".base";
-		}
-		const extPattern = extension.replace(/\./g, "\\.");
-		const numberWithExtRegex = new RegExp(`(\\d*)${extPattern}$`);
-		const exec = numberWithExtRegex.exec(fileName);
-		const numStr = exec?.[1];
-
-		if (fileExists && numStr !== undefined) {
-			if (numStr.length > 0) {
-				const number = parseInt(numStr, 10);
-				if (Number.isNaN(number)) {
-					throw new Error("detected numbers but couldn't get them.");
-				}
-				newFileName = newFileName.replace(numberWithExtRegex, `${number + 1}${extension}`);
-			} else {
-				// No digits previously; insert 1 before extension
-				newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
-			}
-		} else if (fileExists) {
-			// No match; simply append 1 before the extension
-			newFileName = newFileName.replace(new RegExp(`${extPattern}$`), `1${extension}`);
-		}
-
-		const newFileExists = await this.app.vault.adapter.exists(newFileName);
-		if (newFileExists)
-			newFileName = await this.incrementFileName(newFileName);
-
-		return newFileName;
-	}
-
 	protected async createFileWithTemplate(
 		filePath: string,
 		templatePath: string

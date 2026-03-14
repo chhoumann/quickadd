@@ -4,8 +4,26 @@ import type { IMacro } from "src/types/macros/IMacro";
 import { deepClone } from "src/utils/deepClone";
 import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
-import { isOldTemplateChoice } from "./helpers/isOldTemplateChoice";
 import type { Migration } from "./Migrations";
+
+type OldTemplateChoice = {
+	type?: string;
+	incrementFileName?: boolean;
+	setFileExistsBehavior?: boolean;
+	fileExistsMode?: unknown;
+};
+
+function isOldTemplateChoice(
+	choice: unknown,
+): choice is IChoice & OldTemplateChoice {
+	return (
+		typeof choice === "object" &&
+		choice !== null &&
+		"type" in choice &&
+		(choice as { type?: string }).type === "Template" &&
+		"incrementFileName" in choice
+	);
+}
 
 function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
@@ -16,7 +34,6 @@ function recursiveRemoveIncrementFileName(choices: IChoice[]): IChoice[] {
 		if (isOldTemplateChoice(choice)) {
 			choice.setFileExistsBehavior = true;
 			choice.fileExistsMode = "Increment the file name";
-
 			delete choice.incrementFileName;
 		}
 	}
@@ -35,7 +52,6 @@ function removeIncrementFileName(macros: IMacro[]): IMacro[] {
 			) {
 				command.choice.setFileExistsBehavior = true;
 				command.choice.fileExistsMode = "Increment the file name";
-
 				delete command.choice.incrementFileName;
 			}
 		}

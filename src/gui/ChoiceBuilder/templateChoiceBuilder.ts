@@ -5,17 +5,18 @@ import {
 	TextComponent,
 	ToggleComponent,
 } from "obsidian";
-import type { fileExistsChoices } from "src/constants";
-import {
-	fileExistsAppendToBottom,
-	fileExistsAppendToTop,
-	fileExistsDoNothing,
-	fileExistsIncrement,
-	fileExistsOverwriteFile,
-} from "src/constants";
 import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
 import { log } from "../../logger/logManager";
 import type QuickAdd from "../../main";
+import {
+	fileExistsBehaviorCategoryOptions,
+	getBehaviorCategory,
+	getDefaultBehaviorForCategory,
+	getFileExistsMode,
+	getModesForCategory,
+	type FileExistsBehaviorCategoryId,
+	type FileExistsModeId,
+} from "../../template/fileExistsPolicy";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
@@ -420,35 +421,59 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	}
 
 	private addFileAlreadyExistsSetting(): void {
-		const fileAlreadyExistsSetting: Setting = new Setting(this.contentEl);
-		fileAlreadyExistsSetting
-			.setName("Set default behavior if file already exists")
+		this.choice.fileExistsBehavior ??= { kind: "prompt" };
+		const behaviorCategory = getBehaviorCategory(this.choice.fileExistsBehavior);
+
+		new Setting(this.contentEl)
+			.setName("If the target file already exists")
 			.setDesc(
-				"Set default behavior rather then prompting user on what to do if a file already exists.",
+				"Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.",
 			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.setFileExistsBehavior);
-				toggle.onChange((value) => {
-					this.choice.setFileExistsBehavior = value;
-				});
-			})
 			.addDropdown((dropdown) => {
-				dropdown.selectEl.style.marginLeft = "10px";
-
-				if (!this.choice.fileExistsMode)
-					this.choice.fileExistsMode = fileExistsDoNothing;
-
-				dropdown
-					.addOption(fileExistsAppendToBottom, fileExistsAppendToBottom)
-					.addOption(fileExistsAppendToTop, fileExistsAppendToTop)
-					.addOption(fileExistsIncrement, fileExistsIncrement)
-					.addOption(fileExistsOverwriteFile, fileExistsOverwriteFile)
-					.addOption(fileExistsDoNothing, fileExistsDoNothing)
-					.setValue(this.choice.fileExistsMode)
-					.onChange(
-						(value: (typeof fileExistsChoices)[number]) =>
-							(this.choice.fileExistsMode = value),
+				fileExistsBehaviorCategoryOptions.forEach((option) => {
+					dropdown.addOption(option.id, option.label);
+				});
+				dropdown.setValue(behaviorCategory);
+				dropdown.onChange((value: FileExistsBehaviorCategoryId) => {
+					this.choice.fileExistsBehavior = getDefaultBehaviorForCategory(
+						value,
+						this.choice.fileExistsBehavior,
 					);
+					this.reload();
+				});
+			});
+
+		if (behaviorCategory === "prompt") {
+			return;
+		}
+
+		if (behaviorCategory === "keep") {
+			return;
+		}
+
+		const isUpdateBehavior = behaviorCategory === "update";
+		const selectedModes = getModesForCategory(
+			isUpdateBehavior ? "update" : "create",
+		);
+		const selectedMode =
+			this.choice.fileExistsBehavior.kind === "apply"
+				? this.choice.fileExistsBehavior.mode
+				: selectedModes[0].id;
+
+		new Setting(this.contentEl)
+			.setName(isUpdateBehavior ? "Update action" : "New file naming")
+			.setDesc(getFileExistsMode(selectedMode).description)
+			.addDropdown((dropdown) => {
+				selectedModes.forEach((mode) => {
+					dropdown.addOption(mode.id, mode.label);
+				});
+				dropdown.setValue(selectedMode).onChange((value: FileExistsModeId) => {
+					this.choice.fileExistsBehavior = {
+						kind: "apply",
+						mode: value,
+					};
+						this.reload();
+				});
 			});
 	}
 }

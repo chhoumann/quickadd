@@ -31,20 +31,54 @@ When either enabled mode is selected, you can choose where the link is placed:
 - **New line** - Places the link on a new line below the cursor
 
 
-**Increment file name**. If a file with that name already exists, increment the file name with a number. So if a file called `untitled` already exists, the new file will be called `untitled1`.
+**If the target file already exists**. Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.
 
 **Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
 
 ## File Already Exists Behavior
 
-When a file with the target name already exists, QuickAdd will prompt you with several options:
+When a file with the target name already exists, the setting works in two steps:
 
-- **Append to the bottom of the file**: Adds the template content to the end of the existing file
-- **Append to the top of the file**: Adds the template content to the beginning of the existing file  
-- **Overwrite the file**: Replaces the entire file content with the template
-- **Increment the file name**: Creates a new file with a number suffix (e.g., `note1.md`)
-- **Nothing**: Opens the existing file without modification
+- **If the target file already exists**:
+  choose one of these high-level behaviors:
+  **Ask every time**, **Update existing file**, **Create another file**, or
+  **Keep existing file**
+- **Update action**:
+  shown only when you choose **Update existing file**
+- **New file naming**:
+  shown only when you choose **Create another file**
 
-**Note**: When you select "Nothing", the existing file will automatically open, making it easy to quickly access files that already exist without needing to enable the "Open" setting.
+### Ask Every Time
 
-![image](https://user-images.githubusercontent.com/29108628/121773888-3f680980-cb7f-11eb-919b-97d56ef9268e.png)
+QuickAdd prompts you to choose one of these actions each time the target path
+already exists:
+
+- **Append to bottom**
+- **Append to top**
+- **Overwrite file**
+- **Increment trailing number**
+- **Append duplicate suffix**
+- **Do nothing**
+
+### Update Existing File
+
+These options modify the existing markdown, canvas, or base file:
+
+- **Append to bottom**: Adds the template content to the end of the existing file
+- **Append to top**: Adds the template content to the beginning of the existing file
+- **Overwrite file**: Replaces the existing file content with the template
+
+### Create Another File
+
+These options keep the existing file untouched and create a new file instead:
+
+- **Increment trailing number**: Changes trailing digits only while preserving zero padding when present. For example, `note009.md` becomes `note010.md`.
+- **Append duplicate suffix**: Keeps the full base name and adds ` (1)`, ` (2)`, and so on. For example, `note.md` becomes `note (1).md`.
+
+### Keep Existing File
+
+Selecting **Keep existing file** applies the same result as choosing
+**Do nothing** from the prompt:
+
+- **Do nothing**: Leaves the existing file unchanged and opens it
+  automatically. This does not require the separate **Open** setting.

@@ -1,9 +1,9 @@
 import type ITemplateChoice from "./ITemplateChoice";
 import { Choice } from "./Choice";
-import type { fileExistsChoices } from "src/constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
+import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean | AppendLinkOptions;
@@ -23,8 +23,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		focus: boolean;
 	};
 	templatePath: string;
-	fileExistsMode: (typeof fileExistsChoices)[number];
-	setFileExistsBehavior: boolean;
+	fileExistsBehavior: TemplateFileExistsBehavior;
 
 	constructor(name: string) {
 		super(name, "Template");
@@ -41,8 +40,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 		this.appendLink = false;
 		this.openFile = false;
 		this.fileOpening = normalizeFileOpening();
-		this.fileExistsMode = "Increment the file name";
-		this.setFileExistsBehavior = false;
+		this.fileExistsBehavior = { kind: "prompt" };
 	}
 
 	public static Load(choice: ITemplateChoice): TemplateChoice {

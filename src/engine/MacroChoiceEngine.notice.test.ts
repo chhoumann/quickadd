@@ -27,6 +27,7 @@ vi.mock("../quickAddSettingsTab", () => {
 			migrateToMacroIDFromEmbeddedMacro: true,
 			useQuickAddTemplateFolder: false,
 			incrementFileNameSettingMoveToDefaultBehavior: false,
+			consolidateFileExistsBehavior: false,
 			mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
 			setVersionAfterUpdateModalRelease: false,
 			addDefaultAIProviders: false,

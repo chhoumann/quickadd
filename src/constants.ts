@@ -185,20 +185,5 @@ export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH =
 	"__qa.captureTargetFilePath";
 
-// == File Exists (Template Choice) == //
-export const fileExistsIncrement = "Increment the file name" as const;
-export const fileExistsAppendToBottom =
-	"Append to the bottom of the file" as const;
-export const fileExistsAppendToTop = "Append to the top of the file" as const;
-export const fileExistsOverwriteFile = "Overwrite the file" as const;
-export const fileExistsDoNothing = "Nothing" as const;
-export const fileExistsChoices = [
-	fileExistsAppendToBottom,
-	fileExistsAppendToTop,
-	fileExistsOverwriteFile,
-	fileExistsIncrement,
-	fileExistsDoNothing,
-] as const;
-
 // == MISC == //
 export const WIKI_LINK_REGEX = new RegExp(/\[\[([^\]]*)\]\]/);

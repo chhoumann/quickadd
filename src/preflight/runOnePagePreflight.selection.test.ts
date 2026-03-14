@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
-import { fileExistsAppendToBottom } from "src/constants";
 import { runOnePagePreflight } from "./runOnePagePreflight";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -122,8 +121,7 @@ const createTemplateChoice = (templatePath: string): ITemplateChoice =>
 			mode: "default",
 			focus: true,
 		},
-		fileExistsMode: fileExistsAppendToBottom,
-		setFileExistsBehavior: false,
+		fileExistsBehavior: { kind: "prompt" },
 	}) as ITemplateChoice;
 
 describe("runOnePagePreflight selection-as-value", () => {
