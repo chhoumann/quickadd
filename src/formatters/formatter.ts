@@ -27,6 +27,7 @@ import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
+import { getYamlPlaceholder } from "../utils/yamlValues";
 import {
 	parseAnonymousValueOptions,
 	parseValueToken,
@@ -386,7 +387,7 @@ export abstract class Formatter {
 					: rawValue;
 
 			// Offer this variable to the property collector for YAML post-processing
-			this.propertyCollector.maybeCollect({
+			const structuredYamlValue = this.propertyCollector.maybeCollect({
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
@@ -395,8 +396,11 @@ export abstract class Formatter {
 				featureEnabled: propertyTypesEnabled,
 			});
 
-			// Always use string replacement initially
-			const rawReplacement = this.getVariableValue(effectiveKey);
+			// Keep the interim frontmatter YAML-parseable until post-processing
+			// writes the real structured value back through Obsidian.
+			const rawReplacement =
+				getYamlPlaceholder(structuredYamlValue) ??
+				this.getVariableValue(effectiveKey);
 			const replacement = transformCase(rawReplacement, caseStyle);
 
 			// Replace in output and adjust regex position

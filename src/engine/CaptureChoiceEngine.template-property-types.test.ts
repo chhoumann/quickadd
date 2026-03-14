@@ -147,7 +147,7 @@ describe("CaptureChoiceEngine template property types", () => {
 		};
 	});
 
-	it("post-processes capture frontmatter arrays into YAML lists", async () => {
+	it("writes a YAML-safe placeholder before post-processing capture frontmatter arrays", async () => {
 		const targetPath = "Journal/Test.md";
 		const createdContent: Record<string, string> = {};
 		let writtenContent = "";
@@ -270,7 +270,9 @@ describe("CaptureChoiceEngine template property types", () => {
 
 		await engine.run();
 
-		expect(writtenContent).toContain("tags: foo,bar");
+		// The raw file write only needs to stay YAML-parseable; processFrontMatter
+		// applies the final structured array value afterward.
+		expect(writtenContent).toContain("tags: []");
 		expect(processFrontMatter).toHaveBeenCalledTimes(1);
 		expect(appliedFrontmatter?.tags).toEqual(["foo", "bar"]);
 	});

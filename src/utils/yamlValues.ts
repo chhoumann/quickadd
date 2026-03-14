@@ -37,3 +37,29 @@ export function coerceYamlValue(v: unknown): unknown {
   // Return original value for non-@date: strings and invalid dates
   return v;
 }
+
+/**
+ * Returns whether a value should be written back through Obsidian's YAML
+ * processor as a structured property type instead of plain string text.
+ */
+export function isStructuredYamlValue(v: unknown): boolean {
+  return typeof v !== "string" && (
+    Array.isArray(v) ||
+    (typeof v === "object" && v !== null) ||
+    typeof v === "number" ||
+    typeof v === "boolean" ||
+    v === null
+  );
+}
+
+/**
+ * Produces a YAML-parseable placeholder for structured values so frontmatter
+ * stays valid until processFrontMatter rewrites the final value.
+ */
+export function getYamlPlaceholder(v: unknown): string | undefined {
+  if (!isStructuredYamlValue(v)) return undefined;
+  if (Array.isArray(v)) return "[]";
+  if (v === null) return "null";
+  if (typeof v === "object") return "{}";
+  return String(v);
+}

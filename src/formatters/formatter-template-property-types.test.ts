@@ -129,6 +129,15 @@ describe('Formatter template property type inference', () => {
 		expect(vars.get('projects')).toEqual(['project1', 'project2']);
 	});
 
+	it('uses a YAML-safe placeholder for collected arrays before post-processing', async () => {
+		(formatter as any).variables.set('tags', ['[[John Doe]]', '[[Jane Doe]]']);
+		const output = await formatter.testFormat('---\ntags: {{VALUE:tags}}\n---');
+		const vars = formatter.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe('---\ntags: []\n---');
+		expect(vars.get('tags')).toEqual(['[[John Doe]]', '[[Jane Doe]]']);
+	});
+
 	it('ignores wiki links with commas to avoid incorrect splitting', async () => {
 		(formatter as any).variables.set('source', '[[test, a]]');
 		await formatter.testFormat('---\nsource: {{VALUE:source}}\n---');
