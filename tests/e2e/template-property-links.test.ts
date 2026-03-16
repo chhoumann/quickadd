@@ -85,24 +85,15 @@ async function runChoiceAndWaitForFile(
 
 async function waitForFrontmatter(
 	file: string,
-	predicate: (frontmatter: Record<string, unknown> | null) => boolean,
+	predicate: (frontmatter: { authors: string[] }) => boolean,
 ) {
-	const filePath = sandbox.path(file);
-	return obsidian.waitFor(async () => {
-		const rawFrontmatter = await obsidian.dev.eval(
-			`(() => {
-				const file = app.vault.getFileByPath(${JSON.stringify(filePath)});
-				if (!file) return null;
-				return app.metadataCache.getFileCache(file)?.frontmatter ?? null;
-			})()`,
-		);
-		const frontmatter =
-			rawFrontmatter && typeof rawFrontmatter === "object"
-				? (rawFrontmatter as Record<string, unknown>)
-				: null;
-
-		return predicate(frontmatter) ? frontmatter : undefined;
-	}, WAIT_OPTS);
+	return await obsidian.metadata.waitForFrontmatter<{
+		authors: string[];
+	}>(
+		sandbox.path(file),
+		predicate,
+		WAIT_OPTS,
+	);
 }
 
 async function runTeardownStep(
@@ -211,7 +202,7 @@ describe("issue 1140: list properties with links", () => {
 		const frontmatter = await waitForFrontmatter(
 			"qa-1140-single-link.md",
 			(value) =>
-				Array.isArray(value?.authors) && value.authors.length === 1,
+				Array.isArray(value.authors) && value.authors.length === 1,
 		);
 
 		expect(frontmatter).toMatchObject({
@@ -228,7 +219,7 @@ describe("issue 1140: list properties with links", () => {
 		const frontmatter = await waitForFrontmatter(
 			"qa-1140-multi-link.md",
 			(value) =>
-				Array.isArray(value?.authors) && value.authors.length === 2,
+				Array.isArray(value.authors) && value.authors.length === 2,
 		);
 
 		expect(frontmatter).toMatchObject({
