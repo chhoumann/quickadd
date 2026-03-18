@@ -4,6 +4,7 @@ import {
 	parseStructuredPropertyValueFromString,
 	type ParseOptions,
 } from "./templatePropertyStringParser";
+import { isStructuredYamlValue } from "./yamlValues";
 
 const PATH_SEPARATOR = "\u0000";
 
@@ -26,13 +27,13 @@ export class TemplatePropertyCollector {
    * Collects a variable for YAML post-processing when it is a complete value for a YAML key
    * and the raw value is a structured type (object/array/number/boolean/null).
    */
-  public maybeCollect(args: CollectArgs): void {
+  public maybeCollect(args: CollectArgs): unknown | undefined {
     const { input, matchStart, matchEnd, rawValue, fallbackKey, featureEnabled } = args;
-    if (!featureEnabled) return;
+    if (!featureEnabled) return undefined;
     const yamlRange = findYamlFrontMatterRange(input);
     const context = getYamlContextForMatch(input, matchStart, matchEnd, yamlRange);
 
-    if (!context.isInYaml) return;
+    if (!context.isInYaml) return undefined;
 
     const lineContent = input.slice(context.lineStart, context.lineEnd);
     const trimmedLine = lineContent.trim();
@@ -49,7 +50,7 @@ export class TemplatePropertyCollector {
       propertyPath = this.findListParentPath(input, context.lineStart, context.baseIndent ?? "");
     }
 
-    if (!propertyPath || propertyPath.length === 0) return;
+    if (!propertyPath || propertyPath.length === 0) return undefined;
     const effectiveKey = propertyPath[propertyPath.length - 1];
 
     let structuredValue = rawValue;
@@ -61,17 +62,11 @@ export class TemplatePropertyCollector {
       }
     }
 
-    const isStructured =
-      typeof structuredValue !== "string" &&
-      (Array.isArray(structuredValue) ||
-        (typeof structuredValue === "object" && structuredValue !== null) ||
-        typeof structuredValue === "number" ||
-        typeof structuredValue === "boolean" ||
-        structuredValue === null);
-    if (!isStructured) return;
+    if (!isStructuredYamlValue(structuredValue)) return undefined;
 
     const mapKey = propertyPath.join(PATH_SEPARATOR);
     this.map.set(mapKey, structuredValue);
+    return structuredValue;
   }
 
   /** Returns a copy and clears the collector. */

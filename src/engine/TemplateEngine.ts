@@ -480,7 +480,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			this.formatter.setTitle(fileBasename);
 
 			const formattedTemplateContent: string =
-				await this.formatter.formatFileContent(templateContent);
+				await this.formatter.withTemplatePropertyCollection(() =>
+					this.formatter.formatFileContent(templateContent),
+				);
 
 			// Get template variables before creating the file
 			const templateVars = this.formatter.getAndClearTemplatePropertyVars();
@@ -537,7 +539,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			this.formatter.setTitle(fileBasename);
 
 			const formattedTemplateContent: string =
-				await this.formatter.formatFileContent(templateContent);
+				await this.formatter.withTemplatePropertyCollection(() =>
+					this.formatter.formatFileContent(templateContent),
+				);
 
 			// Get template variables before modifying the file
 			const templateVars = this.formatter.getAndClearTemplatePropertyVars();

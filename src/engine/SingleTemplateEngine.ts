@@ -21,8 +21,8 @@ export class SingleTemplateEngine extends TemplateEngine {
 			log.logError(`Template ${this.templatePath} not found.`);
 		}
 
-		templateContent = await this.formatter.formatFileContent(
-			templateContent
+		templateContent = await this.formatter.withTemplatePropertyCollection(
+			() => this.formatter.formatFileContent(templateContent),
 		);
 
 		return templateContent;

@@ -12,6 +12,9 @@ vi.mock('../formatters/completeFormatter', () => {
             return {
                 setTitle: vi.fn((t: string) => { title = t; }),
                 getTitle: () => title,
+                withTemplatePropertyCollection: vi.fn(
+                    async (work: () => Promise<unknown>) => await work(),
+                ),
                 formatFileContent: vi.fn(async (content: string) => {
                     // Simple mock that replaces {{title}} with the stored title
                     return content.replace(/{{title}}/gi, title);
