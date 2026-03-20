@@ -5,14 +5,25 @@ import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IUserScript } from "../types/macros/IUserScript";
-import type { ICommand } from "../types/macros/ICommand";
 import { CommandType } from "../types/macros/CommandType";
 import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
-import type { MacroAbortError } from "../errors/MacroAbortError";
+import { MacroAbortError } from "../errors/MacroAbortError";
+
+type UserScriptCandidate = {
+	command: IUserScript;
+	index: number;
+	exportsRef?: unknown;
+	resolvedMember: { found: boolean; value?: unknown };
+};
+
+type MemberAccessSelection = {
+	candidate: UserScriptCandidate;
+	memberAccess: string[];
+};
 
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
@@ -150,15 +161,24 @@ export class SingleMacroEngine {
 			return { executed: false };
 		}
 
-		const userScriptCommandIndex = originalCommands.findIndex(
-			(command) => command.type === CommandType.UserScript,
-		);
+		const userScriptCommands = originalCommands
+			.map((command, index) => ({ command, index }))
+			.filter(
+				(entry): entry is { command: IUserScript; index: number } =>
+					entry.command.type === CommandType.UserScript,
+			);
 
-		if (userScriptCommandIndex === -1) {
+		if (userScriptCommands.length === 0) {
 			return { executed: false };
 		}
 
-		const preCommands = originalCommands.slice(0, userScriptCommandIndex);
+		const selection = await this.selectUserScriptCandidate(
+			macroChoice,
+			userScriptCommands,
+			memberAccess,
+			preloadedScripts,
+		);
+		const preCommands = originalCommands.slice(0, selection.candidate.index);
 
 		try {
 			if (preCommands.length) {
@@ -167,12 +187,10 @@ export class SingleMacroEngine {
 			}
 
 			const updatedCommands = macroChoice.macro?.commands ?? originalCommands;
-			const refreshedCandidate = updatedCommands[userScriptCommandIndex];
+			const refreshedCandidate = updatedCommands[selection.candidate.index];
 			if (!refreshedCandidate || refreshedCandidate.type !== CommandType.UserScript) {
-				return await this.executeFallbackRemainder(
-					engine,
-					updatedCommands.slice(userScriptCommandIndex),
-					memberAccess,
+				throw new MacroAbortError(
+					`Could not resolve the member-access script for '${macroChoice.name}'.`,
 				);
 			}
 			const userScriptCommand = refreshedCandidate as IUserScript;
@@ -181,18 +199,19 @@ export class SingleMacroEngine {
 				userScriptCommand.settings = {};
 			}
 
-			const exportsRef = await getUserScript(userScriptCommand, this.app);
+			const exportsRef =
+				selection.candidate.exportsRef !== undefined
+					? selection.candidate.exportsRef
+					: await getUserScript(userScriptCommand, this.app);
 
 			if (exportsRef === undefined || exportsRef === null) {
-				return await this.executeFallbackRemainder(
-					engine,
-					updatedCommands.slice(userScriptCommandIndex),
-					memberAccess,
+				throw new MacroAbortError(
+					`Macro '${macroChoice.name}' could not load '${userScriptCommand.name}' for member access.`,
 				);
 			}
 
 			const cacheKey = userScriptCommand.path ?? userScriptCommand.id;
-			if (cacheKey) {
+			if (cacheKey && exportsRef !== undefined && exportsRef !== null) {
 				preloadedScripts.set(cacheKey, exportsRef);
 			}
 
@@ -208,20 +227,20 @@ export class SingleMacroEngine {
 				);
 			}
 
-			const resolvedMember = this.resolveMemberAccess(
-				exportsRef,
-				memberAccess,
-			);
+			const resolvedMember =
+				selection.candidate.exportsRef !== undefined
+					? selection.candidate.resolvedMember
+					: this.resolveMemberAccess(exportsRef, selection.memberAccess);
 
 			if (!resolvedMember.found) {
-				return await this.executeFallbackRemainder(
-					engine,
-					updatedCommands.slice(userScriptCommandIndex),
-					memberAccess,
+				throw new MacroAbortError(
+					`Macro '${macroChoice.name}' routes member access to '${userScriptCommand.name}', but that script does not export '${selection.memberAccess.join(
+						"::",
+					)}'.`,
 				);
 			}
 
-			const postCommands = updatedCommands.slice(userScriptCommandIndex + 1);
+			const postCommands = updatedCommands.slice(selection.candidate.index + 1);
 
 			const result = await this.executeResolvedMember(
 				resolvedMember.value,
@@ -304,23 +323,139 @@ export class SingleMacroEngine {
 		return member;
 	}
 
-	private async executeFallbackRemainder(
-		engine: MacroChoiceEngine,
-		remainingCommands: ICommand[],
+	private async selectUserScriptCandidate(
+		macroChoice: IMacroChoice,
+		userScriptCommands: Array<{ command: IUserScript; index: number }>,
 		memberAccess: string[],
-	): Promise<{ executed: boolean; result?: unknown }> {
-		if (remainingCommands.length) {
-			await engine.runSubset(remainingCommands);
-			this.ensureNotAborted();
+		preloadedScripts: Map<string, unknown>,
+	): Promise<MemberAccessSelection> {
+		if (userScriptCommands.length === 1) {
+			return {
+				candidate: {
+					command: userScriptCommands[0].command,
+					index: userScriptCommands[0].index,
+					resolvedMember: { found: false },
+				},
+				memberAccess,
+			};
 		}
 
-		this.syncVariablesFromParams(engine);
-		const macroResult = engine.getOutput();
-		const result = memberAccess?.length
-			? this.applyMemberAccess(macroResult, memberAccess)
-			: macroResult;
+		const selectorMatch = this.resolveScriptSelector(
+			macroChoice,
+			userScriptCommands,
+			memberAccess,
+		);
 
-		return { executed: true, result };
+		if (selectorMatch) {
+			const exportsRef = await getUserScript(selectorMatch.command, this.app);
+			const cacheKey = selectorMatch.command.path ?? selectorMatch.command.id;
+			if (cacheKey && exportsRef !== undefined && exportsRef !== null) {
+				preloadedScripts.set(cacheKey, exportsRef);
+			}
+
+			const resolvedMember = this.resolveMemberAccess(
+				exportsRef,
+				selectorMatch.memberAccess,
+			);
+			if (!resolvedMember.found) {
+				throw new MacroAbortError(
+					`Macro '${macroChoice.name}' targeted script '${selectorMatch.command.name}', but that script does not export '${selectorMatch.memberAccess.join(
+						"::",
+					)}'.`,
+				);
+			}
+
+			return {
+				candidate: {
+					command: selectorMatch.command,
+					index: selectorMatch.index,
+					exportsRef,
+					resolvedMember,
+				},
+				memberAccess: selectorMatch.memberAccess,
+			};
+		}
+
+		const candidates: UserScriptCandidate[] = [];
+
+		for (const entry of userScriptCommands) {
+			const exportsRef = await getUserScript(entry.command, this.app);
+			const cacheKey = entry.command.path ?? entry.command.id;
+			if (cacheKey && exportsRef !== undefined && exportsRef !== null) {
+				preloadedScripts.set(cacheKey, exportsRef);
+			}
+
+			candidates.push({
+				command: entry.command,
+				index: entry.index,
+				exportsRef,
+				resolvedMember: this.resolveMemberAccess(exportsRef, memberAccess),
+			});
+		}
+
+		const matchingCandidates = candidates.filter(
+			(candidate) => candidate.resolvedMember.found,
+		);
+
+		if (matchingCandidates.length === 1) {
+			return {
+				candidate: matchingCandidates[0],
+				memberAccess,
+			};
+		}
+
+		if (matchingCandidates.length === 0) {
+			throw new MacroAbortError(
+				`Macro '${macroChoice.name}' could not find '${memberAccess.join(
+					"::",
+				)}' in any user script.`,
+			);
+		}
+
+		const matchingNames = matchingCandidates
+			.map((candidate) => `'${candidate.command.name}'`)
+			.join(", ");
+
+		throw new MacroAbortError(
+			`Macro '${macroChoice.name}' has multiple user scripts exporting '${memberAccess.join(
+				"::",
+			)}': ${matchingNames}. Disambiguate with '{{MACRO:${macroChoice.name}::<Script Name>::${memberAccess.join(
+				"::",
+			)}}}'.`,
+		);
+	}
+
+	private resolveScriptSelector(
+		macroChoice: IMacroChoice,
+		userScriptCommands: Array<{ command: IUserScript; index: number }>,
+		memberAccess: string[],
+	): { command: IUserScript; index: number; memberAccess: string[] } | null {
+		if (memberAccess.length < 2) {
+			return null;
+		}
+
+		const selectorName = memberAccess[0]?.trim();
+		const matchingScripts = userScriptCommands.filter(
+			(candidate) => candidate.command.name.trim() === selectorName,
+		);
+
+		if (matchingScripts.length === 0) {
+			return null;
+		}
+
+		if (matchingScripts.length > 1) {
+			throw new MacroAbortError(
+				`Macro '${macroChoice.name}' has multiple user scripts named '${selectorName}'. Rename one of them before using '{{MACRO:${macroChoice.name}::${selectorName}::${memberAccess
+					.slice(1)
+					.join("::")}}}'.`,
+			);
+		}
+
+		return {
+			command: matchingScripts[0].command,
+			index: matchingScripts[0].index,
+			memberAccess: memberAccess.slice(1),
+		};
 	}
 
 	private applyMemberAccess(

@@ -1,15 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SingleMacroEngine } from "./SingleMacroEngine";
 import type { App } from "obsidian";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { MacroAbortError } from "../errors/MacroAbortError";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IMacro } from "../types/macros/IMacro";
-import type { IUserScript } from "../types/macros/IUserScript";
 import type { ICommand } from "../types/macros/ICommand";
+import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
-import { MacroAbortError } from "../errors/MacroAbortError";
+import { SingleMacroEngine } from "./SingleMacroEngine";
 
 const { mockInitializeUserScriptSettings, mockGetUserScript } = vi.hoisted(
 	() => ({
@@ -34,8 +34,7 @@ vi.mock("./MacroChoiceEngine", () => ({
 			throw new Error("macroEngineFactory was not initialised.");
 		}
 
-		const instance = macroEngineFactory();
-		return instance;
+		return macroEngineFactory();
 	}),
 }));
 
@@ -71,7 +70,11 @@ vi.mock("../quickAddSettingsTab", () => ({
 
 vi.mock("../settingsStore", () => ({
 	settingsStore: {
-		getState: () => ({ ai: {}, disableOnlineFeatures: false }),
+		getState: () => ({
+			ai: {},
+			disableOnlineFeatures: false,
+			showInputCancellationNotification: true,
+		}),
 	},
 }));
 
@@ -94,11 +97,8 @@ describe("SingleMacroEngine member access", () => {
 	const plugin = {} as unknown as QuickAdd;
 
 	let choiceExecutor: IChoiceExecutor;
-	let variables: Map<string, unknown>;
 
-	const baseMacroChoice = (
-		commands: ICommand[],
-	): IMacroChoice => ({
+	const baseMacroChoice = (commands: ICommand[]): IMacroChoice => ({
 		id: "macro-1",
 		name: "My Macro",
 		type: "Macro",
@@ -111,37 +111,40 @@ describe("SingleMacroEngine member access", () => {
 		} as IMacro,
 	});
 
+	const createUserScript = (
+		id: string,
+		path: string,
+		options?: Partial<IUserScript>,
+	): IUserScript => ({
+		id,
+		name: options?.name ?? id,
+		type: CommandType.UserScript,
+		path,
+		settings: {},
+	});
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockGetUserScript.mockReset();
 		mockInitializeUserScriptSettings.mockReset();
 
-		variables = new Map<string, unknown>([["existing", "value"]]);
 		choiceExecutor = {
 			execute: vi.fn(),
-			variables,
+			variables: new Map<string, unknown>([["existing", "value"]]),
 		};
 
-	macroEngineFactory = () => ({
-		run: vi.fn(),
-		runSubset: vi.fn().mockResolvedValue(undefined),
-		setOutput: vi.fn(),
-		getOutput: vi.fn(),
-		params: { variables: { existing: "value" } },
-	});
+		macroEngineFactory = () => ({
+			run: vi.fn(),
+			runSubset: vi.fn().mockResolvedValue(undefined),
+			setOutput: vi.fn(),
+			getOutput: vi.fn(),
+			params: { variables: { existing: "value" } },
+		});
 	});
 
 	it("runs the macro when no member access is requested", async () => {
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
+		const userScript = createUserScript("user-script", "script.js");
 		const macroChoice = baseMacroChoice([userScript]);
-
 		const choices: IChoice[] = [macroChoice];
 
 		const engineInstance = macroEngineFactory();
@@ -149,13 +152,7 @@ describe("SingleMacroEngine member access", () => {
 		engineInstance.getOutput = vi.fn().mockReturnValue(42);
 		macroEngineFactory = () => engineInstance;
 
-		const engine = new SingleMacroEngine(
-			app,
-			plugin,
-			choices,
-			choiceExecutor,
-		);
-
+		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
 		const result = await engine.runAndGetOutput("My Macro");
 
 		expect(engineInstance.run).toHaveBeenCalledTimes(1);
@@ -164,170 +161,262 @@ describe("SingleMacroEngine member access", () => {
 		expect(mockGetUserScript).not.toHaveBeenCalled();
 	});
 
-	it("executes the requested export directly when member access is provided", async () => {
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
+	it("executes the requested export directly when the macro has one user script", async () => {
+		const userScript = createUserScript("user-script", "script.js");
 		const macroChoice = baseMacroChoice([userScript]);
 		const choices: IChoice[] = [macroChoice];
 
 		const engineInstance = macroEngineFactory();
 		engineInstance.params.variables = { existing: "value" };
-		engineInstance.run = vi.fn();
 		macroEngineFactory = () => engineInstance;
 
-		const exportFn = vi.fn().mockImplementation((params: any) => {
-			params.variables.newValue = "hello";
-			return "f-result";
-		});
+		const exportFn = vi.fn().mockImplementation(
+			(params: { variables: Record<string, unknown> }) => {
+				params.variables.newValue = "hello";
+				return "f-result";
+			},
+		);
 
 		mockGetUserScript.mockResolvedValue({
 			settings: { prompt: { default: "test" } },
 			f: exportFn,
 		});
 
-		const engine = new SingleMacroEngine(
-			app,
-			plugin,
-			choices,
-			choiceExecutor,
+		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const result = await engine.runAndGetOutput("My Macro::f");
+
+		expect(engineInstance.run).not.toHaveBeenCalled();
+		expect(engineInstance.runSubset).not.toHaveBeenCalled();
+		expect(mockGetUserScript).toHaveBeenCalledWith(userScript, app);
+		expect(mockInitializeUserScriptSettings).toHaveBeenCalledWith(
+			userScript.settings,
+			{ prompt: { default: "test" } },
 		);
+		expect(exportFn).toHaveBeenCalledWith(engineInstance.params, userScript.settings);
+		expect(engineInstance.setOutput).toHaveBeenCalledWith("f-result");
+		expect(result).toBe("f-result");
+		expect(choiceExecutor.variables.get("newValue")).toBe("hello");
+	});
 
-	const result = await engine.runAndGetOutput("My Macro::f");
-
-	expect(engineInstance.run).not.toHaveBeenCalled();
-	expect(engineInstance.runSubset).not.toHaveBeenCalled();
-	expect(mockGetUserScript).toHaveBeenCalledWith(userScript, app);
-	expect(mockInitializeUserScriptSettings).toHaveBeenCalledWith(
-		userScript.settings,
-		{ prompt: { default: "test" } },
-	);
-	expect(exportFn).toHaveBeenCalledWith(engineInstance.params, userScript.settings);
-	expect(engineInstance.setOutput).toHaveBeenCalledWith("f-result");
-	expect(result).toBe("f-result");
-	expect(choiceExecutor.variables.get("newValue")).toBe("hello");
-});
-
-	it("runs commands before and after the user script when member access is used", async () => {
+	it("reaches a unique member on a later script while preserving pre and post execution", async () => {
 		const preCommand = {
 			id: "wait-1",
 			name: "Wait",
 			type: CommandType.Wait,
 		} as ICommand;
-
+		const firstScript = createUserScript("script-1", "script-1.js", {
+			name: "Script One",
+		});
+		const secondScript = createUserScript("script-2", "script-2.js", {
+			name: "Script Two",
+		});
 		const postCommand = {
 			id: "choice-1",
 			name: "Nested Choice",
 			type: CommandType.Choice,
 		} as ICommand;
 
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
-		const macroChoice = baseMacroChoice([preCommand, userScript, postCommand]);
-		const choices: IChoice[] = [macroChoice];
+		const choices: IChoice[] = [
+			baseMacroChoice([preCommand, firstScript, secondScript, postCommand]),
+		];
 
 		const engineInstance = macroEngineFactory();
-		engineInstance.run = vi.fn();
-		const callOrder: string[] = [];
-		engineInstance.runSubset = vi.fn().mockImplementation(async (cmds) => {
-			if (cmds.length === 1 && cmds[0] === preCommand) {
-				callOrder.push("pre");
-			} else if (cmds.length === 1 && cmds[0] === postCommand) {
-				callOrder.push("post");
-			}
-		});
-		engineInstance.setOutput = vi.fn().mockImplementation(() => {
-			callOrder.push("set");
-		});
 		macroEngineFactory = () => engineInstance;
 
 		const exportFn = vi.fn().mockReturnValue("export-result");
+		mockGetUserScript.mockImplementation(async (command: IUserScript) => {
+			if (command.id === "script-2") {
+				return {
+					settings: {},
+					beta: exportFn,
+				};
+			}
 
-		mockGetUserScript.mockImplementation(async () => {
-			callOrder.push("load");
 			return {
 				settings: {},
-				f: exportFn,
+				alpha: vi.fn(),
+			};
+		});
+
+		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
+		const result = await engine.runAndGetOutput("My Macro::beta");
+
+		expect(engineInstance.run).not.toHaveBeenCalled();
+		expect(engineInstance.runSubset).toHaveBeenCalledTimes(2);
+		expect(engineInstance.runSubset).toHaveBeenNthCalledWith(1, [
+			preCommand,
+			firstScript,
+		]);
+		expect(engineInstance.runSubset).toHaveBeenNthCalledWith(2, [postCommand]);
+		expect(engineInstance.setOutput).toHaveBeenCalledWith("export-result");
+		expect(result).toBe("export-result");
+		expect(mockGetUserScript).toHaveBeenCalledTimes(2);
+		expect(mockGetUserScript).toHaveBeenCalledWith(firstScript, app);
+		expect(mockGetUserScript).toHaveBeenCalledWith(secondScript, app);
+	});
+
+	it("aborts when no user script exports the requested member", async () => {
+		const scriptA = createUserScript("script-a", "a.js");
+		const scriptB = createUserScript("script-b", "b.js");
+
+		mockGetUserScript.mockResolvedValue({ alpha: vi.fn() });
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			[baseMacroChoice([scriptA, scriptB])],
+			choiceExecutor,
+		);
+
+		await expect(engine.runAndGetOutput("My Macro::beta")).rejects.toThrow(
+			"could not find 'beta' in any user script",
+		);
+	});
+
+	it("aborts with candidate names when multiple scripts export the same member", async () => {
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Alpha Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Beta Script",
+		});
+
+		mockGetUserScript.mockResolvedValue({ beta: vi.fn() });
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			[baseMacroChoice([scriptA, scriptB])],
+			choiceExecutor,
+		);
+
+		await expect(engine.runAndGetOutput("My Macro::beta")).rejects.toThrow(
+			"multiple user scripts exporting 'beta': 'Alpha Script', 'Beta Script'",
+		);
+	});
+
+	it("uses a script-name selector to resolve a conflict", async () => {
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Alpha Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Beta Script",
+		});
+
+		const engineInstance = macroEngineFactory();
+		macroEngineFactory = () => engineInstance;
+
+		mockGetUserScript.mockImplementation(async (command: IUserScript) => ({
+			beta: () => `${command.name} result`,
+		}));
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			[baseMacroChoice([scriptA, scriptB])],
+			choiceExecutor,
+		);
+
+		const result = await engine.runAndGetOutput(
+			"My Macro::Beta Script::beta",
+		);
+
+		expect(result).toBe("Beta Script result");
+		expect(engineInstance.runSubset).toHaveBeenCalledTimes(1);
+		expect(engineInstance.runSubset).toHaveBeenCalledWith([scriptA]);
+		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(mockGetUserScript).toHaveBeenCalledWith(scriptB, app);
+	});
+
+	it("aborts when a selector matches duplicate script names", async () => {
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Shared Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Shared Script",
+		});
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			[baseMacroChoice([scriptA, scriptB])],
+			choiceExecutor,
+		);
+
+		await expect(
+			engine.runAndGetOutput("My Macro::Shared Script::beta"),
+		).rejects.toThrow("multiple user scripts named 'Shared Script'");
+		expect(mockGetUserScript).not.toHaveBeenCalled();
+	});
+
+	it("treats a non-matching selector-shaped segment as normal member access", async () => {
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Alpha Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Beta Script",
+		});
+
+		mockGetUserScript.mockImplementation(async (command: IUserScript) => {
+			if (command.id === "script-b") {
+				return {
+					settings: {},
+					NotAScript: {
+						beta: () => "nested-result",
+					},
+				};
+			}
+
+			return {
+				settings: {},
+				alpha: vi.fn(),
 			};
 		});
 
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
-			choices,
+			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
 
-		const result = await engine.runAndGetOutput("My Macro::f");
+		const result = await engine.runAndGetOutput("My Macro::NotAScript::beta");
 
-		expect(engineInstance.run).not.toHaveBeenCalled();
-		expect(engineInstance.runSubset).toHaveBeenCalledTimes(2);
-		expect(engineInstance.runSubset).toHaveBeenNthCalledWith(1, [preCommand]);
-		expect(engineInstance.runSubset).toHaveBeenNthCalledWith(2, [postCommand]);
-		expect(engineInstance.setOutput).toHaveBeenCalledWith("export-result");
-		expect(result).toBe("export-result");
-		expect(callOrder).toEqual(["pre", "load", "set", "post"]);
+		expect(result).toBe("nested-result");
+		expect(mockGetUserScript).toHaveBeenCalledTimes(2);
 	});
 
-	it("falls back to macro output when the requested export is missing", async () => {
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
-		const macroChoice = baseMacroChoice([userScript]);
-		const choices: IChoice[] = [macroChoice];
-
-		mockGetUserScript.mockResolvedValue({
-			entry: vi.fn(),
+	it("aborts when a selected script does not export the requested member", async () => {
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Alpha Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Beta Script",
 		});
 
-		const engineInstance = macroEngineFactory();
-		engineInstance.runSubset = vi.fn().mockImplementation(async () => {
-			engineInstance.getOutput = vi.fn().mockReturnValue({ missing: "from-output" });
+		mockGetUserScript.mockImplementation(async (command: IUserScript) => {
+			if (command.id === "script-a") {
+				return { alpha: vi.fn() };
+			}
+
+			return { beta: vi.fn() };
 		});
-		engineInstance.setOutput = vi.fn();
-		macroEngineFactory = () => engineInstance;
 
 		const engine = new SingleMacroEngine(
 			app,
 			plugin,
-			choices,
+			[baseMacroChoice([scriptA, scriptB])],
 			choiceExecutor,
 		);
 
-		const result = await engine.runAndGetOutput("My Macro::missing");
-
-		expect(engineInstance.run).not.toHaveBeenCalled();
-		expect(engineInstance.runSubset).toHaveBeenCalledTimes(1);
-		expect(result).toBe("from-output");
+		await expect(
+			engine.runAndGetOutput("My Macro::Alpha Script::beta"),
+		).rejects.toThrow("targeted script 'Alpha Script'");
 	});
 
 	it("propagates aborts when the export aborts", async () => {
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
-		const macroChoice = baseMacroChoice([userScript]);
-		const choices: IChoice[] = [macroChoice];
+		const userScript = createUserScript("user-script", "script.js");
+		const choices: IChoice[] = [baseMacroChoice([userScript])];
 
 		const engineInstance = macroEngineFactory();
 		engineInstance.runSubset = vi.fn().mockResolvedValue(undefined);
@@ -343,17 +432,11 @@ describe("SingleMacroEngine member access", () => {
 			f: abortFn,
 		});
 
-		const engine = new SingleMacroEngine(
-			app,
-			plugin,
-			choices,
-			choiceExecutor,
-		);
+		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
 
 		await expect(engine.runAndGetOutput("My Macro::f")).rejects.toBeInstanceOf(
 			MacroAbortError,
 		);
-
 		expect(abortFn).toHaveBeenCalledTimes(1);
 		expect(engineInstance.setOutput).not.toHaveBeenCalled();
 	});
@@ -364,17 +447,8 @@ describe("SingleMacroEngine member access", () => {
 			name: "Wait",
 			type: CommandType.Wait,
 		} as ICommand;
-
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
-		const macroChoice = baseMacroChoice([preCommand, userScript]);
-		const choices: IChoice[] = [macroChoice];
+		const userScript = createUserScript("user-script", "script.js");
+		const choices: IChoice[] = [baseMacroChoice([preCommand, userScript])];
 
 		const engineInstance = macroEngineFactory();
 		engineInstance.runSubset = vi.fn().mockResolvedValue(undefined);
@@ -388,32 +462,18 @@ describe("SingleMacroEngine member access", () => {
 			.mockReturnValue(null);
 		choiceExecutor.consumeAbortSignal = consumeAbortSignal;
 
-		const engine = new SingleMacroEngine(
-			app,
-			plugin,
-			choices,
-			choiceExecutor,
-		);
+		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
 
 		await expect(engine.runAndGetOutput("My Macro::run")).rejects.toBe(
 			abortError,
 		);
-
 		expect(engineInstance.runSubset).toHaveBeenCalledTimes(1);
 		expect(mockGetUserScript).not.toHaveBeenCalled();
 	});
 
 	it("propagates abort signals when the full macro run cancels", async () => {
-		const userScript: IUserScript = {
-			id: "user-script",
-			name: "Script",
-			type: CommandType.UserScript,
-			path: "script.js",
-			settings: {},
-		};
-
-		const macroChoice = baseMacroChoice([userScript]);
-		const choices: IChoice[] = [macroChoice];
+		const userScript = createUserScript("user-script", "script.js");
+		const choices: IChoice[] = [baseMacroChoice([userScript])];
 
 		const engineInstance = macroEngineFactory();
 		engineInstance.run = vi.fn().mockResolvedValue(undefined);
@@ -427,17 +487,9 @@ describe("SingleMacroEngine member access", () => {
 			.mockReturnValue(null);
 		choiceExecutor.consumeAbortSignal = consumeAbortSignal;
 
-		const engine = new SingleMacroEngine(
-			app,
-			plugin,
-			choices,
-			choiceExecutor,
-		);
+		const engine = new SingleMacroEngine(app, plugin, choices, choiceExecutor);
 
-		await expect(engine.runAndGetOutput("My Macro")).rejects.toBe(
-			abortError,
-		);
-
+		await expect(engine.runAndGetOutput("My Macro")).rejects.toBe(abortError);
 		expect(engineInstance.run).toHaveBeenCalledTimes(1);
 		expect(engineInstance.getOutput).not.toHaveBeenCalled();
 	});

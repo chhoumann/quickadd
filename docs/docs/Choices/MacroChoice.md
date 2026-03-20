@@ -389,6 +389,22 @@ You can skip the selection prompt by specifying the function directly:
 - `{{MACRO:MyMacro::option1}}` - Runs option1 directly
 - `{{MACRO:MyMacro::start}}` - Runs the start function
 
+When a macro has more than one user script, `Macro::member` uses the script
+that uniquely exports the requested member across all scripts in the macro.
+
+QuickAdd resolves `Macro::member` like this:
+- If exactly one script exports the requested member, QuickAdd uses it.
+- If no script exports the requested member, QuickAdd stops and shows an error.
+- If multiple scripts export the requested member, QuickAdd stops and lists the
+  conflicting script names instead of guessing.
+
+If there is a conflict, you can target a specific script by name:
+- `{{MACRO:MyMacro::Script 1::option1}}`
+
+The script selector uses the macro command name shown in the editor. If multiple
+user-script commands share the same name, rename one of them before using the
+selector form.
+
 ## Macro Settings
 
 ![Macro Manager](https://user-images.githubusercontent.com/29108628/121774198-81924a80-cb81-11eb-9f80-9816263e4b6f.png)

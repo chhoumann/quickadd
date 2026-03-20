@@ -130,12 +130,30 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 		const command: IUserScript = e.detail;
 
 		const userScript = await getUserScript(command, app);
-		if (!userScript?.settings) {
-			log.logWarning(`${command.name} has no settings.`);
+		if (!userScript) {
+			log.logWarning(`${command.name} could not be loaded.`);
 			return;
 		}
 
-		new UserScriptSettingsModal(app, command, userScript.settings).open();
+		new UserScriptSettingsModal(
+			app,
+			command,
+			(userScript.settings ?? {}) as {
+				[key: string]: unknown;
+				options?: {
+					[key: string]: {
+						description?: string;
+						type: string;
+						value: string | boolean;
+						placeholder?: string;
+						secret?: boolean;
+						defaultValue: string | boolean;
+						options?: string[];
+					};
+				};
+			},
+			() => saveCommands([...commands]),
+		).open();
 	}
 
 	async function configureAssistant(e: CustomEvent) {

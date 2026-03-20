@@ -1,5 +1,3 @@
- 
- 
 import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
@@ -49,7 +47,8 @@ export class UserScriptSettingsModal extends Modal {
 		private settings: {
 			[key: string]: unknown;
 			options?: { [key: string]: Option };
-		}
+		},
+		private onCommandChange?: () => void,
 	) {
 		super(app);
 
@@ -64,7 +63,7 @@ export class UserScriptSettingsModal extends Modal {
 		this.containerEl.addClass("quickAddModal", "userScriptSettingsModal");
 		this.contentEl.empty();
 
-		this.titleEl.innerText = `${this.settings?.name}${
+		this.titleEl.innerText = `${this.settings?.name ?? this.command.name}${
 			this.settings?.author ? " by " + this.settings?.author : ""
 		}`;
 		const options = this.settings.options;
@@ -130,7 +129,10 @@ export class UserScriptSettingsModal extends Modal {
 		return new Setting(this.contentEl).setName(name).addText((input) => {
 			input
 				.setValue(value)
-				.onChange((value) => (this.command.settings[name] = value))
+				.onChange((value) => {
+					this.command.settings[name] = value;
+					this.onCommandChange?.();
+				})
 				.setPlaceholder(placeholder ?? "");
 
 			if (passwordOnBlur) {
@@ -147,7 +149,10 @@ export class UserScriptSettingsModal extends Modal {
 		return new Setting(this.contentEl).setName(name).addTextArea((textArea) => {
 			textArea
 				.setValue(value)
-				.onChange((value) => (this.command.settings[name] = value))
+				.onChange((value) => {
+					this.command.settings[name] = value;
+					this.onCommandChange?.();
+				})
 				.setPlaceholder(placeholder ?? "");
 
 			textArea.inputEl.style.width = "100%";
@@ -169,7 +174,10 @@ export class UserScriptSettingsModal extends Modal {
 			.addToggle((toggle) =>
 				toggle
 					.setValue(value)
-					.onChange((value) => (this.command.settings[name] = value))
+					.onChange((value) => {
+						this.command.settings[name] = value;
+						this.onCommandChange?.();
+					})
 			);
 	}
 
@@ -179,9 +187,10 @@ export class UserScriptSettingsModal extends Modal {
 			.addDropdown((dropdown) => {
 				options.forEach((item) => void dropdown.addOption(item, item));
 				dropdown.setValue(value);
-				dropdown.onChange(
-					(value) => (this.command.settings[name] = value)
-				);
+				dropdown.onChange((value) => {
+					this.command.settings[name] = value;
+					this.onCommandChange?.();
+				});
 			});
 	}
 
@@ -201,6 +210,7 @@ export class UserScriptSettingsModal extends Modal {
 			.onChange(async (value) => {
 				this.command.settings[name] = value;
 				formatDisplay.innerText = await displayFormatter.format(value);
+				this.onCommandChange?.();
 			})
 			.setPlaceholder(placeholder ?? "");
 

@@ -19,7 +19,9 @@
 </script>
 
 <div class="quickAddCommandListItem">
-    <li>{command.name}</li>
+    <li>
+        {command.name}
+    </li>
     <div>
         <span 
             role="button"
@@ -51,7 +53,3 @@
         </span>
     </div>
 </div>
-
-<style lang="css">
-
-</style>
