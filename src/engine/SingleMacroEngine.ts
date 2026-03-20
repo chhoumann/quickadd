@@ -16,8 +16,6 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 type UserScriptCandidate = {
 	command: IUserScript;
 	index: number;
-	exportsRef?: unknown;
-	resolvedMember: { found: boolean; value?: unknown };
 };
 
 type MemberAccessSelection = {
@@ -98,8 +96,6 @@ export class SingleMacroEngine {
 			throw new Error(`macro '${macroName}' does not exist.`);
 		}
 
-		const preloadedScripts = new Map<string, unknown>();
-
 		// Create a dedicated engine for this macro
 		const engine = new MacroChoiceEngine(
 			this.app,
@@ -107,7 +103,7 @@ export class SingleMacroEngine {
 			macroChoice,
 			this.choiceExecutor,
 			this.variables,
-			preloadedScripts,
+			undefined,
 			context?.label,
 		);
 
@@ -116,7 +112,6 @@ export class SingleMacroEngine {
 				engine,
 				macroChoice,
 				memberAccess,
-				preloadedScripts,
 			);
 
 			this.ensureNotAborted();
@@ -154,7 +149,6 @@ export class SingleMacroEngine {
 		engine: MacroChoiceEngine,
 		macroChoice: IMacroChoice,
 		memberAccess: string[],
-		preloadedScripts: Map<string, unknown>,
 	): Promise<{ executed: boolean; result?: unknown }> {
 		const originalCommands = macroChoice.macro?.commands;
 		if (!originalCommands?.length) {
@@ -176,7 +170,6 @@ export class SingleMacroEngine {
 			macroChoice,
 			userScriptCommands,
 			memberAccess,
-			preloadedScripts,
 		);
 		const preCommands = originalCommands.slice(0, selection.candidate.index);
 
@@ -199,20 +192,12 @@ export class SingleMacroEngine {
 				userScriptCommand.settings = {};
 			}
 
-			const exportsRef =
-				selection.candidate.exportsRef !== undefined
-					? selection.candidate.exportsRef
-					: await getUserScript(userScriptCommand, this.app);
+			const exportsRef = await getUserScript(userScriptCommand, this.app);
 
 			if (exportsRef === undefined || exportsRef === null) {
 				throw new MacroAbortError(
 					`Macro '${macroChoice.name}' could not load '${userScriptCommand.name}' for member access.`,
 				);
-			}
-
-			const cacheKey = userScriptCommand.path ?? userScriptCommand.id;
-			if (cacheKey && exportsRef !== undefined && exportsRef !== null) {
-				preloadedScripts.set(cacheKey, exportsRef);
 			}
 
 			const settingsExport =
@@ -227,10 +212,10 @@ export class SingleMacroEngine {
 				);
 			}
 
-			const resolvedMember =
-				selection.candidate.exportsRef !== undefined
-					? selection.candidate.resolvedMember
-					: this.resolveMemberAccess(exportsRef, selection.memberAccess);
+			const resolvedMember = this.resolveMemberAccess(
+				exportsRef,
+				selection.memberAccess,
+			);
 
 			if (!resolvedMember.found) {
 				throw new MacroAbortError(
@@ -327,14 +312,12 @@ export class SingleMacroEngine {
 		macroChoice: IMacroChoice,
 		userScriptCommands: Array<{ command: IUserScript; index: number }>,
 		memberAccess: string[],
-		preloadedScripts: Map<string, unknown>,
 	): Promise<MemberAccessSelection> {
 		if (userScriptCommands.length === 1) {
 			return {
 				candidate: {
 					command: userScriptCommands[0].command,
 					index: userScriptCommands[0].index,
-					resolvedMember: { found: false },
 				},
 				memberAccess,
 			};
@@ -347,48 +330,24 @@ export class SingleMacroEngine {
 		);
 
 		if (selectorMatch) {
-			const exportsRef = await getUserScript(selectorMatch.command, this.app);
-			const cacheKey = selectorMatch.command.path ?? selectorMatch.command.id;
-			if (cacheKey && exportsRef !== undefined && exportsRef !== null) {
-				preloadedScripts.set(cacheKey, exportsRef);
-			}
-
-			const resolvedMember = this.resolveMemberAccess(
-				exportsRef,
-				selectorMatch.memberAccess,
-			);
-			if (!resolvedMember.found) {
-				throw new MacroAbortError(
-					`Macro '${macroChoice.name}' targeted script '${selectorMatch.command.name}', but that script does not export '${selectorMatch.memberAccess.join(
-						"::",
-					)}'.`,
-				);
-			}
-
 			return {
 				candidate: {
 					command: selectorMatch.command,
 					index: selectorMatch.index,
-					exportsRef,
-					resolvedMember,
 				},
 				memberAccess: selectorMatch.memberAccess,
 			};
 		}
 
-		const candidates: UserScriptCandidate[] = [];
+		const candidates: Array<
+			UserScriptCandidate & { resolvedMember: { found: boolean; value?: unknown } }
+		> = [];
 
 		for (const entry of userScriptCommands) {
 			const exportsRef = await getUserScript(entry.command, this.app);
-			const cacheKey = entry.command.path ?? entry.command.id;
-			if (cacheKey && exportsRef !== undefined && exportsRef !== null) {
-				preloadedScripts.set(cacheKey, exportsRef);
-			}
-
 			candidates.push({
 				command: entry.command,
 				index: entry.index,
-				exportsRef,
 				resolvedMember: this.resolveMemberAccess(exportsRef, memberAccess),
 			});
 		}

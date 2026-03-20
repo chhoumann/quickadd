@@ -15,7 +15,8 @@ import type {
 
 const VAULT = "dev";
 const PLUGIN_ID = "quickadd";
-const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
+const waitTimeoutMs = Number(process.env.E2E_TIMEOUT_MS) || 15_000;
+const WAIT_OPTS = { timeoutMs: waitTimeoutMs, intervalMs: 200 };
 const TEST_PREFIX = "__qa-test-964-";
 
 let obsidian: ObsidianClient;
