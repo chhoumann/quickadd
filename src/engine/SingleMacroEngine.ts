@@ -16,6 +16,8 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 type UserScriptCandidate = {
 	command: IUserScript;
 	index: number;
+	exportsRef?: unknown;
+	resolvedMember?: { found: boolean; value?: unknown };
 };
 
 type MemberAccessSelection = {
@@ -192,7 +194,10 @@ export class SingleMacroEngine {
 				userScriptCommand.settings = {};
 			}
 
-			const exportsRef = await getUserScript(userScriptCommand, this.app);
+			const exportsRef =
+				selection.candidate.exportsRef !== undefined
+					? selection.candidate.exportsRef
+					: await getUserScript(userScriptCommand, this.app);
 
 			if (exportsRef === undefined || exportsRef === null) {
 				throw new MacroAbortError(
@@ -212,10 +217,9 @@ export class SingleMacroEngine {
 				);
 			}
 
-			const resolvedMember = this.resolveMemberAccess(
-				exportsRef,
-				selection.memberAccess,
-			);
+			const resolvedMember =
+				selection.candidate.resolvedMember ??
+				this.resolveMemberAccess(exportsRef, selection.memberAccess);
 
 			if (!resolvedMember.found) {
 				throw new MacroAbortError(
@@ -348,6 +352,7 @@ export class SingleMacroEngine {
 			candidates.push({
 				command: entry.command,
 				index: entry.index,
+				exportsRef,
 				resolvedMember: this.resolveMemberAccess(exportsRef, memberAccess),
 			});
 		}

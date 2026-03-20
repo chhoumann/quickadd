@@ -250,7 +250,7 @@ describe("SingleMacroEngine member access", () => {
 		expect(engineInstance.runSubset).toHaveBeenNthCalledWith(2, [postCommand]);
 		expect(engineInstance.setOutput).toHaveBeenCalledWith("export-result");
 		expect(result).toBe("export-result");
-		expect(mockGetUserScript).toHaveBeenCalledTimes(3);
+		expect(mockGetUserScript).toHaveBeenCalledTimes(2);
 		expect(mockGetUserScript).toHaveBeenCalledWith(firstScript, app);
 		expect(mockGetUserScript).toHaveBeenCalledWith(secondScript, app);
 	});
@@ -429,7 +429,7 @@ describe("SingleMacroEngine member access", () => {
 		const result = await engine.runAndGetOutput("My Macro::NotAScript::beta");
 
 		expect(result).toBe("nested-result");
-		expect(mockGetUserScript).toHaveBeenCalledTimes(3);
+		expect(mockGetUserScript).toHaveBeenCalledTimes(2);
 	});
 
 	it("aborts when a selected script does not export the requested member", async () => {
