@@ -328,6 +328,52 @@ describe("SingleMacroEngine member access", () => {
 		expect(mockGetUserScript).toHaveBeenCalledWith(scriptB, app);
 	});
 
+	it("loads a selector-targeted script after pre-commands run", async () => {
+		const preCommand = {
+			id: "wait-1",
+			name: "Wait",
+			type: CommandType.Wait,
+		} as ICommand;
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Alpha Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Beta Script",
+		});
+
+		let ready = false;
+		const engineInstance = macroEngineFactory();
+		engineInstance.runSubset = vi.fn().mockImplementation(async () => {
+			ready = true;
+		});
+		macroEngineFactory = () => engineInstance;
+
+		mockGetUserScript.mockImplementation(async (command: IUserScript) => {
+			if (command.id !== "script-b") {
+				return { alpha: vi.fn() };
+			}
+
+			return ready
+				? { beta: () => "late-bound-result" }
+				: { alpha: vi.fn() };
+		});
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			[baseMacroChoice([preCommand, scriptA, scriptB])],
+			choiceExecutor,
+		);
+
+		const result = await engine.runAndGetOutput(
+			"My Macro::Beta Script::beta",
+		);
+
+		expect(result).toBe("late-bound-result");
+		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(mockGetUserScript).toHaveBeenCalledWith(scriptB, app);
+	});
+
 	it("aborts when a selector matches duplicate script names", async () => {
 		const scriptA = createUserScript("script-a", "a.js", {
 			name: "Shared Script",
@@ -411,7 +457,7 @@ describe("SingleMacroEngine member access", () => {
 
 		await expect(
 			engine.runAndGetOutput("My Macro::Alpha Script::beta"),
-		).rejects.toThrow("targeted script 'Alpha Script'");
+		).rejects.toThrow("routes member access to 'Alpha Script'");
 	});
 
 	it("propagates aborts when the export aborts", async () => {
