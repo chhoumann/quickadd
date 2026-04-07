@@ -478,6 +478,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Extract filename without extension from the full path.
 			const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			this.formatter.setTitle(fileBasename);
+			this.formatter.setDestinationSourcePath(filePath);
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
@@ -537,6 +538,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
+			this.formatter.setDestinationFile(file);
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
@@ -584,6 +586,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
+			this.formatter.setDestinationFile(file);
 
 			let formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);

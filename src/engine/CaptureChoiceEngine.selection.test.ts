@@ -55,6 +55,7 @@ vi.mock("../utilityObsidian", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
+	resolveClipboardForNoteContent: vi.fn(async () => ""),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
 }));

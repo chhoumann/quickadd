@@ -24,12 +24,22 @@ import {
 	generateFieldCacheKey,
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
+import { resolveClipboardForNoteContent } from "../utilityObsidian";
 import { Formatter, type PromptContext } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
+import type { TFile } from "obsidian";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
+	private destinationSourcePath: string | null = null;
+	private clipboardContentScopeDepth = 0;
+	private resolvedClipboardContent:
+		| {
+				destinationSourcePath: string | null;
+				value: string;
+		  }
+		| null = null;
 
 	constructor(
 		protected app: App,
@@ -66,6 +76,27 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
+	public setDestinationFile(file: TFile): void {
+		this.setDestinationSourcePath(file.path);
+	}
+
+	public setDestinationSourcePath(path: string): void {
+		if (this.destinationSourcePath !== path) {
+			this.resolvedClipboardContent = null;
+		}
+		this.destinationSourcePath = path;
+	}
+
+	private async withClipboardContentScope<T>(work: () => Promise<T>): Promise<T> {
+		this.clipboardContentScopeDepth += 1;
+
+		try {
+			return await work();
+		} finally {
+			this.clipboardContentScopeDepth -= 1;
+		}
+	}
+
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
 		let output = input;
 		// Allow nested globals up to a small recursion limit
@@ -98,14 +129,16 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatFileContent(input: string): Promise<string> {
-		let output: string = input;
+		return await this.withClipboardContentScope(async () => {
+			let output: string = input;
 
-		output = await this.format(output);
-		output = await this.replaceLinkToCurrentFileInString(output);
-		output = await this.replaceCurrentFileNameInString(output);
-		output = this.replaceTitleInString(output);
+			output = await this.format(output);
+			output = await this.replaceLinkToCurrentFileInString(output);
+			output = await this.replaceCurrentFileNameInString(output);
+			output = this.replaceTitleInString(output);
 
-		return output;
+			return output;
+		});
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
@@ -134,7 +167,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected getLinkSourcePath(): string | null {
-		return null;
+		return this.destinationSourcePath;
 	}
 
 	protected getCurrentFileLink(): string | null {
@@ -383,6 +416,26 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getClipboardContent(): Promise<string> {
+		if (this.clipboardContentScopeDepth > 0) {
+			if (
+				this.resolvedClipboardContent &&
+				this.resolvedClipboardContent.destinationSourcePath ===
+					this.destinationSourcePath
+			) {
+				return this.resolvedClipboardContent.value;
+			}
+
+			const resolvedContent = await resolveClipboardForNoteContent(
+				this.app,
+				this.destinationSourcePath,
+			);
+			this.resolvedClipboardContent = {
+				destinationSourcePath: this.destinationSourcePath,
+				value: resolvedContent,
+			};
+			return resolvedContent;
+		}
+
 		try {
 			return await navigator.clipboard.readText();
 		} catch {
