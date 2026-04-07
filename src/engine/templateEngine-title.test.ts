@@ -19,9 +19,16 @@ vi.mock('../formatters/completeFormatter', () => {
                 setDestinationSourcePath: vi.fn((path: string) => {
                     destinationSourcePath = path;
                 }),
+                clearDestinationContext: vi.fn(() => {
+                    destinationFile = null;
+                    destinationSourcePath = null;
+                }),
                 getTitle: () => title,
                 getDestinationFile: () => destinationFile,
                 getDestinationSourcePath: () => destinationSourcePath,
+                getAndClearTemplatePropertyVars: vi.fn(
+                    () => new Map<string, unknown>(),
+                ),
                 withTemplatePropertyCollection: vi.fn(
                     async (work: () => Promise<unknown>) => await work(),
                 ),
@@ -39,6 +46,7 @@ vi.mock('../formatters/completeFormatter', () => {
 vi.mock('../utilityObsidian', () => ({
     getTemplater: vi.fn(() => null),
     overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
+    templaterParseTemplate: vi.fn(async (_app, content: string) => content),
     resolveClipboardForNoteContent: vi.fn(async () => ""),
 }));
 
@@ -177,6 +185,13 @@ describe('TemplateEngine - Title Handling', () => {
 
             expect(engine.getFormatterDestinationSourcePath()).toBe('folder/TestDocument.md');
         });
+
+        it('should clear destination context for new non-markdown template output', async () => {
+            await engine.testCreateFileWithTemplate('folder/Kanban.base', 'template.base');
+
+            expect(engine.getFormatterDestinationSourcePath()).toBeNull();
+            expect(engine.getFormatterDestinationFile()).toBeNull();
+        });
     });
 
     describe('existing file template updates', () => {
@@ -201,6 +216,32 @@ describe('TemplateEngine - Title Handling', () => {
             await engine.testAppendToFileWithTemplate(existingFile, 'template.md', 'bottom');
 
             expect(engine.getFormatterDestinationFile()).toBe(existingFile);
+        });
+
+        it('should clear destination context before overwriting non-markdown template output', async () => {
+            const existingBaseFile = {
+                path: 'folder/Kanban.base',
+                basename: 'Kanban',
+                extension: 'base',
+            } as any;
+
+            await engine.testOverwriteFileWithTemplate(existingBaseFile, 'template.base');
+
+            expect(engine.getFormatterDestinationFile()).toBeNull();
+            expect(engine.getFormatterDestinationSourcePath()).toBeNull();
+        });
+
+        it('should clear destination context before appending non-markdown template output', async () => {
+            const existingCanvasFile = {
+                path: 'folder/Board.canvas',
+                basename: 'Board',
+                extension: 'canvas',
+            } as any;
+
+            await engine.testAppendToFileWithTemplate(existingCanvasFile, 'template.canvas', 'bottom');
+
+            expect(engine.getFormatterDestinationFile()).toBeNull();
+            expect(engine.getFormatterDestinationSourcePath()).toBeNull();
         });
     });
 

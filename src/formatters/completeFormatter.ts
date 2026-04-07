@@ -87,6 +87,11 @@ export class CompleteFormatter extends Formatter {
 		this.destinationSourcePath = path;
 	}
 
+	public clearDestinationContext(): void {
+		this.destinationSourcePath = null;
+		this.resolvedClipboardContent = null;
+	}
+
 	private async withClipboardContentScope<T>(work: () => Promise<T>): Promise<T> {
 		this.clipboardContentScopeDepth += 1;
 
@@ -416,7 +421,10 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getClipboardContent(): Promise<string> {
-		if (this.clipboardContentScopeDepth > 0) {
+		if (
+			this.clipboardContentScopeDepth > 0 &&
+			this.destinationSourcePath !== null
+		) {
 			if (
 				this.resolvedClipboardContent &&
 				this.resolvedClipboardContent.destinationSourcePath ===

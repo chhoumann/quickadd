@@ -93,6 +93,24 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		| Promise<string>
 		| Promise<{ file: TFile; content: string }>;
 
+	private setTemplateDestinationContext(filePath: string): void {
+		if (MARKDOWN_FILE_EXTENSION_REGEX.test(filePath)) {
+			this.formatter.setDestinationSourcePath(filePath);
+			return;
+		}
+
+		this.formatter.clearDestinationContext();
+	}
+
+	private setTemplateDestinationContextForFile(file: TFile): void {
+		if (MARKDOWN_FILE_EXTENSION_REGEX.test(file.path)) {
+			this.formatter.setDestinationFile(file);
+			return;
+		}
+
+		this.formatter.clearDestinationContext();
+	}
+
 	protected async getOrCreateFolder(
 		folders: string[],
 		options: FolderChoiceOptions = {},
@@ -478,7 +496,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Extract filename without extension from the full path.
 			const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			this.formatter.setTitle(fileBasename);
-			this.formatter.setDestinationSourcePath(filePath);
+			this.setTemplateDestinationContext(filePath);
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
@@ -538,7 +556,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
-			this.formatter.setDestinationFile(file);
+			this.setTemplateDestinationContextForFile(file);
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
@@ -586,7 +604,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
-			this.formatter.setDestinationFile(file);
+			this.setTemplateDestinationContextForFile(file);
 
 			let formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);

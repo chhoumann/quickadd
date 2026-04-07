@@ -186,6 +186,27 @@ describe("CompleteFormatter clipboard handling", () => {
 		expect(app.vault.createBinary).not.toHaveBeenCalled();
 	});
 
+	it("re-reads clipboard text on each call when no destination note context exists", async () => {
+		const { app } = createMockApp();
+		const formatter = new CompleteFormatter(app, createPlugin());
+
+		const readText = vi
+			.fn()
+			.mockResolvedValueOnce("first clipboard text")
+			.mockResolvedValueOnce("second clipboard text");
+		setClipboard({
+			readText,
+		});
+
+		const first = await formatter.formatFileContent("{{clipboard}}");
+		const second = await formatter.formatFileContent("{{clipboard}}");
+
+		expect(first).toBe("first clipboard text");
+		expect(second).toBe("second clipboard text");
+		expect(readText).toHaveBeenCalledTimes(2);
+		expect(app.vault.createBinary).not.toHaveBeenCalled();
+	});
+
 	it("imports a local clipboard image path as an attachment embed", async () => {
 		const { app } = createMockApp();
 		const formatter = new CompleteFormatter(app, createPlugin());
