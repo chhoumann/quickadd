@@ -227,6 +227,7 @@ export abstract class Formatter {
 
 	protected async replaceClipboardInString(input: string): Promise<string> {
 		let output: string = input;
+		if (!output.toLowerCase().includes("{{clipboard}}")) return output;
 
 		const clipboardContent = await this.getClipboardContent();
 

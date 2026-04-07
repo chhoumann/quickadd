@@ -86,6 +86,33 @@ describe("CompleteFormatter clipboard handling", () => {
 		expect(app.vault.createBinary).not.toHaveBeenCalled();
 	});
 
+	it("does not resolve clipboard content when the token is absent", async () => {
+		const { app } = createMockApp();
+		const formatter = new CompleteFormatter(app, createPlugin());
+		formatter.setDestinationSourcePath("Notes/Daily.md");
+
+		const readText = vi.fn().mockResolvedValue("clipboard text");
+		const read = vi.fn().mockResolvedValue([
+			{
+				types: ["image/png"],
+				getType: vi.fn().mockResolvedValue(
+					new Blob(["image-bytes"], { type: "image/png" }),
+				),
+			},
+		]);
+		setClipboard({
+			read,
+			readText,
+		});
+
+		const result = await formatter.formatFileContent("No clipboard token here");
+
+		expect(result).toBe("No clipboard token here");
+		expect(read).not.toHaveBeenCalled();
+		expect(readText).not.toHaveBeenCalled();
+		expect(app.vault.createBinary).not.toHaveBeenCalled();
+	});
+
 	it("saves a clipboard image attachment and returns an Obsidian embed", async () => {
 		const { app } = createMockApp();
 		const formatter = new CompleteFormatter(app, createPlugin());
@@ -200,6 +227,42 @@ describe("CompleteFormatter clipboard handling", () => {
 		expect(app.vault.createBinary).toHaveBeenCalledWith(
 			"Assets/pasted-image.png",
 			expect.any(ArrayBuffer),
+		);
+	});
+
+	it("imports a local .jpeg clipboard image path as an attachment embed", async () => {
+		const { app } = createMockApp();
+		const formatter = new CompleteFormatter(app, createPlugin());
+		formatter.setDestinationSourcePath("Notes/Daily.md");
+
+		const readFile = vi
+			.fn()
+			.mockResolvedValue(new Uint8Array([255, 216, 255, 224]));
+		setClipboard({
+			read: vi.fn().mockResolvedValue([]),
+			readText: vi
+				.fn()
+				.mockResolvedValue("/Users/christian/Library/Caches/Clop/images/85074.jpeg"),
+		});
+		setWindowRequire((id: string) => {
+			if (id === "fs") {
+				return {
+					existsSync: vi.fn().mockReturnValue(true),
+					promises: { readFile },
+				};
+			}
+			return undefined;
+		});
+
+		const result = await formatter.formatFileContent("{{clipboard}}");
+
+		expect(result).toBe("![[Assets/pasted-image.png]]");
+		expect(app.fileManager.getAvailablePathForAttachment).toHaveBeenCalledWith(
+			expect.stringMatching(/^Pasted image \d{8}-\d{6}\.jpeg$/),
+			"Notes/Daily.md",
+		);
+		expect(readFile).toHaveBeenCalledWith(
+			"/Users/christian/Library/Caches/Clop/images/85074.jpeg",
 		);
 	});
 

@@ -751,9 +751,10 @@ const CLIPBOARD_IMAGE_EXTENSIONS: Record<string, string> = {
 	"image/tiff": "tiff",
 };
 
-const CLIPBOARD_IMAGE_FILE_EXTENSIONS = new Set(
-	Object.values(CLIPBOARD_IMAGE_EXTENSIONS),
-);
+const CLIPBOARD_IMAGE_FILE_EXTENSIONS = new Set([
+	...Object.values(CLIPBOARD_IMAGE_EXTENSIONS),
+	"jpeg",
+]);
 
 function getClipboardImageExtension(mimeType: string): string | null {
 	return CLIPBOARD_IMAGE_EXTENSIONS[mimeType.toLowerCase()] ?? null;
