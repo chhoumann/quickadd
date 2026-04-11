@@ -33,13 +33,11 @@ import type { TFile } from "obsidian";
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
 	private destinationSourcePath: string | null = null;
-	private clipboardContentScopeDepth = 0;
-	private resolvedClipboardContent:
-		| {
-				destinationSourcePath: string | null;
-				value: string;
-		  }
-		| null = null;
+	private formattingFileContent = false;
+	private resolvedClipboardContent: {
+		destinationSourcePath: string;
+		value: string;
+	} | null = null;
 
 	constructor(
 		protected app: App,
@@ -92,16 +90,6 @@ export class CompleteFormatter extends Formatter {
 		this.resolvedClipboardContent = null;
 	}
 
-	private async withClipboardContentScope<T>(work: () => Promise<T>): Promise<T> {
-		this.clipboardContentScopeDepth += 1;
-
-		try {
-			return await work();
-		} finally {
-			this.clipboardContentScopeDepth -= 1;
-		}
-	}
-
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
 		let output = input;
 		// Allow nested globals up to a small recursion limit
@@ -134,7 +122,9 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatFileContent(input: string): Promise<string> {
-		return await this.withClipboardContentScope(async () => {
+		this.formattingFileContent = true;
+
+		try {
 			let output: string = input;
 
 			output = await this.format(output);
@@ -143,7 +133,9 @@ export class CompleteFormatter extends Formatter {
 			output = this.replaceTitleInString(output);
 
 			return output;
-		});
+		} finally {
+			this.formattingFileContent = false;
+		}
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
@@ -421,10 +413,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getClipboardContent(): Promise<string> {
-		if (
-			this.clipboardContentScopeDepth > 0 &&
-			this.destinationSourcePath !== null
-		) {
+		if (this.formattingFileContent && this.destinationSourcePath !== null) {
 			if (
 				this.resolvedClipboardContent &&
 				this.resolvedClipboardContent.destinationSourcePath ===

@@ -828,11 +828,12 @@ async function readBlobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 	return await new Response(blob).arrayBuffer();
 }
 
-function uint8ArrayToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-	return bytes.buffer.slice(
-		bytes.byteOffset,
-		bytes.byteOffset + bytes.byteLength,
-	);
+function absolutePathToFileUrl(absolutePath: string): string {
+	const forwardSlashPath = absolutePath.replace(/\\/g, "/");
+	const urlPath = forwardSlashPath.startsWith("/")
+		? forwardSlashPath
+		: `/${forwardSlashPath}`;
+	return `file://${urlPath}`;
 }
 
 function parseClipboardLocalImagePath(clipboardText: string): {
@@ -875,30 +876,13 @@ async function readClipboardLocalImagePath(
 	const imagePath = parseClipboardLocalImagePath(clipboardText);
 	if (!imagePath) return null;
 
-	const req =
-		typeof window !== "undefined" && typeof window.require === "function"
-			? window.require
-			: null;
-	if (!req) return null;
-
 	try {
-		const fs = req("fs") as {
-			existsSync?: (path: string) => boolean;
-			promises?: {
-				readFile?: (path: string) => Promise<Uint8Array>;
-			};
-		};
-		if (
-			typeof fs?.existsSync !== "function" ||
-			typeof fs.promises?.readFile !== "function"
-		) {
-			return null;
-		}
-		if (!fs.existsSync(imagePath.path)) return null;
+		const fileUrl = absolutePathToFileUrl(imagePath.path);
+		const response = await fetch(fileUrl);
+		if (!response.ok) return null;
 
-		const bytes = await fs.promises.readFile(imagePath.path);
 		return {
-			bytes: uint8ArrayToArrayBuffer(bytes),
+			bytes: await response.arrayBuffer(),
 			extension: imagePath.extension,
 		};
 	} catch (error) {

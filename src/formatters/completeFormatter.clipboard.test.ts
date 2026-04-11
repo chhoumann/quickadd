@@ -58,18 +58,26 @@ const setClipboard = (clipboard: Record<string, unknown>) => {
 	});
 };
 
-const setWindowRequire = (requireImpl?: (id: string) => unknown) => {
-	Object.defineProperty(window, "require", {
-		value: requireImpl,
-		configurable: true,
-		writable: true,
+const mockFetchForFile = (
+	bytes: Uint8Array,
+	opts?: { reject?: boolean },
+) => {
+	vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+		const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+		if (!url.startsWith("file://")) {
+			return new Response(null, { status: 404 });
+		}
+		if (opts?.reject) {
+			return new Response(null, { status: 404, statusText: "Not Found" });
+		}
+		return new Response(bytes, { status: 200 });
 	});
 };
 
 describe("CompleteFormatter clipboard handling", () => {
 	beforeEach(() => {
 		vi.useRealTimers();
-		setWindowRequire(undefined);
+		vi.restoreAllMocks();
 		setClipboard({
 			readText: vi.fn().mockResolvedValue("clipboard text"),
 		});
@@ -212,34 +220,20 @@ describe("CompleteFormatter clipboard handling", () => {
 		const formatter = new CompleteFormatter(app, createPlugin());
 		formatter.setDestinationSourcePath("Notes/Daily.md");
 
-		const readFile = vi
-			.fn()
-			.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
-		const existsSync = vi.fn().mockReturnValue(true);
+		const imageBytes = new Uint8Array([137, 80, 78, 71]);
+		mockFetchForFile(imageBytes);
 		setClipboard({
 			read: vi.fn().mockResolvedValue([]),
 			readText: vi
 				.fn()
 				.mockResolvedValue("/Users/christian/Library/Caches/Clop/images/85074.png"),
 		});
-		setWindowRequire((id: string) => {
-			if (id === "fs") {
-				return {
-					existsSync,
-					promises: { readFile },
-				};
-			}
-			return undefined;
-		});
 
 		const result = await formatter.formatFileContent("{{clipboard}}");
 
 		expect(result).toBe("![[Assets/pasted-image.png]]");
-		expect(existsSync).toHaveBeenCalledWith(
-			"/Users/christian/Library/Caches/Clop/images/85074.png",
-		);
-		expect(readFile).toHaveBeenCalledWith(
-			"/Users/christian/Library/Caches/Clop/images/85074.png",
+		expect(globalThis.fetch).toHaveBeenCalledWith(
+			"file:///Users/christian/Library/Caches/Clop/images/85074.png",
 		);
 		expect(app.fileManager.getAvailablePathForAttachment).toHaveBeenCalledWith(
 			expect.stringMatching(/^Pasted image \d{8}-\d{6}\.png$/),
@@ -256,23 +250,13 @@ describe("CompleteFormatter clipboard handling", () => {
 		const formatter = new CompleteFormatter(app, createPlugin());
 		formatter.setDestinationSourcePath("Notes/Daily.md");
 
-		const readFile = vi
-			.fn()
-			.mockResolvedValue(new Uint8Array([255, 216, 255, 224]));
+		const imageBytes = new Uint8Array([255, 216, 255, 224]);
+		mockFetchForFile(imageBytes);
 		setClipboard({
 			read: vi.fn().mockResolvedValue([]),
 			readText: vi
 				.fn()
 				.mockResolvedValue("/Users/christian/Library/Caches/Clop/images/85074.jpeg"),
-		});
-		setWindowRequire((id: string) => {
-			if (id === "fs") {
-				return {
-					existsSync: vi.fn().mockReturnValue(true),
-					promises: { readFile },
-				};
-			}
-			return undefined;
 		});
 
 		const result = await formatter.formatFileContent("{{clipboard}}");
@@ -282,8 +266,8 @@ describe("CompleteFormatter clipboard handling", () => {
 			expect.stringMatching(/^Pasted image \d{8}-\d{6}\.jpeg$/),
 			"Notes/Daily.md",
 		);
-		expect(readFile).toHaveBeenCalledWith(
-			"/Users/christian/Library/Caches/Clop/images/85074.jpeg",
+		expect(globalThis.fetch).toHaveBeenCalledWith(
+			"file:///Users/christian/Library/Caches/Clop/images/85074.jpeg",
 		);
 	});
 
@@ -292,23 +276,13 @@ describe("CompleteFormatter clipboard handling", () => {
 		const formatter = new CompleteFormatter(app, createPlugin());
 		formatter.setDestinationSourcePath("Notes/Daily.md");
 
-		const readFile = vi
-			.fn()
-			.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
+		const imageBytes = new Uint8Array([137, 80, 78, 71]);
+		mockFetchForFile(imageBytes);
 		setClipboard({
 			read: vi.fn().mockResolvedValue([]),
 			readText: vi
 				.fn()
 				.mockResolvedValue("/Users/christian/Library/Caches/Clop/images/85074.png"),
-		});
-		setWindowRequire((id: string) => {
-			if (id === "fs") {
-				return {
-					existsSync: vi.fn().mockReturnValue(true),
-					promises: { readFile },
-				};
-			}
-			return undefined;
 		});
 
 		const first = await formatter.formatFileContent("{{clipboard}}");
@@ -316,7 +290,8 @@ describe("CompleteFormatter clipboard handling", () => {
 
 		expect(first).toBe("![[Assets/pasted-image.png]]");
 		expect(second).toBe("![[Assets/pasted-image.png]]");
-		expect(readFile).toHaveBeenCalledOnce();
+		// fetch is called only once; second pass uses cached result
+		expect(globalThis.fetch).toHaveBeenCalledOnce();
 		expect(app.vault.createBinary).toHaveBeenCalledOnce();
 	});
 
@@ -325,27 +300,21 @@ describe("CompleteFormatter clipboard handling", () => {
 		const formatter = new CompleteFormatter(app, createPlugin());
 		formatter.setDestinationSourcePath("Notes/Daily.md");
 
-		const existsSync = vi.fn().mockReturnValue(false);
+		mockFetchForFile(new Uint8Array(), { reject: true });
 		setClipboard({
 			read: vi.fn().mockResolvedValue([]),
 			readText: vi
 				.fn()
 				.mockResolvedValue("/Users/christian/Library/Caches/Clop/images/85074.png"),
 		});
-		setWindowRequire((id: string) => {
-			if (id === "fs") {
-				return {
-					existsSync,
-					promises: { readFile: vi.fn() },
-				};
-			}
-			return undefined;
-		});
 
 		const result = await formatter.formatFileContent("{{clipboard}}");
 
 		expect(result).toBe(
 			"/Users/christian/Library/Caches/Clop/images/85074.png",
+		);
+		expect(globalThis.fetch).toHaveBeenCalledWith(
+			"file:///Users/christian/Library/Caches/Clop/images/85074.png",
 		);
 		expect(app.vault.createBinary).not.toHaveBeenCalled();
 	});
