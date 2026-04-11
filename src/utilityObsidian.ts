@@ -830,9 +830,13 @@ async function readBlobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 function absolutePathToFileUrl(absolutePath: string): string {
 	const forwardSlashPath = absolutePath.replace(/\\/g, "/");
-	const urlPath = forwardSlashPath.startsWith("/")
-		? forwardSlashPath
-		: `/${forwardSlashPath}`;
+	const segments = forwardSlashPath.split("/");
+	const encodedPath = segments
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
+	const urlPath = encodedPath.startsWith("/")
+		? encodedPath
+		: `/${encodedPath}`;
 	return `file://${urlPath}`;
 }
 
