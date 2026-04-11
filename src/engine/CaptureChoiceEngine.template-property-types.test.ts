@@ -132,6 +132,7 @@ vi.mock("../utilityObsidian", () => ({
 		openExistingFileTab: vi.fn().mockReturnValue(null),
 		openFile: vi.fn(),
 		overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
+		resolveClipboardForNoteContent: vi.fn(async () => ""),
 		templaterParseTemplate: vi.fn(async (_app, content) => content),
 		waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
 		getTemplater: vi.fn(() => ({})),

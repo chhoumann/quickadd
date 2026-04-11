@@ -740,6 +740,233 @@ export function insertFileLinkToActiveView(
 	return true;
 }
 
+const CLIPBOARD_IMAGE_EXTENSIONS: Record<string, string> = {
+	"image/png": "png",
+	"image/jpeg": "jpg",
+	"image/jpg": "jpg",
+	"image/webp": "webp",
+	"image/gif": "gif",
+	"image/svg+xml": "svg",
+	"image/bmp": "bmp",
+	"image/tiff": "tiff",
+};
+
+const CLIPBOARD_IMAGE_FILE_EXTENSIONS = new Set([
+	...Object.values(CLIPBOARD_IMAGE_EXTENSIONS),
+	"jpeg",
+]);
+
+function getClipboardImageExtension(mimeType: string): string | null {
+	return CLIPBOARD_IMAGE_EXTENSIONS[mimeType.toLowerCase()] ?? null;
+}
+
+function formatClipboardImageTimestamp(date: Date): string {
+	const pad = (value: number) => value.toString().padStart(2, "0");
+
+	return [
+		date.getFullYear(),
+		pad(date.getMonth() + 1),
+		pad(date.getDate()),
+		"-",
+		pad(date.getHours()),
+		pad(date.getMinutes()),
+		pad(date.getSeconds()),
+	].join("");
+}
+
+function getClipboardImageFileName(mimeType: string, now = new Date()): string | null {
+	const extension = getClipboardImageExtension(mimeType);
+	if (!extension) return null;
+
+	return `Pasted image ${formatClipboardImageTimestamp(now)}.${extension}`;
+}
+
+function getClipboardImageFileNameFromExtension(
+	extension: string,
+	now = new Date(),
+): string | null {
+	const normalizedExtension = extension.toLowerCase().replace(/^\./, "");
+	if (!CLIPBOARD_IMAGE_FILE_EXTENSIONS.has(normalizedExtension)) return null;
+
+	return `Pasted image ${formatClipboardImageTimestamp(now)}.${normalizedExtension}`;
+}
+
+async function readClipboardImageItem(): Promise<{
+	blob: Blob;
+	mimeType: string;
+} | null> {
+	if (!("clipboard" in navigator)) return null;
+	const clipboard = navigator.clipboard;
+	if (!("read" in clipboard) || typeof clipboard.read !== "function") return null;
+
+	try {
+		const clipboardItems = await clipboard.read();
+
+		for (const item of clipboardItems) {
+			const imageType = item.types.find((type) => {
+				return type.toLowerCase() in CLIPBOARD_IMAGE_EXTENSIONS;
+			});
+			if (!imageType) continue;
+
+			return {
+				blob: await item.getType(imageType),
+				mimeType: imageType,
+			};
+		}
+	} catch (error) {
+		log.logWarning(`Failed to inspect clipboard image content: ${error}`);
+	}
+
+	return null;
+}
+
+async function readBlobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+	if (typeof blob.arrayBuffer === "function") {
+		return await blob.arrayBuffer();
+	}
+
+	return await new Response(blob).arrayBuffer();
+}
+
+function absolutePathToFileUrl(absolutePath: string): string {
+	const forwardSlashPath = absolutePath.replace(/\\/g, "/");
+	const segments = forwardSlashPath.split("/");
+	const encodedPath = segments
+		.map((segment) => encodeURIComponent(segment))
+		.join("/");
+	const urlPath = encodedPath.startsWith("/")
+		? encodedPath
+		: `/${encodedPath}`;
+	return `file://${urlPath}`;
+}
+
+function parseClipboardLocalImagePath(clipboardText: string): {
+	path: string;
+	extension: string;
+} | null {
+	const trimmedText = clipboardText.trim();
+	if (!trimmedText || /\r|\n/.test(trimmedText)) return null;
+
+	let filePath = trimmedText;
+	if (trimmedText.startsWith("file://")) {
+		try {
+			const parsedUrl = new URL(trimmedText);
+			if (parsedUrl.protocol !== "file:") return null;
+			filePath = decodeURIComponent(parsedUrl.pathname);
+		} catch {
+			return null;
+		}
+	}
+
+	const isUnixAbsolutePath = filePath.startsWith("/");
+	const isWindowsAbsolutePath = /^[a-zA-Z]:[\\/]/.test(filePath);
+	if (!isUnixAbsolutePath && !isWindowsAbsolutePath) return null;
+
+	const extensionMatch = /\.([^.\\/]+)$/.exec(filePath);
+	if (!extensionMatch) return null;
+
+	const extension = extensionMatch[1].toLowerCase();
+	if (!CLIPBOARD_IMAGE_FILE_EXTENSIONS.has(extension)) return null;
+
+	return { path: filePath, extension };
+}
+
+async function readClipboardLocalImagePath(
+	clipboardText: string,
+): Promise<{
+	bytes: ArrayBuffer;
+	extension: string;
+} | null> {
+	const imagePath = parseClipboardLocalImagePath(clipboardText);
+	if (!imagePath) return null;
+
+	try {
+		const fileUrl = absolutePathToFileUrl(imagePath.path);
+		const response = await fetch(fileUrl);
+		if (!response.ok) return null;
+
+		return {
+			bytes: await response.arrayBuffer(),
+			extension: imagePath.extension,
+		};
+	} catch (error) {
+		log.logWarning(`Failed to read clipboard image path: ${error}`);
+		return null;
+	}
+}
+
+async function saveClipboardImageAttachment(
+	app: App,
+	destinationPath: string,
+	content: {
+		bytes: ArrayBuffer;
+		fileName: string;
+	},
+): Promise<string | null> {
+	try {
+		const attachmentPath = await app.fileManager.getAvailablePathForAttachment(
+			content.fileName,
+			destinationPath,
+		);
+		const attachmentFile = await app.vault.createBinary(
+			attachmentPath,
+			content.bytes,
+		);
+		const link = app.fileManager.generateMarkdownLink(
+			attachmentFile,
+			destinationPath,
+		);
+		return convertLinkToEmbed(link);
+	} catch (error) {
+		log.logWarning(`Failed to save clipboard image attachment: ${error}`);
+		return null;
+	}
+}
+
+export async function resolveClipboardForNoteContent(
+	app: App,
+	destinationPath?: string | null,
+): Promise<string> {
+	let clipboardText = "";
+
+	try {
+		clipboardText = await navigator.clipboard.readText();
+	} catch {
+		clipboardText = "";
+	}
+
+	if (destinationPath) {
+		const imageItem = await readClipboardImageItem();
+
+		if (imageItem) {
+			const fileName = getClipboardImageFileName(imageItem.mimeType);
+			if (fileName) {
+				const embed = await saveClipboardImageAttachment(app, destinationPath, {
+					fileName,
+					bytes: await readBlobArrayBuffer(imageItem.blob),
+				});
+				if (embed) return embed;
+			}
+		}
+
+		const localImagePath = await readClipboardLocalImagePath(clipboardText);
+		if (localImagePath) {
+			const fileName = getClipboardImageFileNameFromExtension(
+				localImagePath.extension,
+			);
+			if (fileName) {
+				const embed = await saveClipboardImageAttachment(app, destinationPath, {
+					fileName,
+					bytes: localImagePath.bytes,
+				});
+				if (embed) return embed;
+			}
+		}
+	}
+
+	return clipboardText;
+}
+
 export function findObsidianCommand(app: App, commandId: string) {
 	return app.commands.findCommand(commandId);
 }
@@ -1077,4 +1304,6 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 export const __test = {
 	convertLinkToEmbed,
 	extractMarkdownLinkTarget,
+	getClipboardImageExtension,
+	getClipboardImageFileName,
 } as const;

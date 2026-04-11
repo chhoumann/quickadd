@@ -4,6 +4,7 @@ import type ICaptureChoice from '../types/choices/ICaptureChoice';
 
 vi.mock('../utilityObsidian', () => ({
   templaterParseTemplate: vi.fn().mockResolvedValue(null),
+  resolveClipboardForNoteContent: vi.fn(async () => ''),
 }));
 
 vi.mock('../gui/InputPrompt', () => ({

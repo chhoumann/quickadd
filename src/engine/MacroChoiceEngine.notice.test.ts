@@ -44,7 +44,10 @@ vi.mock("../quickAddSettingsTab", () => {
 });
 
 vi.mock("../formatters/completeFormatter", () => ({
-	CompleteFormatter: class CompleteFormatterMock {},
+	CompleteFormatter: class CompleteFormatterMock {
+		setDestinationFile() {}
+		setDestinationSourcePath() {}
+	},
 }));
 
 vi.mock("obsidian-dataview", () => ({
