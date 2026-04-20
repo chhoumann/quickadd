@@ -352,15 +352,17 @@ describe("openFile", () => {
 		expect(tabLeaf.openFile).toHaveBeenCalledWith(file);
 	});
 
-	it("falls back to normal reuse behavior when no unpinned sibling exists", async () => {
+	it("falls back to a new tab for reuse when no unpinned sibling exists", async () => {
 		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
 		const pinnedSiblingLeaf = createLeaf("pinned-sibling", true);
 		const reuseLeaf = createLeaf("reuse");
+		const tabLeaf = createLeaf("tab");
 		const file = createFile();
 		const { app, getLeaf } = createApp({
 			rootLeaves: [pinnedOriginLeaf, pinnedSiblingLeaf],
 			originLeaf: pinnedOriginLeaf,
 			reuseLeaf,
+			tabLeaf,
 		});
 
 		const leaf = await openFile(app, file, {
@@ -368,9 +370,11 @@ describe("openFile", () => {
 			originLeaf: pinnedOriginLeaf,
 		});
 
-		expect(leaf).toBe(reuseLeaf);
-		expect(getLeaf).toHaveBeenCalledWith(false);
-		expect(reuseLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(leaf).toBe(tabLeaf);
+		expect(getLeaf).toHaveBeenCalledWith("tab");
+		expect(getLeaf).not.toHaveBeenCalledWith(false);
+		expect(tabLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(reuseLeaf.openFile).not.toHaveBeenCalled();
 	});
 
 	it("leaves explicit split behavior unchanged for pinned origins", async () => {

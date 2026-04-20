@@ -879,7 +879,7 @@ function resolveLeafForOpenFileLocation(
 			getRootLeaves(app),
 			originLeaf,
 		);
-		if (siblingLeaf) return siblingLeaf;
+		return siblingLeaf ?? app.workspace.getLeaf("tab");
 	}
 
 	switch (location) {
