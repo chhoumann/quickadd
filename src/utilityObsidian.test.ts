@@ -1,11 +1,109 @@
-import { describe, expect, it } from "vitest";
+import type { App, TFile, WorkspaceLeaf, WorkspaceParent } from "obsidian";
+import { describe, expect, it, vi } from "vitest";
 import {
 	__test,
 	areSameVaultFilePath,
 	normalizeVaultFilePath,
+	getOpenFileOriginLeaf,
+	openFile,
 } from "./utilityObsidian";
 
 const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
+
+type FakeLeaf = WorkspaceLeaf & {
+	id: string;
+	pinned?: boolean;
+	openFile: ReturnType<typeof vi.fn>;
+	getViewState: ReturnType<typeof vi.fn>;
+	setViewState: ReturnType<typeof vi.fn>;
+};
+
+function createLeaf(id: string, pinned = false): FakeLeaf {
+	const leaf = { id, pinned } as FakeLeaf;
+
+	leaf.openFile = vi.fn(async () => undefined);
+	leaf.getViewState = vi.fn(() => ({
+		type: "markdown",
+		state: { file: `${id}.md` },
+		...(leaf.pinned ? { pinned: true } : {}),
+	}));
+	leaf.setViewState = vi.fn(async () => undefined);
+
+	return leaf;
+}
+
+function createFile(path = "target.md"): TFile {
+	return { path } as TFile;
+}
+
+function setParent(leaf: FakeLeaf, parent: { id: string }): FakeLeaf {
+	(leaf as unknown as { parent: { id: string } }).parent = parent;
+	return leaf;
+}
+
+function createApp({
+	rootLeaves,
+	originLeaf,
+	activeLeaf = originLeaf,
+	mostRecentLeaf = originLeaf,
+	tabLeaf = createLeaf("tab"),
+	reuseLeaf = activeLeaf ?? tabLeaf,
+	splitLeaf = createLeaf("split"),
+	windowLeaf = createLeaf("window"),
+	leftSidebarLeaf = createLeaf("left-sidebar"),
+	rightSidebarLeaf = createLeaf("right-sidebar"),
+	rootSplit = { id: "root-split" } as unknown as WorkspaceParent,
+}: {
+	rootLeaves: FakeLeaf[];
+	originLeaf: FakeLeaf | null;
+	activeLeaf?: FakeLeaf | null;
+	mostRecentLeaf?: FakeLeaf | null;
+	tabLeaf?: FakeLeaf;
+	reuseLeaf?: FakeLeaf;
+	splitLeaf?: FakeLeaf;
+	windowLeaf?: FakeLeaf;
+	leftSidebarLeaf?: FakeLeaf;
+	rightSidebarLeaf?: FakeLeaf;
+	rootSplit?: WorkspaceParent | null;
+}) {
+	const getLeaf = vi.fn((location?: unknown) => {
+		if (location === "tab") return tabLeaf;
+		if (location === false) return reuseLeaf;
+		if (location === "split") return splitLeaf;
+		if (location === "window") return windowLeaf;
+		return reuseLeaf;
+	});
+	const setActiveLeaf = vi.fn();
+	const getMostRecentLeaf = vi.fn(() => mostRecentLeaf);
+	const iterateRootLeaves = vi.fn((callback: (leaf: WorkspaceLeaf) => void) => {
+		rootLeaves.forEach(callback);
+	});
+
+	const app = {
+		workspace: {
+			activeLeaf,
+			rootSplit,
+			getMostRecentLeaf,
+			getLeaf,
+			getLeftLeaf: vi.fn(() => leftSidebarLeaf),
+			getRightLeaf: vi.fn(() => rightSidebarLeaf),
+			iterateRootLeaves,
+			setActiveLeaf,
+		},
+		vault: {
+			getAbstractFileByPath: vi.fn(),
+		},
+	} as unknown as App;
+
+	return {
+		app,
+		getLeaf,
+		getMostRecentLeaf,
+		rootSplit,
+		iterateRootLeaves,
+		setActiveLeaf,
+	};
+}
 
 describe("convertLinkToEmbed", () => {
 	it("converts wiki links to embeds", () => {
@@ -73,6 +171,234 @@ describe("extractMarkdownLinkTarget", () => {
 
 	it("returns null for empty targets", () => {
 		expect(extractMarkdownLinkTarget("[Label]()")).toBeNull();
+	});
+});
+
+describe("getOpenFileOriginLeaf", () => {
+	it("captures the most recent root-split leaf before tab creation", () => {
+		const activeLeaf = createLeaf("active");
+		const originLeaf = createLeaf("source");
+		const { app, getMostRecentLeaf, rootSplit } = createApp({
+			rootLeaves: [originLeaf],
+			originLeaf: activeLeaf,
+			mostRecentLeaf: originLeaf,
+		});
+
+		expect(getOpenFileOriginLeaf(app)).toBe(originLeaf);
+		expect(getMostRecentLeaf).toHaveBeenCalledWith(rootSplit);
+	});
+
+	it("falls back to the most recent leaf when rootSplit is unavailable", () => {
+		const activeLeaf = createLeaf("active");
+		const originLeaf = createLeaf("source");
+		const { app, getMostRecentLeaf } = createApp({
+			rootLeaves: [originLeaf],
+			originLeaf: activeLeaf,
+			mostRecentLeaf: originLeaf,
+			rootSplit: null,
+		});
+
+		expect(getOpenFileOriginLeaf(app)).toBe(originLeaf);
+		expect(getMostRecentLeaf).toHaveBeenCalledWith();
+	});
+});
+
+describe("openFile", () => {
+	it("routes tab opens from a pinned origin into an unpinned sibling", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
+		const unpinnedSiblingLeaf = createLeaf("unpinned-sibling");
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf, setActiveLeaf } = createApp({
+			rootLeaves: [pinnedOriginLeaf, unpinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "tab",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(unpinnedSiblingLeaf);
+		expect(unpinnedSiblingLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(tabLeaf.openFile).not.toHaveBeenCalled();
+		expect(getLeaf).not.toHaveBeenCalledWith("tab");
+		expect(setActiveLeaf).toHaveBeenCalledWith(unpinnedSiblingLeaf, {
+			focus: true,
+		});
+	});
+
+	it("routes away from a transient leaf in the pinned origin's tab group", async () => {
+		const lockedGroup = { id: "locked-group" };
+		const rightGroup = { id: "right-group" };
+		const pinnedOriginLeaf = setParent(
+			createLeaf("pinned-origin", true),
+			lockedGroup,
+		);
+		const transientLeaf = setParent(createLeaf("transient"), lockedGroup);
+		const unpinnedSiblingLeaf = setParent(
+			createLeaf("unpinned-sibling"),
+			rightGroup,
+		);
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [transientLeaf, unpinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			activeLeaf: transientLeaf,
+			mostRecentLeaf: transientLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "tab",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(unpinnedSiblingLeaf);
+		expect(transientLeaf.openFile).not.toHaveBeenCalled();
+		expect(unpinnedSiblingLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(getLeaf).not.toHaveBeenCalledWith("tab");
+	});
+
+	it("routes reuse opens from a pinned origin into an unpinned sibling", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
+		const unpinnedSiblingLeaf = createLeaf("unpinned-sibling");
+		const reuseLeaf = createLeaf("reuse");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [pinnedOriginLeaf, unpinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			reuseLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "reuse",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(unpinnedSiblingLeaf);
+		expect(unpinnedSiblingLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(reuseLeaf.openFile).not.toHaveBeenCalled();
+		expect(getLeaf).not.toHaveBeenCalledWith(false);
+	});
+
+	it("treats nested view-state pinning as pinned navigation state", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin");
+		pinnedOriginLeaf.getViewState.mockReturnValue({
+			type: "markdown",
+			state: { file: "pinned-origin.md", pinned: true },
+		});
+		const unpinnedSiblingLeaf = createLeaf("unpinned-sibling");
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [pinnedOriginLeaf, unpinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "tab",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(unpinnedSiblingLeaf);
+		expect(unpinnedSiblingLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(tabLeaf.openFile).not.toHaveBeenCalled();
+		expect(getLeaf).not.toHaveBeenCalledWith("tab");
+	});
+
+	it("preserves normal tab behavior when the origin is not pinned", async () => {
+		const unpinnedOriginLeaf = createLeaf("origin");
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [unpinnedOriginLeaf],
+			originLeaf: unpinnedOriginLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "tab",
+			originLeaf: unpinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(tabLeaf);
+		expect(getLeaf).toHaveBeenCalledWith("tab");
+		expect(tabLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(unpinnedOriginLeaf.openFile).not.toHaveBeenCalled();
+	});
+
+	it("falls back to normal tab creation when no unpinned sibling exists", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
+		const pinnedSiblingLeaf = createLeaf("pinned-sibling", true);
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [pinnedOriginLeaf, pinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "tab",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(tabLeaf);
+		expect(getLeaf).toHaveBeenCalledWith("tab");
+		expect(tabLeaf.openFile).toHaveBeenCalledWith(file);
+	});
+
+	it("falls back to a new tab for reuse when no unpinned sibling exists", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
+		const pinnedSiblingLeaf = createLeaf("pinned-sibling", true);
+		const reuseLeaf = createLeaf("reuse");
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [pinnedOriginLeaf, pinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			reuseLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "reuse",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(tabLeaf);
+		expect(getLeaf).toHaveBeenCalledWith("tab");
+		expect(getLeaf).not.toHaveBeenCalledWith(false);
+		expect(tabLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(reuseLeaf.openFile).not.toHaveBeenCalled();
+	});
+
+	it("leaves explicit split behavior unchanged for pinned origins", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin", true);
+		const unpinnedSiblingLeaf = createLeaf("unpinned-sibling");
+		const splitLeaf = createLeaf("split");
+		const file = createFile();
+		const { app, getLeaf, iterateRootLeaves } = createApp({
+			rootLeaves: [pinnedOriginLeaf, unpinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			splitLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "split",
+			direction: "horizontal",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(splitLeaf);
+		expect(getLeaf).toHaveBeenCalledWith("split", "horizontal");
+		expect(iterateRootLeaves).not.toHaveBeenCalled();
+		expect(unpinnedSiblingLeaf.openFile).not.toHaveBeenCalled();
+		expect(splitLeaf.openFile).toHaveBeenCalledWith(file);
 	});
 });
 

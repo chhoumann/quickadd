@@ -1,5 +1,5 @@
 import type IMacroChoice from "../types/choices/IMacroChoice";
-import type { App } from "obsidian";
+import type { App, WorkspaceLeaf } from "obsidian";
 import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
@@ -159,6 +159,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		variables: Map<string, unknown>,
 		preloadedUserScripts?: Map<string, unknown>,
 		promptLabel?: string,
+		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
 		super(app);
 		this.choice = choice;
@@ -671,7 +672,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			const openOptions = buildOpenFileOptions(command);
 
-			await openFile(this.app, file, openOptions);
+			await openFile(this.app, file, {
+				...openOptions,
+				originLeaf: this.originLeaf,
+			});
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);
 		}

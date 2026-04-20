@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, WorkspaceLeaf } from "obsidian";
 import { TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import invariant from "src/utils/invariant";
@@ -37,6 +37,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		plugin: QuickAdd,
 		choice: ITemplateChoice,
 		choiceExecutor: IChoiceExecutor,
+		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
 		super(app, plugin, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
@@ -146,7 +147,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 
 				if (!openExistingTab) {
-					await openFile(this.app, createdFile, fileOpening);
+					await openFile(this.app, createdFile, {
+						...fileOpening,
+						originLeaf: this.originLeaf,
+					});
 				}
 
 				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);

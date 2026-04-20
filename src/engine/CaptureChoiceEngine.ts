@@ -1,4 +1,10 @@
-import { MarkdownView, Notice, type App, type TFile } from "obsidian";
+import {
+	MarkdownView,
+	Notice,
+	type App,
+	type TFile,
+	type WorkspaceLeaf,
+} from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
@@ -63,6 +69,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		plugin: QuickAdd,
 		choice: ICaptureChoice,
 		private choiceExecutor: IChoiceExecutor,
+		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
 		super(app);
 		this.choice = choice;
@@ -304,7 +311,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				const openExistingTab = openExistingFileTab(this.app, file, focus);
 
 				if (!openExistingTab) {
-					await openFile(this.app, file, fileOpening);
+					await openFile(this.app, file, {
+						...fileOpening,
+						originLeaf: this.originLeaf,
+					});
 				}
 
 				await jumpToNextTemplaterCursorIfPossible(this.app, file);
@@ -381,7 +391,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const openExistingTab = openExistingFileTab(this.app, file, focus);
 
 			if (!openExistingTab) {
-				await openFile(this.app, file, fileOpening);
+				await openFile(this.app, file, {
+					...fileOpening,
+					originLeaf: this.originLeaf,
+				});
 			}
 
 			await jumpToNextTemplaterCursorIfPossible(this.app, file);
