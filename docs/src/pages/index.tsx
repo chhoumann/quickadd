@@ -305,7 +305,10 @@ function Examples(): React.JSX.Element {
               <span className={styles.exampleIcon}>{e.icon}</span>
               <h3 className={styles.exampleTitle}>{e.title}</h3>
               <p className={styles.exampleDesc}>{e.description}</p>
-              <Link className={styles.exampleLink} to={e.href}>
+              <Link
+                className={styles.exampleLink}
+                to={e.href}
+                aria-label={`Learn how: ${e.title}`}>
                 Learn how →
               </Link>
             </article>

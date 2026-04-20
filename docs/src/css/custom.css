@@ -26,8 +26,13 @@
   --qa-ink-subtle: #71717a;
   --qa-line: rgba(24, 24, 27, 0.08);
   --qa-line-strong: rgba(24, 24, 27, 0.14);
-  --qa-accent: #7c6ef2;
+  /* Text/icon accent — darker shade for AA contrast on cream canvas (~5.4:1) */
+  --qa-accent: #5a4aec;
   --qa-accent-soft: rgba(124, 110, 242, 0.1);
+  /* Dedicated CTA tokens — white on #5a4aec passes AA at 5.68:1 */
+  --qa-cta-bg: #5a4aec;
+  --qa-cta-bg-hover: #4a38e9;
+  --qa-cta-fg: #ffffff;
 
   --ifm-font-family-base: 'InterVariable', 'Inter', system-ui, -apple-system,
     'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif,
@@ -60,6 +65,10 @@
   --qa-ink-muted: #a1a1aa;
   --qa-ink-subtle: #71717a;
   --qa-line: rgba(244, 244, 245, 0.08);
+  /* Button: keep #5a4aec so white text still passes AA; lighter on hover */
+  --qa-cta-bg: #5a4aec;
+  --qa-cta-bg-hover: #6b5cef;
+  --qa-cta-fg: #ffffff;
   --qa-line-strong: rgba(244, 244, 245, 0.14);
   --qa-accent: #a195f7;
   --qa-accent-soft: rgba(161, 149, 247, 0.14);

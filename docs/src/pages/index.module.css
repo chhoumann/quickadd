@@ -140,8 +140,8 @@
   align-items: center;
   justify-content: center;
   padding: 0.75rem 1.25rem;
-  background: var(--qa-accent);
-  color: #fff;
+  background: var(--qa-cta-bg);
+  color: var(--qa-cta-fg);
   font-weight: 600;
   font-size: 0.9375rem;
   border-radius: 10px;
@@ -154,9 +154,9 @@
 }
 
 .buttonPrimary:hover {
-  background: var(--ifm-color-primary-dark);
+  background: var(--qa-cta-bg-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(124, 110, 242, 0.28),
+  box-shadow: 0 4px 12px rgba(90, 74, 236, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
@@ -402,7 +402,9 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
-  margin-top: 0.5rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 @media (min-width: 768px) {
