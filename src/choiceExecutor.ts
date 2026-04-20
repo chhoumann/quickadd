@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, WorkspaceLeaf } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -14,6 +14,7 @@ import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { isCancellationError } from "./utils/errorUtils";
+import { getOpenFileOriginLeaf } from "./utilityObsidian";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -33,6 +34,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
+		const originLeaf = getOpenFileOriginLeaf(this.app);
 		// One-page preflight honoring per-choice override.
 		const globalEnabled = settingsStore.getState().onePageInputEnabled;
 		const override = choice.onePageInput;
@@ -63,17 +65,17 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			case "Template": {
 				const templateChoice: ITemplateChoice =
 					choice as ITemplateChoice;
-				await this.onChooseTemplateType(templateChoice);
+				await this.onChooseTemplateType(templateChoice, originLeaf);
 				break;
 			}
 			case "Capture": {
 				const captureChoice: ICaptureChoice = choice as ICaptureChoice;
-				await this.onChooseCaptureType(captureChoice);
+				await this.onChooseCaptureType(captureChoice, originLeaf);
 				break;
 			}
 			case "Macro": {
 				const macroChoice: IMacroChoice = choice as IMacroChoice;
-				await this.onChooseMacroType(macroChoice);
+				await this.onChooseMacroType(macroChoice, originLeaf);
 				break;
 			}
 			case "Multi": {
@@ -87,32 +89,44 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async onChooseTemplateType(
-		templateChoice: ITemplateChoice
+		templateChoice: ITemplateChoice,
+		originLeaf: WorkspaceLeaf | null,
 	): Promise<void> {
 		await new TemplateChoiceEngine(
 			this.app,
 			this.plugin,
 			templateChoice,
-			this
+			this,
+			originLeaf,
 		).run();
 	}
 
-	private async onChooseCaptureType(captureChoice: ICaptureChoice) {
+	private async onChooseCaptureType(
+		captureChoice: ICaptureChoice,
+		originLeaf: WorkspaceLeaf | null,
+	) {
 		await new CaptureChoiceEngine(
 			this.app,
 			this.plugin,
 			captureChoice,
-			this
+			this,
+			originLeaf,
 		).run();
 	}
 
-	private async onChooseMacroType(macroChoice: IMacroChoice) {
+	private async onChooseMacroType(
+		macroChoice: IMacroChoice,
+		originLeaf: WorkspaceLeaf | null,
+	) {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
 			macroChoice,
 			this,
-			this.variables
+			this.variables,
+			undefined,
+			undefined,
+			originLeaf,
 		);
 		await macroEngine.run();
 

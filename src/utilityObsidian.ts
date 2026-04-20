@@ -3,6 +3,7 @@ import type {
 	CachedMetadata,
 	TAbstractFile,
 	WorkspaceLeaf,
+	WorkspaceParent,
 } from "obsidian";
 import { FileView, MarkdownView, normalizePath, TFile, TFolder } from "obsidian";
 import { log } from "./logger/logManager";
@@ -779,7 +780,121 @@ export type OpenLocation = FileOpenLocation;
 export type FileViewMode2 = FileViewModeNew;
 export type OpenFileOptions = FileOpenOptions;
 
+export type OpenFileRuntimeOptions = FileOpenOptions & {
+	/**
+	 * Transient origin leaf captured before Obsidian creates a new tab.
+	 * This is intentionally not persisted in choice settings.
+	 */
+	originLeaf?: WorkspaceLeaf | null;
+};
 
+type PinnedLeafViewState = {
+	pinned?: boolean;
+	state?: { pinned?: boolean };
+};
+
+type PinnedLeaf = WorkspaceLeaf & {
+	pinned?: boolean;
+};
+
+type WorkspaceWithOriginLeaf = App["workspace"] & {
+	activeLeaf?: WorkspaceLeaf | null;
+	rootSplit?: WorkspaceParent;
+	getMostRecentLeaf?: (root?: WorkspaceParent) => WorkspaceLeaf | null;
+};
+
+function isLeafPinnedForNavigation(
+	leaf: WorkspaceLeaf | null | undefined,
+): boolean {
+	if (!leaf) return false;
+
+	const pinnedLeaf = leaf as PinnedLeaf;
+	const viewState = pinnedLeaf.getViewState?.() as
+		| PinnedLeafViewState
+		| undefined;
+
+	return !!pinnedLeaf.pinned || !!viewState?.pinned;
+}
+
+export function getOpenFileOriginLeaf(app: App): WorkspaceLeaf | null {
+	const workspace = app.workspace as WorkspaceWithOriginLeaf;
+	const rootLeaf = workspace.rootSplit
+		? workspace.getMostRecentLeaf?.(workspace.rootSplit)
+		: null;
+
+	return rootLeaf ?? workspace.getMostRecentLeaf?.() ?? workspace.activeLeaf ?? null;
+}
+
+function getRootLeaves(app: App): WorkspaceLeaf[] {
+	const leaves: WorkspaceLeaf[] = [];
+	app.workspace.iterateRootLeaves((leaf: WorkspaceLeaf) => {
+		if (!leaves.includes(leaf)) leaves.push(leaf);
+	});
+	return leaves;
+}
+
+function getLeafParentId(leaf: WorkspaceLeaf): unknown {
+	return (leaf.parent as { id?: unknown } | undefined)?.id ?? leaf.parent ?? null;
+}
+
+function findUnpinnedNavigableSibling(
+	rootLeaves: WorkspaceLeaf[],
+	originLeaf: WorkspaceLeaf,
+): WorkspaceLeaf | null {
+	const originParentId = getLeafParentId(originLeaf);
+	const candidates = rootLeaves.filter((leaf) => {
+		if (leaf === originLeaf || isLeafPinnedForNavigation(leaf)) return false;
+		return originParentId === null || getLeafParentId(leaf) !== originParentId;
+	});
+	if (candidates.length === 0) return null;
+
+	const originIndex = rootLeaves.indexOf(originLeaf);
+	const orderedLeaves =
+		originIndex === -1
+			? rootLeaves
+			: [
+					...rootLeaves.slice(originIndex + 1),
+					...rootLeaves.slice(0, originIndex),
+				];
+
+	return orderedLeaves.find((leaf) => candidates.includes(leaf)) ?? candidates[0];
+}
+
+function resolveLeafForOpenFileLocation(
+	app: App,
+	location: FileOpenLocation,
+	direction: FileOpenOptions["direction"],
+	originLeaf: WorkspaceLeaf | null,
+): WorkspaceLeaf | null {
+	if (
+		originLeaf &&
+		(location === "tab" || location === "reuse") &&
+		isLeafPinnedForNavigation(originLeaf)
+	) {
+		const siblingLeaf = findUnpinnedNavigableSibling(
+			getRootLeaves(app),
+			originLeaf,
+		);
+		if (siblingLeaf) return siblingLeaf;
+	}
+
+	switch (location) {
+		case "reuse":
+			return app.workspace.getLeaf(false);
+		case "tab":
+			return app.workspace.getLeaf("tab");
+		case "split":
+			return app.workspace.getLeaf("split", direction);
+		case "window":
+			return app.workspace.getLeaf("window");
+		case "left-sidebar":
+			return app.workspace.getLeftLeaf(true);
+		case "right-sidebar":
+			return app.workspace.getRightLeaf(true);
+		default:
+			return app.workspace.getLeaf("tab");
+	}
+}
 
 /**
  * Open a file (by TFile or vault path) with precise control over location and mode.
@@ -808,7 +923,7 @@ export type OpenFileOptions = FileOpenOptions;
 export async function openFile(
 	app: App,
 	fileOrPath: TFile | string,
-	options: FileOpenOptions = {}
+	options: OpenFileRuntimeOptions = {}
 ): Promise<WorkspaceLeaf> {
 	const {
 		location = "tab",
@@ -816,6 +931,7 @@ export async function openFile(
 		mode,
 		focus = true,
 		eState,
+		originLeaf,
 	} = options;
 
 	const file =
@@ -825,30 +941,13 @@ export async function openFile(
 
 	if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
 
-	// Resolve a target leaf for all supported locations
-	let leaf: WorkspaceLeaf | null;
-	switch (location) {
-		case "reuse":
-			leaf = app.workspace.getLeaf(false);
-			break;
-		case "tab":
-			leaf = app.workspace.getLeaf("tab");
-			break;
-		case "split":
-			leaf = app.workspace.getLeaf("split", direction);
-			break;
-		case "window":
-			leaf = app.workspace.getLeaf("window");
-			break;
-		case "left-sidebar":
-			leaf = app.workspace.getLeftLeaf(true);
-			break;
-		case "right-sidebar":
-			leaf = app.workspace.getRightLeaf(true);
-			break;
-		default:
-			leaf = app.workspace.getLeaf("tab");
-	}
+	const openOriginLeaf = originLeaf ?? getOpenFileOriginLeaf(app);
+	const leaf = resolveLeafForOpenFileLocation(
+		app,
+		location,
+		direction,
+		openOriginLeaf,
+	);
 	if (!leaf) throw new Error("Could not obtain a workspace leaf.");
 
 	// Open the file
