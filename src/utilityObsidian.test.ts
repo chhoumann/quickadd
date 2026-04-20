@@ -284,6 +284,32 @@ describe("openFile", () => {
 		expect(getLeaf).not.toHaveBeenCalledWith(false);
 	});
 
+	it("treats nested view-state pinning as pinned navigation state", async () => {
+		const pinnedOriginLeaf = createLeaf("pinned-origin");
+		pinnedOriginLeaf.getViewState.mockReturnValue({
+			type: "markdown",
+			state: { file: "pinned-origin.md", pinned: true },
+		});
+		const unpinnedSiblingLeaf = createLeaf("unpinned-sibling");
+		const tabLeaf = createLeaf("tab");
+		const file = createFile();
+		const { app, getLeaf } = createApp({
+			rootLeaves: [pinnedOriginLeaf, unpinnedSiblingLeaf],
+			originLeaf: pinnedOriginLeaf,
+			tabLeaf,
+		});
+
+		const leaf = await openFile(app, file, {
+			location: "tab",
+			originLeaf: pinnedOriginLeaf,
+		});
+
+		expect(leaf).toBe(unpinnedSiblingLeaf);
+		expect(unpinnedSiblingLeaf.openFile).toHaveBeenCalledWith(file);
+		expect(tabLeaf.openFile).not.toHaveBeenCalled();
+		expect(getLeaf).not.toHaveBeenCalledWith("tab");
+	});
+
 	it("preserves normal tab behavior when the origin is not pinned", async () => {
 		const unpinnedOriginLeaf = createLeaf("origin");
 		const tabLeaf = createLeaf("tab");

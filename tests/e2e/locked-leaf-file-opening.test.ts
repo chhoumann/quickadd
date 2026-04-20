@@ -35,6 +35,7 @@ type LayoutResult = {
 	leftParentId?: string | null;
 	leftPinned?: boolean;
 	rightLeafId?: string;
+	rightParentId?: string | null;
 };
 
 type OpenResult = {
@@ -52,6 +53,10 @@ type OpenResult = {
 		parentId: string | null;
 	} | null;
 	targetTabsInOriginGroup: number;
+};
+
+type ScenarioResult = OpenResult & {
+	rightParentId: string | null;
 };
 
 function macroOpenFileChoice(id: string, targetPath: string, location: "tab" | "reuse") {
@@ -144,6 +149,7 @@ window.${globalName} = { ok: false };
 			leftParentId: leftLeaf.parent?.id ?? null,
 			leftPinned: !!leftLeaf.pinned || !!leftLeaf.getViewState?.()?.pinned,
 			rightLeafId: rightLeaf.id ?? null,
+			rightParentId: rightLeaf.parent?.id ?? null,
 		};
 	} catch (error) {
 		window.${globalName} = {
@@ -191,10 +197,11 @@ function inspectOpenResultCode({
 	const activeViewState = activeLeaf?.getViewState?.();
 	const activeLeafShowsTarget =
 		activeLeaf?.view?.file?.path === targetPath || activeViewState?.state?.file === targetPath;
-	const targetLeaf =
-		targetLeaves.find((leaf) => (leaf.parent?.id ?? null) !== originParentId) ??
-		targetLeaves[0] ??
-		(activeLeafShowsTarget ? activeLeaf : null);
+	const targetLeaf = activeLeafShowsTarget
+		? activeLeaf
+		: targetLeaves.find((leaf) => (leaf.parent?.id ?? null) !== originParentId) ??
+			targetLeaves[0] ??
+			null;
 
 	return {
 		activeFile: app.workspace.getActiveFile()?.path ?? null,
@@ -211,7 +218,9 @@ function inspectOpenResultCode({
 `;
 }
 
-async function runOpenFileScenario(location: "tab" | "reuse") {
+async function runOpenFileScenario(
+	location: "tab" | "reuse",
+): Promise<ScenarioResult> {
 	const id = `${TEST_PREFIX}${location}`;
 	const leftPath = sandbox.path(`${location}-left-locked.md`);
 	const rightPath = sandbox.path(`${location}-right-unlocked.md`);
@@ -234,6 +243,7 @@ async function runOpenFileScenario(location: "tab" | "reuse") {
 	const layout = await waitForEvalResult<LayoutResult>(layoutGlobal);
 	expect(layout.leftLeafId).toBeTruthy();
 	expect(layout.leftPinned).toBe(true);
+	expect(layout.rightParentId).toBeTruthy();
 
 	await obsidian.command(`quickadd:choice:${id}`).run();
 	await obsidian.waitFor(async () => {
@@ -248,7 +258,7 @@ async function runOpenFileScenario(location: "tab" | "reuse") {
 		return result.activeFile === targetPath ? result : false;
 	}, WAIT_OPTS);
 
-	return await obsidian.dev.evalJson<OpenResult>(
+	const result = await obsidian.dev.evalJson<OpenResult>(
 		inspectOpenResultCode({
 			originLeafId: layout.leftLeafId as string,
 			originParentId: layout.leftParentId ?? null,
@@ -256,6 +266,11 @@ async function runOpenFileScenario(location: "tab" | "reuse") {
 			targetPath,
 		}),
 	);
+
+	return {
+		...result,
+		rightParentId: layout.rightParentId ?? null,
+	};
 }
 
 async function runTeardownStep(
@@ -323,6 +338,7 @@ describe("issue 1165: file opening from locked split panes", () => {
 
 		expect(result.origin).toMatchObject({ pinned: true });
 		expect(result.targetLeaf).toMatchObject({ pinned: false });
+		expect(result.targetLeaf?.parentId).toBe(result.rightParentId);
 		expect(result.targetLeaf?.parentId).not.toBe(result.origin.parentId);
 		expect(result.targetTabsInOriginGroup).toBe(0);
 	});
@@ -332,6 +348,7 @@ describe("issue 1165: file opening from locked split panes", () => {
 
 		expect(result.origin).toMatchObject({ pinned: true });
 		expect(result.targetLeaf).toMatchObject({ pinned: false });
+		expect(result.targetLeaf?.parentId).toBe(result.rightParentId);
 		expect(result.targetLeaf?.parentId).not.toBe(result.origin.parentId);
 		expect(result.targetTabsInOriginGroup).toBe(0);
 	});

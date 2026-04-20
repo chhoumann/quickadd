@@ -813,7 +813,11 @@ function isLeafPinnedForNavigation(
 		| PinnedLeafViewState
 		| undefined;
 
-	return !!pinnedLeaf.pinned || !!viewState?.pinned;
+	return (
+		!!pinnedLeaf.pinned ||
+		!!viewState?.pinned ||
+		!!viewState?.state?.pinned
+	);
 }
 
 export function getOpenFileOriginLeaf(app: App): WorkspaceLeaf | null {
