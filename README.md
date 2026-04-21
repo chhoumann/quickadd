@@ -1,4 +1,7 @@
-# QuickAdd
+<p align="center">
+  <img src="assets/quickadd-logo.png" alt="QuickAdd for Obsidian" width="520" />
+</p>
+
 QuickAdd is a powerful combination of four tools (called choices): templates, captures, macros, and multis.
 
 A [**Template**](https://quickadd.obsidian.guide/docs/Choices/TemplateChoice) is a definition of how to create a new note, and composes with Obsidian's own Templates core plugin or community template plugins. For example, it would allow you to define a quick action to create a new note in a particular location, with a templatized title, and templated content.

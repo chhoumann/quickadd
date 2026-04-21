@@ -80,8 +80,13 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: 'img/quickadd-logo.png',
       navbar: {
         title: 'QuickAdd',
+        logo: {
+          alt: 'QuickAdd',
+          src: 'img/quickadd-icon.png',
+        },
         items: [
           {
             type: 'docsVersionDropdown',
