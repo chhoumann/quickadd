@@ -228,6 +228,12 @@ function Hero(): React.JSX.Element {
   return (
     <header className={styles.hero}>
       <div className={styles.container}>
+        <img
+          src="/img/quickadd-icon.png"
+          alt=""
+          className={styles.heroLogo}
+          aria-hidden="true"
+        />
         <div className={styles.eyebrow}>For Obsidian</div>
         <Heading as="h1" className={styles.heroTitle}>
           Supercharge Obsidian with one hotkey.

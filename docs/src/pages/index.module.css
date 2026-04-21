@@ -52,6 +52,13 @@
   z-index: 1;
 }
 
+.heroLogo {
+  display: block;
+  height: 96px;
+  width: auto;
+  margin: 0 auto 1.5rem;
+}
+
 .eyebrow {
   font-size: 0.8125rem;
   font-weight: 600;
