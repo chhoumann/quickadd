@@ -280,8 +280,12 @@ function Features(): React.JSX.Element {
         <dl className={styles.features}>
           {features.map((f) => (
             <div className={styles.feature} key={f.title}>
-              <span className={styles.featureIcon}>{f.icon}</span>
-              <dt className={styles.featureTitle}>{f.title}</dt>
+              <dt className={styles.featureTitle}>
+                <span className={styles.featureIcon} aria-hidden="true">
+                  {f.icon}
+                </span>
+                <span className={styles.featureTitleText}>{f.title}</span>
+              </dt>
               <dd className={styles.featureDesc}>{f.description}</dd>
             </div>
           ))}
