@@ -1,8 +1,15 @@
 # User Scripts
 
+:::tip New to scripting?
+
+Start with the [Scripting Overview](./Advanced/ScriptingGuide) for the
+decision path, then use this page as the detailed reference.
+
+:::
+
 User scripts are JavaScript files that extend QuickAdd's functionality with custom code. They can be used within macros to perform complex operations, integrate with external APIs, and automate sophisticated workflows.
 
-> 📚 **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
+> **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
 
 ## Basic Structure
 

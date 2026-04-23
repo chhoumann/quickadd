@@ -103,7 +103,8 @@ When append-link is set to **Enabled (requires active file)** and capture runs
 from a Canvas card without a focused Markdown editor, the capture still writes
 and link insertion is skipped.
 
-A dedicated Canvas walkthrough page will return in a future update.
+For a step-by-step setup, see
+[Capture: Canvas Capture](../Examples/Capture_CanvasCapture).
 
 ### Canvas Capture FAQ
 
