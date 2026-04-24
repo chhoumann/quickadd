@@ -184,7 +184,7 @@
   margin-top: 0.45rem;
 }
 
-.previewChoice:first-of-type,
+.previewChoice:nth-child(2),
 .previewResult:first-child {
   background: var(--qa-accent-soft);
   border-color: var(--qa-line-strong);
