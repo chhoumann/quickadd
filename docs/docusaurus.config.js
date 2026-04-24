@@ -63,13 +63,7 @@ const config = {
               : {}),
           },
         },
-        blog: {
-          showReadingTime: true,
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          // editUrl:
-          //   'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-        },
+        blog: false,
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },
@@ -94,22 +88,25 @@ const config = {
             dropdownActiveClassDisabled: true,
           },
           {
-            type: 'doc',
+            type: 'custom-versionAwareDoc',
             docId: 'index',
             position: 'left',
-            label: '📚 Docs',
+            label: 'Docs',
+            activeBaseRegex: '^/docs/(next/|[0-9.]+/)?(?!(Advanced/APIOverview|QuickAddAPI|Examples/)).*',
           },
           {
-            type: 'doc',
+            type: 'custom-versionAwareDoc',
             docId: 'QuickAddAPI',
             position: 'left',
-            label: '🔧 API',
+            label: 'API',
+            activeBaseRegex: '^/docs/(next/|[0-9.]+/)?(Advanced/APIOverview|QuickAddAPI)/?$',
           },
           {
-            type: 'doc',
+            type: 'custom-versionAwareDoc',
             docId: 'Examples/Macro_BookFinder',
             position: 'left',
-            label: '💡 Examples',
+            label: 'Examples',
+            activeBaseRegex: '^/docs/(next/|[0-9.]+/)?Examples/',
           },
           {
             href: 'https://github.com/chhoumann/quickadd',
@@ -162,6 +159,7 @@ const config = {
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
         docsRouteBasePath: "/docs",
+        indexBlog: false,
         searchBarShortcutHint: false,
       },
     ],

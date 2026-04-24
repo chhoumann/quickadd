@@ -96,7 +96,6 @@ pre {
 .menu__link--active {
   background-color: var(--qa-accent-soft);
   color: var(--ifm-color-primary);
-  font-weight: 600;
 }
 
 .navbar {

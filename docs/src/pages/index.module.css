@@ -27,7 +27,7 @@
    ────────────────────────────────────────────────────────── */
 
 .hero {
-  padding: clamp(5rem, 10vw, 8rem) 0 clamp(4rem, 8vw, 6.5rem);
+  padding: clamp(3.75rem, 8vw, 5.5rem) 0 clamp(3rem, 6vw, 4rem);
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -54,9 +54,9 @@
 
 .heroLogo {
   display: block;
-  height: 96px;
+  height: 76px;
   width: auto;
-  margin: 0 auto 1.5rem;
+  margin: 0 auto 1.25rem;
 }
 
 .eyebrow {
@@ -68,7 +68,7 @@
 }
 
 .heroTitle {
-  font-size: clamp(2.5rem, 5.5vw + 0.5rem, 4rem);
+  font-size: clamp(2.4rem, 5vw + 0.5rem, 4rem);
   line-height: 1.05;
   font-weight: 600;
   letter-spacing: -0.028em;
@@ -92,7 +92,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  margin-top: 2.25rem;
+  margin-top: 2rem;
   flex-wrap: wrap;
 }
 
@@ -100,13 +100,168 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 2.5rem;
+  margin-top: 1rem;
   padding: 0.5rem 0.875rem;
   background: var(--qa-canvas-raised);
   border: 1px solid var(--qa-line);
   border-radius: 999px;
   font-size: 0.8125rem;
   color: var(--qa-ink-muted);
+}
+
+.workflowPreview {
+  max-width: 920px;
+  margin: 2rem auto 0;
+  overflow: hidden;
+  text-align: left;
+  background: var(--qa-canvas-raised);
+  border: 1px solid var(--qa-line-strong);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(24, 24, 27, 0.12);
+}
+
+.previewChrome {
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--qa-line);
+}
+
+.previewChrome span {
+  width: 0.68rem;
+  height: 0.68rem;
+  border-radius: 999px;
+  background: var(--qa-line-strong);
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.2fr 1fr;
+  min-height: 250px;
+}
+
+.previewSidebar,
+.previewCommand,
+.previewNote {
+  padding: 1rem;
+}
+
+.previewSidebar,
+.previewCommand {
+  border-right: 1px solid var(--qa-line);
+}
+
+.previewSidebar {
+  background: var(--qa-canvas);
+  background: color-mix(in srgb, var(--qa-canvas) 72%, var(--qa-canvas-raised));
+}
+
+.previewSidebarTitle,
+.previewCommandLabel,
+.previewNoteTitle {
+  margin-bottom: 0.8rem;
+  color: var(--qa-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.previewChoice,
+.previewResult {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  color: var(--qa-ink);
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.previewChoice + .previewChoice,
+.previewResult + .previewResult {
+  margin-top: 0.45rem;
+}
+
+.previewChoice:nth-child(2),
+.previewResult:first-child {
+  background: var(--qa-accent-soft);
+  border-color: var(--qa-line-strong);
+}
+
+.previewChoiceType,
+.previewResult span:last-child {
+  color: var(--qa-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.previewSearch {
+  margin-bottom: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  color: var(--qa-ink);
+  background: var(--qa-canvas);
+  border: 1px solid var(--qa-line-strong);
+  border-radius: 9px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+}
+
+.previewLine,
+.previewLineShort {
+  height: 0.7rem;
+  background: var(--qa-line);
+  border-radius: 999px;
+}
+
+.previewLine {
+  width: 88%;
+}
+
+.previewLineShort {
+  width: 58%;
+  margin-top: 0.75rem;
+}
+
+.previewCapture {
+  margin-top: 1.2rem;
+  padding: 0.85rem;
+  background: var(--qa-canvas);
+  border: 1px solid var(--qa-line);
+  border-radius: 10px;
+}
+
+.previewCapture span {
+  color: var(--qa-accent);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.previewCapture p {
+  margin: 0.45rem 0 0;
+  color: var(--qa-ink-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  .workflowPreview {
+    margin-top: 1.5rem;
+  }
+
+  .previewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .previewSidebar,
+  .previewCommand {
+    border-right: 0;
+    border-bottom: 1px solid var(--qa-line);
+  }
 }
 
 .kbd {
@@ -473,6 +628,8 @@
   margin-top: 3rem;
   display: flex;
   justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 /* ──────────────────────────────────────────────────────────

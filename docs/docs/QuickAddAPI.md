@@ -2,6 +2,13 @@
 
 The QuickAdd API provides a powerful interface for automating tasks in Obsidian through scripts, macros, and inline scripts. The API offers methods for user interaction, file manipulation, AI integration, and more.
 
+:::tip Start with the overview
+
+If you are choosing which API surface to use, read the
+[API Overview](./Advanced/APIOverview) first. This page is the full reference.
+
+:::
+
 ## Accessing the API
 
 The API can be accessed in several ways:

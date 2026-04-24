@@ -211,7 +211,7 @@ const steps = [
   {
     title: 'Create a choice',
     description:
-      'Open settings and add a Template, Capture, or Macro — or combine them into a Multi.',
+      'Pick Template, Capture, Macro, or Multi based on what you want to automate.',
   },
   {
     title: 'Hit your hotkey',
@@ -220,9 +220,71 @@ const steps = [
   },
 ];
 
+const workflowRows = [
+  {
+    type: 'Capture',
+    label: 'Daily log',
+    detail: 'Append a timestamped entry to today\u2019s note.',
+  },
+  {
+    type: 'Template',
+    label: 'Meeting note',
+    detail: 'Create a note with variables, prompts, and properties.',
+  },
+  {
+    type: 'Macro',
+    label: 'Book lookup',
+    detail: 'Fetch metadata, write a note, and open it in place.',
+  },
+];
+
 // ──────────────────────────────────────────────────────────
 // Sections
 // ──────────────────────────────────────────────────────────
+
+function WorkflowPreview(): React.JSX.Element {
+  return (
+    <div className={styles.workflowPreview} aria-label="QuickAdd workflow preview">
+      <div className={styles.previewChrome}>
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className={styles.previewGrid}>
+        <div className={styles.previewSidebar}>
+          <div className={styles.previewSidebarTitle}>QuickAdd</div>
+          {workflowRows.map((row) => (
+            <div className={styles.previewChoice} key={row.label}>
+              <span className={styles.previewChoiceType}>{row.type}</span>
+              <span>{row.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className={styles.previewCommand}>
+          <div className={styles.previewCommandLabel}>Command palette</div>
+          <div className={styles.previewSearch}>QuickAdd: Run Choice</div>
+          <div className={styles.previewResults}>
+            {workflowRows.map((row) => (
+              <div className={styles.previewResult} key={row.label}>
+                <span>{row.label}</span>
+                <span>{row.type}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={styles.previewNote}>
+          <div className={styles.previewNoteTitle}>Daily note</div>
+          <div className={styles.previewLine} />
+          <div className={styles.previewLineShort} />
+          <div className={styles.previewCapture}>
+            <span>10:42</span>
+            <p>Captured idea with source link and project tag.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Hero(): React.JSX.Element {
   return (
@@ -239,7 +301,7 @@ function Hero(): React.JSX.Element {
           Supercharge Obsidian with one hotkey.
         </Heading>
         <p className={styles.heroSubtitle}>
-          Templates, captures, macros, and AI — bound to a single command.
+          Templates, captures, macros, and AI, bound to a single command.
           QuickAdd turns repetitive note-taking tasks into keystrokes.
         </p>
         <div className={styles.heroActions}>
@@ -249,13 +311,14 @@ function Hero(): React.JSX.Element {
           <Link
             className={styles.buttonSecondary}
             to="https://obsidian.md/plugins?id=quickadd">
-            Install from Obsidian →
+            Install from Obsidian
           </Link>
         </div>
+        <WorkflowPreview />
         <div className={styles.heroChip} aria-hidden="true">
           <kbd className={styles.kbd}>⌘</kbd>
           <kbd className={styles.kbd}>P</kbd>
-          <span className={styles.chipArrow}>→</span>
+          <span className={styles.chipArrow}>/</span>
           <span className={styles.chipLabel}>QuickAdd: Run Choice</span>
         </div>
       </div>
@@ -353,6 +416,9 @@ function QuickStart(): React.JSX.Element {
         <div className={styles.quickStartCta}>
           <Link className={styles.buttonPrimary} to="/docs/">
             Read the documentation
+          </Link>
+          <Link className={styles.buttonSecondary} to="/docs/Examples/">
+            Browse examples
           </Link>
         </div>
       </div>
