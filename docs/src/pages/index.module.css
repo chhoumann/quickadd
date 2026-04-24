@@ -152,6 +152,7 @@
 }
 
 .previewSidebar {
+  background: var(--qa-canvas);
   background: color-mix(in srgb, var(--qa-canvas) 72%, var(--qa-canvas-raised));
 }
 

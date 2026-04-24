@@ -92,7 +92,7 @@ const config = {
             docId: 'index',
             position: 'left',
             label: 'Docs',
-            activeBaseRegex: '^/docs/(next/|[0-9.]+/)?$',
+            activeBaseRegex: '^/docs/(next/|[0-9.]+/)?(?!(Advanced/APIOverview|QuickAddAPI|Examples/)).*',
           },
           {
             type: 'custom-versionAwareDoc',
