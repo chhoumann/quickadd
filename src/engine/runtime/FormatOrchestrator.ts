@@ -86,26 +86,11 @@ export class FormatOrchestrator {
 	async waitForTemplaterTriggerOnCreateToComplete(
 		file: TFile,
 	): Promise<void> {
-		const templater = this.integrations.templater;
-
-		if (!templater.hasCapability("triggerOnFileCreation")) {
-			this.addMissingTemplaterCapabilityDiagnostic(
-				"triggerOnFileCreation",
-				file,
-			);
-		}
-
-		await templater.waitForTriggerOnCreateToComplete(file);
+		await this.integrations.templater.waitForTriggerOnCreateToComplete(file);
 	}
 
 	async jumpToNextTemplaterCursorIfPossible(file: TFile): Promise<void> {
-		const templater = this.integrations.templater;
-
-		if (!templater.hasCapability("cursorJump")) {
-			this.addMissingTemplaterCapabilityDiagnostic("cursorJump", file);
-		}
-
-		await templater.jumpToNextCursorIfPossible(file);
+		await this.integrations.templater.jumpToNextCursorIfPossible(file);
 	}
 
 	recordCapturePlan(plan: CaptureRunPlan): void {

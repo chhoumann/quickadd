@@ -64,7 +64,22 @@ Example response shape:
   ],
   "flow": {
     "choiceCount": 2,
-    "choices": []
+    "choices": [
+      {
+        "id": "macro-choice-id",
+        "name": "Daily log",
+        "type": "Macro",
+        "path": "Daily log",
+        "depth": 0
+      },
+      {
+        "id": "capture-choice-id",
+        "name": "Capture project",
+        "type": "Capture",
+        "path": "Daily log / Capture project",
+        "depth": 1
+      }
+    ]
   }
 }
 ```

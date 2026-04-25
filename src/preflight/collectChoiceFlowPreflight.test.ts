@@ -179,6 +179,144 @@ describe("collectChoiceFlowPreflight", () => {
 		);
 	});
 
+	it("only follows the taken variable conditional branch during preflight", async () => {
+		const thenChoice = createCaptureChoice();
+		thenChoice.id = "then-capture";
+		thenChoice.name = "Then Capture";
+		thenChoice.format.format = "Then: {{VALUE:thenValue}}";
+
+		const elseChoice = createCaptureChoice();
+		elseChoice.id = "else-capture";
+		elseChoice.name = "Else Capture";
+		elseChoice.format.format = "Else: {{VALUE:elseValue}}";
+
+		const macroChoice: IMacroChoice = {
+			id: "macro-choice",
+			name: "Macro Flow",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro",
+				name: "Macro Flow",
+				commands: [
+					{
+						id: "conditional-command",
+						name: "Choose branch",
+						type: CommandType.Conditional,
+						condition: {
+							mode: "variable",
+							variableName: "route",
+							operator: "equals",
+							valueType: "string",
+							expectedValue: "then",
+						},
+						thenCommands: [
+							{
+								id: "then-command",
+								name: "Run then",
+								type: CommandType.NestedChoice,
+								choice: thenChoice,
+							} as any,
+						],
+						elseCommands: [
+							{
+								id: "else-command",
+								name: "Run else",
+								type: CommandType.NestedChoice,
+								choice: elseChoice,
+							} as any,
+						],
+					} as any,
+				],
+			},
+		};
+		const app = createApp();
+		const plugin = createPlugin([macroChoice, thenChoice, elseChoice]);
+		const executor = createExecutor();
+		executor.variables.set("route", "then");
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			executor,
+			macroChoice,
+		);
+
+		expect(result.choices.map((choice) => choice.id)).toEqual([
+			"macro-choice",
+			"then-capture",
+		]);
+		expect(result.unresolvedRequirements.map((req) => req.id)).toEqual([
+			"thenValue",
+		]);
+		expect(result.unresolvedRequirements.map((req) => req.id))
+			.not.toContain("elseValue");
+	});
+
+	it("conservatively follows both script conditional branches during preflight", async () => {
+		const thenChoice = createCaptureChoice();
+		thenChoice.id = "then-capture";
+		thenChoice.name = "Then Capture";
+		const elseChoice = createCaptureChoice();
+		elseChoice.id = "else-capture";
+		elseChoice.name = "Else Capture";
+
+		const macroChoice: IMacroChoice = {
+			id: "macro-choice",
+			name: "Macro Flow",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro",
+				name: "Macro Flow",
+				commands: [
+					{
+						id: "conditional-command",
+						name: "Choose branch",
+						type: CommandType.Conditional,
+						condition: {
+							mode: "script",
+							scriptPath: "Scripts/branch.js",
+						},
+						thenCommands: [
+							{
+								id: "then-command",
+								name: "Run then",
+								type: CommandType.NestedChoice,
+								choice: thenChoice,
+							} as any,
+						],
+						elseCommands: [
+							{
+								id: "else-command",
+								name: "Run else",
+								type: CommandType.NestedChoice,
+								choice: elseChoice,
+							} as any,
+						],
+					} as any,
+				],
+			},
+		};
+		const app = createApp();
+		const plugin = createPlugin([macroChoice, thenChoice, elseChoice]);
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			createExecutor(),
+			macroChoice,
+		);
+
+		expect(result.choices.map((choice) => choice.id)).toEqual([
+			"macro-choice",
+			"then-capture",
+			"else-capture",
+		]);
+	});
+
 	it("emits integration diagnostics when Templater syntax is detected without Templater", async () => {
 		const templateChoice = createTemplateChoice();
 		const app = createApp("Created at <% tp.date.now() %>");

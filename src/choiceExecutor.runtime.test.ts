@@ -3,6 +3,7 @@ import type IChoice from "./types/choices/IChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import type { IMacro } from "./types/macros/IMacro";
 import { CommandType } from "./types/macros/CommandType";
+import { MacroAbortError } from "./errors/MacroAbortError";
 import { createChoiceExecutionResult } from "./engine/runtime";
 
 const {
@@ -159,6 +160,85 @@ describe("ChoiceExecutor runtime context", () => {
 		const templateCall = mockTemplateConstructor.mock.calls[0]?.[0];
 		expect(templateCall.originLeaf).toBe(originLeaf);
 		expect(templateCall.context).toBe(macroCall.context);
+	});
+
+	it("preserves an already-aborted macro result when a pending abort signal exists", async () => {
+		const app = { plugins: { plugins: {} } } as any;
+		const plugin = {} as any;
+		const executor = new ChoiceExecutor(app, plugin);
+		const pendingAbort = new MacroAbortError("Pending child abort");
+		const engineError = new Error("Macro child aborted with context");
+		const macroChoice: IMacroChoice = {
+			id: "macro-choice",
+			name: "Macro",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro",
+				name: "Macro",
+				commands: [],
+			} as IMacro,
+		};
+		mockMacroRunResult.mockImplementationOnce(() => {
+			executor.signalAbort(pendingAbort);
+			return createChoiceExecutionResult({
+				status: "aborted",
+				choiceId: macroChoice.id,
+				stepId: "engine-step",
+				error: engineError,
+				diagnostics: [
+					{
+						severity: "error",
+						code: "engine-aborted",
+						message: "Engine aborted with step context",
+						source: "runtime",
+					},
+				],
+			});
+		});
+
+		const result = await executor.execute(macroChoice);
+
+		expect(result.status).toBe("aborted");
+		expect(result.stepId).toBe("engine-step");
+		expect(result.error).toBe(engineError);
+		expect(result.diagnostics).toEqual([
+			expect.objectContaining({ code: "engine-aborted" }),
+		]);
+		expect(executor.consumeAbortSignal()).toBeNull();
+	});
+
+	it("snapshots runtime context arrays when creating choice results", async () => {
+		const app = { plugins: { plugins: {} } } as any;
+		const plugin = {} as any;
+		const templateChoice: IChoice = {
+			id: "template-choice",
+			name: "Template",
+			type: "Template",
+			command: false,
+		};
+
+		const executor = new ChoiceExecutor(app, plugin);
+		const result = await executor.execute(templateChoice);
+		const templateCall = mockTemplateConstructor.mock.calls[0]?.[0];
+
+		templateCall.context.addDiagnostic({
+			severity: "info",
+			code: "late-context-mutation",
+			message: "Added after result creation",
+			source: "runtime",
+		});
+		templateCall.context.addArtifact({
+			id: "late-artifact",
+			kind: "custom",
+			label: "Late artifact",
+			createdAt: 1,
+		});
+
+		expect(result.status).toBe("success");
+		expect(result.diagnostics).toHaveLength(0);
+		expect(result.artifacts).toHaveLength(0);
 	});
 
 	it("returns macro engine aborted results without a pending abort signal", async () => {

@@ -90,6 +90,30 @@ describe("FormatOrchestrator Templater diagnostics", () => {
 		);
 	});
 
+	it("does not diagnose missing triggerOnFileCreation for best-effort waits", async () => {
+		const templater = createTemplater({ triggerOnFileCreation: false });
+		const { context, orchestrator } = createOrchestrator(templater);
+
+		await orchestrator.waitForTemplaterTriggerOnCreateToComplete(createFile());
+
+		expect(context.diagnostics).toHaveLength(0);
+		expect(templater.waitForTriggerOnCreateToComplete).toHaveBeenCalledWith(
+			expect.objectContaining({ path: "Notes/Test.md" }),
+		);
+	});
+
+	it("does not diagnose missing cursorJump for best-effort cursor jumps", async () => {
+		const templater = createTemplater({ cursorJump: false });
+		const { context, orchestrator } = createOrchestrator(templater);
+
+		await orchestrator.jumpToNextTemplaterCursorIfPossible(createFile());
+
+		expect(context.diagnostics).toHaveLength(0);
+		expect(templater.jumpToNextCursorIfPossible).toHaveBeenCalledWith(
+			expect.objectContaining({ path: "Notes/Test.md" }),
+		);
+	});
+
 	it("diagnoses missing overwriteFileCommands by default for markdown files", async () => {
 		const templater = createTemplater({ overwriteFileCommands: false });
 		const { context, orchestrator } = createOrchestrator(templater);

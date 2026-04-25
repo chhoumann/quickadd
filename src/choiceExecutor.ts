@@ -61,6 +61,13 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			await this.runOnePagePreflightIfEnabled(choice);
 
 			const result = await this.executeChoiceByType(choice);
+			if (result.status === "aborted") {
+				if (isRootExecution) {
+					this.pendingAbort = null;
+				}
+				return result;
+			}
+
 			const abort = this.pendingAbort;
 			if (abort) {
 				return this.createResult(choice, "aborted", abort);
@@ -209,8 +216,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			status,
 			choiceId: choice.id,
 			stepId: this.executionContext?.createStepId(choice.type),
-			artifacts: this.executionContext?.artifacts ?? [],
-			diagnostics: this.executionContext?.diagnostics ?? [],
+			artifacts: [...(this.executionContext?.artifacts ?? [])],
+			diagnostics: [...(this.executionContext?.diagnostics ?? [])],
 			error,
 		});
 	}

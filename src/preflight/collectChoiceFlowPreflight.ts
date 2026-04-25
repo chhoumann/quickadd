@@ -18,6 +18,7 @@ import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
+import { evaluateCondition } from "../engine/helpers/conditionalEvaluator";
 import { CommandType } from "../types/macros/CommandType";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { ICommand } from "../types/macros/ICommand";
@@ -156,16 +157,26 @@ export async function collectChoiceFlowPreflight(
 
 			if (command?.type === CommandType.Conditional) {
 				const conditional = command as IConditionalCommand;
-				await visitCommands(
-					conditional.thenCommands ?? [],
-					[...path, `${command.name} then`],
-					depth,
+				const branch = await evaluatePreflightConditionalBranch(
+					conditional,
+					choiceExecutor.variables,
 				);
-				await visitCommands(
-					conditional.elseCommands ?? [],
-					[...path, `${command.name} else`],
-					depth,
-				);
+
+				if (branch === "then" || branch === "unknown") {
+					await visitCommands(
+						conditional.thenCommands ?? [],
+						[...path, `${command.name} then`],
+						depth,
+					);
+				}
+
+				if (branch === "else" || branch === "unknown") {
+					await visitCommands(
+						conditional.elseCommands ?? [],
+						[...path, `${command.name} else`],
+						depth,
+					);
+				}
 			}
 		}
 	};
@@ -201,6 +212,24 @@ export async function collectChoiceFlowPreflight(
 		diagnostics,
 		choices,
 	};
+}
+
+type PreflightConditionalBranch = "then" | "else" | "unknown";
+
+async function evaluatePreflightConditionalBranch(
+	conditional: IConditionalCommand,
+	variables: Map<string, unknown>,
+): Promise<PreflightConditionalBranch> {
+	if (!conditional.condition || conditional.condition.mode === "script") {
+		return "unknown";
+	}
+
+	const shouldRunThenBranch = await evaluateCondition(conditional.condition, {
+		variables: Object.fromEntries(variables),
+		evaluateScriptCondition: async () => false,
+	});
+
+	return shouldRunThenBranch ? "then" : "else";
 }
 
 function resolveChoiceById(
