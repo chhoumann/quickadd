@@ -65,7 +65,11 @@ import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
-import { createChoiceExecutionResult } from "./runtime";
+import {
+	createChoiceExecutionContext,
+	createChoiceExecutionResult,
+} from "./runtime";
+import { IntegrationRegistry } from "../integrations/IntegrationRegistry";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -240,6 +244,86 @@ describe("MacroChoiceEngine command results", () => {
 		);
 		expect(executeCommandById).toHaveBeenCalledWith("first");
 		expect(executeCommandById).toHaveBeenCalledWith("second");
+	});
+
+	it("snapshots runtime context arrays when creating macro results", async () => {
+		const executeCommandById = vi.fn();
+		const app = {
+			commands: { executeCommandById },
+			plugins: { plugins: {} },
+		} as unknown as App;
+		const plugin = { settings: settingsStore.getState() } as any;
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Macro with commands",
+			commands: [],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+		const context = createChoiceExecutionContext({
+			integrations: new IntegrationRegistry(),
+			variables: new Map<string, unknown>(),
+		});
+		context.addDiagnostic({
+			severity: "info",
+			code: "macro-before",
+			message: "Before result creation",
+			source: "runtime",
+		});
+		context.addArtifact({
+			id: "macro-before-artifact",
+			kind: "custom",
+			label: "Before artifact",
+			createdAt: 1,
+		});
+		const choiceExecutor: IChoiceExecutor = {
+			variables: context.variables,
+			execute: vi.fn(async (choiceToRun) =>
+				createChoiceExecutionResult({
+					status: "success",
+					choiceId: choiceToRun.id,
+				}),
+			),
+			getExecutionContext: () => context,
+		};
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			choiceExecutor,
+			context.variables,
+			undefined,
+			undefined,
+			null,
+		);
+
+		const result = await engine.run();
+		context.addDiagnostic({
+			severity: "info",
+			code: "macro-after",
+			message: "After result creation",
+			source: "runtime",
+		});
+		context.addArtifact({
+			id: "macro-after-artifact",
+			kind: "custom",
+			label: "After artifact",
+			createdAt: 2,
+		});
+
+		expect(result.diagnostics).toEqual([
+			expect.objectContaining({ code: "macro-before" }),
+		]);
+		expect(result.artifacts).toEqual([
+			expect.objectContaining({ id: "macro-before-artifact" }),
+		]);
 	});
 });
 

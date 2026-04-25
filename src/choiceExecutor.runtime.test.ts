@@ -209,6 +209,38 @@ describe("ChoiceExecutor runtime context", () => {
 		expect(executor.consumeAbortSignal()).toBeNull();
 	});
 
+	it("clears a synthesized root pending abort after returning an aborted result", async () => {
+		const app = { plugins: { plugins: {} } } as any;
+		const plugin = {} as any;
+		const executor = new ChoiceExecutor(app, plugin);
+		const pendingAbort = new MacroAbortError("Pending child abort");
+		const macroChoice: IMacroChoice = {
+			id: "macro-choice",
+			name: "Macro",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro",
+				name: "Macro",
+				commands: [],
+			} as IMacro,
+		};
+		mockMacroRunResult.mockImplementationOnce(() => {
+			executor.signalAbort(pendingAbort);
+			return createChoiceExecutionResult({
+				status: "success",
+				choiceId: macroChoice.id,
+			});
+		});
+
+		const result = await executor.execute(macroChoice);
+
+		expect(result.status).toBe("aborted");
+		expect(result.error).toBe(pendingAbort);
+		expect(executor.consumeAbortSignal()).toBeNull();
+	});
+
 	it("snapshots runtime context arrays when creating choice results", async () => {
 		const app = { plugins: { plugins: {} } } as any;
 		const plugin = {} as any;

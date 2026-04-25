@@ -264,8 +264,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				output: this.output,
 				commands: commandResults,
 			},
-			artifacts: this.getExecutionContext()?.artifacts ?? [],
-			diagnostics: this.getExecutionContext()?.diagnostics ?? [],
+			artifacts: [...(this.getExecutionContext()?.artifacts ?? [])],
+			diagnostics: [...(this.getExecutionContext()?.diagnostics ?? [])],
 		});
 	}
 

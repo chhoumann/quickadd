@@ -70,6 +70,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 			const abort = this.pendingAbort;
 			if (abort) {
+				if (isRootExecution) {
+					this.pendingAbort = null;
+				}
 				return this.createResult(choice, "aborted", abort);
 			}
 
