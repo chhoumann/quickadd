@@ -9,11 +9,13 @@ const {
 	mockGetOpenFileOriginLeaf,
 	mockTemplateConstructor,
 	mockMacroConstructor,
+	mockMacroRunResult,
 	mockChoiceSuggesterOpen,
 } = vi.hoisted(() => ({
 	mockGetOpenFileOriginLeaf: vi.fn(),
 	mockTemplateConstructor: vi.fn(),
 	mockMacroConstructor: vi.fn(),
+	mockMacroRunResult: vi.fn(),
 	mockChoiceSuggesterOpen: vi.fn(),
 }));
 
@@ -87,6 +89,9 @@ vi.mock("./engine/MacroChoiceEngine", () => ({
 		}
 
 		async run() {
+			const overrideResult = mockMacroRunResult();
+			if (overrideResult) return overrideResult;
+
 			const firstCommand = this.choice.macro?.commands?.[0] as
 				| { type: string; choice?: IChoice }
 				| undefined;
@@ -109,6 +114,7 @@ import { ChoiceExecutor } from "./choiceExecutor";
 describe("ChoiceExecutor runtime context", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockMacroRunResult.mockReturnValue(undefined);
 	});
 
 	it("creates one root context and reuses its origin leaf for nested choices", async () => {
@@ -153,5 +159,37 @@ describe("ChoiceExecutor runtime context", () => {
 		const templateCall = mockTemplateConstructor.mock.calls[0]?.[0];
 		expect(templateCall.originLeaf).toBe(originLeaf);
 		expect(templateCall.context).toBe(macroCall.context);
+	});
+
+	it("returns macro engine aborted results without a pending abort signal", async () => {
+		const app = { plugins: { plugins: {} } } as any;
+		const plugin = {} as any;
+		const abortError = new Error("Macro child aborted");
+		const macroChoice: IMacroChoice = {
+			id: "macro-choice",
+			name: "Macro",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro",
+				name: "Macro",
+				commands: [],
+			} as IMacro,
+		};
+		mockMacroRunResult.mockReturnValueOnce(
+			createChoiceExecutionResult({
+				status: "aborted",
+				choiceId: macroChoice.id,
+				error: abortError,
+			}),
+		);
+
+		const executor = new ChoiceExecutor(app, plugin);
+		const result = await executor.execute(macroChoice);
+
+		expect(result.status).toBe("aborted");
+		expect(result.error).toBe(abortError);
+		expect(executor.consumeAbortSignal()).toBeNull();
 	});
 });

@@ -512,7 +512,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			}
 
 			// Process Templater commands for template choices
-			await this.formatOrchestrator.overwriteTemplaterOnce(createdFile);
+			await this.formatOrchestrator.overwriteTemplaterOnce(createdFile, {
+				diagnoseMissingCapability: formattedTemplateContent.includes("<%"),
+			});
 
 			return createdFile;
 		} catch (err) {
@@ -564,7 +566,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			}
 
 			// Process Templater commands
-			await this.formatOrchestrator.overwriteTemplaterOnce(file);
+			await this.formatOrchestrator.overwriteTemplaterOnce(file, {
+				diagnoseMissingCapability: formattedTemplateContent.includes("<%"),
+			});
 
 			return file;
 		} catch (err) {

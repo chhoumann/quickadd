@@ -17,6 +17,7 @@ import {
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
 import type { Model } from "./ai/Provider";
 import { resolveProviderApiKey } from "./ai/providerSecrets";
+import type { ChoiceExecutionResult } from "./engine/runtime";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
@@ -54,6 +55,24 @@ function restoreVariables(
 	vars.clear();
 	for (const [key, value] of snapshot) {
 		vars.set(key, value);
+	}
+}
+
+function throwIfChoiceExecutionDidNotComplete(
+	result: ChoiceExecutionResult,
+): void {
+	if (result.status === "aborted") {
+		if (result.error instanceof MacroAbortError) throw result.error;
+		throw new MacroAbortError(
+			result.error instanceof Error && result.error.message
+				? result.error.message
+				: "Choice execution aborted",
+		);
+	}
+
+	if (result.status === "failed") {
+		if (result.error instanceof Error) throw result.error;
+		throw new Error("Choice execution failed");
 	}
 }
 
@@ -228,11 +247,12 @@ export class QuickAddApi {
 						});
 					}
 
-					await choiceExecutor.execute(choice);
+					const result = await choiceExecutor.execute(choice);
 					const abort = choiceExecutor.consumeAbortSignal?.();
 					if (abort) {
 						throw abort;
 					}
+					throwIfChoiceExecutionDidNotComplete(result);
 				} finally {
 					restoreVariables(choiceExecutor.variables, snapshot);
 				}

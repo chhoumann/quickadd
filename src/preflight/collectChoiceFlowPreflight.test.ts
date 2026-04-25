@@ -196,6 +196,128 @@ describe("collectChoiceFlowPreflight", () => {
 				expect.objectContaining({
 					code: "templater-not-installed",
 					severity: "info",
+					details: expect.objectContaining({
+						requiredCapabilities: ["overwriteFileCommands"],
+					}),
+				}),
+			]),
+		);
+	});
+
+	it("does not report Templater diagnostics for plain template content", async () => {
+		const templateChoice = createTemplateChoice();
+		const app = createApp("Plain note content");
+		const plugin = createPlugin([templateChoice]);
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			createExecutor(),
+			templateChoice,
+		);
+
+		expect(result.diagnostics.map((diagnostic) => diagnostic.code))
+			.not.toContain("templater-not-installed");
+	});
+
+	it("does not report parseTemplate for append captures with Templater syntax", async () => {
+		const captureChoice = createCaptureChoice();
+		captureChoice.format.format = "Append <% tp.date.now() %>";
+		captureChoice.createFileIfItDoesntExist = {
+			enabled: true,
+			createWithTemplate: false,
+			template: "",
+		};
+		const app = createApp();
+		const plugin = createPlugin([captureChoice]);
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			createExecutor(),
+			captureChoice,
+		);
+
+		expect(result.diagnostics.map((diagnostic) => diagnostic.code))
+			.not.toContain("templater-not-installed");
+	});
+
+	it("reports parseTemplate for editor insertion captures with Templater syntax", async () => {
+		const captureChoice = createCaptureChoice();
+		captureChoice.captureToActiveFile = true;
+		captureChoice.format.format = "Inline <% tp.date.now() %>";
+		const app = createApp();
+		const plugin = createPlugin([captureChoice]);
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			createExecutor(),
+			captureChoice,
+		);
+
+		expect(result.diagnostics).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					code: "templater-not-installed",
+					details: expect.objectContaining({
+						requiredCapabilities: ["parseTemplate"],
+					}),
+				}),
+			]),
+		);
+	});
+
+	it("reports overwriteFileCommands for capture template rendering", async () => {
+		const captureChoice = createCaptureChoice();
+		captureChoice.createFileIfItDoesntExist = {
+			enabled: true,
+			createWithTemplate: true,
+			template: "Templates/Note.md",
+		};
+		const app = createApp("Template <% tp.date.now() %>");
+		const plugin = createPlugin([captureChoice]);
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			createExecutor(),
+			captureChoice,
+		);
+
+		expect(result.diagnostics).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					code: "templater-not-installed",
+					details: expect.objectContaining({
+						requiredCapabilities: ["overwriteFileCommands"],
+					}),
+				}),
+			]),
+		);
+	});
+
+	it("reports overwriteFileCommands for capture whole-file Templater policy", async () => {
+		const captureChoice = createCaptureChoice();
+		captureChoice.templater = { afterCapture: "wholeFile" };
+		const app = createApp();
+		const plugin = createPlugin([captureChoice]);
+
+		const result = await collectChoiceFlowPreflight(
+			app,
+			plugin,
+			createExecutor(),
+			captureChoice,
+		);
+
+		expect(result.diagnostics).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					code: "templater-not-installed",
+					details: expect.objectContaining({
+						requiredCapabilities: ["overwriteFileCommands"],
+						reason: "capture-after-whole-file",
+					}),
 				}),
 			]),
 		);

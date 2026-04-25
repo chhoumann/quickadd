@@ -304,7 +304,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 				if (this.choice.templater?.afterCapture === "wholeFile") {
-					await this.formatOrchestrator.overwriteTemplaterOnce(file);
+					await this.formatOrchestrator.overwriteTemplaterOnce(file, {
+						diagnoseMissingCapability: true,
+					});
 				}
 				await this.applyCapturePropertyVars(file);
 			}
@@ -831,7 +833,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.choice.createFileIfItDoesntExist.createWithTemplate &&
 			fileContent
 		) {
-			await this.formatOrchestrator.overwriteTemplaterOnce(file);
+			await this.formatOrchestrator.overwriteTemplaterOnce(file, {
+				diagnoseMissingCapability: fileContent.includes("<%"),
+			});
 		} else if (this.formatOrchestrator.isTemplaterTriggerOnCreateEnabled()) {
 			await this.formatOrchestrator.waitForTemplaterTriggerOnCreateToComplete(
 				file,

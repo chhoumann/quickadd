@@ -6,6 +6,7 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
+import { getCaptureAction } from "../engine/captureAction";
 import {
 	createDiagnostic,
 	type ChoiceExecutionDiagnostic,
@@ -21,6 +22,7 @@ import { CommandType } from "../types/macros/CommandType";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { ICommand } from "../types/macros/ICommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
+import type { TemplaterCapability } from "../integrations/TemplaterIntegration";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
@@ -326,16 +328,17 @@ async function getTemplaterUsage(
 	choice: IChoice,
 ): Promise<{
 	usesTemplater: boolean;
-	requiredCapabilities: Array<
-		"overwriteFileCommands" | "parseTemplate" | "triggerOnFileCreation"
-	>;
+	requiredCapabilities: TemplaterCapability[];
 	reason: string;
 }> {
 	if (choice.type === "Template") {
 		const content = await readTemplate(app, (choice as ITemplateChoice).templatePath);
+		const requiredCapabilities: TemplaterCapability[] = content.includes("<%")
+			? ["overwriteFileCommands"]
+			: [];
 		return {
-			usesTemplater: content.includes("<%"),
-			requiredCapabilities: ["overwriteFileCommands"],
+			usesTemplater: requiredCapabilities.length > 0,
+			requiredCapabilities,
 			reason: "template-content",
 		};
 	}
@@ -346,23 +349,25 @@ async function getTemplaterUsage(
 		const templateContent = capture.createFileIfItDoesntExist?.createWithTemplate
 			? await readTemplate(app, capture.createFileIfItDoesntExist.template)
 			: "";
+		const action = getCaptureAction(capture);
+		const actionParsesCaptureContent =
+			action === "currentLine" ||
+			action === "newLineAbove" ||
+			action === "newLineBelow";
 		const afterCaptureWholeFile =
 			capture.templater?.afterCapture === "wholeFile";
+		const requiredCapabilities = uniqueCapabilities([
+			...(actionParsesCaptureContent && captureFormat.includes("<%")
+				? (["parseTemplate"] as TemplaterCapability[])
+				: []),
+			...(templateContent.includes("<%") || afterCaptureWholeFile
+				? (["overwriteFileCommands"] as TemplaterCapability[])
+				: []),
+		]);
+
 		return {
-			usesTemplater:
-				captureFormat.includes("<%") ||
-				templateContent.includes("<%") ||
-				afterCaptureWholeFile,
-			requiredCapabilities: [
-				"parseTemplate",
-				...(templateContent.includes("<%") || afterCaptureWholeFile
-					? (["overwriteFileCommands"] as const)
-					: []),
-				...(capture.createFileIfItDoesntExist?.enabled &&
-				!capture.createFileIfItDoesntExist.createWithTemplate
-					? (["triggerOnFileCreation"] as const)
-					: []),
-			],
+			usesTemplater: requiredCapabilities.length > 0,
+			requiredCapabilities,
 			reason: afterCaptureWholeFile
 				? "capture-after-whole-file"
 				: "capture-content",
@@ -374,6 +379,12 @@ async function getTemplaterUsage(
 		requiredCapabilities: [],
 		reason: "not-applicable",
 	};
+}
+
+function uniqueCapabilities(
+	capabilities: TemplaterCapability[],
+): TemplaterCapability[] {
+	return Array.from(new Set(capabilities));
 }
 
 async function readTemplate(app: App, path: string): Promise<string> {

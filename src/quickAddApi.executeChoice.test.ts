@@ -71,4 +71,37 @@ describe("QuickAddApi.executeChoice", () => {
 		expect(variables.get("existing")).toBe("kept");
 		expect(variables.has("project")).toBe(false);
 	});
+
+	it("rejects when execution result status is aborted", async () => {
+		const abortError = new MacroAbortError("Nested choice aborted");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+			status: "aborted",
+			error: abortError,
+			artifacts: [],
+			diagnostics: [],
+		});
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		variables.set("existing", "kept");
+		await expect(api.executeChoice("My Template", { project: "QA" }))
+			.rejects.toBe(abortError);
+		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
+		expect(variables.get("existing")).toBe("kept");
+		expect(variables.has("project")).toBe(false);
+	});
+
+	it("rejects when execution result status is failed", async () => {
+		const failure = new Error("Choice failed");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+			status: "failed",
+			error: failure,
+			artifacts: [],
+			diagnostics: [],
+		});
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		await expect(api.executeChoice("My Template"))
+			.rejects.toBe(failure);
+		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
+	});
 });

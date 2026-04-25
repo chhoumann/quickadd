@@ -24,6 +24,12 @@ export interface CaptureRunResult {
 	wasNewFile: boolean;
 }
 
+export interface TemplaterOverwriteOptions {
+	skipIfNoTags?: boolean;
+	postWait?: boolean;
+	diagnoseMissingCapability?: boolean;
+}
+
 export class FormatOrchestrator {
 	constructor(
 		private readonly app: App,
@@ -40,24 +46,37 @@ export class FormatOrchestrator {
 	): Promise<string> {
 		const templater = this.integrations.templater;
 
-		if (!templater.hasCapability("parseTemplate")) {
+		const shouldDiagnoseMissingCapability =
+			file.extension === "md" && content.includes("<%");
+		if (
+			shouldDiagnoseMissingCapability &&
+			!templater.hasCapability("parseTemplate")
+		) {
 			this.addMissingTemplaterCapabilityDiagnostic("parseTemplate", file);
 		}
 
 		return await templater.parseTemplate(content, file);
 	}
 
-	async overwriteTemplaterOnce(file: TFile): Promise<void> {
+	async overwriteTemplaterOnce(
+		file: TFile,
+		options: TemplaterOverwriteOptions = {},
+	): Promise<void> {
 		const templater = this.integrations.templater;
+		const { diagnoseMissingCapability = true, ...templaterOptions } = options;
 
-		if (!templater.hasCapability("overwriteFileCommands")) {
+		if (
+			file.extension === "md" &&
+			diagnoseMissingCapability &&
+			!templater.hasCapability("overwriteFileCommands")
+		) {
 			this.addMissingTemplaterCapabilityDiagnostic(
 				"overwriteFileCommands",
 				file,
 			);
 		}
 
-		await templater.overwriteFileOnce(file);
+		await templater.overwriteFileOnce(file, templaterOptions);
 	}
 
 	isTemplaterTriggerOnCreateEnabled(): boolean {
