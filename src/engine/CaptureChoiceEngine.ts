@@ -28,14 +28,9 @@ import {
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
-	isTemplaterTriggerOnCreateEnabled,
-	jumpToNextTemplaterCursorIfPossible,
 	isFolder,
 	openExistingFileTab,
 	openFile,
-	overwriteTemplaterOnce,
-	templaterParseTemplate,
-	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
@@ -54,6 +49,11 @@ import {
 	type ConfiguredCanvasCaptureTarget,
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import {
+	FormatOrchestrator,
+	type CaptureRunPlan,
+	type ChoiceExecutionContext,
+} from "./runtime";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -63,6 +63,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private readonly plugin: QuickAdd;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
+	private readonly formatOrchestrator: FormatOrchestrator;
 
 	constructor(
 		app: App,
@@ -70,11 +71,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		choice: ICaptureChoice,
 		private choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
+		executionContext?: ChoiceExecutionContext,
 	) {
-		super(app);
+		const context = executionContext ?? choiceExecutor.getExecutionContext?.() ?? undefined;
+		super(app, context);
 		this.choice = choice;
 		this.plugin = plugin;
-		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+		this.formatOrchestrator = new FormatOrchestrator(app, context);
+		this.formatter = new CaptureChoiceFormatter(
+			app,
+			plugin,
+			choiceExecutor,
+			context,
+		);
 	}
 
 	private showSuccessNotice(
@@ -256,6 +265,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				);
 			}
 
+			const capturePlan = this.createCaptureRunPlan(
+				filePath,
+				action,
+				fileAlreadyExists,
+			);
+			this.formatOrchestrator.recordCapturePlan(capturePlan);
+
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
@@ -268,11 +284,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
-				const content = await templaterParseTemplate(
-					this.app,
-					captureContent,
-					file,
-				);
+				const content =
+					await this.formatOrchestrator.parseTemplaterTemplate(
+						captureContent,
+						file,
+					);
 
 				switch (action) {
 					case "currentLine":
@@ -288,10 +304,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 				if (this.choice.templater?.afterCapture === "wholeFile") {
-					await overwriteTemplaterOnce(this.app, file);
+					await this.formatOrchestrator.overwriteTemplaterOnce(file);
 				}
 				await this.applyCapturePropertyVars(file);
 			}
+
+			this.formatOrchestrator.recordCaptureResult({
+				choiceId: this.choice.id,
+				filePath: file.path,
+				action,
+				wasNewFile: !fileAlreadyExists,
+			});
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
@@ -313,11 +336,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				if (!openExistingTab) {
 					await openFile(this.app, file, {
 						...fileOpening,
-						originLeaf: this.originLeaf,
+						originLeaf: this.getOriginLeaf(),
 					});
 				}
 
-				await jumpToNextTemplaterCursorIfPossible(this.app, file);
+				await this.formatOrchestrator.jumpToNextTemplaterCursorIfPossible(
+					file,
+				);
 			}
 		} catch (err) {
 			if (
@@ -332,6 +357,56 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
+	}
+
+	private getOriginLeaf(): WorkspaceLeaf | null {
+		return this.getExecutionContext()?.originLeaf ?? this.originLeaf;
+	}
+
+	private createCaptureRunPlan(
+		filePath: string,
+		action: CaptureAction,
+		fileAlreadyExists: boolean,
+	): CaptureRunPlan {
+		const createWithTemplate =
+			!fileAlreadyExists &&
+			!!this.choice.createFileIfItDoesntExist?.createWithTemplate;
+		return {
+			choiceId: this.choice.id,
+			targetPath: filePath,
+			action,
+			fileAlreadyExists,
+			createWithTemplate,
+			templaterPolicy: this.getCaptureTemplaterPolicy(
+				action,
+				createWithTemplate,
+				fileAlreadyExists,
+			),
+		};
+	}
+
+	private getCaptureTemplaterPolicy(
+		action: CaptureAction,
+		createWithTemplate: boolean,
+		fileAlreadyExists: boolean,
+	): CaptureRunPlan["templaterPolicy"] {
+		if (
+			action === "currentLine" ||
+			action === "newLineAbove" ||
+			action === "newLineBelow"
+		) {
+			return "parse-capture";
+		}
+		if (this.choice.templater?.afterCapture === "wholeFile") {
+			return "render-whole-file";
+		}
+		if (createWithTemplate) {
+			return "render-whole-file";
+		}
+		if (!fileAlreadyExists && this.formatOrchestrator.isTemplaterTriggerOnCreateEnabled()) {
+			return "wait-for-on-create";
+		}
+		return "none";
 	}
 
 	private async handleCanvasTextCapture(
@@ -393,11 +468,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (!openExistingTab) {
 				await openFile(this.app, file, {
 					...fileOpening,
-					originLeaf: this.originLeaf,
+					originLeaf: this.getOriginLeaf(),
 				});
 			}
 
-			await jumpToNextTemplaterCursorIfPossible(this.app, file);
+			await this.formatOrchestrator.jumpToNextTemplaterCursorIfPossible(
+				file,
+			);
 		}
 	}
 
@@ -715,6 +792,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					this.plugin,
 					this.choice.createFileIfItDoesntExist.template,
 					this.choiceExecutor,
+					this.getExecutionContext(),
 				);
 
 			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
@@ -753,9 +831,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.choice.createFileIfItDoesntExist.createWithTemplate &&
 			fileContent
 		) {
-			await overwriteTemplaterOnce(this.app, file);
-		} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
-			await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+			await this.formatOrchestrator.overwriteTemplaterOnce(file);
+		} else if (this.formatOrchestrator.isTemplaterTriggerOnCreateEnabled()) {
+			await this.formatOrchestrator.waitForTemplaterTriggerOnCreateToComplete(
+				file,
+			);
 		}
 
 		// Read the file fresh from disk to avoid any potential cached content

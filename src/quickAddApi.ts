@@ -219,17 +219,22 @@ export class QuickAddApi {
 						"API executeChoice error",
 					);
 
-				if (variables) {
-					Object.keys(variables).forEach((key) => {
-						choiceExecutor.variables.set(key, variables[key]);
-					});
-				}
+				const snapshot = snapshotVariables(choiceExecutor.variables);
 
-				await choiceExecutor.execute(choice);
-				const abort = choiceExecutor.consumeAbortSignal?.();
-				choiceExecutor.variables.clear();
-				if (abort) {
-					throw abort;
+				try {
+					if (variables) {
+						Object.keys(variables).forEach((key) => {
+							choiceExecutor.variables.set(key, variables[key]);
+						});
+					}
+
+					await choiceExecutor.execute(choice);
+					const abort = choiceExecutor.consumeAbortSignal?.();
+					if (abort) {
+						throw abort;
+					}
+				} finally {
+					restoreVariables(choiceExecutor.variables, snapshot);
 				}
 			},
 			format: async (

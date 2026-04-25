@@ -15,10 +15,19 @@ import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { isCancellationError } from "./utils/errorUtils";
 import { getOpenFileOriginLeaf } from "./utilityObsidian";
+import {
+	createChoiceExecutionContext,
+	createChoiceExecutionResult,
+	type ChoiceExecutionContext,
+	type ChoiceExecutionResult,
+} from "./engine/runtime";
+import { getIntegrationRegistry } from "./integrations/IntegrationRegistry";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
 	private pendingAbort: MacroAbortError | null = null;
+	private executionContext: ChoiceExecutionContext | null = null;
+	private executionDepth = 0;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
@@ -32,92 +41,135 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		return abort ?? null;
 	}
 
-	async execute(choice: IChoice): Promise<void> {
-		this.pendingAbort = null;
-		const originLeaf = getOpenFileOriginLeaf(this.app);
-		// One-page preflight honoring per-choice override.
+	getExecutionContext(): ChoiceExecutionContext | null {
+		return this.executionContext;
+	}
+
+	async execute(choice: IChoice): Promise<ChoiceExecutionResult> {
+		const isRootExecution = this.executionDepth === 0 || !this.executionContext;
+		if (isRootExecution) {
+			this.pendingAbort = null;
+			this.executionContext = this.createRootContext(choice);
+			this.variables = this.executionContext.variables;
+		} else {
+			this.pendingAbort = null;
+		}
+
+		this.executionDepth++;
+
+		try {
+			await this.runOnePagePreflightIfEnabled(choice);
+
+			const result = await this.executeChoiceByType(choice);
+			const abort = this.pendingAbort;
+			if (abort) {
+				return this.createResult(choice, "aborted", abort);
+			}
+
+			return result;
+		} catch (error) {
+			if (error instanceof MacroAbortError) {
+				this.signalAbort(error);
+				return this.createResult(choice, "aborted", error);
+			}
+
+			throw error;
+		} finally {
+			this.executionDepth--;
+			if (isRootExecution) {
+				this.executionContext = null;
+				this.executionDepth = 0;
+			}
+		}
+	}
+
+	private createRootContext(choice: IChoice): ChoiceExecutionContext {
+		return createChoiceExecutionContext({
+			rootChoiceId: choice.id,
+			originLeaf: getOpenFileOriginLeaf(this.app),
+			variables: this.variables,
+			integrations: getIntegrationRegistry(this.app),
+		});
+	}
+
+	private async runOnePagePreflightIfEnabled(choice: IChoice): Promise<void> {
 		const globalEnabled = settingsStore.getState().onePageInputEnabled;
 		const override = choice.onePageInput;
 		const shouldUseOnePager =
 			override === "always" || (override !== "never" && globalEnabled);
 		if (
-			shouldUseOnePager &&
-			(choice.type === "Template" ||
-				choice.type === "Capture" ||
-				choice.type === "Macro")
+			!shouldUseOnePager ||
+			(choice.type !== "Template" &&
+				choice.type !== "Capture" &&
+				choice.type !== "Macro")
 		) {
-			try {
-				await runOnePagePreflight(
-					this.app,
-					this.plugin as unknown as QuickAdd,
-					this,
-					choice,
-				);
-			} catch (error) {
-				if (isCancellationError(error)) {
-					throw new MacroAbortError("One-page input cancelled by user");
-				}
-				throw error;
-			}
+			return;
 		}
 
+		try {
+			await runOnePagePreflight(
+				this.app,
+				this.plugin as unknown as QuickAdd,
+				this,
+				choice,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new MacroAbortError("One-page input cancelled by user");
+			}
+			throw error;
+		}
+	}
+
+	private async executeChoiceByType(
+		choice: IChoice,
+	): Promise<ChoiceExecutionResult> {
 		switch (choice.type) {
-			case "Template": {
-				const templateChoice: ITemplateChoice =
-					choice as ITemplateChoice;
-				await this.onChooseTemplateType(templateChoice, originLeaf);
-				break;
-			}
-			case "Capture": {
-				const captureChoice: ICaptureChoice = choice as ICaptureChoice;
-				await this.onChooseCaptureType(captureChoice, originLeaf);
-				break;
-			}
-			case "Macro": {
-				const macroChoice: IMacroChoice = choice as IMacroChoice;
-				await this.onChooseMacroType(macroChoice, originLeaf);
-				break;
-			}
-			case "Multi": {
-				const multiChoice: IMultiChoice = choice as IMultiChoice;
-				this.onChooseMultiType(multiChoice);
-				break;
-			}
+			case "Template":
+				return await this.onChooseTemplateType(choice as ITemplateChoice);
+			case "Capture":
+				return await this.onChooseCaptureType(choice as ICaptureChoice);
+			case "Macro":
+				return await this.onChooseMacroType(choice as IMacroChoice);
+			case "Multi":
+				this.onChooseMultiType(choice as IMultiChoice);
+				return this.createResult(choice, "success");
 			default:
-				break;
+				return this.createResult(choice, "skipped");
 		}
 	}
 
 	private async onChooseTemplateType(
 		templateChoice: ITemplateChoice,
-		originLeaf: WorkspaceLeaf | null,
-	): Promise<void> {
+	): Promise<ChoiceExecutionResult> {
 		await new TemplateChoiceEngine(
 			this.app,
 			this.plugin,
 			templateChoice,
 			this,
-			originLeaf,
+			this.getOriginLeaf(),
+			this.executionContext ?? undefined,
 		).run();
+		return this.createResult(templateChoice, "success");
 	}
 
 	private async onChooseCaptureType(
 		captureChoice: ICaptureChoice,
-		originLeaf: WorkspaceLeaf | null,
-	) {
+	): Promise<ChoiceExecutionResult> {
 		await new CaptureChoiceEngine(
 			this.app,
 			this.plugin,
 			captureChoice,
 			this,
-			originLeaf,
+			this.getOriginLeaf(),
+			this.executionContext ?? undefined,
 		).run();
+		return this.createResult(captureChoice, "success");
 	}
 
 	private async onChooseMacroType(
 		macroChoice: IMacroChoice,
-		originLeaf: WorkspaceLeaf | null,
-	) {
+	): Promise<ChoiceExecutionResult> {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
@@ -126,19 +178,40 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.variables,
 			undefined,
 			undefined,
-			originLeaf,
+			this.getOriginLeaf(),
 		);
-		await macroEngine.run();
+		const result = await macroEngine.run();
 
 		Object.entries(macroEngine.params.variables).forEach(([key, value]) => {
 			this.variables.set(key, value as string);
 		});
+
+		return result;
 	}
 
 	private onChooseMultiType(multiChoice: IMultiChoice) {
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
 			placeholder: multiChoice.placeholder,
+		});
+	}
+
+	private getOriginLeaf(): WorkspaceLeaf | null {
+		return this.executionContext?.originLeaf ?? null;
+	}
+
+	private createResult(
+		choice: IChoice,
+		status: ChoiceExecutionResult["status"],
+		error?: unknown,
+	): ChoiceExecutionResult {
+		return createChoiceExecutionResult({
+			status,
+			choiceId: choice.id,
+			stepId: this.executionContext?.createStepId(choice.type),
+			artifacts: this.executionContext?.artifacts ?? [],
+			diagnostics: this.executionContext?.diagnostics ?? [],
+			error,
 		});
 	}
 }

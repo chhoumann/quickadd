@@ -9,10 +9,12 @@ import type IMultiChoice from "../types/choices/IMultiChoice";
 const {
 	ChoiceExecutorMock,
 	collectChoiceRequirementsMock,
+	collectChoiceFlowPreflightMock,
 	getUnresolvedRequirementsMock,
 } = vi.hoisted(() => ({
 	ChoiceExecutorMock: vi.fn(),
 	collectChoiceRequirementsMock: vi.fn(),
+	collectChoiceFlowPreflightMock: vi.fn(),
 	getUnresolvedRequirementsMock: vi.fn(),
 }));
 
@@ -23,6 +25,10 @@ vi.mock("../choiceExecutor", () => ({
 vi.mock("../preflight/collectChoiceRequirements", () => ({
 	collectChoiceRequirements: collectChoiceRequirementsMock,
 	getUnresolvedRequirements: getUnresolvedRequirementsMock,
+}));
+
+vi.mock("../preflight/collectChoiceFlowPreflight", () => ({
+	collectChoiceFlowPreflight: collectChoiceFlowPreflightMock,
 }));
 
 interface RegisteredCliHandler {
@@ -131,6 +137,7 @@ describe("registerQuickAddCliHandlers", () => {
 		executors = [];
 		ChoiceExecutorMock.mockReset();
 		collectChoiceRequirementsMock.mockReset();
+		collectChoiceFlowPreflightMock.mockReset();
 		getUnresolvedRequirementsMock.mockReset();
 
 		ChoiceExecutorMock.mockImplementation(() => {
@@ -144,6 +151,12 @@ describe("registerQuickAddCliHandlers", () => {
 		});
 
 		collectChoiceRequirementsMock.mockResolvedValue([]);
+		collectChoiceFlowPreflightMock.mockResolvedValue({
+			requirements: [],
+			unresolvedRequirements: [],
+			diagnostics: [],
+			choices: [],
+		});
 		getUnresolvedRequirementsMock.mockReturnValue([]);
 	});
 
@@ -271,8 +284,28 @@ describe("registerQuickAddCliHandlers", () => {
 			label: "Project",
 			type: "text",
 		};
-		collectChoiceRequirementsMock.mockResolvedValue([requirement]);
-		getUnresolvedRequirementsMock.mockReturnValue([requirement]);
+		collectChoiceFlowPreflightMock.mockResolvedValue({
+			requirements: [requirement],
+			unresolvedRequirements: [requirement],
+			diagnostics: [
+				{
+					severity: "error",
+					code: "missing-required-inputs",
+					message: "1 required input(s) are missing for this flow.",
+					source: "runtime",
+					details: { missingIds: ["project"] },
+				},
+			],
+			choices: [
+				{
+					id: templateChoice.id,
+					name: templateChoice.name,
+					type: templateChoice.type,
+					path: templateChoice.name,
+					depth: 0,
+				},
+			],
+		});
 
 		const output = await Promise.resolve(
 			check!.handler({
@@ -284,6 +317,12 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.requiredInputCount).toBe(1);
 		expect(payload.missingInputCount).toBe(1);
+		expect(payload.diagnosticCount).toBe(1);
+		expect(payload.diagnostics[0]).toMatchObject({
+			severity: "error",
+			code: "missing-required-inputs",
+		});
+		expect(payload.flow.choiceCount).toBe(1);
 		expect(executors[0].execute).not.toHaveBeenCalled();
 	});
 });

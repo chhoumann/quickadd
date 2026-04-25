@@ -52,6 +52,7 @@ In the Macro Builder, you can add different types of commands:
 4. **Nested Choice** - Execute another QuickAdd choice
    - Reuse existing templates, captures, or other macros
    - Create modular workflows
+   - Nested choices share the parent macro's runtime context, variables, and origin tab
 5. **Wait** - Add delays between commands
    - Useful when commands need time to complete
    - Specified in milliseconds
@@ -249,7 +250,13 @@ module.exports = async (params) => {
 
 ## Variables and Data Flow
 
-Variables allow you to pass data between commands in a macro:
+Variables allow you to pass data between commands in a macro. A macro run now uses one shared flow context from the first command through all nested choices. That means:
+
+- Variables set by one command are visible to later commands.
+- Nested Template, Capture, and Macro choices reuse the same variable map.
+- Nested choices reuse the macro's original leaf/tab for file-opening behavior, so later file opens stay anchored to the run that started the macro.
+- If a nested choice aborts, the macro stops and later commands are skipped.
+
 
 ### Setting Variables in Scripts
 
@@ -508,6 +515,7 @@ Macros automatically stop execution in the following situations:
 - A message is logged explaining why the macro stopped
 - For user cancellations and explicit aborts, no error dialog is shown
 - For script errors, the full error with stack trace is preserved for debugging
+- Nested choice aborts propagate back to the parent macro and stop the remaining macro commands
 
 ## Best Practices
 

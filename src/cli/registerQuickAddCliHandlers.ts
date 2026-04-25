@@ -7,6 +7,7 @@ import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
 } from "../preflight/collectChoiceRequirements";
+import { collectChoiceFlowPreflight } from "../preflight/collectChoiceFlowPreflight";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 
@@ -211,6 +212,28 @@ function toMissingFieldSummary(requirement: {
 	};
 }
 
+function toDiagnosticSummary(diagnostic: {
+	severity: string;
+	code: string;
+	message: string;
+	source: string;
+	stepId?: string;
+	choiceId?: string;
+	integrationId?: string;
+	details?: Record<string, unknown>;
+}) {
+	return {
+		severity: diagnostic.severity,
+		code: diagnostic.code,
+		message: diagnostic.message,
+		source: diagnostic.source,
+		stepId: diagnostic.stepId,
+		choiceId: diagnostic.choiceId,
+		integrationId: diagnostic.integrationId,
+		details: diagnostic.details,
+	};
+}
+
 function setExecutorVariables(
 	choiceExecutor: IChoiceExecutor,
 	variables: Record<string, unknown>,
@@ -372,27 +395,30 @@ async function checkChoiceHandler(
 		) as IChoiceExecutor;
 		setExecutorVariables(choiceExecutor, variables);
 
-		const requirements = await collectChoiceRequirements(
+		const preflight = await collectChoiceFlowPreflight(
 			plugin.app,
 			plugin,
 			choiceExecutor,
 			choice,
 		);
-		const unresolved = getUnresolvedRequirements(
-			requirements,
-			choiceExecutor.variables,
-		);
+		const unresolved = preflight.unresolvedRequirements;
 
 		return serialize({
 			ok: unresolved.length === 0,
 			command: CLI_COMMANDS.check,
 			choice: describeChoice(choice),
-			requiredInputCount: requirements.length,
+			requiredInputCount: preflight.requirements.length,
 			missingInputCount: unresolved.length,
 			missing: unresolved.map(toMissingFieldSummary),
 			missingFlags: unresolved.map(
 				(requirement) => `value-${requirement.id}=<value>`,
 			),
+			diagnosticCount: preflight.diagnostics.length,
+			diagnostics: preflight.diagnostics.map(toDiagnosticSummary),
+			flow: {
+				choiceCount: preflight.choices.length,
+				choices: preflight.choices,
+			},
 		});
 	} catch (error) {
 		return serialize({

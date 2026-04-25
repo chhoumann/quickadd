@@ -3,15 +3,17 @@ import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
+import type { ChoiceExecutionContext } from "./runtime";
 
 export class SingleTemplateEngine extends TemplateEngine {
 	constructor(
 		app: App,
 		plugin: QuickAdd,
 		private templatePath: string,
-		choiceExecutor?: IChoiceExecutor
+		choiceExecutor?: IChoiceExecutor,
+		executionContext?: ChoiceExecutionContext,
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, choiceExecutor, executionContext);
 	}
 	public async run(): Promise<string> {
 		let templateContent: string = await this.getTemplateContent(

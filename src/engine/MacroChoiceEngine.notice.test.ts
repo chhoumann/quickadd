@@ -65,6 +65,7 @@ import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
+import { createChoiceExecutionResult } from "./runtime";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -174,6 +175,74 @@ describe("MacroChoiceEngine cancellation notices", () => {
 		expect(noticeClass.instances[0]?.message).toContain("Invalid project name");
 });
 
+describe("MacroChoiceEngine command results", () => {
+	it("returns typed command results for executed macro commands", async () => {
+		const executeCommandById = vi.fn();
+		const app = {
+			commands: { executeCommandById },
+		} as unknown as App;
+		const plugin = { settings: settingsStore.getState() } as any;
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Macro with commands",
+			commands: [
+				{
+					id: "first-command",
+					name: "First",
+					type: CommandType.Obsidian,
+					commandId: "first",
+				} as any,
+				{
+					id: "second-command",
+					name: "Second",
+					type: CommandType.Obsidian,
+					commandId: "second",
+				} as any,
+			],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+		const choiceExecutor: IChoiceExecutor = {
+			variables: new Map<string, unknown>(),
+			execute: vi.fn(async (choiceToRun) =>
+				createChoiceExecutionResult({
+					status: "success",
+					choiceId: choiceToRun.id,
+				}),
+			),
+		};
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			choiceExecutor,
+			new Map<string, unknown>(),
+		);
+
+		const result = await engine.run();
+		const commandResults = engine.getCommandResults();
+
+		expect(result.status).toBe("success");
+		expect(commandResults).toHaveLength(2);
+		expect(commandResults.map((command) => command.commandId)).toEqual([
+			"first-command",
+			"second-command",
+		]);
+		expect(commandResults.every((command) => command.status === "success")).toBe(
+			true,
+		);
+		expect(executeCommandById).toHaveBeenCalledWith("first");
+		expect(executeCommandById).toHaveBeenCalledWith("second");
+	});
+});
+
 describe("MacroChoiceEngine nested choice propagation", () => {
 	it("halts subsequent commands when a nested choice cancels", async () => {
 		const app = {} as App;
@@ -223,8 +292,19 @@ describe("MacroChoiceEngine nested choice propagation", () => {
 			variables: new Map<string, unknown>(),
 			execute: vi.fn(async (choiceToRun) => {
 				if (choiceToRun.id === nestedChoice.id) {
-					signalAbort(new MacroAbortError("Input cancelled by user"));
+					const abort = new MacroAbortError("Input cancelled by user");
+					signalAbort(abort);
+					return createChoiceExecutionResult({
+						status: "aborted",
+						choiceId: choiceToRun.id,
+						error: abort,
+					});
 				}
+
+				return createChoiceExecutionResult({
+					status: "success",
+					choiceId: choiceToRun.id,
+				});
 			}),
 			signalAbort,
 			consumeAbortSignal,
@@ -246,8 +326,11 @@ describe("MacroChoiceEngine nested choice propagation", () => {
 			new Map<string, unknown>(),
 		);
 
-		await engine.run();
+		const result = await engine.run();
 
+		expect(result.status).toBe("aborted");
+		expect(engine.getCommandResults()).toHaveLength(1);
+		expect(engine.getCommandResults()[0].status).toBe("aborted");
 		expect(choiceExecutor.execute).toHaveBeenCalledTimes(1);
 		expect(signalAbort).toHaveBeenCalled();
 		expect(signalAbort.mock.calls.at(-1)?.[0]).toBeInstanceOf(MacroAbortError);
