@@ -30,11 +30,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private templaterProcessed = false;
 
 	public setDestinationFile(file: TFile): void {
+		super.setDestinationFile(file);
 		this.file = file;
 		this.sourcePath = file.path;
 	}
 
 	public setDestinationSourcePath(path: string): void {
+		super.setDestinationSourcePath(path);
 		this.sourcePath = path;
 		this.file = null;
 	}

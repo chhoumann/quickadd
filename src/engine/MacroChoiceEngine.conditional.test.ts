@@ -27,6 +27,8 @@ vi.mock("../settingsStore", () => ({
 vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {
 		constructor() {}
+		setDestinationFile() {}
+		setDestinationSourcePath() {}
 	},
 }));
 vi.mock("../ai/AIAssistant", () => ({

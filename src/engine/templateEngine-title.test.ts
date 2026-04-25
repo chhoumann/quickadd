@@ -9,9 +9,26 @@ vi.mock('../formatters/completeFormatter', () => {
     return {
         CompleteFormatter: vi.fn().mockImplementation(() => {
             let title = '';
+            let destinationFile: unknown = null;
+            let destinationSourcePath: string | null = null;
             return {
                 setTitle: vi.fn((t: string) => { title = t; }),
+                setDestinationFile: vi.fn((file: unknown) => {
+                    destinationFile = file;
+                }),
+                setDestinationSourcePath: vi.fn((path: string) => {
+                    destinationSourcePath = path;
+                }),
+                clearDestinationContext: vi.fn(() => {
+                    destinationFile = null;
+                    destinationSourcePath = null;
+                }),
                 getTitle: () => title,
+                getDestinationFile: () => destinationFile,
+                getDestinationSourcePath: () => destinationSourcePath,
+                getAndClearTemplatePropertyVars: vi.fn(
+                    () => new Map<string, unknown>(),
+                ),
                 withTemplatePropertyCollection: vi.fn(
                     async (work: () => Promise<unknown>) => await work(),
                 ),
@@ -29,6 +46,8 @@ vi.mock('../formatters/completeFormatter', () => {
 vi.mock('../utilityObsidian', () => ({
     getTemplater: vi.fn(() => null),
     overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
+    templaterParseTemplate: vi.fn(async (_app, content: string) => content),
+    resolveClipboardForNoteContent: vi.fn(async () => ""),
 }));
 
 // Test implementation of TemplateEngine
@@ -46,9 +65,25 @@ class TestTemplateEngine extends TemplateEngine {
         return await this.createFileWithTemplate(filePath, templatePath);
     }
 
+    public async testOverwriteFileWithTemplate(file: any, templatePath: string) {
+        return await this.overwriteFileWithTemplate(file, templatePath);
+    }
+
+    public async testAppendToFileWithTemplate(file: any, templatePath: string, section: "top" | "bottom") {
+        return await this.appendToFileWithTemplate(file, templatePath, section);
+    }
+
     public getFormatterTitle(): string {
         // Access the title that was set on the formatter
         return (this.formatter as any).getTitle();
+    }
+
+    public getFormatterDestinationSourcePath(): string | null {
+        return (this.formatter as any).getDestinationSourcePath();
+    }
+
+    public getFormatterDestinationFile(): unknown {
+        return (this.formatter as any).getDestinationFile();
     }
 }
 
@@ -143,6 +178,70 @@ describe('TemplateEngine - Title Handling', () => {
             
             // Verify formatFileContent was called
             expect(mockFormatter.formatFileContent).toHaveBeenCalled();
+        });
+
+        it('should set destination source path before formatting new template content', async () => {
+            await engine.testCreateFileWithTemplate('folder/TestDocument.md', 'template.md');
+
+            expect(engine.getFormatterDestinationSourcePath()).toBe('folder/TestDocument.md');
+        });
+
+        it('should clear destination context for new non-markdown template output', async () => {
+            await engine.testCreateFileWithTemplate('folder/Kanban.base', 'template.base');
+
+            expect(engine.getFormatterDestinationSourcePath()).toBeNull();
+            expect(engine.getFormatterDestinationFile()).toBeNull();
+        });
+    });
+
+    describe('existing file template updates', () => {
+        const existingFile = {
+            path: 'folder/Existing.md',
+            basename: 'Existing',
+            extension: 'md',
+        } as any;
+
+        beforeEach(() => {
+            mockApp.vault.modify = vi.fn().mockResolvedValue(undefined);
+            mockApp.vault.cachedRead = vi.fn().mockResolvedValue('Existing content');
+        });
+
+        it('should set destination file before overwriting template content', async () => {
+            await engine.testOverwriteFileWithTemplate(existingFile, 'template.md');
+
+            expect(engine.getFormatterDestinationFile()).toBe(existingFile);
+        });
+
+        it('should set destination file before appending template content', async () => {
+            await engine.testAppendToFileWithTemplate(existingFile, 'template.md', 'bottom');
+
+            expect(engine.getFormatterDestinationFile()).toBe(existingFile);
+        });
+
+        it('should clear destination context before overwriting non-markdown template output', async () => {
+            const existingBaseFile = {
+                path: 'folder/Kanban.base',
+                basename: 'Kanban',
+                extension: 'base',
+            } as any;
+
+            await engine.testOverwriteFileWithTemplate(existingBaseFile, 'template.base');
+
+            expect(engine.getFormatterDestinationFile()).toBeNull();
+            expect(engine.getFormatterDestinationSourcePath()).toBeNull();
+        });
+
+        it('should clear destination context before appending non-markdown template output', async () => {
+            const existingCanvasFile = {
+                path: 'folder/Board.canvas',
+                basename: 'Board',
+                extension: 'canvas',
+            } as any;
+
+            await engine.testAppendToFileWithTemplate(existingCanvasFile, 'template.canvas', 'bottom');
+
+            expect(engine.getFormatterDestinationFile()).toBeNull();
+            expect(engine.getFormatterDestinationSourcePath()).toBeNull();
         });
     });
 
