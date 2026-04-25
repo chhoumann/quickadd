@@ -215,14 +215,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			try {
 				await this.executeCommand(command);
-				const result = createCommandExecutionResult({
-					status: "success",
-					commandId: command.id,
-					stepId,
-					value: this.output,
-				});
-				results.push(result);
-				this.commandResults.push(result);
+				results.push(
+					createCommandExecutionResult({
+						status: "success",
+						commandId: command.id,
+						stepId,
+						value: this.getCommandResultValue(command),
+					}),
+				);
 			} catch (error) {
 				if (!handleAbort) throw error;
 
@@ -234,21 +234,22 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					})
 				) {
 					this.choiceExecutor.signalAbort?.(error as MacroAbortError);
-					const result = createCommandExecutionResult({
-						status: "aborted",
-						commandId: command.id,
-						stepId,
-						value: this.output,
-						error,
-					});
-					results.push(result);
-					this.commandResults.push(result);
+					results.push(
+						createCommandExecutionResult({
+							status: "aborted",
+							commandId: command.id,
+							stepId,
+							error,
+						}),
+					);
+					this.commandResults.push(...results);
 					return results;
 				}
 				throw error;
 			}
 		}
 
+		this.commandResults.push(...results);
 		return results;
 	}
 
@@ -267,6 +268,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			artifacts: [...(this.getExecutionContext()?.artifacts ?? [])],
 			diagnostics: [...(this.getExecutionContext()?.diagnostics ?? [])],
 		});
+	}
+
+	private getCommandResultValue(command: ICommand): unknown {
+		return command?.type === CommandType.UserScript ? this.output : undefined;
 	}
 
 	private createCommandStepId(command: ICommand): string {
