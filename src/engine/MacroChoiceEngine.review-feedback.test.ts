@@ -318,6 +318,67 @@ describe("MacroChoiceEngine review feedback regressions", () => {
 		);
 	});
 
+	it("preserves successful command results when a later command fails", async () => {
+		const app = {} as App;
+		const plugin = {} as any;
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Failure macro",
+			commands: [
+				{
+					id: "first-command",
+					name: "First",
+					type: CommandType.Obsidian,
+					commandId: "first",
+				} as any,
+				{
+					id: "second-command",
+					name: "Second",
+					type: CommandType.Obsidian,
+					commandId: "second",
+				} as any,
+			],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Failure Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+
+		class FailureMacroChoiceEngine extends MacroChoiceEngine {
+			private executionCount = 0;
+
+			protected override executeObsidianCommand(): void {
+				this.executionCount += 1;
+				if (this.executionCount === 2) {
+					throw new Error("Boom");
+				}
+			}
+		}
+
+		const engine = new FailureMacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			createChoiceExecutor(),
+			new Map<string, unknown>(),
+		);
+
+		await expect(engine.run()).rejects.toThrow("Boom");
+		expect(engine.getCommandResults()).toHaveLength(2);
+		expect(engine.getCommandResults()[0]).toMatchObject({
+			commandId: "first-command",
+			status: "success",
+		});
+		expect(engine.getCommandResults()[1]).toMatchObject({
+			commandId: "second-command",
+			status: "failed",
+		});
+	});
+
 	it("only records command values for commands that produce output", async () => {
 		const app = {} as App;
 		const plugin = {} as any;

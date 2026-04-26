@@ -245,6 +245,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					this.commandResults.push(...results);
 					return results;
 				}
+
+				results.push(
+					createCommandExecutionResult({
+						status: "failed",
+						commandId: command.id,
+						stepId,
+						error,
+					}),
+				);
+				this.commandResults.push(...results);
 				throw error;
 			}
 		}
