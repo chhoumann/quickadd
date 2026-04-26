@@ -318,6 +318,85 @@ describe("MacroChoiceEngine review feedback regressions", () => {
 		);
 	});
 
+	it("keeps conditional branch command results in execution order", async () => {
+		const executeCommandById = vi.fn();
+		const app = {
+			commands: { executeCommandById },
+		} as unknown as App;
+		const plugin = {} as any;
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Ordered conditional macro",
+			commands: [
+				{
+					id: "first-command",
+					name: "First",
+					type: CommandType.Obsidian,
+					commandId: "first",
+				} as any,
+				{
+					id: "conditional-command",
+					name: "Conditional",
+					type: CommandType.Conditional,
+					condition: {
+						mode: "variable",
+						variableName: "runThen",
+						operator: "equals",
+						valueType: "boolean",
+						expectedValue: "true",
+					},
+					thenCommands: [
+						{
+							id: "branch-command",
+							name: "Branch",
+							type: CommandType.Obsidian,
+							commandId: "branch",
+						} as any,
+					],
+					elseCommands: [],
+				} as any,
+				{
+					id: "third-command",
+					name: "Third",
+					type: CommandType.Obsidian,
+					commandId: "third",
+				} as any,
+			],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Ordered Conditional Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+		const choiceExecutor: IChoiceExecutor = {
+			variables: new Map<string, unknown>([["runThen", true]]),
+			execute: vi.fn(),
+		};
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			choiceExecutor,
+			choiceExecutor.variables,
+		);
+
+		await engine.run();
+
+		expect(executeCommandById).toHaveBeenNthCalledWith(1, "first");
+		expect(executeCommandById).toHaveBeenNthCalledWith(2, "branch");
+		expect(executeCommandById).toHaveBeenNthCalledWith(3, "third");
+		expect(engine.getCommandResults().map((result) => result.commandId)).toEqual([
+			"first-command",
+			"branch-command",
+			"conditional-command",
+			"third-command",
+		]);
+	});
+
 	it("preserves successful command results when a later command fails", async () => {
 		const app = {} as App;
 		const plugin = {} as any;

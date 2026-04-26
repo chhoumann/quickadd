@@ -214,7 +214,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const stepId = this.createCommandStepId(command);
 
 			try {
-				await this.executeCommand(command);
+				const nestedResults = await this.executeCommand(command);
+				results.push(...nestedResults);
 				results.push(
 					createCommandExecutionResult({
 						status: "success",
@@ -259,7 +260,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			}
 		}
 
-		this.commandResults.push(...results);
+		if (handleAbort) {
+			this.commandResults.push(...results);
+		}
 		return results;
 	}
 
@@ -294,35 +297,38 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			`${this.choice.id}:${command?.id ?? command?.name ?? command?.type ?? "command"}`;
 	}
 
-	private async executeCommand(command: ICommand): Promise<void> {
+	private async executeCommand(
+		command: ICommand,
+	): Promise<CommandExecutionResult[]> {
 		switch (command?.type) {
 			case CommandType.Obsidian:
 				this.executeObsidianCommand(command as IObsidianCommand);
-				break;
+				return [];
 			case CommandType.UserScript:
 				await this.executeUserScript(command as IUserScript);
-				break;
+				return [];
 			case CommandType.Choice:
 				await this.executeChoice(command as IChoiceCommand);
-				break;
+				return [];
 			case CommandType.Wait:
 				await waitFor((command as IWaitCommand).time);
-				break;
+				return [];
 			case CommandType.NestedChoice:
 				await this.executeNestedChoice(command as INestedChoiceCommand);
-				break;
+				return [];
 			case CommandType.EditorCommand:
 				await this.executeEditorCommand(command as IEditorCommand);
-				break;
+				return [];
 			case CommandType.AIAssistant:
 				await this.executeAIAssistant(command as IAIAssistantCommand);
-				break;
+				return [];
 			case CommandType.OpenFile:
 				await this.executeOpenFile(command as IOpenFileCommand);
-				break;
+				return [];
 			case CommandType.Conditional:
-				await this.executeConditional(command as IConditionalCommand);
-				break;
+				return await this.executeConditional(command as IConditionalCommand);
+			default:
+				return [];
 		}
 	}
 
@@ -640,7 +646,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
-	private async executeConditional(command: IConditionalCommand) {
+	private async executeConditional(
+		command: IConditionalCommand,
+	): Promise<CommandExecutionResult[]> {
 		const shouldRunThenBranch = await evaluateCondition(command.condition, {
 			variables: this.params.variables,
 			evaluateScriptCondition: async (condition: ScriptCondition) =>
@@ -652,10 +660,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			: command.elseCommands;
 
 		if (!Array.isArray(branch) || branch.length === 0) {
-			return;
+			return [];
 		}
 
-		await this.executeCommands(branch, false);
+		return await this.executeCommands(branch, false);
 	}
 
 	public async runSubset(commands: ICommand[]): Promise<CommandExecutionResult[]> {
