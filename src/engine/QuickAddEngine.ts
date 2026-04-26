@@ -5,6 +5,7 @@ import { log } from "../logger/logManager";
 import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
+import type { ChoiceExecutionContext } from "./runtime";
 
 /**
  * Configuration for structured variable validation
@@ -32,11 +33,18 @@ export abstract class QuickAddEngine {
 	 */
 	private static readonly YAML_FRONTMATTER_EXTENSIONS = ['md'];
 
-	protected constructor(app: App) {
+	protected constructor(
+		app: App,
+		protected executionContext?: ChoiceExecutionContext,
+	) {
 		this.app = app;
 	}
 
-	public abstract run(): void;
+	protected getExecutionContext(): ChoiceExecutionContext | undefined {
+		return this.executionContext;
+	}
+
+	public abstract run(): unknown;
 
 	/**
 	 * Validates structured variables to ensure they can be safely processed.
@@ -230,9 +238,21 @@ export abstract class QuickAddEngine {
 				filePath.toLowerCase().endsWith(".md");
 
 			return shouldSuppress
-				? await withTemplaterFileCreationSuppressed(this.app, filePath, createFile)
+				? await this.withTemplaterFileCreationSuppressed(filePath, createFile)
 				: await createFile();
 		}
+
+	private async withTemplaterFileCreationSuppressed<T>(
+		filePath: string,
+		fn: () => Promise<T>,
+	): Promise<T> {
+		const templater = this.executionContext?.integrations.templater;
+		if (templater) {
+			return await templater.withFileCreationSuppressed(filePath, fn);
+		}
+
+		return await withTemplaterFileCreationSuppressed(this.app, filePath, fn);
+	}
 
 	/**
 	 * Determines if a file's front matter should be post-processed for template property types.

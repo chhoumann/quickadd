@@ -45,6 +45,17 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 
 ## Capture Options
 
+Capture runs participate in the shared QuickAdd flow runtime. When a Capture choice is launched from a macro or nested choice, it reuses the same variable map and origin tab as the parent flow.
+
+QuickAdd preserves capture write ordering to avoid data loss:
+
+- Existing-file captures still use the merge guard before modifying the file.
+- Missing insert-after targets abort before the file is modified, unless you enabled creating the missing line.
+- Structured YAML/template-property post-processing runs only after a successful write.
+- Creating a file from a template suppresses Templater's on-create trigger and renders the whole file once.
+- Creating a file without a template waits for Templater's on-create trigger only when that trigger is enabled.
+- Whole-file Templater rendering after capture remains opt-in via the Templater after-capture setting.
+
 -   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
 -   _Task_ will format your captured text as a task.
 -   _Use editor selection as default value_ controls whether the current editor selection is used as `{{VALUE}}`. Choose **Follow global setting**, **Use selection**, or **Ignore selection** (global default lives in Settings > Input). This does not affect `{{SELECTED}}`.

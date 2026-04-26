@@ -8,21 +8,18 @@ import type IMultiChoice from "../types/choices/IMultiChoice";
 
 const {
 	ChoiceExecutorMock,
-	collectChoiceRequirementsMock,
-	getUnresolvedRequirementsMock,
+	collectChoiceFlowPreflightMock,
 } = vi.hoisted(() => ({
 	ChoiceExecutorMock: vi.fn(),
-	collectChoiceRequirementsMock: vi.fn(),
-	getUnresolvedRequirementsMock: vi.fn(),
+	collectChoiceFlowPreflightMock: vi.fn(),
 }));
 
 vi.mock("../choiceExecutor", () => ({
 	ChoiceExecutor: ChoiceExecutorMock,
 }));
 
-vi.mock("../preflight/collectChoiceRequirements", () => ({
-	collectChoiceRequirements: collectChoiceRequirementsMock,
-	getUnresolvedRequirements: getUnresolvedRequirementsMock,
+vi.mock("../preflight/collectChoiceFlowPreflight", () => ({
+	collectChoiceFlowPreflight: collectChoiceFlowPreflightMock,
 }));
 
 interface RegisteredCliHandler {
@@ -130,12 +127,15 @@ describe("registerQuickAddCliHandlers", () => {
 	beforeEach(() => {
 		executors = [];
 		ChoiceExecutorMock.mockReset();
-		collectChoiceRequirementsMock.mockReset();
-		getUnresolvedRequirementsMock.mockReset();
+		collectChoiceFlowPreflightMock.mockReset();
 
 		ChoiceExecutorMock.mockImplementation(() => {
 			const executor: IChoiceExecutor = {
-				execute: vi.fn().mockResolvedValue(undefined),
+				execute: vi.fn().mockResolvedValue({
+					status: "success",
+					artifacts: [],
+					diagnostics: [],
+				}),
 				variables: new Map<string, unknown>(),
 				consumeAbortSignal: vi.fn().mockReturnValue(null),
 			};
@@ -143,8 +143,12 @@ describe("registerQuickAddCliHandlers", () => {
 			return executor;
 		});
 
-		collectChoiceRequirementsMock.mockResolvedValue([]);
-		getUnresolvedRequirementsMock.mockReturnValue([]);
+		collectChoiceFlowPreflightMock.mockResolvedValue({
+			requirements: [],
+			unresolvedRequirements: [],
+			diagnostics: [],
+			choices: [],
+		});
 	});
 
 	it("registers run/list/check handlers when CLI API is available", () => {
@@ -215,20 +219,113 @@ describe("registerQuickAddCliHandlers", () => {
 			label: "Title",
 			type: "text",
 		};
-		collectChoiceRequirementsMock.mockResolvedValue([missingRequirement]);
-		getUnresolvedRequirementsMock.mockReturnValue([missingRequirement]);
+		collectChoiceFlowPreflightMock.mockResolvedValue({
+			requirements: [missingRequirement],
+			unresolvedRequirements: [missingRequirement],
+			diagnostics: [],
+			choices: [
+				{
+					id: macroChoice.id,
+					name: macroChoice.name,
+					type: macroChoice.type,
+					path: macroChoice.name,
+					depth: 0,
+				},
+				{
+					id: nestedCaptureChoice.id,
+					name: nestedCaptureChoice.name,
+					type: nestedCaptureChoice.type,
+					path: `${macroChoice.name} / ${nestedCaptureChoice.name}`,
+					depth: 1,
+				},
+			],
+		});
 
 		const output = await Promise.resolve(
 			run!.handler({
-				choice: templateChoice.name,
+				choice: macroChoice.name,
 			}),
 		);
 		const payload = JSON.parse(String(output));
 
 		expect(payload.ok).toBe(false);
-		expect(payload.missingInputCount).toBeUndefined();
+		expect(payload.requiredInputCount).toBe(1);
+		expect(payload.missingInputCount).toBe(1);
 		expect(payload.missingFlags).toContain("value-title=<value>");
+		expect(payload.flow.choiceCount).toBe(2);
+		expect(payload.flow.choices[1]).toMatchObject({
+			id: nestedCaptureChoice.id,
+			depth: 1,
+		});
+		expect(collectChoiceFlowPreflightMock).toHaveBeenCalledWith(
+			plugin.app,
+			plugin,
+			executors[0],
+			macroChoice,
+		);
 		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("returns aborted when executor result status is aborted", async () => {
+		const executor: IChoiceExecutor = {
+			execute: vi.fn().mockResolvedValue({
+				status: "aborted",
+				error: new Error("Stopped by child"),
+				artifacts: [],
+				diagnostics: [],
+			}),
+			variables: new Map<string, unknown>(),
+			consumeAbortSignal: vi.fn().mockReturnValue(null),
+		};
+		ChoiceExecutorMock.mockReturnValueOnce(executor);
+		const { plugin, handlers } = createPlugin([
+			templateChoice,
+			macroChoice,
+			multiChoice,
+		]);
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((handler) => handler.command === "quickadd:run");
+		expect(run).toBeDefined();
+
+		const output = await Promise.resolve(
+			run!.handler({ choice: templateChoice.name }),
+		);
+		const payload = JSON.parse(String(output));
+
+		expect(payload.ok).toBe(false);
+		expect(payload.aborted).toBe(true);
+		expect(payload.error).toBe("Stopped by child");
+	});
+
+	it("returns failed when executor result status is failed", async () => {
+		const executor: IChoiceExecutor = {
+			execute: vi.fn().mockResolvedValue({
+				status: "failed",
+				error: new Error("Boom"),
+				artifacts: [],
+				diagnostics: [],
+			}),
+			variables: new Map<string, unknown>(),
+			consumeAbortSignal: vi.fn().mockReturnValue(null),
+		};
+		ChoiceExecutorMock.mockReturnValueOnce(executor);
+		const { plugin, handlers } = createPlugin([
+			templateChoice,
+			macroChoice,
+			multiChoice,
+		]);
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((handler) => handler.command === "quickadd:run");
+		expect(run).toBeDefined();
+
+		const output = await Promise.resolve(
+			run!.handler({ choice: templateChoice.name }),
+		);
+		const payload = JSON.parse(String(output));
+
+		expect(payload.ok).toBe(false);
+		expect(payload.aborted).toBeUndefined();
+		expect(payload.error).toBe("Boom");
 	});
 
 	it("lists flattened choices and supports command filter", async () => {
@@ -271,8 +368,28 @@ describe("registerQuickAddCliHandlers", () => {
 			label: "Project",
 			type: "text",
 		};
-		collectChoiceRequirementsMock.mockResolvedValue([requirement]);
-		getUnresolvedRequirementsMock.mockReturnValue([requirement]);
+		collectChoiceFlowPreflightMock.mockResolvedValue({
+			requirements: [requirement],
+			unresolvedRequirements: [requirement],
+			diagnostics: [
+				{
+					severity: "error",
+					code: "missing-required-inputs",
+					message: "1 required input(s) are missing for this flow.",
+					source: "runtime",
+					details: { missingIds: ["project"] },
+				},
+			],
+			choices: [
+				{
+					id: templateChoice.id,
+					name: templateChoice.name,
+					type: templateChoice.type,
+					path: templateChoice.name,
+					depth: 0,
+				},
+			],
+		});
 
 		const output = await Promise.resolve(
 			check!.handler({
@@ -284,6 +401,12 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.requiredInputCount).toBe(1);
 		expect(payload.missingInputCount).toBe(1);
+		expect(payload.diagnosticCount).toBe(1);
+		expect(payload.diagnostics[0]).toMatchObject({
+			severity: "error",
+			code: "missing-required-inputs",
+		});
+		expect(payload.flow.choiceCount).toBe(1);
 		expect(executors[0].execute).not.toHaveBeenCalled();
 	});
 });

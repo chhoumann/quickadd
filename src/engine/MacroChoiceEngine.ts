@@ -53,6 +53,12 @@ import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
+import {
+	createChoiceExecutionResult,
+	createCommandExecutionResult,
+	type ChoiceExecutionResult,
+	type CommandExecutionResult,
+} from "./runtime";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 
@@ -85,6 +91,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, unknown>;
 	private readonly promptLabel?: string;
+	private readonly commandResults: CommandExecutionResult[] = [];
 	private buildParams(
 		app: App,
 		plugin: QuickAdd,
@@ -161,7 +168,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		promptLabel?: string,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
-		super(app);
+		super(app, choiceExecutor.getExecutionContext?.() ?? undefined);
 		this.choice = choice;
 		this.plugin = plugin;
 		this.macro = choice?.macro;
@@ -176,62 +183,152 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.params = this.buildParams(app, plugin, choiceExecutor, sharedVariables);
 	}
 
-	async run(): Promise<void> {
+	async run(): Promise<ChoiceExecutionResult> {
 		if (!this.macro || !this.macro.commands) {
 			log.logError(
 				`No commands in the macro for choice '${this.choice.name}'`
 			);
-			return;
+			return this.createMacroResult("skipped");
 		}
 
-		await this.executeCommands(this.macro.commands);
+		const commandResults = await this.executeCommands(this.macro.commands);
+		const aborted = commandResults.some((result) => result.status === "aborted");
+		return this.createMacroResult(aborted ? "aborted" : "success", commandResults);
 	}
 
 	public getOutput(): unknown {
 		return this.output;
 	}
 
-	protected async executeCommands(commands: ICommand[]) {
-		try {
-			for (const command of commands) {
-				if (command?.type === CommandType.Obsidian)
-					this.executeObsidianCommand(command as IObsidianCommand);
-				if (command?.type === CommandType.UserScript)
-					await this.executeUserScript(command as IUserScript);
-				if (command?.type === CommandType.Choice)
-					await this.executeChoice(command as IChoiceCommand);
-				if (command?.type === CommandType.Wait) {
-					const waitCommand: IWaitCommand = command as IWaitCommand;
-					await waitFor(waitCommand.time);
+	public getCommandResults(): CommandExecutionResult[] {
+		return this.commandResults;
+	}
+
+	protected async executeCommands(
+		commands: ICommand[],
+		handleAbort = true,
+	): Promise<CommandExecutionResult[]> {
+		const results: CommandExecutionResult[] = [];
+
+		for (const command of commands) {
+			const stepId = this.createCommandStepId(command);
+
+			try {
+				const nestedResults = await this.executeCommand(command);
+				results.push(...nestedResults);
+				results.push(
+					createCommandExecutionResult({
+						status: "success",
+						commandId: command.id,
+						stepId,
+						value: this.getCommandResultValue(command),
+					}),
+				);
+			} catch (error) {
+				if (!handleAbort) throw error;
+
+				if (
+					handleMacroAbort(error, {
+						logPrefix: "Macro execution aborted",
+						noticePrefix: "Macro execution aborted",
+						defaultReason: "Macro execution aborted",
+					})
+				) {
+					this.choiceExecutor.signalAbort?.(error as MacroAbortError);
+					results.push(
+						createCommandExecutionResult({
+							status: "aborted",
+							commandId: command.id,
+							stepId,
+							error,
+						}),
+					);
+					this.commandResults.push(...results);
+					return results;
 				}
-				if (command?.type === CommandType.NestedChoice) {
-					await this.executeNestedChoice(command as INestedChoiceCommand);
-				}
-				if (command?.type === CommandType.EditorCommand) {
-					await this.executeEditorCommand(command as IEditorCommand);
-				}
-				if (command?.type === CommandType.AIAssistant) {
-					await this.executeAIAssistant(command as IAIAssistantCommand);
-				}
-				if (command?.type === CommandType.OpenFile) {
-					await this.executeOpenFile(command as IOpenFileCommand);
-				}
-				if (command?.type === CommandType.Conditional) {
-					await this.executeConditional(command as IConditionalCommand);
-				}
+
+				results.push(
+					createCommandExecutionResult({
+						status: "failed",
+						commandId: command.id,
+						stepId,
+						error,
+					}),
+				);
+				this.commandResults.push(...results);
+				throw error;
 			}
-		} catch (error) {
-			if (
-				handleMacroAbort(error, {
-					logPrefix: "Macro execution aborted",
-					noticePrefix: "Macro execution aborted",
-					defaultReason: "Macro execution aborted",
-				})
-			) {
-				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
-				return;
-			}
-			throw error;
+		}
+
+		if (handleAbort) {
+			this.commandResults.push(...results);
+		}
+		return results;
+	}
+
+	private createMacroResult(
+		status: ChoiceExecutionResult["status"],
+		commandResults: CommandExecutionResult[] = [],
+	): ChoiceExecutionResult {
+		const abortError = commandResults.find(
+			(result) => result.status === "aborted",
+		)?.error;
+
+		return createChoiceExecutionResult({
+			status,
+			choiceId: this.choice.id,
+			stepId: this.getExecutionContext()?.createStepId("macro"),
+			value: {
+				output: this.output,
+				commands: commandResults,
+			},
+			error: status === "aborted" ? abortError : undefined,
+			artifacts: [...(this.getExecutionContext()?.artifacts ?? [])],
+			diagnostics: [...(this.getExecutionContext()?.diagnostics ?? [])],
+		});
+	}
+
+	private getCommandResultValue(command: ICommand): unknown {
+		return command?.type === CommandType.UserScript ? this.output : undefined;
+	}
+
+	private createCommandStepId(command: ICommand): string {
+		return this.getExecutionContext()?.createStepId(command?.type ?? "command") ??
+			`${this.choice.id}:${command?.id ?? command?.name ?? command?.type ?? "command"}`;
+	}
+
+	private async executeCommand(
+		command: ICommand,
+	): Promise<CommandExecutionResult[]> {
+		switch (command?.type) {
+			case CommandType.Obsidian:
+				this.executeObsidianCommand(command as IObsidianCommand);
+				return [];
+			case CommandType.UserScript:
+				await this.executeUserScript(command as IUserScript);
+				return [];
+			case CommandType.Choice:
+				await this.executeChoice(command as IChoiceCommand);
+				return [];
+			case CommandType.Wait:
+				await waitFor((command as IWaitCommand).time);
+				return [];
+			case CommandType.NestedChoice:
+				await this.executeNestedChoice(command as INestedChoiceCommand);
+				return [];
+			case CommandType.EditorCommand:
+				await this.executeEditorCommand(command as IEditorCommand);
+				return [];
+			case CommandType.AIAssistant:
+				await this.executeAIAssistant(command as IAIAssistantCommand);
+				return [];
+			case CommandType.OpenFile:
+				await this.executeOpenFile(command as IOpenFileCommand);
+				return [];
+			case CommandType.Conditional:
+				return await this.executeConditional(command as IConditionalCommand);
+			default:
+				return [];
 		}
 	}
 
@@ -412,11 +509,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.choiceExecutor.execute(targetChoice);
-		const abort = this.choiceExecutor.consumeAbortSignal?.();
-		if (abort) {
-			throw abort;
-		}
+		const result = await this.choiceExecutor.execute(targetChoice);
+		this.throwIfChildChoiceAborted(result);
 	}
 
 	private async executeNestedChoice(command: INestedChoiceCommand) {
@@ -426,10 +520,20 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.choiceExecutor.execute(choice);
+		const result = await this.choiceExecutor.execute(choice);
+		this.throwIfChildChoiceAborted(result);
+	}
+
+	private throwIfChildChoiceAborted(result: ChoiceExecutionResult): void {
 		const abort = this.choiceExecutor.consumeAbortSignal?.();
 		if (abort) {
 			throw abort;
+		}
+
+		if (result.status === "aborted") {
+			throw result.error instanceof MacroAbortError
+				? result.error
+				: new MacroAbortError("Nested choice aborted");
 		}
 	}
 
@@ -505,7 +609,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const formatter = new CompleteFormatter(
 			this.app,
 			QuickAdd.instance,
-			this.choiceExecutor
+			this.choiceExecutor,
+			undefined,
+			this.getExecutionContext(),
 		);
 
 		const modelProvider = getModelProvider(model.name);
@@ -540,7 +646,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
-	private async executeConditional(command: IConditionalCommand) {
+	private async executeConditional(
+		command: IConditionalCommand,
+	): Promise<CommandExecutionResult[]> {
 		const shouldRunThenBranch = await evaluateCondition(command.condition, {
 			variables: this.params.variables,
 			evaluateScriptCondition: async (condition: ScriptCondition) =>
@@ -552,15 +660,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			: command.elseCommands;
 
 		if (!Array.isArray(branch) || branch.length === 0) {
-			return;
+			return [];
 		}
 
-		await this.executeCommands(branch);
+		return await this.executeCommands(branch, false);
 	}
 
-	public async runSubset(commands: ICommand[]): Promise<void> {
-		if (!commands?.length) return;
-		await this.executeCommands(commands);
+	public async runSubset(commands: ICommand[]): Promise<CommandExecutionResult[]> {
+		if (!commands?.length) return [];
+		return await this.executeCommands(commands);
 	}
 
 	public setOutput(value: unknown): void {
@@ -650,7 +758,9 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const formatter = new CompleteFormatter(
 				this.app,
 				QuickAdd.instance,
-				this.choiceExecutor
+				this.choiceExecutor,
+				undefined,
+				this.getExecutionContext(),
 			);
 
 			const resolvedPath = await formatter.formatFileName(command.filePath, "");
@@ -674,7 +784,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			await openFile(this.app, file, {
 				...openOptions,
-				originLeaf: this.originLeaf,
+				originLeaf: this.getExecutionContext()?.originLeaf ?? this.originLeaf,
 			});
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);

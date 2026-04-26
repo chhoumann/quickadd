@@ -34,7 +34,11 @@ describe("QuickAddApi.executeChoice", () => {
 	beforeEach(() => {
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
-			execute: vi.fn().mockResolvedValue(undefined),
+			execute: vi.fn().mockResolvedValue({
+				status: "success",
+				artifacts: [],
+				diagnostics: [],
+			}),
 			variables,
 			consumeAbortSignal: vi.fn().mockReturnValue(null),
 		};
@@ -54,15 +58,50 @@ describe("QuickAddApi.executeChoice", () => {
 		await expect(api.executeChoice("My Template"))
 			.rejects.toBe(abortError);
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
-		expect(variables.size).toBe(0);
+		expect(variables.get("foo")).toBe("bar");
 	});
 
-	it("clears variables and resolves when no abort is signalled", async () => {
+	it("restores variables when no abort is signalled", async () => {
 		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+		variables.set("existing", "kept");
 		await expect(
 			api.executeChoice("My Template", { project: "QA" }),
 		).resolves.toBeUndefined();
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
-		expect(variables.size).toBe(0);
+		expect(variables.get("existing")).toBe("kept");
+		expect(variables.has("project")).toBe(false);
+	});
+
+	it("rejects when execution result status is aborted", async () => {
+		const abortError = new MacroAbortError("Nested choice aborted");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+			status: "aborted",
+			error: abortError,
+			artifacts: [],
+			diagnostics: [],
+		});
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		variables.set("existing", "kept");
+		await expect(api.executeChoice("My Template", { project: "QA" }))
+			.rejects.toBe(abortError);
+		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
+		expect(variables.get("existing")).toBe("kept");
+		expect(variables.has("project")).toBe(false);
+	});
+
+	it("rejects when execution result status is failed", async () => {
+		const failure = new Error("Choice failed");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+			status: "failed",
+			error: failure,
+			artifacts: [],
+			diagnostics: [],
+		});
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		await expect(api.executeChoice("My Template"))
+			.rejects.toBe(failure);
+		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 	});
 });

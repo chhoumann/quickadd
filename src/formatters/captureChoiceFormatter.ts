@@ -1,4 +1,4 @@
-import { MarkdownView, type TFile } from "obsidian";
+import { MarkdownView, type App, type TFile } from "obsidian";
 import { getLinesInString } from "src/utility";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
@@ -8,15 +8,18 @@ import {
 import { log } from "../logger/logManager";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { BlankLineAfterMatchMode } from "../types/choices/ICaptureChoice";
-import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type QuickAdd from "../main";
+import { FormatOrchestrator, type ChoiceExecutionContext } from "../engine/runtime";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
 import { findYamlFrontMatterRange } from "../utils/yamlContext";
 
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
+	private readonly formatOrchestrator: FormatOrchestrator;
 	private file: TFile | null = null;
 	private fileContent = "";
 	private sourcePath: string | null = null;
@@ -28,6 +31,19 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		* tp.system.prompt).
 		*/
 	private templaterProcessed = false;
+
+	constructor(
+		app: App,
+		plugin: QuickAdd,
+		choiceExecutor?: IChoiceExecutor,
+		executionContext?: ChoiceExecutionContext,
+	) {
+		super(app, plugin, choiceExecutor, undefined, executionContext);
+		this.formatOrchestrator = new FormatOrchestrator(
+			app,
+			this.executionContext,
+		);
+	}
 
 	public setDestinationFile(file: TFile): void {
 		this.file = file;
@@ -107,11 +123,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		// Run templater only once per capture payload to prevent #533 double execution
 		if (runTemplater && this.file && !this.templaterProcessed) {
-			const templaterFormatted = await templaterParseTemplate(
-				this.app,
-				formatted,
-				this.file,
-			);
+			const templaterFormatted =
+				await this.formatOrchestrator.parseTemplaterTemplate(
+					formatted,
+					this.file,
+				);
 			if (templaterFormatted) {
 				formatted = templaterFormatted;
 			}

@@ -39,6 +39,51 @@ Check which inputs are still missing before a non-interactive run.
 obsidian vault=dev quickadd:check choice="Daily log"
 ```
 
+The check command is flow-aware. For macros, it follows nested Template and Capture choices, reports missing inputs for the whole flow, and includes diagnostics in the JSON response:
+
+- `diagnostics`: runtime, nested-choice, and integration capability notes.
+- `flow.choices`: choices included in the check, with path and depth.
+- `missingFlags`: CLI flags you can pass to satisfy unresolved inputs.
+
+Example response shape:
+
+```json
+{
+  "ok": false,
+  "command": "quickadd:check",
+  "requiredInputCount": 1,
+  "missingInputCount": 1,
+  "missingFlags": ["value-project=<value>"],
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "missing-required-inputs",
+      "source": "runtime",
+      "message": "1 required input(s) are missing for this flow."
+    }
+  ],
+  "flow": {
+    "choiceCount": 2,
+    "choices": [
+      {
+        "id": "macro-choice-id",
+        "name": "Daily log",
+        "type": "Macro",
+        "path": "Daily log",
+        "depth": 0
+      },
+      {
+        "id": "capture-choice-id",
+        "name": "Capture project",
+        "type": "Capture",
+        "path": "Daily log / Capture project",
+        "depth": 1
+      }
+    ]
+  }
+}
+```
+
 ## Passing variables
 
 QuickAdd CLI supports three variable patterns:

@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { App, TFile } from "obsidian";
-import { jumpToNextTemplaterCursorIfPossible, templaterParseTemplate } from "./utilityObsidian";
+import { IntegrationRegistry } from "./integrations/IntegrationRegistry";
+import { registerIntegrationRegistry } from "./integrations/IntegrationRegistry";
+import type { TemplaterIntegration } from "./integrations/TemplaterIntegration";
+import {
+	getTemplater,
+	getTemplaterPlugin,
+	isTemplaterTriggerOnCreateEnabled,
+	jumpToNextTemplaterCursorIfPossible,
+	overwriteTemplaterOnce,
+	templaterParseTemplate,
+	waitForTemplaterTriggerOnCreateToComplete,
+	withTemplaterFileCreationSuppressed,
+} from "./utilityObsidian";
 
 describe("templaterParseTemplate", () => {
 	it("calls parse_template with the correct `this` context", async () => {
@@ -25,6 +37,78 @@ describe("templaterParseTemplate", () => {
 
 		const result = await templaterParseTemplate(app as any, "hello", file as any);
 		expect(result).toBe("rendered:hello");
+	});
+});
+
+describe("legacy Templater wrappers", () => {
+	it("delegate through the registered integration adapter", async () => {
+		const app = new App();
+		const file = new TFile();
+		file.path = "QA.md";
+		file.extension = "md";
+
+		const rawPlugin = { ok: true };
+		const plugin = { settings: { trigger_on_file_creation: true } };
+		const fakeIntegration: TemplaterIntegration = {
+			id: "templater-obsidian" as const,
+			getRawPlugin: vi.fn(() => rawPlugin),
+			getPlugin: vi.fn(() => plugin),
+			getCapabilityReport: vi.fn(() => ({
+				pluginId: "templater-obsidian" as const,
+				installed: true,
+				capabilities: {
+					triggerOnFileCreation: true,
+					pendingTemplates: false,
+					overwriteFileCommands: true,
+					parseTemplate: true,
+					createRunningConfig: false,
+					cursorAutoJump: false,
+					cursorJump: true,
+					teardown: false,
+				},
+				missingCapabilities: [],
+			})),
+			hasCapability: vi.fn(() => true),
+			isTriggerOnCreateEnabled: vi.fn(() => true),
+			waitForTriggerOnCreateToComplete: vi.fn(async () => undefined),
+			withFileCreationSuppressed: vi.fn(async (_path, fn) => await fn()),
+			overwriteFileOnce: vi.fn(async () => undefined),
+			parseTemplate: vi.fn(async (content) => `wrapped:${content}`),
+			jumpToNextCursorIfPossible: vi.fn(async () => undefined),
+		};
+		registerIntegrationRegistry(
+			app as any,
+			new IntegrationRegistry({ templater: fakeIntegration }),
+		);
+
+		expect(getTemplater(app as any)).toBe(rawPlugin);
+		expect(getTemplaterPlugin(app as any)).toBe(plugin);
+		expect(isTemplaterTriggerOnCreateEnabled(app as any)).toBe(true);
+		expect(await templaterParseTemplate(app as any, "hello", file as any)).toBe(
+			"wrapped:hello",
+		);
+		expect(
+			await withTemplaterFileCreationSuppressed(
+				app as any,
+				"QA.md",
+				async () => "suppressed",
+			),
+		).toBe("suppressed");
+		await overwriteTemplaterOnce(app as any, file as any, {
+			skipIfNoTags: false,
+		});
+		await waitForTemplaterTriggerOnCreateToComplete(app as any, file as any);
+		await jumpToNextTemplaterCursorIfPossible(app as any, file as any);
+
+		expect(fakeIntegration.parseTemplate).toHaveBeenCalledWith("hello", file);
+		expect(fakeIntegration.withFileCreationSuppressed).toHaveBeenCalled();
+		expect(fakeIntegration.overwriteFileOnce).toHaveBeenCalledWith(file, {
+			skipIfNoTags: false,
+		});
+		expect(
+			fakeIntegration.waitForTriggerOnCreateToComplete,
+		).toHaveBeenCalledWith(file, {});
+		expect(fakeIntegration.jumpToNextCursorIfPossible).toHaveBeenCalledWith(file);
 	});
 });
 
