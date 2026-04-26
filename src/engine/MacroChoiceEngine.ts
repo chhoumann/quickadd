@@ -257,6 +257,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		status: ChoiceExecutionResult["status"],
 		commandResults: CommandExecutionResult[] = [],
 	): ChoiceExecutionResult {
+		const abortError = commandResults.find(
+			(result) => result.status === "aborted",
+		)?.error;
+
 		return createChoiceExecutionResult({
 			status,
 			choiceId: this.choice.id,
@@ -265,6 +269,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				output: this.output,
 				commands: commandResults,
 			},
+			error: status === "aborted" ? abortError : undefined,
 			artifacts: [...(this.getExecutionContext()?.artifacts ?? [])],
 			diagnostics: [...(this.getExecutionContext()?.diagnostics ?? [])],
 		});
@@ -761,7 +766,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			await openFile(this.app, file, {
 				...openOptions,
-				originLeaf: this.originLeaf,
+				originLeaf: this.getExecutionContext()?.originLeaf ?? this.originLeaf,
 			});
 		} catch (error) {
 			log.logError(`OpenFile: Failed to open file '${command.filePath}': ${error.message}`);

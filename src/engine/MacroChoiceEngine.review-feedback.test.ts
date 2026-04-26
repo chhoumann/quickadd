@@ -1,4 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockGetUserScript, mockOpenFile } = vi.hoisted(() => ({
+	mockGetUserScript: vi.fn(),
+	mockOpenFile: vi.fn(),
+}));
 
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
@@ -44,7 +49,11 @@ vi.mock("../quickAddSettingsTab", () => {
 });
 
 vi.mock("../formatters/completeFormatter", () => ({
-	CompleteFormatter: class CompleteFormatterMock {},
+	CompleteFormatter: class CompleteFormatterMock {
+		async formatFileName(input: string) {
+			return input;
+		}
+	},
 }));
 
 vi.mock("obsidian-dataview", () => ({
@@ -55,7 +64,13 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
+vi.mock("../utilityObsidian", () => ({
+	getUserScript: mockGetUserScript,
+	openFile: mockOpenFile,
+}));
+
 import type { App } from "obsidian";
+import { TFile } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import type IChoice from "../types/choices/IChoice";
@@ -63,8 +78,12 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import { CommandType } from "../types/macros/CommandType";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IUserScript } from "../types/macros/IUserScript";
+import { IntegrationRegistry } from "../integrations/IntegrationRegistry";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
-import { createChoiceExecutionResult } from "./runtime";
+import {
+	createChoiceExecutionContext,
+	createChoiceExecutionResult,
+} from "./runtime";
 
 function createChoiceExecutor(): IChoiceExecutor {
 	return {
@@ -79,6 +98,10 @@ function createChoiceExecutor(): IChoiceExecutor {
 }
 
 describe("MacroChoiceEngine review feedback regressions", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
 	it("does not keep partial branch results when a conditional branch aborts", async () => {
 		const app = {} as App;
 		const plugin = {} as any;
@@ -184,6 +207,115 @@ describe("MacroChoiceEngine review feedback regressions", () => {
 			commandId: "conditional-command",
 			status: "aborted",
 		});
+	});
+
+	it("preserves the abort error on the macro-level result", async () => {
+		const app = {} as App;
+		const plugin = {} as any;
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Abort macro",
+			commands: [
+				{
+					id: "obsidian-command",
+					name: "Obsidian",
+					type: CommandType.Obsidian,
+					commandId: "do-something",
+				} as any,
+			],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Abort Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+
+		class AbortMacroChoiceEngine extends MacroChoiceEngine {
+			protected override executeObsidianCommand(): void {
+				throw new MacroAbortError("Input cancelled by user");
+			}
+		}
+
+		const engine = new AbortMacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			createChoiceExecutor(),
+			new Map<string, unknown>(),
+		);
+
+		const result = await engine.run();
+
+		expect(result.status).toBe("aborted");
+		expect(result.error).toBeInstanceOf(MacroAbortError);
+		expect((result.error as MacroAbortError).message).toBe(
+			"Input cancelled by user",
+		);
+	});
+
+	it("uses the execution context origin leaf for open-file commands", async () => {
+		const originLeaf = { id: "origin-leaf" } as any;
+		const file = Object.assign(Object.create(TFile.prototype), {
+			path: "note.md",
+		}) as TFile;
+		const app = {
+			vault: {
+				getAbstractFileByPath: vi.fn().mockReturnValue(file),
+			},
+		} as unknown as App;
+		const plugin = {} as any;
+		const macro: IMacro = {
+			id: "macro-id",
+			name: "Open file macro",
+			commands: [
+				{
+					id: "open-file-command",
+					name: "Open file",
+					type: CommandType.OpenFile,
+					filePath: "note.md",
+				} as any,
+			],
+		};
+		const choice: IMacroChoice = {
+			id: "choice-id",
+			name: "Open File Macro",
+			type: "Macro",
+			command: false,
+			macro,
+			runOnStartup: false,
+		};
+		const context = createChoiceExecutionContext({
+			originLeaf,
+			variables: new Map<string, unknown>(),
+			integrations: new IntegrationRegistry(),
+		});
+		const choiceExecutor: IChoiceExecutor = {
+			variables: context.variables,
+			execute: vi.fn(),
+			getExecutionContext: () => context,
+		};
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			choice,
+			choiceExecutor,
+			context.variables,
+			undefined,
+			undefined,
+			null,
+		);
+
+		await engine.run();
+
+		expect(mockOpenFile).toHaveBeenCalledWith(
+			app,
+			file,
+			expect.objectContaining({ originLeaf }),
+		);
 	});
 
 	it("only records command values for commands that produce output", async () => {
