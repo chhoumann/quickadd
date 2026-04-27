@@ -57,21 +57,11 @@ export async function runOnePagePreflight(
 			}
 		};
 
-		const onePageE2EDiagnosticsEnabled =
-			String(choiceExecutor.variables.get("__qaE2EOnePageDiagnostics")) ===
-			"true";
-
 		const modal = new OnePageInputModal(
 			app,
 			unresolved,
 			choiceExecutor.variables,
 			computePreview,
-			onePageE2EDiagnosticsEnabled
-				? {
-						enabled: true,
-						autoSubmit: true,
-					}
-				: undefined,
 		);
 		const values = await modal.waitForClose;
 
