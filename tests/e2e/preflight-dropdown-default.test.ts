@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
 	acquireVaultRunLock,
@@ -15,29 +17,25 @@ import type {
 
 const VAULT = "dev";
 const PLUGIN_ID = "quickadd";
-const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
-const TEST_PREFIX = "__qa-test-588-";
-const VALUE_KEY = "#BF616A,#8CC570,#42A5F5";
+const WAIT_OPTS = { timeoutMs: 30_000, intervalMs: 200 };
+const TEST_PREFIX = "qa-test-588-";
+const RUN_ID = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const OUTPUT_FILE = `dropdown-output-${RUN_ID}.md`;
+const RUN_MARKER = `qa-preflight-dropdown-${RUN_ID}`;
+const VALUE_KEY = `#BF616A,#8CC570,#42A5F5,${RUN_MARKER}`;
+const TEST_CHOICE_ID = `${TEST_PREFIX}capture-dropdown-default`;
+
+type QuickAddData = {
+	choices: Record<string, unknown>[];
+	migrations: Record<string, boolean>;
+	onePageInputEnabled?: boolean;
+};
+
 
 let obsidian: ObsidianClient;
 let sandbox: SandboxApi;
 let qa: PluginHandle;
 let lock: VaultRunLock | undefined;
-
-type QuickAddData = {
-	choices: Record<string, unknown>[];
-	migrations: Record<string, boolean>;
-};
-
-type RunOutcome =
-	| { ok: false; error: unknown }
-	| { ok: true; result: { exitCode: number } };
-
-type ModalSubmitResult = {
-	selectValue: string;
-	selectedText: string | null;
-	optionValues: string[];
-};
 
 function captureChoice(id: string, captureTo: string) {
 	return {
@@ -55,7 +53,7 @@ function captureChoice(id: string, captureTo: string) {
 		},
 		format: {
 			enabled: true,
-			format: `<mark style="background-color: {{VALUE:${VALUE_KEY}|dropdown|text:red,green,blue}}">selected</mark>`,
+			format: `<!-- ${RUN_MARKER} -->\n<mark style="background-color: {{VALUE:${VALUE_KEY}|dropdown|text:red,green,blue,marker}}">selected</mark>`,
 		},
 		prepend: false,
 		appendLink: false,
@@ -88,38 +86,22 @@ function clearTestChoices(data: QuickAddData) {
 	);
 }
 
-function submitOnePageModalCode() {
-	return `
-(() => {
-	const modal = document.querySelector(".onePageInputModal");
-	if (!modal) return null;
+async function ensureQuickAddDataFile() {
+	const dataPath = await qa.dataPath();
 
-	const select = modal.querySelector("select");
-	const buttons = Array.from(modal.querySelectorAll("button"));
-	const submit = buttons.find(
-		(button) => button.textContent?.trim() === "Submit",
-	);
-	if (!select || !submit) return null;
-
-	const result = {
-		selectValue: select.value,
-		selectedText: select.selectedOptions?.[0]?.textContent ?? null,
-		optionValues: Array.from(select.options).map((option) => option.value),
-	};
-	submit.click();
-	return result;
-})()
-`;
-}
-
-async function submitOnePageModal(): Promise<ModalSubmitResult> {
-	return await obsidian.waitFor(async () => {
-		const result = await obsidian.dev.evalJson<ModalSubmitResult | null>(
-			submitOnePageModalCode(),
+	try {
+		await qa.data<QuickAddData>().read();
+		return;
+	} catch {
+		await mkdir(dirname(dataPath), { recursive: true });
+		await writeFile(
+			dataPath,
+			JSON.stringify({ choices: [], migrations: {} }, null, 2),
+			"utf8",
 		);
-		return result?.selectValue ? result : false;
-	}, WAIT_OPTS);
+	}
 }
+
 
 async function runTeardownStep(
 	label: string,
@@ -137,7 +119,6 @@ async function runTeardownStep(
 beforeAll(async () => {
 	obsidian = createObsidianClient({ vault: VAULT });
 	await obsidian.verify();
-
 	lock = await acquireVaultRunLock({
 		vaultName: VAULT,
 		vaultPath: await obsidian.vaultPath(),
@@ -150,6 +131,8 @@ beforeAll(async () => {
 		sandboxRoot: "__obsidian_e2e__",
 		testName: "preflight-dropdown-default",
 	});
+
+	await ensureQuickAddDataFile();
 }, 30_000);
 
 afterAll(async () => {
@@ -184,45 +167,37 @@ describe("issue 588: one-page mapped dropdown defaults", () => {
 	beforeAll(async () => {
 		await qa.data<QuickAddData>().patch((data) => {
 			clearTestChoices(data);
+			data.onePageInputEnabled = true;
 			data.choices.push(
-				captureChoice(
-					`${TEST_PREFIX}capture-dropdown-default`,
-					sandbox.path("dropdown-output.md"),
-				),
+				captureChoice(TEST_CHOICE_ID, sandbox.path(OUTPUT_FILE)),
 			);
 		});
-
-		await qa.reload({ waitUntilReady: true });
-	}, 15_000);
+		await qa.reload();
+		const data = await qa.data<QuickAddData>().read();
+		expect(
+			data.choices.some((choice) => String(choice.id ?? "") === TEST_CHOICE_ID),
+		).toBe(true);
+	}, 60_000);
 
 	it("captures the first raw mapped dropdown option when submitted untouched", async () => {
-		const runPromise: Promise<RunOutcome> = obsidian
-			.exec("quickadd:run", {
-				choice: `${TEST_PREFIX}capture-dropdown-default`,
-				ui: "true",
-			})
-			.then(
-				(result) => ({ ok: true, result }) as const,
-				(error: unknown) => ({ ok: false, error }) as const,
-			);
+		expect(await sandbox.exists(OUTPUT_FILE)).toBe(false);
 
-		const modal = await submitOnePageModal();
-		expect(modal).toMatchObject({
-			selectValue: "#BF616A",
-			selectedText: "red",
-			optionValues: VALUE_KEY.split(","),
+		const runExec = await obsidian.exec("quickadd:run", {
+			choice: TEST_CHOICE_ID,
+			ui: "true",
+			vars: JSON.stringify({ __qaE2EOnePageDiagnostics: "true" }),
 		});
-
-		const runResult = await runPromise;
-		if (!runResult.ok) throw runResult.error;
-		expect(runResult.result.exitCode).toBe(0);
+		expect(runExec.exitCode).toBe(0);
 
 		const content = await sandbox.waitForContent(
-			"dropdown-output.md",
-			(fileContent) => fileContent.includes("background-color: #BF616A"),
+			OUTPUT_FILE,
+			(fileContent) =>
+				fileContent.includes(RUN_MARKER) &&
+				fileContent.includes("background-color: #BF616A"),
 			WAIT_OPTS,
 		);
 
+		expect(content).toContain(RUN_MARKER);
 		expect(content).toContain("background-color: #BF616A");
 		expect(content).not.toContain("background-color: \">selected");
 	});

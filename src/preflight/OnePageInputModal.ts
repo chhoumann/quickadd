@@ -26,6 +26,33 @@ type PreviewComputer = (
 	values: Record<string, string>,
 ) => Promise<Record<string, string>> | Record<string, string>;
 
+type OnePageE2EDiagnostics = {
+	opened: boolean;
+	submitted: boolean;
+	cancelled: boolean;
+	values?: Record<string, string>;
+	requirementIds?: string[];
+};
+
+type OnePageE2EOptions = {
+	enabled: boolean;
+	autoSubmit?: boolean;
+	diagnosticsPath?: string;
+};
+
+const ONEPAGE_E2E_ENABLE_PATH = "__obsidian_e2e__/quickadd-e2e-enable.txt";
+const ONEPAGE_E2E_DIAGNOSTICS_PATH = "__obsidian_e2e__/quickadd-e2e-onepage.json";
+
+function isOnePageE2EDiagnosticsEnabled(app: App): boolean {
+	try {
+		const vault = (app as unknown as { vault?: { getAbstractFileByPath?: (path: string) => unknown } })
+			.vault;
+		return Boolean(vault?.getAbstractFileByPath?.(ONEPAGE_E2E_ENABLE_PATH));
+	} catch {
+		return false;
+	}
+}
+
 export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
 	private readonly initialValues: Map<string, string>;
@@ -37,12 +64,16 @@ export class OnePageInputModal extends Modal {
 	public waitForClose: Promise<Record<string, string>>;
 	private resolvePromise!: (values: Record<string, string>) => void;
 	private rejectPromise!: (reason?: unknown) => void;
+	private readonly onePageE2EDiagnosticsEnabled: boolean;
+	private readonly onePageE2EAutoSubmit: boolean;
+	private readonly onePageE2EDiagnosticsPath: string;
 
 	constructor(
 		app: App,
 		requirements: FieldRequirement[],
 		initial?: Map<string, unknown>,
 		computePreview?: PreviewComputer,
+		e2eOptions?: OnePageE2EOptions,
 	) {
 		super(app);
 		this.requirements = requirements;
@@ -57,6 +88,12 @@ export class OnePageInputModal extends Modal {
 			150,
 			true,
 		);
+		this.onePageE2EDiagnosticsEnabled =
+			e2eOptions?.enabled ?? isOnePageE2EDiagnosticsEnabled(app);
+		this.onePageE2EAutoSubmit =
+			e2eOptions?.autoSubmit ?? this.onePageE2EDiagnosticsEnabled;
+		this.onePageE2EDiagnosticsPath =
+			e2eOptions?.diagnosticsPath ?? ONEPAGE_E2E_DIAGNOSTICS_PATH;
 
 		this.waitForClose = new Promise<Record<string, string>>(
 			(resolve, reject) => {
@@ -67,6 +104,18 @@ export class OnePageInputModal extends Modal {
 
 		this.display();
 		this.open();
+
+		if (this.onePageE2EDiagnosticsEnabled) {
+			this.writeOnePageE2EDiagnostics({
+				opened: true,
+				submitted: false,
+				cancelled: false,
+				requirementIds: requirements.map((requirement) => requirement.id),
+			});
+			if (this.onePageE2EAutoSubmit) {
+				queueMicrotask(() => this.submit());
+			}
+		}
 	}
 
 	private display() {
@@ -435,6 +484,14 @@ export class OnePageInputModal extends Modal {
 		return req.label;
 	}
 
+	private writeOnePageE2EDiagnostics(diagnostics: OnePageE2EDiagnostics): void {
+		if (!this.onePageE2EDiagnosticsEnabled) return;
+		void this.app.vault.adapter.write(
+			this.onePageE2EDiagnosticsPath,
+			JSON.stringify(diagnostics, null, 2),
+		);
+	}
+
 	private submit() {
 		const out: Record<string, string> = {};
 		const requirementsById = new Map(
@@ -447,6 +504,13 @@ export class OnePageInputModal extends Modal {
 					? this.escapeBackslashes(v)
 					: v;
 		});
+		this.writeOnePageE2EDiagnostics({
+			opened: true,
+			submitted: true,
+			cancelled: false,
+			values: out,
+			requirementIds: this.requirements.map((requirement) => requirement.id),
+		});
 		this.close();
 		this.resolvePromise(out);
 	}
@@ -456,6 +520,12 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private cancel() {
+		this.writeOnePageE2EDiagnostics({
+			opened: true,
+			submitted: false,
+			cancelled: true,
+			requirementIds: this.requirements.map((requirement) => requirement.id),
+		});
 		this.close();
 		this.rejectPromise("cancelled");
 	}

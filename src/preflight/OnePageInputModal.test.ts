@@ -240,4 +240,35 @@ describe("OnePageInputModal", () => {
 			[id]: "#BF616A",
 		});
 	});
+
+	it("normalizes stale initial dropdown values to the first raw option", async () => {
+		const id = "#BF616A,#8CC570,#42A5F5";
+		const requirements: FieldRequirement[] = [
+			{
+				id,
+				label: "Color",
+				type: "dropdown",
+				options: ["#BF616A", "#8CC570", "#42A5F5"],
+				displayOptions: ["red", "green", "blue"],
+			},
+		];
+
+		const initialValues = new Map<string, unknown>([[id, "stale"]]);
+		const modal = new OnePageInputModal(
+			{} as App,
+			requirements,
+			initialValues,
+		);
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({
+			[id]: "#BF616A",
+		});
+	});
 });
