@@ -17,7 +17,10 @@ import {
 } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import type { FieldRequirement } from "./RequirementCollector";
-import { mapMappedSuggesterValue } from "./suggesterValueMapping";
+import {
+	mapMappedSuggesterValue,
+	resolveDropdownInitialValue,
+} from "./suggesterValueMapping";
 
 type PreviewComputer = (
 	values: Record<string, string>,
@@ -154,7 +157,9 @@ export class OnePageInputModal extends Modal {
 						const display = displayOptions[index] ?? opt;
 						dropdown.addOption(opt, display);
 					});
-					dropdown.setValue(starting || options[0] || "");
+					const selectedValue = resolveDropdownInitialValue(starting, options);
+					dropdown.setValue(selectedValue);
+					setValue(req.id, selectedValue);
 					dropdown.onChange((v) => setValue(req.id, v));
 				} else {
 					dropdown.setDisabled(true);
