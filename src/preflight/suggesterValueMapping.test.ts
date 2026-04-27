@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mapMappedSuggesterValue } from "./suggesterValueMapping";
+import {
+	mapMappedSuggesterValue,
+	resolveDropdownInitialValue,
+} from "./suggesterValueMapping";
 
 describe("mapMappedSuggesterValue", () => {
 	it("maps selected display values when input comes from completion", () => {
@@ -30,5 +33,24 @@ describe("mapMappedSuggesterValue", () => {
 		expect(
 			mapMappedSuggesterValue("Custom", displayToValue, true),
 		).toBe("Custom");
+	});
+});
+
+describe("resolveDropdownInitialValue", () => {
+	it("uses the first raw option when starting empty", () => {
+		expect(
+			resolveDropdownInitialValue("", ["#BF616A", "#8CC570"]),
+		).toBe("#BF616A");
+	});
+
+	it("preserves non-empty starting values", () => {
+		expect(
+			resolveDropdownInitialValue("#8CC570", ["#BF616A", "#8CC570"]),
+		).toBe("#8CC570");
+	});
+
+	it("preserves starting values when there are no options", () => {
+		expect(resolveDropdownInitialValue("", [])).toBe("");
+		expect(resolveDropdownInitialValue("existing", [])).toBe("existing");
 	});
 });

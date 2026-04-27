@@ -32,7 +32,10 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn().mockReturnValue(null),
 }));
 
-const createFormatter = (selection: string | null) => {
+const createFormatter = (
+	selection: string | null,
+	variables?: Map<string, unknown>,
+) => {
 	const app = {
 		workspace: {
 			getActiveViewOfType: vi.fn().mockReturnValue(
@@ -57,7 +60,11 @@ const createFormatter = (selection: string | null) => {
 		},
 	} as any;
 
-	return new CaptureChoiceFormatter(app, plugin);
+	const choiceExecutor = variables
+		? ({ execute: vi.fn(), variables } as any)
+		: undefined;
+
+	return new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 };
 
 describe("CaptureChoiceFormatter selection-as-value behavior", () => {
@@ -95,5 +102,21 @@ describe("CaptureChoiceFormatter selection-as-value behavior", () => {
 
 		expect(result).toBe("prompted");
 		expect(promptMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("uses raw mapped VALUE variables supplied by one-page preflight", async () => {
+		const formatter = createFormatter(
+			null,
+			new Map([
+				["#BF616A,#8CC570,#42A5F5", "#BF616A"],
+			]),
+		);
+
+		const result = await formatter.formatContentOnly(
+			'<mark style="background-color: {{VALUE:#BF616A,#8CC570,#42A5F5|text:red,green,blue}}">selected</mark>',
+		);
+
+		expect(result).toContain("background-color: #BF616A");
+		expect(promptMock).not.toHaveBeenCalled();
 	});
 });
