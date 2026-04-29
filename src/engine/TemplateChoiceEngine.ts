@@ -301,7 +301,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return folderPaths;
 	}
 
-	private async getFolderPath() {
+	protected async getFolderPath() {
 		const folders: string[] = await this.formatFolderPaths([
 			...this.choice.folder.folders,
 		]);

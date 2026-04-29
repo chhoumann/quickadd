@@ -37,6 +37,12 @@ import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 
+class TestTemplateChoiceEngine extends TemplateChoiceEngine {
+	public async getFolderPathForTest(): Promise<string> {
+		return await this.getFolderPath();
+	}
+}
+
 function createFolder(path: string): TFolder {
 	const folder = new TFolder();
 	folder.path = path;
@@ -115,15 +121,7 @@ function createEngine(
 		variables: new Map<string, unknown>(),
 	};
 
-	return new TemplateChoiceEngine(app, plugin, choice, choiceExecutor);
-}
-
-async function getFolderPath(engine: TemplateChoiceEngine): Promise<string> {
-	return await (
-		engine as unknown as {
-			getFolderPath: () => Promise<string>;
-		}
-	).getFolderPath();
+	return new TestTemplateChoiceEngine(app, plugin, choice, choiceExecutor);
 }
 
 function getSuggestedItems(): string[] {
@@ -162,7 +160,7 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			],
 		);
 
-		await getFolderPath(engine);
+		await engine.getFolderPathForTest();
 
 		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
 		expect(getSuggestedItems()).toEqual([
@@ -187,7 +185,7 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			createActiveFile("Current"),
 		);
 
-		await getFolderPath(engine);
+		await engine.getFolderPathForTest();
 
 		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
 		expect(getSuggestedItems()).toEqual([
