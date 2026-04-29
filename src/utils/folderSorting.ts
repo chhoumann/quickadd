@@ -42,3 +42,23 @@ function compareFolderPathsByTree(a: string, b: string): number {
 export function sortFolderPathsByTree(paths: string[]): string[] {
 	return [...paths].sort(compareFolderPathsByTree);
 }
+
+export function isFolderPathWithinRoot(path: string, root: string): boolean {
+	const normalizedPath = normalizeFolderSortPath(path);
+	const normalizedRoot = normalizeFolderSortPath(root);
+
+	if (!normalizedRoot) return true;
+	return (
+		normalizedPath === normalizedRoot ||
+		normalizedPath.startsWith(`${normalizedRoot}/`)
+	);
+}
+
+export function filterFolderPathsWithinRoots(
+	paths: string[],
+	roots: string[],
+): string[] {
+	return paths.filter((path) =>
+		roots.some((root) => isFolderPathWithinRoot(path, root)),
+	);
+}

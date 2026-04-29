@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { sortFolderPathsByTree } from "./folderSorting";
+import {
+	filterFolderPathsWithinRoots,
+	isFolderPathWithinRoot,
+	sortFolderPathsByTree,
+} from "./folderSorting";
 
 describe("sortFolderPathsByTree", () => {
 	it("keeps parent folders before their child subtree", () => {
@@ -50,5 +54,34 @@ describe("sortFolderPathsByTree", () => {
 			"A/B",
 			"A/B",
 		]);
+	});
+});
+
+describe("isFolderPathWithinRoot", () => {
+	it("matches the root folder and descendants", () => {
+		expect(isFolderPathWithinRoot("A", "A")).toBe(true);
+		expect(isFolderPathWithinRoot("A/B1", "A")).toBe(true);
+		expect(isFolderPathWithinRoot("A/B1/C1", "A")).toBe(true);
+	});
+
+	it("does not match plain sibling prefixes", () => {
+		expect(isFolderPathWithinRoot("A2", "A")).toBe(false);
+		expect(isFolderPathWithinRoot("A2/B1", "A")).toBe(false);
+	});
+
+	it("normalizes leading and trailing slashes before matching", () => {
+		expect(isFolderPathWithinRoot("/A/B1/", "A/")).toBe(true);
+		expect(isFolderPathWithinRoot("/A2/B1/", "A/")).toBe(false);
+	});
+});
+
+describe("filterFolderPathsWithinRoots", () => {
+	it("keeps only roots and descendants without leaking sibling prefixes", () => {
+		expect(
+			filterFolderPathsWithinRoots(
+				["A", "A/B1", "A/B1/C1", "A2", "A2/B1", "B/B1"],
+				["A"],
+			),
+		).toEqual(["A", "A/B1", "A/B1/C1"]);
 	});
 });

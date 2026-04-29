@@ -23,7 +23,10 @@ import {
 	openFile,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
-import { sortFolderPathsByTree } from "../utils/folderSorting";
+import {
+	filterFolderPathsWithinRoots,
+	sortFolderPathsByTree,
+} from "../utils/folderSorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -301,7 +304,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return folderPaths;
 	}
 
-	protected async getFolderPath() {
+	private async getFolderPath() {
 		const folders: string[] = await this.formatFolderPaths([
 			...this.choice.folder.folders,
 		]);
@@ -319,9 +322,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				getAllFolderPathsInVault(this.app),
 			);
 
-			const subfolders = allFoldersInVault.filter((folder) => {
-				return folders.some((f) => folder.startsWith(f));
-			});
+			const subfolders = filterFolderPathsWithinRoots(
+				allFoldersInVault,
+				folders,
+			);
 
 			return await this.getOrCreateFolder(subfolders, {
 				allowCreate: true,

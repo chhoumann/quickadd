@@ -18,8 +18,12 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 
 vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class {
+		setLinkToCurrentFileBehavior() {}
 		async formatFolderPath(folderPath: string): Promise<string> {
 			return folderPath;
+		}
+		async formatFileName(): Promise<string> {
+			throw new Error("Stop test after folder selection");
 		}
 	},
 }));
@@ -36,12 +40,6 @@ import { TFile, TFolder, type App } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-
-class TestTemplateChoiceEngine extends TemplateChoiceEngine {
-	public async getFolderPathForTest(): Promise<string> {
-		return await this.getFolderPath();
-	}
-}
 
 function createFolder(path: string): TFolder {
 	const folder = new TFolder();
@@ -121,7 +119,7 @@ function createEngine(
 		variables: new Map<string, unknown>(),
 	};
 
-	return new TestTemplateChoiceEngine(app, plugin, choice, choiceExecutor);
+	return new TemplateChoiceEngine(app, plugin, choice, choiceExecutor);
 }
 
 function getSuggestedItems(): string[] {
@@ -156,11 +154,12 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 				"A/B2",
 				"A/B1/C1",
 				"A/B3/C1",
+				"A2/B1",
 				"B/B1",
 			],
 		);
 
-		await engine.getFolderPathForTest();
+		await engine.run();
 
 		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
 		expect(getSuggestedItems()).toEqual([
@@ -185,7 +184,7 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			createActiveFile("Current"),
 		);
 
-		await engine.getFolderPathForTest();
+		await engine.run();
 
 		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
 		expect(getSuggestedItems()).toEqual([
