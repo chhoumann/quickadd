@@ -757,6 +757,11 @@ const folderPathSegmentCollator = new Intl.Collator(undefined, {
 	sensitivity: "base",
 });
 
+const folderPathSegmentFallbackCollator = new Intl.Collator(undefined, {
+	numeric: true,
+	sensitivity: "variant",
+});
+
 function normalizeFolderSortPath(path: string): string {
 	return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 }
@@ -778,10 +783,10 @@ function compareFolderPathsByTree(a: string, b: string): number {
 		);
 		if (primary !== 0) return primary;
 
-		const fallback = segmentsA[i].localeCompare(segmentsB[i], undefined, {
-			numeric: true,
-			sensitivity: "variant",
-		});
+		const fallback = folderPathSegmentFallbackCollator.compare(
+			segmentsA[i],
+			segmentsB[i],
+		);
 		if (fallback !== 0) return fallback;
 	}
 

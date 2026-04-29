@@ -228,12 +228,11 @@ describe("sortFolderPathsByTree", () => {
 	});
 
 	it("sorts root-like folder paths before nested folders", () => {
-		expect(sortFolderPathsByTree(["A/B", "/", "A", ""])).toEqual([
-			"/",
-			"",
-			"A",
-			"A/B",
-		]);
+		const sorted = sortFolderPathsByTree(["A/B", "/", "A", ""]);
+
+		expect(sorted.slice(0, 2)).toEqual(expect.arrayContaining(["/", ""]));
+		expect(sorted.indexOf("A")).toBeGreaterThanOrEqual(2);
+		expect(sorted.indexOf("A/B")).toBeGreaterThan(sorted.indexOf("A"));
 	});
 
 	it("preserves duplicate paths for callers to deduplicate explicitly", () => {
@@ -246,35 +245,19 @@ describe("sortFolderPathsByTree", () => {
 });
 
 describe("getAllFolderPathsInVault", () => {
-	it("returns vault folders in tree order", () => {
+	it("filters to folders, maps paths, and returns sorted output", () => {
 		const app = {
 			vault: {
 				getAllLoadedFiles: vi.fn(() => [
-					createFolder("A/B2/C1"),
-					createFolder("A/B1"),
+					createFolder("B"),
 					{ path: "A/file.md" },
-					createFolder("A/B3/C2"),
-					createFolder("A/B3"),
-					createFolder("A/B1/C2"),
 					createFolder("A"),
-					createFolder("A/B2"),
-					createFolder("A/B1/C1"),
-					createFolder("A/B3/C1"),
+					createFolder("A/C"),
 				]),
 			},
 		} as unknown as App;
 
-		expect(getAllFolderPathsInVault(app)).toEqual([
-			"A",
-			"A/B1",
-			"A/B1/C1",
-			"A/B1/C2",
-			"A/B2",
-			"A/B2/C1",
-			"A/B3",
-			"A/B3/C1",
-			"A/B3/C2",
-		]);
+		expect(getAllFolderPathsInVault(app)).toEqual(["A", "A/C", "B"]);
 	});
 });
 

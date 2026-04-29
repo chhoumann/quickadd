@@ -126,6 +126,10 @@ async function getFolderPath(engine: TemplateChoiceEngine): Promise<string> {
 	).getFolderPath();
 }
 
+function getSuggestedItems(): string[] {
+	return inputSuggestMock.mock.calls[0]?.[2] as string[];
+}
+
 describe("TemplateChoiceEngine folder suggestions", () => {
 	beforeEach(() => {
 		inputSuggestMock.mockReset();
@@ -154,13 +158,14 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 				"A/B2",
 				"A/B1/C1",
 				"A/B3/C1",
+				"B/B1",
 			],
 		);
 
 		await getFolderPath(engine);
 
 		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
-		expect(inputSuggestMock.mock.calls[0][2]).toEqual([
+		expect(getSuggestedItems()).toEqual([
 			"A",
 			"A/B1",
 			"A/B1/C1",
@@ -185,7 +190,7 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		await getFolderPath(engine);
 
 		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
-		expect(inputSuggestMock.mock.calls[0][2]).toEqual([
+		expect(getSuggestedItems()).toEqual([
 			"Current",
 			"A",
 			"A/B1",
