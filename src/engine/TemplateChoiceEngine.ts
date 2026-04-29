@@ -26,7 +26,7 @@ import { isCancellationError, reportError } from "../utils/errorUtils";
 import {
 	filterFolderPathsWithinRoots,
 	sortFolderPathsByTree,
-} from "../utils/folderSorting";
+} from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";

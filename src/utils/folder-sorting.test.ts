@@ -3,7 +3,7 @@ import {
 	filterFolderPathsWithinRoots,
 	isFolderPathWithinRoot,
 	sortFolderPathsByTree,
-} from "./folderSorting";
+} from "./folder-sorting";
 
 describe("sortFolderPathsByTree", () => {
 	it("keeps parent folders before their child subtree", () => {

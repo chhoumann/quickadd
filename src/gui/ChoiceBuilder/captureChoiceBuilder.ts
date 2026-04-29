@@ -17,7 +17,7 @@ import {
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
-import { sortFolderPathsByTree } from "../../utils/folderSorting";
+import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
