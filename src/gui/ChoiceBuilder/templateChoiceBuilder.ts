@@ -24,6 +24,7 @@ import {
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { sortFolderPathsByTree } from "../../utils/folderSorting";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -261,7 +262,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const folderInput = new TextComponent(inputContainer);
 		folderInput.inputEl.style.width = "100%";
 		folderInput.setPlaceholder("Folder path");
-		const allFolders: string[] = getAllFolderPathsInVault(this.app);
+		const allFolders: string[] = sortFolderPathsByTree(
+			getAllFolderPathsInVault(this.app),
+		);
 
 		const suggester = new ExclusiveSuggester(
 			this.app,

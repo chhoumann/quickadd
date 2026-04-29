@@ -23,6 +23,7 @@ import {
 	openFile,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { sortFolderPathsByTree } from "../utils/folderSorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -314,7 +315,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.choice.folder?.createInSameFolderAsActiveFile
 			)
 		) {
-			const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
+			const allFoldersInVault: string[] = sortFolderPathsByTree(
+				getAllFolderPathsInVault(this.app),
+			);
 
 			const subfolders = allFoldersInVault.filter((folder) => {
 				return folders.some((f) => folder.startsWith(f));
@@ -328,7 +331,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 
 		if (this.choice.folder?.chooseWhenCreatingNote) {
-			const allFoldersInVault: string[] = getAllFolderPathsInVault(this.app);
+			const allFoldersInVault: string[] = sortFolderPathsByTree(
+				getAllFolderPathsInVault(this.app),
+			);
 			return await this.getOrCreateFolder(allFoldersInVault, {
 				allowCreate: true,
 				topItems,

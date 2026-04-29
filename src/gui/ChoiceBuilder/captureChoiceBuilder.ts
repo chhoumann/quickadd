@@ -17,6 +17,7 @@ import {
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { sortFolderPathsByTree } from "../../utils/folderSorting";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
@@ -184,7 +185,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			formatDisplay.setAttr("aria-live", "polite");
 			formatDisplay.textContent = "Loading preview…";
 
-			const folderPaths = getAllFolderPathsInVault(this.app)
+			const folderPaths = sortFolderPathsByTree(
+				getAllFolderPathsInVault(this.app),
+			)
 				.filter((folderPath) => folderPath.length > 0)
 				.map((folderPath) =>
 					folderPath.endsWith("/") ? folderPath : folderPath + "/",

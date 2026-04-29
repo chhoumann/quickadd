@@ -15,11 +15,7 @@ import {
 	openFile,
 } from "./utilityObsidian";
 
-const {
-	convertLinkToEmbed,
-	extractMarkdownLinkTarget,
-	sortFolderPathsByTree,
-} = __test;
+const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
 
 type FakeLeaf = WorkspaceLeaf & {
 	id: string;
@@ -192,60 +188,8 @@ describe("extractMarkdownLinkTarget", () => {
 	});
 });
 
-describe("sortFolderPathsByTree", () => {
-	it("keeps parent folders before their child subtree", () => {
-		expect(
-			sortFolderPathsByTree([
-				"A/B2/C1",
-				"A/B1",
-				"A/B3/C2",
-				"A/B3",
-				"A/B1/C2",
-				"A",
-				"A/B2",
-				"A/B1/C1",
-				"A/B3/C1",
-			]),
-		).toEqual([
-			"A",
-			"A/B1",
-			"A/B1/C1",
-			"A/B1/C2",
-			"A/B2",
-			"A/B2/C1",
-			"A/B3",
-			"A/B3/C1",
-			"A/B3/C2",
-		]);
-	});
-
-	it("uses natural case-insensitive ordering for path segments", () => {
-		expect(sortFolderPathsByTree(["A/B10", "A/b2", "A/B1"])).toEqual([
-			"A/B1",
-			"A/b2",
-			"A/B10",
-		]);
-	});
-
-	it("sorts root-like folder paths before nested folders", () => {
-		const sorted = sortFolderPathsByTree(["A/B", "/", "A", ""]);
-
-		expect(sorted.slice(0, 2)).toEqual(expect.arrayContaining(["/", ""]));
-		expect(sorted.indexOf("A")).toBeGreaterThanOrEqual(2);
-		expect(sorted.indexOf("A/B")).toBeGreaterThan(sorted.indexOf("A"));
-	});
-
-	it("preserves duplicate paths for callers to deduplicate explicitly", () => {
-		expect(sortFolderPathsByTree(["A/B", "A", "A/B"])).toEqual([
-			"A",
-			"A/B",
-			"A/B",
-		]);
-	});
-});
-
 describe("getAllFolderPathsInVault", () => {
-	it("filters to folders, maps paths, and returns sorted output", () => {
+	it("filters to folders and maps paths without sorting", () => {
 		const app = {
 			vault: {
 				getAllLoadedFiles: vi.fn(() => [
@@ -257,7 +201,7 @@ describe("getAllFolderPathsInVault", () => {
 			},
 		} as unknown as App;
 
-		expect(getAllFolderPathsInVault(app)).toEqual(["A", "A/C", "B"]);
+		expect(getAllFolderPathsInVault(app)).toEqual(["B", "A", "A/C"]);
 	});
 });
 

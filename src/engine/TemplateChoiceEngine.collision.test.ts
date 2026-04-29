@@ -81,7 +81,7 @@ vi.mock("../formatters/completeFormatter", () => {
 vi.mock("../utilityObsidian", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
-	getAllFolderPathsInVault: vi.fn(async () => []),
+	getAllFolderPathsInVault: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
