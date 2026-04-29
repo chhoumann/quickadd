@@ -1,14 +1,25 @@
-import type { App, TFile, WorkspaceLeaf, WorkspaceParent } from "obsidian";
+import {
+	TFolder,
+	type App,
+	type TFile,
+	type WorkspaceLeaf,
+	type WorkspaceParent,
+} from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import {
 	__test,
 	areSameVaultFilePath,
+	getAllFolderPathsInVault,
 	normalizeVaultFilePath,
 	getOpenFileOriginLeaf,
 	openFile,
 } from "./utilityObsidian";
 
-const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
+const {
+	convertLinkToEmbed,
+	extractMarkdownLinkTarget,
+	sortFolderPathsByTree,
+} = __test;
 
 type FakeLeaf = WorkspaceLeaf & {
 	id: string;
@@ -34,6 +45,13 @@ function createLeaf(id: string, pinned = false): FakeLeaf {
 
 function createFile(path = "target.md"): TFile {
 	return { path } as TFile;
+}
+
+function createFolder(path: string): TFolder {
+	const folder = new TFolder();
+	folder.path = path;
+	folder.name = path.split("/").pop() ?? path;
+	return folder;
 }
 
 function setParent(leaf: FakeLeaf, parent: { id: string }): FakeLeaf {
@@ -171,6 +189,92 @@ describe("extractMarkdownLinkTarget", () => {
 
 	it("returns null for empty targets", () => {
 		expect(extractMarkdownLinkTarget("[Label]()")).toBeNull();
+	});
+});
+
+describe("sortFolderPathsByTree", () => {
+	it("keeps parent folders before their child subtree", () => {
+		expect(
+			sortFolderPathsByTree([
+				"A/B2/C1",
+				"A/B1",
+				"A/B3/C2",
+				"A/B3",
+				"A/B1/C2",
+				"A",
+				"A/B2",
+				"A/B1/C1",
+				"A/B3/C1",
+			]),
+		).toEqual([
+			"A",
+			"A/B1",
+			"A/B1/C1",
+			"A/B1/C2",
+			"A/B2",
+			"A/B2/C1",
+			"A/B3",
+			"A/B3/C1",
+			"A/B3/C2",
+		]);
+	});
+
+	it("uses natural case-insensitive ordering for path segments", () => {
+		expect(sortFolderPathsByTree(["A/B10", "A/b2", "A/B1"])).toEqual([
+			"A/B1",
+			"A/b2",
+			"A/B10",
+		]);
+	});
+
+	it("sorts root-like folder paths before nested folders", () => {
+		expect(sortFolderPathsByTree(["A/B", "/", "A", ""])).toEqual([
+			"/",
+			"",
+			"A",
+			"A/B",
+		]);
+	});
+
+	it("preserves duplicate paths for callers to deduplicate explicitly", () => {
+		expect(sortFolderPathsByTree(["A/B", "A", "A/B"])).toEqual([
+			"A",
+			"A/B",
+			"A/B",
+		]);
+	});
+});
+
+describe("getAllFolderPathsInVault", () => {
+	it("returns vault folders in tree order", () => {
+		const app = {
+			vault: {
+				getAllLoadedFiles: vi.fn(() => [
+					createFolder("A/B2/C1"),
+					createFolder("A/B1"),
+					{ path: "A/file.md" },
+					createFolder("A/B3/C2"),
+					createFolder("A/B3"),
+					createFolder("A/B1/C2"),
+					createFolder("A"),
+					createFolder("A/B2"),
+					createFolder("A/B1/C1"),
+					createFolder("A/B3/C1"),
+				]),
+			},
+		} as unknown as App;
+
+		expect(getAllFolderPathsInVault(app)).toEqual([
+			"A",
+			"A/B1",
+			"A/B1/C1",
+			"A/B1/C2",
+			"A/B2",
+			"A/B2/C1",
+			"A/B3",
+			"A/B3/C1",
+			"A/B3/C2",
+		]);
 	});
 });
 

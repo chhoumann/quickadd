@@ -752,11 +752,53 @@ export function deleteObsidianCommand(app: App, commandId: string) {
 	}
 }
 
+const folderPathSegmentCollator = new Intl.Collator(undefined, {
+	numeric: true,
+	sensitivity: "base",
+});
+
+function normalizeFolderSortPath(path: string): string {
+	return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+}
+
+function compareFolderPathsByTree(a: string, b: string): number {
+	const normalizedA = normalizeFolderSortPath(a);
+	const normalizedB = normalizeFolderSortPath(b);
+
+	if (normalizedA === normalizedB) return 0;
+
+	const segmentsA = normalizedA === "" ? [] : normalizedA.split("/");
+	const segmentsB = normalizedB === "" ? [] : normalizedB.split("/");
+	const segmentCount = Math.min(segmentsA.length, segmentsB.length);
+
+	for (let i = 0; i < segmentCount; i++) {
+		const primary = folderPathSegmentCollator.compare(
+			segmentsA[i],
+			segmentsB[i],
+		);
+		if (primary !== 0) return primary;
+
+		const fallback = segmentsA[i].localeCompare(segmentsB[i], undefined, {
+			numeric: true,
+			sensitivity: "variant",
+		});
+		if (fallback !== 0) return fallback;
+	}
+
+	return segmentsA.length - segmentsB.length;
+}
+
+function sortFolderPathsByTree(paths: string[]): string[] {
+	return [...paths].sort(compareFolderPathsByTree);
+}
+
 export function getAllFolderPathsInVault(app: App): string[] {
-	return app.vault
+	const folders = app.vault
 		.getAllLoadedFiles()
 		.filter((f) => f instanceof TFolder)
 		.map((folder) => folder.path);
+
+	return sortFolderPathsByTree(folders);
 }
 
 export function getUserScriptMemberAccess(fullMemberPath: string): {
@@ -1180,4 +1222,5 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 export const __test = {
 	convertLinkToEmbed,
 	extractMarkdownLinkTarget,
+	sortFolderPathsByTree,
 } as const;
