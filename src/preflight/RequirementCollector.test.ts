@@ -107,6 +107,69 @@ describe("RequirementCollector", () => {
     expect(due.defaultValue).toBe("tomorrow");
   });
 
+  it("collects frontmatter VDATE and neighboring VALUE dropdowns", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString(`---
+Date: {{VDATE:Due Date, YYYY-MM-DD}}
+Priority: {{VALUE:Low,Medium,High|label:Priority}}
+Status: {{VALUE:Todo,Doing,Done|label:Status}}
+---
+Body`);
+
+    const due = rc.requirements.get("Due Date");
+    expect(due).toMatchObject({
+      id: "Due Date",
+      label: "Due Date",
+      type: "date",
+      dateFormat: "YYYY-MM-DD",
+    });
+    expect(
+      Array.from(rc.requirements.values()).find(
+        (requirement) => requirement.label === "Priority",
+      ),
+    ).toMatchObject({
+      type: "dropdown",
+      options: ["Low", "Medium", "High"],
+    });
+    expect(
+      Array.from(rc.requirements.values()).find(
+        (requirement) => requirement.label === "Status",
+      ),
+    ).toMatchObject({
+      type: "dropdown",
+      options: ["Todo", "Doing", "Done"],
+    });
+  });
+
+  it("collects no-format VDATE with the default date format", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("Date: {{VDATE:Due Date}}");
+
+    expect(rc.requirements.get("Due Date")).toMatchObject({
+      id: "Due Date",
+      label: "Due Date",
+      type: "date",
+      dateFormat: "YYYY-MM-DD",
+    });
+  });
+
+  it("collects lowercase and whitespace-tolerant VDATE syntax", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{vdate: due date , YYYY-MM-DD | tomorrow }}");
+
+    expect(rc.requirements.get("due date")).toMatchObject({
+      type: "date",
+      dateFormat: "YYYY-MM-DD",
+      defaultValue: "tomorrow",
+    });
+  });
+
   it("records TEMPLATE references for recursive scanning", async () => {
     const app = makeApp();
     const plugin = makePlugin();

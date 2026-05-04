@@ -225,19 +225,19 @@ export class RequirementCollector extends Formatter {
 		const key = context?.variableKey ?? variableName;
 
 		// VDATE variables
-		if (context?.type === "VDATE" && context.dateFormat) {
+		if (context?.type === "VDATE") {
 			if (!this.requirements.has(key)) {
 				this.requirements.set(key, {
 					id: key,
 					label: variableName,
 					type: "date",
 					defaultValue: context.defaultValue,
-					dateFormat: context.dateFormat,
+					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
 					description: context.description,
 					source: "collected",
 				});
 			}
-			return context.defaultValue ?? "";
+			return context.defaultValue ?? "@date:1970-01-01T00:00:00.000Z";
 		}
 
 		// Generic named variables

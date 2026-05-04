@@ -154,6 +154,16 @@ describe('VDATE Default Value Support', () => {
             expect(match?.[3]).toBeUndefined();
         });
 
+        it('should match VDATE without explicit format', () => {
+            const input = "{{VDATE:Due Date}}";
+            const match = DATE_VARIABLE_REGEX.exec(input);
+
+            expect(match).toBeTruthy();
+            expect(match?.[1]).toBe("Due Date");
+            expect(match?.[2]).toBeUndefined();
+            expect(match?.[3]).toBeUndefined();
+        });
+
         it('should match VDATE with complex default values', () => {
             const testCases = [
                 { input: "{{VDATE:date,YYYY-MM-DD|next monday}}", defaultValue: "next monday" },
@@ -256,6 +266,17 @@ describe('VDATE Default Value Support', () => {
             // The formatter should attempt to parse the existing string into a date.
             expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("2026-12-31");
             expect(result).toBe("Test YYYY-MM-DD-formatted");
+        });
+
+        it('should resolve no-format VDATE using the default format', async () => {
+            formatter.variables.set('Due Date', '2026-05-04');
+
+            const result = await formatter.testReplaceDateVariableInString(
+                "Date: {{VDATE:Due Date}}",
+            );
+
+            expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("2026-05-04");
+            expect(result).toBe("Date: YYYY-MM-DD-formatted");
         });
     });
 

@@ -542,19 +542,19 @@ export abstract class Formatter {
 
 		while (DATE_VARIABLE_REGEX.test(output)) {
 			const match = DATE_VARIABLE_REGEX.exec(output);
-			if (!match || !match[1] || !match[2]) break;
+			if (!match || !match[1]) break;
 
 			const variableName = match[1].trim();
-			const dateFormat = match[2].trim();
+			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
 			const defaultValue = match[3]?.trim() || undefined;
 
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
-			if (!variableName || !dateFormat) {
+			if (!variableName) {
 				break;
 			}
 
-			if (variableName && dateFormat) {
+			if (variableName) {
 				const existingValue = this.variables.get(variableName);
 
 				// Check if we already have this date variable stored

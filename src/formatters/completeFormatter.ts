@@ -214,13 +214,13 @@ export class CompleteFormatter extends Formatter {
 	): Promise<string> {
 		try {
 			// Use VDateInputPrompt for VDATE variables
-			if (context?.type === "VDATE" && context.dateFormat) {
+			if (context?.type === "VDATE") {
 				return await VDateInputPrompt.Prompt(
 					this.app,
 					(header as string) ?? context.label ?? "Enter date",
 					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
-					context.dateFormat,
+					context.dateFormat ?? "YYYY-MM-DD",
 				);
 			}
 
