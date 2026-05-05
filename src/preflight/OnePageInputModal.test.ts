@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
+import { buildValueVariableKey } from "src/utils/valueSyntax";
 
 vi.mock("obsidian", () => {
 	class Modal {
@@ -269,6 +270,82 @@ describe("OnePageInputModal", () => {
 
 		await expect(modal.waitForClose).resolves.toEqual({
 			[id]: "#BF616A",
+		});
+	});
+
+	// Regression: issue #1180 — One-page input dropped VALUE dropdown
+	// selections for labeled tokens like {{VALUE:option-a,option-b|label:Pick one}},
+	// resulting in an empty captured value instead of the first option.
+	describe("labeled VALUE dropdown (issue #1180)", () => {
+		it("submits the first option when the labeled dropdown is untouched", async () => {
+			const id = buildValueVariableKey(
+				"option-a,option-b",
+				"Pick one",
+				true,
+			);
+			const requirements: FieldRequirement[] = [
+				{
+					id,
+					label: "Pick one",
+					type: "dropdown",
+					options: ["option-a", "option-b"],
+				},
+			];
+
+			const modal = new OnePageInputModal(
+				{} as App,
+				requirements,
+				new Map(),
+			);
+			const submitButton = Array.from(
+				(modal as any).contentEl.querySelectorAll(
+					"button",
+				) as NodeListOf<HTMLButtonElement>,
+			).find(
+				(button) => button.textContent === "Submit",
+			) as HTMLButtonElement;
+
+			submitButton.click();
+
+			await expect(modal.waitForClose).resolves.toEqual({
+				[id]: "option-a",
+			});
+		});
+
+		it("normalizes a stale empty initial value to the first option", async () => {
+			const id = buildValueVariableKey(
+				"option-a,option-b",
+				"Pick one",
+				true,
+			);
+			const requirements: FieldRequirement[] = [
+				{
+					id,
+					label: "Pick one",
+					type: "dropdown",
+					options: ["option-a", "option-b"],
+				},
+			];
+
+			const initialValues = new Map<string, unknown>([[id, ""]]);
+			const modal = new OnePageInputModal(
+				{} as App,
+				requirements,
+				initialValues,
+			);
+			const submitButton = Array.from(
+				(modal as any).contentEl.querySelectorAll(
+					"button",
+				) as NodeListOf<HTMLButtonElement>,
+			).find(
+				(button) => button.textContent === "Submit",
+			) as HTMLButtonElement;
+
+			submitButton.click();
+
+			await expect(modal.waitForClose).resolves.toEqual({
+				[id]: "option-a",
+			});
 		});
 	});
 });
