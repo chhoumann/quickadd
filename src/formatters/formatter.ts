@@ -35,6 +35,7 @@ import {
 	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
+import { getFieldVariableKey } from "../utils/fieldVariableKey";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -54,7 +55,6 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
-	private static readonly FIELD_VARIABLE_PREFIX = "FIELD:";
 	protected valuePromptContext?: PromptContext;
 
 	// Tracks variables collected for YAML property post-processing
@@ -443,7 +443,7 @@ export abstract class Formatter {
 			const fullMatch = match[1] + (match[2] || "");
 
 			if (fullMatch) {
-				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
+				const fieldVariableKey = getFieldVariableKey(fullMatch);
 
 				if (!this.hasConcreteVariable(fieldVariableKey)) {
 					this.variables.set(
@@ -467,10 +467,6 @@ export abstract class Formatter {
 		}
 
 		return output;
-	}
-
-	private getFieldVariableKey(fieldSpecifier: string): string {
-		return `${Formatter.FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
 	}
 
 	protected abstract promptForMathValue(): Promise<string>;

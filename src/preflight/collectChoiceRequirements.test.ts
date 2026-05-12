@@ -5,7 +5,10 @@ import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IUserScript } from "src/types/macros/IUserScript";
-import { collectChoiceRequirements } from "./collectChoiceRequirements";
+import {
+	collectChoiceRequirements,
+	getUnresolvedRequirements,
+} from "./collectChoiceRequirements";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -263,5 +266,20 @@ describe("collectChoiceRequirements - capture targets", () => {
 					requirement.id === "QA_INTERNAL_CAPTURE_TARGET_FILE_PATH",
 			),
 		).toBe(false);
+	});
+});
+
+describe("getUnresolvedRequirements - FIELD keys", () => {
+	it("considers prefixed FIELD values resolved", () => {
+		const requirements = [
+			{
+				id: "FIELD:People",
+				label: "People",
+				type: "field-suggest" as const,
+			},
+		];
+		const variables = new Map<string, unknown>([["FIELD:People", "Alice"]]);
+
+		expect(getUnresolvedRequirements(requirements, variables)).toEqual([]);
 	});
 });

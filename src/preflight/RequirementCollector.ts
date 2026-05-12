@@ -4,6 +4,7 @@ import { Formatter, type PromptContext } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
+import { getFieldVariableKey } from "src/utils/fieldVariableKey";
 import { parseValueToken } from "src/utils/valueSyntax";
 
 export type FieldType =
@@ -284,9 +285,10 @@ export class RequirementCollector extends Formatter {
 
 	protected async suggestForField(variableName: string): Promise<string> {
 		// Store as a field-suggest requirement; actual suggestions are provided by UI
-		if (!this.requirements.has(variableName)) {
-			this.requirements.set(variableName, {
-				id: variableName,
+		const key = getFieldVariableKey(variableName);
+		if (!this.requirements.has(key)) {
+			this.requirements.set(key, {
+				id: key,
 				label: variableName,
 				type: "field-suggest",
 				source: "collected",

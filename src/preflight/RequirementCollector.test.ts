@@ -218,4 +218,32 @@ Body`);
     const requirement = rc.requirements.get("title");
     expect(requirement?.type).toBe("textarea");
   });
+
+  it("collects FIELD requirements with runtime-compatible ids and raw labels", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("Person: {{FIELD:People}}");
+
+    expect(rc.requirements.get("People")).toBeUndefined();
+    expect(rc.requirements.get("FIELD:People")).toMatchObject({
+      id: "FIELD:People",
+      label: "People",
+      type: "field-suggest",
+    });
+  });
+
+  it("preserves filtered FIELD syntax in the prefixed runtime id", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("Person: {{FIELD:People|folder:Contacts}}");
+
+    expect(rc.requirements.get("People|folder:Contacts")).toBeUndefined();
+    expect(rc.requirements.get("FIELD:People|folder:Contacts")).toMatchObject({
+      id: "FIELD:People|folder:Contacts",
+      label: "People|folder:Contacts",
+      type: "field-suggest",
+    });
+  });
 });

@@ -273,6 +273,35 @@ describe("OnePageInputModal", () => {
 		});
 	});
 
+	it("submits FIELD values under the prefixed runtime key", async () => {
+		const id = "FIELD:People";
+		const requirements: FieldRequirement[] = [
+			{
+				id,
+				label: "People",
+				type: "field-suggest",
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const input = (modal as any).contentEl.querySelector(
+			"input",
+		) as HTMLInputElement;
+		input.value = "Alice";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({
+			[id]: "Alice",
+		});
+	});
+
 	// Regression: issue #1180 — One-page input dropped VALUE dropdown
 	// selections for labeled tokens like {{VALUE:option-a,option-b|label:Pick one}},
 	// resulting in an empty captured value instead of the first option.
