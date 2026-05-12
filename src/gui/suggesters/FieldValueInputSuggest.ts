@@ -3,9 +3,8 @@ import {
 	FieldSuggestionParser,
 	type FieldFilter,
 } from "src/utils/FieldSuggestionParser";
-import {
-	collectFieldValuesProcessed
-} from "src/utils/FieldValueCollector";
+import { collectFieldValuesProcessed } from "src/utils/FieldValueCollector";
+import { stripFieldVariableKeyPrefix } from "src/utils/fieldVariableKey";
 import { TextInputSuggest } from "./suggest";
 
 export class FieldValueInputSuggest extends TextInputSuggest<string> {
@@ -16,8 +15,8 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 
 	constructor(app: App, inputEl: HTMLInputElement, fieldInput: string) {
 		super(app, inputEl);
-		this.fieldInput = fieldInput;
-		const parsed = FieldSuggestionParser.parse(fieldInput);
+		this.fieldInput = stripFieldVariableKeyPrefix(fieldInput);
+		const parsed = FieldSuggestionParser.parse(this.fieldInput);
 		this.fieldName = parsed.fieldName;
 		this.filters = parsed.filters;
 	}
