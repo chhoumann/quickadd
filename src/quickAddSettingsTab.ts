@@ -22,6 +22,7 @@ import {
 	formatDateAliasLines,
 	parseDateAliasLines,
 } from "./utils/dateAliases";
+import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 
 type SettingGroupLike = {
 	addSetting(cb: (setting: Setting) => void): void;
@@ -136,28 +137,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			infoContainer.style.fontFamily = "var(--font-monospace)";
 			infoContainer.style.fontSize = "0.9em";
 
-			if (__DEV_GIT_BRANCH__ !== null) {
-				const branchDiv = infoContainer.createDiv();
-				branchDiv.innerHTML = `<strong>Branch:</strong> ${__DEV_GIT_BRANCH__}`;
-				branchDiv.style.marginBottom = "5px";
-			}
-
-			if (__DEV_GIT_COMMIT__ !== null) {
-				const commitDiv = infoContainer.createDiv();
-				commitDiv.innerHTML = `<strong>Commit:</strong> ${__DEV_GIT_COMMIT__}`;
-				commitDiv.style.marginBottom = "5px";
-			}
-
-			if (__DEV_GIT_DIRTY__ !== null) {
-				const statusDiv = infoContainer.createDiv();
-				const statusText = __DEV_GIT_DIRTY__
-					? "Yes (uncommitted changes)"
-					: "No";
-				const statusColor = __DEV_GIT_DIRTY__
-					? "var(--text-warning)"
-					: "var(--text-success)";
-				statusDiv.innerHTML = `<strong>Uncommitted changes:</strong> <span style="color: ${statusColor}">${statusText}</span>`;
-			}
+			renderDevelopmentInfo(infoContainer, {
+				branch: __DEV_GIT_BRANCH__,
+				commit: __DEV_GIT_COMMIT__,
+				dirty: __DEV_GIT_DIRTY__,
+			});
 		});
 	}
 
