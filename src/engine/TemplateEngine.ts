@@ -4,11 +4,6 @@ import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
 import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import type QuickAdd from "../main";
-import {
-	getTemplater,
-	overwriteTemplaterOnce,
-	templaterParseTemplate,
-} from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
 import {
@@ -28,6 +23,8 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
+import type { ChoiceExecutionContext } from "./runtime";
+import { FormatOrchestrator } from "./runtime";
 
 type FolderChoiceOptions = {
 	allowCreate?: boolean;
@@ -76,16 +73,24 @@ function isMacroAbortError(error: unknown): error is MacroAbortError {
 
 export abstract class TemplateEngine extends QuickAddEngine {
 	protected formatter: CompleteFormatter;
-	protected readonly templater;
+	protected formatOrchestrator: FormatOrchestrator;
 
 	protected constructor(
 		app: App,
 		protected plugin: QuickAdd,
-		choiceFormatter?: IChoiceExecutor
+		choiceFormatter?: IChoiceExecutor,
+		executionContext?: ChoiceExecutionContext,
 	) {
-		super(app);
-		this.templater = getTemplater(app);
-		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
+		const context = executionContext ?? choiceFormatter?.getExecutionContext?.() ?? undefined;
+		super(app, context);
+		this.formatOrchestrator = new FormatOrchestrator(app, context);
+		this.formatter = new CompleteFormatter(
+			app,
+			plugin,
+			choiceFormatter,
+			undefined,
+			context,
+		);
 	}
 
 	public abstract run():
@@ -507,7 +512,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			}
 
 			// Process Templater commands for template choices
-			await overwriteTemplaterOnce(this.app, createdFile);
+			await this.formatOrchestrator.overwriteTemplaterOnce(createdFile, {
+				diagnoseMissingCapability: formattedTemplateContent.includes("<%"),
+			});
 
 			return createdFile;
 		} catch (err) {
@@ -559,7 +566,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			}
 
 			// Process Templater commands
-			await overwriteTemplaterOnce(this.app, file);
+			await this.formatOrchestrator.overwriteTemplaterOnce(file, {
+				diagnoseMissingCapability: formattedTemplateContent.includes("<%"),
+			});
 
 			return file;
 		} catch (err) {
@@ -588,11 +597,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			let formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
 			if (file.extension === "md") {
-				formattedTemplateContent = await templaterParseTemplate(
-					this.app,
-					formattedTemplateContent,
-					file,
-				);
+				formattedTemplateContent =
+					await this.formatOrchestrator.parseTemplaterTemplate(
+						formattedTemplateContent,
+						file,
+					);
 			}
 			const fileContent: string = await this.app.vault.cachedRead(file);
 			const newFileContent: string =

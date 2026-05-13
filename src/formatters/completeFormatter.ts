@@ -27,6 +27,7 @@ import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter, type PromptContext } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
+import type { ChoiceExecutionContext } from "../engine/runtime";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -36,9 +37,12 @@ export class CompleteFormatter extends Formatter {
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
 		dateParser?: IDateParser,
+		protected executionContext?: ChoiceExecutionContext,
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
+		this.executionContext ??=
+			choiceExecutor?.getExecutionContext?.() ?? undefined;
 		if (choiceExecutor) {
 			this.variables = choiceExecutor?.variables;
 		}
@@ -372,6 +376,7 @@ export class CompleteFormatter extends Formatter {
 			this.plugin,
 			templatePath,
 			this.choiceExecutor,
+			this.executionContext,
 		).run();
 	}
 

@@ -18,7 +18,6 @@ import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
 	insertFileLinkToActiveView,
-	jumpToNextTemplaterCursorIfPossible,
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
@@ -31,6 +30,7 @@ import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import type { ChoiceExecutionContext } from "./runtime";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -42,8 +42,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		choice: ITemplateChoice,
 		choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
+		executionContext?: ChoiceExecutionContext,
 	) {
-		super(app, plugin, choiceExecutor);
+		super(app, plugin, choiceExecutor, executionContext);
 		this.choiceExecutor = choiceExecutor;
 		this.choice = choice;
 	}
@@ -153,11 +154,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				if (!openExistingTab) {
 					await openFile(this.app, createdFile, {
 						...fileOpening,
-						originLeaf: this.originLeaf,
+						originLeaf: this.getOriginLeaf(),
 					});
 				}
 
-				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);
+				await this.formatOrchestrator.jumpToNextTemplaterCursorIfPossible(
+					createdFile,
+				);
 			}
 		} catch (err) {
 			if (
@@ -172,6 +175,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
+	}
+
+	private getOriginLeaf(): WorkspaceLeaf | null {
+		return this.getExecutionContext()?.originLeaf ?? this.originLeaf;
 	}
 
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {

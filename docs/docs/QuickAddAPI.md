@@ -381,6 +381,8 @@ console.log("Enabled features:", features);
 ### `executeChoice(choiceName: string, variables?: {[key: string]: any}): Promise<void>`
 Executes another QuickAdd choice programmatically.
 
+When called from a macro or script that already has variables, QuickAdd snapshots the current variable map, applies the variables you pass for the child choice, runs that choice, and then restores the snapshot. This prevents `executeChoice()` from clearing unrelated variables owned by the surrounding flow.
+
 **Parameters:**
 - `choiceName`: Name of the choice to execute
 - `variables`: (Optional) Variables to pass to the choice

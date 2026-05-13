@@ -21,6 +21,7 @@ This feature is currently in Beta.
 - `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` render as textareas in the one-page modal.
 - Capture target file when capturing to a folder or tag.
 - Script-declared inputs (from user scripts inside macros), if provided.
+- Nested Template/Capture choices inside macros are included in flow-aware CLI checks, so missing inputs can be reported before a non-interactive macro run.
 
 ## Date UX
 - Date fields support natural language (e.g., “today”, “next friday”).
@@ -177,6 +178,16 @@ Behavior:
 - Returned values are also stored into `variables` for later steps in the macro.
 
 ---
+
+## CLI diagnostics
+
+`quickadd:check` uses the same requirement parsing as one-page inputs, then adds flow diagnostics for macros and nested choices. The JSON response includes:
+
+- `missing` and `missingFlags` for unresolved inputs.
+- `diagnostics` for flow/runtime information, missing nested choices, and integration capability notes.
+- `flow.choices`, showing which choices were included in the flow check.
+
+This is read-only: it does not execute choices or run user scripts beyond the existing static metadata inspection used for declared `quickadd.inputs`.
 
 ## Notes
 - Macro support is best-effort: user scripts can declare inputs via `quickadd.inputs`.

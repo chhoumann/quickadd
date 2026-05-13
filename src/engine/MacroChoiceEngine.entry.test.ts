@@ -12,6 +12,7 @@ import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INested
 import type IChoice from "../types/choices/IChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { QuickAddApi } from "../quickAddApi";
+import { createChoiceExecutionResult } from "./runtime";
 
 const { mockGetUserScript, mockInitializeUserScriptSettings, mockSuggest, mockGetApi, mockInputPrompt } =
 	vi.hoisted(() => ({
@@ -574,7 +575,13 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			choiceId: "target-choice",
 		};
 		const abortError = new MacroAbortError("Input cancelled by user");
-		choiceExecutor.execute = vi.fn().mockResolvedValue(undefined);
+		choiceExecutor.execute = vi.fn(async (choiceToRun: IChoice) =>
+			createChoiceExecutionResult({
+				status: "aborted",
+				choiceId: choiceToRun.id,
+				error: abortError,
+			}),
+		);
 		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(abortError);
 
 		await expect(
@@ -607,7 +614,13 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 			choice,
 		};
 		const abortError = new MacroAbortError("Input cancelled by user");
-		choiceExecutor.execute = vi.fn().mockResolvedValue(undefined);
+		choiceExecutor.execute = vi.fn(async (choiceToRun: IChoice) =>
+			createChoiceExecutionResult({
+				status: "aborted",
+				choiceId: choiceToRun.id,
+				error: abortError,
+			}),
+		);
 		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(abortError);
 
 		await expect(

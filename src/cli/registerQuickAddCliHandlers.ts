@@ -3,10 +3,7 @@ import { ChoiceExecutor } from "../choiceExecutor";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
-import {
-	collectChoiceRequirements,
-	getUnresolvedRequirements,
-} from "../preflight/collectChoiceRequirements";
+import { collectChoiceFlowPreflight } from "../preflight/collectChoiceFlowPreflight";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 
@@ -211,6 +208,28 @@ function toMissingFieldSummary(requirement: {
 	};
 }
 
+function toDiagnosticSummary(diagnostic: {
+	severity: string;
+	code: string;
+	message: string;
+	source: string;
+	stepId?: string;
+	choiceId?: string;
+	integrationId?: string;
+	details?: Record<string, unknown>;
+}) {
+	return {
+		severity: diagnostic.severity,
+		code: diagnostic.code,
+		message: diagnostic.message,
+		source: diagnostic.source,
+		stepId: diagnostic.stepId,
+		choiceId: diagnostic.choiceId,
+		integrationId: diagnostic.integrationId,
+		details: diagnostic.details,
+	};
+}
+
 function setExecutorVariables(
 	choiceExecutor: IChoiceExecutor,
 	variables: Record<string, unknown>,
@@ -226,6 +245,12 @@ function describeChoice(choice: IChoice) {
 		name: choice.name,
 		type: choice.type,
 	};
+}
+
+function errorMessageFromUnknown(error: unknown, fallback: string): string {
+	if (error instanceof Error && error.message) return error.message;
+	if (typeof error === "string" && error.length > 0) return error;
+	return fallback;
 }
 
 async function runChoiceHandler(
@@ -255,31 +280,36 @@ async function runChoiceHandler(
 
 		const interactiveMode = isTruthy(params.ui);
 		if (!interactiveMode) {
-			const requirements = await collectChoiceRequirements(
+			const preflight = await collectChoiceFlowPreflight(
 				plugin.app,
 				plugin,
 				choiceExecutor,
 				choice,
 			);
-			const unresolved = getUnresolvedRequirements(
-				requirements,
-				choiceExecutor.variables,
-			);
+			const unresolved = preflight.unresolvedRequirements;
 			if (unresolved.length > 0) {
 				return serialize({
 					ok: false,
 					command,
 					error: "Missing required inputs for non-interactive CLI run.",
 					choice: describeChoice(choice),
+					requiredInputCount: preflight.requirements.length,
+					missingInputCount: unresolved.length,
 					missing: unresolved.map(toMissingFieldSummary),
 					missingFlags: unresolved.map(
 						(requirement) => `value-${requirement.id}=<value>`,
 					),
+					diagnosticCount: preflight.diagnostics.length,
+					diagnostics: preflight.diagnostics.map(toDiagnosticSummary),
+					flow: {
+						choiceCount: preflight.choices.length,
+						choices: preflight.choices,
+					},
 				});
 			}
 		}
 
-		await choiceExecutor.execute(choice);
+		const result = await choiceExecutor.execute(choice);
 		const aborted = choiceExecutor.consumeAbortSignal?.();
 		const durationMs = Date.now() - startedAt;
 
@@ -289,6 +319,33 @@ async function runChoiceHandler(
 				command,
 				error: aborted.message || "Choice execution aborted",
 				aborted: true,
+				choice: describeChoice(choice),
+				durationMs,
+			});
+		}
+
+		if (result.status === "aborted") {
+			return serialize({
+				ok: false,
+				command,
+				error: errorMessageFromUnknown(
+					result.error,
+					"Choice execution aborted",
+				),
+				aborted: true,
+				choice: describeChoice(choice),
+				durationMs,
+			});
+		}
+
+		if (result.status === "failed") {
+			return serialize({
+				ok: false,
+				command,
+				error: errorMessageFromUnknown(
+					result.error,
+					"Choice execution failed",
+				),
 				choice: describeChoice(choice),
 				durationMs,
 			});
@@ -372,27 +429,30 @@ async function checkChoiceHandler(
 		) as IChoiceExecutor;
 		setExecutorVariables(choiceExecutor, variables);
 
-		const requirements = await collectChoiceRequirements(
+		const preflight = await collectChoiceFlowPreflight(
 			plugin.app,
 			plugin,
 			choiceExecutor,
 			choice,
 		);
-		const unresolved = getUnresolvedRequirements(
-			requirements,
-			choiceExecutor.variables,
-		);
+		const unresolved = preflight.unresolvedRequirements;
 
 		return serialize({
 			ok: unresolved.length === 0,
 			command: CLI_COMMANDS.check,
 			choice: describeChoice(choice),
-			requiredInputCount: requirements.length,
+			requiredInputCount: preflight.requirements.length,
 			missingInputCount: unresolved.length,
 			missing: unresolved.map(toMissingFieldSummary),
 			missingFlags: unresolved.map(
 				(requirement) => `value-${requirement.id}=<value>`,
 			),
+			diagnosticCount: preflight.diagnostics.length,
+			diagnostics: preflight.diagnostics.map(toDiagnosticSummary),
+			flow: {
+				choiceCount: preflight.choices.length,
+				choices: preflight.choices,
+			},
 		});
 	} catch (error) {
 		return serialize({
