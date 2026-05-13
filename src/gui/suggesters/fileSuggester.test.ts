@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { App, TFile, Vault, MetadataCache, Workspace, Plugin } from 'obsidian';
+import { TFile as RuntimeTFile } from 'obsidian';
 import { FileIndex } from './FileIndex';
+import { FileSuggester } from './fileSuggester';
+import { renderExactHighlight } from './utils';
+
+vi.mock("../../main", () => ({
+    default: {
+        instance: {
+            registerEvent: vi.fn(),
+        },
+    },
+}));
 
 // Mock Plugin
 const mockPlugin = {
@@ -40,6 +51,28 @@ function createMockFile(path: string, basename: string): TFile {
             size: 100,
         },
     } as TFile;
+}
+
+function createIndexedFile(path: string, basename: string) {
+    return {
+        path,
+        pathNormalized: path.toLowerCase(),
+        basename,
+        basenameNormalized: basename.toLowerCase(),
+        aliases: [],
+        aliasesNormalized: [],
+        headings: [],
+        blockIds: [],
+        tags: [],
+        modified: Date.now(),
+        folder: path.includes('/') ? path.split('/').slice(0, -1).join('/') : '',
+    };
+}
+
+function expectNoPayloadDom(el: HTMLElement): void {
+    expect(el.querySelector('img, script, svg')).toBeNull();
+    expect((globalThis as typeof globalThis & { __qaXss?: number }).__qaXss)
+        .toBeUndefined();
 }
 
 describe('FileSuggester - Issue #838 and #839', () => {
@@ -246,6 +279,134 @@ describe('FileSuggester - Issue #838 and #839', () => {
             expect(doctorMatches.some(r => r.file.basename === 'Caleb')).toBe(true);
             expect(doctorMatches.some(r => r.file.basename === 'Zeb')).toBe(true);
         });
+    });
+});
+
+describe('FileSuggester DOM XSS safety', () => {
+    beforeEach(() => {
+        delete (globalThis as typeof globalThis & { __qaXss?: number }).__qaXss;
+    });
+
+    it('renders malicious file paths and basenames as text', () => {
+        const payload = '<img src=x onerror=globalThis.__qaXss=1>';
+        const el = document.createElement('div');
+
+        FileSuggester.prototype.renderSuggestion.call(
+            {
+                addHoverTooltip: vi.fn(),
+            },
+            {
+                file: createIndexedFile(`Notes/${payload}.md`, payload),
+                score: 0,
+                matchType: 'exact',
+                displayText: payload,
+            },
+            el,
+        );
+
+        expect(el.textContent).toContain(payload);
+        expect(el.textContent).toContain(`Notes/${payload}.md`);
+        expectNoPayloadDom(el);
+    });
+
+    it('renders malicious heading text safely while preserving highlighting', () => {
+        const payload = '<svg onload=globalThis.__qaXss=1>Danger</svg>';
+        const el = document.createElement('div');
+
+        FileSuggester.prototype.renderSuggestion.call(
+            {
+                lastInput: `Source#Danger`,
+                addHoverTooltip: vi.fn(),
+                renderMatch: renderExactHighlight,
+            },
+            {
+                file: createIndexedFile('Source.md', 'Source'),
+                score: 0,
+                matchType: 'heading',
+                displayText: `Source#${payload}`,
+            },
+            el,
+        );
+
+        expect(el.textContent).toContain(payload);
+        expect(el.querySelector('mark.qa-highlight')?.textContent).toBe('Danger');
+        expectNoPayloadDom(el);
+    });
+
+    it('renders alias, unresolved, block, and attachment fields as text', () => {
+        const payload = '<img src=x onerror=globalThis.__qaXss=1>';
+        const cases = [
+            {
+                matchType: 'alias' as const,
+                displayText: payload,
+                expectedText: payload,
+            },
+            {
+                matchType: 'unresolved' as const,
+                displayText: payload,
+                expectedText: payload,
+            },
+            {
+                matchType: 'block' as const,
+                displayText: `Block Source#^${payload}`,
+                expectedText: payload,
+            },
+            {
+                matchType: 'fuzzy' as const,
+                displayText: payload,
+                expectedText: payload,
+            },
+        ];
+
+        for (const testCase of cases) {
+            const el = document.createElement('div');
+            FileSuggester.prototype.renderSuggestion.call(
+                {
+                    addHoverTooltip: vi.fn(),
+                },
+                {
+                    file: createIndexedFile(`Notes/${payload}.md`, payload),
+                    score: 0,
+                    ...testCase,
+                },
+                el,
+            );
+
+            expect(el.textContent).toContain(testCase.expectedText);
+            expectNoPayloadDom(el);
+        }
+    });
+
+    it('renders tooltip metadata as text', () => {
+        const payload = '<img src=x onerror=globalThis.__qaXss=1>';
+        const obsidianFile = new RuntimeTFile();
+        obsidianFile.basename = payload;
+        obsidianFile.path = `Notes/${payload}.md`;
+        (obsidianFile as TFile).stat = {
+            ctime: 0,
+            mtime: new Date('2024-01-01T00:00:00Z').getTime(),
+            size: 1,
+        };
+
+        const tooltip = (
+            FileSuggester.prototype as unknown as {
+                createTooltip(this: unknown, file: { path: string }): HTMLElement | null;
+            }
+        ).createTooltip.call(
+            {
+                app: {
+                    vault: {
+                        getAbstractFileByPath: vi.fn(() => obsidianFile),
+                    },
+                },
+            },
+            { path: obsidianFile.path },
+        );
+
+        expect(tooltip).not.toBeNull();
+        expect(tooltip?.textContent).toContain(payload);
+        expect(tooltip?.textContent).toContain(`Path: Notes/${payload}.md`);
+        expectNoPayloadDom(tooltip!);
     });
 });
 

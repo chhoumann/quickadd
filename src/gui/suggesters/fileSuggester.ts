@@ -12,6 +12,32 @@ interface HTMLElementWithTooltipCleanup extends HTMLElement {
 	_tooltipCleanup?: () => void;
 }
 
+function createSuggestionPill(matchType: SearchResult["matchType"]): HTMLElement | null {
+	const pill = document.createElement("span");
+	pill.classList.add("qa-suggestion-pill");
+
+	switch (matchType) {
+		case "alias":
+			pill.classList.add("qa-alias-pill");
+			pill.textContent = "alias";
+			return pill;
+		case "heading":
+			pill.classList.add("qa-heading-pill");
+			pill.textContent = "H";
+			return pill;
+		case "block":
+			pill.classList.add("qa-block-pill");
+			pill.textContent = "^";
+			return pill;
+		case "unresolved":
+			pill.classList.add("qa-unresolved-pill");
+			pill.textContent = "unresolved";
+			return pill;
+		default:
+			return null;
+	}
+}
+
 export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
 	private fileIndex: FileIndex;
@@ -254,7 +280,8 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 		let mainText = displayText;
 		let subText = "";
-		let pill = "";
+		let shouldHighlightMainText = false;
+		let highlightQuery = "";
 
 		switch (matchType) {
 			case 'exact':
@@ -264,7 +291,6 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			case 'alias':
 				mainText = displayText;
 				subText = file.path;
-				pill = '<span class="qa-suggestion-pill qa-alias-pill">alias</span>';
 				break;
 			case 'fuzzy':
 				mainText = file.basename;
@@ -278,14 +304,13 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 					: '';
 				const headingQueryNormalized = normalizeForSearch(headingQuery ?? "");
 				if (headingQuery && normalizeForSearch(heading).includes(headingQueryNormalized)) {
-					const tempEl = document.createElement('span');
-					this.renderMatch(tempEl, heading, headingQuery);
-					mainText = tempEl.innerHTML;
+					mainText = heading;
+					shouldHighlightMainText = true;
+					highlightQuery = headingQuery;
 				} else {
 					mainText = heading;
 				}
 				subText = fileName; // Show source file name
-				pill = '<span class="qa-suggestion-pill qa-heading-pill">H</span>';
 				break;
 			}
 			case 'block': {
@@ -293,23 +318,34 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				const [fileName, blockId] = displayText.split('#^');
 				mainText = blockId; // Show only the block ID
 				subText = fileName; // Show source file name without '#'
-				pill = '<span class="qa-suggestion-pill qa-block-pill">^</span>';
 				break;
 			}
 			case 'unresolved':
 				mainText = displayText;
 				subText = "Unresolved link";
-				pill = '<span class="qa-suggestion-pill qa-unresolved-pill">unresolved</span>';
 				break;
 		}
 
-		el.innerHTML = `
-			<div class="qa-suggestion-content">
-				<span class="suggestion-main-text">${mainText}</span>
-				${pill}
-			</div>
-			<span class="suggestion-sub-text">${subText}</span>
-		`;
+		const content = document.createElement("div");
+		content.className = "qa-suggestion-content";
+
+		const mainTextEl = document.createElement("span");
+		mainTextEl.className = "suggestion-main-text";
+		if (shouldHighlightMainText) {
+			this.renderMatch(mainTextEl, mainText, highlightQuery);
+		} else {
+			mainTextEl.textContent = mainText;
+		}
+		content.appendChild(mainTextEl);
+
+		const pill = createSuggestionPill(matchType);
+		if (pill) content.appendChild(pill);
+
+		const subTextEl = document.createElement("span");
+		subTextEl.className = "suggestion-sub-text";
+		subTextEl.textContent = subText;
+
+		el.replaceChildren(content, subTextEl);
 
 		// Add hover tooltip for content preview
 		this.addHoverTooltip(el, file);
@@ -358,13 +394,21 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		tooltip.className = 'qa-file-tooltip';
 
 		// For now, just show basic info - content preview can be added later
-		tooltip.innerHTML = `
-			<div class="qa-tooltip-header">${obsidianFile.basename}</div>
-			<div class="qa-tooltip-content">
-				<div>Path: ${obsidianFile.path}</div>
-				<div>Modified: ${new Date(obsidianFile.stat.mtime).toLocaleDateString()}</div>
-			</div>
-		`;
+		const header = document.createElement("div");
+		header.className = "qa-tooltip-header";
+		header.textContent = obsidianFile.basename;
+
+		const content = document.createElement("div");
+		content.className = "qa-tooltip-content";
+
+		const path = document.createElement("div");
+		path.textContent = `Path: ${obsidianFile.path}`;
+
+		const modified = document.createElement("div");
+		modified.textContent = `Modified: ${new Date(obsidianFile.stat.mtime).toLocaleDateString()}`;
+
+		content.append(path, modified);
+		tooltip.append(header, content);
 
 		return tooltip;
 	}
