@@ -369,7 +369,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// Update accessibility attributes
 		this.inputEl.setAttribute("aria-expanded", "true");
 
-		container.appendChild(this.suggestEl);
+		const inputDocument = getOwnerDocument(inputEl);
+		const containerDocument = getOwnerDocument(container);
+		const ownerCompatibleContainer =
+			containerDocument === inputDocument ? container : inputDocument.body;
+		ownerCompatibleContainer.appendChild(this.suggestEl);
 
 		// Create Popper only when needed
 		this.popper = createPopper(inputEl, this.suggestEl, {
@@ -408,7 +412,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		});
 
 		// Add global listeners (idempotent due to capture true)
-		const activeDocument = getOwnerDocument(inputEl);
+		const activeDocument = inputDocument;
 		const activeWindow = getOwnerWindow(inputEl);
 		activeDocument.addEventListener("pointerdown", this.globalClickListener, true);
 		activeDocument.addEventListener("wheel", this.globalWheelListener, true);
