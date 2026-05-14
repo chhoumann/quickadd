@@ -6,6 +6,7 @@ import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
+import { log } from "../../logger/logManager";
 
 const backLabel = "← Back";
 
@@ -44,7 +45,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	renderSuggestion(item: FuzzyMatch<IChoice>, el: HTMLElement): void {
 		el.empty();
-		void MarkdownRenderer.renderMarkdown(item.item.name, el, '', this.plugin);
+		void MarkdownRenderer.renderMarkdown(item.item.name, el, '', this.plugin)
+			.catch((error) => {
+				el.textContent = item.item.name;
+				log.logError(`Failed to render choice suggestion: ${error}`);
+			});
 		el.classList.add("quickadd-choice-suggestion");
 		if (item.item.name === backLabel)
 			el.classList.add("quickadd-choice-suggestion-back");
@@ -58,13 +63,17 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		return this.choices;
 	}
 
-	async onChooseItem(
+	onChooseItem(
 		item: IChoice,
 		evt: MouseEvent | KeyboardEvent
-	): Promise<void> {
+	): void {
 		if (item.type === "Multi")
 			this.onChooseMultiType(<IMultiChoice>item);
-		else await this.choiceExecutor.execute(item);
+		else {
+			void this.choiceExecutor.execute(item).catch((error) => {
+				log.logError(`Failed to execute selected choice: ${error}`);
+			});
+		}
 	}
 
 	private onChooseMultiType(multi: IMultiChoice) {

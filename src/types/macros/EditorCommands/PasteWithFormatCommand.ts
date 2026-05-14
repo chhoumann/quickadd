@@ -29,7 +29,7 @@ export class PasteWithFormatCommand extends EditorCommand {
 					if (item.types.includes("text/html")) {
 						const htmlBlob = await item.getType("text/html");
 						const htmlContent = await htmlBlob.text();
-						content = await htmlToMarkdown(htmlContent);
+						content = htmlToMarkdown(htmlContent);
 						foundHtml = true;
 						break;
 					}
