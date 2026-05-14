@@ -16,9 +16,10 @@ import {
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
-import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
+import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
+import { FormatterFactory } from "../services/FormatterFactory";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
 import {
@@ -74,7 +75,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
-		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+		this.formatter = new FormatterFactory(
+			app,
+			plugin,
+		).createCaptureChoiceFormatter(choiceExecutor);
 	}
 
 	private showSuccessNotice(

@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
+import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import { FormatDisplayFormatter } from "../formatters/formatDisplayFormatter";
 import type {
@@ -22,6 +23,19 @@ export class FormatterFactory {
 		dateParser?: IDateParser,
 	): CompleteFormatter {
 		return new CompleteFormatter(
+			this.app,
+			this.plugin,
+			choiceExecutor,
+			dateParser,
+			this.createCompleteEvaluators(choiceExecutor),
+		);
+	}
+
+	public createCaptureChoiceFormatter(
+		choiceExecutor?: IChoiceExecutor,
+		dateParser?: IDateParser,
+	): CaptureChoiceFormatter {
+		return new CaptureChoiceFormatter(
 			this.app,
 			this.plugin,
 			choiceExecutor,

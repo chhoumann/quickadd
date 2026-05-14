@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
+import { FormatterFactory } from "../services/FormatterFactory";
 
 const { promptMock } = vi.hoisted(() => ({
 	promptMock: vi.fn().mockResolvedValue("prompted"),
@@ -67,6 +68,28 @@ const createFormatter = (
 	return new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 };
 
+const createFactoryFormatter = (choiceExecutor: any) => {
+	const app = {
+		workspace: {
+			getActiveViewOfType: vi.fn().mockReturnValue(null),
+			getActiveFile: vi.fn().mockReturnValue(null),
+		},
+	} as unknown as App;
+
+	const plugin = {
+		settings: {
+			inputPrompt: "single-line",
+			enableTemplatePropertyTypes: false,
+			globalVariables: {},
+			useSelectionAsCaptureValue: true,
+		},
+	} as any;
+
+	return new FormatterFactory(app, plugin).createCaptureChoiceFormatter(
+		choiceExecutor,
+	);
+};
+
 describe("CaptureChoiceFormatter selection-as-value behavior", () => {
 	beforeEach(() => {
 		promptMock.mockClear();
@@ -117,6 +140,60 @@ describe("CaptureChoiceFormatter selection-as-value behavior", () => {
 		);
 
 		expect(result).toContain("background-color: #BF616A");
+		expect(promptMock).not.toHaveBeenCalled();
+	});
+
+	it("evaluates macro tokens through the runtime choice executor with shared variables", async () => {
+		const variables = new Map<string, unknown>([["before", "start"]]);
+		const choiceExecutor = {
+			execute: vi.fn(),
+			variables,
+			evaluateMacroToken: vi.fn().mockImplementation(
+				async (macroName: string, context: { variables: Map<string, unknown> }) => {
+					expect(macroName).toBe("Capture Macro");
+					expect(context.variables).toBe(variables);
+					context.variables.set("macroResult", "shared");
+					return "macro-output";
+				},
+			),
+			evaluateInlineJavaScriptToken: vi.fn(),
+		};
+
+		const formatter = createFactoryFormatter(choiceExecutor);
+
+		const result = await formatter.formatContentOnly(
+			"{{MACRO:Capture Macro}} {{VALUE:macroResult}}",
+		);
+
+		expect(result).toBe("macro-output shared");
+		expect(choiceExecutor.evaluateMacroToken).toHaveBeenCalledTimes(1);
+		expect(promptMock).not.toHaveBeenCalled();
+	});
+
+	it("evaluates inline JavaScript tokens through the runtime choice executor with shared variables", async () => {
+		const variables = new Map<string, unknown>([["input", "value"]]);
+		const choiceExecutor = {
+			execute: vi.fn(),
+			variables,
+			evaluateMacroToken: vi.fn(),
+			evaluateInlineJavaScriptToken: vi.fn().mockImplementation(
+				async (code: string, context: { variables: Map<string, unknown> }) => {
+					expect(code).toBe('variables.set("inlineResult", "shared"); "inline-output";');
+					expect(context.variables).toBe(variables);
+					context.variables.set("inlineResult", "shared");
+					return "inline-output";
+				},
+			),
+		};
+
+		const formatter = createFactoryFormatter(choiceExecutor);
+
+		const result = await formatter.formatContentOnly(
+			'```js quickadd\nvariables.set("inlineResult", "shared"); "inline-output";\n``` {{VALUE:inlineResult}}',
+		);
+
+		expect(result).toBe("inline-output shared");
+		expect(choiceExecutor.evaluateInlineJavaScriptToken).toHaveBeenCalledTimes(1);
 		expect(promptMock).not.toHaveBeenCalled();
 	});
 });
