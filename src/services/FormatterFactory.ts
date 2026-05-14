@@ -1,4 +1,4 @@
-import type { App, TFile } from "obsidian";
+import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -9,12 +9,7 @@ import type {
 	FormatDisplayFormatterEvaluators,
 	FormatterVariables,
 } from "../formatters/formatterEvaluators";
-
-function normalizeTemplatePreviewPath(templatePath: string): string {
-	const stripped = templatePath.replace(/^\/+/, "");
-	if (/\.(md|canvas|base)$/i.test(stripped)) return stripped;
-	return `${stripped}.md`;
-}
+import { TemplateEvaluator, TemplateFileService } from "./TemplateFileService";
 
 export class FormatterFactory {
 	constructor(
@@ -69,15 +64,16 @@ export class FormatterFactory {
 			},
 			template: {
 				evaluateTemplate: async (templatePath, context) => {
-					const { SingleTemplateEngine } = await import(
-						"../engine/SingleTemplateEngine"
-					);
-					return await new SingleTemplateEngine(
-						this.app,
-						this.plugin,
-						templatePath,
+					const formatter = this.createCompleteFormatter(
 						this.withVariables(choiceExecutor, context.variables),
-					).run();
+					);
+					const templateFileService = new TemplateFileService(this.app);
+					const templateContent =
+						await templateFileService.readTemplateContent(templatePath);
+					const { content } = await new TemplateEvaluator(
+						formatter,
+					).evaluateTemplateContent(templateContent, templatePath);
+					return content;
 				},
 			},
 			inlineJavaScript: {
@@ -101,16 +97,9 @@ export class FormatterFactory {
 		return {
 			template: {
 				evaluateTemplate: async (templatePath) => {
-					const resolvedPath = normalizeTemplatePreviewPath(templatePath);
-					const file = this.app.vault.getAbstractFileByPath(resolvedPath);
-					if (!this.isReadableFile(file)) {
-						return `Template (not found): ${templatePath}`;
-					}
-					try {
-						return await this.app.vault.cachedRead(file);
-					} catch {
-						return `Template (not found): ${templatePath}`;
-					}
+					return await new TemplateFileService(this.app).previewTemplateContent(
+						templatePath,
+					);
 				},
 			},
 		};
@@ -132,14 +121,5 @@ export class FormatterFactory {
 		if (!choiceExecutor) return undefined;
 		choiceExecutor.variables = variables;
 		return choiceExecutor;
-	}
-
-	private isReadableFile(file: unknown): file is TFile {
-		return Boolean(
-			file &&
-				typeof file === "object" &&
-				"extension" in file &&
-				"path" in file,
-		);
 	}
 }

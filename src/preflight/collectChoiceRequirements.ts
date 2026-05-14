@@ -2,9 +2,6 @@ import type { App } from "obsidian";
 import { MarkdownView, TFile } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
-	BASE_FILE_EXTENSION_REGEX,
-	CANVAS_FILE_EXTENSION_REGEX,
-	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 } from "src/constants";
 import type QuickAdd from "src/main";
@@ -22,6 +19,7 @@ import {
 	isFolder,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
+import { TemplateFileService } from "src/services/TemplateFileService";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import {
 	RequirementCollector,
@@ -99,15 +97,11 @@ function getQuickAddScriptInputs(userScript: unknown): unknown[] {
 }
 
 async function readTemplate(app: App, path: string): Promise<string> {
-	const addExt =
-		!MARKDOWN_FILE_EXTENSION_REGEX.test(path) &&
-		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
-		!BASE_FILE_EXTENSION_REGEX.test(path);
-	const normalized = addExt ? `${path}.md` : path;
-	const file = app.vault.getAbstractFileByPath(normalized);
-	if (file instanceof TFile) {
-		return await app.vault.cachedRead(file);
-	}
+	const templateFileService = new TemplateFileService(app);
+	const file = app.vault.getAbstractFileByPath(
+		templateFileService.normalizeTemplatePath(path),
+	);
+	if (file instanceof TFile) return await app.vault.cachedRead(file);
 	return "";
 }
 
