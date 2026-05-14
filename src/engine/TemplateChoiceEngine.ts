@@ -3,10 +3,21 @@ import { TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import invariant from "src/utils/invariant";
 import { VALUE_SYNTAX } from "../constants";
+import type { CompleteFormatter } from "../formatters/completeFormatter";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
+import {
+	FolderSelectionService,
+	type FolderChoiceOptions,
+} from "../services/FolderSelectionService";
+import { FormatterFactory } from "../services/FormatterFactory";
+import {
+	TemplateEvaluator,
+	TemplateFileService,
+} from "../services/TemplateFileService";
+import { VaultFileService } from "../services/VaultFileService";
 import {
 	getFileExistsMode,
 	getPromptModes,
@@ -28,13 +39,18 @@ import {
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
-import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
-export class TemplateChoiceEngine extends TemplateEngine {
+export class TemplateChoiceEngine {
 	public choice: ITemplateChoice;
+	public app: App;
+	private readonly formatter: CompleteFormatter;
 	private readonly choiceExecutor: IChoiceExecutor;
+	private readonly vaultFileService: VaultFileService;
+	private readonly folderSelectionService: FolderSelectionService;
+	private readonly templateFileService: TemplateFileService;
+	private readonly templateEvaluator: TemplateEvaluator;
 
 	constructor(
 		app: App,
@@ -43,9 +59,23 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
-		super(app, plugin, choiceExecutor);
+		this.app = app;
 		this.choiceExecutor = choiceExecutor;
 		this.choice = choice;
+		this.vaultFileService = new VaultFileService(app);
+		this.formatter = new FormatterFactory(
+			app,
+			plugin,
+		).createCompleteFormatter(choiceExecutor);
+		this.folderSelectionService = new FolderSelectionService(
+			app,
+			this.vaultFileService,
+		);
+		this.templateFileService = new TemplateFileService(
+			app,
+			this.vaultFileService,
+		);
+		this.templateEvaluator = new TemplateEvaluator(this.formatter);
 	}
 
 	public async run(): Promise<void> {
@@ -261,6 +291,76 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.choice.templatePath,
 				);
 		}
+	}
+
+	private async getOrCreateFolder(
+		folders: string[],
+		options: FolderChoiceOptions = {},
+	): Promise<string> {
+		return await this.folderSelectionService.getOrCreateFolder(
+			folders,
+			options,
+		);
+	}
+
+	private setLinkToCurrentFileBehavior(
+		behavior: Parameters<CompleteFormatter["setLinkToCurrentFileBehavior"]>[0],
+	): void {
+		this.formatter.setLinkToCurrentFileBehavior(behavior);
+	}
+
+	private normalizeTemplateFilePath(
+		folderPath: string,
+		fileName: string,
+		templatePath: string,
+	): string {
+		return this.templateFileService.normalizeTemplateFilePath(
+			folderPath,
+			fileName,
+			templatePath,
+		);
+	}
+
+	private async createFileWithTemplate(
+		filePath: string,
+		templatePath: string,
+	): Promise<TFile | null> {
+		const templateContent = await this.getTemplateContent(templatePath);
+		return await this.templateFileService.createFileWithTemplateContent(
+			filePath,
+			templateContent,
+			this.templateEvaluator,
+		);
+	}
+
+	private async overwriteFileWithTemplate(
+		file: TFile,
+		templatePath: string,
+	): Promise<TFile | null> {
+		const templateContent = await this.getTemplateContent(templatePath);
+		return await this.templateFileService.overwriteFileWithTemplateContent(
+			file,
+			templateContent,
+			this.templateEvaluator,
+		);
+	}
+
+	private async appendToFileWithTemplate(
+		file: TFile,
+		templatePath: string,
+		section: "top" | "bottom",
+	): Promise<TFile | null> {
+		const templateContent = await this.getTemplateContent(templatePath);
+		return await this.templateFileService.appendToFileWithTemplateContent(
+			file,
+			templateContent,
+			section,
+			this.templateEvaluator,
+		);
+	}
+
+	private async getTemplateContent(templatePath: string): Promise<string> {
+		return await this.templateFileService.readTemplateContent(templatePath);
 	}
 
 	/**
