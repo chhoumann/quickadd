@@ -586,6 +586,7 @@ describe('FileSuggester DOM XSS safety', () => {
             }
         ).createTooltip.call(
             {
+                inputEl: document.createElement('input'),
                 app: {
                     vault: {
                         getAbstractFileByPath: vi.fn(() => obsidianFile),
@@ -599,6 +600,85 @@ describe('FileSuggester DOM XSS safety', () => {
         expect(tooltip?.textContent).toContain(payload);
         expect(tooltip?.textContent).toContain(`Path: Notes/${payload}.md`);
         expectNoPayloadDom(tooltip!);
+    });
+
+    it('uses the input owner document for suggestions, tooltips, timers, and cleanup', () => {
+        vi.useFakeTimers();
+        const frame = document.createElement('iframe');
+        document.body.appendChild(frame);
+        const popoutDocument = frame.contentDocument!;
+        const popoutWindow = frame.contentWindow!;
+        const inputEl = popoutDocument.createElement('input');
+        popoutDocument.body.appendChild(inputEl);
+
+        const obsidianFile = createRuntimeFile('Popout.md', 'Popout');
+        const app = {
+            dom: { appContainerEl: popoutDocument.body },
+            keymap: {
+                pushScope: vi.fn(),
+                popScope: vi.fn(),
+            },
+            workspace: {
+                getActiveFile: vi.fn(() => null),
+                on: vi.fn(() => ({})),
+            },
+            fileManager: {
+                getNewFileParent: vi.fn(() => ({ path: '' })),
+            },
+            vault: {
+                getAbstractFileByPath: vi.fn(() => obsidianFile),
+                getFiles: vi.fn(() => []),
+                getMarkdownFiles: vi.fn(() => []),
+                on: vi.fn(),
+            },
+            metadataCache: {
+                on: vi.fn(),
+                getFileCache: vi.fn(),
+                unresolvedLinks: {},
+            },
+        };
+
+        const plugin = { registerEvent: vi.fn() };
+        (FileIndex as unknown as { instance?: FileIndex }).instance = new (
+            FileIndex as unknown as new (app: App, plugin: unknown) => FileIndex
+        )(app as unknown as App, plugin);
+
+        try {
+            const suggester = new FileSuggester(app as unknown as App, inputEl);
+            (suggester as unknown as { lastInput: string }).lastInput = 'Pop';
+            (suggester as unknown as {
+                suggest: { setSuggestions(values: unknown[]): void };
+            }).suggest.setSuggestions([
+                {
+                    file: createIndexedFile('Popout.md', 'Popout'),
+                    score: 0,
+                    matchType: 'exact' as const,
+                    displayText: 'Popout',
+                },
+            ]);
+            suggester.open(popoutDocument.body, inputEl);
+
+            const suggestion = popoutDocument.querySelector<HTMLElement>('.suggestion-item')!;
+            expect(suggestion).not.toBeNull();
+            expect(document.querySelector('.suggestion-item')).toBeNull();
+
+            suggestion.dispatchEvent(new MouseEvent('mouseenter', {
+                bubbles: true,
+                view: popoutWindow,
+            }));
+            vi.advanceTimersByTime(200);
+
+            const tooltip = popoutDocument.querySelector('.qa-file-tooltip');
+            expect(tooltip).not.toBeNull();
+            expect(document.querySelector('.qa-file-tooltip')).toBeNull();
+
+            suggester.destroy();
+            expect(popoutDocument.querySelector('.suggestion-container')).toBeNull();
+            expect(popoutDocument.querySelector('.qa-file-tooltip')).toBeNull();
+        } finally {
+            frame.remove();
+            vi.useRealTimers();
+        }
     });
 
     it('keeps malicious suggestions selectable by keyboard navigation', async () => {

@@ -61,10 +61,10 @@
     };
   }
 
-  let debounceTimer: any;
+  let debounceTimer: number | undefined;
   function debouncedPersist(it: GV) {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
+    if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(() => {
       persistToSettings();
     }, 200);
   }
@@ -73,7 +73,10 @@
     unsubscribe = settingsStore.subscribe(() => loadFromSettings());
     loadFromSettings();
   });
-  onDestroy(() => unsubscribe && unsubscribe());
+  onDestroy(() => {
+    if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+    unsubscribe && unsubscribe();
+  });
 </script>
 
 <div class="qa-gv">

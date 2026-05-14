@@ -7,13 +7,17 @@ import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
 import { normalizeForSearch } from "./utils";
 import QuickAdd from "../../main";
+import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "../../utils/activeWindow";
 
 interface HTMLElementWithTooltipCleanup extends HTMLElement {
 	_tooltipCleanup?: () => void;
 }
 
-function createSuggestionPill(matchType: SearchResult["matchType"]): HTMLElement | null {
-	const pill = document.createElement("span");
+function createSuggestionPill(
+	owner: Node,
+	matchType: SearchResult["matchType"],
+): HTMLElement | null {
+	const pill = createOwnedElement(owner, "span");
 	pill.classList.add("qa-suggestion-pill");
 
 	switch (matchType) {
@@ -326,10 +330,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				break;
 		}
 
-		const content = document.createElement("div");
+		const content = createOwnedElement(el, "div");
 		content.className = "qa-suggestion-content";
 
-		const mainTextEl = document.createElement("span");
+		const mainTextEl = createOwnedElement(el, "span");
 		mainTextEl.className = "suggestion-main-text";
 		if (shouldHighlightMainText) {
 			this.renderMatch(mainTextEl, mainText, highlightQuery);
@@ -338,10 +342,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		}
 		content.appendChild(mainTextEl);
 
-		const pill = createSuggestionPill(matchType);
+		const pill = createSuggestionPill(el, matchType);
 		if (pill) content.appendChild(pill);
 
-		const subTextEl = document.createElement("span");
+		const subTextEl = createOwnedElement(el, "span");
 		subTextEl.className = "suggestion-sub-text";
 		subTextEl.textContent = subText;
 
@@ -352,20 +356,25 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	}
 
 	private addHoverTooltip(el: HTMLElement, file: { path: string; }): void {
-		let tooltipTimeout: NodeJS.Timeout;
+		let tooltipTimeout: number | undefined;
+		const activeDocument = getOwnerDocument(el);
+		const activeWindow = getOwnerWindow(el);
 
 		const cleanup = () => {
-			clearTimeout(tooltipTimeout);
-			const existingTooltip = document.querySelector('.qa-file-tooltip');
+			if (tooltipTimeout !== undefined) {
+				activeWindow.clearTimeout(tooltipTimeout);
+				tooltipTimeout = undefined;
+			}
+			const existingTooltip = activeDocument.querySelector('.qa-file-tooltip');
 			existingTooltip?.remove();
 		};
 
 		el.addEventListener('mouseenter', () => {
 			cleanup(); // Remove any existing tooltips
-			tooltipTimeout = setTimeout(async () => {
+			tooltipTimeout = activeWindow.setTimeout(() => {
 				const tooltip = this.createTooltip(file);
 				if (tooltip) {
-					document.body.appendChild(tooltip);
+					activeDocument.body.appendChild(tooltip);
 					this.positionTooltip(tooltip, el);
 				}
 			}, 200);
@@ -377,34 +386,35 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 		// Clean up on scroll to prevent misplaced tooltips
 		const cleanupOnScroll = () => cleanup();
-		document.addEventListener('scroll', cleanupOnScroll, { passive: true });
+		activeDocument.addEventListener('scroll', cleanupOnScroll, { passive: true });
 
 		// Store cleanup function for later removal
 		(el as HTMLElementWithTooltipCleanup)._tooltipCleanup = () => {
 			cleanup();
-			document.removeEventListener('scroll', cleanupOnScroll);
+			activeDocument.removeEventListener('scroll', cleanupOnScroll);
 		};
 	}
 
 	private createTooltip(file: { path: string; }): HTMLElement | null {
 		const obsidianFile = this.app.vault.getAbstractFileByPath(file.path);
 		if (!obsidianFile || !(obsidianFile instanceof TFile)) return null;
+		const owner = this.inputEl;
 
-		const tooltip = document.createElement('div');
+		const tooltip = createOwnedElement(owner, 'div');
 		tooltip.className = 'qa-file-tooltip';
 
 		// For now, just show basic info - content preview can be added later
-		const header = document.createElement("div");
+		const header = createOwnedElement(owner, "div");
 		header.className = "qa-tooltip-header";
 		header.textContent = obsidianFile.basename;
 
-		const content = document.createElement("div");
+		const content = createOwnedElement(owner, "div");
 		content.className = "qa-tooltip-content";
 
-		const path = document.createElement("div");
+		const path = createOwnedElement(owner, "div");
 		path.textContent = `Path: ${obsidianFile.path}`;
 
-		const modified = document.createElement("div");
+		const modified = createOwnedElement(owner, "div");
 		modified.textContent = `Modified: ${new Date(obsidianFile.stat.mtime).toLocaleDateString()}`;
 
 		content.append(path, modified);
@@ -423,7 +433,8 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 	close(): void {
 		// Clean up any tooltip listeners before closing
-		const tooltipElements = document.querySelectorAll('.qaFileSuggestionItem');
+		const activeDocument = getOwnerDocument(this.inputEl);
+		const tooltipElements = activeDocument.querySelectorAll('.qaFileSuggestionItem');
 		tooltipElements.forEach(el => {
 			const elementWithCleanup = el as HTMLElementWithTooltipCleanup;
 			if (elementWithCleanup._tooltipCleanup) {
@@ -432,7 +443,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		});
 
 		// Remove any existing tooltips
-		const existingTooltips = document.querySelectorAll('.qa-file-tooltip');
+		const existingTooltips = activeDocument.querySelectorAll('.qa-file-tooltip');
 		existingTooltips.forEach(tooltip => tooltip.remove());
 
 		super.close();
