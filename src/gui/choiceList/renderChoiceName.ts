@@ -6,5 +6,6 @@ export function renderChoiceName(
 	component: Component,
 	app: App,
 ): void {
+	element.replaceChildren();
 	void MarkdownRenderer.render(app, choiceName, element, "/", component);
 }
