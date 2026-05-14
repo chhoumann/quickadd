@@ -193,6 +193,65 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		expect(engine["output"]).toBe("entry-result");
 	});
 
+	it("initializes user script settings only from object-shaped settings exports", async () => {
+		const entryFn = vi.fn().mockResolvedValue("entry-result");
+		const settings = {
+			apiKey: {
+				type: "text",
+				defaultValue: "abc123",
+			},
+		};
+
+		mockGetUserScript.mockResolvedValue({
+			entry: entryFn,
+			settings,
+		});
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine["executeUserScript"](userScriptCommand);
+
+		expect(mockInitializeUserScriptSettings).toHaveBeenCalledWith(
+			userScriptCommand.settings,
+			settings,
+		);
+		expect(entryFn).toHaveBeenCalledWith(
+			expect.objectContaining({ variables: expect.any(Object) }),
+			userScriptCommand.settings,
+		);
+	});
+
+	it("ignores malformed primitive settings exports at the user-script boundary", async () => {
+		const entryFn = vi.fn().mockResolvedValue("entry-result");
+
+		mockGetUserScript.mockResolvedValue({
+			entry: entryFn,
+			settings: "not-settings",
+		});
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine["executeUserScript"](userScriptCommand);
+
+		expect(mockInitializeUserScriptSettings).not.toHaveBeenCalled();
+		expect(entryFn).toHaveBeenCalledWith(
+			expect.objectContaining({ variables: expect.any(Object) }),
+			userScriptCommand.settings,
+		);
+	});
+
 	it("prompts the user when no entry export is defined", async () => {
 		const optionFn = vi.fn().mockResolvedValue("option-result");
 

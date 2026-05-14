@@ -27,8 +27,16 @@ class TextMappingFormatter extends Formatter {
 		this.hasExplicitSuggestionResult = true;
 	}
 
+	public setVariable(name: string, value: unknown): void {
+		this.variables.set(name, value);
+	}
+
 	public async testFormat(input: string): Promise<string> {
 		return await this.format(input);
+	}
+
+	public async testValueFormat(input: string): Promise<string> {
+		return await this.replaceValueInString(input);
 	}
 
 	protected async format(input: string): Promise<string> {
@@ -174,5 +182,13 @@ describe("Formatter VALUE text mapping", () => {
 		await expect(
 			formatter.testFormat("{{VALUE:a,b|text:Same,Same}}"),
 		).rejects.toThrow(/duplicate text entries/i);
+	});
+
+	it("formats injected object VALUE variables without default object stringification", async () => {
+		formatter.setVariable("value", { title: "Project", count: 2 });
+
+		const result = await formatter.testValueFormat("{{VALUE}}");
+
+		expect(result).toBe('{"title":"Project","count":2}');
 	});
 });

@@ -115,6 +115,10 @@ class TestFormatter extends Formatter {
     public async testReplaceDateVariableInString(input: string): Promise<string> {
         return await this.replaceDateVariableInString(input);
     }
+
+    public setVariable(name: string, value: unknown): void {
+        this.variables.set(name, value);
+    }
 }
 
 describe('VDATE Default Value Support', () => {
@@ -277,6 +281,16 @@ describe('VDATE Default Value Support', () => {
 
             expect(formatter.testDateParser.parseDate).toHaveBeenCalledWith("2026-05-04");
             expect(result).toBe("Date: YYYY-MM-DD-formatted");
+        });
+
+        it('formats malformed non-string stored values without object default stringification', async () => {
+            formatter.setVariable('date', { unexpected: 'shape' });
+
+            const result = await formatter.testReplaceDateVariableInString(
+                "Date: {{VDATE:date,YYYY-MM-DD}}",
+            );
+
+            expect(result).toBe('Date: {"unexpected":"shape"}');
         });
     });
 

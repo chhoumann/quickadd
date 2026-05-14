@@ -109,6 +109,23 @@ describe("evaluateCondition", () => {
 		expect(falsyResult).toBe(true);
 	});
 
+	it("preserves object containment through safe formatting", async () => {
+		const condition: VariableCondition = {
+			mode: "variable",
+			variableName: "payload",
+			operator: "contains",
+			valueType: "string",
+			expectedValue: '"needle":true',
+		};
+
+		const result = await evaluateCondition(condition, {
+			variables: { payload: { needle: true } },
+			evaluateScriptCondition: noopScriptEvaluator,
+		});
+
+		expect(result).toBe(true);
+	});
+
 	it("delegates script conditions", async () => {
 		const condition: ScriptCondition = {
 			mode: "script",
