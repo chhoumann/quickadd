@@ -260,7 +260,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 					.setTooltip("Select a script file")
 					.onClick(async () => {
 						if (this.javascriptFiles.length === 0) {
-							showNoScriptsFoundNotice();
+							showNoScriptsFoundNotice(this.app);
 							return;
 						}
 

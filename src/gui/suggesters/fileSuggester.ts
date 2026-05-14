@@ -109,7 +109,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		if (this.inputEl.selectionStart === null) return [];
 
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
+		const inputBeforeCursor: string = inputStr.slice(0, cursorPosition);
 		const fileLinkMatch = FILE_LINK_REGEX.exec(inputBeforeCursor);
 
 		if (!fileLinkMatch) {
@@ -569,10 +569,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		cursorPosition: number,
 		lastInputLength: number
 	): string {
-		return `${currentInputElValue.substr(
+		return `${currentInputElValue.slice(
 			0,
 			cursorPosition - lastInputLength - 2
-		)}${selectedItem}${currentInputElValue.substr(cursorPosition)}`;
+		)}${selectedItem}${currentInputElValue.slice(cursorPosition)}`;
 	}
 
 	private getNewInputValueForFileName(
@@ -581,10 +581,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		cursorPosition: number,
 		lastInputLength: number
 	): string {
-		return `${currentInputElValue.substr(
+		return `${currentInputElValue.slice(
 			0,
 			cursorPosition - lastInputLength
-		)}${selectedItem}]]${currentInputElValue.substr(cursorPosition)}`;
+		)}${selectedItem}]]${currentInputElValue.slice(cursorPosition)}`;
 	}
 
 }

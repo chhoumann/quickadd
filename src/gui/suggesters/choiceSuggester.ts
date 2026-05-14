@@ -45,7 +45,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 	renderSuggestion(item: FuzzyMatch<IChoice>, el: HTMLElement): void {
 		el.empty();
-		void MarkdownRenderer.renderMarkdown(item.item.name, el, '', this.plugin)
+		void MarkdownRenderer.render(this.app, item.item.name, el, "", this.plugin)
 			.catch((error) => {
 				el.textContent = item.item.name;
 				log.logError(`Failed to render choice suggestion: ${error}`);

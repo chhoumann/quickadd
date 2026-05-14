@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { Notice, Setting, TextComponent, ToggleComponent, TFile } from "obsidian";
+import { FileView, Notice, Setting, TextComponent, ToggleComponent, TFile } from "obsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -997,7 +997,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			typeof this.choice.captureTo === "string" &&
 			this.isCanvasTargetPath(this.choice.captureTo);
 		const hasActiveCanvasView =
-			this.app.workspace.activeLeaf?.view?.getViewType?.() === "canvas";
+			this.app.workspace.getActiveViewOfType(FileView)?.getViewType() === "canvas";
 		const usesCursorMode =
 			isActiveFile &&
 			!this.choice.insertAfter.enabled &&

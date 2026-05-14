@@ -342,6 +342,8 @@ export class App {
     iterateRootLeaves: () => {},
   };
   vault: any = {
+    configDir: ".obsidian",
+    getRoot: () => ({ path: "" }),
     getAllLoadedFiles: () => [],
     getMarkdownFiles: () => [],
     read: async () => "",
@@ -531,6 +533,16 @@ export const Scope = class {
 };
 
 export const MarkdownRenderer = {
+  async render(
+    _app: unknown,
+    source: string,
+    el: HTMLElement,
+    sourcePath: string,
+    component: unknown,
+  ): Promise<void> {
+    await MarkdownRenderer.renderMarkdown(source, el, sourcePath, component);
+  },
+
   async renderMarkdown(
     source: string,
     el: HTMLElement,
@@ -559,8 +571,35 @@ export const MarkdownRenderer = {
   },
 };
 
+export async function requestUrl(request: string | { url: string; throw?: boolean }): Promise<{
+  status: number;
+  headers: Record<string, string>;
+  arrayBuffer: ArrayBuffer;
+  json: unknown;
+  text: string;
+}> {
+  const url = typeof request === "string" ? request : request.url;
+  const response = await fetch(url);
+  const text = await response.text();
+  let json: unknown = text;
+
+  try {
+    json = JSON.parse(text);
+  } catch {
+    // Preserve text response when it is not JSON.
+  }
+
+  return {
+    status: response.status,
+    headers: {},
+    arrayBuffer: await new Blob([text]).arrayBuffer(),
+    json,
+    text,
+  };
+}
+
 export class Notice {
-  static instances: Array<{ message: string; timeout?: number }> = [];
+  static instances: Array<{ message: string; timeout?: number; messageEl: HTMLElement }> = [];
   noticeEl: HTMLElement;
   containerEl: HTMLElement;
   messageEl: HTMLElement;
@@ -575,7 +614,7 @@ export class Notice {
     this.messageEl.textContent = message;
     this.message = message;
     this.timeout = timeout;
-    Notice.instances.push({ message, timeout });
+    Notice.instances.push({ message, timeout, messageEl: this.messageEl });
   }
 
   hide() {}
@@ -621,6 +660,7 @@ export default {
   Modal,
   Scope,
   MarkdownRenderer,
+  requestUrl,
   Notice,
   moment,
   normalizePath,

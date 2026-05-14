@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Component } from "obsidian";
+import { App, Component } from "obsidian";
 import { renderChoiceName } from "./gui/choiceList/renderChoiceName";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 import { formatDateAliasLines } from "./utils/dateAliases";
@@ -60,7 +60,7 @@ describe("settings user-authored DOM XSS safety", () => {
 		const payload = "<img src=x onerror=globalThis.__qaXss=1>";
 		const container = document.createElement("span");
 
-		renderChoiceName(`**Visible** ${payload}`, container, new Component());
+		renderChoiceName(`**Visible** ${payload}`, container, new Component(), new App());
 		await Promise.resolve();
 
 		expect(container.textContent).toContain("Visible");
@@ -69,7 +69,7 @@ describe("settings user-authored DOM XSS safety", () => {
 		expectNoPayloadDom(container);
 
 		const multiContainer = document.createElement("span");
-		renderChoiceName(`Multi ${payload}`, multiContainer, new Component());
+		renderChoiceName(`Multi ${payload}`, multiContainer, new Component(), new App());
 		await Promise.resolve();
 
 		expect(multiContainer.textContent).toContain(`Multi ${payload}`);
