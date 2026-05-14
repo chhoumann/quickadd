@@ -24,6 +24,7 @@ import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssis
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
+import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -60,7 +61,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "runQuickAdd",
-			name: "Run QuickAdd",
+			name: QUICK_ADD_COMMAND_LABELS.run,
 			callback: () => {
 				ChoiceSuggester.Open(this, this.settings.choices);
 			},
@@ -68,7 +69,7 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "reloadQuickAdd",
-			name: "Reload QuickAdd (dev)",
+			name: QUICK_ADD_COMMAND_LABELS.reloadDev,
 			checkCallback: (checking) => {
 				if (checking) {
 					return this.settings.devMode;
@@ -88,13 +89,13 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommand({
 			id: "testQuickAdd",
-			name: "Test QuickAdd (dev)",
+			name: QUICK_ADD_COMMAND_LABELS.testDev,
 			checkCallback: (checking) => {
 				if (checking) {
 					return this.settings.devMode;
 				}
 
-				log.logMessage("Test QuickAdd (dev)");
+				log.logMessage(QUICK_ADD_COMMAND_LABELS.testDev);
 
 				const fn = () => {
 					new InfiniteAIAssistantCommandSettingsModal(this.app, {
