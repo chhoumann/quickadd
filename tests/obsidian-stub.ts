@@ -30,6 +30,13 @@ export class BaseComponent {
   }
 }
 
+export class Component extends BaseComponent {
+  load() {}
+  onload() {}
+  unload() {}
+  onunload() {}
+}
+
 export class ButtonComponent extends BaseComponent {
   buttonEl: HTMLButtonElement;
 
@@ -168,6 +175,31 @@ export class SecretComponent extends BaseComponent {
   }
 }
 
+export class TextAreaComponent extends BaseComponent {
+  inputEl: HTMLTextAreaElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.inputEl = document.createElement("textarea");
+    containerEl.appendChild(this.inputEl);
+  }
+
+  setPlaceholder(value: string): this {
+    this.inputEl.placeholder = value;
+    return this;
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  onChange(cb: (value: string) => void): this {
+    this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
+    return this;
+  }
+}
+
 export class Setting {
   settingEl: HTMLElement;
   infoEl: HTMLElement;
@@ -235,6 +267,11 @@ export class Setting {
 
   addText(cb: (component: TextComponent) => any): this {
     cb(new TextComponent(this.controlEl));
+    return this;
+  }
+
+  addTextArea(cb: (component: TextAreaComponent) => any): this {
+    cb(new TextAreaComponent(this.controlEl));
     return this;
   }
 
@@ -478,7 +515,48 @@ export const Modal = class {
 };
 
 export const Scope = class {
-  register(hotkeys: any, callback: any) {}
+  callbacks = new Map<string, (event: any) => unknown>();
+
+  register(_hotkeys: any, key: any, callback?: any) {
+    if (typeof key === "string" && typeof callback === "function") {
+      this.callbacks.set(key, callback);
+    } else if (typeof key === "function") {
+      this.callbacks.set("", key);
+    }
+  }
+
+  trigger(key: string, event: any = { isComposing: false }): unknown {
+    return this.callbacks.get(key)?.(event);
+  }
+};
+
+export const MarkdownRenderer = {
+  async renderMarkdown(
+    source: string,
+    el: HTMLElement,
+    _sourcePath: string,
+    _component: unknown,
+  ): Promise<void> {
+    el.replaceChildren();
+    const strongPattern = /\*\*([^*]+)\*\*/g;
+    let cursor = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = strongPattern.exec(source)) !== null) {
+      if (match.index > cursor) {
+        el.appendChild(document.createTextNode(source.slice(cursor, match.index)));
+      }
+
+      const strong = document.createElement("strong");
+      strong.textContent = match[1];
+      el.appendChild(strong);
+      cursor = match.index + match[0].length;
+    }
+
+    if (cursor < source.length) {
+      el.appendChild(document.createTextNode(source.slice(cursor)));
+    }
+  },
 };
 
 export class Notice {
@@ -523,11 +601,13 @@ export function debounce<T extends (...args: any[]) => any>(
 // Default export for compatibility
 export default {
   App,
+  Component,
   BaseComponent,
   ButtonComponent,
   ToggleComponent,
   DropdownComponent,
   TextComponent,
+  TextAreaComponent,
   Plugin,
   PluginSettingTab,
   Setting,
@@ -540,6 +620,7 @@ export default {
   FuzzySuggestModal,
   Modal,
   Scope,
+  MarkdownRenderer,
   Notice,
   moment,
   normalizePath,
