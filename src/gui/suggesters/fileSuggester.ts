@@ -449,7 +449,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		super.close();
 	}
 
-	async selectSuggestion(item: SearchResult): Promise<void> {
+	selectSuggestion(item: SearchResult): void {
 		if (this.inputEl.selectionStart === null) return;
 
 		const cursorPosition: number = this.inputEl.selectionStart;

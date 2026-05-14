@@ -36,7 +36,7 @@ export abstract class QuickAddEngine {
 		this.app = app;
 	}
 
-	public abstract run(): void;
+	public abstract run(): void | Promise<unknown>;
 
 	/**
 	 * Validates structured variables to ensure they can be safely processed.

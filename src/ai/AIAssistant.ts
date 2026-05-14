@@ -181,15 +181,25 @@ async function repeatUntilResolved(
 	}
 
 	let isDone = false;
-	promise.finally(() => {
-		isDone = true;
-	});
+	void promise.then(
+		() => {
+			isDone = true;
+		},
+		() => {
+			isDone = true;
+		}
+	);
 
 	// Execute the callback function every X milliseconds until the promise is resolved
 	while (!isDone) {
 		callback();
 		await sleep(interval);
 	}
+}
+
+function toError(reason: unknown): Error {
+	if (reason instanceof Error) return reason;
+	return new Error(String(reason));
 }
 
 async function getTargetPromptTemplate(
@@ -438,7 +448,7 @@ export async function Prompt(
 	}
 }
 
-class RateLimiter {
+export class RateLimiter {
 	private queue: (() => Promise<unknown>)[] = [];
 	private pendingPromises: Promise<unknown>[] = [];
 
@@ -450,7 +460,7 @@ class RateLimiter {
 				try {
 					resolve(await promiseFactory());
 				} catch (err) {
-					reject(err);
+					reject(toError(err));
 				}
 			});
 			this.schedule();
@@ -471,12 +481,20 @@ class RateLimiter {
 
 		const promise = promiseFactory();
 		this.pendingPromises.push(promise);
-		promise.finally(() => {
-			this.pendingPromises = this.pendingPromises.filter(
-				(p) => p !== promise
-			);
-			this.schedule();
-		});
+		void promise.then(
+			() => {
+				this.pendingPromises = this.pendingPromises.filter(
+					(p) => p !== promise
+				);
+				this.schedule();
+			},
+			() => {
+				this.pendingPromises = this.pendingPromises.filter(
+					(p) => p !== promise
+				);
+				this.schedule();
+			}
+		);
 		window.setTimeout(() => this.schedule(), this.intervalMs);
 	}
 }
