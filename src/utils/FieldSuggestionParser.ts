@@ -42,7 +42,7 @@ export class FieldSuggestionParser {
 				case "folder":
 					filters.folder = filterValue;
 					break;
-				case "tag":
+				case "tag": {
 					if (!filters.tags) {
 						filters.tags = [];
 					}
@@ -52,6 +52,7 @@ export class FieldSuggestionParser {
 						: filterValue;
 					filters.tags.push(tagName);
 					break;
+				}
 				case "inline":
 					filters.inline = filterValue.toLowerCase() === "true";
 					break;
@@ -84,7 +85,7 @@ export class FieldSuggestionParser {
 					}
 					filters.excludeFolders.push(filterValue);
 					break;
-				case "exclude-tag":
+				case "exclude-tag": {
 					if (!filters.excludeTags) {
 						filters.excludeTags = [];
 					}
@@ -94,6 +95,7 @@ export class FieldSuggestionParser {
 						: filterValue;
 					filters.excludeTags.push(excludeTagName);
 					break;
+				}
 				case "exclude-file":
 					if (!filters.excludeFiles) {
 						filters.excludeFiles = [];

@@ -10,6 +10,11 @@ const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
 };
 
+type CompletionInputEvent = Event & {
+	fromCompletion?: boolean;
+	keepOpen?: boolean;
+};
+
 class Suggest<T> {
 	private owner: ISuggestOwner<T>;
 	private values: T[];
@@ -288,8 +293,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	async onInputChanged(event?: Event): Promise<void> {
+		const completionEvent = event as CompletionInputEvent | undefined;
 		// Handle multi-select mode: keep suggestions open after selection
-		if (event && (event as any).fromCompletion && (event as any).keepOpen) {
+		if (completionEvent?.fromCompletion && completionEvent.keepOpen) {
 			const inputStr = this.inputEl.value;
 			const requestId = ++this.currentRequestId;
 			this.currentQuery = inputStr;
@@ -315,7 +321,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		}
 
 		// Ignore programmatic changes from completion selection
-		if (event && (event as any).fromCompletion) {
+		if (completionEvent?.fromCompletion) {
 			return;
 		}
 

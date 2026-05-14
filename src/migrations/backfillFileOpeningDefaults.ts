@@ -32,8 +32,13 @@ const backfillFileOpeningDefaults: Migration = {
 					templateOrCaptureChoice.fileOpening !== null
 					? (templateOrCaptureChoice.fileOpening as Partial<FileOpeningSettings>)
 					: undefined;
-			const legacyTabRaw = (templateOrCaptureChoice as any).openFileInNewTab;
-			const legacyMode = (templateOrCaptureChoice as any).openFileInMode;
+			const legacyChoice = templateOrCaptureChoice as
+				| (ITemplateChoice | ICaptureChoice) & {
+						openFileInNewTab?: unknown;
+						openFileInMode?: unknown;
+				  };
+			const legacyTabRaw = legacyChoice.openFileInNewTab;
+			const legacyMode = legacyChoice.openFileInMode;
 			const legacyTab = coerceLegacyOpenFileInNewTab(legacyTabRaw);
 
 			const needsDefaults =

@@ -55,6 +55,15 @@ import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
+type UserScriptFunction = (
+	params: MacroChoiceEngine["params"],
+	settings: Record<string, unknown>
+) => Promise<unknown>;
+type UserScriptObjectExport = Record<string, unknown> & {
+	entry?: UserScriptFunction;
+	settings?: Record<string, unknown>;
+};
+type UserScriptExport = UserScriptFunction | UserScriptObjectExport | unknown;
 
 function getConditionalScriptCacheKey(condition: ScriptCondition): string {
 	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
@@ -289,12 +298,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			| ((
 					params: typeof this.params,
 					settings: Record<string, unknown>
-			  ) => Promise<void>)
+			  ) => Promise<unknown>)
 			| {
 					entry: (
 						params: typeof this.params,
 						settings: Record<string, unknown>
-					) => Promise<void>;
+					) => Promise<unknown>;
 			  },
 		command: IUserScript
 	) {
@@ -315,23 +324,24 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	 
-	protected async userScriptDelegator(userScript: any) {
+	protected async userScriptDelegator(userScript: UserScriptExport) {
 		switch (typeof userScript) {
 			case "function":
 				if (this.userScriptCommand) {
 					await this.runScriptWithSettings(
 						 
-						userScript,
+						userScript as UserScriptFunction,
 						this.userScriptCommand
 					);
 				} else {
 					 
-					await this.onExportIsFunction(userScript);
+					await this.onExportIsFunction(userScript as UserScriptFunction);
 				}
 				break;
 			case "object":
-				 
-				await this.onExportIsObject(userScript);
+				if (userScript !== null) {
+					await this.onExportIsObject(userScript as UserScriptObjectExport);
+				}
 				break;
 			case "bigint":
 			case "boolean":

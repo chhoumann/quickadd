@@ -81,10 +81,14 @@ export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
 		walkChoice(choice, visitor, visited);
 	}
 
-	const legacyMacros = (plugin.settings as any).macros;
+	const legacyMacros = (plugin.settings as { macros?: unknown }).macros;
 	if (Array.isArray(legacyMacros)) {
 		for (const macro of legacyMacros) {
-			walkCommands(macro?.commands, visitor, visited);
+			const commands =
+				macro && typeof macro === "object"
+					? (macro as { commands?: ICommand[] }).commands
+					: undefined;
+			walkCommands(commands, visitor, visited);
 		}
 	}
 }

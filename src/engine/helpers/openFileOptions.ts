@@ -1,13 +1,14 @@
 import type { OpenFileOptions } from "../../types/fileOpening";
 import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
+import { NewTabDirection } from "../../types/newTabDirection";
 
 function getSplitDirection(
 	direction: IOpenFileCommand["direction"],
 	fallback: "vertical" | undefined = undefined
 ): "horizontal" | "vertical" | undefined {
-	return direction === "horizontal" || direction === "vertical"
-		? direction
-		: fallback;
+	if (direction === NewTabDirection.horizontal) return "horizontal";
+	if (direction === NewTabDirection.vertical) return "vertical";
+	return fallback;
 }
 
 function createOpenFileOptions(

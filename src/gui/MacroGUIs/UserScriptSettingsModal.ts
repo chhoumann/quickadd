@@ -40,6 +40,19 @@ type Option = { description?: string } & (
 	  }
 );
 
+function formatTitlePart(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (value === null || value === undefined) return "";
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+	try {
+		return JSON.stringify(value) ?? String(value);
+	} catch {
+		return String(value);
+	}
+}
+
 export class UserScriptSettingsModal extends Modal {
 	constructor(
 		app: App,
@@ -63,9 +76,9 @@ export class UserScriptSettingsModal extends Modal {
 		this.containerEl.addClass("quickAddModal", "userScriptSettingsModal");
 		this.contentEl.empty();
 
-		this.titleEl.innerText = `${this.settings?.name ?? this.command.name}${
-			this.settings?.author ? " by " + this.settings?.author : ""
-		}`;
+		const titleName = formatTitlePart(this.settings?.name ?? this.command.name);
+		const author = formatTitlePart(this.settings?.author);
+		this.titleEl.innerText = `${titleName}${author ? ` by ${author}` : ""}`;
 		const options = this.settings.options;
 
 		if (!options) {
@@ -74,7 +87,7 @@ export class UserScriptSettingsModal extends Modal {
 
 		// If there are options, add them to the modal
 		for (const option in options) {
-			if (!options.hasOwnProperty(option)) continue;
+			if (!Object.prototype.hasOwnProperty.call(options, option)) continue;
 			const entry = options[option];
 
 			let value = entry.defaultValue;

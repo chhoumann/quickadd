@@ -9,6 +9,16 @@ import {
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { promptRenameChoice } from "../choiceRename";
 
+type OnePageOverride = NonNullable<IChoice["onePageInput"]>;
+type ChoiceWithOpenFile = IChoice & {
+	openFile?: boolean;
+	fileOpening?: FileOpeningSettings;
+};
+
+function isOnePageOverride(value: string): value is OnePageOverride {
+	return value === "always" || value === "never";
+}
+
 export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
 	public waitForClose: Promise<IChoice>;
@@ -47,7 +57,7 @@ export abstract class ChoiceBuilder extends Modal {
 				});
 				dropdown.setValue((choice.onePageInput ?? "") as string);
 				dropdown.onChange((val: string) => {
-					choice.onePageInput = val === "" ? undefined : (val as any);
+					choice.onePageInput = isOnePageOverride(val) ? val : undefined;
 				});
 			});
 	}
@@ -103,15 +113,14 @@ export abstract class ChoiceBuilder extends Modal {
 	 * @param description Description explaining what file will be opened (e.g. "Open the file that is captured to.")
 	 */
 	protected addOpenFileSetting(description: string): void {
-		// We intentionally cast to `any` because not all IChoice implementations have openFile.
-		const choice: any = this.choice as any;
+		const choice = this.choice as ChoiceWithOpenFile;
 		if (choice.openFile === undefined) return; // Guard: nothing to configure
 
 		new Setting(this.contentEl)
 			.setName("Open")
 			.setDesc(description)
 			.addToggle((toggle) => {
-				toggle.setValue(choice.openFile);
+				toggle.setValue(choice.openFile === true);
 				toggle.onChange((value) => {
 					choice.openFile = value;
 					this.reload();
@@ -126,7 +135,7 @@ export abstract class ChoiceBuilder extends Modal {
 	 * @param contextLabel Text to use in descriptions (e.g. "captured" | "created")
 	 */
 	protected addFileOpeningSetting(contextLabel: string): void {
-		const choice: any = this.choice as any;
+		const choice = this.choice as ChoiceWithOpenFile;
 		choice.fileOpening = normalizeFileOpening(choice.fileOpening);
 
 		const fileOpening = choice.fileOpening as FileOpeningSettings;
@@ -145,7 +154,7 @@ export abstract class ChoiceBuilder extends Modal {
 					"right-sidebar": "Right sidebar",
 				});
 				dropdown.setValue(fileOpening.location);
-				dropdown.onChange((value: any) => {
+				dropdown.onChange((value) => {
 					fileOpening.location = value as OpenLocation;
 					this.reload();
 				});
@@ -162,8 +171,8 @@ export abstract class ChoiceBuilder extends Modal {
 						horizontal: "Split down",
 					});
 					dropdown.setValue(fileOpening.direction);
-					dropdown.onChange((value: any) => {
-						fileOpening.direction = value;
+					dropdown.onChange((value) => {
+						fileOpening.direction = value as FileOpeningSettings["direction"];
 					});
 				});
 		}
@@ -184,7 +193,7 @@ export abstract class ChoiceBuilder extends Modal {
 						? (fileOpening.mode as string)
 						: "default",
 				);
-				dropdown.onChange((value: any) => {
+				dropdown.onChange((value) => {
 					fileOpening.mode = value as FileViewMode2;
 				});
 			});

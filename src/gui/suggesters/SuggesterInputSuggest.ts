@@ -2,6 +2,11 @@ import type { App } from "obsidian";
 import { TextInputSuggest } from "./suggest";
 import { normalizeDisplayItem, normalizeQuery } from "./utils";
 
+type CompletionInputEvent = Event & {
+	fromCompletion?: boolean;
+	keepOpen?: boolean;
+};
+
 export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private options: string[];
 	private caseSensitive: boolean;
@@ -78,7 +83,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private selectSingleItem(item: string): void {
 		this.inputEl.value = item;
 		const event = new Event("input", { bubbles: true });
-		(event as any).fromCompletion = true;
+		(event as CompletionInputEvent).fromCompletion = true;
 		this.inputEl.dispatchEvent(event);
 		this.close();
 	}
@@ -102,11 +107,12 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 
 		// Trigger input event
 		const event = new Event("input", { bubbles: true });
-		(event as any).fromCompletion = true;
+		const completionEvent = event as CompletionInputEvent;
+		completionEvent.fromCompletion = true;
 
 		// Only keep open if there are more items to select
 		if (hasMoreItems) {
-			(event as any).keepOpen = true;
+			completionEvent.keepOpen = true;
 			this.inputEl.dispatchEvent(event);
 			// Force re-focus to trigger suggestions
 			this.inputEl.focus();

@@ -5,6 +5,9 @@ import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration } from "./Migrations";
 import { deepClone } from "src/utils/deepClone";
+import type QuickAdd from "src/main";
+
+type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
 
 function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 	for (const choice of choices) {
@@ -49,23 +52,19 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 		"Mutual exclusion of insertAfter and writeToBottomOfFile settings. If insertAfter is enabled, writeToBottomOfFile is disabled. To support changes in settings UI.",
 	 
 	migrate: async (plugin) => {
+		const settings = plugin.settings as SettingsWithLegacyMacros;
 		const choicesCopy = deepClone(plugin.settings.choices);
 		const choices = recursiveMigrateSettingInChoices(choicesCopy);
 
-		const macrosCopy = deepClone((plugin.settings as any).macros || []);
+		const macrosCopy = deepClone(settings.macros ?? []);
 		const macros = migrateSettingsInMacros(macrosCopy);
 
 		plugin.settings.choices = choices;
 		
 		// Save the migrated macros back to settings - later migrations still need it
-		(plugin.settings as any).macros = macros;
+		settings.macros = macros;
 		
-		/* DO NOT delete macros here – later migrations still need it
-		// Clean up legacy macros array if it exists
-		if ('macros' in plugin.settings) {
-			delete (plugin.settings as any).macros;
-		}
-		*/
+		// DO NOT delete macros here – later migrations still need it.
 	},
 };
 

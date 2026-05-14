@@ -16,6 +16,10 @@ import {
 	getOrderedDateAliases,
 } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
+type CompletionInputEvent = Event & {
+	fromCompletion?: boolean;
+};
+
 import type { FieldRequirement } from "./RequirementCollector";
 import {
 	mapMappedSuggesterValue,
@@ -374,7 +378,9 @@ export class OnePageInputModal extends Modal {
 					.setValue(startingDisplay)
 					.onChange((v) => setValue(req.id, v));
 				input.inputEl.addEventListener("input", (event) => {
-					const fromCompletion = Boolean((event as any).fromCompletion);
+					const fromCompletion = Boolean(
+						(event as CompletionInputEvent).fromCompletion,
+					);
 					const rawInput = input.inputEl.value;
 					const storedValue = mapMappedSuggesterValue(
 						rawInput,

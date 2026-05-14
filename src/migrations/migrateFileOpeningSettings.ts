@@ -10,6 +10,10 @@ import {
 	createFileOpeningFromLegacy,
 } from "./helpers/file-opening-legacy";
 
+type LegacyFileOpeningChoice = (ITemplateChoice | ICaptureChoice) & {
+	openFileInNewTab?: unknown;
+	openFileInMode?: unknown;
+};
 
 const migrateFileOpeningSettings: Migration = {
 	description: "Migrate legacy openFileInNewTab settings to new fileOpening format",
@@ -22,11 +26,11 @@ const migrateFileOpeningSettings: Migration = {
 		const migrateFileOpening = (choice: IChoice) => {
 			if (choice.type !== "Template" && choice.type !== "Capture") return;
 
-			const templateOrCaptureChoice = choice as ITemplateChoice | ICaptureChoice;
+			const templateOrCaptureChoice = choice as LegacyFileOpeningChoice;
 			
 			// Only migrate if new fileOpening doesn't exist but legacy settings do
-			const legacyTabRaw = (templateOrCaptureChoice as any).openFileInNewTab;
-			const legacyMode = (templateOrCaptureChoice as any).openFileInMode;
+			const legacyTabRaw = templateOrCaptureChoice.openFileInNewTab;
+			const legacyMode = templateOrCaptureChoice.openFileInMode;
 			const legacyTab = coerceLegacyOpenFileInNewTab(legacyTabRaw);
 			
 			if (!templateOrCaptureChoice.fileOpening && legacyTab) {

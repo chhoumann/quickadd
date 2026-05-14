@@ -3,6 +3,8 @@ import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 
+type AsyncFunctionConstructor = new (code: string) => () => Promise<unknown>;
+
 export class SingleInlineScriptEngine extends MacroChoiceEngine {
 	constructor(
 		app: App,
@@ -15,11 +17,10 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 	}
 
 	 
-	public async runAndGetOutput(code: string): Promise<any> {
-		 
+	public async runAndGetOutput(code: string): Promise<unknown> {
 		const AsyncFunction = Object.getPrototypeOf(
 			async function () {}
-		).constructor;
+		).constructor as AsyncFunctionConstructor;
 		 
 		const userCode = new AsyncFunction(code);
 
