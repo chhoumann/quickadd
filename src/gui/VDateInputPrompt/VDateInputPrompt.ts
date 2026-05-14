@@ -73,7 +73,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		// Create TextComponent directly to avoid duplicate onChange listeners
 		const textComponent = new TextComponent(container);
 		
-		textComponent.inputEl.style.width = "100%";
+		textComponent.inputEl.addClass("qa-vdate-input");
 		textComponent
 			.setPlaceholder(placeholder ?? "")
 			.setValue(value ?? "")
@@ -113,26 +113,16 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 	private createPreviewElement(container: HTMLElement) {
 		const previewContainer = container.createDiv("vdate-preview-container");
-		previewContainer.style.marginTop = "0.5rem";
-		previewContainer.style.padding = "0.5rem";
-		previewContainer.style.backgroundColor = "var(--background-modifier-form-field)";
-		previewContainer.style.borderRadius = "4px";
-		previewContainer.style.fontSize = "0.9em";
 		
-		const previewLabel = previewContainer.createEl("div", {
+		previewContainer.createEl("div", {
 			text: "Preview:",
 			cls: "vdate-preview-label"
 		});
-		previewLabel.style.fontWeight = "600";
-		previewLabel.style.marginBottom = "0.25rem";
-		previewLabel.style.color = "var(--text-muted)";
 		
 		this.previewEl = previewContainer.createEl("div", {
 			cls: "vdate-preview-text"
 		});
-		this.previewEl.style.fontFamily = "var(--font-monospace)";
 		this.previewEl.textContent = VDateInputPrompt.PREVIEW_PLACEHOLDER;
-		this.previewEl.style.color = "var(--text-normal)";
 
 		const aliasEntries = getOrderedDateAliases(
 			settingsStore.getState().dateAliases,
@@ -141,13 +131,11 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			const aliasDetails = previewContainer.createEl("details", {
 				cls: "vdate-alias-details",
 			});
-			aliasDetails.style.marginTop = "0.25rem";
 
 			const aliasSummary = aliasDetails.createEl("summary", {
 				text: `Aliases (${aliasEntries.length})`,
 			});
-			aliasSummary.style.fontSize = "0.85em";
-			aliasSummary.style.color = "var(--text-muted)";
+			aliasSummary.addClass("vdate-alias-summary");
 
 			const aliasList = aliasDetails.createEl("div", {
 				cls: "vdate-alias-list",
@@ -155,10 +143,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			aliasList.textContent = formatDateAliasInline(
 				settingsStore.getState().dateAliases,
 			);
-			aliasList.style.marginTop = "0.25rem";
-			aliasList.style.fontSize = "0.85em";
-			aliasList.style.color = "var(--text-muted)";
-			aliasList.style.fontFamily = "var(--font-monospace)";
 		}
 	}
 
@@ -267,12 +251,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 	private setPreviewText(text: string, isError: boolean) {
 		this.previewEl.textContent = text;
-
-		if (isError) {
-			this.previewEl.style.color = "var(--text-error)";
-		} else {
-			this.previewEl.style.color = "var(--text-normal)";
-		}
+		this.previewEl.toggleClass("is-error", isError);
 	}
 
 	onOpen() {

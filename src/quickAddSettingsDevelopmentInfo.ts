@@ -18,7 +18,7 @@ function appendDevelopmentInfoRow(
 	row.appendChild(labelEl);
 	row.appendChild(createOwnedTextNode(container, ` ${value}`));
 	if (options?.className) row.classList.add(options.className);
-	row.style.marginBottom = "5px";
+	row.classList.add("qa-dev-info-row");
 	container.appendChild(row);
 	return row;
 }

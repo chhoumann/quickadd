@@ -60,10 +60,7 @@ export class MultiChoiceSettingsModal extends Modal {
 		new ButtonComponent(buttonRow)
 			.setButtonText("Cancel")
 			.onClick(() => this.cancel());
-		buttonRow.style.display = "flex";
-		buttonRow.style.justifyContent = "flex-end";
-		buttonRow.style.gap = "0.5rem";
-		buttonRow.style.marginTop = "1rem";
+		buttonRow.addClass("qa-modal-button-row");
 	}
 
 	private submit() {

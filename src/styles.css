@@ -74,6 +74,150 @@
 	font-weight: 600;
 }
 
+.quickAddModal .qa-onepage-title {
+	text-align: center;
+}
+
+.quickAddModal .qa-onepage-preview,
+.quickAddModal .vdate-preview-container {
+	padding: 0.5rem;
+	margin-bottom: 0.75rem;
+	background-color: var(--background-modifier-form-field);
+	border-radius: 4px;
+}
+
+.quickAddModal .vdate-preview-container {
+	margin-top: 0.5rem;
+	font-size: 0.9em;
+}
+
+.quickAddModal .qa-onepage-preview-label,
+.quickAddModal .vdate-preview-label,
+.quickAddModal .qa-preview-key {
+	font-weight: 600;
+}
+
+.quickAddModal .qa-onepage-preview-label,
+.quickAddModal .vdate-preview-label {
+	margin-bottom: 0.25rem;
+	color: var(--text-muted);
+}
+
+.quickAddModal .qa-onepage-textarea {
+	width: 100%;
+	height: 120px;
+}
+
+.quickAddModal .qa-onepage-dropdown-note {
+	margin-left: 0.5rem;
+	color: var(--text-muted);
+}
+
+.quickAddModal .qa-date-preview-text,
+.quickAddModal .vdate-preview-text {
+	margin-top: 0.25rem;
+	font-size: 0.9em;
+	font-family: var(--font-monospace);
+	color: var(--text-normal);
+}
+
+.quickAddModal .qa-date-preview-text.is-error,
+.quickAddModal .vdate-preview-text.is-error {
+	color: var(--text-error);
+}
+
+.quickAddModal .qa-date-alias-details,
+.quickAddModal .vdate-alias-details,
+.quickAddModal .qa-date-alias-list,
+.quickAddModal .vdate-alias-list {
+	margin-top: 0.25rem;
+}
+
+.quickAddModal .qa-date-alias-summary,
+.quickAddModal .vdate-alias-summary,
+.quickAddModal .qa-date-alias-list,
+.quickAddModal .vdate-alias-list {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.quickAddModal .qa-date-alias-list,
+.quickAddModal .vdate-alias-list {
+	font-family: var(--font-monospace);
+}
+
+.quickAddModal .qa-onepage-preview-row {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.quickAddModal .qa-vdate-input,
+.quickAddModal .qa-template-format-input,
+.quickAddModal .qa-folder-path-input {
+	width: 100%;
+}
+
+.quickAddModal .qa-template-format-input {
+	margin-bottom: 8px;
+}
+
+.quickAddModal .qa-modal-button-row {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
+.qa-setting-full-width {
+	display: block;
+}
+
+.qa-setting-full-width .qa-setting-full-width-control {
+	width: 100%;
+	flex: 1 1 auto;
+	display: block;
+	margin-left: 0;
+	justify-content: flex-start;
+	align-items: stretch;
+	text-align: left;
+}
+
+.qa-dev-info {
+	margin-top: 10px;
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+}
+
+.qa-dev-info-row {
+	margin-bottom: 5px;
+}
+
+.qa-date-alias-setting {
+	align-items: flex-start;
+}
+
+.qa-date-alias-setting .qa-date-alias-control {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: flex-start;
+	flex: 1 1 320px;
+	min-width: 240px;
+}
+
+.qa-date-alias-input {
+	width: 100%;
+	min-height: 6rem;
+	flex: 1 1 280px;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.qa-date-alias-reset {
+	align-self: flex-start;
+	white-space: nowrap;
+}
+
 .quickAddModal .qa-canvas-node-helper {
 	margin: 8px 0 4px;
 	font-size: 12px;

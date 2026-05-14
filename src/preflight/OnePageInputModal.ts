@@ -78,22 +78,16 @@ export class OnePageInputModal extends Modal {
 		this.contentEl.empty();
 
 		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
-		title.style.textAlign = "center";
+		title.addClass("qa-onepage-title");
 
 		// Optional live preview area
 		if (this.computePreview) {
 			this.previewContainerEl = this.contentEl.createDiv();
 			this.previewContainerEl.addClass("qa-onepage-preview");
-			this.previewContainerEl.style.padding = "0.5rem";
-			this.previewContainerEl.style.marginBottom = "0.75rem";
-			this.previewContainerEl.style.backgroundColor =
-				"var(--background-modifier-form-field)";
-			this.previewContainerEl.style.borderRadius = "4px";
 			const label = this.previewContainerEl.createEl("div", {
 				text: "Preview",
 			});
-			label.style.fontWeight = "600";
-			label.style.marginBottom = "0.25rem";
+			label.addClass("qa-onepage-preview-label");
 			this.updatePreviews();
 		}
 
@@ -132,8 +126,7 @@ export class OnePageInputModal extends Modal {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
-				input.inputEl.style.width = "100%";
-				input.inputEl.style.height = "120px";
+				input.inputEl.addClass("qa-onepage-textarea");
 				break;
 			}
 			case "text": {
@@ -170,8 +163,7 @@ export class OnePageInputModal extends Modal {
 					const note = setting.controlEl.createDiv({
 						text: req.placeholder || "No options available",
 					});
-					note.style.marginLeft = "0.5rem";
-					note.style.color = "var(--text-muted)";
+					note.addClass("qa-onepage-dropdown-note");
 				}
 				break;
 			}
@@ -214,31 +206,25 @@ export class OnePageInputModal extends Modal {
 				});
 
 				const preview = container.createDiv();
-				preview.style.marginTop = "0.25rem";
-				preview.style.fontSize = "0.9em";
-				preview.style.fontFamily = "var(--font-monospace)";
+				preview.addClass("qa-date-preview-text");
 
 				const aliasEntries = getOrderedDateAliases(
 					settingsStore.getState().dateAliases,
 				);
 				if (aliasEntries.length > 0) {
 					const aliasDetails = container.createEl("details");
-					aliasDetails.style.marginTop = "0.25rem";
+					aliasDetails.addClass("qa-date-alias-details");
 
 					const aliasSummary = aliasDetails.createEl("summary", {
 						text: `Aliases (${aliasEntries.length})`,
 					});
-					aliasSummary.style.fontSize = "0.85em";
-					aliasSummary.style.color = "var(--text-muted)";
+					aliasSummary.addClass("qa-date-alias-summary");
 
 					const aliasList = aliasDetails.createEl("div");
 					aliasList.textContent = formatDateAliasInline(
 						settingsStore.getState().dateAliases,
 					);
-					aliasList.style.marginTop = "0.25rem";
-					aliasList.style.fontSize = "0.85em";
-					aliasList.style.color = "var(--text-muted)";
-					aliasList.style.fontFamily = "var(--font-monospace)";
+					aliasList.addClass("qa-date-alias-list");
 				}
 
 				const formatIsoForDisplay = (iso: string) => {
@@ -251,9 +237,7 @@ export class OnePageInputModal extends Modal {
 
 				const renderPreview = (text: string, isError: boolean) => {
 					preview.setText(text);
-					preview.style.color = isError
-						? "var(--text-error)"
-						: "var(--text-normal)";
+					preview.toggleClass("is-error", isError);
 				};
 
 				const syncSelection = (iso?: string) => {
@@ -478,13 +462,13 @@ export class OnePageInputModal extends Modal {
 				children[i].remove();
 			}
 			Object.entries(preview).forEach(([k, v]) => {
-				const row = this.previewContainerEl!.createDiv();
-				row.style.display = "flex";
-				row.style.gap = "0.5rem";
+				const row = this.previewContainerEl!.createDiv({
+					cls: "qa-onepage-preview-row",
+				});
 				row.createEl("div", {
 					text: `${k}:`,
 					cls: "qa-preview-key",
-				}).style.fontWeight = "600";
+				});
 				row.createEl("div", { text: String(v), cls: "qa-preview-val" });
 			});
 		} catch {
