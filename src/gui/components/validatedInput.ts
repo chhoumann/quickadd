@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { TextAreaComponent, TextComponent } from "obsidian";
+import { getOwnerWindow } from "src/utils/activeWindow";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 
 type ValidatorResult = boolean | string | { valid: boolean; message?: string };
@@ -68,6 +69,7 @@ export function createValidatedInput(
 			: new TextComponent(parent);
 
 	const inputEl = component.inputEl as HTMLInputElement | HTMLTextAreaElement;
+	const activeWindow = getOwnerWindow(inputEl);
 
 	if (fullWidth) inputEl.style.width = "100%";
 	inputEl.style.marginBottom = `${marginBottomPx}px`;
@@ -144,8 +146,8 @@ export function createValidatedInput(
 	const handleChange = (value: string) => {
 		if (onChange) onChange(value);
 		if (debounceMs > 0) {
-			if (timer) window.clearTimeout(timer);
-			timer = window.setTimeout(() => void runValidator(value), debounceMs);
+			if (timer) activeWindow.clearTimeout(timer);
+			timer = activeWindow.setTimeout(() => void runValidator(value), debounceMs);
 		} else {
 			void runValidator(value);
 		}
@@ -185,7 +187,7 @@ export function createValidatedInput(
 		validateNow: () => runValidator(inputEl.value),
 		destroy: () => {
 			disposed = true;
-			if (timer) window.clearTimeout(timer);
+			if (timer) activeWindow.clearTimeout(timer);
 			hint.detach();
 		},
 	};

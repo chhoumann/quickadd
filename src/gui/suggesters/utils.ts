@@ -1,3 +1,5 @@
+import { createOwnedElement, createOwnedTextNode } from "src/utils/activeWindow";
+
 /**
  * Utility functions for text manipulation in suggesters
  */
@@ -86,9 +88,9 @@ export function renderExactHighlight(el: HTMLElement, text: string, query: strin
 	let idx = lower.indexOf(q, from);
 
 	while (idx !== -1) {
-		if (idx > from) el.append(document.createTextNode(text.slice(from, idx)));
+		if (idx > from) el.append(createOwnedTextNode(el, text.slice(from, idx)));
 
-		const mark = document.createElement('mark');
+		const mark = createOwnedElement(el, 'mark');
 		mark.className = 'qa-highlight';
 		mark.textContent = text.slice(idx, idx + query.length);
 		el.append(mark);
@@ -97,7 +99,7 @@ export function renderExactHighlight(el: HTMLElement, text: string, query: strin
 		idx = lower.indexOf(q, from);
 	}
 
-	if (from < text.length) el.append(document.createTextNode(text.slice(from)));
+	if (from < text.length) el.append(createOwnedTextNode(el, text.slice(from)));
 }
 
 /**
@@ -115,13 +117,13 @@ export function renderFuzzyHighlight(el: HTMLElement, text: string, query: strin
 
 	for (const ch of text) {
 		if (qi < q.length && ch.toLowerCase() === q[qi]) {
-			const mark = document.createElement('mark');
+			const mark = createOwnedElement(el, 'mark');
 			mark.className = 'qa-highlight';
 			mark.textContent = ch;
 			el.append(mark);
 			qi++;
 		} else {
-			el.append(document.createTextNode(ch));
+			el.append(createOwnedTextNode(el, ch));
 		}
 	}
 }

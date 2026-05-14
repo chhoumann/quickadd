@@ -111,7 +111,7 @@ export class ModelDirectoryModal extends Modal {
       row.style.alignItems = "center";
       row.style.gap = "8px";
 
-      const cb = document.createElement("input");
+      const cb = this.contentEl.ownerDocument.createElement("input");
       cb.type = "checkbox";
       cb.checked = this.selectedIds.has(m.name);
       cb.onchange = () => {

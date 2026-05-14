@@ -8,8 +8,10 @@ function hasWindowFunction(name: "btoa" | "atob"): boolean {
 }
 
 function getGlobalBuffer(): undefined | { from(input: string, encoding: string): { toString(encoding: string): string } } {
-	if (typeof globalThis === "undefined") return undefined;
-	const buffer = (globalThis as Record<string, unknown>).Buffer as
+	const runtime = typeof window !== "undefined"
+		? (window as unknown as Record<string, unknown>)
+		: (globalThis as unknown as Record<string, unknown>);
+	const buffer = runtime.Buffer as
 		| { from(input: string, encoding: string): { toString(encoding: string): string } }
 		| undefined;
 	return buffer;

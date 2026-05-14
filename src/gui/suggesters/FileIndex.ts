@@ -117,8 +117,8 @@ export class FileIndex {
 	private unresolvedLinks: Set<string> = new Set();
 	private isIndexing = false;
 	private indexPromise: Promise<void> | null = null;
-	private reindexTimeout: ReturnType<typeof setTimeout> | null = null;
-	private fuseUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+	private reindexTimeout: number | null = null;
+	private fuseUpdateTimeout: number | null = null;
 	private pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'> = new Map();
 	private effectiveWeights: SearchWeightsConfig = SearchWeights;
 
@@ -236,10 +236,10 @@ export class FileIndex {
 	private scheduleReindex(): void {
 		// Debounce reindexing
 		if (this.reindexTimeout !== null) {
-			clearTimeout(this.reindexTimeout);
+			window.clearTimeout(this.reindexTimeout);
 		}
-		this.reindexTimeout = globalThis.setTimeout(() => {
-			this.reindex();
+		this.reindexTimeout = window.setTimeout(() => {
+			void this.reindex();
 		}, 500);
 	}
 
@@ -272,7 +272,7 @@ export class FileIndex {
 				}
 
 				// Yield control back to the event loop
-				await new Promise(resolve => setTimeout(resolve, 0));
+				await new Promise(resolve => window.setTimeout(resolve, 0));
 			}
 		};
 
@@ -410,11 +410,11 @@ export class FileIndex {
 
 		// Clear existing timeout
 		if (this.fuseUpdateTimeout !== null) {
-			clearTimeout(this.fuseUpdateTimeout);
+			window.clearTimeout(this.fuseUpdateTimeout);
 		}
 
-		// Debounce updates - use globalThis for cross-platform compatibility
-		this.fuseUpdateTimeout = globalThis.setTimeout(() => {
+		// Debounce updates on the renderer window for Obsidian popout compatibility.
+		this.fuseUpdateTimeout = window.setTimeout(() => {
 			this.processPendingFuseUpdates();
 		}, FUSE_UPDATE_DEBOUNCE_MS);
 	}

@@ -1,5 +1,5 @@
 export function waitFor(ms: number): Promise<unknown> {
-	return new Promise((res) => setTimeout(res, ms));
+	return new Promise((res) => window.setTimeout(res, ms));
 }
 
 export function getLinesInString(input: string) {

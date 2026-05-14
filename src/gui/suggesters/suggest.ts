@@ -3,6 +3,7 @@ import { createPopper } from "@popperjs/core";
 import type { App, ISuggestOwner } from "obsidian";
 import { debounce, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
+import { getOwnerDocument, getOwnerWindow } from "src/utils/activeWindow";
 import { renderExactHighlight } from "./utils";
 
 const wrapAround = (value: number, size: number): number => {
@@ -16,21 +17,23 @@ class Suggest<T> {
 	private selectedItem: number;
 	private containerEl: HTMLElement;
 	private isOpen = false;
+	private clickListener: (event: MouseEvent) => void;
+	private mousemoveListener: (event: MouseEvent) => void;
 
 	constructor(owner: ISuggestOwner<T>, containerEl: HTMLElement, scope: Scope) {
 		this.owner = owner;
 		this.containerEl = containerEl;
 
-		containerEl.on(
-			"click",
-			".suggestion-item",
-			this.onSuggestionClick.bind(this),
-		);
-		containerEl.on(
-			"mousemove",
-			".suggestion-item",
-			this.onSuggestionMouseover.bind(this),
-		);
+		this.clickListener = (event: MouseEvent) => {
+			const item = this.findSuggestionItem(event.target);
+			if (item) this.onSuggestionClick(event, item);
+		};
+		this.mousemoveListener = (event: MouseEvent) => {
+			const item = this.findSuggestionItem(event.target);
+			if (item) this.onSuggestionMouseover(event, item);
+		};
+		containerEl.addEventListener("click", this.clickListener);
+		containerEl.addEventListener("mousemove", this.mousemoveListener);
 
 		// Enhanced keyboard navigation
 		scope.register([], "ArrowUp", (event) => {
@@ -73,6 +76,15 @@ class Suggest<T> {
 		});
 	}
 
+	private findSuggestionItem(target: EventTarget | null): HTMLDivElement | null {
+		const ownerWindow = this.containerEl.ownerDocument.defaultView;
+		if (!ownerWindow || !(target instanceof ownerWindow.Element)) {
+			return null;
+		}
+		const item = target.closest<HTMLDivElement>(".suggestion-item");
+		return item && this.containerEl.contains(item) ? item : null;
+	}
+
 	onSuggestionClick(event: MouseEvent, el: HTMLDivElement): void {
 		event.preventDefault();
 
@@ -87,11 +99,13 @@ class Suggest<T> {
 	}
 
 	setSuggestions(values: T[]) {
-		this.containerEl.empty();
+		this.containerEl.replaceChildren();
 		const suggestionEls: HTMLDivElement[] = [];
 
 		values.forEach((value, index) => {
-			const suggestionEl = this.containerEl.createDiv("suggestion-item");
+			const suggestionEl = this.containerEl.ownerDocument.createElement("div");
+			suggestionEl.classList.add("suggestion-item");
+			this.containerEl.appendChild(suggestionEl);
 			// Add accessibility attributes
 			suggestionEl.setAttribute("role", "option");
 			suggestionEl.setAttribute("aria-selected", "false");
@@ -122,8 +136,8 @@ class Suggest<T> {
 		const selectedSuggestion = this.suggestions[normalizedIndex];
 
 		// Update visual selection
-		prevSelectedSuggestion?.removeClass("is-selected");
-		selectedSuggestion?.addClass("is-selected");
+		prevSelectedSuggestion?.classList.remove("is-selected");
+		selectedSuggestion?.classList.add("is-selected");
 
 		// Update accessibility attributes
 		prevSelectedSuggestion?.setAttribute("aria-selected", "false");
@@ -183,6 +197,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private globalWheelListener: (event: WheelEvent) => void;
 	private globalResizeListener: () => void;
 	private globalBlurListener: () => void;
+	private inputBlurListener: () => void;
 
 	// Debounced input handler and bound event listeners
 	private debouncedOnInputChanged: (event?: Event) => void;
@@ -213,8 +228,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl = inputEl;
 		this.scope = new Scope();
 
-		this.suggestEl = createDiv("suggestion-container");
-		const suggestion = this.suggestEl.createDiv("suggestion");
+		this.suggestEl = this.inputEl.ownerDocument.createElement("div");
+		this.suggestEl.classList.add("suggestion-container");
+		const suggestion = this.inputEl.ownerDocument.createElement("div");
+		suggestion.classList.add("suggestion");
+		this.suggestEl.appendChild(suggestion);
 
 		// Add accessibility attributes to the suggestion container
 		suggestion.setAttribute("role", "listbox");
@@ -230,22 +248,19 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// Store bound event listeners for proper cleanup
 		this.inputEventListener = (event: Event) => this.debouncedOnInputChanged(event);
 		this.focusEventListener = () => this.debouncedOnInputChanged();
+		this.inputBlurListener = this.close.bind(this);
 
 		this.inputEl.addEventListener("input", this.inputEventListener);
 		this.inputEl.addEventListener("focus", this.focusEventListener);
-		this.inputEl.addEventListener("blur", this.close.bind(this));
+		this.inputEl.addEventListener("blur", this.inputBlurListener);
 
 		// Set up accessibility relationship
 		this.inputEl.setAttribute("aria-autocomplete", "list");
 		this.inputEl.setAttribute("aria-expanded", "false");
 
-		this.suggestEl.on(
-			"mousedown",
-			".suggestion-container",
-			(event: MouseEvent) => {
-				event.preventDefault();
-			},
-		);
+		this.suggestEl.addEventListener("mousedown", (event: MouseEvent) => {
+			if (event.target === this.suggestEl) event.preventDefault();
+		});
 
 		// Setup global listeners
 		this.globalClickListener = this.onGlobalClick.bind(this);
@@ -337,7 +352,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private showNoResultsAndClose(): void {
 		// Clear any existing timeout
 		if (this.noResultsTimeout) {
-			window.clearTimeout(this.noResultsTimeout);
+			getOwnerWindow(this.inputEl).clearTimeout(this.noResultsTimeout);
 		}
 
 		// Close immediately for now - could add "No matches" placeholder here
@@ -393,10 +408,12 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		});
 
 		// Add global listeners (idempotent due to capture true)
-		document.addEventListener("pointerdown", this.globalClickListener, true);
-		document.addEventListener("wheel", this.globalWheelListener, true);
-		window.addEventListener("resize", this.globalResizeListener);
-		window.addEventListener("blur", this.globalBlurListener);
+		const activeDocument = getOwnerDocument(inputEl);
+		const activeWindow = getOwnerWindow(inputEl);
+		activeDocument.addEventListener("pointerdown", this.globalClickListener, true);
+		activeDocument.addEventListener("wheel", this.globalWheelListener, true);
+		activeWindow.addEventListener("resize", this.globalResizeListener);
+		activeWindow.addEventListener("blur", this.globalBlurListener);
 	}
 
 	close(): void {
@@ -417,19 +434,21 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			this.popper = null;
 		}
 
-		this.suggestEl.detach();
+		this.suggestEl.remove();
 
 		// Clear no results timeout
 		if (this.noResultsTimeout) {
-			window.clearTimeout(this.noResultsTimeout);
+			getOwnerWindow(this.inputEl).clearTimeout(this.noResultsTimeout);
 			this.noResultsTimeout = null;
 		}
 
 		// Remove global listeners
-		document.removeEventListener("pointerdown", this.globalClickListener, true);
-		document.removeEventListener("wheel", this.globalWheelListener, true);
-		window.removeEventListener("resize", this.globalResizeListener);
-		window.removeEventListener("blur", this.globalBlurListener);
+		const activeDocument = getOwnerDocument(this.inputEl);
+		const activeWindow = getOwnerWindow(this.inputEl);
+		activeDocument.removeEventListener("pointerdown", this.globalClickListener, true);
+		activeDocument.removeEventListener("wheel", this.globalWheelListener, true);
+		activeWindow.removeEventListener("resize", this.globalResizeListener);
+		activeWindow.removeEventListener("blur", this.globalBlurListener);
 
 		const classKey = this.constructor.name;
 		const byClass = instanceMap.get(this.inputEl);
@@ -446,7 +465,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// Remove input listeners
 		this.inputEl.removeEventListener("input", this.inputEventListener);
 		this.inputEl.removeEventListener("focus", this.focusEventListener);
-		this.inputEl.removeEventListener("blur", this.close.bind(this));
+		this.inputEl.removeEventListener("blur", this.inputBlurListener);
 
 		// Remove from instance map
 		const classKey = this.constructor.name;

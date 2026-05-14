@@ -1,5 +1,8 @@
 export function deepClone<T>(value: T): T {
-	const structuredCloneFn = (globalThis as any).structuredClone as
+	const runtime = typeof window !== "undefined" ? window : globalThis;
+	const structuredCloneFn = (runtime as typeof globalThis & {
+		structuredClone?: (value: unknown) => unknown;
+	}).structuredClone as
 		| ((value: unknown) => unknown)
 		| undefined;
 

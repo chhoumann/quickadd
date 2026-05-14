@@ -1,3 +1,5 @@
+import { createOwnedElement, createOwnedTextNode } from "./utils/activeWindow";
+
 export type DevelopmentInfo = {
 	branch: string | null;
 	commit: string | null;
@@ -10,11 +12,11 @@ function appendDevelopmentInfoRow(
 	value: string,
 	options?: { className?: string },
 ): HTMLElement {
-	const row = document.createElement("div");
-	const labelEl = document.createElement("strong");
+	const row = createOwnedElement(container, "div");
+	const labelEl = createOwnedElement(container, "strong");
 	labelEl.textContent = label;
 	row.appendChild(labelEl);
-	row.appendChild(document.createTextNode(` ${value}`));
+	row.appendChild(createOwnedTextNode(container, ` ${value}`));
 	if (options?.className) row.classList.add(options.className);
 	row.style.marginBottom = "5px";
 	container.appendChild(row);
