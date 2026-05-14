@@ -199,7 +199,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).getFormattedPathToCaptureTo = vi
 			.fn()
 			.mockResolvedValue("Test.md");
-		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).vaultFileService.fileExists = vi.fn().mockResolvedValue(true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "content",
@@ -355,7 +355,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			createExecutor(),
 		);
 
-		(engine as any).createFileWithInput = vi.fn(async (path: string) => ({
+		(engine as any).vaultFileService.createFileWithInput = vi.fn(async (path: string) => ({
 			path,
 			basename: path.split("/").pop()?.replace(/\.(base|canvas)$/i, "") ?? "",
 			extension: path.endsWith(".base") ? "base" : "canvas",
@@ -414,7 +414,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			newFileContent: "updated",
 			captureContent: "capture",
 		}));
-		(engine as any).fileExists = fileExistsMock;
+		(engine as any).vaultFileService.fileExists = fileExistsMock;
 		(engine as any).onFileExists = onFileExistsMock;
 
 		await engine.run();
@@ -473,7 +473,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			createExecutor(),
 		);
 
-		(engine as any).fileExists = vi.fn(async () => true);
+		(engine as any).vaultFileService.fileExists = vi.fn(async () => true);
 		(engine as any).onFileExists = vi.fn(async () => ({
 			file: linkedFile,
 			newFileContent: "updated",
@@ -588,7 +588,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 		);
 
-		(engine as any).fileExists = fileExistsMock;
+		(engine as any).vaultFileService.fileExists = fileExistsMock;
 		(engine as any).onCreateFileIfItDoesntExist =
 			onCreateFileIfItDoesntExistMock;
 
@@ -636,7 +636,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		const fileExistsMock = vi.fn();
 		const onFileExistsMock = vi.fn();
-		(engine as any).fileExists = fileExistsMock;
+		(engine as any).vaultFileService.fileExists = fileExistsMock;
 		(engine as any).onFileExists = onFileExistsMock;
 
 		await engine.run();
