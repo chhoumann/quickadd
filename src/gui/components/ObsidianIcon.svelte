@@ -24,9 +24,14 @@
     }
 </script>
 
-<span bind:this={iconEl} class="quickadd-icon" style="display: inline-flex; align-items: center;"></span>
+<span bind:this={iconEl} class="quickadd-icon"></span>
 
 <style>
+    .quickadd-icon {
+        display: inline-flex;
+        align-items: center;
+    }
+
     .quickadd-icon :global(svg) {
         display: inline-block;
         vertical-align: middle;

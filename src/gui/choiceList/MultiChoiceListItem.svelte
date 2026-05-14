@@ -78,7 +78,10 @@
             on:click={() => choice.collapsed = !choice.collapsed}
             on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && (choice.collapsed = !choice.collapsed)}
         >
-            <div style={`transform:rotate(${choice.collapsed ? -180 : 0}deg); transition: transform 0.2s ease-in-out; display: inline-flex;`}>
+            <div
+                class="multiChoiceCollapseIcon"
+                class:is-collapsed={choice.collapsed}
+            >
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </div>
             <span class="choiceListItemName" bind:this={nameElement}></span>
@@ -125,6 +128,15 @@
         font-size: 16px;
         align-items: center;
         margin: 12px 0 0 0;
+    }
+
+    .multiChoiceCollapseIcon {
+        display: inline-flex;
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .multiChoiceCollapseIcon.is-collapsed {
+        transform: rotate(-180deg);
     }
 
     .clickable:hover {

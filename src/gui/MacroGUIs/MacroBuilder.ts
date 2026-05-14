@@ -75,9 +75,8 @@ export class MacroBuilder extends Modal {
 
 	protected addCenteredHeader(header: string): void {
 		const headerEl = this.contentEl.createEl("h2");
-		headerEl.style.textAlign = "center";
 		headerEl.setText(header);
-		headerEl.addClass("clickable");
+		headerEl.addClass("clickable", "qa-clickable-modal-title");
 
 		 
 		headerEl.addEventListener("click", async () => {

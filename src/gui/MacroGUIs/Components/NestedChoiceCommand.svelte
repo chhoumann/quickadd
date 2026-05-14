@@ -44,7 +44,8 @@
               on:mousedown={startDrag} 
               on:touchstart={startDrag}
               aria-label="Drag-handle"
-              style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
+              class:qa-drag-handle-ready={dragDisabled}
+              class:qa-drag-handle-active={!dragDisabled}
               tabindex={dragDisabled ? 0 : -1}
         >
             <ObsidianIcon iconId="grip-vertical" size={16} />

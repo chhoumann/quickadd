@@ -168,16 +168,7 @@ export class UserScriptSettingsModal extends Modal {
 				})
 				.setPlaceholder(placeholder ?? "");
 
-			textArea.inputEl.style.width = "100%";
-			textArea.inputEl.style.maxWidth = "15rem";
-			textArea.inputEl.style.boxSizing = "border-box";
-			textArea.inputEl.style.minHeight = "100px";
-			textArea.inputEl.style.maxHeight = "300px";
-			textArea.inputEl.style.resize = "vertical";
-			textArea.inputEl.style.overflowY = "auto";
-			textArea.inputEl.style.overflowX = "hidden";
-			textArea.inputEl.style.overflowWrap = "anywhere";
-			textArea.inputEl.style.setProperty("field-sizing", "content");
+			textArea.inputEl.addClass("qa-user-script-argument-textarea");
 		});
 	}
 
@@ -227,9 +218,7 @@ export class UserScriptSettingsModal extends Modal {
 			})
 			.setPlaceholder(placeholder ?? "");
 
-		input.inputEl.style.width = "100%";
-		input.inputEl.style.height = "100px";
-		input.inputEl.style.marginBottom = "1em";
+		input.inputEl.addClass("qa-user-script-format-textarea");
 
 		void (async () =>
 			(formatDisplay.innerText = await displayFormatter.format(value)))();

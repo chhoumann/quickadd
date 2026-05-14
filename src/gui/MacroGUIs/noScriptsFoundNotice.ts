@@ -34,6 +34,5 @@ export function showNoScriptsFoundNotice(): void {
 	});
 	link.target = "_blank";
 	link.rel = "noopener noreferrer";
-	link.style.color = "var(--interactive-accent)";
-	link.style.textDecoration = "underline";
+	link.addClass("quickadd-notice-link");
 }

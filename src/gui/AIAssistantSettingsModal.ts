@@ -34,15 +34,13 @@ export class AIAssistantSettingsModal extends Modal {
 	}
 
 	private display(): void {
-		// Responsive sizing (desktop and mobile)
-		this.modalEl.style.width = `min(100vw - 32px, 980px)`;
-		this.modalEl.style.maxWidth = `980px`;
-		this.contentEl.style.maxHeight = `min(85vh, 800px)`;
-		this.contentEl.style.overflowY = "auto";
+		this.modalEl.addClass("qa-ai-wide-modal");
+		this.contentEl.addClass("qa-ai-scroll-content");
 
 		this.contentEl.createEl("h2", {
 			text: "AI Assistant Settings",
-		}).style.textAlign = "center";
+			cls: "qa-modal-title",
+		});
 
 		this.addProvidersSetting(this.contentEl);
 		this.addDefaultModelSetting(this.contentEl);
@@ -142,10 +140,7 @@ export class AIAssistantSettingsModal extends Modal {
 			QuickAdd.instance
 		);
 
-		textAreaComponent.inputEl.style.width = "100%";
-		textAreaComponent.inputEl.style.height = "100px";
-		textAreaComponent.inputEl.style.minHeight = "100px";
-		textAreaComponent.inputEl.style.marginBottom = "1em";
+		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
 
 		const formatDisplay = this.contentEl.createEl("span");
 

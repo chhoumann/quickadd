@@ -71,10 +71,10 @@ export function createValidatedInput(
 	const inputEl = component.inputEl;
 	const activeWindow = getOwnerWindow(inputEl);
 
-	if (fullWidth) inputEl.style.width = "100%";
-	inputEl.style.marginBottom = `${marginBottomPx}px`;
+	if (fullWidth) inputEl.addClass("qa-validated-input-full-width");
+	inputEl.addClass(`qa-validated-input-margin-${marginBottomPx}`);
 	if (inputKind === "textarea") {
-		inputEl.style.minHeight = "10rem";
+		inputEl.addClass("qa-validated-input-textarea");
 	}
 	if (placeholder) component.setPlaceholder(placeholder);
 	component.setValue(initialValue);

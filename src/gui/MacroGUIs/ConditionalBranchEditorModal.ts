@@ -62,7 +62,7 @@ export class ConditionalBranchEditorModal extends Modal {
 		this.contentEl.empty();
 
 		const headerEl = this.contentEl.createEl("h2", { text: title });
-		headerEl.style.textAlign = "center";
+		headerEl.addClass("qa-modal-title");
 
 		const editorContainer = this.contentEl.createDiv("branchCommandEditor");
 		this.commandEditor = new CommandSequenceEditor({
@@ -81,11 +81,9 @@ export class ConditionalBranchEditorModal extends Modal {
 	}
 
 	private renderButtonBar() {
-		const buttonContainer = this.contentEl.createDiv();
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "flex-end";
-		buttonContainer.style.gap = "12px";
-		buttonContainer.style.marginTop = "20px";
+		const buttonContainer = this.contentEl.createDiv({
+			cls: "qa-command-button-row",
+		});
 
 		new ButtonComponent(buttonContainer)
 			.setButtonText("Cancel")

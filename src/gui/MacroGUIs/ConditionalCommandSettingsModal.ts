@@ -94,7 +94,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 		const headerEl = this.contentEl.createEl("h2", {
 			text: "Configure Conditional Command",
 		});
-		headerEl.style.textAlign = "center";
+		headerEl.addClass("qa-modal-title");
 
 		this.renderModeSelector();
 		if (this.workingCommand.condition.mode === "variable") {
@@ -298,11 +298,9 @@ export class ConditionalCommandSettingsModal extends Modal {
 	}
 
 	private renderButtonBar() {
-		const buttonContainer = this.contentEl.createDiv();
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "flex-end";
-		buttonContainer.style.gap = "12px";
-		buttonContainer.style.marginTop = "20px";
+		const buttonContainer = this.contentEl.createDiv({
+			cls: "qa-command-button-row",
+		});
 
 		new ButtonComponent(buttonContainer)
 			.setButtonText("Cancel")

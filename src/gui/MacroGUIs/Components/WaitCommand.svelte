@@ -17,7 +17,7 @@
 
     function resizeInput() {
         const length: number = inputEl.value.length;
-        inputEl.style.width = (length === 0 ? 2 : length) + 'ch';
+        inputEl.style.setProperty("--qa-wait-input-width", `${length === 0 ? 2 : length}ch`);
     }
 
     onMount(resizeInput);
@@ -40,7 +40,8 @@
               on:mousedown={startDrag} 
               on:touchstart={startDrag}
               aria-label="Drag-handle"
-              style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
+              class:qa-drag-handle-ready={dragDisabled}
+              class:qa-drag-handle-active={!dragDisabled}
               tabindex={dragDisabled ? 0 : -1}
         >
             <ObsidianIcon iconId="grip-vertical" size={16} />
@@ -56,6 +57,7 @@
     font-size: inherit;
     padding: 0;
     width: 0;
+    width: var(--qa-wait-input-width, 2ch);
     text-decoration: underline dotted;
     background-color: transparent;
 }
