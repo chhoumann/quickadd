@@ -42,13 +42,13 @@ export class ModelDirectoryModal extends Modal {
 
   private display() {
     this.contentEl.empty();
-    // Responsive sizing
-    this.modalEl.style.width = `min(100vw - 32px, 980px)`;
-    this.modalEl.style.maxWidth = `980px`;
-    this.contentEl.style.maxHeight = `min(85vh, 800px)`;
-    this.contentEl.style.overflowY = "auto";
+    this.modalEl.addClass("qa-ai-wide-modal");
+    this.contentEl.addClass("qa-ai-scroll-content");
 
-    this.contentEl.createEl("h2", { text: `Browse models for ${this.provider.name}` }).style.textAlign = "center";
+    this.contentEl.createEl("h2", {
+      text: `Browse models for ${this.provider.name}`,
+      cls: "qa-modal-title",
+    });
 
     // Search/filter
     new Setting(this.contentEl)
@@ -92,10 +92,7 @@ export class ModelDirectoryModal extends Modal {
       });
 
     // List container
-    const list = this.contentEl.createDiv({ cls: "qa-model-directory" });
-    list.style.maxHeight = window.innerWidth < 640 ? "55vh" : "60vh";
-    list.style.overflowY = "auto";
-    list.style.padding = "6px";
+    this.contentEl.createDiv({ cls: "qa-model-directory" });
 
     this.renderList();
   }
@@ -107,9 +104,6 @@ export class ModelDirectoryModal extends Modal {
 
     for (const m of this.filtered) {
       const row = list.createDiv({ cls: "qa-model-row" });
-      row.style.display = "flex";
-      row.style.alignItems = "center";
-      row.style.gap = "8px";
 
       const cb = this.contentEl.ownerDocument.createElement("input");
       cb.type = "checkbox";
@@ -120,12 +114,12 @@ export class ModelDirectoryModal extends Modal {
       };
       row.appendChild(cb);
 
-      const title = row.createDiv({ text: m.name });
-      title.style.flex = "1";
+      row.createDiv({ text: m.name, cls: "qa-model-row-title" });
 
-      const meta = row.createDiv({ text: `${m.maxTokens.toLocaleString()} tokens max` });
-      meta.style.opacity = "0.7";
-      meta.style.fontSize = "0.9em";
+      row.createDiv({
+        text: `${m.maxTokens.toLocaleString()} tokens max`,
+        cls: "qa-model-row-meta",
+      });
     }
   }
 

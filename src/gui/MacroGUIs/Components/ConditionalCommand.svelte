@@ -78,7 +78,8 @@
 			role="button"
 			on:mousedown={startDrag}
 			on:touchstart={startDrag}
-			style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
+			class:qa-drag-handle-ready={dragDisabled}
+			class:qa-drag-handle-active={!dragDisabled}
 			tabindex={dragDisabled ? 0 : -1}
 			aria-label="Drag command"
 		>

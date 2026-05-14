@@ -32,9 +32,9 @@
         tabindex="0"
         on:click={emitToggleCommand}
         on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitToggleCommand()}
+        class:command-enabled={commandEnabled}
         class="alignIconInDivInMiddle clickable" 
         aria-label={`${commandEnabled ? "Disable in Command Palette" : "Enable in Command Palette"}${choiceName ? ": " + choiceName : ""}`} 
-        style={commandEnabled ? "color: #FDD023;" : ""}
     >
         <ObsidianIcon iconId="zap" size={16} />
     </div>
@@ -79,8 +79,9 @@
          role="button"
          tabindex={dragDisabled ? 0 : -1}
          aria-label="Drag-handle"
-         style="{dragDisabled ? 'cursor: grab' : 'cursor: grabbing'};"
          class="alignIconInDivInMiddle"
+         class:qa-drag-handle-ready={dragDisabled}
+         class:qa-drag-handle-active={!dragDisabled}
          on:pointerdown={() => dispatcher('dragHandleDown')}
     >
         <ObsidianIcon iconId="grip-vertical" size={16} />
@@ -101,5 +102,9 @@
 .alignIconInDivInMiddle {
     display: flex;
     align-items: center;
+}
+
+.command-enabled {
+    color: var(--text-accent);
 }
 </style>

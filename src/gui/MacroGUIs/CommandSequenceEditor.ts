@@ -244,7 +244,7 @@ export class CommandSequenceEditor {
 			.setDesc("Add an Obsidian command")
 			.addText((textComponent) => {
 				input = textComponent;
-				textComponent.inputEl.style.marginRight = "1em";
+				textComponent.inputEl.addClass("qa-command-sequence-input");
 				textComponent.setPlaceholder("Obsidian command");
 				new GenericTextSuggester(
 					this.app,
@@ -319,7 +319,7 @@ export class CommandSequenceEditor {
 			.setDesc("Add editor command")
 			.addDropdown((dropdown) => {
 				dropdownComponent = dropdown;
-				dropdown.selectEl.style.marginRight = "1em";
+				dropdown.selectEl.addClass("qa-command-sequence-input");
 				dropdown
 					.addOption("", "Select command")
 					.addOption(EditorCommandType.Copy, EditorCommandType.Copy)
@@ -376,7 +376,7 @@ export class CommandSequenceEditor {
 
 			input.setValue("");
 			if (addButton) {
-				addButton.buttonEl.style.display = "none";
+				addButton.buttonEl.addClass("qa-hidden");
 			}
 		};
 
@@ -385,7 +385,7 @@ export class CommandSequenceEditor {
 			.setDesc("Add user script - type the name or click Browse")
 			.addText((textComponent) => {
 				input = textComponent;
-				textComponent.inputEl.style.marginRight = "1em";
+				textComponent.inputEl.addClass("qa-command-sequence-input");
 				textComponent.setPlaceholder("Start typing script name...");
 
 				new GenericTextSuggester(
@@ -417,14 +417,12 @@ export class CommandSequenceEditor {
 			.addButton((button) => {
 				addButton = button;
 				button.setButtonText("Add").setCta().onClick(addUserScriptFromInput);
-				button.buttonEl.style.display = "none";
+				button.buttonEl.addClass("qa-hidden");
 			});
 
 		input.onChange((value) => {
 			if (!addButton) return;
-			addButton.buttonEl.style.display = value.trim()
-				? "inline-block"
-				: "none";
+			addButton.buttonEl.toggleClass("qa-hidden", value.trim().length === 0);
 		});
 	}
 
@@ -446,7 +444,7 @@ export class CommandSequenceEditor {
 			.setDesc("Add existing choice")
 			.addText((textComponent) => {
 				input = textComponent;
-				textComponent.inputEl.style.marginRight = "1em";
+				textComponent.inputEl.addClass("qa-command-sequence-input");
 				textComponent.setPlaceholder("Choice");
 				new GenericTextSuggester(
 					this.app,

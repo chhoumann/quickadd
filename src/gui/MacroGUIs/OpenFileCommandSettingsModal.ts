@@ -51,7 +51,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 		const headerEl = this.contentEl.createEl("h2");
 		headerEl.textContent = "Open File Command Settings";
-		headerEl.style.textAlign = "center";
+		headerEl.addClass("qa-modal-title");
 
 		this.addFilePathSetting();
 		this.addOpenLocationSetting();
@@ -167,11 +167,9 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 
 	private addButtonBar() {
-		const buttonContainer = this.contentEl.createDiv();
-		buttonContainer.style.display = "flex";
-		buttonContainer.style.justifyContent = "flex-end";
-		buttonContainer.style.gap = "8px";
-		buttonContainer.style.marginTop = "20px";
+		const buttonContainer = this.contentEl.createDiv({
+			cls: "qa-command-button-row qa-command-button-row-compact",
+		});
 
 		const cancelButton = new ButtonComponent(buttonContainer);
 		cancelButton

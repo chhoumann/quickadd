@@ -25,41 +25,29 @@ export class ProviderPickerModal extends Modal {
   }
 
   private addHeader(container: HTMLElement) {
-    container.createEl("h2", { text: "Add a provider" }).style.textAlign = "center";
+    container.createEl("h2", {
+      text: "Add a provider",
+      cls: "qa-modal-title",
+    });
   }
 
   private display() {
     this.contentEl.empty();
-    // Responsive modal sizing for desktop and mobile
-    this.modalEl.style.width = `min(100vw - 32px, 980px)`;
-    this.modalEl.style.maxWidth = `980px`;
-    this.contentEl.style.maxHeight = `min(85vh, 800px)`;
-    this.contentEl.style.overflowY = "auto";
+    this.modalEl.addClass("qa-ai-wide-modal");
+    this.contentEl.addClass("qa-ai-scroll-content");
     this.addHeader(this.contentEl);
 
-    const grid = this.contentEl.createDiv();
-    grid.style.display = "grid";
-    const isMobile = window.innerWidth < 640;
-    grid.style.gridTemplateColumns = isMobile
-      ? "1fr"
-      : "repeat(auto-fill, minmax(260px, 1fr))";
-    grid.style.gap = "12px";
+    const grid = this.contentEl.createDiv({ cls: "qa-provider-grid" });
 
     for (const preset of PROVIDER_PRESETS) {
       const card = grid.createDiv({ cls: "qa-provider-card" });
-      card.style.border = "1px solid var(--background-modifier-border)";
-      card.style.borderRadius = "8px";
-      card.style.padding = window.innerWidth < 640 ? "10px" : "12px";
-      card.style.display = "flex";
-      card.style.flexDirection = "column";
-      card.style.gap = "8px";
 
-      const title = card.createEl("div", { text: preset.name });
-      title.style.fontWeight = "600";
+      card.createEl("div", { text: preset.name, cls: "qa-provider-card-title" });
 
-      const endpoint = card.createEl("div", { text: preset.endpoint });
-      endpoint.style.fontSize = "0.9em";
-      endpoint.style.opacity = "0.8";
+      card.createEl("div", {
+        text: preset.endpoint,
+        cls: "qa-provider-card-endpoint",
+      });
 
       if (preset.doc) {
         const doc = card.createEl("a", { text: "Docs", href: preset.doc });
@@ -77,10 +65,7 @@ export class ProviderPickerModal extends Modal {
             apiKeyRef = value;
           }));
 
-      // Make the API key input stack vertically to avoid squishing on narrow screens
-      apiSetting.settingEl.style.display = "flex";
-      apiSetting.settingEl.style.flexDirection = "column";
-      apiSetting.settingEl.style.gap = "6px";
+      apiSetting.settingEl.addClass("qa-provider-api-setting");
 
       apiSetting.addButton((b) => {
           b.setButtonText("Connect").setCta().onClick(() => {

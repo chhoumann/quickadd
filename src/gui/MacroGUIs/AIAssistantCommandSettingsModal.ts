@@ -56,9 +56,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			text: `${this.settings.name} Settings`,
 		});
 
-		header.style.textAlign = "center";
-		header.style.cursor = "pointer";
-		header.style.userSelect = "none";
+		header.addClass("qa-clickable-modal-title");
 		 
 		header.addEventListener("click", async () => {
 			try {
@@ -179,13 +177,13 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.setDesc("The system prompt for the AI Assistant");
 
 		const container = this.contentEl.createEl("div");
-		const tokenCount = container.createEl("span");
-		tokenCount.style.color = "var(--text-muted-color)";
+		const tokenCount = container.createEl("span", {
+			cls: "qa-ai-token-count",
+		});
 		const tokenCountNote = container.createEl("div", {
 			text: "Exact for OpenAI models; estimates for others.",
+			cls: "qa-ai-token-note",
 		});
-		tokenCountNote.style.color = "var(--text-muted-color)";
-		tokenCountNote.style.fontSize = "var(--font-ui-smaller)";
 
 		container.appendChild(tokenCount);
 		container.appendChild(tokenCountNote);
@@ -210,10 +208,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			QuickAdd.instance
 		);
 
-		textAreaComponent.inputEl.style.width = "100%";
-		textAreaComponent.inputEl.style.height = "100px";
-		textAreaComponent.inputEl.style.minHeight = "100px";
-		textAreaComponent.inputEl.style.marginBottom = "1em";
+		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const updateTokenCount = debounce(() => {

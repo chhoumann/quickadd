@@ -218,6 +218,200 @@
 	white-space: nowrap;
 }
 
+.quickAddModal .qa-modal-title,
+.quickAddModal .qa-clickable-modal-title,
+.qa-modal-title,
+.qa-clickable-modal-title {
+	text-align: center;
+}
+
+.qa-clickable-modal-title {
+	cursor: pointer;
+	user-select: none;
+}
+
+.qa-ai-wide-modal {
+	width: min(100vw - 32px, 980px);
+	max-width: 980px;
+}
+
+.qa-ai-scroll-content {
+	max-height: min(85vh, 800px);
+	overflow-y: auto;
+}
+
+.qa-provider-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 12px;
+}
+
+.qa-provider-card {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.qa-provider-card-title {
+	font-weight: 600;
+}
+
+.qa-provider-card-endpoint {
+	font-size: 0.9em;
+	opacity: 0.8;
+	overflow-wrap: anywhere;
+}
+
+.qa-provider-api-setting {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.qa-model-directory {
+	max-height: 60vh;
+	overflow-y: auto;
+	padding: 6px;
+}
+
+.qa-model-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.qa-model-row-title {
+	flex: 1;
+	overflow-wrap: anywhere;
+}
+
+.qa-model-row-meta,
+.qa-provider-card-endpoint {
+	color: var(--text-muted);
+}
+
+.qa-model-row-meta {
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+.qa-ai-list-container {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	overflow-y: auto;
+	max-height: 400px;
+	padding: 10px;
+}
+
+.qa-ai-provider-button-row {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 20px;
+	gap: 0.5rem;
+}
+
+.qa-ai-prompt-textarea,
+.qa-user-script-format-textarea {
+	width: 100%;
+	height: 100px;
+	min-height: 100px;
+	margin-bottom: 1em;
+	box-sizing: border-box;
+}
+
+.qa-ai-token-count,
+.qa-ai-token-note {
+	color: var(--text-muted);
+}
+
+.qa-ai-token-note {
+	font-size: var(--font-ui-smaller);
+}
+
+.qa-command-button-row {
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+	margin-top: 20px;
+}
+
+.qa-command-button-row-compact {
+	gap: 8px;
+}
+
+.qa-command-sequence-input {
+	margin-right: 1em;
+}
+
+.qa-hidden {
+	display: none;
+}
+
+.qa-user-script-argument-textarea {
+	width: 100%;
+	max-width: 15rem;
+	box-sizing: border-box;
+	min-height: 100px;
+	max-height: 300px;
+	resize: vertical;
+	overflow-y: auto;
+	overflow-x: hidden;
+	overflow-wrap: anywhere;
+	field-sizing: content;
+}
+
+.qa-validated-input-full-width {
+	width: 100%;
+}
+
+.qa-validated-input-margin-8 {
+	margin-bottom: 8px;
+}
+
+.qa-validated-input-textarea {
+	min-height: 10rem;
+}
+
+.quickadd-notice-link {
+	color: var(--interactive-accent);
+	text-decoration: underline;
+}
+
+.qa-drag-handle-ready {
+	cursor: grab;
+}
+
+.qa-drag-handle-active {
+	cursor: grabbing;
+}
+
+@media screen and (max-width: 639px) {
+	.qa-provider-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.qa-provider-card {
+		padding: 10px;
+	}
+
+	.qa-model-directory {
+		max-height: 55vh;
+	}
+
+	.qa-model-row {
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.qa-model-row-meta {
+		white-space: normal;
+	}
+}
+
 .quickAddModal .qa-canvas-node-helper {
 	margin: 8px 0 4px;
 	font-size: 12px;

@@ -44,7 +44,8 @@ export class AIAssistantProvidersModal extends Modal {
 
 		this.contentEl.createEl("h2", {
 			text: modalName,
-		}).style.textAlign = "center";
+			cls: "qa-modal-title",
+		});
 
 		if (this.selectedProvider) {
 			this.addProviderSetting(this.contentEl);
@@ -74,13 +75,9 @@ export class AIAssistantProvidersModal extends Modal {
                 button.setCta();
             });
 
-		const providersContainer = container.createDiv("providers-container");
-		providersContainer.style.display = "flex";
-		providersContainer.style.flexDirection = "column";
-		providersContainer.style.gap = "10px";
-		providersContainer.style.overflowY = "auto";
-		providersContainer.style.maxHeight = "400px";
-		providersContainer.style.padding = "10px";
+		const providersContainer = container.createDiv({
+			cls: "providers-container qa-ai-list-container",
+		});
 
 		this.providers.forEach((provider, i) => {
 			new Setting(providersContainer)
@@ -199,13 +196,9 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
     addProviderModelsSetting(container: HTMLElement) {
-        const modelsContainer = container.createDiv("models-container");
-        modelsContainer.style.display = "flex";
-        modelsContainer.style.flexDirection = "column";
-        modelsContainer.style.gap = "10px";
-        modelsContainer.style.overflowY = "auto";
-        modelsContainer.style.maxHeight = "400px";
-        modelsContainer.style.padding = "10px";
+        const modelsContainer = container.createDiv({
+			cls: "models-container qa-ai-list-container",
+		});
 
         this.selectedProvider!.models.forEach((model, i) => {
             new Setting(modelsContainer)
@@ -319,11 +312,9 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
 	addProviderSettingButtonRow(container: HTMLElement) {
-		const buttonRow = container.createDiv("button-row");
-		buttonRow.style.display = "flex";
-		buttonRow.style.justifyContent = "space-between";
-		buttonRow.style.marginTop = "20px";
-		buttonRow.style.gap = "0.5rem";
+		const buttonRow = container.createDiv({
+			cls: "button-row qa-ai-provider-button-row",
+		});
 
 		const CancelButton = new ButtonComponent(buttonRow);
 		CancelButton.setButtonText("Cancel");
