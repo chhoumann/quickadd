@@ -319,12 +319,12 @@ export async function runAIAssistant(
 			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
 		};
 
-		setTimeout(() => notice.hide(), 5000);
+		window.setTimeout(() => notice.hide(), 5000);
 
 		return variables;
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
-		setTimeout(() => notice.hide(), 5000);
+		window.setTimeout(() => notice.hide(), 5000);
 		// Always abort on cancelled input
 		if (isCancellationError(error)) {
 			throw new MacroAbortError("Input cancelled by user");
@@ -427,12 +427,12 @@ export async function Prompt(
 			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
 		};
 
-		setTimeout(() => notice.hide(), 5000);
+		window.setTimeout(() => notice.hide(), 5000);
 
 		return variables;
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
-		setTimeout(() => notice.hide(), 5000);
+		window.setTimeout(() => notice.hide(), 5000);
 		// No user input in this function - re-throw original error
 		throw error;
 	}
@@ -477,7 +477,7 @@ class RateLimiter {
 			);
 			this.schedule();
 		});
-		setTimeout(() => this.schedule(), this.intervalMs);
+		window.setTimeout(() => this.schedule(), this.intervalMs);
 	}
 }
 
@@ -653,12 +653,12 @@ export async function ChunkedPrompt(
 			[`${outputVariable}-quoted`]: outputInMarkdownBlockQuote,
 		};
 
-		setTimeout(() => notice.hide(), 5000);
+		window.setTimeout(() => notice.hide(), 5000);
 
 		return variables;
 	} catch (error) {
 		notice.setMessage("dead", (error as { message: string }).message);
-		setTimeout(() => notice.hide(), 5000);
+		window.setTimeout(() => notice.hide(), 5000);
 		// No user input in this function - re-throw original error
 		throw error;
 	}

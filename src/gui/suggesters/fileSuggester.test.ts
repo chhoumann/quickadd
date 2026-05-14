@@ -613,7 +613,7 @@ describe('FileSuggester DOM XSS safety', () => {
 
         const obsidianFile = createRuntimeFile('Popout.md', 'Popout');
         const app = {
-            dom: { appContainerEl: popoutDocument.body },
+            dom: { appContainerEl: document.body },
             keymap: {
                 pushScope: vi.fn(),
                 popScope: vi.fn(),
@@ -656,7 +656,7 @@ describe('FileSuggester DOM XSS safety', () => {
                     displayText: 'Popout',
                 },
             ]);
-            suggester.open(popoutDocument.body, inputEl);
+            suggester.open(document.body, inputEl);
 
             const suggestion = popoutDocument.querySelector<HTMLElement>('.suggestion-item')!;
             expect(suggestion).not.toBeNull();
