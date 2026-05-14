@@ -35,7 +35,7 @@
 
 	$: {
 		if (nameElement) {
-			renderChoiceName(choice.name, nameElement, cmp);
+			renderChoiceName(choice.name, nameElement, cmp, app);
 		}
 	}
 

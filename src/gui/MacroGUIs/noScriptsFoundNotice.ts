@@ -1,38 +1,39 @@
+import type { App } from "obsidian";
 import { Notice } from "obsidian";
 
 /**
  * Shows a notice to the user when no JavaScript files are found in their vault.
  * Provides helpful guidance on where to place scripts and links to documentation.
  */
-export function showNoScriptsFoundNotice(): void {
+export function showNoScriptsFoundNotice(app: App): void {
 	const notice = new Notice("", 10000);
-	const messageEl = notice.messageEl ?? notice.containerEl ?? notice.noticeEl;
-	messageEl.empty();
-	messageEl.createEl("div", {
-		text: "No JavaScript files found",
-		cls: "quickadd-notice-title",
-	});
+	const messageEl = notice.messageEl;
+	messageEl.replaceChildren();
+	appendDiv(messageEl, "No JavaScript files found", "quickadd-notice-title");
 
-	const content = messageEl.createDiv();
-	content.createEl("div", {
-		text: "QuickAdd cannot find any .js files in your vault.",
-	});
-	content.createEl("br");
-	content.createEl("div", { text: "Please make sure your scripts are:" });
-	content.createEl("div", {
-		text: "✓ In your vault (not in .obsidian folder)",
-	});
-	content.createEl("div", {
-		text: "✓ Not in hidden folders (starting with a dot)",
-	});
-	content.createEl("div", { text: "✓ Have a .js extension" });
-	content.createEl("br");
+	const content = document.createElement("div");
+	messageEl.append(content);
+	appendDiv(content, "QuickAdd cannot find any .js files in your vault.");
+	content.append(document.createElement("br"));
+	appendDiv(content, "Please make sure your scripts are:");
+	appendDiv(content, `✓ In your vault (not in ${app.vault.configDir} folder)`);
+	appendDiv(content, "✓ Not in hidden folders (starting with a dot)");
+	appendDiv(content, "✓ Have a .js extension");
+	content.append(document.createElement("br"));
 
-	const link = content.createEl("a", {
-		text: "View documentation",
-		href: "https://quickadd.obsidian.guide/docs/Choices/MacroChoice#user-scripts",
-	});
+	const link = document.createElement("a");
+	link.textContent = "View documentation";
+	link.href = "https://quickadd.obsidian.guide/docs/Choices/MacroChoice#user-scripts";
 	link.target = "_blank";
 	link.rel = "noopener noreferrer";
-	link.addClass("quickadd-notice-link");
+	link.classList.add("quickadd-notice-link");
+	content.append(link);
+}
+
+function appendDiv(parent: HTMLElement, text: string, cls?: string): HTMLDivElement {
+	const element = document.createElement("div");
+	element.textContent = text;
+	if (cls) element.classList.add(cls);
+	parent.append(element);
+	return element;
 }

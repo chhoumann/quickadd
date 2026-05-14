@@ -32,9 +32,9 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 		}
 
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const inputBeforeCursor: string = inputStr.substr(0, cursorPosition);
+		const inputBeforeCursor: string = inputStr.slice(0, cursorPosition);
 		const lastBackslashPos: number = inputBeforeCursor.lastIndexOf("\\");
-		const commandText = inputBeforeCursor.substr(lastBackslashPos);
+		const commandText = inputBeforeCursor.slice(lastBackslashPos);
 
 		const match = LATEX_REGEX.exec(commandText);
 
@@ -76,10 +76,10 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 
 		const textToInsert = item.replace(/\\\\/g, "\\");
 
-		this.inputEl.value = `${currentInputValue.substr(
+		this.inputEl.value = `${currentInputValue.slice(
 			0,
 			cursorPosition - lastInputLength - 1
-		)}${textToInsert}${currentInputValue.substr(cursorPosition)}`;
+		)}${textToInsert}${currentInputValue.slice(cursorPosition)}`;
 		insertedEndPosition =
 			cursorPosition - lastInputLength + item.length - 1;
 

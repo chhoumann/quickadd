@@ -520,7 +520,7 @@ export class CommandSequenceEditor {
 
 	private async showScriptPicker(): Promise<TFile | null> {
 		if (this.javascriptFiles.length === 0) {
-			showNoScriptsFoundNotice();
+			showNoScriptsFoundNotice(this.app);
 			return null;
 		}
 

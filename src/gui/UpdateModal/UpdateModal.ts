@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { Component, MarkdownRenderer, Modal } from "obsidian";
+import { Component, MarkdownRenderer, Modal, requestUrl } from "obsidian";
 import { log } from "src/logger/logManager";
 
 type Release = {
@@ -20,18 +20,19 @@ type Release = {
  * @throws An error if there was an error fetching the releases or if the release with the specified tag name
  *         could not be found.
  */
-async function getReleaseNotesAfter(
+export async function getReleaseNotesAfter(
 	repoOwner: string,
 	repoName: string,
 	releaseTagName: string
 ): Promise<Release[]> {
-	const response = await fetch(
-		`https://api.github.com/repos/${repoOwner}/${repoName}/releases`
-	);
-	 
-	const releases: Release[] | { message: string } = await response.json();
+	const response = await requestUrl({
+		url: `https://api.github.com/repos/${repoOwner}/${repoName}/releases`,
+		throw: false,
+	});
 
-	if ((!response.ok && "message" in releases) || !Array.isArray(releases)) {
+	const releases: Release[] | { message: string } = response.json;
+
+	if ((response.status >= 400 && "message" in releases) || !Array.isArray(releases)) {
 		throw new Error(
 			`Failed to fetch releases: ${releases.message ?? "Unknown error"}`
 		);
@@ -132,7 +133,8 @@ export class UpdateModal extends Modal {
 			releaseNotes
 		)}`;
 
-		void MarkdownRenderer.renderMarkdown(
+		void MarkdownRenderer.render(
+			this.app,
 			markdownStr,
 			contentDiv,
 			this.app.vault.getRoot().path,
