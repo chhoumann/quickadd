@@ -29,7 +29,8 @@ export function formatUnknownValue(value: unknown): string {
 	if (typeof value === "bigint" || typeof value === "symbol") return value.toString();
 	if (value instanceof Error) return value.message;
 	try {
-		return JSON.stringify(value);
+		const json = JSON.stringify(value);
+		return json ?? Object.prototype.toString.call(value);
 	} catch {
 		return Object.prototype.toString.call(value);
 	}
