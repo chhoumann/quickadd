@@ -46,20 +46,12 @@ export class FormatterFactory {
 			macro: {
 				evaluateMacro: async (macroName, context) => {
 					const executor = this.requireChoiceExecutor(choiceExecutor);
-					const { SingleMacroEngine } = await import(
-						"../engine/SingleMacroEngine"
-					);
-					const engine = new SingleMacroEngine(
-						this.app,
-						this.plugin,
-						this.plugin.settings.choices,
-						executor,
-						context.variables,
-					);
-					return await engine.runAndGetOutput(
-						macroName,
-						context.label ? { label: context.label } : undefined,
-					);
+					if (!executor.evaluateMacroToken) {
+						throw new Error(
+							"Choice executor cannot evaluate runtime macro tokens.",
+						);
+					}
+					return await executor.evaluateMacroToken(macroName, context);
 				},
 			},
 			template: {
@@ -78,16 +70,13 @@ export class FormatterFactory {
 			},
 			inlineJavaScript: {
 				evaluateInlineJavaScript: async (code, context) => {
-					const { SingleInlineScriptEngine } = await import(
-						"../engine/SingleInlineScriptEngine"
-					);
-					const executor = new SingleInlineScriptEngine(
-						this.app,
-						this.plugin,
-						this.requireChoiceExecutor(choiceExecutor),
-						context.variables,
-					);
-					return await executor.runAndGetOutput(code);
+					const executor = this.requireChoiceExecutor(choiceExecutor);
+					if (!executor.evaluateInlineJavaScriptToken) {
+						throw new Error(
+							"Choice executor cannot evaluate runtime inline JavaScript tokens.",
+						);
+					}
+					return await executor.evaluateInlineJavaScriptToken(code, context);
 				},
 			},
 		};

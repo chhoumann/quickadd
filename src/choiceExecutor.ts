@@ -7,7 +7,10 @@ import type IMacroChoice from "./types/choices/IMacroChoice";
 import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
 import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
+import { SingleInlineScriptEngine } from "./engine/SingleInlineScriptEngine";
+import { SingleMacroEngine } from "./engine/SingleMacroEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
+import type { FormatterEvaluatorContext } from "./formatters/formatterEvaluators";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { settingsStore } from "./settingsStore";
@@ -30,6 +33,36 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const abort = this.pendingAbort;
 		this.pendingAbort = null;
 		return abort ?? null;
+	}
+
+	async evaluateMacroToken(
+		macroName: string,
+		context: FormatterEvaluatorContext,
+	): Promise<unknown> {
+		const engine = new SingleMacroEngine(
+			this.app,
+			this.plugin,
+			this.plugin.settings.choices,
+			this,
+			context.variables,
+		);
+		return await engine.runAndGetOutput(
+			macroName,
+			context.label ? { label: context.label } : undefined,
+		);
+	}
+
+	async evaluateInlineJavaScriptToken(
+		code: string,
+		context: FormatterEvaluatorContext,
+	): Promise<unknown> {
+		const executor = new SingleInlineScriptEngine(
+			this.app,
+			this.plugin,
+			this,
+			context.variables,
+		);
+		return await executor.runAndGetOutput(code);
 	}
 
 	async execute(choice: IChoice): Promise<void> {
