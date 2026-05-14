@@ -25,5 +25,5 @@ export interface OpenFileOptions {
   mode?: FileViewMode2;              // default: leave as-is
   focus?: boolean;                   // default: true
   /** Optional ephemeral state passed to setViewState */
-  eState?: any;
+  eState?: Record<string, unknown>;
 }

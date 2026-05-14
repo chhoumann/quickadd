@@ -12,6 +12,7 @@ type OldTemplateChoice = {
 	setFileExistsBehavior?: boolean;
 	fileExistsMode?: unknown;
 };
+type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
 
 function isOldTemplateChoice(
 	choice: unknown,
@@ -65,23 +66,19 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
 	 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
+		const settings = plugin.settings as SettingsWithLegacyMacros;
 		const choicesCopy = deepClone(plugin.settings.choices);
 		const choices = recursiveRemoveIncrementFileName(choicesCopy);
 
-		const macrosCopy = deepClone((plugin.settings as any).macros || []);
+		const macrosCopy = deepClone(settings.macros ?? []);
 		const macros = removeIncrementFileName(macrosCopy);
 
 		plugin.settings.choices = deepClone(choices);
 		
 		// Save the migrated macros back to settings - later migrations still need it
-		(plugin.settings as any).macros = macros;
+		settings.macros = macros;
 		
-		/* DO NOT delete macros here – later migrations still need it
-		// Clean up legacy macros array if it exists
-		if ('macros' in plugin.settings) {
-			delete (plugin.settings as any).macros;
-		}
-		*/
+		// DO NOT delete macros here – later migrations still need it.
 	},
 };
 

@@ -22,6 +22,19 @@ const OPERATORS_REQUIRING_EXPECTED: ConditionalOperator[] = [
 const BOOLEAN_TRUE_VALUES = new Set(["true", "1", "yes", "on"]);
 const BOOLEAN_FALSE_VALUES = new Set(["false", "0", "no", "off"]);
 
+function formatUnknownValue(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean") return String(value);
+	if (typeof value === "bigint" || typeof value === "symbol") return value.toString();
+	if (value instanceof Error) return value.message;
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return Object.prototype.toString.call(value);
+	}
+}
+
 export function requiresExpectedValue(operator: ConditionalOperator): boolean {
 	return OPERATORS_REQUIRING_EXPECTED.includes(operator);
 }
@@ -98,7 +111,7 @@ export function normalizeVariableValue(
 		case "string":
 		default:
 			if (value === null || value === undefined) return "";
-			return String(value);
+			return formatUnknownValue(value);
 	}
 }
 

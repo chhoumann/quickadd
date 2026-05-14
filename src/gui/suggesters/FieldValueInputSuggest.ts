@@ -8,6 +8,10 @@ import {
 } from "src/utils/FieldValueCollector";
 import { TextInputSuggest } from "./suggest";
 
+type CompletionInputEvent = Event & {
+	fromCompletion?: boolean;
+};
+
 export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	private readonly fieldInput: string;
 	private readonly fieldName: string;
@@ -46,7 +50,7 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 		// Fill input and dispatch a synthetic input event to trigger onChange listeners
 		this.inputEl.value = item;
 		const event = new Event("input", { bubbles: true });
-		(event as any).fromCompletion = true;
+		(event as CompletionInputEvent).fromCompletion = true;
 		this.inputEl.dispatchEvent(event);
 		this.close();
 	}

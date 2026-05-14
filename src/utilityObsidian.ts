@@ -864,6 +864,16 @@ function findUnpinnedNavigableSibling(
 	return orderedLeaves.find((leaf) => candidates.includes(leaf)) ?? candidates[0];
 }
 
+function isTFileLike(file: unknown): file is TFile {
+	if (file instanceof TFile) return true;
+	return (
+		typeof file === "object" &&
+		file !== null &&
+		"path" in file &&
+		typeof file.path === "string"
+	);
+}
+
 function resolveLeafForOpenFileLocation(
 	app: App,
 	location: FileOpenLocation,
@@ -940,10 +950,14 @@ export async function openFile(
 
 	const file =
 		typeof fileOrPath === "string"
-			? (app.vault.getAbstractFileByPath(fileOrPath) as TFile | null)
+			? app.vault.getAbstractFileByPath(fileOrPath)
 			: fileOrPath;
 
-	if (!file) throw new Error(`File not found: ${String(fileOrPath)}`);
+	if (!isTFileLike(file)) {
+		const fileLabel =
+			typeof fileOrPath === "string" ? fileOrPath : fileOrPath.path;
+		throw new Error(`File not found: ${fileLabel}`);
+	}
 
 	const openOriginLeaf = originLeaf ?? getOpenFileOriginLeaf(app);
 	const leaf = resolveLeafForOpenFileLocation(
@@ -960,21 +974,21 @@ export async function openFile(
 	// Optionally adjust view mode (Reading / Live Preview / Source)
 	if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
 		const vs = leaf.getViewState();
-		const next = { ...(vs.state ?? {}) };
+		const next: Record<string, unknown> = { ...(vs.state ?? {}) };
 
 		if (mode === "preview" || (typeof mode === "object" && mode.mode === "preview")) {
 			next.mode = "preview";
-			delete (next as any).source;
+			delete next.source;
 		} else if (mode === "source") {
 			next.mode = "source";
-			(next as any).source = true;
+			next.source = true;
 		} else if (mode === "live" || mode === "live-preview") {
 			next.mode = "source";
-			(next as any).source = false; // Live Preview = source:false
+			next.source = false; // Live Preview = source:false
 		} else if (typeof mode === "object" && mode.mode === "source") {
 			// advanced override
 			next.mode = "source";
-			(next as any).source = mode.source;
+			next.source = mode.source;
 		}
 
 		// Fix eState usage - merge into state rather than passing as second param
@@ -1161,14 +1175,14 @@ function getFileTags(app: App, file: TFile): string[] {
 	}
 
 	if (fileCache.tags && Array.isArray(fileCache.tags)) {
-		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^\#/, "")));
+		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^#/, "")));
 	}
 
 	return tagsInFile;
 }
 
 export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
-	const targetTag = tag.replace(/^\#/, "");
+	const targetTag = tag.replace(/^#/, "");
 
 	return app.vault.getMarkdownFiles().filter((f: TFile) => {
 		const fileTags = getFileTags(app, f);

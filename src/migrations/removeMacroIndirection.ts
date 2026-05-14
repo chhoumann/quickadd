@@ -5,14 +5,23 @@ import { MacroChoice } from "src/types/choices/MacroChoice";
 import { flattenChoices } from "src/utils/choiceUtils";
 import type { Migration } from "./Migrations";
 
+type LegacySettings = QuickAdd["settings"] & { macros?: LegacyMacro[] };
+type LegacyMacro = {
+	id: string;
+	name: string;
+	commands?: IMacroChoice["macro"]["commands"];
+	runOnStartup?: boolean;
+};
+type LegacyMacroChoice = IMacroChoice & { macroId?: string };
+
 const removeMacroIndirection: Migration = {
 	description:
 		"Remove macro indirection - embed macros directly in macro choices",
 	migrate: async (plugin: QuickAdd) => {
-		const settings = plugin.settings;
+		const settings = plugin.settings as LegacySettings;
 
 		// Check if we have the old macros array
-		const oldMacros = (settings as any).macros || [];
+		const oldMacros = settings.macros ?? [];
 
 		// Map macroId → all choices that reference it
 		const choicesByMacroId = new Map<string, IMacroChoice[]>();
@@ -20,10 +29,10 @@ const removeMacroIndirection: Migration = {
 
 		for (const choice of allChoices) {
 			if (choice.type === "Macro") {
-				const macroChoice = choice as IMacroChoice;
+				const macroChoice = choice as LegacyMacroChoice;
 				// Check if this has the old macroId property
-				if ((macroChoice as any).macroId) {
-					const macroId = (macroChoice as any).macroId;
+				if (macroChoice.macroId) {
+					const macroId = macroChoice.macroId;
 					if (!choicesByMacroId.has(macroId)) {
 						choicesByMacroId.set(macroId, []);
 					}
@@ -63,7 +72,7 @@ const removeMacroIndirection: Migration = {
 					choice.runOnStartup ??= macro.runOnStartup ?? false;
 
 					// Remove the old macroId property
-					delete (choice as any).macroId;
+					delete (choice as LegacyMacroChoice).macroId;
 				}
 			}
 		}
@@ -72,19 +81,19 @@ const removeMacroIndirection: Migration = {
 		// (in case oldMacros was empty but choices still had macroId)
 		for (const choice of allChoices) {
 			if (choice.type === "Macro") {
-				const macroChoice = choice as IMacroChoice;
-				if ((macroChoice as any).macroId) {
+				const macroChoice = choice as LegacyMacroChoice;
+				if (macroChoice.macroId) {
 					log.logMessage(
-						`Removing orphaned macroId reference: ${(macroChoice as any).macroId}`,
+						`Removing orphaned macroId reference: ${macroChoice.macroId}`,
 					);
-					delete (macroChoice as any).macroId;
+					delete macroChoice.macroId;
 				}
 			}
 		}
 
 		// Remove the old macros array
 		if ("macros" in settings) {
-			delete (settings as any).macros;
+			delete settings.macros;
 		}
 	},
 };

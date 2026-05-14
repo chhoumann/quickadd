@@ -2,6 +2,17 @@ import type { App } from "obsidian";
 import { getAPI, type DataviewApi } from "obsidian-dataview";
 import { log } from "src/logger/logManager";
 
+type DataviewFileLike = { path: string };
+
+function isDataviewFileLike(value: unknown): value is DataviewFileLike {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"path" in value &&
+		typeof value.path === "string"
+	);
+}
+
 // biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class DataviewIntegration {
 	private static getDataviewAPI(app: App): DataviewApi | null {
@@ -45,14 +56,14 @@ export class DataviewIntegration {
 						fieldValue.forEach(v => {
 							if (v && typeof v === 'string') {
 								values.add(v.trim());
-							} else if (v && typeof v === 'object' && v.path) {
+							} else if (isDataviewFileLike(v)) {
 								// Handle file objects from Dataview
 								values.add(v.path);
 							} else if (v && typeof v !== 'object') {
 								values.add(String(v).trim());
 							}
 						});
-					} else if (fieldValue && typeof fieldValue === 'object' && fieldValue.path) {
+					} else if (isDataviewFileLike(fieldValue)) {
 						// Handle single file object from Dataview
 						values.add(fieldValue.path);
 					} else if (fieldValue && typeof fieldValue === 'string') {
@@ -152,14 +163,14 @@ export class DataviewIntegration {
 						fieldValue.forEach(v => {
 							if (v && typeof v === 'string') {
 								values.add(v.trim());
-							} else if (v && typeof v === 'object' && v.path) {
+							} else if (isDataviewFileLike(v)) {
 								// Handle file objects from Dataview
 								values.add(v.path);
 							} else if (v && typeof v !== 'object') {
 								values.add(String(v).trim());
 							}
 						});
-					} else if (fieldValue && typeof fieldValue === 'object' && fieldValue.path) {
+					} else if (isDataviewFileLike(fieldValue)) {
 						// Handle single file object from Dataview
 						values.add(fieldValue.path);
 					} else if (fieldValue && typeof fieldValue === 'string') {

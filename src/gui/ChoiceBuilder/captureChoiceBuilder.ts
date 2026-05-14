@@ -1,5 +1,5 @@
-import type { App, TFile } from "obsidian";
-import { Notice, Setting, TextComponent, ToggleComponent } from "obsidian";
+import type { App } from "obsidian";
+import { Notice, Setting, TextComponent, ToggleComponent, TFile } from "obsidian";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
@@ -558,11 +558,11 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			return null;
 		}
 
-		if (!("extension" in abstractFile) || abstractFile.extension !== "canvas") {
+		if (!(abstractFile instanceof TFile) || abstractFile.extension !== "canvas") {
 			return null;
 		}
 
-		return abstractFile as TFile;
+		return abstractFile;
 	}
 
 	private async readCanvasNodeOptions(

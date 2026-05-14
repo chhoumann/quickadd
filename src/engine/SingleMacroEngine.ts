@@ -25,6 +25,26 @@ type MemberAccessSelection = {
 	memberAccess: string[];
 };
 
+type UserScriptCallable = () => unknown | Promise<unknown>;
+
+function formatMacroOutput(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+	if (typeof value === "bigint" || typeof value === "symbol") {
+		return value.toString();
+	}
+	if (value instanceof Error) return value.message;
+
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return Object.prototype.toString.call(value);
+	}
+}
+
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
 	private readonly variables: Map<string, unknown>;
@@ -135,12 +155,12 @@ export class SingleMacroEngine {
 
 		// Handle functions and objects properly
 		if (typeof result === "function") {
-			result = await (result as (...args: any[]) => any)();
+			result = await (result as UserScriptCallable)();
 		} else if (result && typeof result === "object") {
 			result = JSON.stringify(result);
 		}
 
-		return (result ?? "").toString();
+		return formatMacroOutput(result);
 	}
 
 	public getVariables(): Map<string, unknown> {

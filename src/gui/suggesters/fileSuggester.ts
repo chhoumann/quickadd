@@ -524,7 +524,15 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		// Need to get file again, otherwise it won't be recognized by the link generator. (hotfix, but not a good solution)
 		const file = this.app.vault.getAbstractFileByPath(
 			linkFile.path
-		) as TFile;
+		);
+		if (!(file instanceof TFile)) {
+			return this.makeLinkManually(
+				currentInputValue,
+				linkFile.path,
+				cursorPosition,
+				lastInputLength
+			);
+		}
 		const link = this.app.fileManager.generateMarkdownLink(
 			file,
 			this.getSourcePath(),

@@ -1,5 +1,9 @@
 import { createOwnedElement, createOwnedTextNode } from "src/utils/activeWindow";
 
+type CompletionInputEvent = Event & {
+	fromCompletion?: boolean;
+};
+
 /**
  * Utility functions for text manipulation in suggesters
  */
@@ -56,7 +60,7 @@ export function replaceRange(
 	const event = new Event("input", { bubbles: true });
 	if (options.fromCompletion) {
 		// Mark this as a programmatic completion change
-		(event as any).fromCompletion = true;
+		(event as CompletionInputEvent).fromCompletion = true;
 	}
 	input.dispatchEvent(event);
 }

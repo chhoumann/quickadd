@@ -171,7 +171,7 @@ export const RANDOM_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i,
 );
 export const GLOBAL_VAR_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{[G]?[L]?[O]?[B]?[A]?[L]?[\_]?[V]?[A]?[R]?[:]?$|{{GLOBAL_VAR:[^\n\r}]*}}$/i,
+	/{{[G]?[L]?[O]?[B]?[A]?[L]?[_]?[V]?[A]?[R]?[:]?$|{{GLOBAL_VAR:[^\n\r}]*}}$/i,
 );
 export const TIME_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[I]?[M]?[E]?[}]?[}]?/i,
