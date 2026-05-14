@@ -5,6 +5,190 @@ import { FileIndex } from './FileIndex';
 import { FileSuggester } from './fileSuggester';
 import { renderExactHighlight } from './utils';
 
+vi.mock('./suggest', () => {
+    function getOwnerDocument(node: Node): Document {
+        if (node.nodeType === Node.DOCUMENT_NODE) {
+            return node as Document;
+        }
+        return node.ownerDocument ?? document;
+    }
+
+    class TestScope {
+        private callbacks = new Map<string, (event: any) => unknown>();
+
+        register(_hotkeys: any[], key: string, callback: (event: any) => unknown) {
+            this.callbacks.set(key, callback);
+        }
+
+        trigger(key: string, event: any = { isComposing: false }): unknown {
+            return this.callbacks.get(key)?.(event);
+        }
+    }
+
+    class TestSuggest<T> {
+        private values: T[] = [];
+        private suggestions: HTMLDivElement[] = [];
+        private selectedItem = 0;
+        private isOpen = false;
+
+        constructor(
+            private owner: {
+                renderSuggestion(item: T, el: HTMLElement): void;
+                selectSuggestion(item: T, event: MouseEvent | KeyboardEvent): unknown;
+            },
+            private containerEl: HTMLElement,
+            private scope: TestScope,
+        ) {
+            scope.register([], 'ArrowUp', (event: KeyboardEvent) => {
+                if (!event.isComposing && this.isOpen) {
+                    this.setSelectedItem(this.selectedItem - 1, true);
+                    return false;
+                }
+            });
+            scope.register([], 'ArrowDown', (event: KeyboardEvent) => {
+                if (!event.isComposing && this.isOpen) {
+                    this.setSelectedItem(this.selectedItem + 1, true);
+                    return false;
+                }
+            });
+            scope.register([], 'Enter', (event: KeyboardEvent) => {
+                if (!event.isComposing && this.isOpen) {
+                    return this.useSelectedItem(event);
+                }
+            });
+            scope.register([], 'PageUp', (event: KeyboardEvent) => {
+                if (!event.isComposing && this.isOpen) {
+                    this.setSelectedItem(Math.max(0, this.selectedItem - 5), true);
+                    return false;
+                }
+            });
+            scope.register([], 'PageDown', (event: KeyboardEvent) => {
+                if (!event.isComposing && this.isOpen) {
+                    this.setSelectedItem(
+                        Math.min(this.suggestions.length - 1, this.selectedItem + 5),
+                        true,
+                    );
+                    return false;
+                }
+            });
+        }
+
+        setSuggestions(values: T[]) {
+            this.containerEl.replaceChildren();
+            this.values = values;
+            this.suggestions = values.map((value, index) => {
+                const suggestionEl = this.containerEl.ownerDocument.createElement('div');
+                suggestionEl.className = 'suggestion-item';
+                suggestionEl.setAttribute('role', 'option');
+                suggestionEl.setAttribute('aria-selected', 'false');
+                suggestionEl.setAttribute('id', `suggestion-${index}`);
+                this.owner.renderSuggestion(value, suggestionEl);
+                this.containerEl.appendChild(suggestionEl);
+                return suggestionEl;
+            });
+            this.setSelectedItem(0, false);
+            this.isOpen = values.length > 0;
+        }
+
+        private useSelectedItem(event: KeyboardEvent): unknown {
+            const currentValue = this.values[this.selectedItem];
+            if (!currentValue) return undefined;
+            return this.owner.selectSuggestion(currentValue, event);
+        }
+
+        private setSelectedItem(selectedIndex: number, scrollIntoView: boolean) {
+            if (!this.suggestions.length) return;
+
+            const normalizedIndex = ((selectedIndex % this.suggestions.length)
+                + this.suggestions.length) % this.suggestions.length;
+            const prevSelectedSuggestion = this.suggestions[this.selectedItem];
+            const selectedSuggestion = this.suggestions[normalizedIndex];
+
+            prevSelectedSuggestion?.classList.remove('is-selected');
+            selectedSuggestion?.classList.add('is-selected');
+            prevSelectedSuggestion?.setAttribute('aria-selected', 'false');
+            selectedSuggestion?.setAttribute('aria-selected', 'true');
+            this.selectedItem = normalizedIndex;
+
+            if (scrollIntoView) {
+                selectedSuggestion.scrollIntoView?.(false);
+            }
+        }
+    }
+
+    class TextInputSuggest<T> {
+        protected renderMatch = (el: HTMLElement, text: string, query: string) => {
+            if (!query) {
+                el.textContent = text;
+                return;
+            }
+
+            const index = text.toLowerCase().indexOf(query.toLowerCase());
+            if (index === -1) {
+                el.textContent = text;
+                return;
+            }
+
+            const ownerDocument = el.ownerDocument;
+            el.append(
+                ownerDocument.createTextNode(text.slice(0, index)),
+                Object.assign(ownerDocument.createElement('mark'), {
+                    className: 'qa-highlight',
+                    textContent: text.slice(index, index + query.length),
+                }),
+                ownerDocument.createTextNode(text.slice(index + query.length)),
+            );
+        };
+        private scope: TestScope;
+        private suggest: TestSuggest<T>;
+        private suggestEl: HTMLElement;
+
+        constructor(
+            protected app: unknown,
+            protected inputEl: HTMLInputElement | HTMLTextAreaElement,
+        ) {
+            this.scope = new TestScope();
+            const ownerDocument = this.inputEl.ownerDocument;
+            this.suggestEl = ownerDocument.createElement('div');
+            this.suggestEl.className = 'suggestion-container';
+            const suggestion = ownerDocument.createElement('div');
+            suggestion.className = 'suggestion';
+            suggestion.setAttribute('role', 'listbox');
+            suggestion.setAttribute('aria-label', 'Suggestions');
+            this.suggestEl.appendChild(suggestion);
+            this.suggest = new TestSuggest<T>(
+                this as unknown as {
+                    renderSuggestion(item: T, el: HTMLElement): void;
+                    selectSuggestion(item: T, event: MouseEvent | KeyboardEvent): unknown;
+                },
+                suggestion,
+                this.scope,
+            );
+        }
+
+        open(container: HTMLElement, inputEl: HTMLElement = this.inputEl): void {
+            const inputDocument = getOwnerDocument(inputEl);
+            const containerDocument = getOwnerDocument(container);
+            const ownerCompatibleContainer =
+                containerDocument === inputDocument ? container : inputDocument.body;
+            ownerCompatibleContainer.appendChild(this.suggestEl);
+            this.inputEl.setAttribute('aria-expanded', 'true');
+        }
+
+        close(): void {
+            this.suggest.setSuggestions([]);
+            this.suggestEl.remove();
+            this.inputEl.setAttribute('aria-expanded', 'false');
+        }
+
+        destroy(): void {
+            this.close();
+        }
+    }
+
+    return { TextInputSuggest };
+});
+
 vi.mock("../../main", () => ({
     default: {
         instance: {
@@ -67,6 +251,21 @@ function createIndexedFile(path: string, basename: string) {
         modified: Date.now(),
         folder: path.includes('/') ? path.split('/').slice(0, -1).join('/') : '',
     };
+}
+
+function createRuntimeFile(path: string, basename: string): TFile {
+    const file = new RuntimeTFile();
+    file.path = path;
+    file.basename = basename;
+    file.name = path.split('/').pop() ?? basename;
+    file.extension = path.split('.').pop() ?? 'md';
+    file.parent = null;
+    (file as TFile).stat = {
+        ctime: 0,
+        mtime: new Date('2024-01-01T00:00:00Z').getTime(),
+        size: 1,
+    };
+    return file as TFile;
 }
 
 function expectNoPayloadDom(el: HTMLElement): void {
@@ -379,14 +578,7 @@ describe('FileSuggester DOM XSS safety', () => {
 
     it('renders tooltip metadata as text', () => {
         const payload = '<img src=x onerror=globalThis.__qaXss=1>';
-        const obsidianFile = new RuntimeTFile();
-        obsidianFile.basename = payload;
-        obsidianFile.path = `Notes/${payload}.md`;
-        (obsidianFile as TFile).stat = {
-            ctime: 0,
-            mtime: new Date('2024-01-01T00:00:00Z').getTime(),
-            size: 1,
-        };
+        const obsidianFile = createRuntimeFile(`Notes/${payload}.md`, payload);
 
         const tooltip = (
             FileSuggester.prototype as unknown as {
@@ -407,6 +599,182 @@ describe('FileSuggester DOM XSS safety', () => {
         expect(tooltip?.textContent).toContain(payload);
         expect(tooltip?.textContent).toContain(`Path: Notes/${payload}.md`);
         expectNoPayloadDom(tooltip!);
+    });
+
+    it('keeps malicious suggestions selectable by keyboard navigation', async () => {
+        const payload = '<img src=x onerror=globalThis.__qaXss=1>';
+        const insertedValues: string[] = [];
+        const runtimeFiles = new Map([
+            [
+                `Notes/${payload}.md`,
+                createRuntimeFile(`Notes/${payload}.md`, payload),
+            ],
+            [
+                `Fuzzy/${payload} attachment.png`,
+                createRuntimeFile(`Fuzzy/${payload} attachment.png`, `${payload} attachment`),
+            ],
+            [
+                `Aliases/${payload}.md`,
+                createRuntimeFile(`Aliases/${payload}.md`, payload),
+            ],
+        ]);
+        const inputEl = document.createElement('input');
+        inputEl.value = `before [[${payload}]] after`;
+        inputEl.setSelectionRange(
+            `before [[${payload}`.length,
+            `before [[${payload}`.length,
+        );
+        inputEl.trigger = vi.fn();
+
+        const app = {
+            dom: { appContainerEl: document.body },
+            keymap: {
+                pushScope: vi.fn(),
+                popScope: vi.fn(),
+            },
+            workspace: {
+                getActiveFile: vi.fn(() => null),
+            },
+            fileManager: {
+                getNewFileParent: vi.fn(() => ({ path: '' })),
+                generateMarkdownLink: vi.fn((file: TFile, _source: string, _sub: string, alias: string) => {
+                    const link = alias ? `[[${file.basename}|${alias}]]` : `[[${file.basename}]]`;
+                    insertedValues.push(link);
+                    return link;
+                }),
+            },
+            vault: {
+                getAbstractFileByPath: vi.fn((path: string) => runtimeFiles.get(path) ?? null),
+                getFiles: vi.fn(() => Array.from(runtimeFiles.values())),
+            },
+        };
+        const suggestions = [
+            {
+                kind: 'exact',
+                expectedValue: `[[${payload}]]`,
+                item: {
+                    file: createIndexedFile(`Notes/${payload}.md`, payload),
+                    score: 0,
+                    matchType: 'exact' as const,
+                    displayText: payload,
+                },
+            },
+            {
+                kind: 'fuzzy',
+                expectedValue: `[[${payload} attachment]]`,
+                item: {
+                    file: createIndexedFile(`Fuzzy/${payload} attachment.png`, `${payload} attachment`),
+                    score: 1,
+                    matchType: 'fuzzy' as const,
+                    displayText: `${payload} attachment.png`,
+                },
+            },
+            {
+                kind: 'alias',
+                expectedValue: `[[${payload}|${payload} alias]]`,
+                item: {
+                    file: createIndexedFile(`Aliases/${payload}.md`, payload),
+                    score: 0,
+                    matchType: 'alias' as const,
+                    displayText: `${payload} alias`,
+                },
+            },
+            {
+                kind: 'heading',
+                expectedValue: `Source#${payload} Heading`,
+                item: {
+                    file: createIndexedFile('Source.md', 'Source'),
+                    score: 0,
+                    matchType: 'heading' as const,
+                    displayText: `Source#${payload} Heading`,
+                },
+            },
+            {
+                kind: 'block',
+                expectedValue: `Source#^${payload}-block`,
+                item: {
+                    file: createIndexedFile('Source.md', 'Source'),
+                    score: 0,
+                    matchType: 'block' as const,
+                    displayText: `Source#^${payload}-block`,
+                },
+            },
+            {
+                kind: 'unresolved',
+                expectedValue: `before [[${payload}]]]] after`,
+                item: {
+                    file: createIndexedFile(`${payload}.md`, payload),
+                    score: 0,
+                    matchType: 'unresolved' as const,
+                    displayText: payload,
+                },
+            },
+            {
+                kind: 'attachment',
+                expectedValue: `${payload} attachment.png`,
+                item: {
+                    file: createIndexedFile(`Attachments/${payload} attachment.png`, `${payload} attachment`),
+                    score: 0,
+                    matchType: 'exact' as const,
+                    displayText: `${payload} attachment.png`,
+                },
+            },
+        ];
+
+        for (const { kind, item, expectedValue } of suggestions) {
+            const suggester = new FileSuggester(app as unknown as App, inputEl);
+            (suggester as unknown as { lastInput: string }).lastInput = payload;
+            (suggester as unknown as {
+                suggest: { setSuggestions(values: unknown[]): void };
+            }).suggest.setSuggestions(suggestions.map(({ item }) => item));
+            suggester.open(document.body, inputEl);
+
+            const scope = (suggester as unknown as {
+                scope: { trigger(key: string): unknown };
+            }).scope;
+            const items = Array.from(
+                document.querySelectorAll<HTMLElement>('.suggestion-item'),
+            );
+
+            expect(items).toHaveLength(suggestions.length);
+            for (const el of items) {
+                expect(el.textContent).toContain(payload);
+                expectNoPayloadDom(el);
+            }
+
+            expect(items[0].getAttribute('aria-selected')).toBe('true');
+            scope.trigger('ArrowDown');
+            expect(items[1].getAttribute('aria-selected')).toBe('true');
+            expect(items[0].getAttribute('aria-selected')).toBe('false');
+            scope.trigger('ArrowUp');
+            expect(items[0].getAttribute('aria-selected')).toBe('true');
+            scope.trigger('PageDown');
+            expect(items[5].getAttribute('aria-selected')).toBe('true');
+            scope.trigger('PageUp');
+            expect(items[0].getAttribute('aria-selected')).toBe('true');
+
+            const targetIndex = suggestions.findIndex((candidate) => candidate.item === item);
+            for (let i = 0; i < targetIndex; i += 1) {
+                scope.trigger('ArrowDown');
+            }
+
+            expect(items[targetIndex].getAttribute('aria-selected')).toBe('true');
+            await scope.trigger('Enter');
+
+            if (kind === 'exact' || kind === 'fuzzy' || kind === 'alias') {
+                expect(insertedValues.at(-1)).toBe(expectedValue);
+            } else {
+                expect(inputEl.value).toContain(expectedValue);
+            }
+            expectNoPayloadDom(document.body);
+
+            suggester.destroy();
+            inputEl.value = `before [[${payload}]] after`;
+            inputEl.setSelectionRange(
+                `before [[${payload}`.length,
+                `before [[${payload}`.length,
+            );
+        }
     });
 });
 
