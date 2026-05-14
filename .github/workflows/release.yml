@@ -28,6 +28,12 @@ jobs:
     release:
         name: Release
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            issues: write
+            pull-requests: write
+            id-token: write
+            attestations: write
         strategy:
             matrix:
                 node-version: [20]
@@ -64,8 +70,8 @@ jobs:
 
             - name: Install dependencies
               run: |
-                  bun install
-                  cd docs && bun install
+                  bun install --frozen-lockfile
+                  cd docs && bun install --frozen-lockfile
 
             # Validate version before release (tag protection)
             - name: Validate release
@@ -108,15 +114,15 @@ jobs:
                   
                   if [ -n "$PRE_RELEASE" ]; then
                     echo "Running pre-release: $PRE_RELEASE"
-                    npx semantic-release --prerelease $PRE_RELEASE $EXTRA_ARGS
+                    bunx semantic-release --prerelease $PRE_RELEASE $EXTRA_ARGS
                     RELEASE_EXIT_CODE=$?
                   elif [ "$RELEASE_TYPE" == "auto" ]; then
                     echo "Running auto release"
-                    npx semantic-release $EXTRA_ARGS
+                    bunx semantic-release $EXTRA_ARGS
                     RELEASE_EXIT_CODE=$?
                   else
                     echo "Running release with type: $RELEASE_TYPE"
-                    npx semantic-release --release-as $RELEASE_TYPE $EXTRA_ARGS
+                    bunx semantic-release --release-as $RELEASE_TYPE $EXTRA_ARGS
                     RELEASE_EXIT_CODE=$?
                   fi
                   
@@ -128,6 +134,15 @@ jobs:
                   fi
                   
                   exit $RELEASE_EXIT_CODE
+
+            - name: Attest release assets
+              if: steps.release.outputs.released == 'true'
+              uses: actions/attest-build-provenance@v2
+              with:
+                  subject-path: |
+                      main.js
+                      manifest.json
+                      styles.css
 
             # Extract version for notifications - more resilient approach
             - name: Extract version

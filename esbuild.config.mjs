@@ -1,4 +1,4 @@
-import builtins from "builtin-modules";
+import { builtinModules } from "node:module";
 import esbuild from "esbuild";
 import esbuildSvelte from "esbuild-svelte";
 import process from "process";
@@ -58,7 +58,7 @@ const options = Object.freeze({
 		"@lezer/common",
 		"@lezer/highlight",
 		"@lezer/lr",
-		...builtins,
+		...builtinModules,
 	],
 	mainFields: ["svelte", "browser", "module", "main"],
 	plugins: [
