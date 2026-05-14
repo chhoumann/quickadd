@@ -681,6 +681,65 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 	});
 });
 
+describe("MacroChoiceEngine malformed saved command entries", () => {
+	const executeCommandById = vi.fn();
+	const app = {
+		commands: {
+			executeCommandById,
+		},
+	} as unknown as App;
+	const plugin = {} as unknown as QuickAdd;
+
+	let choiceExecutor: IChoiceExecutor;
+	let variables: Map<string, unknown>;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		executeCommandById.mockReset();
+		variables = new Map<string, unknown>();
+		choiceExecutor = {
+			execute: vi.fn(),
+			variables,
+		};
+	});
+
+	it("skips nullish persisted macro command entries without blocking valid commands", async () => {
+		const macroChoice: IMacroChoice = {
+			id: "macro-nullish-commands",
+			name: "Macro with nullish commands",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-nullish-commands",
+				name: "Macro with nullish commands",
+				commands: [
+					null,
+					undefined,
+					{
+						id: "obsidian-command",
+						name: "Run Obsidian command",
+						type: CommandType.Obsidian,
+						commandId: "app:valid-command",
+					},
+				] as unknown as IMacro["commands"],
+			} as IMacro,
+		};
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await expect(engine.run()).resolves.toBeUndefined();
+		expect(executeCommandById).toHaveBeenCalledTimes(1);
+		expect(executeCommandById).toHaveBeenCalledWith("app:valid-command");
+	});
+});
+
 describe("QuickAddApi prompt cancellation", () => {
 	const app = {} as App;
 

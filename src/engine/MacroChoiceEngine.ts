@@ -60,40 +60,53 @@ type UserScriptFunction = (
 	settings: Record<string, unknown>
 ) => Promise<unknown>;
 
-function isObsidianCommand(command: ICommand): command is IObsidianCommand {
-	return command.type === CommandType.Obsidian;
+function hasCommandType(
+	command: unknown,
+	type: CommandType
+): command is ICommand {
+	return isRecord(command) && command.type === type;
 }
 
-function isUserScriptCommand(command: ICommand): command is IUserScript {
-	return command.type === CommandType.UserScript;
+function isObsidianCommand(command: unknown): command is IObsidianCommand {
+	return hasCommandType(command, CommandType.Obsidian);
 }
 
-function isChoiceCommand(command: ICommand): command is IChoiceCommand {
-	return command.type === CommandType.Choice;
+function isUserScriptCommand(command: unknown): command is IUserScript {
+	return hasCommandType(command, CommandType.UserScript);
 }
 
-function isWaitCommand(command: ICommand): command is IWaitCommand {
-	return command.type === CommandType.Wait;
+function isChoiceCommand(command: unknown): command is IChoiceCommand {
+	return hasCommandType(command, CommandType.Choice);
 }
 
-function isNestedChoiceCommand(command: ICommand): command is INestedChoiceCommand {
-	return command.type === CommandType.NestedChoice;
+function isWaitCommand(command: unknown): command is IWaitCommand {
+	return hasCommandType(command, CommandType.Wait);
 }
 
-function isEditorCommand(command: ICommand): command is IEditorCommand {
-	return command.type === CommandType.EditorCommand;
+function isNestedChoiceCommand(
+	command: unknown
+): command is INestedChoiceCommand {
+	return hasCommandType(command, CommandType.NestedChoice);
 }
 
-function isAIAssistantCommand(command: ICommand): command is IAIAssistantCommand {
-	return command.type === CommandType.AIAssistant;
+function isEditorCommand(command: unknown): command is IEditorCommand {
+	return hasCommandType(command, CommandType.EditorCommand);
 }
 
-function isOpenFileCommand(command: ICommand): command is IOpenFileCommand {
-	return command.type === CommandType.OpenFile;
+function isAIAssistantCommand(
+	command: unknown
+): command is IAIAssistantCommand {
+	return hasCommandType(command, CommandType.AIAssistant);
 }
 
-function isConditionalCommand(command: ICommand): command is IConditionalCommand {
-	return command.type === CommandType.Conditional;
+function isOpenFileCommand(command: unknown): command is IOpenFileCommand {
+	return hasCommandType(command, CommandType.OpenFile);
+}
+
+function isConditionalCommand(
+	command: unknown
+): command is IConditionalCommand {
+	return hasCommandType(command, CommandType.Conditional);
 }
 type UserScriptObjectExport = Record<string, unknown> & {
 	entry?: UserScriptFunction;
