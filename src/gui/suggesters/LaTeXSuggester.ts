@@ -8,21 +8,19 @@ const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 
 export class LaTeXSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
-	private symbols;
-	private elementsRendered;
+	private symbols: string[];
+	private elementsRendered: Record<string, HTMLElement>;
 
 	constructor(public inputEl: HTMLInputElement | HTMLTextAreaElement) {
 		super(QuickAdd.instance.app, inputEl);
 		this.symbols = Object.assign([], LaTeXSymbols);
 
-		this.elementsRendered = this.symbols.reduce((elements, symbol) => {
+		this.elementsRendered = this.symbols.reduce<Record<string, HTMLElement>>((elements, symbol) => {
 			try {
-				//@ts-ignore
-				 
 				elements[symbol.toString()] = renderMath(symbol, true);
-			
-						// Ignoring symbols that we can't use
-			} catch {} 	 
+			} catch {
+				// Ignore symbols that Obsidian's math renderer cannot render.
+			}
 
 			return elements;
 		}, {});

@@ -95,7 +95,7 @@ function serialize(response: CliResponse): string {
 	return JSON.stringify(response);
 }
 
-function isTruthy(value: string | "true" | undefined): boolean {
+function isTruthy(value: string | undefined): boolean {
 	if (value === undefined) return false;
 	const normalized = value.toLowerCase();
 	return (

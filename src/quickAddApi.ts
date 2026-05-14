@@ -698,19 +698,20 @@ export class QuickAddApi {
 		options?: { renderItem?: (value: string, el: HTMLElement) => void; },
 	) {
 		try {
-			let displayedItems;
+			let displayedItems: string[];
 
 			if (typeof displayItems === "function") {
-				displayedItems = actualItems.map(displayItems);
+				displayedItems = actualItems.map((value, index, arr) =>
+					normalizeDisplayItem(displayItems(value, index, arr)),
+				);
 			} else {
-				displayedItems = displayItems;
+				displayedItems = displayItems.map((item) => normalizeDisplayItem(item));
 			}
-			displayedItems = displayedItems.map((item) => normalizeDisplayItem(item));
 
 			if (allowCustomInput) {
 				return await InputSuggester.Suggest(
 					app,
-					displayedItems as string[],
+					displayedItems,
 					actualItems,
 					{
 						...(placeholder ? { placeholder } : {}),
@@ -723,7 +724,7 @@ export class QuickAddApi {
 
 			return await GenericSuggester.Suggest(
 				app,
-				displayedItems as string[],
+				displayedItems,
 				actualItems,
 				placeholder,
 				options?.renderItem,

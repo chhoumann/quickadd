@@ -26,7 +26,8 @@ export function getYamlContextForMatch(
   matchEnd: number,
   yamlRange: YamlRange,
 ): YamlMatchContext {
-  const isInYaml = yamlRange !== null && matchStart >= yamlRange[0]! && matchStart <= yamlRange[1]!;
+  const [yamlStart, yamlEnd] = yamlRange ?? [Number.NaN, Number.NaN];
+  const isInYaml = yamlRange !== null && matchStart >= yamlStart && matchStart <= yamlEnd;
   if (!isInYaml) {
     return {
       isInYaml: false,

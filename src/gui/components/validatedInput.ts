@@ -68,13 +68,13 @@ export function createValidatedInput(
 			? new TextAreaComponent(parent)
 			: new TextComponent(parent);
 
-	const inputEl = component.inputEl as HTMLInputElement | HTMLTextAreaElement;
+	const inputEl = component.inputEl;
 	const activeWindow = getOwnerWindow(inputEl);
 
 	if (fullWidth) inputEl.style.width = "100%";
 	inputEl.style.marginBottom = `${marginBottomPx}px`;
 	if (inputKind === "textarea") {
-		(inputEl as HTMLTextAreaElement).style.minHeight = "10rem";
+		inputEl.style.minHeight = "10rem";
 	}
 	if (placeholder) component.setPlaceholder(placeholder);
 	component.setValue(initialValue);

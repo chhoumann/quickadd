@@ -116,7 +116,7 @@ function supportsCommaList(propertyType: string | null): boolean {
 export function parseStructuredPropertyValueFromString(
 	value: string,
 	options?: ParseOptions,
-): unknown | undefined {
+): unknown {
 	const trimmed = value.trim();
 	if (!trimmed) return undefined;
 

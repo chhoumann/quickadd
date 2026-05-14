@@ -6,7 +6,7 @@ import type {
 
 declare module "obsidian" {
 	interface CliData {
-		[key: string]: string | "true";
+		[key: string]: string;
 	}
 
 	interface CliFlag {
