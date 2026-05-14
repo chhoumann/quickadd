@@ -189,7 +189,9 @@ async function collectTagValuesFromFiles(
 						if (tag) values.add(tag);
 					}
 				}
-			} catch {}
+			} catch {
+				// Ignore unreadable metadata for this file and continue collecting.
+			}
 			return values;
 		});
 
@@ -254,9 +256,13 @@ async function collectFieldValuesManually(
 							const t = String(s).trim();
 							if (t) values.add(t);
 						});
-					} catch {}
+					} catch {
+						// Ignore files whose contents cannot be read for inline fields.
+					}
 				}
-			} catch {}
+			} catch {
+				// Ignore unreadable metadata for this file and continue collecting.
+			}
 			return values;
 		});
 

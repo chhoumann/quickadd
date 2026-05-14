@@ -167,7 +167,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					defaultReason: "Template execution aborted",
 				})
 			) {
-				this.choiceExecutor.signalAbort?.(err as MacroAbortError);
+				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}
 			reportError(err, `Error running template choice "${this.choice.name}"`);

@@ -59,6 +59,42 @@ type UserScriptFunction = (
 	params: MacroChoiceEngine["params"],
 	settings: Record<string, unknown>
 ) => Promise<unknown>;
+
+function isObsidianCommand(command: ICommand): command is IObsidianCommand {
+	return command.type === CommandType.Obsidian;
+}
+
+function isUserScriptCommand(command: ICommand): command is IUserScript {
+	return command.type === CommandType.UserScript;
+}
+
+function isChoiceCommand(command: ICommand): command is IChoiceCommand {
+	return command.type === CommandType.Choice;
+}
+
+function isWaitCommand(command: ICommand): command is IWaitCommand {
+	return command.type === CommandType.Wait;
+}
+
+function isNestedChoiceCommand(command: ICommand): command is INestedChoiceCommand {
+	return command.type === CommandType.NestedChoice;
+}
+
+function isEditorCommand(command: ICommand): command is IEditorCommand {
+	return command.type === CommandType.EditorCommand;
+}
+
+function isAIAssistantCommand(command: ICommand): command is IAIAssistantCommand {
+	return command.type === CommandType.AIAssistant;
+}
+
+function isOpenFileCommand(command: ICommand): command is IOpenFileCommand {
+	return command.type === CommandType.OpenFile;
+}
+
+function isConditionalCommand(command: ICommand): command is IConditionalCommand {
+	return command.type === CommandType.Conditional;
+}
 type UserScriptObjectExport = Record<string, unknown> & {
 	entry?: UserScriptFunction;
 	settings?: Record<string, unknown>;
@@ -223,30 +259,29 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async executeCommands(commands: ICommand[]) {
 		try {
 			for (const command of commands) {
-				if (command?.type === CommandType.Obsidian)
-					this.executeObsidianCommand(command as IObsidianCommand);
-				if (command?.type === CommandType.UserScript)
-					await this.executeUserScript(command as IUserScript);
-				if (command?.type === CommandType.Choice)
-					await this.executeChoice(command as IChoiceCommand);
-				if (command?.type === CommandType.Wait) {
-					const waitCommand: IWaitCommand = command as IWaitCommand;
-					await waitFor(waitCommand.time);
+				if (isObsidianCommand(command))
+					this.executeObsidianCommand(command);
+				if (isUserScriptCommand(command))
+					await this.executeUserScript(command);
+				if (isChoiceCommand(command))
+					await this.executeChoice(command);
+				if (isWaitCommand(command)) {
+					await waitFor(command.time);
 				}
-				if (command?.type === CommandType.NestedChoice) {
-					await this.executeNestedChoice(command as INestedChoiceCommand);
+				if (isNestedChoiceCommand(command)) {
+					await this.executeNestedChoice(command);
 				}
-				if (command?.type === CommandType.EditorCommand) {
-					await this.executeEditorCommand(command as IEditorCommand);
+				if (isEditorCommand(command)) {
+					await this.executeEditorCommand(command);
 				}
-				if (command?.type === CommandType.AIAssistant) {
-					await this.executeAIAssistant(command as IAIAssistantCommand);
+				if (isAIAssistantCommand(command)) {
+					await this.executeAIAssistant(command);
 				}
-				if (command?.type === CommandType.OpenFile) {
-					await this.executeOpenFile(command as IOpenFileCommand);
+				if (isOpenFileCommand(command)) {
+					await this.executeOpenFile(command);
 				}
-				if (command?.type === CommandType.Conditional) {
-					await this.executeConditional(command as IConditionalCommand);
+				if (isConditionalCommand(command)) {
+					await this.executeConditional(command);
 				}
 			}
 		} catch (error) {
@@ -257,7 +292,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					defaultReason: "Macro execution aborted",
 				})
 			) {
-				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
+				this.choiceExecutor.signalAbort?.(error);
 				return;
 			}
 			throw error;
@@ -267,19 +302,19 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	// Slightly modified from Templater's user script engine:
 	// https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
 	protected async executeUserScript(command: IUserScript) {
-	const cacheKey = command.path ?? command.id;
-	let userScript: unknown | undefined;
-	if (cacheKey !== undefined) {
-		const cached = this.preloadedUserScripts.get(cacheKey);
-		if (cached !== undefined) {
-			userScript = cached;
-			this.preloadedUserScripts.delete(cacheKey);
+		const cacheKey = command.path ?? command.id;
+		let userScript: unknown;
+		if (cacheKey !== undefined) {
+			const cached = this.preloadedUserScripts.get(cacheKey);
+			if (cached !== undefined) {
+				userScript = cached;
+				this.preloadedUserScripts.delete(cacheKey);
+			}
 		}
-	}
 
-	if (userScript === undefined) {
-		userScript = await getUserScript(command, this.app);
-	}
+		if (userScript === undefined) {
+			userScript = await getUserScript(command, this.app);
+		}
 
 		if (!userScript) {
 			log.logError(`failed to load user script ${command.path}.`);

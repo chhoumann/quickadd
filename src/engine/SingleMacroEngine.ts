@@ -278,7 +278,7 @@ export class SingleMacroEngine {
 					defaultReason: "Macro execution aborted",
 				})
 			) {
-				this.choiceExecutor.signalAbort?.(error as MacroAbortError);
+				this.choiceExecutor.signalAbort?.(error);
 				throw error;
 			}
 			throw error;

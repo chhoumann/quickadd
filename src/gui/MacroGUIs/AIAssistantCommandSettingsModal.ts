@@ -73,7 +73,9 @@ export class AIAssistantCommandSettingsModal extends Modal {
 					this.settings.name = newName;
 					this.reload();
 				}
-			} catch {} // no new name, don't need exceptional state for that
+			} catch {
+				// No new name, so the modal keeps the current command name.
+			}
 		});
 
 		this.addPromptTemplateSetting(this.contentEl);

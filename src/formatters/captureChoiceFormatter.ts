@@ -142,7 +142,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		if (this.choice.insertAfter.enabled) {
-			return (await this.insertAfterHandler(formatted)) as string;
+			return await this.insertAfterHandler(formatted);
 		}
 
 		const frontmatterEndPosition = this.file
