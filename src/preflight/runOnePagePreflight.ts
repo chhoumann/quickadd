@@ -42,15 +42,16 @@ export async function runOnePagePreflight(
 					app,
 					plugin,
 				).createDisplayFormatter();
+				const previewVariables = new Map(choiceExecutor.variables);
+				for (const [k, v] of Object.entries(values)) {
+					previewVariables.set(k, v);
+				}
+				formatter.setPreviewVariables(previewVariables);
 				const out: Record<string, string> = {};
 				// File name preview for Template
 				if (choice.type === "Template") {
 					const tmpl = choice as ITemplateChoice;
 					if (tmpl.fileNameFormat?.enabled) {
-						// Seed variables map-like into formatter
-						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(k, v);
-						}
 						out.fileName = await formatter.format(tmpl.fileNameFormat.format);
 					}
 				}

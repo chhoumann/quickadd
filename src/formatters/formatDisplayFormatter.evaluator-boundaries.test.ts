@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { FormatDisplayFormatter } from "./formatDisplayFormatter";
 import type { FormatDisplayFormatterEvaluators } from "./formatterEvaluators";
+import { VALUE_LABEL_KEY_DELIMITER } from "../utils/valueSyntax";
 
 const app = {
 	workspace: {
@@ -68,5 +69,24 @@ describe("FormatDisplayFormatter evaluator boundaries", () => {
 		});
 
 		await expect(formatter.format("{{DATE:")).resolves.toBe("{{DATE:");
+	});
+
+	it("treats existing non-undefined preview variables as resolved", async () => {
+		const formatter = new FormatDisplayFormatter(app, plugin);
+		formatter.setPreviewVariables(
+			new Map<string, unknown>([
+				["empty", ""],
+				["nil", null],
+				["count", 7],
+				["obj", { ok: true }],
+				[`a,b${VALUE_LABEL_KEY_DELIMITER}mapped`, "selected-value"],
+			]),
+		);
+
+		await expect(
+			formatter.format(
+				"{{VALUE:empty}}|{{VALUE:nil}}|{{VALUE:count}}|{{VALUE:obj}}|{{VALUE:a,b|label:mapped}}",
+			),
+		).resolves.toBe("||7|{\"ok\":true}|selected-value");
 	});
 });

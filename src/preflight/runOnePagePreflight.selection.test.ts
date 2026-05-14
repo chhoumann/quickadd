@@ -10,11 +10,15 @@ const { modalOpenMock } = vi.hoisted(() => ({
 }));
 
 let modalResult: Record<string, string> = {};
+let modalComputePreview:
+	| ((values: Record<string, string>) => Promise<Record<string, string>>)
+	| undefined;
 
 vi.mock("./OnePageInputModal", () => ({
 	OnePageInputModal: class {
 		waitForClose = Promise.resolve(modalResult);
 		constructor(...args: unknown[]) {
+			modalComputePreview = args[3] as typeof modalComputePreview;
 			modalOpenMock(...args);
 		}
 	},
@@ -128,6 +132,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 	beforeEach(() => {
 		modalOpenMock.mockClear();
 		modalResult = {};
+		modalComputePreview = undefined;
 	});
 
 	it("prefills {{VALUE}} from selection when enabled", async () => {
@@ -229,5 +234,51 @@ describe("runOnePagePreflight template extension handling", () => {
 		expect(app.vault.getAbstractFileByPath).not.toHaveBeenCalledWith(
 			"Templates/Kanban.base.md",
 		);
+	});
+
+	it("isolates live preview variables until submit and treats concrete values as resolved", async () => {
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getActiveFile: vi.fn().mockReturnValue(null),
+			},
+			vault: {
+				getAbstractFileByPath: vi.fn().mockReturnValue(null),
+				cachedRead: vi.fn(),
+			},
+		} as unknown as App;
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+		const executor = createExecutor();
+		executor.variables.set("existing", "");
+		executor.variables.set("maybeNull", null);
+		executor.variables.set("mapped", 42);
+		modalResult = { liveOnly: "Submitted" };
+		const choice = createTemplateChoice("Templates/Preview.md");
+		choice.fileNameFormat = {
+			enabled: true,
+			format:
+				"{{VALUE:existing}}|{{VALUE:maybeNull}}|{{VALUE:mapped}}|{{VALUE:liveOnly}}",
+		};
+
+		const result = await runOnePagePreflight(app, plugin, executor, choice);
+
+		expect(result).toBe(true);
+		expect(modalComputePreview).toBeDefined();
+		expect(executor.variables.has("liveOnly")).toBe(true);
+		expect(executor.variables.get("liveOnly")).toBe("Submitted");
+
+		executor.variables.delete("liveOnly");
+		const beforePreview = Array.from(executor.variables.entries());
+		await expect(
+			modalComputePreview?.({ liveOnly: "Typing" }),
+		).resolves.toEqual({ fileName: "||42|Typing" });
+		expect(Array.from(executor.variables.entries())).toEqual(beforePreview);
+		expect(executor.variables.has("liveOnly")).toBe(false);
 	});
 });

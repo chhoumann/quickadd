@@ -15,6 +15,7 @@ import {
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import type { FormatDisplayFormatterEvaluators } from "./formatterEvaluators";
+import { formatUnknownValue } from "../utils/conditionalHelpers";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -77,9 +78,13 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected getVariableValue(variableName: string): string {
 		const stored = this.variables.get(variableName);
-		if (typeof stored === "string") return stored;
+		if (stored !== undefined) return formatUnknownValue(stored);
 		const baseName = getValueVariableBaseName(variableName);
 		return getVariableExample(baseName);
+	}
+
+	public setPreviewVariables(variables: Map<string, unknown>): void {
+		this.variables = variables;
 	}
 
 	protected getCurrentFileLink(): string | null {
