@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
 import type { TemplateEvaluator } from "./TemplateFileService";
 import { TemplateFileService } from "./TemplateFileService";
+import { templaterParseTemplate } from "../utilityObsidian";
 
 vi.mock("../utilityObsidian", async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
@@ -52,6 +53,10 @@ describe("TemplateFileService", () => {
 			},
 		} as unknown as App;
 		service = new TemplateFileService(app);
+		vi.mocked(templaterParseTemplate).mockClear();
+		vi.mocked(templaterParseTemplate).mockImplementation(
+			async (_app, content: string) => content,
+		);
 	});
 
 	it("normalizes and reads only concrete template files", async () => {
@@ -117,6 +122,126 @@ describe("TemplateFileService", () => {
 		expect(app.fileManager.processFrontMatter).toHaveBeenCalledWith(
 			created,
 			expect.any(Function),
+		);
+	});
+
+	it("appends template content without collecting template property variables", async () => {
+		const existingFile = file("Notes/Daily.md");
+		(app.vault.cachedRead as ReturnType<typeof vi.fn>).mockResolvedValue(
+			"existing",
+		);
+		const evaluator = {
+			evaluateTemplateContent: vi.fn(),
+			evaluateTemplateContentForAppend: vi.fn(async () => "---\naliases: a, b\n---"),
+		} as unknown as TemplateEvaluator;
+
+		const appended = await service.appendToFileWithTemplateContent(
+			existingFile,
+			"---\naliases: {{VALUE:aliases}}\n---",
+			"bottom",
+			evaluator,
+		);
+
+		expect(appended).toBe(existingFile);
+		expect(evaluator.evaluateTemplateContentForAppend).toHaveBeenCalledWith(
+			"---\naliases: {{VALUE:aliases}}\n---",
+			"Notes/Daily.md",
+		);
+		expect(evaluator.evaluateTemplateContent).not.toHaveBeenCalled();
+		expect(app.vault.modify).toHaveBeenCalledWith(
+			existingFile,
+			"existing\n---\naliases: a, b\n---",
+		);
+		expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+	});
+
+	it("parses markdown append content with Templater before modifying the file", async () => {
+		const existingFile = file("Notes/Daily.md");
+		(app.vault.cachedRead as ReturnType<typeof vi.fn>).mockResolvedValue(
+			"existing",
+		);
+		vi.mocked(templaterParseTemplate).mockResolvedValue("parsed");
+		const evaluator = {
+			evaluateTemplateContentForAppend: vi.fn(async () => "raw templater"),
+		} as unknown as TemplateEvaluator;
+
+		await service.appendToFileWithTemplateContent(
+			existingFile,
+			"template",
+			"top",
+			evaluator,
+		);
+
+		expect(templaterParseTemplate).toHaveBeenCalledTimes(1);
+		expect(templaterParseTemplate).toHaveBeenCalledWith(
+			app,
+			"raw templater",
+			existingFile,
+		);
+		expect(
+			vi.mocked(templaterParseTemplate).mock.invocationCallOrder[0],
+		).toBeLessThan(
+			(app.vault.cachedRead as ReturnType<typeof vi.fn>).mock
+				.invocationCallOrder[0],
+		);
+		expect(app.vault.modify).toHaveBeenCalledWith(
+			existingFile,
+			"parsed\nexisting",
+		);
+	});
+
+	it("leaves existing files unchanged when markdown append Templater parsing fails", async () => {
+		const existingFile = file("Notes/Daily.md");
+		vi.mocked(templaterParseTemplate).mockRejectedValue(new Error("boom"));
+		const evaluator = {
+			evaluateTemplateContentForAppend: vi.fn(async () => "raw templater"),
+		} as unknown as TemplateEvaluator;
+
+		const appended = await service.appendToFileWithTemplateContent(
+			existingFile,
+			"template",
+			"bottom",
+			evaluator,
+		);
+
+		expect(appended).toBeNull();
+		expect(app.vault.cachedRead).not.toHaveBeenCalled();
+		expect(app.vault.modify).not.toHaveBeenCalled();
+	});
+
+	it("skips Templater when appending to canvas and base files", async () => {
+		const canvasFile = file("Boards/Board.canvas", "canvas");
+		const baseFile = file("Bases/Data.base", "base");
+		(app.vault.cachedRead as ReturnType<typeof vi.fn>)
+			.mockResolvedValueOnce("canvas existing")
+			.mockResolvedValueOnce("base existing");
+		const evaluator = {
+			evaluateTemplateContentForAppend: vi.fn(async () => "content"),
+		} as unknown as TemplateEvaluator;
+
+		await service.appendToFileWithTemplateContent(
+			canvasFile,
+			"template",
+			"bottom",
+			evaluator,
+		);
+		await service.appendToFileWithTemplateContent(
+			baseFile,
+			"template",
+			"top",
+			evaluator,
+		);
+
+		expect(templaterParseTemplate).not.toHaveBeenCalled();
+		expect(app.vault.modify).toHaveBeenNthCalledWith(
+			1,
+			canvasFile,
+			"canvas existing\ncontent",
+		);
+		expect(app.vault.modify).toHaveBeenNthCalledWith(
+			2,
+			baseFile,
+			"content\nbase existing",
 		);
 	});
 });

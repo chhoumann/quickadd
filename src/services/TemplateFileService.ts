@@ -40,6 +40,16 @@ export class TemplateEvaluator {
 
 		return { content, templatePropertyVars };
 	}
+
+	public async evaluateTemplateContentForAppend(
+		templateContent: string,
+		targetPath: string,
+	): Promise<string> {
+		const fileBasename = basenameWithoutMdOrCanvas(targetPath);
+		this.formatter.setTitle(fileBasename);
+
+		return await this.formatter.formatFileContent(templateContent);
+	}
 }
 
 function isMacroAbortError(error: unknown): error is MacroAbortError {
@@ -276,7 +286,7 @@ export class TemplateFileService {
 		evaluator: TemplateEvaluator,
 	): Promise<TFile | null> {
 		try {
-			let { content } = await evaluator.evaluateTemplateContent(
+			let content = await evaluator.evaluateTemplateContentForAppend(
 				templateContent,
 				file.path,
 			);
