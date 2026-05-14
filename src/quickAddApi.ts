@@ -17,7 +17,7 @@ import {
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
 import type { Model } from "./ai/Provider";
 import { resolveProviderApiKey } from "./ai/providerSecrets";
-import { CompleteFormatter } from "./formatters/completeFormatter";
+import { FormatterFactory } from "./services/FormatterFactory";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
 import GenericInputPrompt from "./gui/GenericInputPrompt/GenericInputPrompt";
@@ -247,11 +247,10 @@ export class QuickAddApi {
 					});
 				}
 
-				const output = await new CompleteFormatter(
+				const output = await new FormatterFactory(
 					app,
 					plugin,
-					choiceExecutor,
-				).formatFileContent(input);
+				).createCompleteFormatter(choiceExecutor).formatFileContent(input);
 
 				if (shouldClearVariables && snapshot) {
 					restoreVariables(choiceExecutor.variables, snapshot);

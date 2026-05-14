@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type QuickAdd from "src/main";
+import { FormatterFactory } from "src/services/FormatterFactory";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { OnePageInputModal } from "./OnePageInputModal";
@@ -38,7 +38,10 @@ export async function runOnePagePreflight(
 		// Optional live preview of a couple of key outputs (best-effort)
 		const computePreview = async (values: Record<string, string>) => {
 			try {
-				const formatter = new FormatDisplayFormatter(app, plugin);
+				const formatter = new FormatterFactory(
+					app,
+					plugin,
+				).createDisplayFormatter();
 				const out: Record<string, string> = {};
 				// File name preview for Template
 				if (choice.type === "Template") {

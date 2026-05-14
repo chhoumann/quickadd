@@ -5,9 +5,6 @@ import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { GLOBAL_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
-import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
-import { SingleMacroEngine } from "../engine/SingleMacroEngine";
-import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
@@ -27,6 +24,7 @@ import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter, type PromptContext } from "./formatter";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError } from "../utils/errorUtils";
+import type { CompleteFormatterEvaluators } from "./formatterEvaluators";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
@@ -36,6 +34,7 @@ export class CompleteFormatter extends Formatter {
 		private plugin: QuickAdd,
 		protected choiceExecutor?: IChoiceExecutor,
 		dateParser?: IDateParser,
+		private readonly evaluators?: CompleteFormatterEvaluators,
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
@@ -347,32 +346,26 @@ export class CompleteFormatter extends Formatter {
 		macroName: string,
 		context?: { label?: string },
 	): Promise<string> {
-		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
-			this.app,
-			this.plugin,
-			this.plugin.settings.choices,
-			//@ts-ignore
-			this.choiceExecutor,
-			this.variables,
-		);
-		const macroOutput =
-			(await macroEngine.runAndGetOutput(macroName, context)) ?? "";
+		if (!this.evaluators) {
+			throw new Error("CompleteFormatter macro evaluator is not configured.");
+		}
 
-		// Copy variables from macro execution
-		macroEngine.getVariables().forEach((value, key) => {
-			this.variables.set(key, value);
+		const macroOutput = await this.evaluators.macro.evaluateMacro(macroName, {
+			variables: this.variables,
+			...(context?.label ? { label: context.label } : {}),
 		});
 
-		return macroOutput;
+		return macroOutput == null ? "" : String(macroOutput);
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		return await new SingleTemplateEngine(
-			this.app,
-			this.plugin,
-			templatePath,
-			this.choiceExecutor,
-		).run();
+		if (!this.evaluators) {
+			throw new Error("CompleteFormatter template evaluator is not configured.");
+		}
+
+		return await this.evaluators.template.evaluateTemplate(templatePath, {
+			variables: this.variables,
+		});
 	}
 
 	protected async getSelectedText(): Promise<string> {
@@ -403,18 +396,16 @@ export class CompleteFormatter extends Formatter {
 			const code = match?.at(1)?.trim();
 
 			if (code) {
-				const executor = new SingleInlineScriptEngine(
-					this.app,
-					this.plugin,
-					//@ts-ignore
-					this.choiceExecutor,
-					this.variables,
-				);
-				const outVal: unknown = await executor.runAndGetOutput(code);
-
-				for (const key in executor.params.variables) {
-					this.variables.set(key, executor.params.variables[key]);
+				if (!this.evaluators) {
+					throw new Error(
+						"CompleteFormatter inline JavaScript evaluator is not configured.",
+					);
 				}
+				const outVal: unknown =
+					await this.evaluators.inlineJavaScript.evaluateInlineJavaScript(
+						code,
+						{ variables: this.variables },
+					);
 
 				output =
 					typeof outVal === "string"

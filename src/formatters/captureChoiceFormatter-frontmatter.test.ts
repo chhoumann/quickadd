@@ -50,41 +50,6 @@ vi.mock('../gui/MathModal', () => ({
   },
 }));
 
-vi.mock('../engine/SingleInlineScriptEngine', () => ({
-  __esModule: true,
-  SingleInlineScriptEngine: class {
-    public params = { variables: {} as Record<string, unknown> };
-    constructor() {}
-    async runAndGetOutput() {
-      return '';
-    }
-  },
-}));
-
-vi.mock('../engine/SingleMacroEngine', () => ({
-  __esModule: true,
-  SingleMacroEngine: class {
-    constructor() {}
-    async runAndGetOutput() {
-      return '';
-    }
-  },
-}));
-
-vi.mock('../engine/SingleTemplateEngine', () => ({
-  __esModule: true,
-  SingleTemplateEngine: class {
-    constructor() {}
-    async run() {
-      return '';
-    }
-    getAndClearTemplatePropertyVars() {
-      return new Map();
-    }
-    setLinkToCurrentFileBehavior() {}
-  },
-}));
-
 vi.mock('obsidian-dataview', () => ({
   __esModule: true,
   getAPI: vi.fn().mockReturnValue(null),

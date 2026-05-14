@@ -1,7 +1,6 @@
 import { Formatter, type PromptContext } from "./formatter";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
-import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
@@ -15,12 +14,14 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
+import type { FormatDisplayFormatterEvaluators } from "./formatterEvaluators";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
 		app: App,
 		private readonly plugin: QuickAdd,
 		dateParser?: IDateParser,
+		private readonly evaluators?: FormatDisplayFormatterEvaluators,
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
@@ -122,21 +123,41 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		const app = this.app;
-		if (!app) {
-			return `Template (app unavailable): ${templatePath}`;
-		}
-
 		try {
-			return await new SingleTemplateEngine(
-				app,
-				this.plugin,
-				templatePath,
-				undefined,
-			).run();
+			return await (
+				this.evaluators?.template ?? this.createDefaultTemplatePreviewEvaluator()
+			).evaluateTemplate(templatePath, {
+				variables: this.variables,
+			});
 		} catch {
 			return `Template (not found): ${templatePath}`;
 		}
+	}
+
+	private createDefaultTemplatePreviewEvaluator(): FormatDisplayFormatterEvaluators["template"] {
+		return {
+			evaluateTemplate: async (templatePath) => {
+				const vault = this.app?.vault;
+				if (!vault) {
+					return `Template (not found): ${templatePath}`;
+				}
+				const resolvedPath = templatePath.replace(/^\/+/, "");
+				const file = vault.getAbstractFileByPath(resolvedPath);
+				if (
+					!file ||
+					typeof file !== "object" ||
+					!("path" in file) ||
+					!("extension" in file)
+				) {
+					return `Template (not found): ${templatePath}`;
+				}
+				try {
+					return await vault.cachedRead(file as never);
+				} catch {
+					return `Template (not found): ${templatePath}`;
+				}
+			},
+		};
 	}
 
 	 

@@ -1,5 +1,6 @@
 import { QuickAddEngine } from "./QuickAddEngine";
-import { CompleteFormatter } from "../formatters/completeFormatter";
+import type { CompleteFormatter } from "../formatters/completeFormatter";
+import { FormatterFactory } from "../services/FormatterFactory";
 import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
 import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
@@ -85,7 +86,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	) {
 		super(app);
 		this.templater = getTemplater(app);
-		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
+		this.formatter = new FormatterFactory(
+			app,
+			plugin,
+		).createCompleteFormatter(choiceFormatter);
 	}
 
 	public abstract run():

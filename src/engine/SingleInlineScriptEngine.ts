@@ -10,7 +10,7 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 		app: App,
 		plugin: QuickAdd,
 		choiceExecutor: IChoiceExecutor,
-		variables: Map<string, string>
+		variables: Map<string, unknown>
 	) {
 		//@ts-ignore
 		super(app, plugin, null, choiceExecutor, variables);

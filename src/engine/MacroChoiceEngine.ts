@@ -35,7 +35,7 @@ import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssi
 import { runAIAssistant } from "src/ai/AIAssistant";
 import { resolveProviderApiKey } from "src/ai/providerSecrets";
 import { settingsStore } from "src/settingsStore";
-import { CompleteFormatter } from "src/formatters/completeFormatter";
+import { FormatterFactory } from "src/services/FormatterFactory";
 import {
 	getModelByName,
 	getModelNames,
@@ -580,11 +580,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			throw new Error(`Model ${modelName} not found with any provider.`);
 		}
 
-		const formatter = new CompleteFormatter(
+		const formatter = new FormatterFactory(
 			this.app,
 			QuickAdd.instance,
-			this.choiceExecutor
-		);
+		).createCompleteFormatter(this.choiceExecutor);
 
 		const modelProvider = getModelProvider(model.name);
 
@@ -725,11 +724,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	private async executeOpenFile(command: IOpenFileCommand) {
 		try {
-			const formatter = new CompleteFormatter(
+			const formatter = new FormatterFactory(
 				this.app,
 				QuickAdd.instance,
-				this.choiceExecutor
-			);
+			).createCompleteFormatter(this.choiceExecutor);
 
 			const resolvedPath = await formatter.formatFileName(command.filePath, "");
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
