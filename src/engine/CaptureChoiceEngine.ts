@@ -20,6 +20,10 @@ import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatte
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import { FormatterFactory } from "../services/FormatterFactory";
+import {
+	TemplateEvaluator,
+	TemplateFileService,
+} from "../services/TemplateFileService";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
 import {
@@ -44,7 +48,6 @@ import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
 import {
 	getCanvasTextCaptureContent,
@@ -62,6 +65,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
 	private formatter: CaptureChoiceFormatter;
 	private readonly plugin: QuickAdd;
+	private readonly templateFileService: TemplateFileService;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
 
@@ -79,6 +83,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			app,
 			plugin,
 		).createCaptureChoiceFormatter(choiceExecutor);
+		this.templateFileService = new TemplateFileService(app);
 	}
 
 	private showSuccessNotice(
@@ -713,22 +718,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		let fileContent = "";
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
-			const singleTemplateEngine: SingleTemplateEngine =
-				new SingleTemplateEngine(
-					this.app,
-					this.plugin,
-					this.choice.createFileIfItDoesntExist.template,
-					this.choiceExecutor,
-				);
-
 			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
-				singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
+				this.formatter.setLinkToCurrentFileBehavior("optional");
 			}
 
-			fileContent = await singleTemplateEngine.run();
-
-			// Get template variables from the template engine's formatter
-			const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
+			const templatePath = this.choice.createFileIfItDoesntExist.template;
+			const templateContent =
+				await this.templateFileService.readTemplateContent(templatePath);
+			const { content, templatePropertyVars: templateVars } =
+				await new TemplateEvaluator(this.formatter).evaluateTemplateContent(
+					templateContent,
+					filePath,
+				);
+			fileContent = content;
 
 			log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
 			if (templateVars.size > 0) {
