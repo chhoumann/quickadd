@@ -63,7 +63,27 @@ type UserScriptObjectExport = Record<string, unknown> & {
 	entry?: UserScriptFunction;
 	settings?: Record<string, unknown>;
 };
-type UserScriptExport = UserScriptFunction | UserScriptObjectExport | unknown;
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object";
+}
+
+function isUserScriptFunction(value: unknown): value is UserScriptFunction {
+	return typeof value === "function";
+}
+
+function isUserScriptObjectExport(
+	value: unknown
+): value is UserScriptObjectExport {
+	return isRecord(value);
+}
+
+function getUserScriptSettings(
+	value: unknown
+): Record<string, unknown> | undefined {
+	if (!isUserScriptObjectExport(value)) return undefined;
+	const { settings } = value;
+	return isRecord(settings) ? settings : undefined;
+}
 
 function getConditionalScriptCacheKey(condition: ScriptCondition): string {
 	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
@@ -272,11 +292,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		this.userScriptCommand = command;
 
-		// @ts-ignore
-		if (userScript.settings) {
+		const userScriptSettings = getUserScriptSettings(userScript);
+		if (userScriptSettings) {
 			// Initialize default values for settings before executing the script
-			// @ts-ignore
-			initializeUserScriptSettings(command.settings, userScript.settings);
+			initializeUserScriptSettings(command.settings, userScriptSettings);
 		}
 
 		try {
@@ -324,23 +343,24 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	 
-	protected async userScriptDelegator(userScript: UserScriptExport) {
+	protected async userScriptDelegator(userScript: unknown) {
 		switch (typeof userScript) {
 			case "function":
+				if (!isUserScriptFunction(userScript)) {
+					break;
+				}
 				if (this.userScriptCommand) {
 					await this.runScriptWithSettings(
-						 
-						userScript as UserScriptFunction,
+						userScript,
 						this.userScriptCommand
 					);
 				} else {
-					 
-					await this.onExportIsFunction(userScript as UserScriptFunction);
+					await this.onExportIsFunction(userScript);
 				}
 				break;
 			case "object":
-				if (userScript !== null) {
-					await this.onExportIsObject(userScript as UserScriptObjectExport);
+				if (isUserScriptObjectExport(userScript)) {
+					await this.onExportIsObject(userScript);
 				}
 				break;
 			case "bigint":

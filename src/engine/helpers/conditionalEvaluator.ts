@@ -6,6 +6,7 @@ import type {
 } from "../../types/macros/Conditional/types";
 import {
 	normalizeExpectedValue,
+	formatUnknownValue,
 	normalizeVariableValue,
 	requiresExpectedValue,
 } from "../../utils/conditionalHelpers";
@@ -50,9 +51,9 @@ function evaluateVariableCondition(
 
 	switch (condition.operator) {
 		case "isTruthy":
-			return Boolean(rawValue);
+			return !!rawValue;
 		case "isFalsy":
-			return !Boolean(rawValue);
+			return !rawValue;
 	}
 
 	if (requiresExpectedValue(condition.operator)) {
@@ -100,14 +101,17 @@ function evaluateContains(
 	}
 
 	if (typeof rawValue === "string") {
-		return rawValue.includes(String(expected));
+		return rawValue.includes(formatUnknownValue(expected));
 	}
 
 	if (typeof rawValue === "number" && typeof expected === "number") {
 		return rawValue === expected;
 	}
 
-	return String(rawValue).includes(String(expected));
+	const formattedValue = formatUnknownValue(rawValue);
+	const formattedExpected = formatUnknownValue(expected);
+	return typeof formattedValue === "string"
+		&& formattedValue.includes(formattedExpected);
 }
 
 function evaluateComparable(

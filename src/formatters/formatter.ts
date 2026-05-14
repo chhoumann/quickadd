@@ -35,6 +35,7 @@ import {
 	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
+import { formatUnknownValue } from "../utils/conditionalHelpers";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -161,7 +162,7 @@ export abstract class Formatter {
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
 			const existingValue = this.variables.get("value");
-			this.value = existingValue === null ? "" : String(existingValue);
+			this.value = formatUnknownValue(existingValue);
 		}
 
 		// Prompt only once per formatter run (empty string is a valid value).
@@ -639,7 +640,7 @@ export abstract class Formatter {
 					formattedDate = storedValue;
 				} else if (storedValue != null) {
 					// Fallback: avoid throwing if a non-string value is stored.
-					formattedDate = `${storedValue}`;
+					formattedDate = formatUnknownValue(storedValue);
 				}
 
 				// Replace the specific match rather than using regex again
