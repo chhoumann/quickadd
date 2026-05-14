@@ -1,7 +1,7 @@
 import {
 	TFolder,
 	type App,
-	type TFile,
+	TFile,
 	type WorkspaceLeaf,
 	type WorkspaceParent,
 } from "obsidian";
@@ -10,10 +10,13 @@ import {
 	__test,
 	areSameVaultFilePath,
 	getAllFolderPathsInVault,
+	getUserScript,
 	normalizeVaultFilePath,
 	getOpenFileOriginLeaf,
 	openFile,
 } from "./utilityObsidian";
+import type { IUserScript } from "./types/macros/IUserScript";
+import { CommandType } from "./types/macros/CommandType";
 
 const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
 
@@ -40,7 +43,12 @@ function createLeaf(id: string, pinned = false): FakeLeaf {
 }
 
 function createFile(path = "target.md"): TFile {
-	return { path } as TFile;
+	const file = new TFile();
+	file.path = path;
+	file.name = path.split("/").pop() ?? path;
+	file.extension = path.split(".").pop() ?? "";
+	file.basename = file.name.replace(/\.[^.]+$/, "");
+	return file;
 }
 
 function createFolder(path: string): TFolder {
@@ -202,6 +210,104 @@ describe("getAllFolderPathsInVault", () => {
 		} as unknown as App;
 
 		expect(getAllFolderPathsInVault(app)).toEqual(["B", "A", "A/C"]);
+	});
+});
+
+describe("getUserScript", () => {
+	function createUserScriptCommand(
+		options: Partial<IUserScript> = {},
+	): IUserScript {
+		return {
+			id: "script",
+			name: "Script",
+			type: CommandType.UserScript,
+			path: "Scripts/script.js",
+			settings: {},
+			...options,
+		};
+	}
+
+	function createUserScriptApp(fileContent: string) {
+		const file = createFile("Scripts/script.js");
+		return {
+			vault: {
+				getAbstractFileByPath: vi.fn(() => file),
+				read: vi.fn(async () => fileContent),
+			},
+		} as unknown as App;
+	}
+
+	it("executes CommonJS user scripts with Obsidian globals available", async () => {
+		const app = createUserScriptApp(`
+			module.exports = {
+				globalType: typeof globalThis,
+				globalValue: globalThis.__quickAddEvalCompatibilityGlobal,
+			};
+		`);
+		const previousGlobal = (
+			globalThis as { __quickAddEvalCompatibilityGlobal?: string }
+		).__quickAddEvalCompatibilityGlobal;
+		(
+			globalThis as { __quickAddEvalCompatibilityGlobal?: string }
+		).__quickAddEvalCompatibilityGlobal = "visible";
+
+		try {
+			const script = await getUserScript(createUserScriptCommand(), app);
+
+			expect(script).toEqual({
+				globalType: "object",
+				globalValue: "visible",
+			});
+		} finally {
+			if (previousGlobal === undefined) {
+				delete (
+					globalThis as { __quickAddEvalCompatibilityGlobal?: string }
+				).__quickAddEvalCompatibilityGlobal;
+			} else {
+				(
+					globalThis as { __quickAddEvalCompatibilityGlobal?: string }
+				).__quickAddEvalCompatibilityGlobal = previousGlobal;
+			}
+		}
+	});
+
+	it("preserves argument passing, return values, sensitive strings, and async errors", async () => {
+		const app = createUserScriptApp(`
+			module.exports = {
+				settings: { mode: "private" },
+				run: async (params, settings) => {
+					if (params.shouldReject) throw new Error("script rejected");
+					return {
+						receivedToken: params.token,
+						mode: settings.mode,
+					};
+				},
+			};
+		`);
+		const command = createUserScriptCommand({
+			name: "Script::run",
+			settings: { mode: "user" },
+		});
+
+		const script = await getUserScript(command, app);
+		expect(typeof script).toBe("function");
+
+		await expect(
+			(script as (params: unknown, settings: Record<string, unknown>) => unknown)(
+				{ token: "sensitive-token" },
+				command.settings,
+			),
+		).resolves.toEqual({
+			receivedToken: "sensitive-token",
+			mode: "user",
+		});
+
+		await expect(
+			(script as (params: unknown, settings: Record<string, unknown>) => unknown)(
+				{ shouldReject: true },
+				command.settings,
+			),
+		).rejects.toThrow("script rejected");
 	});
 });
 
