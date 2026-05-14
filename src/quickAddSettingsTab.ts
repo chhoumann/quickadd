@@ -117,14 +117,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private prepareFullWidthSetting(setting: Setting): void {
 		setting.infoEl.remove();
-		setting.settingEl.style.display = "block";
-		setting.controlEl.style.width = "100%";
-		setting.controlEl.style.flex = "1 1 auto";
-		setting.controlEl.style.display = "block";
-		setting.controlEl.style.marginLeft = "0";
-		setting.controlEl.style.justifyContent = "flex-start";
-		setting.controlEl.style.alignItems = "stretch";
-		setting.controlEl.style.textAlign = "left";
+		setting.settingEl.addClass("qa-setting-full-width");
+		setting.controlEl.addClass("qa-setting-full-width-control");
 	}
 
 	private addDevelopmentInfoSetting(group: SettingGroupLike) {
@@ -133,9 +127,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			setting.setDesc("Git information for developers.");
 
 			const infoContainer = setting.settingEl.createDiv();
-			infoContainer.style.marginTop = "10px";
-			infoContainer.style.fontFamily = "var(--font-monospace)";
-			infoContainer.style.fontSize = "0.9em";
+			infoContainer.addClass("qa-dev-info");
 
 			renderDevelopmentInfo(infoContainer, {
 				branch: __DEV_GIT_BRANCH__,
@@ -428,13 +420,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				"Shortcodes for natural language date parsing. " +
 					"One per line: alias = phrase. Example: tm = tomorrow.",
 			);
-			setting.settingEl.style.alignItems = "flex-start";
-			setting.controlEl.style.display = "flex";
-			setting.controlEl.style.flexWrap = "wrap";
-			setting.controlEl.style.gap = "0.5rem";
-			setting.controlEl.style.alignItems = "flex-start";
-			setting.controlEl.style.flex = "1 1 320px";
-			setting.controlEl.style.minWidth = "240px";
+			setting.settingEl.addClass("qa-date-alias-setting");
+			setting.controlEl.addClass("qa-date-alias-control");
 
 			let textAreaRef: TextAreaComponent | null = null;
 
@@ -450,11 +437,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 							dateAliases: parseDateAliasLines(value),
 						});
 					});
-				textArea.inputEl.style.width = "100%";
-				textArea.inputEl.style.minHeight = "6rem";
-				textArea.inputEl.style.flex = "1 1 280px";
-				textArea.inputEl.style.maxWidth = "100%";
-				textArea.inputEl.style.boxSizing = "border-box";
+				textArea.inputEl.addClass("qa-date-alias-input");
 			});
 
 			setting.addButton((button) => {
@@ -470,8 +453,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 							);
 						}
 					});
-				button.buttonEl.style.alignSelf = "flex-start";
-				button.buttonEl.style.whiteSpace = "nowrap";
+				button.buttonEl.addClass("qa-date-alias-reset");
 			});
 		});
 	}

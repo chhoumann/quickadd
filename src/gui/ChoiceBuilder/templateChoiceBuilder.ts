@@ -135,8 +135,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const formatInput = new TextComponent(this.contentEl);
 		formatInput.setPlaceholder("File name format");
 		textField = formatInput;
-		formatInput.inputEl.style.width = "100%";
-		formatInput.inputEl.style.marginBottom = "8px";
+		formatInput.inputEl.addClass("qa-template-format-input");
 
 		formatInput
 			.setValue(this.choice.fileNameFormat.format)
@@ -260,7 +259,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			"folderInputContainer",
 		);
 		const folderInput = new TextComponent(inputContainer);
-		folderInput.inputEl.style.width = "100%";
+		folderInput.inputEl.addClass("qa-folder-path-input");
 		folderInput.setPlaceholder("Folder path");
 		const allFolders: string[] = sortFolderPathsByTree(
 			getAllFolderPathsInVault(this.app),
