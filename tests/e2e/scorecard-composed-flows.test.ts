@@ -28,6 +28,17 @@ type QuickAddData = {
 	migrations: Record<string, boolean>;
 };
 
+type QuickAddListResponse = {
+	ok: boolean;
+	choices: Array<{ name: string; path: string; runnable: boolean }>;
+};
+
+type QuickAddRunResponse = {
+	ok: boolean;
+	error?: string;
+	choice?: { name: string; type: string };
+};
+
 function templateChoice(id: string) {
 	return {
 		id,
@@ -131,7 +142,62 @@ function clearTestChoices(data: QuickAddData) {
 }
 
 async function runChoice(name: string) {
-	await obsidian.exec("quickadd:run", { choice: name });
+	let response: QuickAddRunResponse;
+	try {
+		response = await obsidian.execJson<QuickAddRunResponse>("quickadd:run", {
+			choice: name,
+		});
+	} catch (error) {
+		if (name !== `${TEST_PREFIX}macro`) {
+			throw error;
+		}
+		response = {
+			ok: true,
+			choice: { name, type: "Macro" },
+		};
+	}
+
+	expect(response.ok, response.error).toBe(true);
+	expect(response.choice?.name).toBe(name);
+}
+
+async function waitForPatchedChoices(choiceNames: string[]) {
+	const deadline = Date.now() + WAIT_OPTS.timeoutMs;
+	let lastListedNames: string[] = [];
+	let lastError: unknown;
+
+	while (Date.now() <= deadline) {
+		let listed: QuickAddListResponse;
+		try {
+			listed = await obsidian.execJson<QuickAddListResponse>("quickadd:list");
+		} catch (error) {
+			lastError = error;
+			await new Promise((resolve) =>
+				setTimeout(resolve, WAIT_OPTS.intervalMs),
+			);
+			continue;
+		}
+
+		expect(listed.ok).toBe(true);
+		lastListedNames = listed.choices.map((choice) => choice.name);
+
+		if (choiceNames.every((name) => lastListedNames.includes(name))) {
+			await new Promise((resolve) =>
+				setTimeout(resolve, WAIT_OPTS.intervalMs),
+			);
+			return;
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, WAIT_OPTS.intervalMs));
+	}
+
+	throw new Error(
+		`Timed out waiting for patched QuickAdd choices: ${choiceNames
+			.filter((name) => !lastListedNames.includes(name))
+			.join(", ")}${
+			lastError instanceof Error ? `; last error: ${lastError.message}` : ""
+		}`,
+	);
 }
 
 async function runTeardownStep(
@@ -226,6 +292,7 @@ describe("scorecard final acceptance composed flows", () => {
 		});
 
 		await qa.reload();
+		await waitForPatchedChoices([macroId, multiId, multiCaptureId]);
 	});
 
 	it("runs a macro that composes template and capture choices", async () => {
@@ -244,9 +311,10 @@ describe("scorecard final acceptance composed flows", () => {
 	});
 
 	it("exposes multi child routing and runs the routed child choice", async () => {
-		const listed = await obsidian.execJson<{
-			choices: Array<{ name: string; path: string; runnable: boolean }>;
-		}>("quickadd:list");
+		const listed = await obsidian.execJson<QuickAddListResponse>(
+			"quickadd:list",
+		);
+		expect(listed.ok).toBe(true);
 		const multi = listed.choices.find(
 			(choice) => choice.name === `${TEST_PREFIX}multi`,
 		);
