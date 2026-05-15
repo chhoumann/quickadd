@@ -35,6 +35,7 @@ type FolderSelection = {
 	raw: string;
 	normalized: string;
 	resolved: string;
+	validationPath: string;
 	exists: boolean;
 	isAllowed: boolean;
 	isEmpty: boolean;
@@ -71,6 +72,10 @@ export class FolderSelectionService {
 		return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
 	}
 
+	private normalizeFolderPathForValidation(path: string): string {
+		return path.replace(/^\/+/, "").replace(/\/+$/, "");
+	}
+
 	private buildFolderSelectionContext(
 		folders: string[],
 		options: FolderChoiceOptions,
@@ -90,6 +95,20 @@ export class FolderSelectionService {
 			options.topItems ?? [],
 			allowedRoots.length > 0 ? allowedRoots : undefined,
 		);
+
+		if (
+			items.length === 0 &&
+			folders.length === 1 &&
+			!allowCreate &&
+			allowedRoots.length > 0
+		) {
+			const folder = folders[0] ?? "";
+			const normalized = this.normalizeFolderPath(folder);
+			items.push(folder);
+			displayItems.push(folder);
+			normalizedItems.push(normalized);
+			canonicalByNormalized.set(normalized, folder);
+		}
 
 		return {
 			items,
@@ -152,6 +171,7 @@ export class FolderSelectionService {
 		context: FolderSelectionContext,
 	): Promise<FolderSelection> {
 		const normalized = this.normalizeFolderPath(raw);
+		const validationPath = this.normalizeFolderPathForValidation(raw);
 		const isEmpty = normalized.length === 0;
 		const canonical = context.canonicalByNormalized.get(normalized);
 		const resolved = canonical ?? normalized;
@@ -170,6 +190,7 @@ export class FolderSelectionService {
 			raw,
 			normalized,
 			resolved,
+			validationPath: canonical ?? validationPath,
 			exists,
 			isAllowed,
 			isEmpty,
@@ -197,7 +218,7 @@ export class FolderSelectionService {
 			}
 
 			try {
-				this.validateFolderPath(selection.resolved);
+				this.validateFolderPath(selection.validationPath);
 			} catch (error) {
 				if (error instanceof InvalidFolderPathError) {
 					new Notice(error.message);
@@ -230,7 +251,7 @@ export class FolderSelectionService {
 
 		if (selection.resolved) {
 			try {
-				this.validateFolderPath(selection.resolved);
+				this.validateFolderPath(selection.validationPath);
 			} catch (error) {
 				if (error instanceof InvalidFolderPathError) {
 					new Notice(error.message);
@@ -245,10 +266,10 @@ export class FolderSelectionService {
 	}
 
 	private validateFolderPath(path: string): void {
-		const trimmed = path.trim();
-		if (!trimmed) return;
+		const normalized = this.normalizeFolderPathForValidation(path);
+		if (!normalized.trim()) return;
 
-		const segments = trimmed.split("/");
+		const segments = normalized.split("/");
 		for (const segment of segments) {
 			this.validateFolderSegment(segment);
 		}
