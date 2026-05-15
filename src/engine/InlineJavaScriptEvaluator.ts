@@ -5,6 +5,14 @@ import { MacroExecutionContext } from "./MacroExecutionContext";
 
 type AsyncFunctionConstructor = new (code: string) => () => Promise<unknown>;
 
+type LegacyInlineScriptEngineShape = {
+	params: MacroExecutionContext["params"];
+	app: App;
+	plugin: QuickAdd;
+	choiceExecutor: IChoiceExecutor;
+	variables: Map<string, unknown>;
+};
+
 export class InlineJavaScriptEvaluator {
 	constructor(
 		private readonly app: App,
@@ -24,7 +32,14 @@ export class InlineJavaScriptEvaluator {
 			async function () {},
 		).constructor as AsyncFunctionConstructor;
 		const userCode = new AsyncFunction(code);
+		const legacyEngine: LegacyInlineScriptEngineShape = {
+			params: context.params,
+			app: this.app,
+			plugin: this.plugin,
+			choiceExecutor: this.choiceExecutor,
+			variables: context.variables,
+		};
 
-		return await userCode.bind(context.params, context.params).call();
+		return await userCode.bind(context.params, legacyEngine).call();
 	}
 }
