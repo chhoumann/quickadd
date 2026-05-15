@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
+import { Notice, TFile } from "obsidian";
+import merge from "three-way-merge";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { insertFileLinkToActiveView, isFolder, openFile } from "../utilityObsidian";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+
+type NoticeTestClass = typeof Notice & {
+	instances: Array<{ message: string; timeout?: number }>;
+};
+
+const noticeClass = Notice as unknown as NoticeTestClass;
 
 const { setUseSelectionAsCaptureValueMock, setTitleMock } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
@@ -135,6 +143,15 @@ const createExecutor = (): IChoiceExecutor => ({
 	execute: vi.fn(),
 	variables: new Map<string, unknown>(),
 });
+
+const createTFile = (path: string): TFile => {
+	const file = new TFile();
+	file.path = path;
+	file.name = path.split("/").pop() ?? path;
+	file.extension = file.name.split(".").pop() ?? "";
+	file.basename = file.name.replace(/\.[^.]+$/, "");
+	return file;
+};
 
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
@@ -645,5 +662,78 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(fileExistsMock).not.toHaveBeenCalled();
 		expect(onFileExistsMock).not.toHaveBeenCalled();
 		expect(app.vault.modify).not.toHaveBeenCalled();
+	});
+
+	it("writes joined three-way merge results when an existing file changes without conflicts", async () => {
+		const file = createTFile("Inbox.md");
+		const app = createApp() as any;
+		app.vault.read = vi
+			.fn()
+			.mockResolvedValueOnce("original")
+			.mockResolvedValueOnce("concurrent");
+		app.vault.modify = vi.fn(async () => {});
+		app.vault.getAbstractFileByPath = vi.fn(() => file);
+		vi.mocked(merge).mockReturnValue({
+			isSuccess: vi.fn(() => true),
+			joinedResults: vi.fn(() => "merged"),
+		} as any);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(),
+			createExecutor(),
+		);
+		(engine as any).vaultFileService.fileExists = vi.fn(async () => true);
+
+		await engine.run();
+
+		expect(merge).toHaveBeenCalledWith("concurrent", "original", "");
+		expect(app.vault.modify).toHaveBeenCalledWith(file, "merged");
+	});
+
+	it("aborts conflicting existing-file merges before write and follow-up side effects", async () => {
+		noticeClass.instances.length = 0;
+		vi.mocked(insertFileLinkToActiveView).mockClear();
+		vi.mocked(openFile).mockClear();
+
+		const file = createTFile("Inbox.md");
+		const app = createApp() as any;
+		app.vault.read = vi
+			.fn()
+			.mockResolvedValueOnce("original")
+			.mockResolvedValueOnce("concurrent");
+		app.vault.modify = vi.fn(async () => {});
+		app.vault.getAbstractFileByPath = vi.fn(() => file);
+		const processFrontMatter = vi.fn();
+		app.fileManager.processFrontMatter = processFrontMatter;
+		vi.mocked(merge).mockReturnValue({
+			isSuccess: vi.fn(() => false),
+			joinedResults: vi.fn(() => {
+				throw new Error("joinedResults should not be read on conflict");
+			}),
+		} as any);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({ appendLink: true, openFile: true }),
+			createExecutor(),
+		);
+		(engine as any).vaultFileService.fileExists = vi.fn(async () => true);
+
+		await engine.run();
+
+		expect(merge).toHaveBeenCalledWith("concurrent", "original", "");
+		expect(app.vault.modify).not.toHaveBeenCalled();
+		expect(processFrontMatter).not.toHaveBeenCalled();
+		expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
+		expect(openFile).not.toHaveBeenCalled();
+		expect(noticeClass.instances).toEqual([]);
 	});
 });
