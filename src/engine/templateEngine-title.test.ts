@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { TemplateEngine } from './TemplateEngine';
 import type { App } from 'obsidian';
-import type QuickAdd from '../main';
-import type { IChoiceExecutor } from '../IChoiceExecutor';
+import {
+	TemplateEvaluator,
+	TemplateFileService,
+} from '../services/TemplateFileService';
+import { VaultFileService } from '../services/VaultFileService';
+import { FrontmatterPropertyService } from '../services/FrontmatterPropertyService';
+import { CompleteFormatter } from '../formatters/completeFormatter';
 
 // Mock the CompleteFormatter
 vi.mock('../formatters/completeFormatter', () => {
@@ -31,32 +35,10 @@ vi.mock('../utilityObsidian', () => ({
     overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Test implementation of TemplateEngine
-class TestTemplateEngine extends TemplateEngine {
-    constructor(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
-        super(app, plugin, choiceExecutor);
-    }
-
-    public async run(): Promise<void> {
-        // Not used in these tests
-    }
-
-    // Expose protected methods for testing
-    public async testCreateFileWithTemplate(filePath: string, templatePath: string) {
-        return await this.createFileWithTemplate(filePath, templatePath);
-    }
-
-    public getFormatterTitle(): string {
-        // Access the title that was set on the formatter
-        return (this.formatter as any).getTitle();
-    }
-}
-
-describe('TemplateEngine - Title Handling', () => {
-    let engine: TestTemplateEngine;
+describe('TemplateFileService - Title Handling', () => {
+    let templateFileService: TemplateFileService;
+    let formatter: any;
     let mockApp: App;
-    let mockPlugin: QuickAdd;
-    let mockChoiceExecutor: IChoiceExecutor;
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -83,76 +65,79 @@ describe('TemplateEngine - Title Handling', () => {
             },
         } as any;
 
-        mockPlugin = {} as any;
-        mockChoiceExecutor = {} as any;
-
-        engine = new TestTemplateEngine(mockApp, mockPlugin, mockChoiceExecutor);
-        
-        // Mock the template content retrieval
-        engine['getTemplateContent'] = vi.fn().mockResolvedValue('# {{title}}\n\nContent here');
+        templateFileService = new TemplateFileService(
+            mockApp,
+            new VaultFileService(mockApp),
+            new FrontmatterPropertyService(mockApp),
+        );
+        formatter = new (CompleteFormatter as any)();
     });
 
     describe('createFileWithTemplate', () => {
+        const createFileWithTemplate = async (filePath: string) =>
+            await templateFileService.createFileWithTemplateContent(
+                filePath,
+                '# {{title}}\n\nContent here',
+                new TemplateEvaluator(formatter),
+            );
+
         it('should extract title from simple filename', async () => {
-            await engine.testCreateFileWithTemplate('MyNote.md', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('MyNote');
+            await createFileWithTemplate('MyNote.md');
+            expect(formatter.getTitle()).toBe('MyNote');
         });
 
         it('should extract title from path with folders', async () => {
-            await engine.testCreateFileWithTemplate('folder/subfolder/MyNote.md', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('MyNote');
+            await createFileWithTemplate('folder/subfolder/MyNote.md');
+            expect(formatter.getTitle()).toBe('MyNote');
         });
 
         it('should handle filename without extension', async () => {
-            await engine.testCreateFileWithTemplate('MyNote', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('MyNote');
+            await createFileWithTemplate('MyNote');
+            expect(formatter.getTitle()).toBe('MyNote');
         });
 
         it('should handle root level files', async () => {
-            await engine.testCreateFileWithTemplate('/MyNote.md', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('MyNote');
+            await createFileWithTemplate('/MyNote.md');
+            expect(formatter.getTitle()).toBe('MyNote');
         });
 
         it('should handle empty path gracefully', async () => {
-            await engine.testCreateFileWithTemplate('', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('');
+            await createFileWithTemplate('');
+            expect(formatter.getTitle()).toBe('');
         });
 
         it('should handle files with multiple dots', async () => {
-            await engine.testCreateFileWithTemplate('my.complex.note.md', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('my.complex.note');
+            await createFileWithTemplate('my.complex.note.md');
+            expect(formatter.getTitle()).toBe('my.complex.note');
         });
 
         it('should extract title from .canvas filename', async () => {
-            await engine.testCreateFileWithTemplate('folder/CanvasDoc.canvas', 'template.md');
-            expect(engine.getFormatterTitle()).toBe('CanvasDoc');
+            await createFileWithTemplate('folder/CanvasDoc.canvas');
+            expect(formatter.getTitle()).toBe('CanvasDoc');
         });
 
         it('should extract title from .base filename', async () => {
-            await engine.testCreateFileWithTemplate('folder/Kanban.base', 'template.base');
-            expect(engine.getFormatterTitle()).toBe('Kanban');
+            await createFileWithTemplate('folder/Kanban.base');
+            expect(formatter.getTitle()).toBe('Kanban');
         });
 
         it('should format content with title replacement', async () => {
-            const mockFormatter = (engine as any).formatter;
-            
-            await engine.testCreateFileWithTemplate('TestDocument.md', 'template.md');
+            await createFileWithTemplate('TestDocument.md');
             
             // Verify setTitle was called with correct value
-            expect(mockFormatter.setTitle).toHaveBeenCalledWith('TestDocument');
+            expect(formatter.setTitle).toHaveBeenCalledWith('TestDocument');
             
             // Verify formatFileContent was called
-            expect(mockFormatter.formatFileContent).toHaveBeenCalled();
+            expect(formatter.formatFileContent).toHaveBeenCalled();
         });
     });
 
     describe('formatFileName - title exclusion', () => {
         it('should NOT replace {{title}} in filename formatting', async () => {
-            const mockFormatter = (engine as any).formatter;
-            mockFormatter.setTitle('MyTitle');
+            formatter.setTitle('MyTitle');
             
             // formatFileName should not include title replacement
-            const result = await mockFormatter.formatFileName('{{title}}-note.md', '');
+            const result = await formatter.formatFileName('{{title}}-note.md', '');
             
             // The {{title}} should remain unchanged in the filename
             expect(result).toBe('{{title}}-note.md');

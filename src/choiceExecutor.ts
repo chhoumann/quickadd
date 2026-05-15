@@ -6,7 +6,7 @@ import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
-import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
+import { MacroCommandRunner } from "./engine/MacroCommandRunner";
 import { InlineJavaScriptEvaluator } from "./engine/InlineJavaScriptEvaluator";
 import { SingleMacroEngine } from "./engine/SingleMacroEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
@@ -151,7 +151,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		macroChoice: IMacroChoice,
 		originLeaf: WorkspaceLeaf | null,
 	) {
-		const macroEngine = new MacroChoiceEngine(
+		const macroEngine = new MacroCommandRunner(
 			this.app,
 			this.plugin,
 			macroChoice,
