@@ -24,10 +24,12 @@ const noticeClass = Notice as unknown as NoticeTestClass;
 
 const {
 	inputSuggestMock,
+	formatFileNameMock,
 	setUseSelectionAsCaptureValueMock,
 	setTitleMock,
 } = vi.hoisted(() => ({
 	inputSuggestMock: vi.fn(),
+	formatFileNameMock: vi.fn(async (name: string) => name),
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
 }));
@@ -53,7 +55,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			return "";
 		}
 		async formatFileName(name: string) {
-			return name;
+			return await formatFileNameMock(name);
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
@@ -377,11 +379,13 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		["backslash", "Sub\\Escape"],
 		["absolute-looking drive path", "C:/Escape"],
 		["duplicate separator", "Sub//Escape"],
+		["current-directory segment", "./Escape"],
 		["parent-directory segment", "../Escape"],
 	])(
-		"rejects folder-scoped custom capture paths with %s before side effects",
+		"rejects folder-scoped raw custom capture paths with %s before formatter or side effects",
 		async (_caseName, unsafeInput) => {
 			noticeClass.instances.length = 0;
+			formatFileNameMock.mockClear();
 			vi.mocked(insertFileLinkToActiveView).mockClear();
 			vi.mocked(openFile).mockClear();
 			vi.mocked(overwriteTemplaterOnce).mockClear();
@@ -421,6 +425,10 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 			await engine.run();
 
+			expect(formatFileNameMock).not.toHaveBeenCalledWith(
+				unsafeInput,
+				"Capture",
+			);
 			expect(fileExistsMock).not.toHaveBeenCalled();
 			expect(app.vault.create).not.toHaveBeenCalled();
 			expect(app.vault.modify).not.toHaveBeenCalled();

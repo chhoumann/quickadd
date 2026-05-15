@@ -624,6 +624,8 @@ export class CaptureChoiceEngine {
 		customPath: string,
 		folderPath: string,
 	): Promise<string> {
+		this.assertSafeFolderScopedCustomPath(customPath.trim());
+
 		const formattedCustomPath = await this.formatter.formatFileName(
 			customPath,
 			this.choice.name,
@@ -648,6 +650,7 @@ export class CaptureChoiceEngine {
 	private assertSafeFolderScopedCustomPath(path: string): void {
 		const segments = path.split("/");
 		const hasParentSegment = segments.some((segment) => segment === "..");
+		const hasCurrentSegment = segments.some((segment) => segment === ".");
 		const hasEmptySegment = segments.some((segment) => segment === "");
 		const isAbsoluteLooking =
 			path.startsWith("/") ||
@@ -659,6 +662,7 @@ export class CaptureChoiceEngine {
 			path.includes("\\") ||
 			isAbsoluteLooking ||
 			hasEmptySegment ||
+			hasCurrentSegment ||
 			hasParentSegment
 		) {
 			throw new ChoiceAbortError(
