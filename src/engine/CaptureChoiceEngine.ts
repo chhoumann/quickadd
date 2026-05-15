@@ -20,10 +20,12 @@ import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatte
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import { FormatterFactory } from "../services/FormatterFactory";
+import { FrontmatterPropertyService } from "../services/FrontmatterPropertyService";
 import {
 	TemplateEvaluator,
 	TemplateFileService,
 } from "../services/TemplateFileService";
+import { VaultFileService } from "../services/VaultFileService";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
 import {
@@ -45,7 +47,6 @@ import {
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
-import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
@@ -61,10 +62,13 @@ import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
-export class CaptureChoiceEngine extends QuickAddChoiceEngine {
-	choice: ICaptureChoice;
+export class CaptureChoiceEngine {
+	public choice: ICaptureChoice;
+	public app: App;
 	private formatter: CaptureChoiceFormatter;
 	private readonly plugin: QuickAdd;
+	private readonly vaultFileService: VaultFileService;
+	private readonly frontmatterPropertyService: FrontmatterPropertyService;
 	private readonly templateFileService: TemplateFileService;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
@@ -76,14 +80,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		private choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
-		super(app);
+		this.app = app;
 		this.choice = choice;
 		this.plugin = plugin;
+		this.vaultFileService = new VaultFileService(app);
+		this.frontmatterPropertyService = new FrontmatterPropertyService(app);
 		this.formatter = new FormatterFactory(
 			app,
 			plugin,
 		).createCaptureChoiceFormatter(choiceExecutor);
-		this.templateFileService = new TemplateFileService(app);
+		this.templateFileService = new TemplateFileService(
+			app,
+			this.vaultFileService,
+			this.frontmatterPropertyService,
+		);
 	}
 
 	private showSuccessNotice(
