@@ -606,11 +606,65 @@ export class CaptureChoiceEngine {
 
 		// Ensure user has selected a file in target folder. InputSuggester allows user to write
 		// their own file path, so we need to make sure it's in the target folder.
+		if (!captureAnywhereInVault && !filePaths.includes(targetFilePath)) {
+			return await this.formatCustomFolderCapturePath(
+				targetFilePath,
+				folderPath,
+			);
+		}
+
 		const filePath = targetFilePath.startsWith(`${folderPathSlash}`)
 			? targetFilePath
-			: `${folderPathSlash}/${targetFilePath}`;
+			: `${folderPathSlash}${targetFilePath}`;
 
 		return await this.formatFilePath(filePath);
+	}
+
+	private async formatCustomFolderCapturePath(
+		customPath: string,
+		folderPath: string,
+	): Promise<string> {
+		const formattedCustomPath = await this.formatter.formatFileName(
+			customPath,
+			this.choice.name,
+		);
+		const relativePath = formattedCustomPath.trim();
+
+		this.assertSafeFolderScopedCustomPath(relativePath);
+
+		const fullPath = folderPath ? `${folderPath}/${relativePath}` : relativePath;
+		const normalizedPath = this.normalizeCaptureFilePath(fullPath);
+		const folderPrefix = folderPath ? `${folderPath}/` : "";
+
+		if (folderPrefix && !normalizedPath.startsWith(folderPrefix)) {
+			throw new ChoiceAbortError(
+				"Custom capture path must stay within the selected folder.",
+			);
+		}
+
+		return normalizedPath;
+	}
+
+	private assertSafeFolderScopedCustomPath(path: string): void {
+		const segments = path.split("/");
+		const hasParentSegment = segments.some((segment) => segment === "..");
+		const hasEmptySegment = segments.some((segment) => segment === "");
+		const isAbsoluteLooking =
+			path.startsWith("/") ||
+			path.startsWith("~") ||
+			/^[A-Za-z]:/.test(path);
+
+		if (
+			path.length === 0 ||
+			path.includes("\\") ||
+			isAbsoluteLooking ||
+			hasEmptySegment ||
+			hasParentSegment
+		) {
+			throw new ChoiceAbortError(
+				"Custom capture path must stay within the selected folder.",
+			);
+		}
 	}
 
 	private async selectFileWithTag(tag: string): Promise<string> {

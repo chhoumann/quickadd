@@ -5,7 +5,14 @@ import merge from "three-way-merge";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { insertFileLinkToActiveView, isFolder, openFile } from "../utilityObsidian";
+import {
+	getMarkdownFilesInFolder,
+	insertFileLinkToActiveView,
+	isFolder,
+	openFile,
+	overwriteTemplaterOnce,
+	templaterParseTemplate,
+} from "../utilityObsidian";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
@@ -15,7 +22,12 @@ type NoticeTestClass = typeof Notice & {
 
 const noticeClass = Notice as unknown as NoticeTestClass;
 
-const { setUseSelectionAsCaptureValueMock, setTitleMock } = vi.hoisted(() => ({
+const {
+	inputSuggestMock,
+	setUseSelectionAsCaptureValueMock,
+	setTitleMock,
+} = vi.hoisted(() => ({
+	inputSuggestMock: vi.fn(),
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
 }));
@@ -73,7 +85,9 @@ vi.mock("three-way-merge", () => ({
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
-	default: class {},
+	default: class {
+		static Suggest = inputSuggestMock;
+	},
 }));
 
 vi.mock("obsidian-dataview", () => ({
@@ -242,6 +256,9 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 	beforeEach(() => {
 		vi.mocked(isFolder).mockReset();
 		vi.mocked(insertFileLinkToActiveView).mockReset();
+		vi.mocked(getMarkdownFilesInFolder).mockReset();
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([]);
+		inputSuggestMock.mockReset();
 		setTitleMock.mockClear();
 	});
 
@@ -353,6 +370,90 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const result = await (engine as any).getFormattedPathToCaptureTo(false);
 
 		expect(result).toBe("Boards/Map.CANVAS");
+	});
+
+	it.each([
+		["leading slash", "/Escape"],
+		["backslash", "Sub\\Escape"],
+		["absolute-looking drive path", "C:/Escape"],
+		["duplicate separator", "Sub//Escape"],
+		["parent-directory segment", "../Escape"],
+	])(
+		"rejects folder-scoped custom capture paths with %s before side effects",
+		async (_caseName, unsafeInput) => {
+			noticeClass.instances.length = 0;
+			vi.mocked(insertFileLinkToActiveView).mockClear();
+			vi.mocked(openFile).mockClear();
+			vi.mocked(overwriteTemplaterOnce).mockClear();
+			vi.mocked(templaterParseTemplate).mockClear();
+
+			const existingFile = createTFile("Folder/Existing.md");
+			const app = createApp() as any;
+			app.vault.create = vi.fn(async () => createTFile("Folder/Created.md"));
+			app.vault.modify = vi.fn(async () => {});
+			app.vault.read = vi.fn(async () => "");
+			app.fileManager.processFrontMatter = vi.fn();
+			vi.mocked(getMarkdownFilesInFolder).mockReturnValue([existingFile]);
+			inputSuggestMock.mockResolvedValue(unsafeInput);
+
+			const engine = new CaptureChoiceEngine(
+				app,
+				{
+					settings: {
+						useSelectionAsCaptureValue: false,
+						showCaptureNotification: true,
+					},
+				} as any,
+				createChoice({
+					captureTo: "Folder/",
+					appendLink: true,
+					openFile: true,
+					createFileIfItDoesntExist: {
+						enabled: true,
+						createWithTemplate: false,
+						template: "",
+					},
+				}),
+				createExecutor(),
+			);
+			const fileExistsMock = vi.fn(async () => false);
+			(engine as any).vaultFileService.fileExists = fileExistsMock;
+
+			await engine.run();
+
+			expect(fileExistsMock).not.toHaveBeenCalled();
+			expect(app.vault.create).not.toHaveBeenCalled();
+			expect(app.vault.modify).not.toHaveBeenCalled();
+			expect(app.fileManager.processFrontMatter).not.toHaveBeenCalled();
+			expect(templaterParseTemplate).not.toHaveBeenCalled();
+			expect(overwriteTemplaterOnce).not.toHaveBeenCalled();
+			expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
+			expect(openFile).not.toHaveBeenCalled();
+			expect(
+				noticeClass.instances.some(({ message }) =>
+					message.startsWith("Created and captured to") ||
+					message.startsWith("Captured to"),
+				),
+			).toBe(false);
+		},
+	);
+
+	it("normalizes valid folder-scoped custom capture paths under the selected folder", async () => {
+		const existingFile = createTFile("Folder/Existing.md");
+		const app = createApp();
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([existingFile]);
+		inputSuggestMock.mockResolvedValue("Sub/New Note");
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Folder/" }),
+			createExecutor(),
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Folder/Sub/New Note.md");
 	});
 
 	it("uses extensionless title for created .canvas capture files", async () => {
