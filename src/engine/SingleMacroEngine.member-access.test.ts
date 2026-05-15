@@ -79,7 +79,10 @@ vi.mock("../settingsStore", () => ({
 }));
 
 vi.mock("../formatters/completeFormatter", () => ({
-	CompleteFormatter: class CompleteFormatterMock {},
+	CompleteFormatter: class CompleteFormatterMock {
+		setDestinationFile() {}
+		setDestinationSourcePath() {}
+	},
 }));
 
 vi.mock("../ai/AIAssistant", () => ({

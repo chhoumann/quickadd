@@ -80,6 +80,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		openExistingFileTab: vi.fn(() => null),
 		openFile: vi.fn(),
 		overwriteTemplaterOnce: vi.fn(),
+		resolveClipboardForNoteContent: vi.fn(async () => ""),
 		templaterParseTemplate: vi.fn(async (_app, content) => content),
 		getTemplater: vi.fn(() => ({})),
 	}));

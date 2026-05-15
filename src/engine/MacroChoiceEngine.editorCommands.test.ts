@@ -2,7 +2,10 @@ import type { App } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../formatters/completeFormatter", () => ({
-	CompleteFormatter: class CompleteFormatterMock {},
+	CompleteFormatter: class CompleteFormatterMock {
+		setDestinationFile() {}
+		setDestinationSourcePath() {}
+	},
 }));
 
 vi.mock("obsidian-dataview", () => ({

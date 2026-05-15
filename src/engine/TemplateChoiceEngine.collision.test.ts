@@ -60,6 +60,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		constructor() {}
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setDestinationFile() {}
+		setDestinationSourcePath() {}
+		clearDestinationContext() {}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}
@@ -85,6 +88,7 @@ vi.mock("../utilityObsidian", () => ({
 	insertFileLinkToActiveView: vi.fn(),
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
+	resolveClipboardForNoteContent: vi.fn(async () => ""),
 }));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
