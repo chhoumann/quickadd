@@ -29,7 +29,7 @@ const {
 	setTitleMock,
 } = vi.hoisted(() => ({
 	inputSuggestMock: vi.fn(),
-	formatFileNameMock: vi.fn(async (name: string) => name),
+	formatFileNameMock: vi.fn(async (name: string, _title?: string) => name),
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
 }));
@@ -54,8 +54,8 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatContentWithFile() {
 			return "";
 		}
-		async formatFileName(name: string) {
-			return await formatFileNameMock(name);
+		async formatFileName(name: string, title?: string) {
+			return await formatFileNameMock(name, title);
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
@@ -425,9 +425,12 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 			await engine.run();
 
+			expect(formatFileNameMock.mock.calls).toEqual([
+				["Folder/", "Capture Choice"],
+			]);
 			expect(formatFileNameMock).not.toHaveBeenCalledWith(
 				unsafeInput,
-				"Capture",
+				"Capture Choice",
 			);
 			expect(fileExistsMock).not.toHaveBeenCalled();
 			expect(app.vault.create).not.toHaveBeenCalled();
