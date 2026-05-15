@@ -29,6 +29,8 @@ For detailed instructions and examples on using QuickAdd, see the [QuickAdd docu
 
 QuickAdd uses `bun` for local development tasks:
 
+- `bun run dev` starts the esbuild watcher for local plugin development.
+- `bun run lint` runs the TypeScript ESLint checks.
 - `bun run test` runs the unit test suite.
 - `bun run build` type-checks and bundles the plugin.
 - `bun run test:e2e` runs Obsidian-backed end-to-end tests.
@@ -37,6 +39,25 @@ The E2E suite is local-only today. It depends on a locally installed Obsidian
 app, the `obsidian` CLI being available on `PATH`, and the `dev` vault being
 open and reachable. Failed E2E runs may write artifacts to
 `.obsidian-e2e-artifacts/`.
+
+When validating changes against the local dev vault, rebuild first and reload
+the plugin with `obsidian vault=dev plugin:reload id=quickadd`.
+
+### Engine architecture
+
+QuickAdd choice execution is orchestrated from `ChoiceExecutor`, which owns
+shared variables, preflight, abort signaling, origin leaf capture, and choice
+dispatch. Template, capture, and macro choices are implemented as flat
+orchestrators (`TemplateChoiceEngine`, `CaptureChoiceEngine`, and
+`MacroChoiceEngine`) that compose explicit services instead of inheriting from a
+shared engine base.
+
+File and frontmatter operations live in `VaultFileService` and
+`FrontmatterPropertyService`; folder and template-file behavior lives in
+`FolderSelectionService`, `TemplateFileService`, and `TemplateEvaluator`.
+Formatter macro, template, and inline JavaScript tokens are delegated through
+evaluator interfaces wired by `FormatterFactory`; preview and preflight paths
+remain non-executing.
 
 ## Support
 
