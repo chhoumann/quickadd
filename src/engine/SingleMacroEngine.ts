@@ -9,7 +9,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
-import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { MacroCommandRunner } from "./MacroCommandRunner";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { MacroAbortError } from "../errors/MacroAbortError";
 
@@ -119,7 +119,7 @@ export class SingleMacroEngine {
 		}
 
 		// Create a dedicated engine for this macro
-		const engine = new MacroChoiceEngine(
+		const engine = new MacroCommandRunner(
 			this.app,
 			this.plugin,
 			macroChoice,
@@ -168,7 +168,7 @@ export class SingleMacroEngine {
 	}
 
 	private async tryExecuteExport(
-		engine: MacroChoiceEngine,
+		engine: MacroCommandRunner,
 		macroChoice: IMacroChoice,
 		memberAccess: string[],
 	): Promise<{ executed: boolean; result?: unknown }> {
@@ -317,7 +317,7 @@ export class SingleMacroEngine {
 
 	private async executeResolvedMember(
 		member: unknown,
-		engine: MacroChoiceEngine,
+		engine: MacroCommandRunner,
 		settings: Record<string, unknown>,
 	): Promise<unknown> {
 		if (typeof member === "function") {
@@ -469,7 +469,7 @@ export class SingleMacroEngine {
 		return current;
 	}
 
-	private syncVariablesFromParams(engine: MacroChoiceEngine) {
+	private syncVariablesFromParams(engine: MacroCommandRunner) {
 		Object.keys(engine.params.variables).forEach((key) => {
 			this.choiceExecutor.variables.set(
 				key,

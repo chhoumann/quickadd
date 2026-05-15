@@ -28,8 +28,8 @@ type MacroEngineInstance = {
 
 let macroEngineFactory: () => MacroEngineInstance;
 
-vi.mock("./MacroChoiceEngine", () => ({
-	MacroChoiceEngine: vi.fn().mockImplementation(() => {
+vi.mock("./MacroCommandRunner", () => ({
+	MacroCommandRunner: vi.fn().mockImplementation(() => {
 		if (!macroEngineFactory) {
 			throw new Error("macroEngineFactory was not initialised.");
 		}

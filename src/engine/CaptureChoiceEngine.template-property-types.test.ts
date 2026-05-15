@@ -92,9 +92,9 @@ vi.mock("src/gui/MathModal", () => ({
 	},
 }));
 
-vi.mock("../engine/SingleInlineScriptEngine", () => ({
+vi.mock("../engine/InlineJavaScriptEvaluator", () => ({
 	__esModule: true,
-	SingleInlineScriptEngine: class {
+	InlineJavaScriptEvaluator: class {
 		public params = { variables: {} as Record<string, unknown> };
 		async runAndGetOutput() {
 			return "";

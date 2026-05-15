@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { MacroCommandRunner } from "./MacroCommandRunner";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type IChoice from "../types/choices/IChoice";
@@ -19,7 +19,7 @@ export class StartupMacroEngine {
 			.filter((c): c is IMacroChoice => c.type === "Macro" && (c as IMacroChoice).runOnStartup);
 		
 		for (const choice of macroChoices) {
-			await new MacroChoiceEngine(
+			await new MacroCommandRunner(
 				this.app,
 				this.plugin,
 				choice,
