@@ -57,6 +57,34 @@ describe("QuickAddApi.executeChoice", () => {
 		expect(variables.size).toBe(0);
 	});
 
+	it("clears variables when execute throws MacroAbortError directly", async () => {
+		const abortError = new MacroAbortError("Input cancelled by user");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+			abortError,
+		);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		await expect(
+			api.executeChoice("My Template", { project: "QA" }),
+		).rejects.toBe(abortError);
+		expect(choiceExecutor.consumeAbortSignal).not.toHaveBeenCalled();
+		expect(variables.size).toBe(0);
+	});
+
+	it("clears variables when execute throws an unexpected error directly", async () => {
+		const error = new Error("boom");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+			error,
+		);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		await expect(
+			api.executeChoice("My Template", { project: "QA" }),
+		).rejects.toBe(error);
+		expect(choiceExecutor.consumeAbortSignal).not.toHaveBeenCalled();
+		expect(variables.size).toBe(0);
+	});
+
 	it("clears variables and resolves when no abort is signalled", async () => {
 		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
 		await expect(

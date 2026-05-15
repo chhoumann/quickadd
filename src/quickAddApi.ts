@@ -225,11 +225,14 @@ export class QuickAddApi {
 					});
 				}
 
-				await choiceExecutor.execute(choice);
-				const abort = choiceExecutor.consumeAbortSignal?.();
-				choiceExecutor.variables.clear();
-				if (abort) {
-					throw abort;
+				try {
+					await choiceExecutor.execute(choice);
+					const abort = choiceExecutor.consumeAbortSignal?.();
+					if (abort) {
+						throw abort;
+					}
+				} finally {
+					choiceExecutor.variables.clear();
 				}
 			},
 			format: async (
