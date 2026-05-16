@@ -371,8 +371,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		fileName: string,
 		folderPath: string,
 	): { fileName: string; strippedPrefix: boolean } {
-		const normalizedFolder = this.vaultFileService.stripLeadingSlash(folderPath);
-		const normalizedFileName = this.vaultFileService.stripLeadingSlash(fileName);
+		const normalizedFolder = this.stripLeadingSlash(folderPath);
+		const normalizedFileName = this.stripLeadingSlash(fileName);
 
 		if (!normalizedFolder) {
 			return { fileName: normalizedFileName, strippedPrefix: false };
@@ -400,7 +400,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 		if (normalizedFileName.startsWith("/")) return true;
 
-		const [firstSegment] = this.vaultFileService.stripLeadingSlash(normalizedFileName).split("/");
+		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
 		if (!firstSegment) return false;
 
 		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);

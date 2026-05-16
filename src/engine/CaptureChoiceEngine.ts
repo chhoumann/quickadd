@@ -241,7 +241,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				linkOptions?: AppendLinkOptions,
 			) => Promise<{ file: TFile; newFileContent: string; captureContent: string }>;
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
-			const fileAlreadyExists = await this.vaultFileService.fileExists(filePath);
+			const fileAlreadyExists = await this.fileExists(filePath);
 
 			if (fileAlreadyExists) {
 				getFileAndAddContentFn =
@@ -504,7 +504,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// 3) trailing "/" => folder picker (explicit)
 		// 4) known file extension => file
 		// 5) ambiguous => folder if it exists and no same-name file exists; else file
-		const normalizedCaptureTo = this.vaultFileService.stripLeadingSlash(
+		const normalizedCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
 		);
 
@@ -540,7 +540,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		// Guard against ambiguity where a folder and file share the same name.
-		const fileCandidatePath = this.vaultFileService.normalizeMarkdownFilePath("", folderPath);
+		const fileCandidatePath = this.normalizeMarkdownFilePath("", folderPath);
 		const fileCandidate = this.app.vault.getAbstractFileByPath(
 			fileCandidatePath,
 		);
@@ -631,7 +631,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		newFileContent: string;
 		captureContent: string;
 	}> {
-		const file: TFile = this.vaultFileService.getFileByPath(filePath);
+		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
 		// Set the title to the existing file's basename
@@ -736,7 +736,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		// Create the new file with the (optional) template content
-		const file: TFile = await this.vaultFileService.createFileWithInput(filePath, fileContent, {
+		const file: TFile = await this.createFileWithInput(filePath, fileContent, {
 			suppressTemplaterOnCreate:
 				this.choice.createFileIfItDoesntExist.createWithTemplate,
 		});
@@ -744,8 +744,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Post-process front matter for template property types if we used a template
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
 			this.templatePropertyVars &&
-			this.frontmatterPropertyService.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
-			await this.frontmatterPropertyService.postProcessFrontMatter(file, this.templatePropertyVars);
+			this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
+			await this.postProcessFrontMatter(file, this.templatePropertyVars);
 		}
 
 		// Process Templater commands in the template if a template was used
@@ -786,7 +786,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private normalizeCaptureFilePath(path: string): string {
-		const normalizedPath = this.vaultFileService.stripLeadingSlash(path);
+		const normalizedPath = this.stripLeadingSlash(path);
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
 			throw new ChoiceAbortError(
 				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
@@ -799,7 +799,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return normalizedPath;
 		}
 
-		return this.vaultFileService.normalizeMarkdownFilePath("", normalizedPath);
+		return this.normalizeMarkdownFilePath("", normalizedPath);
 	}
 
 	private mergeCapturePropertyVars(vars: Map<string, unknown>): void {
@@ -821,7 +821,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		if (!this.frontmatterPropertyService.shouldPostProcessFrontMatter(file, this.capturePropertyVars)) {
+		if (!this.shouldPostProcessFrontMatter(file, this.capturePropertyVars)) {
 			this.capturePropertyVars.clear();
 			return;
 		}
@@ -829,7 +829,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		log.logMessage(
 			`CaptureChoiceEngine: Post-processing front matter with ${this.capturePropertyVars.size} capture variables`
 		);
-		await this.frontmatterPropertyService.postProcessFrontMatter(file, this.capturePropertyVars);
+		await this.postProcessFrontMatter(file, this.capturePropertyVars);
 		this.capturePropertyVars.clear();
 	}
 }

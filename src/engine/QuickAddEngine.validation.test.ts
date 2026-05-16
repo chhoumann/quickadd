@@ -1,14 +1,32 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { App } from 'obsidian';
-import { FrontmatterPropertyService } from '../services/FrontmatterPropertyService';
+import { QuickAddEngine } from './QuickAddEngine';
 
-describe('FrontmatterPropertyService - Structured Variable Validation', () => {
+/**
+ * Test implementation of QuickAddEngine for validation testing
+ */
+class TestQuickAddEngine extends QuickAddEngine {
+	constructor(app: App) {
+		super(app);
+	}
+
+	public run(): void {
+		// Not needed for validation tests
+	}
+
+	// Expose protected method for testing
+	public testValidateStructuredVariables(vars: Map<string, unknown>) {
+		return this.validateStructuredVariables(vars);
+	}
+}
+
+describe('QuickAddEngine - Structured Variable Validation', () => {
 	let mockApp: App;
-	let service: FrontmatterPropertyService;
+	let engine: TestQuickAddEngine;
 
 	beforeEach(() => {
 		mockApp = {} as App;
-		service = new FrontmatterPropertyService(mockApp);
+		engine = new TestQuickAddEngine(mockApp);
 	});
 
 	describe('Valid variables', () => {
@@ -20,7 +38,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['null', null],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -34,7 +52,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['mixedArray', [1, 'two', true, null]],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -46,7 +64,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['nestedObject', { user: { name: 'test', active: true } }],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -57,7 +75,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['dateString', '@date:2024-01-15T10:30:00.000Z'],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -70,7 +88,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['func', () => {}],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -83,7 +101,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['sym', Symbol('test')],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -96,7 +114,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['bigNum', BigInt(123)],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true); // Warning, not error
 			expect(result.warnings).toHaveLength(1);
@@ -109,7 +127,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['obj', { data: 'test', callback: () => {} }],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -131,7 +149,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['obj', obj],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -154,7 +172,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['obj', obj],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -168,7 +186,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['circular', circular],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -185,7 +203,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['nested', obj1],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
@@ -200,7 +218,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['arrayCircular', arr],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -227,7 +245,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['deepObj', deepObj],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -244,7 +262,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['tooDeep', deepObj],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
@@ -263,7 +281,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['deepArray', deepArr],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
@@ -282,7 +300,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['sym', Symbol('test')],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThanOrEqual(3);
@@ -299,7 +317,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['problematic', problematic],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThanOrEqual(2); // function and symbol
@@ -311,7 +329,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 		it('should handle empty Map', () => {
 			const vars = new Map<string, unknown>();
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -324,7 +342,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['nullVal', null],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -335,7 +353,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['date', new Date('2024-01-15')],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -346,7 +364,7 @@ describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 				['event', { name: 'Meeting', date: new Date('2024-01-15'), attendees: ['Alice', 'Bob'] }],
 			]);
 
-			const result = service.validateStructuredVariables(vars);
+			const result = engine.testValidateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
