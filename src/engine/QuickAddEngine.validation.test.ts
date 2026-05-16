@@ -1,32 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { App } from 'obsidian';
-import { QuickAddEngine } from './QuickAddEngine';
+import { FrontmatterPropertyService } from '../services/FrontmatterPropertyService';
 
-/**
- * Test implementation of QuickAddEngine for validation testing
- */
-class TestQuickAddEngine extends QuickAddEngine {
-	constructor(app: App) {
-		super(app);
-	}
-
-	public run(): void {
-		// Not needed for validation tests
-	}
-
-	// Expose protected method for testing
-	public testValidateStructuredVariables(vars: Map<string, unknown>) {
-		return this.validateStructuredVariables(vars);
-	}
-}
-
-describe('QuickAddEngine - Structured Variable Validation', () => {
+describe('FrontmatterPropertyService - Structured Variable Validation', () => {
 	let mockApp: App;
-	let engine: TestQuickAddEngine;
+	let service: FrontmatterPropertyService;
 
 	beforeEach(() => {
 		mockApp = {} as App;
-		engine = new TestQuickAddEngine(mockApp);
+		service = new FrontmatterPropertyService(mockApp);
 	});
 
 	describe('Valid variables', () => {
@@ -38,7 +20,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['null', null],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -52,7 +34,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['mixedArray', [1, 'two', true, null]],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -64,7 +46,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['nestedObject', { user: { name: 'test', active: true } }],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -75,7 +57,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['dateString', '@date:2024-01-15T10:30:00.000Z'],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -88,7 +70,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['func', () => {}],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -101,7 +83,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['sym', Symbol('test')],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -114,7 +96,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['bigNum', BigInt(123)],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true); // Warning, not error
 			expect(result.warnings).toHaveLength(1);
@@ -127,7 +109,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['obj', { data: 'test', callback: () => {} }],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -149,7 +131,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['obj', obj],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -172,7 +154,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['obj', obj],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -186,7 +168,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['circular', circular],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -203,7 +185,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['nested', obj1],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
@@ -218,7 +200,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['arrayCircular', arr],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors).toHaveLength(1);
@@ -245,7 +227,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['deepObj', deepObj],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -262,7 +244,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['tooDeep', deepObj],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
@@ -281,7 +263,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['deepArray', deepArr],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThan(0);
@@ -300,7 +282,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['sym', Symbol('test')],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThanOrEqual(3);
@@ -317,7 +299,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['problematic', problematic],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(false);
 			expect(result.errors.length).toBeGreaterThanOrEqual(2); // function and symbol
@@ -329,7 +311,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 		it('should handle empty Map', () => {
 			const vars = new Map<string, unknown>();
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -342,7 +324,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['nullVal', null],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -353,7 +335,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['date', new Date('2024-01-15')],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);
@@ -364,7 +346,7 @@ describe('QuickAddEngine - Structured Variable Validation', () => {
 				['event', { name: 'Meeting', date: new Date('2024-01-15'), attendees: ['Alice', 'Bob'] }],
 			]);
 
-			const result = engine.testValidateStructuredVariables(vars);
+			const result = service.validateStructuredVariables(vars);
 
 			expect(result.isValid).toBe(true);
 			expect(result.errors).toHaveLength(0);

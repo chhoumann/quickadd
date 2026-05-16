@@ -251,7 +251,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	private async ensureFolderExists(selection: FolderSelection): Promise<void> {
 		if (selection.isEmpty || selection.exists) return;
-		await this.createFolder(selection.resolved);
+		await this.vaultFileService.createFolder(selection.resolved);
 	}
 
 	private async handleSingleSelection(
@@ -438,7 +438,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			format,
 			promptHeader
 		);
-		return this.normalizeMarkdownFilePath(folderPath, formattedName);
+		return this.vaultFileService.normalizeMarkdownFilePath(folderPath, formattedName);
 	}
 
 	protected getTemplateExtension(templatePath: string): string {
@@ -456,10 +456,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		fileName: string,
 		templatePath: string
 	): string {
-		const safeFolderPath = this.stripLeadingSlash(folderPath);
+		const safeFolderPath = this.vaultFileService.stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = this.stripLeadingSlash(fileName)
+		const formattedFileName: string = this.vaultFileService.stripLeadingSlash(fileName)
 			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
 			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
 			.replace(BASE_FILE_EXTENSION_REGEX, "");
@@ -495,15 +495,15 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			const suppressTemplaterOnCreate = filePath
 				.toLowerCase()
 				.endsWith(".md");
-			const createdFile: TFile = await this.createFileWithInput(
+			const createdFile: TFile = await this.vaultFileService.createFileWithInput(
 				filePath,
 				formattedTemplateContent,
 				{ suppressTemplaterOnCreate },
 			);
 
 			// Post-process front matter for template property types BEFORE Templater
-			if (this.shouldPostProcessFrontMatter(createdFile, templateVars)) {
-				await this.postProcessFrontMatter(createdFile, templateVars);
+			if (this.frontmatterPropertyService.shouldPostProcessFrontMatter(createdFile, templateVars)) {
+				await this.frontmatterPropertyService.postProcessFrontMatter(createdFile, templateVars);
 			}
 
 			// Process Templater commands for template choices
@@ -554,8 +554,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await this.app.vault.modify(file, formattedTemplateContent);
 
 			// Post-process front matter for template property types BEFORE Templater
-			if (this.shouldPostProcessFrontMatter(file, templateVars)) {
-				await this.postProcessFrontMatter(file, templateVars);
+			if (this.frontmatterPropertyService.shouldPostProcessFrontMatter(file, templateVars)) {
+				await this.frontmatterPropertyService.postProcessFrontMatter(file, templateVars);
 			}
 
 			// Process Templater commands
@@ -612,7 +612,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		let correctTemplatePath: string = this.stripLeadingSlash(templatePath);
+		let correctTemplatePath: string = this.vaultFileService.stripLeadingSlash(templatePath);
 		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
 			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath) &&
 			!BASE_FILE_EXTENSION_REGEX.test(templatePath))
