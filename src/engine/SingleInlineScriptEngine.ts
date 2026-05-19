@@ -21,10 +21,9 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 		const AsyncFunction = Object.getPrototypeOf(
 			async function () {}
 		).constructor as AsyncFunctionConstructor;
-		 
-		const userCode = new AsyncFunction(code);
 
-		 
-		return await userCode.bind(this.params, this).call();
+		const userCode = new AsyncFunction("quickAddApi", "app", "variables", "params", code);
+
+		return await userCode.call(this, this.quickAddApi, this.app, this.variables, this.params);
 	}
 }
