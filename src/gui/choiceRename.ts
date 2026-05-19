@@ -14,7 +14,8 @@ export async function promptRenameChoice(
 		);
 		const trimmed = newName.trim();
 		if (!trimmed || trimmed === currentName) return null;
-		return trimmed;
+		const sanitized = trimmed.replace(/[<>]/g, "");
+		return sanitized;
 	} catch {
 		return null;
 	}
