@@ -56,7 +56,6 @@
     font-family: inherit;
     font-size: inherit;
     padding: 0;
-    width: 0;
     width: var(--qa-wait-input-width, 2ch);
     text-decoration: underline dotted;
     background-color: transparent;
