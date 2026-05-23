@@ -264,7 +264,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl.setAttribute("aria-expanded", "false");
 
 		this.suggestEl.addEventListener("mousedown", (event: MouseEvent) => {
-			if (event.target === this.suggestEl) event.preventDefault();
+			event.preventDefault();
 		});
 
 		// Setup global listeners
