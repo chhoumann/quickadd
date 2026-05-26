@@ -43,6 +43,7 @@ export interface QuickAddSettings {
 		useQuickAddTemplateFolder: boolean;
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
 		consolidateFileExistsBehavior: boolean;
+		repairTemplateFileExistsBehavior: boolean;
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: boolean;
 		setVersionAfterUpdateModalRelease: boolean;
 		addDefaultAIProviders: boolean;
@@ -86,6 +87,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
 		consolidateFileExistsBehavior: false,
+		repairTemplateFileExistsBehavior: false,
 		mutualExclusionInsertAfterAndWriteToBottomOfFile: false,
 		setVersionAfterUpdateModalRelease: false,
 		addDefaultAIProviders: false,

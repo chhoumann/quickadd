@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { DEFAULT_SETTINGS } from "src/settings";
+import { settingsStore } from "src/settingsStore";
+import migrate from "./migrate";
 
 // Mock the logger to avoid test output noise
 vi.mock("src/logger/logManager", () => ({
@@ -11,8 +14,13 @@ vi.mock("src/logger/logManager", () => ({
 describe("Migration Re-entrance Safety", () => {
 	let mockPlugin: any;
 	let mockSettings: any;
+	let unsubscribe: (() => void) | undefined;
 
 	beforeEach(() => {
+		settingsStore.replaceState(structuredClone(DEFAULT_SETTINGS));
+		unsubscribe?.();
+		unsubscribe = undefined;
+
 		// Reset settings with minimal structure needed for migration tests
 		mockSettings = {
 			choices: [],
@@ -23,6 +31,12 @@ describe("Migration Re-entrance Safety", () => {
 			settings: mockSettings,
 			saveSettings: vi.fn(),
 		};
+	});
+
+	afterEach(() => {
+		unsubscribe?.();
+		unsubscribe = undefined;
+		settingsStore.replaceState(structuredClone(DEFAULT_SETTINGS));
 	});
 
 	describe("Migration safety patterns", () => {
@@ -142,6 +156,130 @@ describe("Migration Re-entrance Safety", () => {
 	});
 
 	describe("Specific migration interaction patterns", () => {
+		it("does not let a later store-backed migration restore stale choices", async () => {
+			const legacyTemplateChoice = {
+				id: "daily-note",
+				name: "Open Daily Note",
+				type: "Template",
+				setFileExistsBehavior: true,
+				fileExistsMode: "Nothing",
+			};
+			const loadedSettings = {
+				...structuredClone(DEFAULT_SETTINGS),
+				choices: [legacyTemplateChoice],
+				ai: {
+					...structuredClone(DEFAULT_SETTINGS.ai),
+					providers: [
+						{
+							name: "Provider without model source",
+							type: "openai",
+							apiKey: "",
+							defaultModel: "",
+							models: [],
+						},
+					],
+				},
+				migrations: {
+					useQuickAddTemplateFolder: true,
+					incrementFileNameSettingMoveToDefaultBehavior: true,
+					consolidateFileExistsBehavior: false,
+					repairTemplateFileExistsBehavior: true,
+					mutualExclusionInsertAfterAndWriteToBottomOfFile: true,
+					setVersionAfterUpdateModalRelease: true,
+					addDefaultAIProviders: true,
+					removeMacroIndirection: true,
+					migrateFileOpeningSettings: true,
+					backfillFileOpeningDefaults: true,
+					setProviderModelDiscoveryMode: false,
+					migrateProviderApiKeysToSecretStorage: true,
+				},
+			};
+
+			settingsStore.replaceState(loadedSettings as any);
+			mockPlugin = {
+				manifest: { version: "2.12.2" },
+				settings: structuredClone(loadedSettings),
+				saveSettings: vi.fn(),
+			};
+			unsubscribe = settingsStore.subscribe((settings) => {
+				mockPlugin.settings = settings;
+				void mockPlugin.saveSettings();
+			});
+
+			await migrate(mockPlugin);
+
+			expect(mockPlugin.settings.choices[0]).toMatchObject({
+				fileExistsBehavior: { kind: "apply", mode: "doNothing" },
+			});
+			expect(mockPlugin.settings.choices[0]).not.toHaveProperty(
+				"setFileExistsBehavior",
+			);
+			expect(mockPlugin.settings.choices[0]).not.toHaveProperty(
+				"fileExistsMode",
+			);
+			expect(
+				mockPlugin.settings.migrations.consolidateFileExistsBehavior,
+			).toBe(true);
+			expect(
+				mockPlugin.settings.migrations.setProviderModelDiscoveryMode,
+			).toBe(true);
+		});
+
+		it("repairs stale legacy choices when the earlier consolidation is marked complete", async () => {
+			const loadedSettings = {
+				...structuredClone(DEFAULT_SETTINGS),
+				choices: [
+					{
+						id: "daily-note",
+						name: "Open Daily Note",
+						type: "Template",
+						setFileExistsBehavior: true,
+						fileExistsMode: "Nothing",
+					},
+				],
+				migrations: {
+					useQuickAddTemplateFolder: true,
+					incrementFileNameSettingMoveToDefaultBehavior: true,
+					consolidateFileExistsBehavior: true,
+					repairTemplateFileExistsBehavior: false,
+					mutualExclusionInsertAfterAndWriteToBottomOfFile: true,
+					setVersionAfterUpdateModalRelease: true,
+					addDefaultAIProviders: true,
+					removeMacroIndirection: true,
+					migrateFileOpeningSettings: true,
+					backfillFileOpeningDefaults: true,
+					setProviderModelDiscoveryMode: true,
+					migrateProviderApiKeysToSecretStorage: true,
+				},
+			};
+
+			settingsStore.replaceState(loadedSettings as any);
+			mockPlugin = {
+				manifest: { version: "2.12.2" },
+				settings: structuredClone(loadedSettings),
+				saveSettings: vi.fn(),
+			};
+			unsubscribe = settingsStore.subscribe((settings) => {
+				mockPlugin.settings = settings;
+				void mockPlugin.saveSettings();
+			});
+
+			await migrate(mockPlugin);
+
+			expect(mockPlugin.settings.choices[0]).toMatchObject({
+				fileExistsBehavior: { kind: "apply", mode: "doNothing" },
+			});
+			expect(mockPlugin.settings.choices[0]).not.toHaveProperty(
+				"setFileExistsBehavior",
+			);
+			expect(mockPlugin.settings.choices[0]).not.toHaveProperty(
+				"fileExistsMode",
+			);
+			expect(
+				mockPlugin.settings.migrations.repairTemplateFileExistsBehavior,
+			).toBe(true);
+		});
+
 		it("should handle macro-related migration sequence", async () => {
 			// This test verifies the specific pattern we're concerned about:
 			// One migration embeds macros, another removes macro references

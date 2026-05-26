@@ -4,6 +4,7 @@ import type { Migrations } from "./Migrations";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 import consolidateFileExistsBehavior from "./consolidateFileExistsBehavior";
+import repairTemplateFileExistsBehavior from "./repairTemplateFileExistsBehavior";
 import mutualExclusionInsertAfterAndWriteToBottomOfFile from "./mutualExclusionInsertAfterAndWriteToBottomOfFile";
 import setVersionAfterUpdateModalRelease from "./setVersionAfterUpdateModalRelease";
 import addDefaultAIProviders from "./addDefaultAIProviders";
@@ -13,11 +14,13 @@ import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 import setProviderModelDiscoveryMode from "./setProviderModelDiscoveryMode";
 import { deepClone } from "src/utils/deepClone";
 import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSecretStorage";
+import { settingsStore } from "src/settingsStore";
 
 const migrations: Migrations = {
 	useQuickAddTemplateFolder,
 	incrementFileNameSettingMoveToDefaultBehavior,
 	consolidateFileExistsBehavior,
+	repairTemplateFileExistsBehavior,
 	mutualExclusionInsertAfterAndWriteToBottomOfFile,
 	setVersionAfterUpdateModalRelease,
 	addDefaultAIProviders,
@@ -39,6 +42,8 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 		return;
 	}
 
+	settingsStore.replaceState(deepClone(plugin.settings));
+
 	// Could batch-run with Promise.all, but we want to log each migration as it runs.
 	for (const migration of migrationsToRun as (keyof Migrations)[]) {
 		log.logMessage(
@@ -46,11 +51,17 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 		);
 
 		const backup = deepClone(plugin.settings);
+		const storeBeforeMigration = settingsStore.getState();
 
 		try {
 			await migrations[migration].migrate(plugin);
 
+			if (settingsStore.getState() !== storeBeforeMigration) {
+				plugin.settings = deepClone(settingsStore.getState());
+			}
+
 			plugin.settings.migrations[migration] = true;
+			settingsStore.replaceState(deepClone(plugin.settings));
 
 			log.logMessage(`Migration ${migration} successful.`);
 		} catch (error) {
@@ -59,6 +70,7 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 			);
 
 			plugin.settings = backup;
+			settingsStore.replaceState(deepClone(plugin.settings));
 		}
 	}
 

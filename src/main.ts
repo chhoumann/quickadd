@@ -53,7 +53,7 @@ export default class QuickAdd extends Plugin {
 		QuickAdd.instance = this;
 
 		await this.loadSettings();
-		settingsStore.setState(this.settings);
+		settingsStore.replaceState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
 			void this.saveSettings();

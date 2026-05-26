@@ -364,3 +364,45 @@ describe("migration: consolidateFileExistsBehavior", () => {
 		expect(data.migrations.consolidateFileExistsBehavior).toBe(true);
 	});
 });
+
+describe("migration: repairTemplateFileExistsBehavior", () => {
+	beforeAll(async () => {
+		const root = sandbox.root;
+		const migrationChoice = (id: string) => templateChoice(id, `${root}/repair-test`);
+
+		await qa.data<QuickAddData>().patch((data) => {
+			clearTestChoices(data);
+
+			data.choices.push(
+				{ ...migrationChoice("__qa-test-r1-stale-nothing"), setFileExistsBehavior: true, fileExistsMode: "Nothing" },
+				{ ...migrationChoice("__qa-test-r2-already"), fileExistsBehavior: { kind: "apply", mode: "overwrite" } },
+			);
+
+			data.migrations.consolidateFileExistsBehavior = true;
+			data.migrations.repairTemplateFileExistsBehavior = false;
+		});
+
+		await qa.reload();
+		await qa.waitForData<QuickAddData>(
+			(data) => data.migrations.repairTemplateFileExistsBehavior === true,
+			{ timeoutMs: 10_000, intervalMs: 300 },
+		);
+	}, 15_000);
+
+	async function readChoice(id: string) {
+		const data = await qa.data<QuickAddData>().read();
+		return findChoice(data, id);
+	}
+
+	it("repairs stale legacy do-nothing behavior", async () => {
+		const choice = await readChoice("__qa-test-r1-stale-nothing");
+		expect(choice?.fileExistsBehavior).toEqual(behavior.doNothing);
+		expect(choice).not.toHaveProperty("setFileExistsBehavior");
+		expect(choice).not.toHaveProperty("fileExistsMode");
+	});
+
+	it("preserves already-migrated behavior", async () => {
+		const choice = await readChoice("__qa-test-r2-already");
+		expect(choice?.fileExistsBehavior).toEqual(behavior.overwrite);
+	});
+});
