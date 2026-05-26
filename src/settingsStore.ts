@@ -14,6 +14,7 @@ export const settingsStore = (() => {
 
 	return {
 		getState,
+		replaceState: (state: SettingsState) => setState(state, true),
 		setState,
 		subscribe,
 
