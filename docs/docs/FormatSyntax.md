@@ -30,6 +30,21 @@ Accepted calendar values are `gregorian` (default), `jalali`, `jalaali`,
 and `persian`. QuickAdd does not infer the Jalali calendar from `j` tokens
 alone; use `|calendar:jalali` explicitly.
 
+#### Persian digits and month names
+
+By default Jalali output uses Western digits and transliterated month names
+(for example, `jD jMMMM jYYYY` renders `7 Khordaad 1405`, and `dddd` renders the
+English weekday). Add `|locale:fa` to render Persian digits and Persian
+month/weekday names instead:
+
+- `{{DATE:jYYYY/jMM/jDD|calendar:jalali|locale:fa}}` → `۱۴۰۵/۰۳/۰۷`
+- `{{DATE:jD jMMMM jYYYY|calendar:jalali|locale:fa}}` → `۷ خرداد ۱۴۰۵`
+
+Accepted locale values are `default` (the Latin default), `fa`, `farsi`, and
+`persian`. `locale:fa` only affects the Jalali calendar; it is ignored for
+Gregorian formatting. Offsets and options can be combined in any order, e.g.
+`{{DATE:jYYYY/jMM/jDD+1|calendar:jalali|locale:fa}}`.
+
 ## `{{VDATE:<variable name>, <date format>}}` {#vdate}
 
 You'll get prompted to enter a date and it'll be parsed to the given date format. You could write 'today' or 'in two weeks' and it'll give you the date for that. Short aliases like `t` (today), `tm` (tomorrow), and `yd` (yesterday) are also supported and configurable in settings. Works like variables, so you can use the date in multiple places with different formats - enter once, format many times!
@@ -58,11 +73,17 @@ for inputs like `today` or `next monday`.
 When combining date options with a default value, use the keyed `default:`
 option: `{{VDATE:due,jYYYY-jMM-jDD|calendar:jalali|default:today}}`.
 
+Add `|locale:fa` for Persian digits and month names (see
+[Persian digits and month names](#persian-digits-and-month-names) above):
+`{{VDATE:due,jYYYY/jMM/jDD|calendar:jalali|locale:fa}}`. The prompt also accepts
+Persian-digit input (for example, `۱۴۰۵-۰۳-۰۷`) in addition to Western digits.
+
 The legacy shorthand default remains supported for formats without keyed
 options: `{{VDATE:due,YYYY-MM-DD|today}}`.
 
-If any VDATE option segment uses a recognized keyed option (`calendar:` or
-`default:`), QuickAdd treats the whole option list as keyed mode. In keyed mode,
+If any VDATE option segment uses a recognized keyed option (`calendar:`,
+`locale:`, or `default:`), QuickAdd treats the whole option list as keyed mode.
+In keyed mode,
 bare option segments are ignored, so write
 `{{VDATE:due,YYYY-MM-DD|calendar:jalali|default:today}}` rather than
 `{{VDATE:due,YYYY-MM-DD|calendar:jalali|today}}`.

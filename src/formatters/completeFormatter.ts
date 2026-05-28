@@ -222,6 +222,7 @@ export class CompleteFormatter extends Formatter {
 					context.defaultValue,
 					context.dateFormat ?? "YYYY-MM-DD",
 					context.dateCalendar,
+					context.dateLocale,
 				);
 			}
 

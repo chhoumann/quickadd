@@ -3,9 +3,14 @@ import { parsePipeKeyValue, splitPipeParts } from "./pipeSyntax";
 
 export type DateCalendar = "gregorian" | "jalali";
 
+// "default" renders Latin digits and English/transliterated names (current
+// behavior); "fa" renders Persian digits and Persian month/weekday names.
+export type DateLocale = "default" | "fa";
+
 export type ParsedDateFormatToken = {
 	format: string;
 	calendar: DateCalendar;
+	locale: DateLocale;
 	offset?: number;
 };
 
@@ -13,12 +18,13 @@ export type ParsedDateVariableToken = {
 	variableName: string;
 	format: string;
 	calendar: DateCalendar;
+	locale: DateLocale;
 	defaultValue?: string;
 };
 
 const DEFAULT_DATE_FORMAT = "YYYY-MM-DD";
-const DATE_OPTION_KEYS = new Set(["calendar"]);
-const DATE_VARIABLE_OPTION_KEYS = new Set(["calendar", "default"]);
+const DATE_OPTION_KEYS = new Set(["calendar", "locale"]);
+const DATE_VARIABLE_OPTION_KEYS = new Set(["calendar", "default", "locale"]);
 const DATE_OFFSET_SUFFIX_REGEX = /(\+-?\d+)$/;
 
 function normalizeCalendar(value: string | undefined): DateCalendar {
@@ -39,6 +45,30 @@ function normalizeCalendar(value: string | undefined): DateCalendar {
 				`QuickAdd: Unsupported date calendar "${value}". Falling back to gregorian.`,
 			);
 			return "gregorian";
+	}
+}
+
+function normalizeLocale(value: string | undefined): DateLocale {
+	const normalized = value?.trim().toLowerCase();
+
+	switch (normalized) {
+		case "fa":
+		case "fa-ir":
+		case "farsi":
+		case "persian":
+			return "fa";
+		case "default":
+		case "system":
+		case "en":
+		case "latin":
+		case undefined:
+		case "":
+			return "default";
+		default:
+			log.logWarning(
+				`QuickAdd: Unsupported date locale "${value}". Falling back to default.`,
+			);
+			return "default";
 	}
 }
 
@@ -67,6 +97,7 @@ export function parseDateFormatToken(
 	const formatAndOffset = (parts.shift() ?? "").trim();
 	const unknownOptionParts: string[] = [];
 	let calendar: DateCalendar = "gregorian";
+	let locale: DateLocale = "default";
 
 	for (const part of parts) {
 		const trimmed = part.trim();
@@ -78,8 +109,13 @@ export function parseDateFormatToken(
 			continue;
 		}
 
-		if (parsed.key === "calendar") {
-			calendar = normalizeCalendar(parsed.value);
+		switch (parsed.key) {
+			case "calendar":
+				calendar = normalizeCalendar(parsed.value);
+				break;
+			case "locale":
+				locale = normalizeLocale(parsed.value);
+				break;
 		}
 	}
 
@@ -93,6 +129,7 @@ export function parseDateFormatToken(
 	return {
 		format: format || DEFAULT_DATE_FORMAT,
 		calendar,
+		locale,
 		offset,
 	};
 }
@@ -113,6 +150,7 @@ export function parseDateVariableToken(input: {
 	);
 
 	let calendar: DateCalendar = "gregorian";
+	let locale: DateLocale = "default";
 	let defaultValue: string | undefined;
 
 	if (!usesOptions) {
@@ -126,6 +164,9 @@ export function parseDateVariableToken(input: {
 				case "calendar":
 					calendar = normalizeCalendar(parsed.value);
 					break;
+				case "locale":
+					locale = normalizeLocale(parsed.value);
+					break;
 				case "default":
 					defaultValue = parsed.value || undefined;
 					break;
@@ -137,6 +178,7 @@ export function parseDateVariableToken(input: {
 		variableName,
 		format,
 		calendar,
+		locale,
 		defaultValue,
 	};
 }

@@ -185,7 +185,12 @@ export class OnePageInputModal extends Modal {
 				if (starting?.startsWith("@date:")) {
 					selectedIso = starting.slice(6);
 					const formatted = req.dateFormat
-						? formatISODate(selectedIso, req.dateFormat, req.dateCalendar)
+						? formatISODate(
+								selectedIso,
+								req.dateFormat,
+								req.dateCalendar,
+								req.dateLocale,
+							)
 						: undefined;
 					displayValue =
 						formatted ??
@@ -234,6 +239,7 @@ export class OnePageInputModal extends Modal {
 							iso,
 							req.dateFormat,
 							req.dateCalendar,
+							req.dateLocale,
 						);
 						if (formatted) return formatted;
 					}
@@ -269,6 +275,7 @@ export class OnePageInputModal extends Modal {
 						const parsed = parseNaturalLanguageDate(req.defaultValue, {
 							format: req.dateFormat,
 							calendar: req.dateCalendar,
+							locale: req.dateLocale,
 						});
 						if (parsed.isValid && parsed.isoString) {
 							selectedIso = parsed.isoString;
@@ -304,6 +311,7 @@ export class OnePageInputModal extends Modal {
 					const parsed = parseNaturalLanguageDate(inputVal, {
 						format: req.dateFormat,
 						calendar: req.dateCalendar,
+						locale: req.dateLocale,
 					});
 					if (parsed.isValid && parsed.isoString) {
 						selectedIso = parsed.isoString;

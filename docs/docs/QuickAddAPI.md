@@ -39,7 +39,7 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; dateCalendar?: "gregorian" | "jalali"; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; dateCalendar?: "gregorian" | "jalali"; dateLocale?: "default" | "fa"; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
 **Behavior:**
@@ -62,6 +62,7 @@ const values = await quickAddApi.requestInputs([
   { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
   { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
   { id: "jalaliDue", label: "Jalali due", type: "date", dateFormat: "jYYYY-jMM-jDD", dateCalendar: "jalali" },
+  { id: "jalaliFa", label: "Persian due", type: "date", dateFormat: "jYYYY/jMM/jDD", dateCalendar: "jalali", dateLocale: "fa" },
   { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
   { 
     id: "tags", 
@@ -146,7 +147,7 @@ try {
 }
 ```
 
-### `datePrompt(header: string, options?: { placeholder?: string; defaultValue?: string; dateFormat?: string; dateCalendar?: "gregorian" | "jalali" }): Promise<string | undefined>`
+### `datePrompt(header: string, options?: { placeholder?: string; defaultValue?: string; dateFormat?: string; dateCalendar?: "gregorian" | "jalali"; dateLocale?: "default" | "fa" }): Promise<string | undefined>`
 Opens a date prompt with natural language input and a date picker.
 
 Use `dateCalendar: "jalali"` with Jalali `moment-jalaali` tokens when you want
@@ -154,11 +155,16 @@ Jalali/Persian calendar output. The prompt accepts exact Jalali input matching
 `dateFormat` and still supports natural language inputs like `today` and
 `next monday`.
 
+Add `dateLocale: "fa"` to render Persian digits and month names; the prompt then
+also accepts Persian-digit input (for example, `۱۴۰۵-۰۳-۰۷`). The date picker
+grid itself remains Gregorian.
+
 **Example:**
 ```javascript
 const due = await quickAddApi.datePrompt("Due date", {
-	dateFormat: "jYYYY-jMM-jDD",
+	dateFormat: "jYYYY/jMM/jDD",
 	dateCalendar: "jalali",
+	dateLocale: "fa",
 	defaultValue: "today",
 });
 ```
@@ -483,7 +489,10 @@ Gets formatted current date/time.
 - `offset`: (Optional) Day offset (negative for past, positive for future)
 
 Use `|calendar:jalali` in the format string for Jalali/Persian calendar
-output, e.g. `quickAddApi.date.now("jYYYY-jMM-jDD|calendar:jalali")`.
+output, e.g. `quickAddApi.date.now("jYYYY-jMM-jDD|calendar:jalali")`. Add
+`|locale:fa` for Persian digits and month names. By default Jalali output uses
+Western digits and transliterated month names. The same format-string options
+work in `tomorrow()` and `yesterday()`.
 
 **Examples:**
 ```javascript
@@ -499,6 +508,9 @@ const lastMonth = quickAddApi.date.now("YYYY-MM-DD", -30);
 
 // Jalali / Persian calendar
 const jalaliToday = quickAddApi.date.now("jYYYY-jMM-jDD|calendar:jalali");
+
+// Jalali with Persian digits and month names
+const persianToday = quickAddApi.date.now("jD jMMMM jYYYY|calendar:jalali|locale:fa");
 ```
 
 ### `tomorrow(format?: string): string`
@@ -511,6 +523,9 @@ Shorthand for `now(format, -1)`.
 ```javascript
 const yesterdayLog = `Daily Notes/${quickAddApi.date.yesterday()}.md`;
 const tomorrowTask = `Tasks for ${quickAddApi.date.tomorrow("dddd, MMMM D")}`;
+
+// Jalali / Persian calendar shorthands
+const jalaliTomorrow = quickAddApi.date.tomorrow("jYYYY/jMM/jDD|calendar:jalali|locale:fa");
 ```
 
 ## AI Module

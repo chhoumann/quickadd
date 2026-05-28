@@ -1,7 +1,7 @@
 /**
  * Shared utilities for generating realistic preview examples in display formatters
  */
-import type { DateCalendar } from "../../utils/dateFormatSyntax";
+import type { DateCalendar, DateLocale } from "../../utils/dateFormatSyntax";
 import { formatDateValue } from "../../utils/dateFormatting";
 
 /** Common variable examples for consistent previews across formatters */
@@ -102,6 +102,7 @@ export function getCurrentFileNamePreview(activeFile?: {basename: string} | null
 export function previewDateFormat(input: {
 	format: string;
 	calendar: DateCalendar;
+	locale?: DateLocale;
 	date?: Date;
 	fallbackSuffix?: string;
 }): string {
@@ -112,6 +113,7 @@ export function previewDateFormat(input: {
 			date: previewDate,
 			format: input.format,
 			calendar: input.calendar,
+			locale: input.locale,
 		});
 	} catch {
 		if (input.calendar === "jalali") {

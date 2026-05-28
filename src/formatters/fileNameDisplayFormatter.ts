@@ -158,6 +158,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			const formattedExample = previewDateFormat({
 				format: cleanDateFormat,
 				calendar: parsed.calendar,
+				locale: parsed.locale,
 				fallbackSuffix: "",
 			});
 			

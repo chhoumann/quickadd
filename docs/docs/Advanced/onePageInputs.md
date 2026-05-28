@@ -86,6 +86,7 @@ Supported input fields:
 - `options` (string[] for dropdown and suggester)
 - `dateFormat` (string for date)
 - `dateCalendar` (`"gregorian"` or `"jalali"` for date; defaults to `"gregorian"`)
+- `dateLocale` (`"default"` or `"fa"` for date; `"fa"` renders Persian digits/month names for the Jalali calendar)
 - `description` (string)
 - `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean }`)
 
@@ -109,6 +110,7 @@ export default async function entry({ quickAddApi }) {
     { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
     { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
     { id: "jalaliDue", label: "Jalali due", type: "date", dateFormat: "jYYYY-jMM-jDD", dateCalendar: "jalali" },
+    { id: "jalaliFa", label: "Persian due", type: "date", dateFormat: "jYYYY/jMM/jDD", dateCalendar: "jalali", dateLocale: "fa" },
     { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
     { 
       id: "tags", 

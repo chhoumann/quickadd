@@ -112,6 +112,24 @@ describe("dateParser", () => {
 			expect(mockDateParser.parseDate).toHaveBeenCalledWith("1405-13-07");
 		});
 
+		it("parses Persian-digit input and renders it in Persian with the fa locale", () => {
+			const mockDateParser = {
+				parseDate: vi.fn(),
+			};
+
+			const result = parseNaturalLanguageDate("۱۴۰۵-۰۳-۰۷", {
+				format: "jYYYY-jMM-jDD",
+				dateParser: mockDateParser,
+				calendar: "jalali",
+				locale: "fa",
+			});
+
+			expect(result.isValid).toBe(true);
+			expect(result.formatted).toBe("۱۴۰۵-۰۳-۰۷");
+			expect(result.isoString).toContain("2026-05-28T00:00:00.000Z");
+			expect(mockDateParser.parseDate).not.toHaveBeenCalled();
+		});
+
 		it("should return error when date parsing fails", () => {
 			const result = parseNaturalLanguageDate("invalid date");
 

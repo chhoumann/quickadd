@@ -3,7 +3,7 @@ import type { IDateParser } from "../parsers/IDateParser";
 import { settingsStore } from "../settingsStore";
 import type { DateAliasMap } from "./dateAliases";
 import { normalizeDateInput } from "./dateAliases";
-import type { DateCalendar } from "./dateFormatSyntax";
+import type { DateCalendar, DateLocale } from "./dateFormatSyntax";
 import { formatISODate, parseDateInputValue } from "./dateFormatting";
 
 export interface ParsedDate {
@@ -18,6 +18,7 @@ export type ParseNaturalLanguageDateOptions = {
 	dateParser?: IDateParser;
 	aliases?: DateAliasMap;
 	calendar?: DateCalendar;
+	locale?: DateLocale;
 };
 
 export type CoerceDateVariableOptions = ParseNaturalLanguageDateOptions;
@@ -37,6 +38,7 @@ export function parseNaturalLanguageDate(
 		dateParser = NLDParser,
 		aliases,
 		calendar = "gregorian",
+		locale = "default",
 	} = options;
 
 	if (!input || !input.trim()) {
@@ -51,6 +53,7 @@ export function parseNaturalLanguageDate(
 			value: input,
 			format,
 			calendar,
+			locale,
 		});
 
 		if (parsedInput) {
@@ -69,7 +72,7 @@ export function parseNaturalLanguageDate(
 			const isoString = parseResult.moment.toISOString();
 			const outputFormat = format || "YYYY-MM-DD";
 			const formatted =
-				formatISODate(isoString, outputFormat, calendar) ??
+				formatISODate(isoString, outputFormat, calendar, locale) ??
 				parseResult.moment.format(outputFormat);
 
 			return {

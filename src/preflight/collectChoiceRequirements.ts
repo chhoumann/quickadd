@@ -75,6 +75,10 @@ function toFieldRequirement(input: unknown): FieldRequirement | null {
 			value.dateCalendar === "jalali" || value.dateCalendar === "gregorian"
 				? value.dateCalendar
 				: undefined,
+		dateLocale:
+			value.dateLocale === "fa" || value.dateLocale === "default"
+				? value.dateLocale
+				: undefined,
 		description:
 			typeof value.description === "string" ? value.description : undefined,
 		source: "script",

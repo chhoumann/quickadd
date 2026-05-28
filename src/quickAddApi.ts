@@ -40,7 +40,7 @@ import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { formatISODate } from "./utils/dateFormatting";
-import type { DateCalendar } from "./utils/dateFormatSyntax";
+import type { DateCalendar, DateLocale } from "./utils/dateFormatSyntax";
 
 function snapshotVariables(
 	vars: Map<string, unknown>,
@@ -83,6 +83,7 @@ export class QuickAddApi {
 					options?: string[];
 					dateFormat?: string;
 					dateCalendar?: DateCalendar;
+					dateLocale?: DateLocale;
 					description?: string;
 					suggesterConfig?: {
 						allowCustomInput?: boolean;
@@ -113,6 +114,7 @@ export class QuickAddApi {
 						options: spec.options,
 						dateFormat: spec.dateFormat,
 						dateCalendar: spec.dateCalendar,
+						dateLocale: spec.dateLocale,
 						description: spec.description,
 						suggesterConfig: spec.suggesterConfig,
 						source: "script",
@@ -159,6 +161,7 @@ export class QuickAddApi {
 							iso,
 							spec.dateFormat,
 							spec.dateCalendar,
+							spec.dateLocale,
 						);
 						if (formatted) output = formatted;
 					}
@@ -178,6 +181,7 @@ export class QuickAddApi {
 					defaultValue?: string;
 					dateFormat?: string;
 					dateCalendar?: DateCalendar;
+					dateLocale?: DateLocale;
 				},
 			) => {
 				return QuickAddApi.datePrompt(app, header, options);
@@ -631,6 +635,7 @@ export class QuickAddApi {
 			defaultValue?: string;
 			dateFormat?: string;
 			dateCalendar?: DateCalendar;
+			dateLocale?: DateLocale;
 		},
 	) {
 		try {
@@ -641,11 +646,17 @@ export class QuickAddApi {
 				options?.defaultValue,
 				options?.dateFormat,
 				options?.dateCalendar,
+				options?.dateLocale,
 			);
 			if (value && value.startsWith("@date:")) {
 				const iso = value.slice(6);
 				const formatted = options?.dateFormat
-					? formatISODate(iso, options.dateFormat, options.dateCalendar)
+					? formatISODate(
+							iso,
+							options.dateFormat,
+							options.dateCalendar,
+							options.dateLocale,
+						)
 					: null;
 				return formatted ?? iso;
 			}

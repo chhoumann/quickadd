@@ -21,7 +21,7 @@ import type {
 import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
 import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
-import type { DateCalendar } from "./utils/dateFormatSyntax";
+import type { DateCalendar, DateLocale } from "./utils/dateFormatSyntax";
 import { parseDateFormatToken } from "./utils/dateFormatSyntax";
 import { formatDateValue } from "./utils/dateFormatting";
 import { reportError } from "./utils/errorUtils";
@@ -475,6 +475,7 @@ export function getDate(input?: {
 	format?: string;
 	offset?: number;
 	calendar?: DateCalendar;
+	locale?: DateLocale;
 }) {
 	const parsed = parseDateFormatToken(input?.format);
 
@@ -482,6 +483,7 @@ export function getDate(input?: {
 		format: parsed.format,
 		offset: input?.offset ?? parsed.offset,
 		calendar: input?.calendar ?? parsed.calendar,
+		locale: input?.locale ?? parsed.locale,
 	});
 }
 

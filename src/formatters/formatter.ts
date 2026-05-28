@@ -27,6 +27,7 @@ import {
 	parseDateFormatToken,
 	parseDateVariableToken,
 	type DateCalendar,
+	type DateLocale,
 } from "../utils/dateFormatSyntax";
 import { coerceToDateVariable } from "../utils/dateParser";
 import { formatDateValue, formatISODate } from "../utils/dateFormatting";
@@ -47,6 +48,7 @@ export interface PromptContext {
 	type?: string;
 	dateFormat?: string;
 	dateCalendar?: DateCalendar;
+	dateLocale?: DateLocale;
 	defaultValue?: string;
 	label?: string;
 	description?: string;
@@ -107,12 +109,14 @@ export abstract class Formatter {
 			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
 			if (!dateMatch) throw new Error(`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`);
 
-			const { format, offset, calendar } = parseDateFormatToken(dateMatch[1]);
+			const { format, offset, calendar, locale } = parseDateFormatToken(
+				dateMatch[1],
+			);
 
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				formatDateValue({ format, offset, calendar }),
+				formatDateValue({ format, offset, calendar, locale }),
 			);
 		}
 
@@ -542,7 +546,13 @@ export abstract class Formatter {
 				dateFormat: match[2],
 				rawOptions: match[3],
 			});
-			const { variableName, format: dateFormat, calendar, defaultValue } = parsed;
+			const {
+				variableName,
+				format: dateFormat,
+				calendar,
+				locale,
+				defaultValue,
+			} = parsed;
 
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
@@ -554,6 +564,7 @@ export abstract class Formatter {
 			const dateParseOptions = {
 				format: dateFormat,
 				calendar,
+				locale,
 				dateParser: this.dateParser,
 			};
 
@@ -562,7 +573,13 @@ export abstract class Formatter {
 				// Prompt for date input with VDATE context
 				const dateInput = await this.promptForVariable(
 					variableName,
-					{ type: "VDATE", dateFormat, dateCalendar: calendar, defaultValue }
+					{
+						type: "VDATE",
+						dateFormat,
+						dateCalendar: calendar,
+						dateLocale: locale,
+						defaultValue,
+					}
 				);
 				const coerced = coerceToDateVariable(dateInput, dateParseOptions);
 				if (!coerced) {
@@ -595,7 +612,8 @@ export abstract class Formatter {
 				// It's a date variable, extract and format it
 				const isoString = storedValue.substring(6);
 
-				formattedDate = formatISODate(isoString, dateFormat, calendar) ?? "";
+				formattedDate =
+					formatISODate(isoString, dateFormat, calendar, locale) ?? "";
 			} else if (typeof storedValue === "string" && storedValue) {
 				// Backward compatibility: use the stored value as-is
 				formattedDate = storedValue;

@@ -179,6 +179,7 @@ export class FormatDisplayFormatter extends Formatter {
 			let formattedExample = previewDateFormat({
 				format: cleanDateFormat,
 				calendar: parsed.calendar,
+				locale: parsed.locale,
 			});
 			
 			// If there's a default value, indicate it in the preview

@@ -4,7 +4,7 @@ import { Formatter, type PromptContext } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
-import type { DateCalendar } from "src/utils/dateFormatSyntax";
+import type { DateCalendar, DateLocale } from "src/utils/dateFormatSyntax";
 import { coerceToDateVariable } from "src/utils/dateParser";
 import { parseValueToken } from "src/utils/valueSyntax";
 
@@ -29,6 +29,7 @@ export interface FieldRequirement {
 	// Additional metadata
 	dateFormat?: string; // for VDATE
 	dateCalendar?: DateCalendar; // for VDATE
+	dateLocale?: DateLocale; // for VDATE
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
 	suggesterConfig?: {
@@ -237,6 +238,7 @@ export class RequirementCollector extends Formatter {
 					defaultValue: context.defaultValue,
 					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
 					dateCalendar: context.dateCalendar,
+					dateLocale: context.dateLocale,
 					description: context.description,
 					source: "collected",
 				});
@@ -245,6 +247,7 @@ export class RequirementCollector extends Formatter {
 				return coerceToDateVariable(context.defaultValue, {
 					format: context.dateFormat,
 					calendar: context.dateCalendar,
+					locale: context.dateLocale,
 					dateParser: this.dateParser,
 				}) ?? "@date:1970-01-01T00:00:00.000Z";
 			}

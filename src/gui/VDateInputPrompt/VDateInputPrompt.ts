@@ -10,12 +10,13 @@ import {
 	formatDateAliasInline,
 	getOrderedDateAliases,
 } from "../../utils/dateAliases";
-import type { DateCalendar } from "../../utils/dateFormatSyntax";
+import type { DateCalendar, DateLocale } from "../../utils/dateFormatSyntax";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	private previewEl: HTMLElement;
 	private dateFormat: string;
 	private dateCalendar: DateCalendar;
+	private dateLocale: DateLocale;
 	private updatePreviewDebounced: Debouncer<[], void>;
 	private currentInput: string;
 	private isOpen = true;
@@ -32,6 +33,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		defaultValue?: string,
 		dateFormat?: string,
 		dateCalendar?: DateCalendar,
+		dateLocale?: DateLocale,
 	): Promise<string> {
 		const newPromptModal = new VDateInputPrompt(
 			app,
@@ -40,6 +42,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			defaultValue,
 			dateFormat,
 			dateCalendar,
+			dateLocale,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -51,6 +54,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		defaultValue?: string,
 		dateFormat?: string,
 		dateCalendar?: DateCalendar,
+		dateLocale?: DateLocale,
 	) {
 		// Pass the defaultValue to the parent so the input box is pre-filled
 		super(app, header, placeholder, defaultValue ?? "");
@@ -58,6 +62,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.containerEl.addClass("qaDatePrompt");
 		this.dateFormat = dateFormat || "YYYY-MM-DD";
 		this.dateCalendar = dateCalendar ?? "gregorian";
+		this.dateLocale = dateLocale ?? "default";
 		this.defaultValue = defaultValue;
 		this.currentInput = defaultValue ?? "";
 
@@ -200,7 +205,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	private formatIsoForInput(iso: string): string {
-		const formatted = formatISODate(iso, this.dateFormat, this.dateCalendar);
+		const formatted = formatISODate(
+			iso,
+			this.dateFormat,
+			this.dateCalendar,
+			this.dateLocale,
+		);
 		if (formatted) return formatted;
 		return iso.length >= 10 ? iso.slice(0, 10) : iso;
 	}
@@ -243,6 +253,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			format: this.dateFormat,
 			dateParser: NLDParser,
 			calendar: this.dateCalendar,
+			locale: this.dateLocale,
 		});
 
 		if (parseResult.isValid && parseResult.isoString) {
@@ -285,6 +296,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 				format: this.dateFormat,
 				dateParser: NLDParser,
 				calendar: this.dateCalendar,
+				locale: this.dateLocale,
 			});
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;
@@ -295,6 +307,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 				format: this.dateFormat,
 				dateParser: NLDParser,
 				calendar: this.dateCalendar,
+				locale: this.dateLocale,
 			});
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;

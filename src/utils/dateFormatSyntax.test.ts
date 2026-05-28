@@ -15,6 +15,7 @@ describe("dateFormatSyntax", () => {
 			expect(parseDateFormatToken("YYYY-MM-DD")).toEqual({
 				format: "YYYY-MM-DD",
 				calendar: "gregorian",
+				locale: "default",
 				offset: undefined,
 			});
 		});
@@ -25,6 +26,7 @@ describe("dateFormatSyntax", () => {
 			).toEqual({
 				format: "jYYYY-jMM-jDD",
 				calendar: "jalali",
+				locale: "default",
 				offset: undefined,
 			});
 		});
@@ -59,6 +61,7 @@ describe("dateFormatSyntax", () => {
 			expect(parseDateFormatToken("YYYY-MM-DD+literal")).toEqual({
 				format: "YYYY-MM-DD+literal",
 				calendar: "gregorian",
+				locale: "default",
 				offset: undefined,
 			});
 		});
@@ -67,6 +70,7 @@ describe("dateFormatSyntax", () => {
 			expect(parseDateFormatToken("YYYY|MM|calendar:gregorian")).toEqual({
 				format: "YYYY|MM",
 				calendar: "gregorian",
+				locale: "default",
 				offset: undefined,
 			});
 		});
@@ -76,6 +80,27 @@ describe("dateFormatSyntax", () => {
 				parseDateFormatToken("YYYY-MM-DD|calendar:martian").calendar,
 			).toBe("gregorian");
 			expect(logWarningMock).toHaveBeenCalledOnce();
+		});
+
+		it("parses the locale option and its aliases", () => {
+			expect(
+				parseDateFormatToken("jYYYY/jMM/jDD|calendar:jalali|locale:fa")
+					.locale,
+			).toBe("fa");
+			expect(
+				parseDateFormatToken("jYYYY/jMM/jDD|locale:farsi").locale,
+			).toBe("fa");
+			expect(
+				parseDateFormatToken("jYYYY/jMM/jDD|locale:persian").locale,
+			).toBe("fa");
+		});
+
+		it("defaults the locale and warns on unsupported values", () => {
+			expect(parseDateFormatToken("YYYY-MM-DD").locale).toBe("default");
+			expect(
+				parseDateFormatToken("YYYY-MM-DD|locale:klingon").locale,
+			).toBe("default");
+			expect(logWarningMock).toHaveBeenCalled();
 		});
 	});
 
@@ -91,6 +116,7 @@ describe("dateFormatSyntax", () => {
 				variableName: "due",
 				format: "YYYY-MM-DD",
 				calendar: "gregorian",
+				locale: "default",
 				defaultValue: "today",
 			});
 		});
@@ -106,6 +132,7 @@ describe("dateFormatSyntax", () => {
 				variableName: "due",
 				format: "jYYYY-jMM-jDD",
 				calendar: "jalali",
+				locale: "default",
 				defaultValue: "today",
 			});
 		});
@@ -121,6 +148,7 @@ describe("dateFormatSyntax", () => {
 				variableName: "due",
 				format: "YYYY-MM-DD",
 				calendar: "jalali",
+				locale: "default",
 				defaultValue: undefined,
 			});
 		});
@@ -136,7 +164,24 @@ describe("dateFormatSyntax", () => {
 				variableName: "due",
 				format: "jYYYY-jMM-jDD",
 				calendar: "jalali",
+				locale: "default",
 				defaultValue: undefined,
+			});
+		});
+
+		it("parses calendar, locale, and keyed default together", () => {
+			expect(
+				parseDateVariableToken({
+					variableName: "due",
+					dateFormat: "jYYYY/jMM/jDD",
+					rawOptions: "calendar:jalali|locale:fa|default:today",
+				}),
+			).toEqual({
+				variableName: "due",
+				format: "jYYYY/jMM/jDD",
+				calendar: "jalali",
+				locale: "fa",
+				defaultValue: "today",
 			});
 		});
 	});

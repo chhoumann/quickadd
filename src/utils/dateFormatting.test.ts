@@ -79,4 +79,94 @@ describe("dateFormatting", () => {
 			}),
 		).toBeNull();
 	});
+
+	it("renders Persian digits with the fa locale", () => {
+		expect(
+			formatDateValue({
+				date: new Date(2026, 4, 28, 12),
+				format: "jYYYY/jMM/jDD",
+				calendar: "jalali",
+				locale: "fa",
+			}),
+		).toBe("۱۴۰۵/۰۳/۰۷");
+	});
+
+	it("renders Persian month names with the fa locale", () => {
+		expect(
+			formatDateValue({
+				date: new Date(2026, 4, 28, 12),
+				format: "jD jMMMM jYYYY",
+				calendar: "jalali",
+				locale: "fa",
+			}),
+		).toBe("۷ خرداد ۱۴۰۵");
+	});
+
+	it("keeps the default jalali locale Latin after fa is used", () => {
+		// fa load is global to moment-jalaali; the default path must stay Latin.
+		formatDateValue({
+			date: new Date(2026, 4, 28, 12),
+			format: "jYYYY/jMM/jDD",
+			calendar: "jalali",
+			locale: "fa",
+		});
+
+		expect(
+			formatDateValue({
+				date: new Date(2026, 4, 28, 12),
+				format: "jD jMMMM jYYYY",
+				calendar: "jalali",
+			}),
+		).toBe("7 Khordaad 1405");
+	});
+
+	it("applies offsets to jalali dates", () => {
+		expect(
+			formatDateValue({
+				date: new Date(2026, 4, 28, 12),
+				format: "jYYYY-jMM-jDD",
+				calendar: "jalali",
+				offset: 3,
+			}),
+		).toBe("1405-03-10");
+	});
+
+	it("formats ISO strings in Persian with the fa locale", () => {
+		expect(
+			formatISODate(
+				"2026-05-28T12:00:00.000Z",
+				"jYYYY/jMM/jDD",
+				"jalali",
+				"fa",
+			),
+		).toBe("۱۴۰۵/۰۳/۰۷");
+	});
+
+	it("parses Persian-digit input and renders it back in Persian", () => {
+		expect(
+			parseDateInputValue({
+				value: "۱۴۰۵-۰۳-۰۷",
+				format: "jYYYY-jMM-jDD",
+				calendar: "jalali",
+				locale: "fa",
+			}),
+		).toMatchObject({
+			formatted: "۱۴۰۵-۰۳-۰۷",
+			isoString: "2026-05-28T00:00:00.000Z",
+		});
+	});
+
+	it("accepts Latin input even when the fa locale is requested", () => {
+		expect(
+			parseDateInputValue({
+				value: "1405-03-07",
+				format: "jYYYY-jMM-jDD",
+				calendar: "jalali",
+				locale: "fa",
+			}),
+		).toMatchObject({
+			formatted: "۱۴۰۵-۰۳-۰۷",
+			isoString: "2026-05-28T00:00:00.000Z",
+		});
+	});
 });

@@ -159,4 +159,22 @@ describe("Jalali date format syntax", () => {
 			formatter.renderVdates("{{VDATE:due,jYYYY-jMM-jDD|calendar:jalali}}"),
 		).resolves.toBe("1405-03-07");
 	});
+
+	it("renders DATE in Persian with the locale option", () => {
+		expect(
+			formatter.renderDates(
+				"{{DATE:jYYYY/jMM/jDD|calendar:jalali|locale:fa}}",
+			),
+		).toBe("۱۴۰۵/۰۳/۰۷");
+	});
+
+	it("renders VDATE stored ISO values in Persian with the locale option", async () => {
+		formatter.variables.set("due", "@date:2026-05-28T12:00:00.000Z");
+
+		await expect(
+			formatter.renderVdates(
+				"{{VDATE:due,jYYYY/jMM/jDD|calendar:jalali|locale:fa}}",
+			),
+		).resolves.toBe("۱۴۰۵/۰۳/۰۷");
+	});
 });
