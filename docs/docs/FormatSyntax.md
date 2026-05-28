@@ -67,10 +67,11 @@ bare option segments are ignored, so write
 `{{VDATE:due,YYYY-MM-DD|calendar:jalali|default:today}}` rather than
 `{{VDATE:due,YYYY-MM-DD|calendar:jalali|today}}`.
 
-**Note:** Avoid unescaped pipe characters (`|`) in `VDATE` date formats when
-using keyed options like `|calendar:` or `|default:`. Prefer Moment literal
-text in square brackets, such as `[|]`, when you need a pipe in the rendered
-date.
+**Note:** A `VDATE` date format cannot contain a pipe character (`|`). The first
+`|` always begins the option list (`calendar:`, `default:`, or a legacy
+shorthand default), so pipes in the format — including Moment literals like
+`[|]` — are not supported here. If you need a literal pipe in the rendered date,
+use the [`{{DATE:<DATEFORMAT>}}`](#date-format) token, where `[|]` is preserved.
 
 ## `{{VALUE}}` / `{{NAME}}` {#value}
 
