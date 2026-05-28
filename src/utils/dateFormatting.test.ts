@@ -32,19 +32,24 @@ describe("dateFormatting", () => {
 
 	it("keeps Gregorian formatting on window.moment", () => {
 		const format = vi.fn(() => "2026-05-28");
+		const previousMoment = (globalThis as any).window.moment;
 		(globalThis as any).window.moment = vi.fn(() => ({
 			add: vi.fn(function () { return this; }),
 			format,
 		}));
 
-		expect(
-			formatDateValue({
-				date: new Date(2026, 4, 28, 12),
-				format: "YYYY-MM-DD",
-				calendar: "gregorian",
-			}),
-		).toBe("2026-05-28");
-		expect(format).toHaveBeenCalledWith("YYYY-MM-DD");
+		try {
+			expect(
+				formatDateValue({
+					date: new Date(2026, 4, 28, 12),
+					format: "YYYY-MM-DD",
+					calendar: "gregorian",
+				}),
+			).toBe("2026-05-28");
+			expect(format).toHaveBeenCalledWith("YYYY-MM-DD");
+		} finally {
+			(globalThis as any).window.moment = previousMoment;
+		}
 	});
 
 	it("formats ISO strings with Jalali calendar", () => {

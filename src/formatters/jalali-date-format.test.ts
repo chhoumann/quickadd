@@ -104,6 +104,7 @@ describe("Jalali date format syntax", () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+		delete (globalThis as any).window?.moment;
 	});
 
 	it("formats DATE with explicit Jalali calendar option", () => {

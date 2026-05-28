@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseDateFormatToken, parseDateVariableToken } from "./dateFormatSyntax";
 
 const logWarningMock = vi.hoisted(() => vi.fn());
@@ -10,6 +10,10 @@ vi.mock("../logger/logManager", () => ({
 }));
 
 describe("dateFormatSyntax", () => {
+	beforeEach(() => {
+		logWarningMock.mockClear();
+	});
+
 	describe("parseDateFormatToken", () => {
 		it("defaults to Gregorian formatting", () => {
 			expect(parseDateFormatToken("YYYY-MM-DD")).toEqual({
