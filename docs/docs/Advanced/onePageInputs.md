@@ -85,6 +85,7 @@ Supported input fields:
 - `defaultValue` (string)
 - `options` (string[] for dropdown and suggester)
 - `dateFormat` (string for date)
+- `dateCalendar` (`"gregorian"` or `"jalali"` for date; defaults to `"gregorian"`)
 - `description` (string)
 - `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean }`)
 
@@ -107,6 +108,7 @@ export default async function entry({ quickAddApi }) {
   const values = await quickAddApi.requestInputs([
     { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
     { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
+    { id: "jalaliDue", label: "Jalali due", type: "date", dateFormat: "jYYYY-jMM-jDD", dateCalendar: "jalali" },
     { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
     { 
       id: "tags", 

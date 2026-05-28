@@ -4,6 +4,7 @@ import { Formatter, type PromptContext } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
+import type { DateCalendar } from "src/utils/dateFormatSyntax";
 import { parseValueToken } from "src/utils/valueSyntax";
 
 export type FieldType =
@@ -26,6 +27,7 @@ export interface FieldRequirement {
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	// Additional metadata
 	dateFormat?: string; // for VDATE
+	dateCalendar?: DateCalendar; // for VDATE
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
 	suggesterConfig?: {
@@ -233,6 +235,7 @@ export class RequirementCollector extends Formatter {
 					type: "date",
 					defaultValue: context.defaultValue,
 					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
+					dateCalendar: context.dateCalendar,
 					description: context.description,
 					source: "collected",
 				});

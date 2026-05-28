@@ -26,8 +26,10 @@ export const GLOBAL_VAR_SYNTAX = "{{global_var:<name>}}";
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
 	"{{date:<dateformat>}}",
+	"{{date:jYYYY-jMM-jDD|calendar:jalali}}",
 	"{{vdate:<variable name>, <date format>}}",
 	"{{vdate:<variable name>, <date format>|<default value>}}",
+	"{{vdate:<variable name>, jYYYY-jMM-jDD|calendar:jalali|default:<default value>}}",
 	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
@@ -57,8 +59,10 @@ export const FORMAT_SYNTAX: string[] = [
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
 	"{{date:<dateformat>}}",
+	"{{date:jYYYY-jMM-jDD|calendar:jalali}}",
 	"{{vdate:<variable name>, <date format>}}",
 	"{{vdate:<variable name>, <date format>|<default value>}}",
+	"{{vdate:<variable name>, jYYYY-jMM-jDD|calendar:jalali|default:<default value>}}",
 	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
@@ -84,7 +88,7 @@ export const CREATE_IF_NOT_FOUND_CURSOR = "cursor";
 // == Format Syntax == //
 export const DATE_REGEX = new RegExp(/{{DATE(\+-?[0-9]+)?}}/i);
 export const DATE_REGEX_FORMATTED = new RegExp(
-	/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/i,
+	/{{DATE:([^}\n\r]*)}}/i,
 );
 export const TIME_REGEX = new RegExp(/{{TIME}}/i);
 export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);

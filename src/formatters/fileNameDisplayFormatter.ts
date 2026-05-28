@@ -13,6 +13,8 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
+import { parseDateVariableToken } from "../utils/dateFormatSyntax";
+import { formatDateValue } from "../utils/dateFormatting";
 
 import type QuickAdd from "../main";
 
@@ -136,9 +138,14 @@ export class FileNameDisplayFormatter extends Formatter {
 		let output: string = input;
 		
 		// Enhanced date variable preview with realistic examples
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
-			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
+			const parsed = parseDateVariableToken({
+				variableName: variableName ?? "",
+				dateFormat,
+				rawOptions,
+			});
+			const cleanVariableName = parsed.variableName;
+			const cleanDateFormat = parsed.format;
 			
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete
@@ -149,9 +156,17 @@ export class FileNameDisplayFormatter extends Formatter {
 			let formattedExample: string;
 			
 			try {
-				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				formattedExample = formatDateValue({
+					date: previewDate,
+					format: cleanDateFormat,
+					calendar: parsed.calendar,
+				});
 			} catch {
-				formattedExample = `[${cleanDateFormat}]`;
+				try {
+					formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				} catch {
+					formattedExample = `[${cleanDateFormat}]`;
+				}
 			}
 			
 			return formattedExample;

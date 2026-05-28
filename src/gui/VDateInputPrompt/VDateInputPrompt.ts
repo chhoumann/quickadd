@@ -3,15 +3,18 @@ import { TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
 import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
+import { NLDParser } from "../../parsers/NLDParser";
 import { settingsStore } from "../../settingsStore";
 import {
 	formatDateAliasInline,
 	getOrderedDateAliases,
 } from "../../utils/dateAliases";
+import type { DateCalendar } from "../../utils/dateFormatSyntax";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
 	private previewEl: HTMLElement;
 	private dateFormat: string;
+	private dateCalendar: DateCalendar;
 	private updatePreviewDebounced: Debouncer<[], void>;
 	private currentInput: string;
 	private isOpen = true;
@@ -26,14 +29,16 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		header: string,
 		placeholder?: string,
 		defaultValue?: string,
-		dateFormat?: string
+		dateFormat?: string,
+		dateCalendar?: DateCalendar,
 	): Promise<string> {
 		const newPromptModal = new VDateInputPrompt(
 			app,
 			header,
 			placeholder,
 			defaultValue,
-			dateFormat
+			dateFormat,
+			dateCalendar,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -43,13 +48,15 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		header: string,
 		placeholder?: string,
 		defaultValue?: string,
-		dateFormat?: string
+		dateFormat?: string,
+		dateCalendar?: DateCalendar,
 	) {
 		// Pass the defaultValue to the parent so the input box is pre-filled
 		super(app, header, placeholder, defaultValue ?? "");
 
 		this.containerEl.addClass("qaDatePrompt");
 		this.dateFormat = dateFormat || "YYYY-MM-DD";
+		this.dateCalendar = dateCalendar ?? "gregorian";
 		this.defaultValue = defaultValue;
 		this.currentInput = defaultValue ?? "";
 
@@ -192,7 +199,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	private formatIsoForInput(iso: string): string {
-		const formatted = formatISODate(iso, this.dateFormat);
+		const formatted = formatISODate(iso, this.dateFormat, this.dateCalendar);
 		if (formatted) return formatted;
 		return iso.length >= 10 ? iso.slice(0, 10) : iso;
 	}
@@ -231,7 +238,13 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	private renderPreviewFromInput(value: string) {
-		const parseResult = parseNaturalLanguageDate(value, this.dateFormat);
+		const parseResult = parseNaturalLanguageDate(
+			value,
+			this.dateFormat,
+			NLDParser,
+			undefined,
+			this.dateCalendar,
+		);
 
 		if (parseResult.isValid && parseResult.isoString) {
 			this.selectedIso = parseResult.isoString;
@@ -272,13 +285,22 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			const parsed = parseNaturalLanguageDate(
 				this.defaultValue,
 				this.dateFormat,
+				NLDParser,
+				undefined,
+				this.dateCalendar,
 			);
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;
 			}
 		}
 		if (trimmed) {
-			const parsed = parseNaturalLanguageDate(trimmed, this.dateFormat);
+			const parsed = parseNaturalLanguageDate(
+				trimmed,
+				this.dateFormat,
+				NLDParser,
+				undefined,
+				this.dateCalendar,
+			);
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;
 			}

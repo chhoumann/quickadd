@@ -26,6 +26,12 @@ import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
+import {
+	parseDateFormatToken,
+	parseDateVariableToken,
+	type DateCalendar,
+} from "../utils/dateFormatSyntax";
+import { formatISODateValue, parseDateInputValue } from "../utils/dateFormatting";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import {
@@ -42,6 +48,7 @@ export type LinkToCurrentFileBehavior = "required" | "optional";
 export interface PromptContext {
 	type?: string;
 	dateFormat?: string;
+	dateCalendar?: DateCalendar;
 	defaultValue?: string;
 	label?: string;
 	description?: string;
@@ -108,19 +115,12 @@ export abstract class Formatter {
 			const dateMatch = DATE_REGEX_FORMATTED.exec(output);
 			if (!dateMatch) throw new Error(`Unable to parse date format. Invalid syntax in: "${output.substring(Math.max(0, output.search(DATE_REGEX_FORMATTED) - 10), Math.min(output.length, output.search(DATE_REGEX_FORMATTED) + 30))}..."`);
 
-			const format = dateMatch[1];
-			let offset: number | undefined;
-
-			if (dateMatch[2]) {
-				const offsetString = dateMatch[2].replace("+", "").trim();
-				const offsetIsInt = NUMBER_REGEX.test(offsetString);
-				if (offsetIsInt) offset = parseInt(offsetString);
-			}
+			const { format, offset, calendar } = parseDateFormatToken(dateMatch[1]);
 
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset: offset }),
+				getDate({ format, offset, calendar }),
 			);
 		}
 
@@ -545,9 +545,12 @@ export abstract class Formatter {
 			const match = DATE_VARIABLE_REGEX.exec(output);
 			if (!match || !match[1]) break;
 
-			const variableName = match[1].trim();
-			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
-			const defaultValue = match[3]?.trim() || undefined;
+			const parsed = parseDateVariableToken({
+				variableName: match[1],
+				dateFormat: match[2],
+				rawOptions: match[3],
+			});
+			const { variableName, format: dateFormat, calendar, defaultValue } = parsed;
 
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
@@ -563,7 +566,7 @@ export abstract class Formatter {
 					// Prompt for date input with VDATE context
 					const dateInput = await this.promptForVariable(
 						variableName,
-						{ type: "VDATE", dateFormat, defaultValue }
+						{ type: "VDATE", dateFormat, dateCalendar: calendar, defaultValue }
 					);
 					if (dateInput?.startsWith("@date:")) {
 						this.variables.set(variableName, dateInput);
@@ -571,23 +574,36 @@ export abstract class Formatter {
 						if (!this.dateParser)
 							throw new Error("Date parser is not available");
 
-						const aliasMap = settingsStore.getState().dateAliases;
-						const normalizedInput = normalizeDateInput(
-							dateInput,
-							aliasMap,
-						);
-						const parseAttempt = this.dateParser.parseDate(normalizedInput);
+						const exactParsedDate = parseDateInputValue({
+							value: dateInput,
+							format: dateFormat,
+							calendar,
+						});
 
-						if (parseAttempt) {
-							// Store the ISO string with a special prefix
+						if (exactParsedDate) {
 							this.variables.set(
 								variableName,
-								`@date:${parseAttempt.moment.toISOString()}`,
+								`@date:${exactParsedDate.isoString}`,
 							);
 						} else {
-							throw new Error(
-								`unable to parse date variable ${dateInput}`,
+							const aliasMap = settingsStore.getState().dateAliases;
+							const normalizedInput = normalizeDateInput(
+								dateInput,
+								aliasMap,
 							);
+							const parseAttempt = this.dateParser.parseDate(normalizedInput);
+
+							if (parseAttempt) {
+								// Store the ISO string with a special prefix
+								this.variables.set(
+									variableName,
+									`@date:${parseAttempt.moment.toISOString()}`,
+								);
+							} else {
+								throw new Error(
+									`unable to parse date variable ${dateInput}`,
+								);
+							}
 						}
 					}
 				}
@@ -604,6 +620,17 @@ export abstract class Formatter {
 					!storedValue.startsWith("@date:")
 				) {
 					if (this.dateParser) {
+						const exactParsedDate = parseDateInputValue({
+							value: storedValue,
+							format: dateFormat,
+							calendar,
+						});
+
+						if (exactParsedDate) {
+							const coerced = `@date:${exactParsedDate.isoString}`;
+							this.variables.set(variableName, coerced);
+							storedValue = coerced;
+						} else {
 						const aliasMap = settingsStore.getState().dateAliases;
 						const normalizedInput = normalizeDateInput(storedValue, aliasMap);
 						const parseAttempt = this.dateParser.parseDate(normalizedInput);
@@ -615,6 +642,7 @@ export abstract class Formatter {
 							this.variables.set(variableName, coerced);
 							storedValue = coerced;
 						}
+					}
 					}
 				} else if (storedValue instanceof Date) {
 					// Some callers may pass actual Date objects through the JS API.
@@ -629,12 +657,11 @@ export abstract class Formatter {
 					// It's a date variable, extract and format it
 					const isoString = storedValue.substring(6);
 
-					if (this.dateParser && window.moment) {
-						const moment = window.moment(isoString);
-						if (moment && moment.isValid()) {
-							formattedDate = moment.format(dateFormat);
-						}
-					}
+					formattedDate = formatISODateValue({
+						isoString,
+						format: dateFormat,
+						calendar,
+					}) ?? "";
 				} else if (typeof storedValue === "string" && storedValue) {
 					// Backward compatibility: use the stored value as-is
 					formattedDate = storedValue;

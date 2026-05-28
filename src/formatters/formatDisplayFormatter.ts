@@ -15,6 +15,8 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
+import { parseDateVariableToken } from "../utils/dateFormatSyntax";
+import { formatDateValue } from "../utils/dateFormatting";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -156,10 +158,15 @@ export class FormatDisplayFormatter extends Formatter {
 		let output: string = input;
 		
 		// For preview, show helpful format examples instead of failing
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, defaultValue) => {
-			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
-			const cleanDefaultValue = defaultValue?.trim();
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
+			const parsed = parseDateVariableToken({
+				variableName: variableName ?? "",
+				dateFormat,
+				rawOptions,
+			});
+			const cleanVariableName = parsed.variableName;
+			const cleanDateFormat = parsed.format;
+			const cleanDefaultValue = parsed.defaultValue;
 			
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete
@@ -170,11 +177,17 @@ export class FormatDisplayFormatter extends Formatter {
 			let formattedExample: string;
 			
 			try {
-				// Try to generate a realistic preview using the format
-				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				formattedExample = formatDateValue({
+					date: previewDate,
+					format: cleanDateFormat,
+					calendar: parsed.calendar,
+				});
 			} catch {
-				// Fallback to showing the format pattern
-				formattedExample = `[${cleanDateFormat} format]`;
+				try {
+					formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				} catch {
+					formattedExample = `[${cleanDateFormat} format]`;
+				}
 			}
 			
 			// If there's a default value, indicate it in the preview

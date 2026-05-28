@@ -70,6 +70,42 @@ describe("dateParser", () => {
 			expect(mockDateParser.parseDate).toHaveBeenCalledWith("tomorrow 5pm");
 		});
 
+		it("should parse exact Jalali input before natural language fallback", () => {
+			const mockDateParser = {
+				parseDate: vi.fn(),
+			};
+
+			const result = parseNaturalLanguageDate(
+				"1405-03-07",
+				"jYYYY-jMM-jDD",
+				mockDateParser,
+				undefined,
+				"jalali",
+			);
+
+			expect(result.isValid).toBe(true);
+			expect(result.formatted).toBe("1405-03-07");
+			expect(result.isoString).toContain("2026-05-27T22:00:00.000Z");
+			expect(mockDateParser.parseDate).not.toHaveBeenCalled();
+		});
+
+		it("should fall back to natural language parsing for invalid Jalali input", () => {
+			const mockDateParser = {
+				parseDate: vi.fn().mockReturnValue(null),
+			};
+
+			const result = parseNaturalLanguageDate(
+				"1405-13-07",
+				"jYYYY-jMM-jDD",
+				mockDateParser,
+				undefined,
+				"jalali",
+			);
+
+			expect(result.isValid).toBe(false);
+			expect(mockDateParser.parseDate).toHaveBeenCalledWith("1405-13-07");
+		});
+
 		it("should return error when date parsing fails", () => {
 			const result = parseNaturalLanguageDate("invalid date");
 

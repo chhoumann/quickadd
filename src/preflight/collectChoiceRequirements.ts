@@ -71,6 +71,10 @@ function toFieldRequirement(input: unknown): FieldRequirement | null {
 			: undefined,
 		dateFormat:
 			typeof value.dateFormat === "string" ? value.dateFormat : undefined,
+		dateCalendar:
+			value.dateCalendar === "jalali" || value.dateCalendar === "gregorian"
+				? value.dateCalendar
+				: undefined,
 		description:
 			typeof value.description === "string" ? value.description : undefined,
 		source: "script",

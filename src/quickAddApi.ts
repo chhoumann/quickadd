@@ -40,6 +40,7 @@ import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { formatISODate } from "./utils/dateParser";
+import type { DateCalendar } from "./utils/dateFormatSyntax";
 
 function snapshotVariables(
 	vars: Map<string, unknown>,
@@ -81,6 +82,7 @@ export class QuickAddApi {
 					defaultValue?: string;
 					options?: string[];
 					dateFormat?: string;
+					dateCalendar?: DateCalendar;
 					description?: string;
 					suggesterConfig?: {
 						allowCustomInput?: boolean;
@@ -110,6 +112,7 @@ export class QuickAddApi {
 						defaultValue: spec.defaultValue,
 						options: spec.options,
 						dateFormat: spec.dateFormat,
+						dateCalendar: spec.dateCalendar,
 						description: spec.description,
 						suggesterConfig: spec.suggesterConfig,
 						source: "script",
@@ -152,7 +155,11 @@ export class QuickAddApi {
 						value.startsWith("@date:")
 					) {
 						const iso = value.slice(6);
-						const formatted = formatISODate(iso, spec.dateFormat);
+						const formatted = formatISODate(
+							iso,
+							spec.dateFormat,
+							spec.dateCalendar,
+						);
 						if (formatted) output = formatted;
 					}
 
@@ -170,6 +177,7 @@ export class QuickAddApi {
 					placeholder?: string;
 					defaultValue?: string;
 					dateFormat?: string;
+					dateCalendar?: DateCalendar;
 				},
 			) => {
 				return QuickAddApi.datePrompt(app, header, options);
@@ -622,6 +630,7 @@ export class QuickAddApi {
 			placeholder?: string;
 			defaultValue?: string;
 			dateFormat?: string;
+			dateCalendar?: DateCalendar;
 		},
 	) {
 		try {
@@ -631,11 +640,12 @@ export class QuickAddApi {
 				options?.placeholder,
 				options?.defaultValue,
 				options?.dateFormat,
+				options?.dateCalendar,
 			);
 			if (value && value.startsWith("@date:")) {
 				const iso = value.slice(6);
 				const formatted = options?.dateFormat
-					? formatISODate(iso, options.dateFormat)
+					? formatISODate(iso, options.dateFormat, options.dateCalendar)
 					: null;
 				return formatted ?? iso;
 			}

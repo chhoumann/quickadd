@@ -274,7 +274,8 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				suggestions.push(
 					"{{VDATE:date,YYYY-MM-DD}}",
 					"{{VDATE:date,YYYY-MM-DD|today}}",
-					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}"
+					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}",
+					"{{VDATE:dueDate,jYYYY-jMM-jDD|calendar:jalali|default:today}}"
 				);
 			} else if (tokenDef.token === FormatSyntaxToken.GlobalVar) {
 				// Suggest defined global variable names

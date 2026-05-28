@@ -221,6 +221,7 @@ export class CompleteFormatter extends Formatter {
 					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
 					context.dateFormat ?? "YYYY-MM-DD",
+					context.dateCalendar,
 				);
 			}
 

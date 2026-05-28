@@ -14,6 +14,22 @@ Replace `<DATEFORMAT>` with a [Moment.js date format](https://momentjs.com/docs/
 
 Example: `{{DATE:YYYY-MM-DD_HH-mm}}` or `{{DATE:YYYY-MM-DD+3}}`.
 
+### Jalali / Persian calendar
+
+Use `|calendar:jalali` to format dates with the Jalali/Persian calendar.
+Jalali formats use `moment-jalaali` tokens such as `jYYYY`, `jMM`, and
+`jDD`.
+
+Example: `{{DATE:jYYYY-jMM-jDD|calendar:jalali}}`.
+
+On Gregorian `2026-05-28`, this outputs `1405-03-07`.
+
+Offsets still work: `{{DATE:jYYYY-jMM-jDD+3|calendar:jalali}}`.
+
+Accepted calendar values are `gregorian` (default), `jalali`, `jalaali`,
+and `persian`. QuickAdd does not infer the Jalali calendar from `j` tokens
+alone; use `|calendar:jalali` explicitly.
+
 ## `{{VDATE:<variable name>, <date format>}}` {#vdate}
 
 You'll get prompted to enter a date and it'll be parsed to the given date format. You could write 'today' or 'in two weeks' and it'll give you the date for that. Short aliases like `t` (today), `tm` (tomorrow), and `yd` (yesterday) are also supported and configurable in settings. Works like variables, so you can use the date in multiple places with different formats - enter once, format many times!
@@ -31,7 +47,24 @@ Same as above, but with a default value. If you leave the prompt empty, the defa
 
 Example: `{{VDATE:due,YYYY-MM-DD|next monday}}`.
 
-**Note:** If your date format contains pipe characters (`|`), escape them as `\|` or wrap them in square brackets, such as `[|]`, so QuickAdd does not treat them as the default value separator.
+You can also format variable dates with the Jalali calendar:
+`{{VDATE:due,jYYYY-jMM-jDD|calendar:jalali}}`.
+
+When `calendar:jalali` is set, the prompt accepts dates typed in the exact
+Jalali format you provided (for example, `1405-03-07` for
+`jYYYY-jMM-jDD`) and still falls back to natural language/Gregorian parsing
+for inputs like `today` or `next monday`.
+
+When combining date options with a default value, use the keyed `default:`
+option: `{{VDATE:due,jYYYY-jMM-jDD|calendar:jalali|default:today}}`.
+
+The legacy shorthand default remains supported for formats without keyed
+options: `{{VDATE:due,YYYY-MM-DD|today}}`.
+
+**Note:** Avoid unescaped pipe characters (`|`) in `VDATE` date formats when
+using keyed options like `|calendar:` or `|default:`. Prefer Moment literal
+text in square brackets, such as `[|]`, when you need a pipe in the rendered
+date.
 
 ## `{{VALUE}}` / `{{NAME}}` {#value}
 

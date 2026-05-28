@@ -3,6 +3,8 @@ import type { IDateParser } from "../parsers/IDateParser";
 import { settingsStore } from "../settingsStore";
 import type { DateAliasMap } from "./dateAliases";
 import { normalizeDateInput } from "./dateAliases";
+import type { DateCalendar } from "./dateFormatSyntax";
+import { formatISODateValue, parseDateInputValue } from "./dateFormatting";
 
 export interface ParsedDate {
 	isValid: boolean;
@@ -23,6 +25,7 @@ export function parseNaturalLanguageDate(
 	format?: string,
 	dateParser: IDateParser = NLDParser,
 	aliases?: DateAliasMap,
+	calendar: DateCalendar = "gregorian",
 ): ParsedDate {
 	if (!input || !input.trim()) {
 		return {
@@ -32,15 +35,33 @@ export function parseNaturalLanguageDate(
 	}
 
 	try {
+		const parsedInput = parseDateInputValue({
+			value: input,
+			format,
+			calendar,
+		});
+
+		if (parsedInput) {
+			return {
+				isValid: true,
+				isoString: parsedInput.isoString,
+				formatted: parsedInput.formatted,
+			};
+		}
+
 		const aliasMap = aliases ?? settingsStore.getState().dateAliases;
 		const normalizedInput = normalizeDateInput(input, aliasMap);
 		const parseResult = dateParser.parseDate(normalizedInput);
 
 		if (parseResult?.moment?.isValid()) {
 			const isoString = parseResult.moment.toISOString();
-			const formatted = format
-				? parseResult.moment.format(format)
-				: parseResult.moment.format("YYYY-MM-DD");
+			const outputFormat = format || "YYYY-MM-DD";
+			const formatted =
+				formatISODateValue({
+					isoString,
+					format: outputFormat,
+					calendar,
+				}) ?? parseResult.moment.format(outputFormat);
 
 			return {
 				isValid: true,
@@ -67,19 +88,10 @@ export function parseNaturalLanguageDate(
  * @param format - The desired output format
  * @returns The formatted date string or null if invalid
  */
-export function formatISODate(isoString: string, format: string): string | null {
-	if (!window.moment) {
-		return null;
-	}
-
-	try {
-		const moment = window.moment(isoString);
-		if (moment.isValid()) {
-			return moment.format(format);
-		}
-	} catch {
-		// Invalid date - return null
-	}
-
-	return null;
+export function formatISODate(
+	isoString: string,
+	format: string,
+	calendar: DateCalendar = "gregorian",
+): string | null {
+	return formatISODateValue({ isoString, format, calendar });
 }

@@ -21,6 +21,9 @@ import type {
 import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
 import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
+import type { DateCalendar } from "./utils/dateFormatSyntax";
+import { parseDateFormatToken } from "./utils/dateFormatSyntax";
+import { formatDateValue } from "./utils/dateFormatting";
 import { reportError } from "./utils/errorUtils";
 import { deepClone } from "./utils/deepClone";
 
@@ -468,20 +471,18 @@ export function getNaturalLanguageDates() {
 	return NLDParser;
 }
 
-export function getDate(input?: { format?: string; offset?: number; }) {
-	let duration;
+export function getDate(input?: {
+	format?: string;
+	offset?: number;
+	calendar?: DateCalendar;
+}) {
+	const parsed = parseDateFormatToken(input?.format);
 
-	if (
-		input?.offset !== null &&
-		input?.offset !== undefined &&
-		typeof input.offset === "number"
-	) {
-		duration = window.moment.duration(input.offset, "days");
-	}
-
-	return input?.format
-		? window.moment().add(duration).format(input.format)
-		: window.moment().add(duration).format("YYYY-MM-DD");
+	return formatDateValue({
+		format: parsed.format,
+		offset: input?.offset ?? parsed.offset,
+		calendar: input?.calendar ?? parsed.calendar,
+	});
 }
 
 export function appendToCurrentLine(toAppend: string, app: App) {
