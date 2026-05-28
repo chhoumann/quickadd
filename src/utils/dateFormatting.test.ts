@@ -169,4 +169,29 @@ describe("dateFormatting", () => {
 			isoString: "2026-05-28T00:00:00.000Z",
 		});
 	});
+
+	it("never touches window.moment when formatting jalali in Persian", () => {
+		// Gregorian uses Obsidian's window.moment (locale-aware); the jalali path
+		// must stay on the bundled moment-jalaali so it can't disturb it.
+		const momentSpy = vi.fn(() => ({
+			add: vi.fn(function (this: unknown) {
+				return this;
+			}),
+			locale: vi.fn(function (this: unknown) {
+				return this;
+			}),
+			format: () => "SHOULD-NOT-BE-USED",
+		}));
+		(globalThis as any).window.moment = momentSpy;
+
+		expect(
+			formatDateValue({
+				date: new Date(2026, 4, 28, 12),
+				format: "jYYYY/jMM/jDD",
+				calendar: "jalali",
+				locale: "fa",
+			}),
+		).toBe("۱۴۰۵/۰۳/۰۷");
+		expect(momentSpy).not.toHaveBeenCalled();
+	});
 });

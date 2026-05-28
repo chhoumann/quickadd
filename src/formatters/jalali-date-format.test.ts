@@ -177,4 +177,22 @@ describe("Jalali date format syntax", () => {
 			),
 		).resolves.toBe("۱۴۰۵/۰۳/۰۷");
 	});
+
+	it("applies offsets on the Persian-locale DATE path", () => {
+		expect(
+			formatter.renderDates(
+				"{{DATE:jYYYY/jMM/jDD+3|calendar:jalali|locale:fa}}",
+			),
+		).toBe("۱۴۰۵/۰۳/۱۰");
+	});
+
+	it("parses prompted Persian-digit input for a Persian-locale VDATE", async () => {
+		formatter.setMockPromptValue("۱۴۰۵-۰۳-۰۷");
+
+		await expect(
+			formatter.renderVdates(
+				"{{VDATE:due,jYYYY-jMM-jDD|calendar:jalali|locale:fa}}",
+			),
+		).resolves.toBe("۱۴۰۵-۰۳-۰۷");
+	});
 });
