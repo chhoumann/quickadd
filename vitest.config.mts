@@ -3,6 +3,10 @@ import { defineConfig } from "vitest/config";
 // import sveltePreprocess from "svelte-preprocess";
 import * as path from "path";
 
+// Pin the timezone so date assertions (notably Jalali ISO round-trips) are
+// deterministic across local machines and the UTC-based CI runners.
+process.env.TZ = "UTC";
+
 export default defineConfig({
 	plugins: [
 		// svelte({

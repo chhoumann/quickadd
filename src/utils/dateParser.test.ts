@@ -93,7 +93,7 @@ describe("dateParser", () => {
 
 			expect(result.isValid).toBe(true);
 			expect(result.formatted).toBe("1405-03-07");
-			expect(result.isoString).toContain("2026-05-27T22:00:00.000Z");
+			expect(result.isoString).toContain("2026-05-28T00:00:00.000Z");
 			expect(mockDateParser.parseDate).not.toHaveBeenCalled();
 		});
 
@@ -169,7 +169,7 @@ describe("dateParser", () => {
 				calendar: "jalali",
 			});
 
-			expect(result).toBe("@date:2026-05-27T22:00:00.000Z");
+			expect(result).toBe("@date:2026-05-28T00:00:00.000Z");
 		});
 
 		it("coerces Date objects", () => {

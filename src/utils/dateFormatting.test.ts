@@ -66,7 +66,7 @@ describe("dateFormatting", () => {
 			}),
 		).toMatchObject({
 			formatted: "1405-03-07",
-			isoString: "2026-05-27T22:00:00.000Z",
+			isoString: "2026-05-28T00:00:00.000Z",
 		});
 	});
 
