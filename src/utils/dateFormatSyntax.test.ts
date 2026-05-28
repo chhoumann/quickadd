@@ -99,12 +99,15 @@ describe("dateFormatSyntax", () => {
 			).toBe("fa");
 		});
 
-		it("defaults the locale and warns on unsupported values", () => {
+		it("defaults the locale when not specified", () => {
 			expect(parseDateFormatToken("YYYY-MM-DD").locale).toBe("default");
+		});
+
+		it("warns on unsupported locale values", () => {
 			expect(
 				parseDateFormatToken("YYYY-MM-DD|locale:klingon").locale,
 			).toBe("default");
-			expect(logWarningMock).toHaveBeenCalled();
+			expect(logWarningMock).toHaveBeenCalledOnce();
 		});
 	});
 
