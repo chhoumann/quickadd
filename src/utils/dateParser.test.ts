@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
 	coerceToDateVariable,
-	formatISODate,
 	parseNaturalLanguageDate,
 } from "./dateParser";
+import { formatISODate } from "./dateFormatting";
 
 describe("dateParser", () => {
 	describe("parseNaturalLanguageDate", () => {

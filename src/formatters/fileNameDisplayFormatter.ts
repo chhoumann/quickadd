@@ -138,6 +138,10 @@ export class FileNameDisplayFormatter extends Formatter {
 		
 		// Enhanced date variable preview with realistic examples
 		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
+			if (!dateFormat?.trim()) {
+				return match;
+			}
+
 			const parsed = parseDateVariableToken({
 				variableName: variableName ?? "",
 				dateFormat,

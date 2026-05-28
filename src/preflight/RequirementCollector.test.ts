@@ -107,6 +107,27 @@ describe("RequirementCollector", () => {
     expect(due.defaultValue).toBe("tomorrow");
   });
 
+  it("resolves VDATE defaults into scan-time date variables when parseable", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    (rc as unknown as { dateParser: unknown }).dateParser = {
+      parseDate: () => ({
+        moment: {
+          isValid: () => true,
+          toISOString: () => "2026-05-29T00:00:00.000Z",
+          format: () => "2026-05-29",
+        },
+      }),
+    };
+
+    await rc.scanString("{{VDATE:due, YYYY-MM-DD|tomorrow}}");
+
+    expect(
+      (rc as unknown as { variables: Map<string, unknown> }).variables.get("due"),
+    ).toBe("@date:2026-05-29T00:00:00.000Z");
+  });
+
   it("collects frontmatter VDATE and neighboring VALUE dropdowns", async () => {
     const app = makeApp();
     const plugin = makePlugin();

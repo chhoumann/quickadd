@@ -39,7 +39,7 @@ import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
-import { formatISODate } from "./utils/dateParser";
+import { formatISODate } from "./utils/dateFormatting";
 import type { DateCalendar } from "./utils/dateFormatSyntax";
 
 function snapshotVariables(

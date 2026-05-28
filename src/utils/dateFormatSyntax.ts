@@ -1,3 +1,4 @@
+import { log } from "../logger/logManager";
 import { parsePipeKeyValue, splitPipeParts } from "./pipeSyntax";
 
 export type DateCalendar = "gregorian" | "jalali";
@@ -34,7 +35,7 @@ function normalizeCalendar(value: string | undefined): DateCalendar {
 		case "":
 			return "gregorian";
 		default:
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Unsupported date calendar "${value}". Falling back to gregorian.`,
 			);
 			return "gregorian";

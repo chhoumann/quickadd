@@ -10,7 +10,8 @@ import {
 import { createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
-import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
+import { parseNaturalLanguageDate } from "src/utils/dateParser";
+import { formatISODate } from "src/utils/dateFormatting";
 import {
 	formatDateAliasInline,
 	getOrderedDateAliases,

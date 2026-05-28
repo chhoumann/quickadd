@@ -4,7 +4,7 @@ import { settingsStore } from "../settingsStore";
 import type { DateAliasMap } from "./dateAliases";
 import { normalizeDateInput } from "./dateAliases";
 import type { DateCalendar } from "./dateFormatSyntax";
-import { formatISODateValue, parseDateInputValue } from "./dateFormatting";
+import { formatISODate, parseDateInputValue } from "./dateFormatting";
 
 export interface ParsedDate {
 	isValid: boolean;
@@ -69,11 +69,8 @@ export function parseNaturalLanguageDate(
 			const isoString = parseResult.moment.toISOString();
 			const outputFormat = format || "YYYY-MM-DD";
 			const formatted =
-				formatISODateValue({
-					isoString,
-					format: outputFormat,
-					calendar,
-				}) ?? parseResult.moment.format(outputFormat);
+				formatISODate(isoString, outputFormat, calendar) ??
+				parseResult.moment.format(outputFormat);
 
 			return {
 				isValid: true,
@@ -113,19 +110,4 @@ export function coerceToDateVariable(
 	}
 
 	return null;
-}
-
-/**
- * Format an ISO date string using the same calendar-aware formatter used by
- * natural-language date parsing.
- *
- * Keep this facade as the call-site API for date parser consumers; lower-level
- * formatter helpers stay internal to the date utility modules.
- */
-export function formatISODate(
-	isoString: string,
-	format: string,
-	calendar: DateCalendar = "gregorian",
-): string | null {
-	return formatISODateValue({ isoString, format, calendar });
 }

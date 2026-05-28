@@ -2,7 +2,8 @@ import type { App, Debouncer } from "obsidian";
 import { TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
-import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
+import { parseNaturalLanguageDate } from "../../utils/dateParser";
+import { formatISODate } from "../../utils/dateFormatting";
 import { NLDParser } from "../../parsers/NLDParser";
 import { settingsStore } from "../../settingsStore";
 import {

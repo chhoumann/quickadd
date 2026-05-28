@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	formatDateValue,
-	formatISODateValue,
+	formatISODate,
 	parseDateInputValue,
 } from "./dateFormatting";
 
@@ -49,11 +49,11 @@ describe("dateFormatting", () => {
 
 	it("formats ISO strings with Jalali calendar", () => {
 		expect(
-			formatISODateValue({
-				isoString: "2026-05-28T12:00:00.000Z",
-				format: "jYYYY-jMM-jDD",
-				calendar: "jalali",
-			}),
+			formatISODate(
+				"2026-05-28T12:00:00.000Z",
+				"jYYYY-jMM-jDD",
+				"jalali",
+			),
 		).toBe("1405-03-07");
 	});
 

@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseDateFormatToken, parseDateVariableToken } from "./dateFormatSyntax";
 
+const logWarningMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../logger/logManager", () => ({
+	log: {
+		logWarning: logWarningMock,
+	},
+}));
+
 describe("dateFormatSyntax", () => {
 	describe("parseDateFormatToken", () => {
 		it("defaults to Gregorian formatting", () => {
@@ -64,14 +72,10 @@ describe("dateFormatSyntax", () => {
 		});
 
 		it("falls back to Gregorian for unsupported calendars", () => {
-			const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
 			expect(
 				parseDateFormatToken("YYYY-MM-DD|calendar:martian").calendar,
 			).toBe("gregorian");
-			expect(warn).toHaveBeenCalledOnce();
-
-			warn.mockRestore();
+			expect(logWarningMock).toHaveBeenCalledOnce();
 		});
 	});
 
@@ -103,6 +107,21 @@ describe("dateFormatSyntax", () => {
 				format: "jYYYY-jMM-jDD",
 				calendar: "jalali",
 				defaultValue: "today",
+			});
+		});
+
+		it("treats recognized option keys as keyed option mode", () => {
+			expect(
+				parseDateVariableToken({
+					variableName: "due",
+					dateFormat: "YYYY-MM-DD",
+					rawOptions: "calendar:jalali|today",
+				}),
+			).toEqual({
+				variableName: "due",
+				format: "YYYY-MM-DD",
+				calendar: "jalali",
+				defaultValue: undefined,
 			});
 		});
 

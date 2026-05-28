@@ -8,7 +8,6 @@ import {
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
-	NUMBER_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 
@@ -29,7 +28,8 @@ import {
 	parseDateVariableToken,
 	type DateCalendar,
 } from "../utils/dateFormatSyntax";
-import { coerceToDateVariable, formatISODate } from "../utils/dateParser";
+import { coerceToDateVariable } from "../utils/dateParser";
+import { formatDateValue, formatISODate } from "../utils/dateFormatting";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import {
@@ -99,14 +99,8 @@ export abstract class Formatter {
 
 		while (DATE_REGEX.test(output)) {
 			const dateMatch = DATE_REGEX.exec(output);
-			let offset: number | undefined;
-
-			if (dateMatch && dateMatch[1]) {
-				const offsetString = dateMatch[1].replace("+", "").trim();
-				const offsetIsInt = NUMBER_REGEX.test(offsetString);
-				if (offsetIsInt) offset = parseInt(offsetString);
-			}
-			output = this.replacer(output, DATE_REGEX, getDate({ offset: offset }));
+			const parsed = parseDateFormatToken(`YYYY-MM-DD${dateMatch?.[1] ?? ""}`);
+			output = this.replacer(output, DATE_REGEX, formatDateValue(parsed));
 		}
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
@@ -118,7 +112,7 @@ export abstract class Formatter {
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset, calendar }),
+				formatDateValue({ format, offset, calendar }),
 			);
 		}
 
@@ -582,9 +576,14 @@ export abstract class Formatter {
 			let storedValue = this.variables.get(variableName);
 
 			// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain
-			// value, attempt to coerce it into the internal @date:ISO form so
-			// formatting works.
-			if (storedValue != null) {
+			// value, attempt to coerce it once into the internal @date:ISO form so
+			// formatting works. Existing @date values are already normalized.
+			if (
+				storedValue instanceof Date ||
+				(typeof storedValue === "string" &&
+					storedValue &&
+					!storedValue.startsWith("@date:"))
+			) {
 				const coerced = coerceToDateVariable(storedValue, dateParseOptions);
 				if (coerced) {
 					this.variables.set(variableName, coerced);

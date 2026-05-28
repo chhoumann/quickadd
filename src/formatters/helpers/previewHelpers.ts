@@ -114,6 +114,10 @@ export function previewDateFormat(input: {
 			calendar: input.calendar,
 		});
 	} catch {
+		if (input.calendar === "jalali") {
+			return `[${input.format}${input.fallbackSuffix ?? " format"}]`;
+		}
+
 		try {
 			return DateFormatPreviewGenerator.generate(input.format, previewDate);
 		} catch {

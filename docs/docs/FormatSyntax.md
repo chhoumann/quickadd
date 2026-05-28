@@ -61,6 +61,12 @@ option: `{{VDATE:due,jYYYY-jMM-jDD|calendar:jalali|default:today}}`.
 The legacy shorthand default remains supported for formats without keyed
 options: `{{VDATE:due,YYYY-MM-DD|today}}`.
 
+If any VDATE option segment uses a recognized keyed option (`calendar:` or
+`default:`), QuickAdd treats the whole option list as keyed mode. In keyed mode,
+bare option segments are ignored, so write
+`{{VDATE:due,YYYY-MM-DD|calendar:jalali|default:today}}` rather than
+`{{VDATE:due,YYYY-MM-DD|calendar:jalali|today}}`.
+
 **Note:** Avoid unescaped pipe characters (`|`) in `VDATE` date formats when
 using keyed options like `|calendar:` or `|default:`. Prefer Moment literal
 text in square brackets, such as `[|]`, when you need a pipe in the rendered

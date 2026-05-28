@@ -19,7 +19,7 @@ export function formatDateValue(input: {
 	return base.format(format);
 }
 
-export function formatISODateValue(input: {
+function formatISODateValue(input: {
 	isoString: string;
 	format: string;
 	calendar: DateCalendar;
@@ -38,6 +38,14 @@ export function formatISODateValue(input: {
 	}
 
 	return null;
+}
+
+export function formatISODate(
+	isoString: string,
+	format: string,
+	calendar: DateCalendar = "gregorian",
+): string | null {
+	return formatISODateValue({ isoString, format, calendar });
 }
 
 export function parseDateInputValue(input: {

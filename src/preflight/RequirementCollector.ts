@@ -5,6 +5,7 @@ import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
 import type { DateCalendar } from "src/utils/dateFormatSyntax";
+import { coerceToDateVariable } from "src/utils/dateParser";
 import { parseValueToken } from "src/utils/valueSyntax";
 
 export type FieldType =
@@ -240,6 +241,14 @@ export class RequirementCollector extends Formatter {
 					source: "collected",
 				});
 			}
+			if (context.defaultValue) {
+				return coerceToDateVariable(context.defaultValue, {
+					format: context.dateFormat,
+					calendar: context.dateCalendar,
+					dateParser: this.dateParser,
+				}) ?? "@date:1970-01-01T00:00:00.000Z";
+			}
+
 			return "@date:1970-01-01T00:00:00.000Z";
 		}
 
