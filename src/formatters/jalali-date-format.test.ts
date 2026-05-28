@@ -117,6 +117,11 @@ describe("Jalali date format syntax", () => {
 			.toBe("gregorian-jYYYY-jMM-jDD");
 	});
 
+	it("keeps non-offset plus signs in formatted DATE tokens", () => {
+		expect(formatter.renderDates("{{DATE:YYYY-MM-DD+literal}}"))
+			.toBe("gregorian-YYYY-MM-DD+literal");
+	});
+
 	it("formats VDATE stored ISO values with explicit Jalali calendar option", async () => {
 		formatter.variables.set("due", "@date:2026-05-28T12:00:00.000Z");
 

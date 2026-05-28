@@ -12,11 +12,10 @@ import {
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
 	getCurrentFileNamePreview,
-	DateFormatPreviewGenerator
+	previewDateFormat,
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseDateVariableToken } from "../utils/dateFormatSyntax";
-import { formatDateValue } from "../utils/dateFormatting";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -173,22 +172,10 @@ export class FormatDisplayFormatter extends Formatter {
 			}
 
 			// Generate a preview using current date with the specified format
-			const previewDate = new Date();
-			let formattedExample: string;
-			
-			try {
-				formattedExample = formatDateValue({
-					date: previewDate,
-					format: cleanDateFormat,
-					calendar: parsed.calendar,
-				});
-			} catch {
-				try {
-					formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
-				} catch {
-					formattedExample = `[${cleanDateFormat} format]`;
-				}
-			}
+			let formattedExample = previewDateFormat({
+				format: cleanDateFormat,
+				calendar: parsed.calendar,
+			});
 			
 			// If there's a default value, indicate it in the preview
 			if (cleanDefaultValue) {

@@ -47,6 +47,14 @@ describe("dateFormatSyntax", () => {
 			});
 		});
 
+		it("keeps plus signs that are not trailing numeric offsets", () => {
+			expect(parseDateFormatToken("YYYY-MM-DD+literal")).toEqual({
+				format: "YYYY-MM-DD+literal",
+				calendar: "gregorian",
+				offset: undefined,
+			});
+		});
+
 		it("preserves unrecognized pipe segments as format text", () => {
 			expect(parseDateFormatToken("YYYY|MM|calendar:gregorian")).toEqual({
 				format: "YYYY|MM",

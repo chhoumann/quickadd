@@ -1,6 +1,8 @@
 /**
  * Shared utilities for generating realistic preview examples in display formatters
  */
+import type { DateCalendar } from "../../utils/dateFormatSyntax";
+import { formatDateValue } from "../../utils/dateFormatting";
 
 /** Common variable examples for consistent previews across formatters */
 export const VARIABLE_EXAMPLES: Record<string, string> = {
@@ -95,6 +97,29 @@ export function getCurrentFileLinkPreview(activeFile?: {basename: string, path: 
  */
 export function getCurrentFileNamePreview(activeFile?: {basename: string} | null): string {
 	return activeFile?.basename || "current_filename";
+}
+
+export function previewDateFormat(input: {
+	format: string;
+	calendar: DateCalendar;
+	date?: Date;
+	fallbackSuffix?: string;
+}): string {
+	const previewDate = input.date ?? new Date();
+
+	try {
+		return formatDateValue({
+			date: previewDate,
+			format: input.format,
+			calendar: input.calendar,
+		});
+	} catch {
+		try {
+			return DateFormatPreviewGenerator.generate(input.format, previewDate);
+		} catch {
+			return `[${input.format}${input.fallbackSuffix ?? " format"}]`;
+		}
+	}
 }
 
 /**

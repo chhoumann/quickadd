@@ -24,14 +24,12 @@ import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
-import { settingsStore } from "../settingsStore";
-import { normalizeDateInput } from "../utils/dateAliases";
 import {
 	parseDateFormatToken,
 	parseDateVariableToken,
 	type DateCalendar,
 } from "../utils/dateFormatSyntax";
-import { formatISODateValue, parseDateInputValue } from "../utils/dateFormatting";
+import { coerceToDateVariable, formatISODate } from "../utils/dateParser";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import {
@@ -558,124 +556,58 @@ export abstract class Formatter {
 				break;
 			}
 
-			if (variableName) {
-				const existingValue = this.variables.get(variableName);
+			const existingValue = this.variables.get(variableName);
+			const dateParseOptions = {
+				format: dateFormat,
+				calendar,
+				dateParser: this.dateParser,
+			};
 
-				// Check if we already have this date variable stored
-				if (!existingValue) {
-					// Prompt for date input with VDATE context
-					const dateInput = await this.promptForVariable(
-						variableName,
-						{ type: "VDATE", dateFormat, dateCalendar: calendar, defaultValue }
-					);
-					if (dateInput?.startsWith("@date:")) {
-						this.variables.set(variableName, dateInput);
-					} else {
-						if (!this.dateParser)
-							throw new Error("Date parser is not available");
-
-						const exactParsedDate = parseDateInputValue({
-							value: dateInput,
-							format: dateFormat,
-							calendar,
-						});
-
-						if (exactParsedDate) {
-							this.variables.set(
-								variableName,
-								`@date:${exactParsedDate.isoString}`,
-							);
-						} else {
-							const aliasMap = settingsStore.getState().dateAliases;
-							const normalizedInput = normalizeDateInput(
-								dateInput,
-								aliasMap,
-							);
-							const parseAttempt = this.dateParser.parseDate(normalizedInput);
-
-							if (parseAttempt) {
-								// Store the ISO string with a special prefix
-								this.variables.set(
-									variableName,
-									`@date:${parseAttempt.moment.toISOString()}`,
-								);
-							} else {
-								throw new Error(
-									`unable to parse date variable ${dateInput}`,
-								);
-							}
-						}
-					}
+			// Check if we already have this date variable stored
+			if (!existingValue) {
+				// Prompt for date input with VDATE context
+				const dateInput = await this.promptForVariable(
+					variableName,
+					{ type: "VDATE", dateFormat, dateCalendar: calendar, defaultValue }
+				);
+				const coerced = coerceToDateVariable(dateInput, dateParseOptions);
+				if (!coerced) {
+					throw new Error(`unable to parse date variable ${dateInput}`);
 				}
-
-				// Format the date based on what's stored
-				let formattedDate = "";
-				let storedValue = this.variables.get(variableName);
-
-				// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain string,
-				// attempt to coerce it into the internal @date:ISO form so formatting works.
-				if (
-					typeof storedValue === "string" &&
-					storedValue &&
-					!storedValue.startsWith("@date:")
-				) {
-					if (this.dateParser) {
-						const exactParsedDate = parseDateInputValue({
-							value: storedValue,
-							format: dateFormat,
-							calendar,
-						});
-
-						if (exactParsedDate) {
-							const coerced = `@date:${exactParsedDate.isoString}`;
-							this.variables.set(variableName, coerced);
-							storedValue = coerced;
-						} else {
-						const aliasMap = settingsStore.getState().dateAliases;
-						const normalizedInput = normalizeDateInput(storedValue, aliasMap);
-						const parseAttempt = this.dateParser.parseDate(normalizedInput);
-
-						// Keep backwards compatibility: only coerce if we can parse it.
-						if (parseAttempt) {
-							const iso = parseAttempt.moment.toISOString();
-							const coerced = `@date:${iso}`;
-							this.variables.set(variableName, coerced);
-							storedValue = coerced;
-						}
-					}
-					}
-				} else if (storedValue instanceof Date) {
-					// Some callers may pass actual Date objects through the JS API.
-					if (!Number.isNaN(storedValue.getTime())) {
-						const coerced = `@date:${storedValue.toISOString()}`;
-						this.variables.set(variableName, coerced);
-						storedValue = coerced;
-					}
-				}
-
-				if (typeof storedValue === "string" && storedValue.startsWith("@date:")) {
-					// It's a date variable, extract and format it
-					const isoString = storedValue.substring(6);
-
-					formattedDate = formatISODateValue({
-						isoString,
-						format: dateFormat,
-						calendar,
-					}) ?? "";
-				} else if (typeof storedValue === "string" && storedValue) {
-					// Backward compatibility: use the stored value as-is
-					formattedDate = storedValue;
-				} else if (storedValue != null) {
-					// Fallback: avoid throwing if a non-string value is stored.
-					formattedDate = formatUnknownValue(storedValue);
-				}
-
-				// Replace the specific match rather than using regex again
-				// to handle multiple VDATE variables with same name but different formats
-				output = output.replace(match[0], formattedDate);
-			} else {
-				break;
+				this.variables.set(variableName, coerced);
 			}
+
+			// Format the date based on what's stored
+			let formattedDate = "";
+			let storedValue = this.variables.get(variableName);
+
+			// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain
+			// value, attempt to coerce it into the internal @date:ISO form so
+			// formatting works.
+			if (storedValue != null) {
+				const coerced = coerceToDateVariable(storedValue, dateParseOptions);
+				if (coerced) {
+					this.variables.set(variableName, coerced);
+					storedValue = coerced;
+				}
+			}
+
+			if (typeof storedValue === "string" && storedValue.startsWith("@date:")) {
+				// It's a date variable, extract and format it
+				const isoString = storedValue.substring(6);
+
+				formattedDate = formatISODate(isoString, dateFormat, calendar) ?? "";
+			} else if (typeof storedValue === "string" && storedValue) {
+				// Backward compatibility: use the stored value as-is
+				formattedDate = storedValue;
+			} else if (storedValue != null) {
+				// Fallback: avoid throwing if a non-string value is stored.
+				formattedDate = formatUnknownValue(storedValue);
+			}
+
+			// Replace the specific match rather than using regex again
+			// to handle multiple VDATE variables with same name but different formats
+			output = output.replace(match[0], formattedDate);
 		}
 
 		return output;

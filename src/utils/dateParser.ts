@@ -13,20 +13,32 @@ export interface ParsedDate {
 	error?: string;
 }
 
+export type ParseNaturalLanguageDateOptions = {
+	format?: string;
+	dateParser?: IDateParser;
+	aliases?: DateAliasMap;
+	calendar?: DateCalendar;
+};
+
+export type CoerceDateVariableOptions = ParseNaturalLanguageDateOptions;
+
 /**
  * Parse a natural language date string using built-in chrono-node parser
  * @param input - The date string to parse
- * @param format - Optional format string for the output (defaults to YYYY-MM-DD)
- * @param dateParser - Optional date parser to use (defaults to NLDParser)
+ * @param options - Optional parser, alias, calendar, and output format settings
  * @returns ParsedDate object with the result
  */
 export function parseNaturalLanguageDate(
 	input: string,
-	format?: string,
-	dateParser: IDateParser = NLDParser,
-	aliases?: DateAliasMap,
-	calendar: DateCalendar = "gregorian",
+	options: ParseNaturalLanguageDateOptions = {},
 ): ParsedDate {
+	const {
+		format,
+		dateParser = NLDParser,
+		aliases,
+		calendar = "gregorian",
+	} = options;
+
 	if (!input || !input.trim()) {
 		return {
 			isValid: false,
@@ -82,11 +94,33 @@ export function parseNaturalLanguageDate(
 	}
 }
 
+export function coerceToDateVariable(
+	value: unknown,
+	options: CoerceDateVariableOptions = {},
+): string | null {
+	if (typeof value === "string") {
+		if (value.startsWith("@date:")) return value;
+		if (!value.trim()) return null;
+
+		const parsed = parseNaturalLanguageDate(value, options);
+		return parsed.isValid && parsed.isoString
+			? `@date:${parsed.isoString}`
+			: null;
+	}
+
+	if (value instanceof Date && !Number.isNaN(value.getTime())) {
+		return `@date:${value.toISOString()}`;
+	}
+
+	return null;
+}
+
 /**
- * Format an ISO date string using moment.js
- * @param isoString - The ISO date string to format
- * @param format - The desired output format
- * @returns The formatted date string or null if invalid
+ * Format an ISO date string using the same calendar-aware formatter used by
+ * natural-language date parsing.
+ *
+ * Keep this facade as the call-site API for date parser consumers; lower-level
+ * formatter helpers stay internal to the date utility modules.
  */
 export function formatISODate(
 	isoString: string,

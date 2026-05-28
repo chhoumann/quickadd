@@ -10,11 +10,10 @@ import {
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
 	getCurrentFileNamePreview,
-	DateFormatPreviewGenerator
+	previewDateFormat,
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseDateVariableToken } from "../utils/dateFormatSyntax";
-import { formatDateValue } from "../utils/dateFormatting";
 
 import type QuickAdd from "../main";
 
@@ -152,22 +151,11 @@ export class FileNameDisplayFormatter extends Formatter {
 			}
 
 			// Generate a realistic preview using current date
-			const previewDate = new Date();
-			let formattedExample: string;
-			
-			try {
-				formattedExample = formatDateValue({
-					date: previewDate,
-					format: cleanDateFormat,
-					calendar: parsed.calendar,
-				});
-			} catch {
-				try {
-					formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
-				} catch {
-					formattedExample = `[${cleanDateFormat}]`;
-				}
-			}
+			const formattedExample = previewDateFormat({
+				format: cleanDateFormat,
+				calendar: parsed.calendar,
+				fallbackSuffix: "",
+			});
 			
 			return formattedExample;
 		});

@@ -265,13 +265,10 @@ export class OnePageInputModal extends Modal {
 				const updatePreview = (val: string) => {
 					const inputVal = (val ?? "").trim();
 					if (!inputVal && req.defaultValue) {
-						const parsed = parseNaturalLanguageDate(
-							req.defaultValue,
-							req.dateFormat,
-							undefined,
-							undefined,
-							req.dateCalendar,
-						);
+						const parsed = parseNaturalLanguageDate(req.defaultValue, {
+							format: req.dateFormat,
+							calendar: req.dateCalendar,
+						});
 						if (parsed.isValid && parsed.isoString) {
 							selectedIso = parsed.isoString;
 							setValue(req.id, `@date:${parsed.isoString}`);
@@ -303,13 +300,10 @@ export class OnePageInputModal extends Modal {
 						}
 					}
 
-					const parsed = parseNaturalLanguageDate(
-						inputVal,
-						req.dateFormat,
-						undefined,
-						undefined,
-						req.dateCalendar,
-					);
+					const parsed = parseNaturalLanguageDate(inputVal, {
+						format: req.dateFormat,
+						calendar: req.dateCalendar,
+					});
 					if (parsed.isValid && parsed.isoString) {
 						selectedIso = parsed.isoString;
 						setValue(req.id, `@date:${parsed.isoString}`);

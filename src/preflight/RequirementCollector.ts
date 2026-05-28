@@ -240,7 +240,7 @@ export class RequirementCollector extends Formatter {
 					source: "collected",
 				});
 			}
-			return context.defaultValue ?? "@date:1970-01-01T00:00:00.000Z";
+			return "@date:1970-01-01T00:00:00.000Z";
 		}
 
 		// Generic named variables

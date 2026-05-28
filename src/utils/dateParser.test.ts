@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { parseNaturalLanguageDate, formatISODate } from "./dateParser";
+import {
+	coerceToDateVariable,
+	formatISODate,
+	parseNaturalLanguageDate,
+} from "./dateParser";
 
 describe("dateParser", () => {
 	describe("parseNaturalLanguageDate", () => {
@@ -27,7 +31,9 @@ describe("dateParser", () => {
 				})
 			};
 			
-			const result = parseNaturalLanguageDate("tomorrow", undefined, mockDateParser);
+			const result = parseNaturalLanguageDate("tomorrow", {
+				dateParser: mockDateParser,
+			});
 			// Built-in chrono parser should work
 			expect(result.isValid).toBe(true);
 			expect(result.isoString).toBeDefined();
@@ -45,7 +51,10 @@ describe("dateParser", () => {
 				})
 			};
 			
-			const result = parseNaturalLanguageDate("tomorrow", "YYYY-MM-DD", mockDateParser);
+			const result = parseNaturalLanguageDate("tomorrow", {
+				format: "YYYY-MM-DD",
+				dateParser: mockDateParser,
+			});
 
 			expect(result.isValid).toBe(true);
 			expect(result.formatted).toBe("2025-06-21");
@@ -63,8 +72,9 @@ describe("dateParser", () => {
 				}),
 			};
 
-			parseNaturalLanguageDate("tm 5pm", undefined, mockDateParser, {
-				tm: "tomorrow",
+			parseNaturalLanguageDate("tm 5pm", {
+				dateParser: mockDateParser,
+				aliases: { tm: "tomorrow" },
 			});
 
 			expect(mockDateParser.parseDate).toHaveBeenCalledWith("tomorrow 5pm");
@@ -75,13 +85,11 @@ describe("dateParser", () => {
 				parseDate: vi.fn(),
 			};
 
-			const result = parseNaturalLanguageDate(
-				"1405-03-07",
-				"jYYYY-jMM-jDD",
-				mockDateParser,
-				undefined,
-				"jalali",
-			);
+			const result = parseNaturalLanguageDate("1405-03-07", {
+				format: "jYYYY-jMM-jDD",
+				dateParser: mockDateParser,
+				calendar: "jalali",
+			});
 
 			expect(result.isValid).toBe(true);
 			expect(result.formatted).toBe("1405-03-07");
@@ -94,13 +102,11 @@ describe("dateParser", () => {
 				parseDate: vi.fn().mockReturnValue(null),
 			};
 
-			const result = parseNaturalLanguageDate(
-				"1405-13-07",
-				"jYYYY-jMM-jDD",
-				mockDateParser,
-				undefined,
-				"jalali",
-			);
+			const result = parseNaturalLanguageDate("1405-13-07", {
+				format: "jYYYY-jMM-jDD",
+				dateParser: mockDateParser,
+				calendar: "jalali",
+			});
 
 			expect(result.isValid).toBe(false);
 			expect(mockDateParser.parseDate).toHaveBeenCalledWith("1405-13-07");
@@ -148,6 +154,29 @@ describe("dateParser", () => {
 			delete (window as Window & { moment?: unknown; }).moment;
 			const result = formatISODate("2025-07-11T00:00:00.000Z", "YYYY-MM-DD");
 			expect(result).toBe(null);
+		});
+	});
+
+	describe("coerceToDateVariable", () => {
+		it("returns existing internal date variables unchanged", () => {
+			expect(coerceToDateVariable("@date:2025-07-11T00:00:00.000Z"))
+				.toBe("@date:2025-07-11T00:00:00.000Z");
+		});
+
+		it("coerces exact Jalali input through the canonical parser", () => {
+			const result = coerceToDateVariable("1405-03-07", {
+				format: "jYYYY-jMM-jDD",
+				calendar: "jalali",
+			});
+
+			expect(result).toBe("@date:2026-05-27T22:00:00.000Z");
+		});
+
+		it("coerces Date objects", () => {
+			const date = new Date("2025-07-11T00:00:00.000Z");
+
+			expect(coerceToDateVariable(date))
+				.toBe("@date:2025-07-11T00:00:00.000Z");
 		});
 	});
 });

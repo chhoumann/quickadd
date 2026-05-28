@@ -238,13 +238,11 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	}
 
 	private renderPreviewFromInput(value: string) {
-		const parseResult = parseNaturalLanguageDate(
-			value,
-			this.dateFormat,
-			NLDParser,
-			undefined,
-			this.dateCalendar,
-		);
+		const parseResult = parseNaturalLanguageDate(value, {
+			format: this.dateFormat,
+			dateParser: NLDParser,
+			calendar: this.dateCalendar,
+		});
 
 		if (parseResult.isValid && parseResult.isoString) {
 			this.selectedIso = parseResult.isoString;
@@ -282,25 +280,21 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			return `@date:${this.selectedIso}`;
 		}
 		if (!trimmed && this.defaultValue) {
-			const parsed = parseNaturalLanguageDate(
-				this.defaultValue,
-				this.dateFormat,
-				NLDParser,
-				undefined,
-				this.dateCalendar,
-			);
+			const parsed = parseNaturalLanguageDate(this.defaultValue, {
+				format: this.dateFormat,
+				dateParser: NLDParser,
+				calendar: this.dateCalendar,
+			});
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;
 			}
 		}
 		if (trimmed) {
-			const parsed = parseNaturalLanguageDate(
-				trimmed,
-				this.dateFormat,
-				NLDParser,
-				undefined,
-				this.dateCalendar,
-			);
+			const parsed = parseNaturalLanguageDate(trimmed, {
+				format: this.dateFormat,
+				dateParser: NLDParser,
+				calendar: this.dateCalendar,
+			});
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;
 			}
