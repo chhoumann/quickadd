@@ -450,7 +450,7 @@
 				<div>
 					<p>Missing assets:</p>
 					<ul>
-						{#each exportWarnings.missingAssets as asset}
+						{#each exportWarnings.missingAssets as asset (asset.path)}
 							<li>{asset.path} <span class="assetKind">({assetLabels[asset.kind]})</span></li>
 						{/each}
 					</ul>

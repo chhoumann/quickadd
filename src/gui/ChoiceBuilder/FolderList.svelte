@@ -6,7 +6,7 @@
 </script>
 
 <div class="quickAddFolderListGrid quickAddCommandList">
-    {#each folders as folder}
+    {#each folders as folder (folder)}
         <div class="quickAddCommandListItem">
             <span>{folder}</span>
             <span

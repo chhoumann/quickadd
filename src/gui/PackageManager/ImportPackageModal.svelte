@@ -378,7 +378,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 						</tr>
 					</thead>
 					<tbody>
-						{#each analysis.choiceConflicts as conflict}
+						{#each analysis.choiceConflicts as conflict (conflict.choiceId)}
 							{@const storedMode =
 								choiceDecisions.get(conflict.choiceId) ?? "import"}
 							{@const effectiveMode =
@@ -416,7 +416,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 			<p>No additional assets bundled with this package.</p>
 		{:else}
 			<div class="assetCards">
-				{#each analysis.assetConflicts as conflict}
+				{#each analysis.assetConflicts as conflict (conflict.originalPath)}
 					{@const defaultDestination = defaultAssetDestination(conflict)}
 					{@const assetState =
 						assetDecisions.get(conflict.originalPath) ??

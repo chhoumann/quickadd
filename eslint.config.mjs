@@ -1,5 +1,7 @@
 import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
+import svelte from 'eslint-plugin-svelte';
+import svelteParser from 'svelte-eslint-parser';
 import globals from 'globals';
 
 export default [
@@ -38,6 +40,27 @@ export default [
             '@typescript-eslint/no-unsafe-return': 'off',
             '@typescript-eslint/no-unsafe-argument': 'off',
             '@typescript-eslint/restrict-template-expressions': 'off',
+        },
+    },
+    // Lint Svelte 5 components (runes-aware via svelte-eslint-parser).
+    ...svelte.configs['flat/recommended'],
+    {
+        files: ['**/*.svelte', '**/*.svelte.ts'],
+        languageOptions: {
+            parser: svelteParser,
+            parserOptions: {
+                // Parse <script lang="ts"> with the TS parser.
+                parser: typescriptParser,
+            },
+            globals: {
+                ...globals.browser,
+            },
+        },
+        rules: {
+            // The package modals' Set/Map state is updated by immutable REASSIGNMENT
+            // (new Set/Map -> assign), which is reactive under $state. SvelteSet/SvelteMap
+            // are only needed for in-place mutation, so this rule is a false positive here.
+            'svelte/prefer-svelte-reactivity': 'off',
         },
     },
     // Special rules for main.ts to preserve critical import order

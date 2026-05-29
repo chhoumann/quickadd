@@ -48,8 +48,8 @@
 
   // Attach format suggester to inputs
   function attachSuggester(el: HTMLTextAreaElement | HTMLInputElement) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const suggester = new FormatSyntaxSuggester(app, el, plugin);
+    // Constructed for its side effect (it wires itself to the element).
+    new FormatSyntaxSuggester(app, el, plugin);
     return {
       destroy() {
         // Suggesters clean up themselves on blur/close; no explicit API needed
@@ -92,7 +92,7 @@
       <div class="qa-gv__cell qa-gv__value">Value</div>
       <div class="qa-gv__cell qa-gv__ops">Actions</div>
     </div>
-    {#each items as it, idx}
+    {#each items as it, idx (idx)}
       <div class="qa-gv__row">
         <div class="qa-gv__cell qa-gv__name">
           <input type="text"
