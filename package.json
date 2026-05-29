@@ -30,7 +30,7 @@
     "obsidian": "1.11.4",
     "obsidian-dataview": "^0.5.68",
     "obsidian-e2e": "0.6.0",
-    "semantic-release": "^24.2.9",
+    "semantic-release": "^25.0.3",
     "svelte": "^4.2.20",
     "svelte-check": "^3.8.6",
     "svelte-dnd-action": "0.9.63",
