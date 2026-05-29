@@ -2,6 +2,7 @@
 import type { ICommand } from "../../types/macros/ICommand";
 import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 import { replaceById, stripShadow } from "../shared/dndReorder";
+import { snapshot } from "../svelte/persist.svelte";
 import type { CommandListProps } from "./commandListProps.svelte";
 import StandardCommand from "./Components/StandardCommand.svelte";
 import { CommandType } from "../../types/macros/CommandType";
@@ -53,7 +54,7 @@ const asConditional = (c: ICommand) => c as IConditionalCommand;
 
 /** Persist the current order/content to the host (plain, non-proxy snapshot). */
 function persist() {
-	saveCommands($state.snapshot(commands) as ICommand[]);
+	saveCommands(snapshot(commands));
 }
 
 function handleConsider(e: CustomEvent<DndEvent>) {

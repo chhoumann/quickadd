@@ -22,6 +22,7 @@
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import type { ChoiceListActions } from "./choiceListActions";
+	import { type Plain, snapshot } from "../svelte/persist.svelte";
 
 	let {
 		app,
@@ -32,7 +33,8 @@
 		app: App;
 		plugin: QuickAdd;
 		choices?: IChoice[];
-		saveChoices: (choices: IChoice[]) => void;
+		// Accepts only Plain<IChoice[]> (from snapshot()) — see persist.svelte.ts.
+		saveChoices: (choices: Plain<IChoice[]>) => void;
 	} = $props();
 
 	let filterQuery = $state(""); // not persisted
@@ -53,7 +55,7 @@
 
 	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
-		saveChoices($state.snapshot(choices) as IChoice[]);
+		saveChoices(snapshot(choices));
 	}
 
 	const isMultiChoice = (c: IChoice): c is IMultiChoice => c.type === "Multi";

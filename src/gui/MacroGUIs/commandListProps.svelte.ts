@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type { ICommand } from "../../types/macros/ICommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
+import type { Plain } from "../svelte/persist.svelte";
 
 /**
  * Props for CommandList, shared between the component and its imperative host.
@@ -17,7 +18,9 @@ export interface CommandListProps {
 	app: App;
 	plugin: QuickAdd;
 	deleteCommand: (commandId: string) => void | Promise<void>;
-	saveCommands: (commands: ICommand[]) => void;
+	// Accepts only Plain<ICommand[]> (from snapshot()) so a live $state proxy can't
+	// be persisted without snapshotting — see persist.svelte.ts.
+	saveCommands: (commands: Plain<ICommand[]>) => void;
 	// Return true when the command was changed so CommandList persists it (the
 	// handler mutates the command; CommandList snapshots+saves — see CommandList.svelte).
 	onConfigureCondition?: (command: IConditionalCommand) => boolean | Promise<boolean>;
