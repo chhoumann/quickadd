@@ -60,7 +60,12 @@ const asConditional = (c: ICommand) => c as IConditionalCommand;
 
 	function handleConsider(e: CustomEvent<DndEvent>) {
 		let { items: newItems } = e.detail;
-		commands = newItems as ICommand[];
+		// Drop svelte-dnd-action's internal shadow placeholder so a command can't
+		// linger in state and vanish on reorder (ghost gap) — mirrors the Settings
+		// choice list fix (#883).
+		commands = (newItems as ICommand[]).filter(
+			(c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID
+		);
 	}
 
 	function handleSort(e: CustomEvent<DndEvent>) {
@@ -69,7 +74,9 @@ const asConditional = (c: ICommand) => c as IConditionalCommand;
 			info: { source },
 		} = e.detail;
 
-		commands = newItems as ICommand[];
+		commands = (newItems as ICommand[]).filter(
+			(c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID
+		);
 
 		if (source === SOURCES.POINTER) {
 			dragDisabled = true;
