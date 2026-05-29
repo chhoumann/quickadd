@@ -1,8 +1,10 @@
 import { defineConfig } from "vitest/config";
 import * as path from "path";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { svelteTesting } from "@testing-library/svelte/vite";
 
 export default defineConfig({
-	plugins: [],
+	plugins: [svelte(), svelteTesting()],
 	resolve: {
 		alias: {
 			src: path.resolve("./src"),
@@ -13,6 +15,7 @@ export default defineConfig({
 		include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
 		globals: true,
 		environment: "jsdom",
+		setupFiles: ["./tests/vitest-setup.ts"],
 		deps: {
 			optimizer: {
 				web: {
