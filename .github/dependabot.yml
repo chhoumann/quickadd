@@ -1,0 +1,53 @@
+version: 2
+updates:
+  # GitHub Actions across all workflows. Keeps the SHA pins from rotting — the
+  # Node 20 deprecation slipped in precisely because nothing watched these.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+    labels:
+      - dependencies
+      - github-actions
+
+  # Plugin dependencies (root package.json + bun.lock).
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: ["minor", "patch"]
+      prod-dependencies:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: build
+    labels:
+      - dependencies
+
+  # Docs site (docs/package.json + docs/bun.lock).
+  - package-ecosystem: bun
+    directory: /docs
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      docs-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: build
+    labels:
+      - dependencies
+      - documentation
