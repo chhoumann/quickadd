@@ -15,6 +15,7 @@
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
 	import type IChoice from "../../types/choices/IChoice";
+	import type IMultiChoice from "../../types/choices/IMultiChoice";
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { promptRenameChoice } from "../choiceRename";
@@ -55,6 +56,8 @@
 		saveChoices($state.snapshot(choices) as IChoice[]);
 	}
 
+	const isMultiChoice = (c: IChoice): c is IMultiChoice => c.type === "Multi";
+
 	function filterChoices(list: IChoice[], query: string): IChoice[] {
 		const q = query.trim();
 		if (!q) return list;
@@ -62,18 +65,22 @@
 
 		const walk = (c: IChoice): IChoice | null => {
 			const selfMatches = !!match(c.name ?? "");
-			if (c.type !== "Multi") {
+			if (!isMultiChoice(c)) {
 				return selfMatches ? c : null;
 			}
 
-			const mc = c as any; // IMultiChoice
-			const filteredChildren = (mc.choices ?? [])
-				.map((child: IChoice) => walk(child))
+			const filteredChildren = (c.choices ?? [])
+				.map((child) => walk(child))
 				.filter(Boolean) as IChoice[];
 
 			if (selfMatches || filteredChildren.length > 0) {
 				// Clone Multi node expanded with only matching children to avoid mutating original
-				return { ...mc, collapsed: false, choices: filteredChildren } as IChoice;
+				const expanded: IMultiChoice = {
+					...c,
+					collapsed: false,
+					choices: filteredChildren,
+				};
+				return expanded;
 			}
 
 			return null;
@@ -99,10 +106,8 @@
 	}
 
 	function removeChoiceHelper(id: string, value: IChoice): boolean {
-		if (value.type === "Multi") {
-			(value as any).choices = (value as any).choices.filter((v: any) =>
-				removeChoiceHelper(id, v),
-			);
+		if (isMultiChoice(value)) {
+			value.choices = value.choices.filter((v) => removeChoiceHelper(id, v));
 		}
 		return value.id !== id;
 	}
@@ -121,12 +126,12 @@
 			return { ...oldChoice, ...newChoice };
 		}
 
-		if (oldChoice.type === "Multi") {
-			const multiChoice = oldChoice as any;
-			const updatedChoices = multiChoice.choices.map((c: any) =>
+		if (isMultiChoice(oldChoice)) {
+			const updatedChoices = oldChoice.choices.map((c) =>
 				updateChoiceHelper(c, newChoice),
 			);
-			return { ...multiChoice, choices: updatedChoices };
+			const updated: IMultiChoice = { ...oldChoice, choices: updatedChoices };
+			return updated;
 		}
 
 		return oldChoice;
