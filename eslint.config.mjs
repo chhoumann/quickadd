@@ -4,8 +4,11 @@ import globals from 'globals';
 
 export default [
     {
+        // Global ignores: a standalone object with only `ignores` applies repo-wide in flat config.
+        ignores: ['node_modules/**', 'dist/**', 'docs/**', 'main.js', '**/*.d.ts'],
+    },
+    {
         files: ['**/*.ts'],
-        ignores: ['node_modules/**', 'main.js', 'dist/**', '*.d.ts'],
         languageOptions: {
             parser: typescriptParser,
             parserOptions: {
