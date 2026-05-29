@@ -49,10 +49,10 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
-    "chrono-node": "^2.8.3",
-    "fuse.js": "7.1.0",
+    "chrono-node": "^2.9.1",
+    "fuse.js": "7.3.0",
     "js-tiktoken": "^1.0.20",
-    "zustand": "^5.0.6"
+    "zustand": "^5.0.14"
   },
   "repository": {
     "type": "git",
