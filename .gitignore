@@ -23,3 +23,7 @@ src/**/*.js
 .obsidian-e2e-artifacts
 # Test coverage output
 coverage/
+
+# Claude Code session/runtime state (ephemeral, machine-local)
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
