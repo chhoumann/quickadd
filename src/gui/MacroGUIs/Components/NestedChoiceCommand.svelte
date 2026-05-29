@@ -13,7 +13,7 @@
         onMoveDown,
     }: {
         command: INestedChoiceCommand;
-        startDrag: (e: Event) => void;
+        startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onConfigureChoice: (command: INestedChoiceCommand) => void;

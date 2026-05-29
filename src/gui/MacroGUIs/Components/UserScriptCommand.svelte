@@ -13,7 +13,7 @@
         onMoveDown,
     }: {
         command: IUserScript;
-        startDrag: (e: Event) => void;
+        startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onConfigureScript: (command: IUserScript) => void;

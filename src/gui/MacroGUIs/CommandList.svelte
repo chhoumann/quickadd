@@ -73,8 +73,10 @@ function handleSort(e: CustomEvent<DndEvent>) {
 	persist();
 }
 
-let startDrag = (e: Event) => {
-	e.preventDefault();
+// Arm svelte-dnd-action's pointer drag. NO preventDefault here — see DragHandle:
+// preventDefault on pointerdown would suppress the compat mousedown the library
+// starts the drag from.
+let startDrag = () => {
 	dragDisabled = false;
 };
 

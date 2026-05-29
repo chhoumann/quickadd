@@ -16,7 +16,7 @@
 		onMoveDown,
 	}: {
 		command: IConditionalCommand;
-		startDrag: (e: Event) => void;
+		startDrag: () => void;
 		dragDisabled: boolean;
 		onDeleteCommand: (commandId: string) => void;
 		onConfigureCondition: (command: IConditionalCommand) => void;

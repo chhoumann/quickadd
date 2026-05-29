@@ -13,7 +13,7 @@
         onMoveDown,
     }: {
         command: IAIAssistantCommand;
-        startDrag: (e: Event) => void;
+        startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onConfigureAssistant: (command: IAIAssistantCommand) => void;

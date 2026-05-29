@@ -13,7 +13,7 @@
         onMoveDown,
     }: {
         command: ICommand;
-        startDrag: (e: Event) => void;
+        startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onMoveUp?: () => void;

@@ -1,12 +1,18 @@
 <script lang="ts">
     import ObsidianIcon from "./ObsidianIcon.svelte";
 
-    // Shared drag-to-reorder handle (#1250). Keeps the existing POINTER drag
-    // (svelte-dnd-action begins the drag from the handle's pointerdown, which flips
-    // the list's `dragDisabled` to false) AND adds keyboard reorder: ArrowUp/ArrowDown
-    // move the row one step via onMoveUp/onMoveDown. It is a real <button> so it is
-    // focusable and announced; the list sets autoAriaDisabled on the dndzone so the
-    // library no longer injects its own (conflicting) role/tabindex/keydown handling.
+    // Shared drag-to-reorder handle (#1250). Keeps the existing POINTER drag AND adds
+    // keyboard reorder: ArrowUp/ArrowDown move the row one step via onMoveUp/onMoveDown.
+    // It is a real <button> so it is focusable and announced; the list sets
+    // autoAriaDisabled on the dndzone so the library no longer injects its own
+    // (conflicting) role/tabindex/keydown handling.
+    //
+    // Pointer drag: pressing the handle flips the list's `dragDisabled` to false;
+    // svelte-dnd-action then attaches its mousedown/touchstart listeners and begins the
+    // drag on the compatibility mousedown that follows. We fire onDragStart on
+    // `pointerdown` (earliest, covers mouse+touch+pen) and must NOT call preventDefault
+    // here — preventDefault on pointerdown suppresses that compat mousedown in Chromium
+    // and the library would never see it (drag silently breaks).
     let {
         label,
         dragDisabled,
@@ -18,7 +24,8 @@
         /** Accessible name, e.g. "Reorder Daily note". */
         label: string;
         dragDisabled: boolean;
-        onDragStart: (event: Event) => void;
+        /** Arm the list's pointer drag (flip dragDisabled=false). Must not preventDefault. */
+        onDragStart: () => void;
         onMoveUp?: () => void;
         onMoveDown?: () => void;
         size?: number;
@@ -52,7 +59,7 @@
     aria-label={label}
     aria-keyshortcuts={reorderable ? "ArrowUp ArrowDown" : undefined}
     tabindex={dragDisabled ? 0 : -1}
-    onpointerdown={(e) => onDragStart(e)}
+    onpointerdown={() => onDragStart()}
     onkeydown={onKeyDown}
 >
     <ObsidianIcon iconId="grip-vertical" {size} />

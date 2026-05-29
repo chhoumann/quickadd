@@ -39,13 +39,19 @@ describe("DragHandle", () => {
 		expect(getByLabelText("Reorder Alpha").getAttribute("tabindex")).toBe("-1");
 	});
 
-	it("starts a pointer drag on pointerdown", async () => {
+	it("arms the drag on pointerdown WITHOUT preventing default", () => {
+		// Regression: preventDefault() on pointerdown suppresses the compatibility
+		// mousedown event, and svelte-dnd-action starts its drag from mousedown — so
+		// the handle must arm the drag (flip dragDisabled) but never cancel pointerdown.
 		const onDragStart = vi.fn();
 		const { getByLabelText } = render(DragHandle, {
 			props: { label: "Reorder Alpha", dragDisabled: true, onDragStart },
 		});
-		await fireEvent.pointerDown(getByLabelText("Reorder Alpha"));
+		const btn = getByLabelText("Reorder Alpha");
+		const ev = new Event("pointerdown", { bubbles: true, cancelable: true });
+		btn.dispatchEvent(ev);
 		expect(onDragStart).toHaveBeenCalledTimes(1);
+		expect(ev.defaultPrevented).toBe(false);
 	});
 
 	it("moves the row with ArrowUp / ArrowDown and prevents page scroll", async () => {
