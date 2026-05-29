@@ -2,28 +2,11 @@ name: Release
 on:
     workflow_dispatch:
         inputs:
-            releaseType:
-                description: 'Release type (patch, minor, major)'
-                required: false
-                default: 'auto'
-                type: choice
-                options:
-                    - auto
-                    - patch
-                    - minor
-                    - major
             dryRun:
-                description: 'Dry run (no actual release)'
+                description: 'Dry run (analyze + notes only, no publish)'
                 required: false
                 default: false
                 type: boolean
-            preRelease:
-                description: 'Pre-release identifier (beta, alpha, rc, etc.)'
-                required: false
-                default: ''
-                type: string
-    repository_dispatch:
-        types: [release-trigger]
 
 # Serialize releases so two triggers can never race on tags/commits.
 # Do NOT cancel-in-progress: an interrupted semantic-release is dangerous.
@@ -77,64 +60,38 @@ jobs:
                   bun install --frozen-lockfile
                   cd docs && bun install --frozen-lockfile
 
-            # Validate version before release (tag protection)
-            - name: Validate release
-              id: validate
-              run: |
-                if [[ "${{ github.event_name }}" == "workflow_dispatch" || "${{ github.event_name }}" == "repository_dispatch" ]]; then
-                  echo "✅ Manual release triggered, validation passed"
-                  echo "valid=true" >> $GITHUB_OUTPUT
-                else
-                  echo "❌ Unknown trigger source"
-                  echo "valid=false" >> $GITHUB_OUTPUT
-                fi
-
+            # Build must run before Release: it produces main.js / styles.css that
+            # @semantic-release/github uploads and attest-build-provenance signs.
             - name: Build
-              if: steps.validate.outputs.valid == 'true'
               run: bun run build
 
             - name: Run tests
-              if: steps.validate.outputs.valid == 'true'
               run: bun run test
 
             - name: Release
               id: release
-              if: steps.validate.outputs.valid == 'true'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  RELEASE_TYPE: ${{ github.event.inputs.releaseType || 'auto' }}
                   DRY_RUN: ${{ github.event.inputs.dryRun || 'false' }}
-                  PRE_RELEASE: ${{ github.event.inputs.preRelease || '' }}
               run: |
                   EXTRA_ARGS=""
-
                   if [ "$DRY_RUN" == "true" ]; then
                     echo "Running in dry-run mode"
                     EXTRA_ARGS="--dry-run"
                   fi
 
-                  if [ -n "$PRE_RELEASE" ]; then
-                    echo "Running pre-release: $PRE_RELEASE"
-                    bunx semantic-release --prerelease $PRE_RELEASE $EXTRA_ARGS
-                    RELEASE_EXIT_CODE=$?
-                  elif [ "$RELEASE_TYPE" == "auto" ]; then
-                    echo "Running auto release"
-                    bunx semantic-release $EXTRA_ARGS
-                    RELEASE_EXIT_CODE=$?
-                  else
-                    echo "Running release with type: $RELEASE_TYPE"
-                    bunx semantic-release --release-as $RELEASE_TYPE $EXTRA_ARGS
-                    RELEASE_EXIT_CODE=$?
-                  fi
+                  BEFORE_HEAD="$(git rev-parse HEAD)"
+                  # `set -e` (default for run blocks) aborts the step if
+                  # semantic-release fails, so we only reach the check on success.
+                  bunx semantic-release $EXTRA_ARGS
 
-                  # Set release status based on exit code
-                  if [ "$DRY_RUN" != "true" ] && [ $RELEASE_EXIT_CODE -eq 0 ]; then
-                    echo "released=true" >> $GITHUB_OUTPUT
+                  # A real release advances HEAD via @semantic-release/git's release
+                  # commit; a dry run or "no relevant changes" leaves HEAD untouched.
+                  if [ "$DRY_RUN" != "true" ] && [ "$(git rev-parse HEAD)" != "$BEFORE_HEAD" ]; then
+                    echo "released=true" >> "$GITHUB_OUTPUT"
                   else
-                    echo "released=false" >> $GITHUB_OUTPUT
+                    echo "released=false" >> "$GITHUB_OUTPUT"
                   fi
-
-                  exit $RELEASE_EXIT_CODE
 
             - name: Attest release assets
               if: steps.release.outputs.released == 'true'

@@ -8,7 +8,6 @@
     "lint": "eslint .",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "build-with-lint": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
-    "version": "node version-bump.mjs && git add manifest.json versions.json",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
     "test:e2e": "vitest run --config vitest.e2e.config.mts"
   },
@@ -17,6 +16,7 @@
   "license": "MIT",
   "devDependencies": {
     "@popperjs/core": "^2.11.8",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@types/node": "24.0.12",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
@@ -63,22 +63,18 @@
       "master"
     ],
     "plugins": [
-      [
-        "@semantic-release/commit-analyzer",
-        {
-          "releaseRules": [
-            {
-              "type": "chore",
-              "release": "patch"
-            }
-          ]
-        }
-      ],
+      "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
       [
         "@semantic-release/npm",
         {
           "npmPublish": false
+        }
+      ],
+      [
+        "@semantic-release/exec",
+        {
+          "prepareCmd": "node version-bump.mjs ${nextRelease.version}"
         }
       ],
       "./scripts/release/docs-versioning-plugin.cjs",
