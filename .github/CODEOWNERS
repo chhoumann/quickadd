@@ -1,0 +1,3 @@
+# Default owner for everything in the repository.
+# Automatically requests review from the owner on every pull request.
+* @chhoumann

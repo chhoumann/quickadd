@@ -1,0 +1,42 @@
+name: PR Title
+
+# Releases are driven by semantic-release from the squash-merge commit, which is
+# the PR title. Validate it as a Conventional Commit so a bad title can't produce
+# a wrong (or missing) release.
+on:
+    pull_request_target:
+        types: [opened, edited, synchronize, reopened]
+
+permissions:
+    pull-requests: read
+
+concurrency:
+    group: pr-title-${{ github.event.pull_request.number }}
+    cancel-in-progress: true
+
+jobs:
+    validate:
+        name: Validate PR title
+        runs-on: ubuntu-latest
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - name: Lint PR title
+              uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  types: |
+                      feat
+                      fix
+                      perf
+                      docs
+                      style
+                      refactor
+                      test
+                      build
+                      ci
+                      chore
+                      revert
