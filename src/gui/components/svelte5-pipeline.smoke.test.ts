@@ -9,9 +9,8 @@
  *    conditions (svelteTesting adds the 'browser' condition; the lib also exposes a
  *    'svelte' source condition — confirm we don't pull a broken build)
  *
- * ObsidianIcon is still a legacy (Svelte 4 syntax) component here; that it renders
- * confirms legacy + runes components coexist in one compile, which the atomic rewrite
- * relies on while clusters are converted.
+ * ObsidianIcon is now a runes component ($props + $effect); that it renders confirms
+ * the test pipeline compiles and mounts runes components against the obsidian stub.
  */
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
@@ -37,7 +36,7 @@ describe("svelte 5 test pipeline smoke gate", () => {
 		});
 		const icon = container.querySelector(".quickadd-icon");
 		expect(icon).not.toBeNull();
-		// onMount -> updateIcon -> setIcon(el, "trash"); the stub appends <svg data-icon>.
+		// $effect -> setIcon(el, "trash"); the stub appends <svg data-icon>.
 		expect(icon?.querySelector("svg")?.getAttribute("data-icon")).toBe("trash");
 	});
 });
