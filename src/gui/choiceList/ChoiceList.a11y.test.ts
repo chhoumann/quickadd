@@ -146,6 +146,31 @@ describe("MultiChoiceListItem collapse toggle", () => {
 	});
 });
 
+describe("ChoiceList mobile collapse hooks", () => {
+	// On mobile the per-row action icons are hidden via CSS (.is-mobile
+	// .qa-row-secondary-action) and reached through the More menu; the More button
+	// and drag handle stay. Guard that the right buttons carry the collapse class.
+	it("tags the secondary action buttons but not More / drag handle", () => {
+		const actions = actionsSpy();
+		const choices = [normal("Alpha")];
+		const { getByLabelText } = render(ChoiceList, {
+			props: { app: new App() as never, roots: choices, choices, actions },
+		});
+
+		const secondary = "qa-row-secondary-action";
+		for (const label of [
+			"Command palette: Alpha",
+			"Configure Alpha",
+			"Duplicate Alpha",
+			"Delete Alpha",
+		]) {
+			expect(getByLabelText(label).classList.contains(secondary)).toBe(true);
+		}
+		expect(getByLabelText("More options for Alpha").classList.contains(secondary)).toBe(false);
+		expect(getByLabelText("Reorder Alpha").classList.contains(secondary)).toBe(false);
+	});
+});
+
 describe("ChoiceList keyboard-accessible context menu", () => {
 	it("opens the context menu anchored to the More-options button (no mouse needed)", async () => {
 		const actions = actionsSpy();

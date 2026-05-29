@@ -38,12 +38,14 @@
         iconId="zap"
         ariaPressed={commandEnabled}
         label={`Command palette${choiceName ? ": " + choiceName : ""}`}
+        extraClass="qa-row-secondary-action"
         onclick={onToggleCommand}
     />
     {#if showConfigureButton}
         <IconButton
             iconId="settings"
             label={`Configure${choiceName ? " " + choiceName : ""}`}
+            extraClass="qa-row-secondary-action"
             onclick={onConfigureChoice}
         />
     {/if}
@@ -52,6 +54,7 @@
         <IconButton
             iconId="copy"
             label={`Duplicate${choiceName ? " " + choiceName : ""}`}
+            extraClass="qa-row-secondary-action"
             onclick={onDuplicateChoice}
         />
     {/if}
@@ -59,6 +62,7 @@
     <IconButton
         iconId="trash-2"
         label={`Delete${choiceName ? " " + choiceName : ""}`}
+        extraClass="qa-row-secondary-action"
         onclick={onDeleteChoice}
     />
 
