@@ -67,16 +67,28 @@ describe("ConditionalCommand", () => {
 			},
 		});
 
-		await fireEvent.click(getByLabelText("Edit condition"));
+		// The edit labels include the condition SUMMARY so multiple conditional rows
+		// are distinguishable to screen readers. A freshly-added conditional has the
+		// generic default name "If condition" (it becomes "If <summary>" only once the
+		// condition is saved), so the summary is the reliable per-row identifier.
+		// A default condition (variable mode, empty name, isTruthy) summarizes as
+		// "(missing variable) is truthy".
+		await fireEvent.click(
+			getByLabelText("Edit condition for (missing variable) is truthy"),
+		);
 		expect(onConfigureCondition).toHaveBeenCalledWith(command);
 
-		await fireEvent.click(getByLabelText("Edit then branch"));
+		await fireEvent.click(
+			getByLabelText("Edit then branch for (missing variable) is truthy"),
+		);
 		expect(onEditThenBranch).toHaveBeenCalledWith(command);
 
-		await fireEvent.click(getByLabelText("Edit else branch"));
+		await fireEvent.click(
+			getByLabelText("Edit else branch for (missing variable) is truthy"),
+		);
 		expect(onEditElseBranch).toHaveBeenCalledWith(command);
 
-		// Delete label now includes the command identity (a11y, #1250). A default
+		// Delete label includes the command identity (a11y, #1250). A default
 		// ConditionalCommand is named "If condition".
 		await fireEvent.click(getByLabelText("Delete If condition"));
 		expect(onDeleteCommand).toHaveBeenCalledWith(command.id);

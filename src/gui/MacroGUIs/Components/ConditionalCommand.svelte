@@ -42,19 +42,19 @@
 	<div class="quickAddCommandControls">
 		<IconButton
 			iconId="settings"
-			label="Edit condition"
+			label={`Edit condition for ${summary}`}
 			extraClass="clickable"
 			onclick={() => onConfigureCondition(command)}
 		/>
 		<IconButton
 			iconId="corner-down-right"
-			label="Edit then branch"
+			label={`Edit then branch for ${summary}`}
 			extraClass="clickable"
 			onclick={() => onEditThenBranch(command)}
 		/>
 		<IconButton
 			iconId="corner-down-left"
-			label="Edit else branch"
+			label={`Edit else branch for ${summary}`}
 			extraClass="clickable"
 			onclick={() => onEditElseBranch(command)}
 		/>
