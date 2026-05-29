@@ -1,22 +1,19 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
+    import type { FolderListProps } from "./folderListProps.svelte";
 
-    export let folders: string[];
-    export let deleteFolder: (folder: string) => void;
-    export const updateFolders = (newFolders: string[]) => {
-        folders = newFolders;
-    }
+    let { folders, deleteFolder }: FolderListProps = $props();
 </script>
 
 <div class="quickAddFolderListGrid quickAddCommandList">
-    {#each folders as folder, i}
+    {#each folders as folder}
         <div class="quickAddCommandListItem">
             <span>{folder}</span>
-            <span 
+            <span
                 role="button"
                 tabindex="0"
-                on:click={() => deleteFolder(folder)}
-                on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteFolder(folder)}
+                onclick={() => deleteFolder(folder)}
+                onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteFolder(folder)}
                 class="clickable"
             >
                 <ObsidianIcon iconId="trash-2" size={16} />

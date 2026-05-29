@@ -1,9 +1,10 @@
 import type { App } from "obsidian";
 import { Modal } from "obsidian";
 import ImportPackageModalComponent from "./ImportPackageModal.svelte";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 
 export class ImportPackageModal extends Modal {
-	private component: ImportPackageModalComponent | null = null;
+	private handle: MountHandle | null = null;
 
 	constructor(app: App) {
 		super(app);
@@ -11,17 +12,14 @@ export class ImportPackageModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("quickAddModal", "packageImportModal");
-		this.component = new ImportPackageModalComponent({
-			target: this.contentEl,
-			props: {
-				app: this.app,
-				close: () => this.close(),
-			},
+		this.handle = mountComponent(this.contentEl, ImportPackageModalComponent, {
+			app: this.app,
+			close: () => this.close(),
 		});
 	}
 
 	onClose(): void {
-		this.component?.$destroy();
-		this.component = null;
+		this.handle?.destroy();
+		this.handle = null;
 	}
 }
