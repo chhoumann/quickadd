@@ -27,7 +27,7 @@
   "devDependencies": {
     "@docusaurus/module-type-aliases": "3.10.1",
     "@tsconfig/docusaurus": "^2.0.9",
-    "typescript": "^5.8.3"
+    "typescript": "^6.0.3"
   },
   "overrides": {
     "webpackbar": "^7.0.0"
