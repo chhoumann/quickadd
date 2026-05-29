@@ -5,6 +5,7 @@ const {themes} = require('prism-react-renderer');
 const lightCodeTheme = themes.github;
 const darkCodeTheme = themes.dracula;
 
+/** @type {string[]} */
 let docsVersions = [];
 try {
   docsVersions = require('./versions.json');
