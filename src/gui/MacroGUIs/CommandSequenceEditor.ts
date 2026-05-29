@@ -131,20 +131,6 @@ export class CommandSequenceEditor {
 	private renderCommandList(parent: HTMLElement) {
 		const commandListEl = parent.createDiv("commandList");
 
-		// Wrap a conditional handler so the editor re-emits changes when the
-		// handler reports the command was updated (replaces the old .$on() wiring).
-		const wrapConditionalHandler = (
-			handler?: (command: IConditionalCommand) => Promise<boolean>
-		) =>
-			handler
-				? async (command: IConditionalCommand) => {
-						const updated = await handler(command);
-						if (updated) {
-							this.emitCommandsChanged();
-						}
-					}
-				: undefined;
-
 		this.commandListProps = createCommandListProps({
 			app: this.app,
 			plugin: this.plugin,
@@ -171,15 +157,11 @@ export class CommandSequenceEditor {
 				this.commandsRef = commands;
 				this.onCommandsChange?.(commands);
 			},
-			onConfigureCondition: wrapConditionalHandler(
-				this.conditionalHandlers?.configureCondition
-			),
-			onEditThenBranch: wrapConditionalHandler(
-				this.conditionalHandlers?.editThenBranch
-			),
-			onEditElseBranch: wrapConditionalHandler(
-				this.conditionalHandlers?.editElseBranch
-			),
+			// Handlers mutate the command and return whether it changed; CommandList
+			// persists the (proxy) mutation via its snapshot path.
+			onConfigureCondition: this.conditionalHandlers?.configureCondition,
+			onEditThenBranch: this.conditionalHandlers?.editThenBranch,
+			onEditElseBranch: this.conditionalHandlers?.editElseBranch,
 		});
 
 		this.commandListHandle = mountComponent(

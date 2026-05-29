@@ -82,16 +82,20 @@ function updateCommand(command: ICommand) {
 	persist();
 }
 
-function configureConditionalCommand(command: IConditionalCommand) {
-	onConfigureCondition?.(command);
+// The conditional handlers open a modal that MUTATES the passed command (its
+// condition / then- / else-commands). Because `command` is a $state proxy, that
+// mutation does NOT write through to the host's commandsRef — so we must persist it
+// here via the same snapshot path as every other edit (updateCommand -> saveCommands).
+async function configureConditionalCommand(command: IConditionalCommand) {
+	if (await onConfigureCondition?.(command)) updateCommand(command);
 }
 
-function editConditionalThen(command: IConditionalCommand) {
-	onEditThenBranch?.(command);
+async function editConditionalThen(command: IConditionalCommand) {
+	if (await onEditThenBranch?.(command)) updateCommand(command);
 }
 
-function editConditionalElse(command: IConditionalCommand) {
-	onEditElseBranch?.(command);
+async function editConditionalElse(command: IConditionalCommand) {
+	if (await onEditElseBranch?.(command)) updateCommand(command);
 }
 
 async function configureChoice(command: INestedChoiceCommand) {

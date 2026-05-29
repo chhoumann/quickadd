@@ -18,9 +18,11 @@ export interface CommandListProps {
 	plugin: QuickAdd;
 	deleteCommand: (commandId: string) => void | Promise<void>;
 	saveCommands: (commands: ICommand[]) => void;
-	onConfigureCondition?: (command: IConditionalCommand) => void;
-	onEditThenBranch?: (command: IConditionalCommand) => void;
-	onEditElseBranch?: (command: IConditionalCommand) => void;
+	// Return true when the command was changed so CommandList persists it (the
+	// handler mutates the command; CommandList snapshots+saves — see CommandList.svelte).
+	onConfigureCondition?: (command: IConditionalCommand) => boolean | Promise<boolean>;
+	onEditThenBranch?: (command: IConditionalCommand) => boolean | Promise<boolean>;
+	onEditElseBranch?: (command: IConditionalCommand) => boolean | Promise<boolean>;
 }
 
 /**
