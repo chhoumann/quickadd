@@ -21,3 +21,5 @@ src/**/*.js
 
 # e2e test failure artifacts
 .obsidian-e2e-artifacts
+# Test coverage output
+coverage/

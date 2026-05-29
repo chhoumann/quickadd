@@ -20,5 +20,12 @@ export default defineConfig({
 				},
 			},
 		},
+		coverage: {
+			provider: "v8",
+			all: true,
+			include: ["src/**/*.ts"],
+			exclude: ["src/**/*.test.ts", "src/**/*.d.ts"],
+			reporter: ["text-summary", "json-summary"],
+		},
 	},
 });

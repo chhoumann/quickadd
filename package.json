@@ -10,6 +10,7 @@
     "build-with-lint": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
     "check": "svelte-check --threshold error",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
+    "test:coverage": "vitest run --config vitest.config.mts --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.mts"
   },
   "keywords": [],
@@ -22,6 +23,7 @@
     "@types/node": "24.0.12",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.60.0",
+    "@vitest/coverage-v8": "3.2.4",
     "cz-conventional-changelog": "^3.3.0",
     "esbuild": "0.28",
     "esbuild-svelte": "^0.9.5",

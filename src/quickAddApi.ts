@@ -190,7 +190,7 @@ export class QuickAddApi {
 			suggester: (
 				displayItems:
 					| string[]
-					| ((value: string, index?: number, arr?: string[]) => string[]),
+					| ((value: string, index?: number, arr?: string[]) => string),
 				actualItems: string[],
 				placeholder?: string,
 				allowCustomInput = false,
@@ -691,7 +691,7 @@ export class QuickAddApi {
 		app: App,
 		displayItems:
 			| string[]
-			| ((value: string, index?: number, arr?: string[]) => string[]),
+			| ((value: string, index?: number, arr?: string[]) => string),
 		actualItems: string[],
 		placeholder?: string,
 		allowCustomInput = false,

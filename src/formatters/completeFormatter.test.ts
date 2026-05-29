@@ -1,0 +1,648 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * Unit tests for the concrete CompleteFormatter.
+ *
+ * The formatter wires together a large number of heavy collaborators (engines,
+ * GUI prompts, field collectors). We mock those modules so the tests stay
+ * deterministic and focus on CompleteFormatter's own behavior: the format
+ * pipeline ordering, the public formatFileName/Content/FolderPath methods, global-variable
+ * expansion, the concrete getter overrides, and the prompt/suggest wrappers
+ * (including their cancellation -> MacroAbortError mapping).
+ */
+
+// --- Hoisted mock handles ------------------------------------------------
+
+const mocks = vi.hoisted(() => ({
+	macroRunAndGetOutput: vi.fn(),
+	macroGetVariables: vi.fn(() => new Map()),
+	templateRun: vi.fn(),
+	inlineRunAndGetOutput: vi.fn(),
+	inlineParamsVariables: {} as Record<string, unknown>,
+	inputPromptPrompt: vi.fn(),
+	inputPromptPromptWithContext: vi.fn(),
+	genericInputPromptWithContext: vi.fn(),
+	inputSuggesterSuggest: vi.fn(),
+	genericSuggesterSuggest: vi.fn(),
+	vdatePrompt: vi.fn(),
+	mathPrompt: vi.fn(),
+	fieldParse: vi.fn(),
+	collectProcessedDetailed: vi.fn(),
+	collectRaw: vi.fn(),
+	getSmartDefaults: vi.fn(() => [] as string[]),
+	dateAliases: {} as Record<string, string>,
+}));
+
+// --- Module mocks --------------------------------------------------------
+
+vi.mock("obsidian", () => {
+	// MarkdownView is only referenced as a token passed to getActiveViewOfType.
+	class MarkdownView {}
+	return { MarkdownView };
+});
+
+vi.mock("../engine/SingleMacroEngine", () => ({
+	SingleMacroEngine: class {
+		runAndGetOutput = mocks.macroRunAndGetOutput;
+		getVariables = mocks.macroGetVariables;
+	},
+}));
+
+vi.mock("../engine/SingleTemplateEngine", () => ({
+	SingleTemplateEngine: class {
+		run = mocks.templateRun;
+	},
+}));
+
+vi.mock("../engine/SingleInlineScriptEngine", () => ({
+	SingleInlineScriptEngine: class {
+		params = { variables: mocks.inlineParamsVariables };
+		runAndGetOutput = mocks.inlineRunAndGetOutput;
+	},
+}));
+
+vi.mock("../gui/InputPrompt", () => ({
+	default: class {
+		factory() {
+			return {
+				Prompt: mocks.inputPromptPrompt,
+				PromptWithContext: mocks.inputPromptPromptWithContext,
+			};
+		}
+	},
+}));
+
+vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
+	default: { PromptWithContext: mocks.genericInputPromptWithContext },
+}));
+
+vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
+	default: { Suggest: mocks.inputSuggesterSuggest },
+}));
+
+vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
+	default: { Suggest: mocks.genericSuggesterSuggest },
+}));
+
+vi.mock("src/gui/VDateInputPrompt/VDateInputPrompt", () => ({
+	default: { Prompt: mocks.vdatePrompt },
+}));
+
+vi.mock("../gui/MathModal", () => ({
+	MathModal: { Prompt: mocks.mathPrompt },
+}));
+
+vi.mock("../parsers/NLDParser", () => ({
+	NLDParser: { parseDate: () => null },
+}));
+
+vi.mock("../utils/FieldSuggestionParser", () => ({
+	FieldSuggestionParser: { parse: mocks.fieldParse },
+}));
+
+vi.mock("../utils/FieldValueCollector", () => ({
+	collectFieldValuesProcessedDetailed: mocks.collectProcessedDetailed,
+	collectFieldValuesRaw: mocks.collectRaw,
+	generateFieldCacheKey: (f: unknown) => JSON.stringify(f),
+}));
+
+vi.mock("../utils/FieldValueProcessor", () => ({
+	FieldValueProcessor: { getSmartDefaults: mocks.getSmartDefaults },
+}));
+
+vi.mock("../settingsStore", () => ({
+	settingsStore: { getState: () => ({ dateAliases: mocks.dateAliases }) },
+}));
+
+// Keep the logger silent/deterministic.
+vi.mock("../logger/logManager", () => ({
+	log: {
+		logError: vi.fn(),
+		logWarning: vi.fn(),
+		logMessage: vi.fn(),
+	},
+}));
+
+const { CompleteFormatter } = await import("./completeFormatter");
+const { MacroAbortError } = await import("../errors/MacroAbortError");
+
+// --- Test helpers --------------------------------------------------------
+
+type FakeFile = { basename: string } | null;
+
+interface FakeAppState {
+	activeFile: FakeFile;
+	selection: string | null; // null => no active markdown view
+	generatedLink: string;
+}
+
+function makeApp(state: FakeAppState) {
+	return {
+		workspace: {
+			getActiveFile: () => state.activeFile,
+			getActiveViewOfType: () =>
+				state.selection === null
+					? undefined
+					: { editor: { getSelection: () => state.selection } },
+		},
+		fileManager: {
+			generateMarkdownLink: () => state.generatedLink,
+		},
+	};
+}
+
+function makePlugin(
+	overrides: {
+		globalVariables?: Record<string, string>;
+		enableTemplatePropertyTypes?: boolean;
+	} = {},
+) {
+	return {
+		settings: {
+			globalVariables: overrides.globalVariables ?? {},
+			enableTemplatePropertyTypes:
+				overrides.enableTemplatePropertyTypes ?? false,
+			choices: [],
+			inputPrompt: "single-line",
+		},
+	};
+}
+
+// Default app: no active file, no selection, empty clipboard.
+function defaultFormatter(
+	pluginOverrides: Parameters<typeof makePlugin>[0] = {},
+	appOverrides: Partial<FakeAppState> = {},
+) {
+	const app = makeApp({
+		activeFile: appOverrides.activeFile ?? null,
+		selection: appOverrides.selection ?? null,
+		generatedLink: appOverrides.generatedLink ?? "",
+	});
+	const plugin = makePlugin(pluginOverrides);
+	return new CompleteFormatter(app as any, plugin as any);
+}
+
+beforeEach(() => {
+	for (const key of Object.keys(mocks.inlineParamsVariables)) {
+		delete mocks.inlineParamsVariables[key];
+	}
+	mocks.dateAliases = {};
+	vi.clearAllMocks();
+	mocks.macroGetVariables.mockReturnValue(new Map());
+	mocks.getSmartDefaults.mockReturnValue([]);
+
+	// Deterministic clipboard: empty by default. navigator may not exist in
+	// the jsdom-less environment, so define it.
+	(globalThis as any).navigator = {
+		clipboard: { readText: vi.fn().mockResolvedValue("") },
+	};
+
+	// Deterministic moment used by the base formatter's VDATE formatting.
+	(globalThis as any).window ??= globalThis;
+	(globalThis as any).window.moment = (_input?: unknown) => ({
+		isValid: () => true,
+		format: (fmt?: string) => (fmt === "YYYY-MM-DD" ? "2025-06-21" : "2025-06-21"),
+	});
+});
+
+// =========================================================================
+
+describe("CompleteFormatter - format pipeline (plain text)", () => {
+	it("returns plain input unchanged", async () => {
+		const f = defaultFormatter();
+		await expect(f.formatFileContent("just some text")).resolves.toBe(
+			"just some text",
+		);
+	});
+
+	it("returns empty string for empty input", async () => {
+		const f = defaultFormatter();
+		await expect(f.formatFileContent("")).resolves.toBe("");
+	});
+});
+
+describe("CompleteFormatter - global variable expansion", () => {
+	it("replaces a {{GLOBAL_VAR:name}} token with its configured snippet", async () => {
+		const f = defaultFormatter({ globalVariables: { greeting: "hello" } });
+		await expect(
+			f.formatFolderPath("say {{GLOBAL_VAR:greeting}}"),
+		).resolves.toBe("say hello");
+	});
+
+	it("trims whitespace inside the variable name", async () => {
+		const f = defaultFormatter({ globalVariables: { foo: "bar" } });
+		await expect(
+			f.formatFolderPath("{{GLOBAL_VAR:  foo  }}"),
+		).resolves.toBe("bar");
+	});
+
+	it("replaces an unknown global variable with an empty string", async () => {
+		const f = defaultFormatter({ globalVariables: {} });
+		await expect(
+			f.formatFolderPath("x{{GLOBAL_VAR:missing}}y"),
+		).resolves.toBe("xy");
+	});
+
+	it("expands nested globals (snippet that itself contains a global)", async () => {
+		const f = defaultFormatter({
+			globalVariables: {
+				outer: "[{{GLOBAL_VAR:inner}}]",
+				inner: "deep",
+			},
+		});
+		await expect(f.formatFolderPath("{{GLOBAL_VAR:outer}}")).resolves.toBe(
+			"[deep]",
+		);
+	});
+
+	it("does not loop forever on self-referential globals (recursion guard)", async () => {
+		const f = defaultFormatter({
+			globalVariables: { loop: "x{{GLOBAL_VAR:loop}}" },
+		});
+		// Should terminate (guard caps at 5 expansions) and not hang.
+		const result = await f.formatFolderPath("{{GLOBAL_VAR:loop}}");
+		expect(result.startsWith("xxxxx")).toBe(true);
+		expect(typeof result).toBe("string");
+	});
+});
+
+describe("CompleteFormatter - macro / template / inline-script integration", () => {
+	it("replaces {{MACRO:name}} with the macro engine output", async () => {
+		mocks.macroRunAndGetOutput.mockResolvedValue("MACRO_OUT");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("a {{MACRO:doThing}} b")).resolves.toBe(
+			"a MACRO_OUT b",
+		);
+		expect(mocks.macroRunAndGetOutput).toHaveBeenCalled();
+	});
+
+	it("uses an empty string when the macro engine returns nullish", async () => {
+		mocks.macroRunAndGetOutput.mockResolvedValue(null);
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("[{{MACRO:noop}}]")).resolves.toBe("[]");
+	});
+
+	it("copies variables produced by the macro engine into the formatter", async () => {
+		mocks.macroRunAndGetOutput.mockResolvedValue("done");
+		mocks.macroGetVariables.mockReturnValue(
+			new Map<string, unknown>([["fromMacro", "value123"]]),
+		);
+		const f = defaultFormatter();
+		// Run a macro, then reference the variable it set via {{VALUE:fromMacro}}.
+		await expect(
+			f.formatFolderPath("{{MACRO:m}}-{{VALUE:fromMacro}}"),
+		).resolves.toBe("done-value123");
+		// The variable was reused; no prompt was needed.
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("replaces {{TEMPLATE:path}} with the template engine output", async () => {
+		mocks.templateRun.mockResolvedValue("TEMPLATE_BODY");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{TEMPLATE:notes/a.md}}"),
+		).resolves.toBe("TEMPLATE_BODY");
+	});
+
+	it("replaces inline JavaScript with its string output", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("scripted");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("```js quickadd\nreturn 'x'\n```"),
+		).resolves.toBe("scripted");
+	});
+
+	it("replaces inline JavaScript with empty string when output is non-string", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue(42);
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("[```js quickadd\n1+1\n```]"),
+		).resolves.toBe("[]");
+	});
+
+	it("propagates variables set by the inline script", async () => {
+		// The script block is replaced by its output ("") and the variable it
+		// registered becomes available for the following {{VALUE}} token.
+		mocks.inlineRunAndGetOutput.mockResolvedValue("");
+		mocks.inlineParamsVariables.scriptVar = "fromScript";
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("```js quickadd\nnoop\n```{{VALUE:scriptVar}}"),
+		).resolves.toBe("fromScript");
+	});
+});
+
+describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
+	it("replaces {{LINKCURRENT}} with the generated markdown link", async () => {
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "Note" }, generatedLink: "[[Note]]" },
+		);
+		await expect(f.formatFileContent("see {{LINKCURRENT}}")).resolves.toBe(
+			"see [[Note]]",
+		);
+	});
+
+	it("throws (required behavior) when {{LINKCURRENT}} but no active file", async () => {
+		const f = defaultFormatter({}, { activeFile: null });
+		await expect(f.formatFileContent("{{LINKCURRENT}}")).rejects.toThrow(
+			"Unable to get current file path",
+		);
+	});
+
+	it("replaces {{FILENAMECURRENT}} with the active file basename", async () => {
+		const f = defaultFormatter({}, { activeFile: { basename: "My File" } });
+		await expect(
+			f.formatFileContent("name: {{FILENAMECURRENT}}"),
+		).resolves.toBe("name: My File");
+	});
+
+	it("throws when {{FILENAMECURRENT}} but no active file (required behavior)", async () => {
+		const f = defaultFormatter({}, { activeFile: null });
+		await expect(
+			f.formatFileContent("{{FILENAMECURRENT}}"),
+		).rejects.toThrow("Unable to get current file name");
+	});
+});
+
+describe("CompleteFormatter - title handling", () => {
+	it("replaces {{title}} in file content with the set title", async () => {
+		const f = defaultFormatter();
+		f.setTitle("Document Title");
+		await expect(f.formatFileContent("# {{title}}")).resolves.toBe(
+			"# Document Title",
+		);
+	});
+
+	it("formatFileName rejects {{title}} to avoid circular dependency", async () => {
+		const f = defaultFormatter();
+		await expect(
+			f.formatFileName("{{title}}-suffix", "Value"),
+		).rejects.toThrow("circular dependency");
+	});
+
+	it("formatFolderPath rejects {{title}} to avoid circular dependency", async () => {
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("folder/{{title}}")).rejects.toThrow(
+			"circular dependency",
+		);
+	});
+
+	it("formatFileName appends current file name replacement", async () => {
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "Source" } },
+		);
+		await expect(
+			f.formatFileName("{{FILENAMECURRENT}}-note", "Value"),
+		).resolves.toBe("Source-note");
+	});
+});
+
+describe("CompleteFormatter - selection handling", () => {
+	it("uses the editor selection for {{SELECTED}}", async () => {
+		const f = defaultFormatter({}, { selection: "highlighted text" });
+		await expect(
+			f.formatFolderPath("Q: {{SELECTED}}"),
+		).resolves.toBe("Q: highlighted text");
+	});
+
+	it("replaces {{SELECTED}} with empty string when no active markdown view", async () => {
+		const f = defaultFormatter({}, { selection: null });
+		await expect(f.formatFolderPath("[{{SELECTED}}]")).resolves.toBe("[]");
+	});
+
+	it("uses selected text as the {{VALUE}} when a selection exists", async () => {
+		const f = defaultFormatter({}, { selection: "picked" });
+		await expect(f.formatFolderPath("v={{VALUE}}")).resolves.toBe(
+			"v=picked",
+		);
+		// Selection short-circuits the prompt.
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+});
+
+describe("CompleteFormatter - clipboard handling", () => {
+	it("replaces {{CLIPBOARD}} with clipboard contents", async () => {
+		(globalThis as any).navigator = {
+			clipboard: { readText: vi.fn().mockResolvedValue("copied!") },
+		};
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{CLIPBOARD}}")).resolves.toBe(
+			"copied!",
+		);
+	});
+
+	it("falls back to empty string when clipboard read rejects", async () => {
+		(globalThis as any).navigator = {
+			clipboard: {
+				readText: vi.fn().mockRejectedValue(new Error("denied")),
+			},
+		};
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("[{{CLIPBOARD}}]")).resolves.toBe("[]");
+	});
+});
+
+describe("CompleteFormatter - {{VALUE}} prompting", () => {
+	it("prompts for value and reuses it across multiple tokens", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("typed");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{VALUE}}-{{VALUE}}"),
+		).resolves.toBe("typed-typed");
+		// Prompt happens once per run.
+		expect(mocks.inputPromptPrompt).toHaveBeenCalledTimes(1);
+	});
+
+	it("wraps a user-cancellation in MacroAbortError", async () => {
+		// isCancellationError only treats specific string messages as cancels.
+		mocks.inputPromptPrompt.mockRejectedValue("No input given.");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{VALUE}}")).rejects.toBeInstanceOf(
+			MacroAbortError,
+		);
+	});
+
+	it("re-throws non-cancellation errors as-is", async () => {
+		const realError = new Error("network down");
+		mocks.inputPromptPrompt.mockRejectedValue(realError);
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{VALUE}}")).rejects.toBe(realError);
+	});
+});
+
+describe("CompleteFormatter - {{VALUE:variable}} prompting", () => {
+	it("prompts for a named variable via the input prompt", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("Alice");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{VALUE:name}}")).resolves.toBe(
+			"Alice",
+		);
+	});
+
+	it("uses the suggester for comma-separated option lists", async () => {
+		mocks.genericSuggesterSuggest.mockResolvedValue("Green");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{VALUE:Red,Green,Blue}}"),
+		).resolves.toBe("Green");
+		expect(mocks.genericSuggesterSuggest).toHaveBeenCalled();
+	});
+
+	it("maps a suggester cancellation to MacroAbortError", async () => {
+		mocks.genericSuggesterSuggest.mockRejectedValue("No input given.");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{VALUE:A,B}}"),
+		).rejects.toBeInstanceOf(MacroAbortError);
+	});
+});
+
+describe("CompleteFormatter - VDATE variable prompting", () => {
+	it("prompts via VDateInputPrompt and formats the resolved date", async () => {
+		// Returning an @date: prefixed value stores it directly; window.moment
+		// (from the obsidian stub) formats it deterministically.
+		mocks.vdatePrompt.mockResolvedValue(
+			"@date:2025-06-21T00:00:00.000Z",
+		);
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{VDATE:due,YYYY-MM-DD}}"),
+		).resolves.toBe("2025-06-21");
+		expect(mocks.vdatePrompt).toHaveBeenCalled();
+	});
+});
+
+describe("CompleteFormatter - math value prompting", () => {
+	it("replaces {{MVALUE}} with the math modal result", async () => {
+		mocks.mathPrompt.mockResolvedValue("42");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("= {{MVALUE}}")).resolves.toBe("= 42");
+	});
+
+	it("maps a math modal cancellation to MacroAbortError", async () => {
+		mocks.mathPrompt.mockRejectedValue("No input given.");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{MVALUE}}")).rejects.toBeInstanceOf(
+			MacroAbortError,
+		);
+	});
+});
+
+describe("CompleteFormatter - field suggestion (suggestForField)", () => {
+	it("suggests from collected values when matches exist", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "status",
+			filters: {},
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["open", "closed"],
+			hasDefaultValue: false,
+		});
+		mocks.inputSuggesterSuggest.mockResolvedValue("open");
+
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{FIELD:status}}")).resolves.toBe(
+			"open",
+		);
+		expect(mocks.inputSuggesterSuggest).toHaveBeenCalled();
+	});
+
+	it("falls back to a free-form prompt when no values are found", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "status",
+			filters: {},
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: [],
+			hasDefaultValue: false,
+		});
+		mocks.genericInputPromptWithContext.mockResolvedValue("manual");
+
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{FIELD:status}}")).resolves.toBe(
+			"manual",
+		);
+		expect(mocks.genericInputPromptWithContext).toHaveBeenCalled();
+		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
+	});
+
+	it("maps a field-suggester cancellation to MacroAbortError", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "status",
+			filters: {},
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["a"],
+			hasDefaultValue: false,
+		});
+		mocks.inputSuggesterSuggest.mockRejectedValue("no input given.");
+
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{FIELD:status}}"),
+		).rejects.toBeInstanceOf(MacroAbortError);
+	});
+});
+
+describe("CompleteFormatter - constructor / dateParser injection", () => {
+	it("uses an injected date parser for VDATE coercion", async () => {
+		const injectedParser = {
+			parseDate: vi.fn().mockReturnValue({
+				moment: {
+					format: () => "2030-01-01",
+					toISOString: () => "2030-01-01T00:00:00.000Z",
+					isValid: () => true,
+				},
+			}),
+		};
+		const app = makeApp({
+			activeFile: null,
+			selection: null,
+			generatedLink: "",
+		});
+		// Non-@date: response forces a parseDate() coercion through the parser.
+		mocks.vdatePrompt.mockResolvedValue("tomorrow");
+		const f = new CompleteFormatter(
+			app as any,
+			makePlugin() as any,
+			undefined,
+			injectedParser,
+		);
+		await f.formatFolderPath("{{VDATE:when,YYYY-MM-DD}}");
+		expect(injectedParser.parseDate).toHaveBeenCalled();
+	});
+
+	it("shares variables from a provided choiceExecutor", async () => {
+		const sharedVars = new Map<string, unknown>([["preset", "shared!"]]);
+		const choiceExecutor = { variables: sharedVars };
+		const app = makeApp({
+			activeFile: null,
+			selection: null,
+			generatedLink: "",
+		});
+		const f = new CompleteFormatter(
+			app as any,
+			makePlugin() as any,
+			choiceExecutor as any,
+		);
+		// preset already lives in the shared map, so no prompt should fire.
+		await expect(
+			f.formatFolderPath("{{VALUE:preset}}"),
+		).resolves.toBe("shared!");
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+});
+
+describe("CompleteFormatter - pipeline ordering", () => {
+	it("formats a macro's output further down the pipeline (date etc.)", async () => {
+		// Macro emits a global-var token; because globals are expanded after
+		// macros, the injected token is itself resolved.
+		mocks.macroRunAndGetOutput.mockResolvedValue("{{GLOBAL_VAR:g}}");
+		const f = defaultFormatter({ globalVariables: { g: "resolved" } });
+		await expect(f.formatFolderPath("{{MACRO:m}}")).resolves.toBe(
+			"resolved",
+		);
+	});
+});
