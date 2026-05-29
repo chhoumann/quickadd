@@ -21,7 +21,7 @@
     "@semantic-release/git": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^3.1.2",
     "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/svelte": "^4.2.3",
+    "@testing-library/svelte": "^5.3.1",
     "@types/node": "24.0.12",
     "@types/uuid": "10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.36.0",
