@@ -10,6 +10,7 @@ import {
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
+import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
@@ -36,7 +37,7 @@ class SvelteSettingComponent extends BaseComponent {
 
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
-	private choiceView: ChoiceView | null = null;
+	private choiceViewHandle: MountHandle | null = null;
 	private globalVariablesView: GlobalVariablesView | null = null;
 
 	constructor(app: App, plugin: QuickAdd) {
@@ -87,8 +88,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	private destroySettingViews(): void {
-		this.choiceView?.$destroy();
-		this.choiceView = null;
+		this.choiceViewHandle?.destroy();
+		this.choiceViewHandle = null;
 		this.globalVariablesView?.$destroy();
 		this.globalVariablesView = null;
 	}
@@ -165,15 +166,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			this.prepareFullWidthSetting(setting);
 
 			const mountView = (target: HTMLElement) => {
-				this.choiceView = new ChoiceView({
-					target,
-					props: {
-						app: this.app,
-						plugin: this.plugin,
-						choices: settingsStore.getState().choices,
-						saveChoices: (choices: IChoice[]) => {
-							settingsStore.setState({ choices });
-						},
+				this.choiceViewHandle = mountComponent(target, ChoiceView, {
+					app: this.app,
+					plugin: this.plugin,
+					choices: settingsStore.getState().choices,
+					saveChoices: (choices: IChoice[]) => {
+						settingsStore.setState({ choices });
 					},
 				});
 			};

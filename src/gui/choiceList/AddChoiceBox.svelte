@@ -1,12 +1,11 @@
 <script lang="ts">
     import type {ChoiceType} from "../../types/choices/choiceType";
-    import {createEventDispatcher} from "svelte";
     import {Notice} from "obsidian";
 
-    let name: string;
-    let type: ChoiceType;
+    let { onAddChoice }: { onAddChoice: (name: string, type: ChoiceType) => void } = $props();
 
-    const dispatch = createEventDispatcher();
+    let name = $state("");
+    let type = $state<ChoiceType>("Template");
 
     function addChoice() {
         if (!name) {
@@ -14,11 +13,9 @@
             return;
         }
 
-        dispatch('addChoice', {name, type});
+        onAddChoice(name, type);
         name = "";
     }
-
-
 </script>
 
 <div class="addChoiceBox">
@@ -29,7 +26,7 @@
         <option value={"Macro"}>{"Macro"}</option>
         <option value={"Multi"}>{"Multi"}</option>
     </select>
-    <button class="mod-cta" on:click={addChoice}>Add Choice</button>
+    <button class="mod-cta" onclick={addChoice}>Add Choice</button>
 </div>
 
 <style>

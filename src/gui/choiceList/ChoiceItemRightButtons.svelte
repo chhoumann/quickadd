@@ -1,50 +1,50 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
-    import {createEventDispatcher} from "svelte";
 
-    export let dragDisabled: boolean;
-    export let showConfigureButton: boolean = true;
-    export let showDuplicateButton: boolean = true;
-    export let commandEnabled: boolean = false;
-    export let choiceName: string = "";
-    const dispatcher = createEventDispatcher();
-
-    function emitDeleteChoice() {
-        dispatcher('deleteChoice');
-    }
-
-    function emitConfigureChoice() {
-        dispatcher('configureChoice');
-    }
-
-    function emitToggleCommand() {
-        dispatcher('toggleCommand');
-    }
-
-    function emitDuplicateChoice() {
-        dispatcher('duplicateChoice');
-    }
+    let {
+        dragDisabled,
+        showConfigureButton = true,
+        showDuplicateButton = true,
+        commandEnabled = false,
+        choiceName = "",
+        onDeleteChoice,
+        onConfigureChoice,
+        onToggleCommand,
+        onDuplicateChoice,
+        onDragHandleDown,
+    }: {
+        dragDisabled: boolean;
+        showConfigureButton?: boolean;
+        showDuplicateButton?: boolean;
+        commandEnabled?: boolean;
+        choiceName?: string;
+        onDeleteChoice: () => void;
+        onConfigureChoice: () => void;
+        onToggleCommand: () => void;
+        onDuplicateChoice: () => void;
+        onDragHandleDown: (e?: Event) => void;
+    } = $props();
 </script>
 
 <div class="rightButtonsContainer">
-    <div 
+    <div
         role="button"
         tabindex="0"
-        on:click={emitToggleCommand}
-        on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitToggleCommand()}
+        onclick={onToggleCommand}
+        onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onToggleCommand()}
         class:command-enabled={commandEnabled}
-        class="alignIconInDivInMiddle clickable" 
-        aria-label={`${commandEnabled ? "Disable in Command Palette" : "Enable in Command Palette"}${choiceName ? ": " + choiceName : ""}`} 
+        class="alignIconInDivInMiddle clickable"
+        aria-label={`${commandEnabled ? "Disable in Command Palette" : "Enable in Command Palette"}${choiceName ? ": " + choiceName : ""}`}
     >
         <ObsidianIcon iconId="zap" size={16} />
     </div>
     {#if showConfigureButton}
-        <div 
+        <div
             role="button"
             tabindex="0"
-            on:click={emitConfigureChoice}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitConfigureChoice()}
-            class="alignIconInDivInMiddle clickable" 
+            onclick={onConfigureChoice}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onConfigureChoice()}
+            class="alignIconInDivInMiddle clickable"
             aria-label={`Configure${choiceName ? " " + choiceName : ""}`}
         >
             <ObsidianIcon iconId="settings" size={16} />
@@ -52,37 +52,37 @@
     {/if}
 
     {#if showDuplicateButton}
-        <div 
+        <div
             role="button"
             tabindex="0"
-            aria-label={`Duplicate ${choiceName ?? ""}`} 
-            class="alignIconInDivInMiddle clickable" 
-            on:click={emitDuplicateChoice}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitDuplicateChoice()}
+            aria-label={`Duplicate ${choiceName ?? ""}`}
+            class="alignIconInDivInMiddle clickable"
+            onclick={onDuplicateChoice}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDuplicateChoice()}
         >
             <ObsidianIcon iconId="copy" size={16} />
         </div>
     {/if}
 
-    <div 
+    <div
         role="button"
         tabindex="0"
-        aria-label={`Delete${choiceName ? " " + choiceName : ""}`} 
-        class="alignIconInDivInMiddle clickable" 
-        on:click={emitDeleteChoice}
-        on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && emitDeleteChoice()}
+        aria-label={`Delete${choiceName ? " " + choiceName : ""}`}
+        class="alignIconInDivInMiddle clickable"
+        onclick={onDeleteChoice}
+        onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteChoice()}
     >
         <ObsidianIcon iconId="trash-2" size={16} />
     </div>
 
-    <div 
+    <div
          role="button"
          tabindex={dragDisabled ? 0 : -1}
          aria-label="Drag-handle"
          class="alignIconInDivInMiddle"
          class:qa-drag-handle-ready={dragDisabled}
          class:qa-drag-handle-active={!dragDisabled}
-         on:pointerdown={() => dispatcher('dragHandleDown')}
+         onpointerdown={() => onDragHandleDown()}
     >
         <ObsidianIcon iconId="grip-vertical" size={16} />
     </div>

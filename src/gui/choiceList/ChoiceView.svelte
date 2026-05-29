@@ -2,7 +2,7 @@
 	import type { App } from "obsidian";
 	import { prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
-	import { onMount } from "svelte";
+	import { untrack } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
 		CommandRegistry,
@@ -11,6 +11,7 @@
 		createToggleCommandChoice,
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
+		moveChoice as moveChoiceService,
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
 	import type IChoice from "../../types/choices/IChoice";
@@ -19,18 +20,40 @@
 	import { promptRenameChoice } from "../choiceRename";
 	import AddChoiceBox from "./AddChoiceBox.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
-	import { moveChoice as moveChoiceService } from "../../services/choiceService";
+	import type { ChoiceListActions } from "./choiceListActions";
 
-	export let choices: IChoice[] = [];
-	export let saveChoices: (choices: IChoice[]) => void;
+	let {
+		app,
+		plugin,
+		choices = $bindable([]),
+		saveChoices,
+	}: {
+		app: App;
+		plugin: QuickAdd;
+		choices?: IChoice[];
+		saveChoices: (choices: IChoice[]) => void;
+	} = $props();
 
-	function handleReorderChoices(e: CustomEvent<{ choices: IChoice[] }>) {
-		saveChoices(e.detail.choices);
+	let filterQuery = $state(""); // not persisted
+
+	// Command registry for managing Obsidian commands (plugin is constant for the
+	// component's life; untrack avoids a spurious state_referenced_locally warning).
+	const commandRegistry = new CommandRegistry(untrack(() => plugin));
+
+	// Keep choices in sync with external store changes. The subscribe callback runs
+	// only on store changes (not during this effect's synchronous setup), so the
+	// effect registers no reactive deps and subscribes exactly once.
+	$effect(() => {
+		const unsubSettingsStore = settingsStore.subscribe((settings) => {
+			choices = settings.choices;
+		});
+		return () => unsubSettingsStore();
+	});
+
+	// Persist the current choices as a plain (non-proxy) snapshot.
+	function save() {
+		saveChoices($state.snapshot(choices) as IChoice[]);
 	}
-	export let app: App;
-	export let plugin: QuickAdd;
-
-	let filterQuery: string = ""; // not persisted
 
 	function filterChoices(list: IChoice[], query: string): IChoice[] {
 		const q = query.trim();
@@ -56,44 +79,23 @@
 			return null;
 		};
 
-		return list
-			.map((c) => walk(c))
-			.filter(Boolean) as IChoice[];
+		return list.map((c) => walk(c)).filter(Boolean) as IChoice[];
 	}
 
-	// Subscribe to settings changes to keep choices in sync
-	onMount(() => {
-		const unsubSettingsStore = settingsStore.subscribe((settings) => {
-			choices = settings.choices;
-		});
-
-		return () => {
-			unsubSettingsStore();
-		};
-	});
-
-	// Command registry for managing Obsidian commands
-	const commandRegistry = new CommandRegistry(plugin);
-
-	function addChoiceToList(event: any): void {
-		const { name, type } = event.detail;
-		const newChoice = createChoice(type as ChoiceType, name);
+	function addChoiceToList(name: string, type: ChoiceType): void {
+		const newChoice = createChoice(type, name);
 		choices = [...choices, newChoice];
-		saveChoices(choices);
+		save();
 	}
 
-	async function deleteChoice(e: any) {
-		const choice: IChoice = e.detail.choice;
-
+	async function deleteChoice(choice: IChoice) {
 		const userConfirmed = await deleteChoiceWithConfirmation(choice, app);
 		if (!userConfirmed) return;
 
 		// Remove choice from array (including nested choices)
-		choices = choices.filter((value) =>
-			removeChoiceHelper(choice.id, value),
-		);
+		choices = choices.filter((value) => removeChoiceHelper(choice.id, value));
 		commandRegistry.disableCommand(choice);
-		saveChoices(choices);
+		save();
 	}
 
 	function removeChoiceHelper(id: string, value: IChoice): boolean {
@@ -105,23 +107,16 @@
 		return value.id !== id;
 	}
 
-	async function handleConfigureChoice(e: any) {
-		const { choice: oldChoice } = e.detail;
-
+	async function handleConfigureChoice(oldChoice: IChoice) {
 		const updatedChoice = await configureChoice(oldChoice, app, plugin);
 		if (!updatedChoice) return;
 
-		choices = choices.map((choice) =>
-			updateChoiceHelper(choice, updatedChoice),
-		);
+		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
 		commandRegistry.updateCommand(oldChoice, updatedChoice);
-		saveChoices(choices);
+		save();
 	}
 
-	function updateChoiceHelper(
-		oldChoice: IChoice,
-		newChoice: IChoice,
-	): IChoice {
+	function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): IChoice {
 		if (oldChoice.id === newChoice.id) {
 			return { ...oldChoice, ...newChoice };
 		}
@@ -137,46 +132,53 @@
 		return oldChoice;
 	}
 
-	async function handleRenameChoice(e: any) {
-		const { choice } = e.detail;
+	async function handleRenameChoice(choice: IChoice) {
 		if (!choice) return;
 
 		const newName = await promptRenameChoice(app, choice.name);
 		if (!newName) return;
 
 		const updatedChoice = { ...choice, name: newName };
-		choices = choices.map((entry) =>
-			updateChoiceHelper(entry, updatedChoice),
-		);
+		choices = choices.map((entry) => updateChoiceHelper(entry, updatedChoice));
 		commandRegistry.updateCommand(choice, updatedChoice);
-		saveChoices(choices);
+		save();
 	}
 
-	async function toggleCommandForChoice(e: any) {
-		const { choice: oldChoice } = e.detail;
+	function toggleCommandForChoice(oldChoice: IChoice) {
 		const updatedChoice = createToggleCommandChoice(oldChoice);
 
-		choices = choices.map((choice) =>
-			updateChoiceHelper(choice, updatedChoice),
-		);
+		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
 		updatedChoice.command
 			? commandRegistry.enableCommand(updatedChoice)
 			: commandRegistry.disableCommand(updatedChoice);
-		saveChoices(choices);
+		save();
 	}
 
-	async function handleDuplicateChoice(e: any) {
-		const { choice: sourceChoice } = e.detail;
+	function handleDuplicateChoice(sourceChoice: IChoice) {
 		const newChoice = duplicateChoice(sourceChoice);
 		choices = [...choices, newChoice];
-		saveChoices(choices);
+		save();
 	}
 
-	function handleMoveChoice(e: any) {
-		const { choice, targetId } = e.detail;
+	function handleMoveChoice(choice: IChoice, targetId: string) {
 		choices = moveChoiceService(choices, choice.id, targetId);
-		saveChoices(choices);
+		save();
 	}
+
+	function handleReorderChoices(reordered: IChoice[]) {
+		choices = reordered;
+		save();
+	}
+
+	const actions: ChoiceListActions = {
+		onDeleteChoice: deleteChoice,
+		onConfigureChoice: handleConfigureChoice,
+		onToggleCommand: toggleCommandForChoice,
+		onDuplicateChoice: handleDuplicateChoice,
+		onRenameChoice: handleRenameChoice,
+		onMoveChoice: handleMoveChoice,
+		onReorderChoices: handleReorderChoices,
+	};
 
 	async function openAISettings() {
 		const newSettings = await new AIAssistantSettingsModal(
@@ -188,7 +190,6 @@
 			settingsStore.setState((state) => ({ ...state, ai: newSettings }));
 		}
 	}
-
 </script>
 
 
@@ -202,7 +203,7 @@
 				autocapitalize="off"
 				autocorrect="off"
 				spellcheck={false}
-				on:keydown={(e) => {
+				onkeydown={(e) => {
 					if (e.key === 'Escape' && filterQuery) {
 						filterQuery = "";
 						e.stopPropagation();
@@ -211,7 +212,7 @@
 			/>
 			{#if filterQuery}
 				<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
-					on:click={() => (filterQuery = "")}
+					onclick={() => (filterQuery = "")}
 				>
 					<ObsidianIcon iconId="x" size={14} />
 				</button>
@@ -221,38 +222,27 @@
 
 	{#if filterQuery.trim().length === 0}
 		<ChoiceList
-			app={app}
+			{app}
 			roots={choices}
 			bind:choices
-			on:deleteChoice={deleteChoice}
-			on:configureChoice={handleConfigureChoice}
-			on:toggleCommand={toggleCommandForChoice}
-			on:duplicateChoice={handleDuplicateChoice}
-			on:renameChoice={handleRenameChoice}
-			on:moveChoice={handleMoveChoice}
-			on:reorderChoices={handleReorderChoices}
+			{actions}
 		/>
 	{:else}
 		<ChoiceList
-			app={app}
+			{app}
 			roots={choices}
 			choices={filterChoices(choices, filterQuery)}
 			forceDragDisabled={true}
-			on:deleteChoice={deleteChoice}
-			on:configureChoice={handleConfigureChoice}
-			on:toggleCommand={toggleCommandForChoice}
-			on:duplicateChoice={handleDuplicateChoice}
-			on:renameChoice={handleRenameChoice}
-			on:moveChoice={handleMoveChoice}
+			{actions}
 		/>
 	{/if}
 	<div class="choiceViewBottomBar">
 		{#if !settingsStore.getState().disableOnlineFeatures}
-			<button class="mod-cta" on:click={openAISettings}
+			<button class="mod-cta" onclick={openAISettings}
 				>AI Assistant</button
 			>
 		{/if}
-		<AddChoiceBox on:addChoice={addChoiceToList} />
+		<AddChoiceBox onAddChoice={addChoiceToList} />
 	</div>
 </div>
 
