@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "build-with-lint": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
+    "check": "svelte-check --threshold error",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
     "test:e2e": "vitest run --config vitest.e2e.config.mts"
   },

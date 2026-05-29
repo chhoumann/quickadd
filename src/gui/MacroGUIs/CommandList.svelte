@@ -31,6 +31,8 @@ import { createEventDispatcher } from "svelte";
 import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
 import ConditionalCommand from "./Components/ConditionalCommand.svelte";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
+import type { IWaitCommand } from "../../types/macros/QuickCommands/IWaitCommand";
+import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
 
 	export let commands: ICommand[];
 export let deleteCommand: (commandId: string) => Promise<void>;
@@ -39,6 +41,16 @@ export let app: App;
 export let plugin: QuickAdd;
 let dragDisabled: boolean = true;
 const dispatch = createEventDispatcher();
+
+// Narrowing helpers: the {#each} discriminates on command.type, so each child
+// receives the matching subtype. Passed one-way — children report edits via the
+// on:updateCommand event, not via two-way bind:command.
+const asWait = (c: ICommand) => c as IWaitCommand;
+const asNested = (c: ICommand) => c as INestedChoiceCommand;
+const asUserScript = (c: ICommand) => c as IUserScript;
+const asAI = (c: ICommand) => c as IAIAssistantCommand;
+const asOpenFile = (c: ICommand) => c as IOpenFileCommand;
+const asConditional = (c: ICommand) => c as IConditionalCommand;
 
 	export const updateCommandList: (newCommands: ICommand[]) => void = (
 		newCommands: ICommand[]
@@ -66,7 +78,7 @@ const dispatch = createEventDispatcher();
 		saveCommands(commands);
 	}
 
-	let startDrag = (e: CustomEvent<DndEvent>) => {
+	let startDrag = (e: MouseEvent | TouchEvent) => {
 		e.preventDefault();
 		dragDisabled = false;
 	};
@@ -135,23 +147,13 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 			return;
 		}
 
+		const scriptSettings =
+			(userScript as { settings?: { [key: string]: unknown } }).settings ?? {};
+
 		new UserScriptSettingsModal(
 			app,
 			command,
-			(userScript.settings ?? {}) as {
-				[key: string]: unknown;
-				options?: {
-					[key: string]: {
-						description?: string;
-						type: string;
-						value: string | boolean;
-						placeholder?: string;
-						secret?: boolean;
-						defaultValue: string | boolean;
-						options?: string[];
-					};
-				};
-			},
+			scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[2],
 			() => saveCommands([...commands]),
 		).open();
 	}
@@ -197,7 +199,7 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 	{#each commands.filter((c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command (command.id)}
 		{#if command.type === CommandType.Wait}
 			<WaitCommand
-				bind:command
+				command={asWait(command)}
 				bind:dragDisabled
 				bind:startDrag
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
@@ -205,7 +207,7 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 			/>
 		{:else if command.type === CommandType.NestedChoice}
 			<NestedChoiceCommand
-				bind:command
+				command={asNested(command)}
 				bind:dragDisabled
 				bind:startDrag
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
@@ -214,7 +216,7 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 			/>
 		{:else if command.type === CommandType.UserScript}
 			<UserScriptCommand
-				bind:command
+				command={asUserScript(command)}
 				bind:dragDisabled
 				bind:startDrag
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
@@ -223,7 +225,7 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 			/>
 		{:else if command.type === CommandType.AIAssistant}
 			<AIAssistantCommand
-				bind:command
+				command={asAI(command)}
 				bind:dragDisabled
 				bind:startDrag
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
@@ -232,7 +234,7 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 			/>
 		{:else if command.type === CommandType.OpenFile}
 			<OpenFileCommand
-				bind:command
+				command={asOpenFile(command)}
 				bind:dragDisabled
 				bind:startDrag
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
@@ -241,7 +243,7 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
-				bind:command
+				command={asConditional(command)}
 				bind:dragDisabled
 				bind:startDrag
 				on:deleteCommand={async (e) => await deleteCommand(e.detail)}

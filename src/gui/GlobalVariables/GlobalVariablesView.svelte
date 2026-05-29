@@ -39,7 +39,7 @@
   function addVariable() {
     const names = new Set(items.map((i) => i.name));
     const name = uniqueName("NewVar", names);
-    items = [...items, { id: name, name, value: "" }];
+    items = [...items, { name, value: "" }];
     persistToSettings();
   }
 

@@ -4,10 +4,10 @@ import type { IObsidianCommand } from "./IObsidianCommand";
 import { v4 as uuidv4 } from "uuid";
 
 export class ObsidianCommand extends Command implements IObsidianCommand {
-	name: string;
-	id: string;
+	declare name: string;
+	declare id: string;
 	commandId: string;
-	type: CommandType;
+	declare type: CommandType;
 
 	constructor(name: string, commandId: string) {
 		super(name, CommandType.Obsidian);

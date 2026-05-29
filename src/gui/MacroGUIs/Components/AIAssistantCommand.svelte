@@ -1,11 +1,10 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
     import {createEventDispatcher} from "svelte";
-    import type {DndEvent} from "svelte-dnd-action";
 	import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 
     export let command: IAIAssistantCommand;
-    export let startDrag: (e: CustomEvent<DndEvent>) => void;
+    export let startDrag: (e: MouseEvent | TouchEvent) => void;
     export let dragDisabled: boolean;
     const dispatch = createEventDispatcher();
 
