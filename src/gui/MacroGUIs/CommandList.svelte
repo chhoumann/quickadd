@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
+import { Platform } from "obsidian";
 import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 import { replaceById, stripShadow } from "../shared/dndReorder";
 import { snapshot } from "../svelte/persist.svelte";
@@ -40,7 +41,11 @@ let {
 	onEditElseBranch,
 }: CommandListProps = $props();
 
-let dragDisabled = $state(true);
+const isMobile = Platform.isMobile;
+// Desktop: drag is armed by grabbing the handle. Mobile: no handle — the whole row
+// is draggable by long-press (delayTouchStart), so drag stays enabled.
+let dragArmed = $state(false);
+const dragDisabled = $derived(!isMobile && !dragArmed);
 
 // Narrowing helpers: the {#each} discriminates on command.type, so each child
 // receives the matching subtype. Passed one-way — children report edits via the
@@ -66,18 +71,20 @@ function handleConsider(e: CustomEvent<DndEvent>) {
 function handleSort(e: CustomEvent<DndEvent>) {
 	commands = stripShadow(e.detail.items as ICommand[]);
 
+	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
+	// Mobile: dragDisabled ignores dragArmed, so this is a no-op.
 	if (e.detail.info.source === SOURCES.POINTER) {
-		dragDisabled = true;
+		dragArmed = false;
 	}
 
 	persist();
 }
 
-// Arm svelte-dnd-action's pointer drag. NO preventDefault here — see DragHandle:
-// preventDefault on pointerdown would suppress the compat mousedown the library
-// starts the drag from.
+// Arm svelte-dnd-action's pointer drag (desktop handle). NO preventDefault here —
+// see DragHandle: preventDefault on pointerdown would suppress the compat mousedown
+// the library starts the drag from.
 let startDrag = () => {
-	dragDisabled = false;
+	dragArmed = true;
 };
 
 // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle): move the command one
@@ -191,6 +198,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		// inside each row are focusable (the library defaults this to 0, adding a dead
 		// tab stop per row even with autoAriaDisabled).
 		zoneItemTabIndex: -1,
+		// Mobile: long-press (hold) initiates a row drag; a quick swipe still scrolls.
+		delayTouchStart: 200,
 	}}
 	onconsider={handleConsider}
 	onfinalize={handleSort}

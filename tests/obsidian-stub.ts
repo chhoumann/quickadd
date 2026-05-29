@@ -698,6 +698,16 @@ export class Menu {
   }
 }
 
+// Platform flags. Tests run as desktop (isMobile false) so component behaviour
+// matches the desktop code path unless a test overrides Platform.isMobile.
+export const Platform = {
+  isMobile: false,
+  isDesktop: true,
+  isTablet: false,
+  isPhone: false,
+  isMacOS: true,
+};
+
 // Substring (NOT subsequence) matcher standing in for Obsidian's fuzzy search.
 // Returns a SearchResult-like object when q is a case-insensitive substring of
 // the text, else null — enough for filter tests. Do NOT assert true fuzzy
@@ -744,4 +754,5 @@ export default {
   debounce,
   setIcon,
   prepareFuzzySearch,
+  Platform,
 };

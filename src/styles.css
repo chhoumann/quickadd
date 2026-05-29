@@ -473,10 +473,12 @@
 
 /* Mobile: declutter the choice rows. The per-row action icons (toggle / configure /
    duplicate / delete) collapse into the "More options" (⋮) menu — which already
-   exposes every action incl. rename & move — leaving a roomy name plus two
-   touch-friendly controls (More + drag handle). Macro command rows have no menu, so
-   they keep their compact buttons. (#1250) */
-.is-mobile .rightButtonsContainer .qa-row-secondary-action {
+   exposes every action incl. rename & move. The drag handle is also removed: on
+   mobile the whole row is draggable by long-press (delayTouchStart), the native
+   reorder gesture. That leaves just a roomy name + the ⋮ menu. (#1250) */
+.is-mobile .rightButtonsContainer .qa-row-secondary-action,
+.is-mobile .rightButtonsContainer .qa-drag-handle,
+.is-mobile .quickAddCommandControls .qa-drag-handle {
 	display: none;
 }
 
@@ -484,9 +486,10 @@
 	gap: 12px;
 }
 
-.is-mobile .rightButtonsContainer .qa-icon-button {
-	/* Override the compact reset for the two controls that remain on mobile so they
-	   are comfortable tap targets. Higher specificity + !important beats the base. */
+.is-mobile .rightButtonsContainer .qa-icon-button,
+.is-mobile .quickAddCommandControls .qa-icon-button {
+	/* Override the compact reset for the controls that remain on mobile so they are
+	   comfortable tap targets. Higher specificity + !important beats the base. */
 	padding: 8px !important;
 }
 

@@ -5,7 +5,7 @@
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import { type DndEvent, dndzone } from "svelte-dnd-action";
     import { stripShadow } from "../shared/dndReorder";
-    import type { App } from "obsidian";
+    import { Platform, type App } from "obsidian";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -32,8 +32,15 @@
     // own handler IS the top-level handler; nested lists receive it explicitly.
     const persistRoots = $derived(rootReorder ?? actions.onReorderChoices);
 
+    const isMobile = Platform.isMobile;
+
     let collapseId = $state("");
-    let dragDisabled = $state(true);
+    // Desktop: drag is armed by grabbing the handle (dragDisabled until then), which
+    // prevents accidental drags when interacting with a row. Mobile: there is no
+    // handle — the whole row is draggable by LONG-PRESS (delayTouchStart below), the
+    // native mobile reorder gesture — so drag stays enabled unless filtering.
+    let dragArmed = $state(false);
+    const dragDisabled = $derived(forceDragDisabled || (!isMobile && !dragArmed));
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
@@ -47,16 +54,15 @@
         if (forceDragDisabled) return;
         collapseId = "";
         choices = stripShadow(e.detail.items as IChoice[]);
-        // Always re-disable dragging when the sort finalizes (choiceList behavior;
-        // intentionally NOT the macro list's POINTER-only gate).
-        dragDisabled = true;
+        // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
+        // grabbed again). Mobile: dragDisabled ignores dragArmed, so this is a no-op.
+        dragArmed = false;
         actions.onReorderChoices(choices);
     }
 
-    let startDrag = (e?: Event) => {
+    let startDrag = () => {
         if (forceDragDisabled) return; // do not enable drag while filtering
-        if (e && typeof e.preventDefault === 'function') e.preventDefault();
-        dragDisabled = false;
+        dragArmed = true;
     };
 
     // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle). Moves the choice
@@ -80,7 +86,7 @@
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, autoAriaDisabled: true, zoneItemTabIndex: -1}}
+        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
