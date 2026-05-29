@@ -42,9 +42,11 @@ export function duplicateChoice(choice: IChoice): IChoice {
 	if (choice.type === "Multi") {
 		const newMulti = newChoice as IMultiChoice;
 		const sourceMulti = choice as IMultiChoice;
+		// Preserve command/onePageInput/placeholder/collapsed etc. (symmetry with
+		// the other choice types). `choices` is excluded here and set via the
+		// recursive map below so children get fresh ids, not the source's.
+		Object.assign(newMulti, excludeKeys(sourceMulti, ["id", "name", "choices"]));
 		newMulti.choices = sourceMulti.choices.map(duplicateChoice);
-		newMulti.placeholder = sourceMulti.placeholder;
-		newMulti.collapsed = sourceMulti.collapsed;
 		return newMulti;
 	}
 

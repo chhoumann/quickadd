@@ -190,6 +190,23 @@ describe("choiceService", () => {
 			expect(copy.id).not.toBe(original.id);
 		});
 
+		it("preserves command and onePageInput when duplicating a Multi", () => {
+			const original = createChoice("Multi", "M") as IMultiChoice;
+			(original as unknown as { command: boolean }).command = true;
+			(original as unknown as { onePageInput: string }).onePageInput =
+				"always";
+			original.choices = [createChoice("Capture", "Child")];
+
+			const copy = duplicateChoice(original) as IMultiChoice;
+
+			expect(copy.command).toBe(true);
+			expect(
+				(copy as unknown as { onePageInput?: string }).onePageInput,
+			).toBe("always");
+			// children still duplicated with fresh ids
+			expect(copy.choices[0].id).not.toBe(original.choices[0].id);
+		});
+
 		it("deep clones a Macro's macro and regenerates ids", () => {
 			const original = createChoice("Macro", "Mac") as IMacroChoice;
 			original.macro.commands.push({
