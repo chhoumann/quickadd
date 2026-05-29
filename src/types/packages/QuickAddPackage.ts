@@ -22,7 +22,7 @@ export interface QuickAddPackageChoice {
 }
 
 export interface QuickAddPackage {
-	schemaVersion: typeof QUICKADD_PACKAGE_SCHEMA_VERSION;
+	schemaVersion: number;
 	quickAddVersion: string;
 	createdAt: string;
 	rootChoiceIds: string[];
@@ -85,8 +85,13 @@ export function isQuickAddPackage(value: unknown): value is QuickAddPackage {
 		assets,
 	} = value;
 
+	// Structural check only — parseQuickAddPackage owns the version-range check so
+	// a too-new package gets a specific "newer than supported" error instead of
+	// this generic one.
 	const schemaMatches =
-		schemaVersion === QUICKADD_PACKAGE_SCHEMA_VERSION;
+		typeof schemaVersion === "number" &&
+		Number.isInteger(schemaVersion) &&
+		schemaVersion >= 1;
 
 	return (
 		schemaMatches &&

@@ -177,14 +177,14 @@ describe("parseQuickAddPackage", () => {
 		);
 	});
 
-	it("throws when schema version is newer than supported", () => {
-		// isQuickAddPackage requires schemaVersion === current, so a too-new
-		// version is rejected by the validator before the explicit version check.
+	it("throws a version-specific error when the schema version is newer than supported", () => {
 		const future = {
 			...makePackage(),
 			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION + 1,
 		};
-		expect(() => parseQuickAddPackage(JSON.stringify(future))).toThrow();
+		expect(() => parseQuickAddPackage(JSON.stringify(future))).toThrow(
+			/newer than this plugin supports/,
+		);
 	});
 
 	it("rejects a package whose choices are missing required fields", () => {

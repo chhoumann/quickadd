@@ -526,9 +526,9 @@ describe("utility selection helpers", () => {
 		expect(api.utility.getSelection()).toBe("");
 	});
 
-	it("getSelectedText reports an error and returns undefined with no view", () => {
+	it("getSelectedText reports an error and returns '' with no view", () => {
 		const { api } = getApi();
-		expect(api.utility.getSelectedText()).toBeUndefined();
+		expect(api.utility.getSelectedText()).toBe("");
 		expect(mocks.reportError).toHaveBeenCalled();
 	});
 
@@ -544,7 +544,7 @@ describe("utility selection helpers", () => {
 			},
 		});
 		const { api } = getApi(app);
-		expect(api.utility.getSelectedText()).toBeUndefined();
+		expect(api.utility.getSelectedText()).toBe("");
 		expect(mocks.reportError).toHaveBeenCalled();
 	});
 

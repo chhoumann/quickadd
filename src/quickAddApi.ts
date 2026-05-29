@@ -504,7 +504,7 @@ export class QuickAddApi {
 							new Error("No active view"),
 							"Could not get selected text",
 						);
-						return;
+						return "";
 					}
 
 					if (!activeView.editor.somethingSelected()) {
@@ -512,7 +512,7 @@ export class QuickAddApi {
 							new Error("No text selected"),
 							"Could not get selected text",
 						);
-						return;
+						return "";
 					}
 
 					return activeView.editor.getSelection();
