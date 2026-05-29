@@ -423,15 +423,21 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0;
 	margin: 0;
-	min-width: 0;
 	color: inherit;
 	font: inherit;
-	width: auto;
-	height: auto;
 	line-height: inherit;
 	border-radius: var(--radius-s, 4px);
+	/* Keep icon buttons compact. !important defeats Obsidian's mobile touch-target
+	   button sizing (.is-mobile settings rule, padding:10px -> 40px boxes) which is
+	   higher-specificity than this class and would otherwise inflate every icon and
+	   crush the row's name column. The old <div>/<span> faux-buttons were never
+	   touch-sized, so this restores parity. */
+	padding: 0 !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	width: auto !important;
+	height: auto !important;
 }
 
 .qa-icon-button.qa-icon-button:hover {
