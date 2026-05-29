@@ -38,6 +38,13 @@
 		}
 	});
 
+	// renderChoiceName passes cmp to MarkdownRenderer.render as the lifecycle owner;
+	// unload it on destroy so any registered child components are disposed (no deps
+	// here, so the teardown runs only when this item is destroyed).
+	$effect(() => {
+		return () => cmp.unload();
+	});
+
     function onContextMenu(evt: MouseEvent) {
         showChoiceContextMenu(app, evt, choice, roots, {
             onRename: () => actions.onRenameChoice(choice),
