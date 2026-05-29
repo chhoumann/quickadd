@@ -1,52 +1,53 @@
 <script lang="ts">
 	import type IChoice from "../../types/choices/IChoice";
 	import RightButtons from "./ChoiceItemRightButtons.svelte";
-	import { createEventDispatcher } from "svelte";
 	import { Component, type App } from "obsidian";
 	import { showChoiceContextMenu } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
+	import type { ChoiceListActions } from "./choiceListActions";
 
-	export let choice: IChoice;
-	export let app: App;
-	export let roots: IChoice[];
-	export let dragDisabled: boolean;
-	export let startDrag: (e: Event) => void;
-	let showConfigureButton: boolean = true;
-	const dispatcher = createEventDispatcher();
+	let {
+		choice,
+		app,
+		roots,
+		dragDisabled,
+		startDrag,
+		actions,
+	}: {
+		choice: IChoice;
+		app: App;
+		roots: IChoice[];
+		dragDisabled: boolean;
+		startDrag: (e?: Event) => void;
+		actions: ChoiceListActions;
+	} = $props();
 
-	function deleteChoice() {
-		dispatcher("deleteChoice", { choice });
-	}
-
-	function configureChoice() {
-		dispatcher("configureChoice", { choice });
-	}
-
-	function toggleCommandForChoice() {
-		dispatcher("toggleCommand", { choice });
-	}
-
-	function duplicateChoice() {
-		dispatcher("duplicateChoice", { choice });
-	}
-
+	let showConfigureButton = $state(true);
+	let nameElement = $state<HTMLSpanElement>();
 	const cmp = new Component();
-	let nameElement: HTMLSpanElement;
 
-	$: {
+	// renderChoiceName writes to the DOM (it's a side effect) -> $effect, not $derived.
+	$effect(() => {
 		if (nameElement) {
 			renderChoiceName(choice.name, nameElement, cmp, app);
 		}
-	}
+	});
+
+	// renderChoiceName passes cmp to MarkdownRenderer.render as the lifecycle owner;
+	// unload it on destroy so any registered child components are disposed (no deps
+	// here, so the teardown runs only when this row is destroyed).
+	$effect(() => {
+		return () => cmp.unload();
+	});
 
 	function onContextMenu(evt: MouseEvent) {
 		showChoiceContextMenu(app, evt, choice, roots, {
-			onRename: () => dispatcher("renameChoice", { choice }),
-			onToggle: () => toggleCommandForChoice(),
-			onConfigure: () => configureChoice(),
-			onDuplicate: () => duplicateChoice(),
-			onDelete: () => deleteChoice(),
-			onMove: (targetId) => dispatcher("moveChoice", { choice, targetId }),
+			onRename: () => actions.onRenameChoice(choice),
+			onToggle: () => actions.onToggleCommand(choice),
+			onConfigure: () => actions.onConfigureChoice(choice),
+			onDuplicate: () => actions.onDuplicateChoice(choice),
+			onDelete: () => actions.onDeleteChoice(choice),
+			onMove: (targetId) => actions.onMoveChoice(choice, targetId),
 		});
 	}
 </script>
@@ -57,20 +58,20 @@
     tabindex="0"
     aria-haspopup="menu"
     aria-label={`Context menu for ${choice.name}`}
-    on:contextmenu={onContextMenu}
+    oncontextmenu={onContextMenu}
 >
-	<span class="choiceListItemName" bind:this={nameElement} />
+	<span class="choiceListItemName" bind:this={nameElement}></span>
 
 	<RightButtons
-		on:dragHandleDown={startDrag}
-		on:deleteChoice={deleteChoice}
-		on:configureChoice={configureChoice}
-		on:toggleCommand={toggleCommandForChoice}
-		on:duplicateChoice={duplicateChoice}
-		bind:choiceName={choice.name}
-		bind:commandEnabled={choice.command}
-		bind:showConfigureButton
-		bind:dragDisabled
+		onDragHandleDown={startDrag}
+		onDeleteChoice={() => actions.onDeleteChoice(choice)}
+		onConfigureChoice={() => actions.onConfigureChoice(choice)}
+		onToggleCommand={() => actions.onToggleCommand(choice)}
+		onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
+		choiceName={choice.name}
+		commandEnabled={choice.command}
+		{showConfigureButton}
+		{dragDisabled}
 		showDuplicateButton={true}
 	/>
 </div>

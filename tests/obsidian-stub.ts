@@ -637,6 +637,31 @@ export function debounce<T extends (...args: any[]) => any>(
   return fn;
 }
 
+// Standalone setIcon (used by ObsidianIcon.svelte and choiceBuilder.ts).
+// Replaces the element's existing icon with a single <svg data-icon="..."> so
+// component tests can assert which icon is rendered and that it swaps reactively.
+export function setIcon(parent: HTMLElement, iconId: string): void {
+  const existing = parent.querySelector("svg");
+  if (existing) existing.remove();
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("data-icon", iconId);
+  parent.appendChild(svg);
+}
+
+// Substring (NOT subsequence) matcher standing in for Obsidian's fuzzy search.
+// Returns a SearchResult-like object when q is a case-insensitive substring of
+// the text, else null — enough for filter tests. Do NOT assert true fuzzy
+// (subsequence) semantics against this stub.
+export function prepareFuzzySearch(query: string) {
+  const q = query.toLowerCase();
+  return (text: string) => {
+    if (q.length === 0) return { score: 0, matches: [] as Array<[number, number]> };
+    return text.toLowerCase().includes(q)
+      ? { score: 0, matches: [] as Array<[number, number]> }
+      : null;
+  };
+}
+
 // Default export for compatibility
 export default {
   App,
@@ -665,4 +690,6 @@ export default {
   moment,
   normalizePath,
   debounce,
+  setIcon,
+  prepareFuzzySearch,
 };

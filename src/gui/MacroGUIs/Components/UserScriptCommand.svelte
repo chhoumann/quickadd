@@ -1,20 +1,20 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-    import {createEventDispatcher} from "svelte";
     import type {IUserScript} from "../../../types/macros/IUserScript";
 
-    export let command: IUserScript;
-    export let startDrag: (e: MouseEvent | TouchEvent) => void;
-    export let dragDisabled: boolean;
-    const dispatch = createEventDispatcher();
-
-    function deleteCommand() {
-        dispatch('deleteCommand', command.id);
-    }
-
-    function configureChoice() {
-        dispatch('configureScript', command);
-    }
+    let {
+        command,
+        startDrag,
+        dragDisabled,
+        onDeleteCommand,
+        onConfigureScript,
+    }: {
+        command: IUserScript;
+        startDrag: (e: MouseEvent | TouchEvent) => void;
+        dragDisabled: boolean;
+        onDeleteCommand: (commandId: string) => void;
+        onConfigureScript: (command: IUserScript) => void;
+    } = $props();
 </script>
 
 <div class="quickAddCommandListItem">
@@ -22,28 +22,28 @@
         {command.name}
     </li>
     <div>
-        <span 
+        <span
             role="button"
             tabindex="0"
-            on:click={() => configureChoice()}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && configureChoice()}
+            onclick={() => onConfigureScript(command)}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onConfigureScript(command)}
             class="clickable"
         >
             <ObsidianIcon iconId="settings" size={16} />
         </span>
-        <span 
+        <span
             role="button"
             tabindex="0"
-            on:click={() => deleteCommand()}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteCommand()}
+            onclick={() => onDeleteCommand(command.id)}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteCommand(command.id)}
             class="clickable"
         >
             <ObsidianIcon iconId="trash-2" size={16} />
         </span>
-        <span 
+        <span
               role="button"
-              on:mousedown={startDrag} 
-              on:touchstart={startDrag}
+              onmousedown={startDrag}
+              ontouchstart={startDrag}
               aria-label="Drag-handle"
               class:qa-drag-handle-ready={dragDisabled}
               class:qa-drag-handle-active={!dragDisabled}

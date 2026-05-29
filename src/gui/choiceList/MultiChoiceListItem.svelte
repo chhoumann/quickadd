@@ -1,66 +1,74 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
-    import ChoiceListRaw from "./ChoiceList.svelte";
-    // `as any` breaks the recursive ChoiceList <-> MultiChoiceListItem type cycle (svelte-check); runtime is unchanged.
-    const ChoiceList = ChoiceListRaw as any;
+    import ChoiceList from "./ChoiceList.svelte";
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
-    import {createEventDispatcher} from "svelte";
+    import { untrack } from "svelte";
 	import { Component, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
     import { showChoiceContextMenu } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
+    import type { ChoiceListActions } from "./choiceListActions";
 
-    export let choice: IMultiChoice;
-    export let roots: IChoice[];
-    export let collapseId: string;
-    export let dragDisabled: boolean;
-    export let startDrag: (e: Event) => void;
-    export let app: App;
-    let showConfigureButton: boolean = true;
+    let {
+        choice,
+        roots,
+        collapseId,
+        dragDisabled,
+        startDrag,
+        app,
+        actions,
+    }: {
+        choice: IMultiChoice;
+        roots: IChoice[];
+        collapseId: string;
+        dragDisabled: boolean;
+        startDrag: (e?: Event) => void;
+        app: App;
+        actions: ChoiceListActions;
+    } = $props();
 
-    const dispatcher = createEventDispatcher();
-
-    function deleteChoice(e: any) {
-        dispatcher('deleteChoice', {choice});
-    }
-
-    function configureChoice() {
-        dispatcher('configureChoice', {choice});
-    }
-
-    function toggleCommandForChoice() {
-        dispatcher('toggleCommand', {choice});
-    }
-
-    function duplicateChoice() {
-        dispatcher('duplicateChoice', {choice});
-    }
-
+    let showConfigureButton = $state(true);
+    let nameElement = $state<HTMLSpanElement>();
 	const cmp = new Component();
-	let nameElement: HTMLSpanElement;
 
-	$: {
+	$effect(() => {
 		if (nameElement) {
 			renderChoiceName(choice.name, nameElement, cmp, app);
 		}
-	}
+	});
+
+	// renderChoiceName passes cmp to MarkdownRenderer.render as the lifecycle owner;
+	// unload it on destroy so any registered child components are disposed (no deps
+	// here, so the teardown runs only when this item is destroyed).
+	$effect(() => {
+		return () => cmp.unload();
+	});
 
     function onContextMenu(evt: MouseEvent) {
         showChoiceContextMenu(app, evt, choice, roots, {
-            onRename: () => dispatcher('renameChoice', { choice }),
-            onToggle: () => toggleCommandForChoice(),
-            onConfigure: () => configureChoice(),
-            onDuplicate: () => duplicateChoice(),
-            onDelete: () => deleteChoice(null),
-            onMove: (targetId) => dispatcher('moveChoice', { choice, targetId }),
+            onRename: () => actions.onRenameChoice(choice),
+            onToggle: () => actions.onToggleCommand(choice),
+            onConfigure: () => actions.onConfigureChoice(choice),
+            onDuplicate: () => actions.onDuplicateChoice(choice),
+            onDelete: () => actions.onDeleteChoice(choice),
+            onMove: (targetId) => actions.onMoveChoice(choice, targetId),
         });
     }
 
-    function handleNestedReorder() {
-        // Nested choices were reordered; bubble up event with cloned root choices
-        // Shallow clone creates new array reference to trigger settingsStore subscription
-        dispatcher('reorderChoices', {choices: [...roots]});
+    // Nested children reordered: write the new order back to this Multi choice, then
+    // bubble the whole (shallow-cloned) root tree up so the top-level handler persists
+    // it. Calls the PARENT's onReorderChoices (not nestedActions) — no loop.
+    const nestedActions: ChoiceListActions = {
+        ...untrack(() => actions),
+        onReorderChoices: (reordered: IChoice[]) => {
+            choice.choices = reordered;
+            actions.onReorderChoices([...roots]);
+        },
+    };
+
+    function toggleCollapsed() {
+        choice.collapsed = !choice.collapsed;
     }
 </script>
 
@@ -71,14 +79,14 @@
         tabindex="0"
         aria-haspopup="menu"
         aria-label={`Context menu for ${choice.name}`}
-        on:contextmenu={onContextMenu}
+        oncontextmenu={onContextMenu}
     >
-        <div 
+        <div
             role="button"
             tabindex="0"
-            class="multiChoiceListItemName clickable" 
-            on:click={() => choice.collapsed = !choice.collapsed}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && (choice.collapsed = !choice.collapsed)}
+            class="multiChoiceListItemName clickable"
+            onclick={toggleCollapsed}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && toggleCollapsed()}
         >
             <div
                 class="multiChoiceCollapseIcon"
@@ -90,15 +98,15 @@
         </div>
 
         <RightButtons
-            on:dragHandleDown={startDrag}
-            on:deleteChoice={deleteChoice}
-            on:configureChoice={configureChoice}
-            on:toggleCommand={toggleCommandForChoice}
-            on:duplicateChoice={duplicateChoice}
-            bind:showConfigureButton
-            bind:dragDisabled
-            bind:choiceName={choice.name}
-            bind:commandEnabled={choice.command}
+            onDragHandleDown={startDrag}
+            onDeleteChoice={() => actions.onDeleteChoice(choice)}
+            onConfigureChoice={() => actions.onConfigureChoice(choice)}
+            onToggleCommand={() => actions.onToggleCommand(choice)}
+            onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
+            {showConfigureButton}
+            {dragDisabled}
+            choiceName={choice.name}
+            commandEnabled={choice.command}
             showDuplicateButton={true}
         />
     </div>
@@ -107,17 +115,10 @@
         {#if !choice.collapsed}
             <div class="nestedChoiceList">
                 <ChoiceList
-                        app={app}
-                        roots={roots}
-                        on:deleteChoice
-                        on:configureChoice
-                        on:toggleCommand
-                        on:duplicateChoice
-                        on:moveChoice
-                        on:renameChoice
-                        on:reorderChoices={handleNestedReorder}
-                        bind:multiChoice={choice}
-                        bind:choices={choice.choices}
+                    {app}
+                    roots={roots}
+                    choices={choice.choices}
+                    actions={nestedActions}
                 />
             </div>
         {/if}

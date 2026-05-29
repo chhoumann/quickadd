@@ -1,50 +1,50 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
-import {
-	type DndEvent,
-	dndzone,
-	SOURCES,
-	SHADOW_PLACEHOLDER_ITEM_ID,
-} from "svelte-dnd-action";
-import { createEventDispatcher } from "svelte";
-	import StandardCommand from "./Components/StandardCommand.svelte";
-	import { CommandType } from "../../types/macros/CommandType";
-	import WaitCommand from "./Components/WaitCommand.svelte";
-	import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
-	import { TemplateChoiceBuilder } from "../ChoiceBuilder/templateChoiceBuilder";
-	import { CaptureChoiceBuilder } from "../ChoiceBuilder/captureChoiceBuilder";
-	import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-	import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-	import type IChoice from "../../types/choices/IChoice";
-	import { App } from "obsidian";
-	import QuickAdd from "../../main";
-	import UserScriptCommand from "./Components/UserScriptCommand.svelte";
-	import type { IUserScript } from "../../types/macros/IUserScript";
-	import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
-	import { log } from "../../logger/logManager";
-	import { getUserScript } from "src/utilityObsidian";
-	import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-	import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
-	import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
-	import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
-	import OpenFileCommand from "./Components/OpenFileCommand.svelte";
+import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+import { replaceById, stripShadow } from "../shared/dndReorder";
+import { snapshot } from "../svelte/persist.svelte";
+import type { CommandListProps } from "./commandListProps.svelte";
+import StandardCommand from "./Components/StandardCommand.svelte";
+import { CommandType } from "../../types/macros/CommandType";
+import WaitCommand from "./Components/WaitCommand.svelte";
+import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
+import { TemplateChoiceBuilder } from "../ChoiceBuilder/templateChoiceBuilder";
+import { CaptureChoiceBuilder } from "../ChoiceBuilder/captureChoiceBuilder";
+import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+import type ITemplateChoice from "../../types/choices/ITemplateChoice";
+import type IChoice from "../../types/choices/IChoice";
+import UserScriptCommand from "./Components/UserScriptCommand.svelte";
+import type { IUserScript } from "../../types/macros/IUserScript";
+import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
+import { log } from "../../logger/logManager";
+import { getUserScript } from "src/utilityObsidian";
+import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
+import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
+import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
+import type { IOpenFileCommand } from "../../types/macros/QuickCommands/IOpenFileCommand";
+import OpenFileCommand from "./Components/OpenFileCommand.svelte";
 import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
 import ConditionalCommand from "./Components/ConditionalCommand.svelte";
-import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import type { IWaitCommand } from "../../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
+import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 
-	export let commands: ICommand[];
-export let deleteCommand: (commandId: string) => Promise<void>;
-export let saveCommands: (commands: ICommand[]) => void;
-export let app: App;
-export let plugin: QuickAdd;
-let dragDisabled: boolean = true;
-const dispatch = createEventDispatcher();
+let {
+	commands = $bindable([]),
+	app,
+	plugin,
+	deleteCommand,
+	saveCommands,
+	onConfigureCondition,
+	onEditThenBranch,
+	onEditElseBranch,
+}: CommandListProps = $props();
+
+let dragDisabled = $state(true);
 
 // Narrowing helpers: the {#each} discriminates on command.type, so each child
 // receives the matching subtype. Passed one-way — children report edits via the
-// on:updateCommand event, not via two-way bind:command.
+// onUpdateCommand / onConfigure* callbacks, not via two-way binding.
 const asWait = (c: ICommand) => c as IWaitCommand;
 const asNested = (c: ICommand) => c as INestedChoiceCommand;
 const asUserScript = (c: ICommand) => c as IUserScript;
@@ -52,144 +52,114 @@ const asAI = (c: ICommand) => c as IAIAssistantCommand;
 const asOpenFile = (c: ICommand) => c as IOpenFileCommand;
 const asConditional = (c: ICommand) => c as IConditionalCommand;
 
-	export const updateCommandList: (newCommands: ICommand[]) => void = (
-		newCommands: ICommand[]
-	) => {
-		commands = newCommands;
-	};
+/** Persist the current order/content to the host (plain, non-proxy snapshot). */
+function persist() {
+	saveCommands(snapshot(commands));
+}
 
-	function handleConsider(e: CustomEvent<DndEvent>) {
-		let { items: newItems } = e.detail;
-		// Drop svelte-dnd-action's internal shadow placeholder so a command can't
-		// linger in state and vanish on reorder (ghost gap) — mirrors the Settings
-		// choice list fix (#883).
-		commands = (newItems as ICommand[]).filter(
-			(c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID
-		);
+function handleConsider(e: CustomEvent<DndEvent>) {
+	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
+	// state and vanish on reorder (ghost gap) — see [[svelte-dnd-action-shadow-placeholder]].
+	commands = stripShadow(e.detail.items as ICommand[]);
+}
+
+function handleSort(e: CustomEvent<DndEvent>) {
+	commands = stripShadow(e.detail.items as ICommand[]);
+
+	if (e.detail.info.source === SOURCES.POINTER) {
+		dragDisabled = true;
 	}
 
-	function handleSort(e: CustomEvent<DndEvent>) {
-		let {
-			items: newItems,
-			info: { source },
-		} = e.detail;
+	persist();
+}
 
-		commands = (newItems as ICommand[]).filter(
-			(c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID
-		);
-
-		if (source === SOURCES.POINTER) {
-			dragDisabled = true;
-		}
-
-		saveCommands(commands);
-	}
-
-	let startDrag = (e: MouseEvent | TouchEvent) => {
-		e.preventDefault();
-		dragDisabled = false;
-	};
-
-	function updateCommandFromEvent(e: CustomEvent) {
-		const command: ICommand = e.detail;
-		updateCommand(command);
-	}
+let startDrag = (e: MouseEvent | TouchEvent) => {
+	e.preventDefault();
+	dragDisabled = false;
+};
 
 function updateCommand(command: ICommand) {
-	const index = commands.findIndex((c) => c.id === command.id);
-	commands[index] = command;
-
-	saveCommands(commands);
+	commands = replaceById(commands, command);
+	persist();
 }
 
-function configureConditionalCommand(e: CustomEvent<IConditionalCommand>) {
-	dispatch("configureCondition", e.detail);
+// The conditional handlers open a modal that MUTATES the passed command (its
+// condition / then- / else-commands). Because `command` is a $state proxy, that
+// mutation does NOT write through to the host's commandsRef — so we must persist it
+// here via the same snapshot path as every other edit (updateCommand -> saveCommands).
+async function configureConditionalCommand(command: IConditionalCommand) {
+	if (await onConfigureCondition?.(command)) updateCommand(command);
 }
 
-function editConditionalThen(e: CustomEvent<IConditionalCommand>) {
-	dispatch("editThenBranch", e.detail);
+async function editConditionalThen(command: IConditionalCommand) {
+	if (await onEditThenBranch?.(command)) updateCommand(command);
 }
 
-function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
-	dispatch("editElseBranch", e.detail);
+async function editConditionalElse(command: IConditionalCommand) {
+	if (await onEditElseBranch?.(command)) updateCommand(command);
 }
 
-	async function configureChoice(e: CustomEvent) {
-		const command = e.detail;
-		const newChoice = await getChoiceBuilder(command.choice)?.waitForClose;
-		if (!newChoice) return;
+async function configureChoice(command: INestedChoiceCommand) {
+	const newChoice = await getChoiceBuilder(command.choice)?.waitForClose;
+	if (!newChoice) return;
 
-		command.choice = newChoice;
-		command.name = newChoice.name;
+	// Immutable update (avoids mutating host-owned $state from this component).
+	const updated: INestedChoiceCommand = {
+		...command,
+		choice: newChoice,
+		name: newChoice.name,
+	};
+	updateCommand(updated);
+}
+
+function getChoiceBuilder(choice: IChoice) {
+	switch (choice.type) {
+		case "Template":
+			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
+		case "Capture":
+			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
+		case "Macro":
+		case "Multi":
+		default:
+			break;
+	}
+}
+
+async function configureScript(command: IUserScript) {
+	const userScript = await getUserScript(command, app);
+	if (!userScript) {
+		log.logWarning(`${command.name} could not be loaded.`);
+		return;
+	}
+
+	const scriptSettings =
+		(userScript as { settings?: { [key: string]: unknown } }).settings ?? {};
+
+	new UserScriptSettingsModal(
+		app,
+		command,
+		scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[2],
+		() => persist(),
+	).open();
+}
+
+async function configureAssistant(command: IAIAssistantCommand) {
+	const newSettings = await new AIAssistantCommandSettingsModal(app, command)
+		.waitForClose;
+
+	if (newSettings) {
 		updateCommand(command);
 	}
+}
 
-	function getChoiceBuilder(choice: IChoice) {
-		switch (choice.type) {
-			case "Template":
-				return new TemplateChoiceBuilder(
-					app,
-					choice as ITemplateChoice,
-					plugin
-				);
-			case "Capture":
-				return new CaptureChoiceBuilder(
-					app,
-					choice as ICaptureChoice,
-					plugin
-				);
-			case "Macro":
-			case "Multi":
-			default:
-				break;
-		}
+async function configureOpenFile(command: IOpenFileCommand) {
+	const updatedCommand = await new OpenFileCommandSettingsModal(app, command)
+		.waitForClose;
+
+	if (updatedCommand) {
+		updateCommand(updatedCommand);
 	}
-
-	async function configureScript(e: CustomEvent) {
-		const command: IUserScript = e.detail;
-
-		const userScript = await getUserScript(command, app);
-		if (!userScript) {
-			log.logWarning(`${command.name} could not be loaded.`);
-			return;
-		}
-
-		const scriptSettings =
-			(userScript as { settings?: { [key: string]: unknown } }).settings ?? {};
-
-		new UserScriptSettingsModal(
-			app,
-			command,
-			scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[2],
-			() => saveCommands([...commands]),
-		).open();
-	}
-
-	async function configureAssistant(e: CustomEvent) {
-		const command: IAIAssistantCommand = e.detail;
-
-		const newSetings = await new AIAssistantCommandSettingsModal(
-			app,
-			command
-		).waitForClose;
-
-        if (newSetings) {
-            updateCommand(command);
-        }
-	}
-
-	async function configureOpenFile(e: CustomEvent) {
-		const command: IOpenFileCommand = e.detail;
-
-		const updatedCommand = await new OpenFileCommandSettingsModal(
-			app,
-			command
-		).waitForClose;
-
-		if (updatedCommand) {
-			updateCommand(updatedCommand);
-		}
-	}
+}
 </script>
 
 <ol
@@ -200,71 +170,66 @@ function editConditionalElse(e: CustomEvent<IConditionalCommand>) {
 		dropTargetStyle: {},
 		type: "command",
 	}}
-	on:consider={handleConsider}
-	on:finalize={handleSort}
+	onconsider={handleConsider}
+	onfinalize={handleSort}
 >
-	{#each commands.filter((c) => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as command (command.id)}
+	{#each stripShadow(commands) as command (command.id)}
 		{#if command.type === CommandType.Wait}
 			<WaitCommand
 				command={asWait(command)}
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:updateCommand={updateCommandFromEvent}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onUpdateCommand={updateCommand}
 			/>
 		{:else if command.type === CommandType.NestedChoice}
 			<NestedChoiceCommand
 				command={asNested(command)}
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:updateCommand={updateCommandFromEvent}
-				on:configureChoice={configureChoice}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigureChoice={configureChoice}
 			/>
 		{:else if command.type === CommandType.UserScript}
 			<UserScriptCommand
 				command={asUserScript(command)}
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:updateCommand={updateCommandFromEvent}
-				on:configureScript={configureScript}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigureScript={configureScript}
 			/>
 		{:else if command.type === CommandType.AIAssistant}
 			<AIAssistantCommand
 				command={asAI(command)}
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:updateCommand={updateCommandFromEvent}
-				on:configureAssistant={configureAssistant}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigureAssistant={configureAssistant}
 			/>
 		{:else if command.type === CommandType.OpenFile}
 			<OpenFileCommand
 				command={asOpenFile(command)}
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:updateCommand={updateCommandFromEvent}
-				on:configureOpenFile={configureOpenFile}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigureOpenFile={configureOpenFile}
 			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
 				command={asConditional(command)}
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:configureCondition={configureConditionalCommand}
-				on:editThenBranch={editConditionalThen}
-				on:editElseBranch={editConditionalElse}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigureCondition={configureConditionalCommand}
+				onEditThenBranch={editConditionalThen}
+				onEditElseBranch={editConditionalElse}
 			/>
 		{:else}
 			<StandardCommand
-				bind:command
-				bind:dragDisabled
-				bind:startDrag
-				on:deleteCommand={async (e) => await deleteCommand(e.detail)}
-				on:updateCommand={updateCommandFromEvent}
+				{command}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
 			/>
 		{/if}
 	{/each}

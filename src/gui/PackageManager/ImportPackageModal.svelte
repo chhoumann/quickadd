@@ -16,22 +16,21 @@
 		parseQuickAddPackage,
 	} from "../../services/packageImportService";
 
-export let app: App;
-export let close: () => void;
+let { app, close }: { app: App; close: () => void } = $props();
 
-let loadedPackage: LoadedQuickAddPackage | null = null;
-let analysis: PackageAnalysis | null = null;
-let loadError: string | null = null;
-let isImporting = false;
-let importSummary: {
+let loadedPackage = $state<LoadedQuickAddPackage | null>(null);
+let analysis = $state<PackageAnalysis | null>(null);
+let loadError = $state<string | null>(null);
+let isImporting = $state(false);
+let importSummary = $state<{
 	added: number;
 	overwritten: number;
 	skipped: number;
 	assetsWritten: number;
 	assetsSkipped: number;
-} | null = null;
+} | null>(null);
 
-let choiceDecisions = new Map<string, ChoiceImportMode>();
+let choiceDecisions = $state(new Map<string, ChoiceImportMode>());
 
 type AssetDecisionState = {
 	mode: AssetImportMode;
@@ -41,11 +40,11 @@ type AssetDecisionState = {
 
 type AssetConflict = PackageAnalysis["assetConflicts"][number];
 
-let assetDecisions = new Map<string, AssetDecisionState>();
-let pastedContent = "";
-let isAnalyzing = false;
-let analysisToken = 0;
-let hasImported = false;
+let assetDecisions = $state(new Map<string, AssetDecisionState>());
+let pastedContent = $state("");
+let isAnalyzing = $state(false);
+let analysisToken = $state(0);
+let hasImported = $state(false);
 
 function defaultAssetDestination(conflict: AssetConflict): string {
 	const templateFolder = settingsStore.getState().templateFolderPath?.trim();
@@ -336,7 +335,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 			<span>Paste package JSON</span>
 			<textarea
 				bind:value={pastedContent}
-				on:input={handleContentInput}
+				oninput={handleContentInput}
 				placeholder="Paste the contents of a .quickadd.json package here"
 				rows="8"
 			></textarea>
@@ -379,7 +378,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 						</tr>
 					</thead>
 					<tbody>
-						{#each analysis.choiceConflicts as conflict}
+						{#each analysis.choiceConflicts as conflict (conflict.choiceId)}
 							{@const storedMode =
 								choiceDecisions.get(conflict.choiceId) ?? "import"}
 							{@const effectiveMode =
@@ -393,7 +392,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 								<td>
 									<select
 										value={effectiveMode}
-										on:change={(event) =>
+										onchange={(event) =>
 											onChoiceModeChange(conflict.choiceId, event)}
 									>
 										<option value="import">Import</option>
@@ -417,7 +416,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 			<p>No additional assets bundled with this package.</p>
 		{:else}
 			<div class="assetCards">
-				{#each analysis.assetConflicts as conflict}
+				{#each analysis.assetConflicts as conflict (conflict.originalPath)}
 					{@const defaultDestination = defaultAssetDestination(conflict)}
 					{@const assetState =
 						assetDecisions.get(conflict.originalPath) ??
@@ -444,7 +443,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 								<input
 									type="text"
 									value={assetState.destinationPath}
-									on:input={(event) => onAssetPathChange(conflict, event)}
+									oninput={(event) => onAssetPathChange(conflict, event)}
 									placeholder="vault/path/to/file"
 									disabled={assetState.mode === "skip"}
 								/>
@@ -453,7 +452,7 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 								<span>Action</span>
 								<select
 									value={assetState.mode}
-									on:change={(event) => onAssetModeChange(conflict.originalPath, event)}
+									onchange={(event) => onAssetModeChange(conflict.originalPath, event)}
 								>
 									<option value="write">Write</option>
 									{#if conflict.exists || assetState.destinationExists}
@@ -484,12 +483,12 @@ function onAssetPathChange(conflict: AssetConflict, event: Event) {
 	{/if}
 
 	<section class="footer">
-		<button type="button" on:click={close} class="secondary" disabled={isImporting}>
+		<button type="button" onclick={close} class="secondary" disabled={isImporting}>
 			Cancel
 		</button>
 		<button
 			type="button"
-			on:click={hasImported ? close : handleImport}
+			onclick={hasImported ? close : handleImport}
 			class="primary"
 			disabled={isImporting || !loadedPackage || !analysis}
 		>

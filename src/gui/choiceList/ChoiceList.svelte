@@ -1,100 +1,80 @@
 <script lang="ts">
     import type IChoice from "../../types/choices/IChoice";
+    import type IMultiChoice from "../../types/choices/IMultiChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
-    import MultiChoiceListItemRaw from "./MultiChoiceListItem.svelte";
-    // `as any` breaks the recursive ChoiceList <-> MultiChoiceListItem type cycle (svelte-check); runtime is unchanged.
-    const MultiChoiceListItem = MultiChoiceListItemRaw as any;
-    import {dndzone, SHADOW_PLACEHOLDER_ITEM_ID} from "svelte-dnd-action";
-    import type {DndEvent} from "svelte-dnd-action";
-    import {createEventDispatcher} from "svelte";
+    import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
+    import { type DndEvent, dndzone } from "svelte-dnd-action";
+    import { stripShadow } from "../shared/dndReorder";
     import type { App } from "obsidian";
+    import type { ChoiceListActions } from "./choiceListActions";
 
-    export let choices: IChoice[] = [];
-    export let roots: IChoice[] | undefined;
-    export let app: App;
-    // When true, keeps drag disabled regardless of user action
-    export let forceDragDisabled: boolean = false;
-    let collapseId: string;
-    let dragDisabled: boolean = true;
+    let {
+        choices = $bindable([]),
+        roots,
+        app,
+        forceDragDisabled = false,
+        actions,
+    }: {
+        choices?: IChoice[];
+        roots?: IChoice[];
+        app: App;
+        forceDragDisabled?: boolean;
+        actions: ChoiceListActions;
+    } = $props();
 
-    const dispatcher = createEventDispatcher();
-
-    function emitChoicesReordered() {
-        dispatcher('reorderChoices', {choices});
-    }
+    let collapseId = $state("");
+    let dragDisabled = $state(true);
 
     function handleConsider(e: CustomEvent<DndEvent>) {
-        let {items: newItems, info: {id}} = e.detail;
-        collapseId = id;
-
-        // Remove internal placeholder item from state to avoid ghost gaps
-        const sanitized = (newItems as IChoice[]).filter(
-            (it) => it.id !== SHADOW_PLACEHOLDER_ITEM_ID
-        );
-        choices = sanitized;
+        if (forceDragDisabled) return; // filtered view: never mutate a derived list
+        collapseId = e.detail.info.id;
+        // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
+        // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
+        choices = stripShadow(e.detail.items as IChoice[]);
     }
 
     function handleSort(e: CustomEvent<DndEvent>) {
-        let {items: newItems} = e.detail;
+        if (forceDragDisabled) return;
         collapseId = "";
-
-        // Remove internal placeholder item from state to avoid ghost gaps
-        const sanitized = (newItems as IChoice[]).filter(
-            (it) => it.id !== SHADOW_PLACEHOLDER_ITEM_ID
-        );
-        choices = sanitized;
-
-        // Always re-disable dragging when the sort finalizes
+        choices = stripShadow(e.detail.items as IChoice[]);
+        // Always re-disable dragging when the sort finalizes (choiceList behavior;
+        // intentionally NOT the macro list's POINTER-only gate).
         dragDisabled = true;
-
-        emitChoicesReordered();
+        actions.onReorderChoices(choices);
     }
 
-    function startDrag(e: Event) {
-        if (forceDragDisabled) return; // Do not enable drag while forcing disabled (e.g., during filtering)
-        // prevent focus/selection side-effects before enabling drag
-        // @ts-ignore
-        if (typeof e?.preventDefault === 'function') e.preventDefault();
+    let startDrag = (e?: Event) => {
+        if (forceDragDisabled) return; // do not enable drag while filtering
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
         dragDisabled = false;
-    }
+    };
 </script>
 
 <div
         use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}}}
-        on:consider={handleConsider}
-        on:finalize={handleSort}
+        onconsider={handleConsider}
+        onfinalize={handleSort}
         class="choiceList"
         style="{choices.length === 0 ? 'padding-bottom: 0.5rem' : ''}">
-    {#each choices.filter(c => c.id !== SHADOW_PLACEHOLDER_ITEM_ID) as choice(choice.id)}
+    {#each stripShadow(choices) as choice (choice.id)}
         {#if choice.type !== "Multi"}
             <ChoiceListItem
                     {app}
                     roots={roots ?? choices}
-                    bind:dragDisabled={dragDisabled}
-                    on:deleteChoice
-                    on:configureChoice
-                    on:toggleCommand
-                    on:duplicateChoice
-                    on:renameChoice
-                    on:moveChoice
-                    startDrag={startDrag}
-                    bind:choice
+                    {dragDisabled}
+                    {startDrag}
+                    {actions}
+                    {choice}
             />
         {:else}
             <MultiChoiceListItem
                     {app}
                     roots={roots ?? choices}
-                    bind:dragDisabled={dragDisabled}
-                    on:deleteChoice
-                    on:configureChoice
-                    on:toggleCommand
-                    on:duplicateChoice
-                    on:renameChoice
-                    on:moveChoice
-                    on:reorderChoices
-                    startDrag={startDrag}
-                    bind:collapseId
-                    bind:choice
+                    {dragDisabled}
+                    {startDrag}
+                    {actions}
+                    {collapseId}
+                    choice={choice as IMultiChoice}
             />
         {/if}
     {/each}

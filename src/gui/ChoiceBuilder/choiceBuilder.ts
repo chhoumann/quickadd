@@ -1,5 +1,5 @@
 import { type App, Modal, Setting, setIcon } from "obsidian";
-import type { SvelteComponent } from "svelte";
+import type { MountHandle } from "../svelte/mountComponent";
 import type IChoice from "../../types/choices/IChoice";
 import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import {
@@ -23,7 +23,7 @@ export abstract class ChoiceBuilder extends Modal {
 	private resolvePromise: (input: IChoice) => void;
 	public waitForClose: Promise<IChoice>;
 	abstract choice: IChoice;
-	protected svelteElements: SvelteComponent[] = [];
+	protected svelteElements: MountHandle[] = [];
 
 	protected constructor(app: App) {
 		super(app);
@@ -39,8 +39,17 @@ export abstract class ChoiceBuilder extends Modal {
 	protected abstract display(): unknown;
 
 	protected reload() {
+		// Unmount the previous Svelte components before re-rendering, otherwise their
+		// effects/subscriptions leak for the modal's lifetime (contentEl.empty() only
+		// removes DOM nodes, not the mounted components).
+		this.destroySvelteElements();
 		this.contentEl.empty();
 		this.display();
+	}
+
+	private destroySvelteElements() {
+		this.svelteElements.forEach((handle) => handle.destroy());
+		this.svelteElements = [];
 	}
 
 	protected addOnePageOverrideSetting(choice: IChoice): void {
@@ -213,9 +222,7 @@ export abstract class ChoiceBuilder extends Modal {
 
 	onClose() {
 		super.onClose();
-		this.svelteElements.forEach((el) => {
-			if (el && el.$destroy) el.$destroy();
-		});
+		this.destroySvelteElements();
 		this.resolvePromise(this.choice);
 	}
 }

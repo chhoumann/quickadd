@@ -17,10 +17,17 @@
 	} from "../../services/packageExportService";
 	import type { QuickAddPackageAssetKind } from "../../types/packages/QuickAddPackage";
 
-	export let app: App;
-	export let plugin: QuickAdd;
-	export let allChoices: IChoice[];
-	export let close: () => void;
+	let {
+		app,
+		plugin,
+		allChoices,
+		close,
+	}: {
+		app: App;
+		plugin: QuickAdd;
+		allChoices: IChoice[];
+		close: () => void;
+	} = $props();
 
 	interface FlatChoice {
 		choice: IChoice;
@@ -53,20 +60,21 @@
 		"capture-template": "Capture template",
 	};
 
-	let searchQuery = "";
-	let selectedChoiceIds = new Set<string>();
-	let excludedChoiceIds = new Set<string>();
-	let rootChoiceIds: string[] = [];
-	let outputPath = generateDefaultPackagePath();
-	let exportWarnings: ExportWarnings | null = null;
-	let actionInProgress: "copy" | "save" | null = null;
+	let searchQuery = $state("");
+	let selectedChoiceIds = $state(new Set<string>());
+	let excludedChoiceIds = $state(new Set<string>());
+	let outputPath = $state(generateDefaultPackagePath());
+	let exportWarnings = $state<ExportWarnings | null>(null);
+	let actionInProgress = $state<"copy" | "save" | null>(null);
 
-	$: flatChoices = flattenChoicesWithPath(allChoices);
-	$: filteredChoices = filterFlatChoices(flatChoices, searchQuery);
-	$: rootChoiceIds = computeRootSelections(flatChoices, selectedChoiceIds);
-	$: summary = computeSummary(allChoices, rootChoiceIds, excludedChoiceIds);
-	$: choiceNameById = new Map<string, string>(
-		flatChoices.map((entry) => [entry.id, entry.path.join(" / ")]),
+	const flatChoices = $derived(flattenChoicesWithPath(allChoices));
+	const filteredChoices = $derived(filterFlatChoices(flatChoices, searchQuery));
+	const rootChoiceIds = $derived(computeRootSelections(flatChoices, selectedChoiceIds));
+	const summary = $derived(computeSummary(allChoices, rootChoiceIds, excludedChoiceIds));
+	const choiceNameById = $derived(
+		new Map<string, string>(
+			flatChoices.map((entry) => [entry.id, entry.path.join(" / ")]),
+		),
 	);
 
 	function flattenChoicesWithPath(
@@ -360,8 +368,8 @@
 			spellcheck={false}
 		/>
 		<div class="controlButtons">
-			<button type="button" on:click={selectAllFiltered}>Select visible</button>
-			<button type="button" on:click={clearSelection}>Clear selection</button>
+			<button type="button" onclick={selectAllFiltered}>Select visible</button>
+			<button type="button" onclick={clearSelection}>Clear selection</button>
 		</div>
 	</section>
 
@@ -376,7 +384,7 @@
 						<input
 							type="checkbox"
 							checked={selectedChoiceIds.has(entry.id)}
-							on:change={() => toggleChoice(entry.id)}
+							onchange={() => toggleChoice(entry.id)}
 						/>
 							<span class="choiceName">{entry.path.at(-1)}</span>
 							{#if entry.path.length > 1}
@@ -442,7 +450,7 @@
 				<div>
 					<p>Missing assets:</p>
 					<ul>
-						{#each exportWarnings.missingAssets as asset}
+						{#each exportWarnings.missingAssets as asset (asset.path)}
 							<li>{asset.path} <span class="assetKind">({assetLabels[asset.kind]})</span></li>
 						{/each}
 					</ul>
@@ -456,7 +464,7 @@
 			<button
 				type="button"
 				class="secondary"
-				on:click={copyPackage}
+				onclick={copyPackage}
 				disabled={actionInProgress !== null}
 			>
 				{#if actionInProgress === "copy"}
@@ -477,7 +485,7 @@
 					/>
 					<button
 						type="button"
-						on:click={savePackage}
+						onclick={savePackage}
 						disabled={actionInProgress !== null}
 					>
 						{#if actionInProgress === "save"}
@@ -492,7 +500,7 @@
 	</section>
 
 	<section class="footer">
-		<button type="button" class="secondary" on:click={close} disabled={actionInProgress !== null}>
+		<button type="button" class="secondary" onclick={close} disabled={actionInProgress !== null}>
 			Cancel
 		</button>
 	</section>

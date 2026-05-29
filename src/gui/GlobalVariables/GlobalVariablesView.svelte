@@ -1,17 +1,13 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte";
   import type { App } from "obsidian";
   import { settingsStore } from "../../settingsStore";
   import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
   import type QuickAdd from "../../main";
 
-  export let app: App;
-  export let plugin: QuickAdd;
+  let { app, plugin }: { app: App; plugin: QuickAdd } = $props();
 
   type GV = { name: string; value: string };
-  let items: GV[] = [];
-
-  let unsubscribe: () => void;
+  let items = $state<GV[]>([]);
 
   function uniqueName(base: string, existing: Set<string>): string {
     if (!existing.has(base)) return base;
@@ -52,8 +48,8 @@
 
   // Attach format suggester to inputs
   function attachSuggester(el: HTMLTextAreaElement | HTMLInputElement) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const suggester = new FormatSyntaxSuggester(app, el, plugin);
+    // Constructed for its side effect (it wires itself to the element).
+    new FormatSyntaxSuggester(app, el, plugin);
     return {
       destroy() {
         // Suggesters clean up themselves on blur/close; no explicit API needed
@@ -69,13 +65,13 @@
     }, 200);
   }
 
-  onMount(() => {
-    unsubscribe = settingsStore.subscribe(() => loadFromSettings());
+  $effect(() => {
+    const unsubscribe = settingsStore.subscribe(() => loadFromSettings());
     loadFromSettings();
-  });
-  onDestroy(() => {
-    if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
-    unsubscribe && unsubscribe();
+    return () => {
+      if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+      unsubscribe();
+    };
   });
 </script>
 
@@ -83,7 +79,7 @@
   <div class="qa-gv__header">
     <div class="qa-gv__title">Global Variables</div>
     <div class="qa-gv__actions">
-      <button class="mod-cta" on:click={addVariable}>Add variable</button>
+      <button class="mod-cta" onclick={addVariable}>Add variable</button>
     </div>
   </div>
   <div class="qa-gv__desc">
@@ -96,24 +92,24 @@
       <div class="qa-gv__cell qa-gv__value">Value</div>
       <div class="qa-gv__cell qa-gv__ops">Actions</div>
     </div>
-    {#each items as it, idx}
+    {#each items as it, idx (idx)}
       <div class="qa-gv__row">
         <div class="qa-gv__cell qa-gv__name">
           <input type="text"
                  use:attachSuggester
                  bind:value={it.name}
-                 on:input={() => { debouncedPersist(it); }}
+                 oninput={() => { debouncedPersist(it); }}
                  placeholder="Name" />
         </div>
         <div class="qa-gv__cell qa-gv__value">
           <textarea rows="2"
                     use:attachSuggester
                     bind:value={it.value}
-                    on:input={() => debouncedPersist(it)}
+                    oninput={() => debouncedPersist(it)}
                     placeholder="Snippet value (supports QuickAdd tokens)"></textarea>
         </div>
         <div class="qa-gv__cell qa-gv__ops">
-          <button class="qa-gv__btn danger" title="Delete" on:click={() => deleteVariable(items.indexOf(it))}>Delete</button>
+          <button class="qa-gv__btn danger" title="Delete" onclick={() => deleteVariable(items.indexOf(it))}>Delete</button>
         </div>
       </div>
     {/each}

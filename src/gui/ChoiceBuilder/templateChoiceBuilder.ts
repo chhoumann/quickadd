@@ -30,6 +30,8 @@ import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { ChoiceBuilder } from "./choiceBuilder";
 import FolderList from "./FolderList.svelte";
+import { createFolderListProps } from "./folderListProps.svelte";
+import { mountComponent } from "../svelte/mountComponent";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
@@ -238,22 +240,22 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		const folderList: HTMLDivElement =
 			folderSelectionContainer.createDiv("folderList");
 
-		const folderListEl = new FolderList({
-			target: folderList,
-			props: {
-				folders: this.choice.folder.folders,
-				deleteFolder: (folder: string) => {
-					this.choice.folder.folders = this.choice.folder.folders.filter(
-						(f) => f !== folder,
-					);
+		const folderListProps = createFolderListProps({
+			folders: [...this.choice.folder.folders],
+			deleteFolder: (folder: string) => {
+				this.choice.folder.folders = this.choice.folder.folders.filter(
+					(f) => f !== folder,
+				);
 
-					folderListEl.updateFolders(this.choice.folder.folders);
-					suggester.updateCurrentItems(this.choice.folder.folders);
-				},
+				// Push the new list into the mounted component (replaces updateFolders()).
+				folderListProps.folders = [...this.choice.folder.folders];
+				suggester.updateCurrentItems(this.choice.folder.folders);
 			},
 		});
 
-		this.svelteElements.push(folderListEl);
+		this.svelteElements.push(
+			mountComponent(folderList, FolderList, folderListProps),
+		);
 
 		const inputContainer = folderSelectionContainer.createDiv(
 			"folderInputContainer",
@@ -282,7 +284,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 			this.choice.folder.folders.push(input);
 
-			folderListEl.updateFolders(this.choice.folder.folders);
+			folderListProps.folders = [...this.choice.folder.folders];
 			folderInput.inputEl.value = "";
 
 			suggester.updateCurrentItems(this.choice.folder.folders);
