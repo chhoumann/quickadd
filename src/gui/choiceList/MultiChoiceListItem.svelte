@@ -1,6 +1,8 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
-    import ChoiceList from "./ChoiceList.svelte";
+    import ChoiceListRaw from "./ChoiceList.svelte";
+    // `as any` breaks the recursive ChoiceList <-> MultiChoiceListItem type cycle (svelte-check); runtime is unchanged.
+    const ChoiceList = ChoiceListRaw as any;
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import {createEventDispatcher} from "svelte";

@@ -16,10 +16,7 @@ type ChoiceSuggesterOptions = {
 	placeholderStack?: Array<string | undefined>;
 };
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
-	private choiceExecutor: IChoiceExecutor = new ChoiceExecutor(
-		this.app,
-		this.plugin
-	);
+	private choiceExecutor: IChoiceExecutor;
 	private placeholderStack: Array<string | undefined> = [];
 	private currentPlaceholder?: string;
 
@@ -37,6 +34,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		options?: ChoiceSuggesterOptions
 	) {
 		super(plugin.app);
+		// Initialize here (not as a field initializer) so the `plugin` parameter
+		// property is already assigned; a field initializer runs before it.
+		this.choiceExecutor = new ChoiceExecutor(this.app, this.plugin);
 		if (options?.choiceExecutor) this.choiceExecutor = options.choiceExecutor;
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.currentPlaceholder = options?.placeholder?.trim() || undefined;

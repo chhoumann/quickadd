@@ -70,6 +70,8 @@ jobs:
               run: bun install --frozen-lockfile
             - name: Run build with lint
               run: bun run build-with-lint
+            - name: Svelte check
+              run: bun run check
 
     dependency-review:
         name: Dependency Review

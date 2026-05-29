@@ -2,11 +2,10 @@
 	import type { IOpenFileCommand } from "../../../types/macros/QuickCommands/IOpenFileCommand";
 	import ObsidianIcon from "../../components/ObsidianIcon.svelte";
 	import { createEventDispatcher } from "svelte";
-	import type { DndEvent } from "svelte-dnd-action";
 
 	export let command: IOpenFileCommand;
 	export let dragDisabled: boolean;
-	export let startDrag: (e: CustomEvent<DndEvent>) => void;
+	export let startDrag: (e: MouseEvent | TouchEvent) => void;
 
 	const dispatch = createEventDispatcher();
 

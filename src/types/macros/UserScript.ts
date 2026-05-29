@@ -3,9 +3,9 @@ import { CommandType } from "./CommandType";
 import type { IUserScript } from "./IUserScript";
 
 export class UserScript extends Command implements IUserScript {
-	name: string;
+	declare name: string;
 	path: string;
-	type: CommandType;
+	declare type: CommandType;
 	settings: { [key: string]: unknown };
 
 	constructor(name: string, path: string) {

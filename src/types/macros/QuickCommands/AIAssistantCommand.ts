@@ -6,9 +6,9 @@ import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
 import { DEFAULT_FREQUENCY_PENALTY, DEFAULT_PRESENCE_PENALTY, DEFAULT_TEMPERATURE, DEFAULT_TOP_P } from "src/ai/OpenAIModelParameters";
 
 export class AIAssistantCommand extends Command implements IAIAssistantCommand {
-	id: string;
-	name: string;
-	type: CommandType;
+	declare id: string;
+	declare name: string;
+	declare type: CommandType;
 
 	model: string;
 	systemPrompt: string;

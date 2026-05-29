@@ -1,7 +1,9 @@
 <script lang="ts">
     import type IChoice from "../../types/choices/IChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
-    import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
+    import MultiChoiceListItemRaw from "./MultiChoiceListItem.svelte";
+    // `as any` breaks the recursive ChoiceList <-> MultiChoiceListItem type cycle (svelte-check); runtime is unchanged.
+    const MultiChoiceListItem = MultiChoiceListItemRaw as any;
     import {dndzone, SHADOW_PLACEHOLDER_ITEM_ID} from "svelte-dnd-action";
     import type {DndEvent} from "svelte-dnd-action";
     import {createEventDispatcher} from "svelte";

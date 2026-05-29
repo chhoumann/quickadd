@@ -5,7 +5,6 @@
 	import { onMount } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
-		type ChoiceType,
 		CommandRegistry,
 		configureChoice,
 		createChoice,
@@ -13,6 +12,7 @@
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
 	} from "../../services/choiceService";
+	import type { ChoiceType } from "../../types/choices/choiceType";
 	import type IChoice from "../../types/choices/IChoice";
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
@@ -23,6 +23,10 @@
 
 	export let choices: IChoice[] = [];
 	export let saveChoices: (choices: IChoice[]) => void;
+
+	function handleReorderChoices(e: CustomEvent<{ choices: IChoice[] }>) {
+		saveChoices(e.detail.choices);
+	}
 	export let app: App;
 	export let plugin: QuickAdd;
 
@@ -217,7 +221,6 @@
 
 	{#if filterQuery.trim().length === 0}
 		<ChoiceList
-			type="main"
 			app={app}
 			roots={choices}
 			bind:choices
@@ -227,11 +230,10 @@
 			on:duplicateChoice={handleDuplicateChoice}
 			on:renameChoice={handleRenameChoice}
 			on:moveChoice={handleMoveChoice}
-			on:reorderChoices={(e) => saveChoices(e.detail.choices)}
+			on:reorderChoices={handleReorderChoices}
 		/>
 	{:else}
 		<ChoiceList
-			type="main"
 			app={app}
 			roots={choices}
 			choices={filterChoices(choices, filterQuery)}
