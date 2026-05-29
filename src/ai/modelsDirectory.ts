@@ -44,38 +44,63 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
   return data;
 }
 
+// Extract the lowercased hostname from an endpoint, tolerating a missing
+// scheme (e.g. "api.openai.com/v1"). Returns "" when it can't be parsed.
+function endpointHost(endpoint: string): string {
+  for (const candidate of [endpoint, `https://${endpoint}`]) {
+    try {
+      // A scheme-less "host:port/path" parses as an opaque scheme with an empty
+      // hostname; require a real hostname so such inputs fall through to the
+      // https://-prefixed candidate instead of resolving to "".
+      const host = new URL(candidate).hostname.toLowerCase();
+      if (host) return host;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return "";
+}
+
 export function mapEndpointToModelsDevKey(endpoint: string): string | null {
   const url = endpoint.toLowerCase();
-  if (url.includes("openai.com")) return "openai";
-  if (url.includes("openrouter.ai")) return "openrouter";
-  if (url.includes("generativelanguage.googleapis.com")) return "google";
-  if (url.includes("anthropic.com") || url.includes("anthropic"))
-    return "anthropic";
-  if (url.includes("groq.com")) return "groq";
-  if (url.includes("together.ai")) return "togetherai";
-  if (url.includes("huggingface.co") || url.includes("huggingface"))
-    return "huggingface";
+  const host = endpointHost(endpoint);
+
+  // Match a provider domain against the URL's hostname (or a subdomain of it)
+  // so it can't be spoofed by the domain appearing elsewhere in the URL — e.g.
+  // "https://evil.com/api.openai.com" or "https://openai.com.evil.com"
+  // (CodeQL js/incomplete-url-substring-sanitization). Bare-keyword checks
+  // below stay as loose substring matches on purpose (they identify providers
+  // reached via proxy/custom URLs).
+  const hostMatches = (domain: string): boolean =>
+    host === domain || host.endsWith(`.${domain}`);
+
+  if (hostMatches("openai.com")) return "openai";
+  if (hostMatches("openrouter.ai")) return "openrouter";
+  if (hostMatches("generativelanguage.googleapis.com")) return "google";
+  if (url.includes("anthropic")) return "anthropic";
+  if (hostMatches("groq.com")) return "groq";
+  if (hostMatches("together.ai") || hostMatches("together.xyz"))
+    return "togetherai";
+  if (url.includes("huggingface")) return "huggingface";
   if (url.includes("github") && url.includes("models")) return "github-models";
   if (url.includes("bedrock") || url.includes("aws")) return "amazon-bedrock";
   if (url.includes("modelscope")) return "modelscope";
   if (url.includes("dashscope")) return "alibaba";
-  if (url.includes("fireworks.ai")) return "fireworks-ai";
+  if (hostMatches("fireworks.ai")) return "fireworks-ai";
   if (url.includes("vercel")) return "vercel";
-  if (url.includes("inference.net")) return "inference";
-  if (url.includes("z.ai") || url.includes("zhipu")) return "zhipuai";
-  if (url.includes("deepseek.com")) return "deepseek";
+  if (hostMatches("inference.net")) return "inference";
+  if (hostMatches("z.ai") || url.includes("zhipu")) return "zhipuai";
+  if (hostMatches("deepseek.com")) return "deepseek";
   if (url.includes("cerebras")) return "cerebras";
-  if (url.includes("venice.ai")) return "venice";
-  if (url.includes("upstage.ai")) return "upstage";
-  if (url.includes("llama.com") || url.includes("api.llama.com")) return "llama";
+  if (hostMatches("venice.ai")) return "venice";
+  if (hostMatches("upstage.ai")) return "upstage";
+  if (hostMatches("llama.com")) return "llama";
   if (url.includes("morphllm")) return "morph";
-  if (url.includes("inceptionlabs.ai")) return "inception";
+  if (hostMatches("inceptionlabs.ai")) return "inception";
   if (url.includes("deepinfra")) return "deepinfra";
-  if (url.includes("gateway.opencode.ai")) return "opencode";
-  if (url.includes("router.huggingface.co")) return "huggingface";
-  if (url.includes("inference.wandb.ai")) return "wandb";
-  if (url.includes("api.githubcopilot.com")) return "github-copilot";
-  if (url.includes("api.openai.com")) return "openai";
+  if (hostMatches("opencode.ai")) return "opencode";
+  if (hostMatches("inference.wandb.ai")) return "wandb";
+  if (hostMatches("githubcopilot.com")) return "github-copilot";
   return null;
 }
 

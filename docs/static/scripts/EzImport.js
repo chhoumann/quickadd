@@ -350,6 +350,6 @@ async function apiGet(url, data) {
 function replaceIllegalFileNameCharactersInString(string) {
 	return string
 		.replace(/[\\,#%&\{\}\/*<>$\'\":@\u2023\|\?]*/g, "") // Replace illegal file name characters with empty string
-		.replace(/\n/, " ") // replace newlines with spaces
-		.replace("  ", " "); // replace multiple spaces with single space to make sure we don't have double spaces in the file name
+		.replace(/\n/g, " ") // replace all newlines with spaces
+		.replace(/ {2,}/g, " "); // collapse runs of spaces into a single space in the file name
 }
