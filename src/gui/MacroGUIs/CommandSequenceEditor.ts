@@ -6,6 +6,11 @@ import type {
 } from "obsidian";
 import { ButtonComponent, Setting } from "obsidian";
 import CommandList from "./CommandList.svelte";
+import {
+	createCommandListProps,
+	type CommandListProps,
+} from "./commandListProps.svelte";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 import type QuickAdd from "../../main";
 import type { ICommand } from "../../types/macros/ICommand";
 import type IChoice from "../../types/choices/IChoice";
@@ -70,7 +75,8 @@ export class CommandSequenceEditor {
 	private commandsRef: ICommand[];
 	private obsidianCommands: IObsidianCommand[] = [];
 	private javascriptFiles: TFile[] = [];
-	private commandListComponent: CommandList | null = null;
+	private commandListHandle: MountHandle | null = null;
+	private commandListProps: CommandListProps | null = null;
 	private containerEl: HTMLElement | null = null;
 
 	constructor(options: CommandSequenceEditorOptions) {
@@ -100,8 +106,9 @@ export class CommandSequenceEditor {
 	}
 
 	public destroy() {
-		this.commandListComponent?.$destroy();
-		this.commandListComponent = null;
+		this.commandListHandle?.destroy();
+		this.commandListHandle = null;
+		this.commandListProps = null;
 	}
 
 	private loadObsidianCommands(): void {
@@ -124,80 +131,62 @@ export class CommandSequenceEditor {
 	private renderCommandList(parent: HTMLElement) {
 		const commandListEl = parent.createDiv("commandList");
 
-		this.commandListComponent = new CommandList({
-			target: commandListEl,
-			props: {
-				app: this.app,
-				plugin: this.plugin,
-				commands: this.commandsRef,
-				deleteCommand: async (commandId: string) => {
-					const command = this.commandsRef.find((c) => c.id === commandId);
-
-					if (!command) {
-						log.logError("command not found");
-						throw new Error("command not found");
+		// Wrap a conditional handler so the editor re-emits changes when the
+		// handler reports the command was updated (replaces the old .$on() wiring).
+		const wrapConditionalHandler = (
+			handler?: (command: IConditionalCommand) => Promise<boolean>
+		) =>
+			handler
+				? async (command: IConditionalCommand) => {
+						const updated = await handler(command);
+						if (updated) {
+							this.emitCommandsChanged();
+						}
 					}
+				: undefined;
 
-					const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
-						this.app,
-						"Are you sure you wish to delete this command?",
-						`If you click yes, you will delete '${command.name}'.`
-					);
-					if (!promptAnswer) return;
+		this.commandListProps = createCommandListProps({
+			app: this.app,
+			plugin: this.plugin,
+			commands: this.commandsRef,
+			deleteCommand: async (commandId: string) => {
+				const command = this.commandsRef.find((c) => c.id === commandId);
 
-					this.commandsRef = this.commandsRef.filter(
-						(c) => c.id !== commandId
-					);
-					this.emitCommandsChanged();
-				},
-				saveCommands: (commands: ICommand[]) => {
-					this.commandsRef = commands;
-					this.onCommandsChange?.(commands);
-				},
+				if (!command) {
+					log.logError("command not found");
+					throw new Error("command not found");
+				}
+
+				const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
+					this.app,
+					"Are you sure you wish to delete this command?",
+					`If you click yes, you will delete '${command.name}'.`
+				);
+				if (!promptAnswer) return;
+
+				this.commandsRef = this.commandsRef.filter((c) => c.id !== commandId);
+				this.emitCommandsChanged();
 			},
+			saveCommands: (commands: ICommand[]) => {
+				this.commandsRef = commands;
+				this.onCommandsChange?.(commands);
+			},
+			onConfigureCondition: wrapConditionalHandler(
+				this.conditionalHandlers?.configureCondition
+			),
+			onEditThenBranch: wrapConditionalHandler(
+				this.conditionalHandlers?.editThenBranch
+			),
+			onEditElseBranch: wrapConditionalHandler(
+				this.conditionalHandlers?.editElseBranch
+			),
 		});
 
-		if (this.conditionalHandlers?.configureCondition) {
-			this.commandListComponent.$on(
-				"configureCondition",
-				async (event: CustomEvent<IConditionalCommand>) => {
-					const updated = await this.conditionalHandlers?.configureCondition?.(
-						event.detail
-					);
-					if (updated) {
-						this.emitCommandsChanged();
-					}
-				}
-			);
-		}
-
-		if (this.conditionalHandlers?.editThenBranch) {
-			this.commandListComponent.$on(
-				"editThenBranch",
-				async (event: CustomEvent<IConditionalCommand>) => {
-					const updated = await this.conditionalHandlers?.editThenBranch?.(
-						event.detail
-					);
-					if (updated) {
-						this.emitCommandsChanged();
-					}
-				}
-			);
-		}
-
-		if (this.conditionalHandlers?.editElseBranch) {
-			this.commandListComponent.$on(
-				"editElseBranch",
-				async (event: CustomEvent<IConditionalCommand>) => {
-					const updated = await this.conditionalHandlers?.editElseBranch?.(
-						event.detail
-					);
-					if (updated) {
-						this.emitCommandsChanged();
-					}
-				}
-			);
-		}
+		this.commandListHandle = mountComponent(
+			commandListEl,
+			CommandList,
+			this.commandListProps
+		);
 	}
 
 	private renderCommandBar(parent: HTMLElement) {
@@ -541,14 +530,17 @@ export class CommandSequenceEditor {
 	}
 
 	private addCommand(command: ICommand) {
-		this.commandsRef.push(command);
+		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorModal) track
+		// changes via onCommandsChange, not in-place mutation of the passed array.
+		this.commandsRef = [...this.commandsRef, command];
 		this.emitCommandsChanged();
 	}
 
 	private emitCommandsChanged() {
-		if (this.commandListComponent) {
-			// @ts-ignore Svelte exposes exported functions on instances
-			this.commandListComponent.updateCommandList(this.commandsRef);
+		// Push the new array into the mounted component via its reactive $state props
+		// bag (replaces the old exported updateCommandList() bridge).
+		if (this.commandListProps) {
+			this.commandListProps.commands = [...this.commandsRef];
 		}
 		this.onCommandsChange?.(this.commandsRef);
 	}

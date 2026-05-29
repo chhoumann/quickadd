@@ -1,43 +1,61 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-    import {createEventDispatcher, onMount} from "svelte";
+    import { onMount, untrack } from "svelte";
     import type {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
 
-    export let command: IWaitCommand;
-    export let startDrag: (e: MouseEvent | TouchEvent) => void;
-    export let dragDisabled: boolean;
-    const dispatch = createEventDispatcher();
+    let {
+        command,
+        startDrag,
+        dragDisabled,
+        onDeleteCommand,
+        onUpdateCommand,
+    }: {
+        command: IWaitCommand;
+        startDrag: (e: MouseEvent | TouchEvent) => void;
+        dragDisabled: boolean;
+        onDeleteCommand: (commandId: string) => void;
+        onUpdateCommand: (command: IWaitCommand) => void;
+    } = $props();
 
-    let inputEl: HTMLInputElement;
-
-    function deleteCommand(commandId: string) {
-        dispatch('deleteCommand', commandId);
-    }
+    // Local mirror of command.time so the input is component-owned. We can't mutate
+    // the host-owned command object through the props bag, so persistence is explicit
+    // via onUpdateCommand (mirrors the old bind:value={command.time} on every change).
+    let inputEl = $state<HTMLInputElement>();
+    // Intentionally seed once from the prop; the input is component-owned thereafter.
+    let time = $state(untrack(() => command.time));
 
     function resizeInput() {
-        const length: number = inputEl.value.length;
+        if (!inputEl) return;
+        const length: number = String(inputEl.value).length;
         inputEl.style.setProperty("--qa-wait-input-width", `${length === 0 ? 2 : length}ch`);
+    }
+
+    function onTimeInput(e: Event & { currentTarget: HTMLInputElement }) {
+        const next = e.currentTarget.valueAsNumber;
+        time = Number.isNaN(next) ? 0 : next;
+        resizeInput();
+        onUpdateCommand({ ...command, time });
     }
 
     onMount(resizeInput);
 </script>
 
 <div class="quickAddCommandListItem">
-    <li>{command.name} for <input bind:this={inputEl} on:keyup={resizeInput} type="number" placeholder="   " bind:value={command.time} class="dotInput">ms</li>
+    <li>{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" placeholder="   " value={time} class="dotInput">ms</li>
     <div>
-        <span 
+        <span
             role="button"
             tabindex="0"
-            on:click={() => deleteCommand(command.id)}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteCommand(command.id)}
+            onclick={() => onDeleteCommand(command.id)}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteCommand(command.id)}
             class="clickable"
         >
             <ObsidianIcon iconId="trash-2" size={16} />
         </span>
-        <span 
+        <span
               role="button"
-              on:mousedown={startDrag} 
-              on:touchstart={startDrag}
+              onmousedown={startDrag}
+              ontouchstart={startDrag}
               aria-label="Drag-handle"
               class:qa-drag-handle-ready={dragDisabled}
               class:qa-drag-handle-active={!dragDisabled}

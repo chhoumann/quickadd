@@ -1,47 +1,47 @@
 <script lang="ts">
     import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-    import {createEventDispatcher} from "svelte";
     import type {INestedChoiceCommand} from "../../../types/macros/QuickCommands/INestedChoiceCommand";
 
-    export let command: INestedChoiceCommand;
-    export let startDrag: (e: MouseEvent | TouchEvent) => void;
-    export let dragDisabled: boolean;
-    const dispatch = createEventDispatcher();
-
-    function deleteCommand() {
-        dispatch('deleteCommand', command.id);
-    }
-
-    function configureChoice() {
-        dispatch('configureChoice', command);
-    }
+    let {
+        command,
+        startDrag,
+        dragDisabled,
+        onDeleteCommand,
+        onConfigureChoice,
+    }: {
+        command: INestedChoiceCommand;
+        startDrag: (e: MouseEvent | TouchEvent) => void;
+        dragDisabled: boolean;
+        onDeleteCommand: (commandId: string) => void;
+        onConfigureChoice: (command: INestedChoiceCommand) => void;
+    } = $props();
 </script>
 
 <div class="quickAddCommandListItem">
     <li>{command.name}</li>
     <div>
-        <span 
+        <span
             role="button"
             tabindex="0"
-            on:click={() => configureChoice()}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && configureChoice()}
+            onclick={() => onConfigureChoice(command)}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onConfigureChoice(command)}
             class="clickable"
         >
             <ObsidianIcon iconId="settings" size={16} />
         </span>
-        <span 
+        <span
             role="button"
             tabindex="0"
-            on:click={() => deleteCommand()}
-            on:keypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteCommand()}
+            onclick={() => onDeleteCommand(command.id)}
+            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteCommand(command.id)}
             class="clickable"
         >
             <ObsidianIcon iconId="trash-2" size={16} />
         </span>
-        <span 
+        <span
               role="button"
-              on:mousedown={startDrag} 
-              on:touchstart={startDrag}
+              onmousedown={startDrag}
+              ontouchstart={startDrag}
               aria-label="Drag-handle"
               class:qa-drag-handle-ready={dragDisabled}
               class:qa-drag-handle-active={!dragDisabled}
@@ -51,7 +51,3 @@
         </span>
     </div>
 </div>
-
-<style lang="css">
-
-</style>
