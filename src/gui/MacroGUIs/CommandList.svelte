@@ -185,6 +185,10 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		dropTargetStyle: {},
 		type: "command",
 		autoAriaDisabled: true,
+		// Keep the rows out of the tab order — only the action buttons / drag handle
+		// inside each row are focusable (the library defaults this to 0, adding a dead
+		// tab stop per row even with autoAriaDisabled).
+		zoneItemTabIndex: -1,
 	}}
 	onconsider={handleConsider}
 	onfinalize={handleSort}

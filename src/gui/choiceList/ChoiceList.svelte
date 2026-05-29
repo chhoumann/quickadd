@@ -80,7 +80,7 @@
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, autoAriaDisabled: true}}
+        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, autoAriaDisabled: true, zoneItemTabIndex: -1}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
