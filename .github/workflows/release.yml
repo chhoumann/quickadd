@@ -24,38 +24,53 @@ on:
                 type: string
     repository_dispatch:
         types: [release-trigger]
+
+# Serialize releases so two triggers can never race on tags/commits.
+# Do NOT cancel-in-progress: an interrupted semantic-release is dangerous.
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+# Least-privilege default; the release job elevates exactly what it needs.
+permissions:
+    contents: read
+
 jobs:
     release:
         name: Release
         runs-on: ubuntu-latest
         permissions:
-            contents: write
-            issues: write
-            pull-requests: write
-            id-token: write
-            attestations: write
-        strategy:
-            matrix:
-                node-version: [20]
+            contents: write        # semantic-release/git pushes the release commit+tag; semantic-release/github creates the Release
+            issues: write          # semantic-release/github comments on released issues
+            pull-requests: write   # semantic-release/github comments on released PRs
+            id-token: write        # attest-build-provenance: OIDC token for Sigstore (NOT npm — npmPublish is false)
+            attestations: write    # attest-build-provenance: persist the attestation
         outputs:
             version: ${{ steps.extract-version.outputs.version }}
             released: ${{ steps.release.outputs.released }}
         steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+            - name: Harden Runner
+              uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.4
               with:
+                  egress-policy: audit
+
+            - name: Checkout
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              with:
+                  # semantic-release needs full history + tags and the persisted
+                  # credential to push the release commit. Do not change these.
                   fetch-depth: 0
                   token: ${{ secrets.GITHUB_TOKEN }}
 
             - name: Setup Bun
-              uses: oven-sh/setup-bun@v1
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
               with:
-                  bun-version: latest
+                  bun-version: 1.3.14
 
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v4
+            - name: Use Node.js 24
+              uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
               with:
-                  node-version: ${{ matrix.node-version }}
+                  node-version: 24
 
             - name: Install dependencies
               run: |
@@ -76,31 +91,28 @@ jobs:
 
             - name: Build
               if: steps.validate.outputs.valid == 'true'
-              run: |
-                  bun run build --if-present
+              run: bun run build
 
             - name: Run tests
               if: steps.validate.outputs.valid == 'true'
-              run: |
-                  bun run test
+              run: bun run test
 
             - name: Release
               id: release
               if: steps.validate.outputs.valid == 'true'
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
                   RELEASE_TYPE: ${{ github.event.inputs.releaseType || 'auto' }}
                   DRY_RUN: ${{ github.event.inputs.dryRun || 'false' }}
                   PRE_RELEASE: ${{ github.event.inputs.preRelease || '' }}
               run: |
                   EXTRA_ARGS=""
-                  
+
                   if [ "$DRY_RUN" == "true" ]; then
                     echo "Running in dry-run mode"
                     EXTRA_ARGS="--dry-run"
                   fi
-                  
+
                   if [ -n "$PRE_RELEASE" ]; then
                     echo "Running pre-release: $PRE_RELEASE"
                     bunx semantic-release --prerelease $PRE_RELEASE $EXTRA_ARGS
@@ -114,82 +126,86 @@ jobs:
                     bunx semantic-release --release-as $RELEASE_TYPE $EXTRA_ARGS
                     RELEASE_EXIT_CODE=$?
                   fi
-                  
+
                   # Set release status based on exit code
                   if [ "$DRY_RUN" != "true" ] && [ $RELEASE_EXIT_CODE -eq 0 ]; then
                     echo "released=true" >> $GITHUB_OUTPUT
                   else
                     echo "released=false" >> $GITHUB_OUTPUT
                   fi
-                  
+
                   exit $RELEASE_EXIT_CODE
 
             - name: Attest release assets
               if: steps.release.outputs.released == 'true'
-              uses: actions/attest-build-provenance@v2
+              uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
               with:
                   subject-path: |
                       main.js
                       manifest.json
                       styles.css
 
-            # Extract version for notifications - more resilient approach
+            # Extract version for notifications
             - name: Extract version
               id: extract-version
               if: steps.release.outputs.released == 'true'
               run: |
-                # Save the version to a temporary file to avoid issues with special characters
-                node -e "console.log('VERSION=' + require('./package.json').version)" > version.txt
-                source version.txt
-                echo "version=$VERSION" >> $GITHUB_OUTPUT
-                rm version.txt
+                VERSION="$(node -p "require('./package.json').version")"
+                echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
             # Find related PR to comment on
             - name: Find PR
               id: find-pr
               if: steps.release.outputs.released == 'true'
-              uses: jwalton/gh-find-current-pr@v1
+              uses: jwalton/gh-find-current-pr@f3d61b485d2801773f7a07b2aaa3306bd8f8e653 # v1.3.5
               with:
                 state: closed
 
             # Comment on the PR that triggered this release
             - name: Comment on PR
               if: steps.release.outputs.released == 'true' && steps.find-pr.outputs.pr
-              uses: actions/github-script@v6
+              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+              env:
+                PR_NUMBER: ${{ steps.find-pr.outputs.pr }}
+                RELEASE_VERSION: ${{ steps.extract-version.outputs.version }}
               with:
                 github-token: ${{ secrets.GITHUB_TOKEN }}
                 script: |
-                  github.rest.issues.createComment({
-                    issue_number: ${{ steps.find-pr.outputs.pr }},
+                  await github.rest.issues.createComment({
+                    issue_number: Number(process.env.PR_NUMBER),
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    body: '🚀 Release has been published: v${{ steps.extract-version.outputs.version }}'
+                    body: `🚀 Release has been published: v${process.env.RELEASE_VERSION}`
                   })
-    
+
     # Notification job that runs after release
     notify:
         name: Send notifications
         needs: release
         if: needs.release.outputs.released == 'true'
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        env:
+            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+            DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+            VERSION: ${{ needs.release.outputs.version }}
         steps:
             # Optional: Slack notifications
             - name: Notify Slack
-              uses: rtCamp/action-slack-notify@v2
               if: env.SLACK_WEBHOOK != ''
+              uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
               env:
-                SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
                 SLACK_TITLE: "🚀 New Release"
-                SLACK_MESSAGE: "Version v${{ needs.release.outputs.version }} of QuickAdd has been released!"
+                SLACK_MESSAGE: "Version v${{ env.VERSION }} of QuickAdd has been released!"
                 SLACK_COLOR: "good"
                 SLACK_ICON: "https://github.com/chhoumann.png"
                 MSG_MINIMAL: true
-                
-            # Optional: Discord notifications
+
+            # Optional: Discord notifications — plain webhook call, no third-party action.
+            # jq safely JSON-encodes the message; the step is skipped when the secret is unset.
             - name: Notify Discord
               if: env.DISCORD_WEBHOOK != ''
-              uses: Ilshidur/action-discord@master
-              env:
-                DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-              with:
-                args: '🚀 **New Release**: Version v${{ needs.release.outputs.version }} of QuickAdd has been released!'
+              run: |
+                payload="$(jq -n --arg content "🚀 **New Release**: Version v${VERSION} of QuickAdd has been released!" '{content: $content}')"
+                curl -fsSL -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
