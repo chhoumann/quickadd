@@ -6,7 +6,7 @@
     import { untrack } from "svelte";
 	import { Component, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
-    import { showChoiceContextMenu } from "./contextMenu";
+    import { showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
     import type { ChoiceListActions } from "./choiceListActions";
 
@@ -18,6 +18,10 @@
         startDrag,
         app,
         actions,
+        forceDragDisabled = false,
+        rootReorder,
+        onMoveUp,
+        onMoveDown,
     }: {
         choice: IMultiChoice;
         roots: IChoice[];
@@ -26,6 +30,12 @@
         startDrag: (e?: Event) => void;
         app: App;
         actions: ChoiceListActions;
+        forceDragDisabled?: boolean;
+        // Top-level onReorderChoices (see ChoiceList). Falls back to this list's own
+        // handler when rendered directly (tests); in the app it is always provided.
+        rootReorder?: (choices: IChoice[]) => void;
+        onMoveUp?: () => void;
+        onMoveDown?: () => void;
     } = $props();
 
     let showConfigureButton = $state(true);
@@ -45,25 +55,34 @@
 		return () => cmp.unload();
 	});
 
+    const menuActions = () => ({
+        onRename: () => actions.onRenameChoice(choice),
+        onToggle: () => actions.onToggleCommand(choice),
+        onConfigure: () => actions.onConfigureChoice(choice),
+        onDuplicate: () => actions.onDuplicateChoice(choice),
+        onDelete: () => actions.onDeleteChoice(choice),
+        onMove: (targetId: string) => actions.onMoveChoice(choice, targetId),
+    });
+
     function onContextMenu(evt: MouseEvent) {
-        showChoiceContextMenu(app, evt, choice, roots, {
-            onRename: () => actions.onRenameChoice(choice),
-            onToggle: () => actions.onToggleCommand(choice),
-            onConfigure: () => actions.onConfigureChoice(choice),
-            onDuplicate: () => actions.onDuplicateChoice(choice),
-            onDelete: () => actions.onDeleteChoice(choice),
-            onMove: (targetId) => actions.onMoveChoice(choice, targetId),
-        });
+        showChoiceContextMenu(app, evt, choice, roots, menuActions());
     }
 
-    // Nested children reordered: write the new order back to this Multi choice, then
-    // bubble the whole (shallow-cloned) root tree up so the top-level handler persists
-    // it. Calls the PARENT's onReorderChoices (not nestedActions) — no loop.
+    function openMenu(anchor: HTMLElement) {
+        showChoiceContextMenuAtElement(app, anchor, choice, roots, menuActions());
+    }
+
+    // Nested children reordered: write the new order back to this Multi choice (the
+    // choice object is shared with the root tree, so this mutates in place), then
+    // persist the whole root tree via the TOP-LEVEL handler. Routing through
+    // `rootReorder` — NOT `actions.onReorderChoices`, which inside a nested Multi is
+    // an ancestor's override that would overwrite ITS children with the root array —
+    // keeps reorder correct at any nesting depth (fixes depth >= 2 data loss).
     const nestedActions: ChoiceListActions = {
         ...untrack(() => actions),
         onReorderChoices: (reordered: IChoice[]) => {
             choice.choices = reordered;
-            actions.onReorderChoices([...roots]);
+            (rootReorder ?? actions.onReorderChoices)([...roots]);
         },
     };
 
@@ -73,29 +92,27 @@
 </script>
 
 <div>
-    <div
-        class="multiChoiceListItem"
-        role="button"
-        tabindex="0"
-        aria-haspopup="menu"
-        aria-label={`Context menu for ${choice.name}`}
-        oncontextmenu={onContextMenu}
-    >
-        <div
-            role="button"
-            tabindex="0"
-            class="multiChoiceListItemName clickable"
+    <!-- Right-click opens the context menu for mouse users; keyboard users reach the
+         same actions via the "More options" button, so this row is a non-interactive
+         container (no role/tabindex). -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="multiChoiceListItem" oncontextmenu={onContextMenu}>
+        <button
+            type="button"
+            class="multiChoiceListItemName"
+            aria-expanded={!choice.collapsed}
+            aria-label={`Toggle ${choice.name}`}
             onclick={toggleCollapsed}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && toggleCollapsed()}
         >
-            <div
+            <span
                 class="multiChoiceCollapseIcon"
                 class:is-collapsed={choice.collapsed}
+                aria-hidden="true"
             >
                 <ObsidianIcon iconId="chevron-down" size={16} />
-            </div>
+            </span>
             <span class="choiceListItemName" bind:this={nameElement}></span>
-        </div>
+        </button>
 
         <RightButtons
             onDragHandleDown={startDrag}
@@ -103,6 +120,9 @@
             onConfigureChoice={() => actions.onConfigureChoice(choice)}
             onToggleCommand={() => actions.onToggleCommand(choice)}
             onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
+            onOpenMenu={openMenu}
+            {onMoveUp}
+            {onMoveDown}
             {showConfigureButton}
             {dragDisabled}
             choiceName={choice.name}
@@ -118,6 +138,8 @@
                     {app}
                     roots={roots}
                     choices={choice.choices}
+                    {forceDragDisabled}
+                    rootReorder={rootReorder ?? actions.onReorderChoices}
                     actions={nestedActions}
                 />
             </div>
@@ -142,13 +164,28 @@
         transform: rotate(-180deg);
     }
 
-    .clickable:hover {
-        cursor: pointer;
-    }
-
+    /* Full-width collapse toggle: reset native <button> chrome to match the old
+       clickable div while keeping native keyboard activation + aria-expanded. */
     .multiChoiceListItemName {
         flex: 1 0 0;
         margin-left: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .multiChoiceListItemName:focus-visible {
+        outline: 2px solid var(--interactive-accent);
+        outline-offset: 1px;
+        border-radius: var(--radius-s, 4px);
     }
 
     .nestedChoiceList {

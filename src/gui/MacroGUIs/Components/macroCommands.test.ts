@@ -76,7 +76,9 @@ describe("ConditionalCommand", () => {
 		await fireEvent.click(getByLabelText("Edit else branch"));
 		expect(onEditElseBranch).toHaveBeenCalledWith(command);
 
-		await fireEvent.click(getByLabelText("Delete command"));
+		// Delete label now includes the command identity (a11y, #1250). A default
+		// ConditionalCommand is named "If condition".
+		await fireEvent.click(getByLabelText("Delete If condition"));
 		expect(onDeleteCommand).toHaveBeenCalledWith(command.id);
 	});
 });

@@ -52,6 +52,33 @@
 	opacity: 0.5;
 }
 
+/* Keyboard-operable rename affordance inside a modal <h2> title (#1250). Resets
+   the native <button> chrome so it reads as the heading text it replaced. Doubled
+   selector (0,2,0) so theme `.modal button` rules can't re-skin the title. */
+.qa-rename-title-button.qa-rename-title-button {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	padding: 0;
+	margin: 0;
+}
+
+.qa-rename-title-button.qa-rename-title-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-s, 4px);
+}
+
+/* The choice-builder title button also lays out its label + pencil icon. */
+.choiceNameHeaderButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
 .folderInputContainer {
 	display: flex;
 	align-content: center;
@@ -381,11 +408,60 @@
 	text-decoration: underline;
 }
 
-.qa-drag-handle-ready {
+/* Shared accessible icon button (IconButton.svelte / DragHandle.svelte, #1250).
+   Resets Obsidian's default <button> chrome so an icon-only <button> looks like the
+   borderless inline icons it replaced, while keeping native keyboard/focus behaviour.
+   The selector is doubled (.qa-icon-button.qa-icon-button, specificity 0,2,0) so it
+   also wins over theme descendant rules like `.modal button`/`.vertical-tab-content
+   button` (0,1,1) — the old <div>/<span> faux-buttons were never themed, so a single
+   class would let theme chrome leak onto the new <button>s on themed vaults. */
+.qa-icon-button.qa-icon-button {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	margin: 0;
+	min-width: 0;
+	color: inherit;
+	font: inherit;
+	width: auto;
+	height: auto;
+	line-height: inherit;
+	border-radius: var(--radius-s, 4px);
+}
+
+.qa-icon-button.qa-icon-button:hover {
+	/* Match the old faux-buttons: pointer cursor only, no hover fill. */
+	background-color: transparent;
+	box-shadow: none;
+}
+
+.qa-icon-button.qa-icon-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.qa-icon-button.qa-icon-button:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+/* Toggle state (e.g. "Enable in Command Palette"): the accent colour mirrors the
+   old .command-enabled cue; aria-pressed carries the authoritative state for AT. */
+.qa-icon-button.is-pressed {
+	color: var(--text-accent);
+}
+
+/* Defined after the base reset and doubled so the grab/grabbing cursor wins. */
+.qa-drag-handle.qa-drag-handle-ready {
 	cursor: grab;
 }
 
-.qa-drag-handle-active {
+.qa-drag-handle.qa-drag-handle-active {
 	cursor: grabbing;
 }
 
@@ -597,6 +673,20 @@
 	flex: 1 1 auto;
 	align-items: center;
 	justify-content: space-between;
+}
+
+/* Action buttons + drag handle group on a macro command row (#1250). */
+.quickAddCommandControls {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+/* The label cell of a macro command row: grow to fill and allow shrinking so long
+   command names don't shove the controls off-row (#1250). */
+.quickAddCommandLabel {
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 .quickCommandContainer {

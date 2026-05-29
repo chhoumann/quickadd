@@ -75,11 +75,17 @@ export class MacroBuilder extends Modal {
 
 	protected addCenteredHeader(header: string): void {
 		const headerEl = this.contentEl.createEl("h2");
-		headerEl.setText(header);
-		headerEl.addClass("clickable", "qa-clickable-modal-title");
+		headerEl.addClass("qa-clickable-modal-title");
 
-		 
-		headerEl.addEventListener("click", async () => {
+		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
+		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
+		const renameButton = headerEl.createEl("button", {
+			cls: "qa-rename-title-button",
+			text: header,
+			attr: { type: "button", "aria-label": `Rename ${header}` },
+		});
+
+		renameButton.addEventListener("click", async () => {
 			const newName: string = await GenericInputPrompt.Prompt(
 				this.app,
 				`Update name for ${this.choice.name}`,

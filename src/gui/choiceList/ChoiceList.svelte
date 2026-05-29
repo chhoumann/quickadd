@@ -14,13 +14,23 @@
         app,
         forceDragDisabled = false,
         actions,
+        rootReorder,
     }: {
         choices?: IChoice[];
         roots?: IChoice[];
         app: App;
         forceDragDisabled?: boolean;
         actions: ChoiceListActions;
+        // The TOP-LEVEL onReorderChoices, threaded UNCHANGED through every nesting
+        // level so a nested Multi persists the whole root tree via the real handler
+        // instead of an ancestor Multi's override (which would reinterpret the root
+        // array as its own children — data loss at depth >= 2). Undefined at the top.
+        rootReorder?: (choices: IChoice[]) => void;
     } = $props();
+
+    // Resolve once: at the top level there is no incoming rootReorder, so the list's
+    // own handler IS the top-level handler; nested lists receive it explicitly.
+    const persistRoots = $derived(rootReorder ?? actions.onReorderChoices);
 
     let collapseId = $state("");
     let dragDisabled = $state(true);
@@ -48,10 +58,29 @@
         if (e && typeof e.preventDefault === 'function') e.preventDefault();
         dragDisabled = false;
     };
+
+    // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle). Moves the choice
+    // one step within THIS list and persists via actions.onReorderChoices — the same
+    // path pointer drag uses on finalize. Each ChoiceList instance (including the
+    // nested ones inside a Multi) reorders its own list, so nested reorders bubble
+    // through MultiChoiceListItem's nestedActions just like a drag does.
+    function moveChoice(choice: IChoice, direction: -1 | 1) {
+        if (forceDragDisabled) return; // never persist a filtered/derived list
+        const list = stripShadow(choices);
+        const index = list.findIndex((c) => c.id === choice.id);
+        if (index === -1) return;
+        const target = index + direction;
+        if (target < 0 || target >= list.length) return; // clamp at the ends
+        const next = [...list];
+        const [moved] = next.splice(index, 1);
+        next.splice(target, 0, moved);
+        choices = next;
+        actions.onReorderChoices(choices);
+    }
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}}}
+        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, autoAriaDisabled: true}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
@@ -65,6 +94,8 @@
                     {startDrag}
                     {actions}
                     {choice}
+                    onMoveUp={forceDragDisabled ? undefined : () => moveChoice(choice, -1)}
+                    onMoveDown={forceDragDisabled ? undefined : () => moveChoice(choice, 1)}
             />
         {:else}
             <MultiChoiceListItem
@@ -74,7 +105,11 @@
                     {startDrag}
                     {actions}
                     {collapseId}
+                    {forceDragDisabled}
+                    rootReorder={persistRoots}
                     choice={choice as IMultiChoice}
+                    onMoveUp={forceDragDisabled ? undefined : () => moveChoice(choice, -1)}
+                    onMoveDown={forceDragDisabled ? undefined : () => moveChoice(choice, 1)}
             />
         {/if}
     {/each}

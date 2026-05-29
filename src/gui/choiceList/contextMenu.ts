@@ -58,17 +58,15 @@ type MenuActions = {
 };
 
 /**
- * Build and show the context menu for a choice at the mouse event.
- * "Move to" is rendered as flattened list of targets for reliability.
+ * Build the choice context menu (shared by the mouse and keyboard entry points).
+ * "Move to" is rendered as a flattened list of targets for reliability.
  */
-export function showChoiceContextMenu(
+function buildChoiceMenu(
   app: App,
-  evt: MouseEvent,
   choice: IChoice,
   roots: IChoice[] | undefined,
   actions: MenuActions,
-): void {
-  evt.preventDefault();
+): ObsidianMenu {
   const menu = new ObsidianMenu();
 
   menu
@@ -102,5 +100,38 @@ export function showChoiceContextMenu(
     );
   }
 
-  menu.showAtMouseEvent(evt);
+  return menu;
+}
+
+/**
+ * Show the context menu for a choice at the mouse event (right-click on a row).
+ */
+export function showChoiceContextMenu(
+  app: App,
+  evt: MouseEvent,
+  choice: IChoice,
+  roots: IChoice[] | undefined,
+  actions: MenuActions,
+): void {
+  evt.preventDefault();
+  buildChoiceMenu(app, choice, roots, actions).showAtMouseEvent(evt);
+}
+
+/**
+ * Show the same menu anchored to an element (the keyboard-accessible "More options"
+ * button), positioned at the element's bottom-left so it works without a mouse
+ * pointer. WCAG 2.1.1 — the row's right-click menu is reachable from the keyboard.
+ */
+export function showChoiceContextMenuAtElement(
+  app: App,
+  anchor: HTMLElement,
+  choice: IChoice,
+  roots: IChoice[] | undefined,
+  actions: MenuActions,
+): void {
+  const rect = anchor.getBoundingClientRect();
+  buildChoiceMenu(app, choice, roots, actions).showAtPosition({
+    x: rect.left,
+    y: rect.bottom,
+  });
 }

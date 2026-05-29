@@ -52,13 +52,18 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	private display(): void {
-		const header = this.contentEl.createEl("h2", {
+		const header = this.contentEl.createEl("h2");
+		header.addClass("qa-clickable-modal-title");
+
+		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
+		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
+		const renameButton = header.createEl("button", {
+			cls: "qa-rename-title-button",
 			text: `${this.settings.name} Settings`,
+			attr: { type: "button", "aria-label": `Rename ${this.settings.name}` },
 		});
 
-		header.addClass("qa-clickable-modal-title");
-		 
-		header.addEventListener("click", async () => {
+		renameButton.addEventListener("click", async () => {
 			try {
 				const newName = await GenericInputPrompt.Prompt(
 					this.app,

@@ -2,7 +2,7 @@
 	import type IChoice from "../../types/choices/IChoice";
 	import RightButtons from "./ChoiceItemRightButtons.svelte";
 	import { Component, type App } from "obsidian";
-	import { showChoiceContextMenu } from "./contextMenu";
+	import { showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
 	import type { ChoiceListActions } from "./choiceListActions";
 
@@ -13,6 +13,8 @@
 		dragDisabled,
 		startDrag,
 		actions,
+		onMoveUp,
+		onMoveDown,
 	}: {
 		choice: IChoice;
 		app: App;
@@ -20,6 +22,8 @@
 		dragDisabled: boolean;
 		startDrag: (e?: Event) => void;
 		actions: ChoiceListActions;
+		onMoveUp?: () => void;
+		onMoveDown?: () => void;
 	} = $props();
 
 	let showConfigureButton = $state(true);
@@ -40,26 +44,29 @@
 		return () => cmp.unload();
 	});
 
+	const menuActions = () => ({
+		onRename: () => actions.onRenameChoice(choice),
+		onToggle: () => actions.onToggleCommand(choice),
+		onConfigure: () => actions.onConfigureChoice(choice),
+		onDuplicate: () => actions.onDuplicateChoice(choice),
+		onDelete: () => actions.onDeleteChoice(choice),
+		onMove: (targetId: string) => actions.onMoveChoice(choice, targetId),
+	});
+
 	function onContextMenu(evt: MouseEvent) {
-		showChoiceContextMenu(app, evt, choice, roots, {
-			onRename: () => actions.onRenameChoice(choice),
-			onToggle: () => actions.onToggleCommand(choice),
-			onConfigure: () => actions.onConfigureChoice(choice),
-			onDuplicate: () => actions.onDuplicateChoice(choice),
-			onDelete: () => actions.onDeleteChoice(choice),
-			onMove: (targetId) => actions.onMoveChoice(choice, targetId),
-		});
+		showChoiceContextMenu(app, evt, choice, roots, menuActions());
+	}
+
+	function openMenu(anchor: HTMLElement) {
+		showChoiceContextMenuAtElement(app, anchor, choice, roots, menuActions());
 	}
 </script>
 
-<div
-    class="choiceListItem"
-    role="button"
-    tabindex="0"
-    aria-haspopup="menu"
-    aria-label={`Context menu for ${choice.name}`}
-    oncontextmenu={onContextMenu}
->
+<!-- Right-click opens the context menu for mouse users; keyboard users reach the
+     same actions via the "More options" button, so this row is a non-interactive
+     container (no role/tabindex). -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="choiceListItem" oncontextmenu={onContextMenu}>
 	<span class="choiceListItemName" bind:this={nameElement}></span>
 
 	<RightButtons
@@ -68,6 +75,9 @@
 		onConfigureChoice={() => actions.onConfigureChoice(choice)}
 		onToggleCommand={() => actions.onToggleCommand(choice)}
 		onDuplicateChoice={() => actions.onDuplicateChoice(choice)}
+		onOpenMenu={openMenu}
+		{onMoveUp}
+		{onMoveDown}
 		choiceName={choice.name}
 		commandEnabled={choice.command}
 		{showConfigureButton}

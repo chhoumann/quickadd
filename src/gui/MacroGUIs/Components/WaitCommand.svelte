@@ -1,5 +1,6 @@
 <script lang="ts">
-    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
+    import IconButton from "../../components/IconButton.svelte";
+    import DragHandle from "../../components/DragHandle.svelte";
     import { onMount, untrack } from "svelte";
     import type {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
 
@@ -9,12 +10,16 @@
         dragDisabled,
         onDeleteCommand,
         onUpdateCommand,
+        onMoveUp,
+        onMoveDown,
     }: {
         command: IWaitCommand;
-        startDrag: (e: MouseEvent | TouchEvent) => void;
+        startDrag: (e: Event) => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onUpdateCommand: (command: IWaitCommand) => void;
+        onMoveUp?: () => void;
+        onMoveDown?: () => void;
     } = $props();
 
     // Local mirror of command.time so the input is component-owned. We can't mutate
@@ -40,31 +45,24 @@
     onMount(resizeInput);
 </script>
 
-<div class="quickAddCommandListItem">
-    <li>{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" placeholder="   " value={time} class="dotInput">ms</li>
-    <div>
-        <span
-            role="button"
-            tabindex="0"
+<li class="quickAddCommandListItem">
+    <span class="quickAddCommandLabel">{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" placeholder="   " value={time} class="dotInput" aria-label="Wait duration in milliseconds">ms</span>
+    <div class="quickAddCommandControls">
+        <IconButton
+            iconId="trash-2"
+            label={`Delete ${command.name}`}
+            extraClass="clickable"
             onclick={() => onDeleteCommand(command.id)}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteCommand(command.id)}
-            class="clickable"
-        >
-            <ObsidianIcon iconId="trash-2" size={16} />
-        </span>
-        <span
-              role="button"
-              onmousedown={startDrag}
-              ontouchstart={startDrag}
-              aria-label="Drag-handle"
-              class:qa-drag-handle-ready={dragDisabled}
-              class:qa-drag-handle-active={!dragDisabled}
-              tabindex={dragDisabled ? 0 : -1}
-        >
-            <ObsidianIcon iconId="grip-vertical" size={16} />
-        </span>
+        />
+        <DragHandle
+            label={`Reorder ${command.name}`}
+            {dragDisabled}
+            onDragStart={startDrag}
+            {onMoveUp}
+            {onMoveDown}
+        />
     </div>
-</div>
+</li>
 
 <style lang="css">
 .dotInput {

@@ -1,5 +1,6 @@
 <script lang="ts">
-    import ObsidianIcon from "../components/ObsidianIcon.svelte";
+    import IconButton from "../components/IconButton.svelte";
+    import DragHandle from "../components/DragHandle.svelte";
 
     let {
         dragDisabled,
@@ -12,6 +13,9 @@
         onToggleCommand,
         onDuplicateChoice,
         onDragHandleDown,
+        onMoveUp,
+        onMoveDown,
+        onOpenMenu,
     }: {
         dragDisabled: boolean;
         showConfigureButton?: boolean;
@@ -23,69 +27,57 @@
         onToggleCommand: () => void;
         onDuplicateChoice: () => void;
         onDragHandleDown: (e?: Event) => void;
+        onMoveUp?: () => void;
+        onMoveDown?: () => void;
+        onOpenMenu?: (anchor: HTMLElement) => void;
     } = $props();
 </script>
 
 <div class="rightButtonsContainer">
-    <div
-        role="button"
-        tabindex="0"
+    <IconButton
+        iconId="zap"
+        ariaPressed={commandEnabled}
+        label={`Command palette${choiceName ? ": " + choiceName : ""}`}
         onclick={onToggleCommand}
-        onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onToggleCommand()}
-        class:command-enabled={commandEnabled}
-        class="alignIconInDivInMiddle clickable"
-        aria-label={`${commandEnabled ? "Disable in Command Palette" : "Enable in Command Palette"}${choiceName ? ": " + choiceName : ""}`}
-    >
-        <ObsidianIcon iconId="zap" size={16} />
-    </div>
+    />
     {#if showConfigureButton}
-        <div
-            role="button"
-            tabindex="0"
+        <IconButton
+            iconId="settings"
+            label={`Configure${choiceName ? " " + choiceName : ""}`}
             onclick={onConfigureChoice}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onConfigureChoice()}
-            class="alignIconInDivInMiddle clickable"
-            aria-label={`Configure${choiceName ? " " + choiceName : ""}`}
-        >
-            <ObsidianIcon iconId="settings" size={16} />
-        </div>
+        />
     {/if}
 
     {#if showDuplicateButton}
-        <div
-            role="button"
-            tabindex="0"
-            aria-label={`Duplicate ${choiceName ?? ""}`}
-            class="alignIconInDivInMiddle clickable"
+        <IconButton
+            iconId="copy"
+            label={`Duplicate${choiceName ? " " + choiceName : ""}`}
             onclick={onDuplicateChoice}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDuplicateChoice()}
-        >
-            <ObsidianIcon iconId="copy" size={16} />
-        </div>
+        />
     {/if}
 
-    <div
-        role="button"
-        tabindex="0"
-        aria-label={`Delete${choiceName ? " " + choiceName : ""}`}
-        class="alignIconInDivInMiddle clickable"
+    <IconButton
+        iconId="trash-2"
+        label={`Delete${choiceName ? " " + choiceName : ""}`}
         onclick={onDeleteChoice}
-        onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteChoice()}
-    >
-        <ObsidianIcon iconId="trash-2" size={16} />
-    </div>
+    />
 
-    <div
-         role="button"
-         tabindex={dragDisabled ? 0 : -1}
-         aria-label="Drag-handle"
-         class="alignIconInDivInMiddle"
-         class:qa-drag-handle-ready={dragDisabled}
-         class:qa-drag-handle-active={!dragDisabled}
-         onpointerdown={() => onDragHandleDown()}
-    >
-        <ObsidianIcon iconId="grip-vertical" size={16} />
-    </div>
+    {#if onOpenMenu}
+        <IconButton
+            iconId="more-vertical"
+            ariaHasPopup="menu"
+            label={`More options${choiceName ? " for " + choiceName : ""}`}
+            onclick={(e) => onOpenMenu?.(e.currentTarget as HTMLElement)}
+        />
+    {/if}
+
+    <DragHandle
+        label={`Reorder${choiceName ? " " + choiceName : ""}`}
+        {dragDisabled}
+        onDragStart={onDragHandleDown}
+        {onMoveUp}
+        {onMoveDown}
+    />
 </div>
 
 <style>
@@ -93,18 +85,5 @@
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-.clickable:hover {
-    cursor: pointer;
-}
-
-.alignIconInDivInMiddle {
-    display: flex;
-    align-items: center;
-}
-
-.command-enabled {
-    color: var(--text-accent);
 }
 </style>

@@ -73,10 +73,25 @@ function handleSort(e: CustomEvent<DndEvent>) {
 	persist();
 }
 
-let startDrag = (e: MouseEvent | TouchEvent) => {
+let startDrag = (e: Event) => {
 	e.preventDefault();
 	dragDisabled = false;
 };
+
+// Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle): move the command one
+// step and persist via the same snapshot path as a pointer drag's finalize.
+function moveCommand(id: string, direction: -1 | 1) {
+	const list = stripShadow(commands);
+	const index = list.findIndex((c) => c.id === id);
+	if (index === -1) return;
+	const target = index + direction;
+	if (target < 0 || target >= list.length) return; // clamp at the ends
+	const next = [...list];
+	const [moved] = next.splice(index, 1);
+	next.splice(target, 0, moved);
+	commands = next;
+	persist();
+}
 
 function updateCommand(command: ICommand) {
 	commands = replaceById(commands, command);
@@ -169,6 +184,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		dragDisabled,
 		dropTargetStyle: {},
 		type: "command",
+		autoAriaDisabled: true,
 	}}
 	onconsider={handleConsider}
 	onfinalize={handleSort}
@@ -181,6 +197,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onUpdateCommand={updateCommand}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.NestedChoice}
 			<NestedChoiceCommand
@@ -189,6 +207,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureChoice={configureChoice}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.UserScript}
 			<UserScriptCommand
@@ -197,6 +217,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureScript={configureScript}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.AIAssistant}
 			<AIAssistantCommand
@@ -205,6 +227,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureAssistant={configureAssistant}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.OpenFile}
 			<OpenFileCommand
@@ -213,6 +237,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureOpenFile={configureOpenFile}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
@@ -223,6 +249,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				onConfigureCondition={configureConditionalCommand}
 				onEditThenBranch={editConditionalThen}
 				onEditElseBranch={editConditionalElse}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else}
 			<StandardCommand
@@ -230,6 +258,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{dragDisabled}
 				{startDrag}
 				onDeleteCommand={deleteCommand}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{/if}
 	{/each}

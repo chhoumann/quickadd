@@ -648,6 +648,56 @@ export function setIcon(parent: HTMLElement, iconId: string): void {
   parent.appendChild(svg);
 }
 
+// Minimal Menu stub for context-menu tests. Records its items and how it was
+// shown (mouse event vs. anchored position) so tests can assert the keyboard path.
+export class MenuItem {
+  title = "";
+  icon = "";
+  disabled = false;
+  clickHandler: (() => void) | null = null;
+  setTitle(title: string): this {
+    this.title = title;
+    return this;
+  }
+  setIcon(icon: string): this {
+    this.icon = icon;
+    return this;
+  }
+  setDisabled(disabled: boolean): this {
+    this.disabled = disabled;
+    return this;
+  }
+  onClick(handler: () => void): this {
+    this.clickHandler = handler;
+    return this;
+  }
+}
+
+export class Menu {
+  static lastShown: Menu | null = null;
+  items: MenuItem[] = [];
+  shownAt: { type: "mouse" | "position"; detail: unknown } | null = null;
+  addItem(cb: (item: MenuItem) => void): this {
+    const item = new MenuItem();
+    cb(item);
+    this.items.push(item);
+    return this;
+  }
+  addSeparator(): this {
+    return this;
+  }
+  showAtMouseEvent(evt: MouseEvent): this {
+    this.shownAt = { type: "mouse", detail: evt };
+    Menu.lastShown = this;
+    return this;
+  }
+  showAtPosition(pos: { x: number; y: number }): this {
+    this.shownAt = { type: "position", detail: pos };
+    Menu.lastShown = this;
+    return this;
+  }
+}
+
 // Substring (NOT subsequence) matcher standing in for Obsidian's fuzzy search.
 // Returns a SearchResult-like object when q is a case-insensitive substring of
 // the text, else null — enough for filter tests. Do NOT assert true fuzzy
@@ -683,6 +733,8 @@ export default {
   WorkspaceLeaf,
   FuzzySuggestModal,
   Modal,
+  Menu,
+  MenuItem,
   Scope,
   MarkdownRenderer,
   requestUrl,
