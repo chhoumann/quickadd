@@ -75,10 +75,37 @@ const extendsByFile = new Map<string, Set<string>>();
 for (const file of files) {
 	let text = readFileSync(file, "utf8");
 	if (file.endsWith(".svelte")) {
-		// Closing tag tolerates whitespace (`</script >`) to satisfy CodeQL
-		// js/bad-tag-filter; we only parse our own trusted Svelte sources here.
-		const m = text.match(/<script[^>]*>([\s\S]*?)<\/script\s*>/i);
-		text = m ? m[1] : "";
+		// Extract every <script> body (instance + `<script module>` /
+		// `<script context="module">`) WITHOUT an HTML-tag regex, so CodeQL's
+		// js/bad-tag-filter has nothing to match. We only parse our own trusted
+		// Svelte sources here; this is an import scan, not an HTML sanitizer.
+		const lower = text.toLowerCase();
+		const bodies: string[] = [];
+		let searchFrom = 0;
+		for (;;) {
+			const tagStart = lower.indexOf("<script", searchFrom);
+			if (tagStart === -1) break;
+			// Confirm it's the `<script` tag (next char is `>`, whitespace, or
+			// `/`), not a substring like `<scripting>`.
+			const after = lower.charCodeAt(tagStart + 7); // 7 === "<script".length
+			const isTag =
+				Number.isNaN(after) || // EOF right after `<script`
+				after === 0x3e /* > */ ||
+				after === 0x2f /* / */ ||
+				after <= 0x20; /* whitespace/control */
+			const openEnd = lower.indexOf(">", tagStart);
+			if (!isTag || openEnd === -1) {
+				searchFrom = tagStart + 7;
+				continue;
+			}
+			const bodyStart = openEnd + 1;
+			const closeStart = lower.indexOf("</script", bodyStart);
+			if (closeStart === -1) break;
+			bodies.push(text.slice(bodyStart, closeStart));
+			const closeEnd = lower.indexOf(">", closeStart);
+			searchFrom = closeEnd === -1 ? closeStart + 8 : closeEnd + 1;
+		}
+		text = bodies.join("\n");
 	}
 
 	const extendsNames = new Set<string>();
