@@ -2,6 +2,7 @@
 	import type { App } from "obsidian";
 	import { prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
+	import { log } from "src/logger/logManager";
 	import { tick, untrack } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
@@ -131,7 +132,9 @@
 			} catch (err) {
 				// Builders resolve rather than reject, but don't let a stray throw
 				// become an unhandled rejection or lose the new choice.
-				console.error("QuickAdd: failed to configure new choice", err);
+				log.logError(
+					`Failed to configure the new choice: ${err instanceof Error ? err.message : String(err)}`,
+				);
 				save();
 			}
 			await revealChoice(newChoice.id);
