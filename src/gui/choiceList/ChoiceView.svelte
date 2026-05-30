@@ -321,7 +321,9 @@
 
 		<div class="choiceViewBottomBar">
 			{#if !disableOnlineFeatures}
-				<button class="mod-cta qa-ai-assistant-btn" onclick={openAISettings}
+				<!-- Secondary (not mod-cta): "New choice" is the view's single
+				     primary action; AI Assistant is a configure-AI utility. -->
+				<button class="qa-ai-assistant-btn" onclick={openAISettings}
 					>AI Assistant</button
 				>
 			{/if}
