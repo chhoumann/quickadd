@@ -12,7 +12,8 @@ import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
-import QuickAdd from "../main";
+import type QuickAdd from "../main";
+import { getQuickAddInstance } from "../quickAddInstance";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getUserScript } from "../utilityObsidian";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
@@ -582,7 +583,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const formatter = new CompleteFormatter(
 			this.app,
-			QuickAdd.instance,
+			getQuickAddInstance(),
 			this.choiceExecutor
 		);
 
@@ -727,7 +728,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		try {
 			const formatter = new CompleteFormatter(
 				this.app,
-				QuickAdd.instance,
+				getQuickAddInstance(),
 				this.choiceExecutor
 			);
 

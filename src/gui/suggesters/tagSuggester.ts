@@ -3,7 +3,7 @@ import type { App } from "obsidian";
 import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
 import { replaceRange } from "./utils";
-import QuickAdd from "../../main";
+import { getQuickAddInstance } from "../../quickAddInstance";
 
 export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
@@ -23,7 +23,7 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 		// Listen to metadata cache changes to refresh tag index
 		// Using registerEvent for automatic cleanup when plugin unloads
-		QuickAdd.instance.registerEvent(
+		getQuickAddInstance().registerEvent(
 			this.app.metadataCache.on("resolved", () => this.refreshTagIndex())
 		);
 	}

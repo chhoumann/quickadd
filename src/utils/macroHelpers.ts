@@ -1,4 +1,4 @@
-import QuickAdd from "src/main";
+import { getQuickAddInstance } from "src/quickAddInstance";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
 import type { ICommand } from "src/types/macros/ICommand";
@@ -8,7 +8,7 @@ import { getConditionSummary } from "./conditionalHelpers";
 export function getCommandDisplayName(cmd: ICommand): string {
 	if (cmd.type === CommandType.Choice) {
 		try {
-			return QuickAdd.instance.getChoiceById((cmd as IChoiceCommand).choiceId)
+			return getQuickAddInstance().getChoiceById((cmd as IChoiceCommand).choiceId)
 				.name;
 		} catch {
 			return "(missing choice)";

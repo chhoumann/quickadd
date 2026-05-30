@@ -6,7 +6,7 @@ import { TFile } from "obsidian";
 import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
 import { normalizeForSearch } from "./utils";
-import QuickAdd from "../../main";
+import { getQuickAddInstance } from "../../quickAddInstance";
 import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "../../utils/activeWindow";
 
 interface HTMLElementWithTooltipCleanup extends HTMLElement {
@@ -55,7 +55,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		super(app, inputEl);
 
 		this.sourcePathOverride = options?.sourcePath;
-		this.fileIndex = FileIndex.getInstance(app, QuickAdd.instance);
+		this.fileIndex = FileIndex.getInstance(app, getQuickAddInstance());
 
 		// Initialize index in background
 		this.fileIndex.ensureIndexed();

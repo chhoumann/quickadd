@@ -1,22 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("../main", () => ({
-	__esModule: true,
-	default: class QuickAddMock {
-		static instance = { settings: { inputPrompt: "single-line" } };
-	},
-}));
-
+import { beforeEach, describe, expect, it } from "vitest";
+import type QuickAdd from "../main";
+import { setQuickAddInstance } from "../quickAddInstance";
 import InputPrompt from "./InputPrompt";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import GenericWideInputPrompt from "./GenericWideInputPrompt/GenericWideInputPrompt";
-import QuickAdd from "../main";
+
+const fakePlugin = (inputPrompt: "single-line" | "multi-line") =>
+	({ settings: { inputPrompt } }) as unknown as QuickAdd;
 
 describe("InputPrompt factory", () => {
 	beforeEach(() => {
-		QuickAdd.instance = {
-			settings: { inputPrompt: "single-line" },
-		} as any;
+		setQuickAddInstance(fakePlugin("single-line"));
 	});
 
 	it("prefers multiline override over global single-line", () => {
@@ -25,9 +19,7 @@ describe("InputPrompt factory", () => {
 	});
 
 	it("uses global multiline when no override provided", () => {
-		QuickAdd.instance = {
-			settings: { inputPrompt: "multi-line" },
-		} as any;
+		setQuickAddInstance(fakePlugin("multi-line"));
 		const prompt = new InputPrompt();
 		expect(prompt.factory()).toBe(GenericWideInputPrompt);
 	});

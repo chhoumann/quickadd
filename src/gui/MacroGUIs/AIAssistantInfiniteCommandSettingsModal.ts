@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
-import QuickAdd from "src/main";
+import { getQuickAddInstance } from "src/quickAddInstance";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
@@ -170,11 +170,11 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		new FormatSyntaxSuggester(
 			this.app,
 			textAreaComponent.inputEl,
-			QuickAdd.instance
+			getQuickAddInstance()
 		);
 		const displayFormatter = new FormatDisplayFormatter(
 			this.app,
-			QuickAdd.instance
+			getQuickAddInstance()
 		);
 
 		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");

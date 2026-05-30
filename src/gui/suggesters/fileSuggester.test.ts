@@ -189,12 +189,11 @@ vi.mock('./suggest', () => {
     return { TextInputSuggest };
 });
 
-vi.mock("../../main", () => ({
-    default: {
-        instance: {
-            registerEvent: vi.fn(),
-        },
-    },
+vi.mock("../../quickAddInstance", () => ({
+    getQuickAddInstance: () => ({
+        registerEvent: vi.fn(),
+    }),
+    setQuickAddInstance: vi.fn(),
 }));
 
 // Mock Plugin

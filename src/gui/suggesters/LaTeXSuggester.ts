@@ -2,7 +2,7 @@ import { TextInputSuggest } from "./suggest";
 import Fuse from "fuse.js";
 import { renderMath } from "obsidian";
 import { LATEX_CURSOR_MOVE_HERE, LaTeXSymbols } from "../../LaTeXSymbols";
-import QuickAdd from "../../main";
+import { getQuickAddInstance } from "../../quickAddInstance";
 
 const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 
@@ -12,7 +12,7 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 	private elementsRendered: Record<string, HTMLElement>;
 
 	constructor(public inputEl: HTMLInputElement | HTMLTextAreaElement) {
-		super(QuickAdd.instance.app, inputEl);
+		super(getQuickAddInstance().app, inputEl);
 		this.symbols = Object.assign([], LaTeXSymbols);
 
 		this.elementsRendered = this.symbols.reduce<Record<string, HTMLElement>>((elements, symbol) => {
