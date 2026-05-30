@@ -5,9 +5,6 @@ import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { GLOBAL_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
-import { SingleInlineScriptEngine } from "../engine/SingleInlineScriptEngine";
-import { SingleMacroEngine } from "../engine/SingleMacroEngine";
-import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
@@ -347,7 +344,12 @@ export class CompleteFormatter extends Formatter {
 		macroName: string,
 		context?: { label?: string },
 	): Promise<string> {
-		const macroEngine: SingleMacroEngine = new SingleMacroEngine(
+		// Imported lazily: a static import would re-create the
+		// completeFormatter ⇄ engine circular dependency (#1249).
+		const { SingleMacroEngine } = await import(
+			"../engine/SingleMacroEngine"
+		);
+		const macroEngine = new SingleMacroEngine(
 			this.app,
 			this.plugin,
 			this.plugin.settings.choices,
@@ -367,6 +369,10 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
+		// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
+		const { SingleTemplateEngine } = await import(
+			"../engine/SingleTemplateEngine"
+		);
 		return await new SingleTemplateEngine(
 			this.app,
 			this.plugin,
@@ -403,6 +409,10 @@ export class CompleteFormatter extends Formatter {
 			const code = match?.at(1)?.trim();
 
 			if (code) {
+				// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
+				const { SingleInlineScriptEngine } = await import(
+					"../engine/SingleInlineScriptEngine"
+				);
 				const executor = new SingleInlineScriptEngine(
 					this.app,
 					this.plugin,

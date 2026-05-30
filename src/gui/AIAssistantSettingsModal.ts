@@ -2,7 +2,7 @@ import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { QuickAddSettings } from "src/settings";
 import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
-import QuickAdd from "src/main";
+import { getQuickAddInstance } from "src/quickAddInstance";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
 import { getModelNames } from "src/ai/aiHelpers";
@@ -133,11 +133,11 @@ export class AIAssistantSettingsModal extends Modal {
 		new FormatSyntaxSuggester(
 			this.app,
 			textAreaComponent.inputEl,
-			QuickAdd.instance
+			getQuickAddInstance()
 		);
 		const displayFormatter = new FormatDisplayFormatter(
 			this.app,
-			QuickAdd.instance
+			getQuickAddInstance()
 		);
 
 		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");

@@ -25,6 +25,7 @@ import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
+import { setQuickAddInstance } from "./quickAddInstance";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -36,7 +37,6 @@ interface DefinedUriParameters {
 type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
 export default class QuickAdd extends Plugin {
-	static instance: QuickAdd;
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
 
@@ -50,7 +50,7 @@ export default class QuickAdd extends Plugin {
 
 	async onload() {
 		log.logMessage("Loading QuickAdd");
-		QuickAdd.instance = this;
+		setQuickAddInstance(this);
 
 		await this.loadSettings();
 		settingsStore.replaceState(this.settings);

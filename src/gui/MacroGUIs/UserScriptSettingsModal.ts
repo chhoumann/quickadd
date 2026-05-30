@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
-import QuickAdd from "../../main";
+import { getQuickAddInstance } from "../../quickAddInstance";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
@@ -203,10 +203,10 @@ export class UserScriptSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const input = new TextAreaComponent(this.contentEl);
-		new FormatSyntaxSuggester(this.app, input.inputEl, QuickAdd.instance);
+		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
 		const displayFormatter = new FormatDisplayFormatter(
 			this.app,
-			QuickAdd.instance
+			getQuickAddInstance()
 		);
 
 		input

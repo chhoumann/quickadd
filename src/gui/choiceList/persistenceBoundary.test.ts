@@ -27,4 +27,52 @@ describe("choices persistence snapshot boundary", () => {
 		expect(snap[0].name).toBe("A");
 		expect(buf.value[0].name).toBe("Renamed");
 	});
+
+	it("snapshot deep-detaches NESTED branches (a later nested mutation doesn't leak in)", () => {
+		// The actual #1249 data-loss mechanism is at depth: a Conditional command's
+		// then/else branch lives several levels down a Macro choice. A shallow clone
+		// would alias these and silently drop in-component edits.
+		const macroWithConditional = (): IChoice =>
+			({
+				id: "macro",
+				name: "Macro",
+				type: "Macro",
+				command: false,
+				macro: {
+					id: "macro-macro",
+					name: "Macro",
+					commands: [
+						{
+							id: "cond",
+							name: "If",
+							type: "Conditional",
+							thenCommands: [] as unknown[],
+							elseCommands: [] as unknown[],
+						},
+					],
+				},
+			}) as unknown as IChoice;
+
+		const buf = createChoicesBuffer([macroWithConditional()]);
+		const snap = buf.snapshot();
+
+		// Mutate a deeply-nested Then branch through the live reactive proxy AFTER
+		// snapshotting.
+		const liveCond = (
+			buf.value[0] as unknown as {
+				macro: { commands: Array<{ thenCommands: unknown[] }> };
+			}
+		).macro.commands[0];
+		liveCond.thenCommands.push({ id: "wait", name: "Wait", type: "Wait" });
+
+		const snappedCond = (
+			snap[0] as unknown as {
+				macro: { commands: Array<{ thenCommands: unknown[] }> };
+			}
+		).macro.commands[0];
+		// The detached snapshot's nested branch is unaffected...
+		expect(snappedCond.thenCommands).toEqual([]);
+		// ...while the live source did change.
+		expect(liveCond.thenCommands).toHaveLength(1);
+	});
 });

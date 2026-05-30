@@ -7,7 +7,7 @@ import {
 	renderMath,
 	TextAreaComponent,
 } from "obsidian";
-import QuickAdd from "../main";
+import { getQuickAddInstance } from "../quickAddInstance";
 import { LATEX_CURSOR_MOVE_HERE } from "../LaTeXSymbols";
 import { LaTeXSuggester } from "./suggesters/LaTeXSuggester";
 
@@ -35,7 +35,7 @@ export class MathModal extends Modal {
 	}
 
 	constructor() {
-		super(QuickAdd.instance.app);
+		super(getQuickAddInstance().app);
 
 		this.open();
 		this.display();
