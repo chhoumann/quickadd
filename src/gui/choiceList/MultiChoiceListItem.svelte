@@ -153,6 +153,7 @@
                         <AddChoiceControls
                             compact
                             targetFolderId={choice.id}
+                            targetFolderName={choice.name}
                             onAddChoice={actions.onAddChoice}
                         />
                     </div>

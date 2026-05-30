@@ -139,8 +139,9 @@ describe("ChoiceView", () => {
 
 		const { findByLabelText } = renderChoiceView([folderChoice], saveChoices);
 
-		// The per-folder affordance inside the expanded folder adds INTO it.
-		await fireEvent.click(await findByLabelText("New folder in this folder"));
+		// The per-folder affordance inside the expanded folder adds INTO it
+		// (its tooltip/label names the target folder).
+		await fireEvent.click(await findByLabelText("Add folder to Folder"));
 
 		await vi.waitFor(() => expect(saveChoices).toHaveBeenCalled());
 		const saved = saveChoices.mock.calls.at(-1)![0];

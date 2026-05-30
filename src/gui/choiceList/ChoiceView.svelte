@@ -276,17 +276,6 @@
 			</div>
 		</div>
 	{:else}
-		<div class="choiceViewTopBar">
-			<div class="choiceAddGroup">
-				<AddChoiceControls onAddChoice={addChoiceToList} />
-			</div>
-			{#if !disableOnlineFeatures}
-				<button class="mod-cta qa-ai-assistant-btn" onclick={openAISettings}
-					>AI Assistant</button
-				>
-			{/if}
-		</div>
-
 		<div class="choiceFilterBar">
 			<div class="choiceFilterInputWrapper">
 				<input
@@ -329,26 +318,37 @@
 				{actions}
 			/>
 		{/if}
+
+		<div class="choiceViewBottomBar">
+			{#if !disableOnlineFeatures}
+				<button class="mod-cta qa-ai-assistant-btn" onclick={openAISettings}
+					>AI Assistant</button
+				>
+			{/if}
+			<div class="choiceAddGroup">
+				<AddChoiceControls onAddChoice={addChoiceToList} />
+			</div>
+		</div>
 	{/if}
 </div>
 
 <style>
-	.choiceViewTopBar {
+	.choiceViewBottomBar {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
 		gap: 0.5rem;
-		margin-bottom: 0.75rem;
+		margin-top: 0.75rem;
 	}
 
-	/* The add cluster is pinned left (margin-right:auto); the AI button (when
-	   shown) sits to its right. The add cluster's position no longer depends on
-	   whether the AI button is present, so it can't collapse to the left when
-	   AI/online features are disabled. */
+	/* The add cluster is pinned RIGHT (margin-left:auto); the AI button (when
+	   shown) sits to its left. The add cluster's position is independent of
+	   whether the AI button is present, so it can't collapse when AI/online
+	   features are disabled (the original justify-content:space-between bug). */
 	.choiceAddGroup {
 		display: flex;
 		gap: 0.5rem;
-		margin-right: auto;
+		margin-left: auto;
 	}
 
 	.choiceEmptyState {
@@ -408,13 +408,13 @@
 	}
 
 	@media (max-width: 800px) {
-		.choiceViewTopBar {
+		.choiceViewBottomBar {
 			flex-direction: column;
 			align-items: stretch;
 		}
 
 		.choiceAddGroup {
-			margin-right: 0;
+			margin-left: 0;
 		}
 	}
 </style>

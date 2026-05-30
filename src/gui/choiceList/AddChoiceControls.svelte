@@ -7,6 +7,7 @@
 	let {
 		onAddChoice,
 		targetFolderId = undefined,
+		targetFolderName = undefined,
 		compact = false,
 	}: {
 		/**
@@ -22,7 +23,9 @@
 		) => void;
 		/** When set, both actions add into this folder. */
 		targetFolderId?: string;
-		/** Denser styling for the per-folder affordance. */
+		/** Folder name, used in the per-folder tooltip ("Add choice to {name}"). */
+		targetFolderName?: string;
+		/** Quiet, text-link styling for the per-folder affordance. */
 		compact?: boolean;
 	} = $props();
 
@@ -72,13 +75,19 @@
 		onAddChoice(defaultChoiceName("Multi"), "Multi", targetFolderId, true);
 	}
 
-	// WCAG 2.5.3 (Label in Name): the accessible name must contain the visible
-	// text ("New choice" / "New folder") so voice-control activation matches.
+	// Per-folder (compact) controls read as "Add choice"/"Add folder" text links;
+	// the global controls read as "New choice"/"New folder" buttons.
+	const newChoiceText = $derived(compact ? "Add choice" : "New choice");
+	const newFolderText = $derived(compact ? "Add folder" : "New folder");
+
+	// WCAG 2.5.3 (Label in Name): the accessible name must CONTAIN the visible
+	// text. Per folder we name the target ("Add choice to {folder}"), which keeps
+	// "Add choice" as a substring.
 	const newChoiceLabel = $derived(
-		targetFolderId ? "New choice in this folder" : "New choice",
+		targetFolderName ? `Add choice to ${targetFolderName}` : newChoiceText,
 	);
 	const newFolderLabel = $derived(
-		targetFolderId ? "New folder in this folder" : "New folder",
+		targetFolderName ? `Add folder to ${targetFolderName}` : newFolderText,
 	);
 </script>
 
@@ -90,20 +99,24 @@
 		aria-haspopup="menu"
 		aria-expanded={menuOpen}
 		aria-label={newChoiceLabel}
+		title={compact ? newChoiceLabel : undefined}
 		onclick={openNewChoiceMenu}
 	>
 		<ObsidianIcon iconId="plus" size={14} />
-		<span>New choice</span>
-		<ObsidianIcon iconId="chevron-down" size={12} />
+		<span>{newChoiceText}</span>
+		{#if !compact}
+			<ObsidianIcon iconId="chevron-down" size={12} />
+		{/if}
 	</button>
 	<button
 		type="button"
 		class="qaNewFolderBtn"
 		aria-label={newFolderLabel}
+		title={compact ? newFolderLabel : undefined}
 		onclick={addFolder}
 	>
 		<ObsidianIcon iconId="folder-plus" size={14} />
-		<span>New folder</span>
+		<span>{newFolderText}</span>
 	</button>
 </div>
 
@@ -127,24 +140,27 @@
 		opacity: 0.85;
 	}
 
+	/* Per-folder ("compact") controls render as quiet, clickable text links — not
+	   filled buttons — so they read as "add inside this folder" affordances and
+	   don't compete with the global primary CTA, especially when repeated across
+	   nested folders. */
 	.qaAddChoiceControls.compact {
-		gap: 0.35rem;
+		gap: 1rem;
 	}
 
-	/* Per-folder ("compact") controls are secondary to the global primary action,
-	   so they're quieter — ghost styling, smaller, muted — and don't compete with
-	   the top-bar "New choice" CTA, especially when repeated in nested folders. */
 	.qaAddChoiceControls.compact button {
 		font-size: var(--font-ui-smaller);
-		padding: var(--size-4-1) var(--size-4-2);
+		padding: 2px 0;
+		gap: 0.25em;
 		background: transparent;
+		border: none;
 		box-shadow: none;
 		color: var(--text-muted);
 	}
 
 	.qaAddChoiceControls.compact button:hover {
-		background: var(--background-modifier-hover);
-		color: var(--text-normal);
+		color: var(--text-accent);
+		text-decoration: underline;
 	}
 
 	@media (max-width: 800px) {
