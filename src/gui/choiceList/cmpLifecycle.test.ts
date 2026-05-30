@@ -19,6 +19,7 @@ const actions = (): ChoiceListActions => ({
 	onRenameChoice: vi.fn(),
 	onMoveChoice: vi.fn(),
 	onReorderChoices: vi.fn(),
+	onAddChoice: vi.fn(),
 });
 const noop = () => {};
 

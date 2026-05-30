@@ -258,7 +258,14 @@ function removeChoiceById(
 	return { updated, removed };
 }
 
-function insertIntoMulti(
+/**
+ * Insert `child` at the end of the Multi (folder) with id `targetId`, anywhere
+ * in the tree. Immutable and deep (only the touched branch is recreated).
+ * Returns a new roots array, or `undefined` if no such folder exists (callers
+ * fall back to appending at root). Shared by `moveChoice` and the add-into-folder
+ * affordance.
+ */
+export function insertIntoMulti(
 	choices: IChoice[],
 	targetId: string,
 	child: IChoice,
@@ -280,4 +287,34 @@ function insertIntoMulti(
 	});
 
 	return changed ? updated : undefined;
+}
+
+/**
+ * Add `newChoice` to the tree: appended at root when `targetFolderId` is
+ * undefined, otherwise inserted at the end of that folder AND the folder
+ * expanded so the new child is visible. Falls back to a root append if the
+ * folder no longer exists. Immutable — shared by the top-bar and per-folder
+ * add affordances so the insert/expand/fallback behaviour stays in one place.
+ */
+export function addChoiceToTree(
+	choices: IChoice[],
+	newChoice: IChoice,
+	targetFolderId?: string,
+): IChoice[] {
+	if (!targetFolderId) return [...choices, newChoice];
+
+	const inserted = insertIntoMulti(choices, targetFolderId, newChoice) ?? [
+		...choices,
+		newChoice,
+	];
+	return expandMultiById(inserted, targetFolderId);
+}
+
+function expandMultiById(choices: IChoice[], id: string): IChoice[] {
+	return choices.map((c) => {
+		if (c.type !== "Multi") return c;
+		const mc = c as IMultiChoice;
+		if (mc.id === id) return { ...mc, collapsed: false } as IChoice;
+		return { ...mc, choices: expandMultiById(mc.choices, id) } as IChoice;
+	});
 }

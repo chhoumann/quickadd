@@ -1,3 +1,4 @@
+import type { ChoiceType } from "../../types/choices/choiceType";
 import type IChoice from "../../types/choices/IChoice";
 
 /**
@@ -18,4 +19,16 @@ export interface ChoiceListActions {
 	onRenameChoice: (choice: IChoice) => void;
 	onMoveChoice: (choice: IChoice, targetId: string) => void;
 	onReorderChoices: (choices: IChoice[]) => void;
+	/**
+	 * Add a new choice. `targetFolderId` inserts it into that folder (root when
+	 * omitted); `skipConfigure` suppresses the post-add builder. Threaded from the
+	 * top-level ChoiceView handler so it persists the whole root tree (the same
+	 * invariant as `onReorderChoices`/`rootReorder`), never an ancestor override.
+	 */
+	onAddChoice: (
+		name: string,
+		type: ChoiceType,
+		targetFolderId?: string,
+		skipConfigure?: boolean,
+	) => void;
 }

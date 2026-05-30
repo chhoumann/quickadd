@@ -347,10 +347,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	private renderPackages(setting: Setting): void {
+		// Both package actions are secondary utilities — not the page's primary
+		// action ("New choice" is) — so neither is a CTA. Keeping only one filled
+		// primary button in the view avoids competing purple CTAs (per the
+		// one-primary-button-per-page rule).
 		setting.addButton((button) =>
 			button
 				.setButtonText("Export package…")
-				.setCta()
 				.onClick(() => {
 					const choicesSnapshot = settingsStore.getState().choices;
 					new ExportPackageModal(

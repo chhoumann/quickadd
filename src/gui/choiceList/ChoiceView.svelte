@@ -2,7 +2,8 @@
 	import type { App } from "obsidian";
 	import { prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
-	import { untrack } from "svelte";
+	import { log } from "src/logger/logManager";
+	import { tick, untrack } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
 		CommandRegistry,
@@ -11,6 +12,7 @@
 		createToggleCommandChoice,
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
+		addChoiceToTree,
 		moveChoice as moveChoiceService,
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
@@ -19,7 +21,7 @@
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { promptRenameChoice } from "../choiceRename";
-	import AddChoiceBox from "./AddChoiceBox.svelte";
+	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { type Plain, snapshot } from "../svelte/persist.svelte";
@@ -100,10 +102,61 @@
 		return list.map((c) => walk(c)).filter(Boolean) as IChoice[];
 	}
 
-	function addChoiceToList(name: string, type: ChoiceType): void {
+	async function addChoiceToList(
+		name: string,
+		type: ChoiceType,
+		targetFolderId?: string,
+		skipConfigure = false,
+	): Promise<void> {
 		const newChoice = createChoice(type, name);
-		choices = [...choices, newChoice];
-		save();
+		choices = addChoiceToTree(choices, newChoice, targetFolderId);
+
+		// A root-level add while a filter is active would otherwise look like
+		// nothing happened (the auto-named choice may not match the filter).
+		if (!targetFolderId && filterQuery.trim().length > 0) {
+			filterQuery = "";
+		}
+
+		if (type === "Multi") {
+			// Folders have no builder, so commit immediately, then open rename so a
+			// fresh "New folder" gets a real name right away (clear feedback +
+			// avoids duplicate-name confusion). Cancelling keeps the default name.
+			save();
+			await handleRenameChoice(newChoice);
+			await revealChoice(newChoice.id);
+		} else if (!skipConfigure) {
+			// Doers hand off to their builder, which both names and configures the
+			// choice and persists the result — no eager save (avoids a double write).
+			try {
+				await handleConfigureChoice(newChoice);
+			} catch (err) {
+				// Builders resolve rather than reject, but don't let a stray throw
+				// become an unhandled rejection or lose the new choice.
+				log.logError(
+					`Failed to configure the new choice: ${err instanceof Error ? err.message : String(err)}`,
+				);
+				save();
+			}
+			await revealChoice(newChoice.id);
+		} else {
+			// Alt-click: scaffold the doer without opening the builder.
+			save();
+			await revealChoice(newChoice.id);
+		}
+	}
+
+	// Scroll a just-added row into view so the add never "looks like nothing
+	// happened" (a new root choice otherwise lands at the bottom of a long list
+	// while the viewport stays at the top).
+	async function revealChoice(id: string): Promise<void> {
+		await tick();
+		try {
+			document
+				.querySelector(`[data-choice-id="${id}"]`)
+				?.scrollIntoView({ block: "nearest" });
+		} catch {
+			// jsdom / no-layout environments don't implement scrollIntoView.
+		}
 	}
 
 	async function deleteChoice(choice: IChoice) {
@@ -194,6 +247,7 @@
 		onRenameChoice: handleRenameChoice,
 		onMoveChoice: handleMoveChoice,
 		onReorderChoices: handleReorderChoices,
+		onAddChoice: addChoiceToList,
 	};
 
 	async function openAISettings() {
@@ -210,56 +264,82 @@
 
 
 <div>
-	<div class="choiceFilterBar">
-		<div class="choiceFilterInputWrapper">
-			<input
-				type="text"
-				placeholder="Filter choices (fuzzy)"
-				bind:value={filterQuery}
-				autocapitalize="off"
-				autocorrect="off"
-				spellcheck={false}
-				onkeydown={(e) => {
-					if (e.key === 'Escape' && filterQuery) {
-						filterQuery = "";
-						e.stopPropagation();
-					}
-				}}
+	{#if choices.length === 0 && filterQuery.trim().length === 0}
+		<!-- First-run / empty state: the hero is the single focal CTA (the top-bar
+		     add controls are not rendered here, so there's no duplicate). -->
+		<div class="choiceEmptyState">
+			<ObsidianIcon iconId="folder-plus" size={28} />
+			<div class="choiceEmptyTitle">No choices yet</div>
+			<p class="choiceEmptyBody">
+				A choice is an action QuickAdd can run — create a note, capture
+				text, or run a macro. Group them with folders.
+			</p>
+			<div class="choiceEmptyActions">
+				<AddChoiceControls onAddChoice={addChoiceToList} />
+			</div>
+		</div>
+	{:else}
+		<div class="choiceFilterBar">
+			<div class="choiceFilterInputWrapper">
+				<input
+					type="text"
+					placeholder="Filter choices (fuzzy)"
+					bind:value={filterQuery}
+					autocapitalize="off"
+					autocorrect="off"
+					spellcheck={false}
+					onkeydown={(e) => {
+						if (e.key === 'Escape' && filterQuery) {
+							filterQuery = "";
+							e.stopPropagation();
+						}
+					}}
+				/>
+				{#if filterQuery}
+					<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
+						onclick={() => (filterQuery = "")}
+					>
+						<ObsidianIcon iconId="x" size={14} />
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		{#if filterQuery.trim().length === 0}
+			<ChoiceList
+				{app}
+				roots={choices}
+				bind:choices
+				{actions}
 			/>
-			{#if filterQuery}
-				<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
-					onclick={() => (filterQuery = "")}
+		{:else}
+			<ChoiceList
+				{app}
+				roots={choices}
+				choices={filterChoices(choices, filterQuery)}
+				forceDragDisabled={true}
+				{actions}
+			/>
+		{/if}
+
+		<div class="choiceViewBottomBar">
+			{#if !disableOnlineFeatures}
+				<!-- AI Assistant is a quiet configure-AI utility — an icon button
+				     matching the per-row action icons — leading the right cluster so
+				     the bar's width barely changes when AI/online features toggle. -->
+				<button
+					type="button"
+					class="qaAIAssistantBtn clickable-icon"
+					aria-label="Configure AI Assistant"
+					title="Configure AI Assistant"
+					onclick={openAISettings}
 				>
-					<ObsidianIcon iconId="x" size={14} />
+					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
+			<AddChoiceControls onAddChoice={addChoiceToList} />
 		</div>
-	</div>
-
-	{#if filterQuery.trim().length === 0}
-		<ChoiceList
-			{app}
-			roots={choices}
-			bind:choices
-			{actions}
-		/>
-	{:else}
-		<ChoiceList
-			{app}
-			roots={choices}
-			choices={filterChoices(choices, filterQuery)}
-			forceDragDisabled={true}
-			{actions}
-		/>
 	{/if}
-	<div class="choiceViewBottomBar">
-		{#if !disableOnlineFeatures}
-			<button class="mod-cta" onclick={openAISettings}
-				>AI Assistant</button
-			>
-		{/if}
-		<AddChoiceBox onAddChoice={addChoiceToList} />
-	</div>
 </div>
 
 <style>
@@ -267,9 +347,49 @@
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		justify-content: space-between;
-		margin-top: 1rem;
-		gap: 1rem;
+		justify-content: flex-end; /* pack right; "New choice" (primary) is the terminal action */
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	/* AI Assistant as a quiet icon button (matches the per-row action icons),
+	   leading the right cluster so the bar's width barely changes when AI/online
+	   features toggle. */
+	.qaAIAssistantBtn {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-muted);
+	}
+
+	.qaAIAssistantBtn:hover {
+		color: var(--text-normal);
+	}
+
+	.choiceEmptyState {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		gap: 0.5rem;
+		padding: 2.5rem 1rem;
+		color: var(--text-muted);
+	}
+
+	.choiceEmptyTitle {
+		font-weight: var(--font-semibold);
+		color: var(--text-normal);
+	}
+
+	.choiceEmptyBody {
+		margin: 0;
+		max-width: 42ch;
+	}
+
+	.choiceEmptyActions {
+		margin-top: 0.5rem;
 	}
 
 	.choiceFilterBar {
@@ -304,9 +424,4 @@
 		color: var(--text-normal);
 	}
 
-	@media (max-width: 800px) {
-		.choiceViewBottomBar {
-			flex-direction: column;
-		}
-	}
 </style>
