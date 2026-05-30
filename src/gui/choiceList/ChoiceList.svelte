@@ -40,10 +40,14 @@
     // handle — the whole row is draggable by LONG-PRESS (delayTouchStart below), the
     // native mobile reorder gesture — so drag stays enabled unless filtering.
     let dragArmed = $state(false);
+    // Did arming actually become a real drag (a `consider` fired)? The failsafe in
+    // startDrag uses this to know whether handleSort already owns the disarm.
+    let dragStarted = false;
     const dragDisabled = $derived(forceDragDisabled || (!isMobile && !dragArmed));
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
+        dragStarted = true; // a genuine drag is underway (see startDrag failsafe)
         collapseId = e.detail.info.id;
         // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
         // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
@@ -57,12 +61,28 @@
         // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
         // grabbed again). Mobile: dragDisabled ignores dragArmed, so this is a no-op.
         dragArmed = false;
+        dragStarted = false;
         actions.onReorderChoices(choices);
     }
 
     let startDrag = () => {
         if (forceDragDisabled) return; // do not enable drag while filtering
         dragArmed = true;
+        dragStarted = false;
+        // Failsafe: arming flips the zone draggable on the handle's pointerdown, but a
+        // press that never becomes a drag (a stray click/tap on the handle) leaves
+        // svelte-dnd-action without a `finalize` to fire — so handleSort never disarms,
+        // the zone stays draggable, and the library SWALLOWS row button clicks (e.g.
+        // the Multi collapse toggle). Disarm on the next pointer release; a genuine drag
+        // sets dragStarted (handleConsider) so its handleSort keeps the reset. Capture
+        // phase so a stopPropagation in the library's handlers can't hide the release.
+        const disarm = () => {
+            window.removeEventListener("pointerup", disarm, true);
+            window.removeEventListener("pointercancel", disarm, true);
+            if (!dragStarted) dragArmed = false;
+        };
+        window.addEventListener("pointerup", disarm, true);
+        window.addEventListener("pointercancel", disarm, true);
     };
 
     // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle). Moves the choice
