@@ -97,7 +97,7 @@
          same actions via the "More options" button, so this row is a non-interactive
          container (no role/tabindex). -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="multiChoiceListItem" oncontextmenu={onContextMenu}>
+    <div class="multiChoiceListItem" data-choice-id={choice.id} oncontextmenu={onContextMenu}>
         <button
             type="button"
             class="multiChoiceListItemName"

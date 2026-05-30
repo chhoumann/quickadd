@@ -2,7 +2,7 @@
 	import type { App } from "obsidian";
 	import { prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
-	import { untrack } from "svelte";
+	import { tick, untrack } from "svelte";
 	import type QuickAdd from "../../main";
 	import {
 		CommandRegistry,
@@ -116,11 +116,16 @@
 			filterQuery = "";
 		}
 
-		// Doers (Template/Capture/Macro) hand off to their builder so the user
-		// isn't stranded on an unconfigured row; handleConfigureChoice persists
-		// the result, so there's no eager save here (avoids a double write).
-		// Folders and Alt-click skip the builder and are committed immediately.
-		if (type !== "Multi" && !skipConfigure) {
+		if (type === "Multi") {
+			// Folders have no builder, so commit immediately, then open rename so a
+			// fresh "New folder" gets a real name right away (clear feedback +
+			// avoids duplicate-name confusion). Cancelling keeps the default name.
+			save();
+			await handleRenameChoice(newChoice);
+			await revealChoice(newChoice.id);
+		} else if (!skipConfigure) {
+			// Doers hand off to their builder, which both names and configures the
+			// choice and persists the result — no eager save (avoids a double write).
 			try {
 				await handleConfigureChoice(newChoice);
 			} catch (err) {
@@ -129,8 +134,25 @@
 				console.error("QuickAdd: failed to configure new choice", err);
 				save();
 			}
+			await revealChoice(newChoice.id);
 		} else {
+			// Alt-click: scaffold the doer without opening the builder.
 			save();
+			await revealChoice(newChoice.id);
+		}
+	}
+
+	// Scroll a just-added row into view so the add never "looks like nothing
+	// happened" (a new root choice otherwise lands at the bottom of a long list
+	// while the viewport stays at the top).
+	async function revealChoice(id: string): Promise<void> {
+		await tick();
+		try {
+			document
+				.querySelector(`[data-choice-id="${id}"]`)
+				?.scrollIntoView({ block: "nearest" });
+		} catch {
+			// jsdom / no-layout environments don't implement scrollIntoView.
 		}
 	}
 

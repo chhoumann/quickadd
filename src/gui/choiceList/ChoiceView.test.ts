@@ -5,6 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 // the component suite does.
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
+// Folder adds now auto-open the rename prompt; stub it so these component tests
+// don't block on a real modal (resolving undefined = the user cancelled rename,
+// which keeps the default name).
+vi.mock("../choiceRename", () => ({
+	promptRenameChoice: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
 import ChoiceView from "./ChoiceView.svelte";

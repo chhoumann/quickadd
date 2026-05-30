@@ -85,7 +85,8 @@
 <div class="qaAddChoiceControls" class:compact>
 	<button
 		type="button"
-		class="mod-cta qaNewChoiceBtn"
+		class="qaNewChoiceBtn"
+		class:mod-cta={!compact}
 		aria-haspopup="menu"
 		aria-expanded={menuOpen}
 		aria-label={newChoiceLabel}
@@ -130,9 +131,20 @@
 		gap: 0.35rem;
 	}
 
+	/* Per-folder ("compact") controls are secondary to the global primary action,
+	   so they're quieter — ghost styling, smaller, muted — and don't compete with
+	   the top-bar "New choice" CTA, especially when repeated in nested folders. */
 	.qaAddChoiceControls.compact button {
-		font-size: var(--font-ui-small);
+		font-size: var(--font-ui-smaller);
 		padding: var(--size-4-1) var(--size-4-2);
+		background: transparent;
+		box-shadow: none;
+		color: var(--text-muted);
+	}
+
+	.qaAddChoiceControls.compact button:hover {
+		background: var(--background-modifier-hover);
+		color: var(--text-normal);
 	}
 
 	@media (max-width: 800px) {
