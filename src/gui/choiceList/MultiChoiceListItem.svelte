@@ -186,12 +186,15 @@
         flex: 1 0 0;
         /* Tuck the chevron into the left card-padding gutter so the Multi NAME
            lines up flush with leaf-row names — only nested children get indented
-           (.nestedChoiceList below), not the root Multi row itself. The -21px is
-           the chevron (16px) + its gap (5px). */
-        margin-left: -21px;
+           (.nestedChoiceList below), not the root Multi row itself. -20px = the
+           rendered chevron box (18px) + the 2px gap, so the name lands on the
+           leaf-name x. The lucide chevron glyph carries ~4.5px of side-bearing of
+           its own, so a 2px flex gap yields a ~6px optical gap to the name —
+           the prior 5px gap stacked to a too-airy ~9.5px. */
+        margin-left: -20px;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 2px;
         background: transparent;
         border: none;
         box-shadow: none;
