@@ -184,7 +184,11 @@
        clickable div while keeping native keyboard activation + aria-expanded. */
     .multiChoiceListItemName {
         flex: 1 0 0;
-        margin-left: 5px;
+        /* Tuck the chevron into the left card-padding gutter so the Multi NAME
+           lines up flush with leaf-row names — only nested children get indented
+           (.nestedChoiceList below), not the root Multi row itself. The -21px is
+           the chevron (16px) + its gap (5px). */
+        margin-left: -21px;
         display: flex;
         align-items: center;
         gap: 5px;
@@ -209,6 +213,6 @@
     }
 
     .nestedAddRow {
-        margin: 8px 0 4px 0;
+        margin: 2px 0 0 0;
     }
 </style>

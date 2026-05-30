@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { App } from "obsidian";
-	import { prepareFuzzySearch } from "obsidian";
+	import { Platform, prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
 	import { log } from "src/logger/logManager";
 	import { tick, untrack } from "svelte";
@@ -40,6 +40,9 @@
 	} = $props();
 
 	let filterQuery = $state(""); // not persisted
+
+	// On mobile the bottom-bar controls fill the width instead of cramming right.
+	const isMobile = Platform.isMobile;
 
 	// Reactive mirror of the AI/online gate so the "AI Assistant" button below
 	// reflects toggles of `disableOnlineFeatures` made in the (now declarative)
@@ -337,7 +340,7 @@
 					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
-			<AddChoiceControls onAddChoice={addChoiceToList} />
+			<AddChoiceControls onAddChoice={addChoiceToList} fill={isMobile} />
 		</div>
 	{/if}
 </div>

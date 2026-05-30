@@ -9,6 +9,7 @@
 		targetFolderId = undefined,
 		targetFolderName = undefined,
 		compact = false,
+		fill = false,
 	}: {
 		/**
 		 * Add a choice. `targetFolderId` inserts it into that folder (root when
@@ -27,6 +28,8 @@
 		targetFolderName?: string;
 		/** Quiet, text-link styling for the per-folder affordance. */
 		compact?: boolean;
+		/** Stretch the two buttons to fill the container (touch-friendly on mobile). */
+		fill?: boolean;
 	} = $props();
 
 	let menuOpen = $state(false);
@@ -93,7 +96,7 @@
 
 <!-- Order: secondary "New folder" first, primary "New choice" last so the primary
      CTA sits in the terminal (rightmost) position. -->
-<div class="qaAddChoiceControls" class:compact>
+<div class="qaAddChoiceControls" class:compact class:fill={fill && !compact}>
 	<button
 		type="button"
 		class="qaNewFolderBtn"
@@ -163,6 +166,18 @@
 	.qaAddChoiceControls.compact button:hover {
 		color: var(--text-accent);
 		text-decoration: underline;
+	}
+
+	/* Mobile/touch: stretch so the two buttons fill the bar width instead of
+	   cramming to the right. Driven by `fill` (Platform.isMobile from the bottom
+	   bar) because viewport media queries don't fire under desktop mobile-emulation. */
+	.qaAddChoiceControls.fill {
+		flex: 1;
+	}
+
+	.qaAddChoiceControls.fill button {
+		flex: 1;
+		justify-content: center;
 	}
 
 	@media (max-width: 800px) {
