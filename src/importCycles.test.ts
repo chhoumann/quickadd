@@ -75,7 +75,9 @@ const extendsByFile = new Map<string, Set<string>>();
 for (const file of files) {
 	let text = readFileSync(file, "utf8");
 	if (file.endsWith(".svelte")) {
-		const m = text.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+		// Closing tag tolerates whitespace (`</script >`) to satisfy CodeQL
+		// js/bad-tag-filter; we only parse our own trusted Svelte sources here.
+		const m = text.match(/<script[^>]*>([\s\S]*?)<\/script\s*>/i);
 		text = m ? m[1] : "";
 	}
 
