@@ -212,7 +212,10 @@
         padding-left: 25px;
     }
 
+    /* The per-folder add-row is the folder's own affordance: one spacing step
+       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to
+       this folder", but with real breathing room (2px cramped it). */
     .nestedAddRow {
-        margin: 2px 0 0 0;
+        margin: 8px 0 0 0;
     }
 </style>
