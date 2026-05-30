@@ -1,23 +1,6 @@
-import type {
-	BaseComponent,
-	IconName,
-	Plugin as ObsidianPlugin,
-} from "obsidian";
+import type { Plugin as ObsidianPlugin } from "obsidian";
 
 declare module "obsidian" {
-	interface CliData {
-		[key: string]: string;
-	}
-
-	interface CliFlag {
-		value?: string;
-		description: string;
-		required?: boolean;
-	}
-
-	type CliFlags = Record<string, CliFlag>;
-	type CliHandler = (params: CliData) => string | Promise<string>;
-
 	interface App {
 		plugins: {
 			plugins: {
@@ -46,29 +29,5 @@ declare module "obsidian" {
 			},
 			findCommand: (commandId: string) => Command;
 		};
-	}
-
-	interface Setting {
-		addComponent<T extends BaseComponent>(cb: (el: HTMLElement) => T): this;
-	}
-
-	export class SettingGroup {
-		constructor(containerEl: HTMLElement);
-		setHeading(text: string | DocumentFragment): this;
-		addClass(cls: string): this;
-		addSetting(cb: (setting: Setting) => void): this;
-	}
-
-	interface SettingTab {
-		icon: IconName;
-	}
-
-	interface Plugin {
-		registerCliHandler?: (
-			command: string,
-			description: string,
-			flags: CliFlags | null,
-			handler: CliHandler,
-		) => void;
 	}
 }

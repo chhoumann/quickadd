@@ -39,6 +39,14 @@
 
 	let filterQuery = $state(""); // not persisted
 
+	// Reactive mirror of the AI/online gate so the "AI Assistant" button below
+	// reflects toggles of `disableOnlineFeatures` made in the (now declarative)
+	// settings tab live — the old imperative tab re-rendered on every change, the
+	// declarative tab does not re-mount this view.
+	let disableOnlineFeatures = $state(
+		settingsStore.getState().disableOnlineFeatures,
+	);
+
 	// Command registry for managing Obsidian commands (plugin is constant for the
 	// component's life; untrack avoids a spurious state_referenced_locally warning).
 	const commandRegistry = new CommandRegistry(untrack(() => plugin));
@@ -49,6 +57,7 @@
 	$effect(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
 			choices = settings.choices;
+			disableOnlineFeatures = settings.disableOnlineFeatures;
 		});
 		return () => unsubSettingsStore();
 	});
@@ -244,7 +253,7 @@
 		/>
 	{/if}
 	<div class="choiceViewBottomBar">
-		{#if !settingsStore.getState().disableOnlineFeatures}
+		{#if !disableOnlineFeatures}
 			<button class="mod-cta" onclick={openAISettings}
 				>AI Assistant</button
 			>

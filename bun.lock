@@ -29,7 +29,7 @@
         "eslint-plugin-svelte": "^3.18.0",
         "globals": "17",
         "jsdom": "29",
-        "obsidian": "1.11.4",
+        "obsidian": "1.13.0",
         "obsidian-dataview": "^0.5.68",
         "obsidian-e2e": "0.6.0",
         "semantic-release": "^24.2.9",
@@ -1058,7 +1058,7 @@
 
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
 
-    "obsidian": ["obsidian@1.11.4", "", { "dependencies": { "@types/codemirror": "5.60.8", "moment": "2.29.4" }, "peerDependencies": { "@codemirror/state": "6.5.0", "@codemirror/view": "6.38.6" } }, "sha512-n0KD3S+VndgaByrEtEe8NELy0ya6/s+KZ7OcxA6xOm5NN4thxKpQjo6eqEudHEvfGCeT/TYToAKJzitQ1I3XTg=="],
+    "obsidian": ["obsidian@1.13.0", "", { "dependencies": { "@types/codemirror": "5.60.8", "moment": "2.29.4" }, "peerDependencies": { "@codemirror/state": "6.5.0", "@codemirror/view": "6.38.6" } }, "sha512-PHw5+SAPlJ0S3leFvJ0wgFg63Z3DavxL6+d1ll+8toXR2ZlYKc1rMWqdUv9LgUbTwPQUyY6yfhOMMivampRRiQ=="],
 
     "obsidian-calendar-ui": ["obsidian-calendar-ui@0.3.12", "", { "dependencies": { "obsidian-daily-notes-interface": "0.8.4", "svelte": "3.35.0", "tslib": "2.1.0" } }, "sha512-hdoRqCPnukfRgCARgArXaqMQZ+Iai0eY7f0ZsFHHfywpv4gKg3Tx5p47UsLvRO5DD+4knlbrL7Gel57MkfcLTw=="],
 

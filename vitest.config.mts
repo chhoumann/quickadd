@@ -5,6 +5,15 @@ import { svelteTesting } from "@testing-library/svelte/vite";
 
 export default defineConfig({
 	plugins: [svelte(), svelteTesting()],
+	// Mirror the esbuild build-time defines so code that reads these constants
+	// (e.g. the settings tab's dev-only group) runs under vitest without a
+	// ReferenceError. Tests run as a non-dev build.
+	define: {
+		__IS_DEV_BUILD__: "false",
+		__DEV_GIT_BRANCH__: "null",
+		__DEV_GIT_COMMIT__: "null",
+		__DEV_GIT_DIRTY__: "false",
+	},
 	resolve: {
 		alias: {
 			src: path.resolve("./src"),
