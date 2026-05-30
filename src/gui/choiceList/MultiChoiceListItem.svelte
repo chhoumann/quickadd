@@ -1,5 +1,6 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
+    import AddChoiceControls from "./AddChoiceControls.svelte";
     import ChoiceList from "./ChoiceList.svelte";
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
@@ -142,6 +143,20 @@
                     rootReorder={rootReorder ?? actions.onReorderChoices}
                     actions={nestedActions}
                 />
+                <!-- Add-into-folder affordance. Lives OUTSIDE the ChoiceList's
+                     dndzone (it's a sibling after <ChoiceList>), so svelte-dnd
+                     never treats it as a draggable item / shadow placeholder.
+                     Hidden while filtering (the filtered tree is a clone that
+                     must not be persisted). -->
+                {#if !forceDragDisabled}
+                    <div class="nestedAddRow">
+                        <AddChoiceControls
+                            compact
+                            targetFolderId={choice.id}
+                            onAddChoice={actions.onAddChoice}
+                        />
+                    </div>
+                {/if}
             </div>
         {/if}
     {/if}
@@ -190,5 +205,9 @@
 
     .nestedChoiceList {
         padding-left: 25px;
+    }
+
+    .nestedAddRow {
+        margin: 8px 0 4px 0;
     }
 </style>

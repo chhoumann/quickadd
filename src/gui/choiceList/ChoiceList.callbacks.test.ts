@@ -30,6 +30,7 @@ function actionsSpy(): ChoiceListActions {
 		onRenameChoice: vi.fn(),
 		onMoveChoice: vi.fn(),
 		onReorderChoices: vi.fn(),
+		onAddChoice: vi.fn(),
 	};
 }
 

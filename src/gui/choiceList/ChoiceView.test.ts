@@ -72,7 +72,7 @@ describe("ChoiceView", () => {
 	// circular dependency that threw `Class extends value undefined`, so it can be
 	// mounted in a CI vitest component test at all.
 	it("mounts in vitest without the circular-import crash", () => {
-		const { getByLabelText, getByText } = renderChoiceView([
+		const { getByLabelText } = renderChoiceView([
 			conditionalMacroChoice(),
 		]);
 
@@ -81,7 +81,7 @@ describe("ChoiceView", () => {
 			getByLabelText("Configure QA Conditional Macro"),
 		).toBeInTheDocument();
 		// And the view chrome that proves the full subtree rendered.
-		expect(getByText("Add Choice")).toBeInTheDocument();
+		expect(getByLabelText("New choice")).toBeInTheDocument();
 	});
 
 	// Complements the local obsidian-e2e conditional-branch-persistence test in CI:
@@ -90,16 +90,14 @@ describe("ChoiceView", () => {
 	it("persists conditional Then-branch data through saveChoices as a plain snapshot", async () => {
 		const saveChoices =
 			vi.fn<(next: Plain<IChoice[]>) => void>();
-		const { getByPlaceholderText, getByText } = renderChoiceView(
+		const { getByLabelText } = renderChoiceView(
 			[conditionalMacroChoice()],
 			saveChoices,
 		);
 
-		// Drive the actual UI: name a new choice and add it -> ChoiceView.save().
-		await fireEvent.input(getByPlaceholderText("Name"), {
-			target: { value: "Second choice" },
-		});
-		await fireEvent.click(getByText("Add Choice"));
+		// Drive the real save path: "New folder" adds a choice directly (no type
+		// menu, no builder modal to stub) -> ChoiceView.save().
+		await fireEvent.click(getByLabelText("New folder"));
 
 		await vi.waitFor(() => expect(saveChoices).toHaveBeenCalledTimes(1));
 
@@ -107,7 +105,7 @@ describe("ChoiceView", () => {
 		// The new choice was appended...
 		expect(saved.map((c) => c.name)).toEqual([
 			"QA Conditional Macro",
-			"Second choice",
+			"New folder",
 		]);
 		// ...and the pre-existing conditional's Then branch survives with full nested
 		// fidelity (not just length) — the exact data-loss the e2e test guards against.
@@ -117,5 +115,36 @@ describe("ChoiceView", () => {
 		]);
 		// Persisted payload is a plain, JSON-serializable snapshot (no $state Proxy).
 		expect(JSON.parse(JSON.stringify(saved))).toEqual(saved);
+	});
+
+	// Covers the redesign's novel add-into-folder path end-to-end through the
+	// real component DOM (the per-folder "New folder" affordance), which the
+	// Obsidian Menu / builder modal can't be synthetically driven to exercise.
+	it("adds into an expanded folder and keeps it expanded", async () => {
+		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Child", type: "Template" }],
+		} as unknown as IChoice;
+
+		const { findByLabelText } = renderChoiceView([folderChoice], saveChoices);
+
+		// The per-folder affordance inside the expanded folder adds INTO it.
+		await fireEvent.click(await findByLabelText("New folder in this folder"));
+
+		await vi.waitFor(() => expect(saveChoices).toHaveBeenCalled());
+		const saved = saveChoices.mock.calls.at(-1)![0];
+		const folder = saved.find((c) => c.id === "f1") as
+			| { collapsed: boolean; choices: Array<{ name: string }> }
+			| undefined;
+		// New folder landed inside f1 (after its child) and f1 stayed expanded.
+		expect(folder?.collapsed).toBe(false);
+		expect(folder?.choices.map((c) => c.name)).toEqual([
+			"Child",
+			"New folder",
+		]);
 	});
 });

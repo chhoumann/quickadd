@@ -11,6 +11,7 @@
 		createToggleCommandChoice,
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
+		addChoiceToTree,
 		moveChoice as moveChoiceService,
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
@@ -19,7 +20,7 @@
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { promptRenameChoice } from "../choiceRename";
-	import AddChoiceBox from "./AddChoiceBox.svelte";
+	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { type Plain, snapshot } from "../svelte/persist.svelte";
@@ -100,10 +101,37 @@
 		return list.map((c) => walk(c)).filter(Boolean) as IChoice[];
 	}
 
-	function addChoiceToList(name: string, type: ChoiceType): void {
+	async function addChoiceToList(
+		name: string,
+		type: ChoiceType,
+		targetFolderId?: string,
+		skipConfigure = false,
+	): Promise<void> {
 		const newChoice = createChoice(type, name);
-		choices = [...choices, newChoice];
-		save();
+		choices = addChoiceToTree(choices, newChoice, targetFolderId);
+
+		// A root-level add while a filter is active would otherwise look like
+		// nothing happened (the auto-named choice may not match the filter).
+		if (!targetFolderId && filterQuery.trim().length > 0) {
+			filterQuery = "";
+		}
+
+		// Doers (Template/Capture/Macro) hand off to their builder so the user
+		// isn't stranded on an unconfigured row; handleConfigureChoice persists
+		// the result, so there's no eager save here (avoids a double write).
+		// Folders and Alt-click skip the builder and are committed immediately.
+		if (type !== "Multi" && !skipConfigure) {
+			try {
+				await handleConfigureChoice(newChoice);
+			} catch (err) {
+				// Builders resolve rather than reject, but don't let a stray throw
+				// become an unhandled rejection or lose the new choice.
+				console.error("QuickAdd: failed to configure new choice", err);
+				save();
+			}
+		} else {
+			save();
+		}
 	}
 
 	async function deleteChoice(choice: IChoice) {
@@ -194,6 +222,7 @@
 		onRenameChoice: handleRenameChoice,
 		onMoveChoice: handleMoveChoice,
 		onReorderChoices: handleReorderChoices,
+		onAddChoice: addChoiceToList,
 	};
 
 	async function openAISettings() {
@@ -210,66 +239,118 @@
 
 
 <div>
-	<div class="choiceFilterBar">
-		<div class="choiceFilterInputWrapper">
-			<input
-				type="text"
-				placeholder="Filter choices (fuzzy)"
-				bind:value={filterQuery}
-				autocapitalize="off"
-				autocorrect="off"
-				spellcheck={false}
-				onkeydown={(e) => {
-					if (e.key === 'Escape' && filterQuery) {
-						filterQuery = "";
-						e.stopPropagation();
-					}
-				}}
-			/>
-			{#if filterQuery}
-				<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
-					onclick={() => (filterQuery = "")}
+	{#if choices.length === 0 && filterQuery.trim().length === 0}
+		<!-- First-run / empty state: the hero is the single focal CTA (the top-bar
+		     add controls are not rendered here, so there's no duplicate). -->
+		<div class="choiceEmptyState">
+			<ObsidianIcon iconId="folder-plus" size={28} />
+			<div class="choiceEmptyTitle">No choices yet</div>
+			<p class="choiceEmptyBody">
+				A choice is an action QuickAdd can run — create a note, capture
+				text, or run a macro. Group them with folders.
+			</p>
+			<div class="choiceEmptyActions">
+				<AddChoiceControls onAddChoice={addChoiceToList} />
+			</div>
+		</div>
+	{:else}
+		<div class="choiceViewTopBar">
+			<div class="choiceAddGroup">
+				<AddChoiceControls onAddChoice={addChoiceToList} />
+			</div>
+			{#if !disableOnlineFeatures}
+				<button class="mod-cta qa-ai-assistant-btn" onclick={openAISettings}
+					>AI Assistant</button
 				>
-					<ObsidianIcon iconId="x" size={14} />
-				</button>
 			{/if}
 		</div>
-	</div>
 
-	{#if filterQuery.trim().length === 0}
-		<ChoiceList
-			{app}
-			roots={choices}
-			bind:choices
-			{actions}
-		/>
-	{:else}
-		<ChoiceList
-			{app}
-			roots={choices}
-			choices={filterChoices(choices, filterQuery)}
-			forceDragDisabled={true}
-			{actions}
-		/>
-	{/if}
-	<div class="choiceViewBottomBar">
-		{#if !disableOnlineFeatures}
-			<button class="mod-cta" onclick={openAISettings}
-				>AI Assistant</button
-			>
+		<div class="choiceFilterBar">
+			<div class="choiceFilterInputWrapper">
+				<input
+					type="text"
+					placeholder="Filter choices (fuzzy)"
+					bind:value={filterQuery}
+					autocapitalize="off"
+					autocorrect="off"
+					spellcheck={false}
+					onkeydown={(e) => {
+						if (e.key === 'Escape' && filterQuery) {
+							filterQuery = "";
+							e.stopPropagation();
+						}
+					}}
+				/>
+				{#if filterQuery}
+					<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
+						onclick={() => (filterQuery = "")}
+					>
+						<ObsidianIcon iconId="x" size={14} />
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		{#if filterQuery.trim().length === 0}
+			<ChoiceList
+				{app}
+				roots={choices}
+				bind:choices
+				{actions}
+			/>
+		{:else}
+			<ChoiceList
+				{app}
+				roots={choices}
+				choices={filterChoices(choices, filterQuery)}
+				forceDragDisabled={true}
+				{actions}
+			/>
 		{/if}
-		<AddChoiceBox onAddChoice={addChoiceToList} />
-	</div>
+	{/if}
 </div>
 
 <style>
-	.choiceViewBottomBar {
+	.choiceViewTopBar {
 		display: flex;
 		flex-direction: row;
 		align-items: center;
-		justify-content: space-between;
-		margin-top: 1rem;
-		gap: 1rem;
+		gap: 0.5rem;
+		margin-bottom: 0.75rem;
+	}
+
+	/* The add cluster is pinned left (margin-right:auto); the AI button (when
+	   shown) sits to its right. The add cluster's position no longer depends on
+	   whether the AI button is present, so it can't collapse to the left when
+	   AI/online features are disabled. */
+	.choiceAddGroup {
+		display: flex;
+		gap: 0.5rem;
+		margin-right: auto;
+	}
+
+	.choiceEmptyState {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		gap: 0.5rem;
+		padding: 2.5rem 1rem;
+		color: var(--text-muted);
+	}
+
+	.choiceEmptyTitle {
+		font-weight: var(--font-semibold);
+		color: var(--text-normal);
+	}
+
+	.choiceEmptyBody {
+		margin: 0;
+		max-width: 42ch;
+	}
+
+	.choiceEmptyActions {
+		margin-top: 0.5rem;
 	}
 
 	.choiceFilterBar {
@@ -305,8 +386,13 @@
 	}
 
 	@media (max-width: 800px) {
-		.choiceViewBottomBar {
+		.choiceViewTopBar {
 			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.choiceAddGroup {
+			margin-right: 0;
 		}
 	}
 </style>
