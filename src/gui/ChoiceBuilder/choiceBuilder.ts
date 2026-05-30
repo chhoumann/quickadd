@@ -99,21 +99,28 @@ export abstract class ChoiceBuilder extends Modal {
 		const headerEl: HTMLHeadingElement = this.contentEl.createEl("h2", {
 			cls: "choiceNameHeader",
 		});
-		const textEl = headerEl.createSpan({
+		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
+		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
+		const button = headerEl.createEl("button", {
+			cls: "choiceNameHeaderButton qa-rename-title-button",
+			attr: { type: "button", "aria-label": `Rename ${choice.name}` },
+		});
+		const textEl = button.createSpan({
 			text: choice.name,
 			cls: "choiceNameHeaderText",
 		});
-		const iconEl = headerEl.createSpan({
+		const iconEl = button.createSpan({
 			cls: "choiceNameHeaderIcon",
 			attr: { "aria-hidden": "true" },
 		});
 		setIcon(iconEl, "pencil");
 
-		headerEl.addEventListener("click", async (ev) => {
+		button.addEventListener("click", async () => {
 			const newName = await promptRenameChoice(this.app, choice.name);
 			if (!newName) return;
 			choice.name = newName;
 			textEl.setText(newName);
+			button.setAttribute("aria-label", `Rename ${newName}`);
 		});
 	}
 

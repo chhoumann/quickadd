@@ -31,7 +31,11 @@ describe("CommandList conditional branch persistence", () => {
 		});
 
 		const { getByLabelText } = render(CommandList, { props });
-		await fireEvent.click(getByLabelText("Edit then branch"));
+		// Edit labels include the condition summary (a11y); a default condition
+		// summarizes as "(missing variable) is truthy".
+		await fireEvent.click(
+			getByLabelText("Edit then branch for (missing variable) is truthy"),
+		);
 
 		await vi.waitFor(() => expect(saveCommands).toHaveBeenCalledTimes(1));
 		const saved = saveCommands.mock.calls[0][0] as Array<{ thenCommands?: unknown[] }>;
@@ -54,7 +58,11 @@ describe("CommandList conditional branch persistence", () => {
 		});
 
 		const { getByLabelText } = render(CommandList, { props });
-		await fireEvent.click(getByLabelText("Edit then branch"));
+		// Edit labels include the condition summary (a11y); a default condition
+		// summarizes as "(missing variable) is truthy".
+		await fireEvent.click(
+			getByLabelText("Edit then branch for (missing variable) is truthy"),
+		);
 		await Promise.resolve();
 
 		expect(saveCommands).not.toHaveBeenCalled();

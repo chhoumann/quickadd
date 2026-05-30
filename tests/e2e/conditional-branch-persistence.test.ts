@@ -96,7 +96,9 @@ describe("conditional command branch persistence (regression for the runes rewri
 		expect(cfg).toBe("cfg=true");
 		await sleep(1500);
 
-		const then = await sev(`const t=lastBy('Edit then branch'); t&&t.click(); return 'then='+!!t;`);
+		// Match by aria-label PREFIX: the label now carries the condition-summary
+		// suffix ("Edit then branch for <summary>"), so an exact match would miss.
+		const then = await sev(`const els=Array.from(document.querySelectorAll('[aria-label^="Edit then branch"]')); const t=els[els.length-1]; t&&t.click(); return 'then='+!!t;`);
 		expect(then).toBe("then=true");
 		await sleep(1500);
 

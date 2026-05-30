@@ -1,5 +1,6 @@
 <script lang="ts">
-	import ObsidianIcon from "../../components/ObsidianIcon.svelte";
+	import IconButton from "../../components/IconButton.svelte";
+	import DragHandle from "../../components/DragHandle.svelte";
 	import type { IConditionalCommand } from "../../../types/macros/Conditional/IConditionalCommand";
 	import { getConditionSummary } from "../../../utils/conditionalHelpers";
 
@@ -11,14 +12,18 @@
 		onConfigureCondition,
 		onEditThenBranch,
 		onEditElseBranch,
+		onMoveUp,
+		onMoveDown,
 	}: {
 		command: IConditionalCommand;
-		startDrag: (e: MouseEvent | TouchEvent) => void;
+		startDrag: () => void;
 		dragDisabled: boolean;
 		onDeleteCommand: (commandId: string) => void;
 		onConfigureCondition: (command: IConditionalCommand) => void;
 		onEditThenBranch: (command: IConditionalCommand) => void;
 		onEditElseBranch: (command: IConditionalCommand) => void;
+		onMoveUp?: () => void;
+		onMoveDown?: () => void;
 	} = $props();
 
 	const summary = $derived(getConditionSummary(command.condition));
@@ -26,72 +31,48 @@
 	const elseCount = $derived(command.elseCommands?.length ?? 0);
 </script>
 
-<div class="quickAddCommandListItem conditionalCommand">
-	<li>
+<li class="quickAddCommandListItem conditionalCommand">
+	<div class="quickAddCommandLabel">
 		<div class="conditionalSummary">{summary}</div>
 		<div class="conditionalBranches">
 			<span>Then: {thenCount}</span>
 			<span>Else: {elseCount}</span>
 		</div>
-	</li>
-	<div>
-		<span
-			role="button"
-			tabindex="0"
-			class="clickable"
-			onclick={() => onConfigureCondition(command)}
-			onkeypress={(e) =>
-				(e.key === "Enter" || e.key === " ") && onConfigureCondition(command)}
-			aria-label="Edit condition"
-		>
-			<ObsidianIcon iconId="settings" size={16} />
-		</span>
-		<span
-			role="button"
-			tabindex="0"
-			class="clickable"
-			onclick={() => onEditThenBranch(command)}
-			onkeypress={(e) =>
-				(e.key === "Enter" || e.key === " ") && onEditThenBranch(command)}
-			aria-label="Edit then branch"
-		>
-			<ObsidianIcon iconId="corner-down-right" size={16} />
-		</span>
-		<span
-			role="button"
-			tabindex="0"
-			class="clickable"
-			onclick={() => onEditElseBranch(command)}
-			onkeypress={(e) =>
-				(e.key === "Enter" || e.key === " ") && onEditElseBranch(command)}
-			aria-label="Edit else branch"
-		>
-			<ObsidianIcon iconId="corner-down-left" size={16} />
-		</span>
-		<span
-			role="button"
-			tabindex="0"
-			class="clickable"
-			onclick={() => onDeleteCommand(command.id)}
-			onkeypress={(e) =>
-				(e.key === "Enter" || e.key === " ") && onDeleteCommand(command.id)}
-			aria-label="Delete command"
-		>
-			<ObsidianIcon iconId="trash-2" size={16} />
-		</span>
-		<span
-			role="button"
-			onmousedown={startDrag}
-			ontouchstart={startDrag}
-			class:qa-drag-handle-ready={dragDisabled}
-			class:qa-drag-handle-active={!dragDisabled}
-			tabindex={dragDisabled ? 0 : -1}
-			aria-label="Drag command"
-		>
-			<ObsidianIcon iconId="grip-vertical" size={16} />
-		</span>
 	</div>
-</div>
+	<div class="quickAddCommandControls">
+		<IconButton
+			iconId="settings"
+			label={`Edit condition for ${summary}`}
+			extraClass="clickable"
+			onclick={() => onConfigureCondition(command)}
+		/>
+		<IconButton
+			iconId="corner-down-right"
+			label={`Edit then branch for ${summary}`}
+			extraClass="clickable"
+			onclick={() => onEditThenBranch(command)}
+		/>
+		<IconButton
+			iconId="corner-down-left"
+			label={`Edit else branch for ${summary}`}
+			extraClass="clickable"
+			onclick={() => onEditElseBranch(command)}
+		/>
+		<IconButton
+			iconId="trash-2"
+			label={`Delete ${command.name}`}
+			extraClass="clickable"
+			onclick={() => onDeleteCommand(command.id)}
+		/>
+		<DragHandle
+			label={`Reorder ${command.name}`}
+			{dragDisabled}
+			onDragStart={startDrag}
+			{onMoveUp}
+			{onMoveDown}
+		/>
+	</div>
+</li>
 
 <style>
 	.conditionalCommand {

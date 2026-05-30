@@ -1,6 +1,7 @@
 <script lang="ts">
     import type {ICommand} from "../../../types/macros/ICommand";
-    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
+    import IconButton from "../../components/IconButton.svelte";
+    import DragHandle from "../../components/DragHandle.svelte";
     import {getCommandDisplayName} from "../../../utils/macroHelpers";
 
     let {
@@ -8,36 +9,33 @@
         startDrag,
         dragDisabled,
         onDeleteCommand,
+        onMoveUp,
+        onMoveDown,
     }: {
         command: ICommand;
-        startDrag: (e: MouseEvent | TouchEvent) => void;
+        startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
+        onMoveUp?: () => void;
+        onMoveDown?: () => void;
     } = $props();
 </script>
 
-<div class="quickAddCommandListItem">
-    <li>{getCommandDisplayName(command)}</li>
-    <div>
-        <span
-            role="button"
-            tabindex="0"
+<li class="quickAddCommandListItem">
+    <span class="quickAddCommandLabel">{getCommandDisplayName(command)}</span>
+    <div class="quickAddCommandControls">
+        <IconButton
+            iconId="trash-2"
+            label={`Delete ${getCommandDisplayName(command)}`}
+            extraClass="clickable"
             onclick={() => onDeleteCommand(command.id)}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteCommand(command.id)}
-            class="clickable"
-        >
-            <ObsidianIcon iconId="trash-2" size={16} />
-        </span>
-        <span
-              role="button"
-              onmousedown={startDrag}
-              ontouchstart={startDrag}
-              aria-label="Drag-handle"
-              class:qa-drag-handle-ready={dragDisabled}
-              class:qa-drag-handle-active={!dragDisabled}
-              tabindex={dragDisabled ? 0 : -1}
-        >
-            <ObsidianIcon iconId="grip-vertical" size={16} />
-        </span>
+        />
+        <DragHandle
+            label={`Reorder ${getCommandDisplayName(command)}`}
+            {dragDisabled}
+            onDragStart={startDrag}
+            {onMoveUp}
+            {onMoveDown}
+        />
     </div>
-</div>
+</li>

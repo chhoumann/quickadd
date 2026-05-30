@@ -61,6 +61,15 @@ export default [
             // (new Set/Map -> assign), which is reactive under $state. SvelteSet/SvelteMap
             // are only needed for in-place mutation, so this rule is a false positive here.
             'svelte/prefer-svelte-reactivity': 'off',
+
+            // eslint-plugin-svelte v3 ships no dedicated a11y-* rules; the Svelte 5
+            // compiler emits the a11y_* warnings instead. valid-compile surfaces those
+            // (plus other compiler warnings, e.g. css_unused_selector) as lint errors,
+            // so a bare interactive <div>/<span> can't be reintroduced without CI
+            // catching it. Baseline is clean after the #1250 a11y pass. Note: this is a
+            // regression ratchet — it does NOT police accessible names on icon-only
+            // buttons or keyboard-operable drag handles, which are covered by tests.
+            'svelte/valid-compile': 'error',
         },
     },
     // Special rules for main.ts to preserve critical import order

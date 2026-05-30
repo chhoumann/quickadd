@@ -1,5 +1,5 @@
 <script lang="ts">
-    import ObsidianIcon from "../components/ObsidianIcon.svelte";
+    import IconButton from "../components/IconButton.svelte";
     import type { FolderListProps } from "./folderListProps.svelte";
 
     let { folders, deleteFolder }: FolderListProps = $props();
@@ -9,15 +9,11 @@
     {#each folders as folder (folder)}
         <div class="quickAddCommandListItem">
             <span>{folder}</span>
-            <span
-                role="button"
-                tabindex="0"
+            <IconButton
+                iconId="trash-2"
+                label={`Remove folder ${folder}`}
                 onclick={() => deleteFolder(folder)}
-                onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && deleteFolder(folder)}
-                class="clickable"
-            >
-                <ObsidianIcon iconId="trash-2" size={16} />
-            </span>
+            />
         </div>
     {/each}
 </div>
@@ -40,10 +36,5 @@
 .quickAddCommandList {
     max-width: 50%;
     margin: 12px auto;
-}
-
-
-.clickable {
-    cursor: pointer;
 }
 </style>

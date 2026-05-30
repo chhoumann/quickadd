@@ -1,5 +1,6 @@
 <script lang="ts">
-    import ObsidianIcon from "../../components/ObsidianIcon.svelte";
+    import IconButton from "../../components/IconButton.svelte";
+    import DragHandle from "../../components/DragHandle.svelte";
     import type {IUserScript} from "../../../types/macros/IUserScript";
 
     let {
@@ -8,48 +9,40 @@
         dragDisabled,
         onDeleteCommand,
         onConfigureScript,
+        onMoveUp,
+        onMoveDown,
     }: {
         command: IUserScript;
-        startDrag: (e: MouseEvent | TouchEvent) => void;
+        startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
         onConfigureScript: (command: IUserScript) => void;
+        onMoveUp?: () => void;
+        onMoveDown?: () => void;
     } = $props();
 </script>
 
-<div class="quickAddCommandListItem">
-    <li>
-        {command.name}
-    </li>
-    <div>
-        <span
-            role="button"
-            tabindex="0"
+<li class="quickAddCommandListItem">
+    <span class="quickAddCommandLabel">{command.name}</span>
+    <div class="quickAddCommandControls">
+        <IconButton
+            iconId="settings"
+            label={`Configure ${command.name}`}
+            extraClass="clickable"
             onclick={() => onConfigureScript(command)}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onConfigureScript(command)}
-            class="clickable"
-        >
-            <ObsidianIcon iconId="settings" size={16} />
-        </span>
-        <span
-            role="button"
-            tabindex="0"
+        />
+        <IconButton
+            iconId="trash-2"
+            label={`Delete ${command.name}`}
+            extraClass="clickable"
             onclick={() => onDeleteCommand(command.id)}
-            onkeypress={(e) => (e.key === 'Enter' || e.key === ' ') && onDeleteCommand(command.id)}
-            class="clickable"
-        >
-            <ObsidianIcon iconId="trash-2" size={16} />
-        </span>
-        <span
-              role="button"
-              onmousedown={startDrag}
-              ontouchstart={startDrag}
-              aria-label="Drag-handle"
-              class:qa-drag-handle-ready={dragDisabled}
-              class:qa-drag-handle-active={!dragDisabled}
-              tabindex={dragDisabled ? 0 : -1}
-        >
-            <ObsidianIcon iconId="grip-vertical" size={16} />
-        </span>
+        />
+        <DragHandle
+            label={`Reorder ${command.name}`}
+            {dragDisabled}
+            onDragStart={startDrag}
+            {onMoveUp}
+            {onMoveDown}
+        />
     </div>
-</div>
+</li>

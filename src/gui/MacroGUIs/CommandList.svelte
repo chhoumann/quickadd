@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
+import { Platform } from "obsidian";
 import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 import { replaceById, stripShadow } from "../shared/dndReorder";
 import { snapshot } from "../svelte/persist.svelte";
@@ -40,7 +41,11 @@ let {
 	onEditElseBranch,
 }: CommandListProps = $props();
 
-let dragDisabled = $state(true);
+const isMobile = Platform.isMobile;
+// Desktop: drag is armed by grabbing the handle. Mobile: no handle — the whole row
+// is draggable by long-press (delayTouchStart), so drag stays enabled.
+let dragArmed = $state(false);
+const dragDisabled = $derived(!isMobile && !dragArmed);
 
 // Narrowing helpers: the {#each} discriminates on command.type, so each child
 // receives the matching subtype. Passed one-way — children report edits via the
@@ -66,17 +71,36 @@ function handleConsider(e: CustomEvent<DndEvent>) {
 function handleSort(e: CustomEvent<DndEvent>) {
 	commands = stripShadow(e.detail.items as ICommand[]);
 
+	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
+	// Mobile: dragDisabled ignores dragArmed, so this is a no-op.
 	if (e.detail.info.source === SOURCES.POINTER) {
-		dragDisabled = true;
+		dragArmed = false;
 	}
 
 	persist();
 }
 
-let startDrag = (e: MouseEvent | TouchEvent) => {
-	e.preventDefault();
-	dragDisabled = false;
+// Arm svelte-dnd-action's pointer drag (desktop handle). NO preventDefault here —
+// see DragHandle: preventDefault on pointerdown would suppress the compat mousedown
+// the library starts the drag from.
+let startDrag = () => {
+	dragArmed = true;
 };
+
+// Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle): move the command one
+// step and persist via the same snapshot path as a pointer drag's finalize.
+function moveCommand(id: string, direction: -1 | 1) {
+	const list = stripShadow(commands);
+	const index = list.findIndex((c) => c.id === id);
+	if (index === -1) return;
+	const target = index + direction;
+	if (target < 0 || target >= list.length) return; // clamp at the ends
+	const next = [...list];
+	const [moved] = next.splice(index, 1);
+	next.splice(target, 0, moved);
+	commands = next;
+	persist();
+}
 
 function updateCommand(command: ICommand) {
 	commands = replaceById(commands, command);
@@ -169,6 +193,13 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		dragDisabled,
 		dropTargetStyle: {},
 		type: "command",
+		autoAriaDisabled: true,
+		// Keep the rows out of the tab order — only the action buttons / drag handle
+		// inside each row are focusable (the library defaults this to 0, adding a dead
+		// tab stop per row even with autoAriaDisabled).
+		zoneItemTabIndex: -1,
+		// Mobile: long-press (hold) initiates a row drag; a quick swipe still scrolls.
+		delayTouchStart: 200,
 	}}
 	onconsider={handleConsider}
 	onfinalize={handleSort}
@@ -181,6 +212,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onUpdateCommand={updateCommand}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.NestedChoice}
 			<NestedChoiceCommand
@@ -189,6 +222,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureChoice={configureChoice}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.UserScript}
 			<UserScriptCommand
@@ -197,6 +232,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureScript={configureScript}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.AIAssistant}
 			<AIAssistantCommand
@@ -205,6 +242,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureAssistant={configureAssistant}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.OpenFile}
 			<OpenFileCommand
@@ -213,6 +252,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{startDrag}
 				onDeleteCommand={deleteCommand}
 				onConfigureOpenFile={configureOpenFile}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
@@ -223,6 +264,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				onConfigureCondition={configureConditionalCommand}
 				onEditThenBranch={editConditionalThen}
 				onEditElseBranch={editConditionalElse}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else}
 			<StandardCommand
@@ -230,6 +273,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{dragDisabled}
 				{startDrag}
 				onDeleteCommand={deleteCommand}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{/if}
 	{/each}
