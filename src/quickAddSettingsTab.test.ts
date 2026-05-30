@@ -146,16 +146,22 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 
 	it("setControlValue writes through the settingsStore, not plugin.settings", () => {
 		const tab = makeTab();
-		const pluginSettings = (
-			tab.plugin as unknown as { settings?: QuickAddSettings }
-		).settings;
+		const setState = vi.spyOn(settingsStore, "setState");
 
 		tab.setControlValue("useSelectionAsCaptureValue", false);
 
+		// The write goes through the store path — the bridge's whole contract...
+		expect(setState).toHaveBeenCalledWith({
+			useSelectionAsCaptureValue: false,
+		});
 		expect(settingsStore.getState().useSelectionAsCaptureValue).toBe(false);
-		// The bridge must not touch plugin.settings directly — persisting
-		// plugin.settings is the main.ts store subscriber's job.
-		expect(pluginSettings).toBeUndefined();
+		// ...and the bridge must not touch plugin.settings directly — persisting
+		// plugin.settings is the main.ts store subscriber's job. Read it AFTER
+		// the call so a stray write would actually be caught.
+		expect(
+			(tab.plugin as unknown as { settings?: QuickAddSettings }).settings,
+		).toBeUndefined();
+		setState.mockRestore();
 	});
 
 	it("getControlValue reads the current store value", () => {
