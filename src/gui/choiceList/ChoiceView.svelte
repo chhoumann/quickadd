@@ -321,15 +321,20 @@
 
 		<div class="choiceViewBottomBar">
 			{#if !disableOnlineFeatures}
-				<!-- Secondary (not mod-cta): "New choice" is the view's single
-				     primary action; AI Assistant is a configure-AI utility. -->
-				<button class="qa-ai-assistant-btn" onclick={openAISettings}
-					>AI Assistant</button
+				<!-- AI Assistant is a quiet configure-AI utility — an icon button
+				     matching the per-row action icons — leading the right cluster so
+				     the bar's width barely changes when AI/online features toggle. -->
+				<button
+					type="button"
+					class="qaAIAssistantBtn clickable-icon"
+					aria-label="Configure AI Assistant"
+					title="Configure AI Assistant"
+					onclick={openAISettings}
 				>
+					<ObsidianIcon iconId="sparkles" size={16} />
+				</button>
 			{/if}
-			<div class="choiceAddGroup">
-				<AddChoiceControls onAddChoice={addChoiceToList} />
-			</div>
+			<AddChoiceControls onAddChoice={addChoiceToList} />
 		</div>
 	{/if}
 </div>
@@ -339,18 +344,25 @@
 		display: flex;
 		flex-direction: row;
 		align-items: center;
+		justify-content: flex-end; /* pack right; "New choice" (primary) is the terminal action */
+		flex-wrap: wrap;
 		gap: 0.5rem;
 		margin-top: 0.75rem;
 	}
 
-	/* The add cluster is pinned RIGHT (margin-left:auto); the AI button (when
-	   shown) sits to its left. The add cluster's position is independent of
-	   whether the AI button is present, so it can't collapse when AI/online
-	   features are disabled (the original justify-content:space-between bug). */
-	.choiceAddGroup {
-		display: flex;
-		gap: 0.5rem;
-		margin-left: auto;
+	/* AI Assistant as a quiet icon button (matches the per-row action icons),
+	   leading the right cluster so the bar's width barely changes when AI/online
+	   features toggle. */
+	.qaAIAssistantBtn {
+		flex: 0 0 auto;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--text-muted);
+	}
+
+	.qaAIAssistantBtn:hover {
+		color: var(--text-normal);
 	}
 
 	.choiceEmptyState {
@@ -409,14 +421,4 @@
 		color: var(--text-normal);
 	}
 
-	@media (max-width: 800px) {
-		.choiceViewBottomBar {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.choiceAddGroup {
-			margin-left: 0;
-		}
-	}
 </style>

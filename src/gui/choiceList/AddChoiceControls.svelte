@@ -91,7 +91,19 @@
 	);
 </script>
 
+<!-- Order: secondary "New folder" first, primary "New choice" last so the primary
+     CTA sits in the terminal (rightmost) position. -->
 <div class="qaAddChoiceControls" class:compact>
+	<button
+		type="button"
+		class="qaNewFolderBtn"
+		aria-label={newFolderLabel}
+		title={compact ? newFolderLabel : undefined}
+		onclick={addFolder}
+	>
+		<ObsidianIcon iconId="folder-plus" size={14} />
+		<span>{newFolderText}</span>
+	</button>
 	<button
 		type="button"
 		class="qaNewChoiceBtn"
@@ -107,16 +119,6 @@
 		{#if !compact}
 			<ObsidianIcon iconId="chevron-down" size={12} />
 		{/if}
-	</button>
-	<button
-		type="button"
-		class="qaNewFolderBtn"
-		aria-label={newFolderLabel}
-		title={compact ? newFolderLabel : undefined}
-		onclick={addFolder}
-	>
-		<ObsidianIcon iconId="folder-plus" size={14} />
-		<span>{newFolderText}</span>
 	</button>
 </div>
 
