@@ -35,7 +35,7 @@
     "eslint-plugin-svelte": "^3.18.0",
     "globals": "17",
     "jsdom": "29",
-    "obsidian": "1.11.4",
+    "obsidian": "1.13.0",
     "obsidian-dataview": "^0.5.68",
     "obsidian-e2e": "0.6.0",
     "semantic-release": "^24.2.9",
