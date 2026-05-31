@@ -87,8 +87,11 @@
         },
     };
 
+    // Routed through the top-level handler (which reassigns the tree immutably) so
+    // the collapse is reactive on first render — an in-place `choice.collapsed = …`
+    // mutation isn't tracked until a reassignment has proxied the choices array.
     function toggleCollapsed() {
-        choice.collapsed = !choice.collapsed;
+        actions.onToggleCollapsed(choice);
     }
 </script>
 

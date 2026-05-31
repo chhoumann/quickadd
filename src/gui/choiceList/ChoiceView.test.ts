@@ -124,6 +124,37 @@ describe("ChoiceView", () => {
 		expect(JSON.parse(JSON.stringify(saved))).toEqual(saved);
 	});
 
+	// Regression for "folders won't open/close on click after a reload": the toggle
+	// must be reactive on the FIRST render, before any add/delete/reorder/drag has
+	// reassigned (and thus proxied) the choices array. A plain mounted array is the
+	// real shape (settingsStore.getState().choices), so this reproduces the bug.
+	it("collapses a folder on click on first render (no prior reassignment)", async () => {
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Child", type: "Template" }],
+		} as unknown as IChoice;
+
+		const { getByLabelText, queryByLabelText } = renderChoiceView([
+			folderChoice,
+		]);
+
+		const toggle = getByLabelText("Toggle Folder");
+		expect(toggle.getAttribute("aria-expanded")).toBe("true");
+		expect(queryByLabelText("Delete Child")).not.toBeNull(); // child visible
+
+		await fireEvent.click(toggle);
+
+		// Collapsed: aria flips and the nested child unmounts.
+		expect(toggle.getAttribute("aria-expanded")).toBe("false");
+		expect(queryByLabelText("Delete Child")).toBeNull();
+
+		await fireEvent.click(toggle); // and back open
+		expect(toggle.getAttribute("aria-expanded")).toBe("true");
+	});
+
 	// Covers the redesign's novel add-into-folder path end-to-end through the
 	// real component DOM (the per-folder "New folder" affordance), which the
 	// Obsidian Menu / builder modal can't be synthetically driven to exercise.

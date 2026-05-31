@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 // -> obsidian-dataview's CJS require('obsidian'); mock it like the component suite.
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-import { addChoiceToTree, insertIntoMulti } from "./choiceService";
+import {
+	addChoiceToTree,
+	insertIntoMulti,
+	setMultiCollapsedById,
+} from "./choiceService";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 
@@ -96,5 +100,36 @@ describe("addChoiceToTree", () => {
 		const roots: IChoice[] = [folder("f1", "F1", [])];
 		const res = addChoiceToTree(roots, leaf("c", "C"), "nope");
 		expect(res.map((c) => c.id)).toEqual(["f1", "c"]);
+	});
+});
+
+describe("setMultiCollapsedById", () => {
+	it("flips a root folder's collapsed flag immutably (new tree, untouched siblings preserved)", () => {
+		const sibling = leaf("b", "B");
+		const roots: IChoice[] = [folder("f1", "F1", [leaf("a", "A")]), sibling];
+
+		const res = setMultiCollapsedById(roots, "f1", true);
+
+		expect((res[0] as IMultiChoice).collapsed).toBe(true);
+		// Original untouched (immutability) and the unrelated sibling kept by identity.
+		expect((roots[0] as IMultiChoice).collapsed).toBe(false);
+		expect(res[1]).toBe(sibling);
+	});
+
+	it("sets a nested folder's collapsed flag at depth >= 2 without disturbing ancestors", () => {
+		const roots: IChoice[] = [folder("f1", "F1", [folder("f2", "F2", [])])];
+
+		const res = setMultiCollapsedById(roots, "f2", true);
+
+		const f1 = res[0] as IMultiChoice;
+		expect(f1.collapsed).toBe(false); // ancestor unchanged
+		expect((f1.choices[0] as IMultiChoice).collapsed).toBe(true);
+	});
+
+	it("is a no-op (returns an equivalent tree) when the id is absent", () => {
+		const roots: IChoice[] = [folder("f1", "F1", []), leaf("b", "B")];
+		const res = setMultiCollapsedById(roots, "missing", true);
+		expect(res.map((c) => c.id)).toEqual(["f1", "b"]);
+		expect((res[0] as IMultiChoice).collapsed).toBe(false);
 	});
 });
