@@ -180,8 +180,11 @@
 		justify-content: center;
 	}
 
+	/* Narrow desktop windows stack the non-compact controls. Filled controls (the
+	   mobile bottom bar) are excluded so this can't override `.fill`'s side-by-side
+	   50/50 layout on a phone-width viewport (Platform.isMobile + width <= 800px). */
 	@media (max-width: 800px) {
-		.qaAddChoiceControls:not(.compact) {
+		.qaAddChoiceControls:not(.compact):not(.fill) {
 			flex-direction: column;
 			align-items: stretch;
 		}
