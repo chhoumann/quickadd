@@ -3,6 +3,7 @@ import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 import { replaceById, stripShadow } from "../shared/dndReorder";
+import { transformDragPill } from "../shared/dragPill";
 import { snapshot } from "../svelte/persist.svelte";
 import type { CommandListProps } from "./commandListProps.svelte";
 import StandardCommand from "./Components/StandardCommand.svelte";
@@ -191,12 +192,14 @@ async function configureOpenFile(command: IOpenFileCommand) {
 	use:dndzone={{
 		items: commands,
 		dragDisabled,
-		// Centre the dragged clone on the cursor so the cursor is the focal point — the
-		// fix for dragging a wide row over a small target (you aim the clone, which is
-		// now centred on your cursor = the detection point). useCursorForDetection keeps
-		// detection on the cursor too. (Flip animation here is a small follow-up.)
-		centreDraggedOnCursor: true,
+		// The floating clone becomes a compact pill under the cursor (transformDragPill
+		// + the #dnd-action-dragged-el rules in styles.css), so there's no full-row
+		// ghost to feel "yanked" onto the cursor. morphDisabled stops the lib
+		// re-inflating the clone to full width each tick; useCursorForDetection keeps
+		// the drop hit-test on the cursor = the visible pill.
+		morphDisabled: true,
 		useCursorForDetection: true,
+		transformDraggedElement: transformDragPill,
 		dropTargetStyle: {},
 		type: "command",
 		autoAriaDisabled: true,

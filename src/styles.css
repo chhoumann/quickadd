@@ -1098,6 +1098,78 @@
 	   drag-induced reflow over a full second — the main source of drag jitter. */
 }
 
+/* ---- Drag clone -> compact pill (replaces the full-row ghost) ----
+   svelte-dnd-action clones the dragged row into a position:fixed
+   #dnd-action-dragged-el and moves it via transform: translate3d(cursorDelta)
+   (lib index.js ~1648) while top/left stay at the ORIGINAL row rect — so the
+   clone's RIGHT edge tracks the cursor (the drag handle is the row's rightmost
+   element). We KEEP the clone's box width (collapsing it would snap the right edge
+   onto the LEFT edge, throwing the pill a full row-width off the cursor), make the
+   box invisible, hide the cloned row chrome, and draw a small pill anchored at the
+   right edge = under the cursor. Built by transformDragPill (src/gui/shared/dragPill.ts);
+   requires morphDisabled:true and centreDraggedOnCursor OFF on the zone. These live
+   in styles.css (always global) because the clone is library-created — a Svelte
+   component-scoped selector would be flagged css_unused_selector. */
+#dnd-action-dragged-el.qa-drag-clone {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	overflow: visible !important;
+	pointer-events: none;
+}
+
+/* Hide the cloned real row (name, buttons, handle, any nested list) — keep the pill. */
+#dnd-action-dragged-el.qa-drag-clone > *:not(.qa-drag-pill) {
+	display: none !important;
+}
+
+/* The pill: content-width, vertically centred on the grab Y (top:50%) and anchored
+   ~at the cursor (left:100% = clone's right edge ≈ handle; nudged 12px left so the
+   grip lands on the cursor). It extends right; the clone is position:fixed so it's
+   never clipped by the settings panel's overflow. */
+#dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
+	position: absolute;
+	left: 100%;
+	top: 50%;
+	transform: translate(-12px, -50%);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 260px;
+	padding: 4px 10px;
+	border-radius: var(--radius-m, 8px);
+	background: var(--background-secondary);
+	border: 1px solid var(--interactive-accent);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+	color: var(--text-normal);
+	font-size: var(--font-ui-small, 13px);
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: grabbing;
+}
+
+#dnd-action-dragged-el.qa-drag-clone .qa-drag-pill-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#dnd-action-dragged-el.qa-drag-clone .qa-drag-pill-grip {
+	display: inline-flex;
+	color: var(--text-muted);
+	flex: 0 0 auto;
+}
+
+/* A folder (Multi) reads with a dashed border so dropping a folder is unambiguous. */
+#dnd-action-dragged-el.qa-drag-clone[data-qa-multi="true"] .qa-drag-pill {
+	border-style: dashed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#dnd-action-dragged-el.qa-drag-clone {
+		transition: none !important;
+	}
+}
+
 
 .choiceListItemName {
 	flex: 1 0 0;

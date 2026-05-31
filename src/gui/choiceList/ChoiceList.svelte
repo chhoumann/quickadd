@@ -6,6 +6,7 @@
     import { type DndEvent, dndzone } from "svelte-dnd-action";
     import { flip } from "svelte/animate";
     import { stripShadow } from "../shared/dndReorder";
+    import { transformDragPill } from "../shared/dragPill";
     import { Platform, type App } from "obsidian";
     import type { ChoiceListActions } from "./choiceListActions";
 
@@ -122,7 +123,7 @@
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, flipDurationMs, centreDraggedOnCursor: true, useCursorForDetection: true, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
+        use:dndzone={{items: choices, dragDisabled, flipDurationMs, morphDisabled: true, useCursorForDetection: true, transformDraggedElement: transformDragPill, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
@@ -175,6 +176,11 @@
    overflow-x:hidden and a positive offset would clip the ring at the right edge.
    :global() wraps the runtime drop-target class; .choiceList.qa-nested is markup. */
 .choiceList.qa-nested {
+    /* Own the 12px name->first-row gap so a row PREVIEWED into an empty folder
+       doesn't shift the band down: this margin collapses with the previewed row's
+       own 12px margin-top (so populated folders look identical), while giving the
+       empty band the same gap at rest — zero vertical jump on enter/leave. */
+    margin-top: 12px;
     border-radius: var(--radius-m);
     outline: 2px dashed transparent;
     outline-offset: -2px;
@@ -184,12 +190,32 @@
 .choiceList.qa-nested:global(.qa-folder-droptarget) {
     outline-color: var(--interactive-accent);
     background-color: var(--background-modifier-hover);
+    /* Hold the band at one row's height for the WHOLE drag so it can't shrink the
+       instant qa-empty toggles off (the previewed row renders in). 21px = a single
+       row's measured zone height, so populated folders never heave at drag start. */
+    min-height: 21px;
 }
 
-/* An empty nested folder's drop zone is generous + ALWAYS present (not a thin ~8px
-   band that pops in mid-drag), so the ring is an easy, correctly-placed target. */
+/* Empty folder: a STABLE one-row drop band. 21px = the height the previewed row
+   occupies (its 12px margin collapses out), so the row swaps in with ZERO reflow —
+   no grow/shrink/flicker as the cursor approaches. The hint is pseudo-content, so it
+   can never become a dnd item / shadow placeholder (keeps the stripShadow invariant).
+   qa-empty (not :empty) drives it — robust against any whitespace text node. */
 .choiceList.qa-nested.qa-empty {
-    min-height: 2rem;
+    min-height: 21px;
+    display: flex;
+    align-items: center;
+}
+
+.choiceList.qa-nested.qa-empty::after {
+    content: "Empty — add a choice or drag one here.";
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller, 12px);
+    font-style: italic;
+    line-height: 1.3;
+    padding-left: 2px;
+    pointer-events: none;
+    user-select: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

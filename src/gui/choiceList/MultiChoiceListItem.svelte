@@ -163,15 +163,7 @@
                      Hidden while filtering (the filtered tree is a clone that
                      must not be persisted). -->
                 {#if !forceDragDisabled}
-                    <div
-                        class="nestedAddRow"
-                        class:emptyFolder={choice.choices.length === 0}
-                    >
-                        {#if choice.choices.length === 0}
-                            <p class="emptyFolderHint">
-                                Empty — add a choice or drag one here.
-                            </p>
-                        {/if}
+                    <div class="nestedAddRow">
                         <AddChoiceControls
                             compact
                             targetFolderId={choice.id}
@@ -244,27 +236,11 @@
     }
 
     /* The per-folder add-row is the folder's own affordance: one spacing step
-       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to
-       this folder", but with real breathing room (2px cramped it). An EMPTY folder
-       gets that same 8px from its drop-zone padding (ChoiceList), so the add-row
-       sits flush there (margin 0) — identical 8px gap whether empty or populated,
-       and the empty drop target stays a usable 8px instead of collapsing. */
+       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to this
+       folder". An empty folder's add-row sits below the drop band (ChoiceList's
+       .qa-empty, which now owns the "Empty — …" hint as pseudo-content), getting
+       the same 8px gap as a populated one. */
     .nestedAddRow {
         margin: 8px 0 0 0;
-    }
-
-    .nestedAddRow.emptyFolder {
-        margin-top: 0;
-    }
-
-    /* Faint, non-interactive empty-folder hint — advertises the add links below it
-       and the new drag-into-folder path. */
-    .emptyFolderHint {
-        margin: 0 0 6px 0;
-        color: var(--text-muted);
-        font-size: var(--font-ui-smaller, 12px);
-        font-style: italic;
-        line-height: 1.3;
-        user-select: none;
     }
 </style>
