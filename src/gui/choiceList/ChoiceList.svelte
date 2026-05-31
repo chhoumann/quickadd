@@ -42,13 +42,11 @@
 
     // Smooth FLIP reorder — svelte-dnd-action's flipDurationMs defaults to 0 (items
     // snap). Read prefers-reduced-motion once at mount (the settings modal opens fresh).
-    const reduceMotion =
-        typeof window !== "undefined" &&
-        !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    // 100ms keeps the position-observation interval at the library floor
-    // (max(flip,100)*1.07 ≈ 107ms) so reorder reacts continuously, not in batches,
-    // while rows still glide rather than snap.
-    const flipDurationMs = reduceMotion ? 0 : 100;
+    // flipDurationMs MUST be 0 for a responsive reorder: the library ties its
+    // position-observation interval to it — 0 => 20ms polling (continuous), any value
+    // > 0 => max(flip,100)*1.07 ≈ 107ms+, which felt "batched" (move several rows, then
+    // a jump). We trade the row-glide animation for continuous, predictable reordering.
+    const flipDurationMs = 0;
 
     const isMobile = Platform.isMobile;
 
@@ -124,7 +122,7 @@
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, flipDurationMs, useCursorForDetection: true, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
+        use:dndzone={{items: choices, dragDisabled, flipDurationMs, centreDraggedOnCursor: true, useCursorForDetection: true, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"

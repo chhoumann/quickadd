@@ -191,9 +191,11 @@ async function configureOpenFile(command: IOpenFileCommand) {
 	use:dndzone={{
 		items: commands,
 		dragDisabled,
-		// Hit-test follows the cursor, not the floating clone's centre — so you don't
-		// have to aim a precise spot to land a drop. (Flip animation for the macro
-		// builder is a small follow-up; see the choices view for the full treatment.)
+		// Centre the dragged clone on the cursor so the cursor is the focal point — the
+		// fix for dragging a wide row over a small target (you aim the clone, which is
+		// now centred on your cursor = the detection point). useCursorForDetection keeps
+		// detection on the cursor too. (Flip animation here is a small follow-up.)
+		centreDraggedOnCursor: true,
 		useCursorForDetection: true,
 		dropTargetStyle: {},
 		type: "command",
