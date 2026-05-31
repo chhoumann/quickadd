@@ -7,6 +7,7 @@ vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 import {
 	addChoiceToTree,
 	insertIntoMulti,
+	setFolderChildrenById,
 	setMultiCollapsedById,
 } from "./choiceService";
 import type IChoice from "../types/choices/IChoice";
@@ -131,5 +132,38 @@ describe("setMultiCollapsedById", () => {
 		const res = setMultiCollapsedById(roots, "missing", true);
 		expect(res.map((c) => c.id)).toEqual(["f1", "b"]);
 		expect((res[0] as IMultiChoice).collapsed).toBe(false);
+	});
+});
+
+describe("setFolderChildrenById", () => {
+	it("replaces a root folder's children immutably (siblings preserved by identity)", () => {
+		const sib = leaf("b", "B");
+		const roots: IChoice[] = [folder("f1", "F1", [leaf("a", "A")]), sib];
+
+		const res = setFolderChildrenById(roots, "f1", [leaf("x", "X")]);
+
+		expect((res[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["x"]);
+		expect(res[1]).toBe(sib);
+		// Original untouched.
+		expect((roots[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["a"]);
+	});
+
+	it("empties a folder by id at depth >= 2 (the cross-zone drag-OUT case)", () => {
+		const roots: IChoice[] = [
+			folder("f1", "F1", [folder("f2", "F2", [leaf("a", "A")])]),
+		];
+
+		const res = setFolderChildrenById(roots, "f2", []);
+
+		const f2 = (res[0] as IMultiChoice).choices[0] as IMultiChoice;
+		expect(f2.choices).toEqual([]);
+		// Ancestor intact.
+		expect((res[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["f2"]);
+	});
+
+	it("is a no-op when the folder id is absent", () => {
+		const roots: IChoice[] = [folder("f1", "F1", [leaf("a", "A")])];
+		const res = setFolderChildrenById(roots, "nope", []);
+		expect((res[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["a"]);
 	});
 });

@@ -337,3 +337,26 @@ export function setMultiCollapsedById(
 function expandMultiById(choices: IChoice[], id: string): IChoice[] {
 	return setMultiCollapsedById(choices, id, false);
 }
+
+/**
+ * Immutably replace a Multi (folder)'s children by id, anywhere in the tree.
+ * Used to commit a nested drag/reorder against the AUTHORITATIVE root tree by id —
+ * not by mutating a `choice` prop reference, which goes stale within a synchronous
+ * cross-zone drag finalize (the root zone reassigns the tree first, so the folder
+ * zone's `choice` no longer points at the folder in the live tree -> duplication).
+ */
+export function setFolderChildrenById(
+	choices: IChoice[],
+	folderId: string,
+	children: IChoice[],
+): IChoice[] {
+	return choices.map((c) => {
+		if (c.type !== "Multi") return c;
+		const mc = c as IMultiChoice;
+		if (mc.id === folderId) return { ...mc, choices: children } as IChoice;
+		return {
+			...mc,
+			choices: setFolderChildrenById(mc.choices, folderId, children),
+		} as IChoice;
+	});
+}

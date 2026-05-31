@@ -38,6 +38,7 @@ function actionsSpy(): ChoiceListActions {
 		onReorderChoices: vi.fn(),
 		onAddChoice: vi.fn(),
 		onToggleCollapsed: vi.fn(),
+		onCommitFolder: vi.fn(),
 	};
 }
 
@@ -107,17 +108,22 @@ describe("ChoiceList keyboard reorder", () => {
 
 		await fireEvent.keyDown(getByLabelText("Reorder c1"), { key: "ArrowDown" });
 
-		expect(actions.onReorderChoices).toHaveBeenCalledTimes(1);
-		const rootArg = (actions.onReorderChoices as ReturnType<typeof vi.fn>).mock
-			.calls[0][0] as IChoice[];
-		// Root tree intact: exactly [Outer] (not the root array assigned into Outer,
-		// not Outer containing itself).
-		expect(rootArg.map((c) => c.id)).toEqual(["Outer"]);
-		const outerArg = rootArg[0] as unknown as { choices: IChoice[] };
-		expect(outerArg.choices.map((c) => c.id)).toEqual(["Inner"]);
-		// Inner's children are the ones actually reordered.
-		const innerArg = outerArg.choices[0] as unknown as { choices: IChoice[] };
-		expect(innerArg.choices.map((c) => c.id)).toEqual(["c2", "c1"]);
+		// The nested reorder edits Inner's children IN PLACE then commits by id via
+		// onCommitFolder (NOT onReorderChoices, which an ancestor Multi overrides) —
+		// the same path a cross-zone drag takes; see the duplication fix.
+		expect(actions.onCommitFolder).toHaveBeenCalledTimes(1);
+		expect(
+			(actions.onCommitFolder as ReturnType<typeof vi.fn>).mock.calls[0],
+		).toEqual(["Inner", [c2, c1]]);
+		expect(actions.onReorderChoices).not.toHaveBeenCalled();
+		// Inner's children reordered; ancestors intact (no depth >= 2 corruption).
+		expect(
+			(inner as unknown as { choices: IChoice[] }).choices.map((c) => c.id),
+		).toEqual(["c2", "c1"]);
+		expect(
+			(outer as unknown as { choices: IChoice[] }).choices.map((c) => c.id),
+		).toEqual(["Inner"]);
+		expect(choices.map((c) => c.id)).toEqual(["Outer"]);
 	});
 });
 

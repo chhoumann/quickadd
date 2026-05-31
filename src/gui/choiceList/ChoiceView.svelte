@@ -14,6 +14,7 @@
 		duplicateChoice,
 		addChoiceToTree,
 		moveChoice as moveChoiceService,
+		setFolderChildrenById,
 		setMultiCollapsedById,
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
@@ -243,6 +244,15 @@
 		save();
 	}
 
+	// Commit a folder's children by id into ChoiceView's authoritative tree. A nested
+	// drag/reorder calls this rather than relying on its (cross-zone-stale) `choice`
+	// reference — finding the folder by id keeps the edit on the real live node, which
+	// is what fixes the root<->folder drag duplication. See onCommitFolder.
+	function handleCommitFolder(folderId: string, children: IChoice[]) {
+		choices = setFolderChildrenById(choices, folderId, children);
+		save();
+	}
+
 	// Reassign the tree immutably (by id, any depth) so the collapse is REACTIVE —
 	// an in-place `choice.collapsed = …` isn't tracked until the array is proxied by
 	// a reassignment, which is why folders wouldn't toggle on first render. save()
@@ -266,6 +276,7 @@
 		onReorderChoices: handleReorderChoices,
 		onAddChoice: addChoiceToList,
 		onToggleCollapsed: handleToggleCollapsed,
+		onCommitFolder: handleCommitFolder,
 	};
 
 	async function openAISettings() {

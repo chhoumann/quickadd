@@ -28,6 +28,15 @@ export interface ChoiceListActions {
 	 */
 	onToggleCollapsed: (choice: IChoice) => void;
 	/**
+	 * Commit a folder's new children by id against ChoiceView's authoritative tree.
+	 * A nested reorder/drag uses this instead of mutating a `choice` prop reference:
+	 * within a synchronous cross-zone drag finalize the root zone reassigns the tree
+	 * first, so the folder zone's `choice` goes stale (points at a folder no longer
+	 * in the live tree) — by-id keeps the edit landing on the real node, fixing the
+	 * root<->folder drag duplication.
+	 */
+	onCommitFolder: (folderId: string, children: IChoice[]) => void;
+	/**
 	 * Add a new choice. `targetFolderId` inserts it into that folder (root when
 	 * omitted); `skipConfigure` suppresses the post-add builder. Threaded from the
 	 * top-level ChoiceView handler so it persists the whole root tree (the same

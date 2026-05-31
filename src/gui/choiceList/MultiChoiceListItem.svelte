@@ -74,16 +74,23 @@
     }
 
     // Nested children reordered: write the new order back to this Multi choice (the
-    // choice object is shared with the root tree, so this mutates in place), then
-    // persist the whole root tree via the TOP-LEVEL handler. Routing through
-    // `rootReorder` — NOT `actions.onReorderChoices`, which inside a nested Multi is
-    // an ancestor's override that would overwrite ITS children with the root array —
-    // keeps reorder correct at any nesting depth (fixes depth >= 2 data loss).
+    // choice object is shared with the root tree, so this mutates it in place), then
+    // COMMIT the tree via the top-level onCommit, which re-persists ChoiceView's own
+    // authoritative `choices`. We must NOT reassign it from `[...roots]` here: in a
+    // cross-zone drag (root <-> folder) svelte-dnd fires two synchronous finalizes,
+    // and the `roots` prop lags the source of truth within that tick — reassigning
+    // from it overwrote the folder's emptying and duplicated the dragged item.
     const nestedActions: ChoiceListActions = {
         ...untrack(() => actions),
         onReorderChoices: (reordered: IChoice[]) => {
+            // In-place edit keeps cross-zone IN consistent: the root zone's finalize
+            // reassigns from svelte-dnd's items, which reference THIS same folder
+            // object, so it must already carry the new children.
             choice.choices = reordered;
-            (rootReorder ?? actions.onReorderChoices)([...roots]);
+            // AND commit by id against the authoritative tree: on cross-zone OUT the
+            // root finalize reassigns the tree FIRST, leaving `choice` stale — by-id
+            // lands the edit on the real live folder node (fixes duplication).
+            actions.onCommitFolder(choice.id, reordered);
         },
     };
 
