@@ -45,7 +45,10 @@
     const reduceMotion =
         typeof window !== "undefined" &&
         !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const flipDurationMs = reduceMotion ? 0 : 180;
+    // 100ms keeps the position-observation interval at the library floor
+    // (max(flip,100)*1.07 ≈ 107ms) so reorder reacts continuously, not in batches,
+    // while rows still glide rather than snap.
+    const flipDurationMs = reduceMotion ? 0 : 100;
 
     const isMobile = Platform.isMobile;
 
@@ -167,15 +170,33 @@
     width: auto;
 }
 
-/* An empty nested folder gets a generous, ALWAYS-PRESENT drop target — not a thin
-   ~8px band that only appears mid-drag — so you can aim at it without hitting a
-   precise spot, and it never pops/reflows when a drag starts. The drag highlight
-   itself (the dashed ring) is drawn on .nestedChoiceList in MultiChoiceListItem.
-   Root empties show the hero instead, so this is scoped to nested zones. */
+/* The drop-into-folder ring lives on the ACTUAL dndzone (.choiceList) so the
+   highlighted area is EXACTLY the droppable area (what you see is where it drops).
+   Reserved at rest (transparent) so a drag only swaps its colour — zero reflow.
+   outline-offset is negative (inside the box) because the settings container is
+   overflow-x:hidden and a positive offset would clip the ring at the right edge.
+   :global() wraps the runtime drop-target class; .choiceList.qa-nested is markup. */
+.choiceList.qa-nested {
+    border-radius: var(--radius-m);
+    outline: 2px dashed transparent;
+    outline-offset: -2px;
+    transition: outline-color 120ms ease, background-color 120ms ease;
+}
+
+.choiceList.qa-nested:global(.qa-folder-droptarget) {
+    outline-color: var(--interactive-accent);
+    background-color: var(--background-modifier-hover);
+}
+
+/* An empty nested folder's drop zone is generous + ALWAYS present (not a thin ~8px
+   band that pops in mid-drag), so the ring is an easy, correctly-placed target. */
 .choiceList.qa-nested.qa-empty {
-    /* Aimable but not bulky: cursor-based hit-testing is the main forgiveness win,
-       so this only needs to be a real (not ~8px) target without re-adding the empty
-       folder "weird space". Tunable. */
-    min-height: 1.5rem;
+    min-height: 2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .choiceList.qa-nested {
+        transition: none;
+    }
 }
 </style>

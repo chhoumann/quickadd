@@ -235,23 +235,12 @@
         border-radius: var(--radius-s, 4px);
     }
 
-    /* The drop-into-folder ring is RESERVED at rest (transparent) so a drag only
-       swaps its COLOUR — zero layout reflow, so the tree never heaves when you grab
-       something. outline-offset is NEGATIVE (drawn inside the box) because the
-       settings container is overflow-x:hidden and a positive offset would clip the
-       ring at the zone's right edge. The colour swap lives in the :has() rule below. */
+    /* Just the indent — the drop-into-folder ring is drawn on the ACTUAL dndzone
+       (.choiceList, in ChoiceList.svelte) so the highlighted area equals the
+       droppable area (WYSIWYG); it is NOT drawn on this wrapper, which extends past
+       the zone to the add-row/hint. */
     .nestedChoiceList {
         padding-left: 25px;
-        border-radius: var(--radius-m);
-        outline: 2px dashed transparent;
-        outline-offset: -2px;
-        transition: outline-color 120ms ease, background-color 120ms ease;
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .nestedChoiceList {
-            transition: none;
-        }
     }
 
     /* The per-folder add-row is the folder's own affordance: one spacing step
@@ -266,16 +255,6 @@
 
     .nestedAddRow.emptyFolder {
         margin-top: 0;
-    }
-
-    /* Drag active: colour-only swap of the reserved ring + a tint over the whole
-       nested folder area (items + hint + add links). NO box-model change -> no
-       reflow. Scoped to the folder's OWN inner list (`> .choiceList`) so a grandchild
-       zone can't light up an ancestor. :global() wraps the runtime class (it's on the
-       child ChoiceList's element, outside this component's scope). */
-    .nestedChoiceList:has(> :global(.choiceList.qa-folder-droptarget)) {
-        outline-color: var(--interactive-accent);
-        background-color: var(--background-modifier-hover);
     }
 
     /* Faint, non-interactive empty-folder hint — advertises the add links below it
