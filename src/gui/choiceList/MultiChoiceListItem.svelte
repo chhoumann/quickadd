@@ -160,6 +160,11 @@
                         class="nestedAddRow"
                         class:emptyFolder={choice.choices.length === 0}
                     >
+                        {#if choice.choices.length === 0}
+                            <p class="emptyFolderHint">
+                                Empty — add a choice or drag one here.
+                            </p>
+                        {/if}
                         <AddChoiceControls
                             compact
                             targetFolderId={choice.id}
@@ -239,5 +244,29 @@
 
     .nestedAddRow.emptyFolder {
         margin-top: 0;
+    }
+
+    /* Project the active drop-target onto the folder ROW so the whole folder (row +
+       its inner zone) reads as one "drop here" target — important for empty folders
+       whose inner zone is a thin sliver. Scoped to the folder's OWN inner list via
+       `+ .nestedChoiceList > .choiceList` so a grandchild zone can't light up an
+       ancestor row. A tint only (the nested zone owns the dashed ring), so the two
+       don't read as competing boxes. :global() wraps the runtime-applied class. */
+    .multiChoiceListItem:has(
+        + .nestedChoiceList > :global(.choiceList.qa-folder-droptarget)
+    ) {
+        background-color: var(--background-modifier-hover);
+        border-radius: var(--radius-m);
+    }
+
+    /* Faint, non-interactive empty-folder hint — advertises the add links below it
+       and the new drag-into-folder path. */
+    .emptyFolderHint {
+        margin: 0 0 6px 0;
+        color: var(--text-muted);
+        font-size: var(--font-ui-smaller, 12px);
+        font-style: italic;
+        line-height: 1.3;
+        user-select: none;
     }
 </style>

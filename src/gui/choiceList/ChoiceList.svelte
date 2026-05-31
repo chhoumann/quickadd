@@ -32,6 +32,13 @@
     // own handler IS the top-level handler; nested lists receive it explicitly.
     const persistRoots = $derived(rootReorder ?? actions.onReorderChoices);
 
+    // rootReorder is undefined ONLY at the top-level list (ChoiceView mounts it
+    // without one; nested folder lists always receive it — MultiChoiceListItem
+    // threads it down). So this reliably means "this is a folder's inner list",
+    // used below to mark ONLY nested zones as drop-into-folder targets — the root
+    // reorder list never lights up.
+    const isNested = $derived(rootReorder !== undefined);
+
     const isMobile = Platform.isMobile;
 
     let collapseId = $state("");
@@ -106,7 +113,7 @@
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
+        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
@@ -144,5 +151,19 @@
 <style>
 .choiceList {
     width: auto;
+}
+
+/* While a choice is being dragged, svelte-dnd-action adds this class to every
+   NESTED folder zone (the root list passes [] and never gets it), advertising
+   "drop here to move INTO this folder". :global() because the class is applied at
+   runtime, not in markup; the .choiceList anchor keeps it from being flagged unused. */
+.choiceList:global(.qa-folder-droptarget) {
+    border-radius: var(--radius-m);
+    outline: 2px dashed var(--interactive-accent);
+    outline-offset: 2px;
+    background-color: var(--background-modifier-hover);
+    /* An empty folder's zone is only ~8px; guarantee an aimable target mid-drag. */
+    min-height: 1.5rem;
+    transition: background-color 120ms ease;
 }
 </style>
