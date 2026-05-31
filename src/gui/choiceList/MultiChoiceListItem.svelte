@@ -246,17 +246,20 @@
         margin-top: 0;
     }
 
-    /* Project the active drop-target onto the folder ROW so the whole folder (row +
-       its inner zone) reads as one "drop here" target — important for empty folders
-       whose inner zone is a thin sliver. Scoped to the folder's OWN inner list via
-       `+ .nestedChoiceList > .choiceList` so a grandchild zone can't light up an
-       ancestor row. A tint only (the nested zone owns the dashed ring), so the two
-       don't read as competing boxes. :global() wraps the runtime-applied class. */
-    .multiChoiceListItem:has(
-        + .nestedChoiceList > :global(.choiceList.qa-folder-droptarget)
-    ) {
-        background-color: var(--background-modifier-hover);
+    /* While a choice is dragged, ring the WHOLE nested folder area (items + hint +
+       add links) — not the folder row, and not the thin items zone — with a little
+       padding so the dashed ring sits OFF the content instead of hugging it. Scoped
+       to the folder's OWN inner list (`> .choiceList`) so a grandchild zone can't
+       light up an ancestor. :global() wraps the runtime class (it's on the child
+       ChoiceList's element, outside this component's scope). */
+    .nestedChoiceList:has(> :global(.choiceList.qa-folder-droptarget)) {
+        padding-top: 6px;
+        padding-right: 6px;
+        padding-bottom: 6px;
+        outline: 2px dashed var(--interactive-accent);
+        outline-offset: 2px;
         border-radius: var(--radius-m);
+        background-color: var(--background-modifier-hover);
     }
 
     /* Faint, non-interactive empty-folder hint — advertises the add links below it

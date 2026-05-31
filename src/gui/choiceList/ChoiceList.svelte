@@ -158,12 +158,10 @@
    "drop here to move INTO this folder". :global() because the class is applied at
    runtime, not in markup; the .choiceList anchor keeps it from being flagged unused. */
 .choiceList:global(.qa-folder-droptarget) {
-    border-radius: var(--radius-m);
-    outline: 2px dashed var(--interactive-accent);
-    outline-offset: 2px;
-    background-color: var(--background-modifier-hover);
-    /* An empty folder's zone is only ~8px; guarantee an aimable target mid-drag. */
-    min-height: 1.5rem;
-    transition: background-color 120ms ease;
+    /* Just give an empty folder's ~8px items-zone an aimable height mid-drag; the
+       visible ring/tint is drawn on the whole .nestedChoiceList (in
+       MultiChoiceListItem) so it wraps the folder's content with breathing room
+       rather than hugging this thin zone. */
+    min-height: 1.25rem;
 }
 </style>
