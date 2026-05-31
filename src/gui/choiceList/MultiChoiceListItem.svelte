@@ -156,7 +156,10 @@
                      Hidden while filtering (the filtered tree is a clone that
                      must not be persisted). -->
                 {#if !forceDragDisabled}
-                    <div class="nestedAddRow">
+                    <div
+                        class="nestedAddRow"
+                        class:emptyFolder={choice.choices.length === 0}
+                    >
                         <AddChoiceControls
                             compact
                             targetFolderId={choice.id}
@@ -224,8 +227,15 @@
 
     /* The per-folder add-row is the folder's own affordance: one spacing step
        (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to
-       this folder", but with real breathing room (2px cramped it). */
+       this folder", but with real breathing room (2px cramped it). An EMPTY folder
+       gets that same 8px from its drop-zone padding (ChoiceList), so the add-row
+       sits flush there (margin 0) — identical 8px gap whether empty or populated,
+       and the empty drop target stays a usable 8px instead of collapsing. */
     .nestedAddRow {
         margin: 8px 0 0 0;
+    }
+
+    .nestedAddRow.emptyFolder {
+        margin-top: 0;
     }
 </style>

@@ -110,7 +110,7 @@
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
-        style="{choices.length === 0 ? 'padding-bottom: 0.25rem' : ''}">
+        style="{choices.length === 0 ? 'padding-bottom: 0.5rem' : ''}">
     {#each stripShadow(choices) as choice (choice.id)}
         {#if choice.type !== "Multi"}
             <ChoiceListItem
