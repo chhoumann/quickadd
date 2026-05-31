@@ -169,40 +169,44 @@
     width: auto;
 }
 
-/* The drop-into-folder ring lives on the ACTUAL dndzone (.choiceList) so the
-   highlighted area is EXACTLY the droppable area (what you see is where it drops).
-   Reserved at rest (transparent) so a drag only swaps its colour — zero reflow.
-   outline-offset is negative (inside the box) because the settings container is
-   overflow-x:hidden and a positive offset would clip the ring at the right edge.
-   :global() wraps the runtime drop-target class; .choiceList.qa-nested is markup. */
 .choiceList.qa-nested {
-    /* Own the 12px name->first-row gap so a row PREVIEWED into an empty folder
-       doesn't shift the band down: this margin collapses with the previewed row's
-       own 12px margin-top (so populated folders look identical), while giving the
-       empty band the same gap at rest — zero vertical jump on enter/leave. */
+    /* Own the 12px name->first-row gap so the empty drop band sits the same distance
+       below the folder name as a populated folder's first row (collapses with the
+       row's own margin-top, so populated folders look identical). */
     margin-top: 12px;
+    position: relative; /* anchor the ring (::before) */
     border-radius: var(--radius-m);
-    outline: 2px dashed transparent;
-    outline-offset: -2px;
-    transition: outline-color 120ms ease, background-color 120ms ease;
+    transition: background-color 120ms ease;
+}
+
+/* The drop ring is drawn a few px OUTSIDE the content as an absolutely-positioned
+   ::before (adds no layout) — "synthetically" bigger than the rows so it doesn't
+   clamp straight against the choice names. The right edge stays at the content edge:
+   the settings pane is overflow-x:hidden, so extending the ring right would clip it. */
+.choiceList.qa-nested::before {
+    content: "";
+    position: absolute;
+    inset: -4px 0 -4px -6px;
+    border-radius: var(--radius-m);
+    border: 2px dashed transparent;
+    pointer-events: none;
+    transition: border-color 120ms ease;
 }
 
 .choiceList.qa-nested:global(.qa-folder-droptarget) {
-    outline-color: var(--interactive-accent);
     background-color: var(--background-modifier-hover);
-    /* Hold the band at one row's height for the WHOLE drag so it can't shrink the
-       instant qa-empty toggles off (the previewed row renders in). 21px = a single
-       row's measured zone height, so populated folders never heave at drag start. */
-    min-height: 21px;
 }
 
-/* Empty folder: a STABLE one-row drop band. 21px = the height the previewed row
-   occupies (its 12px margin collapses out), so the row swaps in with ZERO reflow —
-   no grow/shrink/flicker as the cursor approaches. The hint is pseudo-content, so it
-   can never become a dnd item / shadow placeholder (keeps the stripShadow invariant).
-   qa-empty (not :empty) drives it — robust against any whitespace text node. */
+.choiceList.qa-nested:global(.qa-folder-droptarget)::before {
+    border-color: var(--interactive-accent);
+}
+
+/* Empty folder: a GENEROUS, stable drop target. No row ever previews in during a
+   drag — the dnd shadow placeholder is stripped (stripShadow) so choices stays [] until
+   release — so the band can be comfortably large with zero reflow, making it an easy
+   target to land in (a thin band made it feel like a moving/precision target). */
 .choiceList.qa-nested.qa-empty {
-    min-height: 21px;
+    min-height: 3rem;
     display: flex;
     align-items: center;
 }
@@ -219,7 +223,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .choiceList.qa-nested {
+    .choiceList.qa-nested,
+    .choiceList.qa-nested::before {
         transition: none;
     }
 }
