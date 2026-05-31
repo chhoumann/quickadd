@@ -4,6 +4,7 @@
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import { type DndEvent, dndzone } from "svelte-dnd-action";
+    import { flip } from "svelte/animate";
     import { stripShadow } from "../shared/dndReorder";
     import { Platform, type App } from "obsidian";
     import type { ChoiceListActions } from "./choiceListActions";
@@ -38,6 +39,13 @@
     // used below to mark ONLY nested zones as drop-into-folder targets — the root
     // reorder list never lights up.
     const isNested = $derived(rootReorder !== undefined);
+
+    // Smooth FLIP reorder — svelte-dnd-action's flipDurationMs defaults to 0 (items
+    // snap). Read prefers-reduced-motion once at mount (the settings modal opens fresh).
+    const reduceMotion =
+        typeof window !== "undefined" &&
+        !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const flipDurationMs = reduceMotion ? 0 : 180;
 
     const isMobile = Platform.isMobile;
 
@@ -113,38 +121,44 @@
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
+        use:dndzone={{items: choices, dragDisabled, flipDurationMs, useCursorForDetection: true, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
-        style="{choices.length === 0 ? 'padding-bottom: 0.5rem' : ''}">
+        class:qa-nested={isNested}
+        class:qa-empty={choices.length === 0}>
     {#each stripShadow(choices) as choice (choice.id)}
-        {#if choice.type !== "Multi"}
-            <ChoiceListItem
-                    {app}
-                    roots={roots ?? choices}
-                    {dragDisabled}
-                    {startDrag}
-                    {actions}
-                    {choice}
-                    onMoveUp={forceDragDisabled ? undefined : () => moveChoice(choice, -1)}
-                    onMoveDown={forceDragDisabled ? undefined : () => moveChoice(choice, 1)}
-            />
-        {:else}
-            <MultiChoiceListItem
-                    {app}
-                    roots={roots ?? choices}
-                    {dragDisabled}
-                    {startDrag}
-                    {actions}
-                    {collapseId}
-                    {forceDragDisabled}
-                    rootReorder={persistRoots}
-                    choice={choice as IMultiChoice}
-                    onMoveUp={forceDragDisabled ? undefined : () => moveChoice(choice, -1)}
-                    onMoveDown={forceDragDisabled ? undefined : () => moveChoice(choice, 1)}
-            />
-        {/if}
+        <!-- Flip wrapper: the dndzone's direct child = the animated/draggable item.
+             Must stay margin/padding/border-less (the 12px inter-row margin lives on
+             the inner row). data-choice-id stays on the inner row for tests/menus. -->
+        <div animate:flip={{ duration: flipDurationMs }}>
+            {#if choice.type !== "Multi"}
+                <ChoiceListItem
+                        {app}
+                        roots={roots ?? choices}
+                        {dragDisabled}
+                        {startDrag}
+                        {actions}
+                        {choice}
+                        onMoveUp={forceDragDisabled ? undefined : () => moveChoice(choice, -1)}
+                        onMoveDown={forceDragDisabled ? undefined : () => moveChoice(choice, 1)}
+                />
+            {:else}
+                <MultiChoiceListItem
+                        {app}
+                        roots={roots ?? choices}
+                        {dragDisabled}
+                        {startDrag}
+                        {actions}
+                        {collapseId}
+                        {forceDragDisabled}
+                        rootReorder={persistRoots}
+                        choice={choice as IMultiChoice}
+                        onMoveUp={forceDragDisabled ? undefined : () => moveChoice(choice, -1)}
+                        onMoveDown={forceDragDisabled ? undefined : () => moveChoice(choice, 1)}
+                />
+            {/if}
+        </div>
     {/each}
 </div>
 
@@ -153,15 +167,15 @@
     width: auto;
 }
 
-/* While a choice is being dragged, svelte-dnd-action adds this class to every
-   NESTED folder zone (the root list passes [] and never gets it), advertising
-   "drop here to move INTO this folder". :global() because the class is applied at
-   runtime, not in markup; the .choiceList anchor keeps it from being flagged unused. */
-.choiceList:global(.qa-folder-droptarget) {
-    /* Just give an empty folder's ~8px items-zone an aimable height mid-drag; the
-       visible ring/tint is drawn on the whole .nestedChoiceList (in
-       MultiChoiceListItem) so it wraps the folder's content with breathing room
-       rather than hugging this thin zone. */
-    min-height: 1.25rem;
+/* An empty nested folder gets a generous, ALWAYS-PRESENT drop target — not a thin
+   ~8px band that only appears mid-drag — so you can aim at it without hitting a
+   precise spot, and it never pops/reflows when a drag starts. The drag highlight
+   itself (the dashed ring) is drawn on .nestedChoiceList in MultiChoiceListItem.
+   Root empties show the hero instead, so this is scoped to nested zones. */
+.choiceList.qa-nested.qa-empty {
+    /* Aimable but not bulky: cursor-based hit-testing is the main forgiveness win,
+       so this only needs to be a real (not ~8px) target without re-adding the empty
+       folder "weird space". Tunable. */
+    min-height: 1.5rem;
 }
 </style>

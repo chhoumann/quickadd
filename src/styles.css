@@ -1094,7 +1094,8 @@
 	font-size: 16px;
 	align-items: center;
 	margin: 12px 0 0 0;
-	transition: 1000ms ease-in-out;
+	/* No `transition` here: an unnamed (all-property) 1s transition smeared every
+	   drag-induced reflow over a full second — the main source of drag jitter. */
 }
 
 

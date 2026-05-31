@@ -235,8 +235,23 @@
         border-radius: var(--radius-s, 4px);
     }
 
+    /* The drop-into-folder ring is RESERVED at rest (transparent) so a drag only
+       swaps its COLOUR — zero layout reflow, so the tree never heaves when you grab
+       something. outline-offset is NEGATIVE (drawn inside the box) because the
+       settings container is overflow-x:hidden and a positive offset would clip the
+       ring at the zone's right edge. The colour swap lives in the :has() rule below. */
     .nestedChoiceList {
         padding-left: 25px;
+        border-radius: var(--radius-m);
+        outline: 2px dashed transparent;
+        outline-offset: -2px;
+        transition: outline-color 120ms ease, background-color 120ms ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .nestedChoiceList {
+            transition: none;
+        }
     }
 
     /* The per-folder add-row is the folder's own affordance: one spacing step
@@ -253,19 +268,13 @@
         margin-top: 0;
     }
 
-    /* While a choice is dragged, ring the WHOLE nested folder area (items + hint +
-       add links) — not the folder row, and not the thin items zone — with a little
-       padding so the dashed ring sits OFF the content instead of hugging it. Scoped
-       to the folder's OWN inner list (`> .choiceList`) so a grandchild zone can't
-       light up an ancestor. :global() wraps the runtime class (it's on the child
-       ChoiceList's element, outside this component's scope). */
+    /* Drag active: colour-only swap of the reserved ring + a tint over the whole
+       nested folder area (items + hint + add links). NO box-model change -> no
+       reflow. Scoped to the folder's OWN inner list (`> .choiceList`) so a grandchild
+       zone can't light up an ancestor. :global() wraps the runtime class (it's on the
+       child ChoiceList's element, outside this component's scope). */
     .nestedChoiceList:has(> :global(.choiceList.qa-folder-droptarget)) {
-        padding-top: 6px;
-        padding-right: 6px;
-        padding-bottom: 6px;
-        outline: 2px dashed var(--interactive-accent);
-        outline-offset: 2px;
-        border-radius: var(--radius-m);
+        outline-color: var(--interactive-accent);
         background-color: var(--background-modifier-hover);
     }
 
