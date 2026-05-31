@@ -37,6 +37,7 @@ function actionsSpy(): ChoiceListActions {
 		onMoveChoice: vi.fn(),
 		onReorderChoices: vi.fn(),
 		onAddChoice: vi.fn(),
+		onToggleCollapsed: vi.fn(),
 	};
 }
 
@@ -117,6 +118,33 @@ describe("ChoiceList keyboard reorder", () => {
 		// Inner's children are the ones actually reordered.
 		const innerArg = outerArg.choices[0] as unknown as { choices: IChoice[] };
 		expect(innerArg.choices.map((c) => c.id)).toEqual(["c2", "c1"]);
+	});
+});
+
+describe("ChoiceList drag arming", () => {
+	// Regression for the "can't click to toggle folders" bug: pressing the drag
+	// handle arms the zone (dragDisabled -> false), but a press that never becomes a
+	// real drag must disarm on release. Otherwise svelte-dnd-action keeps owning the
+	// rows and SWALLOWS their button clicks (the Multi collapse toggle, etc).
+	it("disarms on pointerup when the handle was pressed but never dragged", async () => {
+		const actions = actionsSpy();
+		const group = multi("Group", [normal("Child")]);
+		const { getByLabelText } = render(ChoiceList, {
+			props: { app: new App() as never, roots: [group], choices: [group], actions },
+		});
+
+		const handle = getByLabelText("Reorder Group");
+		// Inert to start: zone not draggable, so row clicks pass through.
+		expect(handle.classList.contains("qa-drag-handle-ready")).toBe(true);
+
+		// Press the handle -> the zone arms (becomes draggable).
+		await fireEvent.pointerDown(handle);
+		expect(handle.classList.contains("qa-drag-handle-active")).toBe(true);
+
+		// Release without ever dragging (no `consider` fires) -> must disarm.
+		await fireEvent.pointerUp(window);
+		expect(handle.classList.contains("qa-drag-handle-active")).toBe(false);
+		expect(handle.classList.contains("qa-drag-handle-ready")).toBe(true);
 	});
 });
 

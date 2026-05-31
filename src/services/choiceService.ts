@@ -310,11 +310,30 @@ export function addChoiceToTree(
 	return expandMultiById(inserted, targetFolderId);
 }
 
-function expandMultiById(choices: IChoice[], id: string): IChoice[] {
+/**
+ * Immutably set a Multi (folder)'s `collapsed` flag by id, anywhere in the tree —
+ * only the touched branch is recreated, siblings keep their identity. Reassigning
+ * the result into the choices `$state` is what makes a collapse toggle REACTIVE: an
+ * in-place `choice.collapsed = …` mutation isn't tracked until the array has been
+ * proxied by a reassignment, so on first render (the plain array mounted from the
+ * store) the folder wouldn't visibly open/close until some later add/reorder/drag.
+ */
+export function setMultiCollapsedById(
+	choices: IChoice[],
+	id: string,
+	collapsed: boolean,
+): IChoice[] {
 	return choices.map((c) => {
 		if (c.type !== "Multi") return c;
 		const mc = c as IMultiChoice;
-		if (mc.id === id) return { ...mc, collapsed: false } as IChoice;
-		return { ...mc, choices: expandMultiById(mc.choices, id) } as IChoice;
+		if (mc.id === id) return { ...mc, collapsed } as IChoice;
+		return {
+			...mc,
+			choices: setMultiCollapsedById(mc.choices, id, collapsed),
+		} as IChoice;
 	});
+}
+
+function expandMultiById(choices: IChoice[], id: string): IChoice[] {
+	return setMultiCollapsedById(choices, id, false);
 }

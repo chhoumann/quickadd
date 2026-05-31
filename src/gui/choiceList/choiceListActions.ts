@@ -20,6 +20,14 @@ export interface ChoiceListActions {
 	onMoveChoice: (choice: IChoice, targetId: string) => void;
 	onReorderChoices: (choices: IChoice[]) => void;
 	/**
+	 * Toggle a Multi (folder)'s collapsed state. Routed to the top-level ChoiceView
+	 * handler, which reassigns the root tree immutably (by id, any depth) — an
+	 * in-place `choice.collapsed = …` mutation isn't reactive until the array has
+	 * been proxied by a reassignment, so clicking a folder wouldn't open/close it on
+	 * first render. Persists like the other tree edits.
+	 */
+	onToggleCollapsed: (choice: IChoice) => void;
+	/**
 	 * Add a new choice. `targetFolderId` inserts it into that folder (root when
 	 * omitted); `skipConfigure` suppresses the post-add builder. Threaded from the
 	 * top-level ChoiceView handler so it persists the whole root tree (the same

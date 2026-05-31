@@ -1,6 +1,6 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
-import type { TFile } from "obsidian";
-import { Plugin } from "obsidian";
+import type { Debouncer, TFile } from "obsidian";
+import { Plugin, debounce } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
@@ -36,9 +36,20 @@ interface DefinedUriParameters {
 
 type UriParameters = DefinedUriParameters & CaptureValueParameters;
 
+// The settingsStore subscriber fires on every store change — including high-frequency
+// ones like folder collapse toggles. Coalesce those full-settings disk writes into one
+// per burst (saveData rewrites the whole data.json); flushed on unload so nothing is lost.
+const SETTINGS_SAVE_DEBOUNCE_MS = 1000;
+
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
+	// Debounced disk write for the store subscriber. saveSettings() stays immediate
+	// (migrations await it) and cancels this; onunload flushes it.
+	private requestSave: Debouncer<[], void> = debounce(
+		() => void this.saveData(this.settings),
+		SETTINGS_SAVE_DEBOUNCE_MS,
+	);
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(
@@ -56,7 +67,7 @@ export default class QuickAdd extends Plugin {
 		settingsStore.replaceState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
-			void this.saveSettings();
+			this.requestSave();
 		});
 
 		this.addCommand({
@@ -192,6 +203,9 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
+		// Flush any pending debounced settings write so a just-made change (e.g. a
+		// folder collapse) is never lost on plugin reload / app quit.
+		this.requestSave.run();
 		this.unsubscribeSettingsStore?.call(this);
 
 		// Clear the error log to prevent memory leaks
@@ -224,6 +238,9 @@ export default class QuickAdd extends Plugin {
 	}
 
 	async saveSettings() {
+		// Immediate, awaitable write (migrations rely on this). Supersede any pending
+		// debounced write so the same settings aren't redundantly rewritten after.
+		this.requestSave.cancel();
 		await this.saveData(this.settings);
 	}
 

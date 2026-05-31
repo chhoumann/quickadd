@@ -87,8 +87,15 @@
         },
     };
 
+    // Routed through the top-level handler (which reassigns the tree immutably) so
+    // the collapse is reactive on first render — an in-place `choice.collapsed = …`
+    // mutation isn't tracked until a reassignment has proxied the choices array.
     function toggleCollapsed() {
-        choice.collapsed = !choice.collapsed;
+        // The filtered view renders a derived, force-expanded CLONE (forceDragDisabled);
+        // persisting its collapse by id would silently collapse the REAL folder (only
+        // visible once the filter clears). Never persist from the derived view.
+        if (forceDragDisabled) return;
+        actions.onToggleCollapsed(choice);
     }
 </script>
 
@@ -149,7 +156,10 @@
                      Hidden while filtering (the filtered tree is a clone that
                      must not be persisted). -->
                 {#if !forceDragDisabled}
-                    <div class="nestedAddRow">
+                    <div
+                        class="nestedAddRow"
+                        class:emptyFolder={choice.choices.length === 0}
+                    >
                         <AddChoiceControls
                             compact
                             targetFolderId={choice.id}
@@ -184,10 +194,19 @@
        clickable div while keeping native keyboard activation + aria-expanded. */
     .multiChoiceListItemName {
         flex: 1 0 0;
-        margin-left: 5px;
+        /* Tuck the chevron into the left card-padding gutter so the Multi NAME
+           lines up flush with leaf-row names — only nested children get indented
+           (.nestedChoiceList below), not the root Multi row itself. -20px = the
+           chevron's RENDERED box (18px) + the 2px gap, so the name lands on the
+           leaf-name x. The box is 18px, not the size={16} attribute: Obsidian's
+           .svg-icon class sizes the SVG via var(--icon-size) (~18px), overriding
+           the attribute (verified in-app: width attr 16, computed 18, name flush).
+           The lucide glyph also carries ~4.5px side-bearing, so a 2px flex gap
+           yields a ~6px optical gap to the name — the prior 5px gap was ~9.5px. */
+        margin-left: -20px;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 2px;
         background: transparent;
         border: none;
         box-shadow: none;
@@ -208,7 +227,17 @@
         padding-left: 25px;
     }
 
+    /* The per-folder add-row is the folder's own affordance: one spacing step
+       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to
+       this folder", but with real breathing room (2px cramped it). An EMPTY folder
+       gets that same 8px from its drop-zone padding (ChoiceList), so the add-row
+       sits flush there (margin 0) — identical 8px gap whether empty or populated,
+       and the empty drop target stays a usable 8px instead of collapsing. */
     .nestedAddRow {
-        margin: 8px 0 4px 0;
+        margin: 8px 0 0 0;
+    }
+
+    .nestedAddRow.emptyFolder {
+        margin-top: 0;
     }
 </style>

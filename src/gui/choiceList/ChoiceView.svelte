@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { App } from "obsidian";
-	import { prepareFuzzySearch } from "obsidian";
+	import { Platform, prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
 	import { log } from "src/logger/logManager";
 	import { tick, untrack } from "svelte";
@@ -14,6 +14,7 @@
 		duplicateChoice,
 		addChoiceToTree,
 		moveChoice as moveChoiceService,
+		setMultiCollapsedById,
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
 	import type IChoice from "../../types/choices/IChoice";
@@ -40,6 +41,9 @@
 	} = $props();
 
 	let filterQuery = $state(""); // not persisted
+
+	// On mobile the bottom-bar controls fill the width instead of cramming right.
+	const isMobile = Platform.isMobile;
 
 	// Reactive mirror of the AI/online gate so the "AI Assistant" button below
 	// reflects toggles of `disableOnlineFeatures` made in the (now declarative)
@@ -239,6 +243,19 @@
 		save();
 	}
 
+	// Reassign the tree immutably (by id, any depth) so the collapse is REACTIVE —
+	// an in-place `choice.collapsed = …` isn't tracked until the array is proxied by
+	// a reassignment, which is why folders wouldn't toggle on first render. save()
+	// also re-seeds choices from the store (proxied), healing reactivity thereafter.
+	function handleToggleCollapsed(choice: IChoice) {
+		choices = setMultiCollapsedById(
+			choices,
+			choice.id,
+			!(choice as IMultiChoice).collapsed,
+		);
+		save();
+	}
+
 	const actions: ChoiceListActions = {
 		onDeleteChoice: deleteChoice,
 		onConfigureChoice: handleConfigureChoice,
@@ -248,6 +265,7 @@
 		onMoveChoice: handleMoveChoice,
 		onReorderChoices: handleReorderChoices,
 		onAddChoice: addChoiceToList,
+		onToggleCollapsed: handleToggleCollapsed,
 	};
 
 	async function openAISettings() {
@@ -337,7 +355,7 @@
 					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
-			<AddChoiceControls onAddChoice={addChoiceToList} />
+			<AddChoiceControls onAddChoice={addChoiceToList} fill={isMobile} />
 		</div>
 	{/if}
 </div>

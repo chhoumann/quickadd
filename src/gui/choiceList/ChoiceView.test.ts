@@ -124,6 +124,65 @@ describe("ChoiceView", () => {
 		expect(JSON.parse(JSON.stringify(saved))).toEqual(saved);
 	});
 
+	// Regression for "folders won't open/close on click after a reload": the toggle
+	// must be reactive on the FIRST render, before any add/delete/reorder/drag has
+	// reassigned (and thus proxied) the choices array. A plain mounted array is the
+	// real shape (settingsStore.getState().choices), so this reproduces the bug.
+	it("collapses a folder on click on first render (no prior reassignment)", async () => {
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Child", type: "Template" }],
+		} as unknown as IChoice;
+
+		const { getByLabelText, queryByLabelText } = renderChoiceView([
+			folderChoice,
+		]);
+
+		const toggle = getByLabelText("Toggle Folder");
+		expect(toggle.getAttribute("aria-expanded")).toBe("true");
+		expect(queryByLabelText("Delete Child")).not.toBeNull(); // child visible
+
+		await fireEvent.click(toggle);
+
+		// Collapsed: aria flips and the nested child unmounts.
+		expect(toggle.getAttribute("aria-expanded")).toBe("false");
+		expect(queryByLabelText("Delete Child")).toBeNull();
+
+		await fireEvent.click(toggle); // and back open
+		expect(toggle.getAttribute("aria-expanded")).toBe("true");
+	});
+
+	// The filtered view renders a derived, force-expanded clone; toggling a folder
+	// there must NOT persist the real tree (else it silently collapses the real
+	// folder, visible only after the filter clears).
+	it("does not persist collapse from the filtered (derived) view", async () => {
+		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Findable", type: "Template" }],
+		} as unknown as IChoice;
+
+		const { getByLabelText, getByPlaceholderText } = renderChoiceView(
+			[folderChoice],
+			saveChoices,
+		);
+
+		// Activate the filter so the derived, force-expanded clone renders.
+		await fireEvent.input(getByPlaceholderText("Filter choices (fuzzy)"), {
+			target: { value: "Findable" },
+		});
+
+		// The folder toggle in the filtered view must be inert (no persistence).
+		await fireEvent.click(getByLabelText("Toggle Folder"));
+		expect(saveChoices).not.toHaveBeenCalled();
+	});
+
 	// Covers the redesign's novel add-into-folder path end-to-end through the
 	// real component DOM (the per-folder "New folder" affordance), which the
 	// Obsidian Menu / builder modal can't be synthetically driven to exercise.

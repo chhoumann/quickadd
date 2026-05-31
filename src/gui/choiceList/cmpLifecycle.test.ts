@@ -20,6 +20,7 @@ const actions = (): ChoiceListActions => ({
 	onMoveChoice: vi.fn(),
 	onReorderChoices: vi.fn(),
 	onAddChoice: vi.fn(),
+	onToggleCollapsed: vi.fn(),
 });
 const noop = () => {};
 

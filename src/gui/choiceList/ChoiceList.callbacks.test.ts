@@ -31,6 +31,7 @@ function actionsSpy(): ChoiceListActions {
 		onMoveChoice: vi.fn(),
 		onReorderChoices: vi.fn(),
 		onAddChoice: vi.fn(),
+		onToggleCollapsed: vi.fn(),
 	};
 }
 
