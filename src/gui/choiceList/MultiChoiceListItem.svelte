@@ -91,6 +91,10 @@
     // the collapse is reactive on first render — an in-place `choice.collapsed = …`
     // mutation isn't tracked until a reassignment has proxied the choices array.
     function toggleCollapsed() {
+        // The filtered view renders a derived, force-expanded CLONE (forceDragDisabled);
+        // persisting its collapse by id would silently collapse the REAL folder (only
+        // visible once the filter clears). Never persist from the derived view.
+        if (forceDragDisabled) return;
         actions.onToggleCollapsed(choice);
     }
 </script>

@@ -155,6 +155,34 @@ describe("ChoiceView", () => {
 		expect(toggle.getAttribute("aria-expanded")).toBe("true");
 	});
 
+	// The filtered view renders a derived, force-expanded clone; toggling a folder
+	// there must NOT persist the real tree (else it silently collapses the real
+	// folder, visible only after the filter clears).
+	it("does not persist collapse from the filtered (derived) view", async () => {
+		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Findable", type: "Template" }],
+		} as unknown as IChoice;
+
+		const { getByLabelText, getByPlaceholderText } = renderChoiceView(
+			[folderChoice],
+			saveChoices,
+		);
+
+		// Activate the filter so the derived, force-expanded clone renders.
+		await fireEvent.input(getByPlaceholderText("Filter choices (fuzzy)"), {
+			target: { value: "Findable" },
+		});
+
+		// The folder toggle in the filtered view must be inert (no persistence).
+		await fireEvent.click(getByLabelText("Toggle Folder"));
+		expect(saveChoices).not.toHaveBeenCalled();
+	});
+
 	// Covers the redesign's novel add-into-folder path end-to-end through the
 	// real component DOM (the per-folder "New folder" affordance), which the
 	// Obsidian Menu / builder modal can't be synthetically driven to exercise.
