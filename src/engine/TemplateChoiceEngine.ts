@@ -128,6 +128,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					targetFilePath,
 					existingFile,
 				));
+				if (!createdFile) {
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+					log.logWarning(`Could not resolve file exists behavior for '${targetFilePath}'.`);
+					return;
+				}
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					targetFilePath,

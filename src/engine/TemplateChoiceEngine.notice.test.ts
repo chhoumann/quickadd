@@ -326,6 +326,48 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
 
+	it("preserves submitted prompt drafts when file-exists handling returns no file", async () => {
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Test Template Choice",
+			placeholder: "",
+		});
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		const existingFile = new TFile();
+		existingFile.path = "Test Template.md";
+		existingFile.name = "Test Template.md";
+		existingFile.extension = "md";
+		existingFile.basename = "Test Template";
+
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "overwrite" };
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFile,
+		);
+		vi.spyOn(
+			engine as unknown as {
+				overwriteFileWithTemplate: (
+					file: TFile,
+					templatePath: string,
+				) => Promise<TFile | null>;
+			},
+			"overwriteFileWithTemplate",
+		).mockResolvedValue(null);
+
+		store.beginExecutionScope();
+		store.handleSubmittedDraft(draftKey, "Submitted template name");
+
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(store.get(draftKey)).toBe("Submitted template name");
+	});
+
 	it("preserves submitted prompt drafts when template file creation returns null", async () => {
 		const store = InputPromptDraftStore.getInstance();
 		const draftKey = store.makeKey({
