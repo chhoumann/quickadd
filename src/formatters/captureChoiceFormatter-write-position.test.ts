@@ -257,4 +257,125 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 
 		expect(result).toBe("Line A\nLine B\nCAPTURE");
 	});
+
+	it("inserts before a matched target line", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertBefore: {
+					enabled: true,
+					before: "## Later",
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+				},
+			}),
+			"# Inbox\nBody\n## Later\nNext",
+			createFile(),
+		);
+
+		expect(result).toBe("# Inbox\nBody\nCAPTURE\n## Later\nNext");
+	});
+
+	it("separates capture content from the matched line when inserting before", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE",
+			createChoice({
+				insertBefore: {
+					enabled: true,
+					before: "Line B",
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+				},
+			}),
+			"Line A\nLine B",
+			createFile(),
+		);
+
+		expect(result).toBe("Line A\nCAPTURE\nLine B");
+	});
+
+	it("resolves format syntax in insert-before target lines", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+		formatter.setTitle("Project Alpha");
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertBefore: {
+					enabled: true,
+					before: "{{title}}",
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+				},
+			}),
+			"# Inbox\nProject Alpha\nBody",
+			createFile("Project Alpha.md"),
+		);
+
+		expect(result).toBe("# Inbox\nCAPTURE\nProject Alpha\nBody");
+	});
+
+	it("creates a missing insert-before target below the capture", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE",
+			createChoice({
+				insertBefore: {
+					enabled: true,
+					before: "## Missing",
+					createIfNotFound: true,
+					createIfNotFoundLocation: "bottom",
+				},
+			}),
+			"# Inbox",
+			createFile(),
+		);
+
+		expect(result).toBe("# Inbox\nCAPTURE\n## Missing");
+	});
 });

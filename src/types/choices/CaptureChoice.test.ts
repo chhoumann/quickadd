@@ -50,4 +50,18 @@ describe("CaptureChoice.Load", () => {
 
 		expect(loaded.activeFileWritePosition).toBe("cursor");
 	});
+
+	it("adds default insert-before settings to legacy choices", () => {
+		const choice = new CaptureChoice("Legacy") as any;
+		delete choice.insertBefore;
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.insertBefore).toEqual({
+			enabled: false,
+			before: "",
+			createIfNotFound: false,
+			createIfNotFoundLocation: "top",
+		});
+	});
 });

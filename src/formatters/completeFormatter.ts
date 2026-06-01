@@ -118,7 +118,7 @@ export class CompleteFormatter extends Formatter {
 
 	/**
 	 * Formats small inline target strings used for location matching, e.g.,
-	 * the "Insert after" selector. This intentionally does not run Templater,
+	 * the line-target capture selectors. This intentionally does not run Templater,
 	 * but applies the core QuickAdd format pipeline plus link/title expansion
 	 * so selectors can reference {{linkcurrent}} and {{title}} consistently.
 	 */

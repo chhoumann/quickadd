@@ -87,8 +87,8 @@ helps you choose a node id directly from that board.
 
 ### Write position support in Canvas
 
-- Text cards support: **Top of file**, **Bottom of file**, **After line...**
-- File cards (markdown targets) support: **Top of file**, **Bottom of file**, **After line...**
+- Text cards support: **Top of file**, **Bottom of file**, **After line...**, **Before line...**
+- File cards (markdown targets) support: **Top of file**, **Bottom of file**, **After line...**, **Before line...**
 - Canvas does not support cursor-based modes: **At cursor**, **New line above cursor**, **New line below cursor**
 
 If **Capture to active file** is enabled and you leave the default write
@@ -123,7 +123,7 @@ Yes. Set capture path to a `.canvas` file and choose a **Target canvas node**.
 
 **Does "At cursor" work in Canvas cards?**
 
-No. Use top, bottom, or insert-after placement.
+No. Use top, bottom, insert-after, or insert-before placement.
 
 **Can I capture to a file card that points to a Canvas file?**
 
@@ -208,6 +208,17 @@ Content
 
 Content
 ```
+
+## Insert before
+
+Insert Before inserts the capture before the first line that matches the specified text.
+The target accepts QuickAdd format syntax, so values such as `{{title}}` and
+`{{linkcurrent}}` can be used in the match text.
+
+It's also possible to use `Create line if not found`, which will create the
+line if it doesn't exist. For Insert Before, QuickAdd writes the captured
+content first, then creates the missing line below it. This setting can place
+the line at the start or end of the file, or at your current cursor position.
 
 ## Capture Format
 

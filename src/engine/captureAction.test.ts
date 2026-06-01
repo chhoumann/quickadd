@@ -33,6 +33,18 @@ describe("getCaptureAction", () => {
 		expect(getCaptureAction(choice)).toBe("insertAfter");
 	});
 
+	it("returns 'insertBefore' when insertBefore is enabled", () => {
+		const choice = createChoice({
+			insertBefore: {
+				enabled: true,
+				before: "heading",
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+		});
+		expect(getCaptureAction(choice)).toBe("insertBefore");
+	});
+
 	it("returns 'prepend' when prepend is true", () => {
 		const choice = createChoice({ prepend: true });
 		expect(getCaptureAction(choice)).toBe("prepend");
@@ -54,6 +66,19 @@ describe("getCaptureAction", () => {
 			insertAfter: { enabled: true, after: "heading", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" }
 		});
 		expect(getCaptureAction(choice)).toBe("insertAfter");
+	});
+
+	it("prioritizes insertBefore over prepend when both are set", () => {
+		const choice = createChoice({
+			prepend: true,
+			insertBefore: {
+				enabled: true,
+				before: "heading",
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+		});
+		expect(getCaptureAction(choice)).toBe("insertBefore");
 	});
 
 	it("returns 'newLineAbove' when newLineCapture is enabled with above direction", () => {

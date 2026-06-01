@@ -123,6 +123,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: `Captured to ${fileName}`;
 				break;
 			}
+			case "insertBefore": {
+				const heading = this.choice.insertBefore?.before;
+				msg = heading
+					? `Captured to ${fileName} before '${heading}'`
+					: `Captured to ${fileName}`;
+				break;
+			}
 			default:
 				msg = `Captured to ${fileName}`;
 				break;
@@ -207,12 +214,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			if (
 				canvasTarget?.kind === "file" &&
-				action === "insertAfter" &&
-				this.choice.insertAfter?.createIfNotFound &&
-				this.choice.insertAfter?.createIfNotFoundLocation === "cursor"
+				((action === "insertAfter" &&
+					this.choice.insertAfter?.createIfNotFound &&
+					this.choice.insertAfter?.createIfNotFoundLocation === "cursor") ||
+					(action === "insertBefore" &&
+						this.choice.insertBefore?.createIfNotFound &&
+						this.choice.insertBefore?.createIfNotFoundLocation === "cursor"))
 			) {
 				throw new ChoiceAbortError(
-					"Canvas file cards do not support creating missing insert-after targets at cursor. Use top or bottom.",
+					"Canvas file cards do not support creating missing line targets at cursor. Use top or bottom.",
 				);
 			}
 
@@ -345,17 +355,20 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			action === "newLineBelow"
 		) {
 			throw new ChoiceAbortError(
-				"Canvas text cards support top, bottom, and insert-after positions only.",
+				"Canvas text cards support top, bottom, insert-after, and insert-before positions only.",
 			);
 		}
 
 		if (
-			action === "insertAfter" &&
-			this.choice.insertAfter?.createIfNotFound &&
-			this.choice.insertAfter?.createIfNotFoundLocation === "cursor"
+			(action === "insertAfter" &&
+				this.choice.insertAfter?.createIfNotFound &&
+				this.choice.insertAfter?.createIfNotFoundLocation === "cursor") ||
+			(action === "insertBefore" &&
+				this.choice.insertBefore?.createIfNotFound &&
+				this.choice.insertBefore?.createIfNotFoundLocation === "cursor")
 		) {
 			throw new ChoiceAbortError(
-				"Canvas text cards do not support creating missing insert-after targets at cursor. Use top or bottom.",
+				"Canvas text cards do not support creating missing line targets at cursor. Use top or bottom.",
 			);
 		}
 

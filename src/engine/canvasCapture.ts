@@ -124,11 +124,11 @@ export function getCanvasActionUnsupportedReason(
 ): string | null {
 	if (nodeKind === "text") {
 		if (action === "currentLine") {
-			return "Canvas capture does not support 'At cursor' for text cards. Use top, bottom, or insert-after placement.";
+			return "Canvas capture does not support 'At cursor' for text cards. Use top, bottom, insert-after, or insert-before placement.";
 		}
 
 		if (action === "newLineAbove" || action === "newLineBelow") {
-			return "Canvas capture does not support 'New line above/below cursor' for text cards. Use top, bottom, or insert-after placement.";
+			return "Canvas capture does not support 'New line above/below cursor' for text cards. Use top, bottom, insert-after, or insert-before placement.";
 		}
 	}
 
@@ -138,7 +138,7 @@ export function getCanvasActionUnsupportedReason(
 			action === "newLineAbove" ||
 			action === "newLineBelow"
 		) {
-			return "Canvas file cards do not support cursor-based capture modes. Use top, bottom, or insert-after modes.";
+			return "Canvas file cards do not support cursor-based capture modes. Use top, bottom, insert-after, or insert-before modes.";
 		}
 	}
 
