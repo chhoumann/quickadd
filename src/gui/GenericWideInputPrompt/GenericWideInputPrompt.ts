@@ -3,6 +3,8 @@ import { ButtonComponent, Modal, TextAreaComponent } from "obsidian";
 import { FileSuggester } from "../suggesters/fileSuggester";
 import { TagSuggester } from "../suggesters/tagSuggester";
 import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
+import type { InputPromptOptions } from "../../types/inputPrompt";
+import { positionInputPromptCursor } from "../inputPromptCursor";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -24,6 +26,7 @@ export default class GenericWideInputPrompt extends Modal {
 		placeholder?: string,
 		value?: string,
 		description?: string,
+		options?: InputPromptOptions,
 	): Promise<string> {
 		const newPromptModal = new GenericWideInputPrompt(
 			app,
@@ -32,6 +35,7 @@ export default class GenericWideInputPrompt extends Modal {
 			value,
 			undefined,
 			description,
+			options,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -43,6 +47,7 @@ export default class GenericWideInputPrompt extends Modal {
 		value?: string,
 		linkSourcePath?: string,
 		description?: string,
+		options?: InputPromptOptions,
 	): Promise<string> {
 		const newPromptModal = new GenericWideInputPrompt(
 			app,
@@ -51,6 +56,7 @@ export default class GenericWideInputPrompt extends Modal {
 			value,
 			linkSourcePath,
 			description,
+			options,
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -62,6 +68,7 @@ export default class GenericWideInputPrompt extends Modal {
 		value?: string,
 		private linkSourcePath?: string,
 		description?: string,
+		private readonly options?: InputPromptOptions,
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
@@ -219,8 +226,7 @@ export default class GenericWideInputPrompt extends Modal {
 	onOpen() {
 		super.onOpen();
 
-		this.inputComponent.inputEl.focus();
-		this.inputComponent.inputEl.select();
+		positionInputPromptCursor(this.inputComponent.inputEl, this.options);
 	}
 
 	onClose() {

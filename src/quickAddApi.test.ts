@@ -211,6 +211,22 @@ describe("static prompt wrappers", () => {
 			);
 		});
 
+		it("forwards cursor placement options", async () => {
+			mocks.genericInputPrompt.mockResolvedValue("hello");
+			await (QuickAddApi.inputPrompt as any)(app, "Header", "ph", "val", {
+				cursorAtEnd: true,
+			});
+
+			expect(mocks.genericInputPrompt).toHaveBeenCalledWith(
+				app,
+				"Header",
+				"ph",
+				"val",
+				undefined,
+				{ cursorAtEnd: true },
+			);
+		});
+
 		it("returns undefined for a generic (non-cancellation) error", async () => {
 			mocks.genericInputPrompt.mockRejectedValue(new Error("boom"));
 			const out = await QuickAddApi.inputPrompt(app, "Header");
@@ -238,6 +254,22 @@ describe("static prompt wrappers", () => {
 			const out = await QuickAddApi.wideInputPrompt(app, "H", "p", "v");
 			expect(out).toBe("wide");
 			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(app, "H", "p", "v");
+		});
+
+		it("forwards cursor placement options", async () => {
+			mocks.genericWideInputPrompt.mockResolvedValue("wide");
+			await (QuickAddApi.wideInputPrompt as any)(app, "H", "p", "v", {
+				cursorAtEnd: true,
+			});
+
+			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(
+				app,
+				"H",
+				"p",
+				"v",
+				undefined,
+				{ cursorAtEnd: true },
+			);
 		});
 
 		it("swallows generic errors as undefined", async () => {
@@ -445,6 +477,36 @@ describe("GetApi prompt wrappers", () => {
 		const out = await api.inputPrompt("H", "p", "val");
 		expect(out).toBe("v");
 		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(app, "H", "p", "val");
+	});
+
+	it("inputPrompt delegates cursor placement options", async () => {
+		mocks.genericInputPrompt.mockResolvedValue("v");
+		const { api, app } = getApi();
+		await (api.inputPrompt as any)("H", "p", "val", { cursorAtEnd: true });
+		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(
+			app,
+			"H",
+			"p",
+			"val",
+			undefined,
+			{ cursorAtEnd: true },
+		);
+	});
+
+	it("wideInputPrompt delegates cursor placement options", async () => {
+		mocks.genericWideInputPrompt.mockResolvedValue("v");
+		const { api, app } = getApi();
+		await (api.wideInputPrompt as any)("H", "p", "val", {
+			cursorAtEnd: true,
+		});
+		expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(
+			app,
+			"H",
+			"p",
+			"val",
+			undefined,
+			{ cursorAtEnd: true },
+		);
 	});
 
 	it("suggester delegates options through", async () => {
