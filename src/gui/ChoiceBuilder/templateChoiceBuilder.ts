@@ -423,9 +423,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 
 			if (placementSupportsFrontmatter(normalizedOptions.placement)) {
-				const linkTypeSetting: Setting = new Setting(this.contentEl);
+				const frontmatterPropertySetting: Setting = new Setting(this.contentEl);
 				const current = typeof this.choice.appendLink !== "boolean" ? this.choice.appendLink.frontmatterProperty : '';
-				linkTypeSetting
+				frontmatterPropertySetting
 					.setName("Frontmatter property")
 					.setDesc("Choose the frontmatter property to insert the link into.")
 					.addText((text) => {
@@ -446,6 +446,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 								placement,
 								requireActiveFile,
 								frontmatterProperty: value,
+								linkType: 'link'
 							};
 						});
 					});

@@ -600,7 +600,7 @@ export function insertLinkWithPlacement(
 			throw new Error(message);
 		}
 		app.fileManager.processFrontMatter(file, (frontmatter) => {
-			if (frontmatter[frontmatterProperty] === undefined) {
+			if (frontmatter[frontmatterProperty] === undefined || frontmatter[frontmatterProperty] === null) {
 				frontmatter[frontmatterProperty] = []
 			}
 			if (!Array.isArray(frontmatter[frontmatterProperty])) {

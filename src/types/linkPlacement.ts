@@ -14,7 +14,7 @@ export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 	return placement === "replaceSelection";
 }
 
-export function placementSupportsFrontmatter(placement : LinkPlacement) : boolean {
+export function placementSupportsFrontmatter(placement : LinkPlacement): boolean {
 	return placement === "inFrontmatter";
 }
 
