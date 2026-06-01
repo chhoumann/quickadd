@@ -25,6 +25,26 @@ This field also supports the [format syntax](/FormatSyntax.md), which allows you
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
 
+### How QuickAdd picks a target
+
+When **Capture to active file** is disabled, QuickAdd resolves the _File path /
+format_ value after applying format syntax:
+
+- An empty value, or `/`, opens a whole-vault picker for Markdown files.
+- A value starting with `#` opens a picker for Markdown files with that tag.
+- A value ending in `/` opens a folder picker.
+- A value ending in a supported file extension, such as `.md` or `.canvas`,
+  targets that file path directly.
+- A value without an extension targets a folder only when that folder exists and
+  there is no same-name Markdown file. For example, if both `Projects/` and
+  `Projects.md` exist, `Projects` targets `Projects.md`; use `Projects/` to
+  force the folder picker.
+
+Folder pickers include Markdown files in the selected folder and its nested
+folders. The picker also accepts custom input, so you can type a new file name
+or path and let QuickAdd create it when **Create file if it doesn't exist** is
+enabled. The picker still needs at least one matching Markdown file to open.
+
 ### Capturing to folders
 
 You can also type a **folder name** into the _Capture To_ field, and QuickAdd will ask you which file in the folder you'd like to capture to.
@@ -59,6 +79,24 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
+
+### Templater and newly created files
+
+Capture has two different Templater paths when it creates a missing Markdown
+file:
+
+- If **Create file if it doesn't exist** is enabled without a QuickAdd template,
+  QuickAdd creates a blank file first. When Templater's new-file trigger is
+  enabled and applies to that location, QuickAdd waits for Templater to finish
+  before inserting the capture content.
+- If **Create with template** is enabled, QuickAdd owns the initial file
+  content. It renders the selected QuickAdd template, suppresses Templater's
+  new-file/directory trigger for that creation event, and then runs Templater
+  once on the content QuickAdd wrote.
+
+This means a blank Capture-created file can receive Templater's directory
+template first, while a Capture-created file that uses a QuickAdd template runs
+Templater on QuickAdd's selected template content instead.
 
 ## Canvas Capture Notes
 
