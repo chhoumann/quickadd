@@ -1,4 +1,4 @@
-import type { App} from "obsidian";
+import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
 
 export default class GenericYesNoPrompt extends Modal {
@@ -46,11 +46,13 @@ export default class GenericYesNoPrompt extends Modal {
 		const noButton = new ButtonComponent(buttonsDiv)
 			.setButtonText("No")
 			.onClick(() => this.submit(false));
+		suppressPointerPress(noButton.buttonEl);
 
 		const yesButton = new ButtonComponent(buttonsDiv)
 			.setButtonText("Yes")
 			.onClick(() => this.submit(true))
 			.setWarning();
+		suppressPointerPress(yesButton.buttonEl);
 
 		yesButton.buttonEl.focus();
 
@@ -71,15 +73,29 @@ export default class GenericYesNoPrompt extends Modal {
 	}
 }
 
+function suppressPointerPress(button: HTMLButtonElement): void {
+	const suppress = (event: MouseEvent | PointerEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+	};
+
+	button.addEventListener("pointerdown", suppress);
+	button.addEventListener("mousedown", suppress);
+}
+
 function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
-    buttons.forEach((button) => {
-        button.addEventListener("keydown", (event) => {
-            if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-                const currentIndex = buttons.indexOf(button);
-                const nextIndex = (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
-                buttons[nextIndex].focus();
-                event.preventDefault();
-            }
-        });
-    });
+	buttons.forEach((button) => {
+		button.addEventListener("keydown", (event) => {
+			if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+				const currentIndex = buttons.indexOf(button);
+				const nextIndex =
+					(currentIndex +
+						(event.key === "ArrowRight" ? 1 : -1) +
+						buttons.length) %
+					buttons.length;
+				buttons[nextIndex].focus();
+				event.preventDefault();
+			}
+		});
+	});
 }
