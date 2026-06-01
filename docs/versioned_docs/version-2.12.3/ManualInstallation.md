@@ -2,7 +2,18 @@
 title: Manual Installation
 ---
 
-1. Go to [Releases](https://github.com/chhoumann/quickadd/releases) and download the ZIP file from the latest release. The one that looks like `quickadd-x.x.x.zip`.
-2. This ZIP file should be extracted in your Obsidian plugins folder. If you don't know where that is, you can go to `Community Plugins` inside Obsidian. There is a folder icon on the right of `Installed Plugins`. Click that and it opens your plugins folder.
-3. Extract the contents of the ZIP file there.
-4. Now you should have a folder in plugins called 'quickadd' containing a `main.js` file, `manifest.json` file, and a `styles.css` file.
+1. Go to [Releases](https://github.com/chhoumann/quickadd/releases) and open the latest release.
+2. Download the release assets. If there is a ZIP file named like `quickadd-x.x.x.zip`, download that. If the release lists loose files instead, download `main.js`, `manifest.json`, and `styles.css`.
+3. Open your Obsidian plugins folder. If you don't know where that is, go to `Community Plugins` inside Obsidian. There is a folder icon on the right of `Installed Plugins`. Click that and it opens your plugins folder.
+4. Create a folder named `quickadd` inside the plugins folder.
+5. Extract the ZIP file into `.obsidian/plugins/quickadd/`, or copy the loose `main.js`, `manifest.json`, and `styles.css` files into `.obsidian/plugins/quickadd/`.
+
+Do not place `main.js`, `manifest.json`, or `styles.css` directly in `.obsidian/plugins/`. They must be inside the `quickadd` folder.
+
+When finished, your vault should contain these files:
+
+```text
+.obsidian/plugins/quickadd/main.js
+.obsidian/plugins/quickadd/manifest.json
+.obsidian/plugins/quickadd/styles.css
+```
