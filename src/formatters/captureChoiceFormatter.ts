@@ -570,8 +570,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			const frontmatterEndPosition = this.file
 				? this.getFrontmatterEndPosition(this.file, this.fileContent)
 				: -1;
+			const needsTrailingSeparator =
+				frontmatterEndPosition >= 0 || this.choice.task;
+			const textAtTop =
+				needsTrailingSeparator && !formattedAndInsertBeforeLine.endsWith("\n")
+					? `${formattedAndInsertBeforeLine}\n`
+					: formattedAndInsertBeforeLine;
 			return this.insertTextAfterPositionInBody(
-				formattedAndInsertBeforeLine,
+				textAtTop,
 				this.fileContent,
 
 				frontmatterEndPosition,

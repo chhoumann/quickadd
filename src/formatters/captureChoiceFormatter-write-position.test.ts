@@ -378,4 +378,95 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 
 		expect(result).toBe("# Inbox\nCAPTURE\n## Missing");
 	});
+
+	it("keeps existing body content separated when creating a missing insert-before target at top", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE",
+			createChoice({
+				insertBefore: {
+					enabled: true,
+					before: "## Missing",
+					createIfNotFound: true,
+					createIfNotFoundLocation: "top",
+				},
+			}),
+			"Body",
+			createFile(),
+		);
+
+		expect(result).toBe("CAPTURE\n## Missing\nBody");
+	});
+
+	it("keeps frontmatter body content separated when creating a missing insert-before target at top", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE",
+			createChoice({
+				insertBefore: {
+					enabled: true,
+					before: "## Missing",
+					createIfNotFound: true,
+					createIfNotFoundLocation: "top",
+				},
+			}),
+			"---\ntitle: Test\n---\nBody",
+			createFile(),
+		);
+
+		expect(result).toBe("---\ntitle: Test\n---\nCAPTURE\n## Missing\nBody");
+	});
+
+	it("keeps task captures separated when creating a missing insert-before target at top", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"- [ ] CAPTURE",
+			createChoice({
+				task: true,
+				insertBefore: {
+					enabled: true,
+					before: "## Missing",
+					createIfNotFound: true,
+					createIfNotFoundLocation: "top",
+				},
+			}),
+			"Body",
+			createFile(),
+		);
+
+		expect(result).toBe("- [ ] CAPTURE\n## Missing\nBody");
+	});
 });
