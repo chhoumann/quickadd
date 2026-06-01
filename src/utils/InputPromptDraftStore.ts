@@ -15,6 +15,9 @@ interface DraftEntry {
 export class InputPromptDraftStore {
 	private static instance: InputPromptDraftStore;
 	private drafts: Map<string, DraftEntry> = new Map();
+	private pendingSubmittedDraftKeys: Set<string> = new Set();
+	private executionScopeDepth = 0;
+	private executionScopeFailed = false;
 	private readonly MAX_ENTRIES = 100;
 
 	static getInstance(): InputPromptDraftStore {
@@ -56,12 +59,63 @@ export class InputPromptDraftStore {
 		});
 	}
 
+	handleSubmittedDraft(key: string, value: string): void {
+		if (!this.hasActiveExecutionScope()) {
+			this.clear(key);
+			return;
+		}
+
+		this.set(key, value);
+		this.pendingSubmittedDraftKeys.add(key);
+	}
+
+	beginExecutionScope(): void {
+		this.executionScopeDepth += 1;
+	}
+
+	commitExecutionScope(): void {
+		if (!this.hasActiveExecutionScope()) return;
+
+		this.executionScopeDepth -= 1;
+		if (this.executionScopeDepth > 0) return;
+
+		if (!this.executionScopeFailed) {
+			for (const key of this.pendingSubmittedDraftKeys) {
+				this.clear(key);
+			}
+		}
+
+		this.resetExecutionScope();
+	}
+
+	rollbackExecutionScope(): void {
+		if (!this.hasActiveExecutionScope()) return;
+
+		this.executionScopeFailed = true;
+		this.executionScopeDepth -= 1;
+		if (this.executionScopeDepth === 0) {
+			this.resetExecutionScope();
+		}
+	}
+
+	markExecutionScopeFailed(): void {
+		if (!this.hasActiveExecutionScope()) return;
+
+		this.executionScopeFailed = true;
+	}
+
+	hasActiveExecutionScope(): boolean {
+		return this.executionScopeDepth > 0;
+	}
+
 	clear(key: string): void {
 		this.drafts.delete(key);
+		this.pendingSubmittedDraftKeys.delete(key);
 	}
 
 	clearAll(): void {
 		this.drafts.clear();
+		this.resetExecutionScope();
 	}
 
 	private evictOldest(count: number): void {
@@ -71,6 +125,13 @@ export class InputPromptDraftStore {
 
 		for (const [key] of entries) {
 			this.drafts.delete(key);
+			this.pendingSubmittedDraftKeys.delete(key);
 		}
+	}
+
+	private resetExecutionScope(): void {
+		this.pendingSubmittedDraftKeys.clear();
+		this.executionScopeDepth = 0;
+		this.executionScopeFailed = false;
 	}
 }

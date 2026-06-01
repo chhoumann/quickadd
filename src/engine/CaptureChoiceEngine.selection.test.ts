@@ -7,15 +7,21 @@ import { insertFileLinkToActiveView, isFolder, openFile } from "../utilityObsidi
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { InputPromptDraftHandler } from "../utils/InputPromptDraftHandler";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 
 const {
 	setUseSelectionAsCaptureValueMock,
 	setTitleMock,
 	singleTemplateRunMock,
+	promptResponses,
+	promptHydratedValues,
 } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
 	singleTemplateRunMock: vi.fn(async () => ""),
+	promptResponses: [] as string[],
+	promptHydratedValues: [] as string[],
 }));
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -33,10 +39,26 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			return await work();
 		}
 		async formatContentOnly(content: string) {
-			return content;
+			if (!/\{\{value\}\}/i.test(content)) return content;
+
+			const draftHandler = new InputPromptDraftHandler(
+				{
+					kind: "single",
+					header: "Capture Choice",
+					placeholder: "",
+				},
+				() => true,
+			);
+			const hydrated = draftHandler.hydrate("");
+			promptHydratedValues.push(hydrated);
+			const submitted = promptResponses.shift() ?? hydrated;
+			draftHandler.markChanged();
+			draftHandler.persist(submitted, true);
+
+			return content.replace(/\{\{value\}\}/gi, submitted);
 		}
-		async formatContentWithFile() {
-			return "";
+		async formatContentWithFile(content: string) {
+			return content;
 		}
 		async formatFileName(name: string) {
 			return name;
@@ -101,6 +123,8 @@ const createApp = () =>
 				exists: vi.fn(async () => false),
 			},
 			getAbstractFileByPath: vi.fn(() => null),
+			modify: vi.fn(async () => {}),
+			read: vi.fn(async () => ""),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -158,6 +182,9 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
 		setUseSelectionAsCaptureValueMock.mockClear();
 		setTitleMock.mockClear();
+		promptResponses.length = 0;
+		promptHydratedValues.length = 0;
+		InputPromptDraftStore.getInstance().clearAll();
 		vi.mocked(openFile).mockClear();
 	});
 
@@ -389,7 +416,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(setTitleMock).toHaveBeenCalledWith("Map");
 	});
 
-	it("copies formatted capture content to clipboard when creating the target file fails", async () => {
+	it("does not copy formatted capture content to clipboard when creating the target file fails", async () => {
 		const clipboardWriteText = vi.fn(async () => {});
 		Object.defineProperty(navigator, "clipboard", {
 			value: { writeText: clipboardWriteText },
@@ -426,7 +453,105 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		await engine.run();
 
-		expect(clipboardWriteText).toHaveBeenCalledWith("Capture body to preserve");
+		expect(clipboardWriteText).not.toHaveBeenCalled();
+	});
+
+	it("keeps submitted VALUE prompt draft after failed target creation and clears it after success", async () => {
+		promptResponses.push("Capture body to preserve");
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Capture Choice",
+			placeholder: "",
+		});
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Bad:Title.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				format: {
+					enabled: true,
+					format: "{{VALUE}}",
+				},
+			}),
+			createExecutor(),
+		);
+
+		(engine as any).createFileWithInput = vi.fn(async () => {
+			throw new Error("File name cannot contain ':'");
+		});
+
+		const clipboardWriteText = vi.fn(async () => {});
+		Object.defineProperty(navigator, "clipboard", {
+			value: { writeText: clipboardWriteText },
+			configurable: true,
+		});
+
+		store.beginExecutionScope();
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(store.get(draftKey)).toBe("Capture body to preserve");
+		expect(clipboardWriteText).not.toHaveBeenCalled();
+
+		const nextDraftHandler = new InputPromptDraftHandler(
+			{
+				kind: "single",
+				header: "Capture Choice",
+				placeholder: "",
+			},
+			() => true,
+		);
+
+		expect(nextDraftHandler.hydrate("")).toBe("Capture body to preserve");
+
+		const successfulEngine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Recovered.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				format: {
+					enabled: true,
+					format: "{{VALUE}}",
+				},
+			}),
+			createExecutor(),
+		);
+		(successfulEngine as any).createFileWithInput = vi.fn(
+			async (path: string) => ({
+				path,
+				basename: "Recovered",
+				extension: "md",
+			}),
+		);
+
+		store.beginExecutionScope();
+		await successfulEngine.run();
+		store.commitExecutionScope();
+
+		expect(promptHydratedValues).toContain("Capture body to preserve");
+		expect(store.get(draftKey)).toBeUndefined();
 	});
 
 	it("does not copy capture content to clipboard when template creation is cancelled", async () => {

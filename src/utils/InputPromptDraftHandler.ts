@@ -33,7 +33,7 @@ export class InputPromptDraftHandler {
 		if (!this.shouldPersist()) return;
 
 		if (didSubmit) {
-			this.store.clear(this.draftKey);
+			this.store.handleSubmittedDraft(this.draftKey, value);
 			return;
 		}
 

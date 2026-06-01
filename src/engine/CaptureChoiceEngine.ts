@@ -39,6 +39,7 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
@@ -178,37 +179,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		insertFileLinkToActiveView(this.app, file, linkOptions);
-	}
-
-	private async copyCaptureContentToClipboardAfterFailure(
-		captureContent: string,
-	): Promise<void> {
-		const clipboard =
-			typeof navigator !== "undefined" ? navigator.clipboard : undefined;
-
-		if (!clipboard?.writeText) {
-			new Notice(
-				"Capture failed before it could be written, and clipboard access is unavailable.",
-				DEFAULT_NOTICE_DURATION,
-			);
-			return;
-		}
-
-		try {
-			await clipboard.writeText(captureContent);
-			new Notice(
-				"Capture failed before it could be written. The capture content was copied to your clipboard.",
-				DEFAULT_NOTICE_DURATION,
-			);
-		} catch (err) {
-			log.logError(
-				`Failed to copy failed capture content to clipboard: ${err instanceof Error ? err.message : String(err)}`,
-			);
-			new Notice(
-				"Capture failed before it could be written, and QuickAdd could not copy the capture content to your clipboard.",
-				DEFAULT_NOTICE_DURATION,
-			);
-		}
 	}
 
 	async run(): Promise<void> {
@@ -371,6 +341,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}
+			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
 	}
@@ -824,9 +795,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				throw err;
 			}
 
-			await this.copyCaptureContentToClipboardAfterFailure(
-				formattedCaptureContent,
-			);
 			throw err;
 		}
 	}
