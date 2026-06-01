@@ -807,6 +807,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			return { file, newFileContent, captureContent: formattedCaptureContent };
 		} catch (err) {
+			if (err instanceof MacroAbortError || isCancellationError(err)) {
+				throw err;
+			}
+
 			await this.copyCaptureContentToClipboardAfterFailure(
 				formattedCaptureContent,
 			);

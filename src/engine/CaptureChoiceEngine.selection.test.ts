@@ -6,10 +6,16 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { insertFileLinkToActiveView, isFolder, openFile } from "../utilityObsidian";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { MacroAbortError } from "../errors/MacroAbortError";
 
-const { setUseSelectionAsCaptureValueMock, setTitleMock } = vi.hoisted(() => ({
+const {
+	setUseSelectionAsCaptureValueMock,
+	setTitleMock,
+	singleTemplateRunMock,
+} = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
+	singleTemplateRunMock: vi.fn(async () => ""),
 }));
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -66,6 +72,18 @@ vi.mock("three-way-merge", () => ({
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 	default: class {},
+}));
+
+vi.mock("./SingleTemplateEngine", () => ({
+	SingleTemplateEngine: class {
+		setLinkToCurrentFileBehavior() {}
+		async run() {
+			return await singleTemplateRunMock();
+		}
+		getAndClearTemplatePropertyVars() {
+			return new Map();
+		}
+	},
 }));
 
 vi.mock("obsidian-dataview", () => ({
@@ -226,6 +244,8 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		vi.mocked(isFolder).mockReset();
 		vi.mocked(insertFileLinkToActiveView).mockReset();
 		setTitleMock.mockClear();
+		singleTemplateRunMock.mockReset();
+		singleTemplateRunMock.mockResolvedValue("");
 	});
 
 	it("treats folder path without trailing slash as folder when folder exists", () => {
@@ -407,6 +427,44 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(clipboardWriteText).toHaveBeenCalledWith("Capture body to preserve");
+	});
+
+	it("does not copy capture content to clipboard when template creation is cancelled", async () => {
+		const clipboardWriteText = vi.fn(async () => {});
+		Object.defineProperty(navigator, "clipboard", {
+			value: { writeText: clipboardWriteText },
+			configurable: true,
+		});
+		singleTemplateRunMock.mockRejectedValueOnce(
+			new MacroAbortError("Input cancelled by user"),
+		);
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "New.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: true,
+					template: "Templates/New.md",
+				},
+				format: {
+					enabled: true,
+					format: "Capture body should not overwrite clipboard",
+				},
+			}),
+			createExecutor(),
+		);
+
+		await engine.run();
+
+		expect(clipboardWriteText).not.toHaveBeenCalled();
 	});
 
 	it("routes active canvas file-card capture to linked markdown path", async () => {
