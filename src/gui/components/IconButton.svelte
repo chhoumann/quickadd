@@ -1,5 +1,6 @@
 <script lang="ts">
     import ObsidianIcon from "./ObsidianIcon.svelte";
+    import { stopDragInit } from "../shared/stopDragInit";
 
     // Shared accessible icon button. Renders a real <button> so it is keyboard
     // operable (Enter + Space) and focusable for free — replacing the old
@@ -43,6 +44,7 @@
     {title}
     {disabled}
     onclick={onclick}
+    use:stopDragInit
 >
     <ObsidianIcon {iconId} {size} />
 </button>

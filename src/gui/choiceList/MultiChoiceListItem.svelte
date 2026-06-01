@@ -1,5 +1,6 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
+    import { stopDragInit } from "../shared/stopDragInit";
     import AddChoiceControls from "./AddChoiceControls.svelte";
     import ChoiceList from "./ChoiceList.svelte";
     import type IMultiChoice from "../../types/choices/IMultiChoice";
@@ -117,6 +118,7 @@
             class="multiChoiceListItemName"
             aria-expanded={!choice.collapsed}
             aria-label={`Toggle ${choice.name}`}
+            use:stopDragInit
             onclick={toggleCollapsed}
         >
             <span
@@ -221,6 +223,9 @@
         color: inherit;
         text-align: left;
         cursor: pointer;
+        /* Suppress double-tap-zoom + its click delay on touch — proper touch hygiene
+           for a tap target, and reduces the ghost-click the dedupe above also guards. */
+        touch-action: manipulation;
     }
 
     .multiChoiceListItemName:focus-visible {
