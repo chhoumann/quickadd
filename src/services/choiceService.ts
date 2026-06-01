@@ -233,7 +233,7 @@ function collectDescendantIds(multi: IMultiChoice): Set<string> {
 	return ids;
 }
 
-function removeChoiceById(
+export function removeChoiceById(
 	choices: IChoice[],
 	id: string,
 ): { updated: IChoice[]; removed?: IChoice } {
@@ -311,27 +311,34 @@ export function addChoiceToTree(
 }
 
 /**
- * Immutably set a Multi (folder)'s `collapsed` flag by id, anywhere in the tree —
- * only the touched branch is recreated, siblings keep their identity. Reassigning
- * the result into the choices `$state` is what makes a collapse toggle REACTIVE: an
- * in-place `choice.collapsed = …` mutation isn't tracked until the array has been
- * proxied by a reassignment, so on first render (the plain array mounted from the
- * store) the folder wouldn't visibly open/close until some later add/reorder/drag.
+ * Immutably update a Multi (folder) by id, anywhere in the tree: replace the folder
+ * whose id matches with `patch(folder)`, recreating only the touched branch (siblings
+ * keep their identity). Reassigning the result into the choices `$state` is what makes
+ * the edit REACTIVE — an in-place `folder.<field> = …` mutation isn't tracked until the
+ * array has been proxied by a reassignment, so on first render (the plain array mounted
+ * from the store) the change wouldn't show until some later reassignment. Shared walker
+ * behind setMultiCollapsedById / setFolderChildrenById.
  */
+export function updateMultiById(
+	choices: IChoice[],
+	id: string,
+	patch: (folder: IMultiChoice) => IMultiChoice,
+): IChoice[] {
+	return choices.map((c) => {
+		if (c.type !== "Multi") return c;
+		const mc = c as IMultiChoice;
+		if (mc.id === id) return patch(mc) as IChoice;
+		return { ...mc, choices: updateMultiById(mc.choices, id, patch) } as IChoice;
+	});
+}
+
+/** Immutably set a Multi (folder)'s `collapsed` flag by id (see updateMultiById). */
 export function setMultiCollapsedById(
 	choices: IChoice[],
 	id: string,
 	collapsed: boolean,
 ): IChoice[] {
-	return choices.map((c) => {
-		if (c.type !== "Multi") return c;
-		const mc = c as IMultiChoice;
-		if (mc.id === id) return { ...mc, collapsed } as IChoice;
-		return {
-			...mc,
-			choices: setMultiCollapsedById(mc.choices, id, collapsed),
-		} as IChoice;
-	});
+	return updateMultiById(choices, id, (mc) => ({ ...mc, collapsed }));
 }
 
 function expandMultiById(choices: IChoice[], id: string): IChoice[] {
@@ -344,19 +351,13 @@ function expandMultiById(choices: IChoice[], id: string): IChoice[] {
  * not by mutating a `choice` prop reference, which goes stale within a synchronous
  * cross-zone drag finalize (the root zone reassigns the tree first, so the folder
  * zone's `choice` no longer points at the folder in the live tree -> duplication).
+ * CO-DEPENDENT with the DROPPED_INTO_ANOTHER source-strip in ChoiceList.handleSort —
+ * the strip alone is insufficient at depth >= 2; both are load-bearing.
  */
 export function setFolderChildrenById(
 	choices: IChoice[],
 	folderId: string,
 	children: IChoice[],
 ): IChoice[] {
-	return choices.map((c) => {
-		if (c.type !== "Multi") return c;
-		const mc = c as IMultiChoice;
-		if (mc.id === folderId) return { ...mc, choices: children } as IChoice;
-		return {
-			...mc,
-			choices: setFolderChildrenById(mc.choices, folderId, children),
-		} as IChoice;
-	});
+	return updateMultiById(choices, folderId, (mc) => ({ ...mc, choices: children }));
 }

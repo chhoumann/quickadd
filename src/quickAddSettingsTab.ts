@@ -11,6 +11,7 @@ import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
+import type { Plain } from "./gui/svelte/persist.svelte";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
@@ -311,7 +312,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			app: this.app,
 			plugin: this.plugin,
 			choices: settingsStore.getState().choices,
-			saveChoices: (choices: IChoice[]) => {
+			// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
+			// the call site is a COMPILE error here — this is the real persistence sink
+			// that must never receive a live Svelte $state proxy. Plain<T> is assignable
+			// to T, so setState still accepts it.
+			saveChoices: (choices: Plain<IChoice[]>) => {
 				settingsStore.setState({ choices });
 			},
 		});
