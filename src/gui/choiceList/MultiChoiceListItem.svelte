@@ -153,6 +153,7 @@
                     {app}
                     roots={roots}
                     choices={choice.choices}
+                    isEmptyFolder={choice.choices.length === 0}
                     {forceDragDisabled}
                     rootReorder={rootReorder ?? actions.onReorderChoices}
                     actions={nestedActions}

@@ -3,7 +3,7 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
-    import { type DndEvent, dndzone } from "svelte-dnd-action";
+    import { type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
     import { flip } from "svelte/animate";
     import { stripShadow } from "../shared/dndReorder";
     import { transformDragPill } from "../shared/dragPill";
@@ -17,6 +17,7 @@
         forceDragDisabled = false,
         actions,
         rootReorder,
+        isEmptyFolder = false,
     }: {
         choices?: IChoice[];
         roots?: IChoice[];
@@ -28,6 +29,12 @@
         // instead of an ancestor Multi's override (which would reinterpret the root
         // array as its own children — data loss at depth >= 2). Undefined at the top.
         rootReorder?: (choices: IChoice[]) => void;
+        // PERSISTED emptiness of the folder this list belongs to (passed by the parent
+        // MultiChoiceListItem). Sizes the empty-drop band independently of the live
+        // `choices` length: previewing a dragged item into the zone momentarily fills
+        // `choices` (toggling qa-empty), but the band must NOT resize then — that
+        // show/hide was the violent jumping. False/absent at the root level.
+        isEmptyFolder?: boolean;
     } = $props();
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
@@ -74,7 +81,15 @@
     function handleSort(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return;
         collapseId = "";
-        choices = stripShadow(e.detail.items as IChoice[]);
+        let next = stripShadow(e.detail.items as IChoice[]);
+        // Cross-zone de-dupe: on DROPPED_INTO_ANOTHER the dragged item landed in a
+        // DIFFERENT zone, yet svelte-dnd can still report it in THIS (source) list — so
+        // committing this list verbatim would persist a copy in BOTH the source and the
+        // target. Strip the dragged item here so it lives only where it was dropped.
+        if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
+            next = next.filter((c) => c.id !== e.detail.info.id);
+        }
+        choices = next;
         // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
         // grabbed again). Mobile: dragDisabled ignores dragArmed, so this is a no-op.
         dragArmed = false;
@@ -128,6 +143,7 @@
         onfinalize={handleSort}
         class="choiceList"
         class:qa-nested={isNested}
+        class:qa-folder-empty={isEmptyFolder}
         class:qa-empty={choices.length === 0}>
     {#each stripShadow(choices) as choice (choice.id)}
         <!-- Flip wrapper: the dndzone's direct child = the animated/draggable item.
@@ -201,17 +217,22 @@
     border-color: var(--interactive-accent);
 }
 
-/* Empty folder: a GENEROUS, stable drop target. No row ever previews in during a
-   drag — the dnd shadow placeholder is stripped (stripShadow) so choices stays [] until
-   release — so the band can be comfortably large with zero reflow, making it an easy
-   target to land in (a thin band made it feel like a moving/precision target). */
-.choiceList.qa-nested.qa-empty {
+/* Empty folder: a GENEROUS, STABLE drop target. The band is sized by the folder's
+   PERSISTED emptiness (qa-folder-empty), NOT the live `choices` length — so when a
+   dragged item is previewed into the zone (filling `choices`, toggling qa-empty off)
+   the band keeps its height instead of collapsing/expanding under the cursor (the
+   "jumps all over the place"). Only persisted-empty folders get it, so populated
+   folders never heave at drag start. */
+.choiceList.qa-nested.qa-folder-empty {
     min-height: 3rem;
     display: flex;
     align-items: center;
 }
 
-.choiceList.qa-nested.qa-empty::after {
+/* Hint shows only when the folder is persisted-empty AND nothing is previewed in it
+   (qa-empty = live `choices` empty), so it cleanly swaps out for the previewed row
+   without changing the band's size. */
+.choiceList.qa-nested.qa-folder-empty.qa-empty::after {
     content: "Empty — add a choice or drag one here.";
     color: var(--text-muted);
     font-size: var(--font-ui-smaller, 12px);
