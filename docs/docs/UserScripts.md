@@ -11,6 +11,20 @@ User scripts are JavaScript files that extend QuickAdd's functionality with cust
 
 > **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
 
+## Adding Scripts to Macros
+
+User scripts must be real `.js` files inside your vault. Avoid `.obsidian` and
+hidden dot-folders such as `.scripts`, because Obsidian may exclude them from
+the vault file index QuickAdd uses for script discovery. If you create a script
+from inside Obsidian, confirm the file did not become a Markdown note such as
+`script.js.md`.
+
+In the Macro Builder, **Browse** opens QuickAdd's picker of discovered `.js`
+files; it is not a native file picker. If you add a script manually, type the
+script basename, not the relative path. For `scripts/my-script.js`, enter
+`my-script`; for a specific export, enter a member expression such as
+`my-script::start`.
+
 ## Basic Structure
 
 Every user script must export a module with at least an entry point function:
