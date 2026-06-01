@@ -12,19 +12,23 @@ const GRIP_SVG =
 	'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>';
 
 /**
- * dndzone `transformDraggedElement` handler: build/refresh the compact drag pill.
- * The library invokes this on every consider tick, so the pill node is created once
- * and reused (only its label text is updated). `data` is the dragged item; we read
- * its name (shown as text — no markdown render, auto-escaped) and whether it is a
- * folder (Multi) for the differentiated dashed-border styling.
+ * Build/refresh the compact drag pill. The library invokes the zone's
+ * `transformDraggedElement` on every consider tick, so the pill node is created once
+ * and reused (only its label text is updated). The caller passes a PRE-RESOLVED
+ * `label` — each zone owns its own label semantics (the choices zone uses the choice
+ * name; the macro builder must resolve via getCommandDisplayName, since a command's
+ * `.name` differs from its rendered label for Choice/Conditional commands). `label` is
+ * set as textContent (no markdown render, auto-escaped). `isMulti` draws the dashed
+ * folder variant — only meaningful for the choices zone (a command is never Multi).
  */
 export function transformDragPill(
 	el: HTMLElement | undefined,
-	data: { name?: string; type?: string } | undefined,
+	label: string,
+	isMulti = false,
 ): void {
-	if (!el || !data) return;
+	if (!el) return;
 	el.classList.add("qa-drag-clone");
-	el.dataset.qaMulti = data.type === "Multi" ? "true" : "false";
+	el.dataset.qaMulti = isMulti ? "true" : "false";
 
 	let pill = el.querySelector<HTMLDivElement>(":scope > .qa-drag-pill");
 	if (!pill) {
@@ -33,13 +37,12 @@ export function transformDragPill(
 		const grip = document.createElement("span");
 		grip.className = "qa-drag-pill-grip";
 		grip.innerHTML = GRIP_SVG; // static inline glyph — no Obsidian render pass
-		const label = document.createElement("span");
-		label.className = "qa-drag-pill-label";
-		pill.append(grip, label);
+		const labelEl = document.createElement("span");
+		labelEl.className = "qa-drag-pill-label";
+		pill.append(grip, labelEl);
 		el.appendChild(pill);
 	}
 
-	const label = pill.querySelector<HTMLSpanElement>(".qa-drag-pill-label");
-	const name = data.name ?? "";
-	if (label && label.textContent !== name) label.textContent = name;
+	const textEl = pill.querySelector<HTMLSpanElement>(".qa-drag-pill-label");
+	if (textEl && textEl.textContent !== label) textEl.textContent = label;
 }

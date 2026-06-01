@@ -3,10 +3,10 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
-    import { type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
+    import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
     import { flip } from "svelte/animate";
-    import { stripShadow } from "../shared/dndReorder";
-    import { transformDragPill } from "../shared/dragPill";
+    import { baseDndOptions, stripShadow } from "../shared/dndReorder";
+    import { createDragArming } from "../shared/dragArming.svelte";
     import { Platform, type App } from "obsidian";
     import type { ChoiceListActions } from "./choiceListActions";
 
@@ -18,6 +18,7 @@
         actions,
         rootReorder,
         isEmptyFolder = false,
+        nested = false,
     }: {
         choices?: IChoice[];
         roots?: IChoice[];
@@ -33,23 +34,22 @@
         // MultiChoiceListItem). Sizes the empty-drop band independently of the live
         // `choices` length: previewing a dragged item into the zone momentarily fills
         // `choices` (toggling qa-empty), but the band must NOT resize then — that
-        // show/hide was the violent jumping. False/absent at the root level.
+        // show/hide was the violent jumping. False/absent at the root level. Stays
+        // drag-STABLE because MultiChoiceListItem mounts this list ONE-WAY
+        // (`choices={choice.choices}`, not bind:), so the consider-time preview never
+        // writes back to choice.choices mid-drag.
         isEmptyFolder?: boolean;
+        // Whether this is a folder's inner list (explicit; previously inferred from
+        // `rootReorder !== undefined`). Marks ONLY nested zones as drop-into-folder
+        // targets and gets the qa-nested ring/band styling — the root list never lights
+        // up. False/absent at the root level.
+        nested?: boolean;
     } = $props();
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.
     const persistRoots = $derived(rootReorder ?? actions.onReorderChoices);
 
-    // rootReorder is undefined ONLY at the top-level list (ChoiceView mounts it
-    // without one; nested folder lists always receive it — MultiChoiceListItem
-    // threads it down). So this reliably means "this is a folder's inner list",
-    // used below to mark ONLY nested zones as drop-into-folder targets — the root
-    // reorder list never lights up.
-    const isNested = $derived(rootReorder !== undefined);
-
-    // Smooth FLIP reorder — svelte-dnd-action's flipDurationMs defaults to 0 (items
-    // snap). Read prefers-reduced-motion once at mount (the settings modal opens fresh).
     // flipDurationMs MUST be 0 for a responsive reorder: the library ties its
     // position-observation interval to it — 0 => 20ms polling (continuous), any value
     // > 0 => max(flip,100)*1.07 ≈ 107ms+, which felt "batched" (move several rows, then
@@ -59,19 +59,16 @@
     const isMobile = Platform.isMobile;
 
     let collapseId = $state("");
-    // Desktop: drag is armed by grabbing the handle (dragDisabled until then), which
-    // prevents accidental drags when interacting with a row. Mobile: there is no
-    // handle — the whole row is draggable by LONG-PRESS (delayTouchStart below), the
-    // native mobile reorder gesture — so drag stays enabled unless filtering.
-    let dragArmed = $state(false);
-    // Did arming actually become a real drag (a `consider` fired)? The failsafe in
-    // startDrag uses this to know whether handleSort already owns the disarm.
-    let dragStarted = false;
-    const dragDisabled = $derived(forceDragDisabled || (!isMobile && !dragArmed));
+    // Desktop drag is armed by grabbing the handle (shared with the macro builder; see
+    // createDragArming for the click-swallow failsafe). Mobile has no handle — the whole
+    // row is draggable by LONG-PRESS (delayTouchStart) — so drag stays enabled unless
+    // filtering.
+    const drag = createDragArming();
+    const dragDisabled = $derived(forceDragDisabled || (!isMobile && !drag.armed));
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
-        dragStarted = true; // a genuine drag is underway (see startDrag failsafe)
+        drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
         collapseId = e.detail.info.id;
         // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
         // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
@@ -86,35 +83,23 @@
         // DIFFERENT zone, yet svelte-dnd can still report it in THIS (source) list — so
         // committing this list verbatim would persist a copy in BOTH the source and the
         // target. Strip the dragged item here so it lives only where it was dropped.
+        // CO-DEPENDENT with setFolderChildrenById's by-id commit (choiceService) — the
+        // strip alone is insufficient at depth >= 2; both are load-bearing.
         if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
             next = next.filter((c) => c.id !== e.detail.info.id);
         }
         choices = next;
         // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
-        // grabbed again). Mobile: dragDisabled ignores dragArmed, so this is a no-op.
-        dragArmed = false;
-        dragStarted = false;
+        // grabbed again). Mobile: dragDisabled ignores `armed`, so this is a no-op.
+        drag.reset();
         actions.onReorderChoices(choices);
     }
 
+    // Arm the desktop drag on the handle's pointerdown (no-op while filtering). The
+    // failsafe that disarms a press-that-never-becomes-a-drag lives in createDragArming.
     let startDrag = () => {
         if (forceDragDisabled) return; // do not enable drag while filtering
-        dragArmed = true;
-        dragStarted = false;
-        // Failsafe: arming flips the zone draggable on the handle's pointerdown, but a
-        // press that never becomes a drag (a stray click/tap on the handle) leaves
-        // svelte-dnd-action without a `finalize` to fire — so handleSort never disarms,
-        // the zone stays draggable, and the library SWALLOWS row button clicks (e.g.
-        // the Multi collapse toggle). Disarm on the next pointer release; a genuine drag
-        // sets dragStarted (handleConsider) so its handleSort keeps the reset. Capture
-        // phase so a stopPropagation in the library's handlers can't hide the release.
-        const disarm = () => {
-            window.removeEventListener("pointerup", disarm, true);
-            window.removeEventListener("pointercancel", disarm, true);
-            if (!dragStarted) dragArmed = false;
-        };
-        window.addEventListener("pointerup", disarm, true);
-        window.addEventListener("pointercancel", disarm, true);
+        drag.startDrag();
     };
 
     // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle). Moves the choice
@@ -134,15 +119,20 @@
         next.splice(target, 0, moved);
         choices = next;
         actions.onReorderChoices(choices);
+        // autoAriaDisabled silences the library's own move alerts, so announce the
+        // keyboard reorder ourselves (cross-zone moves stay mouse-only).
+        alertToScreenReader(
+            `Moved ${choice.name} to position ${target + 1} of ${list.length}`,
+        );
     }
 </script>
 
 <div
-        use:dndzone={{items: choices, dragDisabled, flipDurationMs, morphDisabled: true, useCursorForDetection: true, transformDraggedElement: transformDragPill, dropTargetStyle: {}, dropTargetClasses: isNested ? ["qa-folder-droptarget"] : [], autoAriaDisabled: true, zoneItemTabIndex: -1, delayTouchStart: 200}}
+        use:dndzone={baseDndOptions({items: choices, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
-        class:qa-nested={isNested}
+        class:qa-nested={nested}
         class:qa-folder-empty={isEmptyFolder}
         class:qa-empty={choices.length === 0}>
     {#each stripShadow(choices) as choice (choice.id)}
@@ -183,6 +173,12 @@
 <style>
 .choiceList {
     width: auto;
+}
+
+/* Root (non-nested) empty list keeps a little bottom breathing room. The only way to
+   render it empty is a zero-match filter — a truly empty tree shows the hero state. */
+.choiceList.qa-empty:not(.qa-nested) {
+    padding-bottom: 0.5rem;
 }
 
 .choiceList.qa-nested {

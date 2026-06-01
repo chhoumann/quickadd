@@ -1,9 +1,10 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
-import { type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
-import { replaceById, stripShadow } from "../shared/dndReorder";
-import { transformDragPill } from "../shared/dragPill";
+import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+import { baseDndOptions, replaceById, stripShadow } from "../shared/dndReorder";
+import { createDragArming } from "../shared/dragArming.svelte";
+import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
 import type { CommandListProps } from "./commandListProps.svelte";
 import StandardCommand from "./Components/StandardCommand.svelte";
@@ -43,10 +44,11 @@ let {
 }: CommandListProps = $props();
 
 const isMobile = Platform.isMobile;
-// Desktop: drag is armed by grabbing the handle. Mobile: no handle — the whole row
+// Desktop: drag is armed by grabbing the handle (shared with the choices list; see
+// createDragArming for the click-swallow failsafe). Mobile: no handle — the whole row
 // is draggable by long-press (delayTouchStart), so drag stays enabled.
-let dragArmed = $state(false);
-const dragDisabled = $derived(!isMobile && !dragArmed);
+const drag = createDragArming();
+const dragDisabled = $derived(!isMobile && !drag.armed);
 
 // Narrowing helpers: the {#each} discriminates on command.type, so each child
 // receives the matching subtype. Passed one-way — children report edits via the
@@ -64,6 +66,7 @@ function persist() {
 }
 
 function handleConsider(e: CustomEvent<DndEvent>) {
+	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
 	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
 	// state and vanish on reorder (ghost gap) — see [[svelte-dnd-action-shadow-placeholder]].
 	commands = stripShadow(e.detail.items as ICommand[]);
@@ -73,9 +76,9 @@ function handleSort(e: CustomEvent<DndEvent>) {
 	commands = stripShadow(e.detail.items as ICommand[]);
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
-	// Mobile: dragDisabled ignores dragArmed, so this is a no-op.
+	// Mobile: dragDisabled ignores `armed`, so this is a no-op.
 	if (e.detail.info.source === SOURCES.POINTER) {
-		dragArmed = false;
+		drag.reset();
 	}
 
 	persist();
@@ -85,7 +88,7 @@ function handleSort(e: CustomEvent<DndEvent>) {
 // see DragHandle: preventDefault on pointerdown would suppress the compat mousedown
 // the library starts the drag from.
 let startDrag = () => {
-	dragArmed = true;
+	drag.startDrag();
 };
 
 // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle): move the command one
@@ -101,6 +104,11 @@ function moveCommand(id: string, direction: -1 | 1) {
 	next.splice(target, 0, moved);
 	commands = next;
 	persist();
+	// autoAriaDisabled silences the library's own move alerts, so announce the
+	// keyboard reorder ourselves.
+	alertToScreenReader(
+		`Moved ${getCommandDisplayName(moved)} to position ${target + 1} of ${list.length}`,
+	);
 }
 
 function updateCommand(command: ICommand) {
@@ -189,27 +197,15 @@ async function configureOpenFile(command: IOpenFileCommand) {
 
 <ol
 	class="quickAddCommandList"
-	use:dndzone={{
+	use:dndzone={baseDndOptions({
 		items: commands,
 		dragDisabled,
-		// The floating clone becomes a compact pill under the cursor (transformDragPill
-		// + the #dnd-action-dragged-el rules in styles.css), so there's no full-row
-		// ghost to feel "yanked" onto the cursor. morphDisabled stops the lib
-		// re-inflating the clone to full width each tick; useCursorForDetection keeps
-		// the drop hit-test on the cursor = the visible pill.
-		morphDisabled: true,
-		useCursorForDetection: true,
-		transformDraggedElement: transformDragPill,
-		dropTargetStyle: {},
 		type: "command",
-		autoAriaDisabled: true,
-		// Keep the rows out of the tab order — only the action buttons / drag handle
-		// inside each row are focusable (the library defaults this to 0, adding a dead
-		// tab stop per row even with autoAriaDisabled).
-		zoneItemTabIndex: -1,
-		// Mobile: long-press (hold) initiates a row drag; a quick swipe still scrolls.
-		delayTouchStart: 200,
-	}}
+		// A command's `.name` differs from its rendered label for Choice/Conditional
+		// commands (getCommandDisplayName resolves the referenced choice's name / the
+		// "If …" summary), so the pill must resolve the label the same way the row does.
+		resolveLabel: getCommandDisplayName,
+	})}
 	onconsider={handleConsider}
 	onfinalize={handleSort}
 >

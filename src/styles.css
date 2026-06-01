@@ -1109,7 +1109,14 @@
    right edge = under the cursor. Built by transformDragPill (src/gui/shared/dragPill.ts);
    requires morphDisabled:true and centreDraggedOnCursor OFF on the zone. These live
    in styles.css (always global) because the clone is library-created — a Svelte
-   component-scoped selector would be flagged css_unused_selector. */
+   component-scoped selector would be flagged css_unused_selector.
+   KNOWN-FRAGILE: this couples to svelte-dnd-action internals (the #dnd-action-dragged-el
+   id, its translate3d cursor-tracking so the clone's RIGHT edge ~ the cursor, and the
+   morphDisabled/centreDraggedOnCursor:false config). It is NOT unit-testable (jsdom has
+   no layout) — re-verify the pill position MANUALLY in the dev vault on any
+   svelte-dnd-action upgrade or row-layout change (handle must stay the rightmost row
+   element). If the lib renames the id, these rules simply stop applying (the pill falls
+   back to the full-row clone — degraded, not broken). */
 #dnd-action-dragged-el.qa-drag-clone {
 	background: transparent !important;
 	border: none !important;
