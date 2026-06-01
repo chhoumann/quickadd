@@ -1,5 +1,6 @@
 <script lang="ts">
     import ObsidianIcon from "../components/ObsidianIcon.svelte";
+    import { stopDragInit } from "../shared/stopDragInit";
     import AddChoiceControls from "./AddChoiceControls.svelte";
     import ChoiceList from "./ChoiceList.svelte";
     import type IMultiChoice from "../../types/choices/IMultiChoice";
@@ -74,16 +75,23 @@
     }
 
     // Nested children reordered: write the new order back to this Multi choice (the
-    // choice object is shared with the root tree, so this mutates in place), then
-    // persist the whole root tree via the TOP-LEVEL handler. Routing through
-    // `rootReorder` — NOT `actions.onReorderChoices`, which inside a nested Multi is
-    // an ancestor's override that would overwrite ITS children with the root array —
-    // keeps reorder correct at any nesting depth (fixes depth >= 2 data loss).
+    // choice object is shared with the root tree, so this mutates it in place), then
+    // COMMIT the tree via the top-level onCommit, which re-persists ChoiceView's own
+    // authoritative `choices`. We must NOT reassign it from `[...roots]` here: in a
+    // cross-zone drag (root <-> folder) svelte-dnd fires two synchronous finalizes,
+    // and the `roots` prop lags the source of truth within that tick — reassigning
+    // from it overwrote the folder's emptying and duplicated the dragged item.
     const nestedActions: ChoiceListActions = {
         ...untrack(() => actions),
         onReorderChoices: (reordered: IChoice[]) => {
+            // In-place edit keeps cross-zone IN consistent: the root zone's finalize
+            // reassigns from svelte-dnd's items, which reference THIS same folder
+            // object, so it must already carry the new children.
             choice.choices = reordered;
-            (rootReorder ?? actions.onReorderChoices)([...roots]);
+            // AND commit by id against the authoritative tree: on cross-zone OUT the
+            // root finalize reassigns the tree FIRST, leaving `choice` stale — by-id
+            // lands the edit on the real live folder node (fixes duplication).
+            actions.onCommitFolder(choice.id, reordered);
         },
     };
 
@@ -110,6 +118,7 @@
             class="multiChoiceListItemName"
             aria-expanded={!choice.collapsed}
             aria-label={`Toggle ${choice.name}`}
+            use:stopDragInit
             onclick={toggleCollapsed}
         >
             <span
@@ -146,6 +155,8 @@
                     {app}
                     roots={roots}
                     choices={choice.choices}
+                    nested={true}
+                    isEmptyFolder={choice.choices.length === 0}
                     {forceDragDisabled}
                     rootReorder={rootReorder ?? actions.onReorderChoices}
                     actions={nestedActions}
@@ -156,10 +167,7 @@
                      Hidden while filtering (the filtered tree is a clone that
                      must not be persisted). -->
                 {#if !forceDragDisabled}
-                    <div
-                        class="nestedAddRow"
-                        class:emptyFolder={choice.choices.length === 0}
-                    >
+                    <div class="nestedAddRow">
                         <AddChoiceControls
                             compact
                             targetFolderId={choice.id}
@@ -215,6 +223,9 @@
         color: inherit;
         text-align: left;
         cursor: pointer;
+        /* Suppress double-tap-zoom + its click delay on touch — proper touch hygiene
+           for a tap target, and reduces the ghost-click the dedupe above also guards. */
+        touch-action: manipulation;
     }
 
     .multiChoiceListItemName:focus-visible {
@@ -223,21 +234,20 @@
         border-radius: var(--radius-s, 4px);
     }
 
+    /* Just the indent — the drop-into-folder ring is drawn on the ACTUAL dndzone
+       (.choiceList, in ChoiceList.svelte) so the highlighted area equals the
+       droppable area (WYSIWYG); it is NOT drawn on this wrapper, which extends past
+       the zone to the add-row/hint. */
     .nestedChoiceList {
         padding-left: 25px;
     }
 
     /* The per-folder add-row is the folder's own affordance: one spacing step
-       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to
-       this folder", but with real breathing room (2px cramped it). An EMPTY folder
-       gets that same 8px from its drop-zone padding (ChoiceList), so the add-row
-       sits flush there (margin 0) — identical 8px gap whether empty or populated,
-       and the empty drop target stays a usable 8px instead of collapsing. */
+       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to this
+       folder". An empty folder's add-row sits below the drop band (ChoiceList's
+       .qa-empty, which now owns the "Empty — …" hint as pseudo-content), getting
+       the same 8px gap as a populated one. */
     .nestedAddRow {
         margin: 8px 0 0 0;
-    }
-
-    .nestedAddRow.emptyFolder {
-        margin-top: 0;
     }
 </style>

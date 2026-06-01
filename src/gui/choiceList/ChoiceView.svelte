@@ -14,6 +14,8 @@
 		duplicateChoice,
 		addChoiceToTree,
 		moveChoice as moveChoiceService,
+		removeChoiceById,
+		setFolderChildrenById,
 		setMultiCollapsedById,
 	} from "../../services/choiceService";
 	import type { ChoiceType } from "../../types/choices/choiceType";
@@ -167,17 +169,12 @@
 		const userConfirmed = await deleteChoiceWithConfirmation(choice, app);
 		if (!userConfirmed) return;
 
-		// Remove choice from array (including nested choices)
-		choices = choices.filter((value) => removeChoiceHelper(choice.id, value));
+		// Immutable removal at any depth — so the delete is reactive on the runes
+		// $state array without relying on the top-array reassignment to heal an
+		// in-place nested mutation (which would silently fail for a nested-only delete).
+		choices = removeChoiceById(choices, choice.id).updated;
 		commandRegistry.disableCommand(choice);
 		save();
-	}
-
-	function removeChoiceHelper(id: string, value: IChoice): boolean {
-		if (isMultiChoice(value)) {
-			value.choices = value.choices.filter((v) => removeChoiceHelper(id, v));
-		}
-		return value.id !== id;
 	}
 
 	async function handleConfigureChoice(oldChoice: IChoice) {
@@ -243,6 +240,15 @@
 		save();
 	}
 
+	// Commit a folder's children by id into ChoiceView's authoritative tree. A nested
+	// drag/reorder calls this rather than relying on its (cross-zone-stale) `choice`
+	// reference — finding the folder by id keeps the edit on the real live node, which
+	// is what fixes the root<->folder drag duplication. See onCommitFolder.
+	function handleCommitFolder(folderId: string, children: IChoice[]) {
+		choices = setFolderChildrenById(choices, folderId, children);
+		save();
+	}
+
 	// Reassign the tree immutably (by id, any depth) so the collapse is REACTIVE —
 	// an in-place `choice.collapsed = …` isn't tracked until the array is proxied by
 	// a reassignment, which is why folders wouldn't toggle on first render. save()
@@ -266,6 +272,7 @@
 		onReorderChoices: handleReorderChoices,
 		onAddChoice: addChoiceToList,
 		onToggleCollapsed: handleToggleCollapsed,
+		onCommitFolder: handleCommitFolder,
 	};
 
 	async function openAISettings() {
