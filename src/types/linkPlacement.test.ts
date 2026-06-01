@@ -6,6 +6,7 @@ import {
 	normalizeAppendLinkOptions,
 	isAppendLinkEnabled,
 	placementSupportsEmbed,
+	placementSupportsFrontmatter,
 } from "./linkPlacement";
 
 describe("LinkPlacement", () => {
@@ -126,6 +127,7 @@ describe("LinkPlacement", () => {
 				"afterSelection",
 				"endOfLine",
 				"newLine",
+				"inFrontmatter"
 			];
 
 			for (const placement of placements) {
@@ -145,6 +147,17 @@ describe("LinkPlacement", () => {
 			expect(placementSupportsEmbed("afterSelection")).toBe(false);
 			expect(placementSupportsEmbed("endOfLine")).toBe(false);
 			expect(placementSupportsEmbed("newLine")).toBe(false);
+			expect(placementSupportsEmbed("inFrontmatter")).toBe(false);
+		});
+	});
+
+	describe("placementSupportsFrontmatter", () => {
+		it("should return true only for inFrontmatter placement", () => {
+			expect(placementSupportsFrontmatter("replaceSelection")).toBe(false);
+			expect(placementSupportsFrontmatter("afterSelection")).toBe(false);
+			expect(placementSupportsFrontmatter("endOfLine")).toBe(false);
+			expect(placementSupportsFrontmatter("newLine")).toBe(false);
+			expect(placementSupportsFrontmatter("inFrontmatter")).toBe(true);
 		});
 	});
 });
