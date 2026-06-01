@@ -432,12 +432,13 @@ export abstract class Formatter {
 	}
 
 	protected async replaceFieldVarInString(input: string) {
-		let output: string = input;
+		const regex = new RegExp(FIELD_VAR_REGEX_WITH_FILTERS.source, "gi");
+		let output = "";
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
 
-		// Use the enhanced regex that supports filters
-		while (FIELD_VAR_REGEX_WITH_FILTERS.test(output)) {
-			const match = FIELD_VAR_REGEX_WITH_FILTERS.exec(output);
-			if (!match) throw new Error(`Unable to parse field variable. Invalid syntax in: "${output.substring(Math.max(0, output.search(FIELD_VAR_REGEX_WITH_FILTERS) - 10), Math.min(output.length, output.search(FIELD_VAR_REGEX_WITH_FILTERS) + 30))}..."`);
+		while ((match = regex.exec(input)) !== null) {
+			output += input.slice(lastIndex, match.index);
 
 			// match[1] contains the field name (and potentially the old filter syntax if no pipe is used)
 			// match[2] contains the filter part starting with |, if present
@@ -457,17 +458,15 @@ export abstract class Formatter {
 					? String(this.variables.get(fieldVariableKey))
 					: this.getVariableValue(fullMatch);
 
-				output = this.replacer(
-					output,
-					FIELD_VAR_REGEX_WITH_FILTERS,
-					replacement,
-				);
+				output += replacement;
 			} else {
-				break;
+				output += match[0];
 			}
+
+			lastIndex = regex.lastIndex;
 		}
 
-		return output;
+		return output + input.slice(lastIndex);
 	}
 
 	private getFieldVariableKey(fieldSpecifier: string): string {

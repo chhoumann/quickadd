@@ -16,8 +16,10 @@ export class FieldValueProcessor {
 		rawValues: Set<string>,
 		filters: FieldFilter
 	): ProcessedValues {
-		let values = Array.from(rawValues);
-		const totalProcessed = values.length;
+		const totalProcessed = rawValues.size;
+		let values = Array.from(rawValues).filter(
+			(value) => !this.isUnresolvedFieldToken(value),
+		);
 
 		// Apply deduplication
 		const deduplicationOptions: DeduplicationOptions = {
@@ -39,6 +41,10 @@ export class FieldValueProcessor {
 			duplicatesRemoved: deduplicationResult.duplicatesRemoved,
 			totalProcessed
 		};
+	}
+
+	private static isUnresolvedFieldToken(value: string): boolean {
+		return /^{{FIELD:[^\n\r}]*\|?[^\n\r}]*}}$/i.test(value.trim());
 	}
 
 	/**
