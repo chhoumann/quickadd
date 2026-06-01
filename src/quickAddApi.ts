@@ -40,6 +40,7 @@ import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { formatISODate } from "./utils/dateParser";
+import type { InputPromptOptions } from "./types/inputPrompt";
 
 function snapshotVariables(
 	vars: Map<string, unknown>,
@@ -161,8 +162,13 @@ export class QuickAddApi {
 
 				return formattedResult;
 			},
-			inputPrompt: (header: string, placeholder?: string, value?: string) => {
-				return QuickAddApi.inputPrompt(app, header, placeholder, value);
+			inputPrompt: (
+				header: string,
+				placeholder?: string,
+				value?: string,
+				options?: InputPromptOptions,
+			) => {
+				return QuickAddApi.inputPrompt(app, header, placeholder, value, options);
 			},
 			datePrompt: (
 				header: string,
@@ -178,8 +184,15 @@ export class QuickAddApi {
 				header: string,
 				placeholder?: string,
 				value?: string,
+				options?: InputPromptOptions,
 			) => {
-				return QuickAddApi.wideInputPrompt(app, header, placeholder, value);
+				return QuickAddApi.wideInputPrompt(
+					app,
+					header,
+					placeholder,
+					value,
+					options,
+				);
 			},
 			yesNoPrompt: (header: string, text?: string) => {
 				return QuickAddApi.yesNoPrompt(app, header, text);
@@ -606,9 +619,17 @@ export class QuickAddApi {
 		header: string,
 		placeholder?: string,
 		value?: string,
+		options?: InputPromptOptions,
 	) {
 		try {
-			return await GenericInputPrompt.Prompt(app, header, placeholder, value);
+			return await GenericInputPrompt.Prompt(
+				app,
+				header,
+				placeholder,
+				value,
+				undefined,
+				options,
+			);
 		} catch (error) {
 			throwIfPromptCancelled(error);
 			return undefined;
@@ -651,6 +672,7 @@ export class QuickAddApi {
 		header: string,
 		placeholder?: string,
 		value?: string,
+		options?: InputPromptOptions,
 	) {
 		try {
 			return await GenericWideInputPrompt.Prompt(
@@ -658,6 +680,8 @@ export class QuickAddApi {
 				header,
 				placeholder,
 				value,
+				undefined,
+				options,
 			);
 		} catch (error) {
 			throwIfPromptCancelled(error);

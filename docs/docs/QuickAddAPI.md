@@ -115,13 +115,14 @@ const values = await quickAddApi.requestInputs([
 const tagArray = values.tags.split(', ').filter(Boolean);
 ```
 
-### `inputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
+### `inputPrompt(header: string, placeholder?: string, value?: string, options?: { cursorAtEnd?: boolean }): Promise<string>`
 Opens a prompt that asks for text input.
 
 **Parameters:**
 - `header`: The prompt title/question
 - `placeholder`: (Optional) Placeholder text in the input field
 - `value`: (Optional) Default value
+- `options.cursorAtEnd`: (Optional) When `true`, places the caret after the default value instead of selecting it
 
 **Returns:** Promise resolving to the entered string.
 
@@ -145,7 +146,7 @@ try {
 }
 ```
 
-### `wideInputPrompt(header: string, placeholder?: string, value?: string): Promise<string>`
+### `wideInputPrompt(header: string, placeholder?: string, value?: string, options?: { cursorAtEnd?: boolean }): Promise<string>`
 Opens a wider prompt for longer text input (multi-line).
 
 **Parameters:** Same as `inputPrompt`

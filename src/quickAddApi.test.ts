@@ -208,6 +208,24 @@ describe("static prompt wrappers", () => {
 				"Header",
 				"ph",
 				"val",
+				undefined,
+				undefined,
+			);
+		});
+
+		it("forwards cursor placement options", async () => {
+			mocks.genericInputPrompt.mockResolvedValue("hello");
+			await QuickAddApi.inputPrompt(app, "Header", "ph", "val", {
+				cursorAtEnd: true,
+			});
+
+			expect(mocks.genericInputPrompt).toHaveBeenCalledWith(
+				app,
+				"Header",
+				"ph",
+				"val",
+				undefined,
+				{ cursorAtEnd: true },
 			);
 		});
 
@@ -237,7 +255,30 @@ describe("static prompt wrappers", () => {
 			mocks.genericWideInputPrompt.mockResolvedValue("wide");
 			const out = await QuickAddApi.wideInputPrompt(app, "H", "p", "v");
 			expect(out).toBe("wide");
-			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(app, "H", "p", "v");
+			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(
+				app,
+				"H",
+				"p",
+				"v",
+				undefined,
+				undefined,
+			);
+		});
+
+		it("forwards cursor placement options", async () => {
+			mocks.genericWideInputPrompt.mockResolvedValue("wide");
+			await QuickAddApi.wideInputPrompt(app, "H", "p", "v", {
+				cursorAtEnd: true,
+			});
+
+			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(
+				app,
+				"H",
+				"p",
+				"v",
+				undefined,
+				{ cursorAtEnd: true },
+			);
 		});
 
 		it("swallows generic errors as undefined", async () => {
@@ -444,7 +485,44 @@ describe("GetApi prompt wrappers", () => {
 		const { api, app } = getApi();
 		const out = await api.inputPrompt("H", "p", "val");
 		expect(out).toBe("v");
-		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(app, "H", "p", "val");
+		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(
+			app,
+			"H",
+			"p",
+			"val",
+			undefined,
+			undefined,
+		);
+	});
+
+	it("inputPrompt delegates cursor placement options", async () => {
+		mocks.genericInputPrompt.mockResolvedValue("v");
+		const { api, app } = getApi();
+		await api.inputPrompt("H", "p", "val", { cursorAtEnd: true });
+		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(
+			app,
+			"H",
+			"p",
+			"val",
+			undefined,
+			{ cursorAtEnd: true },
+		);
+	});
+
+	it("wideInputPrompt delegates cursor placement options", async () => {
+		mocks.genericWideInputPrompt.mockResolvedValue("v");
+		const { api, app } = getApi();
+		await api.wideInputPrompt("H", "p", "val", {
+			cursorAtEnd: true,
+		});
+		expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(
+			app,
+			"H",
+			"p",
+			"val",
+			undefined,
+			{ cursorAtEnd: true },
+		);
 	});
 
 	it("suggester delegates options through", async () => {
