@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import { Notice, type App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -367,6 +367,46 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		);
 
 		expect(setTitleMock).toHaveBeenCalledWith("Map");
+	});
+
+	it("copies formatted capture content to clipboard when creating the target file fails", async () => {
+		const clipboardWriteText = vi.fn(async () => {});
+		Object.defineProperty(navigator, "clipboard", {
+			value: { writeText: clipboardWriteText },
+			configurable: true,
+		});
+		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Bad:Title.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				format: {
+					enabled: true,
+					format: "Capture body to preserve",
+				},
+			}),
+			createExecutor(),
+		);
+
+		(engine as any).createFileWithInput = vi.fn(async () => {
+			throw new Error("File name cannot contain ':'");
+		});
+
+		await engine.run();
+
+		expect(clipboardWriteText).toHaveBeenCalledWith("Capture body to preserve");
 	});
 
 	it("routes active canvas file-card capture to linked markdown path", async () => {
