@@ -157,4 +157,13 @@ describe("Formatter FIELD and TITLE namespace handling", () => {
 
 		expect(result).toBe("Preview Title");
 	});
+
+	it("does not loop when a selected FIELD value is another FIELD token", async () => {
+		formatter.setMockFieldResponse("type", "{{FIELD:type}}");
+
+		const result = await formatter.runFormat("{{FIELD:type}}");
+
+		expect(result).toBe("{{FIELD:type}}");
+		expect(formatter.fieldCalls).toEqual(["type"]);
+	});
 });
