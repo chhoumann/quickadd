@@ -15,6 +15,7 @@ import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
+	placementSupportsFrontmatter,
 } from "../../types/linkPlacement";
 import { getAllFolderPathsInVault } from "../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
@@ -819,6 +820,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					dropdown.addOption("afterSelection", "After selection");
 					dropdown.addOption("endOfLine", "End of line");
 					dropdown.addOption("newLine", "New line");
+					dropdown.addOption("inFrontmatter", "In frontmatter property");
 
 					dropdown.setValue(normalizedOptions.placement);
 					dropdown.onChange((value: LinkPlacement) => {
@@ -871,6 +873,35 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								placement,
 								requireActiveFile,
 								linkType: value,
+							};
+						});
+					});
+			}
+
+			if (placementSupportsFrontmatter(normalizedOptions.placement)) {
+				const linkTypeSetting: Setting = new Setting(this.contentEl);
+				const current = typeof this.choice.appendLink !== "boolean" ? this.choice.appendLink.frontmatterProperty : '';
+				linkTypeSetting
+					.setName("Frontmatter property")
+					.setDesc("Choose the frontmatter property to insert the link into.")
+					.addText((text) => {
+						text.setValue(current ?? '')
+						text.onChange((value: string) => {
+							const currentValue = this.choice.appendLink;
+							const requireActiveFile =
+								typeof currentValue === "boolean"
+									? normalizedOptions.requireActiveFile
+									: currentValue.requireActiveFile;
+							const placement =
+								typeof currentValue === "boolean"
+									? normalizedOptions.placement
+									: currentValue.placement;
+
+							this.choice.appendLink = {
+								enabled: true,
+								placement,
+								requireActiveFile,
+								frontmatterProperty: value,
 							};
 						});
 					});

@@ -29,6 +29,7 @@ When either enabled mode is selected, you can choose where the link is placed:
 - **After selection** - Preserves selected text and places the link after it  
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
+- **In frontmatter property** - Adds the link to a frontmatter property
 
 
 **If the target file already exists**. Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.

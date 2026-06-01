@@ -59,6 +59,7 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
+    -   **In frontmatter property** - Adds the link to a frontmatter property
 
 ## Canvas Capture Notes
 

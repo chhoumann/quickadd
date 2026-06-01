@@ -5,12 +5,17 @@ export type LinkPlacement =
 	| "replaceSelection"  // Replace the current selection with the link
 	| "afterSelection"    // Insert the link after the current selection
 	| "endOfLine"         // Insert the link at the end of the current line
-	| "newLine";          // Insert the link on a new line
+	| "newLine"           // Insert the link on a new line
+	| "inFrontmatter";	  // Insert the link into a frontmatter field
 
 export type LinkType = "link" | "embed";
 
 export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 	return placement === "replaceSelection";
+}
+
+export function placementSupportsFrontmatter(placement : LinkPlacement) : boolean {
+	return placement === "inFrontmatter";
 }
 
 function sanitizeLinkType(
@@ -41,6 +46,10 @@ export interface AppendLinkOptions {
 	 * Defaults to "link" for legacy settings.
 	 */
 	linkType?: LinkType;
+	/**
+	 * Controls the frontmatter property the link is added to. Only used when placement is inFrontmatter.
+	 */
+	frontmatterProperty? : string
 }
 
 /**
@@ -73,6 +82,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
 			linkType: sanitizeLinkType(appendLink.linkType, placement),
+			frontmatterProperty: appendLink.frontmatterProperty
 		};
 	}
 
