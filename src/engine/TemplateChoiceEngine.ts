@@ -28,6 +28,7 @@ import {
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -170,6 +171,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}
+			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
 	}

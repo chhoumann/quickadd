@@ -111,6 +111,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { settingsStore } from "../settingsStore";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -207,6 +208,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 	beforeEach(() => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		noticeClass.instances.length = 0;
+		InputPromptDraftStore.getInstance().clearAll();
 		formatFileNameMock.mockReset();
 		formatFileContentMock.mockReset();
 		formatFileContentMock.mockResolvedValue("");
@@ -278,6 +280,25 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		await engine.run();
 
 		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
+	});
+
+	it("preserves submitted prompt drafts when a non-abort template failure is reported", async () => {
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Test Template Choice",
+			placeholder: "",
+		});
+		const { engine } = createEngine("ignored");
+		formatFileNameMock.mockRejectedValueOnce(new Error("Disk full"));
+
+		store.beginExecutionScope();
+		store.handleSubmittedDraft(draftKey, "Submitted template name");
+
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
 });
 
