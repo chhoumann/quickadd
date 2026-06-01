@@ -622,16 +622,14 @@ export class QuickAddApi {
 		options?: InputPromptOptions,
 	) {
 		try {
-			return options
-				? await GenericInputPrompt.Prompt(
-						app,
-						header,
-						placeholder,
-						value,
-						undefined,
-						options,
-					)
-				: await GenericInputPrompt.Prompt(app, header, placeholder, value);
+			return await GenericInputPrompt.Prompt(
+				app,
+				header,
+				placeholder,
+				value,
+				undefined,
+				options,
+			);
 		} catch (error) {
 			throwIfPromptCancelled(error);
 			return undefined;
@@ -677,21 +675,14 @@ export class QuickAddApi {
 		options?: InputPromptOptions,
 	) {
 		try {
-			return options
-				? await GenericWideInputPrompt.Prompt(
-						app,
-						header,
-						placeholder,
-						value,
-						undefined,
-						options,
-					)
-				: await GenericWideInputPrompt.Prompt(
-						app,
-						header,
-						placeholder,
-						value,
-					);
+			return await GenericWideInputPrompt.Prompt(
+				app,
+				header,
+				placeholder,
+				value,
+				undefined,
+				options,
+			);
 		} catch (error) {
 			throwIfPromptCancelled(error);
 			return undefined;

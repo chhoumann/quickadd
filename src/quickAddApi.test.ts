@@ -208,6 +208,8 @@ describe("static prompt wrappers", () => {
 				"Header",
 				"ph",
 				"val",
+				undefined,
+				undefined,
 			);
 		});
 
@@ -253,7 +255,14 @@ describe("static prompt wrappers", () => {
 			mocks.genericWideInputPrompt.mockResolvedValue("wide");
 			const out = await QuickAddApi.wideInputPrompt(app, "H", "p", "v");
 			expect(out).toBe("wide");
-			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(app, "H", "p", "v");
+			expect(mocks.genericWideInputPrompt).toHaveBeenCalledWith(
+				app,
+				"H",
+				"p",
+				"v",
+				undefined,
+				undefined,
+			);
 		});
 
 		it("forwards cursor placement options", async () => {
@@ -476,7 +485,14 @@ describe("GetApi prompt wrappers", () => {
 		const { api, app } = getApi();
 		const out = await api.inputPrompt("H", "p", "val");
 		expect(out).toBe("v");
-		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(app, "H", "p", "val");
+		expect(mocks.genericInputPrompt).toHaveBeenCalledWith(
+			app,
+			"H",
+			"p",
+			"val",
+			undefined,
+			undefined,
+		);
 	});
 
 	it("inputPrompt delegates cursor placement options", async () => {
