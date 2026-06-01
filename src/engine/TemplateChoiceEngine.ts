@@ -116,6 +116,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							existingFile.extension !== "canvas" &&
 							existingFile.extension !== "base"))
 				) {
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 					log.logError(
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
@@ -133,6 +134,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.choice.templatePath,
 				);
 				if (!createdFile) {
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 					log.logWarning(`Could not create file '${targetFilePath}'.`);
 					return;
 				}

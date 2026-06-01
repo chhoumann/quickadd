@@ -300,6 +300,56 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
+
+	it("preserves submitted prompt drafts when an existing target cannot be resolved", async () => {
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Test Template Choice",
+			placeholder: "",
+		});
+		const { engine, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "overwrite" };
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+
+		store.beginExecutionScope();
+		store.handleSubmittedDraft(draftKey, "Submitted template name");
+
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(store.get(draftKey)).toBe("Submitted template name");
+	});
+
+	it("preserves submitted prompt drafts when template file creation returns null", async () => {
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Test Template Choice",
+			placeholder: "",
+		});
+		const { engine } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(null);
+
+		store.beginExecutionScope();
+		store.handleSubmittedDraft(draftKey, "Submitted template name");
+
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(store.get(draftKey)).toBe("Submitted template name");
+	});
 });
 
 describe("TemplateChoiceEngine file casing resolution", () => {

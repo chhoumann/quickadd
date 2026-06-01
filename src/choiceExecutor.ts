@@ -35,9 +35,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
+		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		promptDraftStore.beginExecutionScope();
-		const originLeaf = getOpenFileOriginLeaf(this.app);
 		try {
 			// One-page preflight honoring per-choice override.
 			const globalEnabled = settingsStore.getState().onePageInputEnabled;
