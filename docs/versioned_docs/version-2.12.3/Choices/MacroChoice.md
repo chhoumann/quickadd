@@ -74,14 +74,31 @@ In the Macro Builder, you can add different types of commands:
 Macros do not contain JavaScript code directly. Your code lives in a `.js` file
 inside your vault, and the macro simply runs that file.
 
-Create a new script file such as `scripts/my-macro.js` and make sure it is not
-inside `.obsidian` or any folder whose name starts with a dot. QuickAdd ignores
-scripts in those locations, so they will not show up in the script picker.
+Create a new script file such as `scripts/my-macro.js`. Make sure the file is
+really a JavaScript file whose name ends in `.js`. If you create it from inside
+Obsidian, check that Obsidian did not create a Markdown note named
+`my-macro.js.md`; QuickAdd only discovers files ending in `.js`.
 
-Open the Macro Builder, add a **User Script** command, and select your script
-file. If the script exports multiple functions, QuickAdd will ask which export
-to run. You can also set an output variable name so later commands can reuse the
-result.
+Keep the script inside your vault, but not inside `.obsidian` or any folder
+whose name starts with a dot. Obsidian may exclude hidden folders from its file
+index, and QuickAdd builds the picker from Obsidian's indexed vault files. Use a
+normal folder such as `scripts/` or a visible underscore-prefixed folder such as
+`_quickadd/scripts/`.
+
+Open the Macro Builder and add a **User Script** command. The **Browse** button
+opens QuickAdd's script picker, not a native file picker. It searches the `.js`
+files Obsidian has already discovered in the vault, so it cannot pick files
+outside the vault, files hidden from Obsidian's index, or files whose extension
+is really `.md`.
+
+You can also type the script into the text field and click **Add**. Type the
+script basename, not a vault-relative path: for `scripts/my-macro.js`, enter
+`my-macro`. To run a specific exported member, append it with `::`, such as
+`my-macro::start`. Do not enter `scripts/my-macro.js` in the manual field.
+
+If the script exports multiple functions and you do not specify a member,
+QuickAdd will ask which export to run. You can also set an output variable name
+so later commands can reuse the result.
 
 If your goal is to insert text into a note, use a **Template** or **Capture**
 choice and run it from the macro using a **Nested Choice** command. This is the
