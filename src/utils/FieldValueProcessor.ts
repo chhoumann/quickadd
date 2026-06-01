@@ -1,3 +1,4 @@
+import { FIELD_VAR_REGEX_WITH_FILTERS } from "../constants";
 import { FieldValueDeduplicator, type DeduplicationOptions } from "./FieldValueDeduplicator";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
@@ -9,6 +10,11 @@ export interface ProcessedValues {
 }
 
 export class FieldValueProcessor {
+	private static readonly unresolvedFieldTokenRegex = new RegExp(
+		`^${FIELD_VAR_REGEX_WITH_FILTERS.source}$`,
+		"i",
+	);
+
 	/**
 	 * Process field values with deduplication, defaults, and sorting
 	 */
@@ -44,7 +50,7 @@ export class FieldValueProcessor {
 	}
 
 	private static isUnresolvedFieldToken(value: string): boolean {
-		return /^{{FIELD:[^\n\r}]*\|?[^\n\r}]*}}$/i.test(value.trim());
+		return this.unresolvedFieldTokenRegex.test(value.trim());
 	}
 
 	/**
