@@ -83,6 +83,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// This is needed because in these cases, the content won't be processed by templaterParseTemplate in CaptureChoiceEngine
 		const shouldRunTemplater =
 			choice.insertAfter.enabled ||
+			!!choice.insertBefore?.enabled ||
 			choice.prepend ||
 			!choice.captureToActiveFile ||
 			choice.activeFileWritePosition === "top" ||
@@ -143,6 +144,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		if (this.choice.insertAfter.enabled) {
 			return await this.insertAfterHandler(formatted);
+		}
+
+		if (this.choice.insertBefore?.enabled) {
+			return await this.insertBeforeHandler(formatted);
 		}
 
 		const frontmatterEndPosition = this.file
@@ -227,6 +232,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		return partialIndex; // -1 if no match at all
+	}
+
+	private findInsertBeforeIndex(lines: string[], rawTarget: string): number {
+		return this.findInsertAfterIndex(lines, rawTarget);
 	}
 
 	private shouldSkipBlankLinesAfterMatch(
@@ -363,6 +372,39 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		return this.insertTextAfterPositionInBody(
+			formatted,
+			this.fileContent,
+			targetPosition,
+		);
+	}
+
+	private async insertBeforeHandler(formatted: string) {
+		const insertBefore = this.choice.insertBefore;
+		if (!insertBefore) {
+			throw new ChoiceAbortError("Insert-before settings are missing.");
+		}
+
+		const targetString: string = await this.formatLocationString(
+			insertBefore.before,
+		);
+
+		const fileContentLines: string[] = getLinesInString(this.fileContent);
+		const targetPosition = this.findInsertBeforeIndex(
+			fileContentLines,
+			targetString,
+		);
+		const targetNotFound = targetPosition === -1;
+		if (targetNotFound) {
+			if (insertBefore.createIfNotFound) {
+				return await this.createInsertBeforeIfNotFound(formatted);
+			}
+
+			throw new ChoiceAbortError(
+				`Insert-before target not found: '${targetString}'.`,
+			);
+		}
+
+		return this.insertTextBeforePositionInBody(
 			formatted,
 			this.fileContent,
 			targetPosition,
@@ -507,6 +549,78 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 	}
 
+	private async createInsertBeforeIfNotFound(formatted: string) {
+		const insertBefore = this.choice.insertBefore;
+		if (!insertBefore) {
+			throw new ChoiceAbortError("Insert-before settings are missing.");
+		}
+
+		const insertBeforeLine: string = this.replaceLinebreakInString(
+			await this.formatLocationString(insertBefore.before),
+		);
+		const formattedAndInsertBeforeLine =
+			formatted.endsWith("\n") || formatted.length === 0
+				? `${formatted}${insertBeforeLine}`
+				: `${formatted}\n${insertBeforeLine}`;
+
+		if (
+			insertBefore.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_TOP
+		) {
+			const frontmatterEndPosition = this.file
+				? this.getFrontmatterEndPosition(this.file, this.fileContent)
+				: -1;
+			const needsTrailingSeparator =
+				frontmatterEndPosition >= 0 || this.choice.task;
+			const textAtTop =
+				needsTrailingSeparator && !formattedAndInsertBeforeLine.endsWith("\n")
+					? `${formattedAndInsertBeforeLine}\n`
+					: formattedAndInsertBeforeLine;
+			return this.insertTextAfterPositionInBody(
+				textAtTop,
+				this.fileContent,
+
+				frontmatterEndPosition,
+			);
+		}
+
+		if (
+			insertBefore.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_BOTTOM
+		) {
+			return `${this.fileContent}\n${formattedAndInsertBeforeLine}`;
+		}
+
+		if (
+			insertBefore.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_CURSOR
+		) {
+			try {
+				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+
+				if (!activeView) {
+					throw new Error("No active view.");
+				}
+
+				const cursor = activeView.editor.getCursor();
+
+				return this.insertTextBeforePositionInBody(
+					formattedAndInsertBeforeLine,
+					this.fileContent,
+					cursor.line,
+				);
+			} catch {
+				throw new ChoiceAbortError(
+					`Unable to insert line '${insertBefore.before}' at cursor position.`,
+				);
+			}
+		}
+
+		throw new ChoiceAbortError(
+			`Unknown createIfNotFoundLocation: ${insertBefore.createIfNotFoundLocation}`,
+		);
+	}
+
 	private async createInlineInsertAfterIfNotFound(
 		formatted: string,
 		targetString: string,
@@ -615,5 +729,23 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const post = splitContent.slice(pos + 1).join("\n");
 
 		return `${pre}\n${text}${post}`;
+	}
+
+	private insertTextBeforePositionInBody(
+		text: string,
+		body: string,
+		pos: number,
+	): string {
+		const separator = body.length > 0 && !text.endsWith("\n") ? "\n" : "";
+
+		if (pos <= 0) {
+			return `${text}${separator}${body}`;
+		}
+
+		const splitContent = body.split("\n");
+		const pre = splitContent.slice(0, pos).join("\n");
+		const post = splitContent.slice(pos).join("\n");
+
+		return `${pre}\n${text}${separator}${post}`;
 	}
 }

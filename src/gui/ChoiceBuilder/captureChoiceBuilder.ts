@@ -881,6 +881,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 	private addWritePositionSetting() {
 		const positionSetting: Setting = new Setting(this.contentEl);
 		const isActiveFile = !!this.choice?.captureToActiveFile;
+		this.ensureInsertBeforeSettings();
 
 		if (!this.choice.activeFileWritePosition) {
 			this.choice.activeFileWritePosition = "cursor";
@@ -896,6 +897,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			.addDropdown((dropdown) => {
 				const current = this.choice.insertAfter?.enabled
 					? "after"
+					: this.choice.insertBefore?.enabled
+						? "before"
 					: this.choice.newLineCapture?.enabled
 						? this.choice.newLineCapture.direction === "above"
 							? "newLineAbove"
@@ -920,12 +923,14 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				}
 				
 				dropdown.addOption("after", "After line…");
+				dropdown.addOption("before", "Before line…");
 				dropdown.addOption("bottom", "Bottom of file");
 				dropdown.setValue(current);
 				dropdown.onChange((value: string) => {
 					const v = value as
 						| "top"
 						| "after"
+						| "before"
 						| "bottom"
 						| "newLineAbove"
 						| "newLineBelow"
@@ -933,6 +938,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					
 					this.choice.prepend = false;
 					this.choice.insertAfter.enabled = false;
+					this.ensureInsertBeforeSettings();
+					this.choice.insertBefore!.enabled = false;
 					if (!this.choice.newLineCapture) {
 						this.choice.newLineCapture = { enabled: false, direction: "below" };
 					}
@@ -979,6 +986,12 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 						return;
 					}
 
+					if (v === "before") {
+						this.choice.insertBefore!.enabled = true;
+						this.reload();
+						return;
+					}
+
 					// after line
 					this.choice.insertAfter.enabled = true;
 					this.reload();
@@ -989,7 +1002,21 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			this.addInsertAfterFields();
 		}
 
+		if (this.choice.insertBefore?.enabled) {
+			this.addInsertBeforeFields();
+		}
+
 		this.addCanvasModeCompatibilityNotice(isActiveFile);
+	}
+
+	private ensureInsertBeforeSettings() {
+		if (this.choice.insertBefore) return;
+		this.choice.insertBefore = {
+			enabled: false,
+			before: "",
+			createIfNotFound: false,
+			createIfNotFoundLocation: CREATE_IF_NOT_FOUND_TOP,
+		};
 	}
 
 	private addCanvasModeCompatibilityNotice(isActiveFile: boolean) {
@@ -1001,6 +1028,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 		const usesCursorMode =
 			isActiveFile &&
 			!this.choice.insertAfter.enabled &&
+			!this.choice.insertBefore?.enabled &&
 			!this.choice.newLineCapture?.enabled &&
 			(this.choice.activeFileWritePosition ?? "cursor") === "cursor" &&
 			!this.choice.prepend;
@@ -1012,7 +1040,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 		const warning = this.contentEl.createDiv({ cls: "setting-item-description" });
 		warning.setText(
-			"Canvas note: 'At cursor' and 'New line above/below cursor' are not supported for Canvas card capture. Use top, bottom, or insert-after placement.",
+			"Canvas note: 'At cursor' and 'New line above/below cursor' are not supported for Canvas card capture. Use top, bottom, insert-after, or insert-before placement.",
 		);
 	}
 
@@ -1210,6 +1238,89 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.onChange(
 						(value) =>
 							(this.choice.insertAfter.createIfNotFoundLocation = value),
+					);
+			});
+	}
+
+	private addInsertBeforeFields() {
+		this.ensureInsertBeforeSettings();
+		const insertBefore = this.choice.insertBefore!;
+
+		const descText =
+			"Insert capture before specified text. Accepts format syntax.";
+
+		new Setting(this.contentEl)
+			.setName("Insert before")
+			.setDesc(descText);
+
+		const displayFormatter: FormatDisplayFormatter = new FormatDisplayFormatter(
+			this.app,
+			this.plugin,
+		);
+
+		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
+		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
+		const previewValue = previewRow.createEl("span");
+		previewValue.setAttribute("aria-live", "polite");
+		previewValue.innerText = "Loading preview…";
+
+		createValidatedInput({
+			app: this.app,
+			parent: this.contentEl,
+			initialValue: insertBefore.before,
+			placeholder: "Insert before",
+			required: true,
+			requiredMessage: "Insert before text is required",
+			attachSuggesters: [
+				(el) => new FormatSyntaxSuggester(this.app, el, this.plugin),
+			],
+			onChange: async (value) => {
+				insertBefore.before = value;
+				try {
+					previewValue.innerText = await displayFormatter.format(value);
+				} catch {
+					previewValue.innerText = "Preview unavailable";
+				}
+			},
+		});
+
+		void (async () => {
+			try {
+				previewValue.innerText = await displayFormatter.format(
+					insertBefore.before,
+				);
+			} catch {
+				previewValue.innerText = "Preview unavailable";
+			}
+		})();
+
+		const createLineIfNotFound: Setting = new Setting(this.contentEl);
+		createLineIfNotFound
+			.setName("Create line if not found")
+			.setDesc("Creates the 'insert before' line if it is not found.")
+			.addToggle((toggle) => {
+				if (!insertBefore.createIfNotFound)
+					insertBefore.createIfNotFound = false;
+
+				toggle
+					.setValue(insertBefore.createIfNotFound)
+					.onChange(
+						(value) => (insertBefore.createIfNotFound = value),
+					).toggleEl.style.marginRight = "1em";
+			})
+			.addDropdown((dropdown) => {
+				if (!insertBefore.createIfNotFoundLocation)
+					insertBefore.createIfNotFoundLocation =
+						CREATE_IF_NOT_FOUND_TOP;
+
+				dropdown
+					.addOption(CREATE_IF_NOT_FOUND_TOP, "Top")
+					.addOption(CREATE_IF_NOT_FOUND_BOTTOM, "Bottom")
+					.addOption(CREATE_IF_NOT_FOUND_CURSOR, "Cursor")
+					.setValue(insertBefore.createIfNotFoundLocation)
+					.onChange(
+						(value) =>
+							(insertBefore.createIfNotFoundLocation = value),
 					);
 			});
 	}

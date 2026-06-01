@@ -29,6 +29,12 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
 	};
+	insertBefore: {
+		enabled: boolean;
+		before: string;
+		createIfNotFound: boolean;
+		createIfNotFoundLocation: string;
+	};
 	newLineCapture: {
 		enabled: boolean;
 		direction: "above" | "below";
@@ -71,6 +77,12 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			replaceExisting: false,
 			blankLineAfterMatchMode: "auto",
 		};
+		this.insertBefore = {
+			enabled: false,
+			before: "",
+			createIfNotFound: false,
+			createIfNotFoundLocation: "top",
+		};
 		this.newLineCapture = {
 			enabled: false,
 			direction: "below",
@@ -97,10 +109,19 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		if (typeof loaded.captureToCanvasNodeId !== "string") {
 			loaded.captureToCanvasNodeId = "";
 		}
+		if (!loaded.insertBefore) {
+			loaded.insertBefore = {
+				enabled: false,
+				before: "",
+				createIfNotFound: false,
+				createIfNotFoundLocation: "top",
+			};
+		}
 		if (
 			loaded.captureToActiveFile &&
 			loaded.prepend &&
 			!loaded.insertAfter?.enabled &&
+			!loaded.insertBefore.enabled &&
 			!loaded.newLineCapture?.enabled
 		) {
 			if (loaded.activeFileWritePosition !== "top") {

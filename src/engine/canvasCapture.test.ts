@@ -367,6 +367,9 @@ describe("canvasCapture", () => {
 			getCanvasActionUnsupportedReason("text", "insertAfter" as CaptureAction),
 		).toBeNull();
 		expect(
+			getCanvasActionUnsupportedReason("text", "insertBefore" as CaptureAction),
+		).toBeNull();
+		expect(
 			getCanvasActionUnsupportedReason("file", "newLineBelow" as CaptureAction),
 		).toContain("cursor-based");
 		expect(

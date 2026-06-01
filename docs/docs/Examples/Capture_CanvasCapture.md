@@ -23,7 +23,7 @@ Good fits:
 3. Open a Canvas file.
 4. Select exactly one supported card.
 5. Set **Write position** to **Top of file**, **Bottom of file**, or
-   **After line...**.
+   **After line...** / **Before line...**.
 6. Run the Capture choice.
 
 Supported selected-card targets:
@@ -53,6 +53,7 @@ Canvas capture supports these write positions:
 - **Top of file**
 - **Bottom of file**
 - **After line...**
+- **Before line...**
 
 Canvas capture does not support cursor-based write positions:
 
@@ -75,7 +76,7 @@ from.
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | Capture aborts before writing | No card or multiple cards are selected | Select exactly one supported card |
-| Capture aborts with cursor-position wording | The write mode is cursor-based | Use top, bottom, or after-line placement |
+| Capture aborts with cursor-position wording | The write mode is cursor-based | Use top, bottom, after-line, or before-line placement |
 | Nothing is written to a file card | The file card points to a non-Markdown file | Use a Markdown file card or a text card |
 | The target picker is not shown | Capture target is not a `.canvas` file | Set **Capture To** to the Canvas file path |
 

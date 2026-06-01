@@ -40,6 +40,12 @@ export default interface ICaptureChoice extends IChoice {
 		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
 	};
+	insertBefore?: {
+		enabled: boolean;
+		before: string;
+		createIfNotFound: boolean;
+		createIfNotFoundLocation: string;
+	};
 	newLineCapture: {
 		enabled: boolean;
 		direction: "above" | "below";
