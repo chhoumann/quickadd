@@ -56,6 +56,8 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 - `suggester`: **NEW** - Searchable autocomplete with custom options (allows custom input)
   - Supports multi-select mode via `suggesterConfig.multiSelect: true` for comma-separated selections
 
+`requestInputs` always returns text values in a `Record<string, string>`. For a multi-select suggester input, the selected items are stored as one comma-separated string, not as selected record objects.
+
 **Example:**
 ```javascript
 const values = await quickAddApi.requestInputs([
@@ -202,7 +204,9 @@ await quickAddApi.infoDialog(
 ```
 
 ### `suggester(displayItems: string[] | Function, actualItems: any[], placeholder?: string, allowCustomInput?: boolean, options?: { renderItem?: (value: any, el: HTMLElement) => void }): Promise<any>`
-Opens a selection prompt with searchable options. Can optionally allow custom input not in the predefined list.
+Opens a single-selection prompt with searchable options. Can optionally allow custom input not in the predefined list.
+
+`quickAddApi.suggester(...)` is single-select only. It returns one selected `actualItems` value, or a custom string when `allowCustomInput` is enabled. For multiple selections, use `checkboxPrompt(...)` for a list of string options, or `requestInputs(...)` with a `type: "suggester"` input and `suggesterConfig.multiSelect: true`. Those multi-select alternatives return strings/text values rather than the selected record objects that `quickAddApi.suggester(...)` can return, so map the returned strings back to your records if needed.
 
 **Parameters:**
 - `displayItems`: Array of display strings OR a map function
@@ -364,7 +368,7 @@ Opens a checkbox prompt allowing multiple selections.
 - `items`: Array of options to display
 - `selectedItems`: (Optional) Array of pre-selected items
 
-**Returns:** Promise resolving to array of selected items
+**Returns:** Promise resolving to an array of selected item strings.
 
 **Example:**
 ```javascript
