@@ -28,6 +28,7 @@ import {
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -115,6 +116,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							existingFile.extension !== "canvas" &&
 							existingFile.extension !== "base"))
 				) {
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 					log.logError(
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
@@ -126,12 +128,18 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					targetFilePath,
 					existingFile,
 				));
+				if (!createdFile) {
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+					log.logWarning(`Could not resolve file exists behavior for '${targetFilePath}'.`);
+					return;
+				}
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					targetFilePath,
 					this.choice.templatePath,
 				);
 				if (!createdFile) {
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 					log.logWarning(`Could not create file '${targetFilePath}'.`);
 					return;
 				}
@@ -170,6 +178,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}
+			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		}
 	}

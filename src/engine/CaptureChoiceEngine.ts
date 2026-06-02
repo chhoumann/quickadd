@@ -39,6 +39,7 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
@@ -178,37 +179,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		insertFileLinkToActiveView(this.app, file, linkOptions);
-	}
-
-	private async copyCaptureContentToClipboardAfterFailure(
-		captureContent: string,
-	): Promise<void> {
-		const clipboard =
-			typeof navigator !== "undefined" ? navigator.clipboard : undefined;
-
-		if (!clipboard?.writeText) {
-			new Notice(
-				"Capture failed before it could be written, and clipboard access is unavailable.",
-				DEFAULT_NOTICE_DURATION,
-			);
-			return;
-		}
-
-		try {
-			await clipboard.writeText(captureContent);
-			new Notice(
-				"Capture failed before it could be written. The capture content was copied to your clipboard.",
-				DEFAULT_NOTICE_DURATION,
-			);
-		} catch (err) {
-			log.logError(
-				`Failed to copy failed capture content to clipboard: ${err instanceof Error ? err.message : String(err)}`,
-			);
-			new Notice(
-				"Capture failed before it could be written, and QuickAdd could not copy the capture content to your clipboard.",
-				DEFAULT_NOTICE_DURATION,
-			);
-		}
 	}
 
 	async run(): Promise<void> {
@@ -371,6 +341,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}
+			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		}
 	}
@@ -751,84 +722,73 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
-		try {
-			let fileContent = "";
-			if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
-				const singleTemplateEngine: SingleTemplateEngine =
-					new SingleTemplateEngine(
-						this.app,
-						this.plugin,
-						this.choice.createFileIfItDoesntExist.template,
-						this.choiceExecutor,
-					);
-
-				if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
-					singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
-				}
-
-				fileContent = await singleTemplateEngine.run();
-
-				// Get template variables from the template engine's formatter
-				const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
-
-				log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
-				if (templateVars.size > 0) {
-					log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
-				}
-
-				// Store for later use
-				this.templatePropertyVars = templateVars;
-			}
-
-			// Create the new file with the (optional) template content
-			const file: TFile = await this.createFileWithInput(filePath, fileContent, {
-				suppressTemplaterOnCreate:
-					this.choice.createFileIfItDoesntExist.createWithTemplate,
-			});
-
-			// Post-process front matter for template property types if we used a template
-			if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
-				this.templatePropertyVars &&
-				this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
-				await this.postProcessFrontMatter(file, this.templatePropertyVars);
-			}
-
-			// Process Templater commands in the template if a template was used
-			if (
-				this.choice.createFileIfItDoesntExist.createWithTemplate &&
-				fileContent
-			) {
-				await overwriteTemplaterOnce(this.app, file);
-			} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
-				await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
-			}
-
-			// Read the file fresh from disk to avoid any potential cached content
-			// after the initial Templater run on newly created files.
-			const updatedFileContent: string = await this.app.vault.read(file);
-			// Second formatting pass: embed the already-resolved capture content into the newly created file
-			const newFileContent: string =
-				await this.formatter.withTemplatePropertyCollection(() =>
-					this.formatter.formatContentWithFile(
-						formattedCaptureContent,
-						this.choice,
-						updatedFileContent,
-						file,
-					),
+		let fileContent = "";
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
+			const singleTemplateEngine: SingleTemplateEngine =
+				new SingleTemplateEngine(
+					this.app,
+					this.plugin,
+					this.choice.createFileIfItDoesntExist.template,
+					this.choiceExecutor,
 				);
-			this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
-			return { file, newFileContent, captureContent: formattedCaptureContent };
-		} catch (err) {
-			if (err instanceof MacroAbortError || isCancellationError(err)) {
-				throw err;
+			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
+				singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
 			}
 
-			await this.copyCaptureContentToClipboardAfterFailure(
-				formattedCaptureContent,
-			);
-			throw err;
+			fileContent = await singleTemplateEngine.run();
+
+			// Get template variables from the template engine's formatter
+			const templateVars = singleTemplateEngine.getAndClearTemplatePropertyVars();
+
+			log.logMessage(`CaptureChoiceEngine: Collected ${templateVars.size} template property variables`);
+			if (templateVars.size > 0) {
+				log.logMessage(`Variables: ${Array.from(templateVars.keys()).join(', ')}`);
+			}
+
+			// Store for later use
+			this.templatePropertyVars = templateVars;
 		}
+
+		// Create the new file with the (optional) template content
+		const file: TFile = await this.createFileWithInput(filePath, fileContent, {
+			suppressTemplaterOnCreate:
+				this.choice.createFileIfItDoesntExist.createWithTemplate,
+		});
+
+		// Post-process front matter for template property types if we used a template
+		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
+			this.templatePropertyVars &&
+			this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
+			await this.postProcessFrontMatter(file, this.templatePropertyVars);
+		}
+
+		// Process Templater commands in the template if a template was used
+		if (
+			this.choice.createFileIfItDoesntExist.createWithTemplate &&
+			fileContent
+		) {
+			await overwriteTemplaterOnce(this.app, file);
+		} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
+			await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+		}
+
+		// Read the file fresh from disk to avoid any potential cached content
+		// after the initial Templater run on newly created files.
+		const updatedFileContent: string = await this.app.vault.read(file);
+		// Second formatting pass: embed the already-resolved capture content into the newly created file
+		const newFileContent: string =
+			await this.formatter.withTemplatePropertyCollection(() =>
+				this.formatter.formatContentWithFile(
+					formattedCaptureContent,
+					this.choice,
+					updatedFileContent,
+					file,
+				),
+			);
+		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
+
+		return { file, newFileContent, captureContent: formattedCaptureContent };
 	}
 
 	private async formatFilePath(captureTo: string) {

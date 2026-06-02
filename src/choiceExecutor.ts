@@ -15,6 +15,7 @@ import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { isCancellationError } from "./utils/errorUtils";
 import { getOpenFileOriginLeaf } from "./utilityObsidian";
+import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -35,56 +36,70 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
 		const originLeaf = getOpenFileOriginLeaf(this.app);
-		// One-page preflight honoring per-choice override.
-		const globalEnabled = settingsStore.getState().onePageInputEnabled;
-		const override = choice.onePageInput;
-		const shouldUseOnePager =
-			override === "always" || (override !== "never" && globalEnabled);
-		if (
-			shouldUseOnePager &&
-			(choice.type === "Template" ||
-				choice.type === "Capture" ||
-				choice.type === "Macro")
-		) {
-			try {
-				await runOnePagePreflight(
-					this.app,
-					this.plugin as unknown as QuickAdd,
-					this,
-					choice,
-				);
-			} catch (error) {
-				if (isCancellationError(error)) {
-					throw new MacroAbortError("One-page input cancelled by user");
+		const promptDraftStore = InputPromptDraftStore.getInstance();
+		promptDraftStore.beginExecutionScope();
+		try {
+			// One-page preflight honoring per-choice override.
+			const globalEnabled = settingsStore.getState().onePageInputEnabled;
+			const override = choice.onePageInput;
+			const shouldUseOnePager =
+				override === "always" || (override !== "never" && globalEnabled);
+			if (
+				shouldUseOnePager &&
+				(choice.type === "Template" ||
+					choice.type === "Capture" ||
+					choice.type === "Macro")
+			) {
+				try {
+					await runOnePagePreflight(
+						this.app,
+						this.plugin as unknown as QuickAdd,
+						this,
+						choice,
+					);
+				} catch (error) {
+					if (isCancellationError(error)) {
+						throw new MacroAbortError("One-page input cancelled by user");
+					}
+					throw error;
 				}
-				throw error;
 			}
-		}
 
-		switch (choice.type) {
-			case "Template": {
-				const templateChoice: ITemplateChoice =
-					choice as ITemplateChoice;
-				await this.onChooseTemplateType(templateChoice, originLeaf);
-				break;
+			switch (choice.type) {
+				case "Template": {
+					const templateChoice: ITemplateChoice =
+						choice as ITemplateChoice;
+					await this.onChooseTemplateType(templateChoice, originLeaf);
+					break;
+				}
+				case "Capture": {
+					const captureChoice: ICaptureChoice = choice as ICaptureChoice;
+					await this.onChooseCaptureType(captureChoice, originLeaf);
+					break;
+				}
+				case "Macro": {
+					const macroChoice: IMacroChoice = choice as IMacroChoice;
+					await this.onChooseMacroType(macroChoice, originLeaf);
+					break;
+				}
+				case "Multi": {
+					const multiChoice: IMultiChoice = choice as IMultiChoice;
+					this.onChooseMultiType(multiChoice);
+					break;
+				}
+				default:
+					break;
 			}
-			case "Capture": {
-				const captureChoice: ICaptureChoice = choice as ICaptureChoice;
-				await this.onChooseCaptureType(captureChoice, originLeaf);
-				break;
+
+			if (this.pendingAbort) {
+				promptDraftStore.rollbackExecutionScope();
+				return;
 			}
-			case "Macro": {
-				const macroChoice: IMacroChoice = choice as IMacroChoice;
-				await this.onChooseMacroType(macroChoice, originLeaf);
-				break;
-			}
-			case "Multi": {
-				const multiChoice: IMultiChoice = choice as IMultiChoice;
-				this.onChooseMultiType(multiChoice);
-				break;
-			}
-			default:
-				break;
+
+			promptDraftStore.commitExecutionScope();
+		} catch (error) {
+			promptDraftStore.rollbackExecutionScope();
+			throw error;
 		}
 	}
 
