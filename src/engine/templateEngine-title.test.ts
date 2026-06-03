@@ -7,7 +7,7 @@ import type { IChoiceExecutor } from '../IChoiceExecutor';
 // Mock the CompleteFormatter
 vi.mock('../formatters/completeFormatter', () => {
     return {
-        CompleteFormatter: vi.fn().mockImplementation(() => {
+        CompleteFormatter: vi.fn(function CompleteFormatterMock() {
             let title = '';
             return {
                 setTitle: vi.fn((t: string) => { title = t; }),

@@ -133,7 +133,7 @@ describe("registerQuickAddCliHandlers", () => {
 		collectChoiceRequirementsMock.mockReset();
 		getUnresolvedRequirementsMock.mockReset();
 
-		ChoiceExecutorMock.mockImplementation(() => {
+		ChoiceExecutorMock.mockImplementation(function ChoiceExecutorMock() {
 			const executor: IChoiceExecutor = {
 				execute: vi.fn().mockResolvedValue(undefined),
 				variables: new Map<string, unknown>(),
