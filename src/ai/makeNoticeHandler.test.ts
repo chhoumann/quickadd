@@ -4,10 +4,12 @@ const { NoticeMock, noticeSetMessageMock, noticeHideMock } = vi.hoisted(
 	() => {
 		const noticeSetMessageMock = vi.fn();
 		const noticeHideMock = vi.fn();
-		const NoticeMock = vi.fn().mockImplementation(() => ({
-			setMessage: noticeSetMessageMock,
-			hide: noticeHideMock,
-		}));
+		const NoticeMock = vi.fn(function NoticeMock() {
+			return {
+				setMessage: noticeSetMessageMock,
+				hide: noticeHideMock,
+			};
+		});
 
 		return {
 			NoticeMock,
