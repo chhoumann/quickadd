@@ -107,6 +107,9 @@ describe("settings user-authored DOM XSS safety", () => {
 			"gui/GlobalVariables/GlobalVariablesView.svelte",
 			"gui/PackageManager/ImportPackageModal.svelte",
 			"gui/PackageManager/ExportPackageModal.svelte",
+			"gui/PackageManager/FilePreviewRow.svelte",
+			"gui/PackageManager/CapabilityBanner.svelte",
+			"gui/PackageManager/CapabilityTag.svelte",
 			"gui/choiceList/ChoiceListItem.svelte",
 			"gui/choiceList/MultiChoiceListItem.svelte",
 		];
@@ -128,7 +131,13 @@ describe("settings user-authored DOM XSS safety", () => {
 			"utf8",
 		);
 		expect(packageImportSource).toContain("{conflict.name}");
-		expect(packageImportSource).toContain("{conflict.originalPath}");
+
+		// File paths render through escaped bindings in FilePreviewRow now.
+		const fileRowSource = readFileSync(
+			join(srcRoot, "gui/PackageManager/FilePreviewRow.svelte"),
+			"utf8",
+		);
+		expect(fileRowSource).toContain("{destinationPath}");
 		expectNoPayloadDom(document.body);
 	});
 });

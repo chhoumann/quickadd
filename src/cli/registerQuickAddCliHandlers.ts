@@ -9,6 +9,15 @@ import {
 } from "../preflight/collectChoiceRequirements";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import {
+	analysePackagePreview,
+	readQuickAddPackage,
+} from "../services/packageImportService";
+import { decodeAssetPreview } from "../services/packagePreview";
+import type {
+	AssetPreviewContent,
+	PackagePreview,
+} from "../services/packagePreview";
 
 type ChoiceType = IChoice["type"];
 
@@ -25,6 +34,11 @@ interface CliResponse {
 	ok: boolean;
 	command: string;
 	[key: string]: unknown;
+}
+
+interface PackagePreviewCliResponse extends CliResponse {
+	preview: PackagePreview;
+	contents?: Array<{ path: string } & AssetPreviewContent>;
 }
 
 interface RegisterCliHandlerTarget {
@@ -79,6 +93,16 @@ const CHECK_FLAGS: CliFlags = {
 	},
 };
 
+const PREVIEW_FLAGS: CliFlags = {
+	path: {
+		value: "<vault-path>",
+		description: "Path to a .quickadd.json package file in the vault",
+	},
+	decode: {
+		description: "Inline decoded contents for each bundled file",
+	},
+};
+
 const RESERVED_RUN_PARAMS = new Set<string>(["choice", "id", "vars", "ui"]);
 const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars"]);
 
@@ -87,6 +111,7 @@ const CLI_COMMANDS = {
 	run: "quickadd:run",
 	list: "quickadd:list",
 	check: "quickadd:check",
+	preview: "quickadd:package-preview",
 } as const;
 
 const SUPPORTED_LIST_TYPES = new Set(["template", "capture", "macro", "multi"]);
@@ -403,6 +428,51 @@ async function checkChoiceHandler(
 	}
 }
 
+async function previewPackageHandler(
+	plugin: QuickAdd,
+	params: CliData,
+): Promise<string> {
+	try {
+		const path =
+			typeof params.path === "string" ? params.path.trim() : "";
+		if (!path) {
+			return serialize({
+				ok: false,
+				command: CLI_COMMANDS.preview,
+				error: "Missing package path. Provide path=<vault-path>.",
+			});
+		}
+
+		const { pkg } = await readQuickAddPackage(plugin.app, path);
+		const preview = await analysePackagePreview(
+			plugin.app,
+			plugin.settings.choices,
+			pkg,
+		);
+
+		const response: PackagePreviewCliResponse = {
+			ok: true,
+			command: CLI_COMMANDS.preview,
+			preview,
+		};
+
+		if (isTruthy(params.decode)) {
+			response.contents = preview.files.map((file) => ({
+				path: file.originalPath,
+				...decodeAssetPreview(pkg, file.originalPath),
+			}));
+		}
+
+		return serialize(response);
+	} catch (error) {
+		return serialize({
+			ok: false,
+			command: CLI_COMMANDS.preview,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
 export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 	const cliTarget = plugin as unknown as RegisterCliHandlerTarget;
 	if (typeof cliTarget.registerCliHandler !== "function") {
@@ -438,6 +508,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Check missing inputs for a QuickAdd choice",
 		CHECK_FLAGS,
 		(params: CliData) => checkChoiceHandler(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.preview,
+		"Preview a QuickAdd package before importing (files + capabilities)",
+		PREVIEW_FLAGS,
+		(params: CliData) => previewPackageHandler(plugin, params),
 	);
 
 	log.logMessage("Registered QuickAdd CLI handlers.");
