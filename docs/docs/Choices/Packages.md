@@ -90,7 +90,7 @@ whatever file already exists at that path after import.
 For scripting or CI, the `quickadd:package-preview` CLI command returns the same
 review as JSON without opening the modal:
 
-```
+```bash
 obsidian quickadd:package-preview path=path/to/package.quickadd.json
 ```
 

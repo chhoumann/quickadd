@@ -172,11 +172,15 @@ export async function analysePackagePreview(
 		...collectReferencedAssetPaths(pkg),
 	]);
 
+	// Probe paths concurrently: latency is one disk round-trip, not N. Set.add
+	// from parallel microtasks is safe on JS's single thread.
 	const existsByPath = new Set<string>();
-	for (const path of candidatePaths) {
-		if (!path) continue;
-		if (await assetExists(app, path)) existsByPath.add(path);
-	}
+	await Promise.all(
+		Array.from(candidatePaths, async (path) => {
+			if (!path) return;
+			if (await assetExists(app, path)) existsByPath.add(path);
+		}),
+	);
 
 	const preview = buildPackagePreview(existingChoices, pkg, existsByPath);
 

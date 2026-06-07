@@ -129,6 +129,47 @@ describe("FilePreviewRow", () => {
 		expect(onReviewed).not.toHaveBeenCalled();
 	});
 
+	it("warns and drops the Reviewed badge when an executable script is skipped", () => {
+		// Skip points the dependent choice at whatever file is already on disk,
+		// so the reviewed bundled contents are NOT what runs: the badge must not
+		// imply otherwise, and a warning must explain the substitution.
+		const { getByText, queryByText } = render(FilePreviewRow, {
+			props: {
+				file: makeFile(),
+				pkg: makePackage("scripts/fetch.js", "x"),
+				mode: "skip",
+				destinationPath: "scripts/fetch.js",
+				destinationExists: true,
+				reviewed: true,
+				onPathInput: noop,
+				onModeChange: noop,
+				onReviewed: noop,
+			},
+		});
+
+		expect(queryByText("Reviewed")).toBeNull();
+		expect(getByText(/Won't be written/)).toBeTruthy();
+	});
+
+	it("keeps the Reviewed badge and no skip warning when the script will be written", () => {
+		const { getByText, queryByText } = render(FilePreviewRow, {
+			props: {
+				file: makeFile(),
+				pkg: makePackage("scripts/fetch.js", "x"),
+				mode: "write",
+				destinationPath: "scripts/fetch.js",
+				destinationExists: false,
+				reviewed: true,
+				onPathInput: noop,
+				onModeChange: noop,
+				onReviewed: noop,
+			},
+		});
+
+		expect(getByText("Reviewed")).toBeTruthy();
+		expect(queryByText(/Won't be written/)).toBeNull();
+	});
+
 	it("drives the destination/action callbacks via labelled controls", async () => {
 		const onPathInput = vi.fn();
 		const onModeChange = vi.fn();

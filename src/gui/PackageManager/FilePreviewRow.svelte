@@ -85,7 +85,7 @@
 				use:tooltip={"Runs as code when its choice runs. It can read, change, or delete files in your vault and access the network."}
 				>Executable</span
 			>
-			{#if reviewed}
+			{#if reviewed && mode !== "skip"}
 				<span class="qa-import-file-reviewed">
 					<ObsidianIcon iconId="check" size={12} /> Reviewed
 				</span>
@@ -123,6 +123,14 @@
 			</select>
 		</label>
 	</div>
+
+	{#if file.executable && mode === "skip"}
+		<p class="qa-import-file-skip-warn" role="note">
+			Won't be written. Any choice that uses this script will run whatever
+			file already exists at this path after import, not the contents you
+			reviewed.
+		</p>
+	{/if}
 
 	<button
 		type="button"
@@ -365,6 +373,16 @@
 		margin: 0;
 		color: var(--text-warning, var(--text-muted));
 		font-size: var(--font-ui-smaller, 0.85rem);
+	}
+
+	.qa-import-file-skip-warn {
+		margin: 0;
+		padding: 0.4rem 0.5rem;
+		border-radius: var(--radius-s, 4px);
+		background: var(--qa-sev-warning-wash);
+		color: var(--text-normal);
+		font-size: var(--font-ui-smaller, 0.85rem);
+		line-height: 1.4;
 	}
 
 	.qa-import-file-error {

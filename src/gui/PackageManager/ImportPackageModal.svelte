@@ -99,6 +99,10 @@
 	);
 	const canImport = $derived(
 		Boolean(loadedPackage && analysis) &&
+			// A re-paste keeps the previous package live until its analysis
+			// resolves; block Import in that window so a stale package can't be
+			// written while new content is being analysed.
+			!isAnalyzing &&
 			(!requiresAck || (acknowledged && fullyReviewed)),
 	);
 

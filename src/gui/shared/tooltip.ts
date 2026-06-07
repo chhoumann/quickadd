@@ -13,5 +13,9 @@ export function tooltip(node: HTMLElement, text: string) {
 		update(next: string) {
 			setTooltip(node, next ?? "");
 		},
+		destroy() {
+			// Clear Obsidian's tooltip state when the element unmounts.
+			setTooltip(node, "");
+		},
 	};
 }

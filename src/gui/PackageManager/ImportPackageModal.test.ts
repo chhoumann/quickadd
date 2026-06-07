@@ -5,6 +5,35 @@ import ImportPackageModal from "./ImportPackageModal.svelte";
 import { settingsStore } from "../../settingsStore";
 import { encodeToBase64 } from "../../utils/base64";
 
+// Lets a test hold `analysePackagePreview` mid-flight to observe the re-analysis
+// window. Disabled by default so other tests keep the real (immediate) preview.
+const previewGate = vi.hoisted(() => ({
+	enabled: false,
+	releases: [] as Array<() => void>,
+}));
+
+vi.mock("../../services/packageImportService", async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import("../../services/packageImportService")
+		>();
+	return {
+		...actual,
+		analysePackagePreview: vi.fn(
+			async (
+				...args: Parameters<typeof actual.analysePackagePreview>
+			) => {
+				if (previewGate.enabled) {
+					await new Promise<void>((resolve) =>
+						previewGate.releases.push(resolve),
+					);
+				}
+				return actual.analysePackagePreview(...args);
+			},
+		),
+	};
+});
+
 // A critical package: a run-on-startup macro that runs one bundled user script.
 const PACKAGE = JSON.stringify({
 	schemaVersion: 1,
@@ -61,6 +90,8 @@ function fakeApp(): App {
 
 afterEach(() => {
 	settingsStore.setState((s) => ({ ...s, choices: [] }));
+	previewGate.enabled = false;
+	previewGate.releases = [];
 });
 
 describe("ImportPackageModal gate flow", () => {
@@ -94,5 +125,44 @@ describe("ImportPackageModal gate flow", () => {
 		// Acknowledging then enables Import.
 		await fireEvent.click(checkbox);
 		await waitFor(() => expect(importButton.disabled).toBe(false));
+	});
+
+	it("blocks Import while a re-paste is being analysed", async () => {
+		settingsStore.setState((s) => ({ ...s, choices: [] }));
+		previewGate.enabled = true;
+
+		const { container, getByText, getByRole } = render(ImportPackageModal, {
+			props: { app: fakeApp(), close: () => {} },
+		});
+		const textarea = container.querySelector(
+			"textarea",
+		) as HTMLTextAreaElement;
+
+		// First paste: release its preview so the package fully loads, then
+		// satisfy the gate so Import is enabled.
+		await fireEvent.input(textarea, { target: { value: PACKAGE } });
+		await waitFor(() => expect(previewGate.releases.length).toBe(1));
+		previewGate.releases[0]();
+		await waitFor(() =>
+			expect(getByText("What this package can do")).toBeTruthy(),
+		);
+
+		const importButton = getByText("Import package") as HTMLButtonElement;
+		const checkbox = getByRole("checkbox") as HTMLInputElement;
+		await fireEvent.click(getByText("View contents"));
+		await waitFor(() => expect(checkbox.disabled).toBe(false));
+		await fireEvent.click(checkbox);
+		await waitFor(() => expect(importButton.disabled).toBe(false));
+
+		// Re-paste: the previous package stays acknowledged until the new
+		// analysis resolves, but Import must lock during that window so the
+		// stale package can't be written.
+		await fireEvent.input(textarea, { target: { value: PACKAGE } });
+		await waitFor(() => expect(previewGate.releases.length).toBe(2));
+		expect(importButton.disabled).toBe(true);
+
+		// Let the re-analysis settle (resets the gate, so it stays disabled).
+		previewGate.releases[1]();
+		await waitFor(() => expect(checkbox.disabled).toBe(true));
 	});
 });
