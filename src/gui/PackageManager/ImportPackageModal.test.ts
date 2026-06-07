@@ -4,6 +4,7 @@ import type { App } from "obsidian";
 import ImportPackageModal from "./ImportPackageModal.svelte";
 import { settingsStore } from "../../settingsStore";
 import { encodeToBase64 } from "../../utils/base64";
+import type * as PackageImportService from "../../services/packageImportService";
 
 // Lets a test hold `analysePackagePreview` mid-flight to observe the re-analysis
 // window. Disabled by default so other tests keep the real (immediate) preview.
@@ -13,10 +14,7 @@ const previewGate = vi.hoisted(() => ({
 }));
 
 vi.mock("../../services/packageImportService", async (importOriginal) => {
-	const actual =
-		await importOriginal<
-			typeof import("../../services/packageImportService")
-		>();
+	const actual = await importOriginal<typeof PackageImportService>();
 	return {
 		...actual,
 		analysePackagePreview: vi.fn(
