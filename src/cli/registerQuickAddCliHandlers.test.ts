@@ -147,7 +147,7 @@ describe("registerQuickAddCliHandlers", () => {
 		getUnresolvedRequirementsMock.mockReturnValue([]);
 	});
 
-	it("registers run/list/check handlers when CLI API is available", () => {
+	it("registers run/list/check/preview handlers when CLI API is available", () => {
 		const { plugin, handlers } = createPlugin([
 			templateChoice,
 			macroChoice,
@@ -162,6 +162,7 @@ describe("registerQuickAddCliHandlers", () => {
 			"quickadd:run",
 			"quickadd:list",
 			"quickadd:check",
+			"quickadd:package-preview",
 		]);
 	});
 
@@ -254,6 +255,91 @@ describe("registerQuickAddCliHandlers", () => {
 			templateChoice.id,
 			macroChoice.id,
 		]);
+	});
+
+	it("previews a package and reports its dangerous capabilities", async () => {
+		const packageJson = JSON.stringify({
+			schemaVersion: 1,
+			quickAddVersion: "1.18.0",
+			createdAt: "2026-06-01T00:00:00.000Z",
+			rootChoiceIds: ["m1"],
+			choices: [
+				{
+					choice: {
+						id: "m1",
+						name: "Daily Sync",
+						type: "Macro",
+						command: false,
+						runOnStartup: true,
+						macro: {
+							id: "macro-m1",
+							name: "Daily Sync",
+							commands: [
+								{
+									id: "cmd1",
+									name: "fetch",
+									type: "UserScript",
+									path: "scripts/fetch.js",
+									settings: {},
+								},
+							],
+						},
+					},
+					pathHint: ["Daily Sync"],
+					parentChoiceId: null,
+				},
+			],
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "scripts/fetch.js",
+					contentEncoding: "base64",
+					// "console.log('hi')" base64
+					content: "Y29uc29sZS5sb2coJ2hpJyk=",
+				},
+			],
+		});
+
+		const adapter = {
+			exists: vi.fn(async (path: string) => path === "packages/p.quickadd.json"),
+			read: vi.fn(async (path: string) => {
+				if (path === "packages/p.quickadd.json") return packageJson;
+				throw new Error(`no file at ${path}`);
+			}),
+		};
+		const { plugin, handlers } = createPlugin([]);
+		(plugin as unknown as { app: unknown }).app = { vault: { adapter } };
+		registerQuickAddCliHandlers(plugin);
+		const preview = handlers.find(
+			(handler) => handler.command === "quickadd:package-preview",
+		);
+		expect(preview).toBeDefined();
+
+		const output = await Promise.resolve(
+			preview!.handler({ path: "packages/p.quickadd.json", decode: "true" }),
+		);
+		const payload = JSON.parse(String(output));
+
+		expect(payload.ok).toBe(true);
+		expect(payload.preview.summary.runsOnStartup).toBe(true);
+		expect(payload.preview.summary.criticalCount).toBeGreaterThan(0);
+		expect(payload.preview.criticalScriptPaths).toContain("scripts/fetch.js");
+		const decoded = payload.contents.find(
+			(entry: { path: string }) => entry.path === "scripts/fetch.js",
+		);
+		expect(decoded.text).toBe("console.log('hi')");
+	});
+
+	it("returns an error envelope when the package path is missing", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		registerQuickAddCliHandlers(plugin);
+		const preview = handlers.find(
+			(handler) => handler.command === "quickadd:package-preview",
+		);
+		const output = await Promise.resolve(preview!.handler({}));
+		const payload = JSON.parse(String(output));
+		expect(payload.ok).toBe(false);
+		expect(payload.command).toBe("quickadd:package-preview");
 	});
 
 	it("checks unresolved requirements without executing the choice", async () => {

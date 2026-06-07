@@ -648,6 +648,13 @@ export function setIcon(parent: HTMLElement, iconId: string): void {
   parent.appendChild(svg);
 }
 
+// Standalone setTooltip — mirror Obsidian's behaviour enough for tests by
+// reflecting the text into aria-label so it stays assertable.
+export function setTooltip(el: HTMLElement, tooltip: string): void {
+  if (tooltip) el.setAttribute("aria-label", tooltip);
+  else el.removeAttribute("aria-label");
+}
+
 // Minimal Menu stub for context-menu tests. Records its items and how it was
 // shown (mouse event vs. anchored position) so tests can assert the keyboard path.
 export class MenuItem {

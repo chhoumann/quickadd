@@ -621,11 +621,14 @@
 		font-size: 1.1rem;
 	}
 
+	/* Neutral surface with an amber-tinted border (these are warnings, not
+	   critical danger): ranked, not a blanket-red fill — matches the import
+	   modal's CapabilityBanner treatment. */
 	.warning {
-		border: 1px solid var(--background-modifier-error);
-		background: var(--background-modifier-error);
-		border-radius: 4px;
-		padding: 0.5rem;
+		border: 1px solid var(--qa-sev-warning-border);
+		background: var(--background-secondary);
+		border-radius: var(--radius-m, 8px);
+		padding: 0.6rem 0.75rem;
 		color: var(--text-normal);
 	}
 

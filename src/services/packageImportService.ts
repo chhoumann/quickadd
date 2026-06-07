@@ -22,6 +22,11 @@ import { log } from "../logger/logManager";
 import { decodeFromBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
+import {
+	buildPackagePreview,
+	collectReferencedAssetPaths,
+} from "./packagePreview";
+import type { PackagePreview } from "./packagePreview";
 
 export interface LoadedQuickAddPackage {
 	pkg: QuickAddPackage;
@@ -148,6 +153,47 @@ export async function analysePackage(
 	}
 
 	return { choiceConflicts, assetConflicts };
+}
+
+/**
+ * Build the rich import-preview model: every file added/overwritten, readable
+ * script contents (decoded lazily by the UI), and the package's dangerous
+ * capabilities. Additive over {@link analysePackage} — it owns the single vault
+ * touch needed to resolve which referenced paths already exist, then delegates
+ * to the pure {@link buildPackagePreview}.
+ */
+export async function analysePackagePreview(
+	app: App,
+	existingChoices: IChoice[],
+	pkg: QuickAddPackage,
+): Promise<PackagePreview> {
+	const candidatePaths = new Set<string>([
+		...pkg.assets.map((asset) => asset.originalPath),
+		...collectReferencedAssetPaths(pkg),
+	]);
+
+	// Probe paths concurrently: latency is one disk round-trip, not N. Set.add
+	// from parallel microtasks is safe on JS's single thread.
+	const existsByPath = new Set<string>();
+	await Promise.all(
+		Array.from(candidatePaths, async (path) => {
+			if (!path) return;
+			if (await assetExists(app, path)) existsByPath.add(path);
+		}),
+	);
+
+	const preview = buildPackagePreview(existingChoices, pkg, existsByPath);
+
+	const { summary } = preview;
+	log.logMessage(
+		`QuickAdd import preview: choices=${preview.choiceCount} files=${preview.fileCount} ` +
+			`scripts=${summary.scriptCount} runOnStartup=${summary.runsOnStartup} ` +
+			`registersCommands=${summary.registersCommandCount} ` +
+			`overwritesChoices=${summary.overwritesChoices} overwritesFiles=${summary.overwritesFiles} ` +
+			`missing=${summary.missingCount} critical=${summary.criticalCount} warning=${summary.warningCount}`,
+	);
+
+	return preview;
 }
 
 export async function applyPackageImport(

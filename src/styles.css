@@ -1265,3 +1265,42 @@ textarea.is-invalid {
 .userScriptSettingsModal .setting-item-control {
 	min-width: 0;
 }
+
+/* Package import/export severity surfaces — one source for the ranked
+   "tint, don't blanket-fill" recipe shared by CapabilityBanner, CapabilityTag,
+   FilePreviewRow, and the import/export modals. */
+.quickAddModal {
+	--qa-sev-critical-wash: color-mix(
+		in srgb,
+		var(--color-red, #e93147) 9%,
+		var(--background-secondary)
+	);
+	--qa-sev-warning-wash: color-mix(
+		in srgb,
+		var(--color-orange, #ff8c00) 11%,
+		var(--background-secondary)
+	);
+	--qa-sev-info-wash: var(--background-modifier-hover);
+	--qa-sev-critical-border: color-mix(
+		in srgb,
+		var(--color-red, #e93147) 40%,
+		var(--background-modifier-border)
+	);
+	--qa-sev-warning-border: color-mix(
+		in srgb,
+		var(--color-orange, #ff8c00) 40%,
+		var(--background-modifier-border)
+	);
+	--qa-sev-success-border: color-mix(
+		in srgb,
+		var(--color-green, #0aa344) 40%,
+		var(--background-modifier-border)
+	);
+	--qa-sev-success-wash: color-mix(
+		in srgb,
+		var(--color-green, #0aa344) 7%,
+		var(--background-secondary)
+	);
+	/* Darkened red so white pill text clears WCAG AA at small sizes. */
+	--qa-sev-critical-pill: color-mix(in srgb, var(--color-red, #c0392b) 82%, #000);
+}
