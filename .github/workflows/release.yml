@@ -38,7 +38,7 @@ jobs:
                   egress-policy: audit
 
             - name: Checkout
-              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
               with:
                   # semantic-release needs full history + tags and the persisted
                   # credential to push the release commit. Do not change these.
@@ -151,7 +151,7 @@ jobs:
             # Optional: Slack notifications
             - name: Notify Slack
               if: env.SLACK_WEBHOOK != ''
-              uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661 # v2.3.3
+              uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
               env:
                 SLACK_TITLE: "🚀 New Release"
                 SLACK_MESSAGE: "Version v${{ env.VERSION }} of QuickAdd has been released!"
