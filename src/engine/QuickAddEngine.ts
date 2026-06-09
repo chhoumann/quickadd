@@ -306,7 +306,7 @@ export abstract class QuickAddEngine {
 		}
 	}
 
-	private assignFrontmatterValue(frontmatter: Record<string, unknown>, path: string[], value: unknown): void {
+	protected assignFrontmatterValue(frontmatter: Record<string, unknown>, path: string[], value: unknown): void {
 		if (path.length === 0) return;
 		let target = frontmatter;
 		for (let i = 0; i < path.length - 1; i++) {

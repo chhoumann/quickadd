@@ -2,7 +2,7 @@ import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
 import type { App } from "obsidian";
-import { Notice, TFile } from "obsidian";
+import { Notice, TFile, TFolder } from "obsidian";
 import type QuickAdd from "../main";
 import {
 	getTemplater,
@@ -439,6 +439,57 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			promptHeader
 		);
 		return this.normalizeMarkdownFilePath(folderPath, formattedName);
+	}
+
+	/**
+	 * Strips the target folder from the start of a formatted file name so
+	 * formats like `Meetings/{{VALUE}}` with a `Meetings` folder don't
+	 * produce `Meetings/Meetings/...`.
+	 */
+	protected stripDuplicateFolderPrefix(
+		fileName: string,
+		folderPath: string,
+	): { fileName: string; strippedPrefix: boolean } {
+		const normalizedFolder = this.stripLeadingSlash(folderPath);
+		const normalizedFileName = this.stripLeadingSlash(fileName);
+
+		if (!normalizedFolder) {
+			return { fileName: normalizedFileName, strippedPrefix: false };
+		}
+		if (!normalizedFileName.startsWith(`${normalizedFolder}/`)) {
+			return { fileName: normalizedFileName, strippedPrefix: false };
+		}
+
+		return {
+			fileName: normalizedFileName.slice(normalizedFolder.length + 1),
+			strippedPrefix: true,
+		};
+	}
+
+	/**
+	 * When no folder is configured, a formatted name containing a path is
+	 * treated as vault-relative if it is absolute or its first segment is an
+	 * existing root folder.
+	 */
+	protected shouldTreatFormattedNameAsVaultRelativePath(
+		formattedName: string,
+		strippedPrefix: boolean,
+		folderEnabled: boolean,
+	): boolean {
+		if (folderEnabled) return false;
+		if (strippedPrefix) return false;
+
+		const normalizedFileName = formattedName.trim();
+		if (!normalizedFileName.includes("/")) return false;
+		if (normalizedFileName.startsWith("./")) return false;
+
+		if (normalizedFileName.startsWith("/")) return true;
+
+		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
+		if (!firstSegment) return false;
+
+		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);
+		return rootEntry instanceof TFolder;
 	}
 
 	protected getTemplateExtension(templatePath: string): string {

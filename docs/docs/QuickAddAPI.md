@@ -418,7 +418,7 @@ for (const contact of contacts) {
 ```
 
 ### `applyTemplateToActiveFile(templatePath: string, options?: { mode?: "cursor" | "top" | "bottom" | "replace" }): Promise<TFile | null>`
-Applies a template to the active note without creating a new file. The template runs through the full QuickAdd format pipeline (`{{title}}` and the unnamed `{{VALUE}}` resolve to the note's basename), and Templater syntax is processed. See [Apply Template to Note](./ApplyTemplateToNote.md) for the full behavior, including frontmatter merging.
+Applies a template to the active note without creating a new file. The template runs through the full QuickAdd format pipeline (`{{title}}` and the unnamed `{{VALUE}}`/`{{NAME}}` resolve to the note's basename), and Templater syntax is processed. See [Apply Template to Note](./ApplyTemplateToNote.md) for the full behavior, including frontmatter merging.
 
 **Parameters:**
 - `templatePath`: Vault path to the template file

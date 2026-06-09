@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Simulates structured values collected by the formatter's property
+// collector during formatting (Template Property Types).
+const { collectedPropertyVars } = vi.hoisted(() => ({
+	collectedPropertyVars: new Map<string, unknown>(),
+}));
+
 vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
 		setLinkToCurrentFileBehavior() {}
@@ -17,7 +23,9 @@ vi.mock("../formatters/completeFormatter", () => {
 			return await work();
 		}
 		getAndClearTemplatePropertyVars() {
-			return new Map<string, unknown>();
+			const drained = new Map(collectedPropertyVars);
+			collectedPropertyVars.clear();
+			return drained;
 		}
 	}
 
@@ -32,7 +40,7 @@ vi.mock("../utilityObsidian", () => ({
 	),
 }));
 
-import { TFile, type App } from "obsidian";
+import { TFile, TFolder, type App } from "obsidian";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import {
@@ -96,6 +104,7 @@ function makeHarness(options: {
 	templateContent: string;
 	noteContent: string;
 	frontmatter?: Record<string, unknown>;
+	rootFolders?: string[];
 }): TestHarness {
 	const templateFile = makeFile({
 		path: TEMPLATE_PATH,
@@ -107,10 +116,20 @@ function makeHarness(options: {
 	const replaceSelection = vi.fn();
 	let activeViewFile: TFile | null = null;
 
+	const rootFolders = new Map(
+		(options.rootFolders ?? []).map((path) => {
+			const folder = new TFolder();
+			folder.path = path;
+			return [path, folder];
+		}),
+	);
+
 	const app = {
 		vault: {
 			getAbstractFileByPath: (path: string) =>
-				path === TEMPLATE_PATH ? templateFile : null,
+				path === TEMPLATE_PATH
+					? templateFile
+					: (rootFolders.get(path) ?? null),
 			cachedRead: async (file: TFile) =>
 				file.path === TEMPLATE_PATH
 					? options.templateContent
@@ -160,6 +179,7 @@ function makeEngine(
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	collectedPropertyVars.clear();
 });
 
 describe("isTemplateInsertMode", () => {
@@ -310,6 +330,53 @@ describe("TemplateInsertEngine.apply", () => {
 		expect(harness.modify).not.toHaveBeenCalled();
 	});
 
+	it("cursor: skips whitespace-only body from frontmatter-only templates", async () => {
+		const harness = makeHarness({
+			templateContent: "---\nstatus: draft\n---\n\n",
+			noteContent: "EXISTING",
+		});
+		const file = makeFile();
+		harness.setActiveViewFile(file);
+
+		await makeEngine(harness, file, "cursor").apply();
+
+		expect(harness.replaceSelection).not.toHaveBeenCalled();
+		expect(harness.frontmatter).toEqual({ status: "draft" });
+	});
+
+	it("top: preserves structured property values collected during formatting", async () => {
+		// The formatter leaves a YAML placeholder ([]) for structured values
+		// and reports them via the property collector.
+		const harness = makeHarness({
+			templateContent: "---\ntags: []\ncount: 0\n---\nTPL_BODY",
+			noteContent: "EXISTING",
+		});
+		collectedPropertyVars.set("tags", ["work", "meeting"]);
+		collectedPropertyVars.set("count", 42);
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter).toEqual({
+			tags: ["work", "meeting"],
+			count: 42,
+		});
+	});
+
+	it("top: existing note values still win over structured template values", async () => {
+		const harness = makeHarness({
+			templateContent: "---\ntags: []\n---\nTPL_BODY",
+			noteContent: "---\ntags: [keep]\n---\nEXISTING",
+			frontmatter: { tags: ["keep"] },
+		});
+		collectedPropertyVars.set("tags", ["work"]);
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter).toEqual({ tags: ["keep"] });
+	});
+
 	it("cursor: throws when the note is not open in the active editor", async () => {
 		const harness = makeHarness({
 			templateContent: "TEMPLATE_CONTENT",
@@ -415,6 +482,65 @@ describe("TemplateInsertEngine.computeChoiceTargetPath", () => {
 		).computeChoiceTargetPath(choice);
 
 		expect(target).toBeNull();
+	});
+
+	it("strips a duplicated folder prefix from the formatted name", async () => {
+		const harness = makePathHarness();
+		const file = makeFile({ parent: { path: "notes" } as TFile["parent"] });
+		const choice = makeTemplateChoice({
+			folder: {
+				enabled: true,
+				folders: ["Meetings"],
+				chooseWhenCreatingNote: false,
+				createInSameFolderAsActiveFile: false,
+				chooseFromSubfolders: false,
+			},
+			fileNameFormat: { enabled: true, format: "Meetings/Renamed" },
+		});
+
+		const target = await makeEngine(
+			harness,
+			file,
+			"replace",
+		).computeChoiceTargetPath(choice);
+
+		expect(target).toBe("Meetings/Renamed.md");
+	});
+
+	it("treats a formatted name starting with an existing root folder as vault-relative when no folder is configured", async () => {
+		const harness = makeHarness({
+			templateContent: "",
+			noteContent: "",
+			rootFolders: ["Projects"],
+		});
+		const file = makeFile({ parent: { path: "notes" } as TFile["parent"] });
+		const choice = makeTemplateChoice({
+			fileNameFormat: { enabled: true, format: "Projects/Renamed" },
+		});
+
+		const target = await makeEngine(
+			harness,
+			file,
+			"replace",
+		).computeChoiceTargetPath(choice);
+
+		expect(target).toBe("Projects/Renamed.md");
+	});
+
+	it("keeps a path-containing name relative to the note's folder when the first segment is not a root folder", async () => {
+		const harness = makePathHarness();
+		const file = makeFile({ parent: { path: "notes" } as TFile["parent"] });
+		const choice = makeTemplateChoice({
+			fileNameFormat: { enabled: true, format: "Sub/Renamed" },
+		});
+
+		const target = await makeEngine(
+			harness,
+			file,
+			"replace",
+		).computeChoiceTargetPath(choice);
+
+		expect(target).toBe("notes/Sub/Renamed.md");
 	});
 
 	it("keeps the current path when neither folder nor file name format are configured", async () => {

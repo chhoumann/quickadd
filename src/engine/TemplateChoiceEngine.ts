@@ -1,6 +1,5 @@
 import type { App, WorkspaceLeaf } from "obsidian";
 import { TFile } from "obsidian";
-import { TFolder } from "obsidian";
 import invariant from "src/utils/invariant";
 import { VALUE_SYNTAX } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
@@ -92,6 +91,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				this.shouldTreatFormattedNameAsVaultRelativePath(
 					formattedName,
 					strippedPrefix,
+					this.choice.folder.enabled,
 				);
 
 			const targetFilePath = this.normalizeTemplateFilePath(
@@ -374,46 +374,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			allowedRoots: folders,
 			topItems,
 		});
-	}
-
-	private stripDuplicateFolderPrefix(
-		fileName: string,
-		folderPath: string,
-	): { fileName: string; strippedPrefix: boolean } {
-		const normalizedFolder = this.stripLeadingSlash(folderPath);
-		const normalizedFileName = this.stripLeadingSlash(fileName);
-
-		if (!normalizedFolder) {
-			return { fileName: normalizedFileName, strippedPrefix: false };
-		}
-		if (!normalizedFileName.startsWith(`${normalizedFolder}/`)) {
-			return { fileName: normalizedFileName, strippedPrefix: false };
-		}
-
-		return {
-			fileName: normalizedFileName.slice(normalizedFolder.length + 1),
-			strippedPrefix: true,
-		};
-	}
-
-	private shouldTreatFormattedNameAsVaultRelativePath(
-		formattedName: string,
-		strippedPrefix: boolean,
-	): boolean {
-		if (this.choice.folder.enabled) return false;
-		if (strippedPrefix) return false;
-
-		const normalizedFileName = formattedName.trim();
-		if (!normalizedFileName.includes("/")) return false;
-		if (normalizedFileName.startsWith("./")) return false;
-
-		if (normalizedFileName.startsWith("/")) return true;
-
-		const [firstSegment] = this.stripLeadingSlash(normalizedFileName).split("/");
-		if (!firstSegment) return false;
-
-		const rootEntry = this.app.vault.getAbstractFileByPath(firstSegment);
-		return rootEntry instanceof TFolder;
 	}
 
 	private getCurrentFolderSuggestion():

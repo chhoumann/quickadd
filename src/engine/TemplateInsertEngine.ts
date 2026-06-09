@@ -6,7 +6,9 @@ import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import invariant from "../utils/invariant";
+import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { findYamlFrontMatterRange } from "../utils/yamlContext";
+import { coerceYamlValue } from "../utils/yamlValues";
 import { TemplateEngine } from "./TemplateEngine";
 
 export const templateInsertModes = [
@@ -171,15 +173,30 @@ export class TemplateInsertEngine extends TemplateEngine {
 		if (folderPath === "/") folderPath = "";
 
 		let fileName = this.targetFile.basename;
+		let treatAsVaultRelativePath = false;
 		if (choice.fileNameFormat?.enabled && choice.fileNameFormat.format) {
-			fileName = await this.formatter.formatFileName(
+			const formattedName = await this.formatter.formatFileName(
 				choice.fileNameFormat.format,
 				choice.name,
 			);
+			// Mirror TemplateChoiceEngine's resolution of formatted names that
+			// contain folders, so the move offer matches what the choice
+			// would actually have produced.
+			const stripped = this.stripDuplicateFolderPrefix(
+				formattedName,
+				folderPath,
+			);
+			fileName = stripped.fileName;
+			treatAsVaultRelativePath =
+				this.shouldTreatFormattedNameAsVaultRelativePath(
+					formattedName,
+					stripped.strippedPrefix,
+					folderSettings?.enabled ?? false,
+				);
 		}
 
 		return this.normalizeTemplateFilePath(
-			folderPath,
+			treatAsVaultRelativePath ? "" : folderPath,
 			fileName,
 			this.templatePath,
 		);
@@ -188,7 +205,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 	private async insertTemplateIntoFile(
 		position: "top" | "bottom",
 	): Promise<TFile> {
-		const formatted = await this.formatTemplateForTargetFile();
+		const { formatted, templatePropertyVars } =
+			await this.formatTemplateForTargetFile();
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
 		if (body.trim().length > 0) {
@@ -201,7 +219,10 @@ export class TemplateInsertEngine extends TemplateEngine {
 			await this.app.vault.modify(this.targetFile, newContent);
 		}
 
-		await this.mergeFrontmatterProperties(frontmatterYaml);
+		await this.mergeFrontmatterProperties(
+			frontmatterYaml,
+			templatePropertyVars,
+		);
 		return this.targetFile;
 	}
 
@@ -212,23 +233,35 @@ export class TemplateInsertEngine extends TemplateEngine {
 			"Cannot insert at cursor: the note is not open in the active editor.",
 		);
 
-		const formatted = await this.formatTemplateForTargetFile();
+		const { formatted, templatePropertyVars } =
+			await this.formatTemplateForTargetFile();
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
-		if (body.length > 0) {
+		if (body.trim().length > 0) {
 			view.editor.replaceSelection(body);
 		}
 
-		await this.mergeFrontmatterProperties(frontmatterYaml);
+		await this.mergeFrontmatterProperties(
+			frontmatterYaml,
+			templatePropertyVars,
+		);
 		return this.targetFile;
 	}
 
-	private async formatTemplateForTargetFile(): Promise<string> {
+	private async formatTemplateForTargetFile(): Promise<{
+		formatted: string;
+		templatePropertyVars: Map<string, unknown>;
+	}> {
 		const templateContent = await this.getTemplateContent(this.templatePath);
 
 		this.formatter.setTitle(this.targetFile.basename);
 
-		let formatted = await this.formatter.formatFileContent(templateContent);
+		let formatted = await this.formatter.withTemplatePropertyCollection(() =>
+			this.formatter.formatFileContent(templateContent),
+		);
+		const templatePropertyVars =
+			this.formatter.getAndClearTemplatePropertyVars();
+
 		if (this.targetFile.extension === "md") {
 			formatted = await templaterParseTemplate(
 				this.app,
@@ -237,16 +270,21 @@ export class TemplateInsertEngine extends TemplateEngine {
 			);
 		}
 
-		return formatted;
+		return { formatted, templatePropertyVars };
 	}
 
 	/**
 	 * Merges template frontmatter properties into the note's frontmatter via
 	 * Obsidian's YAML processor. Existing note values win: only missing or
 	 * empty (undefined/null/"") properties are filled from the template.
+	 *
+	 * Structured values (arrays/objects) collected during formatting replace
+	 * their YAML placeholders before merging, so Template Property Types are
+	 * preserved like in replace mode.
 	 */
 	private async mergeFrontmatterProperties(
 		frontmatterYaml: string | null,
+		templatePropertyVars?: Map<string, unknown>,
 	): Promise<void> {
 		if (!frontmatterYaml || this.targetFile.extension !== "md") return;
 
@@ -262,6 +300,21 @@ export class TemplateInsertEngine extends TemplateEngine {
 
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
 			return;
+		}
+
+		if (templatePropertyVars && templatePropertyVars.size > 0) {
+			for (const [key, value] of templatePropertyVars) {
+				const pathSegments = key.includes(
+					TemplatePropertyCollector.PATH_SEPARATOR,
+				)
+					? key.split(TemplatePropertyCollector.PATH_SEPARATOR)
+					: [key];
+				this.assignFrontmatterValue(
+					parsed as Record<string, unknown>,
+					pathSegments,
+					coerceYamlValue(value),
+				);
+			}
 		}
 
 		await this.app.fileManager.processFrontMatter(
