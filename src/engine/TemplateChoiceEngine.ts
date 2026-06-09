@@ -138,7 +138,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (linkOptions.enabled && createdFile) {
-			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				await insertFileLinkToActiveView(this.app, createdFile, linkOptions);
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {

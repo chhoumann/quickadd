@@ -549,7 +549,7 @@ export function insertOnNewLineBelow(toInsert: string, app: App) {
  * – Keeps the editor's undo history clean by performing a single
  *   CodeMirror transaction.
  */
-export function insertLinkWithPlacement(
+export async function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
@@ -599,12 +599,12 @@ export function insertLinkWithPlacement(
 			const message = "Could not find file of active view";
 			throw new Error(message);
 		}
-		app.fileManager.processFrontMatter(file, (frontmatter) => {
+		await app.fileManager.processFrontMatter(file, (frontmatter) => {
 			if (frontmatter[frontmatterProperty] === undefined || frontmatter[frontmatterProperty] === null) {
 				frontmatter[frontmatterProperty] = []
 			}
 			if (!Array.isArray(frontmatter[frontmatterProperty])) {
-				const message = "Could not add into non array property:" + frontmatterProperty;
+				const message = "Could not add into non array property: " + frontmatterProperty;
 				throw new Error(message)
 			}
 			frontmatter[frontmatterProperty].push(text)
@@ -731,11 +731,11 @@ function convertLinkToEmbed(link: string): string {
  * @param linkOptions - Options controlling link insertion behavior
  * @returns True if the link was inserted, false otherwise
  */
-export function insertFileLinkToActiveView(
+export async function insertFileLinkToActiveView(
 	app: App,
 	file: TFile,
 	linkOptions: AppendLinkOptions,
-): boolean {
+): Promise<boolean> {
 	if (!linkOptions?.enabled) return false;
 
 	const activeFile = app.workspace.getActiveFile();
@@ -758,7 +758,7 @@ export function insertFileLinkToActiveView(
 		placementSupportsEmbed(linkOptions.placement);
 	const linkText = shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
 
-	insertLinkWithPlacement(
+	await insertLinkWithPlacement(
 		app,
 		linkText,
 		linkOptions.placement,

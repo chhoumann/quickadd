@@ -149,11 +149,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 	}
 
-	private insertCaptureLink(
+	private async insertCaptureLink(
 		file: TFile,
 		linkOptions: AppendLinkOptions,
 		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
-	): void {
+	): Promise<void> {
 		if (!linkOptions.enabled) {
 			return;
 		}
@@ -170,7 +170,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		insertFileLinkToActiveView(this.app, file, linkOptions);
+		await insertFileLinkToActiveView(this.app, file, linkOptions);
 	}
 
 	async run(): Promise<void> {
@@ -301,7 +301,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-			this.insertCaptureLink(file, linkOptions, {
+			await this.insertCaptureLink(file, linkOptions, {
 				isCanvasTriggered: !!canvasTarget,
 			});
 
@@ -381,7 +381,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 		}
 
-		this.insertCaptureLink(file, linkOptions, {
+		await this.insertCaptureLink(file, linkOptions, {
 			isCanvasTriggered: true,
 		});
 
