@@ -792,6 +792,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							this.choice.appendLink = {
 								enabled: true,
 								placement: normalizedOptions.placement,
+								frontmatterProperty: normalizedOptions.frontmatterProperty,
 								requireActiveFile: true,
 								linkType: normalizedLinkType,
 							};
@@ -800,6 +801,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							this.choice.appendLink = {
 								enabled: true,
 								placement: normalizedOptions.placement,
+								frontmatterProperty: normalizedOptions.frontmatterProperty,
 								requireActiveFile: false,
 								linkType: normalizedLinkType,
 							};
@@ -833,6 +835,10 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							typeof currentValue === "boolean"
 								? normalizedLinkType
 								: currentValue.linkType ?? normalizedLinkType;
+						const frontmatterProperty =
+							typeof currentValue === "boolean"
+								? normalizedOptions.frontmatterProperty
+								: currentValue.frontmatterProperty;
 				const nextLinkType = placementSupportsEmbed(value)
 					? previousLinkType
 					: "link";
@@ -841,6 +847,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 							enabled: true,
 							placement: value,
 							requireActiveFile,
+							frontmatterProperty,
 							linkType: nextLinkType,
 						};
 
@@ -867,11 +874,16 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								typeof currentValue === "boolean"
 									? normalizedOptions.placement
 									: currentValue.placement;
+							const frontmatterProperty =
+								typeof currentValue === "boolean"
+									? normalizedOptions.frontmatterProperty
+									: currentValue.frontmatterProperty;
 
 							this.choice.appendLink = {
 								enabled: true,
 								placement,
 								requireActiveFile,
+								frontmatterProperty,
 								linkType: value,
 							};
 						});
@@ -896,7 +908,8 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 								typeof currentValue === "boolean"
 									? normalizedOptions.placement
 									: currentValue.placement;
-
+							// Update value such that appendLinkSetting uses the correct updated value when switching.
+							normalizedOptions.frontmatterProperty = value
 							this.choice.appendLink = {
 								enabled: true,
 								placement,

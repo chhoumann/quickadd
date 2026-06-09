@@ -337,6 +337,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 							this.choice.appendLink = {
 								enabled: true,
 								placement: normalizedOptions.placement,
+								frontmatterProperty: normalizedOptions.frontmatterProperty,
 								requireActiveFile: true,
 								linkType: normalizedLinkType,
 							};
@@ -345,6 +346,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 							this.choice.appendLink = {
 								enabled: true,
 								placement: normalizedOptions.placement,
+								frontmatterProperty: normalizedOptions.frontmatterProperty,
 								requireActiveFile: false,
 								linkType: normalizedLinkType,
 							};
@@ -381,11 +383,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 						const nextLinkType = placementSupportsEmbed(value)
 							? previousLinkType
 							: "link";
+						const frontmatterProperty =
+							typeof currentValue === "boolean"
+								? normalizedOptions.frontmatterProperty
+								: currentValue.frontmatterProperty;
 
 						this.choice.appendLink = {
 							enabled: true,
 							placement: value,
 							requireActiveFile,
+							frontmatterProperty,
 							linkType: nextLinkType,
 						};
 						this.reload();
@@ -411,11 +418,16 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 								typeof currentValue === "boolean"
 									? normalizedOptions.placement
 									: currentValue.placement;
+							const frontmatterProperty =
+								typeof currentValue === "boolean"
+									? normalizedOptions.frontmatterProperty
+									: currentValue.frontmatterProperty;
 
 							this.choice.appendLink = {
 								enabled: true,
 								placement,
 								requireActiveFile,
+								frontmatterProperty,
 								linkType: value,
 							};
 						});
@@ -440,7 +452,8 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 								typeof currentValue === "boolean"
 									? normalizedOptions.placement
 									: currentValue.placement;
-
+							// Update value such that appendLinkSetting uses the correct updated value when switching.
+							normalizedOptions.frontmatterProperty = value
 							this.choice.appendLink = {
 								enabled: true,
 								placement,
