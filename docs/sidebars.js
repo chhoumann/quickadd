@@ -77,6 +77,11 @@ const sidebars = {
 				},
 				{
 					type: "doc",
+					id: "ApplyTemplateToNote",
+					label: "Apply Template to Note",
+				},
+				{
+					type: "doc",
 					id: "GlobalVariables",
 					label: "Global Variables",
 				},

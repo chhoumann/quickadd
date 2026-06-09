@@ -622,6 +622,50 @@ export class Notice {
 
 export { moment };
 
+// Minimal parseYaml for tests: supports flat `key: value` pairs with scalar
+// values, inline arrays ([a, b]) and simple block lists. NOT a full YAML
+// parser — assert real YAML semantics in e2e tests against live Obsidian.
+export function parseYaml(yaml: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const lines = yaml.split(/\r?\n/);
+  let currentKey: string | null = null;
+
+  const parseScalar = (raw: string): unknown => {
+    const value = raw.trim();
+    if (value === "") return null;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    if (value === "null" || value === "~") return null;
+    if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+    if (/^\[.*\]$/.test(value)) {
+      const inner = value.slice(1, -1).trim();
+      return inner === "" ? [] : inner.split(",").map((item) => parseScalar(item));
+    }
+    if (/^(['"]).*\1$/.test(value)) return value.slice(1, -1);
+    return value;
+  };
+
+  for (const line of lines) {
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+
+    const listMatch = /^\s+-\s*(.*)$/.exec(line);
+    if (listMatch && currentKey) {
+      if (!Array.isArray(result[currentKey])) result[currentKey] = [];
+      (result[currentKey] as unknown[]).push(parseScalar(listMatch[1]));
+      continue;
+    }
+
+    const kvMatch = /^([^:\s][^:]*):\s*(.*)$/.exec(line);
+    if (kvMatch) {
+      const key = kvMatch[1].trim();
+      currentKey = key;
+      result[key] = kvMatch[2].trim() === "" ? null : parseScalar(kvMatch[2]);
+    }
+  }
+
+  return result;
+}
+
 // Minimal normalizePath for tests: convert Windows separators to POSIX
 export function normalizePath(p: string): string {
   if (typeof p !== 'string') return '' as unknown as string;
@@ -757,6 +801,7 @@ export default {
   requestUrl,
   Notice,
   moment,
+  parseYaml,
   normalizePath,
   debounce,
   setIcon,

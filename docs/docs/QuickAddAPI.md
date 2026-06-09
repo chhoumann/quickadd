@@ -417,6 +417,27 @@ for (const contact of contacts) {
 }
 ```
 
+### `applyTemplateToActiveFile(templatePath: string, options?: { mode?: "cursor" | "top" | "bottom" | "replace" }): Promise<TFile | null>`
+Applies a template to the active note without creating a new file. The template runs through the full QuickAdd format pipeline (`{{title}}` and the unnamed `{{VALUE}}` resolve to the note's basename), and Templater syntax is processed. See [Apply Template to Note](./ApplyTemplateToNote.md) for the full behavior, including frontmatter merging.
+
+**Parameters:**
+- `templatePath`: Vault path to the template file
+- `options.mode`: (Optional) How to apply the template. Defaults to `"replace"` for empty notes and `"bottom"` otherwise.
+  - `"cursor"`: Insert at the cursor position (requires the note to be open in the active editor)
+  - `"top"`: Insert below the note's frontmatter
+  - `"bottom"`: Append to the end of the note
+  - `"replace"`: Replace the entire note content
+
+**Returns:** The target file, or `null` if nothing was applied (e.g., no active markdown note).
+
+**Example:**
+```javascript
+// Apply a meeting template to the currently open note
+await quickAddApi.applyTemplateToActiveFile("templates/meeting.md", {
+    mode: "top"
+});
+```
+
 ## Utility Module
 
 Access via `quickAddApi.utility`:

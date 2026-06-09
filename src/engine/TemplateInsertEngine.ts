@@ -1,0 +1,283 @@
+import type { App, TFile } from "obsidian";
+import { MarkdownView, parseYaml } from "obsidian";
+import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { log } from "../logger/logManager";
+import type QuickAdd from "../main";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { templaterParseTemplate } from "../utilityObsidian";
+import invariant from "../utils/invariant";
+import { findYamlFrontMatterRange } from "../utils/yamlContext";
+import { TemplateEngine } from "./TemplateEngine";
+
+export const templateInsertModes = [
+	{
+		id: "cursor",
+		label: "Insert at cursor",
+		description: "Inserts the template at the cursor position in the editor.",
+	},
+	{
+		id: "top",
+		label: "Insert at top",
+		description:
+			"Inserts the template below the note's frontmatter, or at the very top.",
+	},
+	{
+		id: "bottom",
+		label: "Append to bottom",
+		description: "Adds the template content to the end of the note.",
+	},
+	{
+		id: "replace",
+		label: "Replace note content",
+		description: "Replaces the entire note content with the template.",
+	},
+] as const;
+
+export type TemplateInsertModeId = (typeof templateInsertModes)[number]["id"];
+
+export function isTemplateInsertMode(
+	value: unknown,
+): value is TemplateInsertModeId {
+	return templateInsertModes.some((mode) => mode.id === value);
+}
+
+/**
+ * Splits formatted template content into its YAML frontmatter (without
+ * delimiters) and the remaining body.
+ */
+export function splitTemplateFrontmatter(content: string): {
+	frontmatterYaml: string | null;
+	body: string;
+} {
+	const range = findYamlFrontMatterRange(content);
+	if (!range) return { frontmatterYaml: null, body: content };
+
+	const block = content.slice(0, range[1]);
+	const body = content.slice(range[1]);
+	const match =
+		/^(\s*---\r?\n)([\s\S]*?)(\r?\n(?:---|\.\.\.)\s*(?:\r?\n|$))$/.exec(block);
+
+	return { frontmatterYaml: match ? match[2] : null, body };
+}
+
+/**
+ * Inserts a template body into existing note content. "top" is
+ * frontmatter-aware: the body lands below the note's frontmatter block.
+ */
+export function insertBodyIntoNoteContent(
+	noteContent: string,
+	body: string,
+	position: "top" | "bottom",
+): string {
+	if (position === "bottom") {
+		return `${noteContent}\n${body}`;
+	}
+
+	const range = findYamlFrontMatterRange(noteContent);
+	if (!range) {
+		return `${body}\n${noteContent}`;
+	}
+
+	const head = noteContent.slice(0, range[1]);
+	const rest = noteContent.slice(range[1]);
+	return `${head}${body}\n${rest}`;
+}
+
+export function getMarkdownEditorViewForFile(
+	app: App,
+	file: TFile,
+): MarkdownView | null {
+	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	if (view?.file?.path === file.path) return view;
+	return null;
+}
+
+/**
+ * Applies a template to an existing note (issue #526). Unlike
+ * TemplateChoiceEngine, this never creates a file: it inserts, prepends,
+ * appends, or replaces content in the target note. Top/bottom/cursor modes
+ * merge the template's frontmatter properties into the note's existing
+ * frontmatter, with existing values winning.
+ */
+export class TemplateInsertEngine extends TemplateEngine {
+	constructor(
+		app: App,
+		plugin: QuickAdd,
+		private readonly targetFile: TFile,
+		private readonly templatePath: string,
+		private readonly mode: TemplateInsertModeId,
+		choiceExecutor?: IChoiceExecutor,
+	) {
+		super(app, plugin, choiceExecutor);
+	}
+
+	public async run(): Promise<void> {
+		await this.apply();
+	}
+
+	public async apply(): Promise<TFile | null> {
+		invariant(
+			this.templatePath,
+			"Cannot apply template: no template path given.",
+		);
+
+		switch (this.mode) {
+			case "replace":
+				return await this.overwriteFileWithTemplate(
+					this.targetFile,
+					this.templatePath,
+				);
+			case "top":
+			case "bottom":
+				return await this.insertTemplateIntoFile(this.mode);
+			case "cursor":
+				return await this.insertTemplateAtCursor();
+		}
+	}
+
+	/**
+	 * Computes the file path the given Template choice would have produced,
+	 * for offering to move/rename the note to match the choice's settings.
+	 * Returns null when the choice's folder configuration requires a runtime
+	 * picker (cannot be resolved non-interactively).
+	 */
+	public async computeChoiceTargetPath(
+		choice: ITemplateChoice,
+	): Promise<string | null> {
+		const folderSettings = choice.folder;
+		let folderPath: string;
+
+		if (folderSettings?.enabled) {
+			if (
+				folderSettings.chooseWhenCreatingNote ||
+				folderSettings.chooseFromSubfolders
+			) {
+				return null;
+			}
+
+			if (folderSettings.createInSameFolderAsActiveFile) {
+				folderPath = this.targetFile.parent?.path ?? "";
+			} else if (folderSettings.folders.length === 1) {
+				folderPath = await this.formatter.formatFolderPath(
+					folderSettings.folders[0],
+				);
+			} else {
+				return null;
+			}
+		} else {
+			folderPath = this.targetFile.parent?.path ?? "";
+		}
+
+		if (folderPath === "/") folderPath = "";
+
+		let fileName = this.targetFile.basename;
+		if (choice.fileNameFormat?.enabled && choice.fileNameFormat.format) {
+			fileName = await this.formatter.formatFileName(
+				choice.fileNameFormat.format,
+				choice.name,
+			);
+		}
+
+		return this.normalizeTemplateFilePath(
+			folderPath,
+			fileName,
+			this.templatePath,
+		);
+	}
+
+	private async insertTemplateIntoFile(
+		position: "top" | "bottom",
+	): Promise<TFile> {
+		const formatted = await this.formatTemplateForTargetFile();
+		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
+
+		if (body.trim().length > 0) {
+			const noteContent = await this.app.vault.cachedRead(this.targetFile);
+			const newContent = insertBodyIntoNoteContent(
+				noteContent,
+				body,
+				position,
+			);
+			await this.app.vault.modify(this.targetFile, newContent);
+		}
+
+		await this.mergeFrontmatterProperties(frontmatterYaml);
+		return this.targetFile;
+	}
+
+	private async insertTemplateAtCursor(): Promise<TFile> {
+		const view = getMarkdownEditorViewForFile(this.app, this.targetFile);
+		invariant(
+			view,
+			"Cannot insert at cursor: the note is not open in the active editor.",
+		);
+
+		const formatted = await this.formatTemplateForTargetFile();
+		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
+
+		if (body.length > 0) {
+			view.editor.replaceSelection(body);
+		}
+
+		await this.mergeFrontmatterProperties(frontmatterYaml);
+		return this.targetFile;
+	}
+
+	private async formatTemplateForTargetFile(): Promise<string> {
+		const templateContent = await this.getTemplateContent(this.templatePath);
+
+		this.formatter.setTitle(this.targetFile.basename);
+
+		let formatted = await this.formatter.formatFileContent(templateContent);
+		if (this.targetFile.extension === "md") {
+			formatted = await templaterParseTemplate(
+				this.app,
+				formatted,
+				this.targetFile,
+			);
+		}
+
+		return formatted;
+	}
+
+	/**
+	 * Merges template frontmatter properties into the note's frontmatter via
+	 * Obsidian's YAML processor. Existing note values win: only missing or
+	 * empty (undefined/null/"") properties are filled from the template.
+	 */
+	private async mergeFrontmatterProperties(
+		frontmatterYaml: string | null,
+	): Promise<void> {
+		if (!frontmatterYaml || this.targetFile.extension !== "md") return;
+
+		let parsed: unknown;
+		try {
+			parsed = parseYaml(frontmatterYaml);
+		} catch (err) {
+			log.logWarning(
+				`Could not parse template frontmatter for merging: ${err}`,
+			);
+			return;
+		}
+
+		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+			return;
+		}
+
+		await this.app.fileManager.processFrontMatter(
+			this.targetFile,
+			(frontmatter: Record<string, unknown>) => {
+				for (const [key, value] of Object.entries(parsed)) {
+					const existing = frontmatter[key];
+					if (
+						existing === undefined ||
+						existing === null ||
+						existing === ""
+					) {
+						frontmatter[key] = value;
+					}
+				}
+			},
+		);
+	}
+}
