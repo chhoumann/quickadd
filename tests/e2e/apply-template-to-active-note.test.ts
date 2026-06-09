@@ -263,11 +263,25 @@ describe("apply template to active note (API seam)", () => {
 		expect(content.match(/^---$/gm)?.length).toBe(2);
 	});
 
-	it("A07: invalid mode - rejects with a helpful error", async () => {
-		await seedFile("a07-invalid.md", "EXISTING_CONTENT");
+	it("A07: canvas template - rejects with a helpful error", async () => {
+		await seedFile("tpl-board.canvas", '{"nodes":[],"edges":[]}');
+		await seedFile("a07-canvas-tpl.md", "EXISTING_CONTENT");
 
 		const result = await applyTemplate(
-			sandbox.path("a07-invalid.md"),
+			sandbox.path("a07-canvas-tpl.md"),
+			sandbox.path("tpl-board.canvas"),
+		);
+
+		expect(result.ok).toBe(false);
+		expect(result.error).toMatch(/only supports markdown templates/);
+		expect(await sandbox.read("a07-canvas-tpl.md")).toBe("EXISTING_CONTENT");
+	});
+
+	it("A08: invalid mode - rejects with a helpful error", async () => {
+		await seedFile("a08-invalid.md", "EXISTING_CONTENT");
+
+		const result = await applyTemplate(
+			sandbox.path("a08-invalid.md"),
 			sandbox.path("tpl-plain.md"),
 			"sideways",
 		);

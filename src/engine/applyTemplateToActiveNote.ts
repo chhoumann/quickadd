@@ -1,5 +1,9 @@
 import type { App, TFile } from "obsidian";
 import { Notice } from "obsidian";
+import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+} from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -36,6 +40,18 @@ export function isNoteEffectivelyEmpty(content: string): boolean {
 	return content.trim().length === 0;
 }
 
+/**
+ * Only markdown templates can be applied to a (markdown) note: canvas and
+ * base templates contain JSON/YAML for their own file types. Extensionless
+ * paths default to markdown, matching template content resolution.
+ */
+export function isMarkdownTemplatePath(path: string): boolean {
+	return (
+		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
+		!BASE_FILE_EXTENSION_REGEX.test(path)
+	);
+}
+
 export function templatePickerItemLabel(item: TemplatePickerItem): string {
 	return item.kind === "choice"
 		? `Choice: ${item.choice.name}`
@@ -58,7 +74,8 @@ export function buildTemplatePickerItems(
 	const templateChoices = flattenChoices(choices).filter(
 		(choice): choice is ITemplateChoice =>
 			choice.type === "Template" &&
-			Boolean((choice as ITemplateChoice).templatePath),
+			Boolean((choice as ITemplateChoice).templatePath) &&
+			isMarkdownTemplatePath((choice as ITemplateChoice).templatePath),
 	);
 
 	const coveredPaths = new Set(
@@ -73,6 +90,7 @@ export function buildTemplatePickerItems(
 	}));
 
 	for (const path of templateFilePaths) {
+		if (!isMarkdownTemplatePath(path)) continue;
 		if (coveredPaths.has(normalizeTemplatePathForComparison(path))) continue;
 		items.push({ kind: "file", path });
 	}
@@ -117,6 +135,13 @@ export async function applyTemplateToNote(
 
 		const templatePath =
 			source.kind === "choice" ? source.choice.templatePath : source.path;
+
+		if (!isMarkdownTemplatePath(templatePath)) {
+			new Notice(
+				"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
+			);
+			return null;
+		}
 
 		const noteContent = await app.vault.cachedRead(file);
 		const noteIsEmpty = isNoteEffectivelyEmpty(noteContent);

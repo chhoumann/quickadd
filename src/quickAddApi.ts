@@ -41,7 +41,10 @@ import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { formatISODate } from "./utils/dateParser";
 import type { InputPromptOptions } from "./types/inputPrompt";
-import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
+import {
+	applyTemplateToNote,
+	isMarkdownTemplatePath,
+} from "./engine/applyTemplateToActiveNote";
 import {
 	isTemplateInsertMode,
 	templateInsertModes,
@@ -268,6 +271,12 @@ export class QuickAddApi {
 				if (!templatePath) {
 					throw new Error(
 						"applyTemplateToActiveFile requires a template path.",
+					);
+				}
+
+				if (!isMarkdownTemplatePath(templatePath)) {
+					throw new Error(
+						"applyTemplateToActiveFile only supports markdown templates. Canvas and base templates cannot be applied to a markdown note.",
 					);
 				}
 

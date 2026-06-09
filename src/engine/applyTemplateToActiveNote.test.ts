@@ -44,6 +44,7 @@ import type IMultiChoice from "../types/choices/IMultiChoice";
 import {
 	applyTemplateToNote,
 	buildTemplatePickerItems,
+	isMarkdownTemplatePath,
 	isNoteEffectivelyEmpty,
 	templatePickerItemLabel,
 } from "./applyTemplateToActiveNote";
@@ -101,6 +102,19 @@ describe("isNoteEffectivelyEmpty", () => {
 	});
 });
 
+describe("isMarkdownTemplatePath", () => {
+	it("accepts markdown and extensionless template paths", () => {
+		expect(isMarkdownTemplatePath("templates/tpl.md")).toBe(true);
+		expect(isMarkdownTemplatePath("templates/tpl")).toBe(true);
+	});
+
+	it("rejects canvas and base templates", () => {
+		expect(isMarkdownTemplatePath("templates/board.canvas")).toBe(false);
+		expect(isMarkdownTemplatePath("templates/db.base")).toBe(false);
+		expect(isMarkdownTemplatePath("templates/Board.CANVAS")).toBe(false);
+	});
+});
+
 describe("buildTemplatePickerItems", () => {
 	it("lists Template choices first, then uncovered template files", () => {
 		const choices: IChoice[] = [
@@ -136,6 +150,27 @@ describe("buildTemplatePickerItems", () => {
 
 		expect(items).toHaveLength(1);
 		expect(items[0].kind).toBe("choice");
+	});
+
+	it("excludes canvas and base templates from choices and files", () => {
+		const choices: IChoice[] = [
+			makeTemplateChoice("Canvas board", "templates/board.canvas"),
+			makeTemplateChoice("Base db", "templates/db.base"),
+			makeTemplateChoice("Note", "templates/note.md"),
+		];
+
+		const items = buildTemplatePickerItems(choices, [
+			"templates/other.canvas",
+			"templates/other.base",
+			"templates/other.md",
+		]);
+
+		expect(items).toHaveLength(2);
+		expect(items[0]).toMatchObject({
+			kind: "choice",
+			choice: { name: "Note" },
+		});
+		expect(items[1]).toEqual({ kind: "file", path: "templates/other.md" });
 	});
 
 	it("skips non-Template choices and Template choices without a template path", () => {
@@ -272,6 +307,24 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		});
 
 		expect(result).toBeNull();
+		expect(engineConstructorMock).not.toHaveBeenCalled();
+	});
+
+	it("returns null for canvas and base templates", async () => {
+		const file = makeFile();
+
+		for (const templatePath of [
+			"templates/board.canvas",
+			"templates/db.base",
+		]) {
+			const result = await applyTemplateToNote(makeApp("", file), plugin, {
+				templatePath,
+				choiceExecutor: makeExecutor(),
+			});
+
+			expect(result).toBeNull();
+		}
+
 		expect(engineConstructorMock).not.toHaveBeenCalled();
 	});
 
