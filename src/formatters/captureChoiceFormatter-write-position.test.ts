@@ -439,6 +439,70 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(result).toBe("---\ntitle: Test\n---\nCAPTURE\n## Missing\nBody");
 	});
 
+	it("captures a non-breaking-space-only payload instead of dropping it as empty (issue #760)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"\u00A0",
+			createChoice({ captureToActiveFile: false, prepend: true }),
+			"Line A\nLine B",
+			createFile(),
+		);
+
+		expect(result).toBe("Line A\nLine B\n\u00A0");
+	});
+
+	it("returns a non-breaking-space-only payload from formatContentOnly (issue #760)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentOnly("\u00A0");
+
+		expect(result).toBe("\u00A0");
+	});
+
+	it("still treats ASCII-whitespace-only payloads as empty captures", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			" \t\n",
+			createChoice({ captureToActiveFile: false, prepend: true }),
+			"Line A\nLine B",
+			createFile(),
+		);
+
+		expect(result).toBe("Line A\nLine B");
+	});
+
 	it("keeps task captures separated when creating a missing insert-before target at top", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
