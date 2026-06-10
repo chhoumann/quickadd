@@ -186,6 +186,11 @@ export class TemplateInsertEngine extends TemplateEngine {
 				);
 		}
 
+		// An all-optional file name format can resolve empty; there is no
+		// meaningful move offer in that case (and normalizeTemplateFilePath
+		// rejects empty names).
+		if (!fileName.trim()) return null;
+
 		return this.normalizeTemplateFilePath(
 			treatAsVaultRelativePath ? "" : folderPath,
 			fileName,

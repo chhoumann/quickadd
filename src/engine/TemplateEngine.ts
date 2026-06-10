@@ -438,6 +438,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			format,
 			promptHeader
 		);
+		if (!formattedName.trim()) {
+			throw new Error(
+				"File name is empty after formatting. Provide a value or remove |optional from tokens used in the file name format."
+			);
+		}
 		return this.normalizeMarkdownFilePath(folderPath, formattedName);
 	}
 
@@ -514,6 +519,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
 			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
 			.replace(BASE_FILE_EXTENSION_REGEX, "");
+		if (!formattedFileName.trim()) {
+			throw new Error(
+				"File name is empty after formatting. Provide a value or remove |optional from tokens used in the file name format."
+			);
+		}
 		return `${actualFolderPath}${formattedFileName}${extension}`;
 	}
 

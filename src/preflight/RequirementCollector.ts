@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import {
+	DATE_VARIABLE_REGEX,
 	FIELD_VARIABLE_PREFIX,
 	GLOBAL_VAR_REGEX,
 	TEMPLATE_REGEX,
@@ -10,6 +11,7 @@ import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
 import { parseValueToken } from "src/utils/valueSyntax";
+import { parseVDateOptions } from "src/utils/vdateSyntax";
 
 export type FieldType =
 	| "text"
@@ -33,6 +35,8 @@ export interface FieldRequirement {
 	dateFormat?: string; // for VDATE
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
+	/** True only when EVERY scanned occurrence of the variable is |optional. */
+	optional?: boolean;
 	suggesterConfig?: {
 		allowCustomInput?: boolean;
 		caseSensitive?: boolean;
@@ -71,6 +75,7 @@ export class RequirementCollector extends Formatter {
 		const expanded = await this.replaceGlobalVarInString(input);
 		// Run a safe formatting pass that collects variables but avoids side-effects
 		this.scanVariableTokens(expanded);
+		this.scanDateTokens(expanded);
 		await this.format(expanded);
 	}
 
@@ -177,6 +182,7 @@ export class RequirementCollector extends Formatter {
 							: "dropdown"
 						: baseInputType,
 					description,
+					optional: parsed.optional,
 				};
 				if (hasOptions) {
 					req.options = suggestedValues;
@@ -198,6 +204,50 @@ export class RequirementCollector extends Formatter {
 				if (!existing.displayOptions && displayValues) {
 					existing.displayOptions = displayValues;
 				}
+				// AND rule: the field is optional only if every occurrence is.
+				existing.optional = (existing.optional ?? false) && parsed.optional;
+			}
+		}
+	}
+
+	/**
+	 * Textual VDATE scan, mirroring scanVariableTokens. The inherited
+	 * replaceDateVariableInString prompts (and therefore records) only once
+	 * per variable, so per-occurrence |optional flags would never reach the
+	 * promptForVariable hook — this scan records them all and applies the
+	 * same AND rule across occurrences and across scanned strings.
+	 */
+	private scanDateTokens(input: string) {
+		const re = new RegExp(DATE_VARIABLE_REGEX.source, "gi");
+		let match: RegExpExecArray | null;
+		while ((match = re.exec(input)) !== null) {
+			const variableName = match[1]?.trim();
+			if (!variableName) continue;
+
+			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
+			const { defaultValue, optional } = parseVDateOptions(match[3]);
+
+			const existing = this.requirements.get(variableName);
+			if (!existing) {
+				this.requirements.set(variableName, {
+					id: variableName,
+					label: variableName,
+					type: "date",
+					defaultValue,
+					dateFormat,
+					optional,
+					source: "collected",
+				});
+			} else {
+				// Only backfill date metadata onto date requirements — a
+				// same-name VALUE requirement must not inherit a VDATE default.
+				if (
+					existing.type === "date" &&
+					defaultValue &&
+					existing.defaultValue === undefined
+				)
+					existing.defaultValue = defaultValue;
+				existing.optional = (existing.optional ?? false) && optional;
 			}
 		}
 	}
@@ -217,6 +267,7 @@ export class RequirementCollector extends Formatter {
 				description: this.valuePromptContext?.description,
 				defaultValue: this.valuePromptContext?.defaultValue,
 				source: "collected",
+				optional: this.valuePromptContext?.optional,
 			});
 		}
 		return ""; // return inert value to keep scanning
@@ -240,6 +291,7 @@ export class RequirementCollector extends Formatter {
 					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
 					description: context.description,
 					source: "collected",
+					optional: context.optional,
 				});
 			}
 			return context.defaultValue ?? "@date:1970-01-01T00:00:00.000Z";

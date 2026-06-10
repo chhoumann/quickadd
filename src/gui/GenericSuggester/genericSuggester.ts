@@ -5,6 +5,15 @@ import { normalizeDisplayItem, normalizeQuery } from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
+type GenericSuggesterOptions = {
+	/**
+	 * Adds a "skip" affordance that resolves the empty string instead of an
+	 * item. Only enable for string-item suggesters (e.g. optional
+	 * {{VALUE:a,b,c|optional}} tokens).
+	 */
+	skippable?: boolean;
+};
+
 export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private resolvePromise: (value: T) => void;
 	private rejectPromise: (reason?: unknown) => void;
@@ -23,8 +32,15 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		items: T[],
 		placeholder?: string,
 		renderItem?: SuggestRender<T>,
+		options?: GenericSuggesterOptions,
 	) {
-		const newSuggester = new GenericSuggester(app, displayItems, items, renderItem);
+		const newSuggester = new GenericSuggester(
+			app,
+			displayItems,
+			items,
+			renderItem,
+			options,
+		);
 		if (placeholder) newSuggester.setPlaceholder(placeholder);
 		return newSuggester.promise;
 	}
@@ -34,6 +50,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		displayItems: string[],
 		items: T[],
 		renderItem?: SuggestRender<T>,
+		options?: GenericSuggesterOptions,
 	) {
 		super(app);
 
@@ -45,6 +62,8 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			this.resolvePromise = resolve;
 			this.rejectPromise = reject;
 		});
+
+		if (options?.skippable) this.enableSkip();
 
 		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
 			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
@@ -122,6 +141,35 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
+	}
+
+	/**
+	 * Wires the skip affordance for optional tokens: an instructions footer
+	 * plus a Mod+Shift+Enter scope binding. Both are guarded because the test
+	 * stub's FuzzySuggestModal provides neither scope nor setInstructions.
+	 */
+	private enableSkip(): void {
+		this.scope?.register(["Mod", "Shift"], "Enter", () => {
+			this.skip();
+			return false;
+		});
+
+		if (typeof this.setInstructions === "function") {
+			this.setInstructions([
+				{ command: "↑↓", purpose: "to navigate" },
+				{ command: "↵", purpose: "to choose" },
+				{ command: "ctrl/cmd+shift+↵", purpose: "to skip (leave empty)" },
+				{ command: "esc", purpose: "to cancel" },
+			]);
+		}
+	}
+
+	/** Resolves the empty string as an intentional "leave empty" answer. */
+	public skip(): void {
+		this.resolved = true;
+		// Safe by contract: skippable is only enabled for string-item suggesters.
+		this.resolvePromise("" as unknown as T);
+		this.close();
 	}
 
 	onClose() {

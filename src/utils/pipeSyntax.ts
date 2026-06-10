@@ -21,3 +21,10 @@ export function parsePipeKeyValue(
 	return { key, value };
 }
 
+export function parseBooleanFlag(value?: string): boolean {
+	if (!value) return true;
+	const normalized = value.trim().toLowerCase();
+	if (["false", "no", "0", "off"].includes(normalized)) return false;
+	return true;
+}
+

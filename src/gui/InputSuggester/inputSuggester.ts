@@ -14,6 +14,8 @@ type Options = {
 		? string
 		: never;
 	renderItem: SuggestRender<string> | undefined;
+	/** Adds a "skip" affordance that resolves "" (for optional tokens). */
+	skippable: boolean;
 };
 
 /**
@@ -96,6 +98,8 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			});
 		}
 
+		if (options.skippable) this.enableSkip();
+
 		this.warnIfEmptyDisplay();
 		this.open();
 	}
@@ -171,6 +175,34 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
+	}
+
+	/**
+	 * Wires the skip affordance for optional tokens: an instructions footer
+	 * plus a Mod+Shift+Enter scope binding. Both are guarded because the test
+	 * stub's FuzzySuggestModal provides neither scope nor setInstructions.
+	 */
+	private enableSkip(): void {
+		this.scope?.register(["Mod", "Shift"], "Enter", () => {
+			this.skip();
+			return false;
+		});
+
+		if (typeof this.setInstructions === "function") {
+			this.setInstructions([
+				{ command: "↑↓", purpose: "to navigate" },
+				{ command: "↵", purpose: "to choose" },
+				{ command: "ctrl/cmd+shift+↵", purpose: "to skip (leave empty)" },
+				{ command: "esc", purpose: "to cancel" },
+			]);
+		}
+	}
+
+	/** Resolves "" as an intentional "leave empty" answer. */
+	public skip(): void {
+		this.resolved = true;
+		this.resolvePromise("");
+		this.close();
 	}
 
 	onClose() {

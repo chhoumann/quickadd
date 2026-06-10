@@ -15,6 +15,7 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
+import { parseVDateOptions } from "../utils/vdateSyntax";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -156,11 +157,12 @@ export class FormatDisplayFormatter extends Formatter {
 		let output: string = input;
 		
 		// For preview, show helpful format examples instead of failing
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, defaultValue) => {
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
 			const cleanDateFormat = dateFormat?.trim();
-			const cleanDefaultValue = defaultValue?.trim();
-			
+			const { defaultValue: cleanDefaultValue, optional } =
+				parseVDateOptions(rawOptions);
+
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete
 			}
@@ -181,7 +183,10 @@ export class FormatDisplayFormatter extends Formatter {
 			if (cleanDefaultValue) {
 				formattedExample += ` (default: ${cleanDefaultValue})`;
 			}
-			
+			if (optional) {
+				formattedExample += ` (optional)`;
+			}
+
 			return formattedExample;
 		});
 		

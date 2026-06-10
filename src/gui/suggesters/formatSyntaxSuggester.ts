@@ -274,7 +274,8 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 				suggestions.push(
 					"{{VDATE:date,YYYY-MM-DD}}",
 					"{{VDATE:date,YYYY-MM-DD|today}}",
-					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}"
+					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}",
+					"{{VDATE:dueDate,YYYY-MM-DD|optional}}"
 				);
 			} else if (tokenDef.token === FormatSyntaxToken.GlobalVar) {
 				// Suggest defined global variable names
@@ -289,7 +290,8 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 					"{{VALUE:option1,option2,option3|custom}}",
 					"{{VALUE:title|label:Helper text}}",
 					"{{VALUE:option1,option2|label:Pick one}}",
-					"{{VALUE:title|label:Snake case|default:My_Title}}"
+					"{{VALUE:title|label:Snake case|default:My_Title}}",
+					"{{VALUE:title|optional}}"
 				);
 			}
 		}

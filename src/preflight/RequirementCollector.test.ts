@@ -251,3 +251,58 @@ Body`);
     });
   });
 });
+
+describe("RequirementCollector — optional fields (issue #1259)", () => {
+  it("flags a VALUE requirement optional when its only occurrence is flagged", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:note|optional}}");
+
+    expect(rc.requirements.get("note")?.optional).toBe(true);
+  });
+
+  it("applies the AND rule across VALUE occurrences", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:note|optional}} and {{VALUE:note}}");
+
+    expect(rc.requirements.get("note")?.optional).toBe(false);
+  });
+
+  it("collects optional VDATE requirements via the textual scan", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("Due: {{VDATE:due,YYYY-MM-DD|optional}}");
+
+    expect(rc.requirements.get("due")).toMatchObject({
+      type: "date",
+      dateFormat: "YYYY-MM-DD",
+      optional: true,
+    });
+  });
+
+  it("keeps the VDATE default while reading the flag", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|tomorrow|optional}}");
+
+    expect(rc.requirements.get("due")).toMatchObject({
+      defaultValue: "tomorrow",
+      optional: true,
+    });
+  });
+
+  it("applies the AND rule across VDATE occurrences and scan calls", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|optional}}");
+    await rc.scanString("Week: {{VDATE:due,gggg-[W]WW}}");
+
+    expect(rc.requirements.get("due")?.optional).toBe(false);
+  });
+
+  it("keeps option-list and custom tokens optional-aware", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:low,med,high|optional}}");
+
+    expect(rc.requirements.get("low,med,high")).toMatchObject({
+      type: "dropdown",
+      optional: true,
+    });
+  });
+});

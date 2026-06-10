@@ -189,3 +189,94 @@ describe("resolveExistingVariableKey", () => {
 		expect(resolveExistingVariableKey(vars, "nullable")).toBe("nullable");
 	});
 });
+
+describe("optional flag (issue #1259)", () => {
+	it("recognizes a bare optional flag on a single-variable token", () => {
+		const parsed = parseValueToken("reminder|optional");
+		expect(parsed?.optional).toBe(true);
+		expect(parsed?.defaultValue).toBe("");
+		expect(parsed?.variableKey).toBe("reminder");
+	});
+
+	it("is case-insensitive and trims whitespace", () => {
+		expect(parseValueToken("reminder| Optional ")?.optional).toBe(true);
+		expect(parseValueToken("reminder|OPTIONAL")?.optional).toBe(true);
+	});
+
+	it("preserves a shorthand default sitting next to the flag", () => {
+		const parsed = parseValueToken("reminder|call mom|optional");
+		expect(parsed?.optional).toBe(true);
+		expect(parsed?.defaultValue).toBe("call mom");
+	});
+
+	it("joins remaining shorthand parts when the flag sits between them", () => {
+		// Documented compat note: 'a|optional|b' loses the literal 'optional' part.
+		const parsed = parseValueToken("x|a|optional|b");
+		expect(parsed?.optional).toBe(true);
+		expect(parsed?.defaultValue).toBe("a|b");
+	});
+
+	it("supports the keyed optional:<bool> form", () => {
+		expect(parseValueToken("x|optional:true")?.optional).toBe(true);
+		expect(parseValueToken("x|optional:false")?.optional).toBe(false);
+		expect(parseValueToken("x|optional:no")?.optional).toBe(false);
+		expect(parseValueToken("x|optional:off")?.optional).toBe(false);
+	});
+
+	it("lets the keyed form override the bare flag", () => {
+		expect(parseValueToken("x|optional|optional:false")?.optional).toBe(
+			false,
+		);
+	});
+
+	it("keeps a literal default of 'optional' reachable via default:", () => {
+		const parsed = parseValueToken("x|default:optional");
+		expect(parsed?.optional).toBe(false);
+		expect(parsed?.defaultValue).toBe("optional");
+	});
+
+	it("combines with keyed options without dropping them", () => {
+		const parsed = parseValueToken("x|label:Why|optional");
+		expect(parsed?.optional).toBe(true);
+		expect(parsed?.label).toBe("Why");
+	});
+
+	it("works on option-list tokens, including with custom", () => {
+		const list = parseValueToken("low,med,high|optional");
+		expect(list?.optional).toBe(true);
+		expect(list?.hasOptions).toBe(true);
+		expect(list?.suggestedValues).toEqual(["low", "med", "high"]);
+
+		const withCustom = parseValueToken("low,med,high|custom|optional");
+		expect(withCustom?.optional).toBe(true);
+		expect(withCustom?.allowCustomInput).toBe(true);
+	});
+
+	it("does not participate in the variable key", () => {
+		expect(parseValueToken("note|optional")?.variableKey).toBe(
+			parseValueToken("note")?.variableKey,
+		);
+	});
+
+	it("flows through anonymous VALUE options", () => {
+		expect(parseAnonymousValueOptions("|optional").optional).toBe(true);
+		const withDefault = parseAnonymousValueOptions("|My default|optional");
+		expect(withDefault.optional).toBe(true);
+		expect(withDefault.defaultValue).toBe("My default");
+		expect(parseAnonymousValueOptions("|My default").optional).toBe(false);
+	});
+});
+
+describe("keyed optional form interaction with shorthand defaults", () => {
+	it("drops shorthand defaults next to keyed optional:true (keyed options rule)", () => {
+		// Unlike the bare flag, the keyed form counts toward usesOptions,
+		// so shorthand defaults are ignored — use |default: alongside it.
+		const parsed = parseValueToken("x|tomorrow|optional:true");
+		expect(parsed?.optional).toBe(true);
+		expect(parsed?.defaultValue).toBe("");
+	});
+
+	it("treats optional:0 as false (parseBooleanFlag parity with custom)", () => {
+		expect(parseValueToken("x|optional:0")?.optional).toBe(false);
+	});
+});

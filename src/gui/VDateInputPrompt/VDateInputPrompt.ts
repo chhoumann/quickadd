@@ -1,6 +1,7 @@
 import type { App, Debouncer } from "obsidian";
 import { TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
+import type { InputPromptOptions } from "../../types/inputPrompt";
 import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
 import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
 import { settingsStore } from "../../settingsStore";
@@ -26,14 +27,16 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		header: string,
 		placeholder?: string,
 		defaultValue?: string,
-		dateFormat?: string
+		dateFormat?: string,
+		options?: InputPromptOptions
 	): Promise<string> {
 		const newPromptModal = new VDateInputPrompt(
 			app,
 			header,
 			placeholder,
 			defaultValue,
-			dateFormat
+			dateFormat,
+			options
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -43,10 +46,11 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		header: string,
 		placeholder?: string,
 		defaultValue?: string,
-		dateFormat?: string
+		dateFormat?: string,
+		options?: InputPromptOptions
 	) {
 		// Pass the defaultValue to the parent so the input box is pre-filled
-		super(app, header, placeholder, defaultValue ?? "");
+		super(app, header, placeholder, defaultValue ?? "", undefined, undefined, options);
 
 		this.containerEl.addClass("qaDatePrompt");
 		this.dateFormat = dateFormat || "YYYY-MM-DD";
@@ -152,8 +156,9 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 		const input = this.currentInput.trim();
 
-		// If no input and we have a default, show preview for default
-		if (!input && this.defaultValue) {
+		// If no input and we have a default, show preview for default.
+		// Optional prompts skip this: a cleared box means "leave empty".
+		if (!input && this.defaultValue && !this.isOptionalPrompt) {
 			this.renderPreviewFromInput(this.defaultValue);
 			return;
 		}
@@ -268,7 +273,9 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		) {
 			return `@date:${this.selectedIso}`;
 		}
-		if (!trimmed && this.defaultValue) {
+		// Optional prompts take an empty box at face value instead of
+		// resurrecting the default the user just cleared.
+		if (!trimmed && this.defaultValue && !this.isOptionalPrompt) {
 			const parsed = parseNaturalLanguageDate(
 				this.defaultValue,
 				this.dateFormat,
@@ -293,8 +300,14 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		// Cancel any pending debounced calls
 		this.updatePreviewDebounced.cancel();
 
-		// If input is empty and we have a default, use the default
-		if (!this.input.trim() && this.defaultValue) {
+		// If input is empty and we have a default, use the default.
+		// Never for optional prompts or after Skip: empty is the answer.
+		if (
+			!this.input.trim() &&
+			this.defaultValue &&
+			!this.isOptionalPrompt &&
+			!this.didSkip
+		) {
 			this.input = this.defaultValue;
 		}
 

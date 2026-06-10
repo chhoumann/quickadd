@@ -30,12 +30,18 @@ This feature is currently in Beta.
 ## FIELD UX
 - FIELD inputs get inline suggestions from your vault (Dataview if available, with a manual fallback).
 
+## Optional fields
+- Fields whose tokens carry the `|optional` flag (see [Optional fields](../FormatSyntax.md#optional-fields)) show an "(optional)" badge and may be left empty. An empty optional field stores an intentional empty value — the sequential prompt will not re-ask for it.
+- A field counts as optional only when **every** occurrence of that variable across the scanned formats is flagged.
+- Optional dropdowns get a "Skip (leave empty)" entry; the first real option stays preselected.
+- Optional date fields left blank resolve to empty. If the typed text cannot be parsed as a date, the field is handed to the regular sequential date prompt after submit instead of silently becoming empty.
+
 ## Skipping the modal
 - If all required inputs already have values (e.g., prefilled by an earlier macro step), the modal will not open.
-- Empty string is considered an intentional value and will not prompt again.
+- Empty string is considered an intentional value and will not prompt again. This now applies to `{{VDATE}}` variables too: a script-set `""` renders empty instead of re-prompting.
 - For Capture choices, a non-empty editor selection will prefill `{{VALUE}}` during preflight when selection-as-value is enabled.
 
-Note: For date fields with a default, leaving the input blank will apply the default automatically at submit time.
+Note: For **required** date fields with a default, leaving the input blank will apply the default automatically at submit time. A **required** date field left blank without a usable default is re-asked by the sequential date prompt after submit. Optional date fields left blank stay empty.
 
 ### Cancel behavior
 - If you press Cancel in the one-page modal, the preflight is aborted and the choice proceeds with the standard step-by-step prompts at runtime.
@@ -86,6 +92,7 @@ Supported input fields:
 - `options` (string[] for dropdown and suggester)
 - `dateFormat` (string for date)
 - `description` (string)
+- `optional` (boolean — field may be left empty; shows an "(optional)" badge)
 - `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean }`)
 
 **Field Type Details:**

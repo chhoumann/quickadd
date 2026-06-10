@@ -35,9 +35,12 @@ export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
 	private readonly initialValues: Map<string, string>;
 	private readonly result = new Map<string, string>();
+	// Date fields whose current (non-blank) text failed to parse.
+	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
 	private previewContainerEl: HTMLElement | null = null;
 	private updatePreviewDebounced: () => void;
+	private settled = false;
 
 	public waitForClose: Promise<Record<string, string>>;
 	private resolvePromise!: (values: Record<string, string>) => void;
@@ -151,6 +154,12 @@ export class OnePageInputModal extends Modal {
 				const options = req.options ?? [];
 				const displayOptions = req.displayOptions ?? options;
 				if (options.length > 0) {
+					// Optional dropdowns offer an explicit skip entry, but the
+					// first real option stays preselected: adding |optional must
+					// not silently change what an untouched submit yields.
+					if (req.optional) {
+						dropdown.addOption("", "Skip (leave empty)");
+					}
 					options.forEach((opt, index) => {
 						const display = displayOptions[index] ?? opt;
 						dropdown.addOption(opt, display);
@@ -247,6 +256,7 @@ export class OnePageInputModal extends Modal {
 
 				const applyPickerSelection = (iso: string) => {
 					selectedIso = iso;
+					this.dateParseErrors.delete(req.id);
 					const display = formatIsoForDisplay(iso);
 					input.inputEl.value = display;
 					setValue(req.id, `@date:${iso}`);
@@ -261,13 +271,16 @@ export class OnePageInputModal extends Modal {
 
 				const updatePreview = (val: string) => {
 					const inputVal = (val ?? "").trim();
-					if (!inputVal && req.defaultValue) {
+					// A blank optional date means "leave empty" — never
+					// resurrect the default the user just cleared.
+					if (!inputVal && req.defaultValue && !req.optional) {
 						const parsed = parseNaturalLanguageDate(
 							req.defaultValue,
 							req.dateFormat,
 						);
 						if (parsed.isValid && parsed.isoString) {
 							selectedIso = parsed.isoString;
+							this.dateParseErrors.delete(req.id);
 							setValue(req.id, `@date:${parsed.isoString}`);
 							syncSelection(parsed.isoString);
 							const formatted =
@@ -277,21 +290,29 @@ export class OnePageInputModal extends Modal {
 							return;
 						}
 						renderPreview(parsed.error || "Unable to parse date", true);
+						this.dateParseErrors.add(req.id);
 						setValue(req.id, "");
 						syncSelection();
 						return;
 					}
 					if (!inputVal) {
 						selectedIso = undefined;
+						this.dateParseErrors.delete(req.id);
 						setValue(req.id, "");
 						syncSelection();
-						renderPreview("Preview will appear here", false);
+						renderPreview(
+							req.optional
+								? "Will be left empty"
+								: "Preview will appear here",
+							false,
+						);
 						return;
 					}
 
 					if (inputVal.startsWith("@date:")) {
 						const iso = inputVal.slice(6).trim();
 						if (iso) {
+							this.dateParseErrors.delete(req.id);
 							applyPickerSelection(iso);
 							return;
 						}
@@ -300,6 +321,7 @@ export class OnePageInputModal extends Modal {
 					const parsed = parseNaturalLanguageDate(inputVal, req.dateFormat);
 					if (parsed.isValid && parsed.isoString) {
 						selectedIso = parsed.isoString;
+						this.dateParseErrors.delete(req.id);
 						setValue(req.id, `@date:${parsed.isoString}`);
 						syncSelection(parsed.isoString);
 						const formatted =
@@ -307,6 +329,7 @@ export class OnePageInputModal extends Modal {
 						renderPreview(formatted, false);
 					} else {
 						selectedIso = undefined;
+						this.dateParseErrors.add(req.id);
 						setValue(req.id, "");
 						syncSelection();
 						renderPreview(parsed.error || "Unable to parse date", true);
@@ -427,8 +450,16 @@ export class OnePageInputModal extends Modal {
 		if (!this.result.has(req.id)) this.result.set(req.id, starting);
 	}
 
-	private decorateLabel(req: FieldRequirement): string {
-		return req.label;
+	private decorateLabel(req: FieldRequirement): string | DocumentFragment {
+		if (!req.optional) return req.label;
+
+		const fragment = document.createDocumentFragment();
+		fragment.appendChild(document.createTextNode(req.label));
+		const badge = document.createElement("span");
+		badge.textContent = " (optional)";
+		badge.className = "qa-onepage-optional-badge";
+		fragment.appendChild(badge);
+		return fragment;
 	}
 
 	private submit() {
@@ -438,11 +469,22 @@ export class OnePageInputModal extends Modal {
 		);
 		this.result.forEach((v, k) => {
 			const requirement = requirementsById.get(k);
+
+			// Empty date fields: an optional date that is genuinely blank is
+			// answered-empty (""). A required blank date — or any date whose
+			// text failed to parse — is OMITTED so it stays unresolved and the
+			// sequential date prompt (with picker and aliases) still fires.
+			if (requirement?.type === "date" && v === "") {
+				const hasParseError = this.dateParseErrors.has(k);
+				if (!requirement.optional || hasParseError) return;
+			}
+
 			out[k] =
 				requirement?.type === "textarea"
 					? this.escapeBackslashes(v)
 					: v;
 		});
+		this.settled = true;
 		this.close();
 		this.resolvePromise(out);
 	}
@@ -452,8 +494,18 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private cancel() {
+		this.settled = true;
 		this.close();
 		this.rejectPromise("cancelled");
+	}
+
+	onClose() {
+		// Esc (or any close that isn't submit/cancel) must settle the promise,
+		// otherwise the choice execution hangs forever on waitForClose.
+		if (!this.settled) {
+			this.settled = true;
+			this.rejectPromise("cancelled");
+		}
 	}
 
 	private async updatePreviews() {
