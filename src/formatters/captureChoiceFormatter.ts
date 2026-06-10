@@ -15,6 +15,17 @@ import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
 import { findYamlFrontMatterRange } from "../utils/yamlContext";
 
+/**
+	* Only ASCII whitespace counts as "nothing to capture". Unicode spaces such as
+	* the non-breaking space (U+00A0) are intentional content and must not be
+	* dropped, even though String.prototype.trim() strips them (issue #760).
+	*/
+const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
+
+function isCaptureContentEmpty(content: string): boolean {
+	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
+}
+
 export class CaptureChoiceFormatter extends CompleteFormatter {
 	private choice: ICaptureChoice;
 	private file: TFile | null = null;
@@ -119,7 +130,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.templaterProcessed = true;
 		}
 
-		const formattedContentIsEmpty = formatted.trim() === "";
+		const formattedContentIsEmpty = isCaptureContentEmpty(formatted);
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		// Historical note: `prepend` is a legacy flag name that means
@@ -179,7 +190,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// 2. formatContentWithFile() for all other cases
 		// This avoids double processing of templater commands
 
-		const formattedContentIsEmpty = formatted.trim() === "";
+		const formattedContentIsEmpty = isCaptureContentEmpty(formatted);
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		return formatted;
