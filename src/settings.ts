@@ -11,6 +11,11 @@ export interface QuickAddSettings {
 		* When enabled, Capture uses the current editor selection as the default {{VALUE}}.
 		*/
 	useSelectionAsCaptureValue: boolean;
+	/**
+		* When enabled, typing in the choice picker also searches choices nested
+		* inside Multi choices and shows matches with their folder path.
+		*/
+	searchNestedChoices: boolean;
 	devMode: boolean;
 	templateFolderPath: string;
 	announceUpdates: "all" | "major" | "none";
@@ -60,6 +65,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	inputPrompt: "single-line",
 	persistInputPromptDrafts: true,
 	useSelectionAsCaptureValue: true,
+	searchNestedChoices: true,
 	devMode: false,
 	templateFolderPath: "",
 	announceUpdates: "major",

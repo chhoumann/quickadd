@@ -802,14 +802,16 @@ export const Platform = {
 
 // Substring (NOT subsequence) matcher standing in for Obsidian's fuzzy search.
 // Returns a SearchResult-like object when q is a case-insensitive substring of
-// the text, else null — enough for filter tests. Do NOT assert true fuzzy
-// (subsequence) semantics against this stub.
+// the text, else null — enough for filter tests. The single match range covers
+// the first substring hit; scores are always 0. Do NOT assert true fuzzy
+// (subsequence) semantics or graded scores against this stub.
 export function prepareFuzzySearch(query: string) {
   const q = query.toLowerCase();
   return (text: string) => {
     if (q.length === 0) return { score: 0, matches: [] as Array<[number, number]> };
-    return text.toLowerCase().includes(q)
-      ? { score: 0, matches: [] as Array<[number, number]> }
+    const idx = text.toLowerCase().indexOf(q);
+    return idx >= 0
+      ? { score: 0, matches: [[idx, idx + q.length]] as Array<[number, number]> }
       : null;
   };
 }

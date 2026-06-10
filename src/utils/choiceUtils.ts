@@ -21,3 +21,40 @@ export function flattenChoices(choices: IChoice[]): IChoice[] {
 	choices.forEach(walk);
 	return result;
 }
+
+export interface FlatChoicePathEntry {
+	choice: IChoice;
+	id: string;
+	/** Name path from the root to this choice, including the choice's own name. */
+	path: string[];
+	depth: number;
+	parentId: string | null;
+}
+
+/**
+ * Recursively flattens the choice hierarchy in pre-order, tracking each
+ * choice's name path through its ancestor Multi choices.
+ */
+export function flattenChoicesWithPath(
+	choices: IChoice[],
+	parentPath: string[] = [],
+	depth = 0,
+	parentId: string | null = null,
+): FlatChoicePathEntry[] {
+	const result: FlatChoicePathEntry[] = [];
+	for (const choice of choices) {
+		const path = [...parentPath, choice.name];
+		result.push({ choice, id: choice.id, path, depth, parentId });
+		if (isMultiChoice(choice)) {
+			result.push(
+				...flattenChoicesWithPath(
+					choice.choices ?? [],
+					path,
+					depth + 1,
+					choice.id,
+				),
+			);
+		}
+	}
+	return result;
+}

@@ -13,3 +13,18 @@ Make sure the multi is unfolded (as it is in the screenshot). Click the drag han
 ## Placeholder text
 
 You can optionally set a placeholder for each Multi choice. This text shows up in the choice picker search box when you open the multi, which is handy for complex menus or grouped workflows. Leave it empty to use the multi name as the placeholder.
+
+Keep in mind that [searching covers everything nested under the multi](#searching-nested-choices), so word the placeholder accordingly.
+
+## Searching nested choices
+
+Typing in the choice picker searches every choice nested inside the current level's multis — not just the level you are looking at. Nested matches show their folder path (for example `Work / Meetings`) beneath the choice name. This also applies to the root picker opened by the **QuickAdd: Run** command or the ribbon icon.
+
+A few details:
+
+- Browsing is unchanged: with an empty search box, you still see one level at a time.
+- Your search also matches against the folder path, so `work meeting` finds `New meeting` inside `Work / Meetings`.
+- Selecting a nested multi from search results opens it. Its **← Back** entry returns to the level you searched from, skipping intermediate levels.
+- Searching from inside a multi only covers that multi's sub-choices. Go back (or open the root picker) to search more broadly.
+
+If you prefer search to only cover the level you have open, disable **Settings → QuickAdd → Search nested choices**.

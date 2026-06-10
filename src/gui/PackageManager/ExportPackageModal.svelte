@@ -10,6 +10,10 @@
 		collectFileDependencies,
 	} from "../../utils/packageTraversal";
 	import {
+		flattenChoicesWithPath,
+		type FlatChoicePathEntry,
+	} from "../../utils/choiceUtils";
+	import {
 		buildPackage,
 		generateDefaultPackagePath,
 		writePackageToVault,
@@ -29,13 +33,7 @@
 		close: () => void;
 	} = $props();
 
-	interface FlatChoice {
-		choice: IChoice;
-		id: string;
-		path: string[];
-		depth: number;
-		parentId: string | null;
-	}
+	type FlatChoice = FlatChoicePathEntry;
 
 	interface Summary {
 		rootCount: number;
@@ -76,36 +74,6 @@
 			flatChoices.map((entry) => [entry.id, entry.path.join(" / ")]),
 		),
 	);
-
-	function flattenChoicesWithPath(
-		choices: IChoice[],
-		parentPath: string[] = [],
-		depth = 0,
-		parentId: string | null = null,
-	): FlatChoice[] {
-		const result: FlatChoice[] = [];
-		for (const choice of choices) {
-			const path = [...parentPath, choice.name];
-			result.push({
-				choice,
-				id: choice.id,
-				path,
-				depth,
-				parentId,
-			});
-			if (isMultiChoice(choice)) {
-				result.push(
-					...flattenChoicesWithPath(
-						(choice as IMultiChoice).choices ?? [],
-						path,
-						depth + 1,
-						choice.id,
-					),
-				);
-			}
-		}
-		return result;
-	}
 
 	function isMultiChoice(choice: IChoice): choice is IMultiChoice {
 		return choice.type === "Multi";
