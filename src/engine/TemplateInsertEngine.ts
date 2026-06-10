@@ -1,13 +1,15 @@
 import type { App, TFile } from "obsidian";
-import { MarkdownView, parseYaml } from "obsidian";
+import { getFrontMatterInfo, parseYaml } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { templaterParseTemplate } from "../utilityObsidian";
+import {
+	getMarkdownEditorViewForFile,
+	templaterParseTemplate,
+} from "../utilityObsidian";
 import invariant from "../utils/invariant";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
-import { findYamlFrontMatterRange } from "../utils/yamlContext";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { TemplateEngine } from "./TemplateEngine";
 
@@ -51,15 +53,13 @@ export function splitTemplateFrontmatter(content: string): {
 	frontmatterYaml: string | null;
 	body: string;
 } {
-	const range = findYamlFrontMatterRange(content);
-	if (!range) return { frontmatterYaml: null, body: content };
+	const info = getFrontMatterInfo(content);
+	if (!info.exists) return { frontmatterYaml: null, body: content };
 
-	const block = content.slice(0, range[1]);
-	const body = content.slice(range[1]);
-	const match =
-		/^(\s*---\r?\n)([\s\S]*?)(\r?\n(?:---|\.\.\.)\s*(?:\r?\n|$))$/.exec(block);
-
-	return { frontmatterYaml: match ? match[2] : null, body };
+	return {
+		frontmatterYaml: info.frontmatter,
+		body: content.slice(info.contentStart),
+	};
 }
 
 /**
@@ -75,23 +75,14 @@ export function insertBodyIntoNoteContent(
 		return `${noteContent}\n${body}`;
 	}
 
-	const range = findYamlFrontMatterRange(noteContent);
-	if (!range) {
+	const info = getFrontMatterInfo(noteContent);
+	if (!info.exists) {
 		return `${body}\n${noteContent}`;
 	}
 
-	const head = noteContent.slice(0, range[1]);
-	const rest = noteContent.slice(range[1]);
+	const head = noteContent.slice(0, info.contentStart);
+	const rest = noteContent.slice(info.contentStart);
 	return `${head}${body}\n${rest}`;
-}
-
-export function getMarkdownEditorViewForFile(
-	app: App,
-	file: TFile,
-): MarkdownView | null {
-	const view = app.workspace.getActiveViewOfType(MarkdownView);
-	if (view?.file?.path === file.path) return view;
-	return null;
 }
 
 /**

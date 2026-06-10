@@ -666,6 +666,47 @@ export function parseYaml(yaml: string): Record<string, unknown> {
   return result;
 }
 
+export interface FrontMatterInfo {
+  exists: boolean;
+  frontmatter: string;
+  from: number;
+  to: number;
+  contentStart: number;
+}
+
+// Mirrors Obsidian's real implementation: the opening --- must be at offset 0
+// and the block closes with a --- line. `frontmatter` is the contents between
+// the fences (including the trailing newline).
+export function getFrontMatterInfo(content: string): FrontMatterInfo {
+  const none: FrontMatterInfo = {
+    exists: false,
+    frontmatter: "",
+    from: 0,
+    to: 0,
+    contentStart: 0,
+  };
+
+  const open = /^---(\r?\n)/.exec(content);
+  if (!open) return none;
+  const from = open[0].length;
+
+  const close = /---(\r?\n|$)/g;
+  close.lastIndex = from;
+  let match = close.exec(content);
+  while (match && content.charAt(match.index - 1) !== "\n") {
+    match = close.exec(content);
+  }
+  if (!match) return none;
+
+  return {
+    exists: true,
+    frontmatter: content.slice(from, match.index),
+    from,
+    to: match.index,
+    contentStart: close.lastIndex,
+  };
+}
+
 // Minimal normalizePath for tests: convert Windows separators to POSIX
 export function normalizePath(p: string): string {
   if (typeof p !== 'string') return '' as unknown as string;
@@ -802,6 +843,7 @@ export default {
   Notice,
   moment,
   parseYaml,
+  getFrontMatterInfo,
   normalizePath,
   debounce,
   setIcon,

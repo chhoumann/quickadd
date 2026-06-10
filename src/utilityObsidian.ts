@@ -484,6 +484,19 @@ export function getDate(input?: { format?: string; offset?: number; }) {
 		: window.moment().add(duration).format("YYYY-MM-DD");
 }
 
+/**
+ * Returns the active markdown view if it is showing the given file,
+ * meaning its editor can be used to insert at the cursor.
+ */
+export function getMarkdownEditorViewForFile(
+	app: App,
+	file: TFile,
+): MarkdownView | null {
+	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	if (view?.file?.path === file.path) return view;
+	return null;
+}
+
 export function appendToCurrentLine(toAppend: string, app: App) {
 	try {
 		const activeView = app.workspace.getActiveViewOfType(MarkdownView);

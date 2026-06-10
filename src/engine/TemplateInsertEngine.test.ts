@@ -32,13 +32,21 @@ vi.mock("../formatters/completeFormatter", () => {
 	return { CompleteFormatter: CompleteFormatterMock };
 });
 
-vi.mock("../utilityObsidian", () => ({
-	getTemplater: vi.fn(() => ({})),
-	overwriteTemplaterOnce: vi.fn(),
-	templaterParseTemplate: vi.fn(
-		async (_app: unknown, content: string) => content,
-	),
+vi.mock("obsidian-dataview", () => ({
+	getAPI: vi.fn(),
 }));
+
+vi.mock("../utilityObsidian", async (importOriginal) => {
+	const actual = await importOriginal<object>();
+	return {
+		...actual,
+		getTemplater: vi.fn(() => ({})),
+		overwriteTemplaterOnce: vi.fn(),
+		templaterParseTemplate: vi.fn(
+			async (_app: unknown, content: string) => content,
+		),
+	};
+});
 
 import { TFile, TFolder, type App } from "obsidian";
 import type QuickAdd from "../main";
@@ -207,13 +215,13 @@ describe("splitTemplateFrontmatter", () => {
 		const result = splitTemplateFrontmatter(
 			"---\ntags: [a, b]\nstatus: draft\n---\n# Heading\nBody",
 		);
-		expect(result.frontmatterYaml).toBe("tags: [a, b]\nstatus: draft");
+		expect(result.frontmatterYaml).toBe("tags: [a, b]\nstatus: draft\n");
 		expect(result.body).toBe("# Heading\nBody");
 	});
 
 	it("handles frontmatter-only templates", () => {
 		const result = splitTemplateFrontmatter("---\nstatus: draft\n---\n");
-		expect(result.frontmatterYaml).toBe("status: draft");
+		expect(result.frontmatterYaml).toBe("status: draft\n");
 		expect(result.body.trim()).toBe("");
 	});
 });

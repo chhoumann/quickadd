@@ -11,11 +11,13 @@ import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { jumpToNextTemplaterCursorIfPossible } from "../utilityObsidian";
+import {
+	getMarkdownEditorViewForFile,
+	jumpToNextTemplaterCursorIfPossible,
+} from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import {
-	getMarkdownEditorViewForFile,
 	TemplateInsertEngine,
 	templateInsertModes,
 	type TemplateInsertModeId,
