@@ -1,6 +1,6 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
-import type { Debouncer, TFile } from "obsidian";
-import { Plugin, debounce } from "obsidian";
+import type { Debouncer } from "obsidian";
+import { Plugin, TFile, debounce } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
@@ -26,6 +26,7 @@ import { isMajorUpdate } from "./utils/semver";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
+import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -77,6 +78,41 @@ export default class QuickAdd extends Plugin {
 				ChoiceSuggester.Open(this, this.settings.choices);
 			},
 		});
+
+		this.addCommand({
+			id: "applyTemplateToActiveFile",
+			name: QUICK_ADD_COMMAND_LABELS.applyTemplate,
+			checkCallback: (checking) => {
+				const file = this.app.workspace.getActiveFile();
+				const available = file?.extension === "md";
+				if (checking) return available;
+				if (!available) return;
+
+				void applyTemplateToNote(this.app, this, {
+					file,
+					choiceExecutor: new ChoiceExecutor(this.app, this),
+				});
+			},
+		});
+
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, abstractFile) => {
+				if (!(abstractFile instanceof TFile)) return;
+				if (abstractFile.extension !== "md") return;
+
+				menu.addItem((item) =>
+					item
+						.setTitle("Apply QuickAdd template")
+						.setIcon("file-plus")
+						.onClick(() => {
+							void applyTemplateToNote(this.app, this, {
+								file: abstractFile,
+								choiceExecutor: new ChoiceExecutor(this.app, this),
+							});
+						}),
+				);
+			}),
+		);
 
 		this.addCommand({
 			id: "reloadQuickAdd",

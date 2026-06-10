@@ -622,6 +622,91 @@ export class Notice {
 
 export { moment };
 
+// Minimal parseYaml for tests: supports flat `key: value` pairs with scalar
+// values, inline arrays ([a, b]) and simple block lists. NOT a full YAML
+// parser — assert real YAML semantics in e2e tests against live Obsidian.
+export function parseYaml(yaml: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  const lines = yaml.split(/\r?\n/);
+  let currentKey: string | null = null;
+
+  const parseScalar = (raw: string): unknown => {
+    const value = raw.trim();
+    if (value === "") return null;
+    if (value === "true") return true;
+    if (value === "false") return false;
+    if (value === "null" || value === "~") return null;
+    if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+    if (/^\[.*\]$/.test(value)) {
+      const inner = value.slice(1, -1).trim();
+      return inner === "" ? [] : inner.split(",").map((item) => parseScalar(item));
+    }
+    if (/^(['"]).*\1$/.test(value)) return value.slice(1, -1);
+    return value;
+  };
+
+  for (const line of lines) {
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+
+    const listMatch = /^\s+-\s*(.*)$/.exec(line);
+    if (listMatch && currentKey) {
+      if (!Array.isArray(result[currentKey])) result[currentKey] = [];
+      (result[currentKey] as unknown[]).push(parseScalar(listMatch[1]));
+      continue;
+    }
+
+    const kvMatch = /^([^:\s][^:]*):\s*(.*)$/.exec(line);
+    if (kvMatch) {
+      const key = kvMatch[1].trim();
+      currentKey = key;
+      result[key] = kvMatch[2].trim() === "" ? null : parseScalar(kvMatch[2]);
+    }
+  }
+
+  return result;
+}
+
+export interface FrontMatterInfo {
+  exists: boolean;
+  frontmatter: string;
+  from: number;
+  to: number;
+  contentStart: number;
+}
+
+// Mirrors Obsidian's real implementation: the opening --- must be at offset 0
+// and the block closes with a --- line. `frontmatter` is the contents between
+// the fences (including the trailing newline).
+export function getFrontMatterInfo(content: string): FrontMatterInfo {
+  const none: FrontMatterInfo = {
+    exists: false,
+    frontmatter: "",
+    from: 0,
+    to: 0,
+    contentStart: 0,
+  };
+
+  const open = /^---(\r?\n)/.exec(content);
+  if (!open) return none;
+  const from = open[0].length;
+
+  const close = /---(\r?\n|$)/g;
+  close.lastIndex = from;
+  let match = close.exec(content);
+  while (match && content.charAt(match.index - 1) !== "\n") {
+    match = close.exec(content);
+  }
+  if (!match) return none;
+
+  return {
+    exists: true,
+    frontmatter: content.slice(from, match.index),
+    from,
+    to: match.index,
+    contentStart: close.lastIndex,
+  };
+}
+
 // Minimal normalizePath for tests: convert Windows separators to POSIX
 export function normalizePath(p: string): string {
   if (typeof p !== 'string') return '' as unknown as string;
@@ -757,6 +842,8 @@ export default {
   requestUrl,
   Notice,
   moment,
+  parseYaml,
+  getFrontMatterInfo,
   normalizePath,
   debounce,
   setIcon,

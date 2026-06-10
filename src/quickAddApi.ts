@@ -41,6 +41,15 @@ import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { formatISODate } from "./utils/dateParser";
 import type { InputPromptOptions } from "./types/inputPrompt";
+import {
+	applyTemplateToNote,
+	isMarkdownTemplatePath,
+} from "./engine/applyTemplateToActiveNote";
+import {
+	isTemplateInsertMode,
+	templateInsertModes,
+	type TemplateInsertModeId,
+} from "./engine/TemplateInsertEngine";
 
 function snapshotVariables(
 	vars: Map<string, unknown>,
@@ -243,6 +252,51 @@ export class QuickAddApi {
 				choiceExecutor.variables.clear();
 				if (abort) {
 					throw abort;
+				}
+			},
+			/**
+			 * Applies a template to the active note without creating a new file.
+			 * Runs the full QuickAdd format pipeline on the template content.
+			 *
+			 * @param templatePath Vault path to the template file.
+			 * @param options.mode How to apply: "cursor" | "top" | "bottom" |
+			 *   "replace". Defaults to "replace" for empty notes and "bottom"
+			 *   otherwise.
+			 * @returns The target file, or null if nothing was applied.
+			 */
+			applyTemplateToActiveFile: async (
+				templatePath: string,
+				options?: { mode?: TemplateInsertModeId },
+			) => {
+				if (!templatePath) {
+					throw new Error(
+						"applyTemplateToActiveFile requires a template path.",
+					);
+				}
+
+				if (!isMarkdownTemplatePath(templatePath)) {
+					throw new Error(
+						"applyTemplateToActiveFile only supports markdown templates. Canvas and base templates cannot be applied to a markdown note.",
+					);
+				}
+
+				if (options?.mode !== undefined && !isTemplateInsertMode(options.mode)) {
+					throw new Error(
+						`Invalid mode '${String(options.mode)}'. Valid modes: ${templateInsertModes
+							.map((mode) => mode.id)
+							.join(", ")}.`,
+					);
+				}
+
+				const snapshot = snapshotVariables(choiceExecutor.variables);
+				try {
+					return await applyTemplateToNote(app, plugin, {
+						templatePath,
+						mode: options?.mode,
+						choiceExecutor,
+					});
+				} finally {
+					restoreVariables(choiceExecutor.variables, snapshot);
 				}
 			},
 			format: async (
