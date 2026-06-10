@@ -7,6 +7,7 @@ import {
 	debounce,
 	type App,
 } from "obsidian";
+import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
@@ -331,9 +332,14 @@ export class OnePageInputModal extends Modal {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
-				// Attach inline suggester powered by vault data & filters encoded in req.id
+				// Attach inline suggester powered by vault data & filters encoded in
+				// req.id. Collected FIELD requirements are keyed "FIELD:<specifier>";
+				// strip the prefix so the suggester parses the bare field specifier.
+				const fieldSpecifier = req.id.startsWith(FIELD_VARIABLE_PREFIX)
+					? req.id.slice(FIELD_VARIABLE_PREFIX.length)
+					: req.id;
 				try {
-					new FieldValueInputSuggest(this.app, input.inputEl, req.id);
+					new FieldValueInputSuggest(this.app, input.inputEl, fieldSpecifier);
 				} catch {
 					// Non-fatal; leave as plain input if suggester fails
 				}

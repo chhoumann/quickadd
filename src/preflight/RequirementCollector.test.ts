@@ -218,4 +218,36 @@ Body`);
     const requirement = rc.requirements.get("title");
     expect(requirement?.type).toBe("textarea");
   });
+
+  // Regression: issue #1184 — FIELD requirements were registered under the
+  // bare field name ("People") while the runtime formatter looks up the
+  // prefixed key ("FIELD:People"), so one-page values were lost and the
+  // user was prompted a second time.
+  describe("FIELD requirements (issue #1184)", () => {
+    it("registers FIELD requirements under the runtime FIELD: key", async () => {
+      const app = makeApp();
+      const plugin = makePlugin();
+      const rc = new RequirementCollector(app, plugin);
+      await rc.scanString("People: {{FIELD:People}}");
+
+      expect(rc.requirements.get("FIELD:People")).toMatchObject({
+        id: "FIELD:People",
+        label: "People",
+        type: "field-suggest",
+      });
+      expect(rc.requirements.has("People")).toBe(false);
+    });
+
+    it("keeps filters in the FIELD requirement id so runtime lookup matches", async () => {
+      const app = makeApp();
+      const plugin = makePlugin();
+      const rc = new RequirementCollector(app, plugin);
+      await rc.scanString("{{FIELD:People|folder:Contacts}}");
+
+      expect(rc.requirements.get("FIELD:People|folder:Contacts")).toMatchObject({
+        id: "FIELD:People|folder:Contacts",
+        type: "field-suggest",
+      });
+    });
+  });
 });
