@@ -1,5 +1,10 @@
 import type { App } from "obsidian";
-import { GLOBAL_VAR_REGEX, TEMPLATE_REGEX, VARIABLE_REGEX } from "src/constants";
+import {
+	FIELD_VARIABLE_PREFIX,
+	GLOBAL_VAR_REGEX,
+	TEMPLATE_REGEX,
+	VARIABLE_REGEX,
+} from "src/constants";
 import { Formatter, type PromptContext } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
@@ -283,10 +288,13 @@ export class RequirementCollector extends Formatter {
 	}
 
 	protected async suggestForField(variableName: string): Promise<string> {
-		// Store as a field-suggest requirement; actual suggestions are provided by UI
-		if (!this.requirements.has(variableName)) {
-			this.requirements.set(variableName, {
-				id: variableName,
+		// Key the requirement with the runtime "FIELD:" prefix so values entered
+		// in the one-page form land where replaceFieldVarInString looks them up
+		// (issue #1184). Actual suggestions are provided by the UI.
+		const key = `${FIELD_VARIABLE_PREFIX}${variableName}`;
+		if (!this.requirements.has(key)) {
+			this.requirements.set(key, {
+				id: key,
 				label: variableName,
 				type: "field-suggest",
 				source: "collected",

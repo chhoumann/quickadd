@@ -93,6 +93,9 @@ export const NAME_VALUE_REGEX = new RegExp(
 );
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
 export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
+// Prefix used to namespace FIELD variable values in the variables map,
+// keeping them separate from plain VALUE variables with the same name.
+export const FIELD_VARIABLE_PREFIX = "FIELD:";
 export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(
 	/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i,
 );

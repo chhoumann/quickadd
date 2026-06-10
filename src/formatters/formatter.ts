@@ -13,6 +13,7 @@ import {
 	VARIABLE_REGEX,
 
 	FIELD_VAR_REGEX_WITH_FILTERS,
+	FIELD_VARIABLE_PREFIX,
 	SELECTED_REGEX,
 	CLIPBOARD_REGEX,
 	TIME_REGEX,
@@ -55,7 +56,6 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
-	private static readonly FIELD_VARIABLE_PREFIX = "FIELD:";
 	protected valuePromptContext?: PromptContext;
 
 	// Tracks variables collected for YAML property post-processing
@@ -470,7 +470,7 @@ export abstract class Formatter {
 	}
 
 	private getFieldVariableKey(fieldSpecifier: string): string {
-		return `${Formatter.FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
+		return `${FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
 	}
 
 	protected abstract promptForMathValue(): Promise<string>;

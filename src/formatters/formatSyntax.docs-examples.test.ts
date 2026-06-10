@@ -300,13 +300,15 @@ describe("Format Syntax documentation examples", () => {
 			displayOptions: ["Low", "Normal", "High"],
 		});
 		expect(
-			collector.requirements.get("status|default:Draft|default-always:true"),
+			collector.requirements.get(
+				"FIELD:status|default:Draft|default-always:true",
+			),
 		).toMatchObject({
 			type: "field-suggest",
 		});
 		expect(
 			collector.requirements.get(
-				"Id|inline:true|inline-code-blocks:ad-note",
+				"FIELD:Id|inline:true|inline-code-blocks:ad-note",
 			),
 		).toMatchObject({
 			type: "field-suggest",

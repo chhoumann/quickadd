@@ -170,8 +170,16 @@ vi.mock("src/gui/date-picker/datePicker", () => ({
 	createDatePicker: () => ({ setSelectedIso: vi.fn() }),
 }));
 
+const { fieldSuggestConstructorArgs } = vi.hoisted(() => ({
+	fieldSuggestConstructorArgs: [] as unknown[][],
+}));
+
 vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
-	FieldValueInputSuggest: class {},
+	FieldValueInputSuggest: class {
+		constructor(...args: unknown[]) {
+			fieldSuggestConstructorArgs.push(args);
+		}
+	},
 }));
 
 vi.mock("src/gui/suggesters/SuggesterInputSuggest", () => ({
@@ -346,6 +354,45 @@ describe("OnePageInputModal", () => {
 			await expect(modal.waitForClose).resolves.toEqual({
 				[id]: "option-a",
 			});
+		});
+	});
+
+	// Regression: issue #1184 — field-suggest requirements are keyed with the
+	// runtime "FIELD:" prefix; the modal must submit under that key while the
+	// vault suggester receives the bare field specifier.
+	describe("field-suggest (issue #1184)", () => {
+		it("submits under the FIELD: id and passes the bare specifier to the suggester", async () => {
+			fieldSuggestConstructorArgs.length = 0;
+			const requirements: FieldRequirement[] = [
+				{
+					id: "FIELD:People",
+					label: "People",
+					type: "field-suggest",
+				},
+			];
+
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const contentEl = (modal as any).contentEl as HTMLElement;
+			const fieldInput = contentEl.querySelector(
+				"input",
+			) as HTMLInputElement;
+			fieldInput.value = "Alice";
+			fieldInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+			const submitButton = Array.from(
+				contentEl.querySelectorAll(
+					"button",
+				) as NodeListOf<HTMLButtonElement>,
+			).find(
+				(button) => button.textContent === "Submit",
+			) as HTMLButtonElement;
+			submitButton.click();
+
+			await expect(modal.waitForClose).resolves.toEqual({
+				"FIELD:People": "Alice",
+			});
+			expect(fieldSuggestConstructorArgs).toHaveLength(1);
+			expect(fieldSuggestConstructorArgs[0][2]).toBe("People");
 		});
 	});
 });
