@@ -502,7 +502,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
 			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
 			.replace(BASE_FILE_EXTENSION_REGEX, "");
-		if (!formattedFileName.trim()) {
+		// Validate the final path segment, not just the whole string — a
+		// trailing-slash name like "Projects/" (optional leaf token left
+		// empty) would otherwise still produce "Projects/.md".
+		const baseName = formattedFileName.slice(
+			formattedFileName.lastIndexOf("/") + 1
+		);
+		if (!baseName.trim()) {
 			throw new Error(
 				"File name is empty after formatting. Make sure the tokens in the file name format produce a value (an optional token left empty can cause this)."
 			);
