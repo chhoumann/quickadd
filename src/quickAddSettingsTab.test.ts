@@ -221,8 +221,8 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			items?: Array<{ name?: unknown; control?: { key?: string } }>;
 		}>;
 
-		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): 7 groups.
-		expect(groups).toHaveLength(7);
+		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): 8 groups.
+		expect(groups).toHaveLength(8);
 
 		const validKeys = new Set(Object.keys(DEFAULT_SETTINGS));
 		const controlKeys: string[] = [];
@@ -245,6 +245,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 
 		expect(controlKeys).toEqual(
 			expect.arrayContaining([
+				"searchNestedChoices",
 				"inputPrompt",
 				"persistInputPromptDrafts",
 				"useSelectionAsCaptureValue",
@@ -257,5 +258,22 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 				"enableRibbonIcon",
 			]),
 		);
+	});
+
+	it("keeps nested choice search in the choice picker section", () => {
+		const tab = makeTab();
+		const [choicesGroup, choicePickerGroup] = tab.getSettingDefinitions() as unknown as Array<{
+			heading?: string;
+			items?: Array<{ name?: unknown }>;
+		}>;
+
+		expect(choicesGroup.items?.map((item) => item.name)).toEqual([
+			"Choices",
+			"Packages",
+		]);
+		expect(choicePickerGroup.heading).toBe("Choice Picker");
+		expect(choicePickerGroup.items?.map((item) => item.name)).toEqual([
+			"Search nested choices",
+		]);
 	});
 });

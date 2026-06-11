@@ -89,6 +89,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	override getSettingDefinitions(): SettingDefinitionItem<SettingsKey>[] {
 		const groups: SettingDefinitionGroup<SettingsKey>[] = [
 			this.choicesAndPackagesGroup(),
+			this.choicePickerGroup(),
 			this.inputGroup(),
 			this.templatesGroup(),
 			this.notificationsGroup(),
@@ -130,11 +131,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			heading: "Choices & Packages",
 			items: [
 				{
-					name: "Search nested choices",
-					desc: "When searching in the choice picker, also match choices nested inside Multi choices and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.",
-					control: { type: "toggle", key: "searchNestedChoices" },
-				},
-				{
 					name: "Choices",
 					render: (setting) => this.renderChoicesView(setting),
 				},
@@ -142,6 +138,20 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					name: "Packages",
 					desc: "Bundle or import QuickAdd automations as reusable packages.",
 					render: (setting) => this.renderPackages(setting),
+				},
+			],
+		};
+	}
+
+	private choicePickerGroup(): SettingDefinitionGroup<SettingsKey> {
+		return {
+			type: "group",
+			heading: "Choice Picker",
+			items: [
+				{
+					name: "Search nested choices",
+					desc: "When searching in the choice picker, also match choices nested inside Multi choices and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.",
+					control: { type: "toggle", key: "searchNestedChoices" },
 				},
 			],
 		};
