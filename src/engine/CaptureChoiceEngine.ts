@@ -815,10 +815,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		// A formatted target like 'notes/.md' has no usable file name (e.g. an
 		// optional token left empty). Fail clearly instead of creating it.
-		const basename = finalPath
-			.replace(/^.*\//, "")
-			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
-			.replace(CANVAS_FILE_EXTENSION_REGEX, "");
+		const basename = basenameWithoutMdOrCanvas(finalPath);
 		if (!basename.trim()) {
 			throw new ChoiceAbortError(
 				`Capture target file name is empty after formatting ('${finalPath}'). Make sure the tokens in 'Capture to' produce a value.`,
