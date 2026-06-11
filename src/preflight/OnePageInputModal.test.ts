@@ -138,8 +138,12 @@ vi.mock("obsidian", () => {
 			containerEl.appendChild(settingEl);
 		}
 
-		setName(name: string): this {
-			this.nameEl.textContent = name;
+		setName(name: string | DocumentFragment): this {
+			if (typeof name === "string") {
+				this.nameEl.textContent = name;
+			} else {
+				this.nameEl.replaceChildren(name);
+			}
 			this.infoEl.appendChild(this.nameEl);
 			return this;
 		}
@@ -216,6 +220,16 @@ function ensureObsidianDomPolyfills(): void {
 		if (options?.text !== undefined) div.textContent = options.text;
 		this.appendChild(div);
 		return div;
+	};
+
+	proto.setText ??= function (text: string) {
+		this.textContent = text;
+		return this;
+	};
+
+	proto.toggleClass ??= function (cls: string, on: boolean) {
+		this.classList.toggle(cls, on);
+		return this;
 	};
 }
 
@@ -393,6 +407,190 @@ describe("OnePageInputModal", () => {
 			});
 			expect(fieldSuggestConstructorArgs).toHaveLength(1);
 			expect(fieldSuggestConstructorArgs[0][2]).toBe("People");
+		});
+	});
+
+	describe("optional fields (issue #1259)", () => {
+		const clickSubmit = (modal: OnePageInputModal) => {
+			const submitButton = Array.from(
+				(modal as any).contentEl.querySelectorAll(
+					"button",
+				) as NodeListOf<HTMLButtonElement>,
+			).find(
+				(button) => button.textContent === "Submit",
+			) as HTMLButtonElement;
+			submitButton.click();
+		};
+
+		it("renders an (optional) badge for optional fields only", () => {
+			const requirements: FieldRequirement[] = [
+				{ id: "note", label: "note", type: "text", optional: true },
+				{ id: "title", label: "title", type: "text" },
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const badges = (modal as any).contentEl.querySelectorAll(
+				".qa-onepage-optional-badge",
+			);
+			expect(badges).toHaveLength(1);
+			expect(badges[0].textContent).toBe(" (optional)");
+		});
+
+		it("submits '' for an optional text field left empty", async () => {
+			const requirements: FieldRequirement[] = [
+				{ id: "note", label: "note", type: "text", optional: true },
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({ note: "" });
+		});
+
+		it("adds a skip entry to optional dropdowns but keeps the first option preselected", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "low,med,high",
+					label: "Priority",
+					type: "dropdown",
+					options: ["low", "med", "high"],
+					optional: true,
+				},
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const select = (modal as any).contentEl.querySelector(
+				"select",
+			) as HTMLSelectElement;
+
+			expect(select.options[0].value).toBe("");
+			expect(select.options[0].textContent).toBe("Skip (leave empty)");
+			expect(select.options).toHaveLength(4);
+
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({
+				"low,med,high": "low",
+			});
+		});
+
+		it("submits '' when the skip entry is chosen in an optional dropdown", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "low,med,high",
+					label: "Priority",
+					type: "dropdown",
+					options: ["low", "med", "high"],
+					optional: true,
+				},
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const select = (modal as any).contentEl.querySelector(
+				"select",
+			) as HTMLSelectElement;
+			select.value = "";
+			select.dispatchEvent(new Event("change", { bubbles: true }));
+
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({
+				"low,med,high": "",
+			});
+		});
+
+		it("submits '' for an optional date left blank", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "due",
+					label: "due",
+					type: "date",
+					dateFormat: "YYYY-MM-DD",
+					optional: true,
+				},
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({ due: "" });
+		});
+
+		it("omits a required blank date so the sequential prompt still fires", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "due",
+					label: "due",
+					type: "date",
+					dateFormat: "YYYY-MM-DD",
+				},
+				{ id: "note", label: "note", type: "text" },
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({ note: "" });
+		});
+
+		it("omits an optional date whose text failed to parse (typo protection)", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "due",
+					label: "due",
+					type: "date",
+					dateFormat: "YYYY-MM-DD",
+					optional: true,
+				},
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const dateInput = (modal as any).contentEl.querySelector(
+				"input",
+			) as HTMLInputElement;
+			dateInput.value = "tomorow";
+			dateInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({});
+		});
+
+		it("does not resurrect the default when an optional date is cleared", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "due",
+					label: "due",
+					type: "date",
+					dateFormat: "YYYY-MM-DD",
+					defaultValue: "tomorrow",
+					optional: true,
+				},
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const dateInput = (modal as any).contentEl.querySelector(
+				"input",
+			) as HTMLInputElement;
+			dateInput.value = "";
+			dateInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+			clickSubmit(modal);
+			await expect(modal.waitForClose).resolves.toEqual({ due: "" });
+		});
+	});
+
+	describe("Esc settles the modal promise (issue #1259 rider)", () => {
+		it("rejects with 'cancelled' when closed without submitting", async () => {
+			const requirements: FieldRequirement[] = [
+				{ id: "note", label: "note", type: "text" },
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			modal.onClose();
+			await expect(modal.waitForClose).rejects.toBe("cancelled");
+		});
+
+		it("does not double-settle after a submit", async () => {
+			const requirements: FieldRequirement[] = [
+				{ id: "note", label: "note", type: "text" },
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const submitButton = Array.from(
+				(modal as any).contentEl.querySelectorAll(
+					"button",
+				) as NodeListOf<HTMLButtonElement>,
+			).find(
+				(button) => button.textContent === "Submit",
+			) as HTMLButtonElement;
+			submitButton.click();
+			modal.onClose();
+			await expect(modal.waitForClose).resolves.toEqual({ note: "" });
 		});
 	});
 });

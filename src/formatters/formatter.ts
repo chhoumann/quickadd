@@ -35,6 +35,7 @@ import {
 	resolveExistingVariableKey,
 	type ValueInputType,
 } from "../utils/valueSyntax";
+import { parseVDateOptions } from "../utils/vdateSyntax";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
 
@@ -49,6 +50,7 @@ export interface PromptContext {
 	placeholder?: string;
 	variableKey?: string;
 	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
+	optional?: boolean; // Token carries |optional: empty submissions are accepted as the answer.
 }
 
 export abstract class Formatter {
@@ -208,6 +210,9 @@ export abstract class Formatter {
 			}
 			if (parsed.inputTypeOverride === "multiline") {
 				context.inputTypeOverride = "multiline";
+			}
+			if (parsed.optional) {
+				context.optional = true;
 			}
 		}
 
@@ -375,6 +380,7 @@ export abstract class Formatter {
 						description: helperText,
 						inputTypeOverride: parsed.inputTypeOverride,
 						variableKey,
+						optional: parsed.optional,
 					});
 				} else {
 					variableValue = await this.suggestForValue(
@@ -384,12 +390,15 @@ export abstract class Formatter {
 							placeholder: suggesterPlaceholder,
 							variableKey,
 							displayValues,
+							optional: parsed.optional,
 						},
 					);
 				}
 
-				// Use default value if no input provided (applies to both prompt and suggester)
-				if (!variableValue && defaultValue) {
+				// Use default value if no input provided (applies to both prompt and suggester).
+				// Optional tokens take the empty submission at face value: the default is
+				// visibly pre-filled, so an empty box means the user cleared it.
+				if (!variableValue && defaultValue && !parsed.optional) {
 					variableValue = defaultValue;
 				}
 
@@ -532,6 +541,7 @@ export abstract class Formatter {
 			placeholder?: string;
 			variableKey?: string;
 			displayValues?: string[];
+			optional?: boolean;
 		},
 	): Promise<string> | string;
 
@@ -546,7 +556,7 @@ export abstract class Formatter {
 
 			const variableName = match[1].trim();
 			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
-			const defaultValue = match[3]?.trim() || undefined;
+			const { defaultValue, optional } = parseVDateOptions(match[3]);
 
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
@@ -557,14 +567,20 @@ export abstract class Formatter {
 			if (variableName) {
 				const existingValue = this.variables.get(variableName);
 
-				// Check if we already have this date variable stored
-				if (!existingValue) {
+				// Check if we already have this date variable stored.
+				// Only `undefined` counts as unset — null and "" are intentional
+				// values (same contract as VALUE variables, see #872), so a
+				// script-set "" renders empty instead of re-prompting.
+				if (existingValue === undefined) {
 					// Prompt for date input with VDATE context
 					const dateInput = await this.promptForVariable(
 						variableName,
-						{ type: "VDATE", dateFormat, defaultValue }
+						{ type: "VDATE", dateFormat, defaultValue, optional }
 					);
-					if (dateInput?.startsWith("@date:")) {
+					if (optional && !dateInput?.trim()) {
+						// Optional date left blank or skipped: answered-empty.
+						this.variables.set(variableName, "");
+					} else if (dateInput?.startsWith("@date:")) {
 						this.variables.set(variableName, dateInput);
 					} else {
 						if (!this.dateParser)
@@ -585,7 +601,11 @@ export abstract class Formatter {
 							);
 						} else {
 							throw new Error(
-								`unable to parse date variable ${dateInput}`,
+								`unable to parse date variable ${dateInput}${
+									optional
+										? ""
+										: ". Tip: add |optional inside the {{VDATE}} token to allow leaving this date empty"
+								}`,
 							);
 						}
 					}
@@ -643,8 +663,11 @@ export abstract class Formatter {
 				}
 
 				// Replace the specific match rather than using regex again
-				// to handle multiple VDATE variables with same name but different formats
-				output = output.replace(match[0], formattedDate);
+				// to handle multiple VDATE variables with same name but different formats.
+				// Replacer function so `$` patterns in stored values are literal —
+				// a raw string replacement would re-expand `$&` into the token and
+				// loop forever.
+				output = output.replace(match[0], () => formattedDate);
 			} else {
 				break;
 			}

@@ -1,4 +1,10 @@
-import { parsePipeKeyValue, splitPipeParts, stripLeadingPipe } from "./pipeSyntax";
+import {
+	extractBareFlagPart,
+	parseBooleanFlag,
+	parsePipeKeyValue,
+	splitPipeParts,
+	stripLeadingPipe,
+} from "./pipeSyntax";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
@@ -12,6 +18,7 @@ const VALUE_OPTION_KEYS = new Set([
 	"type",
 	"case",
 	"text",
+	"optional",
 ]);
 
 export type ParsedValueToken = {
@@ -26,6 +33,7 @@ export type ParsedValueToken = {
 	displayValues?: string[];
 	hasOptions: boolean;
 	inputTypeOverride?: ValueInputType;
+	optional: boolean;
 };
 
 export function buildValueVariableKey(
@@ -91,13 +99,21 @@ type ParsedOptions = {
 	usesOptions: boolean;
 	inputTypeOverride?: string;
 	displayValuesRaw?: string;
+	optionalExplicit?: boolean;
 };
 
-function parseBoolean(value?: string): boolean {
-	if (!value) return true;
-	const normalized = value.trim().toLowerCase();
-	if (["false", "no", "0", "off"].includes(normalized)) return false;
-	return true;
+/**
+ * Pulls bare `optional` flag parts out of a pipe-part list BEFORE the
+ * usesOptions decision, so shorthand defaults next to the flag keep working:
+ * `{{VALUE:x|tomorrow|optional}}` still means default "tomorrow" + optional.
+ * A literal default "optional" needs the `|default:optional` escape hatch.
+ */
+function extractBareOptionalFlag(parts: string[]): {
+	remaining: string[];
+	optional: boolean;
+} {
+	const { remaining, found } = extractBareFlagPart(parts, "optional");
+	return { remaining, optional: found };
 }
 
 function hasRecognizedOption(part: string): boolean {
@@ -139,6 +155,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 	let allowCustomInput = false;
 	let inputTypeOverride: string | undefined;
 	let displayValuesRaw: string | undefined;
+	let optionalExplicit: boolean | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -165,13 +182,16 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 				defaultValue = value;
 				break;
 			case "custom":
-				allowCustomInput = parseBoolean(value);
+				allowCustomInput = parseBooleanFlag(value);
 				break;
 			case "type":
 				if (value) inputTypeOverride = value;
 				break;
 			case "text":
 				displayValuesRaw = value;
+				break;
+			case "optional":
+				optionalExplicit = parseBooleanFlag(value);
 				break;
 			default:
 				break;
@@ -186,6 +206,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		usesOptions: true,
 		inputTypeOverride,
 		displayValuesRaw,
+		optionalExplicit,
 	};
 }
 
@@ -227,8 +248,11 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		.filter(Boolean);
 	const hasOptions = suggestedValues.length > 1;
 
-	const options = parseOptions(parts, hasOptions);
+	const { remaining: optionParts, optional: bareOptional } =
+		extractBareOptionalFlag(parts);
+	const options = parseOptions(optionParts, hasOptions);
 	let { label, caseStyle, defaultValue, allowCustomInput } = options;
+	const optional = options.optionalExplicit ?? bareOptional;
 
 	if (!options.usesOptions) {
 		const legacyDefault = defaultValue;
@@ -283,6 +307,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		displayValues,
 		hasOptions,
 		inputTypeOverride,
+		optional,
 	};
 }
 
@@ -293,14 +318,18 @@ export function parseAnonymousValueOptions(
 	caseStyle?: string;
 	defaultValue: string;
 	inputTypeOverride?: ValueInputType;
+	optional: boolean;
 } {
 	const normalized = stripLeadingPipe(rawOptions);
-	const parts = splitPipeParts(normalized)
+	const allParts = splitPipeParts(normalized)
 		.map((part) => part.trim())
 		.filter(Boolean);
 
+	const { remaining: parts, optional: bareOptional } =
+		extractBareOptionalFlag(allParts);
+
 	if (parts.length === 0) {
-		return { defaultValue: "" };
+		return { defaultValue: "", optional: bareOptional };
 	}
 
 	const options = parseOptions(parts, false);
@@ -326,5 +355,6 @@ export function parseAnonymousValueOptions(
 		caseStyle,
 		defaultValue,
 		inputTypeOverride,
+		optional: options.optionalExplicit ?? bareOptional,
 	};
 }

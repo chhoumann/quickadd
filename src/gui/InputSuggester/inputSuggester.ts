@@ -1,7 +1,11 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log, toError } from "src/logger/logManager";
-import { normalizeDisplayItem, normalizeQuery } from "../suggesters/utils";
+import {
+	installSkipAffordance,
+	normalizeDisplayItem,
+	normalizeQuery,
+} from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -14,6 +18,8 @@ type Options = {
 		? string
 		: never;
 	renderItem: SuggestRender<string> | undefined;
+	/** Adds a "skip" affordance that resolves "" (for optional tokens). */
+	skippable: boolean;
 };
 
 /**
@@ -96,6 +102,10 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			});
 		}
 
+		if (options.skippable) {
+			installSkipAffordance(this, () => this.skip());
+		}
+
 		this.warnIfEmptyDisplay();
 		this.open();
 	}
@@ -171,6 +181,13 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
+	}
+
+	/** Resolves "" as an intentional "leave empty" answer. */
+	public skip(): void {
+		this.resolved = true;
+		this.resolvePromise("");
+		this.close();
 	}
 
 	onClose() {

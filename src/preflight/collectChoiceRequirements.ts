@@ -73,6 +73,7 @@ function toFieldRequirement(input: unknown): FieldRequirement | null {
 			typeof value.dateFormat === "string" ? value.dateFormat : undefined,
 		description:
 			typeof value.description === "string" ? value.description : undefined,
+		optional: typeof value.optional === "boolean" ? value.optional : undefined,
 		source: "script",
 	};
 }

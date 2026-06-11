@@ -68,7 +68,7 @@ export default class GenericInputPrompt extends Modal {
 		value?: string,
 		private linkSourcePath?: string,
 		description?: string,
-		private readonly options?: InputPromptOptions,
+		protected readonly options?: InputPromptOptions,
 	) {
 		super(app);
 		this.placeholder = placeholder ?? "";
@@ -113,6 +113,14 @@ export default class GenericInputPrompt extends Modal {
 			descriptionEl.style.marginBottom = "0.75rem";
 		}
 
+		if (this.isOptionalPrompt) {
+			const hintEl = this.contentEl.createDiv({
+				text: "Optional — leave empty or press Skip.",
+				cls: "setting-item-description",
+			});
+			hintEl.style.marginBottom = "0.75rem";
+		}
+
 		const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
 		this.inputComponent = this.createInputField(
 			mainContentContainer,
@@ -120,6 +128,10 @@ export default class GenericInputPrompt extends Modal {
 			this.input
 		);
 		this.createButtonBar(mainContentContainer);
+	}
+
+	protected get isOptionalPrompt(): boolean {
+		return this.options?.optional === true;
 	}
 
 	protected createInputField(
@@ -163,6 +175,19 @@ export default class GenericInputPrompt extends Modal {
 			"Cancel",
 			this.cancelClickCallback
 		);
+		if (this.isOptionalPrompt) {
+			// Created last so the row-reverse layout renders it leftmost.
+			const skipButton = this.createButton(
+				buttonBarContainer,
+				"Skip",
+				this.skipClickCallback
+			);
+			skipButton.setTooltip("Leave this field empty");
+			skipButton.buttonEl.setAttribute(
+				"aria-label",
+				"Skip and leave empty"
+			);
+		}
 
 		buttonBarContainer.style.display = "flex";
 		buttonBarContainer.style.flexDirection = "row-reverse";
@@ -173,6 +198,7 @@ export default class GenericInputPrompt extends Modal {
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();
 	private cancelClickCallback = (evt: MouseEvent) => this.cancel();
+	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	protected submitEnterCallback = (evt: KeyboardEvent) => {
 		if (!evt.isComposing && evt.key === "Enter") {
@@ -188,6 +214,18 @@ export default class GenericInputPrompt extends Modal {
 	private submit() {
 		const rawInput = this.inputComponent?.inputEl?.value ?? this.input;
 		this.input = this.transformInputOnSubmit(rawInput);
+		this.didSubmit = true;
+
+		this.close();
+	}
+
+	/**
+	 * Skip is a resolution, never a rejection: the prompt resolves "" so the
+	 * formatter stores an intentional empty answer. Esc/Cancel still reject.
+	 * Only reachable on optional prompts (the Skip button is the sole caller).
+	 */
+	protected skip() {
+		this.input = "";
 		this.didSubmit = true;
 
 		this.close();

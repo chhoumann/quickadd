@@ -140,6 +140,12 @@
 	color: var(--text-muted);
 }
 
+.quickAddModal .qa-onepage-optional-badge {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 400;
+}
+
 .quickAddModal .qa-date-preview-text,
 .quickAddModal .vdate-preview-text {
 	margin-top: 0.25rem;

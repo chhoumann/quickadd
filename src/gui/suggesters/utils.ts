@@ -1,3 +1,4 @@
+import type { Instruction, Scope } from "obsidian";
 import { createOwnedElement, createOwnedTextNode } from "src/utils/activeWindow";
 
 type CompletionInputEvent = Event & {
@@ -12,6 +13,36 @@ export function normalizeDisplayItem(value: unknown): string {
 	if (typeof value === "string") return value;
 	if (value == null) return "";
 	return String(value);
+}
+
+type SkipCapableModal = {
+	scope?: Scope;
+	setInstructions?: (instructions: Instruction[]) => void;
+};
+
+/**
+ * Wires the skip affordance for optional tokens onto a suggester modal: an
+ * instructions footer plus a Mod+Shift+Enter scope binding that invokes the
+ * modal's skip resolution. Both hooks are runtime-guarded because the test
+ * stub's FuzzySuggestModal provides neither scope nor setInstructions.
+ */
+export function installSkipAffordance(
+	modal: SkipCapableModal,
+	onSkip: () => void,
+): void {
+	modal.scope?.register(["Mod", "Shift"], "Enter", () => {
+		onSkip();
+		return false;
+	});
+
+	if (typeof modal.setInstructions === "function") {
+		modal.setInstructions([
+			{ command: "↑↓", purpose: "to navigate" },
+			{ command: "↵", purpose: "to choose" },
+			{ command: "ctrl/cmd+shift+↵", purpose: "to skip (leave empty)" },
+			{ command: "esc", purpose: "to cancel" },
+		]);
+	}
 }
 
 export function normalizeQuery(value: unknown): string {

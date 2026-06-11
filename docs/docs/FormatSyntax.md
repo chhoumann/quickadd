@@ -31,7 +31,9 @@ Same as above, but with a default value. If you leave the prompt empty, the defa
 
 Example: `{{VDATE:due,YYYY-MM-DD|next monday}}`.
 
-**Note:** If your date format contains pipe characters (`|`), escape them as `\|` or wrap them in square brackets, such as `[|]`, so QuickAdd does not treat them as the default value separator.
+You can combine a default with the `optional` flag in any order: `{{VDATE:due,YYYY-MM-DD|tomorrow|optional}}` and `{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}` are equivalent. See [Optional fields](#optional-fields).
+
+**Note:** Pipe characters (`|`) cannot be used inside VDATE date formats — everything after the first pipe is treated as the default value (and flags). Use a different literal, e.g. wrap text in square brackets: `{{VDATE:due,[Due ]YYYY-MM-DD}}`.
 
 ## `{{VALUE}}` / `{{NAME}}` {#value}
 
@@ -72,7 +74,7 @@ Example: `priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}`.
 
 ## `{{VALUE:<variable name>|<default>}}` {#value-default}
 
-Same as above, but with a default value. For single-value prompts (e.g., `{{VALUE:name|Anonymous}}`), the default is pre-populated in the input field - press Enter to accept or clear/edit it. For multi-value suggesters without `|custom`, you must select one of the provided options (no default applies). If you combine keyed options like `|label:`, `|default:`, `|type:`, or `|case:`, shorthand defaults like `|Anonymous` are ignored; use `|default:Anonymous` instead.
+Same as above, but with a default value. For single-value prompts (e.g., `{{VALUE:name|Anonymous}}`), the default is pre-populated in the input field - press Enter to accept or clear/edit it. For multi-value suggesters without `|custom`, you must select one of the provided options (no default applies). If you combine keyed options like `|label:`, `|default:`, `|type:`, or `|case:`, shorthand defaults like `|Anonymous` are ignored; use `|default:Anonymous` instead. The bare `|optional` flag is the exception: `{{VALUE:name|Anonymous|optional}}` keeps the shorthand default. Because `optional` is now a reserved flag word, a literal default of "optional" needs the keyed form: `|default:optional`.
 
 Example: `status: {{VALUE:status|Draft}}`.
 
@@ -102,6 +104,37 @@ Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 ## `{{VALUE:<options>|custom}}` {#value-custom}
 
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
+
+## Optional fields: `|optional` {#optional-fields}
+
+Marks a prompt as optional, so it can be skipped and resolve to nothing. Works on `{{VALUE}}`/`{{NAME}}`, `{{VALUE:<variable>}}`, option lists, and `{{VDATE:...}}`.
+
+```markdown
+{{VALUE:reminder|optional}}
+{{VDATE:due,YYYY-MM-DD|optional}}
+{{VALUE:low,medium,high|optional}}
+```
+
+What `optional` changes:
+
+- **Prompts gain a Skip button** (and a hint line). Skipping — or submitting an empty input — accepts "empty" as the answer: the placeholder resolves to nothing, and you are not re-prompted for the same variable later in the run.
+- **Empty beats the default.** For optional tokens with a default, the default is pre-filled in the input box; clearing it and submitting yields empty. (Required tokens keep today's behavior: an empty submission falls back to the default.)
+- **Optional dates accept blank input** instead of failing the whole choice. A typo like "tomorow" still errors — only a blank input means "leave empty".
+- **Option lists** show a skip instruction in the suggester footer (Ctrl/Cmd+Shift+Enter) instead of forcing a pick.
+- **In the One-Page Input modal**, optional fields show an "(optional)" badge and may be left empty; optional dropdowns get a "Skip (leave empty)" entry.
+- **Esc still cancels the whole choice** — skipping is an answer, cancelling is not.
+
+The keyed form `|optional:false` turns the flag off explicitly (useful when a shared snippet adds it). The flag can sit next to a shorthand default: `{{VALUE:reminder|call mom|optional}}`. Because `optional` is a reserved flag word, a literal default of "optional" needs the keyed form: `{{VALUE:x|default:optional}}`.
+
+**Tip — make decoration disappear with the date:** put literal text inside the moment format using square brackets. With
+
+```markdown
+- [ ] {{VALUE}} {{VDATE:due,[📅 ]YYYY-MM-DD|optional}}
+```
+
+an answered date renders `📅 2026-06-14`, and a skipped date renders nothing at all — the emoji vanishes with it. The same works for prefixes like `[Due: ]YYYY-MM-DD`.
+
+**Scripting note:** setting a variable to the empty string (`params.variables.myVar = ""`) now counts as "answered, empty" for **all** token types, including `{{VDATE}}` — it renders empty instead of re-prompting. To force a prompt, leave the variable unset (or `delete` it / set it to `undefined`). The old workaround of assigning a single space (`" "`) still works but is no longer needed.
 
 ## `{{LINKCURRENT}}` {#linkcurrent}
 

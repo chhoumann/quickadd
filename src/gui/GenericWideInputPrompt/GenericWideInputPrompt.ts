@@ -110,6 +110,14 @@ export default class GenericWideInputPrompt extends Modal {
 			descriptionEl.style.marginBottom = "0.75rem";
 		}
 
+		if (this.isOptionalPrompt) {
+			const hintEl = this.contentEl.createDiv({
+				text: "Optional — leave empty or press Skip.",
+				cls: "setting-item-description",
+			});
+			hintEl.style.marginBottom = "0.75rem";
+		}
+
 		const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
 		this.inputComponent = this.createInputField(
 			mainContentContainer,
@@ -148,6 +156,10 @@ export default class GenericWideInputPrompt extends Modal {
 		return btn;
 	}
 
+	private get isOptionalPrompt(): boolean {
+		return this.options?.optional === true;
+	}
+
 	private createButtonBar(mainContentContainer: HTMLDivElement) {
 		const buttonBarContainer: HTMLDivElement =
 			mainContentContainer.createDiv();
@@ -161,6 +173,19 @@ export default class GenericWideInputPrompt extends Modal {
 			"Cancel",
 			this.cancelClickCallback,
 		);
+		if (this.isOptionalPrompt) {
+			// Created last so the row-reverse layout renders it leftmost.
+			const skipButton = this.createButton(
+				buttonBarContainer,
+				"Skip",
+				this.skipClickCallback,
+			);
+			skipButton.setTooltip("Leave this field empty");
+			skipButton.buttonEl.setAttribute(
+				"aria-label",
+				"Skip and leave empty",
+			);
+		}
 
 		buttonBarContainer.style.display = "flex";
 		buttonBarContainer.style.flexDirection = "row-reverse";
@@ -171,6 +196,7 @@ export default class GenericWideInputPrompt extends Modal {
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();
 	private cancelClickCallback = (evt: MouseEvent) => this.cancel();
+	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	private submitEnterCallback = (evt: KeyboardEvent) => {
 		if ((evt.ctrlKey || evt.metaKey) && evt.key === "Enter") {
@@ -188,6 +214,15 @@ export default class GenericWideInputPrompt extends Modal {
 		this.input = this.inputComponent?.inputEl?.value ?? this.input;
 		this.didSubmit = true;
 		this.input = this.escapeBackslashes(this.input);
+
+		this.close();
+	}
+
+	/** Skip resolves "" (an intentional empty answer); Esc/Cancel still reject. */
+	private skip() {
+		if (this.didSubmit) return;
+		this.input = "";
+		this.didSubmit = true;
 
 		this.close();
 	}

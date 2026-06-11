@@ -176,6 +176,9 @@ export class CompleteFormatter extends Formatter {
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
 				const description = this.valuePromptContext?.description;
+				const promptOptions = this.valuePromptContext?.optional
+					? { optional: true }
+					: undefined;
 				if (linkSourcePath) {
 					this.value = await promptFactory.PromptWithContext(
 						this.app,
@@ -184,6 +187,7 @@ export class CompleteFormatter extends Formatter {
 						defaultValue,
 						linkSourcePath,
 						description,
+						promptOptions,
 					);
 				} else {
 					this.value = await promptFactory.Prompt(
@@ -192,6 +196,7 @@ export class CompleteFormatter extends Formatter {
 						undefined,
 						defaultValue,
 						description,
+						promptOptions,
 					);
 				}
 			} catch (error) {
@@ -218,6 +223,7 @@ export class CompleteFormatter extends Formatter {
 					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
 					context.dateFormat ?? "YYYY-MM-DD",
+					context.optional ? { optional: true } : undefined,
 				);
 			}
 
@@ -229,6 +235,7 @@ export class CompleteFormatter extends Formatter {
 					(context?.defaultValue ? context.defaultValue : undefined),
 				context?.defaultValue,
 				context?.description,
+				context?.optional ? { optional: true } : undefined,
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
@@ -256,6 +263,7 @@ export class CompleteFormatter extends Formatter {
 			placeholder?: string;
 			variableKey?: string;
 			displayValues?: string[];
+			optional?: boolean;
 		},
 	) {
 		try {
@@ -269,6 +277,7 @@ export class CompleteFormatter extends Formatter {
 						...(context?.placeholder
 							? { placeholder: context.placeholder }
 							: {}),
+						...(context?.optional ? { skippable: true } : {}),
 					},
 				);
 			}
@@ -277,6 +286,8 @@ export class CompleteFormatter extends Formatter {
 				displayValues,
 				suggestedValues,
 				context?.placeholder,
+				undefined,
+				context?.optional ? { skippable: true } : undefined,
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {

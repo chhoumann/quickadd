@@ -1,9 +1,22 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log, toError } from "src/logger/logManager";
-import { normalizeDisplayItem, normalizeQuery } from "../suggesters/utils";
+import {
+	installSkipAffordance,
+	normalizeDisplayItem,
+	normalizeQuery,
+} from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
+
+type GenericSuggesterOptions = {
+	/**
+	 * Adds a "skip" affordance that resolves the empty string instead of an
+	 * item. Only enable for string-item suggesters (e.g. optional
+	 * {{VALUE:a,b,c|optional}} tokens).
+	 */
+	skippable?: boolean;
+};
 
 export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private resolvePromise: (value: T) => void;
@@ -23,8 +36,15 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		items: T[],
 		placeholder?: string,
 		renderItem?: SuggestRender<T>,
+		options?: GenericSuggesterOptions,
 	) {
-		const newSuggester = new GenericSuggester(app, displayItems, items, renderItem);
+		const newSuggester = new GenericSuggester(
+			app,
+			displayItems,
+			items,
+			renderItem,
+			options,
+		);
 		if (placeholder) newSuggester.setPlaceholder(placeholder);
 		return newSuggester.promise;
 	}
@@ -34,6 +54,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 		displayItems: string[],
 		items: T[],
 		renderItem?: SuggestRender<T>,
+		options?: GenericSuggesterOptions,
 	) {
 		super(app);
 
@@ -45,6 +66,10 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			this.resolvePromise = resolve;
 			this.rejectPromise = reject;
 		});
+
+		if (options?.skippable) {
+			installSkipAffordance(this, () => this.skip());
+		}
 
 		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
 			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
@@ -122,6 +147,14 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
+	}
+
+	/** Resolves the empty string as an intentional "leave empty" answer. */
+	public skip(): void {
+		this.resolved = true;
+		// Safe by contract: skippable is only enabled for string-item suggesters.
+		this.resolvePromise("" as unknown as T);
+		this.close();
 	}
 
 	onClose() {

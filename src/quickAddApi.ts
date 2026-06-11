@@ -92,6 +92,7 @@ export class QuickAddApi {
 					options?: string[];
 					dateFormat?: string;
 					description?: string;
+					optional?: boolean;
 					suggesterConfig?: {
 						allowCustomInput?: boolean;
 						caseSensitive?: boolean;
@@ -121,6 +122,7 @@ export class QuickAddApi {
 						options: spec.options,
 						dateFormat: spec.dateFormat,
 						description: spec.description,
+						optional: spec.optional,
 						suggesterConfig: spec.suggesterConfig,
 						source: "script",
 					});
@@ -142,6 +144,14 @@ export class QuickAddApi {
 				}
 
 				const rawResult = { ...existing, ...collected };
+
+				// The modal omits blank/unparseable date keys so the preflight
+				// flow can re-prompt sequentially. Scripts have no such
+				// fallback — keep the requestInputs contract that every
+				// requested id resolves (empty answer = "").
+				for (const spec of inputs) {
+					if (rawResult[spec.id] === undefined) rawResult[spec.id] = "";
+				}
 
 				// Store raw values (including @date:ISO) for downstream processors
 				Object.entries(rawResult).forEach(([k, v]) =>
