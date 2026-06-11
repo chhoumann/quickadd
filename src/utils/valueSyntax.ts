@@ -1,4 +1,5 @@
 import {
+	extractBareFlagPart,
 	parseBooleanFlag,
 	parsePipeKeyValue,
 	splitPipeParts,
@@ -111,15 +112,8 @@ function extractBareOptionalFlag(parts: string[]): {
 	remaining: string[];
 	optional: boolean;
 } {
-	let optional = false;
-	const remaining = parts.filter((part) => {
-		if (part.trim().toLowerCase() === "optional") {
-			optional = true;
-			return false;
-		}
-		return true;
-	});
-	return { remaining, optional };
+	const { remaining, found } = extractBareFlagPart(parts, "optional");
+	return { remaining, optional: found };
 }
 
 function hasRecognizedOption(part: string): boolean {

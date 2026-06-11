@@ -429,23 +429,6 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		}
 	}
 
-	protected async getFormattedFilePath(
-		folderPath: string,
-		format: string,
-		promptHeader: string
-	): Promise<string> {
-		const formattedName = await this.formatter.formatFileName(
-			format,
-			promptHeader
-		);
-		if (!formattedName.trim()) {
-			throw new Error(
-				"File name is empty after formatting. Provide a value or remove |optional from tokens used in the file name format."
-			);
-		}
-		return this.normalizeMarkdownFilePath(folderPath, formattedName);
-	}
-
 	/**
 	 * Strips the target folder from the start of a formatted file name so
 	 * formats like `Meetings/{{VALUE}}` with a `Meetings` folder don't
@@ -521,7 +504,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			.replace(BASE_FILE_EXTENSION_REGEX, "");
 		if (!formattedFileName.trim()) {
 			throw new Error(
-				"File name is empty after formatting. Provide a value or remove |optional from tokens used in the file name format."
+				"File name is empty after formatting. Make sure the tokens in the file name format produce a value (an optional token left empty can cause this)."
 			);
 		}
 		return `${actualFolderPath}${formattedFileName}${extension}`;

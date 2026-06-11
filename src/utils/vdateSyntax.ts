@@ -1,4 +1,5 @@
 import {
+	extractBareFlagPart,
 	parseBooleanFlag,
 	parsePipeKeyValue,
 	splitPipeParts,
@@ -24,18 +25,16 @@ export function parseVDateOptions(
 ): ParsedVDateOptions {
 	if (!rawOptions) return { optional: false };
 
-	let bareOptional = false;
+	const { remaining, found: bareOptional } = extractBareFlagPart(
+		splitPipeParts(rawOptions),
+		"optional",
+	);
+
 	let explicitOptional: boolean | undefined;
 	const rest: string[] = [];
 
-	for (const part of splitPipeParts(rawOptions)) {
-		const trimmed = part.trim();
-		if (trimmed.toLowerCase() === "optional") {
-			bareOptional = true;
-			continue;
-		}
-
-		const keyed = parsePipeKeyValue(trimmed);
+	for (const part of remaining) {
+		const keyed = parsePipeKeyValue(part.trim());
 		if (keyed?.key === "optional") {
 			explicitOptional = parseBooleanFlag(keyed.value);
 			continue;

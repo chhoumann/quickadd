@@ -287,3 +287,20 @@ describe("undefined-aware VDATE gate edge values (#872 parity)", () => {
 		expect(formatter.promptCalls).toHaveLength(0);
 	});
 });
+
+describe("VDATE replacement treats stored values literally", () => {
+	beforeEach(() => {
+		installMomentStub();
+	});
+
+	it("does not re-expand $-patterns from pre-seeded values (no infinite loop)", async () => {
+		const formatter = new OptionalTestFormatter();
+		formatter.setVariable("due", "cost $& due");
+		const result = await formatter.run("[{{VDATE:due,YYYY-MM-DD}}]");
+		expect(result).toBe("[cost $& due]");
+
+		const dollars = new OptionalTestFormatter();
+		dollars.setVariable("due", "5$$");
+		expect(await dollars.run("[{{VDATE:due,YYYY-MM-DD}}]")).toBe("[5$$]");
+	});
+});

@@ -12,7 +12,6 @@ export default class GenericInputPrompt extends Modal {
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private didSubmit = false;
-	protected didSkip = false;
 	protected inputComponent: TextComponent;
 	protected input: string;
 	private readonly placeholder: string;
@@ -223,10 +222,10 @@ export default class GenericInputPrompt extends Modal {
 	/**
 	 * Skip is a resolution, never a rejection: the prompt resolves "" so the
 	 * formatter stores an intentional empty answer. Esc/Cancel still reject.
+	 * Only reachable on optional prompts (the Skip button is the sole caller).
 	 */
 	protected skip() {
 		this.input = "";
-		this.didSkip = true;
 		this.didSubmit = true;
 
 		this.close();

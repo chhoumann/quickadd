@@ -663,8 +663,11 @@ export abstract class Formatter {
 				}
 
 				// Replace the specific match rather than using regex again
-				// to handle multiple VDATE variables with same name but different formats
-				output = output.replace(match[0], formattedDate);
+				// to handle multiple VDATE variables with same name but different formats.
+				// Replacer function so `$` patterns in stored values are literal —
+				// a raw string replacement would re-expand `$&` into the token and
+				// loop forever.
+				output = output.replace(match[0], () => formattedDate);
 			} else {
 				break;
 			}

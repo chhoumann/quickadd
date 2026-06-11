@@ -280,20 +280,11 @@ export class RequirementCollector extends Formatter {
 		if (!variableName) return "";
 		const key = context?.variableKey ?? variableName;
 
-		// VDATE variables
+		// VDATE variables: requirements are recorded by scanDateTokens, which
+		// sees every textual occurrence (this hook fires at most once per
+		// variable and would record first-occurrence flags without the AND
+		// rule). Just return an inert value to keep scanning.
 		if (context?.type === "VDATE") {
-			if (!this.requirements.has(key)) {
-				this.requirements.set(key, {
-					id: key,
-					label: variableName,
-					type: "date",
-					defaultValue: context.defaultValue,
-					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
-					description: context.description,
-					source: "collected",
-					optional: context.optional,
-				});
-			}
 			return context.defaultValue ?? "@date:1970-01-01T00:00:00.000Z";
 		}
 

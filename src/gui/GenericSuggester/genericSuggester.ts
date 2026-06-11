@@ -1,7 +1,11 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log, toError } from "src/logger/logManager";
-import { normalizeDisplayItem, normalizeQuery } from "../suggesters/utils";
+import {
+	installSkipAffordance,
+	normalizeDisplayItem,
+	normalizeQuery,
+} from "../suggesters/utils";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -63,7 +67,9 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			this.rejectPromise = reject;
 		});
 
-		if (options?.skippable) this.enableSkip();
+		if (options?.skippable) {
+			installSkipAffordance(this, () => this.skip());
+		}
 
 		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
 			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
@@ -141,27 +147,6 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	onChooseItem(item: T, evt: MouseEvent | KeyboardEvent): void {
 		this.resolved = true;
 		this.resolvePromise(item);
-	}
-
-	/**
-	 * Wires the skip affordance for optional tokens: an instructions footer
-	 * plus a Mod+Shift+Enter scope binding. Both are guarded because the test
-	 * stub's FuzzySuggestModal provides neither scope nor setInstructions.
-	 */
-	private enableSkip(): void {
-		this.scope?.register(["Mod", "Shift"], "Enter", () => {
-			this.skip();
-			return false;
-		});
-
-		if (typeof this.setInstructions === "function") {
-			this.setInstructions([
-				{ command: "↑↓", purpose: "to navigate" },
-				{ command: "↵", purpose: "to choose" },
-				{ command: "ctrl/cmd+shift+↵", purpose: "to skip (leave empty)" },
-				{ command: "esc", purpose: "to cancel" },
-			]);
-		}
 	}
 
 	/** Resolves the empty string as an intentional "leave empty" answer. */

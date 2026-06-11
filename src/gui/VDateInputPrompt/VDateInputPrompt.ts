@@ -301,13 +301,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.updatePreviewDebounced.cancel();
 
 		// If input is empty and we have a default, use the default.
-		// Never for optional prompts or after Skip: empty is the answer.
-		if (
-			!this.input.trim() &&
-			this.defaultValue &&
-			!this.isOptionalPrompt &&
-			!this.didSkip
-		) {
+		// Never for optional prompts (incl. Skip): empty is the answer.
+		if (!this.input.trim() && this.defaultValue && !this.isOptionalPrompt) {
 			this.input = this.defaultValue;
 		}
 
