@@ -17,7 +17,6 @@
   "author": "Christian B. B. Houmann",
   "license": "MIT",
   "devDependencies": {
-    "@popperjs/core": "^2.11.8",
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
@@ -36,25 +35,26 @@
     "globals": "17",
     "jsdom": "29",
     "obsidian": "1.13.0",
-    "obsidian-dataview": "^0.5.68",
     "obsidian-e2e": "0.6.0",
     "semantic-release": "^24.2.9",
     "svelte": "^5",
     "svelte-check": "^4",
-    "svelte-dnd-action": "0.9.69",
     "svelte-eslint-parser": "^1.8.0",
     "svelte-preprocess": "^6.0.5",
-    "three-way-merge": "^0.1.0",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",
-    "uuid": "14",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "chrono-node": "^2.9.1",
     "fuse.js": "7",
     "js-tiktoken": "^1.0.21",
+    "obsidian-dataview": "^0.5.68",
+    "svelte-dnd-action": "0.9.69",
+    "three-way-merge": "^0.1.0",
+    "uuid": "14",
     "zustand": "^5.0.14"
   },
   "repository": {
