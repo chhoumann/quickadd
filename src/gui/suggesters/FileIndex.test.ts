@@ -259,6 +259,43 @@ describe('FileIndex', () => {
 			// Should be treated as update
 			expect(indexWithPrivates.pendingFuseUpdates.get('file.md')).toBe('update');
 		});
+
+		it('should not rescan unresolved links on every file update, only lazily in search', () => {
+			const indexWithPrivates = fileIndex as unknown as {
+				updateUnresolvedLinks: () => void;
+				updateFile: (file: TFile) => void;
+				unresolvedLinksDirty: boolean;
+			};
+
+			// Force a clean starting state so update-driven calls are measured directly.
+			indexWithPrivates.updateUnresolvedLinks();
+			expect(indexWithPrivates.unresolvedLinksDirty).toBe(false);
+
+			const spy = vi.spyOn(indexWithPrivates, 'updateUnresolvedLinks');
+
+			const file = {
+				path: 'note.md',
+				basename: 'note',
+				extension: 'md',
+				parent: { path: '' },
+				stat: { mtime: Date.now() }
+			} as TFile;
+			for (let i = 0; i < 5; i++) {
+				indexWithPrivates.updateFile(file);
+			}
+
+			expect(spy).not.toHaveBeenCalled();
+			expect(indexWithPrivates.unresolvedLinksDirty).toBe(true);
+
+			fileIndex.search('no', {}, 10);
+			expect(spy).toHaveBeenCalledTimes(1);
+			expect(indexWithPrivates.unresolvedLinksDirty).toBe(false);
+
+			fileIndex.search('no', {}, 10);
+			expect(spy).toHaveBeenCalledTimes(1);
+
+			spy.mockRestore();
+		});
 	});
 
 	describe('alias improvements', () => {
