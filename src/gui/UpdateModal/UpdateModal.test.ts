@@ -60,6 +60,22 @@ describe("renderVideoAttachments", () => {
 		expect(result).toContain("https://example.com/page");
 	});
 
+	it("renders a player for every occurrence of a repeated bare URL", () => {
+		const body = ["Intro.", "", VIDEO_URL, "", "Recap:", "", VIDEO_URL].join(
+			"\n"
+		);
+
+		const result = renderVideoAttachments(body);
+
+		const players = result.match(/<video /g) ?? [];
+		expect(players).toHaveLength(2);
+		expect(result).not.toMatch(new RegExp(`^${VIDEO_URL}$`, "m"));
+	});
+
+	it("handles empty bodies", () => {
+		expect(renderVideoAttachments("")).toBe("");
+	});
+
 	it("leaves bodies without video attachments untouched", () => {
 		const body = "## Features\n\n- something new\n";
 		expect(renderVideoAttachments(body)).toBe(body);

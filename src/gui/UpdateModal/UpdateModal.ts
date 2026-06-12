@@ -4,7 +4,8 @@ import { log } from "src/logger/logManager";
 
 type Release = {
 	tag_name: string;
-	body: string;
+	// The GitHub API allows a null release body.
+	body: string | null;
 	draft: boolean;
 	prerelease: boolean;
 };
@@ -178,7 +179,7 @@ export class UpdateModal extends Modal {
 
 		const contentDiv = contentEl.createDiv("quickadd-update-modal");
 		const releaseNotes = this.releases
-			.map((release) => renderVideoAttachments(release.body))
+			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
 
 		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
