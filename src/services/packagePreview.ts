@@ -36,6 +36,7 @@ export type PreviewSeverity = "critical" | "warning" | "info";
 export type PreviewFlag =
 	| "user-script"
 	| "conditional-script"
+	| "bundled-script"
 	| "run-on-startup"
 	| "mislabeled-executable"
 	| "registers-command"
@@ -70,6 +71,11 @@ const FLAG_META: Record<PreviewFlag, FlagMeta> = {
 		severity: "critical",
 		label: "CONDITIONAL",
 		description: "Runs custom JavaScript to decide which branch executes.",
+	},
+	"bundled-script": {
+		severity: "critical",
+		label: "SCRIPT FILE",
+		description: "Bundles a JavaScript file that will be written to your vault and can be run as code.",
 	},
 	"run-on-startup": {
 		severity: "critical",
@@ -148,6 +154,19 @@ export function flagLabel(flag: PreviewFlag): string {
 
 export function flagDescription(flag: PreviewFlag): string {
 	return FLAG_META[flag].description;
+}
+
+function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
+	return kind === "user-script" || kind === "conditional-script";
+}
+
+// A bundled asset that can be executed as code: a declared script kind, OR
+// any file with a `.js` destination path — because `kind` is an untrusted
+// hint and a macro (in this package or already in the vault) will load any
+// `.js` at its path as a user script. Path-only check keeps this App-free.
+const EXECUTABLE_ASSET_PATH_REGEX = /\.js$/i;
+function isExecutableBundledAsset(file: PreviewFile): boolean {
+	return isScriptKind(file.kind) || EXECUTABLE_ASSET_PATH_REGEX.test(file.originalPath);
 }
 
 const SEVERITY_ORDER: Record<PreviewSeverity, number> = {
@@ -716,11 +735,28 @@ export function buildPackagePreview(
 	// is not a script kind.
 	for (const file of files) {
 		if (!file.executable) continue;
-		if (file.kind === "user-script" || file.kind === "conditional-script") continue;
+		if (isScriptKind(file.kind)) continue;
 		capabilityRows.push({
 			flag: "mislabeled-executable",
 			severity: "critical",
 			title: "Runs a file as code even though it is labeled a template",
+			detail: file.originalPath,
+			scriptPath: file.originalPath,
+		});
+	}
+
+	// A bundled script file is written to disk and can be executed by any macro
+	// that points at its path (in this package OR already in the user's vault),
+	// so it must be reviewed even when no choice in THIS package references it.
+	// isExecutableBundledAsset covers both declared script kinds AND `.js`-path
+	// assets that lie about their `kind`.
+	for (const file of files) {
+		if (!isExecutableBundledAsset(file)) continue;
+		if (file.executable) continue; // already a critical user-script/mislabeled row + in criticalScriptPaths
+		capabilityRows.push({
+			flag: "bundled-script",
+			severity: "critical",
+			title: "Bundles a script file that will be written to your vault",
 			detail: file.originalPath,
 			scriptPath: file.originalPath,
 		});
@@ -780,7 +816,10 @@ export function buildPackagePreview(
 	capabilityRows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
 	const criticalScriptPaths = files
-		.filter((file) => file.executable && file.bundled)
+		.filter(
+			(file) =>
+				file.bundled && (file.executable || isExecutableBundledAsset(file)),
+		)
 		.map((file) => file.originalPath);
 
 	const scriptCount = referencedAsScript.size;

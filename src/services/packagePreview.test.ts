@@ -448,6 +448,65 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(file?.orphan).toBe(true);
 		// Unreferenced => not classified executable.
 		expect(file?.executable).toBe(false);
+		// A bundled script is critical even when nothing references it: it lands on
+		// disk and any existing macro pointing at this path will run it.
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("scripts/unused.js");
+	});
+
+	it("treats an orphan bundled script as critical and review-required", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("user-script", "scripts/orphan.js")],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(preview.summary.hasCritical).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("scripts/orphan.js");
+		// Gate is real: not reviewed yet => not fully reviewed.
+		expect(isFullyReviewed(preview, NONE)).toBe(false);
+		expect(
+			isFullyReviewed(preview, new Set(["scripts/orphan.js"])),
+		).toBe(true);
+	});
+
+	it("treats a bundled script that overwrites an existing file as critical", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("user-script", "scripts/existing.js")],
+		);
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			pkg,
+			new Set(["scripts/existing.js"]),
+		);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("scripts/existing.js");
+		expect(preview.summary.overwritesFiles).toBe(1);
+	});
+
+	it("requires acknowledgement when the only effect is dropping a non-referenced script", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("conditional-script", "scripts/cond-orphan.js")],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("scripts/cond-orphan.js");
+	});
+
+	it("treats a .js asset declared as a non-script kind as critical (untrusted kind)", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("template", "scripts/evil.js")],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("scripts/evil.js");
 	});
 
 	it("gates the capture-template by the triple-boolean", () => {
