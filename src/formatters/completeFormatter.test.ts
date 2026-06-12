@@ -332,6 +332,34 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 	});
 });
 
+describe("CompleteFormatter - empty-token loop termination (regression)", () => {
+	it(
+		"consumes an empty {{MACRO:}} token and does not hang",
+		async () => {
+			const f = defaultFormatter();
+			await expect(f.formatFolderPath("a {{MACRO:}} b")).resolves.toBe(
+				"a  b",
+			);
+			// The empty token is consumed without ever invoking the macro engine.
+			expect(mocks.macroRunAndGetOutput).not.toHaveBeenCalled();
+		},
+		2000,
+	);
+
+	it(
+		"consumes an empty ```js quickadd``` fence and does not hang",
+		async () => {
+			const f = defaultFormatter();
+			await expect(
+				f.formatFolderPath("x```js quickadd\n```y"),
+			).resolves.toBe("xy");
+			// The empty fence is consumed without ever invoking the inline-script engine.
+			expect(mocks.inlineRunAndGetOutput).not.toHaveBeenCalled();
+		},
+		2000,
+	);
+});
+
 describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 	it("replaces {{LINKCURRENT}} with the generated markdown link", async () => {
 		const f = defaultFormatter(

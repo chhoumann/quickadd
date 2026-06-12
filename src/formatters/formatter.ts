@@ -508,7 +508,13 @@ export abstract class Formatter {
 
 		while (MACRO_REGEX.test(output)) {
 			const exec = MACRO_REGEX.exec(output);
-			if (!exec || !exec[1]) continue;
+			if (!exec) continue;
+			if (!exec[1]) {
+				// Empty macro name (e.g. {{MACRO:}}): consume the token so the
+				// loop terminates instead of re-testing the unchanged string forever.
+				output = this.replacer(output, MACRO_REGEX, "");
+				continue;
+			}
 
 			const parsed = parseMacroToken(exec[1]);
 			if (!parsed) {

@@ -441,6 +441,10 @@ export class CompleteFormatter extends Formatter {
 					typeof outVal === "string"
 						? this.replacer(output, INLINE_JAVASCRIPT_REGEX, outVal)
 						: this.replacer(output, INLINE_JAVASCRIPT_REGEX, "");
+			} else {
+				// Empty/whitespace-only fence (e.g. ```js quickadd\n```): consume the
+				// matched block so the loop terminates instead of spinning forever.
+				output = this.replacer(output, INLINE_JAVASCRIPT_REGEX, "");
 			}
 		}
 
