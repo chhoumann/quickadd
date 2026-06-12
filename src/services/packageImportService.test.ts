@@ -782,6 +782,213 @@ describe("applyPackageImport - assets", () => {
 		expect(state.writes.get("renamed/dest.md")).toBe("body");
 	});
 
+	it("rejects traversal in an asset's original path", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "../escape.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [],
+			}),
+		).rejects.toThrow(/traversal|\.\./);
+
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("rejects traversal in an asset destination override", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "templates/t.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [
+					{
+						originalPath: "templates/t.md",
+						destinationPath: "../../evil.md",
+						mode: "write",
+					},
+				],
+			}),
+		).rejects.toThrow(/traversal|\.\./);
+
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("rejects an absolute asset destination override", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "templates/t.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [
+					{
+						originalPath: "templates/t.md",
+						destinationPath: "/abs/path.md",
+						mode: "write",
+					},
+				],
+			}),
+		).rejects.toThrow(/absolute path/);
+
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("rejects a Windows-style absolute asset destination override", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "templates/t.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [
+					{
+						originalPath: "templates/t.md",
+						destinationPath: "C:\\evil\\path.md",
+						mode: "write",
+					},
+				],
+			}),
+		).rejects.toThrow(/absolute path/);
+
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("rejects assets targeting dotfile config directories", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: ".obsidian/plugins/x/main.js",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [],
+			}),
+		).rejects.toThrow(/config directory/);
+
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("rejects unsafe asset destinations before writing any asset", async () => {
+		const { app, state } = createFakeApp();
+		const safeAsset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "Templates/safe.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("safe"),
+		};
+		const unsafeAsset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: ".obsidian/plugins/x/main.js",
+			contentEncoding: "base64",
+			content: encodeToBase64("unsafe"),
+		};
+		const pkg = makePackage({ assets: [safeAsset, unsafeAsset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [],
+			}),
+		).rejects.toThrow(/config directory/);
+
+		expect(state.writes.size).toBe(0);
+		expect(state.createdFolders).toEqual([]);
+	});
+
+	it("allows url-encoded traversal text as a literal filename", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "..%2fevil.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [],
+			assetDecisions: [],
+		});
+
+		expect(result.writtenAssets).toEqual(["..%2fevil.md"]);
+		expect(state.writes.get("..%2fevil.md")).toBe("body");
+	});
+
+	it("allows a legitimate asset path", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "Templates/foo.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [],
+			assetDecisions: [],
+		});
+
+		expect(result.writtenAssets).toEqual(["Templates/foo.md"]);
+		expect(state.writes.get("Templates/foo.md")).toBe("body");
+	});
+
 	it("rewrites template/userscript/conditional paths to remapped destinations", async () => {
 		const { app } = createFakeApp();
 

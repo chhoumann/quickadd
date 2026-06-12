@@ -196,6 +196,50 @@ export async function analysePackagePreview(
 	return preview;
 }
 
+/**
+ * Validate that an imported asset's destination stays inside the vault and does
+ * not target a dotfile config directory (.obsidian, .git, ...). Throws on any
+ * out-of-bounds destination so the whole import aborts (surfaced as a Notice by
+ * ImportPackageModal). Defensive: imported packages are untrusted shared data.
+ */
+function validateAssetDestination(rawPath: string): string {
+	const rawDestination = rawPath ?? "";
+	const trimmedDestination = rawDestination.trim();
+	if (!trimmedDestination) {
+		throw new Error("Package asset has an empty destination path.");
+	}
+
+	const slashNormalizedRawDestination = trimmedDestination.replace(/\\/g, "/");
+	if (
+		slashNormalizedRawDestination.startsWith("/") ||
+		/^[a-zA-Z]:/.test(slashNormalizedRawDestination)
+	) {
+		throw new Error(
+			`Refusing to import asset to an absolute path outside the vault: "${slashNormalizedRawDestination}".`,
+		);
+	}
+
+	const normalized = normalizePath(trimmedDestination);
+	if (!normalized || normalized.trim() === "") {
+		throw new Error("Package asset has an empty destination path.");
+	}
+
+	const segments = normalized.split("/").filter((segment) => segment.length > 0);
+	if (segments.some((segment) => segment === "..")) {
+		throw new Error(
+			`Refusing to import asset with a path-traversal segment ("..") in: "${normalized}".`,
+		);
+	}
+
+	if (segments[0]?.startsWith(".") && !segments[0].startsWith("..%")) {
+		throw new Error(
+			`Refusing to import asset into a config directory: "${normalized}".`,
+		);
+	}
+
+	return normalized;
+}
+
 export async function applyPackageImport(
 	options: ApplyImportOptions,
 ): Promise<ApplyImportResult> {
@@ -412,13 +456,17 @@ export async function applyPackageImport(
 	const assetPathOverrides = new Map<string, string>();
 	const writtenAssets: string[] = [];
 	const skippedAssets: string[] = [];
-
-	for (const asset of pkg.assets) {
+	const resolvedAssetDestinations = pkg.assets.map((asset) => {
 		const decision = assetDecisionMap.get(asset.originalPath);
 		const destinationPathInput = decision?.destinationPath?.trim();
-		const destinationPath = destinationPathInput
-			? normalizePath(destinationPathInput)
-			: asset.originalPath;
+		const destinationPath = validateAssetDestination(
+			destinationPathInput || asset.originalPath,
+		);
+		return { asset, destinationPath };
+	});
+
+	for (const { asset, destinationPath } of resolvedAssetDestinations) {
+		const decision = assetDecisionMap.get(asset.originalPath);
 		const exists = await assetExists(app, destinationPath);
 		const mode =
 			decision?.mode ?? (exists ? "overwrite" : "write");
