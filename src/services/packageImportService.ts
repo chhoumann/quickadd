@@ -203,15 +203,25 @@ export async function analysePackagePreview(
  * ImportPackageModal). Defensive: imported packages are untrusted shared data.
  */
 function validateAssetDestination(rawPath: string): string {
-	const normalized = normalizePath(rawPath);
-	if (!normalized || normalized.trim() === "") {
+	const rawDestination = rawPath ?? "";
+	const trimmedDestination = rawDestination.trim();
+	if (!trimmedDestination) {
 		throw new Error("Package asset has an empty destination path.");
 	}
 
-	if (normalized.startsWith("/") || /^[a-zA-Z]:/.test(normalized)) {
+	const slashNormalizedRawDestination = trimmedDestination.replace(/\\/g, "/");
+	if (
+		slashNormalizedRawDestination.startsWith("/") ||
+		/^[a-zA-Z]:/.test(slashNormalizedRawDestination)
+	) {
 		throw new Error(
-			`Refusing to import asset to an absolute path outside the vault: "${normalized}".`,
+			`Refusing to import asset to an absolute path outside the vault: "${slashNormalizedRawDestination}".`,
 		);
+	}
+
+	const normalized = normalizePath(trimmedDestination);
+	if (!normalized || normalized.trim() === "") {
+		throw new Error("Package asset has an empty destination path.");
 	}
 
 	const segments = normalized.split("/").filter((segment) => segment.length > 0);
@@ -446,13 +456,17 @@ export async function applyPackageImport(
 	const assetPathOverrides = new Map<string, string>();
 	const writtenAssets: string[] = [];
 	const skippedAssets: string[] = [];
-
-	for (const asset of pkg.assets) {
+	const resolvedAssetDestinations = pkg.assets.map((asset) => {
 		const decision = assetDecisionMap.get(asset.originalPath);
 		const destinationPathInput = decision?.destinationPath?.trim();
 		const destinationPath = validateAssetDestination(
 			destinationPathInput || asset.originalPath,
 		);
+		return { asset, destinationPath };
+	});
+
+	for (const { asset, destinationPath } of resolvedAssetDestinations) {
+		const decision = assetDecisionMap.get(asset.originalPath);
 		const exists = await assetExists(app, destinationPath);
 		const mode =
 			decision?.mode ?? (exists ? "overwrite" : "write");

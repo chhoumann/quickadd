@@ -863,6 +863,35 @@ describe("applyPackageImport - assets", () => {
 		expect(state.writes.size).toBe(0);
 	});
 
+	it("rejects a Windows-style absolute asset destination override", async () => {
+		const { app, state } = createFakeApp();
+		const asset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "templates/t.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("body"),
+		};
+		const pkg = makePackage({ assets: [asset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [
+					{
+						originalPath: "templates/t.md",
+						destinationPath: "C:\\evil\\path.md",
+						mode: "write",
+					},
+				],
+			}),
+		).rejects.toThrow(/absolute path/);
+
+		expect(state.writes.size).toBe(0);
+	});
+
 	it("rejects assets targeting dotfile config directories", async () => {
 		const { app, state } = createFakeApp();
 		const asset: QuickAddPackageAsset = {
@@ -884,6 +913,36 @@ describe("applyPackageImport - assets", () => {
 		).rejects.toThrow(/config directory/);
 
 		expect(state.writes.size).toBe(0);
+	});
+
+	it("rejects unsafe asset destinations before writing any asset", async () => {
+		const { app, state } = createFakeApp();
+		const safeAsset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: "Templates/safe.md",
+			contentEncoding: "base64",
+			content: encodeToBase64("safe"),
+		};
+		const unsafeAsset: QuickAddPackageAsset = {
+			kind: "template",
+			originalPath: ".obsidian/plugins/x/main.js",
+			contentEncoding: "base64",
+			content: encodeToBase64("unsafe"),
+		};
+		const pkg = makePackage({ assets: [safeAsset, unsafeAsset] });
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [],
+			}),
+		).rejects.toThrow(/config directory/);
+
+		expect(state.writes.size).toBe(0);
+		expect(state.createdFolders).toEqual([]);
 	});
 
 	it("allows url-encoded traversal text as a literal filename", async () => {
