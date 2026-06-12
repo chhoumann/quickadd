@@ -6,24 +6,50 @@ import { getQuickAddInstance } from "../../quickAddInstance";
 
 const LATEX_REGEX = new RegExp(/\\([a-z{}A-Z0-9]*)$/);
 
+// Module-level cache of rendered MathJax preview nodes, keyed by symbol.
+// Survives LaTeXSuggester re-construction so the render burst is paid at most
+// once per symbol per session, and only for symbols the user actually sees.
+// `null` records a symbol Obsidian's renderer cannot handle, so it is not
+// retried on every modal open.
+const renderedMathCache = new Map<string, HTMLElement | null>();
+
+let fuseIndex: Fuse<string> | null = null;
+
+function getRenderedMath(symbol: string): HTMLElement | null {
+	if (renderedMathCache.has(symbol)) {
+		return renderedMathCache.get(symbol) ?? null;
+	}
+
+	let rendered: HTMLElement | null = null;
+	try {
+		rendered = renderMath(symbol, true);
+	} catch {
+		// Symbols Obsidian's math renderer cannot render are cached as null.
+		rendered = null;
+	}
+
+	renderedMathCache.set(symbol, rendered);
+	return rendered;
+}
+
+function getFuseIndex(symbols: string[]): Fuse<string> {
+	if (fuseIndex === null) {
+		fuseIndex = new Fuse(symbols, {
+			findAllMatches: true,
+			threshold: 0.8,
+		});
+	}
+
+	return fuseIndex;
+}
+
 export class LaTeXSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private symbols: string[];
-	private elementsRendered: Record<string, HTMLElement>;
 
 	constructor(public inputEl: HTMLInputElement | HTMLTextAreaElement) {
 		super(getQuickAddInstance().app, inputEl);
 		this.symbols = Object.assign([], LaTeXSymbols);
-
-		this.elementsRendered = this.symbols.reduce<Record<string, HTMLElement>>((elements, symbol) => {
-			try {
-				elements[symbol.toString()] = renderMath(symbol, true);
-			} catch {
-				// Ignore symbols that Obsidian's math renderer cannot render.
-			}
-
-			return elements;
-		}, {});
 	}
 
 	getSuggestions(inputStr: string): string[] {
@@ -49,20 +75,20 @@ export class LaTeXSuggester extends TextInputSuggest<string> {
 			);
 		}
 
-		const fuse = new Fuse(suggestions, {
-			findAllMatches: true,
-			threshold: 0.8,
-		});
-		const searchResults = fuse.search(this.lastInput);
-		return searchResults.map((value) => value.item);
+		const allowed = new Set(suggestions);
+		const searchResults = getFuseIndex(this.symbols).search(this.lastInput);
+		return searchResults
+			.map((value) => value.item)
+			.filter((item) => allowed.has(item));
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
 		if (item) {
 			el.setText(item);
-			//@ts-ignore
-			 
-			el.append(this.elementsRendered[item]);
+			const rendered = getRenderedMath(item);
+			if (rendered) {
+				el.append(rendered.cloneNode(true));
+			}
 		}
 	}
 
