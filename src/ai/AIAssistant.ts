@@ -16,7 +16,7 @@ import { makeNoticeHandler } from "./makeNoticeHandler";
 
 type Encoding = ConstructorParameters<typeof Tiktoken>[0];
 
-const encodingCache = new Map<string, Tiktoken>();
+const encodingCache = new Map<string, Promise<Tiktoken>>();
 
 async function loadRank(name: string): Promise<Encoding> {
 	switch (name) {
@@ -28,7 +28,7 @@ async function loadRank(name: string): Promise<Encoding> {
 	}
 }
 
-async function getEncodingAsync(name: string): Promise<Tiktoken> {
+function getEncodingAsync(name: string): Promise<Tiktoken> {
 	const encodingName =
 		name === "o200k_base" || name === "cl100k_base"
 			? name
@@ -36,10 +36,14 @@ async function getEncodingAsync(name: string): Promise<Tiktoken> {
 	const cached = encodingCache.get(encodingName);
 	if (cached) return cached;
 
-	const rank = await loadRank(encodingName);
-	const encoding = new Tiktoken(rank);
-	encodingCache.set(encodingName, encoding);
-	return encoding;
+	const encodingPromise = loadRank(encodingName)
+		.then((rank) => new Tiktoken(rank))
+		.catch((error) => {
+			encodingCache.delete(encodingName);
+			throw error;
+		});
+	encodingCache.set(encodingName, encodingPromise);
+	return encodingPromise;
 }
 
 function resolveEncodingName(model: Model): string {
