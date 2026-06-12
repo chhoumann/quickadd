@@ -685,7 +685,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				formattedFileContent,
 			);
 			invariant(
-				!res.isSuccess,
+				res.isSuccess(),
 				() =>
 					`The file ${filePath} has been modified since the last read.\nQuickAdd could not merge the versions two without conflicts, and will not modify the file.\nThis is in order to prevent data loss.`,
 			);
