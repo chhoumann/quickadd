@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { TemplateInclusionState } from "./formatter";
 
 /**
  * Unit tests for the concrete CompleteFormatter.
@@ -50,7 +51,23 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 
 vi.mock("../engine/SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {
-		run = mocks.templateRun;
+		templatePath: string;
+		inclusion?: TemplateInclusionState;
+
+		constructor(
+			_app: unknown,
+			_plugin: unknown,
+			templatePath: string,
+			_choiceExecutor?: unknown,
+			inclusion?: TemplateInclusionState,
+		) {
+			this.templatePath = templatePath;
+			this.inclusion = inclusion;
+		}
+
+		run() {
+			return mocks.templateRun.call(this);
+		}
 	},
 }));
 
@@ -182,6 +199,20 @@ function defaultFormatter(
 	return new CompleteFormatter(app as any, plugin as any);
 }
 
+function mockTemplateVault(templates: Record<string, string>) {
+	mocks.templateRun.mockImplementation(async function (this: {
+		templatePath: string;
+		inclusion?: TemplateInclusionState;
+	}) {
+		const child = defaultFormatter();
+		if (this.inclusion) {
+			child.setTemplateInclusionState(this.inclusion);
+		}
+
+		return await child.formatFileContent(templates[this.templatePath] ?? "");
+	});
+}
+
 beforeEach(() => {
 	for (const key of Object.keys(mocks.inlineParamsVariables)) {
 		delete mocks.inlineParamsVariables[key];
@@ -302,6 +333,51 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		await expect(
 			f.formatFolderPath("{{TEMPLATE:notes/a.md}}"),
 		).resolves.toBe("TEMPLATE_BODY");
+	});
+
+	it("terminates self-including templates with a visible placeholder", async () => {
+		mockTemplateVault({
+			"A.md": "before {{TEMPLATE:A.md}} after",
+		});
+		const f = defaultFormatter();
+
+		const result = await f.formatFileContent("{{TEMPLATE:A.md}}");
+
+		expect(result).toContain(
+			'[QuickAdd: template inclusion cycle detected at "A.md"]',
+		);
+		expect(result).toContain("before");
+		expect(result).toContain("after");
+	});
+
+	it("terminates mutually-including templates with a visible placeholder", async () => {
+		mockTemplateVault({
+			"A.md": "{{TEMPLATE:B.md}}",
+			"B.md": "{{TEMPLATE:A.md}}",
+		});
+		const f = defaultFormatter();
+
+		const result = await f.formatFileContent("{{TEMPLATE:A.md}}");
+
+		expect(result).toContain(
+			'[QuickAdd: template inclusion cycle detected at "A.md"]',
+		);
+	});
+
+	it("terminates over-depth template chains with a visible placeholder", async () => {
+		const templates: Record<string, string> = {};
+		for (let i = 0; i < 12; i++) {
+			templates[`T${i}.md`] =
+				i === 11 ? "leaf" : `{{TEMPLATE:T${i + 1}.md}}`;
+		}
+		mockTemplateVault(templates);
+		const f = defaultFormatter();
+
+		const result = await f.formatFileContent("{{TEMPLATE:T0.md}}");
+
+		expect(result).toContain(
+			'[QuickAdd: max template inclusion depth (10) exceeded at "T10.md"]',
+		);
 	});
 
 	it("replaces inline JavaScript with its string output", async () => {
