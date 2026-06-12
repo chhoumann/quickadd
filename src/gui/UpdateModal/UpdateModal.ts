@@ -51,6 +51,60 @@ export async function getReleaseNotesAfter(
 		.filter((release) => !release.draft && !release.prerelease);
 }
 
+const USER_ATTACHMENT_VIDEO_URL =
+	/^https:\/\/github\.com\/user-attachments\/assets\/[A-Za-z0-9-]+$/;
+// A linked thumbnail: [![alt](poster.png)](https://github.com/user-attachments/assets/...)
+const LINKED_VIDEO_THUMBNAIL =
+	/^\[!\[[^\]]*\]\(([^)\s"]+)\)\]\((https:\/\/github\.com\/user-attachments\/assets\/[A-Za-z0-9-]+)\)$/;
+
+function videoPlayerHtml(url: string, poster?: string): string {
+	const posterAttr = poster ? ` poster="${poster}"` : "";
+	return `<video controls preload="metadata" playsinline style="width: 100%; border-radius: 8px;" src="${url}"${posterAttr}></video>`;
+}
+
+/**
+ * GitHub renders a bare user-attachments URL on its own line as an inline
+ * video player, but Obsidian's markdown renderer would show it as a raw
+ * link. Obsidian can play these URLs natively, so replace the bare line
+ * with a real <video> player. A thumbnail image linking to the same video
+ * (the GitHub-page fallback) becomes the player's poster instead of a
+ * duplicate visual.
+ */
+export function renderVideoAttachments(markdownText: string): string {
+	const lines = markdownText.split("\n");
+
+	const bareUrls = new Set<string>();
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (USER_ATTACHMENT_VIDEO_URL.test(trimmed)) bareUrls.add(trimmed);
+	}
+
+	const posters = new Map<string, string>();
+	for (const line of lines) {
+		const thumbnail = line.trim().match(LINKED_VIDEO_THUMBNAIL);
+		if (thumbnail && bareUrls.has(thumbnail[2])) {
+			posters.set(thumbnail[2], thumbnail[1]);
+		}
+	}
+
+	const result: string[] = [];
+	for (const line of lines) {
+		const trimmed = line.trim();
+
+		const thumbnail = trimmed.match(LINKED_VIDEO_THUMBNAIL);
+		if (thumbnail && bareUrls.has(thumbnail[2])) continue;
+
+		if (USER_ATTACHMENT_VIDEO_URL.test(trimmed)) {
+			result.push(videoPlayerHtml(trimmed, posters.get(trimmed)));
+			continue;
+		}
+
+		result.push(line);
+	}
+
+	return result.join("\n");
+}
+
 function addExtraHashToHeadings(
 	markdownText: string,
 	numHashes = 1
@@ -124,7 +178,7 @@ export class UpdateModal extends Modal {
 
 		const contentDiv = contentEl.createDiv("quickadd-update-modal");
 		const releaseNotes = this.releases
-			.map((release) => release.body)
+			.map((release) => renderVideoAttachments(release.body))
 			.join("\n---\n");
 
 		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
