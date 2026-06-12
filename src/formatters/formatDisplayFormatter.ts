@@ -33,6 +33,10 @@ export class FormatDisplayFormatter extends Formatter {
 		try {
 			// Expand global variables first so previews include their content
 			output = await this.replaceGlobalVarInString(output);
+			// Mirror CaptureChoiceFormatter: linebreak escapes are format-template
+			// material (including global snippets) and expand before token
+			// substitution, never on substituted content (issue #527).
+			output = this.expandLinebreakEscapesOutsideTokens(output);
 			output = this.replaceDateInString(output);
 			output = this.replaceTimeInString(output);
 			output = await this.replaceValueInString(output);
@@ -46,7 +50,6 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);
 			output = this.replaceRandomInString(output);
-			output = this.replaceLinebreakInString(output);
 		} catch {
 			// Return the input as-is if formatting fails during preview
 			// This prevents crashes when typing incomplete syntax

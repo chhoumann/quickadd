@@ -39,6 +39,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		* tp.system.prompt).
 		*/
 	private templaterProcessed = false;
+	/**
+		* Tracks whether `\n` escapes in the capture format string have been expanded.
+		* Expansion must happen on the raw format template BEFORE token substitution,
+		* and only once per capture run: multi-stage flows pass already-substituted
+		* content back into formatFileContent, and backslash sequences inside captured
+		* content (selection, clipboard, prompt input) must survive verbatim — e.g.
+		* capturing the LaTeX selection `\nabla` must not turn into a linebreak + "abla"
+		* (issue #527).
+		*/
+	private linebreaksProcessed = false;
 
 	public setDestinationFile(file: TFile): void {
 		this.file = file;
@@ -114,8 +124,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
-		let formatted = await super.formatFileContent(input);
-		formatted = this.replaceLinebreakInString(formatted);
+		let formatted = await super.formatFileContent(
+			await this.expandTemplateLinebreaksOnce(input),
+		);
 
 		// Run templater only once per capture payload to prevent #533 double execution
 		if (runTemplater && this.file && !this.templaterProcessed) {
@@ -182,8 +193,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	async formatContentOnly(input: string): Promise<string> {
 		// Process the input with templater (if needed) at this stage
 		// This is the first pass where we want to run any templater code
-		let formatted = await super.formatFileContent(input);
-		formatted = this.replaceLinebreakInString(formatted);
+		const formatted = await super.formatFileContent(
+			await this.expandTemplateLinebreaksOnce(input),
+		);
 
 		// DON'T run templater parsing here - it will be handled either by:
 		// 1. CaptureChoiceEngine.run() for the active file + no insert after + no prepend case
@@ -194,6 +206,24 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		return formatted;
+	}
+
+	private async expandTemplateLinebreaksOnce(template: string): Promise<string> {
+		if (this.linebreaksProcessed) return template;
+		this.linebreaksProcessed = true;
+		return this.expandFormatTemplateEscapes(template);
+	}
+
+	/**
+		* Expands linebreak escapes on format-template text. Global variable
+		* snippets are format-template material — the docs promise they are
+		* "processed by the usual formatter passes" — so they must be injected
+		* before linebreak expansion. The second global-var expansion inside
+		* format() is a no-op since no {{GLOBAL_VAR}} tokens remain.
+		*/
+	private async expandFormatTemplateEscapes(template: string): Promise<string> {
+		const withGlobals = await this.replaceGlobalVarInString(template);
+		return this.expandLinebreakEscapesOutsideTokens(withGlobals);
 	}
 
 	private normalizeTarget(target: string): string {
@@ -479,9 +509,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
-		// Build the line to insert using centralized location formatting
-		const insertAfterLine: string = this.replaceLinebreakInString(
-			await this.formatLocationString(this.choice.insertAfter.after),
+		// Build the line to insert using centralized location formatting.
+		// Linebreak escapes are expanded on the raw setting (with globals injected
+		// first), before substitution, so backslash sequences in substituted
+		// values stay verbatim (issue #527).
+		const insertAfterLine: string = await this.formatLocationString(
+			await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
@@ -566,8 +599,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			throw new ChoiceAbortError("Insert-before settings are missing.");
 		}
 
-		const insertBeforeLine: string = this.replaceLinebreakInString(
-			await this.formatLocationString(insertBefore.before),
+		const insertBeforeLine: string = await this.formatLocationString(
+			await this.expandFormatTemplateEscapes(insertBefore.before),
 		);
 		const formattedAndInsertBeforeLine =
 			formatted.endsWith("\n") || formatted.length === 0
