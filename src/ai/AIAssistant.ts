@@ -1,7 +1,5 @@
 import type { TiktokenModel } from "js-tiktoken";
 import { Tiktoken, getEncodingNameForModel } from "js-tiktoken/lite";
-import cl100k_base from "js-tiktoken/ranks/cl100k_base";
-import o200k_base from "js-tiktoken/ranks/o200k_base";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "src/errors/MacroAbortError";
@@ -18,23 +16,33 @@ import { makeNoticeHandler } from "./makeNoticeHandler";
 
 type Encoding = ConstructorParameters<typeof Tiktoken>[0];
 
-const encodings: Record<string, Encoding> = {
-	cl100k_base,
-	o200k_base,
-};
 const encodingCache = new Map<string, Tiktoken>();
 
-function getEncoding(name: string) {
-	const encodingName = name in encodings ? name : "cl100k_base";
+async function loadRank(name: string): Promise<Encoding> {
+	switch (name) {
+		case "o200k_base":
+			return (await import("js-tiktoken/ranks/o200k_base")).default;
+		case "cl100k_base":
+		default:
+			return (await import("js-tiktoken/ranks/cl100k_base")).default;
+	}
+}
+
+async function getEncodingAsync(name: string): Promise<Tiktoken> {
+	const encodingName =
+		name === "o200k_base" || name === "cl100k_base"
+			? name
+			: "cl100k_base";
 	const cached = encodingCache.get(encodingName);
 	if (cached) return cached;
 
-	const encoding = new Tiktoken(encodings[encodingName]);
+	const rank = await loadRank(encodingName);
+	const encoding = new Tiktoken(rank);
 	encodingCache.set(encodingName, encoding);
 	return encoding;
 }
 
-export const getTokenCount = (text: string, model: Model) => {
+function resolveEncodingName(model: Model): string {
 	// Use best-effort for non-OpenAI/unknown models by falling back to cl100k.
 	let encodingName = "cl100k_base";
 	try {
@@ -49,8 +57,29 @@ export const getTokenCount = (text: string, model: Model) => {
 		encodingName = "cl100k_base";
 	}
 
-	return getEncoding(encodingName).encode(text).length;
-};
+	return encodingName;
+}
+
+// Exact count. Lazily loads the rank table on first use; only call this on
+// async request-gating paths that need a precise token count.
+export async function getTokenCountAsync(
+	text: string,
+	model: Model
+): Promise<number> {
+	const encodingName = resolveEncodingName(model);
+	const encoding = await getEncodingAsync(encodingName);
+	return encoding.encode(text).length;
+}
+
+// Cheap synchronous estimate (~4 chars per token) for UI/preview labels.
+export function estimateTokenCount(text: string): number {
+	return Math.ceil(text.length / 4);
+}
+
+// Backwards-compatible synchronous helper for the public user-script API.
+// Best-effort estimate; does not load tokenizer rank data.
+export const getTokenCount = (text: string, _model: Model): number =>
+	estimateTokenCount(text);
 
 export interface AIRequestLogEntry {
 	id: string;
@@ -545,12 +574,12 @@ export async function ChunkedPrompt(
 		const chunkSeparator = settings.chunkSeparator || /\n/g;
 		const chunks = text.split(chunkSeparator);
 
-		const systemPromptLength = getTokenCount(systemPrompt, model);
+		const systemPromptLength = await getTokenCountAsync(systemPrompt, model);
 		// We need the prompt template to be rendered to get the token count of it, except the chunk variable.
 		const renderedPromptTemplate = await formatter(promptTemplate, {
 			chunk: " ", // empty would make QA ask for a value, which we don't want
 		});
-		const promptTemplateTokenCount = getTokenCount(
+		const promptTemplateTokenCount = await getTokenCountAsync(
 			renderedPromptTemplate,
 			model
 		);
@@ -571,7 +600,7 @@ export async function ChunkedPrompt(
 			let combinedChunkSize = 0;
 
 			for (const chunk of chunks) {
-				const strSize = getTokenCount(chunk, model) + 1; // +1 for the newline
+				const strSize = (await getTokenCountAsync(chunk, model)) + 1; // +1 for the newline
 
 				if (strSize > maxCombinedChunkSize) {
 					throw new Error(
@@ -606,7 +635,7 @@ export async function ChunkedPrompt(
 			}
 		} else {
 			for (const chunk of chunks) {
-				const tokenCount = getTokenCount(chunk, model);
+				const tokenCount = await getTokenCountAsync(chunk, model);
 
 				if (tokenCount > maxChunkTokenSize) {
 					throw new Error(

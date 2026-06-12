@@ -541,6 +541,7 @@ export class QuickAddApi {
 
 					return model.maxTokens;
 				},
+				// Synchronous best-effort estimate (~4 chars/token); does not load tokenizer ranks.
 				countTokens(text: string, model: Model) {
 					return getTokenCount(text, model);
 				},

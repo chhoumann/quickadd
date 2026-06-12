@@ -27,7 +27,7 @@ vi.mock("src/settingsStore", () => ({
 }));
 
 vi.mock("./AIAssistant", () => ({
-	getTokenCount: mocks.getTokenCountMock,
+	getTokenCountAsync: mocks.getTokenCountMock,
 	beginAIRequestLogEntry: mocks.beginAIRequestLogEntryMock,
 	finishAIRequestLogEntry: mocks.finishAIRequestLogEntryMock,
 }));
@@ -131,7 +131,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	storeState.disableOnlineFeatures = false;
 	// Default token count keeps every prompt well under any maxTokens limit.
-	getTokenCountMock.mockReturnValue(1);
+	getTokenCountMock.mockResolvedValue(1);
 	beginAIRequestLogEntryMock.mockReturnValue("log-id-1");
 });
 
@@ -155,7 +155,7 @@ describe("OpenAIRequest", () => {
 
 		it("throws when the combined token count exceeds the model limit", async () => {
 			// prompt + system both contribute; sum (60000+60000) > 100000.
-			getTokenCountMock.mockReturnValue(60000);
+			getTokenCountMock.mockResolvedValue(60000);
 			const model: Model = { name: "gpt-4o", maxTokens: 100000 };
 			const makeRequest = OpenAIRequest(makeApp(), "key", model, "system");
 
@@ -167,7 +167,7 @@ describe("OpenAIRequest", () => {
 
 		it("allows requests exactly at the token limit (boundary)", async () => {
 			// 2 * 50000 = 100000, not strictly greater than the limit.
-			getTokenCountMock.mockReturnValue(50000);
+			getTokenCountMock.mockResolvedValue(50000);
 			const model: Model = { name: "gpt-4o", maxTokens: 100000 };
 			getModelProviderMock.mockReturnValue(openAIProvider);
 			requestUrlMock.mockResolvedValue({ json: openAIResponse() });

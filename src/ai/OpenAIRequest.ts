@@ -5,7 +5,7 @@ import { settingsStore } from "src/settingsStore";
 import {
 	beginAIRequestLogEntry,
 	finishAIRequestLogEntry,
-	getTokenCount,
+	getTokenCountAsync,
 } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
@@ -266,7 +266,8 @@ export function OpenAIRequest(
 		}
 
 		const tokenCount =
-			getTokenCount(prompt, model) + getTokenCount(systemPrompt, model);
+			(await getTokenCountAsync(prompt, model)) +
+			(await getTokenCountAsync(systemPrompt, model));
 		const { maxTokens } = model;
 
 		if (tokenCount > maxTokens) {
