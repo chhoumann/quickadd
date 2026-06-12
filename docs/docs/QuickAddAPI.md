@@ -584,21 +584,27 @@ const selectedModel = await quickAddApi.suggester(models, models);
 ### `getMaxTokens(model: string): number`
 Gets the maximum token limit for a model.
 
-### `countTokens(text: string, model: string): number`
-Counts tokens in text according to model's tokenization.
+### `estimateTokens(text: string): number`
+Estimates the token count for text using QuickAdd's provider-agnostic estimator.
+This is useful for rough prompt sizing, but the configured AI provider remains
+the source of truth for exact context limits and usage.
 
 **Example:**
 ```javascript
 const text = await quickAddApi.utility.getClipboard();
-const tokenCount = quickAddApi.ai.countTokens(text, "gpt-4");
+const tokenCount = quickAddApi.ai.estimateTokens(text);
 
 if (tokenCount > 4000) {
     await quickAddApi.infoDialog(
-        "Text Too Long",
-        `The text contains ${tokenCount} tokens, which exceeds the model limit.`
+        "Text Might Be Too Long",
+        `The text is estimated at ${tokenCount} tokens.`
     );
 }
 ```
+
+### `countTokens(text: string, model: string): number`
+Compatibility alias for `estimateTokens`. The `model` argument is accepted for
+existing scripts, but QuickAdd no longer bundles model-specific tokenizers.
 
 ### `getRequestLogs(limit?: number): Array<object>`
 Returns recent in-memory AI request logs (newest first).

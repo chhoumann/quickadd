@@ -5,12 +5,12 @@ import { settingsStore } from "src/settingsStore";
 import {
 	beginAIRequestLogEntry,
 	finishAIRequestLogEntry,
-	getTokenCount,
 } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
 import { log } from "src/logger/logManager";
+import { estimateTokenCount } from "./tokenEstimator";
 
 export interface CommonResponse {
 	id: string;
@@ -24,6 +24,64 @@ export interface CommonResponse {
 	stopReason: string;
 	stopSequence: string | null;
 	created: number;
+}
+
+const CONTEXT_LIMIT_ERROR_PATTERNS = [
+	/context[_ -]?length[_ -]?exceeded/i,
+	/maximum context length/i,
+	/context window/i,
+	/too many input tokens/i,
+	/input(?: is)? too long/i,
+	/prompt(?: is)? too long/i,
+	/exceeds? (?:the )?(?:maximum )?(?:input )?(?:token|context)/i,
+	/context[_ -]?window[_ -]?exceeded/i,
+];
+
+function collectErrorMessages(
+	error: unknown,
+	seen = new Set<unknown>()
+): string[] {
+	if (error === null || error === undefined || seen.has(error)) return [];
+	seen.add(error);
+
+	if (typeof error === "string") return [error];
+	if (typeof error !== "object") return [String(error)];
+
+	const record = error as Record<string, unknown>;
+	const messages: string[] = [];
+
+	for (const key of [
+		"message",
+		"code",
+		"type",
+		"statusText",
+		"text",
+		"body",
+		"data",
+		"details",
+		"json",
+		"response",
+		"error",
+		"cause",
+	]) {
+		const value = record[key];
+		if (value !== undefined) {
+			messages.push(...collectErrorMessages(value, seen));
+		}
+	}
+
+	if (Array.isArray(error)) {
+		for (const value of error) {
+			messages.push(...collectErrorMessages(value, seen));
+		}
+	}
+
+	return messages;
+}
+
+export function isLikelyContextLimitError(error: unknown): boolean {
+	const message = collectErrorMessages(error).join(" ");
+	return CONTEXT_LIMIT_ERROR_PATTERNS.some((pattern) => pattern.test(message));
 }
 
 function mapOpenAIResponseToCommon(
@@ -265,15 +323,8 @@ export function OpenAIRequest(
 			);
 		}
 
-		const tokenCount =
-			getTokenCount(prompt, model) + getTokenCount(systemPrompt, model);
-		const { maxTokens } = model;
-
-		if (tokenCount > maxTokens) {
-			throw new Error(
-				`The ${model.name} API has a token limit of ${maxTokens}. Your prompt has ${tokenCount} tokens.`
-			);
-		}
+		const estimatedTokenCount =
+			estimateTokenCount(prompt) + estimateTokenCount(systemPrompt);
 
 		const modelProvider = getModelProvider(model.name);
 
@@ -293,6 +344,15 @@ export function OpenAIRequest(
 		log.logMessage(
 			`[AI Request ${requestLogId}] Started ${modelProvider.name}/${model.name}`
 		);
+		if (
+			Number.isFinite(model.maxTokens) &&
+			model.maxTokens > 0 &&
+			estimatedTokenCount > model.maxTokens
+		) {
+			log.logMessage(
+				`[AI Request ${requestLogId}] Estimated prompt size is ${estimatedTokenCount} tokens, above the configured ${model.maxTokens} token context. Sending anyway; the provider will enforce the exact limit.`
+			);
+		}
 
 		try {
 			const restoreCursor = preventCursorChange(app);

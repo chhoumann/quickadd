@@ -1,7 +1,3 @@
-import type { TiktokenModel } from "js-tiktoken";
-import { Tiktoken, getEncodingNameForModel } from "js-tiktoken/lite";
-import cl100k_base from "js-tiktoken/ranks/cl100k_base";
-import o200k_base from "js-tiktoken/ranks/o200k_base";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "src/errors/MacroAbortError";
@@ -11,46 +7,14 @@ import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
 import { isCancellationError } from "src/utils/errorUtils";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
-import { OpenAIRequest } from "./OpenAIRequest";
+import { OpenAIRequest, isLikelyContextLimitError } from "./OpenAIRequest";
 import type { Model } from "./Provider";
 import { getModelMaxTokens } from "./aiHelpers";
 import { makeNoticeHandler } from "./makeNoticeHandler";
+import { estimateModelInputBudget, estimateTokenCount } from "./tokenEstimator";
 
-type Encoding = ConstructorParameters<typeof Tiktoken>[0];
-
-const encodings: Record<string, Encoding> = {
-	cl100k_base,
-	o200k_base,
-};
-const encodingCache = new Map<string, Tiktoken>();
-
-function getEncoding(name: string) {
-	const encodingName = name in encodings ? name : "cl100k_base";
-	const cached = encodingCache.get(encodingName);
-	if (cached) return cached;
-
-	const encoding = new Tiktoken(encodings[encodingName]);
-	encodingCache.set(encodingName, encoding);
-	return encoding;
-}
-
-export const getTokenCount = (text: string, model: Model) => {
-	// Use best-effort for non-OpenAI/unknown models by falling back to cl100k.
-	let encodingName = "cl100k_base";
-	try {
-		encodingName = getEncodingNameForModel(model.name as TiktokenModel);
-	} catch {
-		encodingName = "cl100k_base";
-	}
-
-	if (encodingName === "p50k_base" || encodingName === "p50k_edit") {
-		encodingName = "cl100k_base";
-	} else if (encodingName === "r50k_base" || encodingName === "gpt2") {
-		encodingName = "cl100k_base";
-	}
-
-	return getEncoding(encodingName).encode(text).length;
-};
+export const getTokenCount = (text: string, _model: Model | string) =>
+	estimateTokenCount(text);
 
 export interface AIRequestLogEntry {
 	id: string;
@@ -506,9 +470,150 @@ type ChunkedPromptParams = Omit<
 		text: string;
 		promptTemplate: string;
 		shouldMerge: boolean;
+		maxChunkTokens?: number;
 	},
 	"prompt"
 >;
+
+const MAX_CONTEXT_RETRY_DEPTH = 12;
+const MIN_USABLE_ESTIMATED_CHUNK_TOKENS = 8;
+const MAX_CHUNKED_PROMPTS = 500;
+
+function splitChunkNearMiddle(chunk: string): [string, string] | null {
+	const chars = Array.from(chunk);
+	if (chars.length <= 1) return null;
+
+	const midpoint = Math.floor(chunk.length / 2);
+	const separators = ["\n\n", "\n", ". ", " "];
+
+	let bestIndex = -1;
+	let bestDistance = Number.POSITIVE_INFINITY;
+
+	for (const separator of separators) {
+		const before = chunk.lastIndexOf(separator, midpoint);
+		const after = chunk.indexOf(separator, midpoint);
+		const candidates = [before, after].filter((index) => index > 0);
+
+		for (const index of candidates) {
+			const splitIndex = index + separator.length;
+			if (splitIndex <= 0 || splitIndex >= chunk.length) continue;
+
+			const distance = Math.abs(splitIndex - midpoint);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				bestIndex = splitIndex;
+			}
+		}
+	}
+
+	if (bestIndex > 0 && bestIndex < chunk.length) {
+		return [chunk.slice(0, bestIndex), chunk.slice(bestIndex)];
+	}
+
+	const charMidpoint = Math.floor(chars.length / 2);
+	return [
+		chars.slice(0, charMidpoint).join(""),
+		chars.slice(charMidpoint).join(""),
+	];
+}
+
+function splitChunkToEstimatedBudget(
+	chunk: string,
+	model: Model,
+	maxEstimatedTokens: number
+): string[] {
+	const budget = Math.max(1, Math.floor(maxEstimatedTokens));
+	const output: string[] = [];
+	const queue = [chunk];
+
+	while (queue.length > 0) {
+		const current = queue.shift() ?? "";
+		const currentEstimate = getTokenCount(current, model);
+
+		if (currentEstimate <= budget) {
+			output.push(current);
+			continue;
+		}
+
+		const split = splitChunkNearMiddle(current);
+		if (!split) {
+			output.push(current);
+			continue;
+		}
+
+		queue.unshift(split[1]);
+		queue.unshift(split[0]);
+	}
+
+	return output;
+}
+
+function buildEstimatedPromptChunks(
+	chunks: string[],
+	model: Model,
+	maxEstimatedChunkTokens: number,
+	shouldMerge: boolean
+): string[] {
+	const preparedChunks = chunks.flatMap((chunk) =>
+		splitChunkToEstimatedBudget(chunk, model, maxEstimatedChunkTokens)
+	);
+
+	if (!shouldMerge) return preparedChunks;
+
+	const output: string[] = [];
+	let combinedChunk = "";
+	let combinedChunkSize = 0;
+
+	for (const chunk of preparedChunks) {
+		const strSize = getTokenCount(chunk, model) + 1; // +1 for the separator removed by split().
+
+		if (
+			combinedChunk !== "" &&
+			combinedChunkSize + strSize >= maxEstimatedChunkTokens
+		) {
+			output.push(combinedChunk);
+			combinedChunk = "";
+			combinedChunkSize = 0;
+		}
+
+		combinedChunk += chunk;
+		combinedChunkSize += strSize;
+	}
+
+	if (combinedChunk !== "") {
+		output.push(combinedChunk);
+	}
+
+	return output;
+}
+
+function getEstimatedChunkBudget(
+	model: Model,
+	systemPrompt: string,
+	renderedPromptTemplate: string,
+	configuredMaxChunkTokens?: number
+) {
+	const estimatedInputBudget = estimateModelInputBudget(
+		getModelMaxTokens(model.name)
+	);
+	const promptOverhead =
+		getTokenCount(systemPrompt, model) +
+		getTokenCount(renderedPromptTemplate, model);
+	const modelBudget = Math.max(1, estimatedInputBudget - promptOverhead);
+
+	if (
+		configuredMaxChunkTokens !== undefined &&
+		Number.isFinite(configuredMaxChunkTokens) &&
+		configuredMaxChunkTokens > 0
+	) {
+		return Math.max(
+			1,
+			Math.min(modelBudget, Math.floor(configuredMaxChunkTokens))
+		);
+	}
+
+	return modelBudget;
+}
 
 export async function ChunkedPrompt(
 	app: App,
@@ -545,78 +650,37 @@ export async function ChunkedPrompt(
 		const chunkSeparator = settings.chunkSeparator || /\n/g;
 		const chunks = text.split(chunkSeparator);
 
-		const systemPromptLength = getTokenCount(systemPrompt, model);
-		// We need the prompt template to be rendered to get the token count of it, except the chunk variable.
+		// Render the prompt template once so the estimator includes static prompt overhead.
 		const renderedPromptTemplate = await formatter(promptTemplate, {
 			chunk: " ", // empty would make QA ask for a value, which we don't want
 		});
-		const promptTemplateTokenCount = getTokenCount(
+		const maxEstimatedChunkTokens = getEstimatedChunkBudget(
+			model,
+			systemPrompt,
 			renderedPromptTemplate,
-			model
+			settings.maxChunkTokens
 		);
 
-		const maxChunkTokenSize =
-			getModelMaxTokens(model.name) / 2 - systemPromptLength; // temp, need to impl. config
+		if (maxEstimatedChunkTokens < MIN_USABLE_ESTIMATED_CHUNK_TOKENS) {
+			throw new Error(
+				`The estimated prompt overhead leaves too little room for text chunks (${maxEstimatedChunkTokens} estimated tokens). Shorten the system prompt or prompt template, increase the max chunk tokens setting, or use a model with a larger context window.`
+			);
+		}
 
-		// Whether we should strictly enforce the chunking rules or we should merge chunks that are too small
+		// Whether we should merge chunks that are too small.
 		const shouldMerge = settings.shouldMerge ?? true; // temp, need to impl. config
 
-		const chunkedPrompts = [];
-		const maxCombinedChunkSize =
-			maxChunkTokenSize - promptTemplateTokenCount;
+		const chunkedText = buildEstimatedPromptChunks(
+			chunks,
+			model,
+			maxEstimatedChunkTokens,
+			shouldMerge
+		);
 
-		if (shouldMerge) {
-			const output: string[] = [];
-			let combinedChunk = "";
-			let combinedChunkSize = 0;
-
-			for (const chunk of chunks) {
-				const strSize = getTokenCount(chunk, model) + 1; // +1 for the newline
-
-				if (strSize > maxCombinedChunkSize) {
-					throw new Error(
-						`The chunk "${chunk.slice(
-							0,
-							25
-						)}..." is too large to fit in a single prompt.`
-					);
-				}
-
-				if (combinedChunkSize + strSize < maxCombinedChunkSize) {
-					// Add string to the current chunk and increase its size
-					combinedChunk += chunk;
-					combinedChunkSize += strSize;
-				} else {
-					// Push the current chunk to the output array
-					output.push(combinedChunk);
-
-					// Start a new chunk with the current string
-					combinedChunk = chunk;
-					combinedChunkSize = strSize;
-				}
-			}
-
-			if (combinedChunk !== "") {
-				output.push(combinedChunk);
-			}
-
-			for (const chunk of output) {
-				const prompt = await formatter(promptTemplate, { chunk });
-				chunkedPrompts.push(prompt);
-			}
-		} else {
-			for (const chunk of chunks) {
-				const tokenCount = getTokenCount(chunk, model);
-
-				if (tokenCount > maxChunkTokenSize) {
-					throw new Error(
-						`Chunk size (${tokenCount}) is larger than the maximum chunk size (${maxChunkTokenSize}). Please check your chunk separator.`
-					);
-				}
-
-				const prompt = await formatter(promptTemplate, { chunk });
-				chunkedPrompts.push(prompt);
-			}
+		if (chunkedText.length > MAX_CHUNKED_PROMPTS) {
+			throw new Error(
+				`QuickAdd estimated ${chunkedText.length} prompts for this chunked AI request, which exceeds the safety limit of ${MAX_CHUNKED_PROMPTS}. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
+			);
 		}
 
 		const makeRequest = OpenAIRequest(
@@ -629,15 +693,67 @@ export async function ChunkedPrompt(
 
 		const promptingMsg = [
 			"prompting",
-			`${chunkedPrompts.length} prompts being sent.`,
+			`${chunkedText.length} prompts being sent.`,
 		];
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const rateLimiter = new RateLimiter(5, 1000 * 30); // 5 requests per half minute
+		let hasTerminalFailure = false;
+		let providerRequestCount = 0;
+
+		const requestChunk = async (
+			chunk: string,
+			depth = 0
+		): Promise<string[]> => {
+			if (hasTerminalFailure) {
+				throw new Error("Chunked prompt stopped after an earlier failure.");
+			}
+
+			const prompt = await formatter(promptTemplate, { chunk });
+
+			try {
+				const response = await rateLimiter.add(() => {
+					if (hasTerminalFailure) {
+						throw new Error(
+							"Chunked prompt stopped after an earlier failure."
+						);
+					}
+
+					providerRequestCount += 1;
+					if (providerRequestCount > MAX_CHUNKED_PROMPTS) {
+						throw new Error(
+							`Chunked AI request exceeded the safety limit of ${MAX_CHUNKED_PROMPTS} provider requests.`
+						);
+					}
+
+					return makeRequest(prompt);
+				});
+				return [response.content];
+			} catch (error) {
+				const split = splitChunkNearMiddle(chunk);
+				if (
+					depth >= MAX_CONTEXT_RETRY_DEPTH ||
+					!split ||
+					!isLikelyContextLimitError(error)
+				) {
+					hasTerminalFailure = true;
+					throw error;
+				}
+
+				notice.setMessage(
+					"prompting",
+					"Provider rejected a prompt for context length. Retrying with smaller chunks."
+				);
+
+				const [left, right] = split;
+				const leftOutput = await requestChunk(left, depth + 1);
+				const rightOutput = await requestChunk(right, depth + 1);
+				return [...leftOutput, ...rightOutput];
+			}
+		};
+
 		const results = Promise.all(
-			chunkedPrompts.map((prompt) =>
-				rateLimiter.add(() => makeRequest(prompt))
-			)
+			chunkedText.map((chunk) => requestChunk(chunk))
 		);
 
 		const result = await timePromise(
@@ -657,7 +773,7 @@ export async function ChunkedPrompt(
 			}
 		);
 
-		const outputs = result.map((r) => r.content);
+		const outputs = result.flat();
 
 		const output = outputs.join(settings.resultJoiner);
 		const outputInMarkdownBlockQuote = ("> " + output).replace(

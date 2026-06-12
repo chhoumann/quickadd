@@ -439,6 +439,7 @@ export class QuickAddApi {
 						chunkSeparator: RegExp;
 						chunkJoiner: string;
 						shouldMerge: boolean;
+						maxChunkTokens: number;
 					}>,
 					existingVariables?: Record<string, unknown>,
 				) => {
@@ -501,6 +502,7 @@ export class QuickAddApi {
 								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
 							resultJoiner: settings?.chunkJoiner ?? "\n",
 							shouldMerge: settings?.shouldMerge ?? true,
+							maxChunkTokens: settings?.maxChunkTokens,
 						},
 						(txt: string, variables?: Record<string, unknown>) => {
 							const mergedVariables = {
@@ -541,7 +543,10 @@ export class QuickAddApi {
 
 					return model.maxTokens;
 				},
-				countTokens(text: string, model: Model) {
+				estimateTokens(text: string) {
+					return getTokenCount(text, "estimate");
+				},
+				countTokens(text: string, model: Model | string) {
 					return getTokenCount(text, model);
 				},
 				getRequestLogs(limit = 10) {

@@ -150,7 +150,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			cls: "qa-ai-token-count",
 		});
 		const tokenCountNote = container.createEl("div", {
-			text: "Exact for OpenAI models; estimates for others.",
+			text: "Estimated locally. Providers enforce exact context limits.",
 			cls: "qa-ai-token-note",
 		});
 
@@ -181,7 +181,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const updateTokenCount = debounce(() => {
-			tokenCount.innerText = `Token count: ${this.systemPromptTokenLength}`;
+			tokenCount.innerText = `Estimated tokens: ${this.systemPromptTokenLength}`;
 		}, 50);
 
 		updateTokenCount();

@@ -644,7 +644,7 @@ describe("utility selection helpers", () => {
 });
 
 // ===========================================================================
-// AI sync helpers (getModels / getMaxTokens / countTokens / logs)
+// AI sync helpers (getModels / getMaxTokens / estimateTokens / countTokens / logs)
 // ===========================================================================
 describe("ai sync helpers", () => {
 	it("getModels delegates to getModelNames", () => {
@@ -663,6 +663,13 @@ describe("ai sync helpers", () => {
 		mocks.getModelByName.mockReturnValue(undefined);
 		const { api } = getApi();
 		expect(() => api.ai.getMaxTokens("nope")).toThrow("Model nope not found.");
+	});
+
+	it("estimateTokens delegates to the compatibility token estimator", () => {
+		mocks.getTokenCount.mockReturnValue(5);
+		const { api } = getApi();
+		expect(api.ai.estimateTokens("hi")).toBe(5);
+		expect(mocks.getTokenCount).toHaveBeenCalledWith("hi", "estimate");
 	});
 
 	it("countTokens delegates to getTokenCount", () => {
@@ -850,6 +857,7 @@ describe("ai.chunkedPrompt validation", () => {
 			promptTemplate: "tmpl",
 			resultJoiner: "\n",
 			shouldMerge: true,
+			maxChunkTokens: undefined,
 		});
 		expect(opts.chunkSeparator).toBeInstanceOf(RegExp);
 	});
