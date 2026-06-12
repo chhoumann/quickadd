@@ -4,7 +4,8 @@ import { log } from "src/logger/logManager";
 
 type Release = {
 	tag_name: string;
-	body: string;
+	// The GitHub API allows a null release body.
+	body: string | null;
 	draft: boolean;
 	prerelease: boolean;
 };
@@ -49,6 +50,90 @@ export async function getReleaseNotesAfter(
 	return releases
 		.slice(0, startReleaseIdx)
 		.filter((release) => !release.draft && !release.prerelease);
+}
+
+const USER_ATTACHMENT_VIDEO_URL =
+	/^https:\/\/github\.com\/user-attachments\/assets\/[A-Za-z0-9-]+$/;
+// A linked thumbnail: [![alt](poster.png)](https://github.com/user-attachments/assets/...)
+const LINKED_VIDEO_THUMBNAIL =
+	/^\[!\[[^\]]*\]\(([^)\s"]+)\)\]\((https:\/\/github\.com\/user-attachments\/assets\/[A-Za-z0-9-]+)\)$/;
+// A poster hint next to a bare video URL: <!-- poster: https://... -->
+// GitHub strips HTML comments, so release notes can carry a poster for the
+// modal's player without rendering a duplicate video on the GitHub page
+// (GitHub also turns links to video attachments into players).
+const VIDEO_POSTER_COMMENT = /^<!--\s*poster:\s*(https:\/\/[^\s"'>]+)\s*-->$/;
+
+function videoPlayerHtml(url: string, poster?: string): string {
+	const posterAttr = poster ? ` poster="${poster}"` : "";
+	return `<video controls preload="metadata" playsinline style="width: 100%; border-radius: 8px;" src="${url}"${posterAttr}></video>`;
+}
+
+/**
+ * GitHub renders a bare user-attachments URL on its own line as an inline
+ * video player, but Obsidian's markdown renderer would show it as a raw
+ * link. Obsidian can play these URLs natively, so replace the bare line
+ * with a real <video> player. A thumbnail image linking to the same video
+ * (the GitHub-page fallback) becomes the player's poster instead of a
+ * duplicate visual.
+ */
+export function renderVideoAttachments(markdownText: string): string {
+	const lines = markdownText.split("\n");
+
+	const bareUrls = new Set<string>();
+	for (const line of lines) {
+		const trimmed = line.trim();
+		if (USER_ATTACHMENT_VIDEO_URL.test(trimmed)) bareUrls.add(trimmed);
+	}
+
+	const posters = new Map<string, string>();
+	for (const line of lines) {
+		const thumbnail = line.trim().match(LINKED_VIDEO_THUMBNAIL);
+		if (thumbnail && bareUrls.has(thumbnail[2])) {
+			posters.set(thumbnail[2], thumbnail[1]);
+		}
+	}
+
+	// A poster comment adjacent to a bare URL (above or below, across blank
+	// lines) wins over a thumbnail-derived poster.
+	const consumedPosterLines = new Set<number>();
+	for (let i = 0; i < lines.length; i++) {
+		if (!USER_ATTACHMENT_VIDEO_URL.test(lines[i].trim())) continue;
+		for (const direction of [1, -1]) {
+			let j = i + direction;
+			while (j >= 0 && j < lines.length && lines[j].trim() === "") {
+				j += direction;
+			}
+			const comment =
+				j >= 0 && j < lines.length
+					? lines[j].trim().match(VIDEO_POSTER_COMMENT)
+					: null;
+			if (comment) {
+				posters.set(lines[i].trim(), comment[1]);
+				consumedPosterLines.add(j);
+				break;
+			}
+		}
+	}
+
+	const result: string[] = [];
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		const trimmed = line.trim();
+
+		if (consumedPosterLines.has(i)) continue;
+
+		const thumbnail = trimmed.match(LINKED_VIDEO_THUMBNAIL);
+		if (thumbnail && bareUrls.has(thumbnail[2])) continue;
+
+		if (USER_ATTACHMENT_VIDEO_URL.test(trimmed)) {
+			result.push(videoPlayerHtml(trimmed, posters.get(trimmed)));
+			continue;
+		}
+
+		result.push(line);
+	}
+
+	return result.join("\n");
 }
 
 function addExtraHashToHeadings(
@@ -124,7 +209,7 @@ export class UpdateModal extends Modal {
 
 		const contentDiv = contentEl.createDiv("quickadd-update-modal");
 		const releaseNotes = this.releases
-			.map((release) => release.body)
+			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
 
 		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
