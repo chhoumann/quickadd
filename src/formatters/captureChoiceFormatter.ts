@@ -211,10 +211,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private async expandTemplateLinebreaksOnce(template: string): Promise<string> {
 		if (this.linebreaksProcessed) return template;
 		this.linebreaksProcessed = true;
-		// Global variable snippets are format-template material — the docs promise
-		// they are "processed by the usual formatter passes" — so they must be
-		// injected before linebreak expansion. The second expansion inside
-		// format() is a no-op since no {{GLOBAL_VAR}} tokens remain.
+		return this.expandFormatTemplateEscapes(template);
+	}
+
+	/**
+		* Expands linebreak escapes on format-template text. Global variable
+		* snippets are format-template material — the docs promise they are
+		* "processed by the usual formatter passes" — so they must be injected
+		* before linebreak expansion. The second global-var expansion inside
+		* format() is a no-op since no {{GLOBAL_VAR}} tokens remain.
+		*/
+	private async expandFormatTemplateEscapes(template: string): Promise<string> {
 		const withGlobals = await this.replaceGlobalVarInString(template);
 		return this.expandLinebreakEscapesOutsideTokens(withGlobals);
 	}
@@ -503,10 +510,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	private async createInsertAfterIfNotFound(formatted: string) {
 		// Build the line to insert using centralized location formatting.
-		// Linebreak escapes are expanded on the raw setting, before substitution,
-		// so backslash sequences in substituted values stay verbatim (issue #527).
+		// Linebreak escapes are expanded on the raw setting (with globals injected
+		// first), before substitution, so backslash sequences in substituted
+		// values stay verbatim (issue #527).
 		const insertAfterLine: string = await this.formatLocationString(
-			this.expandLinebreakEscapesOutsideTokens(this.choice.insertAfter.after),
+			await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
@@ -592,7 +600,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const insertBeforeLine: string = await this.formatLocationString(
-			this.expandLinebreakEscapesOutsideTokens(insertBefore.before),
+			await this.expandFormatTemplateEscapes(insertBefore.before),
 		);
 		const formattedAndInsertBeforeLine =
 			formatted.endsWith("\n") || formatted.length === 0

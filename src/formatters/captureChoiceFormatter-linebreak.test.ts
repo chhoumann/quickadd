@@ -313,6 +313,34 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 		expect(result).toBe("existing\n## \\nabla\n\\nabla");
 	});
 
+	it("expands \\n from global variable snippets in created insert-after targets", async () => {
+		const formatter = createFormatter("hello", { Heading: "## Inbox\\n" });
+		const choice = createChoice({
+			insertAfter: {
+				enabled: true,
+				after: "{{GLOBAL_VAR:Heading}}",
+				insertAtEnd: false,
+				considerSubsections: false,
+				createIfNotFound: true,
+				createIfNotFoundLocation: "bottom",
+				inline: false,
+				replaceExisting: false,
+				blankLineAfterMatchMode: "auto",
+			},
+		});
+
+		const result = await formatter.formatContentWithFile(
+			"{{VALUE}}",
+			choice,
+			"existing",
+			createFile(),
+		);
+
+		// The snippet's \n must become a real newline in the created target line,
+		// matching pre-#527 behavior for global-variable targets.
+		expect(result).toBe("existing\n## Inbox\n\nhello");
+	});
+
 	describe("expandLinebreakEscapesOutsideTokens", () => {
 		it("expands escapes outside {{...}} tokens but never inside them", () => {
 			const formatter = createFormatter(null);
