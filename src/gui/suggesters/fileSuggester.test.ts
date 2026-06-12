@@ -680,6 +680,103 @@ describe('FileSuggester DOM XSS safety', () => {
         }
     });
 
+    it('registers exactly one document scroll listener regardless of row count', () => {
+        vi.useFakeTimers();
+        const frame = document.createElement('iframe');
+        document.body.appendChild(frame);
+        const popoutDocument = frame.contentDocument!;
+        const popoutWindow = frame.contentWindow!;
+        const inputEl = popoutDocument.createElement('input');
+        popoutDocument.body.appendChild(inputEl);
+
+        const runtimeFiles = new Map<string, TFile>();
+        const app = {
+            dom: { appContainerEl: document.body },
+            keymap: {
+                pushScope: vi.fn(),
+                popScope: vi.fn(),
+            },
+            workspace: {
+                getActiveFile: vi.fn(() => null),
+                on: vi.fn(() => ({})),
+            },
+            fileManager: {
+                getNewFileParent: vi.fn(() => ({ path: '' })),
+            },
+            vault: {
+                getAbstractFileByPath: vi.fn((path: string) => runtimeFiles.get(path) ?? null),
+                getFiles: vi.fn(() => []),
+                getMarkdownFiles: vi.fn(() => []),
+                on: vi.fn(),
+            },
+            metadataCache: {
+                on: vi.fn(),
+                getFileCache: vi.fn(),
+                unresolvedLinks: {},
+            },
+        };
+
+        const plugin = { registerEvent: vi.fn() };
+        (FileIndex as unknown as { instance?: FileIndex }).instance = new (
+            FileIndex as unknown as new (app: App, plugin: unknown) => FileIndex
+        )(app as unknown as App, plugin);
+
+        const addSpy = vi.spyOn(popoutDocument, 'addEventListener');
+        const removeSpy = vi.spyOn(popoutDocument, 'removeEventListener');
+
+        try {
+            const suggester = new FileSuggester(app as unknown as App, inputEl);
+            const makeRows = (batch: number) =>
+                Array.from({ length: 50 }, (_, i) => {
+                    const path = `Notes/File${batch}-${i}.md`;
+                    runtimeFiles.set(path, createRuntimeFile(path, `File${batch}-${i}`));
+                    return {
+                        file: createIndexedFile(path, `File${batch}-${i}`),
+                        score: 0,
+                        matchType: 'exact' as const,
+                        displayText: `File${batch}-${i}`,
+                    };
+                });
+            const suggest = (suggester as unknown as {
+                suggest: { setSuggestions(values: unknown[]): void };
+            }).suggest;
+
+            suggest.setSuggestions(makeRows(1));
+            suggester.open(document.body, inputEl);
+            suggest.setSuggestions(makeRows(2));
+            suggester.open(document.body, inputEl);
+            suggest.setSuggestions(makeRows(3));
+            suggester.open(document.body, inputEl);
+
+            const scrollAdds = addSpy.mock.calls.filter(([type]) => type === 'scroll').length;
+            expect(scrollAdds).toBe(1);
+
+            const suggestion = popoutDocument.querySelector<HTMLElement>('.suggestion-item')!;
+            expect(suggestion).not.toBeNull();
+            suggestion.dispatchEvent(new MouseEvent('mouseenter', {
+                bubbles: true,
+                view: popoutWindow,
+            }));
+            vi.advanceTimersByTime(200);
+
+            expect(popoutDocument.querySelector('.qa-file-tooltip')).not.toBeNull();
+            popoutDocument.dispatchEvent(new Event('scroll'));
+            expect(popoutDocument.querySelector('.qa-file-tooltip')).toBeNull();
+
+            suggester.close();
+            const scrollRemoves = removeSpy.mock.calls.filter(([type]) => type === 'scroll').length;
+            expect(scrollRemoves).toBe(1);
+
+            suggester.destroy();
+            expect(removeSpy.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(1);
+        } finally {
+            addSpy.mockRestore();
+            removeSpy.mockRestore();
+            frame.remove();
+            vi.useRealTimers();
+        }
+    });
+
     it('keeps malicious suggestions selectable by keyboard navigation', async () => {
         const payload = '<img src=x onerror=globalThis.__qaXss=1>';
         const insertedValues: string[] = [];

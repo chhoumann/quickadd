@@ -9,10 +9,6 @@ import { normalizeForSearch } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
 import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "../../utils/activeWindow";
 
-interface HTMLElementWithTooltipCleanup extends HTMLElement {
-	_tooltipCleanup?: () => void;
-}
-
 function createSuggestionPill(
 	owner: Node,
 	matchType: SearchResult["matchType"],
@@ -46,6 +42,9 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	private lastInput = "";
 	private fileIndex: FileIndex;
 	private sourcePathOverride?: string;
+	private tooltipTimeout: number | undefined;
+	private scrollListener: (() => void) | undefined;
+	private scrollListenerDocument: Document | undefined;
 
 	constructor(
 		public app: App,
@@ -355,23 +354,35 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		this.addHoverTooltip(el, file);
 	}
 
+	open(container: HTMLElement, inputEl: HTMLElement): void {
+		super.open(container, inputEl);
+		if (!this.scrollListener) {
+			const activeDocument = getOwnerDocument(this.inputEl);
+			const listener = () => this.hideTooltip();
+			activeDocument.addEventListener('scroll', listener, { passive: true });
+			this.scrollListener = listener;
+			this.scrollListenerDocument = activeDocument;
+		}
+	}
+
+	private hideTooltip(): void {
+		const activeWindow = getOwnerWindow(this.inputEl);
+		const activeDocument = getOwnerDocument(this.inputEl);
+
+		if (this.tooltipTimeout !== undefined) {
+			activeWindow.clearTimeout(this.tooltipTimeout);
+			this.tooltipTimeout = undefined;
+		}
+		activeDocument.querySelector('.qa-file-tooltip')?.remove();
+	}
+
 	private addHoverTooltip(el: HTMLElement, file: { path: string; }): void {
-		let tooltipTimeout: number | undefined;
 		const activeDocument = getOwnerDocument(el);
 		const activeWindow = getOwnerWindow(el);
 
-		const cleanup = () => {
-			if (tooltipTimeout !== undefined) {
-				activeWindow.clearTimeout(tooltipTimeout);
-				tooltipTimeout = undefined;
-			}
-			const existingTooltip = activeDocument.querySelector('.qa-file-tooltip');
-			existingTooltip?.remove();
-		};
-
 		el.addEventListener('mouseenter', () => {
-			cleanup(); // Remove any existing tooltips
-			tooltipTimeout = activeWindow.setTimeout(() => {
+			this.hideTooltip();
+			this.tooltipTimeout = activeWindow.setTimeout(() => {
 				const tooltip = this.createTooltip(file);
 				if (tooltip) {
 					activeDocument.body.appendChild(tooltip);
@@ -380,19 +391,8 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 			}, 200);
 		});
 
-		// Clean up on multiple events to prevent leaks
-		el.addEventListener('mouseleave', cleanup);
-		el.addEventListener('blur', cleanup);
-
-		// Clean up on scroll to prevent misplaced tooltips
-		const cleanupOnScroll = () => cleanup();
-		activeDocument.addEventListener('scroll', cleanupOnScroll, { passive: true });
-
-		// Store cleanup function for later removal
-		(el as HTMLElementWithTooltipCleanup)._tooltipCleanup = () => {
-			cleanup();
-			activeDocument.removeEventListener('scroll', cleanupOnScroll);
-		};
+		el.addEventListener('mouseleave', () => this.hideTooltip());
+		el.addEventListener('blur', () => this.hideTooltip());
 	}
 
 	private createTooltip(file: { path: string; }): HTMLElement | null {
@@ -432,19 +432,12 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	}
 
 	close(): void {
-		// Clean up any tooltip listeners before closing
-		const activeDocument = getOwnerDocument(this.inputEl);
-		const tooltipElements = activeDocument.querySelectorAll('.qaFileSuggestionItem');
-		tooltipElements.forEach(el => {
-			const elementWithCleanup = el as HTMLElementWithTooltipCleanup;
-			if (elementWithCleanup._tooltipCleanup) {
-				elementWithCleanup._tooltipCleanup();
-			}
-		});
-
-		// Remove any existing tooltips
-		const existingTooltips = activeDocument.querySelectorAll('.qa-file-tooltip');
-		existingTooltips.forEach(tooltip => tooltip.remove());
+		this.hideTooltip();
+		if (this.scrollListener && this.scrollListenerDocument) {
+			this.scrollListenerDocument.removeEventListener('scroll', this.scrollListener);
+			this.scrollListener = undefined;
+			this.scrollListenerDocument = undefined;
+		}
 
 		super.close();
 	}
