@@ -718,6 +718,50 @@ export abstract class Formatter {
 		return output;
 	}
 
+	/**
+		* Like replaceLinebreakInString, but leaves `{{...}}` token spans untouched.
+		* Format-token regexes cannot match across real linebreaks (see constants.ts),
+		* so expanding `\n` inside token options (e.g. `{{VALUE:x|default:a\nb}}`)
+		* would render the token unparseable and dump it literally into the output.
+		*/
+	protected expandLinebreakEscapesOutsideTokens(input: string): string {
+		let output = "";
+		let i = 0;
+
+		while (i < input.length) {
+			if (input[i] === "{" && input[i + 1] === "{") {
+				const close = input.indexOf("}}", i + 2);
+				if (close !== -1) {
+					output += input.slice(i, close + 2);
+					i = close + 2;
+					continue;
+				}
+			}
+
+			const curr = input[i];
+			const next = input[i + 1];
+
+			if (curr === "\\") {
+				if (next === "n") {
+					output += "\n";
+					i += 2;
+				} else if (next === "\\") {
+					output += "\\";
+					i += 2;
+				} else {
+					// Invalid use of escape character, but we keep it anyway.
+					output += "\\";
+					i += 1;
+				}
+			} else {
+				output += curr;
+				i += 1;
+			}
+		}
+
+		return output;
+	}
+
 
 	protected abstract getMacroValue(
 		macroName: string,

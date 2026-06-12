@@ -125,7 +125,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
 		let formatted = await super.formatFileContent(
-			this.expandTemplateLinebreaksOnce(input),
+			await this.expandTemplateLinebreaksOnce(input),
 		);
 
 		// Run templater only once per capture payload to prevent #533 double execution
@@ -194,7 +194,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// Process the input with templater (if needed) at this stage
 		// This is the first pass where we want to run any templater code
 		const formatted = await super.formatFileContent(
-			this.expandTemplateLinebreaksOnce(input),
+			await this.expandTemplateLinebreaksOnce(input),
 		);
 
 		// DON'T run templater parsing here - it will be handled either by:
@@ -208,10 +208,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return formatted;
 	}
 
-	private expandTemplateLinebreaksOnce(template: string): string {
+	private async expandTemplateLinebreaksOnce(template: string): Promise<string> {
 		if (this.linebreaksProcessed) return template;
 		this.linebreaksProcessed = true;
-		return this.replaceLinebreakInString(template);
+		// Global variable snippets are format-template material — the docs promise
+		// they are "processed by the usual formatter passes" — so they must be
+		// injected before linebreak expansion. The second expansion inside
+		// format() is a no-op since no {{GLOBAL_VAR}} tokens remain.
+		const withGlobals = await this.replaceGlobalVarInString(template);
+		return this.expandLinebreakEscapesOutsideTokens(withGlobals);
 	}
 
 	private normalizeTarget(target: string): string {
@@ -497,9 +502,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async createInsertAfterIfNotFound(formatted: string) {
-		// Build the line to insert using centralized location formatting
-		const insertAfterLine: string = this.replaceLinebreakInString(
-			await this.formatLocationString(this.choice.insertAfter.after),
+		// Build the line to insert using centralized location formatting.
+		// Linebreak escapes are expanded on the raw setting, before substitution,
+		// so backslash sequences in substituted values stay verbatim (issue #527).
+		const insertAfterLine: string = await this.formatLocationString(
+			this.expandLinebreakEscapesOutsideTokens(this.choice.insertAfter.after),
 		);
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
@@ -584,8 +591,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			throw new ChoiceAbortError("Insert-before settings are missing.");
 		}
 
-		const insertBeforeLine: string = this.replaceLinebreakInString(
-			await this.formatLocationString(insertBefore.before),
+		const insertBeforeLine: string = await this.formatLocationString(
+			this.expandLinebreakEscapesOutsideTokens(insertBefore.before),
 		);
 		const formattedAndInsertBeforeLine =
 			formatted.endsWith("\n") || formatted.length === 0

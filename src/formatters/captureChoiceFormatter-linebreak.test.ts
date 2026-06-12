@@ -184,12 +184,21 @@ const createFile = (path = "Target.md"): TFile => {
 	} as unknown as TFile;
 };
 
-const createFormatter = (selection: string | null) =>
-	new CaptureChoiceFormatter(createMockApp(selection), {
+class TestableCaptureFormatter extends CaptureChoiceFormatter {
+	public expandOutsideTokens(input: string): string {
+		return this.expandLinebreakEscapesOutsideTokens(input);
+	}
+}
+
+const createFormatter = (
+	selection: string | null,
+	globalVariables: Record<string, string> = {},
+) =>
+	new TestableCaptureFormatter(createMockApp(selection), {
 		settings: {
 			inputPrompt: "single-line",
 			enableTemplatePropertyTypes: false,
-			globalVariables: {},
+			globalVariables,
 			useSelectionAsCaptureValue: true,
 		},
 	} as any);
@@ -264,5 +273,73 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 		const firstPass = await formatter.formatContentOnly("{{VALUE}} \\\\n");
 
 		expect(firstPass).toBe("hello \\n");
+	});
+
+	it("expands \\n inside global variable snippets used as capture format", async () => {
+		const formatter = createFormatter("hello", {
+			JournalLine: "- {{VALUE}}\\n",
+		});
+
+		const firstPass = await formatter.formatContentOnly(
+			"{{GLOBAL_VAR:JournalLine}}",
+		);
+
+		expect(firstPass).toBe("- hello\n");
+	});
+
+	it("preserves backslash sequences in substituted insert-after targets created via createIfNotFound", async () => {
+		const formatter = createFormatter("\\nabla");
+		const choice = createChoice({
+			insertAfter: {
+				enabled: true,
+				after: "## {{VALUE}}",
+				insertAtEnd: false,
+				considerSubsections: false,
+				createIfNotFound: true,
+				createIfNotFoundLocation: "bottom",
+				inline: false,
+				replaceExisting: false,
+				blankLineAfterMatchMode: "auto",
+			},
+		});
+
+		const result = await formatter.formatContentWithFile(
+			"{{VALUE}}",
+			choice,
+			"existing",
+			createFile(),
+		);
+
+		expect(result).toBe("existing\n## \\nabla\n\\nabla");
+	});
+
+	describe("expandLinebreakEscapesOutsideTokens", () => {
+		it("expands escapes outside {{...}} tokens but never inside them", () => {
+			const formatter = createFormatter(null);
+
+			const result = formatter.expandOutsideTokens(
+				"a\\n{{VALUE:x|default:1\\n2}}b\\n",
+			);
+
+			expect(result).toBe("a\n{{VALUE:x|default:1\\n2}}b\n");
+		});
+
+		it("treats an unclosed {{ as plain text", () => {
+			const formatter = createFormatter(null);
+
+			const result = formatter.expandOutsideTokens("{{oops \\n");
+
+			expect(result).toBe("{{oops \n");
+		});
+
+		it("handles \\\\ escapes and adjacent tokens", () => {
+			const formatter = createFormatter(null);
+
+			const result = formatter.expandOutsideTokens(
+				"\\\\n{{DATE}}{{TIME}}\\n",
+			);
+
+			expect(result).toBe("\\n{{DATE}}{{TIME}}\n");
+		});
 	});
 });
