@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Notice, type App } from "obsidian";
+import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { insertFileLinkToActiveView, isFolder, openFile } from "../utilityObsidian";
+import {
+	getMarkdownFilesInFolder,
+	insertFileLinkToActiveView,
+	isFolder,
+	openFile,
+} from "../utilityObsidian";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -269,7 +275,10 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 describe("CaptureChoiceEngine capture target resolution", () => {
 	beforeEach(() => {
 		vi.mocked(isFolder).mockReset();
+		vi.mocked(getMarkdownFilesInFolder).mockReset();
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([]);
 		vi.mocked(insertFileLinkToActiveView).mockReset();
+		delete (InputSuggester as any).Suggest;
 		setTitleMock.mockClear();
 		singleTemplateRunMock.mockReset();
 		singleTemplateRunMock.mockResolvedValue("");
@@ -383,6 +392,25 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const result = await (engine as any).getFormattedPathToCaptureTo(false);
 
 		expect(result).toBe("Boards/Map.CANVAS");
+	});
+
+	it("builds a single-slash path for a typed custom filename in a folder capture", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Existing.md" } as any,
+		]);
+		(InputSuggester as any).Suggest = vi.fn(async () => "note");
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox/" }),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).selectFileInFolder("Inbox/", false);
+
+		expect(resolved).not.toContain("//");
+		expect(resolved).toBe("Inbox/note.md");
 	});
 
 	it("uses extensionless title for created .canvas capture files", async () => {
