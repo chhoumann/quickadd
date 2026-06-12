@@ -604,7 +604,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// their own file path, so we need to make sure it's in the target folder.
 		const filePath = targetFilePath.startsWith(`${folderPathSlash}`)
 			? targetFilePath
-			: `${folderPathSlash}/${targetFilePath}`;
+			: `${folderPathSlash}${targetFilePath}`;
 
 		return await this.formatFilePath(filePath);
 	}
