@@ -115,6 +115,7 @@ export class FileIndex {
 	private fuseRelaxed: Fuse<IndexedFile>;
 	private recentFiles = new LRUCache<number>();
 	private unresolvedLinks: Set<string> = new Set();
+	private unresolvedLinksDirty = true;
 	private isIndexing = false;
 	private indexPromise: Promise<void> | null = null;
 	private reindexTimeout: number | null = null;
@@ -189,6 +190,7 @@ export class FileIndex {
 		// Fallback for resolved event (less frequent, full reindex only if needed)
 		this.plugin.registerEvent(
 			this.app.metadataCache.on('resolved', () => {
+				this.unresolvedLinksDirty = true;
 				// Only schedule reindex if we don't have any files indexed yet
 				if (this.fileMap.size === 0) {
 					this.scheduleReindex();
@@ -367,7 +369,7 @@ export class FileIndex {
 		const indexedFile = this.createIndexedFile(file);
 		this.fileMap.set(file.path, indexedFile);
 		this.scheduleFuseUpdate(file.path, 'update');
-		this.updateUnresolvedLinks();
+		this.unresolvedLinksDirty = true;
 	}
 
 	private removeFile(file: TFile): void {
@@ -484,9 +486,15 @@ export class FileIndex {
 				this.unresolvedLinks.add(link);
 			}
 		}
+
+		this.unresolvedLinksDirty = false;
 	}
 
 	search(query: string, context: SearchContext = {}, limit = 50): SearchResult[] {
+		if (this.unresolvedLinksDirty) {
+			this.updateUnresolvedLinks();
+		}
+
 		const results: SearchResult[] = [];
 		const queryNormalized = normalizeForSearch(query);
 
