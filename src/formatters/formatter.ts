@@ -712,7 +712,13 @@ export abstract class Formatter {
 				continue;
 			}
 
-			const templateContent = await this.getTemplateContent(templatePath);
+			this.templateInclusion.visited.add(templatePath);
+			let templateContent: string;
+			try {
+				templateContent = await this.getTemplateContent(templatePath);
+			} finally {
+				this.templateInclusion.visited.delete(templatePath);
+			}
 
 			output = this.replacer(output, TEMPLATE_REGEX, templateContent);
 		}

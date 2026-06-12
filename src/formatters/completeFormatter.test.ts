@@ -364,6 +364,20 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		);
 	});
 
+	it("allows repeated non-cyclic template inclusions after the stack unwinds", async () => {
+		mockTemplateVault({
+			"footer.md": "footer",
+		});
+		const f = defaultFormatter();
+
+		const result = await f.formatFileContent(
+			"{{TEMPLATE:footer.md}} and {{TEMPLATE:footer.md}}",
+		);
+
+		expect(result).toBe("footer and footer");
+		expect(result).not.toContain("template inclusion cycle detected");
+	});
+
 	it("terminates over-depth template chains with a visible placeholder", async () => {
 		const templates: Record<string, string> = {};
 		for (let i = 0; i < 12; i++) {

@@ -385,7 +385,6 @@ export class CompleteFormatter extends Formatter {
 			"../engine/SingleTemplateEngine"
 		);
 		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
-		this.templateInclusion.visited.add(templatePath);
 		const childInclusion = {
 			visited: this.templateInclusion.visited,
 			depth: this.templateInclusion.depth + 1,
