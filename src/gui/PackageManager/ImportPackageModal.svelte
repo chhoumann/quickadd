@@ -109,9 +109,6 @@
 	const criticalScriptCount = $derived(
 		preview?.criticalScriptPaths.length ?? 0,
 	);
-	const criticalScriptPathSet = $derived(
-		new Set(preview?.criticalScriptPaths ?? []),
-	);
 	const hasUnbundledScript = $derived(
 		preview?.missingReferences.some((ref) => ref.asScript) ?? false,
 	);
@@ -570,9 +567,6 @@
 											.destinationPath}
 										destinationExists={row.state
 											.destinationExists}
-										reviewRequired={criticalScriptPathSet.has(
-											row.file.originalPath,
-										)}
 										onPathInput={(value) =>
 											updateAssetPath(
 												row.conflict,
@@ -607,9 +601,6 @@
 											.destinationPath}
 										destinationExists={row.state
 											.destinationExists}
-										reviewRequired={criticalScriptPathSet.has(
-											row.file.originalPath,
-										)}
 										onPathInput={(value) =>
 											updateAssetPath(
 												row.conflict,

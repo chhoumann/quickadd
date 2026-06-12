@@ -448,6 +448,7 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(file?.orphan).toBe(true);
 		// Unreferenced => not classified executable.
 		expect(file?.executable).toBe(false);
+		expect(file?.requiresReview).toBe(true);
 		// A bundled script is critical even when nothing references it: it lands on
 		// disk and any existing macro pointing at this path will run it.
 		expect(requiresAcknowledgement(preview)).toBe(true);
@@ -507,6 +508,33 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
 		expect(requiresAcknowledgement(preview)).toBe(true);
 		expect(preview.criticalScriptPaths).toContain("scripts/evil.js");
+		expect(
+			preview.files.find((file) => file.originalPath === "scripts/evil.js")
+				?.requiresReview,
+		).toBe(true);
+	});
+
+	it("keeps critical script paths aligned with files that require review", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("user-script", "scripts/orphan.js"),
+				asset("template", "scripts/mislabeled.js"),
+				asset("template", "templates/note.md"),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		const pathsRequiringReview = preview.files
+			.filter((file) => file.requiresReview)
+			.map((file) => file.originalPath);
+		expect(new Set(preview.criticalScriptPaths)).toEqual(
+			new Set(pathsRequiringReview),
+		);
+		expect(preview.criticalScriptPaths).toEqual([
+			"scripts/orphan.js",
+			"scripts/mislabeled.js",
+		]);
 	});
 
 	it("gates the capture-template by the triple-boolean", () => {
@@ -637,6 +665,7 @@ describe("gate predicates", () => {
 			[asset("template", "templates/Note.md")],
 		);
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.files[0]?.requiresReview).toBe(false);
 		expect(requiresAcknowledgement(preview)).toBe(false);
 	});
 });

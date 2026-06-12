@@ -15,7 +15,6 @@
 		mode,
 		destinationPath,
 		destinationExists,
-		reviewRequired = false,
 		reviewed = false,
 		onPathInput,
 		onModeChange,
@@ -26,8 +25,6 @@
 		mode: AssetImportMode;
 		destinationPath: string;
 		destinationExists: boolean;
-		/** Whether opening this file satisfies the script disclosure gate. */
-		reviewRequired?: boolean;
 		/** Whether this gate-required file has been opened toward the gate. */
 		reviewed?: boolean;
 		onPathInput: (value: string) => void;
@@ -53,7 +50,7 @@
 
 	function toggle() {
 		expanded = !expanded;
-		if (expanded && reviewRequired) onReviewed(file.originalPath);
+		if (expanded && file.requiresReview) onReviewed(file.originalPath);
 	}
 
 	function onDestinationInput(event: Event) {
@@ -88,7 +85,7 @@
 				>Executable</span
 			>
 		{/if}
-		{#if reviewed && mode !== "skip" && reviewRequired}
+		{#if reviewed && mode !== "skip" && file.requiresReview}
 			<span class="qa-import-file-reviewed">
 				<ObsidianIcon iconId="check" size={12} /> Reviewed
 			</span>
@@ -126,7 +123,7 @@
 		</label>
 	</div>
 
-	{#if reviewRequired && mode === "skip"}
+	{#if file.requiresReview && mode === "skip"}
 		<p class="qa-import-file-skip-warn" role="note">
 			Won't be written. Any choice that uses this script will run whatever
 			file already exists at this path after import, not the contents you

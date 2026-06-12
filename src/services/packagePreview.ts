@@ -165,8 +165,11 @@ function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
 // hint and a macro (in this package or already in the vault) will load any
 // `.js` at its path as a user script. Path-only check keeps this App-free.
 const EXECUTABLE_ASSET_PATH_REGEX = /\.js$/i;
-function isExecutableBundledAsset(file: PreviewFile): boolean {
-	return isScriptKind(file.kind) || EXECUTABLE_ASSET_PATH_REGEX.test(file.originalPath);
+function isExecutableBundledAsset(
+	kind: QuickAddPackageAssetKind,
+	originalPath: string,
+): boolean {
+	return isScriptKind(kind) || EXECUTABLE_ASSET_PATH_REGEX.test(originalPath);
 }
 
 const SEVERITY_ORDER: Record<PreviewSeverity, number> = {
@@ -219,6 +222,8 @@ export interface PreviewFile {
 	bundled: boolean;
 	/** Decided from the command graph, NOT from `kind`. */
 	executable: boolean;
+	/** Must be opened before the package import acknowledgement gate can pass. */
+	requiresReview: boolean;
 	/** Default destination already exists -> import will overwrite it. */
 	exists: boolean;
 	/** Cheap decoded-size estimate from base64 length (no decode). */
@@ -679,11 +684,14 @@ export function buildPackagePreview(
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
 		const usages = usagesByPath.get(asset.originalPath) ?? [];
 		const executable = referencedAsScript.has(asset.originalPath);
+		const requiresReview =
+			executable || isExecutableBundledAsset(asset.kind, asset.originalPath);
 		return {
 			originalPath: asset.originalPath,
 			kind: asset.kind,
 			bundled: true,
 			executable,
+			requiresReview,
 			exists: existsByPath.has(asset.originalPath),
 			sizeBytes: estimateBytesFromBase64(asset.content),
 			orphan: usages.length === 0,
@@ -751,7 +759,7 @@ export function buildPackagePreview(
 	// isExecutableBundledAsset covers both declared script kinds AND `.js`-path
 	// assets that lie about their `kind`.
 	for (const file of files) {
-		if (!isExecutableBundledAsset(file)) continue;
+		if (!file.requiresReview) continue;
 		if (file.executable) continue; // already a critical user-script/mislabeled row + in criticalScriptPaths
 		capabilityRows.push({
 			flag: "bundled-script",
@@ -816,10 +824,7 @@ export function buildPackagePreview(
 	capabilityRows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
 	const criticalScriptPaths = files
-		.filter(
-			(file) =>
-				file.bundled && (file.executable || isExecutableBundledAsset(file)),
-		)
+		.filter((file) => file.requiresReview)
 		.map((file) => file.originalPath);
 
 	const scriptCount = referencedAsScript.size;
