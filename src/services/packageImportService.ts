@@ -196,6 +196,40 @@ export async function analysePackagePreview(
 	return preview;
 }
 
+/**
+ * Validate that an imported asset's destination stays inside the vault and does
+ * not target a dotfile config directory (.obsidian, .git, ...). Throws on any
+ * out-of-bounds destination so the whole import aborts (surfaced as a Notice by
+ * ImportPackageModal). Defensive: imported packages are untrusted shared data.
+ */
+function validateAssetDestination(rawPath: string): string {
+	const normalized = normalizePath(rawPath);
+	if (!normalized || normalized.trim() === "") {
+		throw new Error("Package asset has an empty destination path.");
+	}
+
+	if (normalized.startsWith("/") || /^[a-zA-Z]:/.test(normalized)) {
+		throw new Error(
+			`Refusing to import asset to an absolute path outside the vault: "${normalized}".`,
+		);
+	}
+
+	const segments = normalized.split("/").filter((segment) => segment.length > 0);
+	if (segments.some((segment) => segment === "..")) {
+		throw new Error(
+			`Refusing to import asset with a path-traversal segment ("..") in: "${normalized}".`,
+		);
+	}
+
+	if (segments[0]?.startsWith(".") && !segments[0].startsWith("..%")) {
+		throw new Error(
+			`Refusing to import asset into a config directory: "${normalized}".`,
+		);
+	}
+
+	return normalized;
+}
+
 export async function applyPackageImport(
 	options: ApplyImportOptions,
 ): Promise<ApplyImportResult> {
@@ -416,9 +450,9 @@ export async function applyPackageImport(
 	for (const asset of pkg.assets) {
 		const decision = assetDecisionMap.get(asset.originalPath);
 		const destinationPathInput = decision?.destinationPath?.trim();
-		const destinationPath = destinationPathInput
-			? normalizePath(destinationPathInput)
-			: asset.originalPath;
+		const destinationPath = validateAssetDestination(
+			destinationPathInput || asset.originalPath,
+		);
 		const exists = await assetExists(app, destinationPath);
 		const mode =
 			decision?.mode ?? (exists ? "overwrite" : "write");
