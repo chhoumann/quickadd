@@ -89,6 +89,7 @@ describe("FilePreviewRow", () => {
 				mode: "write",
 				destinationPath: "scripts/fetch.js",
 				destinationExists: false,
+				reviewRequired: true,
 				onPathInput: noop,
 				onModeChange: noop,
 				onReviewed,
@@ -129,6 +130,30 @@ describe("FilePreviewRow", () => {
 		expect(onReviewed).not.toHaveBeenCalled();
 	});
 
+	it("reports gate-required bundled scripts as reviewed even when not command-graph executable", async () => {
+		const onReviewed = vi.fn();
+		const { getByText } = render(FilePreviewRow, {
+			props: {
+				file: makeFile({
+					originalPath: "scripts/orphan.js",
+					executable: false,
+					orphan: true,
+				}),
+				pkg: makePackage("scripts/orphan.js", "console.log('orphan')"),
+				mode: "write",
+				destinationPath: "scripts/orphan.js",
+				destinationExists: false,
+				reviewRequired: true,
+				onPathInput: noop,
+				onModeChange: noop,
+				onReviewed,
+			},
+		});
+
+		await fireEvent.click(getByText("View contents"));
+		expect(onReviewed).toHaveBeenCalledWith("scripts/orphan.js");
+	});
+
 	it("warns and drops the Reviewed badge when an executable script is skipped", () => {
 		// Skip points the dependent choice at whatever file is already on disk,
 		// so the reviewed bundled contents are NOT what runs: the badge must not
@@ -140,6 +165,7 @@ describe("FilePreviewRow", () => {
 				mode: "skip",
 				destinationPath: "scripts/fetch.js",
 				destinationExists: true,
+				reviewRequired: true,
 				reviewed: true,
 				onPathInput: noop,
 				onModeChange: noop,
@@ -159,6 +185,7 @@ describe("FilePreviewRow", () => {
 				mode: "write",
 				destinationPath: "scripts/fetch.js",
 				destinationExists: false,
+				reviewRequired: true,
 				reviewed: true,
 				onPathInput: noop,
 				onModeChange: noop,

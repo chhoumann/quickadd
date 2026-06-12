@@ -15,6 +15,7 @@
 		mode,
 		destinationPath,
 		destinationExists,
+		reviewRequired = false,
 		reviewed = false,
 		onPathInput,
 		onModeChange,
@@ -25,7 +26,9 @@
 		mode: AssetImportMode;
 		destinationPath: string;
 		destinationExists: boolean;
-		/** Whether this executable script has been opened toward the gate. */
+		/** Whether opening this file satisfies the script disclosure gate. */
+		reviewRequired?: boolean;
+		/** Whether this gate-required file has been opened toward the gate. */
 		reviewed?: boolean;
 		onPathInput: (value: string) => void;
 		onModeChange: (mode: AssetImportMode) => void;
@@ -50,8 +53,7 @@
 
 	function toggle() {
 		expanded = !expanded;
-		// Only executable scripts count toward the disclosure gate.
-		if (expanded && file.executable) onReviewed(file.originalPath);
+		if (expanded && reviewRequired) onReviewed(file.originalPath);
 	}
 
 	function onDestinationInput(event: Event) {
@@ -85,11 +87,11 @@
 				use:tooltip={"Runs as code when its choice runs. It can read, change, or delete files in your vault and access the network."}
 				>Executable</span
 			>
-			{#if reviewed && mode !== "skip"}
-				<span class="qa-import-file-reviewed">
-					<ObsidianIcon iconId="check" size={12} /> Reviewed
-				</span>
-			{/if}
+		{/if}
+		{#if reviewed && mode !== "skip" && reviewRequired}
+			<span class="qa-import-file-reviewed">
+				<ObsidianIcon iconId="check" size={12} /> Reviewed
+			</span>
 		{/if}
 		{#if file.orphan}
 			<span
@@ -124,7 +126,7 @@
 		</label>
 	</div>
 
-	{#if file.executable && mode === "skip"}
+	{#if reviewRequired && mode === "skip"}
 		<p class="qa-import-file-skip-warn" role="note">
 			Won't be written. Any choice that uses this script will run whatever
 			file already exists at this path after import, not the contents you
