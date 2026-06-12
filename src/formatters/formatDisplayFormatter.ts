@@ -31,7 +31,11 @@ export class FormatDisplayFormatter extends Formatter {
 		let output: string = input;
 
 		try {
-			// Expand global variables first so previews include their content
+			// Expand linebreak escapes on the raw format string first, mirroring
+			// CaptureChoiceFormatter: `\n` is a format-template escape and must not
+			// apply to substituted content (issue #527).
+			output = this.replaceLinebreakInString(output);
+			// Expand global variables so previews include their content
 			output = await this.replaceGlobalVarInString(output);
 			output = this.replaceDateInString(output);
 			output = this.replaceTimeInString(output);
@@ -46,7 +50,6 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);
 			output = this.replaceRandomInString(output);
-			output = this.replaceLinebreakInString(output);
 		} catch {
 			// Return the input as-is if formatting fails during preview
 			// This prevents crashes when typing incomplete syntax
