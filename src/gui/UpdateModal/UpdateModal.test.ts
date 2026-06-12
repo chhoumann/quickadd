@@ -72,6 +72,44 @@ describe("renderVideoAttachments", () => {
 		expect(result).not.toMatch(new RegExp(`^${VIDEO_URL}$`, "m"));
 	});
 
+	it("uses an adjacent poster comment and removes it from the output", () => {
+		const body = [
+			"🎬 **A 60-second tour of the highlights:**",
+			"",
+			VIDEO_URL,
+			`<!-- poster: ${THUMB_URL} -->`,
+			"",
+			"## Next section",
+		].join("\n");
+
+		const result = renderVideoAttachments(body);
+
+		expect(result).toContain(`poster="${THUMB_URL}"`);
+		expect(result).not.toContain("<!-- poster:");
+		expect(result).toContain("## Next section");
+	});
+
+	it("prefers the poster comment over a thumbnail-derived poster", () => {
+		const otherPoster = "https://example.com/other.png";
+		const body = [
+			`[![Watch](${THUMB_URL})](${VIDEO_URL})`,
+			"",
+			VIDEO_URL,
+			"",
+			`<!-- poster: ${otherPoster} -->`,
+		].join("\n");
+
+		const result = renderVideoAttachments(body);
+
+		expect(result).toContain(`poster="${otherPoster}"`);
+		expect((result.match(/<video /g) ?? []).length).toBe(1);
+	});
+
+	it("leaves poster comments without an adjacent video URL untouched", () => {
+		const body = `Some text.\n<!-- poster: ${THUMB_URL} -->\nMore text.`;
+		expect(renderVideoAttachments(body)).toBe(body);
+	});
+
 	it("handles empty bodies", () => {
 		expect(renderVideoAttachments("")).toBe("");
 	});

@@ -57,6 +57,11 @@ const USER_ATTACHMENT_VIDEO_URL =
 // A linked thumbnail: [![alt](poster.png)](https://github.com/user-attachments/assets/...)
 const LINKED_VIDEO_THUMBNAIL =
 	/^\[!\[[^\]]*\]\(([^)\s"]+)\)\]\((https:\/\/github\.com\/user-attachments\/assets\/[A-Za-z0-9-]+)\)$/;
+// A poster hint next to a bare video URL: <!-- poster: https://... -->
+// GitHub strips HTML comments, so release notes can carry a poster for the
+// modal's player without rendering a duplicate video on the GitHub page
+// (GitHub also turns links to video attachments into players).
+const VIDEO_POSTER_COMMENT = /^<!--\s*poster:\s*(https:\/\/[^\s"'>]+)\s*-->$/;
 
 function videoPlayerHtml(url: string, poster?: string): string {
 	const posterAttr = poster ? ` poster="${poster}"` : "";
@@ -88,9 +93,34 @@ export function renderVideoAttachments(markdownText: string): string {
 		}
 	}
 
+	// A poster comment adjacent to a bare URL (above or below, across blank
+	// lines) wins over a thumbnail-derived poster.
+	const consumedPosterLines = new Set<number>();
+	for (let i = 0; i < lines.length; i++) {
+		if (!USER_ATTACHMENT_VIDEO_URL.test(lines[i].trim())) continue;
+		for (const direction of [1, -1]) {
+			let j = i + direction;
+			while (j >= 0 && j < lines.length && lines[j].trim() === "") {
+				j += direction;
+			}
+			const comment =
+				j >= 0 && j < lines.length
+					? lines[j].trim().match(VIDEO_POSTER_COMMENT)
+					: null;
+			if (comment) {
+				posters.set(lines[i].trim(), comment[1]);
+				consumedPosterLines.add(j);
+				break;
+			}
+		}
+	}
+
 	const result: string[] = [];
-	for (const line of lines) {
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
 		const trimmed = line.trim();
+
+		if (consumedPosterLines.has(i)) continue;
 
 		const thumbnail = trimmed.match(LINKED_VIDEO_THUMBNAIL);
 		if (thumbnail && bareUrls.has(thumbnail[2])) continue;
