@@ -14,6 +14,7 @@ function makeFile(overrides: Partial<PreviewFile> = {}): PreviewFile {
 		kind: "user-script",
 		bundled: true,
 		executable: true,
+		requiresReview: true,
 		exists: false,
 		sizeBytes: 20,
 		orphan: false,
@@ -114,6 +115,7 @@ describe("FilePreviewRow", () => {
 					originalPath: "templates/Note.md",
 					kind: "template",
 					executable: false,
+					requiresReview: false,
 				}),
 				pkg: makePackage("templates/Note.md", "# Note", "template"),
 				mode: "write",
@@ -127,6 +129,30 @@ describe("FilePreviewRow", () => {
 
 		await fireEvent.click(getByText("View contents"));
 		expect(onReviewed).not.toHaveBeenCalled();
+	});
+
+	it("reports gate-required bundled scripts as reviewed even when not command-graph executable", async () => {
+		const onReviewed = vi.fn();
+		const { getByText } = render(FilePreviewRow, {
+			props: {
+				file: makeFile({
+					originalPath: "scripts/orphan.js",
+					executable: false,
+					requiresReview: true,
+					orphan: true,
+				}),
+				pkg: makePackage("scripts/orphan.js", "console.log('orphan')"),
+				mode: "write",
+				destinationPath: "scripts/orphan.js",
+				destinationExists: false,
+				onPathInput: noop,
+				onModeChange: noop,
+				onReviewed,
+			},
+		});
+
+		await fireEvent.click(getByText("View contents"));
+		expect(onReviewed).toHaveBeenCalledWith("scripts/orphan.js");
 	});
 
 	it("warns and drops the Reviewed badge when an executable script is skipped", () => {
