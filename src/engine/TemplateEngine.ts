@@ -1,6 +1,9 @@
 import { QuickAddEngine } from "./QuickAddEngine";
 import { CompleteFormatter } from "../formatters/completeFormatter";
-import type { LinkToCurrentFileBehavior } from "../formatters/formatter";
+import type {
+	LinkToCurrentFileBehavior,
+	TemplateInclusionState,
+} from "../formatters/formatter";
 import type { App } from "obsidian";
 import { Notice, TFile, TFolder } from "obsidian";
 import type QuickAdd from "../main";
@@ -81,11 +84,15 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	protected constructor(
 		app: App,
 		protected plugin: QuickAdd,
-		choiceFormatter?: IChoiceExecutor
+		choiceFormatter?: IChoiceExecutor,
+		inclusion?: TemplateInclusionState,
 	) {
 		super(app);
 		this.templater = getTemplater(app);
 		this.formatter = new CompleteFormatter(app, plugin, choiceFormatter);
+		if (inclusion) {
+			this.formatter.setTemplateInclusionState(inclusion);
+		}
 	}
 
 	public abstract run():

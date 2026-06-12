@@ -384,11 +384,17 @@ export class CompleteFormatter extends Formatter {
 		const { SingleTemplateEngine } = await import(
 			"../engine/SingleTemplateEngine"
 		);
+		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
+		const childInclusion = {
+			visited: this.templateInclusion.visited,
+			depth: this.templateInclusion.depth + 1,
+		};
 		return await new SingleTemplateEngine(
 			this.app,
 			this.plugin,
 			templatePath,
 			this.choiceExecutor,
+			childInclusion,
 		).run();
 	}
 

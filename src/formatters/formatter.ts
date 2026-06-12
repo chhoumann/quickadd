@@ -53,12 +53,20 @@ export interface PromptContext {
 	optional?: boolean; // Token carries |optional: empty submissions are accepted as the answer.
 }
 
+export interface TemplateInclusionState {
+	visited: Set<string>;
+	depth: number;
+}
+
+const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
+
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
 	protected valuePromptContext?: PromptContext;
+	protected templateInclusion?: TemplateInclusionState;
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
@@ -69,6 +77,10 @@ export abstract class Formatter {
 	}
 
 	protected abstract format(input: string): Promise<string>;
+
+	public setTemplateInclusionState(state: TemplateInclusionState): void {
+		this.templateInclusion = state;
+	}
 
 	/** Returns true when a variable is present AND its value is not undefined.
 	 *  Null and empty string are considered intentional values. */
@@ -690,7 +702,29 @@ export abstract class Formatter {
 			if (!exec || !exec[1]) continue;
 
 			const templatePath = exec[1];
-			const templateContent = await this.getTemplateContent(templatePath);
+			this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
+
+			if (this.templateInclusion.visited.has(templatePath)) {
+				const placeholder = `[QuickAdd: template inclusion cycle detected at "${templatePath}"]`;
+				log.logError(placeholder);
+				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
+				continue;
+			}
+
+			if (this.templateInclusion.depth >= MAX_TEMPLATE_INCLUSION_DEPTH) {
+				const placeholder = `[QuickAdd: max template inclusion depth (${MAX_TEMPLATE_INCLUSION_DEPTH}) exceeded at "${templatePath}"]`;
+				log.logError(placeholder);
+				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
+				continue;
+			}
+
+			this.templateInclusion.visited.add(templatePath);
+			let templateContent: string;
+			try {
+				templateContent = await this.getTemplateContent(templatePath);
+			} finally {
+				this.templateInclusion.visited.delete(templatePath);
+			}
 
 			output = this.replacer(output, TEMPLATE_REGEX, templateContent);
 		}
