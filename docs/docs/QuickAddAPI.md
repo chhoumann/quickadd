@@ -585,17 +585,20 @@ const selectedModel = await quickAddApi.suggester(models, models);
 Gets the maximum token limit for a model.
 
 ### `countTokens(text: string, model: string): number`
-Counts tokens in text according to model's tokenization.
+Returns a fast synchronous token estimate (`~4` characters per token). This does
+not load tokenizer rank data and should be used for UI hints or rough preflight
+warnings, not as an exact model-limit gate. QuickAdd's built-in AI requests still
+use exact token counts internally before sending requests.
 
 **Example:**
 ```javascript
 const text = await quickAddApi.utility.getClipboard();
-const tokenCount = quickAddApi.ai.countTokens(text, "gpt-4");
+const estimatedTokens = quickAddApi.ai.countTokens(text, "gpt-4");
 
-if (tokenCount > 4000) {
+if (estimatedTokens > 4000) {
     await quickAddApi.infoDialog(
-        "Text Too Long",
-        `The text contains ${tokenCount} tokens, which exceeds the model limit.`
+        "Text May Be Too Long",
+        `The text is roughly ${estimatedTokens} tokens. Consider shortening it before sending.`
     );
 }
 ```
