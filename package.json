@@ -27,7 +27,6 @@
     "@typescript-eslint/eslint-plugin": "^8.60.1",
     "@typescript-eslint/parser": "^8.60.1",
     "@vitest/coverage-v8": "4.1.8",
-    "cz-conventional-changelog": "^3.3.0",
     "esbuild": "^0.28.1",
     "esbuild-svelte": "^0.9.5",
     "eslint": "10",
@@ -61,16 +60,14 @@
     "url": "https://github.com/chhoumann/quickadd.git"
   },
   "packageManager": "pnpm@10.32.1",
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
-    }
-  },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@codemirror/language",
       "esbuild"
-    ]
+    ],
+    "overrides": {
+      "obsidian-calendar-ui>svelte": "^3.59.2"
+    }
   },
   "release": {
     "tagFormat": "${version}",
