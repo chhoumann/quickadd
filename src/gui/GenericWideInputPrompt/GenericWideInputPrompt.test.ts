@@ -104,6 +104,14 @@ describe("GenericWideInputPrompt - Escape Backslashes", () => {
 			const result = prompt.escapeBackslashes(input);
 			expect(result).toBe("Line1\nLine2\nLine3");
 		});
+
+		it("should not affect literal tab characters (issue #764)", () => {
+			// A real tab (0x09) inserted via Tab is not a backslash, so it passes
+			// through untouched and renders as indentation in the capture.
+			const input = "- item\n\tsub-item";
+			const result = prompt.escapeBackslashes(input);
+			expect(result).toBe("- item\n\tsub-item");
+		});
 	});
 
 	describe("Issue #799 test case", () => {
