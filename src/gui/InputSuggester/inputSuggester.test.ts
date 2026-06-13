@@ -71,21 +71,23 @@ describe("InputSuggester", () => {
 		).toBe(false);
 	});
 
-	it("suppresses the custom row when the typed value matches a displayed name", () => {
-		// Folder picker shape: items are full paths, displayItems are the folder-stripped
-		// names actually shown to the user (extension preserved, e.g. "note.md").
+	it("keeps a typed display label submittable for generic callers (no valueExists)", () => {
+		// Public api.suggester / |text format syntax shape: display labels differ from
+		// the underlying values, and allowCustomInput lets the user submit typed text
+		// that is NOT an actual item. Typing a string equal to a display LABEL (not a
+		// value) must still yield a submittable custom row — it is not an existing target.
 		const suggester = new InputSuggester(
 			app,
-			["note.md"],
-			["Inbox/note.md"],
+			["Apple Label", "Banana Label"],
+			["apple-id", "banana-id"],
 		);
 
-		suggester.inputEl.value = "note.md";
+		suggester.inputEl.value = "Apple Label";
 
-		const suggestions = suggester.getSuggestions("note.md");
+		const suggestions = suggester.getSuggestions("Apple Label");
 
-		// "note.md" already maps to Inbox/note.md, so no create row should be synthesized.
-		expect(suggestions.some((s) => s.item === "note.md")).toBe(false);
+		// The literal typed label is still offered as a custom value (regression guard).
+		expect(suggestions[suggestions.length - 1]?.item).toBe("Apple Label");
 	});
 
 	it("suppresses the custom row when valueExists reports an existing target", () => {

@@ -13,7 +13,8 @@ import type { PickerOrderingDeps } from "./fileOrdering";
  * internal (absent from obsidian.d.ts), so it is reached through a narrow local cast.
  */
 export function buildPickerOrderingDeps(app: App): PickerOrderingDeps {
-	const recents = app.workspace?.getLastOpenFiles?.() ?? [];
+	const rawRecents = app.workspace?.getLastOpenFiles?.();
+	const recents = Array.isArray(rawRecents) ? rawRecents : [];
 	const recentRank = new Map<string, number>();
 	recents.forEach((path, index) => {
 		if (!recentRank.has(path)) recentRank.set(path, index);

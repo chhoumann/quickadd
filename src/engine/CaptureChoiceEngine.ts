@@ -583,7 +583,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			: `${folderPathSlash}${value}`;
 		const candidates = [withinScope];
 		if (!/\.(md|canvas)$/i.test(withinScope)) {
-			candidates.push(`${withinScope}.md`);
+			candidates.push(`${withinScope}.md`, `${withinScope}.canvas`);
 		}
 		return candidates.some(
 			(path) => !!this.app.vault.getAbstractFileByPath(path),

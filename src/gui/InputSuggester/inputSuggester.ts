@@ -157,13 +157,11 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			return suggestions;
 		}
 
-		// The user types/sees displayItems (e.g. folder-stripped note names), so a
-		// value that matches an existing target must be suppressed against those too,
-		// not just the raw items — otherwise the "create" row lies about existing notes.
-		if (this.displayItems.includes(customValue)) {
-			return suggestions;
-		}
-
+		// Capture pickers pass valueExists to suppress the "create" row when the typed
+		// value already resolves to an existing note (by basename or full path, with or
+		// without extension). This is intentionally NOT a displayItems check: generic
+		// callers (e.g. api.suggester, |text format syntax) use arbitrary display labels
+		// that are not existing targets, and must keep their typed value submittable.
 		if (this.valueExists?.(customValue)) {
 			return suggestions;
 		}
