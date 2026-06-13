@@ -162,6 +162,20 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					desc: "When searching in the choice picker, also match choices nested inside Multi choices and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.",
 					control: { type: "toggle", key: "searchNestedChoices" },
 				},
+				{
+					name: "“New note from template” in the launcher",
+					desc: "Add a row to Run QuickAdd that lists templates from your configured template folder, so you can create a note from a template without a dedicated Template choice. Only appears when a template folder is configured; the command palette entry works regardless.",
+					control: {
+						type: "dropdown",
+						key: "templateFolderLauncherRow",
+						defaultValue: "bottom",
+						options: {
+							bottom: "Show at the bottom (keeps your top choice first)",
+							top: "Show at the top",
+							off: "Hide",
+						},
+					},
+				},
 			],
 		};
 	}

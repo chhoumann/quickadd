@@ -183,6 +183,19 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		expect(tab.getControlValue("showCaptureNotification")).toBe(true);
 	});
 
+	it("the launcher-row dropdown round-trips its enum value through the store", () => {
+		const tab = makeTab();
+
+		// Default surfaced from DEFAULT_SETTINGS.
+		expect(tab.getControlValue("templateFolderLauncherRow")).toBe("bottom");
+
+		for (const position of ["top", "off", "bottom"] as const) {
+			tab.setControlValue("templateFolderLauncherRow", position);
+			expect(settingsStore.getState().templateFolderLauncherRow).toBe(position);
+			expect(tab.getControlValue("templateFolderLauncherRow")).toBe(position);
+		}
+	});
+
 	it("maps the inputPrompt toggle to and from its enum value", () => {
 		const tab = makeTab();
 
@@ -274,6 +287,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		expect(choicePickerGroup.heading).toBe("Choice Picker");
 		expect(choicePickerGroup.items?.map((item) => item.name)).toEqual([
 			"Search nested choices",
+			"“New note from template” in the launcher",
 		]);
 	});
 });

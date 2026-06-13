@@ -3,6 +3,9 @@ import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import type IChoice from "./types/choices/IChoice";
 import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
 
+/** Position of the "New note from template" row in the Run QuickAdd launcher. */
+export type TemplateFolderLauncherRowPosition = "off" | "top" | "bottom";
+
 export interface QuickAddSettings {
 	choices: IChoice[];
 	inputPrompt: "multi-line" | "single-line";
@@ -16,6 +19,13 @@ export interface QuickAddSettings {
 		* inside Multi choices and shows matches with their folder path.
 		*/
 	searchNestedChoices: boolean;
+	/**
+		* Where the "New note from template" row appears in Run QuickAdd (when at
+		* least one template folder is configured). `"bottom"` keeps it out of the
+		* first-Enter slot; `"top"` makes it the first item; `"off"` hides it (the
+		* command palette entry always works regardless).
+		*/
+	templateFolderLauncherRow: TemplateFolderLauncherRowPosition;
 	devMode: boolean;
 	/**
 		* Folders whose files are offered as template suggestions when configuring
@@ -85,6 +95,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	persistInputPromptDrafts: true,
 	useSelectionAsCaptureValue: true,
 	searchNestedChoices: true,
+	templateFolderLauncherRow: "bottom",
 	devMode: false,
 	templateFolderPaths: [],
 	announceUpdates: "major",

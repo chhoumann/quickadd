@@ -1,5 +1,7 @@
 import type { CliData, CliFlags } from "obsidian";
 import { ChoiceExecutor } from "../choiceExecutor";
+import { createFolderTemplateChoice } from "../engine/runTemplateFromFolder";
+import { getTemplateFile } from "../utilityObsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
@@ -9,6 +11,8 @@ import {
 } from "../preflight/collectChoiceRequirements";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import {
 	analysePackagePreview,
 	readQuickAddPackage,
@@ -78,6 +82,20 @@ const LIST_FLAGS: CliFlags = {
 	},
 };
 
+const RUN_TEMPLATE_FLAGS: CliFlags = {
+	path: {
+		value: "<vault-path>",
+		description: "Path to a template file in the vault",
+	},
+	vars: {
+		value: "<json>",
+		description: "Variables object as JSON",
+	},
+	ui: {
+		description: "Allow interactive prompts",
+	},
+};
+
 const CHECK_FLAGS: CliFlags = {
 	choice: {
 		value: "<name>",
@@ -104,11 +122,13 @@ const PREVIEW_FLAGS: CliFlags = {
 };
 
 const RESERVED_RUN_PARAMS = new Set<string>(["choice", "id", "vars", "ui"]);
+const RESERVED_RUN_TEMPLATE_PARAMS = new Set<string>(["path", "vars", "ui"]);
 const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars"]);
 
 const CLI_COMMANDS = {
 	runDefault: "quickadd",
 	run: "quickadd:run",
+	runTemplate: "quickadd:run-template",
 	list: "quickadd:list",
 	check: "quickadd:check",
 	preview: "quickadd:package-preview",
@@ -253,15 +273,29 @@ function describeChoice(choice: IChoice) {
 	};
 }
 
-async function runChoiceHandler(
+/**
+ * Shared execution tail for any already-resolved choice (persisted via
+ * `quickadd:run` or built ad-hoc via `quickadd:run-template`): variable wiring,
+ * the non-interactive missing-input guard, execution, and the JSON envelope.
+ */
+async function runResolvedChoice(
 	plugin: QuickAdd,
 	params: CliData,
 	command: string,
+	choice: IChoice,
+	reservedParams: Set<string>,
+	/**
+	 * Report the real execution outcome via executeWithOutcome (Template/Capture
+	 * only) instead of trusting that the void execute() resolving means success.
+	 * The Template/Capture engines swallow runtime failures (missing/empty file
+	 * name, failing inline script, write error) — without this the CLI would
+	 * report ok:true with no file created. quickadd:run keeps the legacy path.
+	 */
+	useOutcome = false,
 ): Promise<string> {
 	const startedAt = Date.now();
 
 	try {
-		const choice = resolveChoiceFromParams(plugin, params);
 		if (choice.type === "Multi") {
 			return serialize({
 				ok: false,
@@ -271,7 +305,7 @@ async function runChoiceHandler(
 			});
 		}
 
-		const variables = extractVariables(params, RESERVED_RUN_PARAMS);
+		const variables = extractVariables(params, reservedParams);
 		const choiceExecutor = new ChoiceExecutor(
 			plugin.app,
 			plugin,
@@ -304,6 +338,47 @@ async function runChoiceHandler(
 			}
 		}
 
+		if (
+			useOutcome &&
+			(choice.type === "Template" || choice.type === "Capture") &&
+			typeof choiceExecutor.executeWithOutcome === "function"
+		) {
+			const outcome = await choiceExecutor.executeWithOutcome(
+				choice as ITemplateChoice | ICaptureChoice,
+			);
+			const durationMs = Date.now() - startedAt;
+
+			if (outcome.status === "success") {
+				return serialize({
+					ok: true,
+					command,
+					choice: describeChoice(choice),
+					file: outcome.file?.path,
+					durationMs,
+				});
+			}
+			if (outcome.status === "cancelled") {
+				return serialize({
+					ok: false,
+					command,
+					error:
+						outcome.cancelKind === "user"
+							? "Execution cancelled by user"
+							: "Execution aborted",
+					aborted: true,
+					choice: describeChoice(choice),
+					durationMs,
+				});
+			}
+			return serialize({
+				ok: false,
+				command,
+				error: "Choice execution failed; no file was created.",
+				choice: describeChoice(choice),
+				durationMs,
+			});
+		}
+
 		await choiceExecutor.execute(choice);
 		const aborted = choiceExecutor.consumeAbortSignal?.();
 		const durationMs = Date.now() - startedAt;
@@ -325,6 +400,114 @@ async function runChoiceHandler(
 			choice: describeChoice(choice),
 			durationMs,
 		});
+	} catch (error) {
+		return serialize({
+			ok: false,
+			command,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
+async function runChoiceHandler(
+	plugin: QuickAdd,
+	params: CliData,
+	command: string,
+): Promise<string> {
+	let choice: IChoice;
+	try {
+		choice = resolveChoiceFromParams(plugin, params);
+	} catch (error) {
+		return serialize({
+			ok: false,
+			command,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+
+	return runResolvedChoice(
+		plugin,
+		params,
+		command,
+		choice,
+		RESERVED_RUN_PARAMS,
+	);
+}
+
+async function runTemplateHandler(
+	plugin: QuickAdd,
+	params: CliData,
+): Promise<string> {
+	const command = CLI_COMMANDS.runTemplate;
+
+	// Wrapped so malformed input (e.g. invalid vars= JSON parsed by the up-front
+	// name check) returns the standard {ok:false,error} envelope instead of
+	// rejecting the handler — matching quickadd:run and run-template's ui path.
+	try {
+		const path = typeof params.path === "string" ? params.path.trim() : "";
+		if (!path) {
+			return serialize({
+				ok: false,
+				command,
+				error: "Missing template path. Provide path=<vault-path>.",
+			});
+		}
+
+		// Honest envelope: confirm the template file exists up front rather than
+		// letting the engine swallow a missing-file error and report ok:true. Use
+		// the engine's own resolver (getTemplateFile) so the CLI accepts exactly the
+		// paths the engine does — leading slash stripped, ".md" appended — instead of
+		// a stricter raw lookup that rejects "Templates/Daily" or "/Templates/Daily.md".
+		const file = getTemplateFile(plugin.app, path);
+		if (!file) {
+			return serialize({
+				ok: false,
+				command,
+				error: `No template file found at '${path}'.`,
+			});
+		}
+
+		// Build from the resolved path so the note-name prompt header (basename) and
+		// the content read agree with what the engine will open.
+		const choice = createFolderTemplateChoice(file.path);
+
+		// Honest envelope for the note name. The name is {{value}}; when it's provided
+		// but blank, the requirement collector consumes it (so the standard guard sees
+		// nothing missing) and the engine then throws "File name is empty" and swallows
+		// it — reporting a false ok:true with no note created. Reject a blank name up
+		// front for non-interactive runs (ui mode can still prompt). Headless runs have
+		// no editor selection, so {{value}} comes solely from this variable.
+		if (!isTruthy(params.ui)) {
+			const variables = extractVariables(params, RESERVED_RUN_TEMPLATE_PARAMS);
+			const name = variables.value;
+			if (name == null || String(name).trim().length === 0) {
+				return serialize({
+					ok: false,
+					command,
+					error: "Missing required inputs for non-interactive CLI run.",
+					choice: describeChoice(choice),
+					missing: [
+						{
+							id: "value",
+							label: "New note name",
+							type: "text",
+							source: "collected",
+							optionCount: 0,
+						},
+					],
+					missingFlags: ["value-value=<value>"],
+				});
+			}
+		}
+
+		return await runResolvedChoice(
+			plugin,
+			params,
+			command,
+			choice,
+			RESERVED_RUN_TEMPLATE_PARAMS,
+			/* useOutcome */ true,
+		);
 	} catch (error) {
 		return serialize({
 			ok: false,
@@ -496,6 +679,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Run a QuickAdd choice",
 		RUN_FLAGS,
 		(params: CliData) => runChoiceHandler(plugin, params, CLI_COMMANDS.run),
+	);
+	register(
+		CLI_COMMANDS.runTemplate,
+		"Create a new note from a template file (no Template choice required)",
+		RUN_TEMPLATE_FLAGS,
+		(params: CliData) => runTemplateHandler(plugin, params),
 	);
 	register(
 		CLI_COMMANDS.list,

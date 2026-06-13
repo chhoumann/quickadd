@@ -39,6 +39,29 @@ Check which inputs are still missing before a non-interactive run.
 obsidian vault=dev quickadd:check choice="Daily log"
 ```
 
+### `quickadd:run-template`
+
+Create a new note from a template file — no dedicated Template choice required.
+This is the scriptable form of the **New note from template** command.
+
+```bash
+obsidian vault=dev quickadd:run-template \
+  path="Templates/Meeting.md" \
+  value-value="2026-06-14 Standup"
+```
+
+- `path=` is the template file (vault-relative). A leading slash is allowed and a
+  missing `.md` extension is added, matching how Template choices resolve paths.
+  If no file resolves there, the command returns `{"ok":false}` up front.
+- The new note's name comes from `{{value}}` — pass it as `value-value=...`. A
+  non-interactive run with an empty or missing name returns `missingFlags`
+  instead of creating an unnamed note. The note is created in Obsidian's
+  "Default location for new notes".
+- The picker (interactive command) only lists templates inside your configured
+  template folder(s); `path=` here is explicit, so any vault file resolves.
+- Like `quickadd:run`, name collisions on the target note still prompt
+  interactively (the file-exists choice is not a pre-collected input).
+
 ## Passing variables
 
 QuickAdd CLI supports three variable patterns:

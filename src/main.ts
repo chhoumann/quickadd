@@ -43,6 +43,7 @@ import {
 	parseCallbackTargets,
 	type CallbackTargets,
 } from "./uri/uriCallback";
+import { runTemplateFromFolder } from "./engine/runTemplateFromFolder";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -102,7 +103,19 @@ export default class QuickAdd extends Plugin {
 			id: "runQuickAdd",
 			name: QUICK_ADD_COMMAND_LABELS.run,
 			callback: () => {
-				ChoiceSuggester.Open(this, this.settings.choices);
+				ChoiceSuggester.Open(this, this.settings.choices, {
+					includeTemplateFolderRow: true,
+				});
+			},
+		});
+
+		this.addCommand({
+			id: "runTemplateFromFolder",
+			name: QUICK_ADD_COMMAND_LABELS.runTemplateFromFolder,
+			callback: () => {
+				void runTemplateFromFolder(this.app, this, {
+					choiceExecutor: new ChoiceExecutor(this.app, this),
+				});
 			},
 		});
 
@@ -276,7 +289,9 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
-				ChoiceSuggester.Open(this, this.settings.choices);
+				ChoiceSuggester.Open(this, this.settings.choices, {
+					includeTemplateFolderRow: true,
+				});
 			});
 		}
 

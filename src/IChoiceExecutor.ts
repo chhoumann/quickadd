@@ -1,9 +1,22 @@
 import type IChoice from "./types/choices/IChoice";
+import type ITemplateChoice from "./types/choices/ITemplateChoice";
+import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type { MacroAbortError } from "./errors/MacroAbortError";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
+	/**
+	 * Executes a Template/Capture choice and returns its structured outcome
+	 * (success with the affected file, error, or cancelled) instead of the void
+	 * {@link execute}. Callers that must report real success/failure — the URI
+	 * x-callback handler and the `quickadd:run-template` CLI — use this so a
+	 * swallowed engine failure can't masquerade as success. Optional so existing
+	 * stubs remain valid.
+	 */
+	executeWithOutcome?(
+		choice: ITemplateChoice | ICaptureChoice,
+	): Promise<ChoiceOutcome>;
 	variables: Map<string, unknown>;
 	/**
 	 * Records the structured outcome of the current execution so an orchestrator

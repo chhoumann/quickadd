@@ -4,6 +4,10 @@ title: Template
 
 The template choice type is not meant to be a replacement for [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use both QuickAdd format syntax in a Templater template - and both will work.
 
+:::tip Run a template without making a choice
+If you just want to spin up a note from a template in your [template folder](/Settings.md#templates--properties) without maintaining a Template choice per file, use the **New note from template** command. It lists the templates in your configured folder, prompts for the new note's name, and creates it in Obsidian's default location. When a template folder is configured, the same entry also appears in **Run QuickAdd** — at the bottom by default, or move it to the top / hide it under [Settings → Choice Picker](/Settings.md#choice-picker) — and it's scriptable via [`quickadd:run-template`](/Advanced/CLI.md#quickaddrun-template). Make a Template choice (below) when you need a fixed location, file-name format, linking, or a hotkey.
+:::
+
 The Template choice builder groups its settings into four sections: **Template** (template path and file name format), **Location** (where the file is created), **Linking** (whether and how to link to the created file), and **Behavior** (what happens when the file already exists, and how the file is opened).
 
 ![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](/img/choices/template-builder.png)

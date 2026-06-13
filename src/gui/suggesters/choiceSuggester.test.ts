@@ -5,14 +5,25 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
 }));
 
+// Spy on the engine entry while keeping hasConfiguredTemplateFolders real (the
+// constructor's injection gate depends on it).
+vi.mock("../../engine/runTemplateFromFolder", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof RunTemplateFromFolderModule>();
+	return { ...actual, runTemplateFromFolder: vi.fn().mockResolvedValue(undefined) };
+});
+
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { MultiChoice } from "../../types/choices/MultiChoice";
 import { settingsStore } from "../../settingsStore";
+import { runTemplateFromFolder } from "../../engine/runTemplateFromFolder";
+import type * as RunTemplateFromFolderModule from "../../engine/runTemplateFromFolder";
 import ChoiceSuggester, {
 	BACK_CHOICE_ID,
+	RUN_TEMPLATE_FROM_FOLDER_ID,
 	stripInlineMarkdown,
 } from "./choiceSuggester";
 
@@ -113,6 +124,134 @@ describe("ChoiceSuggester", () => {
 	function makeSuggester(choices: IChoice[]): ChoiceSuggester {
 		return new ChoiceSuggester(plugin, choices, { choiceExecutor: executor });
 	}
+
+	describe("template folder launcher row", () => {
+		function pluginWith(settings: {
+			templateFolderPaths?: string[];
+			templateFolderLauncherRow?: "off" | "top" | "bottom" | undefined;
+		}): QuickAdd {
+			return {
+				app,
+				settings: {
+					templateFolderPaths: settings.templateFolderPaths ?? [],
+					// Mirror DEFAULT_SETTINGS: undefined means "bottom".
+					templateFolderLauncherRow:
+						"templateFolderLauncherRow" in settings
+							? settings.templateFolderLauncherRow
+							: "bottom",
+				},
+			} as unknown as QuickAdd;
+		}
+
+		function open(p: QuickAdd, includeRow: boolean): ChoiceSuggester {
+			return new ChoiceSuggester(p, rootChoices, {
+				choiceExecutor: executor,
+				includeTemplateFolderRow: includeRow,
+			});
+		}
+
+		it("appends the row at the bottom by default (keeps the first choice first)", () => {
+			const s = open(pluginWith({ templateFolderPaths: ["Templates"] }), true);
+			const ids = s.getSuggestions("").map((x) => x.item.id);
+			expect(ids[0]).toBe(rootChoices[0].id);
+			expect(ids[ids.length - 1]).toBe(RUN_TEMPLATE_FROM_FOLDER_ID);
+			expect(ids.slice(0, -1)).toEqual(rootChoices.map((c) => c.id));
+		});
+
+		it("prepends the row when position is 'top'", () => {
+			const s = open(
+				pluginWith({
+					templateFolderPaths: ["Templates"],
+					templateFolderLauncherRow: "top",
+				}),
+				true,
+			);
+			const ids = s.getSuggestions("").map((x) => x.item.id);
+			expect(ids[0]).toBe(RUN_TEMPLATE_FROM_FOLDER_ID);
+			expect(ids.slice(1)).toEqual(rootChoices.map((c) => c.id));
+		});
+
+		it("falls back to bottom when the position is unset (legacy data.json)", () => {
+			const s = open(
+				pluginWith({
+					templateFolderPaths: ["Templates"],
+					templateFolderLauncherRow: undefined,
+				}),
+				true,
+			);
+			const ids = s.getSuggestions("").map((x) => x.item.id);
+			expect(ids[ids.length - 1]).toBe(RUN_TEMPLATE_FROM_FOLDER_ID);
+		});
+
+		it("omits the row when position is 'off'", () => {
+			const s = open(
+				pluginWith({
+					templateFolderPaths: ["Templates"],
+					templateFolderLauncherRow: "off",
+				}),
+				true,
+			);
+			expect(
+				s.getSuggestions("").map((x) => x.item.id),
+			).not.toContain(RUN_TEMPLATE_FROM_FOLDER_ID);
+		});
+
+		it("omits the row when no template folder is configured (any position)", () => {
+			for (const pos of ["top", "bottom"] as const) {
+				const s = open(
+					pluginWith({ templateFolderPaths: [], templateFolderLauncherRow: pos }),
+					true,
+				);
+				expect(
+					s.getSuggestions("").map((x) => x.item.id),
+				).not.toContain(RUN_TEMPLATE_FROM_FOLDER_ID);
+			}
+		});
+
+		it("never injects the row for nested levels (includeTemplateFolderRow unset)", () => {
+			const s = new ChoiceSuggester(
+				pluginWith({ templateFolderPaths: ["Templates"] }),
+				rootChoices,
+				{ choiceExecutor: executor },
+			);
+			expect(
+				s.getSuggestions("").map((x) => x.item.id),
+			).not.toContain(RUN_TEMPLATE_FROM_FOLDER_ID);
+		});
+
+		it("excludes the row from nested search results (top or bottom)", () => {
+			for (const pos of ["top", "bottom"] as const) {
+				const s = open(
+					pluginWith({
+						templateFolderPaths: ["Templates"],
+						templateFolderLauncherRow: pos,
+					}),
+					true,
+				);
+				// Typed query goes through the nested-candidate path, which drops the row.
+				expect(
+					s.getSuggestions("template").map((x) => x.item.id),
+				).not.toContain(RUN_TEMPLATE_FROM_FOLDER_ID);
+			}
+		});
+
+		it("dispatches the sentinel row to runTemplateFromFolder, not the executor", () => {
+			const p = pluginWith({ templateFolderPaths: ["Templates"] });
+			const s = open(p, true);
+			const row = s
+				.getSuggestions("")
+				.map((x) => x.item)
+				.find((c) => c.id === RUN_TEMPLATE_FROM_FOLDER_ID)!;
+
+			s.onChooseItem(row, new MouseEvent("click"));
+
+			expect(vi.mocked(runTemplateFromFolder)).toHaveBeenCalledTimes(1);
+			expect(vi.mocked(runTemplateFromFolder).mock.calls[0][2]).toEqual({
+				choiceExecutor: executor,
+			});
+			expect(executed).toEqual([]);
+		});
+	});
 
 	describe("getSuggestions", () => {
 		it("shows only the current level for an empty query", () => {
