@@ -88,13 +88,13 @@ URI parser silently truncates the callback before QuickAdd ever sees it.
 For example, this looks reasonable but is **broken** — the `=My%20Cool%20Shortcut` part is
 dropped, leaving `shortcuts://run-shortcut?name`:
 
-```
+```text
 obsidian://quickadd?choice=Daily%20log&x-success=shortcuts://run-shortcut?name=My%20Cool%20Shortcut
 ```
 
 The **correct** form encodes the entire `x-success` value:
 
-```
+```text
 obsidian://quickadd?choice=Daily%20log&x-success=shortcuts%3A%2F%2Frun-shortcut%3Fname%3DMy%2520Cool%2520Shortcut
 ```
 
@@ -105,7 +105,7 @@ is decoded once by Obsidian and once by Shortcuts.)
 
 Trigger a capture and run a shortcut on success, passing the created note's path:
 
-```
+```text
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20ipsum&x-success=shortcuts%3A%2F%2Frun-shortcut%3Fname%3DLog%2520Saved
 ```
 
