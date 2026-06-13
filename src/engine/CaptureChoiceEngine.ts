@@ -43,7 +43,7 @@ import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
 import {
@@ -285,16 +285,28 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					file,
 				);
 
+				let inserted = false;
 				switch (action) {
 					case "currentLine":
-						appendToCurrentLine(content, this.app);
+						inserted = appendToCurrentLine(content, this.app);
 						break;
 					case "newLineAbove":
-						insertOnNewLineAbove(content, this.app);
+						inserted = insertOnNewLineAbove(content, this.app);
 						break;
 					case "newLineBelow":
-						insertOnNewLineBelow(content, this.app);
+						inserted = insertOnNewLineBelow(content, this.app);
 						break;
+				}
+
+				if (!inserted) {
+					// No active Markdown editor — the capture did not land. Report a
+					// failure instead of falling through to the success notice/callback.
+					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+					log.logError(
+						`Capture "${this.choice.name}": no active Markdown editor to insert into.`,
+					);
+					this.choiceExecutor.recordExecutionResult?.({ status: "error" });
+					return;
 				}
 			} else {
 				await this.app.vault.modify(file, newFileContent);
@@ -303,6 +315,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				}
 				await this.applyCapturePropertyVars(file);
 			}
+
+			// Content is committed. Record success BEFORE the cosmetic steps below
+			// (notice / link / open / cursor jump) so a later cosmetic failure cannot
+			// downgrade the outcome — otherwise an x-callback caller would see an error,
+			// retry, and duplicate the capture.
+			this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
@@ -388,6 +406,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 		await setCanvasTextCaptureContent(this.app, target, nextText);
+
+		// Committed; record success before cosmetic steps (see run() for rationale).
+		this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
 
 		if (this.plugin.settings.showCaptureNotification) {
 			this.showSuccessNotice(file, {
@@ -590,7 +611,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}
@@ -625,7 +646,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}

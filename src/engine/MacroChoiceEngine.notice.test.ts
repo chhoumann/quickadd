@@ -63,6 +63,7 @@ import type { IMacro } from "../types/macros/IMacro";
 import { CommandType } from "../types/macros/CommandType";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
 
@@ -90,7 +91,11 @@ class CancellationTestMacroChoiceEngine extends MacroChoiceEngine {
 	}
 
 	protected override executeObsidianCommand(): void {
-		throw new MacroAbortError(this.abortMessage);
+		// A user prompt-dismissal surfaces as UserCancelError in production; other
+		// aborts stay plain MacroAbortError.
+		throw this.abortMessage.toLowerCase().includes("cancelled by user")
+			? new UserCancelError(this.abortMessage)
+			: new MacroAbortError(this.abortMessage);
 	}
 }
 

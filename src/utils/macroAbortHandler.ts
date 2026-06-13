@@ -1,5 +1,6 @@
 import { Notice } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { log } from "../logger/logManager";
 
@@ -31,9 +32,14 @@ export function handleMacroAbort(
 
 	log.logMessage(`${logPrefix}: ${message}`);
 
+	// A genuine user prompt-dismissal is a UserCancelError (a MacroAbortError subclass).
+	// Keep the legacy message-string check as a fallback so a user script that aborts with
+	// `params.abort("...cancelled by user")` still gets its notice suppressed as before
+	// (the strict subclass check is only what the URI x-cancel classification relies on).
 	const isUserCancellation =
-		typeof error.message === "string" &&
-		error.message.toLowerCase().includes("cancelled by user");
+		error instanceof UserCancelError ||
+		(typeof error.message === "string" &&
+			error.message.toLowerCase().includes("cancelled by user"));
 
 	if (
 		!isUserCancellation ||

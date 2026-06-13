@@ -22,7 +22,7 @@ import {
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter, type PromptContext } from "./formatter";
-import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { isCancellationError } from "../utils/errorUtils";
 
 export class CompleteFormatter extends Formatter {
@@ -209,7 +209,7 @@ export class CompleteFormatter extends Formatter {
 				}
 			} catch (error) {
 				if (isCancellationError(error)) {
-					throw new MacroAbortError("Input cancelled by user");
+					throw new UserCancelError("Input cancelled by user");
 				}
 				throw error;
 			}
@@ -247,7 +247,7 @@ export class CompleteFormatter extends Formatter {
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}
@@ -258,7 +258,7 @@ export class CompleteFormatter extends Formatter {
 			return await MathModal.Prompt();
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}
@@ -299,7 +299,7 @@ export class CompleteFormatter extends Formatter {
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}
@@ -349,7 +349,7 @@ export class CompleteFormatter extends Formatter {
 			});
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}

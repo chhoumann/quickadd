@@ -47,6 +47,7 @@ import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCo
 import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ScriptCondition } from "../types/macros/Conditional/types";
@@ -470,7 +471,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				throw err;
 			}
 			if (isCancellationError(err)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw err;
 		}
@@ -567,7 +568,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				modelName = await GenericSuggester.Suggest(this.app, options, options);
 			} catch (error) {
 				if (isCancellationError(error)) {
-					throw new MacroAbortError("Input cancelled by user");
+					throw new UserCancelError("Input cancelled by user");
 				}
 				throw error;
 			}

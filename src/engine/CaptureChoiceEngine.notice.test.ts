@@ -107,6 +107,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { settingsStore } from "../settingsStore";
 
@@ -204,7 +205,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			...settingsStore.getState(),
 			showInputCancellationNotification: true,
 		});
-		const engine = createEngine(new MacroAbortError("Input cancelled by user"));
+		const engine = createEngine(new UserCancelError("Input cancelled by user"));
 
 		await engine.run();
 
@@ -220,7 +221,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			showInputCancellationNotification: false,
 		});
 
-		const engine = createEngine(new MacroAbortError("Input cancelled by user"));
+		const engine = createEngine(new UserCancelError("Input cancelled by user"));
 
 		await engine.run();
 

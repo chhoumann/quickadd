@@ -8,7 +8,7 @@ import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { LogManager } from "./logger/logManager";
-import { reportError } from "./utils/errorUtils";
+import { reportError, withErrorHandling } from "./utils/errorUtils";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -32,6 +32,16 @@ import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
 import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
+import type ITemplateChoice from "./types/choices/ITemplateChoice";
+import type ICaptureChoice from "./types/choices/ICaptureChoice";
+import {
+	buildCallbackUrl,
+	buildObsidianOpenUrl,
+	callbackUrls,
+	isCallbackUrlAllowed,
+	parseCallbackTargets,
+	type CallbackTargets,
+} from "./uri/uriCallback";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -40,7 +50,18 @@ interface DefinedUriParameters {
 	choice?: string; // Name
 }
 
-type UriParameters = DefinedUriParameters & CaptureValueParameters;
+// x-callback-url parameters (Apple Shortcuts, etc.). The hyphenated keys arrive
+// verbatim from the obsidian:// query string.
+interface XCallbackParameters {
+	"x-success"?: string;
+	"x-error"?: string;
+	"x-cancel"?: string;
+	"x-callback-url"?: string;
+}
+
+type UriParameters = DefinedUriParameters &
+	CaptureValueParameters &
+	XCallbackParameters;
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -171,33 +192,82 @@ export default class QuickAdd extends Plugin {
 
 		this.registerObsidianProtocolHandler("quickadd", async (e) => {
 			const parameters = e as unknown as UriParameters;
-			if (!parameters.choice) {
-				log.logWarning("URI was executed without a `choice` parameter.");
+
+			// Resolve callback targets only when the feature is enabled. With it off (or
+			// no x-* params) we run the exact legacy path — zero behavioural change.
+			const targets: CallbackTargets = this.settings.enableUriCallbacks
+				? parseCallbackTargets(parameters)
+				: { any: false };
+
+			if (!targets.any) {
+				await this.runUriChoiceLegacy(parameters);
 				return;
 			}
-			const choice = this.getChoice("name", parameters.choice);
 
-			if (!choice) {
-				reportError(
-					new Error(
-						`URI could not find any choice named '${parameters.choice}'`,
-					),
-					"URI handler error",
+			// Validate every provided callback URL BEFORE running anything, so a bad URL
+			// can't half-execute and make an external caller retry (and duplicate work).
+			const disallowed = callbackUrls(targets).filter(
+				(url) => !isCallbackUrlAllowed(url),
+			);
+			if (disallowed.length > 0) {
+				log.logWarning(
+					`QuickAdd URI: ignoring disallowed callback URL(s): ${disallowed.join(", ")}`,
 				);
+				// Notify via x-error only if it is itself allowed; never open a disallowed
+				// URL. Nothing was executed, so the caller can safely retry.
+				if (targets.error && isCallbackUrlAllowed(targets.error)) {
+					this.openUriCallback(targets.error, {
+						status: "error",
+						errorCode: "bad-callback-url",
+					});
+				}
+				return;
+			}
+
+			if (!parameters.choice) {
+				log.logWarning("URI was executed without a `choice` parameter.");
+				this.fireUriError(targets, "choice-not-found");
+				return;
+			}
+
+			const choice = this.getChoice("name", parameters.choice);
+			if (!choice) {
+				log.logWarning(
+					`URI could not find any choice named '${parameters.choice}'`,
+				);
+				this.fireUriError(targets, "choice-not-found");
+				return;
+			}
+
+			if (choice.type !== "Template" && choice.type !== "Capture") {
+				log.logWarning(
+					`QuickAdd URI x-callback supports Template and Capture choices only ('${choice.name}' is ${choice.type}).`,
+				);
+				this.fireUriError(targets, "unsupported-choice-type");
 				return;
 			}
 
 			const choiceExecutor = new ChoiceExecutor(this.app, this);
-			Object.entries(parameters)
-				.filter(([key]) => key.startsWith("value-"))
-				.forEach(([key, value]) => {
-					choiceExecutor.variables.set(key.slice(6), value);
-				});
+			this.applyUriValueParameters(choiceExecutor, parameters);
 
-			try {
-				await choiceExecutor.execute(choice);
-			} catch (err) {
-				reportError(err, "Error executing choice from URI");
+			const outcome = await choiceExecutor.executeWithOutcome(
+				choice as ITemplateChoice | ICaptureChoice,
+			);
+
+			switch (outcome.status) {
+				case "success":
+					this.fireUriSuccess(targets, outcome.file);
+					break;
+				case "cancelled":
+					if (outcome.cancelKind === "user") {
+						this.fireUriCancel(targets);
+					} else {
+						this.fireUriError(targets, "execution-aborted");
+					}
+					break;
+				case "error":
+					this.fireUriError(targets, "execution-failed");
+					break;
 			}
 		});
 
@@ -240,6 +310,75 @@ export default class QuickAdd extends Plugin {
 			this.app.workspace.onLayoutReady(launchStartupMacros);
 		}
 		this.announceUpdate();
+	}
+
+	/** Today's URI behaviour: run the choice, report errors to the log. Used when URI
+	 * callbacks are disabled or no x-* params were provided (backward-compatible). */
+	private async runUriChoiceLegacy(parameters: UriParameters): Promise<void> {
+		if (!parameters.choice) {
+			log.logWarning("URI was executed without a `choice` parameter.");
+			return;
+		}
+		const choice = this.getChoice("name", parameters.choice);
+		if (!choice) {
+			reportError(
+				new Error(
+					`URI could not find any choice named '${parameters.choice}'`,
+				),
+				"URI handler error",
+			);
+			return;
+		}
+		const choiceExecutor = new ChoiceExecutor(this.app, this);
+		this.applyUriValueParameters(choiceExecutor, parameters);
+		try {
+			await choiceExecutor.execute(choice);
+		} catch (err) {
+			reportError(err, "Error executing choice from URI");
+		}
+	}
+
+	private applyUriValueParameters(
+		choiceExecutor: ChoiceExecutor,
+		parameters: UriParameters,
+	): void {
+		Object.entries(parameters)
+			.filter(([key]) => key.startsWith("value-"))
+			.forEach(([key, value]) => {
+				if (typeof value === "string") {
+					choiceExecutor.variables.set(key.slice(6), value);
+				}
+			});
+	}
+
+	private fireUriSuccess(targets: CallbackTargets, file?: TFile): void {
+		const params: Record<string, string> = { status: "success" };
+		if (file) {
+			params.path = file.path;
+			params.url = buildObsidianOpenUrl(this.app.vault.getName(), file.path);
+		}
+		if (targets.success) this.openUriCallback(targets.success, params);
+	}
+
+	private fireUriError(targets: CallbackTargets, errorCode: string): void {
+		if (targets.error) {
+			this.openUriCallback(targets.error, { status: "error", errorCode });
+		}
+	}
+
+	private fireUriCancel(targets: CallbackTargets): void {
+		if (targets.cancel) {
+			this.openUriCallback(targets.cancel, { status: "cancel" });
+		}
+	}
+
+	/** Opens a callback URL with the result params appended. No-throw, no-recursion:
+	 * a failed window.open must never break the (already-completed) choice or fire
+	 * another callback. */
+	private openUriCallback(url: string, params: Record<string, string>): void {
+		withErrorHandling(() => {
+			window.open(buildCallbackUrl(url, params));
+		}, "QuickAdd URI: failed to open callback URL");
 	}
 
 	onunload() {

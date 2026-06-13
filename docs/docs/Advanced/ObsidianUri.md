@@ -31,6 +31,101 @@ Like every Obsidian URI, you can use the special `vault` parameter to specify wh
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20ipsum.
 ```
 
+## Getting a result back (x-callback-url)
+
+QuickAdd can open a callback URL after a choice finishes, so an external caller (for
+example an Apple Shortcut) can react to the result and receive the path of the affected
+note. This follows the [x-callback-url](http://x-callback-url.com/) convention.
+
+:::info Off by default
+
+This is opt-in. Enable **Settings → AI & Online → Allow URI x-callback-url** first. It is
+off by default because the callback URL is controlled by whoever creates the
+`obsidian://` link, and the callback can carry your note's vault path.
+
+:::
+
+:::note Template and Capture only
+
+Callbacks are supported for **Template** and **Capture** choices. Triggering a Macro or
+Multi choice with a callback fires `x-error` with `errorCode=unsupported-choice-type`
+instead. (You can still trigger Macro/Multi choices via the URI without a callback.)
+
+:::
+
+### Callback parameters
+
+| Parameter        | Fired when                                                       |
+| ---------------- | ---------------------------------------------------------------- |
+| `x-success`      | the choice completed successfully                                |
+| `x-error`        | the choice failed, was aborted, was not found, or is unsupported |
+| `x-cancel`       | you cancelled a prompt while the choice was running              |
+| `x-callback-url` | legacy shorthand — used only when none of the above are present; it then fires for **success and cancel** (never error) |
+
+If a slot is not provided, nothing is opened for that outcome (there is no fallback — a
+cancel with no `x-cancel` opens nothing).
+
+Only `shortcuts:` and `obsidian:` callback URLs are permitted; any other scheme (such as
+`https:`, `file:`, or `javascript:`) is rejected and the choice is not run.
+
+### Result parameters
+
+QuickAdd appends these query parameters to your callback URL:
+
+- On `x-success`: `status=success`, and — for Template/Capture — `path=<vault-relative
+  path>` and `url=<obsidian://open…>` pointing at the affected note.
+- On `x-error`: `status=error` and a stable `errorCode` (one of `choice-not-found`,
+  `unsupported-choice-type`, `execution-failed`, `execution-aborted`, `bad-callback-url`).
+  The detailed error message is kept in Obsidian's log and is never sent to the callback.
+- On `x-cancel`: `status=cancel`.
+
+### Encoding your callback URL (important)
+
+Your callback URL is itself a value inside the `obsidian://` query string, so it **must be
+fully percent-encoded** (double-encoded). If you leave a `=` or `&` un-encoded, Obsidian's
+URI parser silently truncates the callback before QuickAdd ever sees it.
+
+For example, this looks reasonable but is **broken** — the `=My%20Cool%20Shortcut` part is
+dropped, leaving `shortcuts://run-shortcut?name`:
+
+```
+obsidian://quickadd?choice=Daily%20log&x-success=shortcuts://run-shortcut?name=My%20Cool%20Shortcut
+```
+
+The **correct** form encodes the entire `x-success` value:
+
+```
+obsidian://quickadd?choice=Daily%20log&x-success=shortcuts%3A%2F%2Frun-shortcut%3Fname%3DMy%2520Cool%2520Shortcut
+```
+
+(Note the `%2520` — the spaces inside the shortcut name are encoded twice because the value
+is decoded once by Obsidian and once by Shortcuts.)
+
+### Example
+
+Trigger a capture and run a shortcut on success, passing the created note's path:
+
+```
+obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20ipsum&x-success=shortcuts%3A%2F%2Frun-shortcut%3Fname%3DLog%2520Saved
+```
+
+On success QuickAdd opens your `x-success` URL with these extra query parameters appended
+(shown here decoded — they are percent-encoded on the wire):
+
+- `status` = `success`
+- `path` = `Daily/2026-06-14.md`
+- `url` = `obsidian://open?vault=My Vault&file=Daily/2026-06-14.md`
+
+Your shortcut reads them from the URL it was opened with.
+
+:::note Mobile
+
+QuickAdd opens callbacks with `window.open`, exactly like Obsidian's own x-callback
+support. Whether a custom scheme such as `shortcuts:` launches reliably on iOS is a
+platform behaviour shared with Obsidian core — verify on your device.
+
+:::
+
 ## Important: Sync Service Limitations
 
 :::warning
