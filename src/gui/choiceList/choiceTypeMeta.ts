@@ -1,4 +1,6 @@
 import type { ChoiceType } from "../../types/choices/choiceType";
+import type IChoice from "../../types/choices/IChoice";
+import { flattenChoices } from "../../utils/choiceUtils";
 
 export interface ChoiceTypeMeta {
 	type: ChoiceType;
@@ -53,4 +55,22 @@ export function defaultChoiceName(type: ChoiceType): string {
 		case "Multi":
 			return "New folder";
 	}
+}
+
+/**
+ * Default name for a freshly added choice, disambiguated from existing siblings.
+ * Every new choice starts from {@link defaultChoiceName}; when that label is
+ * already taken anywhere in the tree, appends " 2", " 3", … so rows stay
+ * distinguishable in the list and drag pill (fixes #1318).
+ */
+export function uniqueDefaultChoiceName(
+	type: ChoiceType,
+	existing: IChoice[],
+): string {
+	const base = defaultChoiceName(type);
+	const names = new Set(flattenChoices(existing).map((c) => c.name));
+	if (!names.has(base)) return base;
+	let i = 2;
+	while (names.has(`${base} ${i}`)) i++;
+	return `${base} ${i}`;
 }
