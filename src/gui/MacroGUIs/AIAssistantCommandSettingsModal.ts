@@ -14,8 +14,8 @@ import {
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
-import { getTokenCount } from "src/ai/AIAssistant";
-import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { estimateTokenCount } from "src/ai/tokenEstimator";
+import { getModelNames } from "src/ai/aiHelpers";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -27,12 +27,8 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
-		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
-
-		const model = getModelByName(this.settings.model);
-		if (!model) return Number.POSITIVE_INFINITY;
-
-		return getTokenCount(this.settings.systemPrompt, model);
+		// The estimate is provider-agnostic, so it no longer depends on the model.
+		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
 	constructor(app: App, settings: IAIAssistantCommand) {
@@ -188,7 +184,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			cls: "qa-ai-token-count",
 		});
 		const tokenCountNote = container.createEl("div", {
-			text: "Exact for OpenAI models; estimates for others.",
+			text: "Estimated locally. Providers enforce exact context limits.",
 			cls: "qa-ai-token-note",
 		});
 
@@ -219,11 +215,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const updateTokenCount = debounce(() => {
-			tokenCount.innerText = `Token count: ${
-				this.systemPromptTokenLength !== Number.POSITIVE_INFINITY
-					? this.systemPromptTokenLength
-					: "select a model to calculate"
-			}`;
+			tokenCount.innerText = `Estimated tokens: ${this.systemPromptTokenLength}`;
 		}, 50);
 
 		updateTokenCount();

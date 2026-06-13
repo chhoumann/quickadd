@@ -572,6 +572,42 @@ const result = await quickAddApi.ai.prompt(
 
 **Note:** For newer models like `gpt-4o` or custom provider models, add them in Settings → QuickAdd → AI → Providers. Some providers support auto-sync to automatically update available models.
 
+### `chunkedPrompt(text: string, promptTemplate: string, model: string | {name: string}, settings?: object): Promise<object>`
+Splits `text` into chunks, runs `promptTemplate` once per chunk, and joins the
+results. Use this for inputs that are too large for a single request.
+
+**Parameters:**
+- `text`: The full input text to process.
+- `promptTemplate`: The prompt run for each chunk. Reference the current chunk with `{{value:chunk}}`.
+- `model`: Model identifier (string or `{name}`), as for `prompt`.
+- `settings`: (Optional) Configuration object:
+  - `variableName`: Output variable name (default: "output")
+  - `shouldAssignVariables`: Auto-assign to variables (default: false)
+  - `modelOptions`: Model parameters (temperature, max_tokens, etc.)
+  - `showAssistantMessages`: Show AI responses in UI (default: true)
+  - `systemPrompt`: Override system prompt
+  - `chunkSeparator`: `RegExp` used to split `text` (default: `/\n/`)
+  - `chunkJoiner`: String inserted between chunk results (default: `"\n"`)
+  - `shouldMerge`: Merge small adjacent chunks up to the budget (default: `true`)
+  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text (the `{{value:chunk}}` portion only — the system prompt and prompt template are budgeted separately). Token counts are estimated locally; values above the model's estimated input budget are capped automatically.
+
+**Behavior:**
+- Chunk sizes are estimated locally (QuickAdd no longer bundles model-specific tokenizers); the configured provider remains the source of truth for exact limits.
+- A chunk larger than the budget is split near a natural boundary (paragraph, sentence, or space) so it still fits — including when `shouldMerge` is `false`.
+- If the provider still rejects a prompt because the **input** exceeds its context window, that chunk is split and retried automatically. Output/completion-budget and quota errors are surfaced as-is (splitting cannot fix them).
+- The prompt template is rendered through the formatter once per chunk (plus once for sizing), so side-effectful tokens such as `{{MACRO:…}}` run on every render — avoid them inside a `chunkedPrompt` template.
+
+**Returns:** Object with `[variableName]` (joined results) and `[variableName]-quoted`.
+
+```javascript
+const result = await quickAddApi.ai.chunkedPrompt(
+    longText,
+    "Summarize this section:\n{{value:chunk}}",
+    "gpt-4o",
+    { variableName: "summary", chunkJoiner: "\n\n" }
+);
+```
+
 ### `getModels(): string[]`
 Returns available AI models.
 
@@ -584,21 +620,28 @@ const selectedModel = await quickAddApi.suggester(models, models);
 ### `getMaxTokens(model: string): number`
 Gets the maximum token limit for a model.
 
-### `countTokens(text: string, model: string): number`
-Counts tokens in text according to model's tokenization.
+### `estimateTokens(text: string): number`
+Estimates the token count for text using QuickAdd's provider-agnostic estimator.
+This is useful for rough prompt sizing, but the configured AI provider remains
+the source of truth for exact context limits and usage.
 
 **Example:**
 ```javascript
 const text = await quickAddApi.utility.getClipboard();
-const tokenCount = quickAddApi.ai.countTokens(text, "gpt-4");
+const tokenCount = quickAddApi.ai.estimateTokens(text);
 
 if (tokenCount > 4000) {
     await quickAddApi.infoDialog(
-        "Text Too Long",
-        `The text contains ${tokenCount} tokens, which exceeds the model limit.`
+        "Text Might Be Too Long",
+        `The text is estimated at ${tokenCount} tokens.`
     );
 }
 ```
+
+### `countTokens(text: string, model: string | {name: string}): number`
+Compatibility alias for `estimateTokens`. The `model` argument (a model name or
+object) is accepted for existing scripts but ignored, since QuickAdd no longer
+bundles model-specific tokenizers. Prefer `estimateTokens(text)`.
 
 ### `getRequestLogs(limit?: number): Array<object>`
 Returns recent in-memory AI request logs (newest first).

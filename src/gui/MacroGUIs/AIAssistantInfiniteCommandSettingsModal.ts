@@ -11,7 +11,10 @@ import {
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
-import { getTokenCount } from "src/ai/AIAssistant";
+import {
+	estimateModelInputBudget,
+	estimateTokenCount,
+} from "src/ai/tokenEstimator";
 import { getModelByName, getModelNames } from "src/ai/aiHelpers";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
@@ -24,9 +27,8 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
-		const model = getModelByName(this.settings.model);
-		if (!model) return Number.POSITIVE_INFINITY;
-		return getTokenCount(this.settings.systemPrompt, model);
+		// The estimate is provider-agnostic, so it no longer depends on the model.
+		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
 	constructor(app: App, settings: IInfiniteAIAssistantCommand) {
@@ -152,7 +154,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			cls: "qa-ai-token-count",
 		});
 		const tokenCountNote = container.createEl("div", {
-			text: "Exact for OpenAI models; estimates for others.",
+			text: "Estimated locally. Providers enforce exact context limits.",
 			cls: "qa-ai-token-note",
 		});
 
@@ -183,7 +185,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const updateTokenCount = debounce(() => {
-			tokenCount.innerText = `Token count: ${this.systemPromptTokenLength}`;
+			tokenCount.innerText = `Estimated tokens: ${this.systemPromptTokenLength}`;
 		}, 50);
 
 		updateTokenCount();
@@ -316,7 +318,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		new Setting(container)
 			.setName("Max Chunk Tokens")
 			.setDesc(
-				"The maximum number of tokens in each chunk, calculated as the chunk token size + prompt template token size + system prompt token size. Make sure you leave room for the model to respond to the prompt."
+				"Maximum estimated tokens for each chunk of your text (the {{chunk}} portion only — the system prompt and prompt template are accounted for separately). Counts are estimated locally; the provider enforces the exact limit. Leave room for the model's response. Values above the model's estimated input budget are capped automatically."
 			)
 			.addSlider((slider) => {
 				const model = getModelByName(this.settings.model);
@@ -327,7 +329,14 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 					);
 				}
 
-				slider.setLimits(1, model.maxTokens - this.systemPromptTokenLength, 1);
+				// Upper bound mirrors the runtime budget: the model's estimated
+				// input budget minus the (estimated) system prompt overhead.
+				const sliderMax = Math.max(
+					1,
+					estimateModelInputBudget(model.maxTokens) -
+						this.systemPromptTokenLength
+				);
+				slider.setLimits(1, sliderMax, 1);
 				slider.setDynamicTooltip();
 
 				slider.setValue(this.settings.maxChunkTokens);

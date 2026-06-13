@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { Model } from "./Provider";
+import {
+	classifyProviderError,
+	isLikelyContextLimitError,
+} from "./providerErrors";
 
 const storeState = vi.hoisted(() => ({
 	disableOnlineFeatures: false,
@@ -8,7 +12,6 @@ const storeState = vi.hoisted(() => ({
 
 const mocks = vi.hoisted(() => ({
 	requestUrlMock: vi.fn(),
-	getTokenCountMock: vi.fn(),
 	beginAIRequestLogEntryMock: vi.fn(),
 	finishAIRequestLogEntryMock: vi.fn(),
 	getModelProviderMock: vi.fn(),
@@ -27,7 +30,6 @@ vi.mock("src/settingsStore", () => ({
 }));
 
 vi.mock("./AIAssistant", () => ({
-	getTokenCount: mocks.getTokenCountMock,
 	beginAIRequestLogEntry: mocks.beginAIRequestLogEntryMock,
 	finishAIRequestLogEntry: mocks.finishAIRequestLogEntryMock,
 }));
@@ -45,7 +47,6 @@ vi.mock("src/logger/logManager", () => ({
 
 const {
 	requestUrlMock,
-	getTokenCountMock,
 	beginAIRequestLogEntryMock,
 	finishAIRequestLogEntryMock,
 	getModelProviderMock,
@@ -130,8 +131,6 @@ function openAIResponse(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
 	vi.clearAllMocks();
 	storeState.disableOnlineFeatures = false;
-	// Default token count keeps every prompt well under any maxTokens limit.
-	getTokenCountMock.mockReturnValue(1);
 	beginAIRequestLogEntryMock.mockReturnValue("log-id-1");
 });
 
@@ -153,21 +152,20 @@ describe("OpenAIRequest", () => {
 			expect(beginAIRequestLogEntryMock).not.toHaveBeenCalled();
 		});
 
-		it("throws when the combined token count exceeds the model limit", async () => {
-			// prompt + system both contribute; sum (60000+60000) > 100000.
-			getTokenCountMock.mockReturnValue(60000);
-			const model: Model = { name: "gpt-4o", maxTokens: 100000 };
+		it("sends requests even when the local estimate exceeds the configured token limit", async () => {
+			const model: Model = { name: "gpt-4o", maxTokens: 1 };
+			getModelProviderMock.mockReturnValue(openAIProvider);
+			requestUrlMock.mockResolvedValue({ json: openAIResponse() });
 			const makeRequest = OpenAIRequest(makeApp(), "key", model, "system");
 
-			await expect(makeRequest("prompt")).rejects.toThrow(
-				"The gpt-4o API has a token limit of 100000. Your prompt has 120000 tokens."
+			await expect(makeRequest("prompt")).resolves.toBeDefined();
+			expect(requestUrlMock).toHaveBeenCalledTimes(1);
+			expect(mocks.logMessageMock).toHaveBeenCalledWith(
+				expect.stringContaining("Estimated prompt size")
 			);
-			expect(requestUrlMock).not.toHaveBeenCalled();
 		});
 
-		it("allows requests exactly at the token limit (boundary)", async () => {
-			// 2 * 50000 = 100000, not strictly greater than the limit.
-			getTokenCountMock.mockReturnValue(50000);
+		it("does not log an estimate warning when the estimate is within the configured limit", async () => {
 			const model: Model = { name: "gpt-4o", maxTokens: 100000 };
 			getModelProviderMock.mockReturnValue(openAIProvider);
 			requestUrlMock.mockResolvedValue({ json: openAIResponse() });
@@ -175,6 +173,9 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(makeApp(), "key", model, "system");
 			await expect(makeRequest("prompt")).resolves.toBeDefined();
 			expect(requestUrlMock).toHaveBeenCalledTimes(1);
+			expect(mocks.logMessageMock).not.toHaveBeenCalledWith(
+				expect.stringContaining("Estimated prompt size")
+			);
 		});
 
 		it("throws when no provider is found for the model", async () => {
@@ -190,6 +191,88 @@ describe("OpenAIRequest", () => {
 				"Model gpt-4o not found with any provider."
 			);
 			expect(requestUrlMock).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("provider error body capture", () => {
+		beforeEach(() => {
+			getModelProviderMock.mockReturnValue(openAIProvider);
+		});
+
+		it("surfaces a 4xx provider body so the error is classifiable as a context limit", async () => {
+			requestUrlMock.mockResolvedValue({
+				status: 400,
+				json: {
+					error: {
+						code: "context_length_exceeded",
+						message: "maximum context length exceeded",
+					},
+				},
+				text: '{"error":{"code":"context_length_exceeded"}}',
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+
+			let thrown: unknown;
+			try {
+				await makeRequest("prompt");
+			} catch (error) {
+				thrown = error;
+			}
+
+			expect(thrown).toBeInstanceOf(Error);
+			expect(String((thrown as Error).message)).toMatch(
+				/context_length_exceeded|maximum context length/i
+			);
+			// The real provider body now reaches the classifier (it did not before).
+			expect(isLikelyContextLimitError(thrown)).toBe(true);
+			expect(((thrown as Error).cause as { status?: number }).status).toBe(400);
+		});
+
+		it("does not classify a non-context 4xx (auth) as a context-limit error", async () => {
+			requestUrlMock.mockResolvedValue({
+				status: 401,
+				json: {
+					error: {
+						code: "invalid_api_key",
+						message: "Incorrect API key provided",
+					},
+				},
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+
+			let thrown: unknown;
+			await expect(makeRequest("prompt")).rejects.toThrow(
+				/Incorrect API key|invalid_api_key/i
+			);
+			try {
+				await makeRequest("prompt");
+			} catch (error) {
+				thrown = error;
+			}
+			expect(isLikelyContextLimitError(thrown)).toBe(false);
+		});
+
+		it("treats a 4xx whose completion alone exceeds context as output-budget (no retry)", async () => {
+			requestUrlMock.mockResolvedValue({
+				status: 400,
+				json: {
+					error: {
+						code: "context_length_exceeded",
+						message:
+							"maximum context length is 8192 tokens; you requested 9500 (500 in the messages, 9000 in the completion)",
+					},
+				},
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+
+			let thrown: unknown;
+			try {
+				await makeRequest("prompt");
+			} catch (error) {
+				thrown = error;
+			}
+			expect(classifyProviderError(thrown)).toBe("output_budget");
+			expect(isLikelyContextLimitError(thrown)).toBe(false);
 		});
 	});
 

@@ -1,7 +1,3 @@
-import type { TiktokenModel } from "js-tiktoken";
-import { Tiktoken, getEncodingNameForModel } from "js-tiktoken/lite";
-import cl100k_base from "js-tiktoken/ranks/cl100k_base";
-import o200k_base from "js-tiktoken/ranks/o200k_base";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "src/errors/MacroAbortError";
@@ -12,45 +8,20 @@ import invariant from "src/utils/invariant";
 import { isCancellationError } from "src/utils/errorUtils";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { OpenAIRequest } from "./OpenAIRequest";
+import { isLikelyContextLimitError } from "./providerErrors";
 import type { Model } from "./Provider";
 import { getModelMaxTokens } from "./aiHelpers";
 import { makeNoticeHandler } from "./makeNoticeHandler";
-
-type Encoding = ConstructorParameters<typeof Tiktoken>[0];
-
-const encodings: Record<string, Encoding> = {
-	cl100k_base,
-	o200k_base,
-};
-const encodingCache = new Map<string, Tiktoken>();
-
-function getEncoding(name: string) {
-	const encodingName = name in encodings ? name : "cl100k_base";
-	const cached = encodingCache.get(encodingName);
-	if (cached) return cached;
-
-	const encoding = new Tiktoken(encodings[encodingName]);
-	encodingCache.set(encodingName, encoding);
-	return encoding;
-}
-
-export const getTokenCount = (text: string, model: Model) => {
-	// Use best-effort for non-OpenAI/unknown models by falling back to cl100k.
-	let encodingName = "cl100k_base";
-	try {
-		encodingName = getEncodingNameForModel(model.name as TiktokenModel);
-	} catch {
-		encodingName = "cl100k_base";
-	}
-
-	if (encodingName === "p50k_base" || encodingName === "p50k_edit") {
-		encodingName = "cl100k_base";
-	} else if (encodingName === "r50k_base" || encodingName === "gpt2") {
-		encodingName = "cl100k_base";
-	}
-
-	return getEncoding(encodingName).encode(text).length;
-};
+import { estimateModelInputBudget, estimateTokenCount } from "./tokenEstimator";
+import { log } from "src/logger/logManager";
+import {
+	GLOBAL_VAR_REGEX,
+	INLINE_JAVASCRIPT_REGEX,
+	MACRO_REGEX,
+	TEMPLATE_REGEX,
+	VARIABLE_REGEX,
+} from "src/constants";
+import { transformCase } from "src/utils/caseTransform";
 
 export interface AIRequestLogEntry {
 	id: string;
@@ -506,9 +477,221 @@ type ChunkedPromptParams = Omit<
 		text: string;
 		promptTemplate: string;
 		shouldMerge: boolean;
+		maxChunkTokens?: number;
 	},
 	"prompt"
 >;
+
+const MAX_CONTEXT_RETRY_DEPTH = 12;
+const MAX_CHUNKED_PROMPTS = 500;
+const CHUNK_PROBE_VALUE = "quickadd_chunk_probe_123456789";
+
+function getChunkProbeVariants(): string[] {
+	return Array.from(
+		new Set([
+			CHUNK_PROBE_VALUE,
+			...[
+				"kebab",
+				"snake",
+				"camel",
+				"pascal",
+				"title",
+				"lower",
+				"upper",
+				"slug",
+			].map((style) => transformCase(CHUNK_PROBE_VALUE, style)),
+		])
+	).filter(Boolean);
+}
+
+const CHUNK_PROBE_VARIANTS = getChunkProbeVariants();
+
+// Split a chunk near its middle, preferring a natural boundary (paragraph,
+// sentence, then space). Works on UTF-16 indices directly — no Array.from — so it
+// stays cheap on multi-megabyte inputs; the fallback only nudges off a surrogate
+// pair so a code point is never split.
+function splitChunkNearMiddle(chunk: string): [string, string] | null {
+	if (chunk.length <= 1) return null;
+
+	const midpoint = Math.floor(chunk.length / 2);
+	const separators = ["\n\n", "\n", ". ", " "];
+
+	let bestIndex = -1;
+	let bestDistance = Number.POSITIVE_INFINITY;
+
+	for (const separator of separators) {
+		const before = chunk.lastIndexOf(separator, midpoint);
+		const after = chunk.indexOf(separator, midpoint);
+		const candidates = [before, after].filter((index) => index > 0);
+
+		for (const index of candidates) {
+			const splitIndex = index + separator.length;
+			if (splitIndex <= 0 || splitIndex >= chunk.length) continue;
+
+			const distance = Math.abs(splitIndex - midpoint);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				bestIndex = splitIndex;
+			}
+		}
+	}
+
+	if (bestIndex > 0 && bestIndex < chunk.length) {
+		return [chunk.slice(0, bestIndex), chunk.slice(bestIndex)];
+	}
+
+	// No separator: split at the UTF-16 midpoint, nudging forward if it lands on
+	// the low half of a surrogate pair so we never cut a code point in two.
+	let splitIndex = midpoint;
+	const code = chunk.charCodeAt(splitIndex);
+	if (code >= 0xdc00 && code <= 0xdfff) splitIndex += 1;
+	if (splitIndex <= 0 || splitIndex >= chunk.length) return null;
+
+	return [chunk.slice(0, splitIndex), chunk.slice(splitIndex)];
+}
+
+// Does the template reference the injected `chunk` variable via {{VALUE:chunk}}?
+// Matches the formatter's own parsing: the variable name is the text before the
+// first `|`, so {{VALUE:chunk-id}} / {{VALUE:chunk,other}} are correctly excluded.
+function templateReferencesChunk(template: string): boolean {
+	const regex = new RegExp(VARIABLE_REGEX.source, "gi");
+	let match: RegExpExecArray | null;
+	while ((match = regex.exec(template)) !== null) {
+		const variableName = match[1].split("|")[0].trim().toLowerCase();
+		if (variableName === "chunk") return true;
+	}
+	return false;
+}
+
+// Tokens that can expand into a {{VALUE:chunk}} reference at format time. The
+// rendered probe below must still prove that the chunk value was actually used.
+function templateHasDynamicExpansionSite(template: string): boolean {
+	return (
+		TEMPLATE_REGEX.test(template) ||
+		MACRO_REGEX.test(template) ||
+		GLOBAL_VAR_REGEX.test(template) ||
+		INLINE_JAVASCRIPT_REGEX.test(template)
+	);
+}
+
+function renderedPromptContainsChunk(renderedPrompt: string): boolean {
+	return CHUNK_PROBE_VARIANTS.some((variant) =>
+		renderedPrompt.includes(variant)
+	);
+}
+
+function removeChunkProbeFromRenderedPrompt(renderedPrompt: string): string {
+	return CHUNK_PROBE_VARIANTS
+		.slice()
+		.sort((a, b) => b.length - a.length)
+		.reduce(
+			(output, variant) => output.split(variant).join(" "),
+			renderedPrompt
+		);
+}
+
+function assertWithinChunkBudget(count: number): void {
+	if (count > MAX_CHUNKED_PROMPTS) {
+		throw new Error(
+			`QuickAdd would split this chunked AI request into more than ${MAX_CHUNKED_PROMPTS} prompts, which exceeds the safety limit. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
+		);
+	}
+}
+
+// Split one chunk down to the estimated budget and append the pieces to `out`.
+// Uses a depth-first stack (push right then left so pieces emit left-to-right),
+// which keeps the working set bounded by recursion depth (~log2 of the chunk
+// length). The cap is enforced on the pieces produced *from this one chunk*, so a
+// pathological separator-poor input bails out immediately instead of materialising
+// hundreds of thousands of pieces — without penalising many small chunks that will
+// later merge (the final post-merge count is capped separately by the caller).
+function appendSplitToBudget(
+	chunk: string,
+	budgetTokens: number,
+	out: string[]
+): void {
+	const budget = Math.max(1, Math.floor(budgetTokens));
+	const stack = [chunk];
+	let producedFromChunk = 0;
+
+	while (stack.length > 0) {
+		const current = stack.pop() as string;
+		const fitsBudget = estimateTokenCount(current) <= budget;
+		const split = fitsBudget ? null : splitChunkNearMiddle(current);
+
+		if (!split) {
+			out.push(current);
+			producedFromChunk += 1;
+			assertWithinChunkBudget(producedFromChunk);
+			continue;
+		}
+
+		stack.push(split[1], split[0]);
+	}
+}
+
+function buildEstimatedPromptChunks(
+	chunks: string[],
+	maxEstimatedChunkTokens: number,
+	shouldMerge: boolean
+): string[] {
+	const preparedChunks: string[] = [];
+	for (const chunk of chunks) {
+		appendSplitToBudget(chunk, maxEstimatedChunkTokens, preparedChunks);
+	}
+
+	if (!shouldMerge) return preparedChunks;
+
+	const output: string[] = [];
+	let combinedChunk = "";
+	let combinedChunkSize = 0;
+
+	for (const chunk of preparedChunks) {
+		const strSize = estimateTokenCount(chunk) + 1; // +1 for the separator consumed by split().
+
+		if (
+			combinedChunk !== "" &&
+			combinedChunkSize + strSize >= maxEstimatedChunkTokens
+		) {
+			output.push(combinedChunk);
+			combinedChunk = "";
+			combinedChunkSize = 0;
+		}
+
+		combinedChunk += chunk;
+		combinedChunkSize += strSize;
+	}
+
+	if (combinedChunk !== "") {
+		output.push(combinedChunk);
+	}
+
+	return output;
+}
+
+// Clamp the user-configured `maxChunkTokens` to the model's derived input budget.
+// Returns whether clamping occurred so the caller can surface the effective value
+// instead of silently shrinking the user's setting.
+function clampChunkBudget(
+	rawChunkBudget: number,
+	configuredMaxChunkTokens: number | undefined
+): { budget: number; clamped: boolean } {
+	const budget = Math.max(1, Math.floor(rawChunkBudget));
+
+	if (
+		configuredMaxChunkTokens !== undefined &&
+		Number.isFinite(configuredMaxChunkTokens) &&
+		configuredMaxChunkTokens > 0
+	) {
+		const configured = Math.floor(configuredMaxChunkTokens);
+		return {
+			budget: Math.min(budget, configured),
+			clamped: configured > budget,
+		};
+	}
+
+	return { budget, clamped: false };
+}
 
 export async function ChunkedPrompt(
 	app: App,
@@ -543,81 +726,61 @@ export async function ChunkedPrompt(
 		);
 
 		const chunkSeparator = settings.chunkSeparator || /\n/g;
-		const chunks = text.split(chunkSeparator);
+		const rawChunks = text.split(chunkSeparator);
 
-		const systemPromptLength = getTokenCount(systemPrompt, model);
-		// We need the prompt template to be rendered to get the token count of it, except the chunk variable.
-		const renderedPromptTemplate = await formatter(promptTemplate, {
-			chunk: " ", // empty would make QA ask for a value, which we don't want
+		// Estimate the static prompt overhead by rendering the template once with a
+		// probe chunk value. This also validates dynamic expansions: templates,
+		// macros, globals, and inline JS are allowed to inject {{VALUE:chunk}}, but
+		// they only pass if the rendered prompt actually contains the probe.
+		const overheadProbe = await formatter(promptTemplate, {
+			chunk: CHUNK_PROBE_VALUE,
 		});
-		const promptTemplateTokenCount = getTokenCount(
-			renderedPromptTemplate,
-			model
+		const hasChunkReference =
+			templateReferencesChunk(promptTemplate) ||
+			(templateHasDynamicExpansionSite(promptTemplate) &&
+				renderedPromptContainsChunk(overheadProbe));
+		if (!hasChunkReference) {
+			throw new Error(
+				"The chunked prompt template does not reference the chunk text. Add {{VALUE:chunk}} to your prompt template so each chunk is inserted."
+			);
+		}
+
+		const fullContextTokens = getModelMaxTokens(model.name);
+		const estimatedInputBudget = estimateModelInputBudget(fullContextTokens);
+		const overheadPrompt = removeChunkProbeFromRenderedPrompt(overheadProbe);
+		const promptOverhead =
+			estimateTokenCount(systemPrompt) + estimateTokenCount(overheadPrompt);
+
+		// Only hard-stop when the static overhead exceeds the model's ENTIRE context
+		// window (truly no room). If it merely exceeds the 45% planning budget, we
+		// still proceed with a minimal chunk budget and let the provider decide.
+		if (promptOverhead >= fullContextTokens) {
+			throw new Error(
+				`The estimated prompt overhead (${promptOverhead} tokens) exceeds the model's entire context window (${fullContextTokens} tokens). Shorten the system prompt or prompt template, or use a model with a larger context window.`
+			);
+		}
+
+		const { budget: maxEstimatedChunkTokens, clamped } = clampChunkBudget(
+			estimatedInputBudget - promptOverhead,
+			settings.maxChunkTokens
+		);
+		if (clamped) {
+			log.logMessage(
+				`[ChunkedPrompt] Requested max chunk tokens (${settings.maxChunkTokens}) exceeds this model's estimated input budget; using ${maxEstimatedChunkTokens} estimated tokens per chunk instead.`
+			);
+		}
+
+		// Whether we should merge chunks that are smaller than the budget.
+		const shouldMerge = settings.shouldMerge ?? true;
+
+		const chunkedText = buildEstimatedPromptChunks(
+			rawChunks,
+			maxEstimatedChunkTokens,
+			shouldMerge
 		);
 
-		const maxChunkTokenSize =
-			getModelMaxTokens(model.name) / 2 - systemPromptLength; // temp, need to impl. config
-
-		// Whether we should strictly enforce the chunking rules or we should merge chunks that are too small
-		const shouldMerge = settings.shouldMerge ?? true; // temp, need to impl. config
-
-		const chunkedPrompts = [];
-		const maxCombinedChunkSize =
-			maxChunkTokenSize - promptTemplateTokenCount;
-
-		if (shouldMerge) {
-			const output: string[] = [];
-			let combinedChunk = "";
-			let combinedChunkSize = 0;
-
-			for (const chunk of chunks) {
-				const strSize = getTokenCount(chunk, model) + 1; // +1 for the newline
-
-				if (strSize > maxCombinedChunkSize) {
-					throw new Error(
-						`The chunk "${chunk.slice(
-							0,
-							25
-						)}..." is too large to fit in a single prompt.`
-					);
-				}
-
-				if (combinedChunkSize + strSize < maxCombinedChunkSize) {
-					// Add string to the current chunk and increase its size
-					combinedChunk += chunk;
-					combinedChunkSize += strSize;
-				} else {
-					// Push the current chunk to the output array
-					output.push(combinedChunk);
-
-					// Start a new chunk with the current string
-					combinedChunk = chunk;
-					combinedChunkSize = strSize;
-				}
-			}
-
-			if (combinedChunk !== "") {
-				output.push(combinedChunk);
-			}
-
-			for (const chunk of output) {
-				const prompt = await formatter(promptTemplate, { chunk });
-				chunkedPrompts.push(prompt);
-			}
-		} else {
-			for (const chunk of chunks) {
-				const tokenCount = getTokenCount(chunk, model);
-
-				if (tokenCount > maxChunkTokenSize) {
-					throw new Error(
-						`Chunk size (${tokenCount}) is larger than the maximum chunk size (${maxChunkTokenSize}). Please check your chunk separator.`
-					);
-				}
-
-				const prompt = await formatter(promptTemplate, { chunk });
-				chunkedPrompts.push(prompt);
-			}
-		}
+		// Final safety cap on the number of prompts actually dispatched (post-merge).
+		assertWithinChunkBudget(chunkedText.length);
 
 		const makeRequest = OpenAIRequest(
 			app,
@@ -629,15 +792,100 @@ export async function ChunkedPrompt(
 
 		const promptingMsg = [
 			"prompting",
-			`${chunkedPrompts.length} prompts being sent.`,
+			`${chunkedText.length} prompts being sent.`,
 		];
 		notice.setMessage(promptingMsg[0], promptingMsg[1]);
 
 		const rateLimiter = new RateLimiter(5, 1000 * 30); // 5 requests per half minute
+		let hasTerminalFailure = false;
+		let providerRequestCount = 0;
+
+		// Render prompts through the formatter, but serialize the calls so the
+		// formatter's shared variables map is never mutated concurrently: concurrent
+		// chunks and recursive retries would otherwise race on `chunk`. Serializing
+		// (rather than substituting into a once-rendered template) also keeps
+		// {{VALUE:chunk|case:...}} and other modifiers working, since the real chunk
+		// value flows through the formatter each time. Queued renders short-circuit
+		// once an earlier chunk has failed terminally.
+		let renderChain: Promise<unknown> = Promise.resolve();
+		const renderChunkPrompt = (chunk: string): Promise<string> => {
+			const rendered = renderChain.then(() => {
+				if (hasTerminalFailure) {
+					throw new Error(
+						"Chunked prompt stopped after an earlier failure."
+					);
+				}
+				return formatter(promptTemplate, { chunk });
+			});
+			renderChain = rendered.then(
+				() => undefined,
+				() => undefined
+			);
+			return rendered;
+		};
+
+		const requestChunk = async (
+			chunk: string,
+			depth = 0
+		): Promise<string[]> => {
+			if (hasTerminalFailure) {
+				throw new Error("Chunked prompt stopped after an earlier failure.");
+			}
+
+			// Render failures (e.g. a macro/inline-JS error in the template) are
+			// always terminal — they can't be fixed by splitting, so they trip the
+			// gate and stop siblings rather than entering the context-limit retry.
+			let prompt: string;
+			try {
+				prompt = await renderChunkPrompt(chunk);
+			} catch (error) {
+				hasTerminalFailure = true;
+				throw error;
+			}
+
+			try {
+				const response = await rateLimiter.add(() => {
+					if (hasTerminalFailure) {
+						throw new Error(
+							"Chunked prompt stopped after an earlier failure."
+						);
+					}
+
+					providerRequestCount += 1;
+					if (providerRequestCount > MAX_CHUNKED_PROMPTS) {
+						throw new Error(
+							`Chunked AI request exceeded the safety limit of ${MAX_CHUNKED_PROMPTS} provider requests.`
+						);
+					}
+
+					return makeRequest(prompt);
+				});
+				return [response.content];
+			} catch (error) {
+				const split = splitChunkNearMiddle(chunk);
+				if (
+					depth >= MAX_CONTEXT_RETRY_DEPTH ||
+					!split ||
+					!isLikelyContextLimitError(error)
+				) {
+					hasTerminalFailure = true;
+					throw error;
+				}
+
+				notice.setMessage(
+					"prompting",
+					"Provider rejected a prompt for context length. Retrying with smaller chunks."
+				);
+
+				const [left, right] = split;
+				const leftOutput = await requestChunk(left, depth + 1);
+				const rightOutput = await requestChunk(right, depth + 1);
+				return [...leftOutput, ...rightOutput];
+			}
+		};
+
 		const results = Promise.all(
-			chunkedPrompts.map((prompt) =>
-				rateLimiter.add(() => makeRequest(prompt))
-			)
+			chunkedText.map((chunk) => requestChunk(chunk))
 		);
 
 		const result = await timePromise(
@@ -657,7 +905,7 @@ export async function ChunkedPrompt(
 			}
 		);
 
-		const outputs = result.map((r) => r.content);
+		const outputs = result.flat();
 
 		const output = outputs.join(settings.resultJoiner);
 		const outputInMarkdownBlockQuote = ("> " + output).replace(

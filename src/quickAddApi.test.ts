@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 	// AI
 	prompt: vi.fn(),
 	chunkedPrompt: vi.fn(),
-	getTokenCount: vi.fn(),
+	estimateTokenCount: vi.fn(),
 	getAIRequestLogEntries: vi.fn(),
 	getAIRequestLogEntryById: vi.fn(),
 	getLastAIRequestLogEntry: vi.fn(),
@@ -83,11 +83,13 @@ vi.mock("./preflight/OnePageInputModal", () => ({
 vi.mock("./ai/AIAssistant", () => ({
 	Prompt: mocks.prompt,
 	ChunkedPrompt: mocks.chunkedPrompt,
-	getTokenCount: mocks.getTokenCount,
 	getAIRequestLogEntries: mocks.getAIRequestLogEntries,
 	getAIRequestLogEntryById: mocks.getAIRequestLogEntryById,
 	getLastAIRequestLogEntry: mocks.getLastAIRequestLogEntry,
 	clearAIRequestLogEntries: mocks.clearAIRequestLogEntries,
+}));
+vi.mock("./ai/tokenEstimator", () => ({
+	estimateTokenCount: mocks.estimateTokenCount,
 }));
 vi.mock("./ai/aiHelpers", () => ({
 	getModelByName: mocks.getModelByName,
@@ -644,7 +646,7 @@ describe("utility selection helpers", () => {
 });
 
 // ===========================================================================
-// AI sync helpers (getModels / getMaxTokens / countTokens / logs)
+// AI sync helpers (getModels / getMaxTokens / estimateTokens / countTokens / logs)
 // ===========================================================================
 describe("ai sync helpers", () => {
 	it("getModels delegates to getModelNames", () => {
@@ -665,12 +667,19 @@ describe("ai sync helpers", () => {
 		expect(() => api.ai.getMaxTokens("nope")).toThrow("Model nope not found.");
 	});
 
-	it("countTokens delegates to getTokenCount", () => {
-		mocks.getTokenCount.mockReturnValue(7);
+	it("estimateTokens delegates to the provider-agnostic estimator", () => {
+		mocks.estimateTokenCount.mockReturnValue(5);
+		const { api } = getApi();
+		expect(api.ai.estimateTokens("hi")).toBe(5);
+		expect(mocks.estimateTokenCount).toHaveBeenCalledWith("hi");
+	});
+
+	it("countTokens is a compatibility alias that ignores the model arg", () => {
+		mocks.estimateTokenCount.mockReturnValue(7);
 		const { api } = getApi();
 		const model = { name: "m", maxTokens: 1 } as never;
 		expect(api.ai.countTokens("hi", model)).toBe(7);
-		expect(mocks.getTokenCount).toHaveBeenCalledWith("hi", model);
+		expect(mocks.estimateTokenCount).toHaveBeenCalledWith("hi");
 	});
 
 	it("getRequestLogs delegates with a default limit of 10", () => {
@@ -850,6 +859,7 @@ describe("ai.chunkedPrompt validation", () => {
 			promptTemplate: "tmpl",
 			resultJoiner: "\n",
 			shouldMerge: true,
+			maxChunkTokens: undefined,
 		});
 		expect(opts.chunkSeparator).toBeInstanceOf(RegExp);
 	});
