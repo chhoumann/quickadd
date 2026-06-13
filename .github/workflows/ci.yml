@@ -1,16 +1,13 @@
 name: CI
 
 on:
+    # No paths-ignore: Test + Build + Lint run on every PR so they can be
+    # required status checks without deadlocking docs-only / markdown-only PRs
+    # (a required check that never runs stays pending forever and blocks merge).
     push:
         branches: [master]
-        paths-ignore:
-            - 'docs/**'
-            - '**/*.md'
     pull_request:
         branches: [master]
-        paths-ignore:
-            - 'docs/**'
-            - '**/*.md'
     workflow_dispatch:
 
 concurrency:
