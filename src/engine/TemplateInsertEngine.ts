@@ -219,13 +219,11 @@ export class TemplateInsertEngine extends TemplateEngine {
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
 		if (body.trim().length > 0) {
-			const noteContent = await this.app.vault.cachedRead(this.targetFile);
-			const newContent = insertBodyIntoNoteContent(
-				noteContent,
-				body,
-				position,
+			// vault.process is Obsidian's atomic read-modify-write; the docs recommend
+			// it over read+modify, and it reads fresh from disk (unlike cachedRead).
+			await this.app.vault.process(this.targetFile, (noteContent) =>
+				insertBodyIntoNoteContent(noteContent, body, position),
 			);
-			await this.app.vault.modify(this.targetFile, newContent);
 		}
 
 		await this.mergeFrontmatterProperties(

@@ -158,6 +158,18 @@ function makeHarness(options: {
 					? options.templateContent
 					: options.noteContent,
 			modify,
+			// Mirror Obsidian's atomic read-modify-write: read current content,
+			// apply the transform, then write via the same `modify` spy so existing
+			// modify-call assertions continue to hold.
+			process: async (file: TFile, fn: (data: string) => string) => {
+				const data =
+					file.path === TEMPLATE_PATH
+						? options.templateContent
+						: options.noteContent;
+				const next = fn(data);
+				modify(file, next);
+				return next;
+			},
 		},
 		fileManager: {
 			processFrontMatter: async (

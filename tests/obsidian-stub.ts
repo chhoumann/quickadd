@@ -351,6 +351,7 @@ export class App {
     read: async () => "",
     modify: async () => {},
     cachedRead: async () => "",
+    process: async (_file: any, fn: (data: string) => string) => fn(""),
   };
   metadataCache: any = {
     getFileCache: () => undefined,
