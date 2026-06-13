@@ -21,6 +21,7 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"## Summary\n{{VALUE:summary|type:multiline|label:Summary}}",
 	"{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md",
 	"{{VALUE:Red,Green,Blue|custom}}",
+	"{{VALUE:Personal,Work,Errand|name:category}} - {{VALUE:title}}\ntags: #{{VALUE:category}}",
 	"{{VALUE:reminder|optional}}",
 	"{{VALUE:reminder|call mom|optional}}",
 	"- [ ] {{VALUE|label:Task}} {{VDATE:followup,[📅 ]YYYY-MM-DD|optional}}",

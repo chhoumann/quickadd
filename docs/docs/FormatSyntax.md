@@ -105,6 +105,27 @@ Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
 
+## `{{VALUE:<options>|name:<variable name>}}` {#value-name}
+
+Gives a suggester a reusable **name**, so the value you pick can be inserted again elsewhere without prompting a second time. Pick from the options once at the definition, then reuse the choice anywhere with `{{VALUE:<variable name>}}`.
+
+This is what makes a single choice drive multiple places — for example choosing a category in the file name and reusing it as a tag in the body:
+
+```markdown
+File name: {{VALUE:Personal,Work,Errand|name:category}} - {{VALUE:title}}
+
+tags: #{{VALUE:category}}
+```
+
+You choose `category` once from the suggester; both the file name and the `tags` line use that selection.
+
+Notes:
+
+- Reuse is always `{{VALUE:category}}`. A bare `{{category}}` is **not** a QuickAdd token and is left untouched (it would collide with Templater/Dataview syntax).
+- `|name` combines with the other options, e.g. `{{VALUE:🔽,🔼,⏫|name:priority|text:Low,Normal,High|label:Pick a priority}}`.
+- Define before you reuse: with the one-page input form (Settings → QuickAdd) order doesn't matter, but in the default one-prompt-at-a-time flow the named suggester should appear before its first bare reuse (e.g. in the file name, which is resolved before the body). A bare reuse encountered first falls back to a text prompt.
+- `value` and `title` are reserved and can't be used as a name.
+
 ## Optional fields: `|optional` {#optional-fields}
 
 Marks a prompt as optional, so it can be skipped and resolve to nothing. Works on `{{VALUE}}`/`{{NAME}}`, `{{VALUE:<variable>}}`, option lists, and `{{VDATE:...}}`.

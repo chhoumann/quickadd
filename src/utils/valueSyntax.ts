@@ -21,10 +21,20 @@ const VALUE_OPTION_KEYS = new Set([
 	"optional",
 ]);
 
+// `name` is recognized ONLY on the named `{{VALUE:...}}` grammar, never on the
+// anonymous `{{VALUE|...}}` grammar (which shares parseOptions). Gating it here
+// keeps `{{VALUE|name:x}}` parsing its old "name:x" default unchanged.
+const NAMED_VALUE_OPTION_KEYS = new Set([...VALUE_OPTION_KEYS, "name"]);
+
+// Variable keys QuickAdd populates itself; a `|name:` alias must not hijack them.
+const RESERVED_VALUE_NAMES = new Set(["value", "title"]);
+
 export type ParsedValueToken = {
 	raw: string;
 	variableName: string;
 	variableKey: string;
+	/** Explicit reusable key from `|name:`; undefined when not provided. */
+	aliasName?: string;
 	label?: string;
 	caseStyle?: string;
 	defaultValue: string;
@@ -100,6 +110,7 @@ type ParsedOptions = {
 	inputTypeOverride?: string;
 	displayValuesRaw?: string;
 	optionalExplicit?: boolean;
+	name?: string;
 };
 
 /**
@@ -116,15 +127,21 @@ function extractBareOptionalFlag(parts: string[]): {
 	return { remaining, optional: found };
 }
 
-function hasRecognizedOption(part: string): boolean {
+function hasRecognizedOption(part: string, allowName: boolean): boolean {
 	const trimmed = part.trim();
 	if (!trimmed) return false;
 	const parsed = parsePipeKeyValue(trimmed);
 	if (!parsed) return false;
-	return VALUE_OPTION_KEYS.has(parsed.key);
+	const keys = allowName ? NAMED_VALUE_OPTION_KEYS : VALUE_OPTION_KEYS;
+	return keys.has(parsed.key);
 }
 
-function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions {
+function parseOptions(
+	optionParts: string[],
+	hasOptions: boolean,
+	allowName: boolean,
+	quiet = false,
+): ParsedOptions {
 	if (optionParts.length === 0) {
 		return {
 			defaultValue: "",
@@ -133,7 +150,10 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		};
 	}
 
-	const hasExplicitOption = optionParts.some(hasRecognizedOption);
+	const optionKeys = allowName ? NAMED_VALUE_OPTION_KEYS : VALUE_OPTION_KEYS;
+	const hasExplicitOption = optionParts.some((part) =>
+		hasRecognizedOption(part, allowName),
+	);
 	const hasCustomFlag =
 		hasOptions &&
 		optionParts.some(
@@ -156,6 +176,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 	let inputTypeOverride: string | undefined;
 	let displayValuesRaw: string | undefined;
 	let optionalExplicit: boolean | undefined;
+	let name: string | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -169,7 +190,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		const parsed = parsePipeKeyValue(trimmed);
 		if (!parsed) continue;
 		const { key, value } = parsed;
-		if (!VALUE_OPTION_KEYS.has(key)) continue;
+		if (!optionKeys.has(key)) continue;
 
 		switch (key) {
 			case "label":
@@ -193,6 +214,15 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 			case "optional":
 				optionalExplicit = parseBooleanFlag(value);
 				break;
+			case "name":
+				// Gated to the named grammar via optionKeys; empty `|name:` is a
+				// no-op alias and warns so the author notices the typo.
+				if (value) name = value;
+				else if (!quiet)
+					console.warn(
+						`QuickAdd: empty |name: ignored; provide a variable name, e.g. {{VALUE:a,b|name:category}}.`,
+					);
+				break;
 			default:
 				break;
 		}
@@ -203,6 +233,7 @@ function parseOptions(optionParts: string[], hasOptions: boolean): ParsedOptions
 		caseStyle,
 		defaultValue,
 		allowCustomInput,
+		name,
 		usesOptions: true,
 		inputTypeOverride,
 		displayValuesRaw,
@@ -217,26 +248,33 @@ function resolveInputType(
 		hasOptions,
 		allowCustomInput,
 	}: { tokenDisplay: string; hasOptions: boolean; allowCustomInput: boolean },
+	quiet = false,
 ): ValueInputType | undefined {
 	if (!rawType) return undefined;
 	const normalized = rawType.trim().toLowerCase();
 	if (normalized !== "multiline") {
-		console.warn(
-			`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline.`,
-		);
+		if (!quiet)
+			console.warn(
+				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline.`,
+			);
 		return undefined;
 	}
 	if (hasOptions || allowCustomInput) {
-		console.warn(
-			`QuickAdd: Ignoring type:multiline for option-list VALUE token "${tokenDisplay}".`,
-		);
+		if (!quiet)
+			console.warn(
+				`QuickAdd: Ignoring type:multiline for option-list VALUE token "${tokenDisplay}".`,
+			);
 		return undefined;
 	}
 	return "multiline";
 }
 
-export function parseValueToken(raw: string): ParsedValueToken | null {
+export function parseValueToken(
+	raw: string,
+	opts?: { quiet?: boolean },
+): ParsedValueToken | null {
 	if (!raw) return null;
+	const quiet = opts?.quiet ?? false;
 
 	const parts = splitPipeParts(raw);
 	const variablePart = (parts.shift() ?? "").trim();
@@ -250,7 +288,7 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 
 	const { remaining: optionParts, optional: bareOptional } =
 		extractBareOptionalFlag(parts);
-	const options = parseOptions(optionParts, hasOptions);
+	const options = parseOptions(optionParts, hasOptions, true, quiet);
 	let { label, caseStyle, defaultValue, allowCustomInput } = options;
 	const optional = options.optionalExplicit ?? bareOptional;
 
@@ -261,11 +299,15 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 	}
 
 	const tokenDisplay = `{{VALUE:${raw}}}`;
-	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
-		tokenDisplay,
-		hasOptions,
-		allowCustomInput,
-	});
+	const inputTypeOverride = resolveInputType(
+		options.inputTypeOverride,
+		{
+			tokenDisplay,
+			hasOptions,
+			allowCustomInput,
+		},
+		quiet,
+	);
 	let displayValues: string[] | undefined;
 
 	if (options.displayValuesRaw !== undefined) {
@@ -293,11 +335,39 @@ export function parseValueToken(raw: string): ParsedValueToken | null {
 		}
 	}
 
-	const variableKey = buildValueVariableKey(variablePart, label, hasOptions);
+	let aliasName = options.name?.trim() || undefined;
+	if (aliasName && aliasName.includes(VALUE_LABEL_KEY_DELIMITER)) {
+		// The delimiter is reserved for label-scoped keys; an alias containing it
+		// would corrupt resolveExistingVariableKey's base-name stripping.
+		if (!quiet)
+			console.warn(
+				`QuickAdd: |name in "${tokenDisplay}" contains a reserved control character and was ignored.`,
+			);
+		aliasName = undefined;
+	}
+	if (aliasName && RESERVED_VALUE_NAMES.has(aliasName.toLowerCase())) {
+		if (!quiet)
+			console.warn(
+				`QuickAdd: |name:${aliasName} is reserved and was ignored in "${tokenDisplay}". Choose a different name.`,
+			);
+		aliasName = undefined;
+	}
+	if (aliasName && !hasOptions && !quiet) {
+		// A named single value is just a renamed prompt; the option list is what
+		// makes |name useful. Honor it but steer authors to the simpler form.
+		console.warn(
+			`QuickAdd: |name on a single value in "${tokenDisplay}" is redundant — use {{VALUE:${aliasName}}} directly.`,
+		);
+	}
+
+	const variableKey = aliasName
+		? aliasName
+		: buildValueVariableKey(variablePart, label, hasOptions);
 
 	return {
 		raw,
 		variableName: variablePart,
+		aliasName,
 		variableKey,
 		label,
 		caseStyle,
@@ -332,7 +402,7 @@ export function parseAnonymousValueOptions(
 		return { defaultValue: "", optional: bareOptional };
 	}
 
-	const options = parseOptions(parts, false);
+	const options = parseOptions(parts, false, false);
 	const tokenDisplay = `{{VALUE${rawOptions}}}`;
 	if (options.displayValuesRaw !== undefined) {
 		throw new Error(
