@@ -5,6 +5,7 @@ import { TagSuggester } from "../suggesters/tagSuggester";
 import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
+import { attachTextareaIndent } from "../components/textareaIndent";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -19,6 +20,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private readonly description?: string;
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;
+	private disposeIndent?: () => void;
 
 	public static Prompt(
 		app: App,
@@ -142,6 +144,9 @@ export default class GenericWideInputPrompt extends Modal {
 			.onChange((value) => this.onInputChanged(value))
 			.inputEl.addEventListener("keydown", this.submitEnterCallback);
 
+		// Tab inserts a tab / indents instead of moving focus (issue #764).
+		this.disposeIndent = attachTextareaIndent(textComponent.inputEl);
+
 		return textComponent;
 	}
 
@@ -258,6 +263,7 @@ export default class GenericWideInputPrompt extends Modal {
 			"keydown",
 			this.submitEnterCallback,
 		);
+		this.disposeIndent?.();
 	}
 
 	onOpen() {
