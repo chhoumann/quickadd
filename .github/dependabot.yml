@@ -16,8 +16,8 @@ updates:
       - dependencies
       - github-actions
 
-  # Plugin dependencies (root package.json + bun.lock).
-  - package-ecosystem: bun
+  # Plugin dependencies (root package.json + pnpm-lock.yaml).
+  - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
@@ -35,8 +35,8 @@ updates:
     labels:
       - dependencies
 
-  # Docs site (docs/package.json + docs/bun.lock).
-  - package-ecosystem: bun
+  # Docs site (docs/package.json + docs/pnpm-lock.yaml).
+  - package-ecosystem: npm
     directory: /docs
     schedule:
       interval: weekly

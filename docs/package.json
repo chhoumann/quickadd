@@ -2,6 +2,7 @@
   "name": "docs",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
@@ -29,8 +30,11 @@
     "@tsconfig/docusaurus": "^2.0.9",
     "typescript": "6"
   },
-  "overrides": {
-    "webpackbar": "^7.0.0"
+  "pnpm": {
+    "overrides": {
+      "webpackbar": "^7.0.0",
+      "serialize-javascript": "^7.0.3"
+    }
   },
   "browserslist": {
     "production": [

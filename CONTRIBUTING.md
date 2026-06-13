@@ -17,11 +17,11 @@ vault flow you used, and any relevant screenshots for UI changes.
 
 ## Development
 
-QuickAdd uses `bun` for local development tasks.
+QuickAdd uses `pnpm` for local development tasks.
 
 ```bash
-bun run test
-bun run build
+pnpm run test
+pnpm run build
 ```
 
 For changes that affect the plugin at runtime, verify the behavior in Obsidian

@@ -8,7 +8,7 @@
 
 ## Testing / validation
 
-<!-- How did you verify this? e.g. `bun run build-with-lint`, `bun run test`, and
+<!-- How did you verify this? e.g. `pnpm run build-with-lint`, `pnpm run test`, and
      manual checks in Obsidian (include the Obsidian version; screenshots for UI). -->
 
 ## Checklist
