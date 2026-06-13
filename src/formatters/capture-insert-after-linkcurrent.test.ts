@@ -21,13 +21,12 @@ async function replaceLinkToCurrentFileInString(
   return output;
 }
 
-// Helper mirroring CaptureChoiceFormatter logic for finding insertion index
-function normalizeTarget(target: string): string {
-  return target.replace('\\n', '').trimEnd();
-}
-
+// Helper mirroring CaptureChoiceFormatter.findSingleLineIndex (single-line
+// matching). `\n` escapes are expanded upstream in the real formatter before
+// search (issue #742), so there is no escape-stripping here — only a trimEnd,
+// matching production exactly. These cases use single-line, escape-free targets.
 function findInsertAfterIndex(lines: string[], rawTarget: string): number {
-  const target = normalizeTarget(rawTarget);
+  const target = rawTarget.trimEnd();
   let partialIndex = -1;
 
   for (let i = 0; i < lines.length; i++) {

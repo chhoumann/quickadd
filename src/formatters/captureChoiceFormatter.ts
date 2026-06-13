@@ -12,7 +12,7 @@ import { templaterParseTemplate } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
-import getEndOfSection from "./helpers/getEndOfSection";
+import getEndOfSection, { getMarkdownHeadings } from "./helpers/getEndOfSection";
 import { findYamlFrontMatterRange } from "../utils/yamlContext";
 import { parentFolderPath } from "../utils/pathUtils";
 
@@ -232,12 +232,57 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.expandLinebreakEscapesOutsideTokens(withGlobals);
 	}
 
-	private normalizeTarget(target: string): string {
-		return target.replace("\\n", "").trimEnd();
+	/**
+	 * Splits a fully-expanded insert target into the anchor lines used for
+	 * matching. `\n` escapes in the target have already been turned into real
+	 * newlines (symmetric with the create-if-not-found path, which writes the
+	 * same expansion to disk), so a multi-line target like `**Today**\n***`
+	 * becomes `["**Today**", "***"]`.
+	 *
+	 * Trailing blank lines come from a trailing `\n` escape and are not part of
+	 * the anchor, so they are dropped: `**Today**\n` and `**Today**\n\n` both
+	 * collapse to the single-line anchor `["**Today**"]`. Interior blank lines
+	 * are preserved so a `## D\n\n**Tasks**` anchor still requires the blank.
+	 */
+	private toTargetLines(expandedTarget: string): string[] {
+		const lines = expandedTarget.split("\n");
+		while (lines.length > 1 && lines[lines.length - 1].trim() === "") {
+			lines.pop();
+		}
+		return lines;
 	}
 
-	private findInsertAfterIndex(lines: string[], rawTarget: string): number {
-		const target = this.normalizeTarget(rawTarget);
+	private isBlankTarget(targetLines: string[]): boolean {
+		return (
+			targetLines.length === 0 ||
+			(targetLines.length === 1 && targetLines[0].trim() === "")
+		);
+	}
+
+	/**
+	 * Locates the insert target in the file. Returns the inclusive line range
+	 * `{ start, end }` the target occupies, or `{ start: -1, end: -1 }` when not
+	 * found. For a single-line target `start === end`, preserving historical
+	 * single-line behavior exactly. Callers pick which boundary to anchor on:
+	 * insert-after-immediate uses `end`, insert-before uses `start`,
+	 * insert-after-at-end derives the section end from `start` (issue #742).
+	 */
+	private findInsertAfterRange(
+		lines: string[],
+		targetLines: string[],
+	): { start: number; end: number } {
+		if (targetLines.length <= 1) {
+			const start = this.findSingleLineIndex(lines, targetLines[0] ?? "");
+			return { start, end: start };
+		}
+		return this.findMultiLineRange(lines, targetLines);
+	}
+
+	private findSingleLineIndex(lines: string[], rawTarget: string): number {
+		// `\n` escapes are already expanded upstream, so no escape stripping
+		// happens here — stripping would desync search from the create path,
+		// which writes the unstripped string (issue #742).
+		const target = rawTarget.trimEnd();
 		let partialIndex = -1;
 
 		for (let i = 0; i < lines.length; i++) {
@@ -281,8 +326,56 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return partialIndex; // -1 if no match at all
 	}
 
-	private findInsertBeforeIndex(lines: string[], rawTarget: string): number {
-		return this.findInsertAfterIndex(lines, rawTarget);
+	/**
+	 * Matches a multi-line target as a consecutive run of file lines. Only
+	 * TRAILING whitespace is stripped before comparison (on both sides), which
+	 * normalizes CRLF carriage returns and trailing spaces while preserving
+	 * LEADING indentation — `  - Parent\n    - Child` must not match a flat
+	 * `- Parent\n- Child`. Because the create path writes the target verbatim,
+	 * an indented anchor still round-trips. No fuzzy/partial fallback: a
+	 * multi-line anchor must match verbatim to avoid false positives.
+	 */
+	private findMultiLineRange(
+		lines: string[],
+		targetLines: string[],
+	): { start: number; end: number } {
+		const n = targetLines.length;
+		const normalizedTargets = targetLines.map((line) =>
+			this.stripTrailingWhitespace(line),
+		);
+
+		for (let i = 0; i + n <= lines.length; i++) {
+			let matched = true;
+			for (let k = 0; k < n; k++) {
+				if (this.stripTrailingWhitespace(lines[i + k]) !== normalizedTargets[k]) {
+					matched = false;
+					break;
+				}
+			}
+			if (matched) return { start: i, end: i + n - 1 };
+		}
+
+		return { start: -1, end: -1 };
+	}
+
+	private stripTrailingWhitespace(line: string): string {
+		return line.replace(/\s+$/, "");
+	}
+
+	/**
+	 * `considerSubsections` only has meaning for a heading anchor — a non-heading
+	 * line has no section whose subsections could be included, and
+	 * getEndOfSection() throws if asked to consider subsections of a non-heading
+	 * line. Multi-line anchors made non-heading start lines newly matchable
+	 * (issue #742), so degrade to false when the anchor is not a heading
+	 * (using getEndOfSection's own heading definition) instead of throwing.
+	 */
+	private considerSubsectionsForAnchor(
+		lines: string[],
+		anchorLine: number,
+	): boolean {
+		if (!this.choice.insertAfter?.considerSubsections) return false;
+		return getMarkdownHeadings([lines[anchorLine] ?? ""]).length > 0;
 	}
 
 	private shouldSkipBlankLinesAfterMatch(
@@ -367,24 +460,38 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async insertAfterHandler(formatted: string) {
-		// Use centralized location formatting for selector strings
+		// Inline targets are single-line by definition and use a separate
+		// indexOf-based path; keep their selector unexpanded (out of scope #742).
+		if (this.choice.insertAfter?.inline) {
+			const inlineTarget: string = await this.formatLocationString(
+				this.choice.insertAfter.after,
+			);
+			return await this.insertAfterInlineHandler(formatted, inlineTarget);
+		}
+
+		// Expand `\n` escapes BEFORE searching so the search target is identical
+		// to what createInsertAfterIfNotFound writes to disk. Computed once and
+		// reused for the create path so the two can never diverge (issue #742).
 		const targetString: string = await this.formatLocationString(
-			this.choice.insertAfter.after,
+			await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 		);
 
-		if (this.choice.insertAfter?.inline) {
-			return await this.insertAfterInlineHandler(formatted, targetString);
+		const targetLines = this.toTargetLines(targetString);
+		if (this.isBlankTarget(targetLines)) {
+			throw new ChoiceAbortError(
+				"Insert-after target is empty after formatting.",
+			);
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		let targetPosition = this.findInsertAfterIndex(
+		const { start, end } = this.findInsertAfterRange(
 			fileContentLines,
-			targetString,
+			targetLines,
 		);
-		const targetNotFound = targetPosition === -1;
+		const targetNotFound = start === -1;
 		if (targetNotFound) {
 			if (this.choice.insertAfter?.createIfNotFound) {
-				return await this.createInsertAfterIfNotFound(formatted);
+				return await this.createInsertAfterIfNotFound(formatted, targetString);
 			}
 
 			throw new ChoiceAbortError(
@@ -392,27 +499,36 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			);
 		}
 
+		let targetPosition: number;
 		if (this.choice.insertAfter?.insertAtEnd) {
 			if (!this.file) throw new Error("Tried to get sections without file.");
 
+			// Anchor section detection on the block's first line (a heading there
+			// gets correct section semantics), then clamp to the block's last line
+			// so we never insert INSIDE the matched multi-line anchor.
 			const endOfSectionIndex = getEndOfSection(
 				fileContentLines,
-				targetPosition,
-				!!this.choice.insertAfter.considerSubsections,
+				start,
+				this.considerSubsectionsForAnchor(fileContentLines, start),
+			);
+			const sectionEnd = Math.max(
+				endOfSectionIndex ?? fileContentLines.length - 1,
+				end,
 			);
 
 			targetPosition = this.findInsertAfterPositionAtSectionEnd(
 				fileContentLines,
-				endOfSectionIndex ?? fileContentLines.length - 1,
+				sectionEnd,
 				this.fileContent,
 				formatted,
 			);
 		} else {
 			const blankLineMode =
 				this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto";
+			// Insert after the block's last line; blank-line skipping keys off it.
 			targetPosition = this.findInsertAfterPositionWithBlankLines(
 				fileContentLines,
-				targetPosition,
+				end,
 				this.fileContent,
 				blankLineMode,
 			);
@@ -431,19 +547,27 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			throw new ChoiceAbortError("Insert-before settings are missing.");
 		}
 
+		// Expand `\n` escapes before searching (symmetric with the create path)
+		// and reuse the resolved string for create so they cannot diverge.
 		const targetString: string = await this.formatLocationString(
-			insertBefore.before,
+			await this.expandFormatTemplateEscapes(insertBefore.before),
 		);
 
+		const targetLines = this.toTargetLines(targetString);
+		if (this.isBlankTarget(targetLines)) {
+			throw new ChoiceAbortError(
+				"Insert-before target is empty after formatting.",
+			);
+		}
+
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		const targetPosition = this.findInsertBeforeIndex(
-			fileContentLines,
-			targetString,
-		);
-		const targetNotFound = targetPosition === -1;
+		// Insert-before anchors on the block's FIRST line so the capture lands
+		// before the whole multi-line anchor (never inside it — issue #742).
+		const { start } = this.findInsertAfterRange(fileContentLines, targetLines);
+		const targetNotFound = start === -1;
 		if (targetNotFound) {
 			if (insertBefore.createIfNotFound) {
-				return await this.createInsertBeforeIfNotFound(formatted);
+				return await this.createInsertBeforeIfNotFound(formatted, targetString);
 			}
 
 			throw new ChoiceAbortError(
@@ -454,7 +578,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.insertTextBeforePositionInBody(
 			formatted,
 			this.fileContent,
-			targetPosition,
+			start,
 		);
 	}
 
@@ -514,14 +638,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 	}
 
-	private async createInsertAfterIfNotFound(formatted: string) {
-		// Build the line to insert using centralized location formatting.
-		// Linebreak escapes are expanded on the raw setting (with globals injected
-		// first), before substitution, so backslash sequences in substituted
-		// values stay verbatim (issue #527).
-		const insertAfterLine: string = await this.formatLocationString(
-			await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
-		);
+	private async createInsertAfterIfNotFound(
+		formatted: string,
+		insertAfterLine: string,
+	) {
+		// `insertAfterLine` is the resolved+escape-expanded target already computed
+		// by insertAfterHandler. Reusing it (rather than re-deriving) guarantees the
+		// created block is byte-identical to what the search will look for on the
+		// next run, which is the actual fix for the duplication (issues #742, #527).
 		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
 
 		if (
@@ -569,7 +693,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 					const endOfSectionIndex = getEndOfSection(
 						fileContentLines,
 						targetPosition,
-						!!this.choice.insertAfter.considerSubsections,
+						this.considerSubsectionsForAnchor(fileContentLines, targetPosition),
 					);
 
 					targetPosition = this.findInsertAfterPositionAtSectionEnd(
@@ -599,15 +723,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 	}
 
-	private async createInsertBeforeIfNotFound(formatted: string) {
+	private async createInsertBeforeIfNotFound(
+		formatted: string,
+		insertBeforeLine: string,
+	) {
 		const insertBefore = this.choice.insertBefore;
 		if (!insertBefore) {
 			throw new ChoiceAbortError("Insert-before settings are missing.");
 		}
 
-		const insertBeforeLine: string = await this.formatLocationString(
-			await this.expandFormatTemplateEscapes(insertBefore.before),
-		);
+		// `insertBeforeLine` is the resolved+escape-expanded target from
+		// insertBeforeHandler, reused so create and search stay byte-identical.
 		const formattedAndInsertBeforeLine =
 			formatted.endsWith("\n") || formatted.length === 0
 				? `${formatted}${insertBeforeLine}`

@@ -149,6 +149,85 @@ describe("parseAnonymousValueOptions", () => {
 			/only supported for option-list/i,
 		);
 	});
+
+	it("does NOT treat name: as an option (anonymous path is unchanged by #148)", () => {
+		// `name` is gated to the named {{VALUE:...}} grammar; on the anonymous
+		// {{VALUE|...}} grammar it stays an ordinary legacy default value.
+		const parsed = parseAnonymousValueOptions("|name:John");
+		expect(parsed.defaultValue).toBe("name:John");
+	});
+});
+
+describe("named variables (|name:, issue #148)", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("keys an option list on the explicit name and exposes aliasName", () => {
+		const parsed = parseValueToken("work,home,errand|name:category");
+		expect(parsed?.hasOptions).toBe(true);
+		expect(parsed?.aliasName).toBe("category");
+		expect(parsed?.variableKey).toBe("category");
+		expect(parsed?.suggestedValues).toEqual(["work", "home", "errand"]);
+	});
+
+	it("bypasses label scoping when a name is given", () => {
+		const parsed = parseValueToken("a,b|name:category|label:Pick");
+		expect(parsed?.variableKey).toBe("category");
+		expect(parsed?.label).toBe("Pick");
+	});
+
+	it("coexists with text and custom options", () => {
+		const parsed = parseValueToken(
+			"a,b|name:category|text:Alpha,Beta|custom",
+		);
+		expect(parsed?.aliasName).toBe("category");
+		expect(parsed?.variableKey).toBe("category");
+		expect(parsed?.displayValues).toEqual(["Alpha", "Beta"]);
+		expect(parsed?.allowCustomInput).toBe(true);
+	});
+
+	it("warns and ignores reserved names", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("a,b|name:title");
+		expect(parsed?.aliasName).toBeUndefined();
+		// Falls back to the option-list key (no alias).
+		expect(parsed?.variableKey).toBe("a,b");
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("warns and ignores a name containing the reserved key delimiter", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("a,b|name:foo\u001Fbar")
+		expect(parsed?.aliasName).toBeUndefined();
+		expect(parsed?.variableKey).toBe("a,b");
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("stays silent when parsed in quiet mode", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		// Reserved name would normally warn; quiet mode (the pre-pass) suppresses it.
+		const parsed = parseValueToken("a,b|name:title", { quiet: true });
+		expect(parsed?.aliasName).toBeUndefined();
+		expect(warnSpy).not.toHaveBeenCalled();
+	});
+
+	it("warns and ignores an empty name", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("a,b|name:");
+		expect(parsed?.aliasName).toBeUndefined();
+		expect(parsed?.variableKey).toBe("a,b");
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("honors but warns about name on a single value", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("Some prompt|name:bar");
+		expect(parsed?.hasOptions).toBe(false);
+		expect(parsed?.aliasName).toBe("bar");
+		expect(parsed?.variableKey).toBe("bar");
+		expect(warnSpy).toHaveBeenCalled();
+	});
 });
 
 describe("resolveExistingVariableKey", () => {

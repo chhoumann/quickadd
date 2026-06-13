@@ -6,6 +6,9 @@ import {
 	type WorkspaceLeaf,
 } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import { renderNotePathSuggestion } from "src/gui/InputSuggester/renderNotePathSuggestion";
+import { orderFilesForPicker } from "src/utils/fileOrdering";
+import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -568,6 +571,25 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		return { kind: "file", path: normalizedCaptureTo };
 	}
 
+	/**
+	 * Whether a typed picker value already resolves to an existing note, so the
+	 * "Create new note" affordance can be suppressed for it. The value is the
+	 * displayed name (folder-stripped for folder captures), so the folder prefix is
+	 * re-applied and a markdown extension is tried when none is present.
+	 */
+	private captureTargetExists(folderPathSlash: string, value: string): boolean {
+		const withinScope = value.startsWith(folderPathSlash)
+			? value
+			: `${folderPathSlash}${value}`;
+		const candidates = [withinScope];
+		if (!/\.(md|canvas)$/i.test(withinScope)) {
+			candidates.push(`${withinScope}.md`, `${withinScope}.canvas`);
+		}
+		return candidates.some(
+			(path) => !!this.app.vault.getAbstractFileByPath(path),
+		);
+	}
+
 	private async selectFileInFolder(
 		folderPath: string,
 		captureAnywhereInVault: boolean,
@@ -580,13 +602,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
-		const filePaths = filesInFolder.map((f) => f.path);
+		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
+		const filePaths = orderFilesForPicker(
+			filesInFolder,
+			buildPickerOrderingDeps(this.app),
+		).map((f) => f.path);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
 				this.app,
 				filePaths.map((item) => item.replace(folderPathSlash, "")),
 				filePaths,
+				{
+					allowCustomValue: allowCreate,
+					customValueLabel: (value) => `Create new note: ${value}`,
+					valueExists: (value) =>
+						this.captureTargetExists(folderPathSlash, value),
+				},
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
@@ -615,13 +648,34 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
 
-		const filePaths = filesWithTag.map((f) => f.path);
+		// Quick-Switcher-style ordering; show note names (not raw paths) for tag scope.
+		const filePaths = orderFilesForPicker(
+			filesWithTag,
+			buildPickerOrderingDeps(this.app),
+		).map((f) => f.path);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
+		// Tagged notes can live anywhere, so existence is matched by basename/path
+		// across the tagged set rather than by re-prefixing a folder.
+		const existingTagged = new Set<string>();
+		for (const f of filesWithTag) {
+			existingTagged.add(f.path);
+			existingTagged.add(f.basename);
+		}
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
 				this.app,
 				filePaths,
 				filePaths,
+				{
+					renderItem: (path, el) =>
+						renderNotePathSuggestion(el, path),
+					allowCustomValue: allowCreate,
+					customValueLabel: (value) => `Create new note: ${value}`,
+					valueExists: (value) =>
+						existingTagged.has(value) ||
+						existingTagged.has(value.replace(/\.md$/i, "")),
+				},
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {

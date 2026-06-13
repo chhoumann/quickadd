@@ -49,6 +49,11 @@ class LRUCache<T> {
 		return value;
 	}
 
+	/** Reads a value without affecting recency ordering (safe inside sort comparators). */
+	peek(key: string): T | undefined {
+		return this.cache.get(key);
+	}
+
 	set(key: string, value: T): void {
 		if (this.cache.has(key)) {
 			this.cache.delete(key);
@@ -160,6 +165,24 @@ export class FileIndex {
 			FileIndex.instance = new FileIndex(app, plugin);
 		}
 		return FileIndex.instance;
+	}
+
+	/**
+	 * Returns the existing singleton without constructing one. Lets recency-aware
+	 * callers (e.g. the capture note-picker) reuse the index when it is already
+	 * warm, without paying any startup/indexing cost when it is not.
+	 */
+	static getInstanceIfExists(): FileIndex | undefined {
+		return FileIndex.instance ?? undefined;
+	}
+
+	/**
+	 * Session recency for a path: the timestamp it was last opened this session, or
+	 * undefined if never opened. Sourced from the file-open listener's LRU, so it is
+	 * available regardless of whether the search index has finished building.
+	 */
+	getLastOpenedAt(path: string): number | undefined {
+		return this.recentFiles.peek(path);
 	}
 
 

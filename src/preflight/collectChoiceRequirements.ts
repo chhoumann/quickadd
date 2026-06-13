@@ -19,6 +19,8 @@ import {
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
+import { orderFilesForPicker } from "src/utils/fileOrdering";
+import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import {
 	RequirementCollector,
@@ -228,7 +230,10 @@ async function collectForCaptureChoice(
 			files = getMarkdownFilesInFolder(app, base);
 		}
 
-		const options = files.map((file) => file.path);
+		const options = orderFilesForPicker(
+			files,
+			buildPickerOrderingDeps(app),
+		).map((file) => file.path);
 		collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
 			id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			label: "Select capture target file",

@@ -155,8 +155,6 @@ export class RequirementCollector extends Formatter {
 				variableKey,
 				label,
 				defaultValue,
-				allowCustomInput,
-				suggestedValues,
 				displayValues,
 				hasOptions,
 			} = parsed;
@@ -177,28 +175,38 @@ export class RequirementCollector extends Formatter {
 					id: requirementId,
 					label: displayLabel,
 					type: hasOptions
-						? allowCustomInput
-							? "suggester"
-							: "dropdown"
+						? this.optionFieldType(parsed)
 						: baseInputType,
 					description,
 					optional: parsed.optional,
 				};
-				if (hasOptions) {
-					req.options = suggestedValues;
-					if (displayValues) req.displayOptions = displayValues;
-					if (allowCustomInput) {
-						req.suggesterConfig = {
-							allowCustomInput: true,
-							caseSensitive: false,
-							multiSelect: false,
-						};
-					}
-				}
+				if (hasOptions) this.applyOptionFields(req, parsed);
 				if (defaultValue) req.defaultValue = defaultValue;
 				this.requirements.set(requirementId, req);
 			} else {
 				const existing = this.requirements.get(requirementId)!;
+				// Order-independent named reuse: when a later occurrence carries
+				// the option list ({{VALUE:a,b|name:x}}) but the requirement was
+				// first recorded option-less (a bare {{VALUE:x}} reuse seen
+				// earlier, in this or a prior scanned string), upgrade it in place
+				// so the one-page form renders the dropdown/suggester either way.
+				if (hasOptions && !this.hasOptionList(existing)) {
+					existing.type = this.optionFieldType(parsed);
+					existing.label = displayLabel;
+					this.applyOptionFields(existing, parsed);
+					// Drop a stale text-era default the upgraded control can't keep.
+					// A non-custom dropdown stores raw option values, so a default
+					// that isn't one (incl. a display label) would be normalized to
+					// the first option anyway — clear it for an honest empty start.
+					// The suggester/custom path accepts free text, so keep it.
+					if (
+						existing.defaultValue !== undefined &&
+						!parsed.allowCustomInput &&
+						!parsed.suggestedValues.includes(existing.defaultValue)
+					) {
+						existing.defaultValue = undefined;
+					}
+				}
 				if (defaultValue && existing.defaultValue === undefined)
 					existing.defaultValue = defaultValue;
 				if (!existing.displayOptions && displayValues) {
@@ -207,6 +215,37 @@ export class RequirementCollector extends Formatter {
 				// AND rule: the field is optional only if every occurrence is.
 				existing.optional = (existing.optional ?? false) && parsed.optional;
 			}
+		}
+	}
+
+	private optionFieldType(parsed: {
+		allowCustomInput: boolean;
+	}): FieldType {
+		return parsed.allowCustomInput ? "suggester" : "dropdown";
+	}
+
+	private hasOptionList(req: FieldRequirement): boolean {
+		return Array.isArray(req.options) && req.options.length > 0;
+	}
+
+	private applyOptionFields(
+		req: FieldRequirement,
+		parsed: {
+			suggestedValues: string[];
+			displayValues?: string[];
+			allowCustomInput: boolean;
+		},
+	): void {
+		req.options = parsed.suggestedValues;
+		if (parsed.displayValues) req.displayOptions = parsed.displayValues;
+		if (parsed.allowCustomInput) {
+			req.suggesterConfig = {
+				allowCustomInput: true,
+				caseSensitive: false,
+				multiSelect: false,
+			};
+		} else {
+			delete req.suggesterConfig;
 		}
 	}
 
