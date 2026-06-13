@@ -412,12 +412,15 @@ that uniquely exports the requested member across all scripts in the macro.
 QuickAdd resolves `Macro::member` like this:
 - If exactly one script exports the requested member, QuickAdd uses it.
 - If no script exports the requested member, QuickAdd stops and shows an error.
+  - Exception: if the macro has no user-script commands at all, QuickAdd cannot
+    satisfy member access — it logs a warning and returns an empty result instead
+    of stopping the macro.
 - If multiple scripts export the requested member, QuickAdd stops and lists the
   conflicting script names instead of guessing.
-- Exception: the convention keys `settings` and `entry` (which many scripts export)
-  resolve to the **first** script that exports them and show a one-time notice
-  pointing at the selector form below, rather than stopping. Use the selector if you
-  need a different script.
+- Exception: the convention keys `settings`, `entry`, and `quickadd` (which many
+  scripts export as metadata rather than entrypoints) resolve to the **first** script
+  that exports them and show a one-time notice pointing at the selector form below,
+  rather than stopping. Use the selector if you need a different script.
 
 If there is a conflict, you can target a specific script by name:
 - `{{MACRO:MyMacro::Script 1::option1}}`
