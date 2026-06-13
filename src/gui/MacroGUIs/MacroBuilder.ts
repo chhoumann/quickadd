@@ -87,18 +87,22 @@ export class MacroBuilder extends Modal {
 
 		renameButton.addEventListener("click", () => {
 			void (async () => {
-				const newName: string = await GenericInputPrompt.Prompt(
-					this.app,
-					`Update name for ${this.choice.name}`,
-					this.choice.name,
-					this.choice.name
-				);
-				if (!newName) return;
+				try {
+					const newName: string = await GenericInputPrompt.Prompt(
+						this.app,
+						`Update name for ${this.choice.name}`,
+						this.choice.name,
+						this.choice.name
+					);
+					if (!newName) return;
 
-				// Keep choice name and macro name in sync
-				this.choice.name = newName;
-				this.macro.name = newName;
-				this.reload();
+					// Keep choice name and macro name in sync
+					this.choice.name = newName;
+					this.macro.name = newName;
+					this.reload();
+				} catch {
+					// Prompt cancelled (Esc/Cancel) — keep the current name.
+				}
 			})();
 		});
 	}

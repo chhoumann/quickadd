@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { TextAreaComponent, TextComponent } from "obsidian";
+import { log } from "src/logger/logManager";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 
 type ValidatorResult = boolean | string | { valid: boolean; message?: string };
@@ -144,7 +145,15 @@ export function createValidatedInput(
 
 	let timer: number | undefined;
 	const handleChange = (value: string) => {
-		if (onChange) void onChange(value);
+		if (onChange) {
+			// onChange may be async and is fire-and-forget; normalize and consume
+			// any rejection so a rejecting handler can't become an unhandled rejection.
+			void Promise.resolve(onChange(value)).catch((error) => {
+				log.logError(
+					error instanceof Error ? error : new Error(String(error)),
+				);
+			});
+		}
 		if (debounceMs > 0) {
 			if (timer) window.clearTimeout(timer);
 			timer = window.setTimeout(() => void runValidator(value), debounceMs);
