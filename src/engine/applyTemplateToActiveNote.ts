@@ -178,6 +178,20 @@ export async function applyTemplateToNote(
 			mode,
 			params.choiceExecutor,
 		);
+
+		// Resolve format tokens in the path (issue #620), then re-validate that
+		// the RESOLVED file is still a markdown template: a token can expand a
+		// markdown-looking path (e.g. "Templates/{{value:t}}") into a .canvas or
+		// .base file, which must not be applied to a markdown note. The raw-path
+		// check above only catches a literal canvas/base extension.
+		const resolvedTemplatePath = await engine.getResolvedTemplatePath();
+		if (!isMarkdownTemplatePath(resolvedTemplatePath)) {
+			new Notice(
+				"QuickAdd: Only markdown templates can be applied to a note. Canvas and base templates create their own file types.",
+			);
+			return null;
+		}
+
 		const result = await engine.apply();
 		if (!result) return null;
 

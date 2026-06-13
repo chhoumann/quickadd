@@ -63,38 +63,37 @@ const hintId = `qa-hint-${Math.random().toString(36).slice(2)}`;
 
 const normalize = (raw: string) => (trim ? raw.trim() : raw);
 
-function setError(message?: string) {
-	invalid = !!message;
+// Shows the hint message; marks the field invalid only when isInvalid. A valid
+// result that still carries a message renders as a neutral hint (not an error),
+// e.g. a template path with format syntax that "resolves at run time".
+function setHint(message?: string, isInvalid = false) {
+	invalid = isInvalid;
 	hintMessage = message ?? "";
 }
 
 async function runValidator(candidate: string): Promise<boolean> {
 	if (required && normalize(candidate).length === 0) {
-		setError(requiredMessage);
+		setHint(requiredMessage, true);
 		return false;
 	}
 	if (!validator) {
-		setError(undefined);
+		setHint(undefined);
 		return true;
 	}
 	const myToken = ++validateToken;
 	const res = await Promise.resolve(validator(candidate));
 	if (myToken !== validateToken || disposed) return true;
 
-	let valid: boolean;
-	let message: string | undefined;
 	if (typeof res === "boolean") {
-		valid = res;
-		message = res ? undefined : "Invalid value";
-	} else if (typeof res === "string") {
-		valid = false;
-		message = res;
-	} else {
-		valid = res.valid;
-		message = res.message;
+		setHint(res ? undefined : "Invalid value", !res);
+		return res;
 	}
-	setError(valid ? undefined : message ?? "Invalid value");
-	return valid;
+	if (typeof res === "string") {
+		setHint(res, true);
+		return false;
+	}
+	setHint(res.message ?? (res.valid ? undefined : "Invalid value"), !res.valid);
+	return res.valid;
 }
 
 function handleInput(event: Event) {

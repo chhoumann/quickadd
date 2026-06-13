@@ -105,8 +105,26 @@ export class TemplateInsertEngine extends TemplateEngine {
 		super(app, plugin, choiceExecutor);
 	}
 
+	private resolvedTemplatePath: string | null = null;
+
 	public async run(): Promise<void> {
 		await this.apply();
+	}
+
+	/**
+	 * Resolves the template path's format tokens (issue #620) once and memoizes
+	 * the result: apply() and computeChoiceTargetPath() run on the same engine
+	 * instance, and re-resolving would re-evaluate {{date}}/{{random}} (and
+	 * re-prompt). Exposed so applyTemplateToNote can re-validate the resolved
+	 * extension before applying.
+	 */
+	public async getResolvedTemplatePath(): Promise<string> {
+		if (this.resolvedTemplatePath === null) {
+			this.resolvedTemplatePath = await this.resolveTemplateSourcePath(
+				this.templatePath,
+			);
+		}
+		return this.resolvedTemplatePath;
 	}
 
 	public async apply(): Promise<TFile | null> {
@@ -119,7 +137,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 			case "replace":
 				return await this.overwriteFileWithTemplate(
 					this.targetFile,
-					this.templatePath,
+					await this.getResolvedTemplatePath(),
 				);
 			case "top":
 			case "bottom":
@@ -203,10 +221,14 @@ export class TemplateInsertEngine extends TemplateEngine {
 		// basenames).
 		if (!fileName.slice(fileName.lastIndexOf("/") + 1).trim()) return null;
 
+		// Invariant: this engine is always constructed with the same choice's
+		// templatePath that callers pass here (see applyTemplateToNote), so the
+		// memoized resolved path matches `choice`. The extension therefore comes
+		// from the resolved source path (issue #620), consistent with apply().
 		return this.normalizeTemplateFilePath(
 			treatAsVaultRelativePath ? "" : folderPath,
 			fileName,
-			this.templatePath,
+			await this.getResolvedTemplatePath(),
 		);
 	}
 
@@ -260,7 +282,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 		formatted: string;
 		templatePropertyVars: Map<string, unknown>;
 	}> {
-		const templateContent = await this.getTemplateContent(this.templatePath);
+		const templateContent = await this.getTemplateContent(
+			await this.getResolvedTemplatePath(),
+		);
 
 		this.formatter.setTitle(this.targetFile.basename);
 		// {{FOLDER}} resolves to the note's own folder when applying a template.

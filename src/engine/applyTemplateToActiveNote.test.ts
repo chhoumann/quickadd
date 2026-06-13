@@ -9,8 +9,13 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 	const actual = await importOriginal<object>();
 
 	class TemplateInsertEngineMock {
+		templatePath: string;
 		constructor(...args: unknown[]) {
 			engineConstructorMock(...args);
+			this.templatePath = args[3] as string;
+		}
+		async getResolvedTemplatePath() {
+			return this.templatePath;
 		}
 		async apply() {
 			return await engineApplyMock();

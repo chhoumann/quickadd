@@ -11,6 +11,14 @@ The Template choice builder groups its settings into four sections: **Template**
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
 
+The Template Path supports QuickAdd [format syntax](/FormatSyntax.md), so the path can be dynamic. For example, `Templates/{{VALUE:collectionName}} Template.md` prompts for a collection name and resolves to a path like `Templates/Games Template.md` when the choice runs. Named values (`{{VALUE:client}}`), dates (`{{DATE:YYYY}}`), fields, and global variables all work in the path. The same applies to the Capture choice's *Create file with template* path.
+
+The path is resolved with a **path-safe** subset of the format syntax: macros, inline JavaScript, and `{{TEMPLATE:...}}` inclusion are **not** run while computing a path, and `{{title}}` cannot be used in a path (the title is derived from the created file, not the source template). The created file's extension comes from the *resolved* path, so a token that expands to `.canvas`/`.base` produces a canvas/base file.
+
+:::note
+A few things don't apply to a *dynamic* template path: the path can't be auto-bundled when exporting a QuickAdd package (it isn't a literal file), and if you use the [one-page input](/Advanced/onePageInputs.md) form, prompts inside the resolved template's body are gathered when the choice runs rather than in the up-front form.
+:::
+
 QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`) templates. The created file uses the same extension as the template.
 If you want a new markdown note to include a live embedded Base dashboard, see
 [Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).

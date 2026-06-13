@@ -593,6 +593,18 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		this.formatter.setTargetFolderPath(path);
 	}
 
+	/**
+	 * Resolves QuickAdd format tokens in a template *source* path (issue #620)
+	 * via this engine's formatter, e.g. "Templates/{{value:type}} Template.md".
+	 * Call once at run() entry and reuse the result for BOTH target-path
+	 * construction (extension/name) and content reading, so the file that is
+	 * read and the file that is created can never disagree. Resolving more than
+	 * once would re-evaluate {{date}}/{{random}} to a different value.
+	 */
+	protected async resolveTemplateSourcePath(rawPath: string): Promise<string> {
+		return this.formatter.formatTemplateFilePath(rawPath);
+	}
+
 
 
 	protected async overwriteFileWithTemplate(
@@ -685,12 +697,18 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		}
 	}
 
-	protected async getTemplateContent(templatePath: string): Promise<string> {
-		const templateFile = getTemplateFile(this.app, templatePath);
+	/**
+	 * Reads a template's content. The path MUST already be resolved via
+	 * {@link resolveTemplateSourcePath} — every caller resolves at run() entry.
+	 * This method intentionally does not format, so {{date}}/{{random}} in a
+	 * template path won't re-evaluate between extension derivation and reading.
+	 */
+	protected async getTemplateContent(resolvedTemplatePath: string): Promise<string> {
+		const templateFile = getTemplateFile(this.app, resolvedTemplatePath);
 
 		if (!templateFile)
 			throw new Error(
-				`Template file not found at path "${templatePath}".`
+				`Template file not found at path "${resolvedTemplatePath}".`
 			);
 
 		return await this.app.vault.cachedRead(templateFile);
