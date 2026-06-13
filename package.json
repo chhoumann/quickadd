@@ -7,7 +7,7 @@
     "dev": "node esbuild.config.mjs",
     "lint": "eslint .",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "build-with-lint": "tsc -noEmit -skipLibCheck && bun lint && node esbuild.config.mjs production",
+    "build-with-lint": "tsc -noEmit -skipLibCheck && pnpm lint && node esbuild.config.mjs production",
     "check": "svelte-check --threshold error",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
     "test:coverage": "vitest run --config vitest.config.mts --coverage",
@@ -36,7 +36,7 @@
     "jsdom": "29",
     "obsidian": "1.13.0",
     "obsidian-e2e": "0.6.0",
-    "semantic-release": "^24.2.9",
+    "semantic-release": "^25.0.5",
     "svelte": "^5",
     "svelte-check": "^4",
     "svelte-eslint-parser": "^1.8.0",
@@ -60,10 +60,17 @@
     "type": "git",
     "url": "https://github.com/chhoumann/quickadd.git"
   },
+  "packageManager": "pnpm@10.32.1",
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@codemirror/language",
+      "esbuild"
+    ]
   },
   "release": {
     "tagFormat": "${version}",

@@ -27,11 +27,11 @@ For detailed instructions and examples on using QuickAdd, see the [QuickAdd docu
 
 ## Development
 
-QuickAdd uses `bun` for local development tasks:
+QuickAdd uses `pnpm` for local development tasks:
 
-- `bun run test` runs the unit test suite.
-- `bun run build` type-checks and bundles the plugin.
-- `bun run test:e2e` runs Obsidian-backed end-to-end tests.
+- `pnpm run test` runs the unit test suite.
+- `pnpm run build` type-checks and bundles the plugin.
+- `pnpm run test:e2e` runs Obsidian-backed end-to-end tests.
 
 The E2E suite is local-only today. It depends on a locally installed Obsidian
 app, the `obsidian` CLI being available on `PATH`, and the `dev` vault being

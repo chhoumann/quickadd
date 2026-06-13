@@ -43,7 +43,7 @@ if (existsSync(versionedDocsDir)) {
 console.log(`[docs-versioning] Creating docs snapshot for ${version}.`);
 
 try {
-	execFileSync("bun", ["run", "docusaurus", "docs:version", version], {
+	execFileSync("pnpm", ["run", "docusaurus", "docs:version", version], {
 		cwd: docsDir,
 		stdio: "inherit",
 	});

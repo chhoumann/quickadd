@@ -3,4 +3,4 @@ version = 1
 name = "quickadd"
 
 [setup]
-script = "bun install"
+script = "pnpm install"

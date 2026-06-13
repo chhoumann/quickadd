@@ -2,11 +2,13 @@
 *.iml
 .idea
 
-# npm/pnpm/yarn
+# Dependencies
 node_modules
+
+# Foreign package-manager lockfiles (this project uses pnpm; pnpm-lock.yaml is committed)
 package-lock.json
-pnpm-lock.yaml
 yarn.lock
+bun.lock
 
 # build
 main.js
