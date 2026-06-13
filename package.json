@@ -66,7 +66,7 @@
       "esbuild"
     ],
     "overrides": {
-      "obsidian-calendar-ui>svelte": "^3.59.2"
+      "obsidian-calendar-ui>svelte": "^5.56.3"
     }
   },
   "release": {

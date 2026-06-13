@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  obsidian-calendar-ui>svelte: ^3.59.2
+  obsidian-calendar-ui>svelte: ^5.56.3
 
 importers:
 
@@ -22,7 +22,7 @@ importers:
         version: 7.4.2
       obsidian-dataview:
         specifier: ^0.5.68
-        version: 0.5.68
+        version: 0.5.68(@typescript-eslint/types@8.61.0)
       svelte-dnd-action:
         specifier: 0.9.69
         version: 0.9.69(svelte@5.56.3(@typescript-eslint/types@8.61.0))
@@ -3026,10 +3026,6 @@ packages:
       typescript:
         optional: true
 
-  svelte@3.59.2:
-    resolution: {integrity: sha512-vzSyuGr3eEoAtT/A6bmajosJZIUWySzY2CzB3w2pgPvnkUjGqlDnsNnA0PMO+mMAhuyMul6C2uuZzY6ELSkzyA==}
-    engines: {node: '>= 8'}
-
   svelte@5.56.3:
     resolution: {integrity: sha512-w7JvrM5IFl5cmfbY0TLik9o7mjRUJmRMhOR51tBPu708Gr/MjbGs7VnJnr/B0CaXeI4vtnOh7RKxDr0cwhMdDA==}
     engines: {node: '>=18'}
@@ -5450,14 +5446,15 @@ snapshots:
 
   object-assign@4.1.1: {}
 
-  obsidian-calendar-ui@0.3.12(@codemirror/state@6.6.0)(@codemirror/view@6.43.1):
+  obsidian-calendar-ui@0.3.12(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)(@typescript-eslint/types@8.61.0):
     dependencies:
       obsidian-daily-notes-interface: 0.8.4(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)
-      svelte: 3.59.2
+      svelte: 5.56.3(@typescript-eslint/types@8.61.0)
       tslib: 2.1.0
     transitivePeerDependencies:
       - '@codemirror/state'
       - '@codemirror/view'
+      - '@typescript-eslint/types'
 
   obsidian-daily-notes-interface@0.8.4(@codemirror/state@6.6.0)(@codemirror/view@6.43.1):
     dependencies:
@@ -5467,7 +5464,7 @@ snapshots:
       - '@codemirror/state'
       - '@codemirror/view'
 
-  obsidian-dataview@0.5.68:
+  obsidian-dataview@0.5.68(@typescript-eslint/types@8.61.0):
     dependencies:
       '@codemirror/language': https://codeload.github.com/lishid/cm-language/tar.gz/b817e72a9861b3f8a50a92a2ea53cbafc4f88eb3
       '@codemirror/state': 6.6.0
@@ -5475,11 +5472,13 @@ snapshots:
       emoji-regex: 10.6.0
       localforage: 1.10.0
       luxon: 3.7.2
-      obsidian-calendar-ui: 0.3.12(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)
+      obsidian-calendar-ui: 0.3.12(@codemirror/state@6.6.0)(@codemirror/view@6.43.1)(@typescript-eslint/types@8.61.0)
       papaparse: 5.5.3
       parsimmon: 1.18.1
       preact: 10.29.2
       remove-markdown: 0.5.5
+    transitivePeerDependencies:
+      - '@typescript-eslint/types'
 
   obsidian-e2e@0.6.0(vite-plus@0.1.24(@types/node@25.9.2)(@vitest/coverage-v8@4.1.8)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(svelte@5.56.3(@typescript-eslint/types@8.61.0))(typescript@6.0.3)(vite@8.0.16(@types/node@25.9.2)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0)):
     dependencies:
@@ -6027,8 +6026,6 @@ snapshots:
       postcss: 8.5.15
       postcss-load-config: 3.1.4(postcss@8.5.15)
       typescript: 6.0.3
-
-  svelte@3.59.2: {}
 
   svelte@5.56.3(@typescript-eslint/types@8.61.0):
     dependencies:
