@@ -460,4 +460,78 @@ describe("CaptureChoiceEngine template property types", () => {
 		expect(inserted).not.toContain("cast: []");
 		expect(processFrontMatter).not.toHaveBeenCalled();
 	});
+
+	it("append into an EXISTING file inlines a frontmatter-shaped capture in the body, never collecting it", async () => {
+		// Regression for the reviewer finding: a frontmatter-shaped capture appended
+		// to an existing file lands in the BODY. It must NOT be collected (which would
+		// leave a "[]" placeholder in the body AND write the value to the wrong note's
+		// real front matter).
+		const targetPath = "Notes/Existing.md";
+		const existing = "---\ntitle: Keep\n---\nbody line\n";
+		let written = "";
+
+		const tFile = {
+			path: targetPath, name: "Existing.md", basename: "Existing", extension: "md",
+		} as unknown as TFile;
+		if (typeof ObsidianTFile === "function") {
+			Object.setPrototypeOf(tFile as unknown as object, ObsidianTFile.prototype);
+		}
+
+		const processFrontMatter = vi.fn();
+		const app = {
+			vault: {
+				adapter: { exists: vi.fn(async (p: string) => p === targetPath) },
+				getAbstractFileByPath: vi.fn((p: string) => (p === targetPath ? tFile : null)),
+				create: vi.fn(),
+				read: vi.fn(async () => existing),
+				cachedRead: vi.fn(async () => existing),
+				modify: vi.fn(async (_f: TFile, content: string) => { written = content; }),
+			},
+			fileManager: { generateMarkdownLink: vi.fn().mockReturnValue(""), processFrontMatter },
+			workspace: {
+				getActiveFile: vi.fn().mockReturnValue(null),
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				activeLeaf: null,
+				getMostRecentLeaf: vi.fn().mockReturnValue(null),
+			},
+			metadataCache: { getFileCache: vi.fn().mockReturnValue(null) },
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				enableTemplatePropertyTypes: true,
+				globalVariables: {},
+				showCaptureNotification: false,
+				showInputCancellationNotification: false,
+			},
+		} as any;
+
+		const choice = {
+			id: "capture", name: "Append Capture", type: "Capture", command: false,
+			captureTo: targetPath, captureToActiveFile: false,
+			createFileIfItDoesntExist: { enabled: false, createWithTemplate: false, template: "" },
+			format: { enabled: true, format: ["---", "cast: {{VALUE:cast}}", "---", ""].join("\n") },
+			prepend: false, appendLink: false, task: false,
+			insertAfter: {
+				enabled: false, after: "", insertAtEnd: false, considerSubsections: false,
+				createIfNotFound: false, createIfNotFoundLocation: "",
+			},
+			openFile: false,
+			fileOpening: { location: "tab", direction: "vertical", mode: "source", focus: false },
+			useSelectionAsCaptureValue: false,
+		} as unknown as ICaptureChoice;
+
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
+		};
+
+		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		await engine.run();
+
+		expect(written).toContain("cast: [[A]],[[B]]"); // inlined in the body
+		expect(written).not.toContain("cast: []"); // not a stranded placeholder
+		expect(written).toContain("title: Keep"); // existing front matter untouched
+		expect(processFrontMatter).not.toHaveBeenCalled(); // no misplaced front matter write
+	});
 });

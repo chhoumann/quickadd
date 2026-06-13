@@ -64,10 +64,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private readonly plugin: QuickAdd;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
-	// Editor-insertion actions (currentLine / newLineAbove / newLineBelow) write
-	// the capture into the note BODY at the cursor, where front matter property
-	// types are meaningless. Collecting there would only strand a "[]" placeholder
-	// (the collected value is never applied), so collection is suppressed for them.
+	// Set per run: true when the capture content lands in a note BODY (any capture
+	// into an existing file, into a template's body, or an editor insertion) rather
+	// than becoming the file's own front matter. Front matter property collection is
+	// suppressed in that case so collected containers aren't stranded as "[]"
+	// placeholders (and written to the wrong note's front matter). See run().
 	private suppressFrontmatterCollection = false;
 
 	constructor(
@@ -210,10 +211,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				action === "currentLine" ||
 				action === "newLineAbove" ||
 				action === "newLineBelow";
-			// Editor-insertion writes to the note body; suppress front matter
-			// property collection so collected containers aren't stranded as
-			// placeholders that never get applied (see collectIfFrontmatter).
-			this.suppressFrontmatterCollection = isEditorInsertionAction;
 			const activeCanvasTarget = this.choice.captureToActiveFile
 				? resolveActiveCanvasCaptureTarget(this.app, action)
 				: null;
@@ -266,6 +263,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) => Promise<{ file: TFile; newFileContent: string; captureContent: string }>;
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
+
+			// Collect front matter property types only when the capture content
+			// becomes the file's OWN front matter — i.e. a brand-new file created
+			// from the capture with no template. Captures into an existing file
+			// (append / bottom / insert-after/before / editor insertion), or into a
+			// template's body, place the snippet in the BODY: collecting there would
+			// strand a "[]" placeholder in the body AND write the values to the wrong
+			// note's front matter. Suppress collection for those.
+			const captureBecomesOwnFrontmatter =
+				!fileAlreadyExists &&
+				!!this.choice?.createFileIfItDoesntExist?.enabled &&
+				!this.choice?.createFileIfItDoesntExist?.createWithTemplate;
+			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
 
 			if (fileAlreadyExists) {
 				getFileAndAddContentFn =
