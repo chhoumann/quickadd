@@ -30,7 +30,7 @@ A **macro** is a collection of commands that execute sequentially. Each macro is
 3. Give your macro choice a descriptive name
 4. Click the configure button (⚙️) to open the macro builder
 
-![Macro Choice Settings](https://user-images.githubusercontent.com/29108628/121774145-22ccd100-cb81-11eb-8873-7533755bdf32.png)
+![The Macro builder](/img/choices/macro-builder.png)
 
 ### Step 2: Build Your Macro
 
@@ -45,6 +45,10 @@ In the Macro Builder, you can add different types of commands:
    - Paste with format - Preserves rich formatting from clipboard (HTML → Markdown)
    - Select active line
    - Select link on active line
+   - Move cursor to file start
+   - Move cursor to file end
+   - Move cursor to line start
+   - Move cursor to line end
 3. **User Script** - Run custom JavaScript code
    - Access the Obsidian API
    - Perform complex operations
@@ -151,6 +155,10 @@ The **Paste with format** command preserves rich formatting when pasting content
 - **Copy/Cut/Paste**: Standard clipboard operations
 - **Select active line**: Selects the entire line where your cursor is positioned
 - **Select link on active line**: Finds and selects any link on the current line
+- **Move cursor to file start**: Moves the cursor to the beginning of the file
+- **Move cursor to file end**: Moves the cursor to the end of the file
+- **Move cursor to line start**: Moves the cursor to the beginning of the current line
+- **Move cursor to line end**: Moves the cursor to the end of the current line
 
 ## User Scripts
 
@@ -424,9 +432,9 @@ selector form.
 
 ## Macro Settings
 
-![Macro Manager](https://user-images.githubusercontent.com/29108628/121774198-81924a80-cb81-11eb-9f80-9816263e4b6f.png)
+![The Macro builder, including the Run on startup toggle](/img/choices/macro-builder.png)
 
-### Run on Plugin Load
+### Run on startup
 Enable this to automatically run a macro when Obsidian starts. Useful for:
 - Creating daily notes automatically
 - Setting up your workspace

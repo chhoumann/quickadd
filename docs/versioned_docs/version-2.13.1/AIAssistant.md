@@ -11,8 +11,12 @@ The AI Assistant in QuickAdd leverages the power of Large Language Models (LLMs)
 To set up the AI Assistant, follow these steps:
 
 1. In Obsidian, create a new folder dedicated to AI prompt templates, e.g. `bins/ai_prompts`.
-2. Navigate to QuickAdd settings and locate the "AI Assistant" section. Specify the path to the folder you created in step 1.
-3. In the same section, add a provider to get started. If you are using OpenAI, you will need to add your API key to the settings. As of v1.8.x, you need to enter your API key in the [provider](#providers) settings. The video below is from an older version, but the process is the similar.
+2. Open QuickAdd settings and, in the choice list, click the **Configure AI Assistant** icon button (the sparkles icon at the bottom of the list). This opens the **AI Assistant Settings** modal.
+
+   :::note
+   The Configure AI Assistant button is only shown when "Disable AI & Online features" is turned off in QuickAdd settings.
+   :::
+3. In the **AI Assistant Settings** modal, set **Prompt Template Folder Path** to the folder you created in step 1, then click **Edit Providers** to add a provider. If you are using OpenAI, you will need to add your API key in the [provider](#providers) settings. The video below is from an older version, but the process is similar.
 
 ![AI Assistant Setup](./Images/AI_Assistant_Setup.gif)
 
@@ -48,7 +52,9 @@ Here are a few providers that are known to work with QuickAdd:
 
 Paid providers expose their own API, which you can use with QuickAdd. Free providers, such as Ollama, are also supported.
 
-By default, QuickAdd will add the OpenAI and Gemini providers. You can add more providers by clicking the "Add Provider" button in the AI Assistant settings. This now opens a preset picker with common providers (OpenAI, Gemini, Groq, Together, OpenRouter, etc.). Select or create a SecretStorage entry for your API key and click Connect to add the provider. You can also add a custom provider.
+By default, QuickAdd will add the OpenAI and Gemini providers. To manage providers, open the **AI Assistant Settings** modal (see [How to Setup the AI Assistant](#how-to-setup-the-ai-assistant)) and click **Edit Providers** next to the **Providers** setting. This opens the **Providers** modal, where each existing provider has **Edit** and delete (trash) buttons.
+
+To add a provider, click the **Add Provider** button at the top of the **Providers** modal. This opens the **Add a provider** picker with cards for common providers (OpenAI, Gemini, Groq, Together, OpenRouter, etc.). For the provider you want, select or create a SecretStorage entry for your API key and click **Connect** to add it. You can also use **Add custom...** under **Custom provider** to create any custom endpoint.
 
 QuickAdd stores provider API keys in Obsidian's SecretStorage. The provider settings only keep the secret name, not the key itself.
 Existing provider API keys are migrated into SecretStorage automatically.
@@ -107,20 +113,20 @@ Notes:
 
 ## AI Assistant Settings
 
-Within the main AI Assistant settings accessible via QuickAdd settings, you can configure the following options:
+In the **AI Assistant Settings** modal (opened via the **Configure AI Assistant** icon button in the QuickAdd choice list), you can configure the following options:
 
--   Providers: Configure provider endpoints and API key secrets (SecretStorage).
--   Prompt Templates Folder: The location where all your prompt templates reside.
--   Default model: The default OpenAI model to be used.
--   Show Assistant: Toggle for status messages.
--   Default System Prompt Template: Sets the behavior of the model.
+-   **Providers**: The providers for the AI Assistant. Click **Edit Providers** to manage endpoints and API key secrets (SecretStorage).
+-   **Default Model**: The default model for the AI Assistant. The list of models is built from the models you have added across your configured providers, plus an "Ask me" option that prompts you to pick a model each time.
+-   **Prompt Template Folder Path**: Path to your folder with prompt templates.
+-   **Show Assistant**: Show status messages from the AI Assistant.
+-   **Default System Prompt**: The default system prompt for the AI Assistant. Sets the behavior of the model.
 
 For each individual AI Assistant command in your macros, you can set these options:
 
--   Prompt Template: Determines the prompt template to use.
--   Model: Specifies the OpenAI model to use, overriding the default model.
--   Output Name Variable: Sets the variable name for the AI Assistant’s output.
--   System Prompt Template: Determines the models behavior, overriding the default system prompt template.
+-   **Prompt Template**: Determines the prompt template to use.
+-   **Model**: The model the AI Assistant will use, overriding the default model.
+-   **Output variable name**: Sets the variable name for the AI Assistant’s output.
+-   **System Prompt**: Determines the model's behavior, overriding the default system prompt.
 
 You can also tweak model parameters in advanced settings:
 

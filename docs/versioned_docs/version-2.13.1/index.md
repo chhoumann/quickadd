@@ -33,7 +33,7 @@ plugin or API.
 1. Create a Template choice or Capture choice in QuickAdd settings.
 2. Add a name you will recognize in the command palette.
 3. Configure the target file, folder, template, or capture format.
-4. Run `QuickAdd: Run QuickAdd` from the command palette.
+4. Run the `QuickAdd: Run` command from the command palette.
 5. Assign a hotkey once the workflow behaves the way you want.
 
 QuickAdd choices can use [format syntax](./FormatSyntax), including values like

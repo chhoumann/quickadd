@@ -4,11 +4,11 @@ title: "Capture: Add a Task to a Kanban Board"
 
 This will add a task to the chosen Kanban Board.
 
-In Capture To, select the board.
+In _Capture to_, select the board.
 
-Select the Task option.
+Enable the _Task_ toggle.
 
-Then select the Insert after option, and write `## ` followed by the name of the lane you want to add the task to.
+Set _Write position_ to **After line…**, then in the _Insert after_ field that appears, write `## ` followed by the name of the lane you want to add the task to.
 
 In my case, I want to add tasks to a lane called `Backlog`, so it becomes `## Backlog`.
 
@@ -20,4 +20,4 @@ You could also use `{{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}` to get asked which d
 
 Read more about [format syntax here](../FormatSyntax.md).
 
-![image](https://user-images.githubusercontent.com/29108628/123068109-e23b4600-d411-11eb-8886-8362ad09ec11.png)
+![A Capture choice that adds a task to a board](/img/examples/capture-add-task.png)

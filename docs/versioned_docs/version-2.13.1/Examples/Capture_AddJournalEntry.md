@@ -14,4 +14,4 @@ Capture format:
 - {{DATE:HH:mm}} {{VALUE}}\n
 ```
 
-![image](https://user-images.githubusercontent.com/29108628/121774877-c2d82980-cb84-11eb-99c4-a20a14e41856.png)
+![A Capture choice configured to add a timestamped journal entry](/img/choices/capture-builder.png)
