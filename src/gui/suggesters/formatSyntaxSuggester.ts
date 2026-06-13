@@ -9,7 +9,6 @@ import {
 	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 	FILENAMECURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
-	FOLDER_SYNTAX,
 	FOLDER_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX,
@@ -167,15 +166,19 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		},
 	];
 
-	// Shown only in the file-name context (suggestForFileNames). {{FOLDER}} is
-	// the target folder the note is created in — meaningful in a Template file
-	// name, but not in the capture "Capture to" field (where it would resolve to
-	// empty), so it is deliberately kept out of the always-shown definitions.
+	// Shown only in the file-name context (suggestForFileNames). The target
+	// folder is meaningful in a Template file name, but the LEAF form is offered
+	// here: the bare {{FOLDER}} expands to the full path, so `{{FOLDER}} - Note`
+	// with a nested target like Projects/Acme would yield
+	// `Projects/Acme/Projects/Acme - Note.md`. {{FOLDER|name}} avoids that
+	// duplicated-segment footgun. {{FOLDER}} is kept out of the always-shown
+	// definitions because it would resolve to "" in the capture "Capture to"
+	// field.
 	private readonly fileNameTokens: TokenDefinition[] = [
 		{
 			regex: FOLDER_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.FolderTarget,
-			suggestion: FOLDER_SYNTAX,
+			suggestion: "{{folder|name}}",
 		},
 	];
 
