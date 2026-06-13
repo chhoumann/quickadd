@@ -2,6 +2,7 @@
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
 	import { settingsStore } from "../../settingsStore";
+	import { normalizeTemplateFolderPaths } from "../../utilityObsidian";
 	import type {
 		LoadedQuickAddPackage,
 		PackageAnalysis,
@@ -179,9 +180,12 @@
 	);
 
 	function defaultAssetDestination(conflict: AssetConflict): string {
-		const templateFolder = settingsStore
-			.getState()
-			.templateFolderPath?.trim();
+		// Default imported templates into the first configured template folder.
+		// normalizeTemplateFolderPaths drops blanks and trailing slashes, so the
+		// primary entry is already a clean folder path.
+		const [templateFolder] = normalizeTemplateFolderPaths(
+			settingsStore.getState().templateFolderPaths,
+		);
 		const needsTemplateFolder =
 			conflict.kind === "template" ||
 			conflict.kind === "capture-template";
@@ -189,10 +193,7 @@
 		if (templateFolder && needsTemplateFolder) {
 			const baseName =
 				conflict.originalPath.split("/").pop() ?? conflict.originalPath;
-			const sanitizedFolder = templateFolder.replace(/\/+$/, "");
-			return sanitizedFolder
-				? `${sanitizedFolder}/${baseName}`
-				: baseName;
+			return `${templateFolder}/${baseName}`;
 		}
 
 		return conflict.originalPath;

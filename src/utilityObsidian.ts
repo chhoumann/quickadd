@@ -6,6 +6,11 @@ import type {
 	WorkspaceParent,
 } from "obsidian";
 import { FileView, MarkdownView, normalizePath, TFile, TFolder } from "obsidian";
+import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "./constants";
 import { log } from "./logger/logManager";
 import { NLDParser } from "./parsers/NLDParser";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
@@ -770,6 +775,74 @@ export function getAllFolderPathsInVault(app: App): string[] {
 		.getAllLoadedFiles()
 		.filter((f) => f instanceof TFolder)
 		.map((folder) => folder.path);
+}
+
+/**
+ * Whether a path already carries a template extension the engine can read
+ * (`.md`/`.canvas`/`.base`). The three extension regexes are the single source
+ * of truth; both {@link getTemplateFile} (to decide whether to append `.md`)
+ * and the suggestion filter consume this so they can never disagree.
+ */
+export function hasTemplateExtension(path: string): boolean {
+	return (
+		MARKDOWN_FILE_EXTENSION_REGEX.test(path) ||
+		CANVAS_FILE_EXTENSION_REGEX.test(path) ||
+		BASE_FILE_EXTENSION_REGEX.test(path)
+	);
+}
+
+/**
+ * Resolve a template path to its vault file exactly the way the template engine
+ * does at run time: strip a leading slash, append `.md` when no template
+ * extension is present, then look the file up. Returns null when nothing
+ * resolves.
+ *
+ * Single source of truth shared by engine execution, choice-builder validation,
+ * and preflight scanning so the three never drift (they previously each had
+ * their own near-copy, and the preflight copy skipped the leading-slash strip).
+ */
+export function getTemplateFile(app: App, templatePath: string): TFile | null {
+	const stripped = templatePath.trim().replace(/^\/+/, "");
+	if (!stripped) return null;
+	const resolved = hasTemplateExtension(stripped) ? stripped : `${stripped}.md`;
+	const file = app.vault.getAbstractFileByPath(resolved);
+	return file instanceof TFile ? file : null;
+}
+
+/**
+ * Canonical, order-preserving normalization for the configured template folder
+ * list: trims each entry, strips leading/trailing slashes, drops blanks and
+ * non-strings, and de-duplicates. Non-array input yields an empty list. Used by
+ * both the suggestion query and the package-import default so they never desync.
+ */
+export function normalizeTemplateFolderPaths(paths: unknown): string[] {
+	if (!Array.isArray(paths)) return [];
+	const seen = new Set<string>();
+	const normalized: string[] = [];
+	for (const path of paths) {
+		if (typeof path !== "string") continue;
+		const folder = path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+		if (!folder || seen.has(folder)) continue;
+		seen.add(folder);
+		normalized.push(folder);
+	}
+	return normalized;
+}
+
+/**
+ * Whether a file path lives within one of the (already normalized) template
+ * folders. Boundary-aware: `templates` matches `templates/x.md` but not
+ * `templates-old/x.md`. An empty folder list matches everything (the "no
+ * folders configured = suggest the whole vault" default).
+ */
+export function isPathWithinTemplateFolders(
+	filePath: string,
+	normalizedFolders: string[],
+): boolean {
+	if (normalizedFolders.length === 0) return true;
+	return normalizedFolders.some(
+		(folder) => filePath === folder || filePath.startsWith(`${folder}/`),
+	);
 }
 
 export function getUserScriptMemberAccess(fullMemberPath: string): {

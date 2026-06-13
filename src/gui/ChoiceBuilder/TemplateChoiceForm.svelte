@@ -14,7 +14,7 @@ import {
 	getModesForCategory,
 } from "../../template/fileExistsPolicy";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { getAllFolderPathsInVault, getTemplateFile } from "../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -55,7 +55,10 @@ const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app))
 function validateTemplatePath(raw: string): boolean | string {
 	const value = raw.trim();
 	if (!value) return true;
-	return templatePaths.includes(value) || "Template not found";
+	// Resolve like the engine does at run time rather than requiring
+	// suggestion-list membership: a template outside the configured folders
+	// still runs fine and must not be flagged "not found" (master #1170/#1325).
+	return getTemplateFile(app, value) !== null || "Template not found";
 }
 
 // --- File name format ----------------------------------------------------
@@ -137,13 +140,14 @@ function onModeChange(value: string) {
 
 <SettingItem name="Template Path" desc="Path to the Template." />
 <ValidatedInput
-	bind:value={choice.templatePath}
+	value={choice.templatePath}
 	placeholder="Template path"
 	{app}
 	suggestions={templatePaths}
 	maxSuggestions={50}
 	validator={validateTemplatePath}
 	ariaLabel="Template path"
+	onChange={(value) => (choice.templatePath = value.trim())}
 />
 
 <SettingItem name="File name format" desc="Set the file name format.">

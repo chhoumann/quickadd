@@ -251,6 +251,87 @@
 	white-space: nowrap;
 }
 
+/* Multi-folder list for the "Template folder paths" setting. The setting row
+   stacks vertically so the label/description sit above a full-width list, which
+   keeps long paths readable and scales to many folders without crowding the
+   narrow control column. */
+.qa-template-folders-setting {
+	display: block;
+}
+
+.qa-template-folders-setting .setting-item-control {
+	margin-top: 12px;
+	justify-content: flex-start;
+}
+
+.qa-template-folders {
+	width: 100%;
+}
+
+.qa-template-folder-list {
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.qa-template-folder-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.qa-template-folder-name {
+	/* flex + min-width:0 let the name shrink so the ellipsis triggers instead of
+	   pushing the remove control off the row. */
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.qa-template-folder-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	padding: 6px 4px;
+}
+
+.qa-template-folder-input-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.qa-template-folder-input {
+	flex: 1 1 auto;
+}
+
+/* Mobile: comfortable touch targets and full-path readability (no hover there).
+   Grow the remove control to the 44px tap-target minimum, let long paths wrap
+   instead of truncating behind an unreachable tooltip, and stack the input above
+   a full-width Add button so the path field gets the whole row. */
+.is-mobile .qa-template-folder-row {
+	min-height: 44px;
+}
+
+.is-mobile .qa-template-folder-row .clickable-icon {
+	width: 44px;
+	height: 44px;
+}
+
+.is-mobile .qa-template-folder-name {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+.is-mobile .qa-template-folder-input-row {
+	flex-direction: column;
+	align-items: stretch;
+}
+
 .quickAddModal .qa-modal-title,
 .quickAddModal .qa-clickable-modal-title,
 .qa-modal-title,
@@ -1212,6 +1293,10 @@
 	min-width: 35%;
 	max-width: 90%;
 	max-height: 70%;
+	/* Let the scroll region shrink below its content height so the non-shrinking
+	   footer always fits inside the centered column — otherwise tall notes on a
+	   short viewport could overflow and clip the Done button out of view (#635). */
+	min-height: 0;
 	overflow-wrap: break-word;
 	word-wrap: break-word;
 	word-break: break-word;
@@ -1236,6 +1321,23 @@
 	width: 100%;
 	height: auto;
 	margin: 5px;
+}
+
+/* A guaranteed, always-reachable dismiss for the (mobile-)X-only update modal.
+   Follows the scrollable release notes in normal flow so it stays visible, and on
+   mobile clears the bottom home-indicator inset (var(--safe-area-inset-bottom),
+   floored so it still has breathing room on devices with no inset). (#635) */
+.quickadd-update-modal-footer {
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	/* Never let the centered column compress the exit out of reach. */
+	flex-shrink: 0;
+	margin-top: 1rem;
+	padding-bottom: max(
+		var(--size-4-4, 16px),
+		var(--safe-area-inset-bottom, 0px)
+	);
 }
 
 /* Buy me a coffee */

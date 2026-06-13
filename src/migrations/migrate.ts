@@ -14,6 +14,7 @@ import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 import setProviderModelDiscoveryMode from "./setProviderModelDiscoveryMode";
 import { deepClone } from "src/utils/deepClone";
 import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSecretStorage";
+import migrateToMultipleTemplateFolders from "./migrateToMultipleTemplateFolders";
 import { settingsStore } from "src/settingsStore";
 
 const migrations: Migrations = {
@@ -29,6 +30,7 @@ const migrations: Migrations = {
 	backfillFileOpeningDefaults,
 	setProviderModelDiscoveryMode,
 	migrateProviderApiKeysToSecretStorage,
+	migrateToMultipleTemplateFolders,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {

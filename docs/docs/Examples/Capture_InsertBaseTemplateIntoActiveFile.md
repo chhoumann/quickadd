@@ -29,7 +29,7 @@ views:
 
 2. Create a Capture choice.
 3. Enable **Capture to active file**.
-4. Set **Active file write position** to **Top**.
+4. Set **Write position** to **Top of file (after frontmatter)**.
 5. In **Capture format**, reference your `.base` template with an explicit file
    extension:
 

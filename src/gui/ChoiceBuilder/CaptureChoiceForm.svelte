@@ -2,6 +2,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+import { getTemplateFile } from "../../utilityObsidian";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import SettingItem from "../components/SettingItem.svelte";
 import Toggle from "../components/Toggle.svelte";
@@ -43,7 +44,10 @@ const formatSuggesters = [
 function validateTemplate(raw: string): boolean | string {
 	const value = raw.trim();
 	if (!value) return true;
-	return templateFilePaths.includes(value) || "Template not found";
+	// Resolve like the engine does at run time rather than requiring
+	// suggestion-list membership (templates outside the configured folders are
+	// valid). Mirrors templateChoiceBuilder (master #1170/#1325).
+	return getTemplateFile(app, value) !== null || "Template not found";
 }
 
 const selectionOptions = [
@@ -94,7 +98,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 			{/snippet}
 		</SettingItem>
 		<ValidatedInput
-			bind:value={choice.createFileIfItDoesntExist.template}
+			value={choice.createFileIfItDoesntExist.template}
 			placeholder="Template path"
 			disabled={!choice.createFileIfItDoesntExist.createWithTemplate}
 			{app}
@@ -102,6 +106,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 			maxSuggestions={50}
 			validator={validateTemplate}
 			ariaLabel="Template path"
+			onChange={(value) =>
+				(choice.createFileIfItDoesntExist.template = value.trim())}
 		/>
 	{/if}
 {/if}

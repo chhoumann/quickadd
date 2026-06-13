@@ -3,10 +3,14 @@ import type {
 	Setting,
 	SettingDefinitionGroup,
 	SettingDefinitionItem,
-	TAbstractFile,
 	TextAreaComponent,
 } from "obsidian";
-import { PluginSettingTab, TFolder } from "obsidian";
+import {
+	ButtonComponent,
+	ExtraButtonComponent,
+	PluginSettingTab,
+	TextComponent,
+} from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
@@ -15,6 +19,11 @@ import type { Plain } from "./gui/svelte/persist.svelte";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
+import {
+	getAllFolderPathsInVault,
+	normalizeTemplateFolderPaths,
+} from "./utilityObsidian";
+import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
@@ -199,9 +208,9 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			heading: "Templates & Properties",
 			items: [
 				{
-					name: "Template Folder Path",
-					desc: "Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd.",
-					render: (setting) => this.renderTemplateFolderPath(setting),
+					name: "Template folder paths",
+					desc: "Folders where templates are stored. Used to suggest template files when configuring QuickAdd. Add as many as you like; leave empty to suggest every template file in the vault.",
+					render: (setting) => this.renderTemplateFolderPaths(setting),
 				},
 				{
 					name: "Format template variables as proper property types (Beta)",
@@ -421,26 +430,93 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		});
 	}
 
-	private renderTemplateFolderPath(setting: Setting): void {
-		setting.addText((text) => {
-			text
-				.setPlaceholder("templates/")
-				.setValue(settingsStore.getState().templateFolderPath)
-				.onChange((value) => {
-					settingsStore.setState({ templateFolderPath: value });
-				});
+	private renderTemplateFolderPaths(setting: Setting): () => void {
+		// Let this row span the full pane (label/desc stacked above a full-width
+		// list) instead of cramming a growing list into the narrow control column.
+		setting.settingEl.addClass("qa-template-folders-setting");
 
-			new GenericTextSuggester(
-				this.app,
-				text.inputEl,
-				this.app.vault
-					.getAllLoadedFiles()
-					.filter(
-						(f: TAbstractFile) => f instanceof TFolder && f.path !== "/",
-					)
-					.map((f: TAbstractFile) => f.path),
-			);
-		});
+		const container = setting.controlEl.createDiv("qa-template-folders");
+		const listEl = container.createDiv("qa-template-folder-list");
+
+		const getPaths = (): string[] =>
+			normalizeTemplateFolderPaths(settingsStore.getState().templateFolderPaths);
+		const setPaths = (paths: string[]): void => {
+			settingsStore.setState({ templateFolderPaths: paths });
+		};
+
+		const renderList = (): void => {
+			listEl.empty();
+			const paths = getPaths();
+			if (paths.length === 0) {
+				listEl.createDiv({
+					cls: "qa-template-folder-empty",
+					text: "No folders added yet.",
+				});
+				return;
+			}
+			for (const folder of paths) {
+				const row = listEl.createDiv("qa-template-folder-row");
+				// title gives desktop a hover tooltip for paths truncated by ellipsis;
+				// on mobile (no hover) the path wraps instead — see styles.css.
+				row.createSpan({
+					cls: "qa-template-folder-name",
+					text: folder,
+					attr: { title: folder },
+				});
+				new ExtraButtonComponent(row)
+					.setIcon("trash-2")
+					.setTooltip(`Remove ${folder}`)
+					.onClick(() => {
+						setPaths(getPaths().filter((f) => f !== folder));
+						renderList();
+					});
+			}
+		};
+
+		const inputRow = container.createDiv("qa-template-folder-input-row");
+		const input = new TextComponent(inputRow);
+		input.setPlaceholder("templates/");
+		input.inputEl.addClass("qa-template-folder-input");
+		const suggester = new GenericTextSuggester(
+			this.app,
+			input.inputEl,
+			sortFolderPathsByTree(getAllFolderPathsInVault(this.app)).filter(
+				(path) => path !== "/",
+			),
+		);
+
+		const addFolder = (): void => {
+			// Store the canonical (normalized) form so "templates" and "templates/"
+			// can't both be added, and dedupe against the existing list.
+			const [folder] = normalizeTemplateFolderPaths([input.inputEl.value]);
+			input.inputEl.value = "";
+			if (!folder) return;
+			const paths = getPaths();
+			if (paths.includes(folder)) return;
+			setPaths([...paths, folder]);
+			renderList();
+		};
+
+		const onKeydown = (e: KeyboardEvent): void => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				addFolder();
+			}
+		};
+		input.inputEl.addEventListener("keydown", onKeydown);
+		new ButtonComponent(inputRow)
+			.setCta()
+			.setButtonText("Add")
+			.onClick(() => addFolder());
+
+		renderList();
+
+		// The suggester registers global (document/window) listeners while open;
+		// tear it down when the row is rebuilt or the tab hides so nothing leaks.
+		return () => {
+			input.inputEl.removeEventListener("keydown", onKeydown);
+			suggester.destroy();
+		};
 	}
 
 	private renderDevInfo(setting: Setting): void {

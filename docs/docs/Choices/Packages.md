@@ -55,7 +55,7 @@ makes everything visible **before** anything is written.
 
 ### Capability summary
 
-A **Review before importing** panel lists what the package can do, ranked by how
+A **What this package can do** panel lists what the package can do, ranked by how
 much it can affect your vault:
 
 - **Runs custom JavaScript** — a user script or a script-mode condition that runs

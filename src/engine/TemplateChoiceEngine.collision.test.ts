@@ -5,7 +5,7 @@ vi.mock("../quickAddSettingsTab", () => {
 		choices: [],
 		inputPrompt: "single-line",
 		devMode: false,
-		templateFolderPath: "",
+		templateFolderPaths: [],
 		useSelectionAsCaptureValue: true,
 		announceUpdates: "major",
 		version: "0.0.0",
@@ -60,6 +60,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		constructor() {}
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setTargetFolderPath() {}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}

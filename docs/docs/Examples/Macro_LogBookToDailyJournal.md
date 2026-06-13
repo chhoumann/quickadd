@@ -2,8 +2,7 @@
 title: "Macro: Log book to daily journal"
 ---
 
-![image](https://user-images.githubusercontent.com/29108628/121774885-d1bedc00-cb84-11eb-9776-d1cdd353e99e.png)
-![image](https://user-images.githubusercontent.com/29108628/121774905-ef8c4100-cb84-11eb-9657-b24759096886.png)
+![The Macro builder for the log-book macro](/img/choices/macro-builder.png)
 
 ```js
 // You have to export the function you wish to run.

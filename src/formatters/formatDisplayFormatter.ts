@@ -46,6 +46,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceLinkToCurrentFileInString(output);
 			output = await this.replaceCurrentFileNameInString(output);
+			output = this.replaceTargetFolderInString(output);
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);

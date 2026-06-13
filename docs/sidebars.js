@@ -35,6 +35,11 @@ const sidebars = {
 			label: "Getting Started",
 		},
 		{
+			type: "doc",
+			id: "Settings",
+			label: "Settings",
+		},
+		{
 			type: "category",
 			label: "Core Concepts",
 			collapsed: false,

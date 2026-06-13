@@ -10,20 +10,18 @@ We use Google books api to get the the details. You don't need an API key becaus
 ## Installation
 
 We'll need to install a QuickAdd BookFinder script for this to work.
-You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
+You will need to put the user script into a Macro choice that activates it from the main menu.
 You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
 
 1. Save the script (`BookFinder.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
-3. Open the Macro Manager by opening the QuickAdd plugin settings and clicking `Manage Macros`.
-4. Create a new Macro - you decide what to name it. I named mine `BookFinder`.
+3. Open the QuickAdd settings, click `Add Choice`, and select `Macro`. You decide what to name it. I named mine `Book`. This is what activates the macro.
+4. Click the configure button (⚙️) on the macro choice to open the Macro Builder.
 5. Add the user script to the command list.
-6. Add a new Template step to the macro. This will be what creates the note in your vault. Settings are as follows:
+6. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
     2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
-7. Go back out to your QuickAdd main menu and add a new Macro choice. Again, you decide the name. I named mine `Book`. This is what activates the macro.
-8. Attach the Macro to the Macro Choice you just created. Do so by clicking the cog ⚙ icon and selecting it.
 
 You can now use the macro to create notes with book information in your vault.
 

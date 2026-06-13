@@ -25,16 +25,14 @@ You can find the script <a href="/scripts/movies.js" download>here</a>.
 
 1. Save the script (`movies.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
-3. Open the Macro Manager by opening the QuickAdd plugin settings and clicking `Manage Macros`.
-4. Create a new Macro - you decide what to name it. I named mine `Movie`.
+3. Open the QuickAdd settings and click "Add Choice". Select "Macro" and give it a name - you decide what to call it. I named mine `🎬 Movie`. This is what activates the macro.
+4. Click the configure button (⚙️) on your new Macro choice to open the Macro Builder.
 5. Add the user script to the command list.
-6. Add a new Template step to the macro. This will be what creates the note in your vault. Settings are as follows:
+6. Add a Template command to the macro. This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
     2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
-7. Click on the cog icon to the right of the script step to configure the script settings. This should allow you to enter the API key you got from OMDb. [Image demonstration](../Images/moviescript_settings.jpg).
-8. Go back out to your QuickAdd main menu and add a new Macro choice. Again, you decide the name. I named mine `🎬 Movie`. This is what activates the macro.
-9. Attach the Macro to the Macro Choice you just created. Do so by clicking the cog ⚙ icon and selecting it.
+7. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb. [Image demonstration](../Images/moviescript_settings.jpg).
 
 You can now use the macro to create notes with movie or TV show information in your vault.
 

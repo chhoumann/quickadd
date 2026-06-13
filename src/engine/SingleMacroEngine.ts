@@ -13,6 +13,18 @@ import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { MacroAbortError } from "../errors/MacroAbortError";
 
+// Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
+// `settings` (consumed by initializeUserScriptSettings), `entry` (the object-export entrypoint
+// handled by MacroChoiceEngine), and `quickadd` (read by collectChoiceRequirements for declared
+// inputs). They are exported by many scripts, so a `{{MACRO:Name::settings}}` reference must keep
+// resolving (first-declared exporter wins, as it did before 2.12.1) instead of hard-aborting on a
+// conflict the way a real, ambiguous entrypoint should.
+const RESERVED_CONVENTION_KEYS = new Set<string>([
+	"settings",
+	"entry",
+	"quickadd",
+]);
+
 type UserScriptCandidate = {
 	command: IUserScript;
 	index: number;
@@ -50,6 +62,8 @@ function formatMacroOutput(value: unknown): string {
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
 	private readonly variables: Map<string, unknown>;
+	// Guards the reserved-key conflict notice so a single macro run surfaces it at most once.
+	private emittedConflictNotice = false;
 
 	constructor(
 		private readonly app: App,
@@ -79,6 +93,7 @@ export class SingleMacroEngine {
 		macroName: string,
 		context?: { label?: string },
 	): Promise<string> {
+		this.emittedConflictNotice = false;
 		const { basename, memberAccess } = getUserScriptMemberAccess(macroName);
 
 		// ------------------------------------------------------------------
@@ -150,9 +165,22 @@ export class SingleMacroEngine {
 		this.ensureNotAborted();
 		let result: unknown = engine.getOutput();
 
-		// Apply member access afterwards (if requested)
+		// Apply member access afterwards (if requested). Reaching this fallback with a
+		// member path means tryExecuteExport returned executed:false, i.e. the macro has
+		// no user-script command that could provide the member — so a failed lookup would
+		// otherwise resolve to an empty string silently. Warn instead of guessing.
 		if (memberAccess?.length) {
-			result = this.applyMemberAccess(result, memberAccess);
+			// Use the found/value distinction so a member that genuinely exists but holds
+			// `undefined` is not mistaken for a missing one (which would warn spuriously).
+			const lookup = this.resolveMemberAccess(result, memberAccess);
+			if (!lookup.found) {
+				log.logWarning(
+					`Macro '${macroChoice.name}' was asked for member '${memberAccess.join(
+						"::",
+					)}', but it has no user script exporting it; the result is empty.`,
+				);
+			}
+			result = lookup.value;
 		}
 
 		// Handle functions and objects properly
@@ -195,6 +223,7 @@ export class SingleMacroEngine {
 			userScriptCommands,
 			memberAccess,
 		);
+		const candidateId = selection.candidate.command.id;
 		const preCommands = originalCommands.slice(0, selection.candidate.index);
 
 		try {
@@ -204,7 +233,25 @@ export class SingleMacroEngine {
 			}
 
 			const updatedCommands = macroChoice.macro?.commands ?? originalCommands;
-			const refreshedCandidate = updatedCommands[selection.candidate.index];
+			// Pre-commands may have mutated the commands array, so re-resolve the selected
+			// command by its stable id. Both the candidate and the post-command slice are
+			// derived from this refreshed index so they cannot drift apart. The original
+			// positional index is only a fallback for legacy commands that genuinely have
+			// no id; if the command HAD an id but it is now gone (removed mid-run), leave
+			// the index unresolved so the guard below aborts rather than silently routing
+			// to a neighbouring script.
+			let refreshedIndex: number;
+			if (candidateId !== undefined) {
+				refreshedIndex = updatedCommands.findIndex(
+					(command) =>
+						command.id === candidateId &&
+						command.type === CommandType.UserScript,
+				);
+			} else {
+				refreshedIndex = selection.candidate.index;
+			}
+			const refreshedCandidate =
+				refreshedIndex >= 0 ? updatedCommands[refreshedIndex] : undefined;
 			if (!refreshedCandidate || refreshedCandidate.type !== CommandType.UserScript) {
 				throw new MacroAbortError(
 					`Could not resolve the member-access script for '${macroChoice.name}'.`,
@@ -251,7 +298,7 @@ export class SingleMacroEngine {
 				);
 			}
 
-			const postCommands = updatedCommands.slice(selection.candidate.index + 1);
+			const postCommands = updatedCommands.slice(refreshedIndex + 1);
 
 			const result = await this.executeResolvedMember(
 				resolvedMember.value,
@@ -398,6 +445,21 @@ export class SingleMacroEngine {
 			);
 		}
 
+		// Convention keys (settings/entry) are exported by many scripts and were resolved
+		// against the first script before 2.12.1. Preserve that — pick the first-declared
+		// exporter (matchingCandidates preserves command order) and surface a one-time
+		// notice pointing at the selector — rather than hard-aborting like a real entrypoint.
+		if (RESERVED_CONVENTION_KEYS.has(memberAccess[0])) {
+			const chosen = matchingCandidates[0];
+			this.warnReservedKeyConflict(
+				macroChoice,
+				memberAccess,
+				chosen,
+				matchingCandidates,
+			);
+			return { candidate: chosen, memberAccess };
+		}
+
 		const matchingNames = matchingCandidates
 			.map((candidate) => `'${candidate.command.name}'`)
 			.join(", ");
@@ -406,6 +468,28 @@ export class SingleMacroEngine {
 			`Macro '${macroChoice.name}' has multiple user scripts exporting '${memberAccess.join(
 				"::",
 			)}': ${matchingNames}. Disambiguate with '{{MACRO:${macroChoice.name}::<Script Name>::${memberAccess.join(
+				"::",
+			)}}}'.`,
+		);
+	}
+
+	private warnReservedKeyConflict(
+		macroChoice: IMacroChoice,
+		memberAccess: string[],
+		chosen: UserScriptCandidate,
+		all: UserScriptCandidate[],
+	): void {
+		if (this.emittedConflictNotice) return;
+		this.emittedConflictNotice = true;
+
+		const names = all
+			.map((candidate) => `'${candidate.command.name}'`)
+			.join(", ");
+
+		log.logWarning(
+			`Macro '${macroChoice.name}': multiple user scripts export '${memberAccess.join(
+				"::",
+			)}' (${names}); using '${chosen.command.name}'. Disambiguate with '{{MACRO:${macroChoice.name}::<Script Name>::${memberAccess.join(
 				"::",
 			)}}}'.`,
 		);
@@ -442,33 +526,6 @@ export class SingleMacroEngine {
 			index: matchingScripts[0].index,
 			memberAccess: memberAccess.slice(1),
 		};
-	}
-
-	private applyMemberAccess(
-		result: unknown,
-		memberAccess: string[],
-	): unknown {
-		let current = result;
-
-		for (const key of memberAccess) {
-			if (
-				current === undefined ||
-				current === null ||
-				(typeof current !== "object" && typeof current !== "function")
-			) {
-				return undefined;
-			}
-
-			const container = current as Record<string, unknown>;
-
-			if (!(key in container)) {
-				return undefined;
-			}
-
-			current = container[key];
-		}
-
-		return current;
 	}
 
 	private syncVariablesFromParams(engine: MacroChoiceEngine) {

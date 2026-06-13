@@ -4,10 +4,11 @@ import type {
 	LinkToCurrentFileBehavior,
 	TemplateInclusionState,
 } from "../formatters/formatter";
-import type { App } from "obsidian";
-import { Notice, TFile, TFolder } from "obsidian";
+import type { App, TFile } from "obsidian";
+import { Notice, TFolder } from "obsidian";
 import type QuickAdd from "../main";
 import {
+	getTemplateFile,
 	getTemplater,
 	overwriteTemplaterOnce,
 	templaterParseTemplate,
@@ -20,7 +21,7 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 import { reportError } from "../utils/errorUtils";
-import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
+import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import {
 	INVALID_FOLDER_CHARS_REGEX,
 	INVALID_FOLDER_CONTROL_CHARS_REGEX,
@@ -535,6 +536,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Extract filename without extension from the full path.
 			const fileBasename = basenameWithoutMdOrCanvas(filePath);
 			this.formatter.setTitle(fileBasename);
+			// {{FOLDER}} in the body reflects the file's actual on-disk folder.
+			this.formatter.setTargetFolderPath(parentFolderPath(filePath));
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
@@ -580,6 +583,16 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		this.formatter.setLinkToCurrentFileBehavior(behavior);
 	}
 
+	/**
+	 * Sets the folder {{FOLDER}} resolves to for this engine's formatter. Used by
+	 * callers that drive an engine they don't own the formatter of — notably
+	 * CaptureChoiceEngine threading the destination folder into the
+	 * SingleTemplateEngine that renders a "create with template" body.
+	 */
+	public setTargetFolderPath(path: string | null) {
+		this.formatter.setTargetFolderPath(path);
+	}
+
 
 
 	protected async overwriteFileWithTemplate(
@@ -594,6 +607,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
+			// {{FOLDER}} reflects the existing file's folder, which can differ
+			// from the choice's configured folder.
+			this.formatter.setTargetFolderPath(parentFolderPath(file.path));
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
@@ -641,6 +657,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// Use the existing file's basename as the title
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
+			this.formatter.setTargetFolderPath(parentFolderPath(file.path));
 
 			let formattedTemplateContent: string =
 				await this.formatter.formatFileContent(templateContent);
@@ -669,18 +686,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		let correctTemplatePath: string = this.stripLeadingSlash(templatePath);
-		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
-			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath) &&
-			!BASE_FILE_EXTENSION_REGEX.test(templatePath))
-			correctTemplatePath += ".md";
+		const templateFile = getTemplateFile(this.app, templatePath);
 
-		const templateFile =
-			this.app.vault.getAbstractFileByPath(correctTemplatePath);
-
-		if (!(templateFile instanceof TFile))
+		if (!templateFile)
 			throw new Error(
-				`Template file not found at path "${correctTemplatePath}".`
+				`Template file not found at path "${templatePath}".`
 			);
 
 		return await this.app.vault.cachedRead(templateFile);

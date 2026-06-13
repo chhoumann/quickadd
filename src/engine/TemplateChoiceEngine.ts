@@ -76,6 +76,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
 			}
 
+			// Make the resolved folder available to {{FOLDER}} in the file name.
+			this.formatter.setTargetFolderPath(folderPath);
+
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
 				: VALUE_SYNTAX;

@@ -14,6 +14,12 @@ This feature is currently in Beta.
 - Works with Template and Capture choices. Macros get partial support (see User Scripts below).
  - Note: Beta – please report issues and edge cases.
 
+## Per-choice override
+Each choice builder has a **One-page input override** dropdown that lets you override the global setting for that choice:
+- **Follow global setting** – use whatever the global toggle is set to (default).
+- **Always** – force the one-page modal for this choice even if disabled globally.
+- **Never** – disable the one-page modal for this choice even if enabled globally.
+
 ## What gets collected
 - Format variables in filenames, templates, and capture content:
   - `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`
