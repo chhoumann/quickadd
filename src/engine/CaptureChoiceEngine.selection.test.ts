@@ -413,6 +413,81 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(resolved).toBe("Inbox/note.md");
 	});
 
+	it("orders the folder picker by recency and gates the create row when enabled", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Apple.md", basename: "Apple" },
+			{ path: "Inbox/Zebra.md", basename: "Zebra" },
+			{ path: "Inbox/Mango.md", basename: "Mango" },
+		] as any);
+
+		const suggestSpy = vi.fn(async () => "Inbox/Apple.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const app = createApp() as any;
+		app.workspace.getLastOpenFiles = () => ["Inbox/Zebra.md"];
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "Inbox/",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		await (engine as any).selectFileInFolder("Inbox/", false);
+
+		expect(suggestSpy).toHaveBeenCalledTimes(1);
+		const [, displayItems, items, options] = suggestSpy.mock
+			.calls[0] as unknown as [
+			unknown,
+			string[],
+			string[],
+			{
+				allowCustomValue: boolean;
+				customValueLabel: (value: string) => string;
+			},
+		];
+
+		// Recently opened (Zebra) first, then the rest alphabetically.
+		expect(items).toEqual([
+			"Inbox/Zebra.md",
+			"Inbox/Apple.md",
+			"Inbox/Mango.md",
+		]);
+		expect(displayItems).toEqual(["Zebra.md", "Apple.md", "Mango.md"]);
+		expect(options.allowCustomValue).toBe(true);
+		expect(options.customValueLabel("New")).toBe("Create new note: New");
+	});
+
+	it("disables the create row when create-if-not-exists is off", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Apple.md", basename: "Apple" },
+		] as any);
+
+		const suggestSpy = vi.fn(async () => "Inbox/Apple.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox/" }),
+			createExecutor(),
+		);
+
+		await (engine as any).selectFileInFolder("Inbox/", false);
+
+		const options = (suggestSpy.mock.calls[0] as unknown[])[3] as {
+			allowCustomValue: boolean;
+		};
+		expect(options.allowCustomValue).toBe(false);
+	});
+
 	it("uses extensionless title for created .canvas capture files", async () => {
 		const app = createApp() as any;
 		app.vault.read = vi.fn(async () => "");
