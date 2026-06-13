@@ -20,4 +20,4 @@ You could also use `{{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}` to get asked which d
 
 Read more about [format syntax here](../FormatSyntax.md).
 
-![image](https://user-images.githubusercontent.com/29108628/123068109-e23b4600-d411-11eb-8886-8362ad09ec11.png)
+![A Capture choice that adds a task to a board](/img/examples/capture-add-task.png)
