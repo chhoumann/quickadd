@@ -67,6 +67,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private readonly plugin: QuickAdd;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
+	// Set per run: true when the capture content lands in a note BODY (any capture
+	// into an existing file, into a template's body, or an editor insertion) rather
+	// than becoming the file's own front matter. Front matter property collection is
+	// suppressed in that case so collected containers aren't stranded as "[]"
+	// placeholders (and written to the wrong note's front matter). See run().
+	private suppressFrontmatterCollection = false;
 
 	constructor(
 		app: App,
@@ -204,6 +210,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
 			const action = getCaptureAction(this.choice);
+			const isEditorInsertionAction =
+				action === "currentLine" ||
+				action === "newLineAbove" ||
+				action === "newLineBelow";
 			const activeCanvasTarget = this.choice.captureToActiveFile
 				? resolveActiveCanvasCaptureTarget(this.app, action)
 				: null;
@@ -257,6 +267,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
 
+			// Collect front matter property types only when the capture content
+			// becomes the file's OWN front matter — i.e. a brand-new file created
+			// from the capture with no template. Captures into an existing file
+			// (append / bottom / insert-after/before / editor insertion), or into a
+			// template's body, place the snippet in the BODY: collecting there would
+			// strand a "[]" placeholder in the body AND write the values to the wrong
+			// note's front matter. Suppress collection for those.
+			const captureBecomesOwnFrontmatter =
+				!fileAlreadyExists &&
+				!!this.choice?.createFileIfItDoesntExist?.enabled &&
+				!this.choice?.createFileIfItDoesntExist?.createWithTemplate;
+			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
+
 			if (fileAlreadyExists) {
 				getFileAndAddContentFn =
 					this.onFileExists.bind(this) as GetFileAndAddContentFn;
@@ -272,11 +295,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
-
-			const isEditorInsertionAction =
-				action === "currentLine" ||
-				action === "newLineAbove" ||
-				action === "newLineBelow";
 
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
@@ -710,7 +728,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.formatter.setDestinationFile(file);
 
 		// First format pass...
-		const formatted = await this.formatter.withTemplatePropertyCollection(
+		const formatted = await this.collectIfFrontmatter(
 			() => this.formatter.formatContentOnly(content),
 		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
@@ -719,7 +737,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Second format pass, with the file content... User input (long running) should have been captured during first pass
 		// So this pass is to insert the formatted capture value into the file content, depending on the user's settings
 		const formattedFileContent: string =
-			await this.formatter.withTemplatePropertyCollection(() =>
+			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentWithFile(
 					formatted,
 					this.choice,
@@ -771,7 +789,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
 		const formattedCaptureContent: string =
-			await this.formatter.withTemplatePropertyCollection(() =>
+			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentOnly(captureContent),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
@@ -836,7 +854,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const updatedFileContent: string = await this.app.vault.read(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
 		const newFileContent: string =
-			await this.formatter.withTemplatePropertyCollection(() =>
+			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentWithFile(
 					formattedCaptureContent,
 					this.choice,
@@ -881,6 +899,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		return finalPath;
+	}
+
+	/**
+	 * Runs a formatting pass, collecting structured front matter values for a
+	 * later processFrontMatter pass — unless collection is suppressed (editor
+	 * insertion actions), in which case the value is substituted inline as text
+	 * so nothing is left stranded as a placeholder.
+	 */
+	private collectIfFrontmatter<T>(work: () => Promise<T>): Promise<T> {
+		if (this.suppressFrontmatterCollection) {
+			return work();
+		}
+		return this.formatter.withTemplatePropertyCollection(work);
 	}
 
 	private mergeCapturePropertyVars(vars: Map<string, unknown>): void {

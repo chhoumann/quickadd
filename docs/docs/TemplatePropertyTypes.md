@@ -10,9 +10,13 @@ Native support for proper Obsidian property types in QuickAdd template front mat
 
 ## Overview
 
-QuickAdd now supports automatic property type formatting for template variables in front matter. Instead of converting everything to text, template variables become proper Obsidian property types: arrays become List properties, numbers become Number properties, booleans become Checkbox properties, and so on.
+QuickAdd writes proper Obsidian property types for template variables in front matter.
 
-The goal is to make note creation easier and more intuitive. When we've reached that point, the option to disable this feature will be removed. While we're in beta, we appreciate your feedback and suggestions.
+**Always on (no setting required):** when a script provides a **list (array)** or **object** value for a front matter field, QuickAdd writes it as a real Obsidian List/object property through Obsidian's own YAML serializer. This is what makes templates like the [Movie & Series script](./Examples/Macro_MovieAndSeriesScript) produce valid front matter out of the box — a returned array of links becomes a List of links instead of broken YAML.
+
+**Behind the beta toggle:** the setting below *additionally* converts **string** values into typed properties — a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, and so on. This string conversion is the beta part because it changes a value's type based on its contents; it is disabled by default.
+
+The goal is to make note creation easier and more intuitive. While the string conversion is in beta, we appreciate your feedback and suggestions.
 
 **Before:**
 ```yaml
@@ -27,13 +31,13 @@ authors:
   - Bob Wilson
 ```
 
-## Enabling the Feature
+## Enabling the String Conversion (Beta)
 
-⚠️ **This is a beta feature** - enable it in settings:
+List/object handling needs no setting. To also convert **string** values into typed properties, enable the beta toggle:
 
 1. Open **Settings → QuickAdd**
-2. Toggle **"Format template variables as proper property types (Beta)"**
-3. The feature is **disabled by default** for safety
+2. Toggle **"Convert string front matter variables to typed properties (Beta)"**
+3. String conversion is **disabled by default** for safety
 
 ## Basic Usage
 

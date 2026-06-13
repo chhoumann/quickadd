@@ -38,7 +38,7 @@ describe("TemplatePropertyCollector", () => {
       matchEnd: tEnd,
       rawValue: ["A"],
       fallbackKey: "title",
-      featureEnabled: true,
+      collectionActive: true, heuristicEnabled: true,
     });
 
     const [aStart, aEnd] = idxRange(yaml, "{{VALUE:authors}}");
@@ -48,7 +48,7 @@ describe("TemplatePropertyCollector", () => {
       matchEnd: aEnd,
       rawValue: ["John"],
       fallbackKey: "authors",
-      featureEnabled: true,
+      collectionActive: true, heuristicEnabled: true,
     });
 
     const result = c.drain();
@@ -64,7 +64,7 @@ describe("TemplatePropertyCollector", () => {
       matchEnd: iEnd,
       rawValue: [1],
       fallbackKey: "inline",
-      featureEnabled: true,
+      collectionActive: true, heuristicEnabled: true,
     });
     expect(c.drain().size).toBe(0);
   });
@@ -72,9 +72,9 @@ describe("TemplatePropertyCollector", () => {
   it("collects multiple keys", () => {
     const c = new TemplatePropertyCollector();
     const [aStart, aEnd] = idxRange(yaml, "{{VALUE:authors}}");
-    c.maybeCollect({ input: yaml, matchStart: aStart, matchEnd: aEnd, rawValue: ["J"], fallbackKey: "authors", featureEnabled: true });
+    c.maybeCollect({ input: yaml, matchStart: aStart, matchEnd: aEnd, rawValue: ["J"], fallbackKey: "authors", collectionActive: true, heuristicEnabled: true });
     const [yStart, yEnd] = idxRange(yaml, "{{VALUE:year}}");
-    c.maybeCollect({ input: yaml, matchStart: yStart, matchEnd: yEnd, rawValue: 2024, fallbackKey: "year", featureEnabled: true });
+    c.maybeCollect({ input: yaml, matchStart: yStart, matchEnd: yEnd, rawValue: 2024, fallbackKey: "year", collectionActive: true, heuristicEnabled: true });
     const result = c.drain();
     expect(result.get("authors")).toEqual(["J"]);
     expect(result.get("year")).toBe(2024);
@@ -97,7 +97,7 @@ describe("TemplatePropertyCollector", () => {
       matchEnd: sourcesEnd,
       rawValue: "[[alpha]], [[beta]]",
       fallbackKey: "sources",
-      featureEnabled: true,
+      collectionActive: true, heuristicEnabled: true,
     });
 
     const [descStart, descEnd] = idxRange(listYaml, "{{VALUE:description}}");
@@ -107,7 +107,7 @@ describe("TemplatePropertyCollector", () => {
       matchEnd: descEnd,
       rawValue: "Hello, world",
       fallbackKey: "description",
-      featureEnabled: true,
+      collectionActive: true, heuristicEnabled: true,
     });
 
     const result = collector.drain();
@@ -132,11 +132,84 @@ describe("TemplatePropertyCollector", () => {
       matchEnd: end,
       rawValue: "alpha, beta",
       fallbackKey: "sources",
-      featureEnabled: true,
+      collectionActive: true, heuristicEnabled: true,
     });
 
     const result = collector.drain();
     const key = ['project', 'sources'].join(TemplatePropertyCollector.PATH_SEPARATOR);
     expect(result.get(key)).toEqual(['alpha', 'beta']);
+  });
+});
+
+// Regression coverage for issue #662: structured-value collection is decoupled
+// from the `enableTemplatePropertyTypes` beta flag, while the string -> structured
+// heuristic stays gated. Uses a stub matching the REAL runtime where
+// metadataTypeManager.getTypeInfo always returns a type (never null) - the
+// condition under which the old string heuristic is effectively dead.
+describe("TemplatePropertyCollector #662 flag decoupling", () => {
+  const yaml = `---\ncast: {{VALUE:cast}}\n---\nbody`;
+  const [start, end] = idxRange(yaml, "{{VALUE:cast}}");
+  const realRuntimeApp = {
+    metadataCache: {
+      app: {
+        metadataTypeManager: {
+          // Real Obsidian defaults every key to "text", even never-seen keys.
+          getTypeInfo: () => ({ expected: { type: "text" }, inferred: { type: "text" } }),
+        },
+      },
+    },
+  } as unknown as App;
+
+  function collectCast(args: Partial<Parameters<TemplatePropertyCollector["maybeCollect"]>[0]> & { rawValue: unknown }) {
+    const c = new TemplatePropertyCollector(realRuntimeApp);
+    c.maybeCollect({
+      input: yaml,
+      matchStart: start,
+      matchEnd: end,
+      fallbackKey: "cast",
+      collectionActive: true,
+      heuristicEnabled: false,
+      ...args,
+    });
+    return c.drain();
+  }
+
+  it("collects real arrays with the beta flag OFF (heuristicEnabled false)", () => {
+    const result = collectCast({ rawValue: ["[[A]]", "[[B]]"] });
+    expect(result.get("cast")).toEqual(["[[A]]", "[[B]]"]);
+  });
+
+  it("collects plain objects with the flag OFF (containers break when inlined)", () => {
+    expect(collectCast({ rawValue: { a: 1 } }).get("cast")).toEqual({ a: 1 });
+  });
+
+  it("does NOT collect bare numbers/booleans with the flag OFF (YAML-safe inline, avoids churn)", () => {
+    expect(collectCast({ rawValue: 42 }).size).toBe(0);
+    expect(collectCast({ rawValue: true }).size).toBe(0);
+  });
+
+  it("DOES collect numbers/booleans when the heuristic flag is ON (preserves beta behaviour)", () => {
+    expect(collectCast({ rawValue: 42, heuristicEnabled: true }).get("cast")).toBe(42);
+    expect(collectCast({ rawValue: true, heuristicEnabled: true }).get("cast")).toBe(true);
+  });
+
+  it("does NOT collect plain strings (left raw so valid frontmatter stays byte-identical)", () => {
+    expect(collectCast({ rawValue: "[[A]]" }).size).toBe(0);
+  });
+
+  it("does NOT run the string->list heuristic when the flag is OFF", () => {
+    // A comma string that the heuristic WOULD split, but the flag is off.
+    expect(collectCast({ rawValue: "[[A]], [[B]]" }).size).toBe(0);
+  });
+
+  it("still will not split a string under the real-runtime 'text' type even with the flag ON (heuristic is type-gated)", () => {
+    // Pins the known limitation that motivated the array-based fix: with
+    // getTypeInfo() -> 'text', the bullet/comma heuristic cannot fire.
+    const result = collectCast({ rawValue: "[[A]], [[B]]", heuristicEnabled: true });
+    expect(result.size).toBe(0);
+  });
+
+  it("collects nothing when collection is not active", () => {
+    expect(collectCast({ rawValue: ["[[A]]"], collectionActive: false }).size).toBe(0);
   });
 });

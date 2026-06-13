@@ -24,7 +24,7 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 ## Templates & Properties
 
 - **Template Folder Path** — Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd.
-- **Format template variables as proper property types (Beta)** — When enabled, template variables in front matter will be formatted as proper Obsidian property types. Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. This is a beta feature that may have edge cases. See [Template Property Types (Beta)](./TemplatePropertyTypes).
+- **Convert string front matter variables to typed properties (Beta)** — List/object values from scripts are **always** written as proper Obsidian properties (a list value becomes a List property), so templates produce valid front matter out of the box. This toggle **additionally** converts string values into typed properties: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases. See [Template Property Types (Beta)](./TemplatePropertyTypes).
 
 ## Notifications
 

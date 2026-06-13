@@ -117,10 +117,16 @@ async function getByImdbId(id) {
 }
 
 function linkifyList(list) {
-    if (!Array.isArray(list) || list.length === 0) return "";
-    if (list.length === 1) return `\n  - "[[${list[0].trim()}]]"`;
+    // Return a real array of wikilink strings. QuickAdd writes arrays in a
+    // template's front matter as proper Obsidian List properties (each item a
+    // clickable link) via Obsidian's own YAML serializer. Returning a string
+    // here would instead break the YAML (see issue #662).
+    if (!Array.isArray(list)) return [];
 
-    return list.map(item => `\n  - "[[${item.trim()}]]"`).join("");
+    return list
+        .map(item => String(item).trim())
+        .filter(item => item.length > 0)
+        .map(item => `[[${item}]]`);
 }
 
 function replaceIllegalFileNameCharactersInString(input) {
