@@ -28,7 +28,7 @@
     "@typescript-eslint/parser": "^8.60.1",
     "@vitest/coverage-v8": "4.1.8",
     "cz-conventional-changelog": "^3.3.0",
-    "esbuild": "0.28",
+    "esbuild": "^0.28.1",
     "esbuild-svelte": "^0.9.5",
     "eslint": "10",
     "eslint-plugin-svelte": "^3.19.0",
