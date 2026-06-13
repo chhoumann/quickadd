@@ -40,7 +40,7 @@ import {
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
-import { basenameWithoutMdOrCanvas } from "../utils/pathUtils";
+import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -735,6 +735,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			if (linkOptions?.enabled && !linkOptions.requireActiveFile) {
 				singleTemplateEngine.setLinkToCurrentFileBehavior("optional");
 			}
+
+			// The SingleTemplateEngine has its own formatter; give it the
+			// destination folder so {{FOLDER}} resolves in the template body.
+			singleTemplateEngine.setTargetFolderPath(parentFolderPath(filePath));
 
 			fileContent = await singleTemplateEngine.run();
 

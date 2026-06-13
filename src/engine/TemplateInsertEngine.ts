@@ -11,6 +11,7 @@ import {
 import invariant from "../utils/invariant";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
+import { parentFolderPath } from "../utils/pathUtils";
 import { TemplateEngine } from "./TemplateEngine";
 
 export const templateInsertModes = [
@@ -140,6 +141,12 @@ export class TemplateInsertEngine extends TemplateEngine {
 		const folderSettings = choice.folder;
 		let folderPath: string;
 
+		// This engine's formatter was already used by apply() with the note's
+		// own folder as the {{FOLDER}} target. Clear it so folder-definition
+		// formatting below treats {{FOLDER}} as self-referential (empty) rather
+		// than inheriting that stale value.
+		this.formatter.setTargetFolderPath(null);
+
 		if (folderSettings?.enabled) {
 			if (
 				folderSettings.chooseWhenCreatingNote ||
@@ -166,6 +173,10 @@ export class TemplateInsertEngine extends TemplateEngine {
 		let fileName = this.targetFile.basename;
 		let treatAsVaultRelativePath = false;
 		if (choice.fileNameFormat?.enabled && choice.fileNameFormat.format) {
+			// The file name's {{FOLDER}} reflects the folder this choice would
+			// create the note in (the path just computed), matching what
+			// TemplateChoiceEngine produces.
+			this.formatter.setTargetFolderPath(folderPath);
 			const formattedName = await this.formatter.formatFileName(
 				choice.fileNameFormat.format,
 				choice.name,
@@ -252,6 +263,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 		const templateContent = await this.getTemplateContent(this.templatePath);
 
 		this.formatter.setTitle(this.targetFile.basename);
+		// {{FOLDER}} resolves to the note's own folder when applying a template.
+		this.formatter.setTargetFolderPath(parentFolderPath(this.targetFile.path));
 
 		let formatted = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.formatFileContent(templateContent),

@@ -91,6 +91,7 @@ export class CompleteFormatter extends Formatter {
 		this.valueHeader = valueHeader;
 		let output = await this.format(input);
 		output = await this.replaceCurrentFileNameInString(output);
+		output = this.replaceTargetFolderInString(output);
 		return output;
 	}
 
@@ -100,6 +101,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.format(output);
 		output = await this.replaceLinkToCurrentFileInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
+		output = this.replaceTargetFolderInString(output);
 		output = this.replaceTitleInString(output);
 
 		return output;
@@ -113,7 +115,10 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		return await this.format(folderName);
+		// {{FOLDER}} in a folder definition is self-referential: the target
+		// folder isn't known while folders are being resolved, so it collapses
+		// to an empty string rather than leaking the literal token into a path.
+		return this.replaceTargetFolderInString(await this.format(folderName));
 	}
 
 	/**
@@ -126,6 +131,9 @@ export class CompleteFormatter extends Formatter {
 		let output = await this.format(input);
 		output = await this.replaceLinkToCurrentFileInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
+		// Note: {{FOLDER}} is deliberately NOT resolved in location selectors
+		// (insert-after/before targets) — an empty resolution would match the
+		// first line, and folder reflection isn't meaningful for a line target.
 		output = this.replaceTitleInString(output);
 		return output;
 	}
@@ -389,13 +397,18 @@ export class CompleteFormatter extends Formatter {
 			visited: this.templateInclusion.visited,
 			depth: this.templateInclusion.depth + 1,
 		};
-		return await new SingleTemplateEngine(
+		const childEngine = new SingleTemplateEngine(
 			this.app,
 			this.plugin,
 			templatePath,
 			this.choiceExecutor,
 			childInclusion,
-		).run();
+		);
+		// Propagate the target folder so {{FOLDER}} resolves inside included
+		// templates ({{TEMPLATE:...}}), which render via this child engine's own
+		// formatter.
+		childEngine.setTargetFolderPath(this.targetFolderPath);
+		return await childEngine.run();
 	}
 
 	protected async getSelectedText(): Promise<string> {

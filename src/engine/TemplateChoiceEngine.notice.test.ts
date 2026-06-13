@@ -60,6 +60,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		constructor() {}
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setTargetFolderPath() {}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}

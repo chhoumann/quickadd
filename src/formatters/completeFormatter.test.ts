@@ -53,6 +53,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {
 		templatePath: string;
 		inclusion?: TemplateInclusionState;
+		targetFolderPath: string | null = null;
 
 		constructor(
 			_app: unknown,
@@ -63,6 +64,10 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		) {
 			this.templatePath = templatePath;
 			this.inclusion = inclusion;
+		}
+
+		setTargetFolderPath(path: string | null) {
+			this.targetFolderPath = path;
 		}
 
 		run() {
@@ -203,11 +208,15 @@ function mockTemplateVault(templates: Record<string, string>) {
 	mocks.templateRun.mockImplementation(async function (this: {
 		templatePath: string;
 		inclusion?: TemplateInclusionState;
+		targetFolderPath?: string | null;
 	}) {
 		const child = defaultFormatter();
 		if (this.inclusion) {
 			child.setTemplateInclusionState(this.inclusion);
 		}
+		// Mirror SingleTemplateEngine: the child renders with the target folder
+		// propagated from the including formatter (so {{FOLDER}} resolves).
+		child.setTargetFolderPath(this.targetFolderPath ?? null);
 
 		return await child.formatFileContent(templates[this.templatePath] ?? "");
 	});
@@ -333,6 +342,18 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		await expect(
 			f.formatFolderPath("{{TEMPLATE:notes/a.md}}"),
 		).resolves.toBe("TEMPLATE_BODY");
+	});
+
+	it("propagates the target folder into included templates so {{FOLDER}} resolves", async () => {
+		mockTemplateVault({
+			"Partials/Filing.md": "folder={{FOLDER}} name={{FOLDER|name}}",
+		});
+		const f = defaultFormatter();
+		f.setTargetFolderPath("Projects/Acme");
+
+		const result = await f.formatFileContent("{{TEMPLATE:Partials/Filing.md}}");
+
+		expect(result).toBe("folder=Projects/Acme name=Acme");
 	});
 
 	it("terminates self-including templates with a visible placeholder", async () => {

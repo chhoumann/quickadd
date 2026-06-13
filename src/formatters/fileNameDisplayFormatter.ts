@@ -42,6 +42,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceFieldVarInString(output);
 			output = await this.replaceCurrentFileNameInString(output);
+			output = this.replaceTargetFolderInString(output);
 			output = this.replaceRandomInString(output);
 		} catch {
 			// Return the input as-is if formatting fails during preview

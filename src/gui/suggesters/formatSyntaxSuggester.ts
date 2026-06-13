@@ -9,6 +9,8 @@ import {
 	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 	FILENAMECURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
+	FOLDER_SYNTAX,
+	FOLDER_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX,
 	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
@@ -42,6 +44,7 @@ enum FormatSyntaxToken {
 	Variable,
 	LinkCurrent,
 	FilenameCurrent,
+	FolderTarget,
 	Macro,
 	Template,
 	MathValue,
@@ -164,6 +167,18 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		},
 	];
 
+	// Shown only in the file-name context (suggestForFileNames). {{FOLDER}} is
+	// the target folder the note is created in — meaningful in a Template file
+	// name, but not in the capture "Capture to" field (where it would resolve to
+	// empty), so it is deliberately kept out of the always-shown definitions.
+	private readonly fileNameTokens: TokenDefinition[] = [
+		{
+			regex: FOLDER_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.FolderTarget,
+			suggestion: FOLDER_SYNTAX,
+		},
+	];
+
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
@@ -234,7 +249,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		// Check all token definitions
 		const allTokens = [
 			...this.tokenDefinitions,
-			...(this.suggestForFileNames ? [] : this.contextualTokens)
+			...(this.suggestForFileNames ? this.fileNameTokens : this.contextualTokens)
 		];
 
 		for (const tokenDef of allTokens) {
@@ -326,7 +341,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 	}
 
 	private getTokenDefinition(token: FormatSyntaxToken): TokenDefinition | undefined {
-		return [...this.tokenDefinitions, ...this.contextualTokens]
+		return [...this.tokenDefinitions, ...this.contextualTokens, ...this.fileNameTokens]
 			.find(def => def.token === token);
 	}
 }

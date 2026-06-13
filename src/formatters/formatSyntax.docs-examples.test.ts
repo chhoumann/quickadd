@@ -26,6 +26,8 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"- [ ] {{VALUE|label:Task}} {{VDATE:followup,[📅 ]YYYY-MM-DD|optional}}",
 	"Source: {{LINKCURRENT}}",
 	"Notes from {{FILENAMECURRENT}}",
+	"Filed under {{FOLDER}}",
+	"{{FOLDER|name}} - {{VALUE:title}}",
 	"{{MACRO:Generate summary}}",
 	"{{MACRO:Choose project|label:Project}}",
 	"{{TEMPLATE:Templates/Meeting.md}}",
@@ -122,6 +124,7 @@ class DocsExampleFormatter extends Formatter {
 			}),
 		};
 		this.variables.set("title", "Project Update");
+		this.setTargetFolderPath("Projects/Acme");
 	}
 
 	public async render(input: string): Promise<string> {
@@ -143,6 +146,7 @@ class DocsExampleFormatter extends Formatter {
 		output = await this.replaceMathValueInString(output);
 		output = await this.replaceLinkToCurrentFileInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
+		output = this.replaceTargetFolderInString(output);
 		output = this.replaceRandomInString(output);
 		output = this.replaceTitleInString(output);
 		return output;

@@ -8,16 +8,31 @@ const { collectedPropertyVars } = vi.hoisted(() => ({
 
 vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
+		targetFolderPath: string | null = null;
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setTargetFolderPath(path: string | null) {
+			this.targetFolderPath = path;
+		}
+		// Minimal {{FOLDER}} resolution mirroring the real formatter so the
+		// move-path computation can be exercised end-to-end.
+		private resolveFolder(input: string): string {
+			const full = this.targetFolderPath ?? "";
+			const leaf = full.includes("/")
+				? full.slice(full.lastIndexOf("/") + 1)
+				: full;
+			return input
+				.replace(/{{FOLDER\|name}}/gi, leaf)
+				.replace(/{{FOLDER}}/gi, full);
+		}
 		async formatFileContent(input: string) {
 			return input;
 		}
 		async formatFileName(format: string) {
-			return format;
+			return this.resolveFolder(format);
 		}
 		async formatFolderPath(folder: string) {
-			return folder;
+			return this.resolveFolder(folder);
 		}
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
@@ -439,6 +454,35 @@ describe("TemplateInsertEngine.computeChoiceTargetPath", () => {
 		).computeChoiceTargetPath(choice);
 
 		expect(target).toBe("Meetings/My note.md");
+	});
+
+	it("ignores a stale {{FOLDER}} target left by apply() when computing the move path (#1258)", async () => {
+		const harness = makePathHarness();
+		const file = makeFile({ parent: { path: "Inbox" } as TFile["parent"] });
+		const choice = makeTemplateChoice({
+			folder: {
+				enabled: true,
+				folders: ["Projects/Acme"],
+				chooseWhenCreatingNote: false,
+				createInSameFolderAsActiveFile: false,
+				chooseFromSubfolders: false,
+			},
+			fileNameFormat: { enabled: true, format: "{{FOLDER|name}} - Renamed" },
+		});
+
+		const engine = makeEngine(harness, file, "replace");
+		// Simulate apply() having pointed {{FOLDER}} at the note's own folder.
+		(
+			engine as unknown as {
+				formatter: { setTargetFolderPath(p: string | null): void };
+			}
+		).formatter.setTargetFolderPath("Inbox");
+
+		const target = await engine.computeChoiceTargetPath(choice);
+
+		// {{FOLDER|name}} must reflect the choice's destination folder (Acme),
+		// not the stale note folder (Inbox).
+		expect(target).toBe("Projects/Acme/Acme - Renamed.md");
 	});
 
 	it("returns null when the folder requires a runtime picker", async () => {
