@@ -123,7 +123,7 @@ Notes:
 
 - Reuse is always `{{VALUE:category}}`. A bare `{{category}}` is **not** a QuickAdd token and is left untouched (it would collide with Templater/Dataview syntax).
 - `|name` combines with the other options, e.g. `{{VALUE:🔽,🔼,⏫|name:priority|text:Low,Normal,High|label:Pick a priority}}`.
-- Define before you reuse: with the one-page input form (Settings → QuickAdd) order doesn't matter, but in the default one-prompt-at-a-time flow the named suggester should appear before its first bare reuse (e.g. in the file name, which is resolved before the body). A bare reuse encountered first falls back to a text prompt.
+- Within a single field the order is free — the definition and its `{{VALUE:category}}` reuses can appear in any order, because the named suggester is resolved before the field's other prompts. Across fields in the default one-prompt-at-a-time flow, define the named suggester in the field that is resolved first (the file name is resolved before the body); a reuse in an earlier field than its definition falls back to a text prompt. The one-page input form (Settings → QuickAdd) removes this caveat entirely.
 - `value` and `title` are reserved and can't be used as a name.
 
 ## Optional fields: `|optional` {#optional-fields}

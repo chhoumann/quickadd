@@ -524,20 +524,23 @@ export abstract class Formatter {
 			if (parsed) tokens.push({ parsed, index: match.index });
 		}
 
-		// Earliest index each (case-insensitive) key is referenced at — mirrors
-		// resolveExistingVariableKey's case-insensitive matching.
-		const firstIndex = new Map<string, number>();
+		// Earliest index each (case-insensitive) key is referenced by a NON-
+		// definition token (a bare reuse). A prior definition must not count as a
+		// "use", else two conflicting definitions of the same name would hoist the
+		// later one ahead of the earlier — the first definition must win.
+		const firstUseIndex = new Map<string, number>();
 		for (const { parsed, index } of tokens) {
+			if (parsed.hasOptions && parsed.aliasName) continue; // skip definitions
 			const key = parsed.variableKey.toLowerCase();
-			if (!firstIndex.has(key)) firstIndex.set(key, index);
+			if (!firstUseIndex.has(key)) firstUseIndex.set(key, index);
 		}
 
 		const seen = new Set<string>();
 		for (const { parsed, index } of tokens) {
 			if (!parsed.hasOptions || !parsed.aliasName) continue;
 			const key = parsed.variableKey.toLowerCase();
-			// Only hoist when a use precedes this definition.
-			if ((firstIndex.get(key) ?? index) >= index) continue;
+			// Only hoist when a bare reuse precedes this definition.
+			if ((firstUseIndex.get(key) ?? index) >= index) continue;
 			if (seen.has(key)) continue;
 			seen.add(key);
 			await this.ensureValueVariableResolved(parsed);

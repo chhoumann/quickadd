@@ -152,6 +152,28 @@ describe("named suggester (#148)", () => {
 		expect(f.calls).toEqual(["prompt:first", "suggest:kind:[x,y]:ph="]);
 	});
 
+	it("keeps the FIRST definition when two same-name defs have no preceding reuse", async () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const f = new TestFormatter();
+		f.suggestReturns.set("type", "a");
+
+		// No bare reuse precedes either definition, so neither is hoisted; document
+		// order wins → the first definition's options/value are used for both.
+		const out = await f.run(
+			"x={{VALUE:a,b|name:type}} y={{VALUE:c,d|name:type}}",
+		);
+
+		expect(out).toBe("x=a y=a");
+		// Only the first definition's suggester is shown ([a,b], not [c,d]).
+		const suggests = f.calls.filter((c) => c.startsWith("suggest:"));
+		expect(suggests).toEqual(["suggest:type:[a,b]:ph="]);
+		expect(
+			warn.mock.calls.some((c) =>
+				String(c[0]).includes("different option lists"),
+			),
+		).toBe(true);
+	});
+
 	it("warns when the same name differs only by the custom flag", async () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const f = new TestFormatter();
