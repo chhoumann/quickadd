@@ -1293,6 +1293,10 @@
 	min-width: 35%;
 	max-width: 90%;
 	max-height: 70%;
+	/* Let the scroll region shrink below its content height so the non-shrinking
+	   footer always fits inside the centered column — otherwise tall notes on a
+	   short viewport could overflow and clip the Done button out of view (#635). */
+	min-height: 0;
 	overflow-wrap: break-word;
 	word-wrap: break-word;
 	word-break: break-word;
@@ -1317,6 +1321,23 @@
 	width: 100%;
 	height: auto;
 	margin: 5px;
+}
+
+/* A guaranteed, always-reachable dismiss for the (mobile-)X-only update modal.
+   Follows the scrollable release notes in normal flow so it stays visible, and on
+   mobile clears the bottom home-indicator inset (var(--safe-area-inset-bottom),
+   floored so it still has breathing room on devices with no inset). (#635) */
+.quickadd-update-modal-footer {
+	display: flex;
+	justify-content: center;
+	width: 100%;
+	/* Never let the centered column compress the exit out of reach. */
+	flex-shrink: 0;
+	margin-top: 1rem;
+	padding-bottom: max(
+		var(--size-4-4, 16px),
+		var(--safe-area-inset-bottom, 0px)
+	);
 }
 
 /* Buy me a coffee */

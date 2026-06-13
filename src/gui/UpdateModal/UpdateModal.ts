@@ -1,5 +1,11 @@
 import type { App } from "obsidian";
-import { Component, MarkdownRenderer, Modal, requestUrl } from "obsidian";
+import {
+	ButtonComponent,
+	Component,
+	MarkdownRenderer,
+	Modal,
+	requestUrl,
+} from "obsidian";
 import { log } from "src/logger/logManager";
 
 type Release = {
@@ -162,6 +168,11 @@ export class UpdateModal extends Modal {
 	// Owns the lifecycle of the markdown render's child components so they are
 	// torn down on close, rather than leaking onto a longer-lived owner.
 	private readonly markdownComponent = new Component();
+	// The release-notes fetch can resolve after the user has already dismissed the
+	// modal (the in-content Done button makes closing-while-fetching easy). Without
+	// this guard, the late display() would re-load markdownComponent (already
+	// unloaded in onClose) and render into a detached contentEl.
+	private isClosed = false;
 
 	constructor(app: App, previousQAVersion: string) {
 		super(app);
@@ -174,6 +185,8 @@ export class UpdateModal extends Modal {
 		);
 		this.releaseNotesPromise
 			.then((releases) => {
+				if (this.isClosed) return;
+
 				this.releases = releases;
 
                 if (this.releases.length === 0) {
@@ -194,10 +207,29 @@ export class UpdateModal extends Modal {
 		contentEl.createEl("h1", {
 			text: "Fetching release notes...",
 		});
+		// Always offer a reachable exit, even while fetching or if the fetch fails.
+		this.addCloseFooter();
+	}
+
+	/**
+	 * A self-owned dismiss control. On phones the system close (X) sits in the top
+	 * safe-area zone (status bar / Dynamic Island) where it can be untappable, and
+	 * this modal has no other exit (no Esc key, no backdrop to tap) — so it must
+	 * always offer a reachable Close. The footer follows the (internally scrollable)
+	 * release notes in normal flow so it stays visible, and clears the bottom
+	 * home-indicator inset on mobile (#635).
+	 */
+	private addCloseFooter(): void {
+		const footer = this.contentEl.createDiv("quickadd-update-modal-footer");
+		new ButtonComponent(footer)
+			.setButtonText("Done")
+			.setCta()
+			.onClick(() => this.close());
 	}
 
 	onClose() {
 		const { contentEl } = this;
+		this.isClosed = true;
 		this.markdownComponent.unload();
 		contentEl.empty();
 	}
@@ -230,5 +262,7 @@ export class UpdateModal extends Modal {
 			this.app.vault.getRoot().path,
 			this.markdownComponent,
 		);
+
+		this.addCloseFooter();
 	}
 }
