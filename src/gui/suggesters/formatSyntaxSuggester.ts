@@ -9,6 +9,7 @@ import {
 	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 	FILENAMECURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
+	FOLDER_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX,
 	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
@@ -42,6 +43,7 @@ enum FormatSyntaxToken {
 	Variable,
 	LinkCurrent,
 	FilenameCurrent,
+	FolderTarget,
 	Macro,
 	Template,
 	MathValue,
@@ -164,6 +166,22 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		},
 	];
 
+	// Shown only in the file-name context (suggestForFileNames). The target
+	// folder is meaningful in a Template file name, but the LEAF form is offered
+	// here: the bare {{FOLDER}} expands to the full path, so `{{FOLDER}} - Note`
+	// with a nested target like Projects/Acme would yield
+	// `Projects/Acme/Projects/Acme - Note.md`. {{FOLDER|name}} avoids that
+	// duplicated-segment footgun. {{FOLDER}} is kept out of the always-shown
+	// definitions because it would resolve to "" in the capture "Capture to"
+	// field.
+	private readonly fileNameTokens: TokenDefinition[] = [
+		{
+			regex: FOLDER_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.FolderTarget,
+			suggestion: "{{folder|name}}",
+		},
+	];
+
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
@@ -234,7 +252,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		// Check all token definitions
 		const allTokens = [
 			...this.tokenDefinitions,
-			...(this.suggestForFileNames ? [] : this.contextualTokens)
+			...(this.suggestForFileNames ? this.fileNameTokens : this.contextualTokens)
 		];
 
 		for (const tokenDef of allTokens) {
@@ -326,7 +344,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 	}
 
 	private getTokenDefinition(token: FormatSyntaxToken): TokenDefinition | undefined {
-		return [...this.tokenDefinitions, ...this.contextualTokens]
+		return [...this.tokenDefinitions, ...this.contextualTokens, ...this.fileNameTokens]
 			.find(def => def.token === token);
 	}
 }

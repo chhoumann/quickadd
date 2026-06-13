@@ -21,6 +21,7 @@ export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const FILENAMECURRENT_SYNTAX = "{{filenamecurrent}}";
+export const FOLDER_SYNTAX = "{{folder}}";
 export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
 export const CLIPBOARD_SYNTAX = "{{clipboard}}";
@@ -51,6 +52,8 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{field:<fieldname>|inline:true|inline-code-blocks:ad-note}}",
 	LINKCURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX,
+	FOLDER_SYNTAX,
+	"{{folder|name}}",
 	"{{macro:<macroname>}}",
 	"{{macro:<macroname>|label:<label>}}",
 	"{{template:<templatepath>}}",
@@ -112,6 +115,9 @@ export const DATE_VARIABLE_REGEX = new RegExp(
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
+// {{FOLDER}} resolves to the target folder the note is being created in.
+// The optional |name modifier yields just the leaf folder segment.
+export const TARGET_FOLDER_REGEX = new RegExp(/{{FOLDER(\|name)?}}/i);
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/i);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/i);
 export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/i);
@@ -159,6 +165,9 @@ export const LINKCURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const FILENAMECURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[F]?[I]?[L]?[E]?[N]?[A]?[M]?[E]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
+);
+export const FOLDER_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[F]?[O]?[L]?[D]?[E]?[R]?[}]?[}]?$/i,
 );
 export const TEMPLATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i,

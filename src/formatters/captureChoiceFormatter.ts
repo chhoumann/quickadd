@@ -14,6 +14,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection from "./helpers/getEndOfSection";
 import { findYamlFrontMatterRange } from "../utils/yamlContext";
+import { parentFolderPath } from "../utils/pathUtils";
 
 /**
 	* Only ASCII whitespace counts as "nothing to capture". Unicode spaces such as
@@ -53,11 +54,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	public setDestinationFile(file: TFile): void {
 		this.file = file;
 		this.sourcePath = file.path;
+		// {{FOLDER}} in a capture body resolves to the destination file's folder.
+		this.setTargetFolderPath(parentFolderPath(file.path));
 	}
 
 	public setDestinationSourcePath(path: string): void {
 		this.sourcePath = path;
 		this.file = null;
+		this.setTargetFolderPath(parentFolderPath(path));
 	}
 
 	public setUseSelectionAsCaptureValue(value: boolean): void {
@@ -99,6 +103,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.file = file;
 		this.fileContent = fileContent;
 		if (!choice || !file || fileContent === null) return input;
+		// Keep {{FOLDER}} pointed at the definitive destination file's folder.
+		this.setTargetFolderPath(parentFolderPath(file.path));
 
 		// Process templater here if we're using insert after or prepend or not capturing to active file
 		// This is needed because in these cases, the content won't be processed by templaterParseTemplate in CaptureChoiceEngine

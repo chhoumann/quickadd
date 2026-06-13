@@ -148,6 +148,26 @@ The basename (without extension) of the file from which the template or capture 
 
 Example: `Notes from {{FILENAMECURRENT}}`.
 
+## `{{FOLDER}}` {#folder}
+
+The folder the note is being created in, as a vault-relative path (no trailing slash). For a note created at the vault root this resolves to an empty string.
+
+Where it has a value:
+
+- **Template choices** — in the file name format (the folder is resolved before the name is built) and in the template body.
+- **Capture** — in the capture body, where it resolves to the destination file's folder.
+- **Apply template to a note** — the target note's folder.
+
+Where it resolves to an empty string: the capture **Capture to** field (that field is what *chooses* the folder, so there is nothing to reference yet), the `format` JavaScript API, and macro file-path commands.
+
+### `{{FOLDER|name}}` — just the folder name
+
+Add the `|name` modifier to get only the last path segment. For a target folder `Projects/Acme`, `{{FOLDER}}` is `Projects/Acme` while `{{FOLDER|name}}` is `Acme`. Use `{{FOLDER|name}}` when you want the folder's name reflected in a file name; use the bare `{{FOLDER}}` in note bodies where you want the full path.
+
+> Note: in a Template file name format, prefixing with the full path (e.g. `{{FOLDER}}/{{VALUE}}`) is redundant — the note is already placed in the target folder, so the leading path is stripped. Use `{{FOLDER|name}}` to put the folder's name *into* the file name.
+
+Examples: `Filed under {{FOLDER}}`, `{{FOLDER|name}} - {{VALUE}}`.
+
 ## `{{MACRO:<MACRONAME>}}` {#macro}
 
 Execute a macro and write the return value here.

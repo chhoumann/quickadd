@@ -5,6 +5,7 @@ import {
 	DATE_VARIABLE_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
 	FILE_NAME_OF_CURRENT_FILE_REGEX,
+	TARGET_FOLDER_REGEX,
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
@@ -65,6 +66,11 @@ export abstract class Formatter {
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected dateParser: IDateParser | undefined;
 	private linkToCurrentFileBehavior: LinkToCurrentFileBehavior = "required";
+	// The folder the note is being created in, supplied by the engine before
+	// formatting a file name / body. `null` means "no target folder known"
+	// (e.g. the QuickAdd API, the capture "Capture to" field) — {{FOLDER}}
+	// then resolves to an empty string rather than throwing.
+	protected targetFolderPath: string | null = null;
 	protected valuePromptContext?: PromptContext;
 	protected templateInclusion?: TemplateInclusionState;
 
@@ -312,6 +318,42 @@ export abstract class Formatter {
 
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
 		this.linkToCurrentFileBehavior = behavior;
+	}
+
+	/**
+	 * Records the folder the note is being created in so {{FOLDER}} can resolve
+	 * to it. The path is normalized to a clean vault-relative form: leading and
+	 * trailing slashes are stripped and the Obsidian vault root ("/" or "")
+	 * collapses to an empty string. Pass `null` to clear it.
+	 */
+	public setTargetFolderPath(path: string | null): void {
+		if (path == null) {
+			this.targetFolderPath = null;
+			return;
+		}
+		const trimmed = path.trim();
+		this.targetFolderPath =
+			trimmed === "/" ? "" : trimmed.replace(/^\/+/, "").replace(/\/+$/, "");
+	}
+
+	/**
+	 * Resolves {{FOLDER}} to the target folder's vault-relative path, and
+	 * {{FOLDER|name}} to just its leaf segment. Uses a replacer function so any
+	 * `$` in a folder name is treated literally (consistent with the other
+	 * tokens). Runs as a contextual pass (from formatFileName / formatFileContent
+	 * / formatFolderPath), not from the core format() pipeline. When no target
+	 * folder is known it resolves to an empty string (matching runtime in the
+	 * capture "Capture to" field, the API, and macro paths).
+	 */
+	protected replaceTargetFolderInString(input: string): string {
+		const fullPath = this.targetFolderPath ?? "";
+		const slashIndex = fullPath.lastIndexOf("/");
+		const leafName =
+			slashIndex === -1 ? fullPath : fullPath.slice(slashIndex + 1);
+		const regex = new RegExp(TARGET_FOLDER_REGEX.source, "gi");
+		return input.replace(regex, (_match, modifier) =>
+			modifier ? leafName : fullPath,
+		);
 	}
 
 	/**
