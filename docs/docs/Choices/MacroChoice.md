@@ -81,8 +81,9 @@ the macro simply runs it. The note option is handy on mobile, where Obsidian
 cannot open `.js` files — see [User Scripts](../UserScripts.md#scripts-in-a-note-code-block).
 
 Create a new script file such as `scripts/my-macro.js`, or a note such as
-`Scripts/my-macro.md` with your code in a ` ```js ` block. QuickAdd runs the
-**first** ` ```js ` block in a note and ignores surrounding prose.
+`Scripts/my-macro.md` with your code in a ` ```js ` (or ` ```javascript `)
+block. QuickAdd runs the **first** matching JavaScript fence in a note and
+ignores surrounding prose.
 
 Keep the script inside your vault, but not inside `.obsidian` or any folder
 whose name starts with a dot. Obsidian may exclude hidden folders from its file

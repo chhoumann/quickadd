@@ -15,7 +15,6 @@ import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import {
 	type ScriptCandidate,
-	candidateLabel,
 	loadScriptCandidates,
 	noteScriptError,
 } from "./scriptCandidates";
@@ -260,18 +259,19 @@ export class ConditionalCommandSettingsModal extends Modal {
 					.setButtonText("Browse")
 					.setTooltip("Select a script (.js file or note)")
 					.onClick(async () => {
+						// Refresh so notes/scripts created while this modal is open appear.
+						this.loadScriptCandidates();
 						if (this.scriptCandidates.length === 0) {
 							showNoScriptsFoundNotice(this.app);
 							return;
 						}
 
+						// This picker stores condition.scriptPath, so show full paths for
+						// every entry (a vault can have several same-basename scripts).
 						const paths = this.scriptCandidates.map((c) => c.file.path);
-						const labels = this.scriptCandidates.map((c) =>
-							candidateLabel(c)
-						);
 						const selected = await InputSuggester.Suggest(
 							this.app,
-							labels,
+							paths,
 							paths,
 							{
 								placeholder:

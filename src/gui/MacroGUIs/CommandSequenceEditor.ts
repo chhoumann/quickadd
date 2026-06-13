@@ -338,6 +338,8 @@ export class CommandSequenceEditor {
 		let addButton: ButtonComponent | null = null;
 
 		const addUserScriptFromInput = async () => {
+			// Refresh so scripts/notes created while this editor is open resolve.
+			this.loadScriptCandidates();
 			const value: string = input.getValue().trim();
 			if (!value) return;
 			const selector = getUserScriptMemberAccess(value).basename ?? value;
@@ -513,6 +515,8 @@ export class CommandSequenceEditor {
 	}
 
 	private async showScriptPicker(): Promise<ScriptCandidate | null> {
+		// Refresh so scripts/notes created while this editor is open are listed.
+		this.loadScriptCandidates();
 		if (this.scriptCandidates.length === 0) {
 			showNoScriptsFoundNotice(this.app);
 			return null;
