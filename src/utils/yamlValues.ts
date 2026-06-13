@@ -53,6 +53,17 @@ export function isStructuredYamlValue(v: unknown): boolean {
 }
 
 /**
+ * Returns whether a value is a *container* (array or plain object) — the kinds
+ * that produce invalid YAML when inlined as text and therefore must be written
+ * through Obsidian's serializer. Scalars (number/boolean/null) are excluded
+ * because they are already YAML-safe inline, so collecting them would only force
+ * a needless whole-frontmatter rewrite (stripping comments, normalising quotes).
+ */
+export function isContainerYamlValue(v: unknown): boolean {
+  return Array.isArray(v) || (typeof v === "object" && v !== null);
+}
+
+/**
  * Produces a YAML-parseable placeholder for structured values so frontmatter
  * stays valid until processFrontMatter rewrites the final value.
  */

@@ -49,24 +49,37 @@ You can now use the macro to create notes with movie or TV show information in y
 
 ### Example template
 
+This template stores the movie's metadata as Obsidian **front matter properties**. The
+multi-value fields (`cast`, `genre`, `director`) come from the script as lists and become
+proper **List** properties with clickable links. Scalar link/text values are wrapped in
+quotes so the front matter stays valid, and the plot lives in the note body so longer text
+(with punctuation or quotes) can't break the front matter.
+
 ```markdown
 ---
-cover: { { VALUE:Poster } }
+category: "{{VALUE:typeLink}}"
+director: {{VALUE:directorLink}}
+genre: {{VALUE:genreLinks}}
+cast: {{VALUE:actorLinks}}
+year: "{{VALUE:Year}}"
+imdbId: "{{VALUE:imdbID}}"
+imdb: "[IMDb]({{VALUE:imdbUrl}})"
+ratingImdb: "{{VALUE:imdbRating}}"
+rating: 
+cover: "{{VALUE:Poster}}"
 ---
 
-category:: {{VALUE:typeLink}}
-director:: {{VALUE:directorLink}}
-genre:: {{VALUE:genreLinks}}
-imdbId:: {{VALUE:imdbID}}
-imdb:: [IMDb]({{VALUE:imdbUrl}})
-ratingImdb:: {{VALUE:imdbRating}}
-rating::
-year:: {{VALUE:Year}}
-cast:: {{VALUE:actorLinks}}
-plot:: {{VALUE:Plot}}
-
 ![poster]({{VALUE:Poster}})
+
+{{VALUE:Plot}}
 ```
+
+:::tip
+Keep the quotes around single-link and text values (for example `category` and `imdbId`).
+A bare `[[Movies]]` in front matter is read by Obsidian as a nested list rather than a link.
+The list fields (`cast`, `genre`, `director`) don't need quotes — QuickAdd writes them as
+real list properties for you.
+:::
 
 ## Usage
 

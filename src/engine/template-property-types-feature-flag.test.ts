@@ -60,20 +60,34 @@ describe('Template Property Types Feature Flag & Edge Cases', () => {
 	});
 
 	describe('Feature Flag Behavior', () => {
-		it('should not collect templatePropertyVars when flag is disabled', () => {
+		it('does not collect bare scalars (strings/numbers) when the flag is disabled', () => {
 			mockPlugin.settings.enableTemplatePropertyTypes = false;
-			
+
 			const formatter = new TestFormatter(mockApp, mockPlugin);
 			const templateContent = 'title: {{testValue}}\ncount: {{testCount}}';
-			
+
 			formatter.setVariable('testValue', 'My Title');
 			formatter.setVariable('testCount', 42);
-			
+
 			const result = formatter.formatContent(templateContent);
 			const vars = formatter.getAndClearTemplatePropertyVars();
-			
+
+			// Scalars are YAML-safe inline, so they stay raw (no whole-frontmatter rewrite).
 			expect(result).toBe('title: My Title\ncount: 42');
 			expect(vars.size).toBe(0);
+		});
+
+		it('collects container values (arrays/objects) even when the flag is disabled', () => {
+			mockPlugin.settings.enableTemplatePropertyTypes = false;
+
+			const formatter = new TestFormatter(mockApp, mockPlugin);
+			formatter.setVariable('cast', ['[[A]]', '[[B]]']);
+
+			formatter.formatContent('cast: {{cast}}');
+			const vars = formatter.getAndClearTemplatePropertyVars();
+
+			// This is the #662 fix: arrays become real List properties regardless of the toggle.
+			expect(vars.get('cast')).toEqual(['[[A]]', '[[B]]']);
 		});
 		
 		it('should collect templatePropertyVars when flag is enabled', () => {
@@ -93,13 +107,20 @@ describe('Template Property Types Feature Flag & Edge Cases', () => {
 			expect(vars.get('date')).toEqual(new Date('2024-01-01'));
 		});
 		
-		it('should not post-process when flag is disabled', async () => {
+		it('post-processes whenever there are collected vars (flag-independent)', async () => {
 			mockPlugin.settings.enableTemplatePropertyTypes = false;
-			
+
 			const engine = new TestTemplateEngine(mockApp, mockPlugin);
-			const templateVars = new Map<string, unknown>([['title', 'Test'], ['count', 42]]);
-			
+			const templateVars = new Map<string, unknown>([['cast', ['[[A]]']]]);
+
 			const shouldProcess = await engine.testShouldProcessFrontMatter(mockFile, templateVars);
+			expect(shouldProcess).toBe(true);
+		});
+
+		it('does not post-process when there are no collected vars', async () => {
+			const engine = new TestTemplateEngine(mockApp, mockPlugin);
+
+			const shouldProcess = await engine.testShouldProcessFrontMatter(mockFile, new Map());
 			expect(shouldProcess).toBe(false);
 			expect(mockFileManager.processFrontMatter).not.toHaveBeenCalled();
 		});
@@ -395,10 +416,11 @@ class TestFormatter {
 			const variableName = match[1].trim();
 			const rawValue = this.variables.get(variableName);
 			
-			// Check if we're in a YAML key-value position and flag is enabled
-			if (this.plugin.settings.enableTemplatePropertyTypes && this.isInYamlKeyValuePosition(output, match.index)) {
+			// Containers (arrays/objects) are tracked regardless of the flag;
+			// scalars only under the opt-in flag. Mirrors the real collector.
+			if (this.isInYamlKeyValuePosition(output, match.index)) {
 				const propertyKey = this.extractPropertyKey(output, match.index);
-				if (propertyKey && this.shouldTrackAsProperty(rawValue)) {
+				if (propertyKey && this.shouldTrackAsProperty(rawValue, this.plugin.settings.enableTemplatePropertyTypes)) {
 					this.templatePropertyVars.set(propertyKey, rawValue);
 				}
 			}
@@ -434,12 +456,13 @@ class TestFormatter {
 		return match ? match[1].trim() : null;
 	}
 	
-	private shouldTrackAsProperty(value: unknown): boolean {
-		// Template property types feature tracks any non-string value
-		// OR string values when used with VALUE: prefix (which indicates raw value handling)
-		return typeof value !== 'string' && (
-			Array.isArray(value) || 
-			(typeof value === 'object' && value !== null) ||
+	private shouldTrackAsProperty(value: unknown, flagEnabled: boolean): boolean {
+		if (typeof value === 'string') return false;
+		// Containers break when inlined as text -> always tracked.
+		if (Array.isArray(value) || (typeof value === 'object' && value !== null)) return true;
+		// Scalars (number/boolean/null/undefined) are YAML-safe inline -> only
+		// tracked under the opt-in beta flag.
+		return flagEnabled && (
 			typeof value === 'number' ||
 			typeof value === 'boolean' ||
 			value === null ||
@@ -482,8 +505,8 @@ class TestTemplateEngine {
 	}
 	
 	async testShouldProcessFrontMatter(file: TFile, templateVars: Map<string, unknown>): Promise<boolean> {
-		return templateVars.size > 0 && 
-		       file.extension === 'md' && 
-		       this.plugin.settings.enableTemplatePropertyTypes;
+		// Post-processing runs whenever there are collected vars (flag-independent),
+		// matching the real QuickAddEngine.shouldPostProcessFrontMatter.
+		return templateVars.size > 0 && file.extension === 'md';
 	}
 }

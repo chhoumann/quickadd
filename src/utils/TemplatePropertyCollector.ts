@@ -4,7 +4,7 @@ import {
 	parseStructuredPropertyValueFromString,
 	type ParseOptions,
 } from "./templatePropertyStringParser";
-import { isStructuredYamlValue } from "./yamlValues";
+import { isContainerYamlValue, isStructuredYamlValue } from "./yamlValues";
 
 const PATH_SEPARATOR = "\u0000";
 
@@ -14,7 +14,19 @@ type CollectArgs = {
   matchEnd: number;
   rawValue: unknown;
   fallbackKey: string;
-  featureEnabled: boolean;
+  /**
+   * Whether collection is active at all (inside a withTemplatePropertyCollection
+   * scope). Collecting already-structured values (arrays/objects/numbers/booleans)
+   * for a native processFrontMatter pass is always-on so scripts that return real
+   * arrays produce valid Obsidian properties regardless of the beta toggle.
+   */
+  collectionActive: boolean;
+  /**
+   * Whether the opt-in string -> structured heuristic may run (turning a comma /
+   * bullet-list string into a List, "42" into a Number, etc.). Gated by the
+   * `enableTemplatePropertyTypes` setting because it changes a value's type.
+   */
+  heuristicEnabled: boolean;
 };
 
 export class TemplatePropertyCollector {
@@ -28,8 +40,8 @@ export class TemplatePropertyCollector {
    * and the raw value is a structured type (object/array/number/boolean/null).
    */
   public maybeCollect(args: CollectArgs): unknown {
-    const { input, matchStart, matchEnd, rawValue, fallbackKey, featureEnabled } = args;
-    if (!featureEnabled) return undefined;
+    const { input, matchStart, matchEnd, rawValue, fallbackKey, collectionActive, heuristicEnabled } = args;
+    if (!collectionActive) return undefined;
     const yamlRange = findYamlFrontMatterRange(input);
     const context = getYamlContextForMatch(input, matchStart, matchEnd, yamlRange);
 
@@ -55,7 +67,10 @@ export class TemplatePropertyCollector {
 
     let structuredValue = rawValue;
 
-    if (typeof rawValue === "string") {
+    // The string -> structured heuristic is opt-in: it changes a value's type
+    // (comma/bullet string -> List, "42" -> Number). Real arrays/objects from
+    // scripts skip this branch and are collected as-is below.
+    if (heuristicEnabled && typeof rawValue === "string") {
       const parsed = parseStructuredPropertyValueFromString(rawValue, this.buildParseOptions(effectiveKey));
       if (parsed !== undefined) {
         structuredValue = parsed;
@@ -63,6 +78,13 @@ export class TemplatePropertyCollector {
     }
 
     if (!isStructuredYamlValue(structuredValue)) return undefined;
+
+    // Always-on (flag-off) collection is limited to container types
+    // (arrays/objects) that break when inlined as text. Scalars
+    // (number/boolean/null) are already YAML-safe inline, so they are only
+    // collected under the opt-in heuristic to avoid forcing a whole-frontmatter
+    // rewrite (which would strip comments / normalise quoting) for no benefit.
+    if (!heuristicEnabled && !isContainerYamlValue(structuredValue)) return undefined;
 
     const mapKey = propertyPath.join(PATH_SEPARATOR);
     this.map.set(mapKey, structuredValue);

@@ -213,11 +213,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					render: (setting) => this.renderTemplateFolderPaths(setting),
 				},
 				{
-					name: "Format template variables as proper property types (Beta)",
+					name: "Convert string front matter variables to typed properties (Beta)",
 					desc:
-						"When enabled, template variables in front matter will be formatted as proper Obsidian property types. " +
-						"Arrays become List properties, numbers become Number properties, booleans become Checkbox properties, etc. " +
-						"This is a beta feature that may have edge cases.",
+						"List/object values from scripts are always written as proper Obsidian properties (a list becomes a List). " +
+						"This toggle additionally converts string values into typed properties: a comma or bullet-list string becomes a List, " +
+						"\"42\" becomes a Number, \"true\" becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases.",
 					control: { type: "toggle", key: "enableTemplatePropertyTypes" },
 				},
 			],

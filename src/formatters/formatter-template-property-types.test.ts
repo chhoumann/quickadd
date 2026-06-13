@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Formatter } from './formatter';
 
 class TemplatePropertyTypesTestFormatter extends Formatter {
+	public propertyTypesEnabled = true;
+
 	constructor(app?: App) {
 		super(app);
 	}
@@ -78,7 +80,7 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 	}
 
 	protected isTemplatePropertyTypesEnabled(): boolean {
-		return true;
+		return this.propertyTypesEnabled;
 	}
 
 	public async testFormat(input: string): Promise<string> {
@@ -181,5 +183,51 @@ describe('Formatter template property type inference', () => {
 		);
 		const vars = formatter.getAndClearTemplatePropertyVars();
 		expect(vars.has('source')).toBe(false);
+	});
+
+	// Issue #662: container (array/object) values become real properties even
+	// with the beta toggle OFF; scalars and strings stay raw (byte-identical).
+	describe('with the beta toggle OFF (real Formatter)', () => {
+		beforeEach(() => {
+			formatter.propertyTypesEnabled = false;
+		});
+
+		it('collects array values into a List property and leaves a [] placeholder', async () => {
+			(formatter as any).variables.set('cast', ['[[Ewan McGregor]]', '[[Liam Neeson]]']);
+			const output = await formatter.testFormatWithTemplatePropertyCollection(
+				'---\ncast: {{VALUE:cast}}\n---',
+			);
+			const vars = formatter.getAndClearTemplatePropertyVars();
+			expect(output).toBe('---\ncast: []\n---');
+			expect(vars.get('cast')).toEqual(['[[Ewan McGregor]]', '[[Liam Neeson]]']);
+		});
+
+		it('does NOT collect bare numbers (YAML-safe inline, byte-identical)', async () => {
+			(formatter as any).variables.set('rating', 8.5);
+			const output = await formatter.testFormatWithTemplatePropertyCollection(
+				'---\nrating: {{VALUE:rating}}\n---',
+			);
+			const vars = formatter.getAndClearTemplatePropertyVars();
+			expect(output).toBe('---\nrating: 8.5\n---');
+			expect(vars.size).toBe(0);
+		});
+
+		it('does NOT collect plain strings (stays raw)', async () => {
+			(formatter as any).variables.set('title', 'Phantom Menace');
+			const output = await formatter.testFormatWithTemplatePropertyCollection(
+				'---\ntitle: {{VALUE:title}}\n---',
+			);
+			const vars = formatter.getAndClearTemplatePropertyVars();
+			expect(output).toBe('---\ntitle: Phantom Menace\n---');
+			expect(vars.size).toBe(0);
+		});
+
+		it('coerces non-string values when substituting raw so the scanner stays aligned (replacement.length fix)', async () => {
+			// Two array tokens on the same non-frontmatter line: both must substitute.
+			(formatter as any).variables.set('a', ['p', 'q']);
+			(formatter as any).variables.set('b', ['r', 's']);
+			const output = await formatter.testFormat('x {{VALUE:a}} y {{VALUE:b}} z');
+			expect(output).toBe('x p,q y r,s z');
+		});
 	});
 });

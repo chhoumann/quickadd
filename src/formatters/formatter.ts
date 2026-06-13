@@ -468,23 +468,30 @@ export abstract class Formatter {
 					? transformCase(rawValue, caseStyle)
 					: rawValue;
 
-			// Offer this variable to the property collector for YAML post-processing
+			// Offer this variable to the property collector for YAML post-processing.
+			// Collecting structured values (arrays/objects/numbers/booleans) into a
+			// processFrontMatter pass is always-on inside a collection scope so that
+			// scripts returning real arrays produce valid YAML regardless of the
+			// beta toggle. Only the string -> structured *heuristic* is flag-gated.
+			const collectionActive = this.templatePropertyCollectionDepth > 0;
 			const structuredYamlValue = this.propertyCollector.maybeCollect({
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
 				rawValue: rawValueForCollector,
 				fallbackKey: variableName,
-				featureEnabled:
-					propertyTypesEnabled &&
-					this.templatePropertyCollectionDepth > 0,
+				collectionActive,
+				heuristicEnabled: propertyTypesEnabled && collectionActive,
 			});
 
 			// Keep the interim frontmatter YAML-parseable until post-processing
-			// writes the real structured value back through Obsidian.
+			// writes the real structured value back through Obsidian. Coerce the
+			// fallback replacement to a string so non-string variable values (e.g.
+			// arrays from scripts on the non-collected path) don't desync the scanner.
 			const placeholder = getYamlPlaceholder(structuredYamlValue);
-			const replacement = placeholder ??
-				transformCase(this.getVariableValue(effectiveKey), caseStyle);
+			const replacement =
+				placeholder ??
+				String(transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "");
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
