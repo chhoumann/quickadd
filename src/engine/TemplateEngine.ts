@@ -526,11 +526,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async createFileWithTemplate(
 		filePath: string,
-		templatePath: string
+		resolvedTemplatePath: string
 	) {
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				templatePath
+				resolvedTemplatePath
 			);
 
 			// Extract filename without extension from the full path.
@@ -609,11 +609,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async overwriteFileWithTemplate(
 		file: TFile,
-		templatePath: string
+		resolvedTemplatePath: string
 	) {
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				templatePath
+				resolvedTemplatePath
 			);
 
 			// Use the existing file's basename as the title
@@ -658,12 +658,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async appendToFileWithTemplate(
 		file: TFile,
-		templatePath: string,
+		resolvedTemplatePath: string,
 		section: "top" | "bottom"
 	) {
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				templatePath
+				resolvedTemplatePath
 			);
 
 			// Use the existing file's basename as the title
