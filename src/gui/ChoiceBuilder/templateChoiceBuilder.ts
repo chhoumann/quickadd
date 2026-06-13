@@ -1,40 +1,19 @@
 import type { App } from "obsidian";
-import {
-	ButtonComponent,
-	Setting,
-	TextComponent,
-	ToggleComponent,
-} from "obsidian";
-import { FileNameDisplayFormatter } from "../../formatters/fileNameDisplayFormatter";
-import { log } from "../../logger/logManager";
 import type QuickAdd from "../../main";
-import {
-	fileExistsBehaviorCategoryOptions,
-	getBehaviorCategory,
-	getDefaultBehaviorForCategory,
-	getFileExistsMode,
-	getModesForCategory,
-	type FileExistsBehaviorCategoryId,
-	type FileExistsModeId,
-} from "../../template/fileExistsPolicy";
+import type IChoice from "../../types/choices/IChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
-import {
-	normalizeAppendLinkOptions,
-	placementSupportsEmbed,
-} from "../../types/linkPlacement";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
-import { sortFolderPathsByTree } from "../../utils/folder-sorting";
-import { createValidatedInput } from "../components/validatedInput";
-import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
-import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
-import { ChoiceBuilder } from "./choiceBuilder";
-import FolderList from "./FolderList.svelte";
-import { createFolderListProps } from "./folderListProps.svelte";
+import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 import { mountComponent } from "../svelte/mountComponent";
+import { ChoiceBuilder } from "./choiceBuilder";
+import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
+import {
+	createTemplateChoiceFormProps,
+	type TemplateChoiceFormProps,
+} from "./templateChoiceFormProps.svelte";
 
 export class TemplateChoiceBuilder extends ChoiceBuilder {
 	choice: ITemplateChoice;
+	private formProps?: TemplateChoiceFormProps;
 
 	constructor(
 		app: App,
@@ -43,441 +22,32 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	) {
 		super(app);
 		this.choice = choice;
-
+		this.normalizeChoice();
 		this.display();
+	}
+
+	/**
+	 * Apply the defaults the imperative builder used to set lazily inside render
+	 * branches — once, before mount, so reads see a fully-shaped object.
+	 */
+	private normalizeChoice() {
+		this.choice.fileExistsBehavior ??= { kind: "prompt" };
+		this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
 	}
 
 	protected display() {
 		this.containerEl.addClass("templateChoiceBuilder");
-		this.addCenteredChoiceNameHeader(this.choice);
-
-		// Template
-		new Setting(this.contentEl).setName("Template").setHeading();
-		this.addTemplatePathSetting();
-		this.addFileNameFormatSetting();
-
-		// Location
-		new Setting(this.contentEl).setName("Location").setHeading();
-		this.addFolderSetting();
-
-		// Linking
-		new Setting(this.contentEl).setName("Linking").setHeading();
-		this.addAppendLinkSetting();
-
-		// Behavior
-		new Setting(this.contentEl).setName("Behavior").setHeading();
-		this.addFileAlreadyExistsSetting();
-		this.addOpenFileSetting("Open the created file.");
-		if (this.choice.openFile) {
-			this.addFileOpeningSetting("created");
-		}
-		this.addOnePageOverrideSetting(this.choice);
-	}
-
-	private addTemplatePathSetting(): void {
-		new Setting(this.contentEl)
-			.setName("Template Path")
-			.setDesc("Path to the Template.");
-
-		const templates: string[] = this.plugin
-			.getTemplateFiles()
-			.map((f) => f.path);
-
-		createValidatedInput({
+		this.formProps = createTemplateChoiceFormProps({
+			choice: this.choice,
 			app: this.app,
-			parent: this.contentEl,
-			initialValue: this.choice.templatePath,
-			placeholder: "Template path",
-			suggestions: templates,
-			maxSuggestions: 50,
-			validator: (raw) => {
-				const v = raw.trim();
-				if (!v) return true;
-				return templates.includes(v) || "Template not found";
-			},
-			onChange: (value) => {
-				this.choice.templatePath = value;
-			},
+			plugin: this.plugin,
 		});
-	}
-
-	private addFileNameFormatSetting(): void {
-		let textField: TextComponent;
-		const enableSetting = new Setting(this.contentEl);
-		enableSetting
-			.setName("File name format")
-			.setDesc("Set the file name format.")
-			.addToggle((toggleComponent) => {
-				toggleComponent
-					.setValue(this.choice.fileNameFormat.enabled)
-					.onChange((value) => {
-						this.choice.fileNameFormat.enabled = value;
-						textField.setDisabled(!value);
-					});
-			});
-
-		// Desc + preview row
-		const previewRow = this.contentEl.createDiv({ cls: "qa-preview-row" });
-		previewRow.createEl("span", { text: "Preview: ", cls: "qa-preview-label" });
-		const formatDisplay = previewRow.createEl("span");
-		formatDisplay.setAttr("aria-live", "polite");
-		const displayFormatter: FileNameDisplayFormatter =
-			new FileNameDisplayFormatter(this.app, this.plugin);
-		formatDisplay.textContent = "Loading preview…";
-		void (async () => {
-			try {
-				formatDisplay.textContent = await displayFormatter.format(
-					this.choice.fileNameFormat.format,
-				);
-			} catch {
-				formatDisplay.textContent = "Preview unavailable";
-			}
-		})();
-
-		const formatInput = new TextComponent(this.contentEl);
-		formatInput.setPlaceholder("File name format");
-		textField = formatInput;
-		formatInput.inputEl.addClass("qa-template-format-input");
-
-		formatInput
-			.setValue(this.choice.fileNameFormat.format)
-			.setDisabled(!this.choice.fileNameFormat.enabled)
-			.onChange(async (value) => {
-				this.choice.fileNameFormat.format = value;
-				try {
-					formatDisplay.textContent = await displayFormatter.format(value);
-				} catch {
-					formatDisplay.textContent = "Preview unavailable";
-				}
-			});
-
-		new FormatSyntaxSuggester(this.app, textField.inputEl, this.plugin, true);
-	}
-
-	private addFolderSetting(): void {
-		const folderSetting: Setting = new Setting(this.contentEl);
-		folderSetting
-			.setName("Create in folder")
-			.setDesc(
-				"Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in.",
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.choice.folder.enabled);
-				toggle.onChange((value) => {
-					this.choice.folder.enabled = value;
-					this.reload();
-				});
-			});
-
-		if (!this.choice.folder.enabled) {
-			return;
-		}
-
-		if (!this.choice.folder?.createInSameFolderAsActiveFile) {
-			const chooseFolderWhenCreatingNoteContainer = this.contentEl.createDiv(
-				"chooseFolderWhenCreatingNoteContainer",
-			);
-			chooseFolderWhenCreatingNoteContainer.createEl("span", {
-				text: "Choose folder when creating a new note",
-			});
-			const chooseFolderWhenCreatingNote: ToggleComponent = new ToggleComponent(
-				chooseFolderWhenCreatingNoteContainer,
-			);
-			chooseFolderWhenCreatingNote
-				.setValue(this.choice.folder?.chooseWhenCreatingNote)
-				.onChange((value) => {
-					this.choice.folder.chooseWhenCreatingNote = value;
-					this.reload();
-				});
-
-			if (!this.choice.folder?.chooseWhenCreatingNote) {
-				this.addFolderSelector();
-			}
-
-			const chooseFolderFromSubfolderContainer: HTMLDivElement =
-				this.contentEl.createDiv("chooseFolderFromSubfolderContainer");
-
-			const stn = new Setting(chooseFolderFromSubfolderContainer);
-			stn
-				.setName("Include subfolders")
-				.setDesc(
-					"Get prompted to choose from both the selected folders and their subfolders when creating the note.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.choice.folder?.chooseFromSubfolders)
-						.onChange((value) => {
-							this.choice.folder.chooseFromSubfolders = value;
-							this.reload();
-						}),
-				);
-		}
-
-		if (!this.choice.folder?.chooseWhenCreatingNote) {
-			const createInSameFolderAsActiveFileSetting: Setting = new Setting(
-				this.contentEl,
-			);
-			createInSameFolderAsActiveFileSetting
-				.setName("Create in same folder as active file")
-				.setDesc(
-					"Creates the file in the same folder as the currently active file. Will not create the file if there is no active file.",
-				)
-				.addToggle((toggle) =>
-					toggle
-						.setValue(this.choice.folder?.createInSameFolderAsActiveFile)
-						.onChange((value) => {
-							this.choice.folder.createInSameFolderAsActiveFile = value;
-							this.reload();
-						}),
-				);
-		}
-	}
-
-	private addFolderSelector() {
-		const folderSelectionContainer: HTMLDivElement = this.contentEl.createDiv(
-			"folderSelectionContainer",
-		);
-		const folderList: HTMLDivElement =
-			folderSelectionContainer.createDiv("folderList");
-
-		const folderListProps = createFolderListProps({
-			folders: [...this.choice.folder.folders],
-			deleteFolder: (folder: string) => {
-				this.choice.folder.folders = this.choice.folder.folders.filter(
-					(f) => f !== folder,
-				);
-
-				// Push the new list into the mounted component (replaces updateFolders()).
-				folderListProps.folders = [...this.choice.folder.folders];
-				suggester.updateCurrentItems(this.choice.folder.folders);
-			},
-		});
-
 		this.svelteElements.push(
-			mountComponent(folderList, FolderList, folderListProps),
+			mountComponent(this.contentEl, TemplateChoiceForm, this.formProps),
 		);
-
-		const inputContainer = folderSelectionContainer.createDiv(
-			"folderInputContainer",
-		);
-		const folderInput = new TextComponent(inputContainer);
-		folderInput.inputEl.addClass("qa-folder-path-input");
-		folderInput.setPlaceholder("Folder path");
-		const allFolders: string[] = sortFolderPathsByTree(
-			getAllFolderPathsInVault(this.app),
-		);
-
-		const suggester = new ExclusiveSuggester(
-			this.app,
-			folderInput.inputEl,
-			allFolders,
-			this.choice.folder.folders,
-		);
-
-		const addFolder = () => {
-			const input = folderInput.inputEl.value.trim();
-
-			if (this.choice.folder.folders.some((folder) => folder === input)) {
-				log.logWarning("cannot add same folder twice.");
-				return;
-			}
-
-			this.choice.folder.folders.push(input);
-
-			folderListProps.folders = [...this.choice.folder.folders];
-			folderInput.inputEl.value = "";
-
-			suggester.updateCurrentItems(this.choice.folder.folders);
-		};
-
-		folderInput.inputEl.addEventListener("keypress", (e: KeyboardEvent) => {
-			if (e.key === "Enter") {
-				addFolder();
-			}
-		});
-
-		const addButton: ButtonComponent = new ButtonComponent(inputContainer);
-		addButton
-			.setCta()
-			.setButtonText("Add")
-			.onClick((evt) => {
-				addFolder();
-			});
 	}
 
-	private addAppendLinkSetting(): void {
-		// Normalize to ensure we're always working with the new format internally
-		const normalizedOptions = normalizeAppendLinkOptions(
-			this.choice.appendLink,
-		);
-		const normalizedLinkType = normalizedOptions.linkType ?? "link";
-
-		type AppendLinkMode = "required" | "optional" | "disabled";
-		const currentMode: AppendLinkMode = normalizedOptions.enabled
-			? normalizedOptions.requireActiveFile
-				? "required"
-				: "optional"
-			: "disabled";
-
-		const appendLinkSetting: Setting = new Setting(this.contentEl);
-		appendLinkSetting
-			.setName("Link to created file")
-			.setDesc("Choose how QuickAdd should insert a link to the created file in the current note.")
-			.addDropdown((dropdown) => {
-				dropdown.addOption("required", "Enabled (requires active file)");
-				dropdown.addOption("optional", "Enabled (skip if no active file)");
-				dropdown.addOption("disabled", "Disabled");
-
-				dropdown.setValue(currentMode);
-				dropdown.onChange((value: AppendLinkMode) => {
-					switch (value) {
-						case "disabled":
-							this.choice.appendLink = false;
-							break;
-						case "required":
-							this.choice.appendLink = {
-								enabled: true,
-								placement: normalizedOptions.placement,
-								requireActiveFile: true,
-								linkType: normalizedLinkType,
-							};
-							break;
-						case "optional":
-							this.choice.appendLink = {
-								enabled: true,
-								placement: normalizedOptions.placement,
-								requireActiveFile: false,
-								linkType: normalizedLinkType,
-							};
-							break;
-					}
-					this.reload();
-				});
-			});
-
-		// Only show placement dropdown when append link is enabled
-		if (currentMode !== "disabled") {
-			const placementSetting: Setting = new Setting(this.contentEl);
-			placementSetting
-				.setName("Link placement")
-				.setDesc("Where to place the link when appending")
-				.addDropdown((dropdown) => {
-					dropdown.addOption("replaceSelection", "Replace selection");
-					dropdown.addOption("afterSelection", "After selection");
-					dropdown.addOption("endOfLine", "End of line");
-					dropdown.addOption("newLine", "New line");
-
-					dropdown.setValue(normalizedOptions.placement);
-					dropdown.onChange((value: LinkPlacement) => {
-						const currentValue = this.choice.appendLink;
-						const requireActiveFile =
-							typeof currentValue === "boolean"
-								? normalizedOptions.requireActiveFile
-								: currentValue.requireActiveFile;
-						const previousLinkType =
-							typeof currentValue === "boolean"
-								? normalizedLinkType
-								: currentValue.linkType ?? normalizedLinkType;
-						const nextLinkType = placementSupportsEmbed(value)
-							? previousLinkType
-							: "link";
-
-						this.choice.appendLink = {
-							enabled: true,
-							placement: value,
-							requireActiveFile,
-							linkType: nextLinkType,
-						};
-						this.reload();
-					});
-				});
-
-			if (placementSupportsEmbed(normalizedOptions.placement)) {
-				const linkTypeSetting: Setting = new Setting(this.contentEl);
-				linkTypeSetting
-					.setName("Link type")
-					.setDesc("Choose whether replacing the selection should insert a link or an embed.")
-					.addDropdown((dropdown) => {
-						dropdown.addOption("link", "Link");
-						dropdown.addOption("embed", "Embed");
-						dropdown.setValue(normalizedLinkType);
-						dropdown.onChange((value: LinkType) => {
-							const currentValue = this.choice.appendLink;
-							const requireActiveFile =
-								typeof currentValue === "boolean"
-									? normalizedOptions.requireActiveFile
-									: currentValue.requireActiveFile;
-							const placement =
-								typeof currentValue === "boolean"
-									? normalizedOptions.placement
-									: currentValue.placement;
-
-							this.choice.appendLink = {
-								enabled: true,
-								placement,
-								requireActiveFile,
-								linkType: value,
-							};
-						});
-					});
-			}
-		}
-	}
-
-	private addFileAlreadyExistsSetting(): void {
-		this.choice.fileExistsBehavior ??= { kind: "prompt" };
-		const behaviorCategory = getBehaviorCategory(this.choice.fileExistsBehavior);
-
-		new Setting(this.contentEl)
-			.setName("If the target file already exists")
-			.setDesc(
-				"Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.",
-			)
-			.addDropdown((dropdown) => {
-				fileExistsBehaviorCategoryOptions.forEach((option) => {
-					dropdown.addOption(option.id, option.label);
-				});
-				dropdown.setValue(behaviorCategory);
-				dropdown.onChange((value: FileExistsBehaviorCategoryId) => {
-					this.choice.fileExistsBehavior = getDefaultBehaviorForCategory(
-						value,
-						this.choice.fileExistsBehavior,
-					);
-					this.reload();
-				});
-			});
-
-		if (behaviorCategory === "prompt") {
-			return;
-		}
-
-		if (behaviorCategory === "keep") {
-			return;
-		}
-
-		const isUpdateBehavior = behaviorCategory === "update";
-		const selectedModes = getModesForCategory(
-			isUpdateBehavior ? "update" : "create",
-		);
-		const selectedMode =
-			this.choice.fileExistsBehavior.kind === "apply"
-				? this.choice.fileExistsBehavior.mode
-				: selectedModes[0].id;
-
-		new Setting(this.contentEl)
-			.setName(isUpdateBehavior ? "Update action" : "New file naming")
-			.setDesc(getFileExistsMode(selectedMode).description)
-			.addDropdown((dropdown) => {
-				selectedModes.forEach((mode) => {
-					dropdown.addOption(mode.id, mode.label);
-				});
-				dropdown.setValue(selectedMode).onChange((value: FileExistsModeId) => {
-					this.choice.fileExistsBehavior = {
-						kind: "apply",
-						mode: value,
-					};
-						this.reload();
-				});
-			});
+	protected getResultChoice(): IChoice {
+		return this.formProps?.choice ?? this.choice;
 	}
 }

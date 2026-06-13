@@ -1,5 +1,6 @@
 import { type App, Modal, Setting, setIcon } from "obsidian";
 import type { MountHandle } from "../svelte/mountComponent";
+import { snapshot } from "../svelte/persist.svelte";
 import type IChoice from "../../types/choices/IChoice";
 import type { FileViewMode2, OpenLocation } from "../../types/fileOpening";
 import {
@@ -229,9 +230,22 @@ export abstract class ChoiceBuilder extends Modal {
 		}
 	}
 
+	/**
+	 * The choice value to resolve at close. Converted (Svelte) builders override
+	 * this to return the form's $state-backed proxy (`this.formProps.choice`) — a
+	 * $state proxy does NOT write through to the original `this.choice`, so the
+	 * original would be unedited (silent data loss, see persist.svelte.ts / #1130).
+	 * Still-imperative builders mutate `this.choice` in place and keep the default.
+	 */
+	protected getResultChoice(): IChoice {
+		return this.choice;
+	}
+
 	onClose() {
 		super.onClose();
 		this.destroySvelteElements();
-		this.resolvePromise(this.choice);
+		// snapshot() deep-clones to a plain object (proxy or not), so callers that
+		// spread the result never receive a live $state proxy.
+		this.resolvePromise(snapshot(this.getResultChoice()));
 	}
 }
