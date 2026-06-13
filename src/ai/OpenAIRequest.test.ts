@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { Model } from "./Provider";
+import {
+	classifyProviderError,
+	isLikelyContextLimitError,
+} from "./providerErrors";
 
 const storeState = vi.hoisted(() => ({
 	disableOnlineFeatures: false,
@@ -49,7 +53,7 @@ const {
 	logErrorMock,
 } = mocks;
 
-const { OpenAIRequest, isLikelyContextLimitError } = await import("./OpenAIRequest");
+const { OpenAIRequest } = await import("./OpenAIRequest");
 
 // A minimal app whose activeEditor is undefined so preventCursorChange becomes a no-op.
 function makeApp(): App {
@@ -190,44 +194,85 @@ describe("OpenAIRequest", () => {
 		});
 	});
 
-	describe("context limit detection", () => {
-		it("matches common provider context-limit messages", () => {
-			expect(
-				isLikelyContextLimitError(
-					new Error("maximum context length exceeded")
-				)
-			).toBe(true);
-			expect(isLikelyContextLimitError("too many input tokens")).toBe(true);
+	describe("provider error body capture", () => {
+		beforeEach(() => {
+			getModelProviderMock.mockReturnValue(openAIProvider);
 		});
 
-		it("walks wrapped causes and ignores unrelated errors", () => {
-			const cause = new Error("context_length_exceeded");
-			const wrapped = new Error("Error while making request", { cause });
-
-			expect(isLikelyContextLimitError(wrapped)).toBe(true);
-			expect(isLikelyContextLimitError(new Error("network down"))).toBe(false);
-		});
-
-		it("walks response body shapes from requestUrl failures", () => {
-			const error = {
-				message: "Request failed, status 400",
-				response: {
-					json: {
-						error: {
-							code: "context_length_exceeded",
-							message: "maximum context length exceeded",
-						},
+		it("surfaces a 4xx provider body so the error is classifiable as a context limit", async () => {
+			requestUrlMock.mockResolvedValue({
+				status: 400,
+				json: {
+					error: {
+						code: "context_length_exceeded",
+						message: "maximum context length exceeded",
 					},
 				},
-			};
+				text: '{"error":{"code":"context_length_exceeded"}}',
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
 
-			expect(isLikelyContextLimitError(error)).toBe(true);
+			let thrown: unknown;
+			try {
+				await makeRequest("prompt");
+			} catch (error) {
+				thrown = error;
+			}
+
+			expect(thrown).toBeInstanceOf(Error);
+			expect(String((thrown as Error).message)).toMatch(
+				/context_length_exceeded|maximum context length/i
+			);
+			// The real provider body now reaches the classifier (it did not before).
+			expect(isLikelyContextLimitError(thrown)).toBe(true);
+			expect(((thrown as Error).cause as { status?: number }).status).toBe(400);
 		});
 
-		it("does not classify quota or output token errors as input context errors", () => {
-			expect(isLikelyContextLimitError("rate limit exceeded")).toBe(false);
-			expect(isLikelyContextLimitError("token limit quota exceeded")).toBe(false);
-			expect(isLikelyContextLimitError("max output tokens exceeded")).toBe(false);
+		it("does not classify a non-context 4xx (auth) as a context-limit error", async () => {
+			requestUrlMock.mockResolvedValue({
+				status: 401,
+				json: {
+					error: {
+						code: "invalid_api_key",
+						message: "Incorrect API key provided",
+					},
+				},
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+
+			let thrown: unknown;
+			await expect(makeRequest("prompt")).rejects.toThrow(
+				/Incorrect API key|invalid_api_key/i
+			);
+			try {
+				await makeRequest("prompt");
+			} catch (error) {
+				thrown = error;
+			}
+			expect(isLikelyContextLimitError(thrown)).toBe(false);
+		});
+
+		it("treats a 4xx whose completion alone exceeds context as output-budget (no retry)", async () => {
+			requestUrlMock.mockResolvedValue({
+				status: 400,
+				json: {
+					error: {
+						code: "context_length_exceeded",
+						message:
+							"maximum context length is 8192 tokens; you requested 9500 (500 in the messages, 9000 in the completion)",
+					},
+				},
+			});
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+
+			let thrown: unknown;
+			try {
+				await makeRequest("prompt");
+			} catch (error) {
+				thrown = error;
+			}
+			expect(classifyProviderError(thrown)).toBe("output_budget");
+			expect(isLikelyContextLimitError(thrown)).toBe(false);
 		});
 	});
 

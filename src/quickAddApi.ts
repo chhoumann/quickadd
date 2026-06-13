@@ -6,9 +6,9 @@ import {
 	getAIRequestLogEntryById,
 	getAIRequestLogEntries,
 	getLastAIRequestLogEntry,
-	getTokenCount,
 	Prompt,
 } from "./ai/AIAssistant";
+import { estimateTokenCount } from "./ai/tokenEstimator";
 import {
 	getModelByName,
 	getModelNames,
@@ -544,10 +544,13 @@ export class QuickAddApi {
 					return model.maxTokens;
 				},
 				estimateTokens(text: string) {
-					return getTokenCount(text, "estimate");
+					return estimateTokenCount(text);
 				},
-				countTokens(text: string, model: Model | string) {
-					return getTokenCount(text, model);
+				// `model` is accepted for backward compatibility but ignored:
+				// QuickAdd no longer bundles model-specific tokenizers, so this is
+				// a thin alias for the provider-agnostic estimator.
+				countTokens(text: string, _model?: Model | string) {
+					return estimateTokenCount(text);
 				},
 				getRequestLogs(limit = 10) {
 					return getAIRequestLogEntries(limit);

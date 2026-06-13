@@ -11,6 +11,7 @@ import type { AIProvider, Model } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
 import { log } from "src/logger/logManager";
 import { estimateTokenCount } from "./tokenEstimator";
+import { buildProviderError, classifyProviderError } from "./providerErrors";
 
 export interface CommonResponse {
 	id: string;
@@ -26,62 +27,24 @@ export interface CommonResponse {
 	created: number;
 }
 
-const CONTEXT_LIMIT_ERROR_PATTERNS = [
-	/context[_ -]?length[_ -]?exceeded/i,
-	/maximum context length/i,
-	/context window/i,
-	/too many input tokens/i,
-	/input(?: is)? too long/i,
-	/prompt(?: is)? too long/i,
-	/exceeds? (?:the )?(?:maximum )?(?:input )?(?:token|context)/i,
-	/context[_ -]?window[_ -]?exceeded/i,
-];
+// Shared request execution for all providers: call `requestUrl` with
+// `throw: false` so we can read the response body ourselves, run the
+// post-request callback (cursor restore), and turn any 4xx/5xx into a
+// structured, classifiable error before returning the parsed JSON.
+async function dispatchProviderRequest<T>(
+	params: Parameters<typeof requestUrl>[0] & object,
+	providerName: string,
+	afterRequestCallback?: () => void
+): Promise<T> {
+	const _response = requestUrl({ ...params, throw: false });
 
-function collectErrorMessages(
-	error: unknown,
-	seen = new Set<unknown>()
-): string[] {
-	if (error === null || error === undefined || seen.has(error)) return [];
-	seen.add(error);
+	if (afterRequestCallback) afterRequestCallback();
 
-	if (typeof error === "string") return [error];
-	if (typeof error !== "object") return [String(error)];
-
-	const record = error as Record<string, unknown>;
-	const messages: string[] = [];
-
-	for (const key of [
-		"message",
-		"code",
-		"type",
-		"statusText",
-		"text",
-		"body",
-		"data",
-		"details",
-		"json",
-		"response",
-		"error",
-		"cause",
-	]) {
-		const value = record[key];
-		if (value !== undefined) {
-			messages.push(...collectErrorMessages(value, seen));
-		}
+	const response = await _response;
+	if (response.status >= 400) {
+		throw buildProviderError(providerName, response);
 	}
-
-	if (Array.isArray(error)) {
-		for (const value of error) {
-			messages.push(...collectErrorMessages(value, seen));
-		}
-	}
-
-	return messages;
-}
-
-export function isLikelyContextLimitError(error: unknown): boolean {
-	const message = collectErrorMessages(error).join(" ");
-	return CONTEXT_LIMIT_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+	return response.json as T;
 }
 
 function mapOpenAIResponseToCommon(
@@ -175,27 +138,26 @@ async function makeOpenAIRequest(
 	prompt: string,
 	afterRequestCallback?: () => void
 ): Promise<OpenAIReqResponse> {
-	const _response = requestUrl({
-		url: `${modelProvider.endpoint}/chat/completions`,
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${apiKey}`,
+	return dispatchProviderRequest<OpenAIReqResponse>(
+		{
+			url: `${modelProvider.endpoint}/chat/completions`,
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				model: model.name,
+				...modelParams,
+				messages: [
+					{ role: "system", content: systemPrompt },
+					{ role: "user", content: prompt },
+				],
+			}),
 		},
-		body: JSON.stringify({
-			model: model.name,
-			...modelParams,
-			messages: [
-				{ role: "system", content: systemPrompt },
-				{ role: "user", content: prompt },
-			],
-		}),
-	});
-
-	if (afterRequestCallback) afterRequestCallback();
-
-	const response = await _response;
-	return response.json as OpenAIReqResponse;
+		modelProvider.name,
+		afterRequestCallback
+	);
 }
 
 async function makeAnthropicRequest(
@@ -206,26 +168,25 @@ async function makeAnthropicRequest(
 	prompt: string,
 	afterRequestCallback?: () => void
 ): Promise<AnthropicResponse> {
-	const _response = requestUrl({
-		url: `${modelProvider.endpoint}/v1/messages`,
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			"x-api-key": apiKey,
-			"anthropic-version": "2023-06-01",
-			"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15"
+	return dispatchProviderRequest<AnthropicResponse>(
+		{
+			url: `${modelProvider.endpoint}/v1/messages`,
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-api-key": apiKey,
+				"anthropic-version": "2023-06-01",
+				"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15"
+			},
+			body: JSON.stringify({
+				model: model.name,
+				max_tokens: 4096,
+				messages: [{ role: "user", content: prompt }],
+			}),
 		},
-		body: JSON.stringify({
-			model: model.name,
-			max_tokens: 4096,
-			messages: [{ role: "user", content: prompt }],
-		}),
-	});
-
-	if (afterRequestCallback) afterRequestCallback();
-
-	const response = await _response;
-	return response.json as AnthropicResponse;
+		modelProvider.name,
+		afterRequestCallback
+	);
 }
 
 async function makeGeminiRequest(
@@ -272,19 +233,18 @@ async function makeGeminiRequest(
     body["generationConfig"] = generationConfig;
   }
 
-  const _response = requestUrl({
-    url,
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return dispatchProviderRequest<GeminiResponse>(
+    {
+      url,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
-
-  if (afterRequestCallback) afterRequestCallback();
-
-  const response = await _response;
-  return response.json as GeminiResponse;
+    modelProvider.name,
+    afterRequestCallback
+  );
 }
 
 function mapGeminiResponseToCommon(response: GeminiResponse): CommonResponse {
@@ -419,8 +379,17 @@ export function OpenAIRequest(
 			);
 
 			log.logError(error as Error);
+
+			// Help users act on the most common failure: a prompt that overflows
+			// the model's context window. (ChunkedPrompt retries these automatically;
+			// the single-prompt path cannot, so we point the user at a remedy.)
+			const guidance =
+				classifyProviderError(error) === "input_context"
+					? " The prompt likely exceeds the model's context window — shorten it, choose a model with a larger context, or use the chunked AI prompt API."
+					: "";
+
 			throw new Error(
-				`Error while making request to ${modelProvider.name}: ${errorMessage}`,
+				`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 				{ cause: error }
 			);
 		}

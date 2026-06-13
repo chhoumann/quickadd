@@ -14,7 +14,7 @@ import {
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
-import { getTokenCount } from "src/ai/AIAssistant";
+import { estimateTokenCount } from "src/ai/tokenEstimator";
 import { getModelByName, getModelNames } from "src/ai/aiHelpers";
 
 export class AIAssistantCommandSettingsModal extends Modal {
@@ -32,7 +32,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		const model = getModelByName(this.settings.model);
 		if (!model) return Number.POSITIVE_INFINITY;
 
-		return getTokenCount(this.settings.systemPrompt, model);
+		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
 	constructor(app: App, settings: IAIAssistantCommand) {
