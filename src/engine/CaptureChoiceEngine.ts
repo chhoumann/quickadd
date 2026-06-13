@@ -64,6 +64,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private readonly plugin: QuickAdd;
 	private templatePropertyVars?: Map<string, unknown>;
 	private capturePropertyVars: Map<string, unknown> = new Map();
+	// Editor-insertion actions (currentLine / newLineAbove / newLineBelow) write
+	// the capture into the note BODY at the cursor, where front matter property
+	// types are meaningless. Collecting there would only strand a "[]" placeholder
+	// (the collected value is never applied), so collection is suppressed for them.
+	private suppressFrontmatterCollection = false;
 
 	constructor(
 		app: App,
@@ -201,6 +206,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
 			const action = getCaptureAction(this.choice);
+			const isEditorInsertionAction =
+				action === "currentLine" ||
+				action === "newLineAbove" ||
+				action === "newLineBelow";
+			// Editor-insertion writes to the note body; suppress front matter
+			// property collection so collected containers aren't stranded as
+			// placeholders that never get applied (see collectIfFrontmatter).
+			this.suppressFrontmatterCollection = isEditorInsertionAction;
 			const activeCanvasTarget = this.choice.captureToActiveFile
 				? resolveActiveCanvasCaptureTarget(this.app, action)
 				: null;
@@ -269,11 +282,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
-
-			const isEditorInsertionAction =
-				action === "currentLine" ||
-				action === "newLineAbove" ||
-				action === "newLineBelow";
 
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
@@ -656,7 +664,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.formatter.setDestinationFile(file);
 
 		// First format pass...
-		const formatted = await this.formatter.withTemplatePropertyCollection(
+		const formatted = await this.collectIfFrontmatter(
 			() => this.formatter.formatContentOnly(content),
 		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
@@ -665,7 +673,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Second format pass, with the file content... User input (long running) should have been captured during first pass
 		// So this pass is to insert the formatted capture value into the file content, depending on the user's settings
 		const formattedFileContent: string =
-			await this.formatter.withTemplatePropertyCollection(() =>
+			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentWithFile(
 					formatted,
 					this.choice,
@@ -717,7 +725,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// This mirrors the logic used when the target file already exists and prevents the timing issue
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
 		const formattedCaptureContent: string =
-			await this.formatter.withTemplatePropertyCollection(() =>
+			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentOnly(captureContent),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
@@ -782,7 +790,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const updatedFileContent: string = await this.app.vault.read(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
 		const newFileContent: string =
-			await this.formatter.withTemplatePropertyCollection(() =>
+			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentWithFile(
 					formattedCaptureContent,
 					this.choice,
@@ -827,6 +835,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		return finalPath;
+	}
+
+	/**
+	 * Runs a formatting pass, collecting structured front matter values for a
+	 * later processFrontMatter pass — unless collection is suppressed (editor
+	 * insertion actions), in which case the value is substituted inline as text
+	 * so nothing is left stranded as a placeholder.
+	 */
+	private collectIfFrontmatter<T>(work: () => Promise<T>): Promise<T> {
+		if (this.suppressFrontmatterCollection) {
+			return work();
+		}
+		return this.formatter.withTemplatePropertyCollection(work);
 	}
 
 	private mergeCapturePropertyVars(vars: Map<string, unknown>): void {

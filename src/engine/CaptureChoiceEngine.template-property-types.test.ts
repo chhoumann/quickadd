@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, TFolder } from "obsidian";
-import { TFolder as ObsidianTFolder } from "obsidian";
+import { TFile as ObsidianTFile, TFolder as ObsidianTFolder } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
+import { insertOnNewLineBelow } from "../utilityObsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
@@ -374,5 +375,89 @@ describe("CaptureChoiceEngine template property types", () => {
 
 		expect(modify).not.toHaveBeenCalled();
 		expect(applyCapturePropertyVars).not.toHaveBeenCalled();
+	});
+
+	it("editor-insertion (newLineBelow) inlines container values as text instead of stranding a placeholder", async () => {
+		// Regression: editor-insertion writes to the body, where front matter
+		// property types are meaningless. Collection must be suppressed so a
+		// collected array is NOT left as a "[]" placeholder with no apply step.
+		const activeFilePath = "Daily/Today.md";
+		const tFile = {
+			path: activeFilePath,
+			name: "Today.md",
+			basename: "Today",
+			extension: "md",
+		} as unknown as TFile;
+		if (typeof ObsidianTFile === "function") {
+			Object.setPrototypeOf(tFile as unknown as object, ObsidianTFile.prototype);
+		}
+
+		const processFrontMatter = vi.fn();
+		const app = {
+			vault: {
+				adapter: { exists: vi.fn(async (p: string) => p === activeFilePath) },
+				getAbstractFileByPath: vi.fn((p: string) => (p === activeFilePath ? tFile : null)),
+				create: vi.fn(),
+				read: vi.fn(async () => "existing body\n"),
+				cachedRead: vi.fn(async () => "existing body\n"),
+				modify: vi.fn(),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn().mockReturnValue(""),
+				processFrontMatter,
+			},
+			workspace: {
+				getActiveFile: vi.fn().mockReturnValue(tFile),
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				activeLeaf: null,
+				getMostRecentLeaf: vi.fn().mockReturnValue(null),
+			},
+			metadataCache: { getFileCache: vi.fn().mockReturnValue(null) },
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				enableTemplatePropertyTypes: true, // even with the toggle ON, body insertion must not collect
+				globalVariables: {},
+				showCaptureNotification: false,
+				showInputCancellationNotification: false,
+			},
+		} as any;
+
+		const choice = {
+			id: "capture",
+			name: "Insertion Capture",
+			type: "Capture",
+			command: false,
+			captureTo: "",
+			captureToActiveFile: true,
+			newLineCapture: { enabled: true, direction: "below" },
+			createFileIfItDoesntExist: { enabled: false, createWithTemplate: false, template: "" },
+			format: { enabled: true, format: ["---", "cast: {{VALUE:cast}}", "---", ""].join("\n") },
+			prepend: false,
+			appendLink: false,
+			task: false,
+			insertAfter: {
+				enabled: false, after: "", insertAtEnd: false, considerSubsections: false,
+				createIfNotFound: false, createIfNotFoundLocation: "",
+			},
+			openFile: false,
+			fileOpening: { location: "tab", direction: "vertical", mode: "source", focus: false },
+		} as unknown as ICaptureChoice;
+
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
+		};
+
+		const engine = new CaptureChoiceEngine(app, plugin, choice, choiceExecutor);
+		await engine.run();
+
+		// The array is inlined as text (no data loss), not collected -> no placeholder, no processFrontMatter.
+		expect(insertOnNewLineBelow).toHaveBeenCalledTimes(1);
+		const inserted = (insertOnNewLineBelow as any).mock.calls[0][0] as string;
+		expect(inserted).toContain("cast: [[A]],[[B]]");
+		expect(inserted).not.toContain("cast: []");
+		expect(processFrontMatter).not.toHaveBeenCalled();
 	});
 });
