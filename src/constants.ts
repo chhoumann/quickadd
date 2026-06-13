@@ -11,6 +11,8 @@ export const VARIABLE_LABEL_SYNTAX =
 	"{{value:<variable name>|label:<helper text>}}";
 export const VARIABLE_TEXT_SYNTAX =
 	"{{value:<items>|text:<display items>}}";
+export const VARIABLE_NAME_SYNTAX =
+	"{{value:<options>|name:<variable name>}}";
 export const VARIABLE_OPTIONAL_SYNTAX =
 	"{{value:<variable name>|optional}}";
 export const VDATE_OPTIONAL_SYNTAX =
@@ -44,6 +46,7 @@ export const FORMAT_SYNTAX: string[] = [
 	VARIABLE_DEFAULT_OPTION_SYNTAX,
 	VARIABLE_LABEL_SYNTAX,
 	VARIABLE_TEXT_SYNTAX,
+	VARIABLE_NAME_SYNTAX,
 	VARIABLE_OPTIONAL_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	"{{field:<fieldname>|folder:<path>}}",
@@ -78,6 +81,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VARIABLE_DEFAULT_OPTION_SYNTAX,
 	VARIABLE_LABEL_SYNTAX,
 	VARIABLE_TEXT_SYNTAX,
+	VARIABLE_NAME_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	RANDOM_SYNTAX,
 ];

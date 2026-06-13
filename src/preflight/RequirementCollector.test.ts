@@ -252,6 +252,62 @@ Body`);
   });
 });
 
+describe("RequirementCollector — named suggester (issue #148)", () => {
+  it("keys a named suggester on the name and dedups with the reuse site", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString(
+      "# {{VALUE:work,home,errand|name:category}}\ntags: #{{VALUE:category}}",
+    );
+
+    // Exactly one requirement, keyed by the name, rendered as a dropdown.
+    expect(rc.requirements.has("category")).toBe(true);
+    expect(rc.requirements.get("category")).toMatchObject({
+      id: "category",
+      type: "dropdown",
+      options: ["work", "home", "errand"],
+    });
+    // No stray requirement under the option-list string.
+    expect(rc.requirements.has("work,home,errand")).toBe(false);
+  });
+
+  it("upgrades a reuse-first requirement to a dropdown (order-independent)", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    // Bare reuse appears BEFORE the definition.
+    await rc.scanString(
+      "tags: #{{VALUE:category}}\ntitle: {{VALUE:work,home|name:category}}",
+    );
+
+    expect(rc.requirements.get("category")).toMatchObject({
+      type: "dropdown",
+      options: ["work", "home"],
+    });
+  });
+
+  it("upgrades across separate scanned strings (filename then body)", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:category}}"); // filename: reuse first
+    await rc.scanString("{{VALUE:a,b,c|name:category}}"); // body: definition
+
+    expect(rc.requirements.get("category")).toMatchObject({
+      type: "dropdown",
+      options: ["a", "b", "c"],
+    });
+  });
+
+  it("records a custom-input named list as a suggester", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:a,b|name:category|custom}}");
+
+    expect(rc.requirements.get("category")).toMatchObject({
+      type: "suggester",
+      options: ["a", "b"],
+    });
+    expect(rc.requirements.get("category")?.suggesterConfig).toMatchObject({
+      allowCustomInput: true,
+    });
+  });
+});
+
 describe("RequirementCollector — optional fields (issue #1259)", () => {
   it("flags a VALUE requirement optional when its only occurrence is flagged", async () => {
     const rc = new RequirementCollector(makeApp(), makePlugin());

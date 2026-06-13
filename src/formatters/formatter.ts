@@ -31,6 +31,7 @@ import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import {
+	type ParsedValueToken,
 	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
@@ -77,6 +78,13 @@ export abstract class Formatter {
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
 	private templatePropertyCollectionDepth = 0;
+
+	// Detects the same |name being defined with conflicting option lists across
+	// one execution (filename + body share this instance). Keyed name -> option
+	// signature; conflicts warn once. Value-independent so externally-seeded or
+	// custom-typed values never produce a false positive.
+	private readonly namedSuggesterOptionSigs = new Map<string, string>();
+	private readonly namedSuggesterConflictsWarned = new Set<string>();
 
 	protected constructor(protected readonly app?: App) {
 		this.propertyCollector = new TemplatePropertyCollector(app);
@@ -386,8 +394,166 @@ export abstract class Formatter {
 
 
 
+	/**
+	 * Warn once when the same `|name` is given two different option lists in one
+	 * execution (e.g. {{VALUE:bug,feature|name:type}} and
+	 * {{VALUE:book,movie|name:type}}). Named reuse is first-write-wins, so the
+	 * second definition silently reuses the first value; the warning surfaces the
+	 * likely mistake. Uses the option list itself (not the resolved value), so
+	 * seeded/scripted/custom values never trip it.
+	 */
+	private warnOnNamedOptionConflict(parsed: ParsedValueToken): void {
+		if (!parsed.aliasName || !parsed.hasOptions) return;
+		const nameKey = parsed.variableKey.toLowerCase();
+		// Capture everything that changes the suggester behaviour — the
+		// options, the custom-input flag, and the display mapping — so a
+		// reordered definition that differs in any of these is flagged.
+		const signature = JSON.stringify([
+			parsed.suggestedValues,
+			parsed.allowCustomInput,
+			parsed.displayValues ?? null,
+		]);
+		const previous = this.namedSuggesterOptionSigs.get(nameKey);
+		if (previous === undefined) {
+			this.namedSuggesterOptionSigs.set(nameKey, signature);
+			return;
+		}
+		if (previous !== signature && !this.namedSuggesterConflictsWarned.has(nameKey)) {
+			this.namedSuggesterConflictsWarned.add(nameKey);
+			console.warn(
+				`QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`,
+			);
+		}
+	}
+
+	/**
+	 * Resolve a parsed VALUE token into `this.variables` (prompting/suggesting
+	 * only if it isn't already cached) and return the key its value lives under.
+	 * Shared by the named-definition pre-pass and the main replacement loop so
+	 * the prompt/suggest/default/store logic has a single source of truth.
+	 */
+	private async ensureValueVariableResolved(
+		parsed: ParsedValueToken,
+	): Promise<string> {
+		const {
+			variableName,
+			variableKey,
+			label,
+			defaultValue,
+			allowCustomInput,
+			suggestedValues,
+			displayValues,
+			hasOptions,
+		} = parsed;
+
+		this.warnOnNamedOptionConflict(parsed);
+
+		const resolvedKey = resolveExistingVariableKey(
+			this.variables,
+			variableKey,
+		);
+
+		if (resolvedKey) return resolvedKey;
+
+		let variableValue = "";
+		const helperText = !hasOptions && label ? label : undefined;
+		const suggesterPlaceholder = hasOptions && label ? label : undefined;
+
+		if (!hasOptions) {
+			// For single-value prompts, pass default value to pre-populate the input
+			variableValue = await this.promptForVariable(variableName, {
+				defaultValue,
+				description: helperText,
+				inputTypeOverride: parsed.inputTypeOverride,
+				variableKey,
+				optional: parsed.optional,
+			});
+		} else {
+			variableValue = await this.suggestForValue(
+				suggestedValues,
+				allowCustomInput,
+				{
+					placeholder: suggesterPlaceholder,
+					variableKey,
+					displayValues,
+					optional: parsed.optional,
+				},
+			);
+		}
+
+		// Use default value if no input provided (applies to both prompt and suggester).
+		// Optional tokens take the empty submission at face value: the default is
+		// visibly pre-filled, so an empty box means the user cleared it.
+		if (!variableValue && defaultValue && !parsed.optional) {
+			variableValue = defaultValue;
+		}
+
+		this.variables.set(variableKey, variableValue);
+		return variableKey;
+	}
+
+	/**
+	 * Two-pass support: resolve named suggester DEFINITIONS
+	 * ({{VALUE:a,b,c|name:x}}) before the main pass so a bare reuse site
+	 * ({{VALUE:x}}) earlier in the same string resolves from cache instead of
+	 * silently degrading to a free-text prompt. A definition is hoisted ONLY
+	 * when a reference to its name appears BEFORE it; otherwise document order
+	 * already resolves it, so unrelated prompts are never reordered.
+	 */
+	private async resolveNamedSuggesterDefinitions(
+		input: string,
+	): Promise<void> {
+		// Fast path: nothing to hoist unless a |name: option is present.
+		if (!/\|\s*name\s*:/i.test(input)) return;
+
+		const regex = new RegExp(VARIABLE_REGEX.source, "gi");
+		const tokens: { parsed: ParsedValueToken; index: number }[] = [];
+		let match: RegExpExecArray | null;
+
+		while ((match = regex.exec(input)) !== null) {
+			if (!match[1]) continue;
+			let parsed: ParsedValueToken | null;
+			try {
+				// Quiet: the main pass parses again and owns the user-facing warnings.
+				parsed = parseValueToken(match[1], { quiet: true });
+			} catch {
+				// A malformed token throws in the main pass; abort hoisting so the
+				// error surfaces before any suggester is shown.
+				return;
+			}
+			if (parsed) tokens.push({ parsed, index: match.index });
+		}
+
+		// Earliest index each (case-insensitive) key is referenced by a NON-
+		// definition token (a bare reuse). A prior definition must not count as a
+		// "use", else two conflicting definitions of the same name would hoist the
+		// later one ahead of the earlier — the first definition must win.
+		const firstUseIndex = new Map<string, number>();
+		for (const { parsed, index } of tokens) {
+			if (parsed.hasOptions && parsed.aliasName) continue; // skip definitions
+			const key = parsed.variableKey.toLowerCase();
+			if (!firstUseIndex.has(key)) firstUseIndex.set(key, index);
+		}
+
+		const seen = new Set<string>();
+		for (const { parsed, index } of tokens) {
+			if (!parsed.hasOptions || !parsed.aliasName) continue;
+			const key = parsed.variableKey.toLowerCase();
+			// Only hoist when a bare reuse precedes this definition.
+			if ((firstUseIndex.get(key) ?? index) >= index) continue;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			await this.ensureValueVariableResolved(parsed);
+		}
+	}
+
 	protected async replaceVariableInString(input: string) {
 		let output = input;
+
+		// Pass 1: resolve named suggester definitions up front (see above).
+		await this.resolveNamedSuggesterDefinitions(output);
+
+		// Pass 2: replace every VALUE token in document order.
 		const regex = new RegExp(VARIABLE_REGEX.source, 'gi'); // preserve case-insensitive + global
 		const propertyTypesEnabled = this.isTemplatePropertyTypesEnabled();
 		let match: RegExpExecArray | null;
@@ -404,62 +570,10 @@ export abstract class Formatter {
 
 			const {
 				variableName,
-				variableKey,
-				label,
 				caseStyle,
-				defaultValue,
-				allowCustomInput,
-				suggestedValues,
-				displayValues,
-				hasOptions,
 			} = parsed;
 
-			const resolvedKey = resolveExistingVariableKey(
-				this.variables,
-				variableKey,
-			);
-
-			// Ensure variable is set (prompt if needed)
-			if (!resolvedKey) {
-				let variableValue = "";
-				const helperText =
-					!hasOptions && label ? label : undefined;
-				const suggesterPlaceholder =
-					hasOptions && label ? label : undefined;
-
-				if (!hasOptions) {
-					// For single-value prompts, pass default value to pre-populate the input
-					variableValue = await this.promptForVariable(variableName, {
-						defaultValue,
-						description: helperText,
-						inputTypeOverride: parsed.inputTypeOverride,
-						variableKey,
-						optional: parsed.optional,
-					});
-				} else {
-					variableValue = await this.suggestForValue(
-						suggestedValues,
-						allowCustomInput,
-						{
-							placeholder: suggesterPlaceholder,
-							variableKey,
-							displayValues,
-							optional: parsed.optional,
-						},
-					);
-				}
-
-				// Use default value if no input provided (applies to both prompt and suggester).
-				// Optional tokens take the empty submission at face value: the default is
-				// visibly pre-filled, so an empty box means the user cleared it.
-				if (!variableValue && defaultValue && !parsed.optional) {
-					variableValue = defaultValue;
-				}
-
-				this.variables.set(variableKey, variableValue);
-			}
-
-			const effectiveKey = resolvedKey ?? variableKey;
+			const effectiveKey = await this.ensureValueVariableResolved(parsed);
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(effectiveKey);
