@@ -58,22 +58,24 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			attr: { type: "button", "aria-label": `Rename ${this.settings.name}` },
 		});
 
-		renameButton.addEventListener("click", async () => {
-			try {
-				const newName = await GenericInputPrompt.Prompt(
-					this.app,
-					"New name",
-					this.settings.name,
-					this.settings.name
-				);
+		renameButton.addEventListener("click", () => {
+			void (async () => {
+				try {
+					const newName = await GenericInputPrompt.Prompt(
+						this.app,
+						"New name",
+						this.settings.name,
+						this.settings.name
+					);
 
-				if (newName && newName !== this.settings.name) {
-					this.settings.name = newName;
-					this.reload();
+					if (newName && newName !== this.settings.name) {
+						this.settings.name = newName;
+						this.reload();
+					}
+				} catch {
+					// No new name, so the modal keeps the current command name.
 				}
-			} catch {
-				// No new name, so the modal keeps the current command name.
-			}
+			})();
 		});
 
 		this.addResultJoinerSetting(this.contentEl);

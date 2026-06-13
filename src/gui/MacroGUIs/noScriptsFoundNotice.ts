@@ -11,17 +11,20 @@ export function showNoScriptsFoundNotice(app: App): void {
 	messageEl.replaceChildren();
 	appendDiv(messageEl, "No JavaScript files found", "quickadd-notice-title");
 
-	const content = document.createElement("div");
+	// Use the notice element's owning document (popout-aware) instead of the bare
+	// `document` global.
+	const doc = messageEl.ownerDocument;
+	const content = doc.createElement("div");
 	messageEl.append(content);
 	appendDiv(content, "QuickAdd cannot find any .js files in your vault.");
-	content.append(document.createElement("br"));
+	content.append(doc.createElement("br"));
 	appendDiv(content, "Please make sure your scripts are:");
 	appendDiv(content, `✓ In your vault (not in ${app.vault.configDir} folder)`);
 	appendDiv(content, "✓ Not in hidden folders (starting with a dot)");
 	appendDiv(content, "✓ Have a .js extension");
-	content.append(document.createElement("br"));
+	content.append(doc.createElement("br"));
 
-	const link = document.createElement("a");
+	const link = doc.createElement("a");
 	link.textContent = "View documentation";
 	link.href = "https://quickadd.obsidian.guide/docs/Choices/MacroChoice#user-scripts";
 	link.target = "_blank";
@@ -31,7 +34,7 @@ export function showNoScriptsFoundNotice(app: App): void {
 }
 
 function appendDiv(parent: HTMLElement, text: string, cls?: string): HTMLDivElement {
-	const element = document.createElement("div");
+	const element = parent.ownerDocument.createElement("div");
 	element.textContent = text;
 	if (cls) element.classList.add(cls);
 	parent.append(element);

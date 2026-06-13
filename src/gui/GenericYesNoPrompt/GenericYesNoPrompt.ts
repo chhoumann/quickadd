@@ -51,7 +51,7 @@ export default class GenericYesNoPrompt extends Modal {
 		const yesButton = new ButtonComponent(buttonsDiv)
 			.setButtonText("Yes")
 			.onClick(() => this.submit(true))
-			.setWarning();
+			.setDestructive();
 		suppressPointerPress(yesButton.buttonEl);
 
 		yesButton.buttonEl.focus();

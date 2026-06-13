@@ -7,7 +7,7 @@ import { FILE_LINK_REGEX } from "../../constants";
 import { FileIndex, type SearchResult, type SearchContext, type IndexedFile } from "./FileIndex";
 import { normalizeForSearch } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
-import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "../../utils/activeWindow";
+import { createOwnedElement, getOwnerDocument } from "../../utils/activeWindow";
 
 function createSuggestionPill(
 	owner: Node,
@@ -57,7 +57,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		this.fileIndex = FileIndex.getInstance(app, getQuickAddInstance());
 
 		// Initialize index in background
-		this.fileIndex.ensureIndexed();
+		void this.fileIndex.ensureIndexed();
 	}
 
 	private normalizeFolderPath(p?: string | null): string {
@@ -366,11 +366,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 	}
 
 	private hideTooltip(): void {
-		const activeWindow = getOwnerWindow(this.inputEl);
 		const activeDocument = getOwnerDocument(this.inputEl);
 
 		if (this.tooltipTimeout !== undefined) {
-			activeWindow.clearTimeout(this.tooltipTimeout);
+			window.clearTimeout(this.tooltipTimeout);
 			this.tooltipTimeout = undefined;
 		}
 		activeDocument.querySelector('.qa-file-tooltip')?.remove();
@@ -378,11 +377,10 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 	private addHoverTooltip(el: HTMLElement, file: { path: string; }): void {
 		const activeDocument = getOwnerDocument(el);
-		const activeWindow = getOwnerWindow(el);
 
 		el.addEventListener('mouseenter', () => {
 			this.hideTooltip();
-			this.tooltipTimeout = activeWindow.setTimeout(() => {
+			this.tooltipTimeout = window.setTimeout(() => {
 				const tooltip = this.createTooltip(file);
 				if (tooltip) {
 					activeDocument.body.appendChild(tooltip);
@@ -425,10 +423,11 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 	private positionTooltip(tooltip: HTMLElement, trigger: HTMLElement): void {
 		const rect = trigger.getBoundingClientRect();
-		tooltip.style.position = 'fixed';
+		// position:fixed and z-index live in the `.qa-file-tooltip` rule; only the
+		// computed coordinates are dynamic (template literals, so not flagged by
+		// no-static-styles-assignment).
 		tooltip.style.left = `${rect.right + 10}px`;
 		tooltip.style.top = `${rect.top}px`;
-		tooltip.style.zIndex = '1000';
 	}
 
 	close(): void {

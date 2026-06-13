@@ -22,6 +22,11 @@ export interface MountHandle {
  * mutate its properties (see createCommandListProps) — the documented Svelte 5
  * way to update an imperatively-mounted component.
  */
+// Svelte's `Component` is contravariant in its props, so a generic upper bound
+// that accepts ANY component cannot avoid `any` here: an `unknown`-based bound
+// makes svelte-check reject components with concrete props (CommandList,
+// FolderList, ...). This mirrors how Svelte's own `mount`/`ComponentProps` are
+// typed, and `ComponentProps<C>` still gives each call site full prop checking.
 export function mountComponent<C extends Component<any, any>>(
 	target: HTMLElement,
 	component: C,

@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { TextAreaComponent, TextComponent } from "obsidian";
-import { getOwnerWindow } from "src/utils/activeWindow";
+import { log } from "src/logger/logManager";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 
 type ValidatorResult = boolean | string | { valid: boolean; message?: string };
@@ -25,7 +25,9 @@ export interface ValidatedInputOptions {
 	ariaHintId?: string;
 	fullWidth?: boolean;
 	marginBottomPx?: number;
-	onChange?: (value: string) => void;
+	// Handlers may be async; the result is fire-and-forget (see handleChange), so
+	// the return is intentionally allowed to be a Promise as well as void.
+	onChange?: (value: string) => void | Promise<void>;
 }
 
 export interface ValidatedInputHandle {
@@ -69,7 +71,6 @@ export function createValidatedInput(
 			: new TextComponent(parent);
 
 	const inputEl = component.inputEl;
-	const activeWindow = getOwnerWindow(inputEl);
 
 	if (fullWidth) inputEl.addClass("qa-validated-input-full-width");
 	inputEl.addClass(`qa-validated-input-margin-${marginBottomPx}`);
@@ -144,10 +145,18 @@ export function createValidatedInput(
 
 	let timer: number | undefined;
 	const handleChange = (value: string) => {
-		if (onChange) onChange(value);
+		if (onChange) {
+			// onChange may be async and is fire-and-forget; normalize and consume
+			// any rejection so a rejecting handler can't become an unhandled rejection.
+			void Promise.resolve(onChange(value)).catch((error) => {
+				log.logError(
+					error instanceof Error ? error : new Error(String(error)),
+				);
+			});
+		}
 		if (debounceMs > 0) {
-			if (timer) activeWindow.clearTimeout(timer);
-			timer = activeWindow.setTimeout(() => void runValidator(value), debounceMs);
+			if (timer) window.clearTimeout(timer);
+			timer = window.setTimeout(() => void runValidator(value), debounceMs);
 		} else {
 			void runValidator(value);
 		}
@@ -164,7 +173,9 @@ export function createValidatedInput(
 			component.setValue(v);
 			void runValidator(v);
 		},
-		setDisabled: (disabled: boolean) => component.setDisabled(disabled),
+		setDisabled: (disabled: boolean) => {
+			component.setDisabled(disabled);
+		},
 		setRequired: (req: boolean) => {
 			currentRequired = req;
 			void runValidator(inputEl.value);
@@ -187,7 +198,7 @@ export function createValidatedInput(
 		validateNow: () => runValidator(inputEl.value),
 		destroy: () => {
 			disposed = true;
-			if (timer) activeWindow.clearTimeout(timer);
+			if (timer) window.clearTimeout(timer);
 			hint.detach();
 		},
 	};

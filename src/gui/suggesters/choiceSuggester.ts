@@ -1,5 +1,6 @@
 import type { FuzzyMatch } from "obsidian";
 import {
+	Component,
 	FuzzySuggestModal,
 	MarkdownRenderer,
 	prepareFuzzySearch,
@@ -74,6 +75,10 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	// renderSuggestion through the nested-search branch of getSuggestions,
 	// which builds the candidate cache (and thus this map) first.
 	private breadcrumbById = new Map<string, string>();
+	// Owns the lifecycle of the markdown render children created per suggestion,
+	// so they are torn down when the suggester closes instead of leaking onto the
+	// long-lived plugin instance.
+	private readonly markdownComponent = new Component();
 
 	public static Open(
 		plugin: QuickAdd,
@@ -96,6 +101,12 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.currentPlaceholder = options?.placeholder?.trim() || undefined;
 		if (this.currentPlaceholder) this.setPlaceholder(this.currentPlaceholder);
+		this.markdownComponent.load();
+	}
+
+	onClose(): void {
+		super.onClose();
+		this.markdownComponent.unload();
 	}
 
 	getSuggestions(query: string): FuzzyMatch<IChoice>[] {
@@ -162,7 +173,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			nameEl = content.createDiv({ cls: "suggestion-title" });
 			content.createDiv({ cls: "suggestion-note", text: breadcrumb });
 		}
-		void MarkdownRenderer.render(this.app, item.item.name, nameEl, "", this.plugin)
+		void MarkdownRenderer.render(this.app, item.item.name, nameEl, "", this.markdownComponent)
 			.catch((error) => {
 				nameEl.textContent = item.item.name;
 				log.logError(`Failed to render choice suggestion: ${error}`);

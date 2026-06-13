@@ -37,7 +37,10 @@ export interface QuickAddSettings {
 	enableTemplatePropertyTypes: boolean;
 	dateAliases: Record<string, string>;
 	ai: {
-		defaultModel: Model["name"] | "Ask me";
+		// Either a configured model's name or the "Ask me" sentinel. Model["name"]
+		// is `string`, which already covers the sentinel — adding `| "Ask me"` would
+		// be a redundant union member that `string` subsumes.
+		defaultModel: Model["name"];
 		defaultSystemPrompt: string;
 		promptTemplatesFolderPath: string;
 		showAssistant: boolean;

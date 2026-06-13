@@ -1,14 +1,10 @@
 export function deepClone<T>(value: T): T {
-	const runtime = typeof window !== "undefined" ? window : globalThis;
-	const structuredCloneFn = (runtime as typeof globalThis & {
-		structuredClone?: (value: unknown) => unknown;
-	}).structuredClone as
-		| ((value: unknown) => unknown)
-		| undefined;
-
-	if (typeof structuredCloneFn === "function") {
+	// `structuredClone` is a standard global in Obsidian's renderer (Electron),
+	// Node, and jsdom, so reference it directly rather than reaching through
+	// `window`/`globalThis` (the latter is disallowed for popout compatibility).
+	if (typeof structuredClone === "function") {
 		try {
-			return structuredCloneFn(value) as T;
+			return structuredClone(value);
 		} catch {
 			// Fall back to a JS implementation below.
 		}
