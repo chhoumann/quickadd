@@ -156,4 +156,9 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		use:suggester={attach}
 	/>
 {/if}
-<div class="qa-field-hint" id={hintId} aria-live="polite">{hintMessage}</div>
+<div
+	class="qa-field-hint"
+	class:qa-field-hint--neutral={!invalid}
+	id={hintId}
+	aria-live="polite"
+>{hintMessage}</div>

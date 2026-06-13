@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { engineApplyMock, engineConstructorMock } = vi.hoisted(() => ({
-	engineApplyMock: vi.fn(),
-	engineConstructorMock: vi.fn(),
-}));
+const { engineApplyMock, engineConstructorMock, resolvedPathMock } =
+	vi.hoisted(() => ({
+		engineApplyMock: vi.fn(),
+		engineConstructorMock: vi.fn(),
+		// Identity by default (raw == resolved); override to simulate a path token
+		// that resolves to a different extension (issue #620).
+		resolvedPathMock: vi.fn((raw: string) => raw),
+	}));
 
 vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 	const actual = await importOriginal<object>();
@@ -15,7 +19,7 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 			this.templatePath = args[3] as string;
 		}
 		async getResolvedTemplatePath() {
-			return this.templatePath;
+			return resolvedPathMock(this.templatePath);
 		}
 		async apply() {
 			return await engineApplyMock();
@@ -331,6 +335,23 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		}
 
 		expect(engineConstructorMock).not.toHaveBeenCalled();
+	});
+
+	it("rejects a markdown-looking path that RESOLVES to a canvas/base template (#620)", async () => {
+		const file = makeFile();
+		// Raw path is extensionless → passes the early markdown check; it resolves
+		// to a .canvas template, which must not be applied to a markdown note.
+		resolvedPathMock.mockReturnValueOnce("templates/Board.canvas");
+
+		const result = await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+			templatePath: "templates/{{value:kind}}",
+			choiceExecutor: makeExecutor(),
+		});
+
+		expect(result).toBeNull();
+		// Engine was constructed (to resolve the path) but apply() must not run.
+		expect(engineConstructorMock).toHaveBeenCalledTimes(1);
+		expect(engineApplyMock).not.toHaveBeenCalled();
 	});
 
 	it("returns null when the engine could not apply the template", async () => {

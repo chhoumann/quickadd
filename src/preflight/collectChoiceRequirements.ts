@@ -132,10 +132,15 @@ async function scanTemplateSource(
 		visited.add(path);
 		const content = await readTemplate(app, path);
 		await collector.scanString(content);
-		for (const nested of collector.templatesToScan) {
-			if (!visited.has(nested)) await walk(nested);
-		}
+		// Snapshot and clear the shared discovery set BEFORE recursing: a nested
+		// walk() runs scanString again, which would otherwise mutate (and then
+		// clear) the very set we're iterating, dropping sibling/grandchild
+		// templates from the scan.
+		const nested = [...collector.templatesToScan];
 		collector.templatesToScan.clear();
+		for (const ref of nested) {
+			if (!visited.has(ref)) await walk(ref);
+		}
 	};
 	await walk(templatePath);
 }

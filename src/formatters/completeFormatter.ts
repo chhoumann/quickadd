@@ -149,6 +149,21 @@ export class CompleteFormatter extends Formatter {
 		let output = input;
 		// Expand globals first so an injected snippet's path-safe tokens resolve.
 		output = await this.replaceGlobalVarInString(output);
+
+		// A global variable can itself expand to "{{title}}", slipping past the
+		// up-front guard. Re-check here — after global expansion but BEFORE
+		// user-input substitution — so a global-injected {{title}} throws the
+		// clear circular-title error, without false-positiving on a user value
+		// that merely contains the literal text "{{title}}".
+		if (/\{\{title\}\}/i.test(output)) {
+			throw new Error(
+				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
+			);
+		}
+
+		// Path-safe replacers, mirroring the tail of format() (completeFormatter
+		// .format) MINUS macros, inline JS, and {{TEMPLATE:}} inclusion. Keep this
+		// list in sync with format() when adding a path-safe token.
 		output = this.replaceDateInString(output);
 		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);
@@ -159,15 +174,6 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
-
-		// A global variable can itself expand to "{{title}}", slipping past the
-		// up-front guard; catch it here so the user gets the clear circular-title
-		// error rather than a confusing "template not found".
-		if (/\{\{title\}\}/i.test(output)) {
-			throw new Error(
-				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
-			);
-		}
 
 		// Trim so the suffix the engine reads for the extension matches the path
 		// getTemplateFile ultimately resolves (which trims) — otherwise a token

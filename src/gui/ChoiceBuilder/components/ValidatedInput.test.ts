@@ -44,6 +44,27 @@ describe("ValidatedInput", () => {
 		expect(container.querySelector("textarea")).toBeTruthy();
 	});
 
+	it("renders a valid+message result as a neutral (non-error) hint", async () => {
+		const validator = () => ({
+			valid: true as const,
+			message: "Contains format syntax — resolved at run time.",
+		});
+		const { container } = render(ValidatedInput, {
+			props: { value: "Templates/{{value:type}}.md", validator },
+		});
+		await tick();
+		await tick();
+		const hint = container.querySelector(".qa-field-hint") as HTMLElement;
+		const input = container.querySelector("input") as HTMLInputElement;
+		expect(hint.textContent).toBe(
+			"Contains format syntax — resolved at run time.",
+		);
+		// Neutral, not an error: the muted modifier is applied and the field is valid.
+		expect(hint.classList.contains("qa-field-hint--neutral")).toBe(true);
+		expect(input.classList.contains("is-invalid")).toBe(false);
+		expect(input.getAttribute("aria-invalid")).toBe("false");
+	});
+
 	it("keeps only the latest async validation result (staleness guard)", async () => {
 		const validator = (v: string) =>
 			Promise.resolve(v === "good" ? true : "Invalid value");
