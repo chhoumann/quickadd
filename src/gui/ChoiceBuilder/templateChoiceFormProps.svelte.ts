@@ -18,6 +18,12 @@ export interface TemplateChoiceFormProps {
 export function createTemplateChoiceFormProps(
 	initial: TemplateChoiceFormProps,
 ): TemplateChoiceFormProps {
-	const props = $state(initial);
+	// Plain-clone the choice so $state deeply proxies it. Svelte's proxy() returns
+	// class instances UNCHANGED (un-proxied) — newly created choices come from
+	// `createChoice()` as `new TemplateChoice()` instances, whose nested mutations
+	// would then NOT be reactive (conditional {#if} rows wouldn't appear in the
+	// add-new flow). structuredClone strips the class prototype to a plain object;
+	// the form mutates this proxy and onClose snapshots it (getResultChoice). #1130
+	const props = $state({ ...initial, choice: structuredClone(initial.choice) });
 	return props;
 }

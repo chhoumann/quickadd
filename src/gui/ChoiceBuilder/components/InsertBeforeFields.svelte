@@ -25,6 +25,15 @@ let {
 	plugin: QuickAdd;
 } = $props();
 
+// Default the create-line fields synchronously at init (before bind:checked /
+// the dropdown read them), matching the imperative addInsertBeforeFields. Without
+// this, a legacy/imported insertBefore missing these keys would persist `undefined`
+// and throw "Unknown createIfNotFoundLocation" in the capture formatter.
+if (insertBefore.createIfNotFound === undefined)
+	insertBefore.createIfNotFound = false;
+if (!insertBefore.createIfNotFoundLocation)
+	insertBefore.createIfNotFoundLocation = CREATE_IF_NOT_FOUND_TOP;
+
 const suggesters = [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
 		new FormatSyntaxSuggester(app, el, plugin),

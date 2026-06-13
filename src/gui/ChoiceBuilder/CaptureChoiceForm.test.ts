@@ -9,6 +9,7 @@ import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import CaptureChoiceForm from "./CaptureChoiceForm.svelte";
 import { createCaptureChoiceFormProps } from "./captureChoiceFormProps.svelte";
+import { CaptureChoice } from "../../types/choices/CaptureChoice";
 
 function captureChoice(): ICaptureChoice {
 	return {
@@ -119,6 +120,28 @@ describe("CaptureChoiceForm", () => {
 		const names = settingNames(container);
 		expect(names).not.toContain("Create file if it doesn't exist");
 		expect(names).not.toContain("Open");
+	});
+
+	it("stays reactive for a freshly created class-instance choice (add-new flow)", () => {
+		// createChoice() returns `new CaptureChoice()` — a class instance. Svelte's
+		// proxy() leaves class instances un-proxied, so the form props factory must
+		// plain-clone the choice or conditional rows won't react. This test fails if
+		// the structuredClone in createCaptureChoiceFormProps is removed.
+		const props = createCaptureChoiceFormProps({
+			choice: new CaptureChoice("New Capture"),
+			app: new App(),
+			plugin,
+		});
+		const { container } = render(CaptureChoiceForm, {
+			props: { choice: props.choice, app: props.app, plugin: props.plugin },
+		});
+		expect(settingNames(container)).toContain("Create file if it doesn't exist");
+
+		props.choice.captureToActiveFile = true;
+		flushSync();
+		expect(settingNames(container)).not.toContain(
+			"Create file if it doesn't exist",
+		);
 	});
 
 	it("persists write-position edits onto the form proxy (snapshot reflects them)", async () => {
