@@ -559,21 +559,15 @@ export function insertOnNewLineBelow(toInsert: string, app: App) {
 }
 
 /**
- * When the caret is inside Obsidian's Properties widget, returns the focused
- * editable property element; otherwise null.
- *
- * Obsidian renders YAML frontmatter as a Properties UI built from separate
- * input elements (`.metadata-property` rows), not the CodeMirror document.
- * Focusing one of these blurs the markdown body editor, so the Editor API
- * reports a stale body caret and any insertion lands at the first body line
- * instead of at the user's cursor (issue #768). Detecting the focused DOM
- * element lets us insert at the real caret instead.
+ * Returns the focused editable element when the caret is inside Obsidian's
+ * Properties widget, else null. The widget is separate inputs, not the
+ * CodeMirror document, so a focused property leaves the body editor reporting a
+ * stale caret — without this the link lands in the body (#768).
  */
 function getFocusedEditablePropertyEl(): HTMLElement | null {
 	if (typeof document === "undefined") return null;
 	const active = document.activeElement;
 	if (!(active instanceof HTMLElement)) return null;
-	// Must live inside the Properties widget.
 	if (!active.closest(".metadata-property, .metadata-properties-container")) {
 		return null;
 	}
@@ -585,10 +579,9 @@ function getFocusedEditablePropertyEl(): HTMLElement | null {
 }
 
 /**
- * Inserts `text` at the caret of a focused <input>/<textarea> or contenteditable
- * element and fires an "input" event so Obsidian persists the change to the
- * frontmatter. Returns false if the element type isn't supported (caller then
- * falls back to normal body insertion).
+ * Inserts `text` at the caret of a focused input/textarea/contenteditable and
+ * fires an "input" event so Obsidian persists it. Returns false for unsupported
+ * elements so the caller can fall back to body insertion.
  */
 function insertTextIntoEditableEl(el: HTMLElement, text: string): boolean {
 	if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
@@ -599,8 +592,7 @@ function insertTextIntoEditableEl(el: HTMLElement, text: string): boolean {
 		try {
 			el.setSelectionRange(caret, caret);
 		} catch {
-			// Some input types don't allow selection ranges; caret position is
-			// non-critical, so ignore.
+			// Some input types reject selection ranges; caret position is non-critical.
 		}
 		el.dispatchEvent(new Event("input", { bubbles: true }));
 		return true;
@@ -654,12 +646,9 @@ export function insertLinkWithPlacement(
 		return;
 	}
 
-	// #768: If the caret is inside a frontmatter *property* field (Obsidian's
-	// Properties widget), the markdown body editor isn't focused, so
-	// editor.getCursor()/listSelections() report a stale body caret and the link
-	// would land at the first body line instead of at the user's cursor. Insert
-	// into the focused property value at its caret instead. Placement modes only
-	// describe body insertion, so they don't apply here.
+	// #768: a focused frontmatter property field leaves the body editor's caret
+	// stale; insert into the property at its caret instead. Placement modes only
+	// apply to body insertion.
 	const propertyEl = getFocusedEditablePropertyEl();
 	if (propertyEl && insertTextIntoEditableEl(propertyEl, text)) {
 		return;

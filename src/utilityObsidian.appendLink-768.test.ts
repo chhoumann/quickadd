@@ -5,11 +5,8 @@ import { __test, insertLinkWithPlacement } from "./utilityObsidian";
 const { getFocusedEditablePropertyEl, insertTextIntoEditableEl } = __test;
 
 /**
- * Regression tests for issue #768: "Append link to current file in properties".
- *
- * When the caret is in a frontmatter property field, Obsidian's body editor is
- * not focused and its reported cursor is stale, so the link used to land at the
- * first body line. The fix routes insertion into the focused property element.
+ * Regression tests for #768: with the caret in a frontmatter property field the
+ * link used to land at the first body line; the fix routes it to the property.
  */
 
 afterEach(() => {
