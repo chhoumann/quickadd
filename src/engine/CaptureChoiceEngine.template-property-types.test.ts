@@ -10,7 +10,7 @@ vi.mock("../quickAddSettingsTab", () => {
 		choices: [],
 		inputPrompt: "single-line",
 		devMode: false,
-		templateFolderPath: "",
+		templateFolderPaths: [],
 		useSelectionAsCaptureValue: true,
 		announceUpdates: "major",
 		version: "0.0.0",

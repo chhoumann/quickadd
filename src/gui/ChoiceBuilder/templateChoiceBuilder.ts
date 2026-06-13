@@ -23,7 +23,7 @@ import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { getAllFolderPathsInVault, getTemplateFile } from "../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { createValidatedInput } from "../components/validatedInput";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
@@ -93,10 +93,13 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			validator: (raw) => {
 				const v = raw.trim();
 				if (!v) return true;
-				return templates.includes(v) || "Template not found";
+				// Validate against the same resolution the engine uses at run time,
+				// not suggestion-list membership: a template outside the configured
+				// folders still runs fine and must not be flagged "not found".
+				return getTemplateFile(this.app, v) !== null || "Template not found";
 			},
 			onChange: (value) => {
-				this.choice.templatePath = value;
+				this.choice.templatePath = value.trim();
 			},
 		});
 	}

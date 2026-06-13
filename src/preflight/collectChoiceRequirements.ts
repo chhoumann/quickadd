@@ -1,12 +1,7 @@
-import type { App } from "obsidian";
-import { MarkdownView, TFile } from "obsidian";
+import type { App, TFile } from "obsidian";
+import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import {
-	BASE_FILE_EXTENSION_REGEX,
-	CANVAS_FILE_EXTENSION_REGEX,
-	MARKDOWN_FILE_EXTENSION_REGEX,
-	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
-} from "src/constants";
+import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -18,6 +13,7 @@ import type { IUserScript } from "src/types/macros/IUserScript";
 import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	getTemplateFile,
 	getUserScript,
 	isFolder,
 } from "src/utilityObsidian";
@@ -100,16 +96,8 @@ function getQuickAddScriptInputs(userScript: unknown): unknown[] {
 }
 
 async function readTemplate(app: App, path: string): Promise<string> {
-	const addExt =
-		!MARKDOWN_FILE_EXTENSION_REGEX.test(path) &&
-		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
-		!BASE_FILE_EXTENSION_REGEX.test(path);
-	const normalized = addExt ? `${path}.md` : path;
-	const file = app.vault.getAbstractFileByPath(normalized);
-	if (file instanceof TFile) {
-		return await app.vault.cachedRead(file);
-	}
-	return "";
+	const file = getTemplateFile(app, path);
+	return file ? await app.vault.cachedRead(file) : "";
 }
 
 async function collectForTemplateChoice(

@@ -17,7 +17,13 @@ export interface QuickAddSettings {
 		*/
 	searchNestedChoices: boolean;
 	devMode: boolean;
-	templateFolderPath: string;
+	/**
+		* Folders whose files are offered as template suggestions when configuring
+		* QuickAdd. An empty list suggests every template file in the vault. The
+		* legacy single `templateFolderPath` is folded into this by the
+		* `migrateToMultipleTemplateFolders` migration.
+		*/
+	templateFolderPaths: string[];
 	announceUpdates: "all" | "major" | "none";
 	version: string;
 	globalVariables: Record<string, string>;
@@ -60,6 +66,7 @@ export interface QuickAddSettings {
 		backfillFileOpeningDefaults: boolean;
 		setProviderModelDiscoveryMode: boolean;
 		migrateProviderApiKeysToSecretStorage: boolean;
+		migrateToMultipleTemplateFolders: boolean;
 	};
 }
 
@@ -70,7 +77,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	useSelectionAsCaptureValue: true,
 	searchNestedChoices: true,
 	devMode: false,
-	templateFolderPath: "",
+	templateFolderPaths: [],
 	announceUpdates: "major",
 	version: "0.0.0",
 	globalVariables: {},
@@ -109,5 +116,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		backfillFileOpeningDefaults: false,
 		setProviderModelDiscoveryMode: false,
 		migrateProviderApiKeysToSecretStorage: false,
+		migrateToMultipleTemplateFolders: false,
 	},
 };
