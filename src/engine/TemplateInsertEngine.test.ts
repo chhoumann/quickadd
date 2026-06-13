@@ -158,6 +158,18 @@ function makeHarness(options: {
 					? options.templateContent
 					: options.noteContent,
 			modify,
+			// Mirror Obsidian's atomic read-modify-write: read current content,
+			// apply the transform, then write via the same `modify` spy so existing
+			// modify-call assertions continue to hold.
+			process: async (file: TFile, fn: (data: string) => string) => {
+				const data =
+					file.path === TEMPLATE_PATH
+						? options.templateContent
+						: options.noteContent;
+				const next = fn(data);
+				modify(file, next);
+				return next;
+			},
 		},
 		fileManager: {
 			processFrontMatter: async (
@@ -259,6 +271,32 @@ describe("insertBodyIntoNoteContent", () => {
 		expect(insertBodyIntoNoteContent(note, "new", "top")).toBe(
 			"---\ntitle: Note\n---\nnew\nexisting",
 		);
+	});
+
+	it("does not glue onto the fence for a frontmatter-only note with no trailing newline (#526 regression)", () => {
+		expect(insertBodyIntoNoteContent("---\ntitle: Note\n---", "new", "top")).toBe(
+			"---\ntitle: Note\n---\nnew\n",
+		);
+		expect(insertBodyIntoNoteContent("---\n---", "new", "top")).toBe(
+			"---\n---\nnew\n",
+		);
+	});
+
+	it("ends the inserted block on its own line, with a blank-line separation when the body already ends in a newline", () => {
+		// A single-line body (no trailing newline) lands tight against the next line...
+		expect(
+			insertBodyIntoNoteContent("---\nt: 1\n---\nExisting body", "## Block\nLine", "top"),
+		).toBe("---\nt: 1\n---\n## Block\nLine\nExisting body");
+		// ...but a body that already ends in a newline keeps a blank-line separation.
+		expect(insertBodyIntoNoteContent("Existing", "Block\n", "top")).toBe(
+			"Block\n\nExisting",
+		);
+	});
+
+	it("preserves CRLF frontmatter when inserting at top", () => {
+		expect(
+			insertBodyIntoNoteContent("---\r\nt: 1\r\n---\r\nBody", "new", "top"),
+		).toBe("---\r\nt: 1\r\n---\r\nnew\nBody");
 	});
 });
 

@@ -12,6 +12,7 @@ import invariant from "../utils/invariant";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
+import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
 import { TemplateEngine } from "./TemplateEngine";
 
 export const templateInsertModes = [
@@ -66,6 +67,13 @@ export function splitTemplateFrontmatter(content: string): {
 /**
  * Inserts a template body into existing note content. "top" is
  * frontmatter-aware: the body lands below the note's frontmatter block.
+ *
+ * The "top" branch reuses the shared, fence-safe `insertAtNoteBodyStart`
+ * (src/utils/noteContentInsertion.ts). Appending a newline to the body expresses
+ * the template-apply policy that the inserted block always ends on its own line —
+ * leaving a blank-line separation from the existing content when the body itself
+ * already ends in a newline. (Capture callers use the same primitive WITHOUT the
+ * extra newline, for tight single-snippet insertion.)
  */
 export function insertBodyIntoNoteContent(
 	noteContent: string,
@@ -76,14 +84,7 @@ export function insertBodyIntoNoteContent(
 		return `${noteContent}\n${body}`;
 	}
 
-	const info = getFrontMatterInfo(noteContent);
-	if (!info.exists) {
-		return `${body}\n${noteContent}`;
-	}
-
-	const head = noteContent.slice(0, info.contentStart);
-	const rest = noteContent.slice(info.contentStart);
-	return `${head}${body}\n${rest}`;
+	return insertAtNoteBodyStart(noteContent, `${body}\n`);
 }
 
 /**
@@ -218,13 +219,11 @@ export class TemplateInsertEngine extends TemplateEngine {
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
 		if (body.trim().length > 0) {
-			const noteContent = await this.app.vault.cachedRead(this.targetFile);
-			const newContent = insertBodyIntoNoteContent(
-				noteContent,
-				body,
-				position,
+			// vault.process is Obsidian's atomic read-modify-write; the docs recommend
+			// it over read+modify, and it reads fresh from disk (unlike cachedRead).
+			await this.app.vault.process(this.targetFile, (noteContent) =>
+				insertBodyIntoNoteContent(noteContent, body, position),
 			);
-			await this.app.vault.modify(this.targetFile, newContent);
 		}
 
 		await this.mergeFrontmatterProperties(
