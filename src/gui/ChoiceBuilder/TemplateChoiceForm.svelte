@@ -19,6 +19,13 @@ import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import FolderList from "./FolderList.svelte";
+import {
+	applyFolderMode,
+	deriveFolderMode,
+	FOLDER_MODE_DESCRIPTIONS,
+	FOLDER_MODE_OPTIONS,
+	type FolderMode,
+} from "./folderMode";
 import SettingItem from "../components/SettingItem.svelte";
 import Toggle from "../components/Toggle.svelte";
 import Dropdown from "../components/Dropdown.svelte";
@@ -68,6 +75,21 @@ const fileNameSuggesters = [
 ];
 
 // --- Folder selector -----------------------------------------------------
+// The four persisted folder booleans encode mutually-exclusive destination
+// modes; the dropdown is a derived view over them (no schema change). The mode
+// mirrors TemplateChoiceEngine.getFolderPath() precedence — see folderMode.ts.
+const folderMode = $derived(deriveFolderMode(choice.folder));
+const folderModeDesc = $derived(FOLDER_MODE_DESCRIPTIONS[folderMode]);
+const needsFolderList = $derived(
+	folderMode === "specified" && choice.folder.folders.length === 0,
+);
+
+function onFolderModeChange(value: string) {
+	// Immutable reassignment so the nested change is reactive (in-place
+	// choice.folder.x = ... would not retrigger the {#if} blocks).
+	choice.folder = applyFolderMode(choice.folder, value as FolderMode);
+}
+
 let folderInputValue = $state("");
 let folderSuggester: ExclusiveSuggester | undefined;
 
@@ -82,7 +104,9 @@ function attachFolderSuggester(el: HTMLInputElement | HTMLTextAreaElement) {
 }
 
 // Keep the exclusion set in sync with the current folder list (replaces the
-// imperative updateCurrentItems() calls).
+// imperative updateCurrentItems() calls). Tolerates a destroyed suggester after
+// the input unmounts on a mode switch — updateCurrentItems is field-only and the
+// input is recreated (with a fresh suggester) when "specified" mode returns.
 $effect(() => {
 	folderSuggester?.updateCurrentItems(choice.folder.folders);
 });
@@ -171,63 +195,51 @@ function onModeChange(value: string) {
 
 <SettingItem name="Location" heading />
 
-<SettingItem
-	name="Create in folder"
-	desc="Create the file in the specified folder. If multiple folders are specified, you will be prompted for which folder to create the file in."
->
+<SettingItem name="New note location" desc={folderModeDesc}>
 	{#snippet control()}
-		<Toggle bind:checked={choice.folder.enabled} />
+		<Dropdown
+			value={folderMode}
+			options={FOLDER_MODE_OPTIONS}
+			ariaLabel="New note location"
+			onchange={onFolderModeChange}
+		/>
 	{/snippet}
 </SettingItem>
 
-{#if choice.folder.enabled}
-	{#if !choice.folder.createInSameFolderAsActiveFile}
-		<SettingItem name="Choose folder when creating a new note">
-			{#snippet control()}
-				<Toggle bind:checked={choice.folder.chooseWhenCreatingNote} />
-			{/snippet}
-		</SettingItem>
+{#if folderMode === "specified"}
+	<div class="folderSelectionContainer">
+		<div class="folderList">
+			<FolderList folders={choice.folder.folders} {deleteFolder} />
+		</div>
+		<div class="folderInputContainer">
+			<input
+				type="text"
+				class="qa-folder-path-input"
+				placeholder="Folder path"
+				aria-label="Folder path"
+				bind:value={folderInputValue}
+				onkeypress={onFolderInputKeypress}
+				use:suggester={attachFolderSuggester}
+			/>
+			<button type="button" class="mod-cta" onclick={addFolder}>Add</button>
+		</div>
+	</div>
 
-		{#if !choice.folder.chooseWhenCreatingNote}
-			<div class="folderSelectionContainer">
-				<div class="folderList">
-					<FolderList folders={choice.folder.folders} {deleteFolder} />
-				</div>
-				<div class="folderInputContainer">
-					<input
-						type="text"
-						class="qa-folder-path-input"
-						placeholder="Folder path"
-						aria-label="Folder path"
-						bind:value={folderInputValue}
-						onkeypress={onFolderInputKeypress}
-						use:suggester={attachFolderSuggester}
-					/>
-					<button type="button" class="mod-cta" onclick={addFolder}>Add</button>
-				</div>
-			</div>
-		{/if}
-
-		<SettingItem
-			name="Include subfolders"
-			desc="Get prompted to choose from both the selected folders and their subfolders when creating the note."
-		>
-			{#snippet control()}
-				<Toggle bind:checked={choice.folder.chooseFromSubfolders} />
-			{/snippet}
-		</SettingItem>
+	{#if needsFolderList}
+		<div class="qa-folder-mode-warning">
+			Add at least one folder, or the note will be created in the active file's
+			folder instead of a specific one.
+		</div>
 	{/if}
 
-	{#if !choice.folder.chooseWhenCreatingNote}
-		<SettingItem
-			name="Create in same folder as active file"
-			desc="Creates the file in the same folder as the currently active file. Will not create the file if there is no active file."
-		>
-			{#snippet control()}
-				<Toggle bind:checked={choice.folder.createInSameFolderAsActiveFile} />
-			{/snippet}
-		</SettingItem>
-	{/if}
+	<SettingItem
+		name="Include subfolders"
+		desc="Get prompted to choose from both the selected folders and their subfolders when creating the note."
+	>
+		{#snippet control()}
+			<Toggle bind:checked={choice.folder.chooseFromSubfolders} />
+		{/snippet}
+	</SettingItem>
 {/if}
 
 <SettingItem name="Linking" heading />

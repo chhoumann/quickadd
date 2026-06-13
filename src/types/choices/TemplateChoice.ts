@@ -1,4 +1,5 @@
 import type ITemplateChoice from "./ITemplateChoice";
+import type { TemplateFolderConfig } from "./ITemplateChoice";
 import { Choice } from "./Choice";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
@@ -8,13 +9,7 @@ import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean | AppendLinkOptions;
 	fileNameFormat: { enabled: boolean; format: string };
-	folder: {
-		enabled: boolean;
-		folders: string[];
-		chooseWhenCreatingNote: boolean;
-		createInSameFolderAsActiveFile: boolean;
-		chooseFromSubfolders: boolean;
-	};
+	folder: TemplateFolderConfig;
 	openFile: boolean;
 	fileOpening: {
 		location: OpenLocation;

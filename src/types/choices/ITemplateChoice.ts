@@ -3,15 +3,23 @@ import type { AppendLinkOptions } from "../linkPlacement";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
 
+/**
+ * Destination configuration for a Template choice. These four booleans encode a
+ * set of mutually-exclusive destination modes at runtime (see
+ * TemplateChoiceEngine.getFolderPath); the choice builder surfaces them through a
+ * single derived dropdown (see gui/ChoiceBuilder/folderMode.ts).
+ */
+export type TemplateFolderConfig = {
+	enabled: boolean;
+	folders: string[];
+	chooseWhenCreatingNote: boolean;
+	createInSameFolderAsActiveFile: boolean;
+	chooseFromSubfolders: boolean;
+};
+
 export default interface ITemplateChoice extends IChoice {
 	templatePath: string;
-	folder: {
-		enabled: boolean;
-		folders: string[];
-		chooseWhenCreatingNote: boolean;
-		createInSameFolderAsActiveFile: boolean;
-		chooseFromSubfolders: boolean;
-	};
+	folder: TemplateFolderConfig;
 	fileNameFormat: { enabled: boolean; format: string };
 	/** 
 	 * Configure link appending behavior. 

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { App } from "obsidian";
-import { render } from "@testing-library/svelte";
+import { fireEvent, render } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import type QuickAdd from "../../main";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
@@ -45,6 +45,14 @@ function settingNames(container: HTMLElement): string[] {
 	);
 }
 
+function locationDropdown(container: HTMLElement): HTMLSelectElement {
+	const el = container.querySelector<HTMLSelectElement>(
+		'select.dropdown[aria-label="New note location"]',
+	);
+	if (!el) throw new Error("Location dropdown not found");
+	return el;
+}
+
 const plugin = {
 	getTemplateFiles: () => [],
 	settings: { choices: [] },
@@ -63,29 +71,113 @@ function mountForm() {
 }
 
 describe("TemplateChoiceForm", () => {
-	it("reveals folder sub-settings reactively without remounting (the #1130 fix)", () => {
+	it("reveals the specific-folder controls reactively without remounting (the #1130 fix)", () => {
 		const { container, props } = mountForm();
 		const headerBefore = container.querySelector(".choiceNameHeaderButton");
 
-		expect(settingNames(container)).not.toContain(
-			"Choose folder when creating a new note",
-		);
+		// Default (obsidian-default) mode: no folder list / subfolder control.
+		expect(settingNames(container)).not.toContain("Include subfolders");
+		expect(container.querySelector(".qa-folder-path-input")).toBeNull();
 
-		// Toggling the controlling field updates the {#if} in place — the former
-		// reload() would have torn down and rebuilt the whole modal here.
+		// Flipping the controlling field updates the {#if} in place — the former
+		// reload() would have torn down and rebuilt the whole modal here. A bare
+		// `enabled` with no other flag derives to "specified" mode.
 		props.choice.folder.enabled = true;
 		flushSync();
 
-		expect(settingNames(container)).toContain(
-			"Choose folder when creating a new note",
-		);
-		expect(settingNames(container)).toContain(
-			"Create in same folder as active file",
-		);
+		expect(settingNames(container)).toContain("Include subfolders");
+		expect(container.querySelector(".qa-folder-path-input")).not.toBeNull();
 		// Same header node => no full remount (scroll/caret would survive in-app).
 		expect(container.querySelector(".choiceNameHeaderButton")).toBe(
 			headerBefore,
 		);
+	});
+
+	it("consolidates the location modes into one dropdown with four options", () => {
+		const { container } = mountForm();
+		expect(settingNames(container)).toContain("New note location");
+		const options = Array.from(locationDropdown(container).options).map(
+			(o) => o.value,
+		);
+		expect(options).toEqual([
+			"obsidian-default",
+			"specified",
+			"active-file",
+			"prompt",
+		]);
+	});
+
+	it("opens a legacy choice on its derived mode", () => {
+		const props = createTemplateChoiceFormProps({
+			choice: {
+				...templateChoice(),
+				folder: {
+					enabled: true,
+					folders: [],
+					chooseWhenCreatingNote: true,
+					createInSameFolderAsActiveFile: false,
+					chooseFromSubfolders: false,
+				},
+			},
+			app: new App(),
+			plugin,
+		});
+		const { container } = render(TemplateChoiceForm, {
+			props: { choice: props.choice, app: props.app, plugin: props.plugin },
+		});
+		expect(locationDropdown(container).value).toBe("prompt");
+		// "prompt" mode hides the specific-folder list.
+		expect(container.querySelector(".qa-folder-path-input")).toBeNull();
+	});
+
+	it("writes the canonical booleans when a mode is selected", async () => {
+		const props = createTemplateChoiceFormProps({
+			choice: {
+				...templateChoice(),
+				folder: {
+					enabled: true,
+					folders: ["Notes"],
+					chooseWhenCreatingNote: false,
+					createInSameFolderAsActiveFile: false,
+					chooseFromSubfolders: true,
+				},
+			},
+			app: new App(),
+			plugin,
+		});
+		const { container } = render(TemplateChoiceForm, {
+			props: { choice: props.choice, app: props.app, plugin: props.plugin },
+		});
+		expect(locationDropdown(container).value).toBe("specified");
+
+		await fireEvent.change(locationDropdown(container), {
+			target: { value: "active-file" },
+		});
+		flushSync();
+
+		expect(props.choice.folder).toMatchObject({
+			enabled: true,
+			createInSameFolderAsActiveFile: true,
+			chooseWhenCreatingNote: false,
+			// reset outside "specified" so the InsertEngine move-offer stays available
+			chooseFromSubfolders: false,
+			// the costly list is preserved across the switch
+			folders: ["Notes"],
+		});
+		expect(container.querySelector(".qa-folder-path-input")).toBeNull();
+	});
+
+	it("warns when 'specific folder' mode has no folders configured", () => {
+		const { container, props } = mountForm();
+		props.choice.folder.enabled = true; // -> specified mode, empty list
+		flushSync();
+		expect(
+			container.querySelector(".qa-folder-mode-warning"),
+		).not.toBeNull();
+
+		props.choice.folder.folders = ["Notes"];
+		flushSync();
+		expect(container.querySelector(".qa-folder-mode-warning")).toBeNull();
 	});
 
 	it("reveals the file-opening settings only when openFile is enabled", () => {
