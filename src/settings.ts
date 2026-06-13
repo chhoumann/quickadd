@@ -37,6 +37,15 @@ export interface QuickAddSettings {
 		* Users _can_ still use User Scripts to do so by executing arbitrary JavaScript, but that is not something the plugin controls.
 		*/
 	disableOnlineFeatures: boolean;
+	/**
+	 * When enabled, the `obsidian://quickadd` URI may open an x-callback-url
+	 * (`x-success`/`x-error`/`x-cancel`) after a Template/Capture choice completes,
+	 * sending the outcome and the affected note's vault path + URL to that URL.
+	 * Default off because the callback URL is controlled by whoever crafts the
+	 * `obsidian://` link. (Opposite default polarity to `disableOnlineFeatures`,
+	 * which defaults true — both are the conservative, locked-down choice.)
+	 */
+	enableUriCallbacks: boolean;
 	enableRibbonIcon: boolean;
 	showCaptureNotification: boolean;
 	showInputCancellationNotification: boolean;
@@ -83,6 +92,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	globalVariables: {},
 	onePageInputEnabled: false,
 	disableOnlineFeatures: true,
+	enableUriCallbacks: false,
 	enableRibbonIcon: false,
 	showCaptureNotification: true,
 	showInputCancellationNotification: false,

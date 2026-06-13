@@ -29,6 +29,7 @@ import {
 	isReservedWindowsDeviceName,
 } from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
@@ -185,7 +186,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}

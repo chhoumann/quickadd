@@ -284,6 +284,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					desc: "This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
 					control: { type: "toggle", key: "disableOnlineFeatures" },
 				},
+				{
+					name: "Allow URI x-callback-url",
+					desc: "When on, an obsidian://quickadd URI may open a callback URL (x-success / x-error / x-cancel) after a Template or Capture choice finishes — sending the outcome and the affected note's vault path and URL to that callback. Off by default because the callback URL is set by whoever creates the obsidian:// link. Only shortcuts: and obsidian: callback URLs are permitted.",
+					control: { type: "toggle", key: "enableUriCallbacks" },
+				},
 			],
 		};
 	}

@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import { MacroAbortError } from "src/errors/MacroAbortError";
+import { UserCancelError } from "src/errors/UserCancelError";
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import { settingsStore } from "src/settingsStore";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
@@ -308,7 +308,7 @@ export async function runAIAssistant(
 		window.setTimeout(() => notice.hide(), 5000);
 		// Always abort on cancelled input
 		if (isCancellationError(error)) {
-			throw new MacroAbortError("Input cancelled by user");
+			throw new UserCancelError("Input cancelled by user");
 		}
 		throw error;
 	}

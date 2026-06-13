@@ -77,12 +77,14 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 }));
 
 vi.mock("../utilityObsidian", () => ({
-	appendToCurrentLine: vi.fn(),
+	// Editor-insertion helpers return true when the insertion lands; default the mocks
+	// to "inserted" so capture-to-active-file paths proceed to the cosmetic/openFile steps.
+	appendToCurrentLine: vi.fn(() => true),
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
-	insertOnNewLineAbove: vi.fn(),
-	insertOnNewLineBelow: vi.fn(),
+	insertOnNewLineAbove: vi.fn(() => true),
+	insertOnNewLineBelow: vi.fn(() => true),
 	isFolder: vi.fn(() => false),
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),

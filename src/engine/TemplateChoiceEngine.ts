@@ -29,7 +29,7 @@ import {
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
-import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 export class TemplateChoiceEngine extends TemplateEngine {
@@ -159,6 +159,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 
+			// File is created/resolved (the commit point). Record success BEFORE the
+			// cosmetic steps below (link / open / templater jump) so a later cosmetic
+			// failure cannot downgrade the outcome for an x-callback caller.
+			this.choiceExecutor.recordExecutionResult?.({
+				status: "success",
+				file: createdFile,
+			});
+
 			if (linkOptions.enabled && createdFile) {
 			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
 			}
@@ -215,7 +223,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
-				throw new MacroAbortError("Input cancelled by user");
+				throw new UserCancelError("Input cancelled by user");
 			}
 			throw error;
 		}

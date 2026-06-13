@@ -13,13 +13,16 @@ import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
-import { isCancellationError } from "./utils/errorUtils";
+import { UserCancelError } from "./errors/UserCancelError";
+import { isCancellationError, reportError } from "./utils/errorUtils";
 import { getOpenFileOriginLeaf } from "./utilityObsidian";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
+import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
 	private pendingAbort: MacroAbortError | null = null;
+	private pendingResult: ChoiceOutcome | null = null;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
@@ -33,37 +36,22 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		return abort ?? null;
 	}
 
+	recordExecutionResult(result: ChoiceOutcome) {
+		this.pendingResult = result;
+	}
+
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
+		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
+		// another choice through this same executor) transparent to the outcome slot of an
+		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
+		// choice's recorded result never leaks into the outer choice's reported outcome.
+		const savedResult = this.pendingResult;
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		promptDraftStore.beginExecutionScope();
 		try {
-			// One-page preflight honoring per-choice override.
-			const globalEnabled = settingsStore.getState().onePageInputEnabled;
-			const override = choice.onePageInput;
-			const shouldUseOnePager =
-				override === "always" || (override !== "never" && globalEnabled);
-			if (
-				shouldUseOnePager &&
-				(choice.type === "Template" ||
-					choice.type === "Capture" ||
-					choice.type === "Macro")
-			) {
-				try {
-					await runOnePagePreflight(
-						this.app,
-						this.plugin as unknown as QuickAdd,
-						this,
-						choice,
-					);
-				} catch (error) {
-					if (isCancellationError(error)) {
-						throw new MacroAbortError("One-page input cancelled by user");
-					}
-					throw error;
-				}
-			}
+			await this.runOnePagePreflightIfEnabled(choice);
 
 			switch (choice.type) {
 				case "Template": {
@@ -100,6 +88,91 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope();
 			throw error;
+		} finally {
+			this.pendingResult = savedResult;
+		}
+	}
+
+	/**
+	 * Executes a Template or Capture choice and returns a structured
+	 * {@link ChoiceOutcome} (used by the URI x-callback handler). Mirrors
+	 * {@link execute}'s envelope (one-page preflight + prompt-draft scope) so behaviour
+	 * is identical to the legacy void path; the only addition is surfacing the outcome.
+	 *
+	 * Nesting-safe: Template/Capture never run nested choices through this executor, so
+	 * the single result slot cannot be clobbered. An engine that completed without
+	 * recording success (and without aborting/throwing) hit a swallowed-failure branch,
+	 * which is reported as `error` — never silently as success.
+	 */
+	async executeWithOutcome(
+		choice: ITemplateChoice | ICaptureChoice,
+	): Promise<ChoiceOutcome> {
+		this.pendingAbort = null;
+		this.pendingResult = null;
+		const originLeaf = getOpenFileOriginLeaf(this.app);
+		const promptDraftStore = InputPromptDraftStore.getInstance();
+		promptDraftStore.beginExecutionScope();
+		try {
+			await this.runOnePagePreflightIfEnabled(choice);
+
+			if (choice.type === "Template") {
+				await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf);
+			} else {
+				await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf);
+			}
+
+			if (this.pendingAbort) {
+				promptDraftStore.rollbackExecutionScope();
+				const abort = this.consumeAbortSignal();
+				return {
+					status: "cancelled",
+					cancelKind: abort instanceof UserCancelError ? "user" : "aborted",
+				};
+			}
+
+			promptDraftStore.commitExecutionScope();
+			const result = this.pendingResult;
+			this.pendingResult = null;
+			// No success recorded and no abort => the engine swallowed a failure.
+			return result ?? { status: "error" };
+		} catch (error) {
+			promptDraftStore.rollbackExecutionScope();
+			if (error instanceof UserCancelError) {
+				return { status: "cancelled", cancelKind: "user" };
+			}
+			if (error instanceof MacroAbortError) {
+				return { status: "cancelled", cancelKind: "aborted" };
+			}
+			reportError(error, "Error executing choice from URI");
+			return { status: "error" };
+		}
+	}
+
+	private async runOnePagePreflightIfEnabled(choice: IChoice): Promise<void> {
+		// One-page preflight honoring per-choice override.
+		const globalEnabled = settingsStore.getState().onePageInputEnabled;
+		const override = choice.onePageInput;
+		const shouldUseOnePager =
+			override === "always" || (override !== "never" && globalEnabled);
+		if (
+			shouldUseOnePager &&
+			(choice.type === "Template" ||
+				choice.type === "Capture" ||
+				choice.type === "Macro")
+		) {
+			try {
+				await runOnePagePreflight(
+					this.app,
+					this.plugin as unknown as QuickAdd,
+					this,
+					choice,
+				);
+			} catch (error) {
+				if (isCancellationError(error)) {
+					throw new UserCancelError("One-page input cancelled by user");
+				}
+				throw error;
+			}
 		}
 	}
 

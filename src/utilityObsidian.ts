@@ -502,28 +502,36 @@ export function getMarkdownEditorViewForFile(
 	return null;
 }
 
-export function appendToCurrentLine(toAppend: string, app: App) {
+/**
+ * @returns true if the text was inserted, false if there was no active Markdown
+ * editor to insert into (or insertion threw). Callers that need to know whether
+ * the capture actually landed (e.g. the URI x-callback handler) must check this.
+ */
+export function appendToCurrentLine(toAppend: string, app: App): boolean {
 	try {
 		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (!activeView) {
 			log.logError(`unable to append '${toAppend}' to current line.`);
-			return;
+			return false;
 		}
 
 		activeView.editor.replaceSelection(toAppend);
+		return true;
 	} catch {
 		log.logError(`unable to append '${toAppend}' to current line.`);
+		return false;
 	}
 }
 
-export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App) {
+/** @returns true if inserted, false if no active Markdown editor (or it threw). */
+export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App): boolean {
 	try {
 		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (!activeView) {
 			log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
-			return;
+			return false;
 		}
 
 		const editor = activeView.editor;
@@ -545,17 +553,19 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 			// Move cursor to end of inserted content
 			editor.setCursor({ line: lineNumber + insertedLineCount, ch: lastInsertedLineLength });
 		}
+		return true;
 	} catch {
 		log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
+		return false;
 	}
 }
 
-export function insertOnNewLineAbove(toInsert: string, app: App) {
-	insertOnNewLine(toInsert, "above", app);
+export function insertOnNewLineAbove(toInsert: string, app: App): boolean {
+	return insertOnNewLine(toInsert, "above", app);
 }
 
-export function insertOnNewLineBelow(toInsert: string, app: App) {
-	insertOnNewLine(toInsert, "below", app);
+export function insertOnNewLineBelow(toInsert: string, app: App): boolean {
+	return insertOnNewLine(toInsert, "below", app);
 }
 
 /**

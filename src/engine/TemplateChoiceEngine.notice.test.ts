@@ -114,6 +114,7 @@ import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 
@@ -199,7 +200,11 @@ const createEngine = (
 
 	if (options.throwDuringFileName !== false) {
 		formatFileNameMock.mockImplementation(async () => {
-			throw new MacroAbortError(abortMessage);
+			// A genuine user prompt-dismissal surfaces as UserCancelError in production
+			// (the formatter converts the cancellation); other aborts stay plain.
+			throw abortMessage.toLowerCase().includes("cancelled by user")
+				? new UserCancelError(abortMessage)
+				: new MacroAbortError(abortMessage);
 		});
 	} else {
 		formatFileNameMock.mockResolvedValue("Test Template");
@@ -278,7 +283,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			stubTemplateContent: true,
 		});
 		formatFileContentMock.mockRejectedValueOnce(
-			new MacroAbortError("Input cancelled by user"),
+			new UserCancelError("Input cancelled by user"),
 		);
 
 		await engine.run();

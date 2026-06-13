@@ -40,6 +40,7 @@ import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
+import { UserCancelError } from "./errors/UserCancelError";
 import { formatISODate } from "./utils/dateParser";
 import type { InputPromptOptions } from "./types/inputPrompt";
 import {
@@ -861,6 +862,6 @@ function throwIfPromptCancelled(error: unknown): void {
 		throw error;
 	}
 	if (isCancellationError(error)) {
-		throw new MacroAbortError("Input cancelled by user");
+		throw new UserCancelError("Input cancelled by user");
 	}
 }
