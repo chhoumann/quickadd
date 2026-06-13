@@ -64,6 +64,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					: "required",
 			);
 
+			// Resolve format tokens in the template path ONCE, up front (issue
+			// #620). Doing it before folder/file-name resolution means a cancelled
+			// path prompt aborts the run before any folder is created, and the
+			// resolved path feeds BOTH the target extension/name (below) and the
+			// content read — so the file that's read and the file that's created
+			// can never disagree.
+			const templatePath = await this.resolveTemplateSourcePath(
+				this.choice.templatePath,
+			);
+
 			let folderPath = "";
 
 			if (this.choice.folder.enabled) {
@@ -100,7 +110,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			const targetFilePath = this.normalizeTemplateFilePath(
 				treatAsVaultRelativePath ? "" : folderPath,
 				fileName,
-				this.choice.templatePath,
+				templatePath,
 			);
 
 			let createdFile: TFile | null;
@@ -130,6 +140,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					modeId,
 					targetFilePath,
 					existingFile,
+					templatePath,
 				));
 				if (!createdFile) {
 					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
@@ -139,7 +150,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			} else {
 				createdFile = await this.createFileWithTemplate(
 					targetFilePath,
-					this.choice.templatePath,
+					templatePath,
 				);
 				if (!createdFile) {
 					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
@@ -214,6 +225,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		modeId: FileExistsModeId,
 		targetFilePath: string,
 		existingFile: TFile | null,
+		templatePath: string,
 	): Promise<{ createdFile: TFile | null; shouldAutoOpen: boolean }> {
 		const mode = getFileExistsMode(modeId);
 
@@ -223,6 +235,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					createdFile: await this.applyExistingFileUpdate(
 						mode.id,
 						existingFile!,
+						templatePath,
 					),
 					shouldAutoOpen: false,
 				};
@@ -236,7 +249,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return {
 					createdFile: await this.createFileWithTemplate(
 						nextFilePath,
-						this.choice.templatePath,
+						templatePath,
 					),
 					shouldAutoOpen: false,
 				};
@@ -253,24 +266,25 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	private async applyExistingFileUpdate(
 		modeId: "appendTop" | "appendBottom" | "overwrite",
 		existingFile: TFile,
+		templatePath: string,
 	): Promise<TFile | null> {
 		switch (modeId) {
 			case "appendTop":
 				return await this.appendToFileWithTemplate(
 					existingFile,
-					this.choice.templatePath,
+					templatePath,
 					"top",
 				);
 			case "appendBottom":
 				return await this.appendToFileWithTemplate(
 					existingFile,
-					this.choice.templatePath,
+					templatePath,
 					"bottom",
 				);
 			case "overwrite":
 				return await this.overwriteFileWithTemplate(
 					existingFile,
-					this.choice.templatePath,
+					templatePath,
 				);
 		}
 	}

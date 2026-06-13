@@ -43,17 +43,25 @@ vi.mock("../quickAddSettingsTab", () => {
 	};
 });
 
-const { formatFileNameMock, formatFileContentMock } = vi.hoisted(() => {
-	const formatName = vi.fn<(format: string, prompt: string) => Promise<string>>();
-	const formatContent = vi
-		.fn<(...args: unknown[]) => Promise<string>>()
-		.mockResolvedValue("");
+const { formatFileNameMock, formatFileContentMock, formatTemplatePathMock } =
+	vi.hoisted(() => {
+		const formatName =
+			vi.fn<(format: string, prompt: string) => Promise<string>>();
+		const formatContent = vi
+			.fn<(...args: unknown[]) => Promise<string>>()
+			.mockResolvedValue("");
+		// Identity by default (literal paths); tests override to simulate a token
+		// that resolves to a different extension (issue #620).
+		const formatPath = vi
+			.fn<(input: string) => Promise<string>>()
+			.mockImplementation(async (input: string) => input);
 
-	return {
-		formatFileNameMock: formatName,
-		formatFileContentMock: formatContent,
-	};
-});
+		return {
+			formatFileNameMock: formatName,
+			formatFileContentMock: formatContent,
+			formatTemplatePathMock: formatPath,
+		};
+	});
 
 vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
@@ -67,6 +75,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async formatFileContent(...args: unknown[]) {
 			return await formatFileContentMock(...args);
 		}
+		async formatTemplateFilePath(input: string) {
+			return formatTemplatePathMock(input);
+		}
 		getAndClearTemplatePropertyVars() {
 			return new Map<string, unknown>();
 		}
@@ -76,6 +87,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		CompleteFormatter: CompleteFormatterMock,
 		formatFileNameMock,
 		formatFileContentMock,
+		formatTemplatePathMock,
 	};
 });
 
@@ -199,7 +211,43 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		formatFileNameMock.mockReset();
 		formatFileContentMock.mockReset();
+		formatTemplatePathMock.mockReset();
+		formatTemplatePathMock.mockImplementation(async (input: string) => input);
 		vi.mocked(GenericSuggester.Suggest).mockReset();
+	});
+
+	it("uses the RESOLVED template path for both the target extension and the read (issue #620)", async () => {
+		const { app, engine } = createEngine();
+		// Raw path carries a token that resolves to a .canvas template.
+		engine.choice.templatePath = "Templates/{{VALUE:type}}";
+		formatFileNameMock.mockResolvedValue("My Board");
+		formatTemplatePathMock.mockResolvedValueOnce("Templates/Board.canvas");
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			false,
+		);
+
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createExistingFile("My Board.canvas"));
+
+		await engine.run();
+
+		// Target extension comes from the resolved path (.canvas, not the raw
+		// token's default .md), and the resolved path is what gets read.
+		expect(createSpy).toHaveBeenCalledWith(
+			"My Board.canvas",
+			"Templates/Board.canvas",
+		);
 	});
 
 	it("prompts before applying increment mode when auto behavior is off", async () => {

@@ -15,6 +15,7 @@ import {
 } from "../../template/fileExistsPolicy";
 import { log } from "../../logger/logManager";
 import { getAllFolderPathsInVault, getTemplateFile } from "../../utilityObsidian";
+import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -52,9 +53,17 @@ let {
 const templatePaths = $derived(plugin.getTemplateFiles().map((f) => f.path));
 const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app)));
 
-function validateTemplatePath(raw: string): boolean | string {
+function validateTemplatePath(
+	raw: string,
+): boolean | string | { valid: boolean; message?: string } {
 	const value = raw.trim();
 	if (!value) return true;
+	// A path with format syntax (e.g. "Templates/{{value:type}} Template.md")
+	// can only be resolved when the choice runs, so don't flag it "not found";
+	// show a neutral hint instead (issue #620).
+	if (hasTemplatePathSyntax(value)) {
+		return { valid: true, message: "Contains format syntax — resolved at run time." };
+	}
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership: a template outside the configured folders
 	// still runs fine and must not be flagged "not found" (master #1170/#1325).

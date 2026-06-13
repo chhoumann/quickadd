@@ -67,6 +67,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async formatFileContent(...args: unknown[]) {
 			return await formatFileContentMock(...args);
 		}
+		async formatTemplateFilePath(input: string) {
+			return input;
+		}
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
 		}

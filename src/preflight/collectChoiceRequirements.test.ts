@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
+import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { collectChoiceRequirements } from "./collectChoiceRequirements";
@@ -11,26 +12,32 @@ const {
 	getMarkdownFilesInFolderMock,
 	getMarkdownFilesWithTagMock,
 	getUserScriptMock,
+	getTemplateFileMock,
 	isFolderMock,
 	logWarningMock,
+	logMessageMock,
 } = vi.hoisted(() => ({
 	getMarkdownFilesInFolderMock: vi.fn(() => []),
 	getMarkdownFilesWithTagMock: vi.fn(() => []),
 	getUserScriptMock: vi.fn(),
+	getTemplateFileMock: vi.fn(() => null),
 	isFolderMock: vi.fn(() => false),
 	logWarningMock: vi.fn(),
+	logMessageMock: vi.fn(),
 }));
 
 vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: getMarkdownFilesInFolderMock,
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
 	getUserScript: getUserScriptMock,
+	getTemplateFile: getTemplateFileMock,
 	isFolder: isFolderMock,
 }));
 
 vi.mock("src/logger/logManager", () => ({
 	log: {
 		logWarning: logWarningMock,
+		logMessage: logMessageMock,
 	},
 }));
 
@@ -263,5 +270,111 @@ describe("collectChoiceRequirements - capture targets", () => {
 					requirement.id === "QA_INTERNAL_CAPTURE_TARGET_FILE_PATH",
 			),
 		).toBe(false);
+	});
+});
+
+describe("collectChoiceRequirements - template path format syntax (issue #620)", () => {
+	const app = {} as App;
+	const plugin = { settings: { inputPrompt: "single-line" } } as any;
+
+	function createTemplateChoice(templatePath: string): ITemplateChoice {
+		return {
+			id: "template-choice",
+			name: "Template Choice",
+			type: "Template",
+			command: false,
+			templatePath,
+			fileNameFormat: { enabled: false, format: "" },
+			folder: {
+				enabled: false,
+				folders: [],
+				chooseWhenCreatingNote: false,
+				createInSameFolderAsActiveFile: false,
+				chooseFromSubfolders: false,
+			},
+			appendLink: false,
+			openFile: false,
+			fileOpening: {
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: true,
+			},
+			fileExistsBehavior: { kind: "prompt" },
+		} as ITemplateChoice;
+	}
+
+	beforeEach(() => {
+		getTemplateFileMock.mockReset();
+		getTemplateFileMock.mockReturnValue(null);
+		logMessageMock.mockReset();
+	});
+
+	it("collects a token in the template PATH itself and skips reading the (non-existent) body", async () => {
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createTemplateChoice("Templates/{{VALUE:collectionName}} Template.md"),
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "collectionName" }),
+			]),
+		);
+		// A dynamic path can't be resolved at preflight, so the body walk is
+		// skipped — getTemplateFile must not be called for a tokenized path.
+		expect(getTemplateFileMock).not.toHaveBeenCalled();
+	});
+
+	it("still walks the body for a literal (token-free) path", async () => {
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createTemplateChoice("Templates/Note.md"),
+		);
+
+		expect(getTemplateFileMock).toHaveBeenCalled();
+	});
+
+	it("collects a token in a Capture create-with-template path", async () => {
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			createFileIfItDoesntExist: {
+				enabled: true,
+				createWithTemplate: true,
+				template: "Templates/{{VALUE:kind}} Template.md",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			{ settings: { inputPrompt: "single-line" } } as any,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "kind" })]),
+		);
+		// Dynamic path → body not pre-read.
+		expect(getTemplateFileMock).not.toHaveBeenCalled();
 	});
 });

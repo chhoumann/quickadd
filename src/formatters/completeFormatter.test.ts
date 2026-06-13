@@ -785,3 +785,67 @@ describe("CompleteFormatter - pipeline ordering", () => {
 		);
 	});
 });
+
+describe("CompleteFormatter - formatTemplateFilePath (issue #620)", () => {
+	it("returns a literal (token-free) path unchanged", async () => {
+		const f = defaultFormatter();
+		await expect(
+			f.formatTemplateFilePath("Templates/Note.md"),
+		).resolves.toBe("Templates/Note.md");
+	});
+
+	it("resolves a named {{VALUE:x}} token in the path", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("Games");
+		const f = defaultFormatter();
+		await expect(
+			f.formatTemplateFilePath("Templates/{{VALUE:type}} Template.md"),
+		).resolves.toBe("Templates/Games Template.md");
+	});
+
+	it("throws on {{title}} (the title derives from the created file)", async () => {
+		const f = defaultFormatter();
+		await expect(
+			f.formatTemplateFilePath("Templates/{{title}}.md"),
+		).rejects.toThrow(/title/i);
+	});
+
+	it("throws on {{title}} even when injected via a global variable", async () => {
+		const f = defaultFormatter({
+			globalVariables: { p: "Templates/{{title}}.md" },
+		});
+		await expect(
+			f.formatTemplateFilePath("{{GLOBAL_VAR:p}}"),
+		).rejects.toThrow(/title/i);
+	});
+
+	it("leaves {{FOLDER}} literal — meaningless in a source path", async () => {
+		const f = defaultFormatter();
+		f.setTargetFolderPath("Projects/Acme");
+		await expect(
+			f.formatTemplateFilePath("Templates/{{FOLDER}}/Note.md"),
+		).resolves.toBe("Templates/{{FOLDER}}/Note.md");
+	});
+
+	it("does NOT run macros to compute a path (left literal, never executed)", async () => {
+		const f = defaultFormatter();
+		await expect(
+			f.formatTemplateFilePath("Templates/{{MACRO:foo}}.md"),
+		).resolves.toBe("Templates/{{MACRO:foo}}.md");
+		expect(mocks.macroRunAndGetOutput).not.toHaveBeenCalled();
+	});
+
+	it("does NOT splice {{TEMPLATE:}} inclusion into a path", async () => {
+		const f = defaultFormatter();
+		await expect(
+			f.formatTemplateFilePath("Templates/{{TEMPLATE:partial.md}}.md"),
+		).resolves.toBe("Templates/{{TEMPLATE:partial.md}}.md");
+		expect(mocks.templateRun).not.toHaveBeenCalled();
+	});
+
+	it("trims the resolved path so the extension and lookup can't disagree", async () => {
+		const f = defaultFormatter();
+		await expect(
+			f.formatTemplateFilePath("  Templates/Note.md  "),
+		).resolves.toBe("Templates/Note.md");
+	});
+});

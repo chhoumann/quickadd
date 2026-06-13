@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { getTemplateFile } from "../../utilityObsidian";
+import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import SettingItem from "../components/SettingItem.svelte";
 import Toggle from "../components/Toggle.svelte";
@@ -41,9 +42,17 @@ const formatSuggesters = [
 		new FormatSyntaxSuggester(app, el, plugin),
 ];
 
-function validateTemplate(raw: string): boolean | string {
+function validateTemplate(
+	raw: string,
+): boolean | string | { valid: boolean; message?: string } {
 	const value = raw.trim();
 	if (!value) return true;
+	// A path with format syntax (e.g. "Templates/{{value:type}} Template.md")
+	// only resolves when the capture runs, so show a neutral hint rather than
+	// flagging it "not found" (issue #620).
+	if (hasTemplatePathSyntax(value)) {
+		return { valid: true, message: "Contains format syntax — resolved at run time." };
+	}
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership (templates outside the configured folders are
 	// valid). Mirrors templateChoiceBuilder (master #1170/#1325).

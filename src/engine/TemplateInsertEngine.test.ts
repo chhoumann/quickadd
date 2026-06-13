@@ -34,6 +34,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async formatFolderPath(folder: string) {
 			return this.resolveFolder(folder);
 		}
+		async formatTemplateFilePath(input: string) {
+			return input;
+		}
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
 		}

@@ -18,6 +18,7 @@ import {
 	isFolder,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
+import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
@@ -102,6 +103,50 @@ async function readTemplate(app: App, path: string): Promise<string> {
 	return file ? await app.vault.cachedRead(file) : "";
 }
 
+/**
+ * Collects requirements from a template *source* path and (when resolvable) its
+ * body. Shared by Template choices and Capture "create with template" so both
+ * stay in sync (issue #620):
+ *  - Always scans the path string itself, so tokens IN the path (e.g.
+ *    `Templates/{{value:type}} Template.md`) are collected up front.
+ *  - If the path uses format syntax, the body can't be pre-scanned (the path
+ *    depends on the very answers we're collecting); those prompts surface at run
+ *    time. Logged so it isn't a silent gap.
+ *  - Otherwise walks the literal template body (and nested {{TEMPLATE:}}).
+ */
+async function scanTemplateSource(
+	app: App,
+	collector: RequirementCollector,
+	templatePath: string,
+): Promise<void> {
+	await collector.scanString(templatePath);
+
+	if (hasTemplatePathSyntax(templatePath)) {
+		log.logMessage(
+			`Preflight: template path "${templatePath}" uses format syntax; its body's prompts are collected at run time, not in the one-page form.`,
+		);
+		return;
+	}
+
+	const visited = new Set<string>();
+	const walk = async (path: string) => {
+		if (visited.has(path)) return;
+		visited.add(path);
+		const content = await readTemplate(app, path);
+		await collector.scanString(content);
+		// Snapshot and clear the shared discovery set BEFORE recursing: a nested
+		// walk() runs scanString again, which would otherwise mutate (and then
+		// clear) the very set we're iterating, dropping sibling/grandchild
+		// templates from the scan.
+		const nested = [...collector.templatesToScan];
+		collector.templatesToScan.clear();
+		for (const ref of nested) {
+			if (!visited.has(ref)) await walk(ref);
+		}
+	};
+	await walk(templatePath);
+}
+
 async function collectForTemplateChoice(
 	app: App,
 	plugin: QuickAdd,
@@ -121,18 +166,7 @@ async function collectForTemplateChoice(
 	}
 
 	if (choice.templatePath) {
-		const visited = new Set<string>();
-		const walk = async (path: string) => {
-			if (visited.has(path)) return;
-			visited.add(path);
-			const content = await readTemplate(app, path);
-			await collector.scanString(content);
-			for (const nested of collector.templatesToScan) {
-				if (!visited.has(nested)) await walk(nested);
-			}
-			collector.templatesToScan.clear();
-		};
-		await walk(choice.templatePath);
+		await scanTemplateSource(app, collector, choice.templatePath);
 	}
 
 	return collector;
@@ -157,6 +191,19 @@ async function collectForCaptureChoice(
 
 	if (choice.format?.enabled) {
 		await collector.scanString(choice.format.format);
+	}
+
+	// Capture's "create file if it doesn't exist → with template" runs through
+	// SingleTemplateEngine, which resolves format tokens in the template path
+	// (issue #620). Mirror the Template-choice preflight so the one-page form /
+	// CLI collect the path's (and, for a literal path, the body's) inputs.
+	const createWithTemplate = choice.createFileIfItDoesntExist;
+	if (
+		createWithTemplate?.enabled &&
+		createWithTemplate.createWithTemplate &&
+		createWithTemplate.template
+	) {
+		await scanTemplateSource(app, collector, createWithTemplate.template);
 	}
 
 	const formattedTarget = choice.captureTo?.trim() ?? "";

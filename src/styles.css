@@ -1356,6 +1356,12 @@
 	min-height: 16px;
 }
 
+/* A valid field can still show an informational hint (e.g. a template path with
+   format syntax that "resolves at run time"); render it muted, not error-red. */
+.qa-field-hint--neutral {
+	color: var(--text-muted);
+}
+
 input.is-invalid,
 textarea.is-invalid {
 	box-shadow: 0 0 0 1px var(--text-error);

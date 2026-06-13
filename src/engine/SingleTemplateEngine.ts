@@ -16,11 +16,15 @@ export class SingleTemplateEngine extends TemplateEngine {
 		super(app, plugin, choiceExecutor, inclusion);
 	}
 	public async run(): Promise<string> {
+		// Resolve format tokens in the template path (issue #620) before reading.
+		const resolvedTemplatePath = await this.resolveTemplateSourcePath(
+			this.templatePath,
+		);
 		let templateContent: string = await this.getTemplateContent(
-			this.templatePath
+			resolvedTemplatePath
 		);
 		if (!templateContent) {
-			log.logError(`Template ${this.templatePath} not found.`);
+			log.logError(`Template ${resolvedTemplatePath} not found.`);
 		}
 
 		templateContent = await this.formatter.withTemplatePropertyCollection(

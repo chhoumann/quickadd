@@ -122,6 +122,66 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	/**
+	 * Resolves QuickAdd format tokens inside a *template source path*, so a
+	 * choice can point at e.g. "Templates/{{value:type}} Template.md" (issue
+	 * #620). This is deliberately a PATH-SAFE subset of {@link format}: it
+	 * resolves value/date/time/field/global/selected/clipboard/random/math
+	 * tokens, but never runs macros, inline JavaScript, or {{TEMPLATE:}}
+	 * inclusion — a file-path lookup should not execute code or splice another
+	 * template's body into a path. Note-relative tokens ({{title}}, {{FOLDER}},
+	 * {{FILENAMECURRENT}}, {{LINKCURRENT}}) are intentionally left literal: a
+	 * source template has no "current note" or target folder, so an unresolved
+	 * token fails visibly instead of silently collapsing the path.
+	 *
+	 * Resolve once at the engine entry and thread the result downward; the
+	 * resolved path then feeds BOTH the target file's extension/name and the
+	 * content read, so they can never disagree (e.g. a token that expands to
+	 * `.canvas`). Do not re-run this on an already-resolved path — tokens like
+	 * {{date}} / {{random}} would re-evaluate to a different value.
+	 */
+	async formatTemplateFilePath(input: string): Promise<string> {
+		if (/\{\{title\}\}/i.test(input)) {
+			throw new Error(
+				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
+			);
+		}
+
+		let output = input;
+		// Expand globals first so an injected snippet's path-safe tokens resolve.
+		output = await this.replaceGlobalVarInString(output);
+
+		// A global variable can itself expand to "{{title}}", slipping past the
+		// up-front guard. Re-check here — after global expansion but BEFORE
+		// user-input substitution — so a global-injected {{title}} throws the
+		// clear circular-title error, without false-positiving on a user value
+		// that merely contains the literal text "{{title}}".
+		if (/\{\{title\}\}/i.test(output)) {
+			throw new Error(
+				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
+			);
+		}
+
+		// Path-safe replacers, mirroring the tail of format() (completeFormatter
+		// .format) MINUS macros, inline JS, and {{TEMPLATE:}} inclusion. Keep this
+		// list in sync with format() when adding a path-safe token.
+		output = this.replaceDateInString(output);
+		output = this.replaceTimeInString(output);
+		output = await this.replaceValueInString(output);
+		output = await this.replaceSelectedInString(output);
+		output = await this.replaceClipboardInString(output);
+		output = await this.replaceDateVariableInString(output);
+		output = await this.replaceVariableInString(output);
+		output = await this.replaceFieldVarInString(output);
+		output = await this.replaceMathValueInString(output);
+		output = this.replaceRandomInString(output);
+
+		// Trim so the suffix the engine reads for the extension matches the path
+		// getTemplateFile ultimately resolves (which trims) — otherwise a token
+		// that leaves trailing whitespace could split the two.
+		return output.trim();
+	}
+
+	/**
 	 * Formats small inline target strings used for location matching, e.g.,
 	 * the line-target capture selectors. This intentionally does not run Templater,
 	 * but applies the core QuickAdd format pipeline plus link/title expansion
