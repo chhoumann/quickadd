@@ -53,7 +53,16 @@ export default {
 				}
 			}
 
-			const normalizedFolders = normalizeTemplateFolderPaths(folders);
+			// Merge with any already-configured folders rather than replacing them,
+			// so this can't clobber values set by another migration regardless of
+			// run order; normalizeTemplateFolderPaths de-duplicates.
+			const existing = normalizeTemplateFolderPaths(
+				plugin.settings.templateFolderPaths,
+			);
+			const normalizedFolders = normalizeTemplateFolderPaths([
+				...existing,
+				...folders,
+			]);
 			if (normalizedFolders.length > 0) {
 				plugin.settings.templateFolderPaths = normalizedFolders;
 			}
