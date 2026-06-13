@@ -13,12 +13,17 @@ import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { MacroAbortError } from "../errors/MacroAbortError";
 
-// Member names that QuickAdd itself treats as conventions rather than entrypoints
-// (`settings` is consumed by initializeUserScriptSettings; `entry` is the object-export
-// entrypoint handled by MacroChoiceEngine). They are exported by many scripts, so a
-// `{{MACRO:Name::settings}}` reference must keep resolving (first-declared exporter wins,
-// as it did before 2.12.1) instead of hard-aborting on a conflict like a real entrypoint.
-const RESERVED_CONVENTION_KEYS = new Set<string>(["settings", "entry"]);
+// Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
+// `settings` (consumed by initializeUserScriptSettings), `entry` (the object-export entrypoint
+// handled by MacroChoiceEngine), and `quickadd` (read by collectChoiceRequirements for declared
+// inputs). They are exported by many scripts, so a `{{MACRO:Name::settings}}` reference must keep
+// resolving (first-declared exporter wins, as it did before 2.12.1) instead of hard-aborting on a
+// conflict the way a real, ambiguous entrypoint should.
+const RESERVED_CONVENTION_KEYS = new Set<string>([
+	"settings",
+	"entry",
+	"quickadd",
+]);
 
 type UserScriptCandidate = {
 	command: IUserScript;
@@ -165,15 +170,17 @@ export class SingleMacroEngine {
 		// no user-script command that could provide the member — so a failed lookup would
 		// otherwise resolve to an empty string silently. Warn instead of guessing.
 		if (memberAccess?.length) {
-			const resolved = this.applyMemberAccess(result, memberAccess);
-			if (resolved === undefined) {
+			// Use the found/value distinction so a member that genuinely exists but holds
+			// `undefined` is not mistaken for a missing one (which would warn spuriously).
+			const lookup = this.resolveMemberAccess(result, memberAccess);
+			if (!lookup.found) {
 				log.logWarning(
 					`Macro '${macroChoice.name}' was asked for member '${memberAccess.join(
 						"::",
 					)}', but it has no user script exporting it; the result is empty.`,
 				);
 			}
-			result = resolved;
+			result = lookup.value;
 		}
 
 		// Handle functions and objects properly
@@ -519,33 +526,6 @@ export class SingleMacroEngine {
 			index: matchingScripts[0].index,
 			memberAccess: memberAccess.slice(1),
 		};
-	}
-
-	private applyMemberAccess(
-		result: unknown,
-		memberAccess: string[],
-	): unknown {
-		let current = result;
-
-		for (const key of memberAccess) {
-			if (
-				current === undefined ||
-				current === null ||
-				(typeof current !== "object" && typeof current !== "function")
-			) {
-				return undefined;
-			}
-
-			const container = current as Record<string, unknown>;
-
-			if (!(key in container)) {
-				return undefined;
-			}
-
-			current = container[key];
-		}
-
-		return current;
 	}
 
 	private syncVariablesFromParams(engine: MacroChoiceEngine) {

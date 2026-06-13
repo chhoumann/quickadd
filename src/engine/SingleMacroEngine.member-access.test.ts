@@ -578,6 +578,38 @@ describe("SingleMacroEngine member access", () => {
 		warnSpy.mockRestore();
 	});
 
+	it("treats `quickadd` (declared-inputs metadata convention) as a reserved key too", async () => {
+		const scriptA = createUserScript("script-a", "a.js", {
+			name: "Alpha Script",
+		});
+		const scriptB = createUserScript("script-b", "b.js", {
+			name: "Beta Script",
+		});
+
+		const engineInstance = macroEngineFactory();
+		macroEngineFactory = () => engineInstance;
+
+		mockGetUserScript.mockImplementation(async (command: IUserScript) => ({
+			quickadd: { tag: command.id === "script-a" ? "FIRST" : "SECOND" },
+		}));
+
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+
+		const engine = new SingleMacroEngine(
+			app,
+			plugin,
+			[baseMacroChoice([scriptA, scriptB])],
+			choiceExecutor,
+		);
+
+		const result = await engine.runAndGetOutput("My Macro::quickadd");
+
+		expect(result).toBe('{"tag":"FIRST"}');
+		expect(warnSpy).toHaveBeenCalledTimes(1);
+
+		warnSpy.mockRestore();
+	});
+
 	it("still aborts on a non-reserved member conflict (regression guard for the deliberate hard-abort)", async () => {
 		const scriptA = createUserScript("script-a", "a.js", {
 			name: "Alpha Script",
@@ -688,12 +720,22 @@ describe("SingleMacroEngine member access", () => {
 		const target = createUserScript("script-target", "target.js", {
 			name: "Target Script",
 		});
-		const macroChoice = baseMacroChoice([preScript, target]);
+		// A trailing user script means the target's original index still points at a real
+		// user-script command AFTER the target is removed — so a buggy stale-index fallback
+		// would silently route to this neighbour instead of aborting. The id-based refresh
+		// must abort regardless.
+		const tail = createUserScript("script-tail", "tail.js", {
+			name: "Tail Script",
+		});
+		const macroChoice = baseMacroChoice([preScript, target, tail]);
 
 		const exportFn = vi.fn().mockReturnValue("target-result");
 		mockGetUserScript.mockImplementation(async (command: IUserScript) => {
 			if (command.id === "script-target") {
 				return { settings: {}, beta: exportFn };
+			}
+			if (command.id === "script-tail") {
+				return { settings: {}, gamma: vi.fn() };
 			}
 			return { settings: {}, alpha: vi.fn() };
 		});
@@ -701,7 +743,7 @@ describe("SingleMacroEngine member access", () => {
 		const engineInstance = macroEngineFactory();
 		// A pre-command deletes the selected target command by id. The id can no longer be
 		// found, so the engine must abort instead of falling back to the (now stale) index,
-		// which would point at a different user script.
+		// which after removal points at the Tail Script.
 		engineInstance.runSubset = vi.fn().mockImplementation(async () => {
 			macroChoice.macro.commands = macroChoice.macro.commands.filter(
 				(command) => command.id !== "script-target",
