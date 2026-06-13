@@ -414,6 +414,10 @@ QuickAdd resolves `Macro::member` like this:
 - If no script exports the requested member, QuickAdd stops and shows an error.
 - If multiple scripts export the requested member, QuickAdd stops and lists the
   conflicting script names instead of guessing.
+- Exception: the convention keys `settings` and `entry` (which many scripts export)
+  resolve to the **first** script that exports them and show a one-time notice
+  pointing at the selector form below, rather than stopping. Use the selector if you
+  need a different script.
 
 If there is a conflict, you can target a specific script by name:
 - `{{MACRO:MyMacro::Script 1::option1}}`
