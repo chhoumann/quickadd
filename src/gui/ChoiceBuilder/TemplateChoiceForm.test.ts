@@ -159,9 +159,9 @@ describe("TemplateChoiceForm", () => {
 			enabled: true,
 			createInSameFolderAsActiveFile: true,
 			chooseWhenCreatingNote: false,
-			// reset outside "specified" so the InsertEngine move-offer stays available
-			chooseFromSubfolders: false,
-			// the costly list is preserved across the switch
+			// preserved across the switch (matches the old form; restored on return
+			// to "specified") — only the mode-discriminant flags change
+			chooseFromSubfolders: true,
 			folders: ["Notes"],
 		});
 		expect(container.querySelector(".qa-folder-path-input")).toBeNull();

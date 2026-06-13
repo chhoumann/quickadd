@@ -3,7 +3,7 @@ import type { TemplateFolderConfig } from "../../types/choices/ITemplateChoice";
 import {
 	applyFolderMode,
 	deriveFolderMode,
-	FOLDER_MODE_OPTIONS,
+	folderModeOptions,
 	type FolderMode,
 } from "./folderMode";
 
@@ -119,17 +119,21 @@ describe("applyFolderMode", () => {
 		}
 	});
 
-	it("keeps chooseFromSubfolders only in 'specified' mode (inert elsewhere)", () => {
+	it("preserves chooseFromSubfolders across every mode switch (matches the old form)", () => {
 		const withSubfolders = config({
 			enabled: true,
 			chooseFromSubfolders: true,
 			folders: ["Notes"],
 		});
-		expect(applyFolderMode(withSubfolders, "specified").chooseFromSubfolders).toBe(
-			true,
-		);
-		for (const mode of ["obsidian-default", "active-file", "prompt"] as const) {
+		for (const mode of MODES) {
 			expect(applyFolderMode(withSubfolders, mode).chooseFromSubfolders).toBe(
+				true,
+			);
+		}
+		// And a false value stays false everywhere.
+		const noSubfolders = config({ enabled: true, folders: ["Notes"] });
+		for (const mode of MODES) {
+			expect(applyFolderMode(noSubfolders, mode).chooseFromSubfolders).toBe(
 				false,
 			);
 		}
@@ -143,7 +147,7 @@ describe("applyFolderMode", () => {
 	});
 
 	it("exposes a dropdown option for every mode", () => {
-		expect(FOLDER_MODE_OPTIONS.map((o) => o.value).sort()).toEqual(
+		expect(folderModeOptions.map((o) => o.value).sort()).toEqual(
 			[...MODES].sort(),
 		);
 	});

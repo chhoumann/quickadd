@@ -20,15 +20,13 @@ If you want a new markdown note to include a live embedded Base dashboard, see
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
 If you disable **File Name Format**, QuickAdd uses `{{VALUE}}` as the file name format. This keeps the default behavior of prompting for a file name when you run the choice, with the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs.
 
-**Create in folder**. In which folder should the file be created in.
-You can specify as many folders as you want. If you don't, it'll just create the file in the root directory. If you specify one folder, it'll automatically create the file in there.
-If you specify multiple folders, you'll get a suggester asking which of the folders you wish to create the file in.
-Folder paths also support QuickAdd [format syntax](/FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables. For example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
+**New note location**. A dropdown that controls where the note is created. Pick one of four modes:
+- **Obsidian default** – use Obsidian's "Default location for new notes" setting.
+- **In a specific folder** – create the note in the folder(s) you configure below. If you specify one folder, the note is created there; if you specify multiple, you'll get a suggester asking which folder to use. An **Include subfolders** toggle (shown only in this mode) lets the suggester offer the selected folders *and* their subfolders. Folder paths support QuickAdd [format syntax](/FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables — for example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
+- **Same folder as current file** – create the note next to the currently active file (falls back to the vault root if no file is open).
+- **Ask for folder each time** – prompt you to pick any folder in the vault each time the choice runs.
 
-When **Create in folder** is enabled, a few sub-toggles appear:
-- **Choose folder when creating a new note** – instead of using the folders configured here, prompt you to pick a destination folder each time the choice runs.
-- **Include subfolders** – when prompted, choose from both the selected folders and their subfolders when creating the note.
-- **Create in same folder as active file** – creates the file in the same folder as the currently active file. Will not create the file if there is no active file.
+Switching modes hides the fields that don't apply, but your configured folder list is kept — switching back restores it.
 
 **Link to created file**. Choose how QuickAdd should insert a link to the created file in the current note. Pick one of three modes:
 - **Enabled (requires active file)** – throw an error if no note is focused (legacy behavior)

@@ -316,6 +316,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return folderPaths;
 	}
 
+	// The branch precedence below is mirrored by the choice builder's folder-mode
+	// dropdown (gui/ChoiceBuilder/folderMode.ts → deriveFolderMode). If you change
+	// the order or conditions here, update that helper (and its 16-combo test) so
+	// the dropdown keeps showing the mode that actually runs.
 	private async getFolderPath() {
 		const folders: string[] = await this.formatFolderPaths([
 			...this.choice.folder.folders,

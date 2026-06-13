@@ -36,14 +36,17 @@ export function deriveFolderMode(folder: TemplateFolderConfig): FolderMode {
 /**
  * Return a NEW folder config with the canonical flags for `mode`.
  *
- * - `folders[]` (the expensive, user-entered list) is preserved across every
- *   switch, so hiding a mode never deletes the configured folders (#1131: the
- *   reporter's "my config disappeared" anxiety).
- * - `chooseFromSubfolders` is owned by "specified" mode and reset to `false`
- *   everywhere else. It is NOT fully inert outside "specified":
- *   `TemplateInsertEngine.computeChoiceTargetPath` reads it UNGATED, so a leftover
- *   `true` would make the apply-to-note move-offer silently unavailable for an
- *   otherwise-resolvable active-file choice. Resetting keeps every mode canonical.
+ * Only the mode-discriminant flags (`enabled`, `chooseWhenCreatingNote`,
+ * `createInSameFolderAsActiveFile`) are set; `folders[]` and `chooseFromSubfolders`
+ * are PRESERVED across every switch. This matches the previous toggle form, which
+ * hid but never cleared those values — so switching mode and back never loses the
+ * user's folder list or their "Include subfolders" preference.
+ *
+ * `chooseFromSubfolders` only affects the engine in "specified" mode (its branch 1
+ * is gated by `!(chooseWhenCreatingNote || createInSameFolderAsActiveFile)`), so a
+ * preserved value is inert in the other modes here. (Note:
+ * `TemplateInsertEngine.computeChoiceTargetPath` reads it ungated — a pre-existing
+ * quirk, unchanged by this UI work.)
  */
 export function applyFolderMode(
 	folder: TemplateFolderConfig,
@@ -56,7 +59,6 @@ export function applyFolderMode(
 				enabled: false,
 				chooseWhenCreatingNote: false,
 				createInSameFolderAsActiveFile: false,
-				chooseFromSubfolders: false,
 			};
 		case "specified":
 			return {
@@ -71,7 +73,6 @@ export function applyFolderMode(
 				enabled: true,
 				createInSameFolderAsActiveFile: true,
 				chooseWhenCreatingNote: false,
-				chooseFromSubfolders: false,
 			};
 		case "prompt":
 			return {
@@ -79,19 +80,18 @@ export function applyFolderMode(
 				enabled: true,
 				chooseWhenCreatingNote: true,
 				createInSameFolderAsActiveFile: false,
-				chooseFromSubfolders: false,
 			};
 	}
 }
 
-export const FOLDER_MODE_OPTIONS: { value: FolderMode; label: string }[] = [
+export const folderModeOptions: { value: FolderMode; label: string }[] = [
 	{ value: "obsidian-default", label: "Obsidian default" },
 	{ value: "specified", label: "In a specific folder" },
 	{ value: "active-file", label: "Same folder as current file" },
 	{ value: "prompt", label: "Ask for folder each time" },
 ];
 
-export const FOLDER_MODE_DESCRIPTIONS: Record<FolderMode, string> = {
+export const folderModeDescriptions: Record<FolderMode, string> = {
 	"obsidian-default":
 		"Use Obsidian's “Default location for new notes” setting.",
 	specified:

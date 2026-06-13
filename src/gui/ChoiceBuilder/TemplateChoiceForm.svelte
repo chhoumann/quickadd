@@ -22,8 +22,8 @@ import FolderList from "./FolderList.svelte";
 import {
 	applyFolderMode,
 	deriveFolderMode,
-	FOLDER_MODE_DESCRIPTIONS,
-	FOLDER_MODE_OPTIONS,
+	folderModeDescriptions,
+	folderModeOptions,
 	type FolderMode,
 } from "./folderMode";
 import SettingItem from "../components/SettingItem.svelte";
@@ -79,7 +79,7 @@ const fileNameSuggesters = [
 // modes; the dropdown is a derived view over them (no schema change). The mode
 // mirrors TemplateChoiceEngine.getFolderPath() precedence — see folderMode.ts.
 const folderMode = $derived(deriveFolderMode(choice.folder));
-const folderModeDesc = $derived(FOLDER_MODE_DESCRIPTIONS[folderMode]);
+const folderModeDesc = $derived(folderModeDescriptions[folderMode]);
 const needsFolderList = $derived(
 	folderMode === "specified" && choice.folder.folders.length === 0,
 );
@@ -199,7 +199,7 @@ function onModeChange(value: string) {
 	{#snippet control()}
 		<Dropdown
 			value={folderMode}
-			options={FOLDER_MODE_OPTIONS}
+			options={folderModeOptions}
 			ariaLabel="New note location"
 			onchange={onFolderModeChange}
 		/>
@@ -227,8 +227,8 @@ function onModeChange(value: string) {
 
 	{#if needsFolderList}
 		<div class="qa-folder-mode-warning">
-			Add at least one folder, or the note will be created in the active file's
-			folder instead of a specific one.
+			Add at least one folder. With none, the note falls back to the active
+			file's folder (or you'll be prompted to pick one if no file is open).
 		</div>
 	{/if}
 
