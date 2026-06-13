@@ -32,6 +32,7 @@ import type QuickAdd from "./main";
 import { OnePageInputModal } from "./preflight/OnePageInputModal";
 import type { FieldRequirement } from "./preflight/RequirementCollector";
 import { settingsStore } from "./settingsStore";
+import { log } from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";
 import { getDate } from "./utilityObsidian";
 import { isCancellationError, reportError } from "./utils/errorUtils";
@@ -50,6 +51,10 @@ import {
 	templateInsertModes,
 	type TemplateInsertModeId,
 } from "./engine/TemplateInsertEngine";
+
+// Emit the countTokens deprecation hint at most once per session (console only,
+// via log.logMessage — never a Notice — so scripts calling it in a loop aren't spammed).
+let warnedCountTokensDeprecated = false;
 
 function snapshotVariables(
 	vars: Map<string, unknown>,
@@ -550,6 +555,12 @@ export class QuickAddApi {
 				// QuickAdd no longer bundles model-specific tokenizers, so this is
 				// a thin alias for the provider-agnostic estimator.
 				countTokens(text: string, _model?: Model | string) {
+					if (!warnedCountTokensDeprecated) {
+						warnedCountTokensDeprecated = true;
+						log.logMessage(
+							"quickAddApi.ai.countTokens is deprecated and now returns a provider-agnostic estimate (the model argument is ignored). Use estimateTokens(text) instead.",
+						);
+					}
 					return estimateTokenCount(text);
 				},
 				getRequestLogs(limit = 10) {

@@ -18,6 +18,23 @@ describe("classifyProviderError", () => {
 		).toBe("input_context");
 	});
 
+	it("classifies 'exceeded the … token/context' messages from compatible servers", () => {
+		// Past-tense "exceeded" and input-token phrasings common to OpenAI-compatible
+		// / local LLM servers must still be detected as input-context.
+		expect(
+			classifyProviderError(new Error("Request exceeded the maximum token limit"))
+		).toBe("input_context");
+		expect(
+			classifyProviderError(
+				new Error("This request exceeded the allowed input context")
+			)
+		).toBe("input_context");
+		// An output-token error must NOT be caught by it.
+		expect(
+			classifyProviderError(new Error("max output tokens exceeded"))
+		).toBe("output_budget");
+	});
+
 	it("classifies Gemini input-token overflow as input_context", () => {
 		// Real Gemini 400 shape.
 		const geminiError = new Error(

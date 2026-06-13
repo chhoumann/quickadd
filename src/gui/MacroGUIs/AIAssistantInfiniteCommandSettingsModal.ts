@@ -27,8 +27,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
-		const model = getModelByName(this.settings.model);
-		if (!model) return Number.POSITIVE_INFINITY;
+		// The estimate is provider-agnostic, so it no longer depends on the model.
 		return estimateTokenCount(this.settings.systemPrompt);
 	}
 

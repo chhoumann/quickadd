@@ -17,6 +17,9 @@ const INPUT_CONTEXT_LIMIT_PATTERNS = [
 	/prompt(?: is)? too long/i,
 	/input token count/i, // Gemini: "The input token count (N) exceeds the maximum number of tokens allowed (M)."
 	/reduce the length of (?:the |your )?(?:messages|prompt|input)/i,
+	// OpenAI-compatible / local servers: "exceeded the maximum (input) token/context …".
+	// Output-budget errors are matched earlier, so this stays input-specific.
+	/exceed(?:s|ed|ing)? (?:the )?(?:maximum |allowed )?(?:input |prompt )?(?:token|context)/i,
 ];
 
 // Signals that the failure is about the *output*/completion budget itself (the

@@ -638,9 +638,10 @@ if (tokenCount > 4000) {
 }
 ```
 
-### `countTokens(text: string, model: string): number`
-Compatibility alias for `estimateTokens`. The `model` argument is accepted for
-existing scripts, but QuickAdd no longer bundles model-specific tokenizers.
+### `countTokens(text: string, model: string | {name: string}): number`
+Compatibility alias for `estimateTokens`. The `model` argument (a model name or
+object) is accepted for existing scripts but ignored, since QuickAdd no longer
+bundles model-specific tokenizers. Prefer `estimateTokens(text)`.
 
 ### `getRequestLogs(limit?: number): Array<object>`
 Returns recent in-memory AI request logs (newest first).

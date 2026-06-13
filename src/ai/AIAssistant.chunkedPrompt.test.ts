@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { CommonResponse } from "./OpenAIRequest";
 
@@ -31,6 +31,10 @@ vi.mock("./aiHelpers", () => ({
 const { ChunkedPrompt } = await import("./AIAssistant");
 
 vi.stubGlobal("sleep", async () => {});
+
+afterAll(() => {
+	vi.unstubAllGlobals();
+});
 
 function makeApp(): App {
 	return {} as App;

@@ -15,7 +15,7 @@ import {
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
 import { estimateTokenCount } from "src/ai/tokenEstimator";
-import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { getModelNames } from "src/ai/aiHelpers";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand>;
@@ -27,11 +27,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
-		if (this.settings.model === "Ask me") return Number.POSITIVE_INFINITY;
-
-		const model = getModelByName(this.settings.model);
-		if (!model) return Number.POSITIVE_INFINITY;
-
+		// The estimate is provider-agnostic, so it no longer depends on the model.
 		return estimateTokenCount(this.settings.systemPrompt);
 	}
 
@@ -217,11 +213,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		const formatDisplay = this.contentEl.createEl("span");
 		const updateTokenCount = debounce(() => {
-			tokenCount.innerText = `Estimated tokens: ${
-				this.systemPromptTokenLength !== Number.POSITIVE_INFINITY
-					? this.systemPromptTokenLength
-					: "select a model to calculate"
-			}`;
+			tokenCount.innerText = `Estimated tokens: ${this.systemPromptTokenLength}`;
 		}, 50);
 
 		updateTokenCount();
