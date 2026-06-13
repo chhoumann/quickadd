@@ -566,9 +566,9 @@ export function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
-	options: { requireActiveView?: boolean; } = {},
+	options: { requireActiveView?: boolean; frontmatterProperty?: string} = {},
 ) {
-	const { requireActiveView = true } = options;
+	const { requireActiveView = true, frontmatterProperty = '' } = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
 		const message = "Cannot append link because no active Markdown view is available.";
@@ -596,6 +596,33 @@ export function insertLinkWithPlacement(
 	if (mode === "replaceSelection") {
 		editor.replaceSelection(text);
 		return;
+	}
+	
+	//////////////////////////////////////////////////////////////////
+	//  FRONTMATTER-SELECTION
+	//////////////////////////////////////////////////////////////////
+
+	if (mode === "inFrontmatter") {
+		if(!frontmatterProperty) {
+			const message = "Invalid frontmatter property: " + frontmatterProperty;
+			throw new Error(message);
+		}
+		const file = view.file;
+		if(!file) {
+			const message = "Could not find file of active view";
+			throw new Error(message);
+		}
+		app.fileManager.processFrontMatter(file, (frontmatter) => {
+			if (frontmatter[frontmatterProperty] === undefined || frontmatter[frontmatterProperty] === null) {
+				frontmatter[frontmatterProperty] = []
+			}
+			if (!Array.isArray(frontmatter[frontmatterProperty])) {
+				const message = "Could not add into non array property:" + frontmatterProperty;
+				throw new Error(message)
+			}
+			frontmatter[frontmatterProperty].push(text)
+		})
+		return
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -748,7 +775,7 @@ export function insertFileLinkToActiveView(
 		app,
 		linkText,
 		linkOptions.placement,
-		{ requireActiveView: false },
+		{ requireActiveView: false, frontmatterProperty : linkOptions.frontmatterProperty },
 	);
 
 	return true;
