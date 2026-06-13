@@ -13,7 +13,12 @@ import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import { deleteObsidianCommand } from "./utilityObsidian";
+import {
+	deleteObsidianCommand,
+	hasTemplateExtension,
+	isPathWithinTemplateFolders,
+	normalizeTemplateFolderPaths,
+} from "./utilityObsidian";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
@@ -358,11 +363,15 @@ export default class QuickAdd extends Plugin {
 	}
 
 	public getTemplateFiles(): TFile[] {
-		if (!String.isString(this.settings.templateFolderPath)) return [];
-
+		const folders = normalizeTemplateFolderPaths(
+			this.settings.templateFolderPaths,
+		);
+		// Only files the engine can actually resolve are useful suggestions; an
+		// empty folder list means "suggest every template file in the vault".
 		return this.app.vault
 			.getFiles()
-			.filter((file) => file.path.startsWith(this.settings.templateFolderPath));
+			.filter((file) => hasTemplateExtension(file.path))
+			.filter((file) => isPathWithinTemplateFolders(file.path, folders));
 	}
 
 	private announceUpdate() {

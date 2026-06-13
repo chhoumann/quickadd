@@ -251,6 +251,83 @@
 	white-space: nowrap;
 }
 
+/* Multi-folder list for the "Template folder paths" setting. The setting row
+   stacks vertically so the label/description sit above a full-width list, which
+   keeps long paths readable and scales to many folders without crowding the
+   narrow control column. */
+.qa-template-folders-setting {
+	display: block;
+}
+
+.qa-template-folders-setting .setting-item-control {
+	margin-top: 12px;
+	justify-content: flex-start;
+}
+
+.qa-template-folders {
+	width: 100%;
+}
+
+.qa-template-folder-list {
+	max-height: 300px;
+	overflow-y: auto;
+}
+
+.qa-template-folder-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.qa-template-folder-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.qa-template-folder-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	padding: 6px 4px;
+}
+
+.qa-template-folder-input-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.qa-template-folder-input {
+	flex: 1 1 auto;
+}
+
+/* Mobile: comfortable touch targets and full-path readability (no hover there).
+   Grow the remove control to the 44px tap-target minimum, let long paths wrap
+   instead of truncating behind an unreachable tooltip, and stack the input above
+   a full-width Add button so the path field gets the whole row. */
+.is-mobile .qa-template-folder-row {
+	min-height: 44px;
+}
+
+.is-mobile .qa-template-folder-row .clickable-icon {
+	width: 44px;
+	height: 44px;
+}
+
+.is-mobile .qa-template-folder-name {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+.is-mobile .qa-template-folder-input-row {
+	flex-direction: column;
+	align-items: stretch;
+}
+
 .quickAddModal .qa-modal-title,
 .quickAddModal .qa-clickable-modal-title,
 .qa-modal-title,

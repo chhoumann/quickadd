@@ -16,7 +16,7 @@ import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 } from "../../types/linkPlacement";
-import { getAllFolderPathsInVault } from "../../utilityObsidian";
+import { getAllFolderPathsInVault, getTemplateFile } from "../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { createValidatedInput } from "../components/validatedInput";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
@@ -1437,10 +1437,13 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 			validator: (raw) => {
 				const v = raw.trim();
 				if (!v) return true;
-				return templateFilePaths.includes(v) || "Template not found";
+				// Resolve like the engine does at run time rather than requiring
+				// suggestion-list membership (templates outside the configured
+				// folders are valid). Mirrors templateChoiceBuilder.
+				return getTemplateFile(this.app, v) !== null || "Template not found";
 			},
 			onChange: (value) => {
-				this.choice.createFileIfItDoesntExist.template = value;
+				this.choice.createFileIfItDoesntExist.template = value.trim();
 			},
 		});
 

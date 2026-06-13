@@ -4,10 +4,11 @@ import type {
 	LinkToCurrentFileBehavior,
 	TemplateInclusionState,
 } from "../formatters/formatter";
-import type { App } from "obsidian";
-import { Notice, TFile, TFolder } from "obsidian";
+import type { App, TFile } from "obsidian";
+import { Notice, TFolder } from "obsidian";
 import type QuickAdd from "../main";
 import {
+	getTemplateFile,
 	getTemplater,
 	overwriteTemplaterOnce,
 	templaterParseTemplate,
@@ -669,18 +670,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		let correctTemplatePath: string = this.stripLeadingSlash(templatePath);
-		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(templatePath) && 
-			!CANVAS_FILE_EXTENSION_REGEX.test(templatePath) &&
-			!BASE_FILE_EXTENSION_REGEX.test(templatePath))
-			correctTemplatePath += ".md";
+		const templateFile = getTemplateFile(this.app, templatePath);
 
-		const templateFile =
-			this.app.vault.getAbstractFileByPath(correctTemplatePath);
-
-		if (!(templateFile instanceof TFile))
+		if (!templateFile)
 			throw new Error(
-				`Template file not found at path "${correctTemplatePath}".`
+				`Template file not found at path "${templatePath}".`
 			);
 
 		return await this.app.vault.cachedRead(templateFile);

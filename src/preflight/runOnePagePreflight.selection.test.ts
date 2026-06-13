@@ -39,6 +39,14 @@ vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	getUserScript: vi.fn(),
 	isFolder: vi.fn(() => false),
+	// Faithful to the real resolver: strip a leading slash, append .md only when
+	// no template extension is present, then resolve against the vault.
+	getTemplateFile: vi.fn((app: App, path: string) => {
+		const stripped = path.replace(/^\/+/, "");
+		const hasTemplateExt = /\.(md|canvas|base)$/i.test(stripped);
+		const resolved = hasTemplateExt ? stripped : `${stripped}.md`;
+		return app.vault.getAbstractFileByPath(resolved) ?? null;
+	}),
 }));
 
 const createApp = (selection: string | null) =>
