@@ -33,7 +33,9 @@
   "pnpm": {
     "overrides": {
       "webpackbar": "^7.0.0",
-      "serialize-javascript": "^7.0.3"
+      "serialize-javascript": "^7.0.3",
+      "joi": "^17.13.4",
+      "uuid": "^11.1.1"
     }
   },
   "browserslist": {
