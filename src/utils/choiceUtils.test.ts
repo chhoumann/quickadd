@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
-import { flattenChoices, flattenChoicesWithPath } from "./choiceUtils";
+import type { ChoiceType } from "src/types/choices/choiceType";
+import {
+	defaultIconForChoiceType,
+	flattenChoices,
+	flattenChoicesWithPath,
+	resolveChoiceIcon,
+} from "./choiceUtils";
 
 let idCounter = 0;
 function choice(name: string): IChoice {
@@ -77,5 +83,63 @@ describe("flattenChoicesWithPath", () => {
 		const broken = multi("Broken", undefined as unknown as IChoice[]);
 
 		expect(flattenChoicesWithPath([broken])).toHaveLength(1);
+	});
+});
+
+describe("defaultIconForChoiceType", () => {
+	it("maps each choice type to a meaningful lucide id", () => {
+		expect(defaultIconForChoiceType("Template")).toBe("file-text");
+		expect(defaultIconForChoiceType("Capture")).toBe("pencil");
+		expect(defaultIconForChoiceType("Macro")).toBe("terminal");
+		expect(defaultIconForChoiceType("Multi")).toBe("folder");
+	});
+
+	it("falls back to a valid icon for an unexpected runtime type", () => {
+		// data.json is not runtime-validated; an imported/hand-edited choice could
+		// carry a type outside the union. The default arm must never return
+		// undefined, or Obsidian re-renders the question-mark glyph.
+		expect(defaultIconForChoiceType("Script" as ChoiceType)).toBe("file-plus");
+		expect(defaultIconForChoiceType(undefined as unknown as ChoiceType)).toBe(
+			"file-plus",
+		);
+	});
+});
+
+describe("resolveChoiceIcon", () => {
+	function choiceWith(type: ChoiceType, icon?: string): IChoice {
+		return { name: "c", id: `c-${idCounter++}`, type, command: true, icon };
+	}
+
+	it("uses the per-type default when no override is set", () => {
+		expect(resolveChoiceIcon(choiceWith("Template"))).toBe("file-text");
+		expect(resolveChoiceIcon(choiceWith("Capture"))).toBe("pencil");
+		expect(resolveChoiceIcon(choiceWith("Macro"))).toBe("terminal");
+		expect(resolveChoiceIcon(choiceWith("Multi"))).toBe("folder");
+	});
+
+	it("prefers a non-empty per-choice override", () => {
+		expect(resolveChoiceIcon(choiceWith("Template", "star"))).toBe("star");
+		expect(resolveChoiceIcon(choiceWith("Macro", "rocket"))).toBe("rocket");
+	});
+
+	it("falls back to the default for a blank or whitespace-only override", () => {
+		expect(resolveChoiceIcon(choiceWith("Template", ""))).toBe("file-text");
+		expect(resolveChoiceIcon(choiceWith("Capture", "   "))).toBe("pencil");
+	});
+
+	it("trims a padded override", () => {
+		expect(resolveChoiceIcon(choiceWith("Template", "  star  "))).toBe("star");
+	});
+
+	it("ignores a non-string override from malformed data without throwing", () => {
+		const bad = {
+			name: "c",
+			id: `c-${idCounter++}`,
+			type: "Template" as ChoiceType,
+			command: true,
+			icon: 123 as unknown as string,
+		};
+		expect(() => resolveChoiceIcon(bad)).not.toThrow();
+		expect(resolveChoiceIcon(bad)).toBe("file-text");
 	});
 });

@@ -28,6 +28,7 @@ import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
+import { resolveChoiceIcon } from "./utils/choiceUtils";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
@@ -302,6 +303,7 @@ export default class QuickAdd extends Plugin {
 			this.addCommand({
 				id: `choice:${choiceId}`,
 				name: choice.name,
+				icon: resolveChoiceIcon(choice),
 				callback: async () => {
 					try {
 						const current = this.getChoiceById(choiceId);
