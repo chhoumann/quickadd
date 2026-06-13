@@ -283,6 +283,10 @@
 }
 
 .qa-template-folder-name {
+	/* flex + min-width:0 let the name shrink so the ellipsis triggers instead of
+	   pushing the remove control off the row. */
+	flex: 1 1 auto;
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;

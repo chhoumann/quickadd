@@ -802,7 +802,8 @@ export function hasTemplateExtension(path: string): boolean {
  * their own near-copy, and the preflight copy skipped the leading-slash strip).
  */
 export function getTemplateFile(app: App, templatePath: string): TFile | null {
-	const stripped = templatePath.replace(/^\/+/, "");
+	const stripped = templatePath.trim().replace(/^\/+/, "");
+	if (!stripped) return null;
 	const resolved = hasTemplateExtension(stripped) ? stripped : `${stripped}.md`;
 	const file = app.vault.getAbstractFileByPath(resolved);
 	return file instanceof TFile ? file : null;

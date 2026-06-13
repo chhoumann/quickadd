@@ -34,20 +34,25 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn().mockReturnValue(null),
 }));
 
-vi.mock("src/utilityObsidian", () => ({
-	getMarkdownFilesInFolder: vi.fn(() => []),
-	getMarkdownFilesWithTag: vi.fn(() => []),
-	getUserScript: vi.fn(),
-	isFolder: vi.fn(() => false),
-	// Faithful to the real resolver: strip a leading slash, append .md only when
-	// no template extension is present, then resolve against the vault.
-	getTemplateFile: vi.fn((app: App, path: string) => {
-		const stripped = path.replace(/^\/+/, "");
-		const hasTemplateExt = /\.(md|canvas|base)$/i.test(stripped);
-		const resolved = hasTemplateExt ? stripped : `${stripped}.md`;
-		return app.vault.getAbstractFileByPath(resolved) ?? null;
-	}),
-}));
+vi.mock("src/utilityObsidian", async () => {
+	const { TFile } = await import("obsidian");
+	return {
+		getMarkdownFilesInFolder: vi.fn(() => []),
+		getMarkdownFilesWithTag: vi.fn(() => []),
+		getUserScript: vi.fn(),
+		isFolder: vi.fn(() => false),
+		// Faithful to the real resolver: trim, strip a leading slash, append .md
+		// only when no template extension is present, then resolve to a TFile.
+		getTemplateFile: vi.fn((app: App, path: string) => {
+			const stripped = path.trim().replace(/^\/+/, "");
+			if (!stripped) return null;
+			const hasTemplateExt = /\.(md|canvas|base)$/i.test(stripped);
+			const resolved = hasTemplateExt ? stripped : `${stripped}.md`;
+			const f = app.vault.getAbstractFileByPath(resolved);
+			return f instanceof TFile ? f : null;
+		}),
+	};
+});
 
 const createApp = (selection: string | null) =>
 	({

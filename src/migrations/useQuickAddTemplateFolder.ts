@@ -53,9 +53,9 @@ export default {
 				}
 			}
 
-			if (folders.length > 0) {
-				plugin.settings.templateFolderPaths =
-					normalizeTemplateFolderPaths(folders);
+			const normalizedFolders = normalizeTemplateFolderPaths(folders);
+			if (normalizedFolders.length > 0) {
+				plugin.settings.templateFolderPaths = normalizedFolders;
 			}
 		} catch (error) {
 			log.logError("Failed to migrate template folder path.");

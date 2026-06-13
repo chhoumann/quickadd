@@ -114,6 +114,19 @@ describe("getTemplateFile", () => {
 		);
 	});
 
+	it("trims surrounding whitespace before resolving", () => {
+		const app = appWith([file("Templates/Daily.md")]);
+		expect(getTemplateFile(app, "  /Templates/Daily  ")?.path).toBe(
+			"Templates/Daily.md",
+		);
+	});
+
+	it("returns null for blank/whitespace-only input", () => {
+		const app = appWith([file("Templates/Daily.md")]);
+		expect(getTemplateFile(app, "")).toBeNull();
+		expect(getTemplateFile(app, "   ")).toBeNull();
+	});
+
 	it("returns null when the path resolves to nothing", () => {
 		const app = appWith([]);
 		expect(getTemplateFile(app, "Templates/Missing")).toBeNull();
