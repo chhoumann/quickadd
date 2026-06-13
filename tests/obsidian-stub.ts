@@ -346,6 +346,8 @@ export class App {
     getRoot: () => ({ path: "" }),
     getAllLoadedFiles: () => [],
     getMarkdownFiles: () => [],
+    getFiles: () => [],
+    getAbstractFileByPath: () => null,
     read: async () => "",
     modify: async () => {},
     cachedRead: async () => "",
