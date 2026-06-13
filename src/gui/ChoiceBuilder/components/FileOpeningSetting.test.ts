@@ -48,4 +48,19 @@ describe("FileOpeningSetting", () => {
 		});
 		expect(settingNames(container)).not.toContain("Focus new pane");
 	});
+
+	it("normalizes a missing fileOpening (imported/legacy choice toggling Open on)", () => {
+		// Mounting with undefined must not throw on .location/.mode dereference.
+		const { container } = render(FileOpeningSetting, {
+			props: {
+				fileOpening: undefined as unknown as FileOpeningSettings,
+				contextLabel: "created",
+			},
+		});
+		expect(settingNames(container)).toContain("File Opening Location");
+		expect(settingNames(container)).toContain("View Mode");
+		// default location is "tab" -> not reuse -> Focus row present; not split.
+		expect(settingNames(container)).toContain("Focus new pane");
+		expect(settingNames(container)).not.toContain("Split Direction");
+	});
 });

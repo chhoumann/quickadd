@@ -2,13 +2,15 @@
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import Toggle from "../../components/Toggle.svelte";
-import type { FileOpeningSettings } from "../../../utils/fileOpeningDefaults";
+import {
+	normalizeFileOpening,
+	type FileOpeningSettings,
+} from "../../../utils/fileOpeningDefaults";
 import type { FileViewMode2, OpenLocation } from "../../../types/fileOpening";
 
 /**
  * Replaces ChoiceBuilder.addFileOpeningSetting. Conditional rows (split
  * direction, focus toggle) are reactive `{#if}` blocks instead of `reload()`.
- * Expects `fileOpening` to be normalized once by the host before mount.
  */
 let {
 	fileOpening = $bindable(),
@@ -17,6 +19,12 @@ let {
 	fileOpening: FileOpeningSettings;
 	contextLabel: string;
 } = $props();
+
+// This section only mounts when Open is enabled. An imported/legacy choice can
+// reach here with a missing/partial fileOpening (toggling Open true after mount),
+// so normalize at init — before the template dereferences .location/.mode — the
+// same point the imperative addFileOpeningSetting normalized. (#1130 review)
+fileOpening = normalizeFileOpening(fileOpening);
 
 const locationOptions = [
 	{ value: "reuse", label: "Reuse current tab" },

@@ -34,7 +34,6 @@ let {
 		{#if desc}<div class="setting-item-description">{desc}</div>{/if}
 	</div>
 	<div class="setting-item-control">
-		{@render control?.()}
-		{@render children?.()}
+		{@render (control ?? children)?.()}
 	</div>
 </div>

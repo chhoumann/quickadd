@@ -96,7 +96,11 @@ function useActiveSelection() {
 		(option) => option.id === activeSelectionNodeId,
 	);
 	if (!selectedOption) {
-		new Notice("Canvas nodes are still loading. Wait a moment and try again.");
+		new Notice(
+			phase === "ready"
+				? "The selected node was not found in the loaded canvas."
+				: "Canvas nodes are still loading. Wait a moment and try again.",
+		);
 		return;
 	}
 	if (!selectedOption.capturable) {
