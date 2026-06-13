@@ -50,7 +50,7 @@
     "chrono-node": "^2.9.1",
     "fuse.js": "7",
     "obsidian-dataview": "^0.5.68",
-    "svelte-dnd-action": "0.9.69",
+    "svelte-dnd-action": "0.9.70",
     "three-way-merge": "^0.1.0",
     "uuid": "14",
     "zustand": "^5.0.14"
