@@ -107,7 +107,7 @@ export default class GenericWideInputPrompt extends Modal {
 				text: this.description,
 				cls: "setting-item-description",
 			});
-			descriptionEl.style.marginBottom = "0.75rem";
+			descriptionEl.setCssStyles({ marginBottom: "0.75rem" });
 		}
 
 		if (this.isOptionalPrompt) {
@@ -115,7 +115,7 @@ export default class GenericWideInputPrompt extends Modal {
 				text: "Optional — leave empty or press Skip.",
 				cls: "setting-item-description",
 			});
-			hintEl.style.marginBottom = "0.75rem";
+			hintEl.setCssStyles({ marginBottom: "0.75rem" });
 		}
 
 		const mainContentContainer: HTMLDivElement = this.contentEl.createDiv();
@@ -167,7 +167,7 @@ export default class GenericWideInputPrompt extends Modal {
 			buttonBarContainer,
 			"Ok",
 			this.submitClickCallback,
-		).setCta().buttonEl.style.marginRight = "0";
+		).setCta().buttonEl.setCssStyles({ marginRight: "0" });
 		this.createButton(
 			buttonBarContainer,
 			"Cancel",
@@ -187,11 +187,13 @@ export default class GenericWideInputPrompt extends Modal {
 			);
 		}
 
-		buttonBarContainer.style.display = "flex";
-		buttonBarContainer.style.flexDirection = "row-reverse";
-		buttonBarContainer.style.justifyContent = "flex-start";
-		buttonBarContainer.style.marginTop = "1rem";
-		buttonBarContainer.style.gap = "0.5rem";
+		buttonBarContainer.setCssStyles({
+			display: "flex",
+			flexDirection: "row-reverse",
+			justifyContent: "flex-start",
+			marginTop: "1rem",
+			gap: "0.5rem",
+		});
 	}
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();
@@ -259,7 +261,7 @@ export default class GenericWideInputPrompt extends Modal {
 	}
 
 	onOpen() {
-		super.onOpen();
+		void super.onOpen();
 
 		positionInputPromptCursor(this.inputComponent.inputEl, this.options);
 	}

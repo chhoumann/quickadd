@@ -96,7 +96,7 @@ export class AIAssistantProvidersModal extends Modal {
 						this.providers.splice(i, 1);
 						this.reload();
 					});
-					button.setWarning();
+					button.setDestructive();
 					button.setIcon("trash" as IconType);
 				})
 					.addButton((button) => {
@@ -217,7 +217,7 @@ export class AIAssistantProvidersModal extends Modal {
                         this.selectedProvider!.models.splice(i, 1);
                         this.reload();
                     });
-                    button.setWarning();
+                    button.setDestructive();
                     button.setIcon("trash" as IconType);
                 });
         });
@@ -318,7 +318,7 @@ export class AIAssistantProvidersModal extends Modal {
 
 		const CancelButton = new ButtonComponent(buttonRow);
 		CancelButton.setButtonText("Cancel");
-		CancelButton.setWarning();
+		CancelButton.setDestructive();
 		CancelButton.onClick(() => {
 			if (!this.selectedProvider || !this._selectedProviderClone) return;
 			const noChangesMade = !checkObjectDiff(

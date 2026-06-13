@@ -8,13 +8,16 @@ function hasWindowFunction(name: "btoa" | "atob"): boolean {
 }
 
 function getGlobalBuffer(): undefined | { from(input: string, encoding: string): { toString(encoding: string): string } } {
-	const runtime = typeof window !== "undefined"
-		? (window as unknown as Record<string, unknown>)
-		: (globalThis as unknown as Record<string, unknown>);
-	const buffer = runtime.Buffer as
-		| { from(input: string, encoding: string): { toString(encoding: string): string } }
-		| undefined;
-	return buffer;
+	// `Buffer` is a Node global (present in Obsidian's Electron renderer and in
+	// tests); reference it directly via a `typeof` guard rather than reaching
+	// through `globalThis` (disallowed for popout compatibility). It is only a
+	// fallback — Obsidian normally takes the `window.btoa`/`atob` path above.
+	if (typeof Buffer === "undefined") {
+		return undefined;
+	}
+	return Buffer as unknown as {
+		from(input: string, encoding: string): { toString(encoding: string): string };
+	};
 }
 
 export function encodeToBase64(value: string): string {

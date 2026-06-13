@@ -1016,6 +1016,7 @@
 
 /* File tooltip - refined and minimal */
 .qa-file-tooltip {
+  position: fixed;
   background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;

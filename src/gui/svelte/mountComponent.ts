@@ -1,4 +1,4 @@
-import { type Component, type ComponentProps, mount, unmount } from "svelte";
+import { type Component, mount, unmount } from "svelte";
 
 /**
  * A handle to a Svelte 5 component mounted imperatively into an Obsidian host
@@ -22,10 +22,13 @@ export interface MountHandle {
  * mutate its properties (see createCommandListProps) — the documented Svelte 5
  * way to update an imperatively-mounted component.
  */
-export function mountComponent<C extends Component<any, any>>(
+export function mountComponent<
+	Props extends Record<string, unknown>,
+	Exports extends Record<string, unknown>,
+>(
 	target: HTMLElement,
-	component: C,
-	props: ComponentProps<C>,
+	component: Component<Props, Exports>,
+	props: Props,
 ): MountHandle {
 	const instance = mount(component, { target, props });
 	let destroyed = false;

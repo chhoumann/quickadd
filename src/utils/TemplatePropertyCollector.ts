@@ -27,7 +27,7 @@ export class TemplatePropertyCollector {
    * Collects a variable for YAML post-processing when it is a complete value for a YAML key
    * and the raw value is a structured type (object/array/number/boolean/null).
    */
-  public maybeCollect(args: CollectArgs): unknown | undefined {
+  public maybeCollect(args: CollectArgs): unknown {
     const { input, matchStart, matchEnd, rawValue, fallbackKey, featureEnabled } = args;
     if (!featureEnabled) return undefined;
     const yamlRange = findYamlFrontMatterRange(input);

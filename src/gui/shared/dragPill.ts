@@ -8,8 +8,15 @@
 // pill is the only visible thing, so there is no full-row ghost to "yank" onto the
 // cursor (the feedback that the grab "puts the cursor in the middle").
 
-const GRIP_SVG =
-	'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>';
+// 6-dot vertical grip glyph: two columns (x=9, x=15) × three rows (y=5, 12, 19).
+const GRIP_DOTS: ReadonlyArray<readonly [number, number]> = [
+	[9, 5],
+	[9, 12],
+	[9, 19],
+	[15, 5],
+	[15, 12],
+	[15, 19],
+];
 
 /**
  * Build/refresh the compact drag pill. The library invokes the zone's
@@ -32,15 +39,26 @@ export function transformDragPill(
 
 	let pill = el.querySelector<HTMLDivElement>(":scope > .qa-drag-pill");
 	if (!pill) {
-		pill = document.createElement("div");
-		pill.className = "qa-drag-pill";
-		const grip = document.createElement("span");
-		grip.className = "qa-drag-pill-grip";
-		grip.innerHTML = GRIP_SVG; // static inline glyph — no Obsidian render pass
-		const labelEl = document.createElement("span");
-		labelEl.className = "qa-drag-pill-label";
-		pill.append(grip, labelEl);
-		el.appendChild(pill);
+		// Build via Obsidian's DOM helpers (ownerDocument-safe, popout-aware) and
+		// the SVG namespace API, rather than `document.createElement` + innerHTML.
+		pill = el.createDiv({ cls: "qa-drag-pill" });
+		const grip = pill.createSpan({ cls: "qa-drag-pill-grip" });
+		const svg = grip.createSvg("svg", {
+			attr: {
+				viewBox: "0 0 24 24",
+				width: 14,
+				height: 14,
+				fill: "none",
+				stroke: "currentColor",
+				"stroke-width": 2,
+				"stroke-linecap": "round",
+				"stroke-linejoin": "round",
+			},
+		});
+		for (const [cx, cy] of GRIP_DOTS) {
+			svg.createSvg("circle", { attr: { cx, cy, r: 1 } });
+		}
+		pill.createSpan({ cls: "qa-drag-pill-label" });
 	}
 
 	const textEl = pill.querySelector<HTMLSpanElement>(".qa-drag-pill-label");

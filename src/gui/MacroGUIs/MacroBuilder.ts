@@ -85,19 +85,21 @@ export class MacroBuilder extends Modal {
 			attr: { type: "button", "aria-label": `Rename ${header}` },
 		});
 
-		renameButton.addEventListener("click", async () => {
-			const newName: string = await GenericInputPrompt.Prompt(
-				this.app,
-				`Update name for ${this.choice.name}`,
-				this.choice.name,
-				this.choice.name
-			);
-			if (!newName) return;
+		renameButton.addEventListener("click", () => {
+			void (async () => {
+				const newName: string = await GenericInputPrompt.Prompt(
+					this.app,
+					`Update name for ${this.choice.name}`,
+					this.choice.name,
+					this.choice.name
+				);
+				if (!newName) return;
 
-			// Keep choice name and macro name in sync
-			this.choice.name = newName;
-			this.macro.name = newName;
-			this.reload();
+				// Keep choice name and macro name in sync
+				this.choice.name = newName;
+				this.macro.name = newName;
+				this.reload();
+			})();
 		});
 	}
 

@@ -466,13 +466,15 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 				const copyButton = itemActions.createEl("button", {
 					text: "Copy ID",
 				});
-				copyButton.addEventListener("click", async () => {
-					try {
-						await navigator.clipboard.writeText(option.id);
-						new Notice(`Copied node id ${option.id}`);
-					} catch {
-						new Notice("Could not copy node id automatically.");
-					}
+				copyButton.addEventListener("click", () => {
+					void (async () => {
+						try {
+							await navigator.clipboard.writeText(option.id);
+							new Notice(`Copied node id ${option.id}`);
+						} catch {
+							new Notice("Could not copy node id automatically.");
+						}
+					})();
 				});
 			}
 		};
@@ -1223,7 +1225,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.setValue(this.choice.insertAfter?.createIfNotFound)
 					.onChange(
 						(value) => (this.choice.insertAfter.createIfNotFound = value),
-					).toggleEl.style.marginRight = "1em";
+					).toggleEl.setCssStyles({ marginRight: "1em" });
 			})
 			.addDropdown((dropdown) => {
 				if (!this.choice.insertAfter?.createIfNotFoundLocation)
@@ -1306,7 +1308,7 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 					.setValue(insertBefore.createIfNotFound)
 					.onChange(
 						(value) => (insertBefore.createIfNotFound = value),
-					).toggleEl.style.marginRight = "1em";
+					).toggleEl.setCssStyles({ marginRight: "1em" });
 			})
 			.addDropdown((dropdown) => {
 				if (!insertBefore.createIfNotFoundLocation)

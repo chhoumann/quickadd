@@ -1,12 +1,12 @@
 import { CommandType } from "../CommandType";
-import { nanoid } from "nanoid";
+import { v4 as uuidv4 } from "uuid";
 import type { IOpenFileCommand } from "./IOpenFileCommand";
 import { NewTabDirection } from "../../newTabDirection";
 import type { OpenLocation } from "../../fileOpening";
 
 export class OpenFileCommand implements IOpenFileCommand {
 	readonly type = CommandType.OpenFile;
-	id = nanoid();
+	id = uuidv4();
 	name: string;
 	location?: OpenLocation;
 	focus?: boolean;

@@ -115,12 +115,14 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 		setIcon(iconEl, "pencil");
 
-		button.addEventListener("click", async () => {
-			const newName = await promptRenameChoice(this.app, choice.name);
-			if (!newName) return;
-			choice.name = newName;
-			textEl.setText(newName);
-			button.setAttribute("aria-label", `Rename ${newName}`);
+		button.addEventListener("click", () => {
+			void (async () => {
+				const newName = await promptRenameChoice(this.app, choice.name);
+				if (!newName) return;
+				choice.name = newName;
+				textEl.setText(newName);
+				button.setAttribute("aria-label", `Rename ${newName}`);
+			})();
 		});
 	}
 
@@ -154,7 +156,7 @@ export abstract class ChoiceBuilder extends Modal {
 		const choice = this.choice as ChoiceWithOpenFile;
 		choice.fileOpening = normalizeFileOpening(choice.fileOpening);
 
-		const fileOpening = choice.fileOpening as FileOpeningSettings;
+		const fileOpening = choice.fileOpening;
 
 		// Location selector
 		new Setting(this.contentEl)

@@ -46,6 +46,10 @@ vi.mock("obsidian", () => {
 		setWarning(): this {
 			return this;
 		}
+
+		setDestructive(): this {
+			return this;
+		}
 	}
 
 	return { ButtonComponent, Modal };

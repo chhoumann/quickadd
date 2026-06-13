@@ -159,6 +159,9 @@ export class UpdateModal extends Modal {
 	releases: Release[];
 	private releaseNotesPromise: Promise<Release[]>;
 	private previousVersion: string;
+	// Owns the lifecycle of the markdown render's child components so they are
+	// torn down on close, rather than leaking onto a longer-lived owner.
+	private readonly markdownComponent = new Component();
 
 	constructor(app: App, previousQAVersion: string) {
 		super(app);
@@ -195,6 +198,7 @@ export class UpdateModal extends Modal {
 
 	onClose() {
 		const { contentEl } = this;
+		this.markdownComponent.unload();
 		contentEl.empty();
 	}
 
@@ -218,12 +222,13 @@ export class UpdateModal extends Modal {
 			releaseNotes
 		)}`;
 
+		this.markdownComponent.load();
 		void MarkdownRenderer.render(
 			this.app,
 			markdownStr,
 			contentDiv,
 			this.app.vault.getRoot().path,
-			new Component(),
+			this.markdownComponent,
 		);
 	}
 }

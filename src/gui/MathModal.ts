@@ -59,8 +59,7 @@ export class MathModal extends Modal {
 		mathDiv.className = "math math-block is-loaded";
 
 		const tc = new TextAreaComponent(this.contentEl);
-		tc.inputEl.style.width = "100%";
-		tc.inputEl.style.height = "10rem";
+		tc.inputEl.setCssStyles({ width: "100%", height: "10rem" });
 
 		this.inputEl = tc.inputEl;
 
@@ -77,7 +76,7 @@ export class MathModal extends Modal {
 	}
 
 	async onOpen() {
-		super.onOpen();
+		void super.onOpen();
 		await loadMathJax();
 	}
 
@@ -120,18 +119,20 @@ export class MathModal extends Modal {
 			buttonBarContainer,
 			"Ok",
 			this.submitClickCallback
-		).setCta().buttonEl.style.marginRight = "0";
+		).setCta().buttonEl.setCssStyles({ marginRight: "0" });
 		this.createButton(
 			buttonBarContainer,
 			"Cancel",
 			this.cancelClickCallback
 		);
 
-		buttonBarContainer.style.display = "flex";
-		buttonBarContainer.style.flexDirection = "row-reverse";
-		buttonBarContainer.style.justifyContent = "flex-start";
-		buttonBarContainer.style.marginTop = "1rem";
-		buttonBarContainer.style.gap = "0.5rem";
+		buttonBarContainer.setCssStyles({
+			display: "flex",
+			flexDirection: "row-reverse",
+			justifyContent: "flex-start",
+			marginTop: "1rem",
+			gap: "0.5rem",
+		});
 	}
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();

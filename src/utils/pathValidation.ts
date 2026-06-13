@@ -1,4 +1,11 @@
-export const INVALID_FOLDER_CONTROL_CHARS_REGEX = /[\u0000-\u001F]/u;
+// C0 control characters (U+0000–U+001F) are invalid in folder/file names. The
+// class is built via String.fromCharCode so no literal control characters appear
+// in source (matching the original control-character range exactly, and keeping
+// eslint's no-control-regex satisfied without a disable directive).
+export const INVALID_FOLDER_CONTROL_CHARS_REGEX = new RegExp(
+	`[${String.fromCharCode(0x00)}-${String.fromCharCode(0x1f)}]`,
+	"u",
+);
 export const INVALID_FOLDER_CHARS_REGEX = /[\\/:*?"<>|]/u;
 export const INVALID_FOLDER_TRAILING_CHARS_REGEX = /[. ]$/u;
 

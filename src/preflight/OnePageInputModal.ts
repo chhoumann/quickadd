@@ -92,7 +92,7 @@ export class OnePageInputModal extends Modal {
 				text: "Preview",
 			});
 			label.addClass("qa-onepage-preview-label");
-			this.updatePreviews();
+			void this.updatePreviews();
 		}
 
 		// Render fields
@@ -453,9 +453,11 @@ export class OnePageInputModal extends Modal {
 	private decorateLabel(req: FieldRequirement): string | DocumentFragment {
 		if (!req.optional) return req.label;
 
-		const fragment = document.createDocumentFragment();
-		fragment.appendChild(document.createTextNode(req.label));
-		const badge = document.createElement("span");
+		// Use the modal's own document (popout-aware) rather than the bare global.
+		const doc = this.contentEl.ownerDocument;
+		const fragment = doc.createDocumentFragment();
+		fragment.appendChild(doc.createTextNode(req.label));
+		const badge = doc.createElement("span");
 		badge.textContent = " (optional)";
 		badge.className = "qa-onepage-optional-badge";
 		fragment.appendChild(badge);

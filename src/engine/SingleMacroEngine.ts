@@ -25,7 +25,9 @@ type MemberAccessSelection = {
 	memberAccess: string[];
 };
 
-type UserScriptCallable = () => unknown | Promise<unknown>;
+// `unknown` already subsumes `Promise<unknown>`; the callable may be sync or async
+// and its result is awaited at the call site either way.
+type UserScriptCallable = () => unknown;
 
 function formatMacroOutput(value: unknown): string {
 	if (value === null || value === undefined) return "";

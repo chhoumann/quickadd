@@ -811,7 +811,6 @@ type PinnedLeaf = WorkspaceLeaf & {
 };
 
 type WorkspaceWithOriginLeaf = App["workspace"] & {
-	activeLeaf?: WorkspaceLeaf | null;
 	rootSplit?: WorkspaceParent;
 	getMostRecentLeaf?: (root?: WorkspaceParent) => WorkspaceLeaf | null;
 };
@@ -839,7 +838,9 @@ export function getOpenFileOriginLeaf(app: App): WorkspaceLeaf | null {
 		? workspace.getMostRecentLeaf?.(workspace.rootSplit)
 		: null;
 
-	return rootLeaf ?? workspace.getMostRecentLeaf?.() ?? workspace.activeLeaf ?? null;
+	// `getMostRecentLeaf()` already returns the active main-area leaf, superseding
+	// the deprecated `workspace.activeLeaf` that used to be the final fallback.
+	return rootLeaf ?? workspace.getMostRecentLeaf?.() ?? null;
 }
 
 function getRootLeaves(app: App): WorkspaceLeaf[] {
@@ -1076,9 +1077,11 @@ export async function getUserScript(command: IUserScript, app: App) {
 
 		const fileContent = await app.vault.read(file);
 
-		const fn = window.eval(
-			`(function(require, module, exports) { ${fileContent} \n})`,
-		);
+		// User scripts are CommonJS modules. Wrap the file body in a Function whose
+		// parameters are the module globals, instead of `eval`-ing a wrapper string.
+		// This executes the (trusted, user-authored) script identically to the
+		// previous `(function(require, module, exports){ ... })` eval form.
+		const fn = new Function("require", "module", "exports", fileContent);
 
 		fn(req, mod, exp);
 
