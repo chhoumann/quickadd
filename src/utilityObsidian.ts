@@ -558,62 +558,81 @@ export function insertOnNewLineBelow(toInsert: string, app: App) {
 	insertOnNewLine(toInsert, "below", app);
 }
 
-/**
- * Returns the focused editable element when the caret is inside Obsidian's
- * Properties widget, else null. The widget is separate inputs, not the
- * CodeMirror document, so a focused property leaves the body editor reporting a
- * stale caret — without this the link lands in the body (#768).
- */
-function getFocusedEditablePropertyEl(): HTMLElement | null {
-	if (typeof document === "undefined") return null;
-	const active = document.activeElement;
-	if (!(active instanceof HTMLElement)) return null;
-	if (!active.closest(".metadata-property, .metadata-properties-container")) {
-		return null;
-	}
-	const isEditable =
-		active.isContentEditable ||
-		active instanceof HTMLInputElement ||
-		active instanceof HTMLTextAreaElement;
-	return isEditable ? active : null;
+// Obsidian renders YAML frontmatter as the Properties widget — separate input
+// elements, not the CodeMirror document.
+const PROPERTY_WIDGET_SELECTOR =
+	".metadata-property, .metadata-properties-container";
+
+function isEditableElement(element: Element): element is HTMLElement {
+	return (
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement ||
+		(element instanceof HTMLElement && element.isContentEditable)
+	);
 }
 
 /**
- * Inserts `text` at the caret of a focused input/textarea/contenteditable and
- * fires an "input" event so Obsidian persists it. Returns false for unsupported
- * elements so the caller can fall back to body insertion.
+ * When the caret is in a focused frontmatter property field, inserts `text` at
+ * that caret and returns true. Returns false otherwise so the caller falls back
+ * to body insertion.
+ *
+ * A focused property blurs the markdown body editor, so its reported caret is
+ * stale — without this the link lands at the first body line instead (#768).
  */
-function insertTextIntoEditableEl(el: HTMLElement, text: string): boolean {
-	if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-		const start = el.selectionStart ?? el.value.length;
-		const end = el.selectionEnd ?? el.value.length;
-		el.value = el.value.slice(0, start) + text + el.value.slice(end);
-		const caret = start + text.length;
+function tryInsertIntoFocusedProperty(text: string): boolean {
+	if (typeof document === "undefined") return false;
+	const focused = document.activeElement;
+	if (!(focused instanceof HTMLElement)) return false;
+	if (!focused.closest(PROPERTY_WIDGET_SELECTOR)) return false;
+	if (!isEditableElement(focused)) return false;
+	return insertTextAtCaret(focused, text);
+}
+
+/**
+ * Inserts `text` at the caret of an input/textarea/contenteditable and fires an
+ * "input" event so Obsidian persists it. Returns false for unsupported elements.
+ */
+function insertTextAtCaret(element: HTMLElement, text: string): boolean {
+	if (
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement
+	) {
+		const startOffset = element.selectionStart ?? element.value.length;
+		const endOffset = element.selectionEnd ?? element.value.length;
+		const before = element.value.slice(0, startOffset);
+		const after = element.value.slice(endOffset);
+		element.value = before + text + after;
+		const caretOffset = startOffset + text.length;
 		try {
-			el.setSelectionRange(caret, caret);
+			element.setSelectionRange(caretOffset, caretOffset);
 		} catch {
 			// Some input types reject selection ranges; caret position is non-critical.
 		}
-		el.dispatchEvent(new Event("input", { bubbles: true }));
+		element.dispatchEvent(new Event("input", { bubbles: true }));
 		return true;
 	}
 
-	if (el.isContentEditable) {
-		const doc = el.ownerDocument;
-		const sel = doc.getSelection();
-		if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
-			const range = sel.getRangeAt(0);
+	if (element.isContentEditable) {
+		const ownerDocument = element.ownerDocument;
+		const selection = ownerDocument.getSelection();
+		if (
+			selection &&
+			selection.rangeCount > 0 &&
+			element.contains(selection.anchorNode)
+		) {
+			// Replace the selection with a text node and put the caret after it.
+			const range = selection.getRangeAt(0);
 			range.deleteContents();
-			const node = doc.createTextNode(text);
-			range.insertNode(node);
-			range.setStartAfter(node);
+			const textNode = ownerDocument.createTextNode(text);
+			range.insertNode(textNode);
+			range.setStartAfter(textNode);
 			range.collapse(true);
-			sel.removeAllRanges();
-			sel.addRange(range);
+			selection.removeAllRanges();
+			selection.addRange(range);
 		} else {
-			el.textContent = `${el.textContent ?? ""}${text}`;
+			element.textContent = `${element.textContent ?? ""}${text}`;
 		}
-		el.dispatchEvent(new Event("input", { bubbles: true }));
+		element.dispatchEvent(new Event("input", { bubbles: true }));
 		return true;
 	}
 
@@ -649,10 +668,7 @@ export function insertLinkWithPlacement(
 	// #768: a focused frontmatter property field leaves the body editor's caret
 	// stale; insert into the property at its caret instead. Placement modes only
 	// apply to body insertion.
-	const propertyEl = getFocusedEditablePropertyEl();
-	if (propertyEl && insertTextIntoEditableEl(propertyEl, text)) {
-		return;
-	}
+	if (tryInsertIntoFocusedProperty(text)) return;
 
 	const editor = view.editor;
 
@@ -1353,6 +1369,6 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 export const __test = {
 	convertLinkToEmbed,
 	extractMarkdownLinkTarget,
-	getFocusedEditablePropertyEl,
-	insertTextIntoEditableEl,
+	tryInsertIntoFocusedProperty,
+	insertTextAtCaret,
 } as const;

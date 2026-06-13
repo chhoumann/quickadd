@@ -2,7 +2,7 @@ import { MarkdownView, type App } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { __test, insertLinkWithPlacement } from "./utilityObsidian";
 
-const { getFocusedEditablePropertyEl, insertTextIntoEditableEl } = __test;
+const { tryInsertIntoFocusedProperty, insertTextAtCaret } = __test;
 
 /**
  * Regression tests for #768: with the caret in a frontmatter property field the
@@ -16,39 +16,43 @@ afterEach(() => {
 
 /** Builds a fake App whose active MarkdownView records editor mutations. */
 function makeApp() {
-	const calls = { replaceSelection: [] as string[], replaceRange: [] as unknown[] };
+	const calls = {
+		replaceSelection: [] as string[],
+		replaceRange: [] as unknown[],
+	};
 	const editor = {
 		listSelections: () => [
 			{ anchor: { line: 3, ch: 0 }, head: { line: 3, ch: 0 } },
 		],
 		getCursor: () => ({ line: 3, ch: 0 }),
 		getLine: () => "",
-		posToOffset: ({ line, ch }: { line: number; ch: number }) => line * 100 + ch,
+		posToOffset: ({ line, ch }: { line: number; ch: number }) =>
+			line * 100 + ch,
 		replaceSelection: (text: string) => calls.replaceSelection.push(text),
 		replaceRange: (...args: unknown[]) => calls.replaceRange.push(args),
 		setCursor: () => {},
 	};
 	const view = { editor } as unknown as MarkdownView;
-	const app = {
+	const fakeApp = {
 		workspace: {
-			getActiveViewOfType: (ctor: unknown) =>
-				ctor === MarkdownView ? view : null,
+			getActiveViewOfType: (constructor: unknown) =>
+				constructor === MarkdownView ? view : null,
 		},
 	} as unknown as App;
-	return { app, calls };
+	return { fakeApp, calls };
 }
 
 /** Mounts an Obsidian-like Properties widget with one focused text property. */
 function mountFocusedTextProperty(initialValue = ""): HTMLInputElement {
 	const container = document.createElement("div");
 	container.className = "metadata-properties-container";
-	const row = document.createElement("div");
-	row.className = "metadata-property";
+	const propertyRow = document.createElement("div");
+	propertyRow.className = "metadata-property";
 	const input = document.createElement("input");
 	input.type = "text";
 	input.value = initialValue;
-	row.appendChild(input);
-	container.appendChild(row);
+	propertyRow.appendChild(input);
+	container.appendChild(propertyRow);
 	document.body.appendChild(container);
 	input.focus();
 	const caret = initialValue.length;
@@ -56,50 +60,53 @@ function mountFocusedTextProperty(initialValue = ""): HTMLInputElement {
 	return input;
 }
 
-describe("getFocusedEditablePropertyEl", () => {
-	it("returns the focused input when it's inside the Properties widget", () => {
+describe("tryInsertIntoFocusedProperty", () => {
+	it("inserts into a focused property field and returns true", () => {
 		const input = mountFocusedTextProperty("status: ");
-		expect(getFocusedEditablePropertyEl()).toBe(input);
+		const inserted = tryInsertIntoFocusedProperty("[[X]]");
+		expect(inserted).toBe(true);
+		expect(input.value).toBe("status: [[X]]");
 	});
 
-	it("returns null when the focused element is outside the Properties widget", () => {
-		const input = document.createElement("input");
-		document.body.appendChild(input);
-		input.focus();
-		expect(getFocusedEditablePropertyEl()).toBeNull();
+	it("returns false and inserts nothing when focus is outside the widget", () => {
+		const stray = document.createElement("input");
+		document.body.appendChild(stray);
+		stray.focus();
+		expect(tryInsertIntoFocusedProperty("[[X]]")).toBe(false);
+		expect(stray.value).toBe("");
 	});
 
-	it("returns null when nothing relevant is focused", () => {
-		expect(getFocusedEditablePropertyEl()).toBeNull();
+	it("returns false when nothing relevant is focused", () => {
+		expect(tryInsertIntoFocusedProperty("[[X]]")).toBe(false);
 	});
 });
 
-describe("insertTextIntoEditableEl", () => {
+describe("insertTextAtCaret", () => {
 	it("inserts at the caret of an input and fires an input event", () => {
 		const input = mountFocusedTextProperty("ab");
 		input.setSelectionRange(1, 1); // caret between 'a' and 'b'
 		const onInput = vi.fn();
 		input.addEventListener("input", onInput);
 
-		const ok = insertTextIntoEditableEl(input, "[[X]]");
+		const inserted = insertTextAtCaret(input, "[[X]]");
 
-		expect(ok).toBe(true);
+		expect(inserted).toBe(true);
 		expect(input.value).toBe("a[[X]]b");
 		expect(onInput).toHaveBeenCalledOnce();
 	});
 
 	it("returns false for a non-editable element", () => {
-		const div = document.createElement("div");
-		expect(insertTextIntoEditableEl(div, "[[X]]")).toBe(false);
+		const plainDiv = document.createElement("div");
+		expect(insertTextAtCaret(plainDiv, "[[X]]")).toBe(false);
 	});
 });
 
 describe("insertLinkWithPlacement (#768 property-field routing)", () => {
 	it("inserts into the focused property field, not the body editor", () => {
 		const input = mountFocusedTextProperty("links: ");
-		const { app, calls } = makeApp();
+		const { fakeApp, calls } = makeApp();
 
-		insertLinkWithPlacement(app, "[[Created Note]]", "replaceSelection");
+		insertLinkWithPlacement(fakeApp, "[[Created Note]]", "replaceSelection");
 
 		expect(input.value).toBe("links: [[Created Note]]");
 		// The body editor must be left untouched.
@@ -108,9 +115,9 @@ describe("insertLinkWithPlacement (#768 property-field routing)", () => {
 	});
 
 	it("still uses the body editor when no property field is focused", () => {
-		const { app, calls } = makeApp();
+		const { fakeApp, calls } = makeApp();
 
-		insertLinkWithPlacement(app, "[[Created Note]]", "replaceSelection");
+		insertLinkWithPlacement(fakeApp, "[[Created Note]]", "replaceSelection");
 
 		expect(calls.replaceSelection).toEqual(["[[Created Note]]"]);
 	});
