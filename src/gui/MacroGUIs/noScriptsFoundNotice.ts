@@ -2,26 +2,32 @@ import type { App } from "obsidian";
 import { Notice } from "obsidian";
 
 /**
- * Shows a notice to the user when no JavaScript files are found in their vault.
+ * Shows a notice to the user when no user scripts are found in their vault.
  * Provides helpful guidance on where to place scripts and links to documentation.
  */
 export function showNoScriptsFoundNotice(app: App): void {
 	const notice = new Notice("", 10000);
 	const messageEl = notice.messageEl;
 	messageEl.replaceChildren();
-	appendDiv(messageEl, "No JavaScript files found", "quickadd-notice-title");
+	appendDiv(messageEl, "No scripts found", "quickadd-notice-title");
 
 	// Use the notice element's owning document (popout-aware) instead of the bare
 	// `document` global.
 	const doc = messageEl.ownerDocument;
 	const content = doc.createElement("div");
 	messageEl.append(content);
-	appendDiv(content, "QuickAdd cannot find any .js files in your vault.");
+	appendDiv(
+		content,
+		"QuickAdd cannot find any .js files or notes with a ```js code block in your vault.",
+	);
 	content.append(doc.createElement("br"));
 	appendDiv(content, "Please make sure your scripts are:");
 	appendDiv(content, `✓ In your vault (not in ${app.vault.configDir} folder)`);
 	appendDiv(content, "✓ Not in hidden folders (starting with a dot)");
-	appendDiv(content, "✓ Have a .js extension");
+	appendDiv(
+		content,
+		"✓ A .js file, or a note containing a ```js code block",
+	);
 	content.append(doc.createElement("br"));
 
 	const link = doc.createElement("a");

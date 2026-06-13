@@ -1119,6 +1119,62 @@ describe("applyPackageImport - assets", () => {
 		);
 	});
 
+	it("remaps a note-script command name (=path) when the asset is rewritten (#1065)", async () => {
+		const { app } = createFakeApp();
+		const macroChoice = {
+			...makeChoice("macro", "Macro choice", "Macro"),
+			macro: {
+				id: "macro-id",
+				name: "M",
+				commands: [
+					{
+						id: "us",
+						// Note-backed scripts carry the vault path as their name (+ member).
+						name: "scripts/orig.md::run",
+						type: CommandType.UserScript,
+						path: "scripts/orig.md",
+						settings: {},
+					} as IUserScript,
+				],
+			},
+			runOnStartup: false,
+		} as IMacroChoice;
+
+		const pkg = makePackage({
+			choices: [makePackageChoice(macroChoice)],
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "scripts/orig.md",
+					contentEncoding: "base64",
+					content: encodeToBase64("```js\nmodule.exports={run:()=>1}\n```"),
+				},
+			],
+		});
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: decisions([["macro", "import"]]),
+			assetDecisions: [
+				{
+					originalPath: "scripts/orig.md",
+					destinationPath: "scripts/new.md",
+					mode: "write",
+				},
+			],
+		});
+
+		const insertedMacro = result.updatedChoices.find(
+			(c) => c.id === "macro",
+		) as IMacroChoice;
+		const userScript = insertedMacro.macro.commands[0] as IUserScript;
+		expect(userScript.path).toBe("scripts/new.md");
+		// name must track the new path so member access + UI stay correct.
+		expect(userScript.name).toBe("scripts/new.md::run");
+	});
+
 	it("does not throw when adapter.exists rejects while checking an asset", async () => {
 		const { app, state } = createFakeApp();
 		state.existThrowsFor = new Set(["scripts/run.js"]);

@@ -472,6 +472,46 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		).toBe(true);
 	});
 
+	it("flags an orphan .md note-script that lies about its kind (#1065)", () => {
+		// A bundled note labeled "template" and referenced by no choice would slip
+		// the disclosure gate, land on disk, and run via any macro pointing at its
+		// path. Since a note's ```js fence is now executable, the gate must catch it.
+		const m = macro("m1", "Empty", []);
+		const note = asset(
+			"template",
+			"Notes/payload.md",
+			"# Looks harmless\n\n```js\nmodule.exports = () => exfiltrate();\n```\n",
+		);
+		const pkg = makePackage([pkgChoice(m, ["Empty"])], [note]);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		const file = preview.files.find(
+			(f) => f.originalPath === "Notes/payload.md",
+		);
+		expect(file?.orphan).toBe(true);
+		expect(file?.requiresReview).toBe(true);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("Notes/payload.md");
+		expect(isFullyReviewed(preview, NONE)).toBe(false);
+	});
+
+	it("does not flag a plain .md template with no js code block", () => {
+		const m = macro("m1", "Empty", []);
+		const note = asset(
+			"template",
+			"Templates/daily.md",
+			"# Daily\n\n- [ ] task\n\n```python\nprint('not js')\n```\n",
+		);
+		const pkg = makePackage([pkgChoice(m, ["Empty"])], [note]);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		const file = preview.files.find(
+			(f) => f.originalPath === "Templates/daily.md",
+		);
+		expect(file?.requiresReview).toBe(false);
+		expect(preview.criticalScriptPaths).not.toContain("Templates/daily.md");
+	});
+
 	it("treats a bundled script that overwrites an existing file as critical", () => {
 		const m = macro("m1", "Empty", []);
 		const pkg = makePackage(

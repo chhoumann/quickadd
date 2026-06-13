@@ -75,13 +75,14 @@ In the Macro Builder, you can add different types of commands:
 
 ### Add a User Script Command
 
-Macros do not contain JavaScript code directly. Your code lives in a `.js` file
-inside your vault, and the macro simply runs that file.
+Macros do not contain JavaScript code directly. Your code lives either in a
+`.js` file inside your vault **or** in a ` ```js ` code block inside a note, and
+the macro simply runs it. The note option is handy on mobile, where Obsidian
+cannot open `.js` files — see [User Scripts](../UserScripts.md#scripts-in-a-note-code-block).
 
-Create a new script file such as `scripts/my-macro.js`. Make sure the file is
-really a JavaScript file whose name ends in `.js`. If you create it from inside
-Obsidian, check that Obsidian did not create a Markdown note named
-`my-macro.js.md`; QuickAdd only discovers files ending in `.js`.
+Create a new script file such as `scripts/my-macro.js`, or a note such as
+`Scripts/my-macro.md` with your code in a ` ```js ` block. QuickAdd runs the
+**first** ` ```js ` block in a note and ignores surrounding prose.
 
 Keep the script inside your vault, but not inside `.obsidian` or any folder
 whose name starts with a dot. Obsidian may exclude hidden folders from its file
@@ -90,15 +91,14 @@ normal folder such as `scripts/` or a visible underscore-prefixed folder such as
 `_quickadd/scripts/`.
 
 Open the Macro Builder and add a **User Script** command. The **Browse** button
-opens QuickAdd's script picker, not a native file picker. It searches the `.js`
-files Obsidian has already discovered in the vault, so it cannot pick files
-outside the vault, files hidden from Obsidian's index, or files whose extension
-is really `.md`.
+opens QuickAdd's script picker, not a native file picker. It lists the `.js`
+files and notes-with-a-code-block Obsidian has already discovered in the vault,
+so it cannot pick files outside the vault or hidden from Obsidian's index.
 
-You can also type the script into the text field and click **Add**. Type the
-script basename, not a vault-relative path: for `scripts/my-macro.js`, enter
-`my-macro`. To run a specific exported member, append it with `::`, such as
-`my-macro::start`. Do not enter `scripts/my-macro.js` in the manual field.
+You can also type the script into the text field and click **Add**. For a `.js`
+file, type its basename — for `scripts/my-macro.js`, enter `my-macro`. For a
+note, type its vault path, e.g. `Scripts/my-macro.md`. To run a specific exported
+member, append it with `::`, such as `my-macro::start`.
 
 If the script exports multiple functions and you do not specify a member,
 QuickAdd will ask which export to run. You can also set an output variable name
@@ -162,14 +162,15 @@ The **Paste with format** command preserves rich formatting when pasting content
 
 ## User Scripts
 
-User scripts are JavaScript files that extend macro functionality. They have access to:
+User scripts extend macro functionality with custom JavaScript — written in a
+`.js` file or in a ` ```js ` code block inside a note. They have access to:
 - The Obsidian app object
 - The QuickAdd API
 - A variables object for passing data between commands
 
 :::warning Script Placement Requirements
 
-User scripts (.js files) must be placed in your Obsidian vault, but **NOT** in the `.obsidian` directory or in hidden folders (folders starting with a dot).
+User scripts (a `.js` file, or a note with a ` ```js ` block) must be placed in your Obsidian vault, but **NOT** in the `.obsidian` directory or in hidden folders (folders starting with a dot).
 
 ✅ **Valid locations:**
 - `/scripts/myScript.js`

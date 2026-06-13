@@ -1,4 +1,5 @@
 import {
+	Notice,
 	TFolder,
 	type App,
 	TFile,
@@ -227,8 +228,11 @@ describe("getUserScript", () => {
 		};
 	}
 
-	function createUserScriptApp(fileContent: string) {
-		const file = createFile("Scripts/script.js");
+	function createUserScriptApp(
+		fileContent: string,
+		path = "Scripts/script.js",
+	) {
+		const file = createFile(path);
 		return {
 			vault: {
 				getAbstractFileByPath: vi.fn(() => file),
@@ -308,6 +312,92 @@ describe("getUserScript", () => {
 				command.settings,
 			),
 		).rejects.toThrow("script rejected");
+	});
+
+	it("loads a user script from a note's ```js code block (#1065)", async () => {
+		const app = createUserScriptApp(
+			[
+				"# My script note",
+				"",
+				"Some prose that should be ignored.",
+				"",
+				"```js",
+				'module.exports = () => "hi from a note";',
+				"```",
+				"",
+				"More prose.",
+			].join("\n"),
+			"Scripts/note-script.md",
+		);
+		const command = createUserScriptCommand({
+			path: "Scripts/note-script.md",
+			name: "note-script",
+		});
+
+		const script = await getUserScript(command, app);
+		expect(typeof script).toBe("function");
+		expect((script as () => unknown)()).toBe("hi from a note");
+	});
+
+	it("resolves ::member access for a note-based script", async () => {
+		const app = createUserScriptApp(
+			[
+				"```js",
+				"module.exports = {",
+				"  run: async (params) => params.token,",
+				"};",
+				"```",
+			].join("\n"),
+			"Scripts/note-script.md",
+		);
+		const command = createUserScriptCommand({
+			path: "Scripts/note-script.md",
+			name: "Scripts/note-script.md::run",
+		});
+
+		const script = await getUserScript(command, app);
+		expect(typeof script).toBe("function");
+		await expect(
+			(script as (params: unknown) => unknown)({ token: "ok" }),
+		).resolves.toBe("ok");
+	});
+
+	it("returns undefined and shows a notice when a note has no ```js block", async () => {
+		const noticeStub = Notice as unknown as {
+			instances: Array<{ message: string }>;
+		};
+		const before = noticeStub.instances.length;
+		const app = createUserScriptApp(
+			"# Just prose\n\nNo code block here.\n",
+			"Scripts/no-fence.md",
+		);
+		const command = createUserScriptCommand({
+			path: "Scripts/no-fence.md",
+			name: "no-fence",
+		});
+
+		const script = await getUserScript(command, app);
+		expect(script).toBeUndefined();
+
+		const added = noticeStub.instances.slice(before);
+		expect(added).toHaveLength(1);
+		expect(added[0].message).toContain("Scripts/no-fence.md");
+	});
+
+	it("treats a note fence without module.exports as a non-runnable export", async () => {
+		const app = createUserScriptApp(
+			"```js\nconst notExported = 1;\n```",
+			"Scripts/inline-style.md",
+		);
+		const command = createUserScriptCommand({
+			path: "Scripts/inline-style.md",
+			name: "inline-style",
+		});
+
+		const script = await getUserScript(command, app);
+		// CommonJS contract: a note script must assign module.exports/exports.default.
+		// Without it, the export is the empty module object, never a runnable function.
+		expect(typeof script).not.toBe("function");
 	});
 });
 

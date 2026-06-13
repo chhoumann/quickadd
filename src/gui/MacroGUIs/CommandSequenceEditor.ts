@@ -2,9 +2,8 @@ import type {
 	App,
 	DropdownComponent,
 	TextComponent,
-	TFile,
 } from "obsidian";
-import { ButtonComponent, Setting } from "obsidian";
+import { ButtonComponent, Notice, Setting } from "obsidian";
 import CommandList from "./CommandList.svelte";
 import {
 	createCommandListProps,
@@ -21,7 +20,13 @@ import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 import { NestedChoiceCommand } from "../../types/macros/QuickCommands/NestedChoiceCommand";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
-import { JAVASCRIPT_FILE_EXTENSION_REGEX } from "../../constants";
+import {
+	type ScriptCandidate,
+	candidateLabel,
+	loadScriptCandidates,
+	noteScriptError,
+	resolveScriptSelector,
+} from "./scriptCandidates";
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
@@ -74,7 +79,7 @@ export class CommandSequenceEditor {
 
 	private commandsRef: ICommand[];
 	private obsidianCommands: IObsidianCommand[] = [];
-	private javascriptFiles: TFile[] = [];
+	private scriptCandidates: ScriptCandidate[] = [];
 	private commandListHandle: MountHandle | null = null;
 	private commandListProps: CommandListProps | null = null;
 	private containerEl: HTMLElement | null = null;
@@ -88,7 +93,7 @@ export class CommandSequenceEditor {
 		this.conditionalHandlers = options.conditionalHandlers;
 
 		this.loadObsidianCommands();
-		this.loadJavascriptFiles();
+		this.loadScriptCandidates();
 	}
 
 	public render(containerEl: HTMLElement) {
@@ -122,10 +127,8 @@ export class CommandSequenceEditor {
 		});
 	}
 
-	private loadJavascriptFiles(): void {
-		this.javascriptFiles = this.app.vault
-			.getFiles()
-			.filter((file) => JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path));
+	private loadScriptCandidates(): void {
+		this.scriptCandidates = loadScriptCandidates(this.app);
 	}
 
 	private renderCommandList(parent: HTMLElement) {
@@ -334,16 +337,30 @@ export class CommandSequenceEditor {
 		let input!: TextComponent;
 		let addButton: ButtonComponent | null = null;
 
-		const addUserScriptFromInput = () => {
-			const value: string = input.getValue();
-			const scriptBasename = getUserScriptMemberAccess(value).basename;
+		const addUserScriptFromInput = async () => {
+			const value: string = input.getValue().trim();
+			if (!value) return;
+			const selector = getUserScriptMemberAccess(value).basename ?? value;
 
-			const file = this.javascriptFiles.find(
-				(f) => f.basename === scriptBasename
+			// Notes resolve by path (so a bare basename never picks a note over a
+			// same-named .js); .js keeps basename matching. Member access (`::`) is
+			// preserved in `value`, which becomes the command name.
+			const resolved = resolveScriptSelector(
+				this.app,
+				this.scriptCandidates,
+				selector,
 			);
-			if (!file) return;
+			if (!resolved) return;
 
-			this.addCommand(new UserScript(value, file.path));
+			if (resolved.isMarkdown) {
+				const reason = await noteScriptError(this.app, resolved.file);
+				if (reason) {
+					new Notice(`QuickAdd: "${resolved.file.path}" — ${reason}`);
+					return;
+				}
+			}
+
+			this.addCommand(new UserScript(value, resolved.file.path));
 
 			input.setValue("");
 			if (addButton) {
@@ -353,7 +370,7 @@ export class CommandSequenceEditor {
 
 		new Setting(parent)
 			.setName("User Scripts")
-			.setDesc("Add user script - type the name or click Browse")
+			.setDesc("Add a .js file or a note with a ```js code block - type the name or click Browse")
 			.addText((textComponent) => {
 				input = textComponent;
 				textComponent.inputEl.addClass("qa-command-sequence-input");
@@ -362,14 +379,14 @@ export class CommandSequenceEditor {
 				new GenericTextSuggester(
 					this.app,
 					textComponent.inputEl,
-					this.javascriptFiles.map((f) => f.basename)
+					this.scriptCandidates.map((c) => candidateLabel(c))
 				);
 
 				textComponent.inputEl.addEventListener(
 					"keypress",
 					(e: KeyboardEvent) => {
 						if (e.key === "Enter") {
-							addUserScriptFromInput();
+							void addUserScriptFromInput();
 						}
 					}
 				);
@@ -377,17 +394,23 @@ export class CommandSequenceEditor {
 			.addButton((button) =>
 				button
 					.setButtonText("Browse")
-					.setTooltip("Browse and select a script file")
+					.setTooltip("Browse and select a script (.js file or note)")
 					.onClick(async () => {
 						const selected = await this.showScriptPicker();
 						if (selected) {
-							this.addCommand(new UserScript(selected.basename, selected.path));
+							const name = selected.isMarkdown
+								? selected.file.path
+								: selected.file.basename;
+							this.addCommand(new UserScript(name, selected.file.path));
 						}
 					})
 			)
 			.addButton((button) => {
 				addButton = button;
-				button.setButtonText("Add").setCta().onClick(addUserScriptFromInput);
+				button
+					.setButtonText("Add")
+					.setCta()
+					.onClick(() => void addUserScriptFromInput());
 				button.buttonEl.addClass("qa-hidden");
 			});
 
@@ -489,26 +512,41 @@ export class CommandSequenceEditor {
 			});
 	}
 
-	private async showScriptPicker(): Promise<TFile | null> {
-		if (this.javascriptFiles.length === 0) {
+	private async showScriptPicker(): Promise<ScriptCandidate | null> {
+		if (this.scriptCandidates.length === 0) {
 			showNoScriptsFoundNotice(this.app);
 			return null;
 		}
 
-		const scriptNames = this.javascriptFiles.map((f) => f.basename);
-		const selected = await InputSuggester.Suggest(
+		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
+		const paths = this.scriptCandidates.map((c) => c.file.path);
+		const labels = this.scriptCandidates.map((c) => candidateLabel(c));
+		const selectedPath = await InputSuggester.Suggest(
 			this.app,
-			scriptNames,
-			scriptNames,
+			labels,
+			paths,
 			{
-				placeholder: "Select a JavaScript file",
-				emptyStateText: "No .js files found in your vault",
+				placeholder: "Select a script (.js file or note with a ```js block)",
+				emptyStateText: "No scripts found in your vault",
 			}
 		);
 
-		if (!selected) return null;
+		if (!selectedPath) return null;
 
-		return this.javascriptFiles.find((f) => f.basename === selected) ?? null;
+		const candidate = this.scriptCandidates.find(
+			(c) => c.file.path === selectedPath
+		);
+		if (!candidate) return null;
+
+		if (candidate.isMarkdown) {
+			const reason = await noteScriptError(this.app, candidate.file);
+			if (reason) {
+				new Notice(`QuickAdd: "${candidate.file.path}" — ${reason}`);
+				return null;
+			}
+		}
+
+		return candidate;
 	}
 
 	private addCommand(command: ICommand) {

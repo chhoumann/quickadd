@@ -7,23 +7,54 @@ decision path, then use this page as the detailed reference.
 
 :::
 
-User scripts are JavaScript files that extend QuickAdd's functionality with custom code. They can be used within macros to perform complex operations, integrate with external APIs, and automate sophisticated workflows.
+User scripts extend QuickAdd's functionality with custom code. They can be used within macros to perform complex operations, integrate with external APIs, and automate sophisticated workflows. A user script can be a standalone `.js` file **or** a ` ```js ` code block inside a regular note — the latter is editable on mobile, where Obsidian cannot open `.js` files.
 
 > **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
 
 ## Adding Scripts to Macros
 
-User scripts must be real `.js` files inside your vault. Avoid `.obsidian` and
-hidden dot-folders such as `.scripts`, because Obsidian may exclude them from
-the vault file index QuickAdd uses for script discovery. If you create a script
-from inside Obsidian, confirm the file did not become a Markdown note such as
-`script.js.md`.
+A user script can live in either of two places inside your vault:
 
-In the Macro Builder, **Browse** opens QuickAdd's picker of discovered `.js`
-files; it is not a native file picker. If you add a script manually, type the
-script basename, not the relative path. For `scripts/my-script.js`, enter
-`my-script`; for a specific export, enter a member expression such as
-`my-script::start`.
+- a standalone `.js` file, or
+- a note (`.md`) containing a ` ```js ` (or ` ```javascript `) code block.
+
+Avoid `.obsidian` and hidden dot-folders such as `.scripts`, because Obsidian
+may exclude them from the vault file index QuickAdd uses for script discovery.
+
+In the Macro Builder, **Browse** opens QuickAdd's picker of discovered scripts
+(both `.js` files and notes that contain a code block); it is not a native file
+picker. If you add a script manually, type a `.js` script's basename — for
+`scripts/my-script.js`, enter `my-script` — or, for a note, type its vault path
+(e.g. `Scripts/my-script.md`). For a specific export, append a member expression
+such as `my-script::start` (or `Scripts/my-script.md::start`).
+
+### Scripts in a note code block
+
+Write your script in a ` ```js ` code block inside any note; QuickAdd runs the
+**first** ` ```js ` (or ` ```javascript `) block in the note and ignores all
+prose and other code blocks. The block is a CommonJS module exactly like a `.js`
+file — it must assign `module.exports` / `exports.default` (a top-level `return`
+the way [inline scripts](./InlineScripts.md) work will **not** export anything):
+
+````markdown
+# My script
+
+Notes about what this does — ignored by QuickAdd.
+
+```js
+module.exports = async (params) => {
+    // Your code here
+};
+```
+````
+
+If the note has no ` ```js ` block, QuickAdd shows a notice and skips the script.
+
+:::note
+Only plain ` ```js ` fences are recognized — blocks nested inside callouts or
+blockquotes (`> ```js`) and `~~~` fences are not. To embed a literal ` ``` ` line
+inside the script body, open the block with four or more backticks.
+:::
 
 ## Basic Structure
 
