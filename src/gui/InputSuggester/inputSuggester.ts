@@ -1,4 +1,4 @@
-import { FuzzySuggestModal } from "obsidian";
+import { FuzzySuggestModal, setIcon } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log, toError } from "src/logger/logManager";
 import {
@@ -20,6 +20,21 @@ type Options = {
 	renderItem: SuggestRender<string> | undefined;
 	/** Adds a "skip" affordance that resolves "" (for optional tokens). */
 	skippable: boolean;
+	/**
+	 * When false, the typed value is not offered as a custom ("create") suggestion.
+	 * Defaults to true to preserve the historical "type your own input" behaviour.
+	 */
+	allowCustomValue: boolean;
+	/**
+	 * Renders the typed-but-unmatched custom row with a label, e.g.
+	 * `(value) => \`Create new note: ${value}\``. Implies a "create" affordance.
+	 */
+	customValueLabel: (value: string) => string;
+	/**
+	 * Suppresses the custom row when the typed value already maps to a selectable
+	 * target the caller recognises (e.g. an existing file reached by basename).
+	 */
+	valueExists: (value: string) => boolean;
 };
 
 /**
@@ -35,6 +50,9 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	private displayItems: string[];
 	private items: string[];
 	private warnedOnEmptyDisplay = false;
+	private allowCustomValue = true;
+	private customValueLabel?: (value: string) => string;
+	private valueExists?: (value: string) => boolean;
 
 	public static Suggest(
 		app: App,
@@ -68,6 +86,9 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		});
 
 		this.renderItem = options.renderItem;
+		this.allowCustomValue = options.allowCustomValue ?? true;
+		this.customValueLabel = options.customValueLabel;
+		this.valueExists = options.valueExists;
 
 		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
 			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
@@ -125,11 +146,25 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	getSuggestions(query: string): FuzzyMatch<string>[] {
 		const safeQuery = normalizeQuery(query);
 		const suggestions = super.getSuggestions(safeQuery);
+
+		if (!this.allowCustomValue) return suggestions;
+
 		const customValue = normalizeQuery(this.inputEl.value);
 
 		if (!customValue) return suggestions;
 
 		if (this.items.includes(customValue)) {
+			return suggestions;
+		}
+
+		// The user types/sees displayItems (e.g. folder-stripped note names), so a
+		// value that matches an existing target must be suppressed against those too,
+		// not just the raw items — otherwise the "create" row lies about existing notes.
+		if (this.displayItems.includes(customValue)) {
+			return suggestions;
+		}
+
+		if (this.valueExists?.(customValue)) {
 			return suggestions;
 		}
 
@@ -161,6 +196,16 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	}
 
 	renderSuggestion(value: FuzzyMatch<string>, el: HTMLElement): void {
+		// The custom ("create") row is the only entry scored -Infinity; when a label
+		// is configured it takes precedence over any caller-provided renderItem.
+		if (
+			this.customValueLabel &&
+			value.match.score === Number.NEGATIVE_INFINITY
+		) {
+			this.renderCustomValue(value.item, el);
+			return;
+		}
+
 		if (!this.renderItem) {
 			super.renderSuggestion(value, el);
 			return;
@@ -175,6 +220,29 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			log.logWarning(err);
 			el.empty();
 			super.renderSuggestion(value, el);
+		}
+	}
+
+	private renderCustomValue(value: string, el: HTMLElement): void {
+		try {
+			el.empty();
+			el.addClass("mod-complex");
+			const content = el.createDiv({ cls: "suggestion-content" });
+			content.createDiv({
+				cls: "suggestion-title",
+				text: this.customValueLabel?.(value) ?? value,
+			});
+			const aux = el.createDiv({ cls: "suggestion-aux" });
+			setIcon(aux.createSpan({ cls: "suggestion-flair" }), "file-plus");
+		} catch (error) {
+			const err = toError(error);
+			err.message = `Custom create-row rendering threw an error; falling back to default rendering. ${err.message}`;
+			log.logWarning(err);
+			el.empty();
+			super.renderSuggestion(
+				{ item: value, match: { score: 0, matches: [] } },
+				el,
+			);
 		}
 	}
 

@@ -54,6 +54,65 @@ describe("InputSuggester", () => {
 		).not.toThrow();
 	});
 
+	it("omits the custom create row when allowCustomValue is false", () => {
+		const suggester = new InputSuggester(
+			app,
+			["Existing note"],
+			["Existing note"],
+			{ allowCustomValue: false },
+		);
+
+		suggester.inputEl.value = "Brand new note";
+
+		const suggestions = suggester.getSuggestions("Brand new note");
+
+		expect(
+			suggestions.some((s) => s.item === "Brand new note"),
+		).toBe(false);
+	});
+
+	it("suppresses the custom row when the typed value matches a displayed name", () => {
+		// Folder picker shape: items are full paths, displayItems are the folder-stripped
+		// names actually shown to the user (extension preserved, e.g. "note.md").
+		const suggester = new InputSuggester(
+			app,
+			["note.md"],
+			["Inbox/note.md"],
+		);
+
+		suggester.inputEl.value = "note.md";
+
+		const suggestions = suggester.getSuggestions("note.md");
+
+		// "note.md" already maps to Inbox/note.md, so no create row should be synthesized.
+		expect(suggestions.some((s) => s.item === "note.md")).toBe(false);
+	});
+
+	it("suppresses the custom row when valueExists reports an existing target", () => {
+		const suggester = new InputSuggester(app, ["Alpha"], ["Alpha"], {
+			valueExists: (value) => value === "Existing",
+		});
+
+		suggester.inputEl.value = "Existing";
+
+		const suggestions = suggester.getSuggestions("Existing");
+
+		expect(suggestions.some((s) => s.item === "Existing")).toBe(false);
+	});
+
+	it("still offers a create row for a genuinely new value when allowed", () => {
+		const suggester = new InputSuggester(app, ["Alpha"], ["Inbox/Alpha.md"], {
+			allowCustomValue: true,
+			valueExists: () => false,
+		});
+
+		suggester.inputEl.value = "Brand new";
+
+		const suggestions = suggester.getSuggestions("Brand new");
+
+		expect(suggestions[suggestions.length - 1]?.item).toBe("Brand new");
+	});
+
 	it("aligns displayItems length with items length", () => {
 		const shortDisplay = ["Alpha"];
 		const shortItems = ["Alpha", "Beta", "Gamma"];

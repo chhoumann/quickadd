@@ -340,6 +340,7 @@ export class App {
     getLeaf: () => ({}),
     setActiveLeaf: () => {},
     iterateRootLeaves: () => {},
+    getLastOpenFiles: () => [],
   };
   vault: any = {
     configDir: ".obsidian",
@@ -354,6 +355,7 @@ export class App {
   };
   metadataCache: any = {
     getFileCache: () => undefined,
+    isUserIgnored: () => false,
   };
   commands: any = {
     commands: {},

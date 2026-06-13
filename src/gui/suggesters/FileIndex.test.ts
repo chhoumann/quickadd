@@ -567,3 +567,49 @@ describe('FileIndex', () => {
 		});
 	});
 });
+
+describe('FileIndex recency accessors (note-picker seam)', () => {
+	let mockApp: App;
+	let fileIndex: FileIndex;
+	let fireFileOpen: (file: TFile | null) => void;
+
+	beforeEach(() => {
+		TestableFileIndex.reset();
+		mockApp = createMockApp();
+		// Capture the 'file-open' handler the index registers so we can drive it.
+		(mockApp.workspace.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
+			(event: string, handler: (file: TFile | null) => void) => {
+				if (event === 'file-open') fireFileOpen = handler;
+				return {} as never;
+			},
+		);
+		const mockPlugin = {
+			registerEvent: vi.fn((eventRef) => eventRef),
+		} as any;
+		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
+	});
+
+	it('getInstanceIfExists returns the singleton, and undefined after reset', () => {
+		expect(FileIndex.getInstanceIfExists()).toBe(fileIndex);
+		TestableFileIndex.reset();
+		expect(FileIndex.getInstanceIfExists()).toBeUndefined();
+	});
+
+	it('getLastOpenedAt reports the open timestamp and undefined for unopened files', () => {
+		expect(typeof fireFileOpen).toBe('function');
+		expect(fileIndex.getLastOpenedAt('Opened.md')).toBeUndefined();
+
+		fireFileOpen({ path: 'Opened.md' } as TFile);
+
+		expect(typeof fileIndex.getLastOpenedAt('Opened.md')).toBe('number');
+		expect(fileIndex.getLastOpenedAt('Never.md')).toBeUndefined();
+	});
+
+	it('getLastOpenedAt is a non-mutating peek (stable across repeated reads)', () => {
+		fireFileOpen({ path: 'A.md' } as TFile);
+		const first = fileIndex.getLastOpenedAt('A.md');
+		const second = fileIndex.getLastOpenedAt('A.md');
+		expect(first).toBe(second);
+		expect(typeof first).toBe('number');
+	});
+});
