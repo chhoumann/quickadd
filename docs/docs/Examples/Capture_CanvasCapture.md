@@ -22,8 +22,8 @@ Good fits:
 2. Enable **Capture to active file**.
 3. Open a Canvas file.
 4. Select exactly one supported card.
-5. Set **Write position** to **Top of file**, **Bottom of file**, or
-   **After line...** / **Before line...**.
+5. Set **Write position** to **Top of file (after frontmatter)**,
+   **Bottom of file**, or **After line…** / **Before line…**.
 6. Run the Capture choice.
 
 Supported selected-card targets:
@@ -38,7 +38,7 @@ selected, or the selected card is unsupported.
 
 1. Create a Capture choice.
 2. Turn off **Capture to active file**.
-3. Set **Capture To** to a `.canvas` file.
+3. Set **Capture to** to a `.canvas` file.
 4. Choose **Target canvas node**.
 5. Pick the card you want QuickAdd to write to.
 6. Set a supported write position.
@@ -50,10 +50,11 @@ to the same Canvas card.
 
 Canvas capture supports these write positions:
 
-- **Top of file**
+- **Top of file** (shown as **Top of file (after frontmatter)** when
+  **Capture to active file** is enabled)
 - **Bottom of file**
-- **After line...**
-- **Before line...**
+- **After line…**
+- **Before line…**
 
 Canvas capture does not support cursor-based write positions:
 
@@ -64,12 +65,12 @@ Canvas capture does not support cursor-based write positions:
 If **Capture to active file** is enabled and the write position is still
 **At cursor**, QuickAdd aborts instead of writing to the wrong place.
 
-## Append-link behavior
+## Link-to-captured-file behavior
 
-When append-link is set to **Enabled (requires active file)** and capture runs
-from a Canvas card without a focused Markdown editor, the capture still writes.
-QuickAdd skips link insertion because there is no active Markdown file to link
-from.
+When **Link to captured file** is set to **Enabled (requires active file)** and
+capture runs from a Canvas card without a focused Markdown editor, the capture
+still writes. QuickAdd skips link insertion because there is no active Markdown
+file to link from.
 
 ## Troubleshooting
 
@@ -78,7 +79,7 @@ from.
 | Capture aborts before writing | No card or multiple cards are selected | Select exactly one supported card |
 | Capture aborts with cursor-position wording | The write mode is cursor-based | Use top, bottom, after-line, or before-line placement |
 | Nothing is written to a file card | The file card points to a non-Markdown file | Use a Markdown file card or a text card |
-| The target picker is not shown | Capture target is not a `.canvas` file | Set **Capture To** to the Canvas file path |
+| The target picker is not shown | Capture target is not a `.canvas` file | Set **Capture to** to the Canvas file path |
 
 ## Related docs
 

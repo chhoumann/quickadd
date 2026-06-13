@@ -25,7 +25,7 @@ However, when you are entering the user script in the macro, you can add `::GetA
 
 Now, you will need a [Capture choice](../Choices/CaptureChoice.md) with the following settings.
 
--   _Capture To File Name:_ the path to the file where you want to store the tasks.
+-   _Capture to:_ the path to the file where you want to store the tasks.
 -   _Capture format:_ Enabled - and in the format, write`{{MACRO:<MACRONAME>}}` where `MACRONAME` is the name of the macro that you made earlier.
 
 The tasks are written in this format:

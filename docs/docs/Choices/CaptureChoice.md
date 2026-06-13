@@ -8,8 +8,7 @@ Allows to quickly capture your input and save it from anywhere in Obsidian, with
 -   Save interesting links for later reading and watching
 -   Individually timed notes in Daily notes file
 
-![image](https://user-images.githubusercontent.com/29108628/123451366-e025e280-d5dd-11eb-81b6-c21f3ad1823d.png)
-![image](https://user-images.githubusercontent.com/29108628/123451469-e61bc380-d5dd-11eb-80d1-7667427656f3.png)
+![The QuickAdd Capture builder, showing the Location and Position sections](/img/choices/capture-builder.png)
 
 ## Capture To
 
@@ -65,20 +64,44 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 
 ## Capture Options
 
+The Capture builder is grouped into sections: **Location**, **Position**, **Linking**, **Content**, and **Behavior**.
+
 -   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
 -   _Task_ will format your captured text as a task.
 -   _Use editor selection as default value_ controls whether the current editor selection is used as `{{VALUE}}`. Choose **Follow global setting**, **Use selection**, or **Ignore selection** (global default lives in Settings > Input). This does not affect `{{SELECTED}}`.
--   _Write position_ controls where Capture writes: top, bottom, after line, and active-file cursor modes.
--   _Append link_ will append a link to the file you have open in the file you're capturing to. You can choose between three modes:
+-   _Write position_ is a dropdown that controls where Capture writes. The available options depend on whether _Capture to active file_ is enabled:
+    -   **At cursor** (active file) / **Top of file** (target file) - the first option's label changes with the mode
+    -   **Top of file (after frontmatter)** (active file only)
+    -   **New line above cursor** (active file only)
+    -   **New line below cursor** (active file only)
+    -   **After line…**
+    -   **Before line…**
+    -   **Bottom of file**
+-   _Link to captured file_ is a dropdown that controls whether QuickAdd inserts a link to the captured file in the current note. You can choose between three modes:
     -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused (except Canvas-triggered capture, where link insertion is skipped)
     -   **Enabled (skip if no active file)** – inserts the link when possible and silently drops `{{LINKCURRENT}}` if nothing is open
     -   **Disabled** – never append a link
 
-    When either enabled mode is selected, you can choose where the link is placed:
+    When either enabled mode is selected, a _Link placement_ dropdown appears so you can choose where the link is placed:
     -   **Replace selection** - Replaces any selected text with the link (default)
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
+
+    When placement is **Replace selection**, an extra _Link type_ dropdown appears, letting you choose **Link** or **Embed**. Embed is only respected for the Replace selection placement.
+
+### Opening the captured file
+
+When _Capture to active file_ is disabled, the **Behavior** section shows an _Open_ toggle (described as "Open the captured file."). Enabling it reveals the shared file-opening controls:
+
+-   _File Opening Location_ - a dropdown for where to open the captured file: **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**.
+-   _Split Direction_ - shown only when location is **Split pane**; choose **Split right** or **Split down**.
+-   _View Mode_ - how to display the opened file: **Source**, **Preview**, **Live Preview**, or **Default**.
+-   _Focus new pane_ - a toggle to focus the opened tab immediately after opening. Shown for every location except **Reuse current tab**.
+
+### Run Templater on entire destination file after capture
+
+The **Behavior** section also has a _Run Templater on entire destination file after capture_ toggle. This is an advanced / legacy option: it executes any `<% %>` anywhere in the destination file, including inside code blocks. Leave it off unless you specifically need that whole-file Templater pass.
 
 ### Templater and newly created files
 

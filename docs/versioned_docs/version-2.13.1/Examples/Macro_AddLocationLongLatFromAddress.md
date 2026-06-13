@@ -10,14 +10,10 @@ Here is a [guide to installing user scripts](./Capture_FetchTasksFromTodoist.md)
    1. By clicking the 'Raw' button, and then saving the 'page' (CTRL+S on Windows, probably command+S on Mac), or
    2. Copying the file contents and saving it as `getLongLatFromAddress.js`. The `.js` is _crucial_.
 2. Save the file to somewhere in your vault. It doesn't matter where, as long as it's in your vault.
-3. Open QuickAdd settings, and then click 'Manage Macros'.
-4. Enter a macro name (I call mine 'Mapper'), and click 'Add macro'.
-5. The macro should appear. Click its 'Configure' button.
-6. There will be 3 input fields. Place your cursor in the one besides 'User Scripts', and it should display a suggester. Assuming you have no other `.js` files in your vault besides the one we just grabbed, it should be the only one shown. Either way, you'll want to click it, and then click 'Add'. It should get added as number 1.
-7. Go back to the QuickAdd main settings. Add a new choice with a name of your choosing. This choice should be a _Macro_ choice, which can be selected using the dropdown next to the 'Add Choice' button. Add this choice, and then
-8. It will appear on the list of choices. Click the ⚙ (gear) button for it, to configure it.
-9. Select the macro you've just created.
-10. Go back out of the QuickAdd settings. You can now run QuickAdd with the `Run QuickAdd` command in the command palette. The Choice you've made should appear.
+3. Open QuickAdd settings, click 'New choice', and select 'Macro' from the menu. This creates a Macro choice and opens the Macro Builder.
+4. Give the choice a name of your choosing (I call mine 'Mapper'). You can rename it by clicking its title at the top of the Macro Builder. If you close the builder, click the ⚙ (gear) 'Configure' button on the choice in the list to reopen it.
+5. In the Macro Builder, find the 'User Scripts' input. Place your cursor in it and it should display a suggester. Assuming you have no other `.js` files in your vault besides the one we just grabbed, it should be the only one shown. Either way, you'll want to click it, and then click 'Add' (you can also click 'Browse' to pick the script file). It should get added as the first command.
+6. Close the QuickAdd settings. You can now run QuickAdd with the `QuickAdd: Run` command in the command palette. The choice you've made should appear.
 
 It adds a YAML property to the active file called ``location`` with `[lat, long]` as its value given the address you enter.
 

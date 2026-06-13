@@ -4,6 +4,8 @@ title: Template
 
 The template choice type is not meant to be a replacement for [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use both QuickAdd format syntax in a Templater template - and both will work.
 
+The Template choice builder groups its settings into four sections: **Template** (template path and file name format), **Location** (where the file is created), **Linking** (whether and how to link to the created file), and **Behavior** (what happens when the file already exists, and how the file is opened).
+
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
 
@@ -21,21 +23,31 @@ You can specify as many folders as you want. If you don't, it'll just create the
 If you specify multiple folders, you'll get a suggester asking which of the folders you wish to create the file in.
 Folder paths also support QuickAdd [format syntax](/FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables. For example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
 
-**Append link**. The file you're currently in will get a link to a newly created file. Pick one of three modes:
+When **Create in folder** is enabled, a few sub-toggles appear:
+- **Choose folder when creating a new note** – instead of using the folders configured here, prompt you to pick a destination folder each time the choice runs.
+- **Include subfolders** – when prompted, choose from both the selected folders and their subfolders when creating the note.
+- **Create in same folder as active file** – creates the file in the same folder as the currently active file. Will not create the file if there is no active file.
+
+**Link to created file**. Choose how QuickAdd should insert a link to the created file in the current note. Pick one of three modes:
 - **Enabled (requires active file)** – throw an error if no note is focused (legacy behavior)
 - **Enabled (skip if no active file)** – insert the link when possible and skip silently otherwise
 - **Disabled** – never append a link
 
-When either enabled mode is selected, you can choose where the link is placed:
+When either enabled mode is selected, **Link placement** lets you choose where the link is placed:
 - **Replace selection** - Replaces any selected text with the link (default)
 - **After selection** - Preserves selected text and places the link after it  
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
 
+**Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
 
 **If the target file already exists**. Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.
 
-**Open**. Will open the file you've created. By default, it opens in the active pane. If you enable **New tab**, it'll open in a new tab in the direction you specified.
+**Open**. Will open the created file. When enabled, additional file-opening controls appear (these are shared with the Capture choice):
+- **File Opening Location** – where to open the file: **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**.
+- **Split Direction** – shown only when the location is **Split pane**. Arrange the new pane as **Split right** or **Split down**.
+- **View Mode** – how to display the opened file: **Source**, **Preview**, **Live Preview**, or **Default**.
+- **Focus new pane** – shown for every location except **Reuse current tab**. Focus the opened tab immediately after opening.
 
 ## File Already Exists Behavior
 
