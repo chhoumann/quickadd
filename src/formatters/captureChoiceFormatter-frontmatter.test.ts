@@ -794,3 +794,118 @@ describe('CaptureChoiceFormatter append task newline regression (issue #124)', (
     expect(result).toBe('- [ ] Old task\n- [ ] New task\n');
   });
 });
+
+describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (global as any).navigator = {
+      clipboard: {
+        readText: vi.fn().mockResolvedValue(''),
+      },
+    };
+  });
+
+  const makeFormatter = () => {
+    const app = createMockApp();
+    const plugin = {
+      settings: {
+        enableTemplatePropertyTypes: false,
+        globalVariables: {},
+        showCaptureNotification: false,
+        showInputCancellationNotification: true,
+      },
+    } as any;
+    return new CaptureChoiceFormatter(app, plugin);
+  };
+
+  // Capture payload with NO trailing newline — the common single-line format case
+  // that previously glued onto the first body line / above the frontmatter.
+  const topInsert = (content: string, payload = 'INSERTED') =>
+    makeFormatter().formatContentWithFile(
+      payload,
+      createChoice({ captureToActiveFile: false }),
+      content,
+      createTFile('Note.md'),
+    );
+
+  it('inserts BELOW empty frontmatter instead of above it (the literal #647 bug)', async () => {
+    expect(await topInsert('---\n---\n# Body')).toBe('---\n---\nINSERTED\n# Body');
+  });
+
+  it('separates the capture from an immediately-following body line (no glue)', async () => {
+    expect(await topInsert('---\ntitle: A\n---\n# Heading')).toBe(
+      '---\ntitle: A\n---\nINSERTED\n# Heading',
+    );
+  });
+
+  it('inserts at the very top when there is no frontmatter, on its own line', async () => {
+    expect(await topInsert('# Heading\nBody')).toBe('INSERTED\n# Heading\nBody');
+  });
+
+  it('keeps the closing fence intact for an empty frontmatter-only note (no trailing newline)', async () => {
+    expect(await topInsert('---\n---')).toBe('---\n---\nINSERTED');
+  });
+
+  it('keeps the closing fence intact for a frontmatter-only note with no trailing newline', async () => {
+    expect(await topInsert('---\ntitle: A\n---')).toBe('---\ntitle: A\n---\nINSERTED');
+  });
+
+  it('preserves CRLF frontmatter and inserts after the closing fence', async () => {
+    expect(await topInsert('---\r\ntitle: A\r\n---\r\n# Body\r\n')).toBe(
+      '---\r\ntitle: A\r\n---\r\nINSERTED\n# Body\r\n',
+    );
+  });
+
+  it('absorbs an existing CRLF blank line after the fence instead of doubling it', async () => {
+    expect(await topInsert('---\r\ntitle: A\r\n---\r\n\r\nBody')).toBe(
+      '---\r\ntitle: A\r\n---\r\nINSERTED\r\nBody',
+    );
+  });
+
+  it('treats a "..."-closed block as no frontmatter (Obsidian-consistent) and inserts at top', async () => {
+    expect(await topInsert('---\ntitle: A\n...\n# Body')).toBe(
+      'INSERTED\n---\ntitle: A\n...\n# Body',
+    );
+  });
+
+  it('treats a leading-blank-line fence as no frontmatter (Obsidian-consistent) and inserts at absolute top', async () => {
+    // exists:false (fence not at offset 0) -> capture lands at the very top; the
+    // note's existing leading blank line is reused as the separator, not doubled.
+    expect(await topInsert('\n---\ntitle: A\n---\n# Body')).toBe(
+      'INSERTED\n---\ntitle: A\n---\n# Body',
+    );
+  });
+
+  it('does not add a double newline when the capture already ends with one (task payload) into frontmatter-only note', async () => {
+    const result = await makeFormatter().formatContentWithFile(
+      '- [ ] TASK\n',
+      createChoice({ captureToActiveFile: false, task: true }),
+      '---\n---',
+      createTFile('Note.md'),
+    );
+    expect(result).toBe('---\n---\n- [ ] TASK\n');
+  });
+
+  it('separates a task create-if-not-found-at-top from the body (previously glued)', async () => {
+    const result = await makeFormatter().formatContentWithFile(
+      '- [ ] CAP',
+      createChoice({
+        task: true,
+        insertAfter: {
+          enabled: true,
+          after: '## Missing',
+          insertAtEnd: false,
+          considerSubsections: false,
+          createIfNotFound: true,
+          createIfNotFoundLocation: 'top',
+          inline: false,
+          replaceExisting: false,
+          blankLineAfterMatchMode: 'auto',
+        },
+      }),
+      '# Header',
+      createTFile('Note.md'),
+    );
+    expect(result).toBe('## Missing\n- [ ] CAP\n# Header');
+  });
+});

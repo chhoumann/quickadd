@@ -239,9 +239,9 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createFile(),
 		);
 
-		// Top insertion without frontmatter concatenates capture + body directly;
-		// the point here is that the literal backslash-n survives untouched.
-		expect(result).toBe("\\nablaexisting");
+		// Top insertion places the capture on its own line above the body (#647); the
+		// point here is that the literal backslash-n in the payload survives untouched.
+		expect(result).toBe("\\nabla\nexisting");
 	});
 
 	it("preserves backslash sequences in path-like selected text", async () => {

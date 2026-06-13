@@ -5,7 +5,6 @@ import {
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
-import { log } from "../logger/logManager";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { BlankLineAfterMatchMode } from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
@@ -13,7 +12,7 @@ import { reportError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection, { getMarkdownHeadings } from "./helpers/getEndOfSection";
-import { findYamlFrontMatterRange } from "../utils/yamlContext";
+import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 
 /**
@@ -178,22 +177,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return await this.insertBeforeHandler(formatted);
 		}
 
-		const frontmatterEndPosition = this.file
-			? this.getFrontmatterEndPosition(this.file, this.fileContent)
-			: null;
-		if (
-			frontmatterEndPosition === null ||
-			frontmatterEndPosition === undefined ||
-			frontmatterEndPosition < 0
-		)
-			return `${formatted}${this.fileContent}`;
-
-		return this.insertTextAfterPositionInBody(
-			formatted,
-			this.fileContent,
-
-			frontmatterEndPosition,
-		);
+		// Default "write to top" path: insert after any frontmatter so the YAML block
+		// is never broken, and never glue the capture onto the first body line (#647).
+		return insertAtNoteBodyStart(this.fileContent, formatted);
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
@@ -652,14 +638,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			const frontmatterEndPosition = this.file
-				? this.getFrontmatterEndPosition(this.file, this.fileContent)
-				: -1;
-			return this.insertTextAfterPositionInBody(
-				insertAfterLineAndFormatted,
+			return insertAtNoteBodyStart(
 				this.fileContent,
-
-				frontmatterEndPosition,
+				insertAfterLineAndFormatted,
 			);
 		}
 
@@ -743,20 +724,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			insertBefore.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			const frontmatterEndPosition = this.file
-				? this.getFrontmatterEndPosition(this.file, this.fileContent)
-				: -1;
-			const needsTrailingSeparator =
-				frontmatterEndPosition >= 0 || this.choice.task;
-			const textAtTop =
-				needsTrailingSeparator && !formattedAndInsertBeforeLine.endsWith("\n")
-					? `${formattedAndInsertBeforeLine}\n`
-					: formattedAndInsertBeforeLine;
-			return this.insertTextAfterPositionInBody(
-				textAtTop,
+			return insertAtNoteBodyStart(
 				this.fileContent,
-
-				frontmatterEndPosition,
+				formattedAndInsertBeforeLine,
 			);
 		}
 
@@ -807,13 +777,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			const frontmatterEndPosition = this.file
-				? this.getFrontmatterEndPosition(this.file, this.fileContent)
-				: -1;
-			return this.insertTextAfterPositionInBody(
-				insertAfterLineAndFormatted,
+			return insertAtNoteBodyStart(
 				this.fileContent,
-				frontmatterEndPosition,
+				insertAfterLineAndFormatted,
 			);
 		}
 
@@ -855,51 +821,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 	}
 
-	private getFrontmatterEndPosition(file: TFile, fallbackContent?: string) {
-		const fileCache = this.app.metadataCache.getFileCache(file);
-
-		if (fileCache?.frontmatterPosition) {
-			return fileCache.frontmatterPosition.end.line;
-		}
-
-		if (fallbackContent) {
-			const inferred = this.inferFrontmatterEndLineFromContent(fallbackContent);
-			if (inferred !== null) {
-				return inferred;
-			}
-		}
-
-		log.logMessage("could not get frontmatter. Maybe there isn't any.");
-		return -1;
-	}
-
-	private inferFrontmatterEndLineFromContent(content: string): number | null {
-		const yamlRange = findYamlFrontMatterRange(content);
-		if (!yamlRange) return null;
-
-		const prefix = content.slice(0, yamlRange[1]);
-		const lines = prefix.split(/\r?\n/);
-		if (lines.length === 0) return null;
-
-		if (prefix.endsWith("\n")) {
-			return lines.length - 2;
-		}
-
-		return lines.length - 1;
-	}
-
 	private insertTextAfterPositionInBody(
 		text: string,
 		body: string,
 		pos: number,
 	): string {
-		if (pos === -1) {
-			// For the case that there is no frontmatter and we're adding to the top of the file.
-			// We already add a linebreak for the task in CaptureChoiceEngine.tsx in getCapturedContent.
-			const shouldAddLinebreak = !this.choice.task;
-			return `${text}${shouldAddLinebreak ? "\n" : ""}${body}`;
-		}
-
+		// Line-matched insertAfter callers always pass a real line index (>= 0); the
+		// frontmatter-aware "top" insertion lives in insertAtNoteBodyStart instead.
 		const splitContent = body.split("\n");
 		const pre = splitContent.slice(0, pos + 1).join("\n");
 		const post = splitContent.slice(pos + 1).join("\n");
