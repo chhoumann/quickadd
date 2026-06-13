@@ -21,6 +21,7 @@ import {
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
+import { transformCase } from "src/utils/caseTransform";
 
 export interface AIRequestLogEntry {
 	id: string;
@@ -483,6 +484,27 @@ type ChunkedPromptParams = Omit<
 
 const MAX_CONTEXT_RETRY_DEPTH = 12;
 const MAX_CHUNKED_PROMPTS = 500;
+const CHUNK_PROBE_VALUE = "quickadd_chunk_probe_123456789";
+
+function getChunkProbeVariants(): string[] {
+	return Array.from(
+		new Set([
+			CHUNK_PROBE_VALUE,
+			...[
+				"kebab",
+				"snake",
+				"camel",
+				"pascal",
+				"title",
+				"lower",
+				"upper",
+				"slug",
+			].map((style) => transformCase(CHUNK_PROBE_VALUE, style)),
+		])
+	).filter(Boolean);
+}
+
+const CHUNK_PROBE_VARIANTS = getChunkProbeVariants();
 
 // Split a chunk near its middle, preferring a natural boundary (paragraph,
 // sentence, then space). Works on UTF-16 indices directly — no Array.from — so it
@@ -541,15 +563,31 @@ function templateReferencesChunk(template: string): boolean {
 	return false;
 }
 
-// Tokens that can expand into a {{VALUE:chunk}} reference at format time, so the
-// static guard shouldn't reject a template that uses them.
-function templateMayInjectChunk(template: string): boolean {
+// Tokens that can expand into a {{VALUE:chunk}} reference at format time. The
+// rendered probe below must still prove that the chunk value was actually used.
+function templateHasDynamicExpansionSite(template: string): boolean {
 	return (
 		TEMPLATE_REGEX.test(template) ||
 		MACRO_REGEX.test(template) ||
 		GLOBAL_VAR_REGEX.test(template) ||
 		INLINE_JAVASCRIPT_REGEX.test(template)
 	);
+}
+
+function renderedPromptContainsChunk(renderedPrompt: string): boolean {
+	return CHUNK_PROBE_VARIANTS.some((variant) =>
+		renderedPrompt.includes(variant)
+	);
+}
+
+function removeChunkProbeFromRenderedPrompt(renderedPrompt: string): string {
+	return CHUNK_PROBE_VARIANTS
+		.slice()
+		.sort((a, b) => b.length - a.length)
+		.reduce(
+			(output, variant) => output.split(variant).join(" "),
+			renderedPrompt
+		);
 }
 
 function assertWithinChunkBudget(count: number): void {
@@ -690,27 +728,28 @@ export async function ChunkedPrompt(
 		const chunkSeparator = settings.chunkSeparator || /\n/g;
 		const rawChunks = text.split(chunkSeparator);
 
-		// The chunk text is inserted by the formatter via {{VALUE:chunk}}. Fail fast
-		// if the template can't reference it — otherwise every chunk would render to
-		// the same prompt and the input would be silently dropped. Skip the check
-		// when the template may inject the reference dynamically (nested
-		// template/macro/inline JS), which we can't detect statically.
-		if (
-			!templateReferencesChunk(promptTemplate) &&
-			!templateMayInjectChunk(promptTemplate)
-		) {
+		// Estimate the static prompt overhead by rendering the template once with a
+		// probe chunk value. This also validates dynamic expansions: templates,
+		// macros, globals, and inline JS are allowed to inject {{VALUE:chunk}}, but
+		// they only pass if the rendered prompt actually contains the probe.
+		const overheadProbe = await formatter(promptTemplate, {
+			chunk: CHUNK_PROBE_VALUE,
+		});
+		const hasChunkReference =
+			templateReferencesChunk(promptTemplate) ||
+			(templateHasDynamicExpansionSite(promptTemplate) &&
+				renderedPromptContainsChunk(overheadProbe));
+		if (!hasChunkReference) {
 			throw new Error(
 				"The chunked prompt template does not reference the chunk text. Add {{VALUE:chunk}} to your prompt template so each chunk is inserted."
 			);
 		}
 
-		// Estimate the static prompt overhead by rendering the template once with a
-		// throwaway chunk value (a space avoids QuickAdd prompting for a value).
-		const overheadProbe = await formatter(promptTemplate, { chunk: " " });
 		const fullContextTokens = getModelMaxTokens(model.name);
 		const estimatedInputBudget = estimateModelInputBudget(fullContextTokens);
+		const overheadPrompt = removeChunkProbeFromRenderedPrompt(overheadProbe);
 		const promptOverhead =
-			estimateTokenCount(systemPrompt) + estimateTokenCount(overheadProbe);
+			estimateTokenCount(systemPrompt) + estimateTokenCount(overheadPrompt);
 
 		// Only hard-stop when the static overhead exceeds the model's ENTIRE context
 		// window (truly no room). If it merely exceeds the 45% planning budget, we

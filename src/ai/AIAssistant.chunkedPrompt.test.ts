@@ -21,6 +21,9 @@ vi.mock("src/settingsStore", () => ({
 
 vi.mock("./OpenAIRequest", () => ({
 	OpenAIRequest: mocks.openAIRequest,
+}));
+
+vi.mock("./providerErrors", () => ({
 	isLikelyContextLimitError: mocks.isLikelyContextLimitError,
 }));
 
@@ -294,6 +297,71 @@ describe("ChunkedPrompt", () => {
 			)
 		).rejects.toThrow(/does not reference the chunk/);
 		expect(mocks.makeRequest).not.toHaveBeenCalled();
+	});
+
+	// Iter-4 regression: a dynamic token alone is not enough to prove the chunk is
+	// inserted. The rendered prompt must include the injected chunk value.
+	it("throws when a dynamic token renders a prompt without the chunk", async () => {
+		const dynamicFormatter = vi.fn(async () => "Summarize today's notes.");
+
+		await expect(
+			ChunkedPrompt(
+				makeApp(),
+				makeSettings({ promptTemplate: "Summarize {{MACRO:today}}" }),
+				dynamicFormatter
+			)
+		).rejects.toThrow(/does not reference the chunk/);
+		expect(mocks.makeRequest).not.toHaveBeenCalled();
+	});
+
+	it("allows a dynamic token when rendering injects the chunk value", async () => {
+		const dynamicFormatter = vi.fn(
+			async (_template: string, variables: { [k: string]: unknown }) =>
+				`Dynamic: ${variables.chunk}`
+		);
+
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "alpha\nbeta",
+				promptTemplate: "{{MACRO:chunk-template}}",
+				chunkSeparator: /\n/g,
+				shouldMerge: false,
+			}),
+			dynamicFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(new Set(sentPrompts)).toEqual(
+			new Set(["Dynamic: alpha", "Dynamic: beta"])
+		);
+	});
+
+	it("allows a dynamic token when rendering injects a transformed chunk value", async () => {
+		const dynamicFormatter = vi.fn(
+			async (_template: string, variables: { [k: string]: unknown }) =>
+				`Dynamic: ${String(variables.chunk).toUpperCase()}`
+		);
+
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "alpha\nbeta",
+				promptTemplate: "{{MACRO:chunk-template}}",
+				chunkSeparator: /\n/g,
+				shouldMerge: false,
+			}),
+			dynamicFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(new Set(sentPrompts)).toEqual(
+			new Set(["Dynamic: ALPHA", "Dynamic: BETA"])
+		);
 	});
 
 	// Iter-3 regression (high): a formatter failure on one chunk must trip the
