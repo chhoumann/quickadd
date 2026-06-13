@@ -25,6 +25,7 @@
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { promptRenameChoice } from "../choiceRename";
 	import AddChoiceControls from "./AddChoiceControls.svelte";
+	import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
 	import ChoiceList from "./ChoiceList.svelte";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { type Plain, snapshot } from "../svelte/persist.svelte";
@@ -109,11 +110,12 @@
 	}
 
 	async function addChoiceToList(
-		name: string,
+		_name: string,
 		type: ChoiceType,
 		targetFolderId?: string,
 		skipConfigure = false,
 	): Promise<void> {
+		const name = uniqueDefaultChoiceName(type, choices);
 		const newChoice = createChoice(type, name);
 		choices = addChoiceToTree(choices, newChoice, targetFolderId);
 
