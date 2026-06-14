@@ -66,10 +66,11 @@ function onWritePositionChange(value: string) {
 	choice.insertAfter.enabled = false;
 	// Heading mode is a distinct insert-after flavor; clear it on every change so
 	// the two insert-after variants ("After line…" / "Under heading…") stay mutually
-	// exclusive. Also clear inline/replaceExisting: insertAfterHandler branches on
-	// `inline` BEFORE the heading override, so a stale inline=true (from a prior
-	// "After line…" inline config) would otherwise take the same-line path and ignore
-	// the picked heading entirely.
+	// exclusive. Also clear inline/replaceExisting so the persisted config stays clean
+	// and unambiguous when switching modes. (The formatter independently guards the
+	// inline path with `inline && override === null`, so a stale inline flag can't
+	// bypass a picked heading at runtime; this reset is the matching builder-side
+	// hygiene, not the sole safeguard.)
 	choice.insertAfter.promptHeading = false;
 	choice.insertAfter.inline = false;
 	choice.insertAfter.replaceExisting = false;
