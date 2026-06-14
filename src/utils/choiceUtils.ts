@@ -1,9 +1,33 @@
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type IChoice from "../types/choices/IChoice";
+import type { CaptureChoice } from "../types/choices/CaptureChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
+import type { MacroChoice } from "../types/choices/MacroChoice";
+import type { MultiChoice } from "../types/choices/MultiChoice";
+import type { TemplateChoice } from "../types/choices/TemplateChoice";
 
 function isMultiChoice(choice: IChoice): choice is IMultiChoice {
 	return choice.type === "Multi";
+}
+
+export function getChoiceType<
+	T extends TemplateChoice | MultiChoice | CaptureChoice | MacroChoice,
+>(choice: IChoice): choice is T {
+	const isTemplate = (choice: IChoice): choice is TemplateChoice =>
+		choice.type === "Template";
+	const isMacro = (choice: IChoice): choice is MacroChoice =>
+		choice.type === "Macro";
+	const isCapture = (choice: IChoice): choice is CaptureChoice =>
+		choice.type === "Capture";
+	const isMulti = (choice: IChoice): choice is MultiChoice =>
+		choice.type === "Multi";
+
+	return (
+		isTemplate(choice) ||
+		isMacro(choice) ||
+		isCapture(choice) ||
+		isMulti(choice)
+	);
 }
 
 /**
