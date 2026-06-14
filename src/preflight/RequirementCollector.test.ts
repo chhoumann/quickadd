@@ -361,4 +361,48 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
       optional: true,
     });
   });
+
+  // #239: commas inside a quoted option must survive the preflight (one-page) path.
+  it("collects a quoted-comma option as a single dropdown entry", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString('{{VALUE:"a, b",c}}');
+
+    const dropdown = Array.from(rc.requirements.values()).find(
+      (r) => r.type === "dropdown",
+    );
+    expect(dropdown?.options).toEqual(["a, b", "c"]);
+  });
+
+  it("collects quoted-comma text labels aligned with their items", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString('{{VALUE:high,"a, b"|text:"High, urgent","A or B"}}');
+
+    const dropdown = Array.from(rc.requirements.values()).find(
+      (r) => r.type === "dropdown",
+    );
+    expect(dropdown?.options).toEqual(["high", "a, b"]);
+    expect(dropdown?.displayOptions).toEqual(["High, urgent", "A or B"]);
+  });
+
+  it("a single quoted option records a text field, not a dropdown (preflight == runtime)", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString('{{VALUE:"a, b"}}');
+
+    expect(rc.requirements.get('"a, b"')?.type).toBe("text");
+  });
+
+  it("preserves a quoted-comma default when a reuse precedes the option-list definition", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    // Option-less reuse recorded first, then the named definition upgrades it to
+    // a dropdown — the quoted default must unwrap to match an unquoted option.
+    await rc.scanString(
+      '{{VALUE:category|default:"a, b"}} {{VALUE:c,"a, b"|name:category}}',
+    );
+
+    expect(rc.requirements.get("category")).toMatchObject({
+      type: "dropdown",
+      options: ["c", "a, b"],
+      defaultValue: "a, b",
+    });
+  });
 });

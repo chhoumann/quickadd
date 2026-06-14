@@ -159,6 +159,34 @@ describe("Formatter VALUE text mapping", () => {
 		expect(result).toBe("⏫");
 	});
 
+	// #239: a comma inside a quoted item/label round-trips end-to-end — selecting
+	// the comma-bearing display label inserts the comma-bearing item value.
+	it("maps a quoted-comma display label to its quoted-comma item value", async () => {
+		formatter.setSelectedDisplayValue("High, urgent");
+		const result = await formatter.testFormat(
+			'{{VALUE:high,"a, b"|text:"High, urgent","A or B"}}',
+		);
+
+		expect(result).toBe("high");
+		expect(formatter.lastSuggestCall?.suggestedValues).toEqual([
+			"high",
+			"a, b",
+		]);
+		expect(formatter.lastSuggestCall?.displayValues).toEqual([
+			"High, urgent",
+			"A or B",
+		]);
+
+		// Fresh formatter: the first instance has already cached its selection.
+		const second = new TextMappingFormatter();
+		second.setSelectedDisplayValue("A or B");
+		expect(
+			await second.testFormat(
+				'{{VALUE:high,"a, b"|text:"High, urgent","A or B"}}',
+			),
+		).toBe("a, b");
+	});
+
 	it("keeps custom typed values when custom input is enabled", async () => {
 		formatter.setNextSuggestionResult("urgent!");
 		const result = await formatter.testFormat(

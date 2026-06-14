@@ -10,7 +10,11 @@ import { Formatter, type PromptContext } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
-import { parseValueToken } from "src/utils/valueSyntax";
+import {
+	parseValueToken,
+	splitQuotedCommaList,
+	unwrapQuotedValue,
+} from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
 
 export type FieldType =
@@ -199,12 +203,16 @@ export class RequirementCollector extends Formatter {
 					// that isn't one (incl. a display label) would be normalized to
 					// the first option anyway — clear it for an honest empty start.
 					// The suggester/custom path accepts free text, so keep it.
-					if (
-						existing.defaultValue !== undefined &&
-						!parsed.allowCustomInput &&
-						!parsed.suggestedValues.includes(existing.defaultValue)
-					) {
-						existing.defaultValue = undefined;
+					// The original default was recorded option-less, so unwrap any
+					// quotes now (the option list is unquoted) before matching, so a
+					// quoted comma default like |default:"a, b" still pre-selects.
+					if (existing.defaultValue !== undefined && !parsed.allowCustomInput) {
+						const unwrapped = unwrapQuotedValue(existing.defaultValue);
+						existing.defaultValue = parsed.suggestedValues.includes(
+							unwrapped,
+						)
+							? unwrapped
+							: undefined;
 					}
 				}
 				if (defaultValue && existing.defaultValue === undefined)
@@ -329,8 +337,14 @@ export class RequirementCollector extends Formatter {
 
 		// Generic named variables
 		if (!this.requirements.has(key)) {
-			// Detect simple comma-separated option lists
-			const hasOptions = variableName.includes(",");
+			// Detect comma-separated option lists, honoring quoted commas the same
+			// way parseValueToken does so this fallback can never disagree with the
+			// runtime split (e.g. a single quoted option stays one value, not a
+			// bogus dropdown).
+			const optionValues = splitQuotedCommaList(variableName)
+				.map((s) => s.trim())
+				.filter(Boolean);
+			const hasOptions = optionValues.length > 1;
 			const baseInputType =
 				context?.inputTypeOverride === "multiline" ||
 				this.plugin.settings.inputPrompt === "multi-line"
@@ -344,10 +358,7 @@ export class RequirementCollector extends Formatter {
 				source: "collected",
 			};
 			if (hasOptions) {
-				req.options = variableName
-					.split(",")
-					.map((s) => s.trim())
-					.filter(Boolean);
+				req.options = optionValues;
 			}
 			if (context?.defaultValue) req.defaultValue = context.defaultValue;
 			this.requirements.set(key, req);
