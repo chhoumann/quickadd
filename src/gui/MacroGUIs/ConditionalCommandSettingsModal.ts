@@ -1,5 +1,5 @@
-import type { App, DropdownComponent, TextComponent, TFile } from "obsidian";
-import { ButtonComponent, Modal, Setting } from "obsidian";
+import type { App, DropdownComponent, TextComponent } from "obsidian";
+import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import type {
 	ConditionalCondition,
@@ -11,11 +11,13 @@ import {
 	getDefaultValueTypeForOperator,
 	requiresExpectedValue,
 } from "../../utils/conditionalHelpers";
-import {
-	JAVASCRIPT_FILE_EXTENSION_REGEX
-} from "../../constants";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
+import {
+	type ScriptCandidate,
+	loadScriptCandidates,
+	noteScriptError,
+} from "./scriptCandidates";
 
 function cloneCondition(condition: ConditionalCondition): ConditionalCondition {
 	return condition.mode === "variable"
@@ -45,7 +47,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 	private readonly originalCommand: IConditionalCommand;
 	private workingCommand: IConditionalCommand;
 	private isResolved = false;
-	private javascriptFiles: TFile[] = [];
+	private scriptCandidates: ScriptCandidate[] = [];
 
 	constructor(app: App, command: IConditionalCommand) {
 		super(app);
@@ -59,7 +61,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 			this.resolvePromise = resolve;
 		});
 
-		this.loadJavascriptFiles();
+		this.loadScriptCandidates();
 		this.display();
 		this.open();
 	}
@@ -77,10 +79,8 @@ export class ConditionalCommandSettingsModal extends Modal {
 		this.resolvePromise(value);
 	}
 
-	private loadJavascriptFiles() {
-		this.javascriptFiles = this.app.vault
-			.getFiles()
-			.filter((file) => JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path));
+	private loadScriptCandidates() {
+		this.scriptCandidates = loadScriptCandidates(this.app);
 	}
 
 	private reload() {
@@ -244,11 +244,11 @@ export class ConditionalCommandSettingsModal extends Modal {
 
 		new Setting(this.contentEl)
 			.setName("Script path")
-			.setDesc("Vault-relative path to the JavaScript file.")
+			.setDesc("Vault-relative path to a .js file or a note with a ```js code block.")
 			.addText((text) => {
 				input = text;
 				text
-					.setPlaceholder("scripts/myCheck.js")
+					.setPlaceholder("scripts/myCheck.js or Notes/myCheck.md")
 					.setValue(condition.scriptPath)
 					.onChange((value) => {
 						condition.scriptPath = value.trim();
@@ -257,25 +257,46 @@ export class ConditionalCommandSettingsModal extends Modal {
 			.addButton((button) =>
 				button
 					.setButtonText("Browse")
-					.setTooltip("Select a script file")
+					.setTooltip("Select a script (.js file or note)")
 					.onClick(async () => {
-						if (this.javascriptFiles.length === 0) {
+						// Refresh so notes/scripts created while this modal is open appear.
+						this.loadScriptCandidates();
+						if (this.scriptCandidates.length === 0) {
 							showNoScriptsFoundNotice(this.app);
 							return;
 						}
 
-						const scriptNames = this.javascriptFiles.map((f) => f.path);
+						// This picker stores condition.scriptPath, so show full paths for
+						// every entry (a vault can have several same-basename scripts).
+						const paths = this.scriptCandidates.map((c) => c.file.path);
 						const selected = await InputSuggester.Suggest(
 							this.app,
-							scriptNames,
-							scriptNames,
+							paths,
+							paths,
 							{
-								placeholder: "Select a JavaScript file",
-								emptyStateText: "No .js files found in your vault",
+								placeholder:
+									"Select a script (.js file or note with a ```js block)",
+								emptyStateText: "No scripts found in your vault",
 							}
 						);
 
 						if (!selected) return;
+
+						const candidate = this.scriptCandidates.find(
+							(c) => c.file.path === selected
+						);
+						if (candidate?.isMarkdown) {
+							const reason = await noteScriptError(
+								this.app,
+								candidate.file
+							);
+							if (reason) {
+								new Notice(
+									`QuickAdd: "${candidate.file.path}" — ${reason}`,
+								);
+								return;
+							}
+						}
 
 						condition.scriptPath = selected;
 						input.setValue(selected);

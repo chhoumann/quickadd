@@ -65,7 +65,7 @@ describe("API modernization", () => {
 		expect(notice).toMatchObject({ message: "", timeout: 10000 });
 		const noticeEl = notice?.messageEl;
 
-		expect(noticeEl?.textContent).toContain("No JavaScript files found");
+		expect(noticeEl?.textContent).toContain("No scripts found");
 		expect(noticeEl?.textContent).toContain(
 			"✓ In your vault (not in .custom-obsidian folder)",
 		);

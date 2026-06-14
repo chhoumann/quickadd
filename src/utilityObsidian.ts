@@ -5,12 +5,20 @@ import type {
 	WorkspaceLeaf,
 	WorkspaceParent,
 } from "obsidian";
-import { FileView, MarkdownView, normalizePath, TFile, TFolder } from "obsidian";
+import {
+	FileView,
+	MarkdownView,
+	Notice,
+	normalizePath,
+	TFile,
+	TFolder,
+} from "obsidian";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "./constants";
+import { extractScriptFromMarkdown } from "./utils/extractScriptFromMarkdown";
 import { log } from "./logger/logManager";
 import { NLDParser } from "./parsers/NLDParser";
 import type { CaptureChoice } from "./types/choices/CaptureChoice";
@@ -1160,11 +1168,27 @@ export async function getUserScript(command: IUserScript, app: App) {
 
 		const fileContent = await app.vault.read(file);
 
+		// A user script can live in a `.js` file OR inside a ```js fenced code block
+		// in a note (#1065) — the latter is editable on mobile. For a note we run the
+		// first js fence and ignore surrounding prose; the .js path is byte-identical.
+		let scriptSource = fileContent;
+		if (MARKDOWN_FILE_EXTENSION_REGEX.test(file.path)) {
+			const { code, error } = extractScriptFromMarkdown(fileContent);
+			if (code === null || code.length === 0) {
+				// Surface a visible, actionable reason (the caller's generic "failed to
+				// load" log alone is easy to miss) and fall through to the established
+				// "return undefined" contract — do not double-log here.
+				new Notice(`QuickAdd: ${error} (${command.path})`);
+				return;
+			}
+			scriptSource = code;
+		}
+
 		// User scripts are CommonJS modules. Wrap the file body in a Function whose
 		// parameters are the module globals, instead of `eval`-ing a wrapper string.
 		// This executes the (trusted, user-authored) script identically to the
 		// previous `(function(require, module, exports){ ... })` eval form.
-		const fn = new Function("require", "module", "exports", fileContent);
+		const fn = new Function("require", "module", "exports", scriptSource);
 
 		fn(req, mod, exp);
 

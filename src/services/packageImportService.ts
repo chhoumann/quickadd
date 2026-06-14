@@ -713,6 +713,16 @@ function applyOverridesToCommands(
 				const userScript = command as IUserScript;
 				const replacement = pathOverrides.get(userScript.path);
 				if (replacement) {
+					// Note-backed scripts use the vault path as their command name
+					// (and member selector, `path::member`); keep it in sync when the
+					// asset is written to a different destination on import. `.js`
+					// scripts use a basename name (!= path), so this leaves them alone.
+					if (userScript.name === userScript.path) {
+						userScript.name = replacement;
+					} else if (userScript.name.startsWith(`${userScript.path}::`)) {
+						userScript.name =
+							replacement + userScript.name.slice(userScript.path.length);
+					}
 					userScript.path = replacement;
 				}
 				break;

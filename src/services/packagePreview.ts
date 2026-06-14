@@ -16,6 +16,8 @@ import type {
 } from "../types/packages/QuickAddPackage";
 import { flattenChoices } from "../utils/choiceUtils";
 import { decodeFromBase64 } from "../utils/base64";
+import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 
 /**
  * Pure, App-free analysis of a QuickAdd package for the import preview.
@@ -170,6 +172,28 @@ function isExecutableBundledAsset(
 	originalPath: string,
 ): boolean {
 	return isScriptKind(kind) || EXECUTABLE_ASSET_PATH_REGEX.test(originalPath);
+}
+
+// Since #1065 a `.md` note is loadable as a user script (its first ```js fence
+// runs). The `.js` path check above can't see that, so a bundled note that lies
+// about its `kind` (e.g. "template") and is referenced by no choice would slip the
+// disclosure gate, land on disk, and run via any macro pointing at its path.
+// Decode the bundled content and run the SAME extractor the loader uses: only a
+// note that actually contains a runnable js fence is treated as executable, so
+// plain `.md` templates are not flagged. Pure/App-free — operates on the payload.
+function markdownAssetIsExecutable(
+	originalPath: string,
+	content: string,
+): boolean {
+	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) return false;
+	let decoded: string;
+	try {
+		decoded = decodeFromBase64(content);
+	} catch {
+		return false;
+	}
+	const { code } = extractScriptFromMarkdown(decoded);
+	return code !== null && code.length > 0;
 }
 
 const SEVERITY_ORDER: Record<PreviewSeverity, number> = {
@@ -685,7 +709,9 @@ export function buildPackagePreview(
 		const usages = usagesByPath.get(asset.originalPath) ?? [];
 		const executable = referencedAsScript.has(asset.originalPath);
 		const requiresReview =
-			executable || isExecutableBundledAsset(asset.kind, asset.originalPath);
+			executable ||
+			isExecutableBundledAsset(asset.kind, asset.originalPath) ||
+			markdownAssetIsExecutable(asset.originalPath, asset.content);
 		return {
 			originalPath: asset.originalPath,
 			kind: asset.kind,
