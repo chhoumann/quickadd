@@ -8,6 +8,7 @@ import {
 	getMarkdownEditorViewForFile,
 	templaterParseTemplate,
 } from "../utilityObsidian";
+import { assignFrontmatterValue } from "./helpers/frontmatterPostProcessor";
 import invariant from "../utils/invariant";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
@@ -342,7 +343,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 				)
 					? key.split(TemplatePropertyCollector.PATH_SEPARATOR)
 					: [key];
-				this.assignFrontmatterValue(
+				assignFrontmatterValue(
 					parsed as Record<string, unknown>,
 					pathSegments,
 					coerceYamlValue(value),

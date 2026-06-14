@@ -45,6 +45,10 @@ import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import {
+	postProcessFrontMatter,
+	shouldPostProcessFrontMatter,
+} from "./helpers/frontmatterPostProcessor";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
@@ -856,8 +860,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// Post-process front matter for template property types if we used a template
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
 			this.templatePropertyVars &&
-			this.shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
-			await this.postProcessFrontMatter(file, this.templatePropertyVars);
+			shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
+			await postProcessFrontMatter(this.app, file, this.templatePropertyVars);
 		}
 
 		// Process Templater commands in the template if a template was used
@@ -954,7 +958,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		if (!this.shouldPostProcessFrontMatter(file, this.capturePropertyVars)) {
+		if (!shouldPostProcessFrontMatter(file, this.capturePropertyVars)) {
 			this.capturePropertyVars.clear();
 			return;
 		}
@@ -962,7 +966,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		log.logMessage(
 			`CaptureChoiceEngine: Post-processing front matter with ${this.capturePropertyVars.size} capture variables`
 		);
-		await this.postProcessFrontMatter(file, this.capturePropertyVars);
+		await postProcessFrontMatter(this.app, file, this.capturePropertyVars);
 		this.capturePropertyVars.clear();
 	}
 }
