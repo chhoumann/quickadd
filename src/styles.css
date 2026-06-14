@@ -190,6 +190,13 @@
 	width: 100%;
 }
 
+.quickAddModal .qa-folder-mode-warning {
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+	margin: 0 auto 12px;
+	max-width: 50%;
+}
+
 .quickAddModal .qa-template-format-input {
 	margin-bottom: 8px;
 }
