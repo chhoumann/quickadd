@@ -74,8 +74,7 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
     -   **Top of file (after frontmatter)** (active file only)
     -   **New line above cursor** (active file only)
     -   **New line below cursor** (active file only)
-    -   **After line…**
-    -   **Under heading…** - pick a heading from the target note at capture time (a dropdown of the note's headings appears when you run the capture), and the text is inserted under the one you choose. See [Under heading](#under-heading).
+    -   **After line…** — insert after a target line. You can either type the target now, or enable **Choose heading when capturing** to pick a heading from the note at run time. See [Insert after](#insert-after).
     -   **Before line…**
     -   **Bottom of file**
 -   _Link to captured file_ is a dropdown that controls whether QuickAdd inserts a link to the captured file in the current note. You can choose between three modes:
@@ -223,11 +222,17 @@ I use this in my daily journal capture, where I insert after the heading line `#
 It's also possible to use `Create line if not found`, which will create the line if it doesn't exist. This is useful if you want to insert after a line that might not exist in the file you're capturing to.
 This setting can place the line at the start or end of the file, or at your current cursor position.
 
-## Under heading
+### Choose heading when capturing
 
-Choose **Under heading…** as the _Write position_ when you want to pick the target heading **at capture time** instead of typing it in advance. When you run the capture, QuickAdd reads the target note and shows a dropdown of its headings — pick one, and the text is inserted under it. This is the same idea as the note-selection dropdown that appears when no file name is specified, but for headings within a single note.
+Insert After normally uses a target line you type when you build the choice. Enable
+**Choose heading when capturing** to instead pick the heading **at run time**: when you
+run the capture, QuickAdd reads the target note and shows a dropdown of its headings — pick
+one, and the text is inserted under it. This is the same idea as the note-selection dropdown
+that appears when no file name is specified, but for headings within a single note. It's
+useful when the heading varies between runs, or when you'd rather not remember and type it.
 
-This is a flavor of [Insert after](#insert-after) (the picked heading becomes the insert-after target), so all of its placement controls still apply:
+The picked heading simply becomes the insert-after target, so every placement control still
+applies:
 
 -   By default the text is inserted directly under the chosen heading line. Enable `Insert at end of section` to append it to the end of that heading's section instead.
 -   `Consider subsections`, `Blank lines after match`, and `Create line if not found` work exactly as for Insert after.

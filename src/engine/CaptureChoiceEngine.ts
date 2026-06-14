@@ -79,7 +79,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	// suppressed in that case so collected containers aren't stranded as "[]"
 	// placeholders (and written to the wrong note's front matter). See run().
 	private suppressFrontmatterCollection = false;
-	// Set when the "Under heading…" runtime picker resolves a heading. Holds the heading
+	// Set when the "Choose heading when capturing" picker resolves a heading. Holds the heading
 	// TEXT (without '#' markers) for the success notice; the verbatim line goes to the
 	// formatter override. Null when not in heading mode.
 	private resolvedInsertAfterHeading: string | null = null;
@@ -278,7 +278,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
 
-			// "Under heading…" write position: prompt for a heading from the resolved
+			// "Choose heading when capturing" (After line…): prompt for a heading from the resolved
 			// target note and feed the picked line to the formatter as an insert-after
 			// override. Runs after the target file is known and before any formatting/write.
 			// Canvas TEXT cards are handled earlier in handleCanvasTextCapture (which resolves
@@ -446,7 +446,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const captureTemplate = this.getCaptureContent();
 		const existingText = getCanvasTextCaptureContent(target);
 
-		// "Under heading…" write position on a canvas text card: resolve the heading from
+		// "Choose heading when capturing" on a canvas text card: resolve the heading from
 		// the card's own text so the insert-after override targets a real line in the card
 		// (otherwise heading mode leaves the static `after` empty and the formatter aborts).
 		if (this.isInsertAfterHeadingMode()) {
@@ -520,7 +520,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * For the "Under heading…" write position: prompt the user with a dropdown of the
+	 * For "Choose heading when capturing": prompt the user with a dropdown of the
 	 * destination's headings and set the picked line as the formatter's insert-after
 	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
 	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
@@ -578,7 +578,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * Whether the choice is in "Under heading…" mode (insert-after + runtime heading picker).
+	 * Whether the choice is in heading-picker mode (After line… + "Choose heading when capturing").
 	 */
 	private isInsertAfterHeadingMode(): boolean {
 		return (

@@ -28,8 +28,7 @@ let {
 const isActiveFile = $derived(!!choice.captureToActiveFile);
 
 const current = $derived.by(() => {
-	if (choice.insertAfter?.enabled)
-		return choice.insertAfter.promptHeading ? "underHeading" : "after";
+	if (choice.insertAfter?.enabled) return "after";
 	if (choice.insertBefore?.enabled) return "before";
 	if (choice.newLineCapture?.enabled)
 		return choice.newLineCapture.direction === "above"
@@ -54,7 +53,6 @@ const options = $derived([
 			]
 		: []),
 	{ value: "after", label: "After line…" },
-	{ value: "underHeading", label: "Under heading…" },
 	{ value: "before", label: "Before line…" },
 	{ value: "bottom", label: "Bottom of file" },
 ]);
@@ -64,13 +62,12 @@ function onWritePositionChange(value: string) {
 	// (verbatim order from the imperative builder, captureChoiceBuilder.ts:941-999).
 	choice.prepend = false;
 	choice.insertAfter.enabled = false;
-	// Heading mode is a distinct insert-after flavor; clear it on every change so
-	// the two insert-after variants ("After line…" / "Under heading…") stay mutually
-	// exclusive. Also clear inline/replaceExisting so the persisted config stays clean
-	// and unambiguous when switching modes. (The formatter independently guards the
-	// inline path with `inline && override === null`, so a stale inline flag can't
-	// bypass a picked heading at runtime; this reset is the matching builder-side
-	// hygiene, not the sole safeguard.)
+	// Leaving insert-after mode clears its sub-flags so the persisted config stays
+	// clean. promptHeading (the "Choose heading when capturing" toggle) and
+	// inline/replaceExisting are properties of "After line…"; re-selecting it starts
+	// from the plain typed-target default and the user opts back into heading mode via
+	// the toggle. Existing heading-mode choices load as "After line…" with the toggle on
+	// (this handler only runs on an explicit dropdown change, not on load).
 	choice.insertAfter.promptHeading = false;
 	choice.insertAfter.inline = false;
 	choice.insertAfter.replaceExisting = false;
@@ -112,11 +109,6 @@ function onWritePositionChange(value: string) {
 	}
 	if (value === "before") {
 		choice.insertBefore.enabled = true;
-		return;
-	}
-	if (value === "underHeading") {
-		choice.insertAfter.enabled = true;
-		choice.insertAfter.promptHeading = true;
 		return;
 	}
 	choice.insertAfter.enabled = true;
