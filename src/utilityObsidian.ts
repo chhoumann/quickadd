@@ -13,8 +13,7 @@
 //   - userScript             loading user scripts (.js or ```js note fences)
 //   - vaultQueries           folder/file/tag lookups over the vault
 //   - obsidianCommands       command-registry helpers
-//   - dates                  date/natural-language-date helpers
-//   - excludeKeys / choiceUtils  generic object + choice-type helpers
+//   - dates                  date helpers ({{DATE}}/{{TIME}} token formatting)
 
 export {
 	type TemplaterPluginLike,
@@ -38,7 +37,6 @@ export {
 	insertOnNewLineBelow,
 	insertLinkWithPlacement,
 	insertFileLinkToActiveView,
-	__test,
 } from "./utils/editorInsertion";
 
 export {
@@ -71,8 +69,4 @@ export {
 
 export { findObsidianCommand, deleteObsidianCommand } from "./utils/obsidianCommands";
 
-export { getDate, getNaturalLanguageDates } from "./utils/dates";
-
-export { excludeKeys } from "./utils/excludeKeys";
-
-export { getChoiceType } from "./utils/choiceUtils";
+export { getDate } from "./utils/dates";

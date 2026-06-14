@@ -16,8 +16,8 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroChoice } from "../types/choices/MacroChoice";
 import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
-import { excludeKeys } from "../utilityObsidian";
 import { regenerateIds } from "../utils/macroUtils";
+import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {

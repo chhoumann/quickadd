@@ -1,9 +1,3 @@
-import { NLDParser } from "../parsers/NLDParser";
-
-export function getNaturalLanguageDates() {
-	return NLDParser;
-}
-
 export function getDate(input?: { format?: string; offset?: number; }) {
 	let duration;
 

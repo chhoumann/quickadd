@@ -8,7 +8,6 @@ import {
 } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
 import {
-	__test,
 	areSameVaultFilePath,
 	getAllFolderPathsInVault,
 	getUserScript,
@@ -16,10 +15,12 @@ import {
 	getOpenFileOriginLeaf,
 	openFile,
 } from "./utilityObsidian";
+import {
+	convertLinkToEmbed,
+	extractMarkdownLinkTarget,
+} from "./utils/markdownLinks";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { CommandType } from "./types/macros/CommandType";
-
-const { convertLinkToEmbed, extractMarkdownLinkTarget } = __test;
 
 type FakeLeaf = WorkspaceLeaf & {
 	id: string;
