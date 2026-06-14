@@ -104,7 +104,7 @@ const {
 	deleteChoiceWithConfirmation,
 	configureChoice,
 	createToggleCommandChoice,
-	createToggleShareMenuChoice,
+	toggleShareMenuById,
 	CommandRegistry,
 	moveChoice,
 } = await import("./choiceService");
@@ -430,31 +430,53 @@ describe("choiceService", () => {
 		});
 	});
 
-	describe("createToggleShareMenuChoice", () => {
-		it("flips undefined -> true without mutating the original", () => {
-			const choice = createChoice("Macro", "M");
-			expect(choice.showInShareMenu).toBeUndefined();
-			const toggled = createToggleShareMenuChoice(choice);
-			expect(toggled.showInShareMenu).toBe(true);
-			expect(choice.showInShareMenu).toBeUndefined();
-			expect(toggled).not.toBe(choice);
+	describe("toggleShareMenuById", () => {
+		it("flips undefined -> true on the matching top-level choice, immutably", () => {
+			const a = createChoice("Macro", "A");
+			const b = createChoice("Capture", "B");
+			const result = toggleShareMenuById([a, b], a.id);
+			expect(result[0].showInShareMenu).toBe(true);
+			expect(result[1].showInShareMenu).toBeUndefined();
+			expect(a.showInShareMenu).toBeUndefined(); // original untouched
+			expect(result[0]).not.toBe(a);
 		});
 
-		it("flips true -> false", () => {
-			const choice = createChoice("Capture", "C");
-			choice.showInShareMenu = true;
-			const toggled = createToggleShareMenuChoice(choice);
-			expect(toggled.showInShareMenu).toBe(false);
+		it("flips true -> false and leaves siblings alone", () => {
+			const a = createChoice("Template", "A");
+			a.showInShareMenu = true;
+			const b = createChoice("Template", "B");
+			const [na, nb] = toggleShareMenuById([a, b], a.id);
+			expect(na.showInShareMenu).toBe(false);
+			expect(nb.showInShareMenu).toBeUndefined();
 		});
 
-		it("preserves all other properties, including command", () => {
-			const choice = createChoice("Template", "T");
-			choice.command = true;
-			const toggled = createToggleShareMenuChoice(choice);
-			expect(toggled.id).toBe(choice.id);
-			expect(toggled.name).toBe(choice.name);
-			expect(toggled.type).toBe(choice.type);
-			expect(toggled.command).toBe(true);
+		it("flips a nested choice inside a Multi", () => {
+			const nested = createChoice("Capture", "Nested");
+			const folder = createChoice("Multi", "Folder") as IMultiChoice;
+			folder.choices = [nested];
+			const result = toggleShareMenuById([folder], nested.id) as IMultiChoice[];
+			expect(result[0].choices[0].showInShareMenu).toBe(true);
+		});
+
+		// Regression guard for the filtered-view clone data-loss bug: toggling a
+		// Multi must NEVER drop its children, even if the passed tree node looks
+		// like a folder. We flip the flag by id and keep every child intact.
+		it("preserves a folder's children when toggling the folder itself", () => {
+			const child1 = createChoice("Capture", "Keep 1");
+			const child2 = createChoice("Capture", "Keep 2");
+			const folder = createChoice("Multi", "Folder") as IMultiChoice;
+			folder.choices = [child1, child2];
+
+			const [updated] = toggleShareMenuById([folder], folder.id) as IMultiChoice[];
+
+			expect(updated.showInShareMenu).toBe(true);
+			expect(updated.choices.map((c) => c.id)).toEqual([child1.id, child2.id]);
+		});
+
+		it("returns choices unchanged when the id is not found", () => {
+			const a = createChoice("Template", "A");
+			const result = toggleShareMenuById([a], "does-not-exist");
+			expect(result[0].showInShareMenu).toBeUndefined();
 		});
 	});
 

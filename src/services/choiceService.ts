@@ -159,15 +159,30 @@ export function createToggleCommandChoice(choice: IChoice): IChoice {
 }
 
 /**
- * Toggle whether a choice appears in Obsidian's mobile "share to" in-app menu.
- * Returns a new choice (immutable) so the edit is reactive when reassigned into
- * the choices `$state` — an in-place `choice.showInShareMenu = …` isn't tracked
- * (see choice-prop mutation reactivity). Unlike the command toggle there is no
- * registry side effect: the share menu is rebuilt live from settings each time the
- * `receive-text-menu` event fires (see QuickAdd.registerShareMenu).
+ * Immutably flip a choice's `showInShareMenu` flag by id, anywhere in the tree,
+ * touching ONLY that flag. It deliberately does NOT spread a whole choice object:
+ * the choice-list row passed to the context menu can be a filtered-view CLONE of a
+ * Multi with truncated children (see ChoiceView.filterChoices), so merging the
+ * clone back would drop the folder's non-matching descendants on save. Resolving
+ * by id against the live tree and changing only the flag avoids that data loss.
+ * Reassigning the result into the choices `$state` makes the edit reactive (see
+ * choice-prop mutation reactivity). No registry side effect — the share menu is
+ * rebuilt live from settings on each `receive-text-menu` event (registerShareMenu).
  */
-export function createToggleShareMenuChoice(choice: IChoice): IChoice {
-	return { ...choice, showInShareMenu: !choice.showInShareMenu };
+export function toggleShareMenuById(choices: IChoice[], id: string): IChoice[] {
+	return choices.map((choice) => {
+		if (choice.id === id) {
+			return { ...choice, showInShareMenu: !choice.showInShareMenu };
+		}
+		if (choice.type === "Multi") {
+			const multi = choice as IMultiChoice;
+			return {
+				...multi,
+				choices: toggleShareMenuById(multi.choices, id),
+			} as IChoice;
+		}
+		return choice;
+	});
 }
 
 /**

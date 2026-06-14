@@ -10,7 +10,7 @@
 		configureChoice,
 		createChoice,
 		createToggleCommandChoice,
-		createToggleShareMenuChoice,
+		toggleShareMenuById,
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
 		addChoiceToTree,
@@ -227,13 +227,14 @@
 		save();
 	}
 
-	// No registry side effect: the share menu is rebuilt live from settings each time
-	// the `receive-text-menu` event fires, so persisting the flag is enough (see
-	// QuickAdd.registerShareMenu). Reassign immutably so the toggle is reactive.
+	// Flip ONLY the flag, resolved by id against the live tree — never merge the
+	// passed row, which may be a filtered-view clone of a Multi with truncated
+	// children (merging it would drop the folder's non-matching children on save).
+	// No registry side effect: the share menu is rebuilt live from settings on each
+	// `receive-text-menu` event (QuickAdd.registerShareMenu). Reassign immutably so
+	// the toggle is reactive.
 	function toggleShareMenuForChoice(oldChoice: IChoice) {
-		const updatedChoice = createToggleShareMenuChoice(oldChoice);
-
-		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
+		choices = toggleShareMenuById(choices, oldChoice.id);
 		save();
 	}
 
