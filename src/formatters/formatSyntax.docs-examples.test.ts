@@ -16,6 +16,8 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"---\ntitle: {{VALUE:title}}\n---\n# {{VALUE:title}}",
 	"{{VALUE:project|label:Client or project name}}",
 	"priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}",
+	'{{VALUE:"This is a single choice, with a comma",Second choice}}',
+	'priority: {{VALUE:high,"a, b"|text:"High, urgent","A or B"}}',
 	"status: {{VALUE:status|Draft}}",
 	"{{VALUE:title|label:Note title|default:Untitled}}",
 	"## Summary\n{{VALUE:summary|type:multiline|label:Summary}}",

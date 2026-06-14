@@ -49,6 +49,20 @@ Example: `- [ ] {{VALUE|label:Task}}`.
 
 You can now use variable names in values. They'll get saved and inserted just like values, but the difference is that you can have as many of them as you want. Use comma separation to get a suggester rather than a prompt.
 
+**Commas inside an option:** wrap an option in double quotes to include a literal comma in it. The quotes are stripped from the inserted value.
+
+```markdown
+{{VALUE:"This is a single choice, with a comma",Second choice}}
+```
+
+This shows two options: `This is a single choice, with a comma` and `Second choice`. Notes:
+
+- Both straight (`"`) and curly (`“ ”`) double quotes work, so pasting from a rich-text editor is fine.
+- To include a literal double quote inside a quoted option, double it: `"say ""hi"""` inserts `say "hi"`.
+- Single quotes/apostrophes are never special, so `Bob's,Alice's` keeps working unchanged.
+- The same quoting applies to `|text:` display labels and to `|default:` (e.g. `|default:"a, b"`).
+- Pipes (`|`) inside an option are still not supported; whitespace inside quotes is trimmed.
+
 If the same variable name appears in multiple macro steps, QuickAdd prompts once and reuses the value.
 
 Example:
@@ -68,7 +82,7 @@ Example: `{{VALUE:project|label:Client or project name}}`.
 
 ## `{{VALUE:<items>|text:<display items>}}` {#value-text}
 
-For option lists, decouples what is shown in the suggester from what is inserted. `items` and `text` must have the same number of comma-separated entries, and each `text` entry must be unique. If you also use `|custom`, typed custom text is inserted as-is.
+For option lists, decouples what is shown in the suggester from what is inserted. `items` and `text` must have the same number of comma-separated entries, and each `text` entry must be unique. To put a comma inside one `items` or `text` entry, wrap that entry in double quotes (e.g. `text:"High, urgent",Low`). If you also use `|custom`, typed custom text is inserted as-is.
 
 Example: `priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}`.
 
@@ -268,7 +282,7 @@ The final rendered filename (without extension) of the note being created or cap
 
 Example: `# {{TITLE}}`.
 
-`|text:` limitations (current): commas and pipes inside individual `items`/`text` entries are not supported.
+`|text:` limitations (current): a comma inside an `items`/`text` entry needs double quotes (e.g. `"a, b"`); pipes (`|`) inside an entry are not supported.
 
 ### Mixed-mode example
 
