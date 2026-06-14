@@ -39,6 +39,13 @@ export default interface ICaptureChoice extends IChoice {
 		inline?: boolean;
 		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
+		/**
+			* When true, the insert-after target is chosen at capture time from a dropdown
+			* of the target note's headings (the "Under heading…" write position) instead of
+			* the static `after` text. Resolved fresh each run and applied via a formatter
+			* override; never persisted back into `after`. Undefined ⇒ false (no migration).
+			*/
+		promptHeading?: boolean;
 	};
 	insertBefore?: {
 		enabled: boolean;

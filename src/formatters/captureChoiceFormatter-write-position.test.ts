@@ -533,4 +533,209 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 
 		expect(result).toBe("- [ ] CAPTURE\n## Missing\nBody");
 	});
+
+	it("inserts under the runtime-picked heading override instead of the static after text (#738)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		// "Under heading…" sets a verbatim line override; the static `after` is ignored.
+		formatter.setInsertAfterTargetOverride("## Foo");
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertAfter: {
+					enabled: true,
+					after: "## NeverUsed",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					inline: false,
+					replaceExisting: false,
+					blankLineAfterMatchMode: "auto",
+					promptHeading: true,
+				},
+			}),
+			"# Title\n## Foo\nexisting\n## Bar",
+			createFile(),
+		);
+
+		expect(result).toBe("# Title\n## Foo\nCAPTURE\nexisting\n## Bar");
+	});
+
+	it("matches the heading override literally, never resolving token-like heading text (#738)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		// A real heading whose text contains format-token syntax. If the override were run
+		// through the format pipeline, "{{DATE}}" would resolve and desync from the real
+		// line (target not found → throw, since createIfNotFound is false). Landing the
+		// capture proves the override is matched verbatim.
+		formatter.setInsertAfterTargetOverride("## {{DATE}}");
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertAfter: {
+					enabled: true,
+					after: "",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					inline: false,
+					replaceExisting: false,
+					blankLineAfterMatchMode: "auto",
+					promptHeading: true,
+				},
+			}),
+			"## {{DATE}}\nbody",
+			createFile(),
+		);
+
+		expect(result).toBe("## {{DATE}}\nCAPTURE\nbody");
+	});
+
+	it("takes the block (section) path for a heading override even if a stale inline flag is set (#738 blocker)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		formatter.setInsertAfterTargetOverride("## Foo");
+
+		// inline:true is a stale flag from a prior "After line…" inline config. The override
+		// must short-circuit the same-line inline path and insert on its own line under the
+		// heading (belt-and-suspenders with the builder's onChange reset).
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertAfter: {
+					enabled: true,
+					after: "## NeverUsed",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					inline: true,
+					replaceExisting: true,
+					blankLineAfterMatchMode: "auto",
+					promptHeading: true,
+				},
+			}),
+			"## Foo\nexisting",
+			createFile(),
+		);
+
+		expect(result).toBe("## Foo\nCAPTURE\nexisting");
+	});
+
+	it("creates a typed heading override via create-if-not-found, byte-symmetric with search (#738/#742)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		// User typed a heading that doesn't exist yet; "Create line if not found" creates it.
+		// The created block must be byte-identical to what the next run's search will match.
+		formatter.setInsertAfterTargetOverride("## Tasks");
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertAfter: {
+					enabled: true,
+					after: "",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: true,
+					createIfNotFoundLocation: "bottom",
+					inline: false,
+					replaceExisting: false,
+					blankLineAfterMatchMode: "auto",
+					promptHeading: true,
+				},
+			}),
+			"# Title\nbody",
+			createFile(),
+		);
+
+		expect(result).toBe("# Title\nbody\n## Tasks\nCAPTURE\n");
+	});
+
+	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		// Two identical heading lines: the picker's items collapse to one and the search
+		// resolves the first match (parity with the static "After line…" field). Locked so a
+		// future override refactor can't silently change which section is targeted.
+		formatter.setInsertAfterTargetOverride("## Tasks");
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE\n",
+			createChoice({
+				insertAfter: {
+					enabled: true,
+					after: "",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					inline: false,
+					replaceExisting: false,
+					blankLineAfterMatchMode: "auto",
+					promptHeading: true,
+				},
+			}),
+			"## Tasks\nfirst\n\n## Other\nx\n\n## Tasks\nsecond",
+			createFile(),
+		);
+
+		expect(result).toBe(
+			"## Tasks\nCAPTURE\nfirst\n\n## Other\nx\n\n## Tasks\nsecond",
+		);
+	});
 });

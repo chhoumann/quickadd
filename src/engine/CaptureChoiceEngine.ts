@@ -1,8 +1,8 @@
 import {
 	MarkdownView,
 	Notice,
+	TFile,
 	type App,
-	type TFile,
 	type WorkspaceLeaf,
 } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
@@ -20,6 +20,8 @@ import {
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
+import { getMarkdownHeadings } from "../formatters/helpers/getEndOfSection";
+import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -73,6 +75,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	// suppressed in that case so collected containers aren't stranded as "[]"
 	// placeholders (and written to the wrong note's front matter). See run().
 	private suppressFrontmatterCollection = false;
+	// Set when the "Under heading…" runtime picker resolves a heading. Holds the heading
+	// TEXT (without '#' markers) for the success notice; the verbatim line goes to the
+	// formatter override. Null when not in heading mode.
+	private resolvedInsertAfterHeading: string | null = null;
 
 	constructor(
 		app: App,
@@ -127,7 +133,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: `Captured to top of ${fileName}`;
 				break;
 			case "insertAfter": {
-				const heading = this.choice.insertAfter.after;
+				const heading =
+					this.resolvedInsertAfterHeading ?? this.choice.insertAfter.after;
 				msg = heading
 					? `Captured to ${fileName} under '${heading}'`
 					: `Captured to ${fileName}`;
@@ -266,6 +273,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) => Promise<{ file: TFile; newFileContent: string; captureContent: string }>;
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
+
+			// "Under heading…" write position: prompt for a heading from the resolved
+			// target note and feed the picked line to the formatter as an insert-after
+			// override. Runs after the target file is known and before any formatting/write.
+			await this.maybeResolveInsertAfterHeading(filePath, fileAlreadyExists);
 
 			// Collect front matter property types only when the capture content
 			// becomes the file's OWN front matter — i.e. a brand-new file created
@@ -483,6 +495,77 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			nodeId,
 			action,
 		);
+	}
+
+	/**
+	 * For the "Under heading…" write position: prompt the user with a dropdown of the
+	 * target note's headings and set the picked line as the formatter's insert-after
+	 * override. The items are byte-exact heading LINES from freshly-read content (so the
+	 * formatter's literal search and create-if-not-found round-trip exactly, the #742
+	 * invariant), parsed with the same `getMarkdownHeadings` the inserter uses (so what is
+	 * offered can never desync from what is matched). `allowCustomValue` lets the user type
+	 * a heading on a new / heading-less note (created via "Create line if not found").
+	 * Scoped to markdown notes; canvas text cards keep the static field. Cancelling the
+	 * picker aborts the capture cleanly (UserCancelError), before any write.
+	 */
+	private async maybeResolveInsertAfterHeading(
+		filePath: string,
+		fileAlreadyExists: boolean,
+	): Promise<void> {
+		const insertAfter = this.choice.insertAfter;
+		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
+		if (CANVAS_FILE_EXTENSION_REGEX.test(filePath)) return;
+
+		let headingLines: string[] = [];
+		let headingDisplay: string[] = [];
+		let headingTexts: string[] = [];
+
+		if (fileAlreadyExists) {
+			const file = this.app.vault.getAbstractFileByPath(filePath);
+			if (file instanceof TFile) {
+				const content = await this.app.vault.read(file);
+				const lines = getLinesInString(content);
+				const headings = getMarkdownHeadings(lines);
+				headingLines = headings.map((h) => lines[h.line]);
+				headingDisplay = headings.map(
+					(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.text}`,
+				);
+				headingTexts = headings.map((h) => h.text);
+			}
+		}
+
+		let chosen: string;
+		try {
+			chosen = await InputSuggester.Suggest(
+				this.app,
+				headingDisplay,
+				headingLines,
+				{
+					allowCustomValue: true,
+					placeholder: "Choose a heading to insert under",
+					emptyStateText: "No headings found — type a heading to create",
+					customValueLabel: (value) => `Insert after new line: ${value}`,
+				},
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Input cancelled by user");
+			}
+			throw error;
+		}
+
+		invariant(
+			!!chosen && chosen.length > 0,
+			"No heading selected for capture.",
+		);
+
+		this.formatter.setInsertAfterTargetOverride(chosen);
+
+		// Notice copy: show the heading TEXT (no '#') for a picked heading; fall back to
+		// the raw typed value for a custom entry.
+		const pickedIndex = headingLines.indexOf(chosen);
+		this.resolvedInsertAfterHeading =
+			pickedIndex >= 0 ? headingTexts[pickedIndex] : chosen;
 	}
 
 	private getCaptureContent(): string {

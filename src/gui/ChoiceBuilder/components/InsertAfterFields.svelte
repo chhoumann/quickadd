@@ -34,6 +34,7 @@ let {
 if (insertAfter.inline === undefined) insertAfter.inline = false;
 if (insertAfter.replaceExisting === undefined)
 	insertAfter.replaceExisting = false;
+if (insertAfter.promptHeading === undefined) insertAfter.promptHeading = false;
 if (!insertAfter.blankLineAfterMatchMode)
 	insertAfter.blankLineAfterMatchMode = "auto";
 if (!insertAfter.createIfNotFound) insertAfter.createIfNotFound = false;
@@ -58,6 +59,9 @@ const createLocationOptions = [
 ];
 
 function onConsiderSubsectionsToggle(value: boolean) {
+	// In heading mode the runtime target is always a heading, so the
+	// "starts with #" guard would misfire against the empty/hidden `after` text.
+	if (insertAfter.promptHeading) return;
 	if (value && !insertAfter.after.startsWith("#")) {
 		// Two-way bind syncs the toggle back to off when the target isn't a heading.
 		insertAfter.considerSubsections = false;
@@ -68,28 +72,35 @@ function onConsiderSubsectionsToggle(value: boolean) {
 }
 </script>
 
-<SettingItem
-	name="Insert after"
-	desc="Insert capture after specified text. Accepts format syntax. Tip: use a heading (starts with #) to target a section. Blank line handling is configurable below."
-/>
-<FormatPreviewField value={insertAfter.after} {app} {plugin} />
-<ValidatedInput
-	bind:value={insertAfter.after}
-	placeholder="Insert after"
-	required
-	requiredMessage="Insert after text is required"
-	makeSuggesters={suggesters}
-	ariaLabel="Insert after"
-/>
+{#if insertAfter.promptHeading}
+	<SettingItem
+		name="Under heading"
+		desc="You'll pick a heading from the target note when you run this capture, and the text is inserted under it. Use the toggles below to control placement within that section."
+	/>
+{:else}
+	<SettingItem
+		name="Insert after"
+		desc="Insert capture after specified text. Accepts format syntax. Tip: use a heading (starts with #) to target a section. Blank line handling is configurable below."
+	/>
+	<FormatPreviewField value={insertAfter.after} {app} {plugin} />
+	<ValidatedInput
+		bind:value={insertAfter.after}
+		placeholder="Insert after"
+		required
+		requiredMessage="Insert after text is required"
+		makeSuggesters={suggesters}
+		ariaLabel="Insert after"
+	/>
 
-<SettingItem
-	name="Inline insertion"
-	desc="Insert captured content on the same line, immediately after the matched text (no newline added)."
->
-	{#snippet control()}
-		<Toggle bind:checked={insertAfter.inline} />
-	{/snippet}
-</SettingItem>
+	<SettingItem
+		name="Inline insertion"
+		desc="Insert captured content on the same line, immediately after the matched text (no newline added)."
+	>
+		{#snippet control()}
+			<Toggle bind:checked={insertAfter.inline} />
+		{/snippet}
+	</SettingItem>
+{/if}
 
 {#if insertAfter.inline}
 	<SettingItem
@@ -132,7 +143,9 @@ function onConsiderSubsectionsToggle(value: boolean) {
 
 	<SettingItem
 		name="Consider subsections"
-		desc="Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section."
+		desc={insertAfter.promptHeading
+			? "Also include the chosen heading’s subsections (nested headings inside its section)."
+			: "Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section."}
 	>
 		{#snippet control()}
 			<Toggle
