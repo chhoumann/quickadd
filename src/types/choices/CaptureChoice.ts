@@ -28,6 +28,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		inline?: boolean;
 		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
+		promptHeading?: boolean;
 	};
 	insertBefore: {
 		enabled: boolean;
@@ -76,6 +77,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			inline: false,
 			replaceExisting: false,
 			blankLineAfterMatchMode: "auto",
+			promptHeading: false,
 		};
 		this.insertBefore = {
 			enabled: false,
@@ -141,6 +143,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		}
 		if (loaded.insertAfter && loaded.insertAfter.replaceExisting === undefined) {
 			loaded.insertAfter.replaceExisting = false;
+		}
+		if (loaded.insertAfter && loaded.insertAfter.promptHeading === undefined) {
+			loaded.insertAfter.promptHeading = false;
 		}
 		return loaded;
 	}

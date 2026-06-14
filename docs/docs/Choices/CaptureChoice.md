@@ -75,6 +75,7 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
     -   **New line above cursor** (active file only)
     -   **New line below cursor** (active file only)
     -   **After line…**
+    -   **Under heading…** - pick a heading from the target note at capture time (a dropdown of the note's headings appears when you run the capture), and the text is inserted under the one you choose. See [Under heading](#under-heading).
     -   **Before line…**
     -   **Bottom of file**
 -   _Link to captured file_ is a dropdown that controls whether QuickAdd inserts a link to the captured file in the current note. You can choose between three modes:
@@ -221,6 +222,21 @@ I use this in my daily journal capture, where I insert after the heading line `#
 
 It's also possible to use `Create line if not found`, which will create the line if it doesn't exist. This is useful if you want to insert after a line that might not exist in the file you're capturing to.
 This setting can place the line at the start or end of the file, or at your current cursor position.
+
+## Under heading
+
+Choose **Under heading…** as the _Write position_ when you want to pick the target heading **at capture time** instead of typing it in advance. When you run the capture, QuickAdd reads the target note and shows a dropdown of its headings — pick one, and the text is inserted under it. This is the same idea as the note-selection dropdown that appears when no file name is specified, but for headings within a single note.
+
+This is a flavor of [Insert after](#insert-after) (the picked heading becomes the insert-after target), so all of its placement controls still apply:
+
+-   By default the text is inserted directly under the chosen heading line. Enable `Insert at end of section` to append it to the end of that heading's section instead.
+-   `Consider subsections`, `Blank lines after match`, and `Create line if not found` work exactly as for Insert after.
+
+Notes:
+
+-   You can also **type a heading** that doesn't exist yet. To have QuickAdd create it, enable `Create line if not found` (type the heading with its `#` markers, e.g. `## Tasks`).
+-   The dropdown lists ATX headings (lines starting with `#`). For a brand-new note created from a template, the picker can't list the template's headings yet (the note doesn't exist at pick time) — type the heading and use `Create line if not found`.
+-   If you use the one-page input form, the heading dropdown still appears as a separate step after the form.
 
 ### Consider subsections -option
 

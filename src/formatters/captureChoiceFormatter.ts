@@ -40,6 +40,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		*/
 	private templaterProcessed = false;
 	/**
+		* When set (by the engine's "Under heading…" runtime picker), this verbatim
+		* file line replaces the static `insertAfter.after` target for this run. It is a
+		* concrete line copied from the destination file (`lines[heading.line]`), so it is
+		* matched LITERALLY — `formatLocationString`/escape-expansion are deliberately
+		* skipped so a heading whose text contains token-like syntax (e.g. `## {{date}}`)
+		* is not resolved and desynced from the real line. The engine + its single
+		* formatter are constructed fresh per run, so this never leaks across captures.
+		*/
+	private insertAfterTargetOverride: string | null = null;
+	/**
 		* Tracks whether `\n` escapes in the capture format string have been expanded.
 		* Expansion must happen on the raw format template BEFORE token substitution,
 		* and only once per capture run: multi-stage flows pass already-substituted
@@ -65,6 +75,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	public setUseSelectionAsCaptureValue(value: boolean): void {
 		this.useSelectionAsCaptureValue = value;
+	}
+
+	/**
+		* Sets (or clears with `null`) the runtime-resolved insert-after target used by the
+		* "Under heading…" write position. The value is a verbatim line from the
+		* destination file and is matched literally — see `insertAfterTargetOverride`.
+		*/
+	public setInsertAfterTargetOverride(target: string | null): void {
+		this.insertAfterTargetOverride = target;
 	}
 
 	protected shouldUseSelectionForValue(): boolean {
@@ -446,21 +465,29 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async insertAfterHandler(formatted: string) {
+		const override = this.insertAfterTargetOverride;
+
 		// Inline targets are single-line by definition and use a separate
 		// indexOf-based path; keep their selector unexpanded (out of scope #742).
-		if (this.choice.insertAfter?.inline) {
+		// The "Under heading…" override always wants the block (section) path, never
+		// the same-line inline path, so the override short-circuits inline here too.
+		if (this.choice.insertAfter?.inline && override === null) {
 			const inlineTarget: string = await this.formatLocationString(
 				this.choice.insertAfter.after,
 			);
 			return await this.insertAfterInlineHandler(formatted, inlineTarget);
 		}
 
-		// Expand `\n` escapes BEFORE searching so the search target is identical
-		// to what createInsertAfterIfNotFound writes to disk. Computed once and
-		// reused for the create path so the two can never diverge (issue #742).
-		const targetString: string = await this.formatLocationString(
-			await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
-		);
+		// Override (runtime-picked heading) is a verbatim file line: match it literally,
+		// skipping formatLocationString/escape-expansion (see insertAfterTargetOverride).
+		// Otherwise expand `\n` escapes BEFORE searching so the search target is identical
+		// to what createInsertAfterIfNotFound writes to disk. Computed once and reused for
+		// the create path so the two can never diverge (issue #742).
+		const targetString: string =
+			override ??
+			(await this.formatLocationString(
+				await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
+			));
 
 		const targetLines = this.toTargetLines(targetString);
 		if (this.isBlankTarget(targetLines)) {

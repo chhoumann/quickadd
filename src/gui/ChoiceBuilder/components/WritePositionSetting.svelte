@@ -28,7 +28,8 @@ let {
 const isActiveFile = $derived(!!choice.captureToActiveFile);
 
 const current = $derived.by(() => {
-	if (choice.insertAfter?.enabled) return "after";
+	if (choice.insertAfter?.enabled)
+		return choice.insertAfter.promptHeading ? "underHeading" : "after";
 	if (choice.insertBefore?.enabled) return "before";
 	if (choice.newLineCapture?.enabled)
 		return choice.newLineCapture.direction === "above"
@@ -53,6 +54,7 @@ const options = $derived([
 			]
 		: []),
 	{ value: "after", label: "After line…" },
+	{ value: "underHeading", label: "Under heading…" },
 	{ value: "before", label: "Before line…" },
 	{ value: "bottom", label: "Bottom of file" },
 ]);
@@ -62,6 +64,16 @@ function onWritePositionChange(value: string) {
 	// (verbatim order from the imperative builder, captureChoiceBuilder.ts:941-999).
 	choice.prepend = false;
 	choice.insertAfter.enabled = false;
+	// Heading mode is a distinct insert-after flavor; clear it on every change so
+	// the two insert-after variants ("After line…" / "Under heading…") stay mutually
+	// exclusive. Also clear inline/replaceExisting so the persisted config stays clean
+	// and unambiguous when switching modes. (The formatter independently guards the
+	// inline path with `inline && override === null`, so a stale inline flag can't
+	// bypass a picked heading at runtime; this reset is the matching builder-side
+	// hygiene, not the sole safeguard.)
+	choice.insertAfter.promptHeading = false;
+	choice.insertAfter.inline = false;
+	choice.insertAfter.replaceExisting = false;
 	if (!choice.insertBefore)
 		choice.insertBefore = {
 			enabled: false,
@@ -100,6 +112,11 @@ function onWritePositionChange(value: string) {
 	}
 	if (value === "before") {
 		choice.insertBefore.enabled = true;
+		return;
+	}
+	if (value === "underHeading") {
+		choice.insertAfter.enabled = true;
+		choice.insertAfter.promptHeading = true;
 		return;
 	}
 	choice.insertAfter.enabled = true;
