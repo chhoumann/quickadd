@@ -40,7 +40,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		*/
 	private templaterProcessed = false;
 	/**
-		* When set (by the engine's "Under heading…" runtime picker), this verbatim
+		* When set (by the engine's "Choose heading when capturing" picker), this verbatim
 		* file line replaces the static `insertAfter.after` target for this run. It is a
 		* concrete line copied from the destination file (`lines[heading.line]`), so it is
 		* matched LITERALLY — `formatLocationString`/escape-expansion are deliberately
@@ -79,7 +79,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	/**
 		* Sets (or clears with `null`) the runtime-resolved insert-after target used by the
-		* "Under heading…" write position. The value is a verbatim line from the
+		* heading-picker option. The value is a verbatim line from the
 		* destination file and is matched literally — see `insertAfterTargetOverride`.
 		*/
 	public setInsertAfterTargetOverride(target: string | null): void {
@@ -469,7 +469,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		// Inline targets are single-line by definition and use a separate
 		// indexOf-based path; keep their selector unexpanded (out of scope #742).
-		// The "Under heading…" override always wants the block (section) path, never
+		// The heading-picker override always wants the block (section) path, never
 		// the same-line inline path, so the override short-circuits inline here too.
 		if (this.choice.insertAfter?.inline && override === null) {
 			const inlineTarget: string = await this.formatLocationString(

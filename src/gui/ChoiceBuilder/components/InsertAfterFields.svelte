@@ -70,13 +70,35 @@ function onConsiderSubsectionsToggle(value: boolean) {
 		);
 	}
 }
+
+function onPromptHeadingToggle(value: boolean) {
+	// Heading mode always inserts on its own line under the picked heading (the block
+	// path), so clear the inline same-line flags when it's switched on.
+	if (value) {
+		insertAfter.inline = false;
+		insertAfter.replaceExisting = false;
+	}
+}
 </script>
 
+<SettingItem
+	name="Choose heading when capturing"
+	desc="Instead of typing a target line now, show a dropdown of the target note's headings when you run this capture and insert under the one you pick."
+>
+	{#snippet control()}
+		<Toggle
+			bind:checked={insertAfter.promptHeading}
+			onchange={onPromptHeadingToggle}
+		/>
+	{/snippet}
+</SettingItem>
+
 {#if insertAfter.promptHeading}
-	<SettingItem
-		name="Under heading"
-		desc="You'll pick a heading from the target note when you run this capture, and the text is inserted under it. Use the toggles below to control placement within that section."
-	/>
+	<div class="setting-item-description">
+		You'll pick a heading from the target note when you run this capture, and the
+		text is inserted under it. Use the toggles below to control placement within that
+		section.
+	</div>
 {:else}
 	<SettingItem
 		name="Insert after"
