@@ -28,7 +28,11 @@ import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
-import { flattenChoicesWithPath, resolveChoiceIcon } from "./utils/choiceUtils";
+import { resolveChoiceIcon } from "./utils/choiceUtils";
+import {
+	collectShareMenuItems,
+	runChoiceWithSharedText,
+} from "./sharemenu/shareMenuItems";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
@@ -471,33 +475,26 @@ export default class QuickAdd extends Plugin {
 	private registerShareMenu(): void {
 		this.registerEvent(
 			this.app.workspace.on("receive-text-menu", (menu: Menu, shareText: string) => {
-				const shared = flattenChoicesWithPath(this.settings.choices).filter(
-					(entry) => entry.choice.showInShareMenu,
-				);
-
-				for (const { choice, path } of shared) {
+				for (const { id, title, icon } of collectShareMenuItems(
+					this.settings.choices,
+				)) {
 					menu.addItem((item) =>
+						// "options" is the section Obsidian uses for its own share actions.
 						item
-							// Same section Obsidian uses for its own share actions.
 							.setSection("options")
-							// Path-prefixed so two same-named choices in different folders
-							// stay distinguishable (mirrors the CLI's flattened paths).
-							.setTitle(path.join(" / "))
-							.setIcon(resolveChoiceIcon(choice))
+							.setTitle(title)
+							.setIcon(icon)
 							.onClick(async () => {
 								try {
-									const choiceExecutor = new ChoiceExecutor(this.app, this);
-									choiceExecutor.variables.set("value", shareText);
-									// Read live by id so an edit between registration and click
-									// can't run a stale copy (matches addCommandForChoice).
-									await choiceExecutor.execute(
-										this.getChoiceById(choice.id),
+									// Read the choice live by id so an edit between registration
+									// and click can't run a stale copy (matches addCommandForChoice).
+									await runChoiceWithSharedText(
+										new ChoiceExecutor(this.app, this),
+										this.getChoiceById(id),
+										shareText,
 									);
 								} catch (err) {
-									reportError(
-										err,
-										`Error running shared choice ${choice.id}`,
-									);
+									reportError(err, `Error running shared choice ${id}`);
 								}
 							}),
 					);

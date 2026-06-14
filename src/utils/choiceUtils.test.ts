@@ -86,49 +86,6 @@ describe("flattenChoicesWithPath", () => {
 	});
 });
 
-// Documents the selection contract QuickAdd.registerShareMenu (#632) relies on:
-// flatten the (possibly nested) tree, keep only choices flagged showInShareMenu,
-// and title each item by its name path so duplicates in different folders stay
-// distinguishable in Obsidian's mobile share menu.
-describe("share-menu selection (flattenChoicesWithPath + showInShareMenu)", () => {
-	const selectForShareMenu = (choices: IChoice[]) =>
-		flattenChoicesWithPath(choices)
-			.filter((entry) => entry.choice.showInShareMenu)
-			.map((entry) => entry.path.join(" / "));
-
-	it("selects only flagged choices, including deeply nested ones", () => {
-		const shared = choice("Shared note");
-		shared.showInShareMenu = true;
-		const unshared = choice("Plain note");
-		const nestedShared = choice("Nested macro");
-		nestedShared.showInShareMenu = true;
-		const folder = multi("Inbox", [nestedShared, unshared]);
-
-		const titles = selectForShareMenu([shared, unshared, folder]);
-
-		expect(titles).toEqual(["Shared note", "Inbox / Nested macro"]);
-	});
-
-	it("disambiguates same-named choices in different folders by path", () => {
-		const a = choice("Inbox");
-		a.showInShareMenu = true;
-		const b = choice("Inbox");
-		b.showInShareMenu = true;
-		const work = multi("Work", [a]);
-		const personal = multi("Personal", [b]);
-
-		const titles = selectForShareMenu([work, personal]);
-
-		expect(titles).toEqual(["Work / Inbox", "Personal / Inbox"]);
-	});
-
-	it("returns nothing when no choice opts in", () => {
-		expect(selectForShareMenu([choice("a"), multi("F", [choice("b")])])).toEqual(
-			[],
-		);
-	});
-});
-
 describe("defaultIconForChoiceType", () => {
 	it("maps each choice type to a meaningful lucide id", () => {
 		expect(defaultIconForChoiceType("Template")).toBe("file-text");
