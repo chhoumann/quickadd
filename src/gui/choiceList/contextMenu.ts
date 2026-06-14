@@ -51,6 +51,7 @@ function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
 type MenuActions = {
   onRename: () => void;
   onToggle: () => void;
+  onToggleShareMenu: () => void;
   onConfigure: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -77,6 +78,16 @@ function buildChoiceMenu(
         )
         .setIcon("zap")
         .onClick(actions.onToggle),
+    )
+    .addItem((item) =>
+      item
+        .setTitle(
+          choice.showInShareMenu
+            ? "Hide from mobile share menu"
+            : "Show in mobile share menu",
+        )
+        .setIcon("share")
+        .onClick(actions.onToggleShareMenu),
     )
     .addItem((item) => item.setTitle("Rename").setIcon("pencil").onClick(actions.onRename))
     .addItem((item) => item.setTitle("Configure").setIcon("settings").onClick(actions.onConfigure))

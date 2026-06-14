@@ -15,6 +15,14 @@ export interface ChoiceListActions {
 	onDeleteChoice: (choice: IChoice) => void;
 	onConfigureChoice: (choice: IChoice) => void;
 	onToggleCommand: (choice: IChoice) => void;
+	/**
+	 * Toggle whether a choice appears in Obsidian's mobile "share to" in-app menu.
+	 * Routed to the top-level ChoiceView handler, which reassigns the root tree
+	 * immutably (by id, any depth) and persists — an in-place mutation isn't reactive
+	 * until the array is proxied by a reassignment. No command-registry side effect:
+	 * the share menu is rebuilt live from settings on each `receive-text-menu` event.
+	 */
+	onToggleShareMenu: (choice: IChoice) => void;
 	onDuplicateChoice: (choice: IChoice) => void;
 	onRenameChoice: (choice: IChoice) => void;
 	onMoveChoice: (choice: IChoice, targetId: string) => void;

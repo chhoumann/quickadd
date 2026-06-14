@@ -159,6 +159,18 @@ export function createToggleCommandChoice(choice: IChoice): IChoice {
 }
 
 /**
+ * Toggle whether a choice appears in Obsidian's mobile "share to" in-app menu.
+ * Returns a new choice (immutable) so the edit is reactive when reassigned into
+ * the choices `$state` — an in-place `choice.showInShareMenu = …` isn't tracked
+ * (see choice-prop mutation reactivity). Unlike the command toggle there is no
+ * registry side effect: the share menu is rebuilt live from settings each time the
+ * `receive-text-menu` event fires (see QuickAdd.registerShareMenu).
+ */
+export function createToggleShareMenuChoice(choice: IChoice): IChoice {
+	return { ...choice, showInShareMenu: !choice.showInShareMenu };
+}
+
+/**
  * Command registry adapter to decouple plugin interactions
  */
 export class CommandRegistry {

@@ -32,6 +32,7 @@ function actionsSpy(): ChoiceListActions {
 		onDeleteChoice: vi.fn(),
 		onConfigureChoice: vi.fn(),
 		onToggleCommand: vi.fn(),
+		onToggleShareMenu: vi.fn(),
 		onDuplicateChoice: vi.fn(),
 		onRenameChoice: vi.fn(),
 		onMoveChoice: vi.fn(),

@@ -104,6 +104,7 @@ const {
 	deleteChoiceWithConfirmation,
 	configureChoice,
 	createToggleCommandChoice,
+	createToggleShareMenuChoice,
 	CommandRegistry,
 	moveChoice,
 } = await import("./choiceService");
@@ -426,6 +427,34 @@ describe("choiceService", () => {
 			expect(toggled.id).toBe(choice.id);
 			expect(toggled.name).toBe(choice.name);
 			expect(toggled.type).toBe(choice.type);
+		});
+	});
+
+	describe("createToggleShareMenuChoice", () => {
+		it("flips undefined -> true without mutating the original", () => {
+			const choice = createChoice("Macro", "M");
+			expect(choice.showInShareMenu).toBeUndefined();
+			const toggled = createToggleShareMenuChoice(choice);
+			expect(toggled.showInShareMenu).toBe(true);
+			expect(choice.showInShareMenu).toBeUndefined();
+			expect(toggled).not.toBe(choice);
+		});
+
+		it("flips true -> false", () => {
+			const choice = createChoice("Capture", "C");
+			choice.showInShareMenu = true;
+			const toggled = createToggleShareMenuChoice(choice);
+			expect(toggled.showInShareMenu).toBe(false);
+		});
+
+		it("preserves all other properties, including command", () => {
+			const choice = createChoice("Template", "T");
+			choice.command = true;
+			const toggled = createToggleShareMenuChoice(choice);
+			expect(toggled.id).toBe(choice.id);
+			expect(toggled.name).toBe(choice.name);
+			expect(toggled.type).toBe(choice.type);
+			expect(toggled.command).toBe(true);
 		});
 	});
 

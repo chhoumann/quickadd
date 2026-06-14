@@ -60,6 +60,7 @@
     const menuActions = () => ({
         onRename: () => actions.onRenameChoice(choice),
         onToggle: () => actions.onToggleCommand(choice),
+        onToggleShareMenu: () => actions.onToggleShareMenu(choice),
         onConfigure: () => actions.onConfigureChoice(choice),
         onDuplicate: () => actions.onDuplicateChoice(choice),
         onDelete: () => actions.onDeleteChoice(choice),

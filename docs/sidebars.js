@@ -194,6 +194,11 @@ const sidebars = {
 					id: "Advanced/ObsidianUri",
 					label: "Obsidian URI",
 				},
+				{
+					type: "doc",
+					id: "Advanced/MobileShareMenu",
+					label: "Mobile Share Menu",
+				},
 			],
 		},
 		{

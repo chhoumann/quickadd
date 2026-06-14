@@ -29,3 +29,6 @@ coverage/
 # Claude Code session/runtime state (ephemeral, machine-local)
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
+
+# Local design/spike notes (never committed — maintainer policy)
+plans/

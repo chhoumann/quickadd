@@ -10,6 +10,7 @@
 		configureChoice,
 		createChoice,
 		createToggleCommandChoice,
+		createToggleShareMenuChoice,
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
 		addChoiceToTree,
@@ -226,6 +227,16 @@
 		save();
 	}
 
+	// No registry side effect: the share menu is rebuilt live from settings each time
+	// the `receive-text-menu` event fires, so persisting the flag is enough (see
+	// QuickAdd.registerShareMenu). Reassign immutably so the toggle is reactive.
+	function toggleShareMenuForChoice(oldChoice: IChoice) {
+		const updatedChoice = createToggleShareMenuChoice(oldChoice);
+
+		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
+		save();
+	}
+
 	function handleDuplicateChoice(sourceChoice: IChoice) {
 		const newChoice = duplicateChoice(sourceChoice);
 		choices = [...choices, newChoice];
@@ -268,6 +279,7 @@
 		onDeleteChoice: deleteChoice,
 		onConfigureChoice: handleConfigureChoice,
 		onToggleCommand: toggleCommandForChoice,
+		onToggleShareMenu: toggleShareMenuForChoice,
 		onDuplicateChoice: handleDuplicateChoice,
 		onRenameChoice: handleRenameChoice,
 		onMoveChoice: handleMoveChoice,

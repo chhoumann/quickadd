@@ -1,5 +1,5 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
-import type { Debouncer } from "obsidian";
+import type { Debouncer, Menu } from "obsidian";
 import { Plugin, TFile, debounce } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
@@ -28,7 +28,7 @@ import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { isMajorUpdate } from "./utils/semver";
-import { resolveChoiceIcon } from "./utils/choiceUtils";
+import { flattenChoicesWithPath, resolveChoiceIcon } from "./utils/choiceUtils";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
@@ -299,6 +299,8 @@ export default class QuickAdd extends Plugin {
 
 		this.addCommandsForChoices(this.settings.choices);
 
+		this.registerShareMenu();
+
 		await migrate(this);
 
 		const registerCli = () => {
@@ -444,6 +446,64 @@ export default class QuickAdd extends Plugin {
 		for (const choice of choices) {
 			this.addCommandForChoice(choice);
 		}
+	}
+
+	/**
+	 * Add opted-in choices to Obsidian's mobile "share to" in-app menu (#632).
+	 *
+	 * `receive-text-menu` is an undocumented but live Workspace event: when text is
+	 * shared into Obsidian on mobile, the app builds a menu, fires this event so
+	 * plugins can add items, then shows it. (Absent from the public obsidian.d.ts —
+	 * see the augmentation in global.d.ts. Verified emitted by the current bundle and
+	 * used in production by ReadItLater.) The event never fires on desktop, so this
+	 * listener is a harmless no-op there.
+	 *
+	 * The menu is rebuilt from settings on every event, so choices read here are
+	 * always current — no need to re-register when the user toggles the flag. The
+	 * shared text is bound to the reserved `value` variable: a bare `{{VALUE}}`
+	 * resolves to it without a prompt (Template/Capture); Macro scripts read it via
+	 * `params.variables.value`. Every other prompt (one-page preflight, VDATE,
+	 * `{{VALUE:a,b}}` selects, target-file pickers, macro suggesters, the Multi
+	 * sub-picker) still fires — a shared choice runs exactly as from the command
+	 * palette. Unlike the URI x-callback (Template/Capture only, because it needs a
+	 * reportable outcome), share uses plain void `execute()` and is safe for all types.
+	 */
+	private registerShareMenu(): void {
+		this.registerEvent(
+			this.app.workspace.on("receive-text-menu", (menu: Menu, shareText: string) => {
+				const shared = flattenChoicesWithPath(this.settings.choices).filter(
+					(entry) => entry.choice.showInShareMenu,
+				);
+
+				for (const { choice, path } of shared) {
+					menu.addItem((item) =>
+						item
+							// Same section Obsidian uses for its own share actions.
+							.setSection("options")
+							// Path-prefixed so two same-named choices in different folders
+							// stay distinguishable (mirrors the CLI's flattened paths).
+							.setTitle(path.join(" / "))
+							.setIcon(resolveChoiceIcon(choice))
+							.onClick(async () => {
+								try {
+									const choiceExecutor = new ChoiceExecutor(this.app, this);
+									choiceExecutor.variables.set("value", shareText);
+									// Read live by id so an edit between registration and click
+									// can't run a stale copy (matches addCommandForChoice).
+									await choiceExecutor.execute(
+										this.getChoiceById(choice.id),
+									);
+								} catch (err) {
+									reportError(
+										err,
+										`Error running shared choice ${choice.id}`,
+									);
+								}
+							}),
+					);
+				}
+			}),
+		);
 	}
 
 	public addCommandForChoice(choice: IChoice) {

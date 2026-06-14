@@ -9,6 +9,7 @@ export abstract class Choice implements IChoice {
 	command: boolean;
 	onePageInput?: "always" | "never" | undefined;
 	icon?: string;
+	showInShareMenu?: boolean;
 
 	protected constructor(name: string, type: ChoiceType) {
 		this.id = uuidv4();

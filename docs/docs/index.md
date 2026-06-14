@@ -65,3 +65,8 @@ when you need exact method details.
 
 Use [Obsidian URI](./Advanced/ObsidianUri) for URI-triggered workflows, or the
 [QuickAdd CLI](./Advanced/CLI) for shell scripts and external automation.
+
+### I want to run a choice from the mobile share menu
+
+Add a choice to Obsidian's mobile "share to" menu so shared text and links route
+straight through it. See the [Mobile Share Menu](./Advanced/MobileShareMenu) guide.
