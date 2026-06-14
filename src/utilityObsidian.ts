@@ -576,6 +576,87 @@ export function insertOnNewLineBelow(toInsert: string, app: App): boolean {
 	return insertOnNewLine(toInsert, "below", app);
 }
 
+// Obsidian renders YAML frontmatter as the Properties widget — separate input
+// elements, not the CodeMirror document.
+const PROPERTY_WIDGET_SELECTOR =
+	".metadata-property, .metadata-properties-container";
+
+function isEditableElement(element: Element): element is HTMLElement {
+	return (
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement ||
+		(element instanceof HTMLElement && element.isContentEditable)
+	);
+}
+
+/**
+ * When the caret is in a focused frontmatter property field, inserts `text` at
+ * that caret and returns true. Returns false otherwise so the caller falls back
+ * to body insertion.
+ *
+ * A focused property blurs the markdown body editor, so its reported caret is
+ * stale — without this the link lands at the first body line instead (#768).
+ */
+function tryInsertIntoFocusedProperty(text: string): boolean {
+	if (typeof document === "undefined") return false;
+	const focused = document.activeElement;
+	if (!(focused instanceof HTMLElement)) return false;
+	if (!focused.closest(PROPERTY_WIDGET_SELECTOR)) return false;
+	if (!isEditableElement(focused)) return false;
+	return insertTextAtCaret(focused, text);
+}
+
+/**
+ * Inserts `text` at the caret of an input/textarea/contenteditable and fires an
+ * "input" event so Obsidian persists it. Returns false for unsupported elements.
+ */
+function insertTextAtCaret(element: HTMLElement, text: string): boolean {
+	if (
+		element instanceof HTMLInputElement ||
+		element instanceof HTMLTextAreaElement
+	) {
+		const startOffset = element.selectionStart ?? element.value.length;
+		const endOffset = element.selectionEnd ?? element.value.length;
+		const before = element.value.slice(0, startOffset);
+		const after = element.value.slice(endOffset);
+		element.value = before + text + after;
+		const caretOffset = startOffset + text.length;
+		try {
+			element.setSelectionRange(caretOffset, caretOffset);
+		} catch {
+			// Some input types reject selection ranges; caret position is non-critical.
+		}
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		return true;
+	}
+
+	if (element.isContentEditable) {
+		const ownerDocument = element.ownerDocument;
+		const selection = ownerDocument.getSelection();
+		if (
+			selection &&
+			selection.rangeCount > 0 &&
+			element.contains(selection.anchorNode)
+		) {
+			// Replace the selection with a text node and put the caret after it.
+			const range = selection.getRangeAt(0);
+			range.deleteContents();
+			const textNode = ownerDocument.createTextNode(text);
+			range.insertNode(textNode);
+			range.setStartAfter(textNode);
+			range.collapse(true);
+			selection.removeAllRanges();
+			selection.addRange(range);
+		} else {
+			element.textContent = `${element.textContent ?? ""}${text}`;
+		}
+		element.dispatchEvent(new Event("input", { bubbles: true }));
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * Core routine that inserts a link (or any text) in the active markdown
  * editor according to the chosen placement mode.
@@ -601,6 +682,11 @@ export function insertLinkWithPlacement(
 		log.logMessage(message);
 		return;
 	}
+
+	// #768: a focused frontmatter property field leaves the body editor's caret
+	// stale; insert into the property at its caret instead. Placement modes only
+	// apply to body insertion.
+	if (tryInsertIntoFocusedProperty(text)) return;
 
 	const editor = view.editor;
 
@@ -1317,4 +1403,6 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 export const __test = {
 	convertLinkToEmbed,
 	extractMarkdownLinkTarget,
+	tryInsertIntoFocusedProperty,
+	insertTextAtCaret,
 } as const;
