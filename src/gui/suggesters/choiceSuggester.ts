@@ -14,8 +14,21 @@ import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { log } from "../../logger/logManager";
 import { settingsStore } from "../../settingsStore";
 import { flattenChoicesWithPath } from "../../utils/choiceUtils";
+import {
+	hasConfiguredTemplateFolders,
+	runTemplateFromFolder,
+} from "../../engine/runTemplateFromFolder";
 
 const backLabel = "← Back";
+
+/**
+ * Sentinel id for the synthetic "New note from template" launcher row (#1023).
+ * Like {@link BACK_CHOICE_ID}, it is navigation/action — never a real choice —
+ * so it is dispatched explicitly and excluded from nested search. The constant
+ * prefix cannot collide with a real uuid-keyed choice.
+ */
+export const RUN_TEMPLATE_FROM_FOLDER_ID = "quickadd:run-template-from-folder";
+const runTemplateFromFolderLabel = "New note from template…";
 
 /**
  * Sentinel id for the synthetic back item. Back items are created fresh per
@@ -65,7 +78,22 @@ type ChoiceSuggesterOptions = {
 	choiceExecutor?: IChoiceExecutor;
 	placeholder?: string;
 	placeholderStack?: Array<string | undefined>;
+	/**
+	 * Inject the synthetic "New note from template" row at the top of this
+	 * level. Set only by the top-level launcher (Run QuickAdd / ribbon); never
+	 * by nested Multi navigation, so the row stays top-level only.
+	 */
+	includeTemplateFolderRow?: boolean;
 };
+
+function createTemplateFolderRow(): IChoice {
+	return {
+		id: RUN_TEMPLATE_FROM_FOLDER_ID,
+		name: runTemplateFromFolderLabel,
+		type: "Template",
+		command: false,
+	};
+}
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private choiceExecutor: IChoiceExecutor;
 	private placeholderStack: Array<string | undefined> = [];
@@ -102,6 +130,25 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		this.currentPlaceholder = options?.placeholder?.trim() || undefined;
 		if (this.currentPlaceholder) this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
+
+		// Insert the synthetic "New note from template" row only at the top level
+		// (includeTemplateFolderRow), and only when a template folder is actually
+		// configured (otherwise the action would just send the user to settings).
+		// Position is user-controlled: "bottom" (default) keeps it out of the
+		// first-Enter slot, "top" makes it first, "off" hides it. Settings are read
+		// inside this guard so nested-level opens (no settings on the test plugin)
+		// never touch them.
+		if (options?.includeTemplateFolderRow) {
+			const rowPosition =
+				this.plugin.settings.templateFolderLauncherRow ?? "bottom";
+			if (rowPosition !== "off" && hasConfiguredTemplateFolders(this.plugin)) {
+				const row = createTemplateFolderRow();
+				this.choices =
+					rowPosition === "top"
+						? [row, ...this.choices]
+						: [...this.choices, row];
+			}
+		}
 	}
 
 	onClose(): void {
@@ -136,10 +183,13 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private getNestedSearchCandidates(): NestedSearchCandidate[] {
 		if (!this.nestedSearchCandidates) {
 			// The back item wraps the entire previous level; flattening through
-			// it would leak every ancestor into the results. It is dropped as a
-			// candidate altogether — it is navigation, not content.
+			// it would leak every ancestor into the results. It and the synthetic
+			// template-folder row are dropped as candidates — they are
+			// navigation/action, not content.
 			const searchable = this.choices.filter(
-				(choice) => choice.id !== BACK_CHOICE_ID
+				(choice) =>
+					choice.id !== BACK_CHOICE_ID &&
+					choice.id !== RUN_TEMPLATE_FROM_FOLDER_ID
 			);
 			this.nestedSearchCandidates = flattenChoicesWithPath(searchable).map(
 				({ choice, path }) => {
@@ -181,6 +231,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		el.classList.add("quickadd-choice-suggestion");
 		if (item.item.id === BACK_CHOICE_ID)
 			el.classList.add("quickadd-choice-suggestion-back");
+		if (item.item.id === RUN_TEMPLATE_FROM_FOLDER_ID)
+			el.classList.add("quickadd-choice-suggestion-run-template");
 	}
 
 	getItemText(item: IChoice): string {
@@ -195,6 +247,17 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		item: IChoice,
 		evt: MouseEvent | KeyboardEvent
 	): void {
+		// Sentinel action row — must be handled before the type dispatch, since it
+		// carries no templatePath and would fail the Template engine's invariant.
+		if (item.id === RUN_TEMPLATE_FROM_FOLDER_ID) {
+			void runTemplateFromFolder(this.app, this.plugin, {
+				choiceExecutor: this.choiceExecutor,
+			}).catch((error) => {
+				log.logError(`Failed to run template from folder: ${error}`);
+			});
+			return;
+		}
+
 		if (item.type === "Multi")
 			this.onChooseMultiType(<IMultiChoice>item);
 		else {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CliData, CliFlags } from "obsidian";
+import { TFile } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type QuickAdd from "../main";
 import { registerQuickAddCliHandlers } from "./registerQuickAddCliHandlers";
@@ -136,6 +137,10 @@ describe("registerQuickAddCliHandlers", () => {
 		ChoiceExecutorMock.mockImplementation(function ChoiceExecutorMock() {
 			const executor: IChoiceExecutor = {
 				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi.fn().mockResolvedValue({
+					status: "success",
+					file: { path: "Created Note.md" },
+				}),
 				variables: new Map<string, unknown>(),
 				consumeAbortSignal: vi.fn().mockReturnValue(null),
 			};
@@ -160,6 +165,7 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(handlers.map((handler) => handler.command)).toEqual([
 			"quickadd",
 			"quickadd:run",
+			"quickadd:run-template",
 			"quickadd:list",
 			"quickadd:check",
 			"quickadd:package-preview",
@@ -230,6 +236,229 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.missingInputCount).toBeUndefined();
 		expect(payload.missingFlags).toContain("value-title=<value>");
 		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	function withTemplateFile(plugin: QuickAdd, existingPath: string) {
+		(plugin as unknown as { app: unknown }).app = {
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) => {
+					if (path !== existingPath) return null;
+					const file = new TFile();
+					file.path = path;
+					return file;
+				}),
+			},
+		};
+	}
+
+	it("returns an error when run-template is given no path", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+		const payload = JSON.parse(String(await run!.handler({})));
+		expect(payload.ok).toBe(false);
+		expect(payload.command).toBe("quickadd:run-template");
+		expect(executors).toHaveLength(0);
+	});
+
+	it("returns an error when the template path does not resolve to a file", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+		const payload = JSON.parse(
+			String(await run!.handler({ path: "Templates/Missing.md" })),
+		);
+		expect(payload.ok).toBe(false);
+		expect(executors).toHaveLength(0);
+	});
+
+	// The note name is validated up front (before any executor): an absent OR
+	// blank {{value}} can't name the note. The requirement collector consumes a
+	// provided-but-empty value (so it can't flag it) and the engine then swallows
+	// the resulting "File name is empty" throw — so run-template must reject blanks
+	// itself to avoid a false ok:true with no note created.
+	it.each([
+		["absent", {}],
+		["empty string", { "value-value": "" }],
+		["whitespace", { "value-value": "   " }],
+		["null via vars", { vars: JSON.stringify({ value: null }) }],
+	])(
+		"rejects a %s note name on a non-interactive run-template (honest envelope)",
+		async (_label, extra) => {
+			const { plugin, handlers } = createPlugin([]);
+			withTemplateFile(plugin, "Templates/Daily.md");
+			registerQuickAddCliHandlers(plugin);
+			const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+			const payload = JSON.parse(
+				String(await run!.handler({ path: "Templates/Daily.md", ...extra })),
+			);
+			expect(payload.ok).toBe(false);
+			expect(payload.missingFlags).toContain("value-value=<value>");
+			// Rejected before an executor is even constructed.
+			expect(executors).toHaveLength(0);
+		},
+	);
+
+	it("reports a swallowed engine failure (e.g. blank name) as ok:false, not false success", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({ path: "Templates/Daily.md", "value-value": "Note" }),
+			),
+		);
+		// Default mock outcome is success → ok:true with the created file path.
+		expect(payload.ok).toBe(true);
+		expect(payload.file).toBe("Created Note.md");
+		expect(executors[0].executeWithOutcome).toHaveBeenCalledTimes(1);
+		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("maps an error outcome to ok:false even when execute() would have resolved", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+		// Simulate the engine swallowing a failure (no file created) — incl. the
+		// ui=true + blank-name path that the up-front guard intentionally skips.
+		ChoiceExecutorMock.mockImplementationOnce(function () {
+			const executor: IChoiceExecutor = {
+				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi.fn().mockResolvedValue({ status: "error" }),
+				variables: new Map<string, unknown>(),
+				consumeAbortSignal: vi.fn().mockReturnValue(null),
+			};
+			executors.push(executor);
+			return executor;
+		});
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({
+					path: "Templates/Daily.md",
+					"value-value": "",
+					ui: "true",
+				}),
+			),
+		);
+		expect(payload.ok).toBe(false);
+		expect(String(payload.error)).toMatch(/no file/i);
+	});
+
+	it("maps a cancelled outcome to ok:false (aborted)", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+		ChoiceExecutorMock.mockImplementationOnce(function () {
+			const executor: IChoiceExecutor = {
+				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi
+					.fn()
+					.mockResolvedValue({ status: "cancelled", cancelKind: "user" }),
+				variables: new Map<string, unknown>(),
+				consumeAbortSignal: vi.fn().mockReturnValue(null),
+			};
+			executors.push(executor);
+			return executor;
+		});
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({ path: "Templates/Daily.md", "value-value": "X" }),
+			),
+		);
+		expect(payload.ok).toBe(false);
+		expect(payload.aborted).toBe(true);
+	});
+
+	it("returns a JSON error envelope for malformed vars (not an unhandled rejection)", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		// The up-front name check parses vars=; malformed JSON must surface as the
+		// standard envelope, like quickadd:run, rather than rejecting the handler.
+		const payload = JSON.parse(
+			String(await run!.handler({ path: "Templates/Daily.md", vars: "{not json" })),
+		);
+		expect(payload.ok).toBe(false);
+		expect(payload.command).toBe("quickadd:run-template");
+		expect(String(payload.error)).toMatch(/vars/i);
+		expect(executors).toHaveLength(0);
+	});
+
+	it("ui mode skips the up-front blank-name guard and delegates to execution", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({
+					path: "Templates/Daily.md",
+					"value-value": "",
+					ui: "true",
+				}),
+			),
+		);
+		// Not pre-rejected with missingFlags; routed through executeWithOutcome
+		// (which would prompt at runtime). Default mock outcome is success.
+		expect(payload.missingFlags).toBeUndefined();
+		expect(executors[0].executeWithOutcome).toHaveBeenCalledTimes(1);
+		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("accepts extensionless template paths the engine would resolve", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		// Engine resolver appends .md; the CLI must accept "Templates/Daily" too.
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({ path: "Templates/Daily", "value-value": "Note" }),
+			),
+		);
+		expect(payload.ok).toBe(true);
+		const executed = (
+			executors[0].executeWithOutcome as ReturnType<typeof vi.fn>
+		).mock.calls[0][0];
+		expect(executed.templatePath).toBe("Templates/Daily.md");
+	});
+
+	it("runs an ephemeral template choice and does not leak path= as a variable", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({
+					path: "Templates/Daily.md",
+					"value-value": "My New Note",
+				}),
+			),
+		);
+
+		expect(payload.ok).toBe(true);
+		expect(executors).toHaveLength(1);
+		const executedChoice = (
+			executors[0].executeWithOutcome as ReturnType<typeof vi.fn>
+		).mock.calls[0][0];
+		expect(executedChoice.type).toBe("Template");
+		expect(executedChoice.templatePath).toBe("Templates/Daily.md");
+		expect(executors[0].variables.get("value")).toBe("My New Note");
+		expect(executors[0].variables.has("path")).toBe(false);
 	});
 
 	it("lists flattened choices and supports command filter", async () => {
