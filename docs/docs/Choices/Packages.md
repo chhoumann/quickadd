@@ -63,6 +63,8 @@ much it can affect your vault:
 - **Runs on startup** — a macro set to run automatically every time Obsidian
   launches, with no interaction.
 - **Adds commands** — choices that register a command in the palette / hotkeys.
+- **Adds mobile share-menu entries** — choices that appear in Obsidian's mobile
+  "share to" menu (see [Mobile Share Menu](../Advanced/MobileShareMenu)).
 - **Overwrites existing choices or files**, **sends content to an AI provider**,
   **triggers other Obsidian commands**, and similar.
 

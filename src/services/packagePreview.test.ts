@@ -261,6 +261,27 @@ describe("buildPackagePreview - choice flags & dedupe", () => {
 		expect(preview.summary.registersCommandCount).toBe(1);
 	});
 
+	it("discloses showInShareMenu as an info-level capability", () => {
+		const shared = macro("s1", "Shared", []);
+		shared.showInShareMenu = true;
+		const plain = macro("p1", "Plain", []);
+		const pkg = makePackage([
+			pkgChoice(shared, ["Shared"]),
+			pkgChoice(plain, ["Plain"]),
+		]);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(
+			preview.choices.find((c) => c.choiceId === "s1")?.flags,
+		).toContain("share-menu");
+		expect(
+			preview.choices.find((c) => c.choiceId === "p1")?.flags,
+		).not.toContain("share-menu");
+		const row = preview.capabilityRows.find((r) => r.flag === "share-menu");
+		expect(row?.severity).toBe("info");
+		expect(row?.detail).toBe("1 choice");
+	});
+
 	it("attributes an inline-only Multi child's capabilities to its parent (no hiding)", () => {
 		// A crafted package puts a dangerous macro inline in a Multi.choices array
 		// WITHOUT listing it as its own pkg.choices entry.

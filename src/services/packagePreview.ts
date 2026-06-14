@@ -42,6 +42,7 @@ export type PreviewFlag =
 	| "run-on-startup"
 	| "mislabeled-executable"
 	| "registers-command"
+	| "share-menu"
 	| "obsidian-command"
 	| "ai"
 	| "capture-writes"
@@ -93,6 +94,11 @@ const FLAG_META: Record<PreviewFlag, FlagMeta> = {
 		severity: "warning",
 		label: "COMMAND",
 		description: "Adds a command to the command palette.",
+	},
+	"share-menu": {
+		severity: "info",
+		label: "SHARE",
+		description: "Adds an entry to Obsidian's mobile share menu that runs this choice.",
 	},
 	"obsidian-command": {
 		severity: "warning",
@@ -410,6 +416,10 @@ function collectChoice(
 	if (choice.command) {
 		walk.registersCommand = true;
 		walk.flags.add("registers-command");
+	}
+
+	if (choice.showInShareMenu) {
+		walk.flags.add("share-menu");
 	}
 
 	if (isMacroChoice(choice)) {
@@ -805,6 +815,18 @@ export function buildPackagePreview(
 			detail: `${registersCommandCount} choice${
 				registersCommandCount === 1 ? "" : "s"
 			}`,
+		});
+	}
+
+	const shareMenuCount = choices.filter((c) =>
+		c.flags.includes("share-menu"),
+	).length;
+	if (shareMenuCount > 0) {
+		capabilityRows.push({
+			flag: "share-menu",
+			severity: "info",
+			title: "Adds entries to Obsidian's mobile share menu",
+			detail: `${shareMenuCount} choice${shareMenuCount === 1 ? "" : "s"}`,
 		});
 	}
 
