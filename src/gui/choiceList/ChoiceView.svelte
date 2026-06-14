@@ -11,6 +11,7 @@
 		createChoice,
 		createToggleCommandChoice,
 		toggleShareMenuById,
+		findChoiceById,
 		deleteChoiceWithConfirmation,
 		duplicateChoice,
 		addChoiceToTree,
@@ -168,8 +169,17 @@
 		}
 	}
 
+	// The row passed from the list can be a filtered-view CLONE of a Multi holding
+	// only the children that matched the filter (see filterChoices). Resolve the
+	// AUTHORITATIVE live choice by id before any edit/duplicate/delete-count, so a
+	// folder's hidden children are never dropped or miscounted on save.
+	function liveChoice(choice: IChoice): IChoice {
+		return findChoiceById(choices, choice.id) ?? choice;
+	}
+
 	async function deleteChoice(choice: IChoice) {
-		const userConfirmed = await deleteChoiceWithConfirmation(choice, app);
+		const target = liveChoice(choice);
+		const userConfirmed = await deleteChoiceWithConfirmation(target, app);
 		if (!userConfirmed) return;
 
 		// Immutable removal at any depth — so the delete is reactive on the runes
@@ -181,11 +191,12 @@
 	}
 
 	async function handleConfigureChoice(oldChoice: IChoice) {
-		const updatedChoice = await configureChoice(oldChoice, app, plugin);
+		const live = liveChoice(oldChoice);
+		const updatedChoice = await configureChoice(live, app, plugin);
 		if (!updatedChoice) return;
 
 		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
-		commandRegistry.updateCommand(oldChoice, updatedChoice);
+		commandRegistry.updateCommand(live, updatedChoice);
 		save();
 	}
 
@@ -211,14 +222,15 @@
 		const newName = await promptRenameChoice(app, choice.name);
 		if (!newName) return;
 
-		const updatedChoice = { ...choice, name: newName };
+		const live = liveChoice(choice);
+		const updatedChoice = { ...live, name: newName };
 		choices = choices.map((entry) => updateChoiceHelper(entry, updatedChoice));
-		commandRegistry.updateCommand(choice, updatedChoice);
+		commandRegistry.updateCommand(live, updatedChoice);
 		save();
 	}
 
 	function toggleCommandForChoice(oldChoice: IChoice) {
-		const updatedChoice = createToggleCommandChoice(oldChoice);
+		const updatedChoice = createToggleCommandChoice(liveChoice(oldChoice));
 
 		choices = choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
 		updatedChoice.command
@@ -239,7 +251,7 @@
 	}
 
 	function handleDuplicateChoice(sourceChoice: IChoice) {
-		const newChoice = duplicateChoice(sourceChoice);
+		const newChoice = duplicateChoice(liveChoice(sourceChoice));
 		choices = [...choices, newChoice];
 		save();
 	}
