@@ -135,7 +135,7 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		(InputSuggester as any).Suggest = suggestSpy;
 		const engine = buildEngine(createChoice());
 
-		await (engine as any).maybeResolveInsertAfterHeading("Inbox.md", true);
+		await (engine as any).maybeResolveInsertAfterHeading(HEADING_NOTE);
 
 		const [, displayItems, items] = suggestSpy.mock.calls[0] as unknown[];
 		// items are the literal file lines (the insert-after search target).
@@ -148,7 +148,7 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		(InputSuggester as any).Suggest = vi.fn(async () => "## Tasks");
 		const engine = buildEngine(createChoice());
 
-		await (engine as any).maybeResolveInsertAfterHeading("Inbox.md", true);
+		await (engine as any).maybeResolveInsertAfterHeading(HEADING_NOTE);
 
 		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## Tasks");
 		// Notice copy uses the heading TEXT (no '#').
@@ -175,31 +175,35 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 			}),
 		);
 
-		await (engine as any).maybeResolveInsertAfterHeading("Inbox.md", true);
+		await (engine as any).maybeResolveInsertAfterHeading(HEADING_NOTE);
 
 		expect(suggestSpy).not.toHaveBeenCalled();
 		expect(setInsertAfterTargetOverrideMock).not.toHaveBeenCalled();
 	});
 
-	it("skips canvas targets (static field still applies there)", async () => {
-		const suggestSpy = vi.fn(async () => "## Tasks");
-		(InputSuggester as any).Suggest = suggestSpy;
-		const engine = buildEngine(createChoice({ captureTo: "Board.canvas" }));
+	it("resolves headings from arbitrary content (e.g. a Canvas text card body)", async () => {
+		// The helper is content-based, so the same picker serves note bodies and canvas
+		// text cards. handleCanvasTextCapture passes the card's text here.
+		(InputSuggester as any).Suggest = vi.fn(async () => "## Card Heading");
+		const engine = buildEngine(createChoice());
 
-		await (engine as any).maybeResolveInsertAfterHeading("Board.canvas", true);
+		await (engine as any).maybeResolveInsertAfterHeading(
+			"# Card\n\n## Card Heading\n- note\n",
+		);
 
-		expect(suggestSpy).not.toHaveBeenCalled();
+		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## Card Heading");
+		expect((engine as any).resolvedInsertAfterHeading).toBe("Card Heading");
 	});
 
-	it("lets the user type a heading on a note with no headings (custom value)", async () => {
+	it("lets the user type a heading when the content has no headings (custom value)", async () => {
 		(InputSuggester as any).Suggest = vi.fn(async (_app, display, items) => {
 			expect(display).toEqual([]);
 			expect(items).toEqual([]);
 			return "## New Heading";
 		});
-		const engine = buildEngine(createChoice(), createApp("just body text\nmore"));
+		const engine = buildEngine(createChoice());
 
-		await (engine as any).maybeResolveInsertAfterHeading("Inbox.md", true);
+		await (engine as any).maybeResolveInsertAfterHeading("just body text\nmore");
 
 		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## New Heading");
 		// Custom value isn't a known heading line → notice falls back to the raw value.
@@ -213,7 +217,7 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		const engine = buildEngine(createChoice());
 
 		await expect(
-			(engine as any).maybeResolveInsertAfterHeading("Inbox.md", true),
+			(engine as any).maybeResolveInsertAfterHeading(HEADING_NOTE),
 		).rejects.toBeInstanceOf(UserCancelError);
 		expect(setInsertAfterTargetOverrideMock).not.toHaveBeenCalled();
 	});

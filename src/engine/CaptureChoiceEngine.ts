@@ -277,7 +277,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			// "Under heading…" write position: prompt for a heading from the resolved
 			// target note and feed the picked line to the formatter as an insert-after
 			// override. Runs after the target file is known and before any formatting/write.
-			await this.maybeResolveInsertAfterHeading(filePath, fileAlreadyExists);
+			// Canvas TEXT cards are handled earlier in handleCanvasTextCapture (which resolves
+			// the heading from the card text); a bare .canvas file path here would be a file
+			// card whose underlying note is markdown, so the extension guard is defensive.
+			if (
+				this.isInsertAfterHeadingMode() &&
+				!CANVAS_FILE_EXTENSION_REGEX.test(filePath)
+			) {
+				await this.maybeResolveInsertAfterHeading(
+					await this.readNoteBodyForHeadingPicker(filePath, fileAlreadyExists),
+				);
+			}
 
 			// Collect front matter property types only when the capture content
 			// becomes the file's OWN front matter — i.e. a brand-new file created
@@ -431,6 +441,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		const captureTemplate = this.getCaptureContent();
 		const existingText = getCanvasTextCaptureContent(target);
+
+		// "Under heading…" write position on a canvas text card: resolve the heading from
+		// the card's own text so the insert-after override targets a real line in the card
+		// (otherwise heading mode leaves the static `after` empty and the formatter aborts).
+		if (this.isInsertAfterHeadingMode()) {
+			await this.maybeResolveInsertAfterHeading(existingText);
+		}
+
 		const nextText = await this.formatter.formatContentWithFile(
 			captureTemplate,
 			this.choice,
@@ -499,40 +517,27 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	/**
 	 * For the "Under heading…" write position: prompt the user with a dropdown of the
-	 * target note's headings and set the picked line as the formatter's insert-after
-	 * override. The items are byte-exact heading LINES from freshly-read content (so the
-	 * formatter's literal search and create-if-not-found round-trip exactly, the #742
-	 * invariant), parsed with the same `getMarkdownHeadings` the inserter uses (so what is
-	 * offered can never desync from what is matched). `allowCustomValue` lets the user type
-	 * a heading on a new / heading-less note (created via "Create line if not found").
-	 * Scoped to markdown notes; canvas text cards keep the static field. Cancelling the
-	 * picker aborts the capture cleanly (UserCancelError), before any write.
+	 * destination's headings and set the picked line as the formatter's insert-after
+	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
+	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
+	 * parsed with the same `getMarkdownHeadings` the inserter uses (so what is offered can
+	 * never desync from what is matched). `allowCustomValue` lets the user type a heading on
+	 * a new / heading-less target (created via "Create line if not found"). `content` is the
+	 * destination's current text — a note body, or a Canvas text card's text. A no-op unless
+	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
+	 * before any write.
 	 */
-	private async maybeResolveInsertAfterHeading(
-		filePath: string,
-		fileAlreadyExists: boolean,
-	): Promise<void> {
+	private async maybeResolveInsertAfterHeading(content: string): Promise<void> {
 		const insertAfter = this.choice.insertAfter;
 		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
-		if (CANVAS_FILE_EXTENSION_REGEX.test(filePath)) return;
 
-		let headingLines: string[] = [];
-		let headingDisplay: string[] = [];
-		let headingTexts: string[] = [];
-
-		if (fileAlreadyExists) {
-			const file = this.app.vault.getAbstractFileByPath(filePath);
-			if (file instanceof TFile) {
-				const content = await this.app.vault.read(file);
-				const lines = getLinesInString(content);
-				const headings = getMarkdownHeadings(lines);
-				headingLines = headings.map((h) => lines[h.line]);
-				headingDisplay = headings.map(
-					(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.text}`,
-				);
-				headingTexts = headings.map((h) => h.text);
-			}
-		}
+		const lines = getLinesInString(content);
+		const headings = getMarkdownHeadings(lines);
+		const headingLines = headings.map((h) => lines[h.line]);
+		const headingDisplay = headings.map(
+			(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.text}`,
+		);
+		const headingTexts = headings.map((h) => h.text);
 
 		let chosen: string;
 		try {
@@ -566,6 +571,26 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const pickedIndex = headingLines.indexOf(chosen);
 		this.resolvedInsertAfterHeading =
 			pickedIndex >= 0 ? headingTexts[pickedIndex] : chosen;
+	}
+
+	/**
+	 * Whether the choice is in "Under heading…" mode (insert-after + runtime heading picker).
+	 */
+	private isInsertAfterHeadingMode(): boolean {
+		return (
+			!!this.choice.insertAfter?.enabled &&
+			!!this.choice.insertAfter.promptHeading
+		);
+	}
+
+	/** Reads the destination note body for the heading picker (empty when the file is new). */
+	private async readNoteBodyForHeadingPicker(
+		filePath: string,
+		fileAlreadyExists: boolean,
+	): Promise<string> {
+		if (!fileAlreadyExists) return "";
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		return file instanceof TFile ? await this.app.vault.read(file) : "";
 	}
 
 	private getCaptureContent(): string {
