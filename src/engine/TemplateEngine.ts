@@ -1,4 +1,8 @@
 import { QuickAddEngine } from "./QuickAddEngine";
+import {
+	postProcessFrontMatter,
+	shouldPostProcessFrontMatter,
+} from "./helpers/frontmatterPostProcessor";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import type {
 	LinkToCurrentFileBehavior,
@@ -563,8 +567,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			);
 
 			// Post-process front matter for template property types BEFORE Templater
-			if (this.shouldPostProcessFrontMatter(createdFile, templateVars)) {
-				await this.postProcessFrontMatter(createdFile, templateVars);
+			if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
+				await postProcessFrontMatter(this.app, createdFile, templateVars);
 			}
 
 			// Process Templater commands for template choices
@@ -640,8 +644,8 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			await this.app.vault.modify(file, formattedTemplateContent);
 
 			// Post-process front matter for template property types BEFORE Templater
-			if (this.shouldPostProcessFrontMatter(file, templateVars)) {
-				await this.postProcessFrontMatter(file, templateVars);
+			if (shouldPostProcessFrontMatter(file, templateVars)) {
+				await postProcessFrontMatter(this.app, file, templateVars);
 			}
 
 			// Process Templater commands

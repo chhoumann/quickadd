@@ -1,33 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { App } from 'obsidian';
-import { QuickAddEngine } from './QuickAddEngine';
-
-/**
- * Test implementation of QuickAddEngine for validation testing
- */
-class TestQuickAddEngine extends QuickAddEngine {
-	constructor(app: App) {
-		super(app);
-	}
-
-	public run(): void {
-		// Not needed for validation tests
-	}
-
-	// Expose protected method for testing
-	public testValidateStructuredVariables(vars: Map<string, unknown>) {
-		return this.validateStructuredVariables(vars);
-	}
-}
+import { describe, it, expect } from 'vitest';
+import { validateStructuredVariables } from './helpers/frontmatterPostProcessor';
 
 describe('QuickAddEngine - Structured Variable Validation', () => {
-	let mockApp: App;
-	let engine: TestQuickAddEngine;
-
-	beforeEach(() => {
-		mockApp = {} as App;
-		engine = new TestQuickAddEngine(mockApp);
-	});
+	const engine = {
+		testValidateStructuredVariables: (vars: Map<string, unknown>) =>
+			validateStructuredVariables(vars),
+	};
 
 	describe('Valid variables', () => {
 		it('should validate simple primitives', () => {
