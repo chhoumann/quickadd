@@ -4,6 +4,7 @@ import {
 	DATE_REGEX_FORMATTED,
 	DATE_VARIABLE_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
+	LINK_TO_CURRENT_SECTION_REGEX,
 	FILE_NAME_OF_CURRENT_FILE_REGEX,
 	TARGET_FOLDER_REGEX,
 	MACRO_REGEX,
@@ -297,6 +298,38 @@ export abstract class Formatter {
 		return output;
 	}
 
+	/**
+	 * Resolves {{linksection}} to a link to the current file at the heading the
+	 * cursor is under, so the link scrolls there instead of to the top (#387).
+	 *
+	 * Mirrors {@link replaceLinkToCurrentFileInString}, including the
+	 * required/optional behavior: when no link can be produced (no active file),
+	 * a `required` behavior throws and an `optional` one strips the token. The
+	 * regex is tested first so the (cursor/metadata-reading) resolver only runs
+	 * when the token is actually present.
+	 */
+	protected replaceLinkToCurrentSectionInString(input: string): string {
+		if (!LINK_TO_CURRENT_SECTION_REGEX.test(input)) return input;
+
+		const sectionLink = this.getCurrentFileLinkToSection();
+
+		if (!sectionLink) {
+			if (this.linkToCurrentFileBehavior === "required") {
+				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+			}
+			log.logMessage("Skipping {{LINKSECTION}} replacement because no active file is available.");
+		}
+
+		// Single global pass with a function replacer: the replacement is the
+		// generated link, which embeds the (user-controlled) heading text and so
+		// can itself contain "{{linksection}}" or "$"-sequences. A function
+		// replacer inserts it literally and is NOT re-scanned, avoiding both the
+		// $-pattern interpretation and the infinite re-match a while-loop would
+		// hit when a heading is literally named "{{linksection}}".
+		const regex = new RegExp(LINK_TO_CURRENT_SECTION_REGEX.source, "gi");
+		return input.replace(regex, () => sectionLink ?? "");
+	}
+
 	protected async replaceCurrentFileNameInString(
 		input: string,
 	): Promise<string> {
@@ -391,6 +424,19 @@ export abstract class Formatter {
 
 	protected abstract getCurrentFileLink(): string | null;
 	protected abstract getCurrentFileName(): string | null;
+
+	/**
+	 * Resolves a link to the current file at the cursor's heading for
+	 * {{linksection}}. Defaults to "not supported" (null) so subclasses that
+	 * never expose the token — preview and preflight formatters, and the many
+	 * test stubs — need no change. Returning null routes through the same
+	 * required-throws / optional-blanks path as {{linkcurrent}}. The runtime
+	 * resolver lives in CompleteFormatter; the preview formatter overrides it
+	 * with a static example. This is read-only — it never mutates a file.
+	 */
+	protected getCurrentFileLinkToSection(): string | null {
+		return null;
+	}
 
 
 

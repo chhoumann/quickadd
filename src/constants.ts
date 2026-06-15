@@ -22,6 +22,7 @@ export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
+export const LINKSECTION_SYNTAX = "{{linksection}}";
 export const FILENAMECURRENT_SYNTAX = "{{filenamecurrent}}";
 export const FOLDER_SYNTAX = "{{folder}}";
 export const TITLE_SYNTAX = "{{title}}";
@@ -54,6 +55,7 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{field:<fieldname>|inline:true}}",
 	"{{field:<fieldname>|inline:true|inline-code-blocks:ad-note}}",
 	LINKCURRENT_SYNTAX,
+	LINKSECTION_SYNTAX,
 	FILENAMECURRENT_SYNTAX,
 	FOLDER_SYNTAX,
 	"{{folder|name}}",
@@ -118,6 +120,9 @@ export const DATE_VARIABLE_REGEX = new RegExp(
 	/{{VDATE:([^\n\r},|]*)(?:,\s*([^\n\r}|]*))?(?:\|([^\n\r}]*))?}}/i,
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
+// {{LINKSECTION}} resolves to a link to the current file at the heading the
+// cursor is under, so the link scrolls there instead of the top (issue #387).
+export const LINK_TO_CURRENT_SECTION_REGEX = new RegExp(/{{LINKSECTION}}/i);
 export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
 // {{FOLDER}} resolves to the target folder the note is being created in.
 // The optional |name modifier yields just the leaf folder segment.
@@ -166,6 +171,14 @@ export const VARIABLE_DATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const LINKCURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[L]?[I]?[N]?[K]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
+);
+// {{linkcurrent}}, {{linksection}} share the "{{link" prefix, so the flat
+// all-optional style would over-suggest (typing "{{linkc" would also match
+// {{linksection}}). This strict left-to-right prefix matcher only accepts an
+// actual prefix of "{{linksection}}", so "{{linkc" → linkcurrent only and
+// "{{links" → linksection only.
+export const LINKSECTION_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/^\{\{(?:l(?:i(?:n(?:k(?:s(?:e(?:c(?:t(?:i(?:o(?:n(?:\}\}?)?)?)?)?)?)?)?)?)?)?)?)?$/i,
 );
 export const FILENAMECURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[F]?[I]?[L]?[E]?[N]?[A]?[M]?[E]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,

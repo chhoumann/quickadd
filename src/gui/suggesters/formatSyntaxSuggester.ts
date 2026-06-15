@@ -7,6 +7,8 @@ import {
 	TIME_SYNTAX,
 	LINKCURRENT_SYNTAX,
 	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
+	LINKSECTION_SYNTAX,
+	LINKSECTION_SYNTAX_SUGGEST_REGEX,
 	FILENAMECURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
 	FOLDER_SYNTAX_SUGGEST_REGEX,
@@ -42,6 +44,7 @@ enum FormatSyntaxToken {
 	Name,
 	Variable,
 	LinkCurrent,
+	LinkSection,
 	FilenameCurrent,
 	FolderTarget,
 	Macro,
@@ -143,6 +146,11 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.LinkCurrent,
 			suggestion: LINKCURRENT_SYNTAX
+		},
+		{
+			regex: LINKSECTION_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.LinkSection,
+			suggestion: LINKSECTION_SYNTAX
 		},
 		{
 			regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
