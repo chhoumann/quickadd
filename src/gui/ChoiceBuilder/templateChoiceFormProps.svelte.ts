@@ -18,19 +18,21 @@ export interface TemplateChoiceFormProps {
 export function createTemplateChoiceFormProps(
 	initial: TemplateChoiceFormProps,
 ): TemplateChoiceFormProps {
-	// Detach the choice into a plain clone so $state can deeply proxy it. Svelte's
-	// proxy() returns class instances UNCHANGED (un-proxied) — newly created choices
-	// come from `createChoice()` as `new TemplateChoice()` instances, whose nested
-	// mutations would then NOT be reactive (conditional {#if} rows wouldn't appear in
-	// the add-new flow). $state.snapshot strips the class prototype to a plain object;
-	// the form mutates this proxy and onClose snapshots it (getResultChoice). #1130
+	// Detach the choice into a plain clone so $state can deeply proxy it, mutated by
+	// the form and snapshotted back out by onClose (getResultChoice). #1130
 	//
-	// Use $state.snapshot, NOT structuredClone: an EXISTING choice arrives here as a
-	// live $state proxy (ChoiceView holds saved choices, loaded from data.json as
-	// plain objects, in a $state array). structuredClone throws DataCloneError on a
-	// $state proxy; $state.snapshot detaches it (see the Plain<T> rule in
-	// persist.svelte.ts). New choices are class instances (un-proxied) and snapshot
-	// strips their prototype just the same.
+	// Why $state.snapshot and NOT structuredClone:
+	//  - EXISTING choice: can arrive as a live $state proxy (a Macro's nested
+	//    command.choice is reactive — see CommandList.svelte). structuredClone throws
+	//    DataCloneError on a $state proxy under Svelte's dev build; $state.snapshot
+	//    detaches it via Svelte's own deep clone. This is the Plain<T> proxy-detach
+	//    rule from persist.svelte.ts.
+	//  - NEW choice: createChoice() returns a `new TemplateChoice()` class instance,
+	//    which $state() leaves UN-proxied — it must be plain for nested {#if} rows to
+	//    react. snapshot deep-clones it too: a Choice is plain data, so Svelte's clone
+	//    delegates the cloneable instance to structuredClone, stripping the prototype
+	//    to Object.prototype. (Verified by the add-new reactivity test in
+	//    CaptureChoiceForm.test.ts and choiceFormProps.proxy.svelte.test.ts.)
 	const props = $state({ ...initial, choice: $state.snapshot(initial.choice) });
 	return props;
 }

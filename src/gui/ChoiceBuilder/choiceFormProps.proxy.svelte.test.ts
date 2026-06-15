@@ -51,16 +51,23 @@ describe("choice form props: existing (proxied plain-object) choices", () => {
 		expect(props.choice).not.toBe(proxied);
 	});
 
-	it("still builds Template props from a freshly created class instance", () => {
-		// The add-new flow: createChoice() returns a class instance. Must remain
-		// reactive (plain-prototype clone) — the original reason the clone exists.
-		const props = createTemplateChoiceFormProps({
-			choice: new TemplateChoice("New"),
-			app,
-			plugin,
-		});
-		expect(Object.getPrototypeOf(props.choice)).toBe(Object.prototype);
+	it("still builds Template props from a freshly created class instance (deep, plain)", () => {
+		// The add-new flow: createChoice() returns a class INSTANCE (prototype is
+		// TemplateChoice.prototype, not Object.prototype). $state.snapshot must still
+		// produce a plain-prototype DEEP clone so $state() deeply proxies it and nested
+		// {#if} rows react (#1130). Svelte's clone delegates the cloneable instance to
+		// structuredClone, which strips the prototype — assert that here, plus deep
+		// independence so the class-instance path is covered as fully as the proxy one.
+		const source = new TemplateChoice("New");
+		source.folder.folders.push("Seed");
+		expect(Object.getPrototypeOf(source)).not.toBe(Object.prototype); // is a class instance
+
+		const props = createTemplateChoiceFormProps({ choice: source, app, plugin });
+		expect(Object.getPrototypeOf(props.choice)).toBe(Object.prototype); // prototype stripped
 		expect(props.choice.name).toBe("New");
+
+		(props.choice.folder.folders as string[]).push("Added");
+		expect(source.folder.folders).toEqual(["Seed"]); // deep clone — original untouched
 	});
 
 	// The clone must be DEEP: the form mutates props.choice freely (incl. nested
