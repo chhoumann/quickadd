@@ -109,6 +109,19 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(rc.requirements.get(key)?.optional).toBe(true);
 	});
 
+	it("upgrades a shared-id requirement to a custom suggester order-independently", async () => {
+		const app = makeApp(["People/Tom.md"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		// non-custom first (would be a forced dropdown), |custom second.
+		await rc.scanString(
+			"{{FILE:People|name:ref}} then {{FILE:People|custom|name:ref}}",
+		);
+		const key = parseFileToken("People|name:ref")!.variableKey;
+		const req = rc.requirements.get(key);
+		expect(req?.type).toBe("suggester");
+		expect(req?.suggesterConfig?.allowCustomInput).toBe(true);
+	});
+
 	it("does not confuse {{FILENAMECURRENT}} with a FILE requirement", async () => {
 		const app = makeApp(["People/Tom.md"]);
 		const rc = new RequirementCollector(app, makePlugin());

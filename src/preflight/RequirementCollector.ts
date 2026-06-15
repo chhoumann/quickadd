@@ -432,6 +432,17 @@ export class RequirementCollector extends Formatter {
 			// AND rule as VALUE/VDATE: optional only if EVERY occurrence is
 			// optional, so a later required use still prompts.
 			existing.optional = (existing.optional ?? false) && parsed.optional;
+			// Merge custom-input capability order-independently: if ANY occurrence
+			// allows custom input, the shared field must expose the free-text
+			// suggester (most-permissive wins, mirroring VALUE's option upgrade).
+			if (parsed.allowCustomInput) {
+				existing.type = "suggester";
+				existing.suggesterConfig = {
+					allowCustomInput: true,
+					caseSensitive: false,
+					multiSelect: false,
+				};
+			}
 			return;
 		}
 
