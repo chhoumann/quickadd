@@ -23,7 +23,8 @@ export default defineConfig({
 	test: {
 		include: [
 			"src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
-			"tests/*.test.ts",
+			"tests/*.{test,spec}.{ts,tsx}",
+			"tests/!(e2e|packages)/**/*.{test,spec}.{ts,tsx}",
 		],
 		globals: true,
 		environment: "jsdom",
