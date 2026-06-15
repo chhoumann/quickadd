@@ -24,7 +24,7 @@ import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
-	private focusCaptured = false;
+	private executionDepth = 0;
 	private pendingAbort: MacroAbortError | null = null;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
@@ -41,13 +41,15 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
-		// Capture the focused frontmatter property BEFORE any prompt/suggester
-		// steals focus, so Append Link can target it later (#768). Captured once per
-		// execution chain so nested Multi choices keep the original caret.
-		if (!this.focusCaptured) {
-			this.focusCaptured = true;
+		// Capture the focused frontmatter property at the start of the OUTERMOST
+		// execution — before any prompt/suggester steals focus — so Append Link can
+		// target it later (#768). Nested Multi/Macro executions keep the original
+		// capture; it's cleared when the chain unwinds (finally), so a reused
+		// executor doesn't leak a stale target into the next top-level call.
+		if (this.executionDepth === 0) {
 			this.focusedProperty = getFocusedPropertyTarget(this.app);
 		}
+		this.executionDepth++;
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		promptDraftStore.beginExecutionScope();
@@ -113,6 +115,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope();
 			throw error;
+		} finally {
+			this.executionDepth--;
+			if (this.executionDepth === 0) {
+				this.focusedProperty = null;
+			}
 		}
 	}
 

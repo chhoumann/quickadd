@@ -5,7 +5,6 @@ import {
 	getFocusedPropertyTarget,
 	type FrontmatterPropertyTarget,
 } from "./utilityObsidian";
-import type { AppendLinkOptions } from "./types/linkPlacement";
 
 /**
  * Regression tests for #768. The link must follow the caret into a frontmatter
@@ -118,15 +117,9 @@ describe("getFocusedPropertyTarget", () => {
 
 describe("appendLinkToFrontmatterProperty", () => {
 	const target: FrontmatterPropertyTarget = { file: makeFile("Note.md"), key: "links" };
-	const linkOptions: AppendLinkOptions = {
-		enabled: true,
-		placement: "replaceSelection",
-		requireActiveFile: true,
-		linkType: "link",
-	};
 
 	/** Runs the helper against an initial frontmatter object and returns the mutated value. */
-	async function runWith(initial: Record<string, unknown>, options = linkOptions) {
+	async function runWith(initial: Record<string, unknown>) {
 		const frontmatter = { ...initial };
 		const app = {
 			fileManager: {
@@ -137,7 +130,7 @@ describe("appendLinkToFrontmatterProperty", () => {
 				) => fn(frontmatter),
 			},
 		} as unknown as App;
-		await appendLinkToFrontmatterProperty(app, target, makeFile("Created.md"), options);
+		await appendLinkToFrontmatterProperty(app, target, makeFile("Created.md"));
 		return frontmatter.links;
 	}
 
@@ -156,13 +149,5 @@ describe("appendLinkToFrontmatterProperty", () => {
 
 	it("preserves a number value as a string instead of wiping it", async () => {
 		expect(await runWith({ links: 5 })).toBe("5 [[Created]]");
-	});
-
-	it("embeds when linkType is embed and placement supports it", async () => {
-		const embedded = await runWith(
-			{ links: "" },
-			{ ...linkOptions, linkType: "embed" },
-		);
-		expect(embedded).toBe("![[Created]]");
 	});
 });

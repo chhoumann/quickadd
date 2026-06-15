@@ -593,7 +593,10 @@ export function getFocusedPropertyTarget(
 		const focused = getOwnerDocument(view.containerEl).activeElement;
 		if (!focused || !view.containerEl.contains(focused)) continue;
 
-		// Must be the value side of a property row, not the key field.
+		// Must be the value side of a property row, not the key field. These class
+		// names / data attributes are Obsidian Properties-widget internals (verified
+		// against Obsidian 1.9.x); if a future release renames them, detection
+		// silently falls back to body insertion rather than misfiring.
 		if (!focused.closest(".metadata-property-value")) continue;
 
 		// Only text and list properties can sensibly hold a link. Typed inputs
@@ -618,32 +621,28 @@ export function getFocusedPropertyTarget(
 
 /**
  * Appends a link to `fileToLink` into the frontmatter property identified by
- * `target`, via Obsidian's `processFrontMatter` API (the only reliable way to
- * persist a property value — direct DOM mutation of the Properties widget is
- * discarded on re-render, and typed inputs reject sliced text). List properties
- * get a new item; non-empty scalars get the link appended to their string form;
- * empty properties are set to the link.
+ * `target`, via Obsidian's `processFrontMatter` API — the reliable way to persist
+ * a property value (direct DOM mutation of the Properties widget is discarded on
+ * re-render). List properties get a new item; non-empty scalars get the link
+ * appended to their string form; empty/missing properties are set to the link.
+ *
+ * Always a plain link: an embed (`![[…]]`) in a YAML value isn't rendered by
+ * Obsidian, so `linkType: "embed"` doesn't apply to properties.
  */
 export async function appendLinkToFrontmatterProperty(
 	app: App,
 	target: FrontmatterPropertyTarget,
 	fileToLink: TFile,
-	linkOptions: AppendLinkOptions,
 ): Promise<void> {
-	const baseLink = app.fileManager.generateMarkdownLink(
+	const linkText = app.fileManager.generateMarkdownLink(
 		fileToLink,
 		target.file.path,
 	);
-	const linkText =
-		linkOptions.linkType === "embed" &&
-		placementSupportsEmbed(linkOptions.placement)
-			? convertLinkToEmbed(baseLink)
-			: baseLink;
 
 	await app.fileManager.processFrontMatter(target.file, (frontmatter) => {
 		const existing = frontmatter[target.key];
 		if (Array.isArray(existing)) {
-			existing.push(linkText);
+			existing.push(linkText); // leave existing items untouched
 		} else if (existing === undefined || existing === null || existing === "") {
 			frontmatter[target.key] = linkText;
 		} else {

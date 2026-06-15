@@ -174,12 +174,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// the link there (persisted via processFrontMatter) instead of the body.
 		const propertyTarget = this.choiceExecutor.focusedProperty;
 		if (propertyTarget) {
-			await appendLinkToFrontmatterProperty(
-				this.app,
-				propertyTarget,
-				file,
-				linkOptions,
-			);
+			await appendLinkToFrontmatterProperty(this.app, propertyTarget, file);
 			return;
 		}
 

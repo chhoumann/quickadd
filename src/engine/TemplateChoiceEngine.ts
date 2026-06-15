@@ -158,7 +158,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						this.app,
 						propertyTarget,
 						createdFile,
-						linkOptions,
 					);
 				} else {
 					insertFileLinkToActiveView(this.app, createdFile, linkOptions);
