@@ -848,24 +848,40 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 	}
 
-	/** Whether `value` resolves to any existing vault file (by path or basename, .md/.canvas tried). */
-	private vaultFileExists(value: string): boolean {
-		const candidates = [value];
-		if (!/\.(md|canvas)$/i.test(value)) {
-			candidates.push(`${value}.md`, `${value}.canvas`);
+	/**
+	 * Whether a typed picker value already resolves to an existing note — by exact
+	 * path (root or a typed sub-path, with/without a .md/.canvas extension) OR by a
+	 * bare basename matching a note in ANY folder. `vaultBasenames` is the set of
+	 * existing note basenames (lowercased), built once per picker so this is O(1)
+	 * per keystroke. Suppresses the "Create new note" affordance for any name that
+	 * already exists, so a vault-wide picker never mislabels an existing note as
+	 * creatable, captures into it, or spawns a duplicate-basename note.
+	 */
+	private captureTargetAlreadyExists(
+		value: string,
+		vaultBasenames: Set<string>,
+	): boolean {
+		const raw = value.trim();
+		if (!raw) return false;
+		const base = raw.replace(/\.(md|canvas)$/i, "");
+		const pathCandidates = [raw, `${base}.md`, `${base}.canvas`];
+		if (
+			pathCandidates.some(
+				(path) => !!this.app.vault.getAbstractFileByPath(path),
+			)
+		) {
+			return true;
 		}
-		return candidates.some(
-			(path) => !!this.app.vault.getAbstractFileByPath(path),
-		);
+		return vaultBasenames.has(base.toLowerCase());
 	}
 
 	/**
 	 * Shared picker for the "anywhere in the vault" capture scopes (tag, property):
-	 * the matched notes can live in any folder, so the picker shows full paths and
-	 * matches existence by path/basename across the set. The "Create new note"
-	 * affordance is suppressed both for notes in the set AND for any other existing
-	 * vault file, so typing an existing-but-non-matching note never mislabels as
-	 * "create" and never silently captures into that file (it simply isn't offered).
+	 * the matched notes can live in any folder, so the picker shows full paths. The
+	 * "Create new note" affordance is suppressed for any name that already exists
+	 * in the vault (by path or basename, in any folder), so typing an existing —
+	 * possibly non-matching — note never mislabels as "create", never silently
+	 * captures into that file, and never spawns a duplicate-basename note.
 	 */
 	private async selectFileFromSet(
 		files: TFile[],
@@ -879,11 +895,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			buildPickerOrderingDeps(this.app),
 		).map((f) => f.path);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
-		const existingInSet = new Set<string>();
-		for (const f of files) {
-			existingInSet.add(f.path);
-			existingInSet.add(f.basename);
-		}
+		// Build once (not per keystroke): existing note basenames across the vault.
+		const vaultBasenames = new Set(
+			this.app.vault
+				.getMarkdownFiles()
+				.map((f) => f.basename.toLowerCase()),
+		);
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
@@ -895,9 +912,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
-						existingInSet.has(value) ||
-						existingInSet.has(value.replace(/\.md$/i, "")) ||
-						this.vaultFileExists(value),
+						this.captureTargetAlreadyExists(value, vaultBasenames),
 				},
 			);
 		} catch (error) {
