@@ -232,6 +232,21 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
+	it("recognizes a setext first heading right after frontmatter close", () => {
+		// No blank line after the closing `---`; the delimiter must not be treated
+		// as the paragraph continuing upward (which would skip the heading).
+		const lines = ["---", "title: x", "---", "Title", "===", "body"];
+		expect(extractHeadingsFromLines(lines)).toEqual([
+			{ heading: "Title", level: 1, line: 3 },
+		]);
+	});
+
+	it("recognizes a setext heading right after a thematic break", () => {
+		expect(extractHeadingsFromLines(["***", "Title", "==="])).toEqual([
+			{ heading: "Title", level: 1, line: 1 },
+		]);
+	});
+
 	it("does not mistake a thematic break or list dashes for a setext underline", () => {
 		// `---` after a blank line is a thematic break, not a setext underline.
 		expect(extractHeadingsFromLines(["text", "", "---"])).toEqual([]);

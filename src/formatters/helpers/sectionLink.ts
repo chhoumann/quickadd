@@ -50,6 +50,11 @@ function isSetextContentLine(line: string): boolean {
 	if (/^ {0,3}(`{3,}|~{3,})/.test(line)) return false; // fence
 	if (/^ {0,3}>/.test(line)) return false; // blockquote
 	if (/^ {0,3}([-*+]|\d{1,9}[.)])[ \t]/.test(line)) return false; // list item
+	// A setext underline / `---`/`===` run / frontmatter-close delimiter is a
+	// structural boundary, not paragraph text.
+	if (/^ {0,3}(=+|-+)\s*$/.test(line)) return false;
+	// Thematic breaks (***, ___, - - -, * * *).
+	if (/^ {0,3}([*_-])([ \t]*\1){2,}[ \t]*$/.test(line)) return false;
 	return true;
 }
 
