@@ -106,6 +106,7 @@ const {
 	createToggleCommandChoice,
 	CommandRegistry,
 	moveChoice,
+	findChoiceById,
 } = await import("./choiceService");
 
 const { TemplateChoice } = await import("../types/choices/TemplateChoice");
@@ -587,6 +588,33 @@ describe("choiceService", () => {
 			const newInner = newOuter.choices[0] as IMultiChoice;
 			expect(newInner.choices).toHaveLength(1);
 			expect(newInner.choices[0].id).toBe(moving.id);
+		});
+	});
+
+	// The fix for filtered-view data loss resolves the live choice by id before an
+	// edit. findChoiceById is that resolver: given an id, it must return the
+	// AUTHORITATIVE node from the live tree — the one with the full children — not a
+	// truncated clone that happens to share the id.
+	describe("findChoiceById", () => {
+		it("finds a top-level choice by id", () => {
+			const a = createChoice("Template", "A");
+			const b = createChoice("Capture", "B");
+			expect(findChoiceById([a, b], b.id)).toBe(b);
+		});
+
+		it("finds a choice nested inside a Multi (and returns the live node with its children)", () => {
+			const child = createChoice("Capture", "Child");
+			const folder = createChoice("Multi", "Folder") as IMultiChoice;
+			folder.choices = [child, createChoice("Capture", "Sibling")];
+
+			const found = findChoiceById([folder], folder.id) as IMultiChoice;
+			expect(found).toBe(folder);
+			expect(found.choices).toHaveLength(2); // full children, not truncated
+			expect(findChoiceById([folder], child.id)).toBe(child);
+		});
+
+		it("returns undefined when the id is not present", () => {
+			expect(findChoiceById([createChoice("Template", "A")], "nope")).toBeUndefined();
 		});
 	});
 });

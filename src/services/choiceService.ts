@@ -212,7 +212,14 @@ export function moveChoice(
 	return inserted ?? rootChoices;
 }
 
-function findChoiceById(choices: IChoice[], id: string): IChoice | undefined {
+/**
+ * Find a choice by id anywhere in the tree (recurses into Multi folders), or
+ * undefined. Used to resolve the AUTHORITATIVE live choice before an edit: the
+ * row passed from a filtered choice list can be a clone of a Multi holding only
+ * the children that matched the filter (see ChoiceView.filterChoices), so editing
+ * that clone would drop the folder's non-matching children on save.
+ */
+export function findChoiceById(choices: IChoice[], id: string): IChoice | undefined {
 	for (const c of choices) {
 		if (c.id === id) return c;
 		if (c.type === "Multi") {
