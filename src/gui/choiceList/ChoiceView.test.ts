@@ -183,6 +183,57 @@ describe("ChoiceView", () => {
 		expect(saveChoices).not.toHaveBeenCalled();
 	});
 
+	// Regression: editing a folder from the FILTERED view must not drop the folder's
+	// hidden (non-matching) children. The filtered render is a truncated clone, so the
+	// edit handlers resolve the live choice by id (liveChoice) before merging — the real
+	// folder keeps every child on save. Command-toggle is the representative destructive
+	// path; rename and configure(Multi) share the same updateChoiceHelper merge.
+	it("keeps a folder's hidden children when editing it from the filtered view", async () => {
+		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
+		const folderChoice = {
+			id: "f1",
+			name: "Inbox",
+			type: "Multi",
+			collapsed: false,
+			command: false,
+			choices: [
+				{ id: "c1", name: "Findme", type: "Template", command: false },
+				{ id: "c2", name: "Hidden", type: "Template", command: false },
+			],
+		} as unknown as IChoice;
+
+		const { getByLabelText, getByPlaceholderText } = render(ChoiceView, {
+			props: {
+				app: new App() as never,
+				// Command toggle is the only path that touches the plugin; stub the two
+				// registry methods it calls so the toggle doesn't throw.
+				plugin: {
+					addCommandForChoice: vi.fn(),
+					removeCommandForChoice: vi.fn(),
+				} as unknown as QuickAdd,
+				choices: [folderChoice],
+				saveChoices,
+			},
+		});
+
+		// Filter so only "Findme" matches -> the folder renders as a clone WITHOUT "Hidden".
+		await fireEvent.input(getByPlaceholderText("Filter choices (fuzzy)"), {
+			target: { value: "Findme" },
+		});
+
+		// Toggle the folder's command from that truncated-clone row.
+		await fireEvent.click(getByLabelText("Command palette: Inbox"));
+
+		await vi.waitFor(() => expect(saveChoices).toHaveBeenCalled());
+		const saved = saveChoices.mock.calls.at(-1)![0];
+		const folder = saved.find((c) => c.id === "f1") as
+			| { command: boolean; choices: Array<{ name: string }> }
+			| undefined;
+		expect(folder?.command).toBe(true); // the edit took effect...
+		// ...and BOTH children survived, not just the filter-matching one.
+		expect(folder?.choices.map((c) => c.name)).toEqual(["Findme", "Hidden"]);
+	});
+
 	// Covers the redesign's novel add-into-folder path end-to-end through the
 	// real component DOM (the per-folder "New folder" affordance), which the
 	// Obsidian Menu / builder modal can't be synthetically driven to exercise.
