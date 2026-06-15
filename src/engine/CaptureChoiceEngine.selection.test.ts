@@ -335,6 +335,74 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(result).toEqual({ kind: "file", path: "journals" });
 	});
 
+	it("resolves a property:field=value target", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "property:type=draft" }),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).resolveCaptureTarget("property:type=draft"),
+		).toEqual({ kind: "property", field: "type", value: "draft", filter: {} });
+	});
+
+	it("keeps a .md-bearing property value as a property target (no misroute)", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "property:type=draft.md" }),
+			createExecutor(),
+		);
+
+		// The property branch must precede the .md/extension/folder checks so a
+		// value that happens to contain ".md" is matched literally, not as a file.
+		expect(
+			(engine as any).resolveCaptureTarget("property:type=draft.md"),
+		).toEqual({
+			kind: "property",
+			field: "type",
+			value: "draft.md",
+			filter: {},
+		});
+	});
+
+	it("parses pipe filters on a property target", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "property:type=draft|folder:Notes" }),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).resolveCaptureTarget("property:type=draft|folder:Notes"),
+		).toEqual({
+			kind: "property",
+			field: "type",
+			value: "draft",
+			filter: { folder: "Notes" },
+		});
+	});
+
+	it("throws on a property target with no field name", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "property:" }),
+			createExecutor(),
+		);
+
+		expect(() => (engine as any).resolveCaptureTarget("property:")).toThrow(
+			ChoiceAbortError,
+		);
+	});
+
 	it("rejects explicit .base capture target paths", () => {
 		const app = createApp();
 		const engine = new CaptureChoiceEngine(

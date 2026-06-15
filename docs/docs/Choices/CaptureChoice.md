@@ -31,6 +31,8 @@ format_ value after applying format syntax:
 
 - An empty value, or `/`, opens a whole-vault picker for Markdown files.
 - A value starting with `#` opens a picker for Markdown files with that tag.
+- A value starting with `property:` opens a picker for Markdown files filtered by
+  a frontmatter field (see [Capturing to a property](#capturing-to-a-property)).
 - A value ending in `/` opens a folder picker.
 - A value ending in a supported file extension, such as `.md` or `.canvas`,
   targets that file path directly.
@@ -71,6 +73,42 @@ Capturing to a folder will show all files in that folder. This means that files 
 Similarly, you can type a **tag name** in the _Capture To_ field, and QuickAdd will ask you which file to capture to, assuming the file has the tag you specify.
 
 If you have a tag called `#people`, and you type `#people` in the _Capture To_ field, QuickAdd will ask you which file to capture to, assuming the file has the `#people` tag.
+
+### Capturing to a property
+
+You can pre-filter the picker by an arbitrary **frontmatter property** by typing
+`property:<field>=<value>` in the _Capture To_ field. QuickAdd then asks you which
+note to capture to, limited to notes whose frontmatter matches.
+
+For example, if your notes have a `type` field (`draft`, `index`, `log`, …), typing
+`property:type=draft` opens a picker containing only the notes whose `type` is
+`draft`.
+
+- `property:type=draft` — notes whose `type` equals `draft`.
+- `property:type` — notes that **have** a `type` field, regardless of value
+  (presence mode).
+- The value is matched case-insensitively, trimmed. For a list-valued property
+  (`type: [draft, idea]`), the note matches if **any** entry equals the value.
+- The value supports [format syntax](/FormatSyntax.md), e.g.
+  `property:status={{VALUE}}` resolves the value when the capture runs.
+
+You can also combine a property with the shared file filters using `|`, the same
+grammar as the [`{{FIELD}}`](/FormatSyntax.md) token (folder / tag / exclude-\*):
+
+- `property:type=draft|folder:Notes` — only drafts inside `Notes/`.
+- `property:type=draft|exclude-folder:Archive` — drafts not in `Archive/`.
+- `property:type=draft|exclude-tag:done` — drafts not tagged `#done`.
+
+Notes:
+
+- This matches **YAML frontmatter** only, not inline Dataview `field:: value` fields.
+- The field name is matched case-insensitively (so `property:type` matches a `Type:` field).
+- Value matching is always case-insensitive; only the `folder` / `tag` /
+  `exclude-folder` / `exclude-tag` / `exclude-file` pipe filters are applied.
+- Because `|` starts a filter, a property value cannot itself contain `|`.
+- As with the tag picker, typing a new note name (with **Create file if it
+  doesn't exist** enabled) creates that note — it will not automatically receive
+  the property.
 
 ## Capture Options
 
