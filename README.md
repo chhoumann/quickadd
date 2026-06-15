@@ -34,9 +34,46 @@ QuickAdd uses `pnpm` for local development tasks:
 - `pnpm run test:e2e` runs Obsidian-backed end-to-end tests.
 
 The E2E suite is local-only today. It depends on a locally installed Obsidian
-app, the `obsidian` CLI being available on `PATH`, and the `dev` vault being
-open and reachable. Failed E2E runs may write artifacts to
-`.obsidian-e2e-artifacts/`.
+app and the `obsidian` CLI being available on `PATH`. By default it targets the
+`dev` vault, but the target is configurable:
+
+```bash
+pnpm run provision:e2e-vault -- --vault quickadd-my-worktree --register-via dev --print-env
+export QUICKADD_E2E_VAULT='quickadd-my-worktree'
+export QUICKADD_E2E_VAULT_PATH='/absolute/path/from/printed/output'
+pnpm run test:e2e
+```
+
+`provision:e2e-vault` creates an isolated Obsidian vault under
+`.obsidian-e2e-vaults/` and symlinks QuickAdd's `manifest.json`, `main.js`, and
+`styles.css` from the selected worktree. Pass `--worktree /path/to/worktree` to
+provision a vault for another checkout. `--register-via dev` asks the running
+Obsidian app to register the new vault through the already-addressable `dev`
+vault, disables Restricted Mode for the provisioned vault, and waits until
+`quickadd:list` works. Omit it if you only want to prepare the vault directory.
+When `QUICKADD_E2E_VAULT_PATH` is set, the tests verify that the Obsidian CLI
+resolved `QUICKADD_E2E_VAULT` to that exact directory before they mutate the
+vault.
+
+For worktree-local Obsidian runtime isolation, use:
+
+```bash
+pnpm run start:e2e-obsidian -- --vault quickadd-my-worktree --print-env
+export QUICKADD_E2E_VAULT='quickadd-my-worktree'
+export QUICKADD_E2E_VAULT_PATH='/absolute/path/from/printed/output'
+export QUICKADD_E2E_OBSIDIAN_HOME='/absolute/path/from/printed/output'
+pnpm run test:e2e
+```
+
+`start:e2e-obsidian` creates a private Obsidian `HOME` under
+`/tmp/quickadd-obsidian-e2e/`, launches a separate Obsidian app instance with
+that `HOME` and its own Electron `--user-data-dir`, waits until the CLI resolves
+the provisioned vault through that instance's socket, disables Restricted Mode,
+and waits until `quickadd:list` succeeds. Set the printed
+`QUICKADD_E2E_OBSIDIAN_HOME` when running tests so `obsidian-e2e` talks to that
+worktree's Obsidian instance instead of the shared desktop instance.
+
+Failed E2E runs may write artifacts to `.obsidian-e2e-artifacts/`.
 
 ## Support
 
