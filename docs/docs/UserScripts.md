@@ -85,6 +85,101 @@ async function start(params, settings) {
 }
 ```
 
+## Sharing Code Between Scripts
+
+Need the same helper functions or constants in several scripts? Put them in one
+shared `.js` module and `require()` it from each script. User scripts run as
+CommonJS modules and receive a `require` function (backed by Obsidian's
+Electron/Node `require`), so you can load any module on disk by its **absolute**
+path.
+
+:::caution Desktop only
+`require()` uses Obsidian's Electron/Node runtime, which exists only in the
+desktop app. On mobile there is no `require`, so this pattern does not work
+there — see [Cross-platform alternatives](#cross-platform-alternatives).
+:::
+
+:::caution require() runs code immediately
+`require()` executes the target file with full Node/Electron access (filesystem,
+network, and more) the moment it loads — before any export is called. Only
+`require` modules you wrote or trust, exactly as you would any code you run on
+your machine.
+:::
+
+### Create the shared module
+
+Save a normal `.js` file in your vault. (It must be a real `.js` file — `require`
+loads from disk and cannot read a script written in a ` ```js ` note code block.)
+Export your helpers with `module.exports`:
+
+```javascript
+// scripts/shared-utils.js
+module.exports = {
+    formatNumber: (n) => new Intl.NumberFormat("en-US").format(n),
+    CURRENCY: "USD",
+};
+```
+
+The module must already exist on disk when the requiring script runs.
+
+### Require it from your scripts
+
+Build the absolute path **at runtime** from the vault's base path, then `require`
+the module. Don't paste a literal absolute path — the vault lives at a different
+location on every machine and account, so a hardcoded path breaks the moment the
+vault is synced or opened elsewhere. Relative paths don't work either (the script
+has no `__dirname`), so always resolve against `getBasePath()`:
+
+```javascript
+// scripts/my-macro-script.js
+module.exports = async (params) => {
+    const { app, obsidian } = params;
+
+    // require() is desktop-only — fail clearly on mobile.
+    if (!(app.vault.adapter instanceof obsidian.FileSystemAdapter)) {
+        throw new Error("This script shares helpers via require(), which only works in the desktop app.");
+    }
+
+    const path = require("path");
+    // getBasePath() is the supported method; older scripts may use the
+    // equivalent app.vault.adapter.basePath.
+    const utils = require(path.join(app.vault.adapter.getBasePath(), "scripts", "shared-utils.js"));
+
+    new obsidian.Notice(`${utils.formatNumber(1234567)} ${utils.CURRENCY}`); // "1,234,567 USD"
+};
+```
+
+:::note Reload to pick up edits
+A `require`'d module is cached the first time it loads. After you edit
+`shared-utils.js` the change is **not** picked up until you reload — run
+**Reload app without saving** from the Command palette. (A regular user script is
+re-read on every run, but a module it `require`s is not.)
+
+Advanced: bust the cache from a script without reloading. Use `window.require` —
+the `require` your script receives is a thin wrapper and has no `.cache`/`.resolve`:
+
+```javascript
+module.exports = async (params) => {
+    const { app, obsidian } = params;
+    if (!(app.vault.adapter instanceof obsidian.FileSystemAdapter)) return;
+
+    const fullPath = window.require("path").join(app.vault.adapter.getBasePath(), "scripts", "shared-utils.js");
+    delete window.require.cache[window.require.resolve(fullPath)];
+    const utils = window.require(fullPath); // reflects your latest edits to this file
+    // Only refreshes shared-utils.js itself, not other modules it requires.
+};
+```
+:::
+
+### Cross-platform alternatives
+
+Because `require` is desktop-only, on mobile (or for a portable vault) share code
+another way:
+
+- **Inline the helper** in each script, or
+- **Chain scripts in a macro** and pass *data* (not functions) through
+  `params.variables` between steps.
+
 ## Script Parameters
 
 The script receives two parameters:
@@ -283,6 +378,12 @@ const selected = await quickAddApi.checkboxPrompt(
 
 ### Variables
 Set variables that can be used in subsequent template operations:
+
+:::tip Sharing functions and constants
+Variables pass **data** between steps. To reuse the same **functions or
+constants** across scripts, put them in a shared module — see
+[Sharing Code Between Scripts](#sharing-code-between-scripts).
+:::
 
 ```javascript
 // Set variables
