@@ -153,6 +153,22 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
+	it("does not let an info-string fence line close an open fence", () => {
+		// ```ruby inside an open ``` block is content, not a close (CommonMark);
+		// only the bare ``` closes it, so "# b" stays inside the fence.
+		const lines = [
+			"```",
+			"# a in fence",
+			"```ruby",
+			"# b still in fence",
+			"```",
+			"# Real",
+		];
+		expect(extractHeadingsFromLines(lines)).toEqual([
+			{ heading: "Real", level: 1, line: 5 },
+		]);
+	});
+
 	it("handles ~~~ fences too", () => {
 		const lines = ["~~~", "# fenced", "~~~", "# Real"];
 		expect(extractHeadingsFromLines(lines)).toEqual([

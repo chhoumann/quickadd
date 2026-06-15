@@ -61,24 +61,31 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 			continue;
 		}
 
-		// Fenced code blocks (``` or ~~~, 3+). Close needs the same char and a
-		// length >= the opening fence.
-		const fence = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-		if (fence) {
-			const ch = fence[1][0];
-			const len = fence[1].length;
-			if (!inFence) {
+		// Fenced code blocks (``` or ~~~, 3+). An opening fence may carry an info
+		// string (```js); a CLOSING fence must be bare (only the same marker char,
+		// length >= the opener, then optional whitespace) — otherwise a content
+		// line like ```js inside the block would wrongly close it (CommonMark).
+		if (!inFence) {
+			const open = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+			if (open) {
 				inFence = true;
-				fenceChar = ch;
-				fenceLen = len;
-			} else if (ch === fenceChar && len >= fenceLen) {
+				fenceChar = open[1][0];
+				fenceLen = open[1].length;
+				continue;
+			}
+		} else {
+			const close = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+			if (
+				close &&
+				close[1][0] === fenceChar &&
+				close[1].length >= fenceLen
+			) {
 				inFence = false;
 				fenceChar = "";
 				fenceLen = 0;
 			}
-			continue;
+			continue; // inside a fence: never parse headings
 		}
-		if (inFence) continue;
 
 		const m = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/);
 		if (m) headings.push({ heading: m[2], level: m[1].length, line: i });
