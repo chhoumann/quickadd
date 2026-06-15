@@ -24,7 +24,7 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 
 ## Templates & Properties
 
-- **Template Folder Path** — Path to the folder where templates are stored. Used to suggest template files when configuring QuickAdd.
+- **Template folder paths** — Folders where templates are stored, used to suggest template files when configuring QuickAdd. Add as many folders as you like: type a folder (with autocomplete) and press **Add** or Enter, then remove one with its row's trash button. Leave the list empty to suggest every template file in the vault. Note that an empty list also disables the **New note from template** launcher row and command, which need at least one configured folder.
 - **Convert string front matter variables to typed properties (Beta)** — List/object values from scripts are **always** written as proper Obsidian properties (a list value becomes a List property), so templates produce valid front matter out of the box. This toggle **additionally** converts string values into typed properties: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases. See [Template Property Types (Beta)](./TemplatePropertyTypes).
 
 ## Notifications
@@ -40,7 +40,13 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 ## AI & Online
 
 - **Disable AI & Online features** — This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant. See [AI Assistant](./AIAssistant).
+- **Allow URI x-callback-url** — Off by default, because the callback URL is set by whoever creates the `obsidian://` link and a successful callback can carry the affected note's vault path. When on, an `obsidian://quickadd` URI may open a callback URL (`x-success` / `x-error` / `x-cancel`) after a Template or Capture choice finishes, sending the outcome (and, on success, the note's vault path and URL) to that callback. Only `shortcuts:` and `obsidian:` callback URLs are permitted. See [Obsidian URI](./Advanced/ObsidianUri).
 
 ## Appearance
 
 - **Show icon in sidebar** — Add QuickAdd icon to the sidebar ribbon. Requires a reload.
+
+## Command icons
+
+- **Automatic command icons** — When you turn a choice into a command (the ⚡ icon next to it), QuickAdd gives that command an icon based on the choice type — Template a document, Capture a pencil, Macro a terminal, Multi a folder — so the command palette and the mobile editing toolbar show a meaningful glyph instead of a generic `?`. The icons are automatic; there is no setting for them.
+- **Override a choice's icon** — Add an `icon` field with any [Lucide](https://lucide.dev) icon id (for example `"icon": "star"`) to that choice in `data.json`, then reload Obsidian so the command re-registers with the new icon. There is currently no in-app control for this; edit `data.json` while the plugin is disabled, since QuickAdd rewrites the file when settings change.
