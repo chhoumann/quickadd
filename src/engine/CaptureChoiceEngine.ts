@@ -826,50 +826,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
 		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
 
-		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
-
-		// Quick-Switcher-style ordering; show note names (not raw paths) for tag scope.
-		const filePaths = orderFilesForPicker(
-			filesWithTag,
-			buildPickerOrderingDeps(this.app),
-		).map((f) => f.path);
-		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
-		// Tagged notes can live anywhere, so existence is matched by basename/path
-		// across the tagged set rather than by re-prefixing a folder.
-		const existingTagged = new Set<string>();
-		for (const f of filesWithTag) {
-			existingTagged.add(f.path);
-			existingTagged.add(f.basename);
-		}
-		let targetFilePath: string;
-		try {
-			targetFilePath = await InputSuggester.Suggest(
-				this.app,
-				filePaths,
-				filePaths,
-				{
-					renderItem: (path, el) =>
-						renderNotePathSuggestion(el, path),
-					allowCustomValue: allowCreate,
-					customValueLabel: (value) => `Create new note: ${value}`,
-					valueExists: (value) =>
-						existingTagged.has(value) ||
-						existingTagged.has(value.replace(/\.md$/i, "")),
-				},
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
-
-		invariant(
-			!!targetFilePath && targetFilePath.length > 0,
-			"No file selected for capture.",
-		);
-
-		return await this.formatFilePath(targetFilePath);
+		return this.selectFileFromSet(filesWithTag, `No files with tag ${tag}.`);
 	}
 
 	private async selectFileWithProperty(
@@ -885,24 +842,47 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 		const propertyLabel = value !== undefined ? `${field}=${value}` : field;
-		invariant(
-			filesWithProperty.length > 0,
+		return this.selectFileFromSet(
+			filesWithProperty,
 			`No notes with property ${propertyLabel}.`,
 		);
+	}
 
-		// Quick-Switcher-style ordering; show note names (not raw paths). Notes with
-		// a given property can live anywhere, so this mirrors the tag picker.
+	/** Whether `value` resolves to any existing vault file (by path or basename, .md/.canvas tried). */
+	private vaultFileExists(value: string): boolean {
+		const candidates = [value];
+		if (!/\.(md|canvas)$/i.test(value)) {
+			candidates.push(`${value}.md`, `${value}.canvas`);
+		}
+		return candidates.some(
+			(path) => !!this.app.vault.getAbstractFileByPath(path),
+		);
+	}
+
+	/**
+	 * Shared picker for the "anywhere in the vault" capture scopes (tag, property):
+	 * the matched notes can live in any folder, so the picker shows full paths and
+	 * matches existence by path/basename across the set. The "Create new note"
+	 * affordance is suppressed both for notes in the set AND for any other existing
+	 * vault file, so typing an existing-but-non-matching note never mislabels as
+	 * "create" and never silently captures into that file (it simply isn't offered).
+	 */
+	private async selectFileFromSet(
+		files: TFile[],
+		notFoundMessage: string,
+	): Promise<string> {
+		invariant(files.length > 0, notFoundMessage);
+
+		// Quick-Switcher-style ordering; show note names (not raw paths).
 		const filePaths = orderFilesForPicker(
-			filesWithProperty,
+			files,
 			buildPickerOrderingDeps(this.app),
 		).map((f) => f.path);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
-		// Property-matched notes can live anywhere, so existence is matched by
-		// basename/path across the matched set rather than by re-prefixing a folder.
-		const existingMatched = new Set<string>();
-		for (const f of filesWithProperty) {
-			existingMatched.add(f.path);
-			existingMatched.add(f.basename);
+		const existingInSet = new Set<string>();
+		for (const f of files) {
+			existingInSet.add(f.path);
+			existingInSet.add(f.basename);
 		}
 		let targetFilePath: string;
 		try {
@@ -913,10 +893,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				{
 					renderItem: (path, el) => renderNotePathSuggestion(el, path),
 					allowCustomValue: allowCreate,
-					customValueLabel: (v) => `Create new note: ${v}`,
-					valueExists: (v) =>
-						existingMatched.has(v) ||
-						existingMatched.has(v.replace(/\.md$/i, "")),
+					customValueLabel: (value) => `Create new note: ${value}`,
+					valueExists: (value) =>
+						existingInSet.has(value) ||
+						existingInSet.has(value.replace(/\.md$/i, "")) ||
+						this.vaultFileExists(value),
 				},
 			);
 		} catch (error) {

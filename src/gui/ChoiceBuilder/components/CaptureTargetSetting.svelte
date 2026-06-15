@@ -51,11 +51,14 @@ const suggesters = [
 		new FormatSyntaxSuggester(app, el, plugin),
 ];
 
-const isCanvasTarget = $derived(isCanvasTargetPath(choice.captureTo));
-
 // A `property:` target filters notes by a frontmatter field — it is NOT a path,
 // so showing the file-name format preview would render a misleading fake path.
 const isProperty = $derived(isPropertyTarget(choice.captureTo ?? ""));
+// Exclude property targets from canvas detection so a contrived value like
+// `property:type=foo.canvas` never offers the (meaningless) canvas-node picker.
+const isCanvasTarget = $derived(
+	!isProperty && isCanvasTargetPath(choice.captureTo),
+);
 const propertyHint = $derived.by(() => {
 	const parsed = parsePropertyTarget(choice.captureTo ?? "");
 	if (!parsed || !parsed.field) {

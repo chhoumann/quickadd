@@ -51,6 +51,10 @@ export function parsePropertyTarget(raw: string): PropertyTarget | null {
 	// Reuse the shared FIELD pipe grammar: the parser splits on `|`, treats the
 	// first part as the "field name" (here our `field=value` core) and parses the
 	// rest as folder/tag/exclude-* filters — identical to {{FILE:}}/{{FIELD:}}.
+	// Only folder / tag / exclude-folder / exclude-tag / exclude-file are honored
+	// by the property query (see getMarkdownFilesWithProperty); other FIELD options
+	// the parser accepts (default:/inline:/case-sensitive:) are inert here — value
+	// matching is always case-insensitive by design.
 	const { fieldName: core, filters } = FieldSuggestionParser.parse(interior);
 
 	const eq = core.indexOf("=");

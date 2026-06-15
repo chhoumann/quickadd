@@ -83,7 +83,7 @@ For example, if your notes have a `type` field (`draft`, `index`, `log`, …), t
   `property:status={{VALUE}}` resolves the value when the capture runs.
 
 You can also combine a property with the shared file filters using `|`, the same
-grammar as the [`{{FILE}}`](/FormatSyntax.md) token:
+grammar as the [`{{FIELD}}`](/FormatSyntax.md) token (folder / tag / exclude-\*):
 
 - `property:type=draft|folder:Notes` — only drafts inside `Notes/`.
 - `property:type=draft|exclude-folder:Archive` — drafts not in `Archive/`.
@@ -93,6 +93,8 @@ Notes:
 
 - This matches **YAML frontmatter** only, not inline Dataview `field:: value` fields.
 - The field name is matched case-insensitively (so `property:type` matches a `Type:` field).
+- Value matching is always case-insensitive; only the `folder` / `tag` /
+  `exclude-folder` / `exclude-tag` / `exclude-file` pipe filters are applied.
 - Because `|` starts a filter, a property value cannot itself contain `|`.
 - As with the tag picker, typing a new note name (with **Create file if it
   doesn't exist** enabled) creates that note — it will not automatically receive
