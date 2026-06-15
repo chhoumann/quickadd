@@ -58,6 +58,21 @@ vault.
 For worktree-local Obsidian runtime isolation, use:
 
 ```bash
+pnpm run obsidian:e2e -- quickadd:list
+pnpm run obsidian:e2e -- dev:errors
+pnpm run obsidian:e2e -- eval code='app.vault.getName()'
+```
+
+`obsidian:e2e` prepares the worktree-local vault, starts or reuses an isolated
+Obsidian app instance, disables Restricted Mode for that vault, waits until
+`quickadd:list` succeeds, and then forwards the requested command to the
+`obsidian` CLI with the isolated `HOME` and `vault=<worktree vault>` already
+set. Use this wrapper for ad hoc Obsidian CLI work in Codex worktrees instead of
+hand-exporting `QUICKADD_E2E_*` variables for every command.
+
+To run the lower-level setup manually:
+
+```bash
 pnpm run start:e2e-obsidian -- --vault quickadd-my-worktree --print-env
 export QUICKADD_E2E_VAULT='quickadd-my-worktree'
 export QUICKADD_E2E_VAULT_PATH='/absolute/path/from/printed/output'
