@@ -66,7 +66,7 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 		// length >= the opener, then optional whitespace) — otherwise a content
 		// line like ```js inside the block would wrongly close it (CommonMark).
 		if (!inFence) {
-			const open = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+			const open = line.match(/^ {0,3}(`{3,}|~{3,})/);
 			if (open) {
 				inFence = true;
 				fenceChar = open[1][0];
@@ -74,7 +74,7 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 				continue;
 			}
 		} else {
-			const close = line.match(/^\s{0,3}(`{3,}|~{3,})\s*$/);
+			const close = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
 			if (
 				close &&
 				close[1][0] === fenceChar &&
@@ -87,7 +87,9 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 			continue; // inside a fence: never parse headings
 		}
 
-		const m = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/);
+		// Up to 3 spaces of indentation only — a leading tab makes it an indented
+		// code line (CommonMark/Obsidian), not a heading.
+		const m = line.match(/^ {0,3}(#{1,6})[ \t]+(.*)$/);
 		if (m) headings.push({ heading: m[2], level: m[1].length, line: i });
 	}
 

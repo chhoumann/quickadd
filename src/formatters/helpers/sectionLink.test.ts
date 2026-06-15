@@ -194,9 +194,12 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
-	it("allows up to 3 leading spaces", () => {
+	it("allows up to 3 leading spaces but not a leading tab (code line)", () => {
 		expect(extractHeadingsFromLines(["   # Indented"])).toEqual([
 			{ heading: "Indented", level: 1, line: 0 },
 		]);
+		// 4+ spaces or a leading tab => indented code, not a heading.
+		expect(extractHeadingsFromLines(["    # Code"])).toEqual([]);
+		expect(extractHeadingsFromLines(["\t# Code"])).toEqual([]);
 	});
 });
