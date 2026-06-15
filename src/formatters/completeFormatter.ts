@@ -103,8 +103,9 @@ export class CompleteFormatter extends Formatter {
 		let output: string = input;
 
 		output = await this.format(output);
-		output = await this.replaceLinkToCurrentFileInString(output);
-		output = this.replaceLinkToCurrentSectionInString(output);
+		// Resolve {{linkcurrent}} + {{linksection}} in one pass so neither
+		// re-scans the other's generated link (both embed the basename).
+		output = this.replaceCurrentFileLinksInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
 		output = this.replaceTargetFolderInString(output);
 		output = this.replaceTitleInString(output);
@@ -195,8 +196,7 @@ export class CompleteFormatter extends Formatter {
 	 */
 	protected async formatLocationString(input: string): Promise<string> {
 		let output = await this.format(input);
-		output = await this.replaceLinkToCurrentFileInString(output);
-		output = this.replaceLinkToCurrentSectionInString(output);
+		output = this.replaceCurrentFileLinksInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
 		// Note: {{FOLDER}} is deliberately NOT resolved in location selectors
 		// (insert-after/before targets) — an empty resolution would match the

@@ -981,4 +981,28 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 			"Unable to get current file path",
 		);
 	});
+
+	// Pathological: a file literally named like a token. The link tokens are
+	// resolved in a single pass so neither re-scans the other's generated link.
+	it("does not re-scan a generated {{linkcurrent}} link as a section token", async () => {
+		const app = makeSectionApp({
+			activeFile: { basename: "{{linksection}}", path: "{{linksection}}.md" },
+			view: undefined,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linkcurrent}}")).resolves.toBe(
+			"[[{{linksection}}]]",
+		);
+	});
+
+	it("does not re-scan a generated {{linksection}} link as a linkcurrent token", async () => {
+		const app = makeSectionApp({
+			activeFile: { basename: "{{linkcurrent}}", path: "{{linkcurrent}}.md" },
+			view: undefined,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[{{linkcurrent}}]]",
+		);
+	});
 });

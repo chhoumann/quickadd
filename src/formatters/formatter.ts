@@ -330,6 +330,54 @@ export abstract class Formatter {
 		return input.replace(regex, () => sectionLink ?? "");
 	}
 
+	/**
+	 * Resolves the current-file LINK tokens ({{linkcurrent}} and {{linksection}})
+	 * in a SINGLE pass with a function replacer. Both embed the active file's
+	 * (user-controlled) basename, so resolving them in separate sequential passes
+	 * lets one pass re-scan and corrupt the other's generated link when a file is
+	 * literally named like a token (e.g. a note `{{linksection}}.md` with a
+	 * `{{linkcurrent}}` body). A single function-replacer pass treats each token's
+	 * output as literal and never re-scans it. Mirrors the required/optional
+	 * behavior of the individual replacers (required + no active file → throw;
+	 * optional → strip).
+	 *
+	 * This is the path used by the real format pipeline ({@link
+	 * CompleteFormatter.formatFileContent} / formatLocationString and the preview
+	 * formatter); the individual replacers remain for direct/legacy callers.
+	 */
+	protected replaceCurrentFileLinksInString(input: string): string {
+		if (!/{{(LINKCURRENT|LINKSECTION)}}/i.test(input)) return input;
+
+		let fileLink: string | null | undefined;
+		let sectionLink: string | null | undefined;
+		let missing = false;
+
+		const output = input.replace(
+			/{{(LINKCURRENT|LINKSECTION)}}/gi,
+			(_match, token: string) => {
+				if (token.toUpperCase() === "LINKSECTION") {
+					if (sectionLink === undefined)
+						sectionLink = this.getCurrentFileLinkToSection() ?? null;
+					if (!sectionLink) missing = true;
+					return sectionLink ?? "";
+				}
+				if (fileLink === undefined)
+					fileLink = this.getCurrentFileLink() ?? null;
+				if (!fileLink) missing = true;
+				return fileLink ?? "";
+			},
+		);
+
+		if (missing) {
+			if (this.linkToCurrentFileBehavior === "required") {
+				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+			}
+			log.logMessage("Skipping {{LINKCURRENT}}/{{LINKSECTION}} replacement because no active file is available.");
+		}
+
+		return output;
+	}
+
 	protected async replaceCurrentFileNameInString(
 		input: string,
 	): Promise<string> {

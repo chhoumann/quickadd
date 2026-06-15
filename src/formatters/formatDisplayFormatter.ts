@@ -45,8 +45,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceClipboardInString(output);
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
-			output = await this.replaceLinkToCurrentFileInString(output);
-			output = this.replaceLinkToCurrentSectionInString(output);
+			output = this.replaceCurrentFileLinksInString(output);
 			output = await this.replaceCurrentFileNameInString(output);
 			output = this.replaceTargetFolderInString(output);
 			output = await this.replaceMacrosInString(output);
