@@ -132,8 +132,8 @@ function safeName(value) {
 
 export async function prepareObsidianProfile(options) {
 	const userDataPath = path.join(options.obsidianHome, "Library", "Application Support", "obsidian");
-	await fs.mkdir(userDataPath, { recursive: true });
-	await fs.mkdir(path.join(options.obsidianHome, "Library", "Logs"), { recursive: true });
+	await fs.mkdir(userDataPath, { recursive: true, mode: 0o700 });
+	await fs.mkdir(path.join(options.obsidianHome, "Library", "Logs"), { recursive: true, mode: 0o700 });
 	await linkHostKeychains(options);
 
 	const vaultId = stableVaultId(options.vaultPath);
@@ -193,9 +193,18 @@ function stableVaultId(vaultPath) {
 }
 
 async function writeJson(filePath, value) {
-	await fs.mkdir(path.dirname(filePath), { recursive: true });
-	await fs.writeFile(`${filePath}.tmp`, `${JSON.stringify(value, null, "\t")}\n`);
-	await fs.rename(`${filePath}.tmp`, filePath);
+	await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 });
+	try {
+		const stat = await fs.lstat(filePath);
+		if (stat.isSymbolicLink() || !stat.isFile()) {
+			throw new Error(`${filePath} exists but is not a regular file.`);
+		}
+	} catch (error) {
+		if (error?.code !== "ENOENT") throw error;
+	}
+	await fs.writeFile(filePath, `${JSON.stringify(value, null, "\t")}\n`, {
+		mode: 0o600,
+	});
 }
 
 export async function launchObsidianInstance(options) {
