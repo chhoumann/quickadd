@@ -16,6 +16,8 @@ import {
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseVDateOptions } from "../utils/vdateSyntax";
+import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
 export class FormatDisplayFormatter extends Formatter {
 	constructor(
@@ -50,6 +52,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);
+			output = await this.replaceFileInString(output);
 			output = this.replaceRandomInString(output);
 		} catch {
 			// Return the input as-is if formatting fails during preview
@@ -155,6 +158,19 @@ export class FormatDisplayFormatter extends Formatter {
 
 	protected async suggestForField(variableName: string) {
 		return Promise.resolve(`${variableName}_field_value`);
+	}
+
+	protected suggestForFile(parsed: ParsedFileToken): string {
+		// Preview: show a representative real file, else a placeholder. Never prompt.
+		const files = this.app
+			? EnhancedFieldSuggestionFileFilter.filterFiles(
+					this.app.vault.getMarkdownFiles(),
+					parsed.filter,
+					(file) => this.app!.metadataCache.getFileCache(file),
+				)
+			: [];
+		if (files.length > 0) return `${FILE_PICK_PREFIX}${files[0].path}`;
+		return `${FILE_CUSTOM_PREFIX}${parsed.folderPath || "file"}`;
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {

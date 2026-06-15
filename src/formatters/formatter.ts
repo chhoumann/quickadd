@@ -1,3 +1,4 @@
+import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import {
 	DATE_REGEX,
@@ -5,6 +6,7 @@ import {
 	DATE_VARIABLE_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
 	FILE_NAME_OF_CURRENT_FILE_REGEX,
+	FILE_REGEX,
 	TARGET_FOLDER_REGEX,
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
@@ -22,6 +24,13 @@ import {
 	TITLE_REGEX,
 	RANDOM_REGEX,
 } from "../constants";
+import {
+	decodeFileValue,
+	fileBasenameFromPath,
+	type FileMode,
+	type ParsedFileToken,
+	parseFileToken,
+} from "../utils/fileSyntax";
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
@@ -656,6 +665,111 @@ export abstract class Formatter {
 	private getFieldVariableKey(fieldSpecifier: string): string {
 		return `${FIELD_VARIABLE_PREFIX}${fieldSpecifier}`;
 	}
+
+	/**
+	 * Resolve {{FILE:<folder>|...}} tokens: prompt once per identity (full token,
+	 * or the shared `|name:` key), cache the chosen file, and render each
+	 * occurrence by mode (basename / wikilink / path). Uses the non-mutating
+	 * accumulator scan of replaceFieldVarInString — not the in-place splice — so an
+	 * unresolved/empty token can be emitted literally without re-scan loops.
+	 */
+	protected async replaceFileInString(input: string): Promise<string> {
+		const regex = new RegExp(FILE_REGEX.source, "gi");
+		let output = "";
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
+
+		while ((match = regex.exec(input)) !== null) {
+			output += input.slice(lastIndex, match.index);
+
+			const parsed = parseFileToken(match[1] ?? "");
+			if (!parsed) {
+				// Empty folder / malformed: leave the token literal and move on.
+				output += match[0];
+				lastIndex = regex.lastIndex;
+				continue;
+			}
+
+			const key = parsed.variableKey;
+			if (!this.hasConcreteVariable(key)) {
+				this.variables.set(key, await this.suggestForFile(parsed));
+			}
+
+			output += this.renderFileValue(this.variables.get(key), parsed.mode);
+			lastIndex = regex.lastIndex;
+		}
+
+		return output + input.slice(lastIndex);
+	}
+
+	private renderFileValue(stored: unknown, mode: FileMode): string {
+		if (mode === "link") return this.getFileLinkForStoredValue(stored);
+
+		const decoded = decodeFileValue(stored);
+		switch (decoded.kind) {
+			case "empty":
+				return "";
+			case "file":
+				return mode === "path"
+					? decoded.path
+					: fileBasenameFromPath(decoded.path);
+			case "custom":
+			case "raw":
+				// Literal, user-provided text (a |custom type-in, a one-page typed
+				// value, or a script-seeded string). It is NEVER resolved to a real
+				// file — only a `@file:` pick from the filtered list is.
+				return decoded.kind === "custom" ? decoded.text : decoded.value;
+		}
+	}
+
+	/**
+	 * Render a stored FILE value as a wikilink. Only a real pick from the filtered
+	 * list (`@file:`) is resolved through generateMarkdownLink (so the user's link
+	 * settings and source path apply); a literal/custom value links by name and is
+	 * never resolved (so a typed string can't reach a filtered-out file). Empty
+	 * resolves to "" (not `[[]]`).
+	 */
+	protected getFileLinkForStoredValue(stored: unknown): string {
+		const decoded = decodeFileValue(stored);
+		if (decoded.kind === "empty") return "";
+		if (decoded.kind !== "file") {
+			const text = decoded.kind === "custom" ? decoded.text : decoded.value;
+			return text ? `[[${text}]]` : "";
+		}
+
+		const path = decoded.path;
+		if (!path) return "";
+
+		const file = this.app?.vault.getAbstractFileByPath(path);
+		if (file instanceof TFile) {
+			return (
+				this.app?.fileManager.generateMarkdownLink(
+					file,
+					this.getLinkSourcePath() ?? "",
+				) ?? `[[${fileBasenameFromPath(path)}]]`
+			);
+		}
+		return `[[${fileBasenameFromPath(path)}]]`;
+	}
+
+	/**
+	 * Source path used to resolve {{FILE:...|link}} (and other) wikilinks.
+	 * Defaults to none (resolve from the vault root); CaptureChoiceFormatter
+	 * overrides this with the capture destination so relative links are correct.
+	 */
+	protected getLinkSourcePath(): string | null {
+		return null;
+	}
+
+	/**
+	 * Prompts the user to pick a file matching the parsed FILE token and returns
+	 * the encoded stored value (`@file:<path>` for a pick, `@filecustom:<text>`
+	 * for a |custom type-in, or "" when skipped). Display/preview formatters
+	 * return a representative value without prompting.
+	 */
+	protected abstract suggestForFile(
+		parsed: ParsedFileToken,
+	): Promise<string> | string;
 
 	protected abstract promptForMathValue(): Promise<string>;
 

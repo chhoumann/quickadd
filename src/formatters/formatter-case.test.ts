@@ -48,6 +48,10 @@ class CaseTestFormatter extends Formatter {
 		return "";
 	}
 
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected suggestForField(_variableName: string): Promise<string> {
 		return Promise.resolve("");
 	}

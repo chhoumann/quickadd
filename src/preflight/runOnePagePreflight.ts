@@ -6,6 +6,10 @@ import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { OnePageInputModal } from "./OnePageInputModal";
 import {
+	canonicalizeOnePageFileValue,
+	FILE_VARIABLE_PREFIX,
+} from "src/utils/fileSyntax";
+import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
 } from "./collectChoiceRequirements";
@@ -65,12 +69,25 @@ export async function runOnePagePreflight(
 		);
 		const values = await modal.waitForClose;
 
-		// No additional normalization needed: date inputs already store @date:ISO
+		// Date inputs already store @date:ISO. FILE inputs need canonicalizing: the
+		// generic suggester stores raw typed text, so a value that isn't one of the
+		// requirement's encoded `@file:` picks is treated as typed custom text (and
+		// can't spoof a pick by typing the internal `@file:` sentinel).
+		const fileOptionsByKey = new Map<string, string[]>();
+		for (const req of unresolved) {
+			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
+				fileOptionsByKey.set(req.id, req.options ?? []);
+			}
+		}
 
 		// Store results into executor variables
-		Object.entries(values).forEach(([k, v]) =>
-			choiceExecutor.variables.set(k, v),
-		);
+		Object.entries(values).forEach(([k, v]) => {
+			const fileOptions = fileOptionsByKey.get(k);
+			const normalized = fileOptions
+				? canonicalizeOnePageFileValue(v, fileOptions)
+				: v;
+			choiceExecutor.variables.set(k, normalized);
+		});
 
 		return true;
 	} catch (error) {

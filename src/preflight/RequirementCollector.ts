@@ -16,6 +16,12 @@ import {
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
+import { EnhancedFieldSuggestionFileFilter } from "src/utils/EnhancedFieldSuggestionFileFilter";
+import {
+	buildFileDisplayLabels,
+	FILE_PICK_PREFIX,
+	type ParsedFileToken,
+} from "src/utils/fileSyntax";
 
 export type FieldType =
 	| "text"
@@ -107,6 +113,7 @@ export class RequirementCollector extends Formatter {
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
+		output = await this.replaceFileInString(output);
 
 		// Math value
 		output = await this.replaceMathValueInString(output);
@@ -394,6 +401,56 @@ export class RequirementCollector extends Formatter {
 			});
 		}
 		return "";
+	}
+
+	protected suggestForFile(parsed: ParsedFileToken): string {
+		// Record a one-page requirement so {{FILE:...}} is visible up front (and
+		// the non-interactive CLI rejects it when unprovided) instead of ambushing
+		// with a runtime picker. Options are the folder's files encoded as
+		// `@file:<path>` (display = basenames) so the chosen value round-trips to
+		// the runtime formatter, which decodes it back to the file.
+		const key = parsed.variableKey;
+		if (!this.requirements.has(key)) {
+			const files = EnhancedFieldSuggestionFileFilter.filterFiles(
+				this.app.vault.getMarkdownFiles(),
+				parsed.filter,
+				(file) => this.app.metadataCache.getFileCache(file),
+			);
+			const options = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
+			const displayOptions = buildFileDisplayLabels(files);
+			// A non-custom FILE is a FORCED choice: render it as a dropdown so the
+			// one-page form can't store a raw typed value (a free-text suggester
+			// would let "type name + Enter" bypass the option list, mirroring the
+			// runtime GenericSuggester vs InputSuggester split). Fall back to a
+			// suggester (free text) when |custom, or when the folder is empty so the
+			// field isn't a dead, disabled dropdown.
+			const useSuggester = parsed.allowCustomInput || options.length === 0;
+			// Disambiguate same-scope tokens that differ only by mode (e.g. a
+			// basename and a link to the same folder) when no explicit |label.
+			const autoLabel =
+				parsed.mode === "name"
+					? `File from ${parsed.folderPath}`
+					: `File from ${parsed.folderPath} (${parsed.mode})`;
+			this.requirements.set(key, {
+				id: key,
+				label: parsed.label ?? autoLabel,
+				type: useSuggester ? "suggester" : "dropdown",
+				source: "collected",
+				options,
+				displayOptions,
+				optional: parsed.optional,
+				...(useSuggester
+					? {
+							suggesterConfig: {
+								allowCustomInput: parsed.allowCustomInput,
+								caseSensitive: false,
+								multiSelect: false,
+							},
+						}
+					: {}),
+			});
+		}
+		return ""; // inert: keep scanning
 	}
 
 	protected async suggestForValue(

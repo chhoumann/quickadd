@@ -258,6 +258,38 @@ Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {
 
 This is currently in beta, and the syntax can change—leave your thoughts [here](https://github.com/chhoumann/quickadd/issues/337).
 
+## `{{FILE:<folder>}}` {#file}
+
+Prompts you to pick a markdown **file** from `<folder>` and inserts the choice. Unlike `{{FIELD:...}}` (which suggests the *values* of a YAML field), this suggests the files themselves — handy for "metadata folders" such as a `People/` or `Research Topics/` folder where each note is an option. Because the options are real files, the list always reflects what currently exists, which keeps your links consistent.
+
+By default the **basename** (just the file name, no folder or extension) is inserted. Output modes:
+
+- `{{FILE:People}}` — inserts the basename, e.g. `Tom`.
+- `{{FILE:People|link}}` — inserts a resolved wikilink, e.g. `[[Tom]]`, using your link settings (wikilink vs. Markdown, shortest path, etc.). In a capture it resolves relative to the capture target; in a template it resolves like `{{LINKCURRENT}}`. Do **not** wrap this in `[[ ]]` yourself — you'd get `[[[[Tom]]]]`.
+- `{{FILE:People|path}}` — inserts the vault-relative path, e.g. `People/Tom.md`.
+
+Example — add a wikilink to a `research-topics` frontmatter list (quote it so the YAML stays a valid list item):
+
+```
+research-topics:
+  - "{{FILE:Research Topics|link}}"
+```
+
+**Options:**
+
+- `{{FILE:<folder>|optional}}` — allow skipping the pick (resolves to nothing).
+- `{{FILE:<folder>|custom}}` — also allow typing a value that isn't in the folder.
+- `{{FILE:<folder>|label:Pick a person}}` — set the picker's placeholder text.
+- `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. By default every `{{FILE:...}}` token prompts independently (so you can pick two different people from the same folder). Reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — by giving them the same `|name:`. Tokens that share an id should target the same folder/filters and agree on `|optional`/`|custom` — the first occurrence's settings drive the shared pick.
+- Filtering reuses the `{{FIELD}}` grammar: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
+
+Notes:
+
+- The folder is the first part of the token; a `|folder:` option is **not** used here (that's `{{FIELD}}` syntax) and is ignored.
+- The folder is matched **recursively** (its subfolders are included). Point at the leaf folder (e.g. `{{FILE:fields/people}}`) to scope tightly.
+- Markdown files only.
+- `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default basename mode.
+
 ## `{{selected}}` {#selected}
 
 The selected text in the current editor. Will be empty if no active editor exists.
