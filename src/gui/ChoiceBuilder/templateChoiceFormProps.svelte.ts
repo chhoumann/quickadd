@@ -18,12 +18,22 @@ export interface TemplateChoiceFormProps {
 export function createTemplateChoiceFormProps(
 	initial: TemplateChoiceFormProps,
 ): TemplateChoiceFormProps {
-	// Plain-clone the choice so $state deeply proxies it. Svelte's proxy() returns
-	// class instances UNCHANGED (un-proxied) — newly created choices come from
-	// `createChoice()` as `new TemplateChoice()` instances, whose nested mutations
-	// would then NOT be reactive (conditional {#if} rows wouldn't appear in the
-	// add-new flow). structuredClone strips the class prototype to a plain object;
-	// the form mutates this proxy and onClose snapshots it (getResultChoice). #1130
-	const props = $state({ ...initial, choice: structuredClone(initial.choice) });
+	// Detach the choice into a plain clone so $state can deeply proxy it, mutated by
+	// the form and snapshotted back out by onClose (getResultChoice). #1130
+	//
+	// Why $state.snapshot and NOT structuredClone:
+	//  - EXISTING choice: can arrive as a live $state proxy. A choice nested inside a
+	//    folder (Multi) or a Macro is held/rendered through $state (ChoiceList's
+	//    dndzone / CommandList), so it is reactive — only ROOT-level choices stay
+	//    plain. structuredClone throws DataCloneError on a $state proxy under Svelte's
+	//    dev build; $state.snapshot detaches it via Svelte's own deep clone. This is
+	//    the Plain<T> proxy-detach rule from persist.svelte.ts.
+	//  - NEW choice: createChoice() returns a `new TemplateChoice()` class instance,
+	//    which $state() leaves UN-proxied — it must be plain for nested {#if} rows to
+	//    react. snapshot deep-clones it too: a Choice is plain data, so Svelte's clone
+	//    delegates the cloneable instance to structuredClone, stripping the prototype
+	//    to Object.prototype. (Verified by the add-new reactivity test in
+	//    CaptureChoiceForm.test.ts and choiceFormProps.proxy.svelte.test.ts.)
+	const props = $state({ ...initial, choice: $state.snapshot(initial.choice) });
 	return props;
 }
