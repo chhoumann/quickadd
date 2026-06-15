@@ -18,11 +18,11 @@ import type {
 	OpenFileOptions as FileOpenOptions,
 	FileViewMode2 as FileViewModeNew
 } from "./types/fileOpening";
-import type { AppendLinkOptions, LinkPlacement } from "./types/linkPlacement";
-import { placementSupportsEmbed } from "./types/linkPlacement";
-import type { IUserScript } from "./types/macros/IUserScript";
-import { reportError } from "./utils/errorUtils";
-import { deepClone } from "./utils/deepClone";
+import type { AppendLinkOptions, FrontmatterHandling, LinkPlacement } from "./types/linkPlacement";
+import {placementSupportsEmbed} from "./types/linkPlacement";
+import type {IUserScript} from "./types/macros/IUserScript";
+import {reportError} from "./utils/errorUtils";
+import {deepClone} from "./utils/deepClone";
 
 export type TemplaterPluginLike = {
 	settings?: {
@@ -540,6 +540,37 @@ export function insertOnNewLineBelow(toInsert: string, app: App) {
 	insertOnNewLine(toInsert, "below", app);
 }
 
+
+export function insertIntoFrontmatterProperty(frontmatter: any, frontmatterProperty: string, value: string, frontmatterHandling: FrontmatterHandling) {
+	if (!frontmatterProperty) {
+		const message = `Invalid frontmatter property: '${frontmatterProperty}'`;
+		throw new Error(message);
+	}
+	if (frontmatter[frontmatterProperty] === null) {
+		// treat null as empty array
+		frontmatter[frontmatterProperty] = []
+	} else if (frontmatter[frontmatterProperty] === undefined) {
+		if (frontmatterHandling === "error") {
+			const message = `Inserting link into: ${frontmatterProperty} failed: Property does not exist and frontmatterType is set to 'error'`;
+			throw new Error(message)
+		}
+		// create missing property with empty array
+		frontmatter[frontmatterProperty] = []
+	} else if (typeof frontmatter[frontmatterProperty] === "object" && !Array.isArray(frontmatter[frontmatterProperty])) {
+		const message = `Inserting link into: ${frontmatterProperty} failed: Existing property is object, expected string, scalar or array`;
+		throw new Error(message)
+	} else if (!Array.isArray(frontmatter[frontmatterProperty])) {
+		if (frontmatterHandling !== "alwaysAppend") {
+			const message = `Inserting link into: ${frontmatterProperty} failed: Property is not an array and frontmatterType is set to '${frontmatterHandling}'`;
+			throw new Error(message)
+		}
+		// Convert existing value to array
+		frontmatter[frontmatterProperty] = [frontmatter[frontmatterProperty]]
+	}
+	// Append the value
+	frontmatter[frontmatterProperty].push(value)
+}
+
 /**
  * Core routine that inserts a link (or any text) in the active markdown
  * editor according to the chosen placement mode.
@@ -553,9 +584,9 @@ export async function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
-	options: { requireActiveView?: boolean; frontmatterProperty?: string} = {},
+	options: { requireActiveView?: boolean; frontmatterProperty?: string, frontmatterHandling? : FrontmatterHandling } = {},
 ) {
-	const { requireActiveView = true, frontmatterProperty = '' } = options;
+	const { requireActiveView = true, frontmatterProperty = '', frontmatterHandling = 'error' } = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
 		const message = "Cannot append link because no active Markdown view is available.";
@@ -584,32 +615,19 @@ export async function insertLinkWithPlacement(
 		editor.replaceSelection(text);
 		return;
 	}
-	
+
 	//////////////////////////////////////////////////////////////////
 	//  FRONTMATTER-SELECTION
 	//////////////////////////////////////////////////////////////////
 
 	if (mode === "inFrontmatter") {
-		if(!frontmatterProperty) {
-			const message = "Invalid frontmatter property: " + frontmatterProperty;
-			throw new Error(message);
-		}
 		const file = view.file;
-		if(!file) {
+		if (!file) {
 			const message = "Could not find file of active view";
 			throw new Error(message);
 		}
-		await app.fileManager.processFrontMatter(file, (frontmatter) => {
-			if (frontmatter[frontmatterProperty] === undefined || frontmatter[frontmatterProperty] === null) {
-				frontmatter[frontmatterProperty] = []
-			}
-			if (!Array.isArray(frontmatter[frontmatterProperty])) {
-				const message = "Could not add into non array property: " + frontmatterProperty;
-				throw new Error(message)
-			}
-			frontmatter[frontmatterProperty].push(text)
-		})
-		return
+		return app.fileManager.processFrontMatter(file, (frontmatter) =>
+			insertIntoFrontmatterProperty(frontmatter, frontmatterProperty, text, frontmatterHandling))
 	}
 
 	//////////////////////////////////////////////////////////////////
@@ -762,7 +780,7 @@ export async function insertFileLinkToActiveView(
 		app,
 		linkText,
 		linkOptions.placement,
-		{ requireActiveView: false, frontmatterProperty : linkOptions.frontmatterProperty },
+		{requireActiveView: false, frontmatterProperty: linkOptions.frontmatterProperty, frontmatterHandling : linkOptions.frontmatterHandling},
 	);
 
 	return true;

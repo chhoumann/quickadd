@@ -14,6 +14,7 @@ import {
 	normalizeVaultFilePath,
 	getOpenFileOriginLeaf,
 	openFile,
+	insertIntoFrontmatterProperty,
 } from "./utilityObsidian";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { CommandType } from "./types/macros/CommandType";
@@ -573,3 +574,153 @@ describe("areSameVaultFilePath", () => {
 		expect(areSameVaultFilePath("notes/Foo.md", "notes/foo.md")).toBe(false);
 	});
 });
+
+describe("insertIntoFrontmatterProperty ", () => {
+
+	describe("alwaysAppend", () => {
+		const frontmatterHandling = "alwaysAppend";
+
+		it("should create a property if it does not exist", () => {
+			let frontmatter = {};
+			let result = {foo: ["bar"]}
+			insertIntoFrontmatterProperty(frontmatter, "foo", "bar", frontmatterHandling)
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should create a property if it is null or undefined", () => {
+			let frontmatter = {fooNull: null, fooUndefined: undefined};
+			let result = {fooNull: ["bar"], fooUndefined: ["baz"]};
+			insertIntoFrontmatterProperty(frontmatter, "fooNull", "bar", frontmatterHandling)
+			insertIntoFrontmatterProperty(frontmatter, "fooUndefined", "baz", frontmatterHandling)
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should convert text scalars and other non object types into arrays", () => {
+			let frontmatter = {int: 10, text: "Hello World!"};
+			let result = {int: [10, "bar"], text: ["Hello World!", "baz"]}
+			insertIntoFrontmatterProperty(frontmatter, "int", "bar", frontmatterHandling)
+			insertIntoFrontmatterProperty(frontmatter, "text", "baz", frontmatterHandling)
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should append values to existing arrays", () => {
+			let frontmatter = {list: [1, "2"]}
+			let result = {list: [1, "2", "three"]}
+			insertIntoFrontmatterProperty(frontmatter, "list", "three", frontmatterHandling);
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error when trying to overwrite an object and keep the frontmatter unchanged", () => {
+			let frontmatter = {data: {list: [1, "2"], value: "Hello World!"}}
+			let result = {data: {list: [1, "2"], value: "Hello World!"}}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "data", "bar", frontmatterHandling)).toThrowError()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error on empty frontmatterProperty", () => {
+			let frontmatter = {list: [1, "2"]}
+			let result = {list: [1, "2"]}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "", "bar", frontmatterHandling)).toThrowError()
+			expect(frontmatter).toEqual(result)
+		})
+
+	})
+
+
+	describe("createProperty", () => {
+		const frontmatterType = "createProperty"
+
+		it("should create a property if it does not exist", () => {
+			let frontmatter = {};
+			let result = {foo: ["bar"]}
+			insertIntoFrontmatterProperty(frontmatter, "foo", "bar", frontmatterType)
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should create a property if it is null or undefined", () => {
+			let frontmatter = {fooNull: null, fooUndefined: undefined};
+			let result = {fooNull: ["bar"], fooUndefined: ["baz"]};
+			insertIntoFrontmatterProperty(frontmatter, "fooNull", "bar", frontmatterType)
+			insertIntoFrontmatterProperty(frontmatter, "fooUndefined", "baz", frontmatterType)
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error on non array types", () => {
+			let frontmatter = {int: 10, text: "Hello World!"};
+			let result = {int: 10, text: "Hello World!"};
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "int", "bar", frontmatterType)).toThrow()
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "text", "baz", frontmatterType)).toThrow()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should append values to existing arrays", () => {
+			let frontmatter = {list: [1, "2"]}
+			let result = {list: [1, "2", "three"]}
+			insertIntoFrontmatterProperty(frontmatter, "list", "three", frontmatterType);
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error when trying to overwrite an object and keep the frontmatter unchanged", () => {
+			let frontmatter = {data: {list: [1, "2"], value: "Hello World!"}}
+			let result = {data: {list: [1, "2"], value: "Hello World!"}}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "data", "bar", frontmatterType)).toThrowError()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error on empty frontmatterProperty", () => {
+			let frontmatter = {list: [1, "2"]}
+			let result = {list: [1, "2"]}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "", "bar", frontmatterType)).toThrowError()
+			expect(frontmatter).toEqual(result)
+		})
+
+	})
+
+
+	describe("error", () => {
+		const frontmatterType = "error"
+		it("should error if a property does not exist", () => {
+			let frontmatter = {};
+			let result = {}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "foo", "bar", frontmatterType)).toThrow()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should create a property if it is null but throw error if undefined", () => {
+			let frontmatter = {fooNull: null, fooUndefined: undefined};
+			let result = {fooNull: ["bar"], fooUndefined: undefined};
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "fooNull", "bar", frontmatterType)).not.toThrow()
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "fooUndefined", "baz", frontmatterType)).toThrow()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error on scalars and other non object types", () => {
+			let frontmatter = {int: 10, text: "Hello World!"};
+			let result = {int: 10, text: "Hello World!"};
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "int", "bar", frontmatterType)).toThrow()
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "text", "baz", frontmatterType)).toThrow()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should append values to existing arrays", () => {
+			let frontmatter = {list: [1, "2"]}
+			let result = {list: [1, "2", "three"]}
+			insertIntoFrontmatterProperty(frontmatter, "list", "three", frontmatterType);
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error when trying to overwrite an object and keep the frontmatter unchanged", () => {
+			let frontmatter = {data: {list: [1, "2"], value: "Hello World!"}}
+			let result = {data: {list: [1, "2"], value: "Hello World!"}}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "data", "bar", frontmatterType)).toThrowError()
+			expect(frontmatter).toEqual(result)
+		})
+
+		it("should error on empty frontmatterProperty", () => {
+			let frontmatter = {list: [1, "2"]}
+			let result = {list: [1, "2"]}
+			expect(() => insertIntoFrontmatterProperty(frontmatter, "", "bar", frontmatterType)).toThrowError()
+			expect(frontmatter).toEqual(result)
+		})
+	})
+})

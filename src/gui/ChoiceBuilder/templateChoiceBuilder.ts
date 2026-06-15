@@ -18,7 +18,7 @@ import {
 	type FileExistsModeId,
 } from "../../template/fileExistsPolicy";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import type { LinkPlacement, LinkType } from "../../types/linkPlacement";
+import type { AppendLinkOptions, FrontmatterHandling, LinkPlacement, LinkType } from "../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
@@ -338,6 +338,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 								enabled: true,
 								placement: normalizedOptions.placement,
 								frontmatterProperty: normalizedOptions.frontmatterProperty,
+								frontmatterHandling: normalizedOptions.frontmatterHandling,
 								requireActiveFile: true,
 								linkType: normalizedLinkType,
 							};
@@ -347,6 +348,7 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 								enabled: true,
 								placement: normalizedOptions.placement,
 								frontmatterProperty: normalizedOptions.frontmatterProperty,
+								frontmatterHandling: normalizedOptions.frontmatterHandling,
 								requireActiveFile: false,
 								linkType: normalizedLinkType,
 							};
@@ -387,12 +389,17 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 							typeof currentValue === "boolean"
 								? normalizedOptions.frontmatterProperty
 								: currentValue.frontmatterProperty;
+						const frontmatterHandling =
+							typeof currentValue === "boolean"
+								? normalizedOptions.frontmatterHandling
+								: currentValue.frontmatterHandling;
 
 						this.choice.appendLink = {
 							enabled: true,
 							placement: value,
 							requireActiveFile,
 							frontmatterProperty,
+							frontmatterHandling,
 							linkType: nextLinkType,
 						};
 						this.reload();
@@ -422,12 +429,17 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 								typeof currentValue === "boolean"
 									? normalizedOptions.frontmatterProperty
 									: currentValue.frontmatterProperty;
+							const frontmatterHandling =
+								typeof currentValue === "boolean"
+									? normalizedOptions.frontmatterHandling
+									: currentValue.frontmatterHandling;
 
 							this.choice.appendLink = {
 								enabled: true,
 								placement,
 								requireActiveFile,
 								frontmatterProperty,
+								frontmatterHandling,
 								linkType: value,
 							};
 						});
@@ -435,36 +447,80 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			}
 
 			if (placementSupportsFrontmatter(normalizedOptions.placement)) {
-				const frontmatterPropertySetting: Setting = new Setting(this.contentEl);
-				const current = typeof this.choice.appendLink !== "boolean" ? this.choice.appendLink.frontmatterProperty : '';
-				frontmatterPropertySetting
-					.setName("Frontmatter property")
-					.setDesc("Choose the frontmatter property to insert the link into.")
-					.addText((text) => {
-						text.setValue(current ?? '')
-						text.onChange((value: string) => {
-							const currentValue = this.choice.appendLink;
-							const requireActiveFile =
-								typeof currentValue === "boolean"
-									? normalizedOptions.requireActiveFile
-									: currentValue.requireActiveFile;
-							const placement =
-								typeof currentValue === "boolean"
-									? normalizedOptions.placement
-									: currentValue.placement;
-							// Update value such that appendLinkSetting uses the correct updated value when switching.
-							normalizedOptions.frontmatterProperty = value
-							this.choice.appendLink = {
-								enabled: true,
-								placement,
-								requireActiveFile,
-								frontmatterProperty: value,
-								linkType: 'link'
-							};
-						});
-					});
+				this.addFrontmatterSettings(normalizedOptions);
 			}
 		}
+	}
+
+	private addFrontmatterSettings(normalizedOptions: AppendLinkOptions & { linkType: LinkType }) {
+		const frontmatterPropertySetting: Setting = new Setting(this.contentEl);
+		frontmatterPropertySetting
+			.setName("Frontmatter property")
+			.setDesc("Choose the frontmatter property to insert the link into.")
+			.addText((text) => {
+				text.setValue(normalizedOptions.frontmatterProperty ?? '')
+				text.onChange((value: string) => {
+					const currentValue = this.choice.appendLink;
+					const requireActiveFile =
+						typeof currentValue === "boolean"
+							? normalizedOptions.requireActiveFile
+							: currentValue.requireActiveFile;
+					const placement =
+						typeof currentValue === "boolean"
+							? normalizedOptions.placement
+							: currentValue.placement;
+					const frontmatterHandling =
+						typeof currentValue === "boolean"
+							? normalizedOptions.frontmatterHandling
+							: currentValue.frontmatterHandling;
+					// Update value such that appendLinkSetting uses the correct updated value when switching.
+					normalizedOptions.frontmatterProperty = value
+					this.choice.appendLink = {
+						enabled: true,
+						placement,
+						requireActiveFile,
+						frontmatterProperty: value,
+						frontmatterHandling,
+						linkType: 'link'
+					};
+				});
+			});
+
+		const frontmatterHandlingSetting: Setting = new Setting(this.contentEl);
+		frontmatterHandlingSetting
+			.setName("Frontmatter appending behaviour")
+			.setDesc("Choose what QuickAdd should do when encountering a non-list property.")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("error", "Throw an error");
+				dropdown.addOption("createProperty", "Create property.");
+				dropdown.addOption("alwaysAppend", "Always append value.");
+				dropdown.setValue(normalizedOptions.frontmatterHandling ?? 'error')
+				dropdown.onChange((value: FrontmatterHandling) => {
+					const currentValue = this.choice.appendLink;
+					const requireActiveFile =
+						typeof currentValue === "boolean"
+							? normalizedOptions.requireActiveFile
+							: currentValue.requireActiveFile;
+					const placement =
+						typeof currentValue === "boolean"
+							? normalizedOptions.placement
+							: currentValue.placement;
+					const frontmatterProperty =
+						typeof currentValue === "boolean"
+							? normalizedOptions.frontmatterProperty
+							: currentValue.frontmatterProperty;
+					// Update value such that appendLinkSetting uses the correct updated value when switching.
+					normalizedOptions.frontmatterHandling = value
+					this.choice.appendLink = {
+						enabled: true,
+						placement,
+						requireActiveFile,
+						frontmatterProperty,
+						frontmatterHandling: value,
+						linkType: 'link'
+					};
+				});
+			});
 	}
 
 	private addFileAlreadyExistsSetting(): void {

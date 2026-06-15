@@ -10,6 +10,11 @@ export type LinkPlacement =
 
 export type LinkType = "link" | "embed";
 
+export type FrontmatterHandling =
+	| "error"			// Error if property is not an array.
+	| "createProperty"  // Create if property does not exist, error if object is not array
+	| "alwaysAppend" 	// Convert single values into array.
+
 export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 	return placement === "replaceSelection";
 }
@@ -49,7 +54,11 @@ export interface AppendLinkOptions {
 	/**
 	 * Controls the frontmatter property the link is added to. Only used when placement is inFrontmatter.
 	 */
-	frontmatterProperty? : string
+	frontmatterProperty?: string
+	/**
+	 * How to handle (non)-existing property types.
+	 */
+	frontmatterHandling?: FrontmatterHandling
 }
 
 /**
@@ -82,7 +91,8 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
 			linkType: sanitizeLinkType(appendLink.linkType, placement),
-			frontmatterProperty: appendLink.frontmatterProperty
+			frontmatterProperty: appendLink.frontmatterProperty,
+			frontmatterHandling : appendLink.frontmatterHandling
 		};
 	}
 

@@ -61,6 +61,11 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
     -   **New line** - Places the link on a new line below the cursor
     -   **In frontmatter property** - Adds the link to a frontmatter property
 
+        When _In frontmatter property_ is selected you can choose what to do when encountering non-list properties:
+        - **Throw an error** -  Throws error if the property is not a list or does not exist. Empty properties are handled as an empty list.
+        - **Create property** - Adds the property to frontmatter if it does not exist. Throws an error if the property already exists and is not a list. Empty properties are handled as an empty list.
+        - **Always append** - Will convert non-list properties to a list and append the value.
+
 ## Canvas Capture Notes
 
 QuickAdd supports two Canvas capture workflows:
