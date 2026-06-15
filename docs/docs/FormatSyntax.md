@@ -280,7 +280,7 @@ research-topics:
 - `{{FILE:<folder>|optional}}` — allow skipping the pick (resolves to nothing).
 - `{{FILE:<folder>|custom}}` — also allow typing a value that isn't in the folder.
 - `{{FILE:<folder>|label:Pick a person}}` — set the picker's placeholder text.
-- `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. By default every `{{FILE:...}}` token prompts independently (so you can pick two different people from the same folder). Reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — by giving them the same `|name:`. Tokens that share an id should target the same folder/filters and agree on `|optional`/`|custom` — the first occurrence's settings drive the shared pick.
+- `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. Like `{{VALUE}}` and `{{FIELD}}`, FILE tokens are cached by identity: tokens that differ (by folder, filters, mode, or `|label:`) prompt independently, while *identical* tokens reuse one pick. So to choose **two different** files from the same folder, give them distinct labels — e.g. `{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}` prompt separately. To reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — give them the same `|name:`. Tokens that share an id should target the same folder/filters and agree on `|optional`/`|custom` — the first occurrence's settings drive the shared pick.
 - Filtering reuses the `{{FIELD}}` grammar: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
 
 Notes:
