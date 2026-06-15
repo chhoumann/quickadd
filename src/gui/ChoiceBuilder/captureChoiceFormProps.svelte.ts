@@ -22,11 +22,12 @@ export function createCaptureChoiceFormProps(
 	// the form and snapshotted back out by onClose (getResultChoice). #1130
 	//
 	// Why $state.snapshot and NOT structuredClone:
-	//  - EXISTING choice: can arrive as a live $state proxy (a Macro's nested
-	//    command.choice is reactive — see CommandList.svelte). structuredClone throws
-	//    DataCloneError on a $state proxy under Svelte's dev build; $state.snapshot
-	//    detaches it via Svelte's own deep clone. This is the Plain<T> proxy-detach
-	//    rule from persist.svelte.ts.
+	//  - EXISTING choice: can arrive as a live $state proxy. A choice nested inside a
+	//    folder (Multi) or a Macro is held/rendered through $state (ChoiceList's
+	//    dndzone / CommandList), so it is reactive — only ROOT-level choices stay
+	//    plain. structuredClone throws DataCloneError on a $state proxy under Svelte's
+	//    dev build; $state.snapshot detaches it via Svelte's own deep clone. This is
+	//    the Plain<T> proxy-detach rule from persist.svelte.ts.
 	//  - NEW choice: createChoice() returns a `new CaptureChoice()` class instance,
 	//    which $state() leaves UN-proxied — it must be plain for nested {#if} rows to
 	//    react. snapshot deep-clones it too: a Choice is plain data, so Svelte's clone

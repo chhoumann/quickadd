@@ -15,8 +15,9 @@ const plugin = {} as unknown as QuickAdd;
 
 /**
  * Regression for the DataCloneError when configuring a choice whose object is a
- * live Svelte `$state` PROXY. The real trigger is the Macro builder: a nested
- * command's `choice` is a `$state` proxy (CommandList.svelte), so configuring it
+ * live Svelte `$state` PROXY. This happens for any NESTED choice — one inside a
+ * folder (Multi, rendered through ChoiceList's dndzone) or a Macro (CommandList) —
+ * whose object is held in `$state`; root-level choices stay plain. Configuring it
  * calls the form-props factory with a proxy. Under Svelte's dev build (active when
  * Obsidian runs with NODE_ENV=development), a proxy's NESTED objects are
  * non-cloneable, so `structuredClone(choice)` throws
