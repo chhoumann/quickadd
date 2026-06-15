@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
@@ -29,6 +29,10 @@ import {
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter, type PromptContext } from "./formatter";
+import {
+	buildSectionSubpath,
+	extractHeadingsFromLines,
+} from "./helpers/sectionLink";
 import { UserCancelError } from "../errors/UserCancelError";
 import { isCancellationError } from "../utils/errorUtils";
 
@@ -107,7 +111,9 @@ export class CompleteFormatter extends Formatter {
 		let output: string = input;
 
 		output = await this.format(output);
-		output = await this.replaceLinkToCurrentFileInString(output);
+		// Resolve {{linkcurrent}} + {{linksection}} in one pass so neither
+		// re-scans the other's generated link (both embed the basename).
+		output = this.replaceCurrentFileLinksInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
 		output = this.replaceTargetFolderInString(output);
 		output = this.replaceTitleInString(output);
@@ -137,7 +143,8 @@ export class CompleteFormatter extends Formatter {
 	 * tokens, but never runs macros, inline JavaScript, or {{TEMPLATE:}}
 	 * inclusion — a file-path lookup should not execute code or splice another
 	 * template's body into a path. Note-relative tokens ({{title}}, {{FOLDER}},
-	 * {{FILENAMECURRENT}}, {{LINKCURRENT}}) are intentionally left literal: a
+	 * {{FILENAMECURRENT}}, {{LINKCURRENT}}, {{LINKSECTION}}) are intentionally
+	 * left literal: a
 	 * source template has no "current note" or target folder, so an unresolved
 	 * token fails visibly instead of silently collapsing the path.
 	 *
@@ -202,7 +209,7 @@ export class CompleteFormatter extends Formatter {
 	 */
 	protected async formatLocationString(input: string): Promise<string> {
 		let output = await this.format(input);
-		output = await this.replaceLinkToCurrentFileInString(output);
+		output = this.replaceCurrentFileLinksInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
 		// Note: {{FOLDER}} is deliberately NOT resolved in location selectors
 		// (insert-after/before targets) — an empty resolution would match the
@@ -226,6 +233,73 @@ export class CompleteFormatter extends Formatter {
 		if (!currentFile) return null;
 
 		return currentFile.basename;
+	}
+
+	/**
+	 * Resolves {{linksection}} to a link to the current file at the heading the
+	 * cursor is currently under, e.g. `[[Note#Heading]]`, so clicking it scrolls
+	 * to that heading instead of the top of the file (issue #387).
+	 *
+	 * Read-only: it reads the active editor's cursor + the heading cache and
+	 * never modifies any file. Falls back to a plain whole-file link (like
+	 * {{linkcurrent}}) when there is no usable heading above the cursor, and to
+	 * `null` only when there is no active file at all (so the required/optional
+	 * behavior matches {{linkcurrent}}). The source path is shared with
+	 * {{linkcurrent}} via {@link getLinkSourcePath}, so relative links resolve
+	 * against the capture destination just like {{linkcurrent}} does.
+	 */
+	protected getCurrentFileLinkToSection(): string | null {
+		const currentFile = this.app.workspace.getActiveFile();
+		if (!currentFile) return null;
+
+		const sourcePath = this.getLinkSourcePath() ?? "";
+		// Never let section resolution throw out of a capture/template run — fall
+		// back to a whole-file link if anything goes wrong.
+		let subpath: string | null = null;
+		try {
+			subpath = this.getActiveHeadingSubpath(currentFile);
+		} catch {
+			subpath = null;
+		}
+
+		return subpath
+			? this.app.fileManager.generateMarkdownLink(
+					currentFile,
+					sourcePath,
+					subpath,
+				)
+			: this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
+	}
+
+	/**
+	 * Builds the `#Heading` (or `#Parent#Child` when needed for disambiguation)
+	 * subpath for the heading the cursor sits in, or null when none applies
+	 * (no editor for this file, reading mode, no cursor, or no heading above the
+	 * cursor). Delegates the pure selection/disambiguation/sanitization logic to
+	 * {@link buildSectionSubpath}.
+	 *
+	 * Headings are parsed from the LIVE editor buffer (via {@link
+	 * extractHeadingsFromLines}) rather than the metadata cache, so a just-typed
+	 * heading or a brand-new note works without waiting for the cache to reindex.
+	 */
+	private getActiveHeadingSubpath(file: TFile): string | null {
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+		// Only trust the cursor when the active markdown view is THIS file and is
+		// in an editing mode (reading mode has no meaningful cursor line).
+		if (!view || view.file?.path !== file.path) return null;
+		if (view.getMode() === "preview") return null;
+
+		const editor = view.editor;
+		const cursor = editor?.getCursor();
+		if (!editor || !cursor) return null;
+
+		// Split on \r?\n so CRLF buffers don't leave a trailing \r that breaks the
+		// heading parse (and so line indices match the editor's cursor line).
+		const headings = extractHeadingsFromLines(
+			editor.getValue().split(/\r?\n/),
+		);
+
+		return buildSectionSubpath(headings, cursor.line);
 	}
 
 	protected getVariableValue(variableName: string): string {

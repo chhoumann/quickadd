@@ -31,3 +31,6 @@ coverage/
 # Claude Code session/runtime state (ephemeral, machine-local)
 .claude/scheduled_tasks.lock
 .claude/scheduled_tasks.json
+
+# Obsidian application bundle (only ever extracted transiently for inspection)
+/app.js

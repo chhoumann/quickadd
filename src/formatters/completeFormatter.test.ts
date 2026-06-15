@@ -849,3 +849,160 @@ describe("CompleteFormatter - formatTemplateFilePath (issue #620)", () => {
 		).resolves.toBe("Templates/Note.md");
 	});
 });
+
+// --- {{linksection}} runtime resolver (issue #387) -----------------------
+// Exercises CompleteFormatter.getCurrentFileLinkToSection's glue: the active-
+// view/cursor guards and the whole-file / throw fallbacks. The heading parsing
+// and disambiguation logic itself is unit-tested in helpers/sectionLink.test.ts.
+
+function makeSectionView(opts: {
+	path: string;
+	mode?: "source" | "preview";
+	cursorLine?: number;
+	value?: string;
+	getValueThrows?: boolean;
+}) {
+	return {
+		file: { path: opts.path },
+		getMode: () => opts.mode ?? "source",
+		editor: {
+			getSelection: () => "",
+			getCursor: () => ({ line: opts.cursorLine ?? 0, ch: 0 }),
+			getValue: () => {
+				if (opts.getValueThrows) throw new Error("boom");
+				return opts.value ?? "";
+			},
+		},
+	};
+}
+
+function makeSectionApp(opts: {
+	activeFile?: { basename: string; path: string } | null;
+	view?: ReturnType<typeof makeSectionView> | undefined;
+}) {
+	const activeFile =
+		opts.activeFile === undefined
+			? { basename: "Note", path: "Note.md" }
+			: opts.activeFile;
+	return {
+		workspace: {
+			getActiveFile: () => activeFile,
+			getActiveViewOfType: () => opts.view,
+		},
+		fileManager: {
+			generateMarkdownLink: (
+				file: { basename: string },
+				_src: string,
+				subpath?: string,
+			) => (subpath ? `[[${file.basename}${subpath}]]` : `[[${file.basename}]]`),
+		},
+		metadataCache: { getFileCache: () => null },
+	};
+}
+
+const BODY = ["# Project", "", "## Tasks", "- a", "- b"].join("\n");
+
+describe("CompleteFormatter {{linksection}} runtime resolution", () => {
+	it("links to the heading the cursor is under", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 3, value: BODY }),
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("works for CRLF buffers", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 3,
+				value: BODY.replace(/\n/g, "\r\n"),
+			}),
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("falls back to a whole-file link in reading mode", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				mode: "preview",
+				cursorLine: 3,
+				value: BODY,
+			}),
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note]]",
+		);
+	});
+
+	it("falls back when the active view is a different file", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Other.md", cursorLine: 3, value: BODY }),
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note]]",
+		);
+	});
+
+	it("falls back when there is no active markdown view", async () => {
+		const app = makeSectionApp({ view: undefined });
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note]]",
+		);
+	});
+
+	it("falls back (never throws) if heading resolution errors", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 3,
+				getValueThrows: true,
+			}),
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note]]",
+		);
+	});
+
+	it("throws (required) when there is no active file", async () => {
+		const app = makeSectionApp({ activeFile: null, view: undefined });
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).rejects.toThrow(
+			"Unable to get current file path",
+		);
+	});
+
+	// Pathological: a file literally named like a token. The link tokens are
+	// resolved in a single pass so neither re-scans the other's generated link.
+	it("does not re-scan a generated {{linkcurrent}} link as a section token", async () => {
+		const app = makeSectionApp({
+			activeFile: { basename: "{{linksection}}", path: "{{linksection}}.md" },
+			view: undefined,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linkcurrent}}")).resolves.toBe(
+			"[[{{linksection}}]]",
+		);
+	});
+
+	it("does not re-scan a generated {{linksection}} link as a linkcurrent token", async () => {
+		const app = makeSectionApp({
+			activeFile: { basename: "{{linkcurrent}}", path: "{{linkcurrent}}.md" },
+			view: undefined,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[{{linkcurrent}}]]",
+		);
+	});
+});

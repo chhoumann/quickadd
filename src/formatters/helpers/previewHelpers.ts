@@ -91,6 +91,15 @@ export function getCurrentFileLinkPreview(activeFile?: {basename: string, path: 
 }
 
 /**
+ * Gets a current file section-link preview ({{linksection}}). Mirrors
+ * getCurrentFileLinkPreview's simplified style (no [[ ]]); the real expansion is
+ * a link to the heading the cursor is under.
+ */
+export function getCurrentFileLinkToSectionPreview(activeFile?: {basename: string, path: string} | null): string {
+	return `${activeFile?.path ? activeFile.basename : "current_file"}#Section`;
+}
+
+/**
  * Gets a current filename preview
  */
 export function getCurrentFileNamePreview(activeFile?: {basename: string} | null): string {

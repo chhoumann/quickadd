@@ -28,6 +28,7 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"{{VALUE:reminder|call mom|optional}}",
 	"- [ ] {{VALUE|label:Task}} {{VDATE:followup,[📅 ]YYYY-MM-DD|optional}}",
 	"Source: {{LINKCURRENT}}",
+	"Source: {{LINKSECTION}}",
 	"Notes from {{FILENAMECURRENT}}",
 	"Filed under {{FOLDER}}",
 	"{{FOLDER|name}} - {{VALUE:title}}",
@@ -148,6 +149,7 @@ class DocsExampleFormatter extends Formatter {
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceMathValueInString(output);
 		output = await this.replaceLinkToCurrentFileInString(output);
+		output = this.replaceLinkToCurrentSectionInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
 		output = this.replaceTargetFolderInString(output);
 		output = this.replaceRandomInString(output);
@@ -170,6 +172,10 @@ class DocsExampleFormatter extends Formatter {
 
 	protected getCurrentFileLink(): string {
 		return "[[Current Note]]";
+	}
+
+	protected getCurrentFileLinkToSection(): string {
+		return "[[Current Note#Section]]";
 	}
 
 	protected getCurrentFileName(): string {

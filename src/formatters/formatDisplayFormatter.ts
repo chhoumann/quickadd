@@ -11,6 +11,7 @@ import {
 	getVariablePromptExample,
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
+	getCurrentFileLinkToSectionPreview,
 	getCurrentFileNamePreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
@@ -46,7 +47,7 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceClipboardInString(output);
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
-			output = await this.replaceLinkToCurrentFileInString(output);
+			output = this.replaceCurrentFileLinksInString(output);
 			output = await this.replaceCurrentFileNameInString(output);
 			output = this.replaceTargetFolderInString(output);
 			output = await this.replaceMacrosInString(output);
@@ -92,6 +93,13 @@ export class FormatDisplayFormatter extends Formatter {
 	protected getCurrentFileLink(): string | null {
 		if (!this.app) return null;
 		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
+	}
+
+	protected getCurrentFileLinkToSection(): string | null {
+		if (!this.app) return getCurrentFileLinkToSectionPreview(null);
+		return getCurrentFileLinkToSectionPreview(
+			this.app.workspace.getActiveFile(),
+		);
 	}
 
 	protected getCurrentFileName(): string | null {
