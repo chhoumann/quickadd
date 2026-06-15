@@ -48,5 +48,5 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 
 ## Command icons
 
-- **Automatic command icons** — When you turn a choice into a command (the ⚡ icon next to it), QuickAdd gives that command an icon based on the choice type — Template a document, Capture a pencil, Macro a terminal, Multi a folder — so the command palette and the mobile editing toolbar show a meaningful glyph instead of a generic `?`. The icons are automatic; there is no setting for them.
+- **Automatic command icons** — When you turn a choice into a command (the ⚡ icon next to it), QuickAdd gives that command an icon based on the choice type — `file-text` for Template, `pencil` for Capture, `terminal` for Macro, and `folder` for Multi — so the command palette and the mobile editing toolbar show a meaningful glyph instead of a generic `?`. The icons are automatic; there is no setting for them.
 - **Override a choice's icon** — Add an `icon` field with any [Lucide](https://lucide.dev) icon id (for example `"icon": "star"`) to that choice in `data.json`, then reload Obsidian so the command re-registers with the new icon. There is currently no in-app control for this; edit `data.json` while the plugin is disabled, since QuickAdd rewrites the file when settings change.
