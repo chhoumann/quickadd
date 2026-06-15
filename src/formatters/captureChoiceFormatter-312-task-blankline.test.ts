@@ -266,6 +266,33 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 		expect(result).toBe("===== Task ======\r\n- [ ] buy milk\r\nold one\r\n");
 	});
 
+	it("recognises a real blank last line when the body has no trailing newline", async () => {
+		// "anchor\n   " — the final split slot is genuine whitespace content, not the
+		// trailing-newline artifact, so the injected task newline must still collapse.
+		const result = await createFormatter().formatContentWithFile(
+			taskInput("buy milk"),
+			createChoice(),
+			"===== Task ======\n   ",
+			createFile(),
+		);
+
+		expect(result).not.toMatch(/- \[ \] buy milk\n[ \t]*\n/);
+		expect(result.startsWith("===== Task ======\n- [ ] buy milk")).toBe(true);
+	});
+
+	it("keeps the EOF trailing-newline slot intact (does not collapse it as a blank line)", async () => {
+		const result = await createFormatter().formatContentWithFile(
+			taskInput("buy milk"),
+			createChoice(),
+			"===== Task ======\n",
+			createFile(),
+		);
+
+		// Target is the last real line with only the trailing-newline artifact below:
+		// the task keeps its own terminating newline, no content is glued or dropped.
+		expect(result).toBe("===== Task ======\n- [ ] buy milk\n");
+	});
+
 	it("leaves a user-typed trailing newline in the format string untouched (gate is off for task: false)", async () => {
 		// Guard/scope test: this passes with OR without the fix because the gate is
 		// gated on choice.task. It pins the gate scope so a non-task capture whose

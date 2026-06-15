@@ -874,11 +874,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		//
 		// Detect the blank line via the split index, not `post.startsWith("\n")`, so
 		// whitespace-only and CRLF blanks (where the line is "\r" or "   ", not "")
-		// are recognised too. The final split slot when `body` ends in a newline is
-		// the EOF artifact, not a real blank line, so it must not trigger the drop.
+		// are recognised too. When `body` ends in a newline, split() appends a
+		// trailing empty slot that is the EOF artifact, not a real blank line, so it
+		// must not trigger the drop; a body WITHOUT a trailing newline has no such
+		// artifact, so its final slot is a genuine (possibly blank) last line.
 		const lineBelow = splitContent[pos + 1];
+		const isTrailingNewlineArtifact =
+			body.endsWith("\n") && pos + 1 === splitContent.length - 1;
 		const blankLineDirectlyBelow =
-			pos + 1 < splitContent.length - 1 && (lineBelow ?? "").trim() === "";
+			pos + 1 < splitContent.length &&
+			!isTrailingNewlineArtifact &&
+			(lineBelow ?? "").trim() === "";
 		const text =
 			this.choice.task && rawText.endsWith("\n") && blankLineDirectlyBelow
 				? rawText.slice(0, -1)
