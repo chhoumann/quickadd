@@ -15,8 +15,8 @@ export interface SimpleHeading {
 	line: number;
 }
 
-// Mirrors Obsidian's internal heading-anchor normalizer (`LT` in app.js, which
-// does `text.replace(AT, " ")`). Obsidian resolves a `#subpath` by comparing the
+// Mirrors Obsidian's internal heading-anchor normalizer (it replaces this
+// punctuation class with spaces). Obsidian resolves a `#subpath` by comparing the
 // normalized subpath against the normalized heading text, so to produce a link
 // that lands on the right heading we must normalize the heading text the SAME
 // way Obsidian does — replacing this whole punctuation class with spaces. This
@@ -39,10 +39,26 @@ export function sanitizeHeadingForSubpath(heading: string): string {
 }
 
 /**
- * Extracts ATX headings from raw buffer lines, skipping YAML frontmatter and
- * fenced code blocks (a `# foo` line inside a ``` fence is NOT a heading in
- * Obsidian) and bounding the level to 1–6. Parsing the live buffer rather than
- * the metadata cache avoids cache lag for a just-typed or brand-new heading.
+ * Whether a line can serve as the text of a setext heading: a non-blank
+ * paragraph line that is not itself a structural construct (ATX heading, fence,
+ * blockquote, list item, or ≥4-space / tab-indented code line).
+ */
+function isSetextContentLine(line: string): boolean {
+	if (line.trim() === "") return false;
+	if (/^( {4,}|\t)/.test(line)) return false; // indented code
+	if (/^ {0,3}#{1,6}[ \t]/.test(line)) return false; // ATX heading
+	if (/^ {0,3}(`{3,}|~{3,})/.test(line)) return false; // fence
+	if (/^ {0,3}>/.test(line)) return false; // blockquote
+	if (/^ {0,3}([-*+]|\d{1,9}[.)])[ \t]/.test(line)) return false; // list item
+	return true;
+}
+
+/**
+ * Extracts ATX (`# Heading`) and setext (`Heading` underlined by `===`/`---`)
+ * headings from raw buffer lines, skipping YAML frontmatter and fenced code
+ * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and
+ * bounding ATX levels to 1–6. Parsing the live buffer rather than the metadata
+ * cache avoids cache lag for a just-typed or brand-new heading.
  */
 export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	const headings: SimpleHeading[] = [];
@@ -87,10 +103,33 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 			continue; // inside a fence: never parse headings
 		}
 
-		// Up to 3 spaces of indentation only — a leading tab makes it an indented
-		// code line (CommonMark/Obsidian), not a heading.
-		const m = line.match(/^ {0,3}(#{1,6})[ \t]+(.*)$/);
-		if (m) headings.push({ heading: m[2], level: m[1].length, line: i });
+		// ATX heading. Up to 3 spaces of indentation only — a leading tab makes it
+		// an indented code line (CommonMark/Obsidian), not a heading.
+		const atx = line.match(/^ {0,3}(#{1,6})[ \t]+(.*)$/);
+		if (atx) {
+			headings.push({ heading: atx[2], level: atx[1].length, line: i });
+			continue;
+		}
+
+		// Setext heading: a line of only `=` (level 1) or `-` (level 2) directly
+		// under a paragraph line. The blank-line requirement (isSetextContentLine
+		// rejects a blank previous line) keeps a `---` thematic break / a list's
+		// dashes from being mistaken for an underline.
+		const setext = line.match(/^ {0,3}(=+|-+)\s*$/);
+		if (setext && i > 0) {
+			const prev = lines[i - 1];
+			const prevAlreadyHeading =
+				headings.length > 0 &&
+				headings[headings.length - 1].line === i - 1;
+			if (!prevAlreadyHeading && isSetextContentLine(prev)) {
+				headings.push({
+					heading: prev.trim(),
+					level: setext[1][0] === "=" ? 1 : 2,
+					line: i - 1,
+				});
+			}
+			continue;
+		}
 	}
 
 	return headings;

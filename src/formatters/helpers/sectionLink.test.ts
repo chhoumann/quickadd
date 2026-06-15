@@ -194,6 +194,35 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
+	it("parses setext headings (=== / ---)", () => {
+		expect(extractHeadingsFromLines(["Title", "===", "body"])).toEqual([
+			{ heading: "Title", level: 1, line: 0 },
+		]);
+		expect(extractHeadingsFromLines(["Sub", "---", "body"])).toEqual([
+			{ heading: "Sub", level: 2, line: 0 },
+		]);
+	});
+
+	it("does not mistake a thematic break or list dashes for a setext underline", () => {
+		// `---` after a blank line is a thematic break, not a setext underline.
+		expect(extractHeadingsFromLines(["text", "", "---"])).toEqual([]);
+		// A list's dashes are not underlines.
+		expect(extractHeadingsFromLines(["- a", "- b"])).toEqual([]);
+	});
+
+	it("does not double-count an ATX heading followed by ---", () => {
+		expect(extractHeadingsFromLines(["# H", "---"])).toEqual([
+			{ heading: "H", level: 1, line: 0 },
+		]);
+	});
+
+	it("ignores setext underlines inside fenced code", () => {
+		const lines = ["```", "Title", "===", "```", "# Real"];
+		expect(extractHeadingsFromLines(lines)).toEqual([
+			{ heading: "Real", level: 1, line: 4 },
+		]);
+	});
+
 	it("allows up to 3 leading spaces but not a leading tab (code line)", () => {
 		expect(extractHeadingsFromLines(["   # Indented"])).toEqual([
 			{ heading: "Indented", level: 1, line: 0 },
