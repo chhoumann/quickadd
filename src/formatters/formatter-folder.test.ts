@@ -34,6 +34,10 @@ class StubFormatter extends Formatter {
     return "";
   }
 
+  protected suggestForFile(): string {
+  	return "";
+  }
+
   protected async suggestForField(): Promise<string> {
     return "";
   }

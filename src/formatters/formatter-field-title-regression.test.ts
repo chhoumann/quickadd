@@ -28,6 +28,10 @@ class FieldTitleFormatter extends Formatter {
 		return await this.format(input);
 	}
 
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected async suggestForField(specifier: string): Promise<string> {
 		this.fieldCalls.push(specifier);
 		const value = this.fieldResponses.get(specifier);

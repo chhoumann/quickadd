@@ -74,6 +74,10 @@ class TestFormatter extends Formatter {
         return suggestedValues[0] || "";
     }
 
+    protected suggestForFile(): string {
+    	return "";
+    }
+
     protected async suggestForField(_variableName: string): Promise<string> {
         return "";
     }

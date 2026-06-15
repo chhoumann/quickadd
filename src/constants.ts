@@ -20,6 +20,9 @@ export const VDATE_OPTIONAL_SYNTAX =
 export const VALUE_CASE_SYNTAX = "{{value|case:kebab}}";
 export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
+export const FILE_SYNTAX = "{{file:<folder>}}";
+export const FILE_LINK_SYNTAX = "{{file:<folder>|link}}";
+export const FILE_PATH_SYNTAX = "{{file:<folder>|path}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const FILENAMECURRENT_SYNTAX = "{{filenamecurrent}}";
@@ -53,6 +56,9 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{field:<fieldname>|tag:<tagname>}}",
 	"{{field:<fieldname>|inline:true}}",
 	"{{field:<fieldname>|inline:true|inline-code-blocks:ad-note}}",
+	FILE_SYNTAX,
+	FILE_LINK_SYNTAX,
+	FILE_PATH_SYNTAX,
 	LINKCURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX,
 	FOLDER_SYNTAX,
@@ -83,6 +89,7 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VARIABLE_TEXT_SYNTAX,
 	VARIABLE_NAME_SYNTAX,
 	FIELD_VAR_SYNTAX,
+	FILE_SYNTAX,
 	RANDOM_SYNTAX,
 ];
 // Note: |optional is deliberately absent from FILE_NAME_FORMAT_SYNTAX — an
@@ -114,6 +121,11 @@ export const FIELD_VARIABLE_PREFIX = "FIELD:";
 export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(
 	/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i,
 );
+// {{FILE:<folder>|...}} — pick a file from a folder. `{` is excluded from the
+// interior so a malformed nested token (e.g. {{FILE:{{VALUE:x}}}}) cannot
+// mis-consume; nested tokens inside the folder arg are unsupported. The required
+// `:` means this never matches {{FILENAMECURRENT}} (no colon after FILE).
+export const FILE_REGEX = new RegExp(/{{FILE:([^\n\r{}]*)}}/i);
 export const DATE_VARIABLE_REGEX = new RegExp(
 	/{{VDATE:([^\n\r},|]*)(?:,\s*([^\n\r}|]*))?(?:\|([^\n\r}]*))?}}/i,
 );
@@ -172,6 +184,12 @@ export const FILENAMECURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const FOLDER_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[F]?[O]?[L]?[D]?[E]?[R]?[}]?[}]?$/i,
+);
+// Requires the full literal "FILE" before offering {{FILE:}}, so it isn't
+// offered prematurely at {{F/{{FI; {{FILENAMECURRENT}} still co-suggests at
+// {{FILE (benign — both are valid completions of that prefix).
+export const FILE_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{FILE[:]?$|{{FILE:[^\n\r}]*}}$/i,
 );
 export const TEMPLATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i,

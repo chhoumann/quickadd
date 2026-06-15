@@ -194,6 +194,10 @@ class DocsExampleFormatter extends Formatter {
 		return suggestedValues[0] ?? "";
 	}
 
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected async suggestForField(variableName: string): Promise<string> {
 		return `[field:${variableName}]`;
 	}

@@ -15,6 +15,13 @@ import {
 	FieldSuggestionParser,
 	type FieldFilter,
 } from "../utils/FieldSuggestionParser";
+import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import {
+	buildFileDisplayLabels,
+	FILE_CUSTOM_PREFIX,
+	FILE_PICK_PREFIX,
+	type ParsedFileToken,
+} from "../utils/fileSyntax";
 import {
 	collectFieldValuesProcessedDetailed,
 	collectFieldValuesRaw,
@@ -57,6 +64,7 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
+		output = await this.replaceFileInString(output);
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 
@@ -125,7 +133,7 @@ export class CompleteFormatter extends Formatter {
 	 * Resolves QuickAdd format tokens inside a *template source path*, so a
 	 * choice can point at e.g. "Templates/{{value:type}} Template.md" (issue
 	 * #620). This is deliberately a PATH-SAFE subset of {@link format}: it
-	 * resolves value/date/time/field/global/selected/clipboard/random/math
+	 * resolves value/date/time/field/file/global/selected/clipboard/random/math
 	 * tokens, but never runs macros, inline JavaScript, or {{TEMPLATE:}}
 	 * inclusion — a file-path lookup should not execute code or splice another
 	 * template's body into a path. Note-relative tokens ({{title}}, {{FOLDER}},
@@ -172,6 +180,11 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
+		// {{FILE:...}} is path-safe (lists files + a picker, runs no code) and is
+		// collected from the template path by preflight (scanTemplateSource), so it
+		// MUST resolve here too or a `Templates/{{FILE:...|path}}` source path would
+		// prompt up front and then fail to resolve at runtime.
+		output = await this.replaceFileInString(output);
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 
@@ -198,9 +211,8 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
-	protected getLinkSourcePath(): string | null {
-		return null;
-	}
+	// getLinkSourcePath() inherits the base Formatter default (null);
+	// CaptureChoiceFormatter overrides it with the capture destination.
 
 	protected getCurrentFileLink(): string | null {
 		const currentFile = this.app.workspace.getActiveFile();
@@ -417,6 +429,75 @@ export class CompleteFormatter extends Formatter {
 
 	private generateCacheKey(filters: FieldFilter): string {
 		return generateFieldCacheKey(filters);
+	}
+
+	protected async suggestForFile(parsed: ParsedFileToken): Promise<string> {
+		try {
+			const files = EnhancedFieldSuggestionFileFilter.filterFiles(
+				this.app.vault.getMarkdownFiles(),
+				parsed.filter,
+				(file) => this.app.metadataCache.getFileCache(file),
+			);
+
+			const placeholder =
+				parsed.label ?? `Select a file from ${parsed.folderPath}`;
+
+			// Empty folder (or no match): fall back to free-text so a capture never
+			// dead-ends, mirroring suggestForField. A typed value is stored as custom
+			// (never resolved to a real file); an empty/skip stays "".
+			if (files.length === 0) {
+				const typed = await GenericInputPrompt.Prompt(
+					this.app,
+					placeholder,
+					`No markdown files found in "${parsed.folderPath}". Type a value or leave empty.`,
+					undefined,
+					undefined,
+					parsed.optional ? { optional: true } : undefined,
+				);
+				return typed ? `${FILE_CUSTOM_PREFIX}${typed}` : "";
+			}
+
+			const displayItems = buildFileDisplayLabels(files);
+			const items = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
+
+			if (parsed.allowCustomInput) {
+				const basenames = new Set(
+					files.map((file) => file.basename.toLowerCase()),
+				);
+				const result = await InputSuggester.Suggest(
+					this.app,
+					displayItems,
+					items,
+					{
+						placeholder,
+						// Typing a real basename (e.g. "Tom", or "tom") should pick that
+						// file, not add a separate, indistinguishable custom row.
+						valueExists: (typed) => basenames.has(typed.toLowerCase()),
+						...(parsed.optional ? { skippable: true } : {}),
+					},
+				);
+				if (!result) return ""; // skipped
+				// A chosen row returns the encoded item; anything else is a type-in.
+				return items.includes(result)
+					? result
+					: `${FILE_CUSTOM_PREFIX}${result}`;
+			}
+
+			const result = await GenericSuggester.Suggest(
+				this.app,
+				displayItems,
+				items,
+				placeholder,
+				undefined,
+				parsed.optional ? { skippable: true } : undefined,
+			);
+			return result ?? "";
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Input cancelled by user");
+			}
+			throw error;
+		}
 	}
 
 	protected async getMacroValue(

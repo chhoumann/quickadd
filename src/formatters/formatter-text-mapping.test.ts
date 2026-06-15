@@ -93,6 +93,10 @@ class TextMappingFormatter extends Formatter {
 		return suggestedValues[0] ?? "";
 	}
 
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected suggestForField(_variableName: string): Promise<string> {
 		return Promise.resolve("");
 	}

@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import {
 	DATE_VARIABLE_REGEX,
 	FIELD_VARIABLE_PREFIX,
+	FILE_REGEX,
 	GLOBAL_VAR_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
@@ -16,6 +17,13 @@ import {
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
+import { EnhancedFieldSuggestionFileFilter } from "src/utils/EnhancedFieldSuggestionFileFilter";
+import {
+	buildFileDisplayLabels,
+	FILE_PICK_PREFIX,
+	type ParsedFileToken,
+	parseFileToken,
+} from "src/utils/fileSyntax";
 
 export type FieldType =
 	| "text"
@@ -80,6 +88,7 @@ export class RequirementCollector extends Formatter {
 		// Run a safe formatting pass that collects variables but avoids side-effects
 		this.scanVariableTokens(expanded);
 		this.scanDateTokens(expanded);
+		this.scanFileTokens(expanded);
 		await this.format(expanded);
 	}
 
@@ -107,6 +116,7 @@ export class RequirementCollector extends Formatter {
 		output = await this.replaceDateVariableInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
+		output = await this.replaceFileInString(output);
 
 		// Math value
 		output = await this.replaceMathValueInString(output);
@@ -393,6 +403,95 @@ export class RequirementCollector extends Formatter {
 				source: "collected",
 			});
 		}
+		return "";
+	}
+
+	/**
+	 * Records {{FILE:...}} requirements so they're visible up front (one-page form
+	 * + non-interactive CLI) instead of ambushing with a runtime picker. Like
+	 * scanVariableTokens/scanDateTokens, this scans EVERY occurrence — the
+	 * inherited replaceFileInString prompt hook fires at most once per key (it
+	 * caches the first inert answer), so per-occurrence flags such as |optional
+	 * would otherwise never be merged.
+	 */
+	private scanFileTokens(input: string) {
+		const re = new RegExp(FILE_REGEX.source, "gi");
+		let match: RegExpExecArray | null;
+		while ((match = re.exec(input)) !== null) {
+			const parsed = parseFileToken(match[1] ?? "");
+			if (!parsed) continue;
+			this.recordFileRequirement(parsed);
+		}
+	}
+
+	private recordFileRequirement(parsed: ParsedFileToken): void {
+		const key = parsed.variableKey;
+		const existing = this.requirements.get(key);
+		if (existing) {
+			// A repeated key (same identity, or a shared |name:). Apply the same
+			// AND rule as VALUE/VDATE: optional only if EVERY occurrence is
+			// optional, so a later required use still prompts.
+			existing.optional = (existing.optional ?? false) && parsed.optional;
+			// Merge custom-input capability order-independently: if ANY occurrence
+			// allows custom input, the shared field must expose the free-text
+			// suggester (most-permissive wins, mirroring VALUE's option upgrade).
+			if (parsed.allowCustomInput) {
+				existing.type = "suggester";
+				existing.suggesterConfig = {
+					allowCustomInput: true,
+					caseSensitive: false,
+					multiSelect: false,
+				};
+			}
+			return;
+		}
+
+		// Options are the folder's files encoded as `@file:<path>` (display =
+		// basenames) so the chosen value round-trips to the runtime formatter,
+		// which decodes it back to the file.
+		const files = EnhancedFieldSuggestionFileFilter.filterFiles(
+			this.app.vault.getMarkdownFiles(),
+			parsed.filter,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
+		const options = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
+		const displayOptions = buildFileDisplayLabels(files);
+		// A non-custom FILE is a FORCED choice: render it as a dropdown so the
+		// one-page form can't store a raw typed value (a free-text suggester would
+		// let "type name + Enter" bypass the option list, mirroring the runtime
+		// GenericSuggester vs InputSuggester split). Fall back to a suggester (free
+		// text) when |custom, or when the folder is empty so the field isn't a
+		// dead, disabled dropdown.
+		const useSuggester = parsed.allowCustomInput || options.length === 0;
+		// Disambiguate same-scope tokens that differ only by mode (e.g. a basename
+		// and a link to the same folder) when no explicit |label.
+		const autoLabel =
+			parsed.mode === "name"
+				? `File from ${parsed.folderPath}`
+				: `File from ${parsed.folderPath} (${parsed.mode})`;
+		this.requirements.set(key, {
+			id: key,
+			label: parsed.label ?? autoLabel,
+			type: useSuggester ? "suggester" : "dropdown",
+			source: "collected",
+			options,
+			displayOptions,
+			optional: parsed.optional,
+			...(useSuggester
+				? {
+						suggesterConfig: {
+							allowCustomInput: parsed.allowCustomInput,
+							caseSensitive: false,
+							multiSelect: false,
+						},
+					}
+				: {}),
+		});
+	}
+
+	protected suggestForFile(_parsed: ParsedFileToken): string {
+		// Requirements are recorded by scanFileTokens (which sees every
+		// occurrence). This hook fires at most once per key, so it stays inert.
 		return "";
 	}
 

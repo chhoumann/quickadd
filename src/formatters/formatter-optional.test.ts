@@ -102,6 +102,10 @@ class OptionalTestFormatter extends Formatter {
 	protected getCurrentFileName(): string | null {
 		return null;
 	}
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected async suggestForField(): Promise<string> {
 		return "";
 	}

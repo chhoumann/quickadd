@@ -58,6 +58,10 @@ class TestFormatter extends Formatter {
 		);
 		return this.suggestReturns.get(key) ?? suggestedValues[0];
 	}
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected async suggestForField(): Promise<string> {
 		return "";
 	}

@@ -9,6 +9,7 @@ import {
 	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 	FILENAMECURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
+	FILE_SYNTAX_SUGGEST_REGEX,
 	FOLDER_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX,
@@ -41,6 +42,7 @@ enum FormatSyntaxToken {
 	Value,
 	Name,
 	Variable,
+	File,
 	LinkCurrent,
 	FilenameCurrent,
 	FolderTarget,
@@ -134,6 +136,12 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.VariableDate,
 			suggestion: "{{VDATE:}}",
+			cursorOffset: 2
+		},
+		{
+			regex: FILE_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.File,
+			suggestion: "{{FILE:}}",
 			cursorOffset: 2
 		},
 	];
@@ -310,6 +318,21 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 					"{{VALUE:option1,option2|label:Pick one}}",
 					"{{VALUE:title|label:Snake case|default:My_Title}}",
 					"{{VALUE:title|optional}}"
+				);
+			} else if (tokenDef.token === FormatSyntaxToken.File) {
+				// Pick a file from a folder; default inserts the basename.
+				suggestions.push("{{FILE:<folder>}}");
+				// |link / |path insert characters invalid in a file name, so only
+				// offer them outside the file-name field.
+				if (!this.suggestForFileNames) {
+					suggestions.push(
+						"{{FILE:<folder>|link}}",
+						"{{FILE:<folder>|path}}",
+					);
+				}
+				suggestions.push(
+					"{{FILE:<folder>|optional}}",
+					"{{FILE:<folder>|custom}}",
 				);
 			}
 		}
