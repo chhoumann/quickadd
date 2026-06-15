@@ -28,6 +28,7 @@ import { placementSupportsEmbed } from "./types/linkPlacement";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { reportError } from "./utils/errorUtils";
 import { deepClone } from "./utils/deepClone";
+import { getOwnerDocument } from "./utils/activeWindow";
 
 export type TemplaterPluginLike = {
 	settings?: {
@@ -558,85 +559,97 @@ export function insertOnNewLineBelow(toInsert: string, app: App) {
 	insertOnNewLine(toInsert, "below", app);
 }
 
-// Obsidian renders YAML frontmatter as the Properties widget — separate input
-// elements, not the CodeMirror document.
-const PROPERTY_WIDGET_SELECTOR =
-	".metadata-property, .metadata-properties-container";
-
-function isEditableElement(element: Element): element is HTMLElement {
-	return (
-		element instanceof HTMLInputElement ||
-		element instanceof HTMLTextAreaElement ||
-		(element instanceof HTMLElement && element.isContentEditable)
-	);
+/**
+ * Identifies the frontmatter property whose value field has the caret, plus the
+ * file that owns it. Captured *before* QuickAdd opens any UI (see #768) so the
+ * link can be written even though the choice's prompts later move focus.
+ */
+export interface FrontmatterPropertyTarget {
+	file: TFile;
+	/** The property name (frontmatter key) being edited. */
+	key: string;
 }
 
 /**
- * When the caret is in a focused frontmatter property field, inserts `text` at
- * that caret and returns true. Returns false otherwise so the caller falls back
- * to body insertion.
+ * If the caret is in a frontmatter property *value* field, returns that property
+ * and its owning file; otherwise null.
  *
- * A focused property blurs the markdown body editor, so its reported caret is
- * stale — without this the link lands at the first body line instead (#768).
+ * Obsidian's Properties widget is a separate set of inputs, not the CodeMirror
+ * document, so when one is focused `editor.getCursor()` reports a stale body
+ * caret and an appended link would land at the first body line (#768). We detect
+ * the focused element via each Markdown view's own document (popout-aware) and
+ * bind to that view's file (so split panes / pop-out windows write to the right
+ * note). Detection is scoped to `.metadata-property-value` — never the key field
+ * — and we read the property name from the row's `data-property-key`.
  */
-function tryInsertIntoFocusedProperty(text: string): boolean {
-	if (typeof document === "undefined") return false;
-	const focused = document.activeElement;
-	if (!(focused instanceof HTMLElement)) return false;
-	if (!focused.closest(PROPERTY_WIDGET_SELECTOR)) return false;
-	if (!isEditableElement(focused)) return false;
-	return insertTextAtCaret(focused, text);
+export function getFocusedPropertyTarget(
+	app: App,
+): FrontmatterPropertyTarget | null {
+	for (const leaf of app.workspace.getLeavesOfType("markdown")) {
+		const view = leaf.view;
+		if (!(view instanceof MarkdownView) || !view.file) continue;
+
+		// Use the view's own document so popped-out windows are handled.
+		const focused = getOwnerDocument(view.containerEl).activeElement;
+		if (!focused || !view.containerEl.contains(focused)) continue;
+
+		// Must be the value side of a property row, not the key field.
+		if (!focused.closest(".metadata-property-value")) continue;
+
+		// Only text and list properties can sensibly hold a link. Typed inputs
+		// (number/date/checkbox/…) would coerce or reject it, so leave them to the
+		// body fallback. Matched by attribute (duck-typed) to stay cross-realm safe.
+		if (
+			focused.matches(
+				'input[type="number"], input[type="date"], input[type="datetime-local"], input[type="time"], input[type="month"], input[type="checkbox"]',
+			)
+		) {
+			continue;
+		}
+
+		const row = focused.closest(".metadata-property");
+		const key = row?.getAttribute("data-property-key");
+		if (!key) continue;
+
+		return { file: view.file, key };
+	}
+	return null;
 }
 
 /**
- * Inserts `text` at the caret of an input/textarea/contenteditable and fires an
- * "input" event so Obsidian persists it. Returns false for unsupported elements.
+ * Appends a link to `fileToLink` into the frontmatter property identified by
+ * `target`, via Obsidian's `processFrontMatter` API (the only reliable way to
+ * persist a property value — direct DOM mutation of the Properties widget is
+ * discarded on re-render, and typed inputs reject sliced text). List properties
+ * get a new item; non-empty scalars get the link appended to their string form;
+ * empty properties are set to the link.
  */
-function insertTextAtCaret(element: HTMLElement, text: string): boolean {
-	if (
-		element instanceof HTMLInputElement ||
-		element instanceof HTMLTextAreaElement
-	) {
-		const startOffset = element.selectionStart ?? element.value.length;
-		const endOffset = element.selectionEnd ?? element.value.length;
-		const before = element.value.slice(0, startOffset);
-		const after = element.value.slice(endOffset);
-		element.value = before + text + after;
-		const caretOffset = startOffset + text.length;
-		try {
-			element.setSelectionRange(caretOffset, caretOffset);
-		} catch {
-			// Some input types reject selection ranges; caret position is non-critical.
-		}
-		element.dispatchEvent(new Event("input", { bubbles: true }));
-		return true;
-	}
+export async function appendLinkToFrontmatterProperty(
+	app: App,
+	target: FrontmatterPropertyTarget,
+	fileToLink: TFile,
+	linkOptions: AppendLinkOptions,
+): Promise<void> {
+	const baseLink = app.fileManager.generateMarkdownLink(
+		fileToLink,
+		target.file.path,
+	);
+	const linkText =
+		linkOptions.linkType === "embed" &&
+		placementSupportsEmbed(linkOptions.placement)
+			? convertLinkToEmbed(baseLink)
+			: baseLink;
 
-	if (element.isContentEditable) {
-		const ownerDocument = element.ownerDocument;
-		const selection = ownerDocument.getSelection();
-		if (
-			selection &&
-			selection.rangeCount > 0 &&
-			element.contains(selection.anchorNode)
-		) {
-			// Replace the selection with a text node and put the caret after it.
-			const range = selection.getRangeAt(0);
-			range.deleteContents();
-			const textNode = ownerDocument.createTextNode(text);
-			range.insertNode(textNode);
-			range.setStartAfter(textNode);
-			range.collapse(true);
-			selection.removeAllRanges();
-			selection.addRange(range);
+	await app.fileManager.processFrontMatter(target.file, (frontmatter) => {
+		const existing = frontmatter[target.key];
+		if (Array.isArray(existing)) {
+			existing.push(linkText);
+		} else if (existing === undefined || existing === null || existing === "") {
+			frontmatter[target.key] = linkText;
 		} else {
-			element.textContent = `${element.textContent ?? ""}${text}`;
+			frontmatter[target.key] = `${existing} ${linkText}`;
 		}
-		element.dispatchEvent(new Event("input", { bubbles: true }));
-		return true;
-	}
-
-	return false;
+	});
 }
 
 /**
@@ -664,11 +677,6 @@ export function insertLinkWithPlacement(
 		log.logMessage(message);
 		return;
 	}
-
-	// #768: a focused frontmatter property field leaves the body editor's caret
-	// stale; insert into the property at its caret instead. Placement modes only
-	// apply to body insertion.
-	if (tryInsertIntoFocusedProperty(text)) return;
 
 	const editor = view.editor;
 
@@ -1369,6 +1377,4 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 export const __test = {
 	convertLinkToEmbed,
 	extractMarkdownLinkTarget,
-	tryInsertIntoFocusedProperty,
-	insertTextAtCaret,
 } as const;

@@ -15,6 +15,7 @@ import {
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
+	appendLinkToFrontmatterProperty,
 	getAllFolderPathsInVault,
 	insertFileLinkToActiveView,
 	jumpToNextTemplaterCursorIfPossible,
@@ -149,7 +150,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (linkOptions.enabled && createdFile) {
-			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				// #768: target the focused frontmatter property (captured before any
+				// QuickAdd UI opened) when there is one; otherwise body insertion.
+				const propertyTarget = this.choiceExecutor.focusedProperty;
+				if (propertyTarget) {
+					await appendLinkToFrontmatterProperty(
+						this.app,
+						propertyTarget,
+						createdFile,
+						linkOptions,
+					);
+				} else {
+					insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				}
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {

@@ -1,12 +1,17 @@
-import { MarkdownView, type App } from "obsidian";
+import { MarkdownView, TFile, type App } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { __test, insertLinkWithPlacement } from "./utilityObsidian";
-
-const { tryInsertIntoFocusedProperty, insertTextAtCaret } = __test;
+import {
+	appendLinkToFrontmatterProperty,
+	getFocusedPropertyTarget,
+	type FrontmatterPropertyTarget,
+} from "./utilityObsidian";
+import type { AppendLinkOptions } from "./types/linkPlacement";
 
 /**
- * Regression tests for #768: with the caret in a frontmatter property field the
- * link used to land at the first body line; the fix routes it to the property.
+ * Regression tests for #768. The link must follow the caret into a frontmatter
+ * property. Detection reads which property is focused (popout-aware, value side
+ * only) and persistence goes through processFrontMatter — verified live in a
+ * real Obsidian vault; see PR notes.
  */
 
 afterEach(() => {
@@ -14,111 +19,150 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-/** Builds a fake App whose active MarkdownView records editor mutations. */
-function makeApp() {
-	const calls = {
-		replaceSelection: [] as string[],
-		replaceRange: [] as unknown[],
-	};
-	const editor = {
-		listSelections: () => [
-			{ anchor: { line: 3, ch: 0 }, head: { line: 3, ch: 0 } },
-		],
-		getCursor: () => ({ line: 3, ch: 0 }),
-		getLine: () => "",
-		posToOffset: ({ line, ch }: { line: number; ch: number }) =>
-			line * 100 + ch,
-		replaceSelection: (text: string) => calls.replaceSelection.push(text),
-		replaceRange: (...args: unknown[]) => calls.replaceRange.push(args),
-		setCursor: () => {},
-	};
-	const view = { editor } as unknown as MarkdownView;
-	const fakeApp = {
-		workspace: {
-			getActiveViewOfType: (constructor: unknown) =>
-				constructor === MarkdownView ? view : null,
-		},
-	} as unknown as App;
-	return { fakeApp, calls };
+function makeFile(path: string): TFile {
+	const file = new TFile();
+	file.path = path;
+	file.basename = path.replace(/\.md$/, "");
+	return file;
 }
 
-/** Mounts an Obsidian-like Properties widget with one focused text property. */
-function mountFocusedTextProperty(initialValue = ""): HTMLInputElement {
+/** Mounts a Markdown view container with one property row and returns its app. */
+function mountViewWithProperty(opts: {
+	key: string;
+	/** Which sub-cell to focus: the value editor or the key input. */
+	focus: "value" | "key" | "none";
+	file: TFile;
+	/** Input `type` for the value field (e.g. "number"); default text-like. */
+	valueType?: string;
+}) {
 	const container = document.createElement("div");
-	container.className = "metadata-properties-container";
-	const propertyRow = document.createElement("div");
-	propertyRow.className = "metadata-property";
-	const input = document.createElement("input");
-	input.type = "text";
-	input.value = initialValue;
-	propertyRow.appendChild(input);
-	container.appendChild(propertyRow);
+	const propertiesEl = document.createElement("div");
+	propertiesEl.className = "metadata-properties";
+	const row = document.createElement("div");
+	row.className = "metadata-property";
+	row.setAttribute("data-property-key", opts.key);
+
+	const keyInput = document.createElement("input");
+	keyInput.className = "metadata-property-key-input";
+	const keyCell = document.createElement("div");
+	keyCell.className = "metadata-property-key";
+	keyCell.appendChild(keyInput);
+
+	const valueCell = document.createElement("div");
+	valueCell.className = "metadata-property-value";
+	const valueInput = document.createElement("input");
+	if (opts.valueType) valueInput.type = opts.valueType;
+	valueCell.appendChild(valueInput);
+
+	row.append(keyCell, valueCell);
+	propertiesEl.appendChild(row);
+	container.appendChild(propertiesEl);
 	document.body.appendChild(container);
-	input.focus();
-	const caret = initialValue.length;
-	input.setSelectionRange(caret, caret);
-	return input;
+
+	if (opts.focus === "value") valueInput.focus();
+	else if (opts.focus === "key") keyInput.focus();
+
+	const view = Object.create(MarkdownView.prototype) as MarkdownView;
+	(view as unknown as { containerEl: HTMLElement }).containerEl = container;
+	(view as unknown as { file: TFile }).file = opts.file;
+	const leaf = { view };
+
+	const app = {
+		workspace: { getLeavesOfType: (type: string) => (type === "markdown" ? [leaf] : []) },
+	} as unknown as App;
+	return { app, valueInput, keyInput };
 }
 
-describe("tryInsertIntoFocusedProperty", () => {
-	it("inserts into a focused property field and returns true", () => {
-		const input = mountFocusedTextProperty("status: ");
-		const inserted = tryInsertIntoFocusedProperty("[[X]]");
-		expect(inserted).toBe(true);
-		expect(input.value).toBe("status: [[X]]");
+describe("getFocusedPropertyTarget", () => {
+	it("returns the focused property's key and owning file", () => {
+		const file = makeFile("Note.md");
+		const { app } = mountViewWithProperty({ key: "authors", focus: "value", file });
+		expect(getFocusedPropertyTarget(app)).toEqual<FrontmatterPropertyTarget>({
+			file,
+			key: "authors",
+		});
 	});
 
-	it("returns false and inserts nothing when focus is outside the widget", () => {
+	it("returns null when the caret is in the property KEY field (not the value)", () => {
+		const file = makeFile("Note.md");
+		const { app } = mountViewWithProperty({ key: "authors", focus: "key", file });
+		expect(getFocusedPropertyTarget(app)).toBeNull();
+	});
+
+	it("returns null for typed inputs (number/date) so they fall back to body", () => {
+		const file = makeFile("Note.md");
+		const { app } = mountViewWithProperty({
+			key: "count",
+			focus: "value",
+			file,
+			valueType: "number",
+		});
+		expect(getFocusedPropertyTarget(app)).toBeNull();
+	});
+
+	it("returns null when no property is focused", () => {
+		const file = makeFile("Note.md");
+		const { app } = mountViewWithProperty({ key: "authors", focus: "none", file });
+		expect(getFocusedPropertyTarget(app)).toBeNull();
+	});
+
+	it("returns null when the focused element is outside any markdown view", () => {
+		const file = makeFile("Note.md");
+		const { app } = mountViewWithProperty({ key: "authors", focus: "none", file });
 		const stray = document.createElement("input");
 		document.body.appendChild(stray);
 		stray.focus();
-		expect(tryInsertIntoFocusedProperty("[[X]]")).toBe(false);
-		expect(stray.value).toBe("");
-	});
-
-	it("returns false when nothing relevant is focused", () => {
-		expect(tryInsertIntoFocusedProperty("[[X]]")).toBe(false);
+		expect(getFocusedPropertyTarget(app)).toBeNull();
 	});
 });
 
-describe("insertTextAtCaret", () => {
-	it("inserts at the caret of an input and fires an input event", () => {
-		const input = mountFocusedTextProperty("ab");
-		input.setSelectionRange(1, 1); // caret between 'a' and 'b'
-		const onInput = vi.fn();
-		input.addEventListener("input", onInput);
+describe("appendLinkToFrontmatterProperty", () => {
+	const target: FrontmatterPropertyTarget = { file: makeFile("Note.md"), key: "links" };
+	const linkOptions: AppendLinkOptions = {
+		enabled: true,
+		placement: "replaceSelection",
+		requireActiveFile: true,
+		linkType: "link",
+	};
 
-		const inserted = insertTextAtCaret(input, "[[X]]");
+	/** Runs the helper against an initial frontmatter object and returns the mutated value. */
+	async function runWith(initial: Record<string, unknown>, options = linkOptions) {
+		const frontmatter = { ...initial };
+		const app = {
+			fileManager: {
+				generateMarkdownLink: (file: TFile) => `[[${file.basename}]]`,
+				processFrontMatter: async (
+					_file: TFile,
+					fn: (fm: Record<string, unknown>) => void,
+				) => fn(frontmatter),
+			},
+		} as unknown as App;
+		await appendLinkToFrontmatterProperty(app, target, makeFile("Created.md"), options);
+		return frontmatter.links;
+	}
 
-		expect(inserted).toBe(true);
-		expect(input.value).toBe("a[[X]]b");
-		expect(onInput).toHaveBeenCalledOnce();
+	it("pushes a new item onto a list property", async () => {
+		expect(await runWith({ links: ["[[A]]"] })).toEqual(["[[A]]", "[[Created]]"]);
 	});
 
-	it("returns false for a non-editable element", () => {
-		const plainDiv = document.createElement("div");
-		expect(insertTextAtCaret(plainDiv, "[[X]]")).toBe(false);
-	});
-});
-
-describe("insertLinkWithPlacement (#768 property-field routing)", () => {
-	it("inserts into the focused property field, not the body editor", () => {
-		const input = mountFocusedTextProperty("links: ");
-		const { fakeApp, calls } = makeApp();
-
-		insertLinkWithPlacement(fakeApp, "[[Created Note]]", "replaceSelection");
-
-		expect(input.value).toBe("links: [[Created Note]]");
-		// The body editor must be left untouched.
-		expect(calls.replaceSelection).toHaveLength(0);
-		expect(calls.replaceRange).toHaveLength(0);
+	it("appends to a non-empty scalar without destroying it", async () => {
+		expect(await runWith({ links: "[[A]]" })).toBe("[[A]] [[Created]]");
 	});
 
-	it("still uses the body editor when no property field is focused", () => {
-		const { fakeApp, calls } = makeApp();
+	it("sets an empty or missing property to the link", async () => {
+		expect(await runWith({ links: "" })).toBe("[[Created]]");
+		expect(await runWith({})).toBe("[[Created]]");
+	});
 
-		insertLinkWithPlacement(fakeApp, "[[Created Note]]", "replaceSelection");
+	it("preserves a number value as a string instead of wiping it", async () => {
+		expect(await runWith({ links: 5 })).toBe("5 [[Created]]");
+	});
 
-		expect(calls.replaceSelection).toEqual(["[[Created Note]]"]);
+	it("embeds when linkType is embed and placement supports it", async () => {
+		const embedded = await runWith(
+			{ links: "" },
+			{ ...linkOptions, linkType: "embed" },
+		);
+		expect(embedded).toBe("![[Created]]");
 	});
 });

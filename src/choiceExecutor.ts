@@ -14,11 +14,17 @@ import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { isCancellationError } from "./utils/errorUtils";
-import { getOpenFileOriginLeaf } from "./utilityObsidian";
+import {
+	getFocusedPropertyTarget,
+	getOpenFileOriginLeaf,
+	type FrontmatterPropertyTarget,
+} from "./utilityObsidian";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
+	public focusedProperty: FrontmatterPropertyTarget | null = null;
+	private focusCaptured = false;
 	private pendingAbort: MacroAbortError | null = null;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
@@ -35,6 +41,13 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
+		// Capture the focused frontmatter property BEFORE any prompt/suggester
+		// steals focus, so Append Link can target it later (#768). Captured once per
+		// execution chain so nested Multi choices keep the original caret.
+		if (!this.focusCaptured) {
+			this.focusCaptured = true;
+			this.focusedProperty = getFocusedPropertyTarget(this.app);
+		}
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		promptDraftStore.beginExecutionScope();

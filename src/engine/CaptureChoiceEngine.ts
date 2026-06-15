@@ -26,6 +26,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
 import {
 	appendToCurrentLine,
+	appendLinkToFrontmatterProperty,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
 	insertFileLinkToActiveView,
@@ -160,12 +161,25 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 	}
 
-	private insertCaptureLink(
+	private async insertCaptureLink(
 		file: TFile,
 		linkOptions: AppendLinkOptions,
 		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
-	): void {
+	): Promise<void> {
 		if (!linkOptions.enabled) {
+			return;
+		}
+
+		// #768: if the caret was in a frontmatter property when triggered, write
+		// the link there (persisted via processFrontMatter) instead of the body.
+		const propertyTarget = this.choiceExecutor.focusedProperty;
+		if (propertyTarget) {
+			await appendLinkToFrontmatterProperty(
+				this.app,
+				propertyTarget,
+				file,
+				linkOptions,
+			);
 			return;
 		}
 
@@ -315,7 +329,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-			this.insertCaptureLink(file, linkOptions, {
+			await this.insertCaptureLink(file, linkOptions, {
 				isCanvasTriggered: !!canvasTarget,
 			});
 
@@ -399,7 +413,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 		}
 
-		this.insertCaptureLink(file, linkOptions, {
+		await this.insertCaptureLink(file, linkOptions, {
 			isCanvasTriggered: true,
 		});
 
