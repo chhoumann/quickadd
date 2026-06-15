@@ -45,8 +45,13 @@ describe("start-obsidian-e2e-instance", () => {
 
 		expect(registry.cli).toBe(true);
 		expect(registry.updateDisabled).toBe(true);
-		await expect(fs.readlink(path.join(options.obsidianHome, "Library", "Keychains")))
-			.resolves.toBe(path.join(process.env.HOME ?? "", "Library", "Keychains"));
+		const hostKeychains = path.join(process.env.HOME ?? "", "Library", "Keychains");
+		const privateKeychains = path.join(options.obsidianHome, "Library", "Keychains");
+		if (await exists(hostKeychains)) {
+			await expect(fs.readlink(privateKeychains)).resolves.toBe(hostKeychains);
+		} else {
+			await expect(fs.lstat(privateKeychains)).rejects.toMatchObject({ code: "ENOENT" });
+		}
 		expect(options.obsidianHome.startsWith(path.join(cwd, "profiles", "quickadd-worktree-a-"))).toBe(true);
 		expect(options.obsidianHome.endsWith("/home")).toBe(true);
 		expect(vaults).toEqual([
@@ -63,3 +68,13 @@ describe("start-obsidian-e2e-instance", () => {
 		})).toContain("QUICKADD_E2E_OBSIDIAN_HOME=");
 	});
 });
+
+async function exists(filePath: string) {
+	try {
+		await fs.lstat(filePath);
+		return true;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+		throw error;
+	}
+}
