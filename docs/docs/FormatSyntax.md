@@ -270,7 +270,7 @@ By default the **basename** (just the file name, no folder or extension) is inse
 
 Example — add a wikilink to a `research-topics` frontmatter list (quote it so the YAML stays a valid list item):
 
-```
+```yaml
 research-topics:
   - "{{FILE:Research Topics|link}}"
 ```
@@ -280,7 +280,7 @@ research-topics:
 - `{{FILE:<folder>|optional}}` — allow skipping the pick (resolves to nothing).
 - `{{FILE:<folder>|custom}}` — also allow typing a value that isn't in the folder.
 - `{{FILE:<folder>|label:Pick a person}}` — set the picker's placeholder text.
-- `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. Like `{{VALUE}}` and `{{FIELD}}`, FILE tokens are cached by identity: tokens that differ (by folder, filters, mode, or `|label:`) prompt independently, while *identical* tokens reuse one pick. So to choose **two different** files from the same folder, give them distinct labels — e.g. `{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}` prompt separately. To reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — give them the same `|name:`. Tokens that share an id should target the same folder/filters and agree on `|optional`/`|custom` — the first occurrence's settings drive the shared pick.
+- `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. Like `{{VALUE}}` and `{{FIELD}}`, FILE tokens are cached by identity: tokens that differ (by folder, filters, mode, or `|label:`) prompt independently, while *identical* tokens reuse one pick. So to choose **two different** files from the same folder, give them distinct labels — e.g. `{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}` prompt separately. To reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — give them the same `|name:`. Tokens that share an id should target the same folder/filters; the shared pick is required if *any* occurrence omits `|optional`.
 - Filtering reuses the `{{FIELD}}` grammar: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
 
 Notes:

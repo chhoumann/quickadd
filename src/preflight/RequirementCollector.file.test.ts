@@ -87,6 +87,28 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(rc.requirements.has(key)).toBe(true);
 	});
 
+	it("merges |optional across shared-id occurrences (required if any is required)", async () => {
+		const app = makeApp(["People/Tom.md"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		// optional first, required second — the shared requirement must be required.
+		await rc.scanString(
+			"{{FILE:People|optional|name:ref}} then {{FILE:People|link|name:ref}}",
+		);
+		const key = parseFileToken("People|name:ref")!.variableKey;
+		expect(rc.requirements.size).toBe(1);
+		expect(rc.requirements.get(key)?.optional).toBe(false);
+	});
+
+	it("keeps a shared-id requirement optional only when every occurrence is optional", async () => {
+		const app = makeApp(["People/Tom.md"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString(
+			"{{FILE:People|optional|name:ref}} then {{FILE:People|link|optional|name:ref}}",
+		);
+		const key = parseFileToken("People|name:ref")!.variableKey;
+		expect(rc.requirements.get(key)?.optional).toBe(true);
+	});
+
 	it("does not confuse {{FILENAMECURRENT}} with a FILE requirement", async () => {
 		const app = makeApp(["People/Tom.md"]);
 		const rc = new RequirementCollector(app, makePlugin());
