@@ -52,7 +52,8 @@ Keep docs in sync: update `docs/docs/` when adding features, and snapshot when r
 Automation or scripted work should surface disruptive operations in the PR description and rerun `pnpm run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.
 
 ## Dev workflow
-Always use the `obsidian` cli to test changes in the dev vault.
+Always use the `obsidian` CLI to test changes. Use the shared `dev` vault in
+the main checkout, and use the isolated worktree wrapper in Codex worktrees.
 
 Obsidian CLI is a command line interface that lets you control Obsidian from your terminal for scripting, automation, and integration with external tools.
 
@@ -74,6 +75,21 @@ Anything you can do in Obsidian can be done from the command line. Obsidian CLI 
 - In this setup, the vault plugin `main.js` is symlinked to
   `/Users/christian/Developer/quickadd/main.js`, so rebuilding updates
   the active plugin code directly.
+
+## Obsidian Worktree Vault Workflow
+- In Codex worktrees, prefer the isolated worktree vault wrapper instead of the
+  shared `dev` vault:
+  `pnpm run obsidian:e2e -- <command> ...`.
+- The wrapper provisions the worktree-local vault, starts or reuses an isolated
+  Obsidian instance, disables Restricted Mode for that vault, waits until
+  QuickAdd is available, and then runs the requested command with the correct
+  private `HOME` and `vault=<worktree vault>` already applied.
+- Examples:
+  - `pnpm run obsidian:e2e -- quickadd:list`
+  - `pnpm run obsidian:e2e -- dev:errors`
+  - `pnpm run obsidian:e2e -- eval code='app.vault.getName()'`
+- Use `pnpm run start:e2e-obsidian -- --print-env` only when you specifically
+  need to export `QUICKADD_E2E_*` variables for a separate E2E test process.
 
 ## Obsidian DevTools Workflow
 - Developer commands are available through `obsidian`:

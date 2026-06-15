@@ -9,6 +9,7 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "build-with-lint": "tsc -noEmit -skipLibCheck && pnpm lint && node esbuild.config.mjs production",
     "check": "svelte-check --threshold error",
+    "obsidian:e2e": "node scripts/obsidian-e2e-cli.mjs",
     "provision:e2e-vault": "node scripts/provision-obsidian-e2e-vault.mjs",
     "start:e2e-obsidian": "node scripts/start-obsidian-e2e-instance.mjs",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
