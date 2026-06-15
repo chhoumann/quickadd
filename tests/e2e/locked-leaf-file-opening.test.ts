@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-	acquireVaultRunLock,
 	captureFailureArtifacts,
 	clearVaultRunLockMarker,
-	createObsidianClient,
 	createSandboxApi,
 } from "obsidian-e2e";
 import type {
@@ -12,8 +10,11 @@ import type {
 	SandboxApi,
 	VaultRunLock,
 } from "obsidian-e2e";
+import {
+	acquireQuickAddVaultRunLock,
+	createQuickAddObsidianClient,
+} from "./e2eVault";
 
-const VAULT = "dev";
 const PLUGIN_ID = "quickadd";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 const TEST_PREFIX = "__qa-test-1165-";
@@ -287,13 +288,8 @@ async function runTeardownStep(
 }
 
 beforeAll(async () => {
-	obsidian = createObsidianClient({ vault: VAULT });
-	await obsidian.verify();
-
-	lock = await acquireVaultRunLock({
-		vaultName: VAULT,
-		vaultPath: await obsidian.vaultPath(),
-	});
+	obsidian = createQuickAddObsidianClient();
+	lock = await acquireQuickAddVaultRunLock(obsidian);
 	await lock.publishMarker(obsidian);
 
 	qa = obsidian.plugin(PLUGIN_ID);

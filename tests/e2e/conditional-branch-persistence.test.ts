@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-	acquireVaultRunLock,
 	clearVaultRunLockMarker,
-	createObsidianClient,
 } from "obsidian-e2e";
 import type { ObsidianClient, PluginHandle, VaultRunLock } from "obsidian-e2e";
+import {
+	acquireQuickAddVaultRunLock,
+	createQuickAddObsidianClient,
+} from "./e2eVault";
 
-const VAULT = "dev";
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-e2e-cond-branch";
 const COND_ID = "qa-e2e-cond";
@@ -36,12 +37,8 @@ async function closeAllModals() {
 }
 
 beforeAll(async () => {
-	obsidian = createObsidianClient({ vault: VAULT });
-	await obsidian.verify();
-	lock = await acquireVaultRunLock({
-		vaultName: VAULT,
-		vaultPath: await obsidian.vaultPath(),
-	});
+	obsidian = createQuickAddObsidianClient();
+	lock = await acquireQuickAddVaultRunLock(obsidian);
 	await lock.publishMarker(obsidian);
 	qa = obsidian.plugin(PLUGIN_ID);
 	await qa.reload({ waitUntilReady: true });
