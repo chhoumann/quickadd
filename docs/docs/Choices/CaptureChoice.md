@@ -44,6 +44,16 @@ folders. The picker also accepts custom input, so you can type a new file name
 or path and let QuickAdd create it when **Create file if it doesn't exist** is
 enabled. The picker still needs at least one matching Markdown file to open.
 
+The list is ordered like Obsidian's Quick Switcher: notes you opened most
+recently appear first (this session first, then your recent-files history), then
+everything else alphabetically. Ordering deliberately ignores modification time,
+so a sync or import that touches old notes does not push them to the top. Files
+in Obsidian's **Excluded files** list sink to the bottom but stay selectable.
+When **Create file if it doesn't exist** is enabled, a **Create new note:
+&lt;name&gt;** row lets you create a note from what you typed; it is hidden when
+the typed name already matches a note in scope, so typing an existing name
+selects that note instead of offering a duplicate.
+
 ### Capturing to folders
 
 You can also type a **folder name** into the _Capture To_ field, and QuickAdd will ask you which file in the folder you'd like to capture to.
