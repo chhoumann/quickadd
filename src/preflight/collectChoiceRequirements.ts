@@ -13,12 +13,14 @@ import type { IUserScript } from "src/types/macros/IUserScript";
 import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	getMarkdownFilesWithProperty,
 	getTemplateFile,
 	getUserScript,
 	isFolder,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
+import { parsePropertyTarget } from "src/utils/propertyTarget";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
@@ -208,20 +210,39 @@ async function collectForCaptureChoice(
 
 	const formattedTarget = choice.captureTo?.trim() ?? "";
 	const normalizedTarget = formattedTarget.replace(/^\/+/, "");
-	const isTagTarget = normalizedTarget.startsWith("#");
+	// A `property:` target whose field/value carries a format token can only be
+	// resolved at run time (mirrors the tokenized-file-path case), so skip the
+	// preflight dropdown for it rather than forcing a dead "no files" picker.
+	const propertyTarget =
+		!hasTemplatePathSyntax(normalizedTarget)
+			? parsePropertyTarget(normalizedTarget)
+			: null;
+	const isPropertyTarget = !!propertyTarget && !!propertyTarget.field;
+	const isTagTarget = !isPropertyTarget && normalizedTarget.startsWith("#");
 	const trimmedPath = normalizedTarget.replace(/\/$|\.md$/g, "");
 	const isFolderTarget =
-		!isTagTarget && (normalizedTarget === "" || isFolder(app, trimmedPath));
-	const looksLikeFolderBySuffix = normalizedTarget.endsWith("/");
+		!isTagTarget &&
+		!isPropertyTarget &&
+		(normalizedTarget === "" || isFolder(app, trimmedPath));
+	const looksLikeFolderBySuffix =
+		!isPropertyTarget && normalizedTarget.endsWith("/");
 
 	if (
 		!choice.captureToActiveFile &&
-		(isTagTarget ||
+		(isPropertyTarget ||
+			isTagTarget ||
 			isFolderTarget ||
 			looksLikeFolderBySuffix)
 	) {
 		let files: TFile[] = [];
-		if (isTagTarget) {
+		if (isPropertyTarget && propertyTarget) {
+			files = getMarkdownFilesWithProperty(
+				app,
+				propertyTarget.field,
+				propertyTarget.value,
+				propertyTarget.filter,
+			);
+		} else if (isTagTarget) {
 			files = getMarkdownFilesWithTag(app, normalizedTarget);
 		} else {
 			const folder = normalizedTarget.replace(/(?:\/|\.md)+$/g, "");

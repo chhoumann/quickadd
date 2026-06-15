@@ -30,6 +30,7 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	getMarkdownFilesWithProperty,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
@@ -43,6 +44,8 @@ import {
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { parsePropertyTarget } from "../utils/propertyTarget";
+import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
@@ -653,6 +656,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					return this.selectFileInFolder("", true);
 				case "tag":
 					return this.selectFileWithTag(resolution.tag);
+				case "property":
+					return this.selectFileWithProperty(
+						resolution.field,
+						resolution.value,
+						resolution.filter,
+					);
 				case "folder":
 					return this.selectFileInFolder(resolution.folder, false);
 				case "file":
@@ -665,14 +674,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	):
 		| { kind: "vault" }
 		| { kind: "tag"; tag: string }
+		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
 		// Resolution order:
 		// 1) empty => vault picker
 		// 2) #tag => tag picker
-		// 3) trailing "/" => folder picker (explicit)
-		// 4) known file extension => file
-		// 5) ambiguous => folder if it exists and no same-name file exists; else file
+		// 3) property:<field>[=<value>] => frontmatter-property picker
+		// 4) trailing "/" => folder picker (explicit)
+		// 5) known file extension => file
+		// 6) ambiguous => folder if it exists and no same-name file exists; else file
 		const normalizedCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
 		);
@@ -685,6 +696,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return {
 				kind: "tag",
 				tag: normalizedCaptureTo.replace(/\.md$/, ""),
+			};
+		}
+
+		// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
+		// Checked before the `.base`/extension/folder branches so a property value
+		// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
+		const propertyTarget = parsePropertyTarget(normalizedCaptureTo);
+		if (propertyTarget) {
+			if (!propertyTarget.field) {
+				throw new ChoiceAbortError(
+					"Property capture target needs a field name, e.g. property:type=draft",
+				);
+			}
+			return {
+				kind: "property",
+				field: propertyTarget.field,
+				value: propertyTarget.value,
+				filter: propertyTarget.filter,
 			};
 		}
 
@@ -826,6 +855,68 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					valueExists: (value) =>
 						existingTagged.has(value) ||
 						existingTagged.has(value.replace(/\.md$/i, "")),
+				},
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Input cancelled by user");
+			}
+			throw error;
+		}
+
+		invariant(
+			!!targetFilePath && targetFilePath.length > 0,
+			"No file selected for capture.",
+		);
+
+		return await this.formatFilePath(targetFilePath);
+	}
+
+	private async selectFileWithProperty(
+		field: string,
+		value: string | undefined,
+		filter: FieldFilter,
+	): Promise<string> {
+		const filesWithProperty = getMarkdownFilesWithProperty(
+			this.app,
+			field,
+			value,
+			filter,
+		);
+
+		const propertyLabel = value !== undefined ? `${field}=${value}` : field;
+		invariant(
+			filesWithProperty.length > 0,
+			`No notes with property ${propertyLabel}.`,
+		);
+
+		// Quick-Switcher-style ordering; show note names (not raw paths). Notes with
+		// a given property can live anywhere, so this mirrors the tag picker.
+		const filePaths = orderFilesForPicker(
+			filesWithProperty,
+			buildPickerOrderingDeps(this.app),
+		).map((f) => f.path);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
+		// Property-matched notes can live anywhere, so existence is matched by
+		// basename/path across the matched set rather than by re-prefixing a folder.
+		const existingMatched = new Set<string>();
+		for (const f of filesWithProperty) {
+			existingMatched.add(f.path);
+			existingMatched.add(f.basename);
+		}
+		let targetFilePath: string;
+		try {
+			targetFilePath = await InputSuggester.Suggest(
+				this.app,
+				filePaths,
+				filePaths,
+				{
+					renderItem: (path, el) => renderNotePathSuggestion(el, path),
+					allowCustomValue: allowCreate,
+					customValueLabel: (v) => `Create new note: ${v}`,
+					valueExists: (v) =>
+						existingMatched.has(v) ||
+						existingMatched.has(v.replace(/\.md$/i, "")),
 				},
 			);
 		} catch (error) {

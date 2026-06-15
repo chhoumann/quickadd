@@ -7,6 +7,7 @@ import { getAllFolderPathsInVault } from "../../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
 import { isCanvasTargetPath, normalizeVaultPath } from "../canvasNodes";
+import { isPropertyTarget, parsePropertyTarget } from "../../../utils/propertyTarget";
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
@@ -52,6 +53,19 @@ const suggesters = [
 
 const isCanvasTarget = $derived(isCanvasTargetPath(choice.captureTo));
 
+// A `property:` target filters notes by a frontmatter field — it is NOT a path,
+// so showing the file-name format preview would render a misleading fake path.
+const isProperty = $derived(isPropertyTarget(choice.captureTo ?? ""));
+const propertyHint = $derived.by(() => {
+	const parsed = parsePropertyTarget(choice.captureTo ?? "");
+	if (!parsed || !parsed.field) {
+		return "Add a field name, e.g. property:type=draft";
+	}
+	return parsed.value !== undefined
+		? `Filters notes whose frontmatter ${parsed.field} = ${parsed.value}`
+		: `Filters notes that have the frontmatter field ${parsed.field}`;
+});
+
 function onCaptureToActiveFileChange(value: boolean) {
 	// Read the prior state BEFORE mutating (one-way toggle, not bind).
 	const wasActiveBottomMode =
@@ -88,7 +102,7 @@ function onCaptureToChange(value: string) {
 
 <SettingItem
 	name="Capture to"
-	desc="Vault-relative path. Supports format syntax (use trailing '/' for folders)."
+	desc="Vault-relative path, #tag, or property:field=value. Supports format syntax (use trailing '/' for folders)."
 />
 
 <SettingItem name="Capture to active file">
@@ -103,9 +117,13 @@ function onCaptureToChange(value: string) {
 {#if !choice.captureToActiveFile}
 	<SettingItem
 		name="File path / format"
-		desc={"Choose a file, folder, or format syntax (e.g., {{DATE}})"}
+		desc={"Choose a file, folder, #tag, property:field=value, or format syntax (e.g., {{DATE}})"}
 	/>
-	<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
+	{#if isProperty}
+		<div class="qa-field-hint qa-field-hint--neutral">{propertyHint}</div>
+	{:else}
+		<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
+	{/if}
 	<ValidatedInput
 		value={choice.captureTo}
 		placeholder="File name format"
