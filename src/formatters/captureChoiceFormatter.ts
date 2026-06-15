@@ -849,15 +849,40 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private insertTextAfterPositionInBody(
-		text: string,
+		rawText: string,
 		body: string,
 		pos: number,
 	): string {
 		// Line-matched insertAfter callers always pass a real line index (>= 0); the
 		// frontmatter-aware "top" insertion lives in insertAtNoteBodyStart instead.
+		// Shared by every "after" path: the line-matched handler, insert-at-end-of-
+		// section, and the create-if-not-found cursor paths.
 		const splitContent = body.split("\n");
 		const pre = splitContent.slice(0, pos + 1).join("\n");
 		const post = splitContent.slice(pos + 1).join("\n");
+
+		// "Format as task" injects a trailing newline onto the capture content
+		// (getCaptureContent in CaptureChoiceEngine) so a bare task is always a
+		// complete line. When the line directly below the insertion point is already
+		// blank, that injected newline stacks on top of the existing blank line and
+		// renders a spurious blank line AFTER the task (issue #312) — an asymmetry
+		// the user does not see without the task option. Drop the redundant injected
+		// newline in that case; the existing blank line still separates the task from
+		// the following content. A user-typed trailing newline in the format string
+		// is intentional content and is left untouched (gated on choice.task, this
+		// only collapses QuickAdd's own injected task newline).
+		//
+		// Detect the blank line via the split index, not `post.startsWith("\n")`, so
+		// whitespace-only and CRLF blanks (where the line is "\r" or "   ", not "")
+		// are recognised too. The final split slot when `body` ends in a newline is
+		// the EOF artifact, not a real blank line, so it must not trigger the drop.
+		const lineBelow = splitContent[pos + 1];
+		const blankLineDirectlyBelow =
+			pos + 1 < splitContent.length - 1 && (lineBelow ?? "").trim() === "";
+		const text =
+			this.choice.task && rawText.endsWith("\n") && blankLineDirectlyBelow
+				? rawText.slice(0, -1)
+				: rawText;
 
 		return `${pre}\n${text}${post}`;
 	}
