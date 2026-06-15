@@ -181,7 +181,7 @@ Example: `Source: {{LINKCURRENT}}`.
 
 Like `{{LINKCURRENT}}`, but links to the **heading the cursor is currently under** (`[[Note#Heading]]` format), so clicking the link scrolls to that section instead of the top of the file. Honors the same **required/optional** behavior as `{{LINKCURRENT}}`.
 
-It picks the nearest heading at or above the cursor. When the cursor is above the first heading (or the file has no headings), it falls back to a plain whole-file link. When a heading's text is repeated in the file, it automatically uses the disambiguating ancestor path (`[[Note#Parent#Heading]]`) so the link resolves to the right one.
+It picks the nearest heading at or above the cursor. When the cursor is above the first heading (or the file has no headings), it falls back to a plain whole-file link. When a heading's text is repeated in the file, it uses the disambiguating ancestor path (`[[Note#Parent#Heading]]`) so the link resolves to the right one; if even that can't uniquely identify the heading, it falls back to a whole-file link rather than linking to the wrong section.
 
 Example: `Source: {{LINKSECTION}}`.
 

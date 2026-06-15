@@ -3,9 +3,9 @@
  * file's headings and the cursor line, build the `#Heading` subpath that makes a
  * link to the current file scroll to the section the cursor is in.
  *
- * Kept App-free and side-effect-free so the heading-selection / disambiguation /
- * sanitization logic is unit-testable without an Obsidian mock. CompleteFormatter
- * maps the metadata cache + editor cursor onto these.
+ * Kept App-free and side-effect-free so the heading parsing / selection /
+ * disambiguation / sanitization logic is unit-testable without an Obsidian mock.
+ * CompleteFormatter feeds it the active editor buffer + cursor line.
  */
 
 export interface SimpleHeading {
@@ -15,45 +15,92 @@ export interface SimpleHeading {
 	line: number;
 }
 
+// Mirrors Obsidian's internal heading-anchor normalizer (`LT` in app.js, which
+// does `text.replace(AT, " ")`). Obsidian resolves a `#subpath` by comparing the
+// normalized subpath against the normalized heading text, so to produce a link
+// that lands on the right heading we must normalize the heading text the SAME
+// way Obsidian does — replacing this whole punctuation class with spaces. This
+// also neutralizes everything that would otherwise break the generated wikilink
+// or be re-resolved by a later format pass: `[[ ]]` terminators, `|` aliases,
+// `#`/`^` subpath markers, and `{` `}` (so a heading literally containing a
+// QuickAdd token like `{{TITLE}}` can't have that token rewritten inside the
+// generated link). CR/LF are included for CRLF buffers.
+const OBSIDIAN_ANCHOR_STRIP = /[!"#$%&()*+,.:;<=>?@^`{|}~/\[\]\\\r\n]/g;
+
 /**
- * Neutralizes the characters that would break a `[[File#…]]` heading subpath so
- * the generated link resolves to the right heading. Empirically (issue #387
- * spike): Obsidian's subpath matcher tolerates stray brackets and collapses
- * whitespace, but `#`, `|`, `^`, and `[[…]]` are structural and must be
- * removed/flattened — a heading containing them verbatim resolves to the wrong
- * heading (or none). Wikilinks/embeds collapse to their text, matching how
- * Obsidian indexes the heading anchor.
+ * Normalizes heading text into the form Obsidian uses to resolve a `#heading`
+ * subpath, so the generated link reliably lands on that heading.
  */
 export function sanitizeHeadingForSubpath(heading: string): string {
 	return heading
-		.replace(/!\[\[[^\]]*\]\]/g, "") // drop image/file embeds entirely
-		.replace(
-			/\[\[([^\]|]*?)(?:\|([^\]]*?))?\]\]/g,
-			(_m, target, alias) => alias ?? target,
-		)
-		.replace(/[#|^]/g, " ")
+		.replace(OBSIDIAN_ANCHOR_STRIP, " ")
 		.replace(/\s+/g, " ")
 		.trim();
 }
 
 /**
+ * Extracts ATX headings from raw buffer lines, skipping YAML frontmatter and
+ * fenced code blocks (a `# foo` line inside a ``` fence is NOT a heading in
+ * Obsidian) and bounding the level to 1–6. Parsing the live buffer rather than
+ * the metadata cache avoids cache lag for a just-typed or brand-new heading.
+ */
+export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
+	const headings: SimpleHeading[] = [];
+	let inFence = false;
+	let fenceChar = "";
+	let fenceLen = 0;
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+
+		// YAML frontmatter: only when it opens on the very first line.
+		if (i === 0 && /^---\s*$/.test(line)) {
+			let j = i + 1;
+			while (j < lines.length && !/^---\s*$/.test(lines[j])) j++;
+			i = j; // land on the closing `---` (or EOF); the loop's ++ steps past it
+			continue;
+		}
+
+		// Fenced code blocks (``` or ~~~, 3+). Close needs the same char and a
+		// length >= the opening fence.
+		const fence = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+		if (fence) {
+			const ch = fence[1][0];
+			const len = fence[1].length;
+			if (!inFence) {
+				inFence = true;
+				fenceChar = ch;
+				fenceLen = len;
+			} else if (ch === fenceChar && len >= fenceLen) {
+				inFence = false;
+				fenceChar = "";
+				fenceLen = 0;
+			}
+			continue;
+		}
+		if (inFence) continue;
+
+		const m = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/);
+		if (m) headings.push({ heading: m[2], level: m[1].length, line: i });
+	}
+
+	return headings;
+}
+
+/**
  * The sanitized ancestor chain for a heading: the heading itself preceded by the
  * nearest ancestor of each strictly-smaller level up to level 1. Empty (fully
- * sanitized-away) segments are skipped so the chain never contains "##".
+ * normalized-away) segments are skipped so the chain never contains "##".
  */
-function ancestorChain(
-	headings: SimpleHeading[],
-	index: number,
-): string[] {
-	const text = (h: SimpleHeading) => sanitizeHeadingForSubpath(h.heading);
+function ancestorChain(headings: SimpleHeading[], index: number): string[] {
 	const segments: string[] = [];
-	const self = text(headings[index]);
+	const self = sanitizeHeadingForSubpath(headings[index].heading);
 	if (self) segments.push(self);
 	let level = headings[index].level;
 	for (let i = index - 1; i >= 0 && level > 1; i--) {
 		if (headings[i].level < level) {
 			level = headings[i].level;
-			const seg = text(headings[i]);
+			const seg = sanitizeHeadingForSubpath(headings[i].heading);
 			if (seg) segments.unshift(seg);
 		}
 	}
@@ -63,16 +110,16 @@ function ancestorChain(
 /**
  * Builds the subpath (`#Heading`, or the disambiguated `#Parent#…#Heading`) for
  * the nearest heading at or above `cursorLine`, or null when none applies (no
- * headings, the cursor is above the first heading, the heading sanitizes empty,
+ * headings, the cursor is above the first heading, the heading normalizes empty,
  * or the link would still be ambiguous) — in which case the caller falls back to
  * a plain whole-file link rather than a link that resolves to the wrong place.
  *
- * Obsidian resolves a bare `#Heading` to the FIRST heading with that text, so
- * when the chosen heading's (sanitized) text is not unique we emit the ancestor
- * chain (verified to resolve correctly in the #387 spike). If even the full
- * chain is not unique (e.g. two identical `# A > ## B` structures, or level-1
- * duplicates with no ancestor to add), no subpath can disambiguate, so we return
- * null instead of emitting a link that silently points at the wrong heading.
+ * Obsidian resolves a bare `#Heading` to the FIRST heading with that normalized
+ * text, so when the chosen heading's text is not unique we emit the ancestor
+ * chain. A duplicate that cannot grow at least one real ancestor segment (e.g. a
+ * level-1 duplicate, or one whose only ancestor normalizes away), or whose full
+ * chain still collides with another heading's chain, is genuinely unresolvable
+ * by subpath, so we return null instead of a wrong-heading link.
  */
 export function buildSectionSubpath(
 	headings: SimpleHeading[],
@@ -88,8 +135,7 @@ export function buildSectionSubpath(
 	if (targetIndex === -1) return null; // cursor is above the first heading
 
 	const targetText = sanitizeHeadingForSubpath(headings[targetIndex].heading);
-	// A heading that sanitizes to nothing (e.g. "## #") has no usable anchor.
-	if (!targetText) return null;
+	if (!targetText) return null; // heading has no usable anchor
 
 	const isUniqueText = !headings.some(
 		(h, i) =>
@@ -99,9 +145,14 @@ export function buildSectionSubpath(
 	if (isUniqueText) return `#${targetText}`;
 
 	const chain = ancestorChain(headings, targetIndex);
+	// A single-segment chain can never disambiguate a duplicated text (Obsidian
+	// resolves the bare `#text` to the first match).
+	if (chain.length < 2) return null;
+
 	const chainKey = chain.join("#");
 	const isUniqueChain = !headings.some(
-		(_h, i) => i !== targetIndex && ancestorChain(headings, i).join("#") === chainKey,
+		(_h, i) =>
+			i !== targetIndex && ancestorChain(headings, i).join("#") === chainKey,
 	);
 	if (!isUniqueChain) return null; // unresolvable → whole-file fallback
 

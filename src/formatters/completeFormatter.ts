@@ -22,8 +22,10 @@ import {
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { Formatter, type PromptContext } from "./formatter";
-import { getMarkdownHeadings } from "./helpers/getEndOfSection";
-import { buildSectionSubpath } from "./helpers/sectionLink";
+import {
+	buildSectionSubpath,
+	extractHeadingsFromLines,
+} from "./helpers/sectionLink";
 import { UserCancelError } from "../errors/UserCancelError";
 import { isCancellationError } from "../utils/errorUtils";
 
@@ -265,9 +267,8 @@ export class CompleteFormatter extends Formatter {
 	 * {@link buildSectionSubpath}.
 	 *
 	 * Headings are parsed from the LIVE editor buffer (via {@link
-	 * getMarkdownHeadings}, the same parser the capture inserter uses) rather
-	 * than the metadata cache, so a just-typed heading or a brand-new note works
-	 * without waiting for the cache to reindex.
+	 * extractHeadingsFromLines}) rather than the metadata cache, so a just-typed
+	 * heading or a brand-new note works without waiting for the cache to reindex.
 	 */
 	private getActiveHeadingSubpath(file: TFile): string | null {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -280,8 +281,10 @@ export class CompleteFormatter extends Formatter {
 		const cursor = editor?.getCursor();
 		if (!editor || !cursor) return null;
 
-		const headings = getMarkdownHeadings(editor.getValue().split("\n")).map(
-			(h) => ({ heading: h.text, level: h.level, line: h.line }),
+		// Split on \r?\n so CRLF buffers don't leave a trailing \r that breaks the
+		// heading parse (and so line indices match the editor's cursor line).
+		const headings = extractHeadingsFromLines(
+			editor.getValue().split(/\r?\n/),
 		);
 
 		return buildSectionSubpath(headings, cursor.line);
