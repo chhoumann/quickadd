@@ -48,6 +48,10 @@ class StubFormatter extends Formatter {
 		return "";
 	}
 
+	protected suggestForFile(): string {
+		return "";
+	}
+
 	protected async getMacroValue(): Promise<string> {
 		return "";
 	}
