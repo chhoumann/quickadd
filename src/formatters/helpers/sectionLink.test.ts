@@ -75,6 +75,25 @@ describe("buildSectionSubpath", () => {
 		expect(buildSectionSubpath(tricky, 3)).toBeNull();
 	});
 
+	it("treats case-only differences as duplicates (Obsidian is case-insensitive)", () => {
+		// `## Todo` then `## todo` with no disambiguating ancestor -> null, not a
+		// bare `#todo` that would resolve to the first `Todo`.
+		const caseDup: SimpleHeading[] = [
+			{ heading: "Todo", level: 2, line: 0 },
+			{ heading: "todo", level: 2, line: 5 },
+		];
+		expect(buildSectionSubpath(caseDup, 6)).toBeNull();
+		// With distinct ancestors, the chain (compared case-insensitively) still
+		// disambiguates and keeps the cursor heading's original case.
+		const caseDupNested: SimpleHeading[] = [
+			{ heading: "A", level: 1, line: 0 },
+			{ heading: "Todo", level: 2, line: 1 },
+			{ heading: "B", level: 1, line: 4 },
+			{ heading: "todo", level: 2, line: 5 },
+		];
+		expect(buildSectionSubpath(caseDupNested, 6)).toBe("#B#todo");
+	});
+
 	it("builds a multi-level ancestor chain for deep duplicates", () => {
 		const deep: SimpleHeading[] = [
 			{ heading: "A", level: 1, line: 0 },
@@ -200,6 +219,16 @@ describe("extractHeadingsFromLines", () => {
 		]);
 		expect(extractHeadingsFromLines(["Sub", "---", "body"])).toEqual([
 			{ heading: "Sub", level: 2, line: 0 },
+		]);
+	});
+
+	it("falls back (no heading) for a multi-line setext paragraph", () => {
+		// Obsidian would make the whole "Long title" paragraph the heading; rather
+		// than reconstruct that we emit nothing so we never produce a partial anchor.
+		expect(extractHeadingsFromLines(["Long", "title", "==="])).toEqual([]);
+		// A single-line paragraph still works.
+		expect(extractHeadingsFromLines(["", "title", "==="])).toEqual([
+			{ heading: "title", level: 1, line: 1 },
 		]);
 	});
 

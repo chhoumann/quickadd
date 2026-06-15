@@ -112,16 +112,25 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 		}
 
 		// Setext heading: a line of only `=` (level 1) or `-` (level 2) directly
-		// under a paragraph line. The blank-line requirement (isSetextContentLine
-		// rejects a blank previous line) keeps a `---` thematic break / a list's
-		// dashes from being mistaken for an underline.
+		// under a single paragraph line. isSetextContentLine rejects a blank/
+		// structural previous line (so a `---` thematic break or list dashes aren't
+		// mistaken for an underline). A multi-line paragraph would make the WHOLE
+		// paragraph the heading text in Obsidian; rather than reconstruct that, we
+		// fall back (skip) when the line two above is also paragraph text, so we
+		// never emit a partial (wrong) anchor.
 		const setext = line.match(/^ {0,3}(=+|-+)\s*$/);
 		if (setext && i > 0) {
 			const prev = lines[i - 1];
 			const prevAlreadyHeading =
 				headings.length > 0 &&
 				headings[headings.length - 1].line === i - 1;
-			if (!prevAlreadyHeading && isSetextContentLine(prev)) {
+			const prevIsSingleLineParagraph =
+				i < 2 || !isSetextContentLine(lines[i - 2]);
+			if (
+				!prevAlreadyHeading &&
+				prevIsSingleLineParagraph &&
+				isSetextContentLine(prev)
+			) {
 				headings.push({
 					heading: prev.trim(),
 					level: setext[1][0] === "=" ? 1 : 2,
@@ -185,10 +194,14 @@ export function buildSectionSubpath(
 	const targetText = sanitizeHeadingForSubpath(headings[targetIndex].heading);
 	if (!targetText) return null; // heading has no usable anchor
 
+	// Obsidian resolves subpaths case-insensitively (after the same punctuation
+	// stripping), so uniqueness/collision must be compared case-insensitively —
+	// `## Todo` and `## todo` resolve to the same heading. Emit original case.
+	const targetKey = targetText.toLowerCase();
 	const isUniqueText = !headings.some(
 		(h, i) =>
 			i !== targetIndex &&
-			sanitizeHeadingForSubpath(h.heading) === targetText,
+			sanitizeHeadingForSubpath(h.heading).toLowerCase() === targetKey,
 	);
 	if (isUniqueText) return `#${targetText}`;
 
@@ -198,9 +211,11 @@ export function buildSectionSubpath(
 	if (chain.length < 2) return null;
 
 	const chainKey = chain.join("#");
+	const chainKeyLower = chainKey.toLowerCase();
 	const isUniqueChain = !headings.some(
 		(_h, i) =>
-			i !== targetIndex && ancestorChain(headings, i).join("#") === chainKey,
+			i !== targetIndex &&
+			ancestorChain(headings, i).join("#").toLowerCase() === chainKeyLower,
 	);
 	if (!isUniqueChain) return null; // unresolvable → whole-file fallback
 
