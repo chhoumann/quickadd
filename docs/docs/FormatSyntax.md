@@ -177,6 +177,7 @@ Notes:
 
 - Multi-select writes a real List with no settings required. It produces a List **inside front matter**; used in the note body it renders as a comma-separated string.
 - In a **Capture**, multi-select becomes a List only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template). Other capture shapes write a comma-separated string instead.
+- With the **one-page input form** (Settings → QuickAdd), avoid commas inside an individual option (e.g. `|text:"High, urgent"`) on a `|multi` token — the one-page picker can't round-trip a comma that lives inside a single option. The default one-prompt-at-a-time picker handles it correctly.
 
 ## `{{VALUE:<options>|name:<variable name>}}` {#value-name}
 

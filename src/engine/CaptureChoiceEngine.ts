@@ -312,9 +312,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			// writing the wrong shape.
 			if (
 				this.suppressFrontmatterCollection &&
-				// `\|\s*multi` requires the flag directly after a pipe, and
-				// `(?![a-z])` excludes `|type:multiline`.
-				/\{\{VALUE:[^}]*\|\s*multi(?![a-z])/i.test(
+				// Match the `|multi` flag specifically: a pipe, then `multi`
+				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
+				// `|multi1`, `|multi-select`, etc.
+				/\{\{VALUE:[^}]*\|\s*multi(?=[:}|]|$)/i.test(
 					this.choice?.format?.format ?? "",
 				)
 			) {

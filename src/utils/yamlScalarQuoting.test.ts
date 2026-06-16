@@ -19,6 +19,11 @@ describe("quoteYamlDouble", () => {
 		expect(quoteYamlDouble('he said "hi"')).toBe('"he said \\"hi\\""');
 		expect(quoteYamlDouble("a\\b")).toBe('"a\\\\b"');
 	});
+
+	it("escapes control characters so a seeded value stays valid YAML", () => {
+		expect(quoteYamlDouble("a\nb")).toBe('"a\\nb"');
+		expect(quoteYamlDouble("a\tb")).toBe('"a\\tb"');
+	});
 });
 
 describe("shouldQuoteTextScalar", () => {
@@ -37,6 +42,12 @@ describe("shouldQuoteTextScalar", () => {
 
 	it("does NOT quote an already author-quoted value", () => {
 		expect(check(`---\nid: "${TOKEN}"\n---`)).toBe(false);
+	});
+
+	it("quotes a sole value followed only by a trailing YAML comment", () => {
+		expect(check(`---\nid: ${TOKEN} # keep\n---`)).toBe(true);
+		// but not when real content follows the token
+		expect(check(`---\nid: ${TOKEN} more # c\n---`)).toBe(false);
 	});
 
 	it("does NOT quote in the note body (outside front matter)", () => {

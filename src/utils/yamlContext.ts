@@ -62,10 +62,13 @@ export function getYamlContextForMatch(
 
   const beforeTrimmed = before.replace(/["']$/, "");
   const afterTrimmed = after.replace(/^["']/, "");
-  const isKeyValuePosition = /:\s*$/.test(beforeTrimmed) && afterTrimmed.trim().length === 0;
+  // A trailing YAML comment (` #…`) is not part of the scalar, so a token
+  // followed only by a comment is still the sole value of its key / list item.
+  const afterIsSoleValue =
+    afterTrimmed.replace(/\s+#.*$/, "").trim().length === 0;
+  const isKeyValuePosition = /:\s*$/.test(beforeTrimmed) && afterIsSoleValue;
   // `- {{match}}` (optionally indented / quoted) and nothing else on the line.
-  const isListItemPosition =
-    /^\s*-\s*$/.test(beforeTrimmed) && afterTrimmed.trim().length === 0;
+  const isListItemPosition = /^\s*-\s*$/.test(beforeTrimmed) && afterIsSoleValue;
 
   return {
     isInYaml: true,

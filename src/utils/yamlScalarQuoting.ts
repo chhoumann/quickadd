@@ -11,12 +11,19 @@ import { findYamlFrontMatterRange, getYamlContextForMatch } from "./yamlContext"
  */
 
 /**
- * Wrap a value in a YAML double-quoted scalar, escaping `\` and `"`. VALUE
- * tokens can never contain newlines (the variable regex forbids them), so no
- * other escaping is required.
+ * Wrap a value in a YAML double-quoted scalar, escaping `\`, `"`, and control
+ * characters. VALUE tokens typed in the UI are single-line, but a value can be
+ * seeded programmatically (script/CLI), so newlines/tabs are escaped to keep
+ * the emitted scalar valid YAML.
  */
 export function quoteYamlDouble(value: string): string {
-	return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+	const escaped = value
+		.replace(/\\/g, "\\\\")
+		.replace(/"/g, '\\"')
+		.replace(/\n/g, "\\n")
+		.replace(/\r/g, "\\r")
+		.replace(/\t/g, "\\t");
+	return `"${escaped}"`;
 }
 
 /**
