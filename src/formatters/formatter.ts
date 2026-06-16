@@ -47,6 +47,7 @@ import {
 	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseVDateOptions } from "../utils/vdateSyntax";
+import { applyDateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
 
@@ -139,7 +140,12 @@ export abstract class Formatter {
 				const offsetIsInt = NUMBER_REGEX.test(offsetString);
 				if (offsetIsInt) offset = parseInt(offsetString);
 			}
-			output = this.replacer(output, DATE_REGEX, getDate({ offset: offset }));
+			// dateMatch[2] holds a `startof:`/`endof:` snap option (issue #511);
+			// the regex only matches those keywords, so a bad unit throws here.
+			const snap = dateMatch?.[2]
+				? parseDateSnapSegment(dateMatch[2]) ?? undefined
+				: undefined;
+			output = this.replacer(output, DATE_REGEX, getDate({ offset, snap }));
 		}
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
@@ -155,10 +161,14 @@ export abstract class Formatter {
 				if (offsetIsInt) offset = parseInt(offsetString);
 			}
 
+			const snap = dateMatch[3]
+				? parseDateSnapSegment(dateMatch[3]) ?? undefined
+				: undefined;
+
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset: offset }),
+				getDate({ format, offset, snap }),
 			);
 		}
 
@@ -1101,7 +1111,7 @@ export abstract class Formatter {
 			if (!match || !match[1]) break;
 
 			const variableName = match[1].trim();
-			const { defaultValue, optional, withTime } = parseVDateOptions(match[3]);
+			const { defaultValue, optional, withTime, snap } = parseVDateOptions(match[3]);
 			// A |time/|datetime token with no explicit format gets a datetime
 			// default so the rendered value carries the picked time.
 			const dateFormat =
@@ -1200,7 +1210,13 @@ export abstract class Formatter {
 					if (this.dateParser && window.moment) {
 						const moment = window.moment(isoString);
 						if (moment && moment.isValid()) {
-							formattedDate = moment.format(dateFormat);
+							// Snap is per-occurrence (issue #511): the stored
+							// @date:ISO stays raw, so {{VDATE:d,F1|startof:week}}
+							// and {{VDATE:d,F2}} share one picked date but only one
+							// snaps. A fresh moment per iteration prevents leaks.
+							formattedDate = applyDateSnap(moment, snap).format(
+								dateFormat,
+							);
 						}
 					}
 				} else if (typeof storedValue === "string" && storedValue) {

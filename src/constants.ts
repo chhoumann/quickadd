@@ -37,6 +37,8 @@ export const GLOBAL_VAR_SYNTAX = "{{global_var:<name>}}";
 export const FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
 	"{{date:<dateformat>}}",
+	"{{date:<dateformat>|startof:<unit>}}",
+	"{{date:<dateformat>|endof:<unit>}}",
 	"{{vdate:<variable name>, <date format>}}",
 	"{{vdate:<variable name>, <date format>|<default value>}}",
 	VDATE_OPTIONAL_SYNTAX,
@@ -77,6 +79,8 @@ export const FORMAT_SYNTAX: string[] = [
 export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	DATE_SYNTAX,
 	"{{date:<dateformat>}}",
+	"{{date:<dateformat>|startof:<unit>}}",
+	"{{date:<dateformat>|endof:<unit>}}",
 	"{{vdate:<variable name>, <date format>}}",
 	"{{vdate:<variable name>, <date format>|<default value>}}",
 	GLOBAL_VAR_SYNTAX,
@@ -109,9 +113,19 @@ export const CREATE_IF_NOT_FOUND_CURSOR = "cursor";
 export const CREATE_IF_NOT_FOUND_ORDERED = "ordered";
 
 // == Format Syntax == //
-export const DATE_REGEX = new RegExp(/{{DATE(\+-?[0-9]+)?}}/i);
+// The optional trailing `(?:\|(?:startof|endof):<letters>)?` group captures a
+// date "snap" option (issue #511). It is anchored to `|startof:`/`|endof:`
+// followed by letters, so a literal `|` anywhere else in a date format is still
+// rendered verbatim ({{DATE:YYYY|MM}} -> 2023|06). The format slot's pipe arm
+// `\|(?!(?:startof|endof):[a-z])` is mutually exclusive with `[^}\n\r+|]`, so
+// the star is deterministic (no quadratic backtracking on malformed input) and a
+// `|startof:` that is NOT a real snap (e.g. inside a `[...]` literal, or followed
+// by a space/non-letter) stays part of the format instead of aborting the run.
+export const DATE_REGEX = new RegExp(
+	/{{DATE(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?}}/i,
+);
 export const DATE_REGEX_FORMATTED = new RegExp(
-	/{{DATE:([^}\n\r+]*)(\+-?[0-9]+)?}}/i,
+	/{{DATE:((?:[^}\n\r+|]|\|(?!(?:startof|endof):[a-z]))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?}}/i,
 );
 export const TIME_REGEX = new RegExp(/{{TIME}}/i);
 export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);

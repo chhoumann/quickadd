@@ -14,6 +14,49 @@ Replace `<DATEFORMAT>` with a [Moment.js date format](https://momentjs.com/docs/
 
 Example: `{{DATE:YYYY-MM-DD_HH-mm}}` or `{{DATE:YYYY-MM-DD+3}}`.
 
+## `{{DATE:<DATEFORMAT>|startof:<unit>}}` / `{{...|endof:<unit>}}` {#date-snap}
+
+Snap the date to the **start** or **end** of a period before formatting. The
+formatted output then reflects that boundary instead of the exact instant — so,
+for example, the month of a week-snapped date is the month the *week* belongs to,
+not today's calendar month.
+
+`<unit>` is one of: `year`, `quarter`, `month`, `week`, `isoweek`, `day` (case-insensitive).
+
+- `week` uses your locale's first day of the week (matching the `w`/`ww`/`gggg` tokens).
+- `isoweek` uses Monday (matching the `W`/`WW`/`GGGG` tokens).
+
+| Token (on Thursday 2023-06-01) | Output |
+| --- | --- |
+| `{{DATE:gggg.MM.[Wk]w\|startof:week}}` | `2023.05.Wk22` |
+| `{{DATE:YYYY-MM\|startof:month}}` | `2023-06` |
+| `{{DATE:YYYY-MM-DD\|endof:month}}` | `2023-06-30` |
+| `{{DATE:YYYY-[Q]Q\|startof:quarter}}` | `2023-Q2` |
+| `{{DATE:GGGG-[W]WW\|startof:isoweek}}` | ISO week, Monday-anchored |
+
+**Weekly notes that cross months (issue #511).** A planner named `gggg.MM.[Wk]w`
+should file the week of June 1 under May (`2023.05.Wk22`), while the in-note
+heading still uses the actual day. Snap only the filename:
+
+```markdown
+# filename
+{{DATE:gggg.MM.[Wk]w|startof:week}}
+# heading inside the note
+{{DATE:M.DD dddd}}
+```
+
+This also works on `{{VDATE}}` — a single picked date can be week-snapped in one
+place and day-actual in another: `{{VDATE:d,gggg.MM.[Wk]w|startof:week}}` and
+`{{VDATE:d,M.DD dddd}}` share the same prompt. Combine freely with `|default`,
+`|optional`, and `|time` in any order.
+
+**Notes:**
+
+- The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` is "the start of next week".
+- `endof:` snaps to the last moment of the period (`23:59:59.999`), so with a time format `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
+- `|startof:` and `|endof:` are the only reserved pipe options in a date format; any other literal `|` is still rendered verbatim (e.g. `{{DATE:YYYY|MM}}` → `2023|06`).
+- An unknown unit (e.g. `|startof:fortnight`) reports an error listing the valid units.
+
 ## `{{VDATE:<variable name>, <date format>}}` {#vdate}
 
 You'll get prompted to enter a date and it'll be parsed to the given date format. You could write 'today' or 'in two weeks' and it'll give you the date for that. Short aliases like `t` (today), `tm` (tomorrow), and `yd` (yesterday) are also supported and configurable in settings. Works like variables, so you can use the date in multiple places with different formats - enter once, format many times!

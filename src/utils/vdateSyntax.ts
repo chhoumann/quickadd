@@ -4,12 +4,15 @@ import {
 	parsePipeKeyValue,
 	splitPipeParts,
 } from "./pipeSyntax";
+import { type DateSnap, normalizeDateUnit } from "./dateModifiers";
 
 export type ParsedVDateOptions = {
 	defaultValue?: string;
 	optional: boolean;
 	/** Token requested a date AND time picker via |time / |datetime / |type:datetime. */
 	withTime: boolean;
+	/** Snap the resolved date to a period boundary via |startof:/|endof: (issue #511). */
+	snap?: DateSnap;
 };
 
 /**
@@ -46,6 +49,7 @@ export function parseVDateOptions(
 
 	let explicitOptional: boolean | undefined;
 	let keyedDatetime = false;
+	let snap: DateSnap | undefined;
 	const rest: string[] = [];
 
 	for (const part of remaining) {
@@ -60,6 +64,17 @@ export function parseVDateOptions(
 			if (keyed.value.trim().toLowerCase() === "datetime") keyedDatetime = true;
 			continue;
 		}
+		if (keyed?.key === "startof" || keyed?.key === "endof") {
+			// |startof:<unit> / |endof:<unit> snap the resolved date (issue #511).
+			// First wins; a bad unit throws. Never part of the default value.
+			if (!snap) {
+				snap = {
+					boundary: keyed.key === "startof" ? "start" : "end",
+					unit: normalizeDateUnit(keyed.value),
+				};
+			}
+			continue;
+		}
 
 		rest.push(part);
 	}
@@ -69,5 +84,6 @@ export function parseVDateOptions(
 		defaultValue,
 		optional: explicitOptional ?? bareOptional,
 		withTime: bareTime || bareDatetime || keyedDatetime,
+		snap,
 	};
 }
