@@ -129,8 +129,29 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect(m?.[3]).toBeUndefined(); // no snap option captured
 	});
 
+	it("treats a |startof: inside a [literal] (non-letter after colon) as format, not snap", () => {
+		// Only a trailing |startof:<letters> is the snap; an earlier |startof:
+		// with a space/non-letter after the colon stays in the format and must
+		// NOT abort the run with an 'unknown unit' error.
+		const m = "{{DATE:[literal |startof: label ]YYYY-MM-DD|startof:month}}".match(
+			DATE_REGEX_FORMATTED,
+		);
+		expect(m?.[1]).toBe("[literal |startof: label ]YYYY-MM-DD");
+		expect(m?.[3]).toBe("startof:month");
+	});
+
+	it("leaves a malformed double-snap token literal (no match, no throw)", () => {
+		expect(
+			"{{DATE:YYYY|startof:week|endof:month}}".match(DATE_REGEX_FORMATTED),
+		).toBeNull();
+	});
+
 	it("does NOT support offset-before-colon (stays literal)", () => {
 		expect("{{DATE+7:YYYY-MM-DD|startof:week}}".match(DATE_REGEX_FORMATTED)).toBeNull();
+	});
+
+	it("keeps a literal '+' format unmatched, exactly like master", () => {
+		expect("{{DATE:YYYY+MM}}".match(DATE_REGEX_FORMATTED)).toBeNull();
 	});
 
 	it("parses bare {{DATE}} with and without a snap option", () => {
@@ -140,10 +161,13 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect("{{DATE+1|endof:week}}".match(DATE_REGEX)?.[2]).toBe("endof:week");
 	});
 
-	it("does not catastrophically backtrack on a long no-match input", () => {
-		const evil = `{{DATE:${"a|".repeat(2000)}`; // never closes
+	it("matches snap tokens in LINEAR time on long malformed input (no ReDoS)", () => {
+		// `|startof:`×N with no closing `}}` is the catastrophic-backtracking shape
+		// that a lazy/overlapping format slot would blow up on (O(n^2)). The
+		// mutually-exclusive format arm keeps this linear.
+		const evil = `{{DATE:${"|startof:".repeat(30000)}`;
 		const start = performance.now();
-		expect(evil.match(DATE_REGEX_FORMATTED)).toBeNull();
+		expect(DATE_REGEX_FORMATTED.test(evil)).toBe(false);
 		expect(performance.now() - start).toBeLessThan(100);
 	});
 });

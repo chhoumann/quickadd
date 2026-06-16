@@ -11,6 +11,7 @@ import {
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../../../constants";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
+import { detectDateFormatFromAfter } from "../../../utils/insertAfterDateFormat";
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
@@ -118,29 +119,6 @@ const ordering = $derived<SectionOrdering>(
 	insertAfter.orderBy ?? { by: "insertion", direction: "desc", unparseable: "bottom" },
 );
 
-/**
- * Extract a moment date format from a `{{DATE:fmt}}` / `{{VDATE:name,fmt}}` token
- * so an ordered date log auto-detects its sort format. Returns undefined for a
- * bare `{{DATE}}`, a literal-`+` format, or a multi-token heading — those can't be
- * reliably round-tripped, so the UI falls back to insertion + a warning.
- */
-function detectDateFormatFromAfter(after: string): string | undefined {
-	// Tolerate an optional offset and a trailing |startof:/|endof: snap option
-	// (issue #511). The snap group is keyword-anchored and the format slot is
-	// lazy (mirroring DATE_REGEX_FORMATTED), so a literal `|` in the format is
-	// preserved in the captured sort format ({{DATE:YYYY|MM}} -> "YYYY|MM").
-	const date = after.match(
-		/\{\{DATE:([^}\n\r+]*?)(?:\+-?\d+)?(?:\|(?:startof|endof):[^}\n\r]*?)?\}\}/i,
-	);
-	const dateFormat = date?.[1]?.trim();
-	if (dateFormat) return dateFormat;
-	// VDATE is {{VDATE:name,format}} or {{VDATE:name,format|default}} — drop the
-	// "|default" segment so it doesn't leak into the moment parse format.
-	const vdate = after.match(/\{\{VDATE:[^,}]+,([^}\n\r]*)\}\}/i);
-	const vdateFormat = vdate?.[1]?.split("|")[0]?.trim();
-	if (vdateFormat) return vdateFormat;
-	return undefined;
-}
 
 const afterHasDateToken = $derived(/\{\{V?DATE\b/i.test(insertAfter.after ?? ""));
 const showInsertionFallbackWarning = $derived(
