@@ -335,6 +335,12 @@ export class RequirementCollector extends Formatter {
 				)
 					existing.defaultValue = defaultValue;
 				existing.optional = (existing.optional ?? false) && optional;
+				// If ANY occurrence of the reused date wants a time picker, the
+				// shared control must offer one (and a datetime format).
+				if (existing.type === "date" && withTime && !existing.withTime) {
+					existing.withTime = true;
+					if (!match[2]?.trim()) existing.dateFormat = "YYYY-MM-DD HH:mm";
+				}
 			}
 		}
 	}

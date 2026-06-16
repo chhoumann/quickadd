@@ -105,6 +105,7 @@ export const extractTimeFromIso = (iso?: string): TimeParts | null => {
 	const hour = Number.parseInt(match[1], 10);
 	const minute = Number.parseInt(match[2], 10);
 	if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+	if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
 	return { hour, minute };
 };
 

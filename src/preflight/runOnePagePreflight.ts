@@ -82,7 +82,11 @@ export async function runOnePagePreflight(
 		// wrapping when requested.
 		const multiInfoByKey = new Map<
 			string,
-			{ emit: "text" | "linklist"; displayToValue: Map<string, string> }
+			{
+				emit: "text" | "linklist";
+				allowCustom: boolean;
+				displayToValue: Map<string, string>;
+			}
 		>();
 		for (const req of unresolved) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
@@ -97,6 +101,7 @@ export async function runOnePagePreflight(
 				});
 				multiInfoByKey.set(req.id, {
 					emit: req.multiEmit ?? "text",
+					allowCustom: req.suggesterConfig.allowCustomInput ?? false,
 					displayToValue,
 				});
 			}
@@ -110,6 +115,12 @@ export async function runOnePagePreflight(
 					.split(",")
 					.map((s) => s.trim())
 					.filter(Boolean)
+					// Drop typed entries that aren't options unless the token opted
+					// into custom input, matching the runtime MultiSuggester.
+					.filter(
+						(label) =>
+							multiInfo.allowCustom || multiInfo.displayToValue.has(label),
+					)
 					// Map the display label back to its value; a typed custom value
 					// (no mapping) passes through unchanged.
 					.map((label) => multiInfo.displayToValue.get(label) ?? label);

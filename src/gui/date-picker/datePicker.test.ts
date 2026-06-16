@@ -36,4 +36,14 @@ describe("extractTimeFromIso", () => {
 		expect(extractTimeFromIso("2025-12-25")).toBeNull();
 		expect(extractTimeFromIso(undefined)).toBeNull();
 	});
+
+	it("rejects out-of-range hours/minutes", () => {
+		expect(extractTimeFromIso("2025-12-25T99:99")).toBeNull();
+		expect(extractTimeFromIso("2025-12-25T24:00")).toBeNull();
+		expect(extractTimeFromIso("2025-12-25T12:60")).toBeNull();
+		expect(extractTimeFromIso("2025-12-25T23:59")).toEqual({
+			hour: 23,
+			minute: 59,
+		});
+	});
 });

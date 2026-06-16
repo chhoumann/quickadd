@@ -324,6 +324,30 @@ export class CompleteFormatter extends Formatter {
 					return this.value;
 				}
 			}
+			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
+			// picker as the named form (resolved before the InputPrompt factory).
+			if (this.valuePromptContext?.inputTypeOverride === "checkbox") {
+				try {
+					this.value = await GenericSuggester.Suggest(
+						this.app,
+						["true", "false"],
+						["true", "false"],
+						this.valuePromptContext.description ??
+							this.valueHeader ??
+							"Choose value",
+						undefined,
+						this.valuePromptContext.optional
+							? { skippable: true }
+							: undefined,
+					);
+					return this.value;
+				} catch (error) {
+					if (isCancellationError(error)) {
+						throw new UserCancelError("Input cancelled by user");
+					}
+					throw error;
+				}
+			}
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(

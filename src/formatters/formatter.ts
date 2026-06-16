@@ -738,7 +738,13 @@ export abstract class Formatter {
 				rawValue: rawValueForCollector,
 				fallbackKey: variableName,
 				collectionActive,
-				heuristicEnabled: propertyTypesEnabled && collectionActive,
+				// |type:text forces a string: never run the string->structured
+				// heuristic on it, or a comma/bracket value (`a,b`, `[x]`) would be
+				// collected as a List and bypass the quoting path below.
+				heuristicEnabled:
+					propertyTypesEnabled &&
+					collectionActive &&
+					parsed.inputTypeOverride !== "text",
 			});
 
 			// Keep the interim frontmatter YAML-parseable until post-processing
