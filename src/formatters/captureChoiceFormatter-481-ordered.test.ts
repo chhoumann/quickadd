@@ -451,6 +451,49 @@ describe("#481 — ordered create-if-not-found placement", () => {
 		);
 	});
 
+	it("ignores a single-line target that only exists inside a code fence (creates the real section)", async () => {
+		// The note's only "## 2026-06-16" is inside a fenced example. A single-line
+		// ordered target must NOT match it (which would insert into the code block);
+		// it should create a real sorted section above ## 2026-06-14.
+		const choice = createChoice({
+			after: "## 2026-06-16",
+			orderBy: {
+				by: "date",
+				direction: "desc",
+				dateFormat: "YYYY-MM-DD",
+				unparseable: "bottom",
+			},
+		});
+		const seed =
+			"# Log\n\n```markdown\n## 2026-06-16\n- example\n```\n\n## 2026-06-14\n- old\n";
+		const out = await runOnce(choice, seed, "- new\n");
+		expect(out).toContain("```markdown\n## 2026-06-16\n- example\n```");
+		expect(out).toBe(
+			"# Log\n\n```markdown\n## 2026-06-16\n- example\n```\n\n## 2026-06-16\n- new\n\n## 2026-06-14\n- old\n",
+		);
+	});
+
+	it("ignores a single-line target that only exists in frontmatter (creates the real section)", async () => {
+		const choice = createChoice({
+			after: "## 2026-06-16",
+			orderBy: {
+				by: "date",
+				direction: "desc",
+				dateFormat: "YYYY-MM-DD",
+				unparseable: "bottom",
+			},
+		});
+		// A frontmatter value literally equal to the target heading line.
+		const seed =
+			"---\nheading: '## 2026-06-16'\n---\n# Log\n\n## 2026-06-14\n- old\n";
+		const out = await runOnce(choice, seed, "- new\n");
+		// Frontmatter untouched; real section created in the body.
+		expect(out).toContain("---\nheading: '## 2026-06-16'\n---\n");
+		expect(out).toBe(
+			"---\nheading: '## 2026-06-16'\n---\n# Log\n\n## 2026-06-16\n- new\n\n## 2026-06-14\n- old\n",
+		);
+	});
+
 	it("appends at EOF of a CRLF file with no trailing newline without a dangling CR", async () => {
 		const choice = createChoice({
 			after: "## 1.9.0",

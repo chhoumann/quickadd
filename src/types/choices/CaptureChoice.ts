@@ -160,7 +160,10 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			loaded.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_ORDERED
 		) {
-			if (!loaded.insertAfter.orderBy) {
+			// Only backfill orderBy when ordered placement is actually active, so an
+			// inert config (ordered location selected but create-if-not-found off) is
+			// not mutated on load (avoids needless persisted-diff churn).
+			if (loaded.insertAfter.createIfNotFound && !loaded.insertAfter.orderBy) {
 				loaded.insertAfter.orderBy = {
 					by: "insertion",
 					direction: "desc",

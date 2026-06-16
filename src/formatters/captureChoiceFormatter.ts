@@ -538,10 +538,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		const { start, end } = this.findInsertAfterRange(
-			fileContentLines,
-			targetLines,
-		);
+		// For ordered placement, the target search must ignore headings inside YAML
+		// frontmatter or fenced code blocks. Otherwise a sample/comment heading that
+		// happens to match (e.g. a `## 2026-06-16` in a ```markdown example) would be
+		// treated as "found" and the capture inserted there, bypassing the
+		// fence/frontmatter-aware ordered create path. Masking preserves line indices,
+		// so the found-path position math below stays valid. Non-ordered captures keep
+		// their existing (unmasked) search behaviour.
+		const searchLines = this.isOrderedCreate()
+			? this.maskNonBodyHeadingsForSearch(fileContentLines)
+			: fileContentLines;
+		const { start, end } = this.findInsertAfterRange(searchLines, targetLines);
 		const targetNotFound = start === -1;
 		if (targetNotFound) {
 			if (this.choice.insertAfter?.createIfNotFound) {
@@ -787,6 +794,42 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	 * A non-heading anchor has no sibling band, so it degrades gracefully to the
 	 * existing TOP behavior (parity with considerSubsectionsForAnchor).
 	 */
+	/** True when this capture uses the ordered create-if-not-found location. */
+	private isOrderedCreate(): boolean {
+		return (
+			!!this.choice.insertAfter?.createIfNotFound &&
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+				CREATE_IF_NOT_FOUND_ORDERED
+		);
+	}
+
+	/**
+	 * Index of the first body line after any YAML frontmatter (0 when none).
+	 * Mirrors insertAtNoteBodyStart's frontmatter detection (getBodyStartOffset).
+	 */
+	private getBodyStartLine(): number {
+		const bodyStartOffset = getBodyStartOffset(this.fileContent);
+		return bodyStartOffset > 0
+			? this.fileContent.slice(0, bodyStartOffset).split("\n").length - 1
+			: 0;
+	}
+
+	/**
+	 * Returns CRLF-stripped lines with frontmatter lines blanked and fenced-code
+	 * headings neutralized, so the ordered target search never matches a heading
+	 * that isn't a real body section. Line indices are preserved.
+	 */
+	private maskNonBodyHeadingsForSearch(lines: string[]): string[] {
+		const bodyStartLine = this.getBodyStartLine();
+		const masked = maskFencedHeadings(lines).map((line) =>
+			line.replace(/\r$/, ""),
+		);
+		for (let i = 0; i < bodyStartLine && i < masked.length; i++) {
+			masked[i] = "";
+		}
+		return masked;
+	}
+
 	private createInsertAfterOrdered(
 		formatted: string,
 		targetString: string,
@@ -817,11 +860,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// Exclude any YAML frontmatter so a `#`-prefixed YAML line is never treated
 		// as a sibling/ancestor and the new section can never be spliced into the
 		// frontmatter block (frontmatter detection mirrors insertAtNoteBodyStart).
-		const bodyStartOffset = getBodyStartOffset(this.fileContent);
-		const bodyStartLine =
-			bodyStartOffset > 0
-				? this.fileContent.slice(0, bodyStartOffset).split("\n").length - 1
-				: 0;
+		const bodyStartLine = this.getBodyStartLine();
 
 		// Idempotency guard for multi-line anchors: the block search (findInsertAfterRange)
 		// matches the WHOLE multi-line target, so a target like "## 2026-06-16\n**Tasks**"
