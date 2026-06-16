@@ -381,6 +381,21 @@ export class CompleteFormatter extends Formatter {
 				);
 			}
 
+			// {{VALUE:x|type:checkbox}} renders a forced true/false picker (no
+			// free text) so the written `x: true` round-trips as a Checkbox. The
+			// |label (carried as description for single-value tokens) becomes the
+			// modal title so the user knows which property they are setting (#202).
+			if (context?.inputTypeOverride === "checkbox") {
+				return await GenericSuggester.Suggest(
+					this.app,
+					["true", "false"],
+					["true", "false"],
+					context.description ?? header ?? context.label ?? "Choose value",
+					undefined,
+					context.optional ? { skippable: true } : undefined,
+				);
+			}
+
 			// Use default prompt for other variables
 			return await new InputPrompt().factory(context?.inputTypeOverride).Prompt(
 				this.app,

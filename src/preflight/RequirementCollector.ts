@@ -180,6 +180,10 @@ export class RequirementCollector extends Formatter {
 			const requirementId = variableKey;
 
 			if (!this.requirements.has(requirementId)) {
+				// |type:checkbox renders a forced true/false dropdown so the
+				// one-page form matches the runtime suggester (item #757).
+				const isCheckbox =
+					!hasOptions && parsed.inputTypeOverride === "checkbox";
 				const baseInputType =
 					parsed.inputTypeOverride === "multiline" ||
 					this.plugin.settings.inputPrompt === "multi-line"
@@ -190,11 +194,14 @@ export class RequirementCollector extends Formatter {
 					label: displayLabel,
 					type: hasOptions
 						? this.optionFieldType(parsed)
-						: baseInputType,
+						: isCheckbox
+							? "dropdown"
+							: baseInputType,
 					description,
 					optional: parsed.optional,
 				};
 				if (hasOptions) this.applyOptionFields(req, parsed);
+				else if (isCheckbox) req.options = ["true", "false"];
 				if (defaultValue) req.defaultValue = defaultValue;
 				this.requirements.set(requirementId, req);
 			} else {

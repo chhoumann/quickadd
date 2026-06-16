@@ -112,6 +112,42 @@ describe("parseValueToken", () => {
 		expect(parsed?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
+
+	it("parses type:number / checkbox / text without warning", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		expect(parseValueToken("Rating|type:number")?.inputTypeOverride).toBe(
+			"number",
+		);
+		expect(parseValueToken("Done|type:checkbox")?.inputTypeOverride).toBe(
+			"checkbox",
+		);
+		expect(parseValueToken("Note|type:text")?.inputTypeOverride).toBe(
+			"text",
+		);
+		expect(warnSpy).not.toHaveBeenCalled();
+	});
+
+	it("treats type:boolean as an alias for checkbox", () => {
+		expect(parseValueToken("Done|type:boolean")?.inputTypeOverride).toBe(
+			"checkbox",
+		);
+	});
+
+	it("still rejects an unknown type and names the new supported set", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		expect(parseValueToken("Body|type:wide")?.inputTypeOverride).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("multiline, number, checkbox, text"),
+		);
+	});
+
+	it("ignores a scalar type on an option-list token", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		expect(
+			parseValueToken("Red,Green|type:number")?.inputTypeOverride,
+		).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalled();
+	});
 });
 
 describe("parseAnonymousValueOptions", () => {
