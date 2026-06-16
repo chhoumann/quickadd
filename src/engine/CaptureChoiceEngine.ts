@@ -15,6 +15,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
+	CREATE_IF_NOT_FOUND_ORDERED,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
@@ -98,6 +99,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.choice = choice;
 		this.plugin = plugin;
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+	}
+
+	/**
+	 * For ordered captures (the "ordered" create-if-not-found location), copy the
+	 * formatter's resolved insert-after heading (e.g. `## 2026-06-16`) so the
+	 * success notice names the real heading instead of the raw `{{DATE:…}}` token.
+	 * Called after the format pass; a no-op for every other capture (so existing
+	 * insert-after notice behaviour is unchanged).
+	 */
+	private captureResolvedOrderedHeading(): void {
+		if (
+			this.choice.insertAfter?.enabled &&
+			this.choice.insertAfter.createIfNotFoundLocation ===
+				CREATE_IF_NOT_FOUND_ORDERED
+		) {
+			const resolved = this.formatter.getResolvedInsertAfterHeading();
+			if (resolved) this.resolvedInsertAfterHeading = resolved;
+		}
 	}
 
 	private showSuccessNotice(
@@ -325,6 +344,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
+			this.captureResolvedOrderedHeading();
+
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
@@ -462,6 +483,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			existingText,
 			file,
 		);
+
+		this.captureResolvedOrderedHeading();
 
 		await setCanvasTextCaptureContent(this.app, target, nextText);
 
