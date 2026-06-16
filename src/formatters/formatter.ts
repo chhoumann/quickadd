@@ -64,6 +64,7 @@ export interface PromptContext {
 	variableKey?: string;
 	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
 	optional?: boolean; // Token carries |optional: empty submissions are accepted as the answer.
+	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker.
 }
 
 export interface TemplateInclusionState {
@@ -963,8 +964,11 @@ export abstract class Formatter {
 			if (!match || !match[1]) break;
 
 			const variableName = match[1].trim();
-			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
-			const { defaultValue, optional } = parseVDateOptions(match[3]);
+			const { defaultValue, optional, withTime } = parseVDateOptions(match[3]);
+			// A |time/|datetime token with no explicit format gets a datetime
+			// default so the rendered value carries the picked time.
+			const dateFormat =
+				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
@@ -983,7 +987,7 @@ export abstract class Formatter {
 					// Prompt for date input with VDATE context
 					const dateInput = await this.promptForVariable(
 						variableName,
-						{ type: "VDATE", dateFormat, defaultValue, optional }
+						{ type: "VDATE", dateFormat, defaultValue, optional, withTime }
 					);
 					if (optional && !dateInput?.trim()) {
 						// Optional date left blank or skipped: answered-empty.

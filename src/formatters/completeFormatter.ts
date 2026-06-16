@@ -374,10 +374,13 @@ export class CompleteFormatter extends Formatter {
 				return await VDateInputPrompt.Prompt(
 					this.app,
 					(header as string) ?? context.label ?? "Enter date",
-					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
+					context.withTime
+						? "Enter a date & time (e.g., 'tomorrow at 3pm', '2025-12-25 14:30')"
+						: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
 					context.dateFormat ?? "YYYY-MM-DD",
 					context.optional ? { optional: true } : undefined,
+					context.withTime,
 				);
 			}
 

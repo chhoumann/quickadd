@@ -17,6 +17,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	private currentInput: string;
 	private isOpen = true;
 	private defaultValue: string | undefined;
+	private withTime: boolean;
+	private pickerHostEl: HTMLElement;
 	private datePicker?: DatePickerController;
 	private selectedIso?: string;
 	private lastPickerDisplayValue?: string;
@@ -28,7 +30,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		placeholder?: string,
 		defaultValue?: string,
 		dateFormat?: string,
-		options?: InputPromptOptions
+		options?: InputPromptOptions,
+		withTime?: boolean
 	): Promise<string> {
 		const newPromptModal = new VDateInputPrompt(
 			app,
@@ -36,7 +39,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			placeholder,
 			defaultValue,
 			dateFormat,
-			options
+			options,
+			withTime
 		);
 		return newPromptModal.waitForClose;
 	}
@@ -47,15 +51,25 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		placeholder?: string,
 		defaultValue?: string,
 		dateFormat?: string,
-		options?: InputPromptOptions
+		options?: InputPromptOptions,
+		withTime?: boolean
 	) {
 		// Pass the defaultValue to the parent so the input box is pre-filled
 		super(app, header, placeholder, defaultValue ?? "", undefined, undefined, options);
 
 		this.containerEl.addClass("qaDatePrompt");
-		this.dateFormat = dateFormat || "YYYY-MM-DD";
+		this.withTime = withTime === true;
+		// A |time/|datetime token without an explicit format gets a datetime
+		// default so the rendered value carries the time the user picked.
+		this.dateFormat =
+			dateFormat || (this.withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 		this.defaultValue = defaultValue;
 		this.currentInput = defaultValue ?? "";
+
+		// Mount the picker here (NOT in createInputField, which runs during the
+		// super() display() call before this.withTime is set), so the time
+		// control reflects the |time/|datetime flag.
+		this.mountDatePicker();
 
 		// Create debounced preview update function (250ms delay, reset on each call)
 		this.updatePreviewDebounced = debounce(
@@ -92,7 +106,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		// Initialize currentInput with the initial value (which should be defaultValue)
 		this.currentInput = value ?? "";
 
-		this.createDatePicker(container);
+		// Only reserve the host element here (runs during super(), before
+		// this.withTime is known); the picker itself is mounted from the
+		// constructor body via mountDatePicker().
+		this.pickerHostEl = container.createDiv({
+			cls: "qa-date-picker-container",
+		});
 
 		// Create preview element
 		this.createPreviewElement(container);
@@ -100,14 +119,11 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		return textComponent;
 	}
 
-	private createDatePicker(container: HTMLElement) {
-		const pickerContainer = container.createDiv({
-			cls: "qa-date-picker-container",
-		});
-
+	private mountDatePicker() {
 		this.datePicker = createDatePicker({
-			container: pickerContainer,
+			container: this.pickerHostEl,
 			initialIso: this.selectedIso,
+			withTime: this.withTime,
 			onSelect: (iso) => {
 				if (iso) this.applyPickerSelection(iso);
 				else this.clearPickerSelection();

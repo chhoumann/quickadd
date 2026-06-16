@@ -13,7 +13,14 @@ export interface DatePickerOptions {
 	container: HTMLElement;
 	initialIso?: string;
 	weekStartsOn?: number;
+	/** When true, render a time control and emit datetime ISOs (issue #757). */
+	withTime?: boolean;
 	onSelect: (iso: string | null, source: DatePickerSelectSource) => void;
+}
+
+interface TimeParts {
+	hour: number;
+	minute: number;
 }
 
 const pad = (value: number) => value.toString().padStart(2, "0");
@@ -73,8 +80,32 @@ const parseIsoToDate = (iso?: string): Date | null => {
 	return parsed;
 };
 
-const toIsoFromParts = (year: number, month: number, day: number): string => {
-	return formatDateKey(year, month, day);
+/**
+ * Builds the ISO emitted on selection. Without time it stays the bare
+ * `YYYY-MM-DD` date key (byte-identical to the date-only picker). With time it
+ * appends an OFFSET-LESS local wall-clock `THH:mm:00` — never `Z`/toISOString,
+ * so the chosen hour round-trips identically across timezones.
+ */
+export const toIsoFromParts = (
+	year: number,
+	month: number,
+	day: number,
+	time?: TimeParts | null,
+): string => {
+	const dateKey = formatDateKey(year, month, day);
+	if (!time) return dateKey;
+	return `${dateKey}T${pad(time.hour)}:${pad(time.minute)}:00`;
+};
+
+/** Reads HH:mm out of a `...THH:mm` or `... HH:mm` ISO; null when absent. */
+export const extractTimeFromIso = (iso?: string): TimeParts | null => {
+	if (!iso) return null;
+	const match = /[T ](\d{2}):(\d{2})/.exec(iso);
+	if (!match) return null;
+	const hour = Number.parseInt(match[1], 10);
+	const minute = Number.parseInt(match[2], 10);
+	if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+	return { hour, minute };
 };
 
 export const createDatePicker = (
@@ -88,6 +119,13 @@ export const createDatePicker = (
 	let viewYear = initialDate.getFullYear();
 	let viewMonth = initialDate.getMonth();
 	let selectedIso = options.initialIso;
+
+	const withTime = options.withTime === true;
+	// The wall-clock time merged into every picked day. Seeded from the initial
+	// ISO (if it carried a time), else midnight.
+	let currentTime: TimeParts | null = withTime
+		? extractTimeFromIso(options.initialIso) ?? { hour: 0, minute: 0 }
+		: null;
 
 	const root = options.container.createDiv({ cls: "qa-date-picker" });
 
@@ -129,6 +167,20 @@ export const createDatePicker = (
 	});
 	clearBtn.type = "button";
 
+	let timeInput: HTMLInputElement | undefined;
+	if (withTime) {
+		const timeRow = root.createDiv({ cls: "qa-date-picker__time" });
+		timeRow.createEl("label", {
+			cls: "qa-date-picker__time-label",
+			text: "Time",
+		});
+		timeInput = timeRow.createEl("input", { cls: "qa-date-picker__time-input" });
+		timeInput.type = "time";
+		if (currentTime) {
+			timeInput.value = `${pad(currentTime.hour)}:${pad(currentTime.minute)}`;
+		}
+	}
+
 	const shiftMonth = (delta: number) => {
 		viewMonth += delta;
 		if (viewMonth > 11) {
@@ -162,6 +214,7 @@ export const createDatePicker = (
 			today.getFullYear(),
 			today.getMonth(),
 			today.getDate(),
+			currentTime,
 		);
 		viewYear = today.getFullYear();
 		viewMonth = today.getMonth();
@@ -169,6 +222,30 @@ export const createDatePicker = (
 	});
 
 	clearBtn.addEventListener("click", () => clearSelection("action"));
+
+	if (timeInput) {
+		timeInput.addEventListener("change", () => {
+			const [h, m] = timeInput.value.split(":").map((p) => Number.parseInt(p, 10));
+			if (Number.isNaN(h) || Number.isNaN(m)) return;
+			currentTime = { hour: h, minute: m };
+			// Re-emit so editing the time after picking a day updates the value
+			// instead of being dropped.
+			if (selectedIso) {
+				const parsed = parseIsoToDate(selectedIso);
+				if (parsed) {
+					selectIso(
+						toIsoFromParts(
+							parsed.getFullYear(),
+							parsed.getMonth(),
+							parsed.getDate(),
+							currentTime,
+						),
+						"picker",
+					);
+				}
+			}
+		});
+	}
 
 	const render = () => {
 		label.textContent = getMonthLabel(viewYear, viewMonth);
@@ -217,6 +294,7 @@ export const createDatePicker = (
 					date.getFullYear(),
 					date.getMonth(),
 					date.getDate(),
+					currentTime,
 				);
 				selectIso(iso, "picker");
 			});
@@ -233,6 +311,17 @@ export const createDatePicker = (
 				if (parsed) {
 					viewYear = parsed.getFullYear();
 					viewMonth = parsed.getMonth();
+				}
+			}
+			// Reflect a time carried by the incoming ISO (e.g. parsed from the
+			// text box) into the time control so the two stay in sync.
+			if (withTime && iso) {
+				const time = extractTimeFromIso(iso);
+				if (time) {
+					currentTime = time;
+					if (timeInput) {
+						timeInput.value = `${pad(time.hour)}:${pad(time.minute)}`;
+					}
 				}
 			}
 			render();

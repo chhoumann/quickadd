@@ -45,6 +45,7 @@ export interface FieldRequirement {
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	// Additional metadata
 	dateFormat?: string; // for VDATE
+	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
@@ -288,8 +289,11 @@ export class RequirementCollector extends Formatter {
 			const variableName = match[1]?.trim();
 			if (!variableName) continue;
 
-			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
-			const { defaultValue, optional } = parseVDateOptions(match[3]);
+			const { defaultValue, optional, withTime } = parseVDateOptions(
+				match[3],
+			);
+			const dateFormat =
+				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
 			const existing = this.requirements.get(variableName);
 			if (!existing) {
@@ -299,6 +303,7 @@ export class RequirementCollector extends Formatter {
 					type: "date",
 					defaultValue,
 					dateFormat,
+					withTime,
 					optional,
 					source: "collected",
 				});

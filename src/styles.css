@@ -967,6 +967,24 @@
 	background: var(--background-modifier-hover);
 }
 
+.qa-date-picker__time {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.qa-date-picker__time-label {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+}
+
+.qa-date-picker__time-input {
+	flex: 1;
+}
+
 /* Priority indicators - subtle left border */
 .qa-suggest-exact::before {
   content: '';

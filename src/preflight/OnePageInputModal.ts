@@ -209,6 +209,7 @@ export class OnePageInputModal extends Modal {
 				const datePicker = createDatePicker({
 					container: pickerContainer,
 					initialIso: selectedIso,
+					withTime: req.withTime === true,
 					onSelect: (iso) => {
 						if (iso) applyPickerSelection(iso);
 						else clearPickerSelection();
