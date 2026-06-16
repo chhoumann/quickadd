@@ -127,7 +127,7 @@ Tailors the input to an Obsidian property type. These are single-value prompts (
 
 - `|type:number` shows a numeric input. The value is written unquoted (`rating: 42`), so Obsidian reads it as a **Number**.
 - `|type:checkbox` (alias `|type:boolean`) shows a forced **true / false** picker — useful for a `checkbox` property. The `|label:` becomes the picker's title so you know which property you're setting. Writes `done: true` (a boolean).
-- `|type:text` keeps the value a **string** even when it looks like a number/boolean. Without it, a text property given `0042` would be read by Obsidian as the number `42`; `|type:text` writes `id: "0042"` so the text is preserved.
+- `|type:text` keeps the value a **string**. It writes the value as a quoted YAML scalar (`id: "0042"`), so Obsidian can't retype it — without it, a text property given `0042` is read as the number `42`, `true` as a boolean, and a value like `#todo` or `[a]` is mis-parsed entirely.
 
 ```markdown
 ---
@@ -137,9 +137,7 @@ id: {{VALUE:id|type:text}}
 ---
 ```
 
-**Good to know:** plain number and checkbox values already round-trip correctly without `|type:` — `count: {{VALUE:count}}` typed `42` becomes a Number, and `{{VALUE:true,false}}` becomes a Boolean. The `|type:` options add the right input widget and validation, and `|type:text` closes the one case Obsidian gets "wrong" (a text value that looks like a number/boolean/null). Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
-
-Type-aware quoting also runs automatically (no `|type:text` needed) when you enable **Settings → QuickAdd → "Format template variables as proper property types"** and the property is explicitly typed **Text** in Obsidian.
+**Good to know:** plain number and checkbox values already round-trip correctly without `|type:` — `count: {{VALUE:count}}` typed `42` becomes a Number, and `{{VALUE:true,false}}` becomes a Boolean. The `|type:` options add the right input widget and validation, and `|type:text` closes the cases Obsidian gets "wrong" (a text value that looks like a number/boolean, or one that starts with a YAML character like `#` or `[`). Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
 
 ## `{{VALUE|case:<style>}}` / `{{NAME|case:<style>}}` / `{{VALUE:<variable>|case:<style>}}` {#value-case}
 

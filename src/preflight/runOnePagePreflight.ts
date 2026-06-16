@@ -75,30 +75,47 @@ export async function runOnePagePreflight(
 		// requirement's encoded `@file:` picks is treated as typed custom text (and
 		// can't spoof a pick by typing the internal `@file:` sentinel).
 		const fileOptionsByKey = new Map<string, string[]>();
-		// |multi requirements: the suggester stores a ", "-joined string; split it
-		// back into a real array so the formatter writes a YAML list (matching the
-		// runtime |multi path), applying linklist wrapping when requested.
-		const multiEmitByKey = new Map<string, "text" | "linklist">();
+		// |multi requirements: the suggester stores a ", "-joined string of the
+		// DISPLAY labels; split it, map each label back to its option value (so
+		// |text: mappings round-trip), and store a real array so the formatter
+		// writes a YAML list — matching the runtime |multi path, with linklist
+		// wrapping when requested.
+		const multiInfoByKey = new Map<
+			string,
+			{ emit: "text" | "linklist"; displayToValue: Map<string, string> }
+		>();
 		for (const req of unresolved) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				fileOptionsByKey.set(req.id, req.options ?? []);
 			}
 			if (req.suggesterConfig?.multiSelect) {
-				multiEmitByKey.set(req.id, req.multiEmit ?? "text");
+				const options = req.options ?? [];
+				const displayOptions = req.displayOptions ?? options;
+				const displayToValue = new Map<string, string>();
+				options.forEach((value, i) => {
+					displayToValue.set((displayOptions[i] ?? value).trim(), value);
+				});
+				multiInfoByKey.set(req.id, {
+					emit: req.multiEmit ?? "text",
+					displayToValue,
+				});
 			}
 		}
 
 		// Store results into executor variables
 		Object.entries(values).forEach(([k, v]) => {
-			const multiEmit = multiEmitByKey.get(k);
-			if (multiEmit !== undefined) {
+			const multiInfo = multiInfoByKey.get(k);
+			if (multiInfo !== undefined) {
 				const items = String(v)
 					.split(",")
 					.map((s) => s.trim())
-					.filter(Boolean);
+					.filter(Boolean)
+					// Map the display label back to its value; a typed custom value
+					// (no mapping) passes through unchanged.
+					.map((label) => multiInfo.displayToValue.get(label) ?? label);
 				choiceExecutor.variables.set(
 					k,
-					multiEmit === "linklist" ? items.map(toWikiLink) : items,
+					multiInfo.emit === "linklist" ? items.map(toWikiLink) : items,
 				);
 				return;
 			}

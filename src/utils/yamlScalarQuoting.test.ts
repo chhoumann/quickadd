@@ -1,82 +1,46 @@
 import { describe, expect, it } from "vitest";
-import { quoteYamlDouble, wouldYamlMisCoerce } from "./yamlScalarQuoting";
+import { quoteYamlDouble, shouldQuoteTextScalar } from "./yamlScalarQuoting";
 
-describe("wouldYamlMisCoerce", () => {
-	// The exact set Obsidian's YAML parser coerces to a non-string, pinned
-	// empirically against a live metadataCache probe.
-	const COERCES = [
-		"42",
-		"-7",
-		"+5",
-		"0042",
-		"00",
-		"-0",
-		"3.5",
-		".5",
-		"5.",
-		"1e3",
-		"2e10",
-		"0x1F",
-		"0o17",
-		".inf",
-		"-.inf",
-		".Inf",
-		".nan",
-		".NaN",
-		"true",
-		"True",
-		"TRUE",
-		"false",
-		"False",
-		"FALSE",
-		"null",
-		"Null",
-		"NULL",
-		"~",
-	];
+const TOKEN = "{{VALUE:x}}";
 
-	// Obsidian keeps these as STRINGS — quoting them would be needless churn.
-	const STAYS_STRING = [
-		"yes",
-		"no",
-		"on",
-		"off",
-		"YES",
-		"Off",
-		"tRue", // mixed case
-		"1000_000", // underscores
-		"2025-12-25", // date
-		"2025-12-25T15:30:00", // datetime
-		"12:30", // sexagesimal
-		"1:02:03",
-		"0b101", // binary
-		"1.2.3",
-		"0x", // incomplete
-		"1e",
-		"1,000",
-		"hello",
-		"007abc",
-		"", // empty
-		"   ", // whitespace
-	];
-
-	it.each(COERCES)("treats %s as coercion-prone", (value) => {
-		expect(wouldYamlMisCoerce(value)).toBe(true);
-	});
-
-	it.each(STAYS_STRING)("leaves %s as a string", (value) => {
-		expect(wouldYamlMisCoerce(value)).toBe(false);
-	});
-});
+/** Helper: locate the token in `input` and ask whether it should be quoted. */
+function check(input: string): boolean {
+	const start = input.indexOf(TOKEN);
+	return shouldQuoteTextScalar(input, start, start + TOKEN.length);
+}
 
 describe("quoteYamlDouble", () => {
 	it("wraps a plain value in double quotes", () => {
 		expect(quoteYamlDouble("0042")).toBe('"0042"');
-		expect(quoteYamlDouble("true")).toBe('"true"');
+		expect(quoteYamlDouble("#todo")).toBe('"#todo"');
 	});
 
 	it("escapes embedded double quotes and backslashes", () => {
 		expect(quoteYamlDouble('he said "hi"')).toBe('"he said \\"hi\\""');
 		expect(quoteYamlDouble("a\\b")).toBe('"a\\\\b"');
+	});
+});
+
+describe("shouldQuoteTextScalar", () => {
+	it("quotes a sole-value front-matter scalar", () => {
+		expect(check(`---\nid: ${TOKEN}\n---\nbody`)).toBe(true);
+	});
+
+	it("quotes a sole-value list item", () => {
+		expect(check(`---\ntags:\n  - ${TOKEN}\n---\nbody`)).toBe(true);
+	});
+
+	it("does NOT quote when the token is only part of the value", () => {
+		expect(check(`---\nid: prefix-${TOKEN}\n---`)).toBe(false);
+		expect(check(`---\nid: ${TOKEN} suffix\n---`)).toBe(false);
+	});
+
+	it("does NOT quote an already author-quoted value", () => {
+		expect(check(`---\nid: "${TOKEN}"\n---`)).toBe(false);
+	});
+
+	it("does NOT quote in the note body (outside front matter)", () => {
+		expect(check(`---\ntitle: x\n---\nSome ${TOKEN} prose`)).toBe(false);
+		expect(check(`No front matter here ${TOKEN}`)).toBe(false);
 	});
 });

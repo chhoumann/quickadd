@@ -312,7 +312,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			// writing the wrong shape.
 			if (
 				this.suppressFrontmatterCollection &&
-				/\{\{VALUE:[^}]*\|[^}]*multi/i.test(this.choice?.format?.format ?? "")
+				// `\|\s*multi` requires the flag directly after a pipe, and
+				// `(?![a-z])` excludes `|type:multiline`.
+				/\{\{VALUE:[^}]*\|\s*multi(?![a-z])/i.test(
+					this.choice?.format?.format ?? "",
+				)
 			) {
 				log.logWarning(
 					"QuickAdd: {{VALUE:…|multi}} in this capture writes a comma-separated string, not a YAML list. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
