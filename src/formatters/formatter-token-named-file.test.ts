@@ -110,27 +110,27 @@ class StubFormatter extends Formatter {
 	}
 }
 
-const ALL = { links: true, fileName: true, folder: true, title: true } as const;
+const allTokens = { links: true, fileName: true, folder: true, title: true } as const;
 
 describe("#1358 note-derived token rescan", () => {
 	describe("no infinite loop when a file/title is literally named like a token", () => {
 		it("{{filenamecurrent}} body, file basename literally {{filenamecurrent}}", () => {
 			const f = new StubFormatter();
 			f.setFilename("{{filenamecurrent}}");
-			expect(f.combined("{{FILENAMECURRENT}}", ALL)).toBe("{{filenamecurrent}}");
+			expect(f.combined("{{FILENAMECURRENT}}", allTokens)).toBe("{{filenamecurrent}}");
 		});
 
 		it("{{linkcurrent}} body, file basename literally {{filenamecurrent}} keeps the link intact", () => {
 			const f = new StubFormatter();
 			f.setFilename("{{filenamecurrent}}");
 			f.setLink("[[{{filenamecurrent}}]]");
-			expect(f.combined("{{LINKCURRENT}}", ALL)).toBe("[[{{filenamecurrent}}]]");
+			expect(f.combined("{{LINKCURRENT}}", allTokens)).toBe("[[{{filenamecurrent}}]]");
 		});
 
 		it("{{title}} body, title value literally {{title}}", () => {
 			const f = new StubFormatter();
 			f.setTitleValue("{{title}}");
-			expect(f.combined("{{TITLE}}", ALL)).toBe("{{title}}");
+			expect(f.combined("{{TITLE}}", allTokens)).toBe("{{title}}");
 		});
 
 		it("standalone replaceLinkToCurrentFileInString no longer loops on a {{linkcurrent}}-named file", async () => {
@@ -148,21 +148,21 @@ describe("#1358 note-derived token rescan", () => {
 			const f = new StubFormatter();
 			f.setLink("[[{{folder}}]]");
 			f.setFolder("Projects");
-			expect(f.combined("{{LINKCURRENT}}", ALL)).toBe("[[{{folder}}]]");
+			expect(f.combined("{{LINKCURRENT}}", allTokens)).toBe("[[{{folder}}]]");
 		});
 
 		it("a {{title}} inside a generated link is NOT rewritten by the title pass", () => {
 			const f = new StubFormatter();
 			f.setLink("[[{{title}}]]");
 			f.setTitleValue("Brand New Title");
-			expect(f.combined("{{LINKCURRENT}}", ALL)).toBe("[[{{title}}]]");
+			expect(f.combined("{{LINKCURRENT}}", allTokens)).toBe("[[{{title}}]]");
 		});
 
 		it("a {{filenamecurrent}} inside a generated section link is NOT rewritten by the filename pass", () => {
 			const f = new StubFormatter();
 			f.setSection("[[{{filenamecurrent}}#Heading]]");
 			f.setFilename("real-basename");
-			expect(f.combined("{{LINKSECTION}}", ALL)).toBe(
+			expect(f.combined("{{LINKSECTION}}", allTokens)).toBe(
 				"[[{{filenamecurrent}}#Heading]]",
 			);
 		});
@@ -218,7 +218,7 @@ describe("#1358 note-derived token rescan", () => {
 			f.setBehavior("required");
 			f.setLink(null);
 			f.setFilename(null);
-			expect(() => f.combined("{{FILENAMECURRENT}} {{LINKCURRENT}}", ALL)).toThrow(
+			expect(() => f.combined("{{FILENAMECURRENT}} {{LINKCURRENT}}", allTokens)).toThrow(
 				"Unable to get current file path",
 			);
 		});
@@ -227,7 +227,7 @@ describe("#1358 note-derived token rescan", () => {
 			const f = new StubFormatter();
 			f.setBehavior("required");
 			f.setFilename(null);
-			expect(() => f.combined("{{FILENAMECURRENT}}", ALL)).toThrow(
+			expect(() => f.combined("{{FILENAMECURRENT}}", allTokens)).toThrow(
 				"Unable to get current file name",
 			);
 		});
@@ -239,7 +239,7 @@ describe("#1358 note-derived token rescan", () => {
 			f.setFilename(null);
 			// Filename token appears first, but the link message must still win.
 			expect(() =>
-				f.combined("{{FILENAMECURRENT}} then {{LINKCURRENT}}", ALL),
+				f.combined("{{FILENAMECURRENT}} then {{LINKCURRENT}}", allTokens),
 			).toThrow("Unable to get current file path");
 		});
 
@@ -248,7 +248,7 @@ describe("#1358 note-derived token rescan", () => {
 			f.setBehavior("optional");
 			f.setLink(null);
 			f.setFilename(null);
-			expect(f.combined("a{{LINKCURRENT}}b{{FILENAMECURRENT}}c", ALL)).toBe("abc");
+			expect(f.combined("a{{LINKCURRENT}}b{{FILENAMECURRENT}}c", allTokens)).toBe("abc");
 		});
 	});
 
@@ -272,7 +272,7 @@ describe("#1358 note-derived token rescan", () => {
 		it("{{TITLE|name}} is not a valid token and stays literal", () => {
 			const f = new StubFormatter();
 			f.setTitleValue("T");
-			expect(f.combined("{{TITLE|name}}", ALL)).toBe("{{TITLE|name}}");
+			expect(f.combined("{{TITLE|name}}", allTokens)).toBe("{{TITLE|name}}");
 		});
 	});
 });
