@@ -103,8 +103,13 @@ export class CompleteFormatter extends Formatter {
 
 		this.valueHeader = valueHeader;
 		let output = await this.format(input);
-		output = await this.replaceCurrentFileNameInString(output);
-		output = this.replaceTargetFolderInString(output);
+		// {{filenamecurrent}} + {{folder}} in one pass (links stay literal in a
+		// file name; {{title}} threw above). One pass so no token re-scans
+		// another's output (#1358).
+		output = this.replaceCurrentFileTokensInString(output, {
+			fileName: true,
+			folder: true,
+		});
 		return output;
 	}
 
@@ -112,12 +117,16 @@ export class CompleteFormatter extends Formatter {
 		let output: string = input;
 
 		output = await this.format(output);
-		// Resolve {{linkcurrent}} + {{linksection}} in one pass so neither
-		// re-scans the other's generated link (both embed the basename).
-		output = this.replaceCurrentFileLinksInString(output);
-		output = await this.replaceCurrentFileNameInString(output);
-		output = this.replaceTargetFolderInString(output);
-		output = this.replaceTitleInString(output);
+		// Resolve ALL note-derived tokens ({{linkcurrent}}, {{linksection}},
+		// {{filenamecurrent}}, {{folder}}, {{title}}) in ONE pass so no token
+		// re-scans another's generated output — fixing both the cross-pass
+		// corruption and the infinite loop a token-named file/title caused (#1358).
+		output = this.replaceCurrentFileTokensInString(output, {
+			links: true,
+			fileName: true,
+			folder: true,
+			title: true,
+		});
 
 		return output;
 	}
@@ -133,7 +142,9 @@ export class CompleteFormatter extends Formatter {
 		// {{FOLDER}} in a folder definition is self-referential: the target
 		// folder isn't known while folders are being resolved, so it collapses
 		// to an empty string rather than leaking the literal token into a path.
-		return this.replaceTargetFolderInString(await this.format(folderName));
+		return this.replaceCurrentFileTokensInString(await this.format(folderName), {
+			folder: true,
+		});
 	}
 
 	/**
@@ -210,12 +221,16 @@ export class CompleteFormatter extends Formatter {
 	 */
 	protected async formatLocationString(input: string): Promise<string> {
 		let output = await this.format(input);
-		output = this.replaceCurrentFileLinksInString(output);
-		output = await this.replaceCurrentFileNameInString(output);
-		// Note: {{FOLDER}} is deliberately NOT resolved in location selectors
-		// (insert-after/before targets) — an empty resolution would match the
-		// first line, and folder reflection isn't meaningful for a line target.
-		output = this.replaceTitleInString(output);
+		// Links + {{filenamecurrent}} + {{title}} in one pass so no token re-scans
+		// another's output (#1358). {{FOLDER}} is deliberately left literal in
+		// location selectors (insert-after/before targets) — an empty resolution
+		// would match the first line, and folder reflection isn't meaningful for a
+		// line target.
+		output = this.replaceCurrentFileTokensInString(output, {
+			links: true,
+			fileName: true,
+			title: true,
+		});
 		return output;
 	}
 
