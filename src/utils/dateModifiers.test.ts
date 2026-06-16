@@ -1,5 +1,5 @@
 import moment from "moment";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
 	applyDateSnap,
 	normalizeDateUnit,
@@ -8,8 +8,13 @@ import {
 
 // `week` is locale-dependent (first day of week); pin to en (Sunday-first) so
 // the assertions are deterministic. `isoWeek` is always Monday-anchored.
+// Restore the global locale afterwards so this never leaks into other suites.
+const previousLocale = moment.locale();
 beforeAll(() => {
 	moment.locale("en");
+});
+afterAll(() => {
+	moment.locale(previousLocale);
 });
 
 describe("normalizeDateUnit", () => {

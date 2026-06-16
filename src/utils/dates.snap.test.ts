@@ -15,6 +15,7 @@ import { getDate } from "./dates";
 // getDate reads the wall clock via window.moment(); install the real moment and
 // freeze "now" so the snap behaviour is deterministic. en locale = Sunday-first.
 const originalMoment = (window as unknown as { moment?: unknown }).moment;
+const previousLocale = realMoment.locale();
 
 beforeAll(() => {
 	realMoment.locale("en");
@@ -22,6 +23,7 @@ beforeAll(() => {
 });
 afterAll(() => {
 	(window as unknown as { moment?: unknown }).moment = originalMoment;
+	realMoment.locale(previousLocale);
 });
 afterEach(() => {
 	vi.useRealTimers();

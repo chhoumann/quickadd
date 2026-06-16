@@ -126,10 +126,13 @@ const ordering = $derived<SectionOrdering>(
  */
 function detectDateFormatFromAfter(after: string): string | undefined {
 	// Tolerate an optional offset and a trailing |startof:/|endof: snap option
-	// (issue #511); the moment sort-parse format is the part before the first
-	// `|`, mirroring the VDATE handling below.
-	const date = after.match(/\{\{DATE:([^}\n\r+]*)(?:\+-?\d+)?(?:\|[^}\n\r]*)?\}\}/i);
-	const dateFormat = date?.[1]?.split("|")[0]?.trim();
+	// (issue #511). The snap group is keyword-anchored and the format slot is
+	// lazy (mirroring DATE_REGEX_FORMATTED), so a literal `|` in the format is
+	// preserved in the captured sort format ({{DATE:YYYY|MM}} -> "YYYY|MM").
+	const date = after.match(
+		/\{\{DATE:([^}\n\r+]*?)(?:\+-?\d+)?(?:\|(?:startof|endof):[^}\n\r]*?)?\}\}/i,
+	);
+	const dateFormat = date?.[1]?.trim();
 	if (dateFormat) return dateFormat;
 	// VDATE is {{VDATE:name,format}} or {{VDATE:name,format|default}} — drop the
 	// "|default" segment so it doesn't leak into the moment parse format.
