@@ -7,6 +7,13 @@ export interface YamlMatchContext {
   lineEnd: number;
   baseIndent: string;
   isKeyValuePosition: boolean;
+  /**
+   * True when the match is the SOLE value of a YAML list item, i.e. the line is
+   * `- {{match}}` (optionally indented / wrapped in quotes). Mirrors
+   * isKeyValuePosition for the `- value` shape so a consumer can tell a list
+   * item value apart from prose that merely starts with a dash.
+   */
+  isListItemPosition: boolean;
 }
 
 /** Finds the YAML front matter range. Returns [start, end] or null. */
@@ -36,6 +43,7 @@ export function getYamlContextForMatch(
       lineEnd: 0,
       baseIndent: "",
       isKeyValuePosition: false,
+      isListItemPosition: false,
     };
   }
 
@@ -54,7 +62,13 @@ export function getYamlContextForMatch(
 
   const beforeTrimmed = before.replace(/["']$/, "");
   const afterTrimmed = after.replace(/^["']/, "");
-  const isKeyValuePosition = /:\s*$/.test(beforeTrimmed) && afterTrimmed.trim().length === 0;
+  // A trailing YAML comment (` #…`) is not part of the scalar, so a token
+  // followed only by a comment is still the sole value of its key / list item.
+  const afterIsSoleValue =
+    afterTrimmed.replace(/\s+#.*$/, "").trim().length === 0;
+  const isKeyValuePosition = /:\s*$/.test(beforeTrimmed) && afterIsSoleValue;
+  // `- {{match}}` (optionally indented / quoted) and nothing else on the line.
+  const isListItemPosition = /^\s*-\s*$/.test(beforeTrimmed) && afterIsSoleValue;
 
   return {
     isInYaml: true,
@@ -63,5 +77,6 @@ export function getYamlContextForMatch(
     lineEnd,
     baseIndent,
     isKeyValuePosition,
+    isListItemPosition,
   };
 }

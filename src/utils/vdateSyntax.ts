@@ -8,6 +8,8 @@ import {
 export type ParsedVDateOptions = {
 	defaultValue?: string;
 	optional: boolean;
+	/** Token requested a date AND time picker via |time / |datetime / |type:datetime. */
+	withTime: boolean;
 };
 
 /**
@@ -23,14 +25,27 @@ export type ParsedVDateOptions = {
 export function parseVDateOptions(
 	rawOptions: string | undefined | null,
 ): ParsedVDateOptions {
-	if (!rawOptions) return { optional: false };
+	if (!rawOptions) return { optional: false, withTime: false };
 
-	const { remaining, found: bareOptional } = extractBareFlagPart(
+	// Pull the bare control flags out before re-joining the rest as the default,
+	// so a legacy pipe-containing natural-language default still survives. Order
+	// is insensitive (same approach as |optional). A literal default of exactly
+	// "time"/"datetime" needs the |default-style escape — vanishingly rare.
+	const { remaining: afterOptional, found: bareOptional } = extractBareFlagPart(
 		splitPipeParts(rawOptions),
 		"optional",
 	);
+	const { remaining: afterTime, found: bareTime } = extractBareFlagPart(
+		afterOptional,
+		"time",
+	);
+	const { remaining, found: bareDatetime } = extractBareFlagPart(
+		afterTime,
+		"datetime",
+	);
 
 	let explicitOptional: boolean | undefined;
+	let keyedDatetime = false;
 	const rest: string[] = [];
 
 	for (const part of remaining) {
@@ -39,10 +54,20 @@ export function parseVDateOptions(
 			explicitOptional = parseBooleanFlag(keyed.value);
 			continue;
 		}
+		if (keyed?.key === "type") {
+			// |type:datetime enables the time picker; any keyed |type:... is a
+			// control flag, never part of the natural-language default.
+			if (keyed.value.trim().toLowerCase() === "datetime") keyedDatetime = true;
+			continue;
+		}
 
 		rest.push(part);
 	}
 
 	const defaultValue = rest.join("|").trim() || undefined;
-	return { defaultValue, optional: explicitOptional ?? bareOptional };
+	return {
+		defaultValue,
+		optional: explicitOptional ?? bareOptional,
+		withTime: bareTime || bareDatetime || keyedDatetime,
+	};
 }

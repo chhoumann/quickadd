@@ -27,6 +27,7 @@ import {
 
 export type FieldType =
 	| "text"
+	| "number"
 	| "textarea"
 	| "dropdown"
 	| "date"
@@ -45,6 +46,8 @@ export interface FieldRequirement {
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	// Additional metadata
 	dateFormat?: string; // for VDATE
+	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
+	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
@@ -180,7 +183,14 @@ export class RequirementCollector extends Formatter {
 			const requirementId = variableKey;
 
 			if (!this.requirements.has(requirementId)) {
-				const baseInputType =
+				// |type:checkbox renders a forced true/false dropdown and
+				// |type:number a numeric input, so the one-page form matches the
+				// runtime suggester/prompt (item #757).
+				const isCheckbox =
+					!hasOptions && parsed.inputTypeOverride === "checkbox";
+				const isNumber =
+					!hasOptions && parsed.inputTypeOverride === "number";
+				const baseInputType: FieldType =
 					parsed.inputTypeOverride === "multiline" ||
 					this.plugin.settings.inputPrompt === "multi-line"
 						? "textarea"
@@ -190,11 +200,16 @@ export class RequirementCollector extends Formatter {
 					label: displayLabel,
 					type: hasOptions
 						? this.optionFieldType(parsed)
-						: baseInputType,
+						: isCheckbox
+							? "dropdown"
+							: isNumber
+								? "number"
+								: baseInputType,
 					description,
 					optional: parsed.optional,
 				};
 				if (hasOptions) this.applyOptionFields(req, parsed);
+				else if (isCheckbox) req.options = ["true", "false"];
 				if (defaultValue) req.defaultValue = defaultValue;
 				this.requirements.set(requirementId, req);
 			} else {
@@ -238,8 +253,12 @@ export class RequirementCollector extends Formatter {
 
 	private optionFieldType(parsed: {
 		allowCustomInput: boolean;
+		multiSelect?: boolean;
 	}): FieldType {
-		return parsed.allowCustomInput ? "suggester" : "dropdown";
+		// Multi-select needs the suggester widget (the dropdown is single-value).
+		return parsed.allowCustomInput || parsed.multiSelect
+			? "suggester"
+			: "dropdown";
 	}
 
 	private hasOptionList(req: FieldRequirement): boolean {
@@ -252,15 +271,22 @@ export class RequirementCollector extends Formatter {
 			suggestedValues: string[];
 			displayValues?: string[];
 			allowCustomInput: boolean;
+			multiSelect?: boolean;
+			multiEmit?: "text" | "linklist";
 		},
 	): void {
 		req.options = parsed.suggestedValues;
 		if (parsed.displayValues) req.displayOptions = parsed.displayValues;
-		if (parsed.allowCustomInput) {
+		if (parsed.multiSelect) req.multiEmit = parsed.multiEmit ?? "text";
+		else delete req.multiEmit;
+		// A suggesterConfig is needed for EITHER a custom-input OR a multi-select
+		// token (the two are independent — |multi without |custom must still
+		// enable multiSelect on the one-page picker).
+		if (parsed.allowCustomInput || parsed.multiSelect) {
 			req.suggesterConfig = {
-				allowCustomInput: true,
+				allowCustomInput: parsed.allowCustomInput,
 				caseSensitive: false,
-				multiSelect: false,
+				multiSelect: parsed.multiSelect ?? false,
 			};
 		} else {
 			delete req.suggesterConfig;
@@ -281,8 +307,11 @@ export class RequirementCollector extends Formatter {
 			const variableName = match[1]?.trim();
 			if (!variableName) continue;
 
-			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
-			const { defaultValue, optional } = parseVDateOptions(match[3]);
+			const { defaultValue, optional, withTime } = parseVDateOptions(
+				match[3],
+			);
+			const dateFormat =
+				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
 			const existing = this.requirements.get(variableName);
 			if (!existing) {
@@ -292,6 +321,7 @@ export class RequirementCollector extends Formatter {
 					type: "date",
 					defaultValue,
 					dateFormat,
+					withTime,
 					optional,
 					source: "collected",
 				});
@@ -305,6 +335,12 @@ export class RequirementCollector extends Formatter {
 				)
 					existing.defaultValue = defaultValue;
 				existing.optional = (existing.optional ?? false) && optional;
+				// If ANY occurrence of the reused date wants a time picker, the
+				// shared control must offer one (and a datetime format).
+				if (existing.type === "date" && withTime && !existing.withTime) {
+					existing.withTime = true;
+					if (!match[2]?.trim()) existing.dateFormat = "YYYY-MM-DD HH:mm";
+				}
 			}
 		}
 	}

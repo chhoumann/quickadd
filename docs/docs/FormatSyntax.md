@@ -35,6 +35,18 @@ You can combine a default with the `optional` flag in any order: `{{VDATE:due,YY
 
 **Note:** Pipe characters (`|`) cannot be used inside VDATE date formats — everything after the first pipe is treated as the default value (and flags). Use a different literal, e.g. wrap text in square brackets: `{{VDATE:due,[Due ]YYYY-MM-DD}}`.
 
+## `{{VDATE:<variable name>, <date format>|time}}` {#vdate-time}
+
+Adds a **time picker** to the date prompt (aliases: `|datetime`, `|type:datetime`), for `Date & time` properties. The calendar gains an `HH:mm` control, and picking a day keeps the time you set (it isn't reset to midnight). If you omit the date format, it defaults to `YYYY-MM-DD HH:mm`.
+
+```markdown
+---
+start: {{VDATE:start,YYYY-MM-DDTHH:mm|time}}
+---
+```
+
+Combines with a default and `optional` in any order: `{{VDATE:meeting,YYYY-MM-DD HH:mm|tomorrow at 3pm|time|optional}}`. Without `|time`, the picker stays date-only and behaves exactly as before.
+
 ## `{{VALUE}}` / `{{NAME}}` {#value}
 
 Interchangeable. Represents the value given in an input prompt. If text is selected in the current editor, it will be used as the value. For Capture choices, selection-as-value can be disabled globally or per-capture. When using the QuickAdd API, this can be passed programmatically using the reserved variable name 'value'.
@@ -111,6 +123,24 @@ Example:
 
 **Keyboard:** In the multi-line prompt, pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** is left unbound, so it still moves focus out of the field.
 
+## `{{VALUE:<variable>|type:number}}` / `|type:checkbox` / `|type:text` {#value-property-types}
+
+Tailors the input to an Obsidian property type. These are single-value prompts (no comma options / `|custom`):
+
+- `|type:number` shows a numeric input. The value is written unquoted (`rating: 42`), so Obsidian reads it as a **Number**.
+- `|type:checkbox` (alias `|type:boolean`) shows a forced **true / false** picker — useful for a `checkbox` property. The `|label:` becomes the picker's title so you know which property you're setting. Writes `done: true` (a boolean).
+- `|type:text` keeps the value a **string**. It writes the value as a quoted YAML scalar (`id: "0042"`), so Obsidian can't retype it — without it, a text property given `0042` is read as the number `42`, `true` as a boolean, and a value like `#todo` or `[a]` is mis-parsed entirely.
+
+```markdown
+---
+rating: {{VALUE:rating|type:number}}
+done: {{VALUE:done|type:checkbox|label:Completed?}}
+id: {{VALUE:id|type:text}}
+---
+```
+
+**Good to know:** plain number and checkbox values already round-trip correctly without `|type:` — `count: {{VALUE:count}}` typed `42` becomes a Number, and `{{VALUE:true,false}}` becomes a Boolean. The `|type:` options add the right input widget and validation, and `|type:text` closes the cases Obsidian gets "wrong" (a text value that looks like a number/boolean, or one that starts with a YAML character like `#` or `[`). Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
+
 ## `{{VALUE|case:<style>}}` / `{{NAME|case:<style>}}` / `{{VALUE:<variable>|case:<style>}}` {#value-case}
 
 Transforms the resolved value into a casing style. Supported: `kebab`, `snake`, `camel`, `pascal`, `title`, `lower`, `upper`, `slug`.
@@ -120,6 +150,36 @@ Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 ## `{{VALUE:<options>|custom}}` {#value-custom}
 
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
+
+## `{{VALUE:<options>|multi}}` {#value-multi}
+
+Turns an option-list suggester into a **multi-select**: pick several values and they're written as a YAML **List**. Requires an option list (2+ comma-separated values).
+
+```markdown
+---
+tags: {{VALUE:work,home,urgent|multi}}
+---
+```
+
+picks `work` and `urgent` → 
+
+```yaml
+tags:
+  - work
+  - urgent
+```
+
+Variants and combinations:
+
+- `|multi:linklist` wraps each pick as a wikilink, for List properties of links: `{{VALUE:Alice,Bob,Carol|multi:linklist}}` → `- "[[Alice]]"` / `- "[[Bob]]"`.
+- `|multi|custom` lets you add values not in the list (a text box in the picker).
+- Combines with `|name:`, `|label:`, `|text:`, and `|optional`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
+
+Notes:
+
+- Multi-select writes a real List with no settings required. It produces a List **inside front matter**; used in the note body it renders as a comma-separated string.
+- In a **Capture**, multi-select becomes a List only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template). Other capture shapes write a comma-separated string instead.
+- With the **one-page input form** (Settings → QuickAdd), avoid commas inside an individual option (e.g. `|text:"High, urgent"`) on a `|multi` token — the one-page picker can't round-trip a comma that lives inside a single option. The default one-prompt-at-a-time picker handles it correctly.
 
 ## `{{VALUE:<options>|name:<variable name>}}` {#value-name}
 

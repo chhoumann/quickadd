@@ -18,6 +18,14 @@ QuickAdd writes proper Obsidian property types for template variables in front m
 
 The goal is to make note creation easier and more intuitive. While the string conversion is in beta, we appreciate your feedback and suggestions.
 
+**Prefer explicit format-syntax options** when you want a specific input or type, with no beta toggle required:
+
+- [`{{VALUE:x|type:number}}` / `|type:checkbox` / `|type:text`](./FormatSyntax#value-property-types) — pick the right input widget; `|type:text` keeps a number-looking value (e.g. `0042`) a string.
+- [`{{VALUE:a,b,c|multi}}`](./FormatSyntax#value-multi) — a multi-select picker that writes a real List (also `|multi:linklist` for link lists).
+- [`{{VDATE:when,fmt|time}}`](./FormatSyntax#vdate-time) — a date **and time** picker for `Date & time` properties.
+
+Plain `{{VALUE}}` already round-trips numbers, booleans, and dates to the correct type without any setting — the beta string conversion below mainly adds comma/bullet-string → List for properties typed as a list.
+
 **Before:**
 ```yaml
 authors: "John Doe, Jane Smith, Bob Wilson"  # Manual string formatting

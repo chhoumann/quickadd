@@ -406,3 +406,42 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
     });
   });
 });
+
+describe("RequirementCollector property types (#757)", () => {
+  const run = async (template: string) => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString(template);
+    return Object.fromEntries(
+      Array.from(rc.requirements.values()).map((r) => [r.id, r]),
+    );
+  };
+
+  it("maps |type:number to a number field", async () => {
+    const byId = await run("{{VALUE:rating|type:number}}");
+    expect(byId["rating"].type).toBe("number");
+  });
+
+  it("maps |type:checkbox to a true/false dropdown", async () => {
+    const byId = await run("{{VALUE:done|type:checkbox}}");
+    expect(byId["done"].type).toBe("dropdown");
+    expect(byId["done"].options).toEqual(["true", "false"]);
+  });
+
+  it("maps |multi to a multi-select suggester", async () => {
+    const byId = await run("{{VALUE:a,b,c|multi}}");
+    const req = byId["a,b,c"];
+    expect(req.type).toBe("suggester");
+    expect(req.suggesterConfig?.multiSelect).toBe(true);
+    expect(req.multiEmit).toBe("text");
+  });
+
+  it("carries |multi:linklist and |multi|custom config", async () => {
+    const link = await run("{{VALUE:a,b|multi:linklist}}");
+    expect(link["a,b"].multiEmit).toBe("linklist");
+    const custom = await run("{{VALUE:a,b|multi|custom}}");
+    expect(custom["a,b"].suggesterConfig).toMatchObject({
+      multiSelect: true,
+      allowCustomInput: true,
+    });
+  });
+});

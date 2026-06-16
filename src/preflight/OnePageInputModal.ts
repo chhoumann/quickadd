@@ -145,6 +145,23 @@ export class OnePageInputModal extends Modal {
 					.onChange((v) => setValue(req.id, v));
 				break;
 			}
+			case "number": {
+				// |type:number — a numeric input so the one-page form rejects
+				// non-numeric text like the runtime NumberInputPrompt does.
+				const setting = new Setting(this.contentEl).setName(
+					this.decorateLabel(req),
+				);
+				if (req.description) setting.setDesc(req.description);
+				const input = new TextComponent(setting.controlEl);
+				input.inputEl.type = "number";
+				input.inputEl.inputMode = "decimal";
+				input.inputEl.setAttr("step", "any");
+				input
+					.setPlaceholder(req.placeholder ?? "")
+					.setValue(starting)
+					.onChange((v) => setValue(req.id, v));
+				break;
+			}
 			case "dropdown": {
 				const setting = new Setting(this.contentEl).setName(
 					this.decorateLabel(req),
@@ -209,6 +226,7 @@ export class OnePageInputModal extends Modal {
 				const datePicker = createDatePicker({
 					container: pickerContainer,
 					initialIso: selectedIso,
+					withTime: req.withTime === true,
 					onSelect: (iso) => {
 						if (iso) applyPickerSelection(iso);
 						else clearPickerSelection();

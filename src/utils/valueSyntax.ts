@@ -9,7 +9,16 @@ import {
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
-export type ValueInputType = "multiline";
+export type ValueInputType = "multiline" | "number" | "checkbox" | "text";
+
+// Types that render a different input widget but are meaningless alongside a
+// comma option-list or |custom (those already pick from a fixed/free set).
+const OPTION_INCOMPATIBLE_TYPES = new Set<ValueInputType>([
+	"multiline",
+	"number",
+	"checkbox",
+	"text",
+]);
 
 const VALUE_OPTION_KEYS = new Set([
 	"label",
@@ -19,7 +28,10 @@ const VALUE_OPTION_KEYS = new Set([
 	"case",
 	"text",
 	"optional",
+	"multi",
 ]);
+
+export type MultiEmit = "text" | "linklist";
 
 // `name` is recognized ONLY on the named `{{VALUE:...}}` grammar, never on the
 // anonymous `{{VALUE|...}}` grammar (which shares parseOptions). Gating it here
@@ -44,6 +56,10 @@ export type ParsedValueToken = {
 	hasOptions: boolean;
 	inputTypeOverride?: ValueInputType;
 	optional: boolean;
+	/** |multi: pick several options into a YAML list (option-list tokens only). */
+	multiSelect: boolean;
+	/** |multi:linklist wraps each pick as [[name]]; defaults to plain text. */
+	multiEmit: MultiEmit;
 };
 
 export function buildValueVariableKey(
@@ -111,6 +127,8 @@ type ParsedOptions = {
 	displayValuesRaw?: string;
 	optionalExplicit?: boolean;
 	name?: string;
+	multiSelect?: boolean;
+	multiEmit?: MultiEmit;
 };
 
 /**
@@ -159,7 +177,10 @@ function parseOptions(
 		optionParts.some(
 			(part) => part.trim().toLowerCase() === "custom",
 		);
-	const usesOptions = hasExplicitOption || hasCustomFlag;
+	const hasMultiFlag =
+		hasOptions &&
+		optionParts.some((part) => part.trim().toLowerCase() === "multi");
+	const usesOptions = hasExplicitOption || hasCustomFlag || hasMultiFlag;
 
 	if (!usesOptions) {
 		return {
@@ -177,6 +198,8 @@ function parseOptions(
 	let displayValuesRaw: string | undefined;
 	let optionalExplicit: boolean | undefined;
 	let name: string | undefined;
+	let multiSelect = false;
+	let multiEmit: MultiEmit | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -184,6 +207,11 @@ function parseOptions(
 
 		if (hasOptions && trimmed.toLowerCase() === "custom") {
 			allowCustomInput = true;
+			continue;
+		}
+
+		if (hasOptions && trimmed.toLowerCase() === "multi") {
+			multiSelect = true;
 			continue;
 		}
 
@@ -214,6 +242,11 @@ function parseOptions(
 			case "optional":
 				optionalExplicit = parseBooleanFlag(value);
 				break;
+			case "multi":
+				multiSelect = true;
+				multiEmit =
+					value.trim().toLowerCase() === "linklist" ? "linklist" : "text";
+				break;
 			case "name":
 				// Gated to the named grammar via optionKeys; empty `|name:` is a
 				// no-op alias and warns so the author notices the typo.
@@ -238,6 +271,8 @@ function parseOptions(
 		inputTypeOverride,
 		displayValuesRaw,
 		optionalExplicit,
+		multiSelect,
+		multiEmit,
 	};
 }
 
@@ -251,22 +286,24 @@ function resolveInputType(
 	quiet = false,
 ): ValueInputType | undefined {
 	if (!rawType) return undefined;
-	const normalized = rawType.trim().toLowerCase();
-	if (normalized !== "multiline") {
+	const raw = rawType.trim().toLowerCase();
+	// `boolean` is a friendly alias for the checkbox true/false picker.
+	const normalized = (raw === "boolean" ? "checkbox" : raw) as ValueInputType;
+	if (!OPTION_INCOMPATIBLE_TYPES.has(normalized)) {
 		if (!quiet)
 			console.warn(
-				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline.`,
+				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline, number, checkbox, text.`,
 			);
 		return undefined;
 	}
 	if (hasOptions || allowCustomInput) {
 		if (!quiet)
 			console.warn(
-				`QuickAdd: Ignoring type:multiline for option-list VALUE token "${tokenDisplay}".`,
+				`QuickAdd: Ignoring type:${normalized} for option-list VALUE token "${tokenDisplay}".`,
 			);
 		return undefined;
 	}
-	return "multiline";
+	return normalized;
 }
 
 // The "double-quote class" that opens/closes a quoted option: the straight
@@ -391,6 +428,8 @@ export function parseValueToken(
 		extractBareOptionalFlag(parts);
 	const options = parseOptions(optionParts, hasOptions, true, quiet);
 	let { label, caseStyle, defaultValue, allowCustomInput } = options;
+	let multiSelect = options.multiSelect ?? false;
+	const multiEmit: MultiEmit = options.multiEmit ?? "text";
 	const optional = options.optionalExplicit ?? bareOptional;
 
 	if (!options.usesOptions) {
@@ -467,6 +506,23 @@ export function parseValueToken(
 		);
 	}
 
+	// |multi needs an option list and is incompatible with |case (a list is not
+	// case-transformed, and routing an array through transformCase would throw).
+	if (multiSelect && !hasOptions) {
+		if (!quiet)
+			console.warn(
+				`QuickAdd: |multi needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
+			);
+		multiSelect = false;
+	}
+	if (multiSelect && caseStyle) {
+		if (!quiet)
+			console.warn(
+				`QuickAdd: |case is ignored with |multi in "${tokenDisplay}" — a list is not case-transformed.`,
+			);
+		caseStyle = undefined;
+	}
+
 	const variableKey = aliasName
 		? aliasName
 		: buildValueVariableKey(variablePart, label, hasOptions);
@@ -485,6 +541,8 @@ export function parseValueToken(
 		hasOptions,
 		inputTypeOverride,
 		optional,
+		multiSelect,
+		multiEmit,
 	};
 }
 

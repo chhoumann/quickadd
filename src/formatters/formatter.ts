@@ -40,6 +40,8 @@ import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
+import { quoteYamlDouble, shouldQuoteTextScalar } from "../utils/yamlScalarQuoting";
+import { toWikiLink } from "../utils/linkWrap";
 import {
 	type ParsedValueToken,
 	parseAnonymousValueOptions,
@@ -63,6 +65,7 @@ export interface PromptContext {
 	variableKey?: string;
 	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
 	optional?: boolean; // Token carries |optional: empty submissions are accepted as the answer.
+	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker.
 }
 
 export interface TemplateInclusionState {
@@ -211,13 +214,26 @@ export abstract class Formatter {
 		// Replace all occurrences in a single non-recursive pass.
 		// Important: use a replacer function so `$` in user input is treated literally.
 		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
-		output = output.replace(regex, (token) => {
+		output = output.replace(regex, (...args) => {
+			const token = args[0] as string;
+			const offset = args[args.length - 2] as number;
+			const source = args[args.length - 1] as string;
 			const inner = token.slice(2, -2);
 			const optionsIndex = inner.indexOf("|");
 			if (optionsIndex === -1) return this.value;
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions);
-			return transformCase(this.value, parsed.caseStyle);
+			const transformed = transformCase(this.value, parsed.caseStyle);
+			// |type:text on the anonymous {{VALUE|...}} form quotes the same way
+			// as the named form (see replaceVariableInString).
+			if (
+				parsed.inputTypeOverride === "text" &&
+				transformed !== "" &&
+				shouldQuoteTextScalar(source, offset, offset + token.length)
+			) {
+				return quoteYamlDouble(transformed);
+			}
+			return transformed;
 		});
 
 		return output;
@@ -244,8 +260,8 @@ export abstract class Formatter {
 			if (!context.defaultValue && parsed.defaultValue) {
 				context.defaultValue = parsed.defaultValue;
 			}
-			if (parsed.inputTypeOverride === "multiline") {
-				context.inputTypeOverride = "multiline";
+			if (parsed.inputTypeOverride && !context.inputTypeOverride) {
+				context.inputTypeOverride = parsed.inputTypeOverride;
 			}
 			if (parsed.optional) {
 				context.optional = true;
@@ -509,12 +525,15 @@ export abstract class Formatter {
 		if (!parsed.aliasName || !parsed.hasOptions) return;
 		const nameKey = parsed.variableKey.toLowerCase();
 		// Capture everything that changes the suggester behaviour — the
-		// options, the custom-input flag, and the display mapping — so a
-		// reordered definition that differs in any of these is flagged.
+		// options, the custom-input flag, the display mapping, and the
+		// multi-select shape — so a reordered definition that differs in any of
+		// these is flagged.
 		const signature = JSON.stringify([
 			parsed.suggestedValues,
 			parsed.allowCustomInput,
 			parsed.displayValues ?? null,
+			parsed.multiSelect,
+			parsed.multiEmit,
 		]);
 		const previous = this.namedSuggesterOptionSigs.get(nameKey);
 		if (previous === undefined) {
@@ -558,9 +577,30 @@ export abstract class Formatter {
 
 		if (resolvedKey) return resolvedKey;
 
-		let variableValue = "";
 		const helperText = !hasOptions && label ? label : undefined;
 		const suggesterPlaceholder = hasOptions && label ? label : undefined;
+
+		// |multi opens a multi-select picker and stores a real ARRAY so the
+		// property collector writes a proper YAML list (no beta flag needed).
+		if (hasOptions && parsed.multiSelect) {
+			const picked = await this.suggestForValueMulti(
+				suggestedValues,
+				allowCustomInput,
+				{
+					placeholder: suggesterPlaceholder,
+					variableKey,
+					displayValues,
+					optional: parsed.optional,
+				},
+			);
+			this.variables.set(
+				variableKey,
+				parsed.multiEmit === "linklist" ? picked.map(toWikiLink) : picked,
+			);
+			return variableKey;
+		}
+
+		let variableValue = "";
 
 		if (!hasOptions) {
 			// For single-value prompts, pass default value to pre-populate the input
@@ -698,7 +738,13 @@ export abstract class Formatter {
 				rawValue: rawValueForCollector,
 				fallbackKey: variableName,
 				collectionActive,
-				heuristicEnabled: propertyTypesEnabled && collectionActive,
+				// |type:text forces a string: never run the string->structured
+				// heuristic on it, or a comma/bracket value (`a,b`, `[x]`) would be
+				// collected as a List and bypass the quoting path below.
+				heuristicEnabled:
+					propertyTypesEnabled &&
+					collectionActive &&
+					parsed.inputTypeOverride !== "text",
 			});
 
 			// Keep the interim frontmatter YAML-parseable until post-processing
@@ -706,9 +752,31 @@ export abstract class Formatter {
 			// fallback replacement to a string so non-string variable values (e.g.
 			// arrays from scripts on the non-collected path) don't desync the scanner.
 			const placeholder = getYamlPlaceholder(structuredYamlValue);
-			const replacement =
-				placeholder ??
-				String(transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "");
+			let replacement: string;
+			if (placeholder !== undefined) {
+				replacement = placeholder;
+			} else if (Array.isArray(rawValue)) {
+				// A |multi (or script) array that was NOT collected (body text, or a
+				// capture flow that suppresses frontmatter collection): join with
+				// commas. Guards against transformCase()/String() on an array.
+				replacement = rawValue.join(",");
+			} else {
+				const stringVal = String(
+					transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "",
+				);
+				// |type:text (#757): write the value as a quoted YAML string at a
+				// sole-value front-matter position so Obsidian can't retype it
+				// (e.g. "0042" -> 42, "true" -> boolean, "#todo" -> a comment).
+				const quote =
+					parsed.inputTypeOverride === "text" &&
+					stringVal !== "" &&
+					shouldQuoteTextScalar(
+						output,
+						match.index,
+						match.index + match[0].length,
+					);
+				replacement = quote ? quoteYamlDouble(stringVal) : stringVal;
+			}
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
@@ -934,6 +1002,26 @@ export abstract class Formatter {
 		},
 	): Promise<string> | string;
 
+	/**
+	 * Multi-select variant for {{VALUE:a,b,c|multi}}. Returns the chosen values
+	 * as an array, which the caller stores verbatim so the property collector
+	 * writes a YAML list. Non-abstract with an empty default so preview/preflight
+	 * and test stubs need no change; CompleteFormatter overrides it with the real
+	 * picker.
+	 */
+	protected suggestForValueMulti(
+		_suggestedValues: string[],
+		_allowCustomInput?: boolean,
+		_context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+			optional?: boolean;
+		},
+	): Promise<string[]> | string[] {
+		return [];
+	}
+
 	protected abstract suggestForField(variableName: string): Promise<string>;
 
 	protected async replaceDateVariableInString(input: string) {
@@ -944,8 +1032,11 @@ export abstract class Formatter {
 			if (!match || !match[1]) break;
 
 			const variableName = match[1].trim();
-			const dateFormat = match[2]?.trim() || "YYYY-MM-DD";
-			const { defaultValue, optional } = parseVDateOptions(match[3]);
+			const { defaultValue, optional, withTime } = parseVDateOptions(match[3]);
+			// A |time/|datetime token with no explicit format gets a datetime
+			// default so the rendered value carries the picked time.
+			const dateFormat =
+				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
 			// Skip processing if variable name or format is empty
 			// This prevents crashes when typing incomplete patterns like {{VDATE:,
@@ -964,7 +1055,7 @@ export abstract class Formatter {
 					// Prompt for date input with VDATE context
 					const dateInput = await this.promptForVariable(
 						variableName,
-						{ type: "VDATE", dateFormat, defaultValue, optional }
+						{ type: "VDATE", dateFormat, defaultValue, optional, withTime }
 					);
 					if (optional && !dateInput?.trim()) {
 						// Optional date left blank or skipped: answered-empty.

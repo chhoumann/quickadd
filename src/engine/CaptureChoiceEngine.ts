@@ -328,6 +328,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				!this.choice?.createFileIfItDoesntExist?.createWithTemplate;
 			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
 
+			// |multi only yields a real YAML list when its array can be collected
+			// into the new note's own front matter. In any other capture shape the
+			// array degrades to a comma-joined string; warn instead of silently
+			// writing the wrong shape.
+			if (
+				this.suppressFrontmatterCollection &&
+				// Match the `|multi` flag specifically: a pipe, then `multi`
+				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
+				// `|multi1`, `|multi-select`, etc.
+				/\{\{VALUE:[^}]*\|\s*multi(?=[:}|]|$)/i.test(
+					this.choice?.format?.format ?? "",
+				)
+			) {
+				log.logWarning(
+					"QuickAdd: {{VALUE:…|multi}} in this capture writes a comma-separated string, not a YAML list. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
+				);
+			}
+
 			if (fileAlreadyExists) {
 				getFileAndAddContentFn =
 					this.onFileExists.bind(this) as GetFileAndAddContentFn;

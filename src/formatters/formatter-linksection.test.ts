@@ -44,11 +44,11 @@ class StubFormatter extends Formatter {
 		return "";
 	}
 
-	protected async suggestForField(): Promise<string> {
+	protected suggestForFile(): string {
 		return "";
 	}
 
-	protected suggestForFile(): string {
+	protected async suggestForField(): Promise<string> {
 		return "";
 	}
 

@@ -2,6 +2,7 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import MultiSuggester from "src/gui/MultiSuggester/multiSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { GLOBAL_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
@@ -323,6 +324,30 @@ export class CompleteFormatter extends Formatter {
 					return this.value;
 				}
 			}
+			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
+			// picker as the named form (resolved before the InputPrompt factory).
+			if (this.valuePromptContext?.inputTypeOverride === "checkbox") {
+				try {
+					this.value = await GenericSuggester.Suggest(
+						this.app,
+						["true", "false"],
+						["true", "false"],
+						this.valuePromptContext.description ??
+							this.valueHeader ??
+							"Choose value",
+						undefined,
+						this.valuePromptContext.optional
+							? { skippable: true }
+							: undefined,
+					);
+					return this.value;
+				} catch (error) {
+					if (isCancellationError(error)) {
+						throw new UserCancelError("Input cancelled by user");
+					}
+					throw error;
+				}
+			}
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
@@ -374,10 +399,28 @@ export class CompleteFormatter extends Formatter {
 				return await VDateInputPrompt.Prompt(
 					this.app,
 					(header as string) ?? context.label ?? "Enter date",
-					"Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
+					context.withTime
+						? "Enter a date & time (e.g., 'tomorrow at 3pm', '2025-12-25 14:30')"
+						: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
 					context.dateFormat ?? "YYYY-MM-DD",
 					context.optional ? { optional: true } : undefined,
+					context.withTime,
+				);
+			}
+
+			// {{VALUE:x|type:checkbox}} renders a forced true/false picker (no
+			// free text) so the written `x: true` round-trips as a Checkbox. The
+			// |label (carried as description for single-value tokens) becomes the
+			// modal title so the user knows which property they are setting (#202).
+			if (context?.inputTypeOverride === "checkbox") {
+				return await GenericSuggester.Suggest(
+					this.app,
+					["true", "false"],
+					["true", "false"],
+					context.description ?? header ?? context.label ?? "Choose value",
+					undefined,
+					context.optional ? { skippable: true } : undefined,
 				);
 			}
 
@@ -442,6 +485,38 @@ export class CompleteFormatter extends Formatter {
 				context?.placeholder,
 				undefined,
 				context?.optional ? { skippable: true } : undefined,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Input cancelled by user");
+			}
+			throw error;
+		}
+	}
+
+	protected async suggestForValueMulti(
+		suggestedValues: string[],
+		allowCustomInput = false,
+		context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+			optional?: boolean;
+		},
+	): Promise<string[]> {
+		try {
+			const displayValues = context?.displayValues ?? suggestedValues;
+			return await MultiSuggester.Suggest(
+				this.app,
+				displayValues,
+				suggestedValues,
+				{
+					...(context?.placeholder
+						? { placeholder: context.placeholder }
+						: {}),
+					allowCustomValue: allowCustomInput,
+					...(context?.optional ? { skippable: true } : {}),
+				},
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
