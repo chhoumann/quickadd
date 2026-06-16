@@ -2,6 +2,7 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import GenericInputPrompt from "src/gui/GenericInputPrompt/GenericInputPrompt";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import MultiSuggester from "src/gui/MultiSuggester/multiSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { GLOBAL_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
@@ -460,6 +461,38 @@ export class CompleteFormatter extends Formatter {
 				context?.placeholder,
 				undefined,
 				context?.optional ? { skippable: true } : undefined,
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Input cancelled by user");
+			}
+			throw error;
+		}
+	}
+
+	protected async suggestForValueMulti(
+		suggestedValues: string[],
+		allowCustomInput = false,
+		context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+			optional?: boolean;
+		},
+	): Promise<string[]> {
+		try {
+			const displayValues = context?.displayValues ?? suggestedValues;
+			return await MultiSuggester.Suggest(
+				this.app,
+				displayValues,
+				suggestedValues,
+				{
+					...(context?.placeholder
+						? { placeholder: context.placeholder }
+						: {}),
+					allowCustomValue: allowCustomInput,
+					...(context?.optional ? { skippable: true } : {}),
+				},
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {

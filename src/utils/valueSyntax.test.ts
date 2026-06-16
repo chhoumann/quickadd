@@ -148,6 +148,47 @@ describe("parseValueToken", () => {
 		).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
+
+	it("parses |multi on an option list", () => {
+		const parsed = parseValueToken("work,home,urgent|multi");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.multiEmit).toBe("text");
+	});
+
+	it("parses |multi:linklist", () => {
+		const parsed = parseValueToken("Alice,Bob|multi:linklist");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.multiEmit).toBe("linklist");
+	});
+
+	it("warns and ignores |multi without an option list", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		expect(parseValueToken("Only|multi")?.multiSelect).toBe(false);
+		expect(parseValueToken("Only|multi:linklist")?.multiSelect).toBe(false);
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("composes |multi with |custom and |name", () => {
+		const custom = parseValueToken("a,b|multi|custom");
+		expect(custom?.multiSelect).toBe(true);
+		expect(custom?.allowCustomInput).toBe(true);
+		const named = parseValueToken("a,b|multi|name:tags");
+		expect(named?.multiSelect).toBe(true);
+		expect(named?.aliasName).toBe("tags");
+	});
+
+	it("drops |case when combined with |multi (a list is not case-transformed)", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("a,b,c|multi|case:upper");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.caseStyle).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
+	it("leaves multiSelect false for ordinary option lists", () => {
+		expect(parseValueToken("a,b,c")?.multiSelect).toBe(false);
+		expect(parseValueToken("a,b,c|custom")?.multiSelect).toBe(false);
+	});
 });
 
 describe("parseAnonymousValueOptions", () => {

@@ -46,6 +46,7 @@ export interface FieldRequirement {
 	// Additional metadata
 	dateFormat?: string; // for VDATE
 	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
+	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
@@ -246,8 +247,12 @@ export class RequirementCollector extends Formatter {
 
 	private optionFieldType(parsed: {
 		allowCustomInput: boolean;
+		multiSelect?: boolean;
 	}): FieldType {
-		return parsed.allowCustomInput ? "suggester" : "dropdown";
+		// Multi-select needs the suggester widget (the dropdown is single-value).
+		return parsed.allowCustomInput || parsed.multiSelect
+			? "suggester"
+			: "dropdown";
 	}
 
 	private hasOptionList(req: FieldRequirement): boolean {
@@ -260,15 +265,22 @@ export class RequirementCollector extends Formatter {
 			suggestedValues: string[];
 			displayValues?: string[];
 			allowCustomInput: boolean;
+			multiSelect?: boolean;
+			multiEmit?: "text" | "linklist";
 		},
 	): void {
 		req.options = parsed.suggestedValues;
 		if (parsed.displayValues) req.displayOptions = parsed.displayValues;
-		if (parsed.allowCustomInput) {
+		if (parsed.multiSelect) req.multiEmit = parsed.multiEmit ?? "text";
+		else delete req.multiEmit;
+		// A suggesterConfig is needed for EITHER a custom-input OR a multi-select
+		// token (the two are independent — |multi without |custom must still
+		// enable multiSelect on the one-page picker).
+		if (parsed.allowCustomInput || parsed.multiSelect) {
 			req.suggesterConfig = {
-				allowCustomInput: true,
+				allowCustomInput: parsed.allowCustomInput,
 				caseSensitive: false,
-				multiSelect: false,
+				multiSelect: parsed.multiSelect ?? false,
 			};
 		} else {
 			delete req.suggesterConfig;

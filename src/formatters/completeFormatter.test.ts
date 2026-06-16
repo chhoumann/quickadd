@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 	genericInputPromptWithContext: vi.fn(),
 	inputSuggesterSuggest: vi.fn(),
 	genericSuggesterSuggest: vi.fn(),
+	multiSuggesterSuggest: vi.fn(),
 	vdatePrompt: vi.fn(),
 	mathPrompt: vi.fn(),
 	fieldParse: vi.fn(),
@@ -104,6 +105,10 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: mocks.genericSuggesterSuggest },
+}));
+
+vi.mock("src/gui/MultiSuggester/multiSuggester", () => ({
+	default: { Suggest: mocks.multiSuggesterSuggest },
 }));
 
 vi.mock("src/gui/VDateInputPrompt/VDateInputPrompt", () => ({

@@ -9,6 +9,7 @@ import {
 	canonicalizeOnePageFileValue,
 	FILE_VARIABLE_PREFIX,
 } from "src/utils/fileSyntax";
+import { toWikiLink } from "src/utils/linkWrap";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
@@ -74,14 +75,33 @@ export async function runOnePagePreflight(
 		// requirement's encoded `@file:` picks is treated as typed custom text (and
 		// can't spoof a pick by typing the internal `@file:` sentinel).
 		const fileOptionsByKey = new Map<string, string[]>();
+		// |multi requirements: the suggester stores a ", "-joined string; split it
+		// back into a real array so the formatter writes a YAML list (matching the
+		// runtime |multi path), applying linklist wrapping when requested.
+		const multiEmitByKey = new Map<string, "text" | "linklist">();
 		for (const req of unresolved) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				fileOptionsByKey.set(req.id, req.options ?? []);
+			}
+			if (req.suggesterConfig?.multiSelect) {
+				multiEmitByKey.set(req.id, req.multiEmit ?? "text");
 			}
 		}
 
 		// Store results into executor variables
 		Object.entries(values).forEach(([k, v]) => {
+			const multiEmit = multiEmitByKey.get(k);
+			if (multiEmit !== undefined) {
+				const items = String(v)
+					.split(",")
+					.map((s) => s.trim())
+					.filter(Boolean);
+				choiceExecutor.variables.set(
+					k,
+					multiEmit === "linklist" ? items.map(toWikiLink) : items,
+				);
+				return;
+			}
 			const fileOptions = fileOptionsByKey.get(k);
 			const normalized = fileOptions
 				? canonicalizeOnePageFileValue(v, fileOptions)

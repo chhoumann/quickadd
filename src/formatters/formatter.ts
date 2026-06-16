@@ -41,6 +41,7 @@ import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import { quoteYamlDouble } from "../utils/yamlScalarQuoting";
+import { toWikiLink } from "../utils/linkWrap";
 import {
 	type ParsedValueToken,
 	parseAnonymousValueOptions,
@@ -560,9 +561,30 @@ export abstract class Formatter {
 
 		if (resolvedKey) return resolvedKey;
 
-		let variableValue = "";
 		const helperText = !hasOptions && label ? label : undefined;
 		const suggesterPlaceholder = hasOptions && label ? label : undefined;
+
+		// |multi opens a multi-select picker and stores a real ARRAY so the
+		// property collector writes a proper YAML list (no beta flag needed).
+		if (hasOptions && parsed.multiSelect) {
+			const picked = await this.suggestForValueMulti(
+				suggestedValues,
+				allowCustomInput,
+				{
+					placeholder: suggesterPlaceholder,
+					variableKey,
+					displayValues,
+					optional: parsed.optional,
+				},
+			);
+			this.variables.set(
+				variableKey,
+				parsed.multiEmit === "linklist" ? picked.map(toWikiLink) : picked,
+			);
+			return variableKey;
+		}
+
+		let variableValue = "";
 
 		if (!hasOptions) {
 			// For single-value prompts, pass default value to pre-populate the input
@@ -711,6 +733,11 @@ export abstract class Formatter {
 			let replacement: string;
 			if (placeholder !== undefined) {
 				replacement = placeholder;
+			} else if (Array.isArray(rawValue)) {
+				// A |multi (or script) array that was NOT collected (body text, or a
+				// capture flow that suppresses frontmatter collection): join with
+				// commas. Guards against transformCase()/String() on an array.
+				replacement = rawValue.join(",");
 			} else {
 				const stringVal = String(
 					transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "",
@@ -953,6 +980,26 @@ export abstract class Formatter {
 			optional?: boolean;
 		},
 	): Promise<string> | string;
+
+	/**
+	 * Multi-select variant for {{VALUE:a,b,c|multi}}. Returns the chosen values
+	 * as an array, which the caller stores verbatim so the property collector
+	 * writes a YAML list. Non-abstract with an empty default so preview/preflight
+	 * and test stubs need no change; CompleteFormatter overrides it with the real
+	 * picker.
+	 */
+	protected suggestForValueMulti(
+		_suggestedValues: string[],
+		_allowCustomInput?: boolean,
+		_context?: {
+			placeholder?: string;
+			variableKey?: string;
+			displayValues?: string[];
+			optional?: boolean;
+		},
+	): Promise<string[]> | string[] {
+		return [];
+	}
 
 	protected abstract suggestForField(variableName: string): Promise<string>;
 
