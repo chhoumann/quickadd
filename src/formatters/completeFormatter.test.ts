@@ -509,6 +509,61 @@ describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 	});
 });
 
+// End-to-end guards for #1358 driven through the REAL entry points (not the
+// combined helper directly), so a future revert to sequential token passes —
+// where a later pass re-scans an earlier pass's generated output — is caught
+// here. The combined-resolver unit semantics live in
+// formatter-token-named-file.test.ts.
+describe("CompleteFormatter - #1358 token-named active file (production wiring)", () => {
+	it("formatFileContent keeps a generated link intact when the active file is named {{folder}}", async () => {
+		// Real-app repro: file '{{folder}}.md' + body {{LINKCURRENT}} used to
+		// produce [[]] because the folder pass re-scanned the generated link.
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "{{folder}}" }, generatedLink: "[[{{folder}}]]" },
+		);
+		await expect(f.formatFileContent("{{LINKCURRENT}}")).resolves.toBe(
+			"[[{{folder}}]]",
+		);
+	});
+
+	it("formatFileContent keeps a generated link intact when the active file is named {{title}}", async () => {
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "{{title}}" }, generatedLink: "[[{{title}}]]" },
+		);
+		f.setTitle("Brand New Title");
+		await expect(f.formatFileContent("{{LINKCURRENT}}")).resolves.toBe(
+			"[[{{title}}]]",
+		);
+	});
+
+	it("formatFileContent does not hang when the active file is literally named {{filenamecurrent}}", async () => {
+		// Would infinite-loop on the old while-loop replacer; the test completing
+		// IS the assertion that the loop is gone.
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "{{filenamecurrent}}" } },
+		);
+		await expect(f.formatFileContent("{{FILENAMECURRENT}}")).resolves.toBe(
+			"{{filenamecurrent}}",
+		);
+	});
+
+	it("formatFileName does not let the folder pass rewrite a {{folder}}-named basename", async () => {
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "{{folder}}" } },
+		);
+		f.setTargetFolderPath("Projects");
+		// {{FILENAMECURRENT}} -> '{{folder}}' (the basename); the folder pass must
+		// NOT then rewrite that to 'Projects'.
+		await expect(f.formatFileName("{{FILENAMECURRENT}}", "header")).resolves.toBe(
+			"{{folder}}",
+		);
+	});
+});
+
 describe("CompleteFormatter - title handling", () => {
 	it("replaces {{title}} in file content with the set title", async () => {
 		const f = defaultFormatter();
