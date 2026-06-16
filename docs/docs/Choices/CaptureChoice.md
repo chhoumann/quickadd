@@ -270,6 +270,8 @@ I use this in my daily journal capture, where I insert after the heading line `#
 It's also possible to use `Create line if not found`, which will create the line if it doesn't exist. This is useful if you want to insert after a line that might not exist in the file you're capturing to.
 This setting can place the created line at the **Top** or **Bottom** of the file, at your **Cursor** position, or **Ordered** — at its sorted position among same-level headings. See [Ordered section placement](#ordered-section-placement) for reverse-chronological daily logs, changelogs, and other sorted sections.
 
+The target may span several lines: type `\n` in the **Insert after** field to match a multi-line anchor (the preview shows it expanded). **Inline insertion** is the exception — because it inserts on the same line, immediately after the matched text, its target must be a single line; a multi-line (`\n`) target there is rejected with a notice rather than matched. Use the default placement for multi-line anchors.
+
 ### Ordered section placement
 
 When `Create line if not found` is enabled and its location dropdown is set to **Ordered** (the full label is `Ordered (place new section among siblings)`), a missing "Insert after" heading is created at its **sorted position among same-level sibling headings** instead of at the top or bottom of the note. This is the building block for a reverse-chronological log: a new dated section is added above older ones, while a fixed title/intro stays pinned at the top.

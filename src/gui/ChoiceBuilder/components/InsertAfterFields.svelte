@@ -12,6 +12,7 @@ import {
 } from "../../../constants";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
 import { detectDateFormatFromAfter } from "../../../utils/insertAfterDateFormat";
+import { FormatDisplayFormatter } from "../../../formatters/formatDisplayFormatter";
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
@@ -110,6 +111,36 @@ const orderedSelected = $derived(
 const isOrdered = $derived(
 	insertAfter.createIfNotFound && orderedSelected,
 );
+
+// Inline same-line insertion can only match a single line, but the live preview
+// above expands `\n`, so a multi-line target looks valid while the capture
+// silently never lands. Warn when inline mode is on and the target RESOLVES to
+// more than one line (issue #468). We resolve with the same FormatDisplayFormatter
+// the preview/runtime use — not a raw regex — so an escaped `\\n` (stays a literal
+// backslash-n, single line) does not false-warn and a token/global-var that
+// expands to a real newline is not missed.
+const inlinePreviewFormatter = $derived(new FormatDisplayFormatter(app, plugin));
+let inlineTargetHasLinebreak = $state(false);
+$effect(() => {
+	const raw = insertAfter.after ?? "";
+	const formatter = inlinePreviewFormatter;
+	if (!insertAfter.inline || raw === "") {
+		inlineTargetHasLinebreak = false;
+		return;
+	}
+	let cancelled = false;
+	void formatter
+		.format(raw)
+		.then((resolved) => {
+			if (!cancelled) inlineTargetHasLinebreak = /[\n\r]/.test(resolved);
+		})
+		.catch(() => {
+			if (!cancelled) inlineTargetHasLinebreak = false;
+		});
+	return () => {
+		cancelled = true;
+	};
+});
 
 // Non-optional read view for the ordered sub-panel: the panel only renders when
 // `insertAfter.orderBy` is present, but its `{#snippet}` closures lose the
@@ -240,6 +271,13 @@ function onPromptHeadingToggle(value: boolean) {
 			<Toggle bind:checked={insertAfter.inline} disabled={orderedSelected} />
 		{/snippet}
 	</SettingItem>
+
+	{#if inlineTargetHasLinebreak}
+		<div class="setting-item-description">
+			Inline insertion needs a single-line target. The line break (\n) can't be
+			matched on the same line — remove it, or turn off "Inline insertion".
+		</div>
+	{/if}
 {/if}
 
 {#if insertAfter.inline}

@@ -103,7 +103,6 @@ vi.mock('../main', () => ({
 }));
 
 import { CaptureChoiceFormatter } from './captureChoiceFormatter';
-import { reportError } from '../utils/errorUtils';
 
 const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
   id: 'test',
@@ -741,20 +740,14 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     expect(result).toBe('Status: done');
   });
 
-  it('reports an error and leaves content unchanged when target contains a newline', async () => {
+  it('aborts with a clear message when the inline target contains a newline (must be single-line, issue #468)', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInlineChoice('Status:\n', { replaceExisting: true });
     const fileContent = 'Status:\npending';
 
-    const result = await formatter.formatContentWithFile(
-      'done',
-      choice,
-      fileContent,
-      file,
-    );
-
-    expect(result).toBe(fileContent);
-    expect(reportError).toHaveBeenCalled();
+    await expect(
+      formatter.formatContentWithFile('done', choice, fileContent, file),
+    ).rejects.toThrow(/single line/i);
   });
 });
 

@@ -37,8 +37,16 @@ describe("detectDateFormatFromAfter", () => {
 		);
 	});
 
-	it("returns undefined for a bare {{DATE}} or no token", () => {
+	it("returns undefined for a bare {{DATE}} or no date token", () => {
 		expect(detectDateFormatFromAfter("{{DATE}}")).toBeUndefined();
 		expect(detectDateFormatFromAfter("# Today")).toBeUndefined();
+		// A multi-token heading with no DATE/VDATE token falls back to undefined.
+		expect(detectDateFormatFromAfter("{{VALUE:x}} — {{TIME}}")).toBeUndefined();
+	});
+
+	it("picks the date token's format from a multi-token heading", () => {
+		expect(detectDateFormatFromAfter("{{DATE:YYYY-MM-DD}} — {{VALUE:title}}")).toBe(
+			"YYYY-MM-DD",
+		);
 	});
 });

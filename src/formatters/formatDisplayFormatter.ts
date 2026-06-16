@@ -47,9 +47,14 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceClipboardInString(output);
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
-			output = this.replaceCurrentFileLinksInString(output);
-			output = await this.replaceCurrentFileNameInString(output);
-			output = this.replaceTargetFolderInString(output);
+			// Links + {{filenamecurrent}} + {{folder}} in one pass so no token
+			// re-scans another's output (#1358). ({{title}} has never been resolved
+			// in this preview formatter — preserved by omitting it.)
+			output = this.replaceCurrentFileTokensInString(output, {
+				links: true,
+				fileName: true,
+				folder: true,
+			});
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);
 			output = await this.replaceFieldVarInString(output);

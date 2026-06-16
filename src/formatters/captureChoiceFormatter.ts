@@ -9,7 +9,6 @@ import {
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { BlankLineAfterMatchMode } from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
-import { reportError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection, { getMarkdownHeadings } from "./helpers/getEndOfSection";
@@ -499,12 +498,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const override = this.insertAfterTargetOverride;
 
 		// Inline targets are single-line by definition and use a separate
-		// indexOf-based path; keep their selector unexpanded (out of scope #742).
+		// indexOf-based path. Expand `\n` escapes here (like the block path below)
+		// so a multi-line target trips the single-line guard in
+		// insertAfterInlineHandler with a clear error — instead of silently
+		// searching for a literal backslash-n that never exists, or writing it
+		// verbatim into the note on create-if-not-found (issue #468).
 		// The heading-picker override always wants the block (section) path, never
 		// the same-line inline path, so the override short-circuits inline here too.
 		if (this.choice.insertAfter?.inline && override === null) {
 			const inlineTarget: string = await this.formatLocationString(
-				this.choice.insertAfter.after,
+				await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 			);
 			return await this.insertAfterInlineHandler(formatted, inlineTarget);
 		}
@@ -661,11 +664,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		targetString: string,
 	): Promise<string> {
 		if (this.hasInlineTargetLinebreak(targetString)) {
-			reportError(
-				new Error("Inline insert after target must be a single line."),
-				"Insert After Inline Error",
+			// Inline insertion lands mid-line after a matched substring, so a
+			// multi-line target can never match. Abort cleanly with a clear message
+			// (parity with the block path's not-found abort) instead of searching for
+			// a literal `\n` or writing it verbatim on create-if-not-found (issue #468).
+			throw new ChoiceAbortError(
+				"Inline insert-after target must be a single line — remove the line break (\\n) or turn off inline insertion.",
 			);
-			return this.fileContent;
 		}
 
 		const matchIndex = this.fileContent.indexOf(targetString);

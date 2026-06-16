@@ -6,9 +6,7 @@ import {
 	DATE_VARIABLE_REGEX,
 	LINK_TO_CURRENT_FILE_REGEX,
 	LINK_TO_CURRENT_SECTION_REGEX,
-	FILE_NAME_OF_CURRENT_FILE_REGEX,
 	FILE_REGEX,
-	TARGET_FOLDER_REGEX,
 	MACRO_REGEX,
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
@@ -22,7 +20,6 @@ import {
 	CLIPBOARD_REGEX,
 	TIME_REGEX,
 	TIME_REGEX_FORMATTED,
-	TITLE_REGEX,
 	RANDOM_REGEX,
 } from "../constants";
 import {
@@ -306,31 +303,28 @@ export abstract class Formatter {
 	}
 
 
+	/**
+	 * Resolves ONLY {{linkcurrent}} (single-token; production resolves all
+	 * note-derived tokens together via {@link replaceCurrentFileTokensInString}).
+	 * Kept for direct/legacy callers and unit tests. A single function-replacer
+	 * pass — never a while loop — so a file literally named "{{linkcurrent}}"
+	 * (whose generated link re-contains the token) can't loop forever (#1358).
+	 */
 	protected async replaceLinkToCurrentFileInString(
 		input: string,
 	): Promise<string> {
-		const currentFilePathLink = this.getCurrentFileLink();
-		let output = input;
+		if (!LINK_TO_CURRENT_FILE_REGEX.test(input)) return input;
 
-		if (!currentFilePathLink && LINK_TO_CURRENT_FILE_REGEX.test(output)) {
+		const currentFilePathLink = this.getCurrentFileLink();
+		if (!currentFilePathLink) {
 			if (this.linkToCurrentFileBehavior === "required") {
 				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
 			}
 			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
-			while (LINK_TO_CURRENT_FILE_REGEX.test(output)) {
-				output = this.replacer(output, LINK_TO_CURRENT_FILE_REGEX, "");
-			}
-			return output;
-		} else if (!currentFilePathLink) return output; // No need to throw, there's no {{LINKCURRENT}} + we can skip while loop.
+		}
 
-		while (LINK_TO_CURRENT_FILE_REGEX.test(output))
-			output = this.replacer(
-				output,
-				LINK_TO_CURRENT_FILE_REGEX,
-				currentFilePathLink,
-			);
-
-		return output;
+		const regex = new RegExp(LINK_TO_CURRENT_FILE_REGEX.source, "gi");
+		return input.replace(regex, () => currentFilePathLink ?? "");
 	}
 
 	/**
@@ -381,33 +375,130 @@ export abstract class Formatter {
 	 * formatter); the individual replacers remain for direct/legacy callers.
 	 */
 	protected replaceCurrentFileLinksInString(input: string): string {
-		if (!/{{(LINKCURRENT|LINKSECTION)}}/i.test(input)) return input;
+		return this.replaceCurrentFileTokensInString(input, { links: true });
+	}
 
+	/**
+	 * Resolves the note-derived contextual tokens — {{linkcurrent}},
+	 * {{linksection}}, {{filenamecurrent}}, {{folder}}/{{folder|name}} and
+	 * {{title}} — in a SINGLE function-replacer pass. Each token's replacement
+	 * embeds user-controlled text (the active file's basename, the target folder's
+	 * name, the note title), so resolving them as separate sequential passes lets
+	 * one pass re-scan and rewrite another's generated output — corrupting it
+	 * (e.g. {{linkcurrent}} → `[[{{folder}}]]`, then the folder pass rewrites the
+	 * basename → `[[]]`), or, when the active file/title is literally named like
+	 * the token, looping forever (the value re-matches the regex every iteration
+	 * → #1358). A single left-to-right pass inserts each resolved value literally
+	 * and never re-scans it, fixing both. Generalises
+	 * {@link replaceCurrentFileLinksInString}, which already does this for the two
+	 * link tokens.
+	 *
+	 * `opts` selects which token categories are active in this context; an inactive
+	 * category's token is returned verbatim (left literal), preserving each entry
+	 * point's existing behaviour (file names leave links/title literal; location
+	 * selectors leave {{folder}} literal; the format-preview formatter resolves no
+	 * {{title}}). The required/optional contract mirrors the individual replacers:
+	 * an ACTIVE link or file-name token that cannot resolve (no active file) throws
+	 * when behaviour is "required" and is stripped when "optional";
+	 * {{folder}}/{{title}} never throw. The link message takes precedence over the
+	 * file-name message, matching the legacy "links resolved before file name"
+	 * order.
+	 */
+	protected replaceCurrentFileTokensInString(
+		input: string,
+		opts: {
+			links?: boolean;
+			fileName?: boolean;
+			folder?: boolean;
+			title?: boolean;
+		},
+	): string {
+		// One alternation over every note-derived token. The |name modifier is
+		// scoped to FOLDER (capture group 3) so the other tokens match EXACTLY as
+		// their individual regexes do (e.g. {{TITLE|name}} stays literal). Built
+		// fresh per call so the global lastIndex is never shared across invocations.
+		const regex =
+			/{{(?:(LINKCURRENT|LINKSECTION|FILENAMECURRENT|TITLE)|(FOLDER)(\|name)?)}}/gi;
+
+		// Each category is resolved lazily, at most once. `undefined` means "not
+		// yet resolved"; the resolvers may legitimately return null/"" (a missing
+		// file, an unset title), so a resolved-but-empty value is distinct from
+		// "uncomputed".
 		let fileLink: string | null | undefined;
 		let sectionLink: string | null | undefined;
-		let missing = false;
+		let fileName: string | null | undefined;
+		let folderFull: string | undefined;
+		let folderLeaf: string | undefined;
+		let title: string | undefined;
+		let missingLink = false;
+		let missingFileName = false;
 
 		const output = input.replace(
-			/{{(LINKCURRENT|LINKSECTION)}}/gi,
-			(_match, token: string) => {
-				if (token.toUpperCase() === "LINKSECTION") {
-					if (sectionLink === undefined)
-						sectionLink = this.getCurrentFileLinkToSection() ?? null;
-					if (!sectionLink) missing = true;
-					return sectionLink ?? "";
+			regex,
+			(
+				match: string,
+				simpleToken: string | undefined,
+				folderToken: string | undefined,
+				folderModifier: string | undefined,
+			) => {
+				// FOLDER (optional |name). Never throws; "" when no target folder.
+				if (folderToken !== undefined) {
+					if (!opts.folder) return match;
+					if (folderFull === undefined) {
+						folderFull = this.targetFolderPath ?? "";
+						const slash = folderFull.lastIndexOf("/");
+						folderLeaf =
+							slash === -1 ? folderFull : folderFull.slice(slash + 1);
+					}
+					return folderModifier ? (folderLeaf as string) : folderFull;
 				}
-				if (fileLink === undefined)
-					fileLink = this.getCurrentFileLink() ?? null;
-				if (!fileLink) missing = true;
-				return fileLink ?? "";
+
+				switch ((simpleToken ?? "").toUpperCase()) {
+					case "LINKCURRENT": {
+						if (!opts.links) return match;
+						if (fileLink === undefined)
+							fileLink = this.getCurrentFileLink() ?? null;
+						if (!fileLink) missingLink = true;
+						return fileLink ?? "";
+					}
+					case "LINKSECTION": {
+						if (!opts.links) return match;
+						if (sectionLink === undefined)
+							sectionLink = this.getCurrentFileLinkToSection() ?? null;
+						if (!sectionLink) missingLink = true;
+						return sectionLink ?? "";
+					}
+					case "FILENAMECURRENT": {
+						if (!opts.fileName) return match;
+						if (fileName === undefined)
+							fileName = this.getCurrentFileName() ?? null;
+						if (!fileName) missingFileName = true;
+						return fileName ?? "";
+					}
+					case "TITLE": {
+						if (!opts.title) return match;
+						if (title === undefined) title = this.getVariableValue("title");
+						return title;
+					}
+				}
+				return match; // unreachable: the regex only matches the cases above
 			},
 		);
 
-		if (missing) {
+		// Required/optional handling mirrors the individual replacers. A missing
+		// link takes precedence over a missing file name (legacy "links first"
+		// order); the messages are kept byte-identical to those replacers.
+		if (missingLink || missingFileName) {
 			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
+				throw new Error(
+					missingLink
+						? "Unable to get current file path. Make sure you have a file open in the editor."
+						: "Unable to get current file name. Make sure you have a file open in the editor.",
+				);
 			}
-			log.logMessage("Skipping {{LINKCURRENT}}/{{LINKSECTION}} replacement because no active file is available.");
+			log.logMessage(
+				"Skipping current-file token replacement because no active file is available.",
+			);
 		}
 
 		return output;
@@ -416,28 +507,11 @@ export abstract class Formatter {
 	protected async replaceCurrentFileNameInString(
 		input: string,
 	): Promise<string> {
-		const currentFileName = this.getCurrentFileName();
-		let output = input;
-
-		if (!currentFileName && FILE_NAME_OF_CURRENT_FILE_REGEX.test(output)) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file name. Make sure you have a file open in the editor.");
-			}
-			log.logMessage("Skipping {{FILENAMECURRENT}} replacement because no active file is available.");
-			while (FILE_NAME_OF_CURRENT_FILE_REGEX.test(output)) {
-				output = this.replacer(output, FILE_NAME_OF_CURRENT_FILE_REGEX, "");
-			}
-			return output;
-		} else if (!currentFileName) return output;
-
-		while (FILE_NAME_OF_CURRENT_FILE_REGEX.test(output))
-			output = this.replacer(
-				output,
-				FILE_NAME_OF_CURRENT_FILE_REGEX,
-				currentFileName,
-			);
-
-		return output;
+		// Routed through the combined single-pass resolver so a file literally
+		// named "{{filenamecurrent}}" can't loop (#1358). Kept for direct/legacy
+		// callers and unit tests; production resolves all tokens at once via the
+		// entry points in CompleteFormatter / the display formatters.
+		return this.replaceCurrentFileTokensInString(input, { fileName: true });
 	}
 
 	public setLinkToCurrentFileBehavior(behavior: LinkToCurrentFileBehavior) {
@@ -470,14 +544,9 @@ export abstract class Formatter {
 	 * capture "Capture to" field, the API, and macro paths).
 	 */
 	protected replaceTargetFolderInString(input: string): string {
-		const fullPath = this.targetFolderPath ?? "";
-		const slashIndex = fullPath.lastIndexOf("/");
-		const leafName =
-			slashIndex === -1 ? fullPath : fullPath.slice(slashIndex + 1);
-		const regex = new RegExp(TARGET_FOLDER_REGEX.source, "gi");
-		return input.replace(regex, (_match, modifier) =>
-			modifier ? leafName : fullPath,
-		);
+		// Routed through the combined single-pass resolver (kept for direct/legacy
+		// callers and unit tests). See {@link replaceCurrentFileTokensInString}.
+		return this.replaceCurrentFileTokensInString(input, { folder: true });
 	}
 
 	/**
@@ -1328,13 +1397,9 @@ export abstract class Formatter {
 	}
 
 	protected replaceTitleInString(input: string): string {
-		let output = input;
-		const title = this.getVariableValue("title");
-
-		while (TITLE_REGEX.test(output)) {
-			output = this.replacer(output, TITLE_REGEX, title);
-		}
-
-		return output;
+		// Routed through the combined single-pass resolver so a title literally
+		// equal to "{{title}}" can't loop (#1358). Kept for direct/legacy callers
+		// and unit tests. See {@link replaceCurrentFileTokensInString}.
+		return this.replaceCurrentFileTokensInString(input, { title: true });
 	}
 }
