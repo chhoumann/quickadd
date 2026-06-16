@@ -6,11 +6,13 @@ import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IUserScript } from "src/types/macros/IUserScript";
+import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import { collectChoiceRequirements } from "./collectChoiceRequirements";
 
 const {
 	getMarkdownFilesInFolderMock,
 	getMarkdownFilesWithTagMock,
+	getMarkdownFilesWithPropertyMock,
 	getUserScriptMock,
 	getTemplateFileMock,
 	isFolderMock,
@@ -19,6 +21,7 @@ const {
 } = vi.hoisted(() => ({
 	getMarkdownFilesInFolderMock: vi.fn(() => []),
 	getMarkdownFilesWithTagMock: vi.fn(() => []),
+	getMarkdownFilesWithPropertyMock: vi.fn(() => []),
 	getUserScriptMock: vi.fn(),
 	getTemplateFileMock: vi.fn(() => null),
 	isFolderMock: vi.fn(() => false),
@@ -29,6 +32,7 @@ const {
 vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: getMarkdownFilesInFolderMock,
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
+	getMarkdownFilesWithProperty: getMarkdownFilesWithPropertyMock,
 	getUserScript: getUserScriptMock,
 	getTemplateFile: getTemplateFileMock,
 	isFolder: isFolderMock,
@@ -231,10 +235,12 @@ describe("collectChoiceRequirements - capture targets", () => {
 	beforeEach(() => {
 		getMarkdownFilesInFolderMock.mockReset();
 		getMarkdownFilesWithTagMock.mockReset();
+		getMarkdownFilesWithPropertyMock.mockReset();
 		isFolderMock.mockReset();
 		logWarningMock.mockReset();
 		getMarkdownFilesInFolderMock.mockReturnValue([]);
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
+		getMarkdownFilesWithPropertyMock.mockReturnValue([]);
 	});
 
 	it("normalizes capture folder paths ending in .md", async () => {
@@ -267,7 +273,97 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === "QA_INTERNAL_CAPTURE_TARGET_FILE_PATH",
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(false);
+	});
+
+	it("forces the capture target dropdown for a property:field=value target (issue #466)", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("property:type=draft"),
+		);
+
+		expect(getMarkdownFilesWithPropertyMock).toHaveBeenCalledWith(
+			app,
+			"type",
+			"draft",
+			expect.any(Object),
+		);
+		expect(getMarkdownFilesWithTagMock).not.toHaveBeenCalled();
+		expect(getMarkdownFilesInFolderMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(true);
+	});
+
+	it("treats a value-less property target as presence mode (undefined value)", async () => {
+		await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("property:type"),
+		);
+
+		expect(getMarkdownFilesWithPropertyMock).toHaveBeenCalledWith(
+			app,
+			"type",
+			undefined,
+			expect.any(Object),
+		);
+	});
+
+	it("passes pipe filters through to the property query", async () => {
+		await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("property:type=draft|folder:Notes"),
+		);
+
+		expect(getMarkdownFilesWithPropertyMock).toHaveBeenCalledWith(
+			app,
+			"type",
+			"draft",
+			expect.objectContaining({ folder: "Notes" }),
+		);
+	});
+
+	it("does not force the dropdown for a tokenized property value", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("property:type={{VALUE}}"),
+		);
+
+		expect(getMarkdownFilesWithPropertyMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(false);
+	});
+
+	it("does not force the dropdown for a property target missing a field name", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("property:"),
+		);
+
+		expect(getMarkdownFilesWithPropertyMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			),
 		).toBe(false);
 	});

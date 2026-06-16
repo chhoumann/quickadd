@@ -155,6 +155,8 @@ Opens a wider prompt for longer text input (multi-line).
 
 **Returns:** Promise resolving to the entered string. Cancelling rejects with `MacroAbortError` (same as `inputPrompt`).
 
+**Keyboard:** Pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** still moves focus out of the field. See [multi-line input](./FormatSyntax.md#value-multiline).
+
 **Example:**
 ```javascript
 const description = await quickAddApi.wideInputPrompt(

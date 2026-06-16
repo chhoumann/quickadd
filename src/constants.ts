@@ -104,6 +104,9 @@ export const NUMBER_REGEX = new RegExp(/^-?[0-9]*$/);
 export const CREATE_IF_NOT_FOUND_TOP = "top";
 export const CREATE_IF_NOT_FOUND_BOTTOM = "bottom";
 export const CREATE_IF_NOT_FOUND_CURSOR = "cursor";
+// "ordered": create a missing insert-after heading at its sorted position among
+// same-level sibling headings (issue #481). Joins TOP/BOTTOM/CURSOR.
+export const CREATE_IF_NOT_FOUND_ORDERED = "ordered";
 
 // == Format Syntax == //
 export const DATE_REGEX = new RegExp(/{{DATE(\+-?[0-9]+)?}}/i);

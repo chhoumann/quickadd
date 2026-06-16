@@ -65,6 +65,7 @@ export {
 	isFolder,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	getMarkdownFilesWithProperty,
 } from "./utils/vaultQueries";
 
 export { findObsidianCommand, deleteObsidianCommand } from "./utils/obsidianCommands";

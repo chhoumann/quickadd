@@ -15,6 +15,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
+	CREATE_IF_NOT_FOUND_ORDERED,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
@@ -30,6 +31,7 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	getMarkdownFilesWithProperty,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
@@ -43,6 +45,8 @@ import {
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { parsePropertyTarget } from "../utils/propertyTarget";
+import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
@@ -95,6 +99,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.choice = choice;
 		this.plugin = plugin;
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+	}
+
+	/**
+	 * For ordered captures (the "ordered" create-if-not-found location), copy the
+	 * formatter's resolved insert-after heading (e.g. `## 2026-06-16`) so the
+	 * success notice names the real heading instead of the raw `{{DATE:…}}` token.
+	 * Called after the format pass; a no-op for every other capture (so existing
+	 * insert-after notice behaviour is unchanged).
+	 */
+	private captureResolvedOrderedHeading(): void {
+		if (
+			this.choice.insertAfter?.enabled &&
+			this.choice.insertAfter.createIfNotFoundLocation ===
+				CREATE_IF_NOT_FOUND_ORDERED
+		) {
+			const resolved = this.formatter.getResolvedInsertAfterHeading();
+			if (resolved) this.resolvedInsertAfterHeading = resolved;
+		}
 	}
 
 	private showSuccessNotice(
@@ -340,6 +362,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const { file, newFileContent, captureContent } =
 				await getFileAndAddContentFn(filePath, content);
 
+			this.captureResolvedOrderedHeading();
+
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
 				// Parse Templater syntax in the capture content.
@@ -477,6 +501,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			existingText,
 			file,
 		);
+
+		this.captureResolvedOrderedHeading();
 
 		await setCanvasTextCaptureContent(this.app, target, nextText);
 
@@ -671,6 +697,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					return this.selectFileInFolder("", true);
 				case "tag":
 					return this.selectFileWithTag(resolution.tag);
+				case "property":
+					return this.selectFileWithProperty(
+						resolution.field,
+						resolution.value,
+						resolution.filter,
+					);
 				case "folder":
 					return this.selectFileInFolder(resolution.folder, false);
 				case "file":
@@ -683,14 +715,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	):
 		| { kind: "vault" }
 		| { kind: "tag"; tag: string }
+		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
 		// Resolution order:
 		// 1) empty => vault picker
 		// 2) #tag => tag picker
-		// 3) trailing "/" => folder picker (explicit)
-		// 4) known file extension => file
-		// 5) ambiguous => folder if it exists and no same-name file exists; else file
+		// 3) property:<field>[=<value>] => frontmatter-property picker
+		// 4) trailing "/" => folder picker (explicit)
+		// 5) known file extension => file
+		// 6) ambiguous => folder if it exists and no same-name file exists; else file
 		const normalizedCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
 		);
@@ -703,6 +737,24 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return {
 				kind: "tag",
 				tag: normalizedCaptureTo.replace(/\.md$/, ""),
+			};
+		}
+
+		// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
+		// Checked before the `.base`/extension/folder branches so a property value
+		// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
+		const propertyTarget = parsePropertyTarget(normalizedCaptureTo);
+		if (propertyTarget) {
+			if (!propertyTarget.field) {
+				throw new ChoiceAbortError(
+					"Property capture target needs a field name, e.g. property:type=draft",
+				);
+			}
+			return {
+				kind: "property",
+				field: propertyTarget.field,
+				value: propertyTarget.value,
+				filter: propertyTarget.filter,
 			};
 		}
 
@@ -815,21 +867,81 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
 		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
 
-		invariant(filesWithTag.length > 0, `No files with tag ${tag}.`);
+		return this.selectFileFromSet(filesWithTag, `No files with tag ${tag}.`);
+	}
 
-		// Quick-Switcher-style ordering; show note names (not raw paths) for tag scope.
+	private async selectFileWithProperty(
+		field: string,
+		value: string | undefined,
+		filter: FieldFilter,
+	): Promise<string> {
+		const filesWithProperty = getMarkdownFilesWithProperty(
+			this.app,
+			field,
+			value,
+			filter,
+		);
+
+		const propertyLabel = value !== undefined ? `${field}=${value}` : field;
+		return this.selectFileFromSet(
+			filesWithProperty,
+			`No notes with property ${propertyLabel}.`,
+		);
+	}
+
+	/**
+	 * Whether a typed picker value already resolves to an existing note — by exact
+	 * path (root or a typed sub-path, with/without a .md/.canvas extension) OR by a
+	 * bare basename matching a note in ANY folder. `vaultBasenames` is the set of
+	 * existing note basenames (lowercased), built once per picker so this is O(1)
+	 * per keystroke. Suppresses the "Create new note" affordance for any name that
+	 * already exists, so a vault-wide picker never mislabels an existing note as
+	 * creatable, captures into it, or spawns a duplicate-basename note.
+	 */
+	private captureTargetAlreadyExists(
+		value: string,
+		vaultBasenames: Set<string>,
+	): boolean {
+		const raw = value.trim();
+		if (!raw) return false;
+		const base = raw.replace(/\.(md|canvas)$/i, "");
+		const pathCandidates = [raw, `${base}.md`, `${base}.canvas`];
+		if (
+			pathCandidates.some(
+				(path) => !!this.app.vault.getAbstractFileByPath(path),
+			)
+		) {
+			return true;
+		}
+		return vaultBasenames.has(base.toLowerCase());
+	}
+
+	/**
+	 * Shared picker for the "anywhere in the vault" capture scopes (tag, property):
+	 * the matched notes can live in any folder, so the picker shows full paths. The
+	 * "Create new note" affordance is suppressed for any name that already exists
+	 * in the vault (by path or basename, in any folder), so typing an existing —
+	 * possibly non-matching — note never mislabels as "create", never silently
+	 * captures into that file, and never spawns a duplicate-basename note.
+	 */
+	private async selectFileFromSet(
+		files: TFile[],
+		notFoundMessage: string,
+	): Promise<string> {
+		invariant(files.length > 0, notFoundMessage);
+
+		// Quick-Switcher-style ordering; show note names (not raw paths).
 		const filePaths = orderFilesForPicker(
-			filesWithTag,
+			files,
 			buildPickerOrderingDeps(this.app),
 		).map((f) => f.path);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
-		// Tagged notes can live anywhere, so existence is matched by basename/path
-		// across the tagged set rather than by re-prefixing a folder.
-		const existingTagged = new Set<string>();
-		for (const f of filesWithTag) {
-			existingTagged.add(f.path);
-			existingTagged.add(f.basename);
-		}
+		// Build once (not per keystroke): existing note basenames across the vault.
+		const vaultBasenames = new Set(
+			this.app.vault
+				.getMarkdownFiles()
+				.map((f) => f.basename.toLowerCase()),
+		);
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
@@ -837,13 +949,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				filePaths,
 				filePaths,
 				{
-					renderItem: (path, el) =>
-						renderNotePathSuggestion(el, path),
+					renderItem: (path, el) => renderNotePathSuggestion(el, path),
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
-						existingTagged.has(value) ||
-						existingTagged.has(value.replace(/\.md$/i, "")),
+						this.captureTargetAlreadyExists(value, vaultBasenames),
 				},
 			);
 		} catch (error) {

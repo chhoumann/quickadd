@@ -121,6 +121,8 @@ Example:
 {{VALUE:summary|type:multiline|label:Summary}}
 ```
 
+**Keyboard:** In the multi-line prompt, pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** is left unbound, so it still moves focus out of the field.
+
 ## `{{VALUE:<variable>|type:number}}` / `|type:checkbox` / `|type:text` {#value-property-types}
 
 Tailors the input to an Obsidian property type. These are single-value prompts (no comma options / `|custom`):
@@ -199,6 +201,8 @@ Notes:
 - `|name` combines with the other options, e.g. `{{VALUE:🔽,🔼,⏫|name:priority|text:Low,Normal,High|label:Pick a priority}}`.
 - Within a single field the order is free — the definition and its `{{VALUE:category}}` reuses can appear in any order, because the named suggester is resolved before the field's other prompts. Across fields in the default one-prompt-at-a-time flow, define the named suggester in the field that is resolved first (the file name is resolved before the body); a reuse in an earlier field than its definition falls back to a text prompt. The one-page input form (Settings → QuickAdd) removes this caveat entirely.
 - `value` and `title` are reserved and can't be used as a name.
+- Names match **case-insensitively**: `{{VALUE:Category}}` reuses a value picked at `{{VALUE:...|name:category}}`.
+- **First definition wins.** If you reuse the same `|name` with a different definition (different options, or a different `|custom` / `|text:` setting) in one run, the first definition's chosen value is reused for the rest — the later definition is not shown (a warning is logged to the developer console). Use distinct names if you want separate prompts.
 
 ## Optional fields: `|optional` {#optional-fields}
 
@@ -291,7 +295,7 @@ Example: `{{TEMPLATE:Templates/Meeting.md}}`.
 
 ## `{{GLOBAL_VAR:<name>}}` {#global-var}
 
-Inserts the value of a globally defined snippet from QuickAdd settings. Snippet values can include other QuickAdd tokens (e.g., `{{VALUE:...}}`, `{{VDATE:...}}`) and are processed by the usual formatter passes. Names match case‑insensitively in the token.
+Inserts the value of a globally defined snippet from QuickAdd settings. Snippet values can include other QuickAdd tokens (e.g., `{{VALUE:...}}`, `{{VDATE:...}}`) and are processed by the usual formatter passes. The `GLOBAL_VAR` keyword itself is case‑insensitive, but the snippet name must match the name you defined (it is case‑sensitive).
 
 Example: `{{GLOBAL_VAR:Meeting Header}}`.
 

@@ -4,6 +4,29 @@ import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
+/** How to derive a sort key from a section heading's text (issue #481). */
+export type SectionOrderBy =
+	| "insertion"
+	| "lexical"
+	| "date"
+	| "numeric"
+	| "semver";
+export type SectionOrderDirection = "asc" | "desc";
+/** Where to rank EXISTING sibling headings whose text can't be parsed. */
+export type UnparseableKeyPolicy = "bottom" | "top";
+
+/**
+ * Ordering descriptor for the "ordered" create-if-not-found location. A missing
+ * insert-after heading is created at its sorted position among same-level
+ * siblings. Read ONLY when `insertAfter.createIfNotFoundLocation === "ordered"`.
+ */
+export interface SectionOrdering {
+	by: SectionOrderBy; // default "insertion"
+	direction: SectionOrderDirection; // default "desc" (newest/highest on top)
+	dateFormat?: string; // moment parse format, only when by === "date"
+	unparseable?: UnparseableKeyPolicy; // default "bottom"; ranks EXISTING unparseable siblings
+}
+
 export default interface ICaptureChoice extends IChoice {
 	captureTo: string;
 	captureToActiveFile: boolean;
@@ -39,6 +62,12 @@ export default interface ICaptureChoice extends IChoice {
 		inline?: boolean;
 		replaceExisting?: boolean;
 		blankLineAfterMatchMode?: BlankLineAfterMatchMode;
+		/**
+			* Sort descriptor for the "ordered" create-if-not-found location. Read ONLY
+			* when `createIfNotFoundLocation === "ordered"`. Absent for every other
+			* location, so existing choices round-trip byte-identically (issue #481).
+			*/
+		orderBy?: SectionOrdering;
 		/**
 			* When true (the "Choose heading when capturing" option of "After line…"), the
 			* insert-after target is chosen at capture time from a dropdown of the target
