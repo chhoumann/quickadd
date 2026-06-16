@@ -125,8 +125,12 @@ const ordering = $derived<SectionOrdering>(
  * reliably round-tripped, so the UI falls back to insertion + a warning.
  */
 function detectDateFormatFromAfter(after: string): string | undefined {
-	const date = after.match(/\{\{DATE:([^}\n\r+]*)(?:\+-?\d+)?\}\}/i);
-	if (date?.[1]?.trim()) return date[1].trim();
+	// Tolerate an optional offset and a trailing |startof:/|endof: snap option
+	// (issue #511); the moment sort-parse format is the part before the first
+	// `|`, mirroring the VDATE handling below.
+	const date = after.match(/\{\{DATE:([^}\n\r+]*)(?:\+-?\d+)?(?:\|[^}\n\r]*)?\}\}/i);
+	const dateFormat = date?.[1]?.split("|")[0]?.trim();
+	if (dateFormat) return dateFormat;
 	// VDATE is {{VDATE:name,format}} or {{VDATE:name,format|default}} — drop the
 	// "|default" segment so it doesn't leak into the moment parse format.
 	const vdate = after.match(/\{\{VDATE:[^,}]+,([^}\n\r]*)\}\}/i);
