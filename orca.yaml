@@ -1,0 +1,28 @@
+# Orca worktree lifecycle hooks for QuickAdd.
+# See AGENTS.md > "Obsidian Worktree Vault Workflow" for the full workflow.
+#
+# `archive` runs on `orca worktree rm --run-hooks`, before the worktree is
+# removed, with the cwd set to the worktree and $ORCA_WORKTREE_PATH pointing at
+# it. It stops this worktree's isolated Obsidian E2E instance and removes its
+# /private/tmp profile directory, so a merged or deleted worktree never leaks an
+# Obsidian process tree or vault dir. It targets only this worktree's instance
+# (matched by its private --user-data-dir token); the shared dev vault, other
+# worktrees, and PodNotes instances are untouched.
+#
+# Notes:
+# - Orca skips this hook unless `--run-hooks` is passed; `start:e2e-obsidian`
+#   also reaps orphaned instances on the next start as a safety net.
+# - A failed archive hook is logged by Orca but never blocks removal. `|| true`
+#   keeps the archive log clean when no instance was ever started.
+# - This assumes the default per-worktree vault name (quickadd-<worktree>) and
+#   profile root. If you started an instance with a custom --vault or
+#   --profile-root, stop it with the matching
+#   `pnpm run stop:e2e-obsidian -- --vault <name> [--profile-root <path>]` before
+#   removing the worktree.
+# - The hook needs `node` on the GUI app's PATH (Orca runs it via non-login
+#   /bin/bash). It is guarded with `command -v node` so a missing node degrades
+#   to a no-op (the reap-on-next-start safety net then handles cleanup) instead
+#   of erroring.
+scripts:
+  archive: |
+    command -v node >/dev/null 2>&1 && node scripts/stop-obsidian-e2e-instance.mjs --worktree "$ORCA_WORKTREE_PATH" || true

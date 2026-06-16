@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	INSTANCE_MARKER_FILE,
 	parseArgs,
 	prepareObsidianProfile,
 	resolveInstanceOptions,
@@ -66,6 +67,40 @@ describe("start-obsidian-e2e-instance", () => {
 			vaultName: options.vaultName,
 			vaultPath: options.vaultPath,
 		})).toContain("QUICKADD_E2E_OBSIDIAN_HOME=");
+	});
+
+	it("writes the worktree marker the teardown reaper consumes", async () => {
+		const cwd = await makeTempDir("quickadd-instance");
+		const options = resolveInstanceOptions(
+			parseArgs([
+				"--vault",
+				"quickadd-worktree-b",
+				"--root",
+				"vaults",
+				"--profile-root",
+				"profiles",
+				"--no-launch",
+			]),
+			cwd,
+		);
+
+		await prepareObsidianProfile(options);
+
+		// The reaper keys off this exact sidecar (see isInstanceOrphaned). Prove the
+		// producer (prepareObsidianProfile, shared by start + the CLI wrapper) writes
+		// it at the instance root with the worktree path the reaper checks for.
+		const marker = JSON.parse(
+			await fs.readFile(
+				path.join(options.instancePath, INSTANCE_MARKER_FILE),
+				"utf8",
+			),
+		);
+		expect(marker).toEqual({
+			worktreePath: options.worktreePath,
+			vaultName: options.vaultName,
+			vaultPath: options.vaultPath,
+		});
+		expect(path.resolve(marker.worktreePath)).toBe(path.resolve(cwd));
 	});
 });
 

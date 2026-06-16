@@ -8,6 +8,7 @@ import {
 	launchObsidianInstance,
 	parseArgs as parseInstanceArgs,
 	prepareObsidianProfile,
+	reapStaleInstances,
 	resolveInstanceOptions,
 	trustVaultAndVerifyQuickAdd,
 	waitForInstanceReady,
@@ -169,6 +170,7 @@ async function main() {
 	}
 
 	const options = resolveInstanceOptions(parseInstanceArgs(parsed.instanceArgs));
+	await reapStaleInstances(options);
 	await ensureObsidianInstance(options);
 	process.exitCode = await spawnObsidian(options, parsed.commandArgs);
 }

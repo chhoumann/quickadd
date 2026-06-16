@@ -12,6 +12,7 @@
     "obsidian:e2e": "node scripts/obsidian-e2e-cli.mjs",
     "provision:e2e-vault": "node scripts/provision-obsidian-e2e-vault.mjs",
     "start:e2e-obsidian": "node scripts/start-obsidian-e2e-instance.mjs",
+    "stop:e2e-obsidian": "node scripts/stop-obsidian-e2e-instance.mjs",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
     "test:coverage": "vitest run --config vitest.config.mts --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.mts"
