@@ -12,6 +12,7 @@ import {
 	reapOrphanedInstances,
 	stopInstance,
 } from "../scripts/stop-obsidian-e2e-instance.mjs";
+import { INSTANCE_MARKER_FILE } from "../scripts/start-obsidian-e2e-instance.mjs";
 
 const tempRoots: string[] = [];
 
@@ -348,7 +349,7 @@ describe("orphan detection", () => {
 			"/vault/leaf/gone",
 		);
 		await fs.writeFile(
-			path.join(spared, "quickadd-e2e-instance.json"),
+			path.join(spared, INSTANCE_MARKER_FILE),
 			JSON.stringify({ worktreePath: liveWorktree }),
 		);
 
@@ -359,7 +360,7 @@ describe("orphan detection", () => {
 			liveWorktree,
 		);
 		await fs.writeFile(
-			path.join(leaked, "quickadd-e2e-instance.json"),
+			path.join(leaked, INSTANCE_MARKER_FILE),
 			JSON.stringify({ worktreePath: "/worktree/removed/on/merge" }),
 		);
 
