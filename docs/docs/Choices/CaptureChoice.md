@@ -268,7 +268,75 @@ You can see an explanation of these below.
 I use this in my daily journal capture, where I insert after the heading line `## What did I do today?`.
 
 It's also possible to use `Create line if not found`, which will create the line if it doesn't exist. This is useful if you want to insert after a line that might not exist in the file you're capturing to.
-This setting can place the line at the start or end of the file, or at your current cursor position.
+This setting can place the created line at the **Top** or **Bottom** of the file, at your **Cursor** position, or **Ordered** — at its sorted position among same-level headings. See [Ordered section placement](#ordered-section-placement) for reverse-chronological daily logs, changelogs, and other sorted sections.
+
+### Ordered section placement
+
+When `Create line if not found` is enabled and its location dropdown is set to **Ordered** (the full label is `Ordered (place new section among siblings)`), a missing "Insert after" heading is created at its **sorted position among same-level sibling headings** instead of at the top or bottom of the note. This is the building block for a reverse-chronological log: a new dated section is added above older ones, while a fixed title/intro stays pinned at the top.
+
+This is the recipe for the classic "daily log, newest first" note (issue [#481](https://github.com/chhoumann/quickadd/issues/481)):
+
+-   **Capture to**: your log note (enable `Create file if it doesn't exist` if you want it auto-created).
+-   **Format**: the entry, ending with a newline, e.g. `- {{TIME:HH:mm}} {{VALUE}}\n`. The trailing newline (or enabling `Capture as task`) is what keeps multiple entries on the same day on separate lines — without it, repeated same-day captures run together on one line.
+-   **Insert after**: the day heading, `## {{DATE:YYYY-MM-DD}}`.
+-   **Insert at end of section**: off, so each new entry lands directly under the day heading (newest entry on top within the day).
+-   **Create line if not found**: on, with the location set to **Ordered**, **Sort sections by** = `Date`, and **Section order** = `Newest / highest first`.
+
+Running it on consecutive days (and twice on the same day) produces:
+
+```markdown
+# My Daily Log
+
+A short intro that always stays at the top.
+
+## 2026-06-16
+- 09:40 reviewed the code
+- 09:13 started the design
+
+## 2026-06-14
+- 09:00 older entry
+```
+
+The first capture of a day creates `## 2026-06-16` directly below the intro and above `## 2026-06-14`; later captures that day find the existing heading and add their entry on top. The `# My Daily Log` title stays put because it is a different heading level (only `##` headings are sorted against each other), and any YAML frontmatter is skipped entirely — it is never treated as a heading, even if it contains `#` lines.
+
+#### Sort options
+
+Once `Create line if not found` is on and its location is **Ordered**, these controls appear (the last two only for the sort keys noted):
+
+-   **Sort sections by** — how the sort key is read from each heading's text:
+    -   `Insertion order (no sorting)` — newest-first simply prepends the new section above the others; oldest-first appends it below. No parsing.
+    -   `Text (A→Z)` — case-insensitive text compare.
+    -   `Number` — the leading number in the heading (e.g. `## 12 Project X`).
+    -   `Date` — parsed with a **Date format** (shown only for this key; auto-detected from the `{{DATE:…}}` token in your "Insert after" text, and editable). Trailing decoration like `## 2026-06-14 (Friday)` is ignored.
+    -   `Version (semver)` — `major.minor.patch`, so `1.10.0` correctly sorts above `1.9.0`. A leading `v` and the Keep a Changelog `## [1.10.0] - 2026-06-16` bracket form are both understood.
+-   **Section order** — `Newest / highest first` (descending) or `Oldest / lowest first` (ascending).
+-   **Existing unparseable headings** — shown for the `Date`, `Number`, and `Version (semver)` keys: where to rank existing headings whose text can't be parsed for the chosen key (e.g. an `## Unreleased` heading in a versioned changelog) — `Sort existing unparseable headings to bottom` (default) or `…to top`. A new heading that can't be parsed is always appended at the end.
+
+Use **Insert at end of section** (above) to control the order *within* each section: off = newest entry on top (good for date logs), on = entries appended at the section end (good for changelogs).
+
+#### More examples
+
+A changelog, newest version on top — **Insert after** `## {{VALUE:version}}`, **Format** `- {{VALUE:change}}\n`, **Insert at end of section** on (new changes append below earlier ones in the same version), **Create line if not found** on → **Ordered**, **Sort by** `Version (semver)`, **Order** `Newest / highest first`:
+
+```markdown
+# Changelog
+
+## 1.10.0
+- new feature
+- another fix in 1.10.0
+
+## 1.9.0
+- old fix
+```
+
+A "books read" note grouped by year — **Insert after** `## {{DATE:YYYY}}`, **Format** `- {{VALUE}}\n`, **Create line if not found** on → **Ordered**, **Sort by** `Date` with **Date format** `YYYY`, **Order** `Newest / highest first`.
+
+#### Notes and limits
+
+-   The heading is created **once** and reused: every later capture finds it, so the section is never duplicated. This relies on the heading resolving to the **same text** each time, so use a stable token (`{{DATE:…}}`, a `{{VALUE:…}}` you supply) — not a random or constantly-changing one.
+-   Sorting is over **all same-level headings in the note**; it is not scoped to one parent section. For the layouts above (a single group of dated/versioned `##` sections under one title) this is exactly what you want. Keep the fixed title/intro at a different heading level (e.g. an `#` title above `##` sections) so it is never treated as a sortable sibling.
+-   Ordered placement only positions the **new** section; it does not re-sort sections you already have.
+-   **Ordered** is for headings and can't be combined with **Inline insertion**.
 
 ### Choose heading when capturing
 

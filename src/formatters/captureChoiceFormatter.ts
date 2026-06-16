@@ -3,6 +3,7 @@ import { getLinesInString } from "src/utility";
 import {
 	CREATE_IF_NOT_FOUND_BOTTOM,
 	CREATE_IF_NOT_FOUND_CURSOR,
+	CREATE_IF_NOT_FOUND_ORDERED,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../constants";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -12,7 +13,16 @@ import { reportError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
 import getEndOfSection, { getMarkdownHeadings } from "./helpers/getEndOfSection";
-import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
+import {
+	computeOrderedSectionInsertIndex,
+	maskFencedHeadings,
+	type MomentLike,
+	type OrderedSlot,
+} from "./helpers/orderedSectionPlacement";
+import {
+	getBodyStartOffset,
+	insertAtNoteBodyStart,
+} from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 
 /**
@@ -50,6 +60,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		*/
 	private insertAfterTargetOverride: string | null = null;
 	/**
+	 * The resolved first-line heading of the insert-after target for this run
+	 * (e.g. `## 2026-06-16`, leading `#`s kept), captured once the token-driven
+	 * `after` string is resolved. The engine reads it (via
+	 * getResolvedInsertAfterHeading) to show `Captured to X under '## 2026-06-16'`
+	 * instead of the raw `{{DATE:…}}` token in the success notice for ordered
+	 * captures. Null until the non-inline/non-override block path resolves a
+	 * heading target.
+	 */
+	private lastResolvedInsertAfterHeading: string | null = null;
+	/**
 		* Tracks whether `\n` escapes in the capture format string have been expanded.
 		* Expansion must happen on the raw format template BEFORE token substitution,
 		* and only once per capture run: multi-stage flows pass already-substituted
@@ -84,6 +104,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		*/
 	public setInsertAfterTargetOverride(target: string | null): void {
 		this.insertAfterTargetOverride = target;
+	}
+
+	/**
+	 * The resolved insert-after heading line for this run, leading `#`s KEPT (e.g.
+	 * `## 2026-06-16`), or null if the target was not a resolved heading. Used by
+	 * the engine's success notice for ordered captures (see
+	 * lastResolvedInsertAfterHeading). The `#` form matches the notice's raw-token
+	 * fallback; do not strip it here without aligning the promptHeading path.
+	 */
+	public getResolvedInsertAfterHeading(): string | null {
+		return this.lastResolvedInsertAfterHeading;
 	}
 
 	protected shouldUseSelectionForValue(): boolean {
@@ -489,6 +520,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 			));
 
+		// Record the resolved heading for the success notice (ordered captures show
+		// '## 2026-06-16' instead of the raw token). Token-driven path only; the
+		// promptHeading override sets its own notice text in the engine.
+		if (override === null) {
+			const firstLine = targetString.split("\n", 1)[0];
+			this.lastResolvedInsertAfterHeading = /^#+\s+\S/.test(firstLine)
+				? firstLine.trim()
+				: null;
+		}
+
 		const targetLines = this.toTargetLines(targetString);
 		if (this.isBlankTarget(targetLines)) {
 			throw new ChoiceAbortError(
@@ -497,10 +538,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		const { start, end } = this.findInsertAfterRange(
-			fileContentLines,
-			targetLines,
-		);
+		// For ordered placement, the target search must ignore headings inside YAML
+		// frontmatter or fenced code blocks. Otherwise a sample/comment heading that
+		// happens to match (e.g. a `## 2026-06-16` in a ```markdown example) would be
+		// treated as "found" and the capture inserted there, bypassing the
+		// fence/frontmatter-aware ordered create path. Masking preserves line indices,
+		// so the found-path position math below stays valid. Non-ordered captures keep
+		// their existing (unmasked) search behaviour.
+		const searchLines = this.isOrderedCreate()
+			? this.maskNonBodyHeadingsForSearch(fileContentLines)
+			: fileContentLines;
+		const { start, end } = this.findInsertAfterRange(searchLines, targetLines);
 		const targetNotFound = start === -1;
 		if (targetNotFound) {
 			if (this.choice.insertAfter?.createIfNotFound) {
@@ -726,9 +774,217 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			}
 		}
 
+		if (
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+			CREATE_IF_NOT_FOUND_ORDERED
+		) {
+			return this.createInsertAfterOrdered(formatted, insertAfterLine);
+		}
+
 		throw new ChoiceAbortError(
 			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
 		);
+	}
+
+	/**
+	 * Create a missing insert-after heading at its sorted position among same-level
+	 * siblings (the "ordered" create-if-not-found location, issue #481). The
+	 * heading level and sort key come from the FIRST line of a (possibly multi-line
+	 * #742) anchor; CRLF is stripped for the line model, then re-applied on splice.
+	 * A non-heading anchor has no sibling band, so it degrades gracefully to the
+	 * existing TOP behavior (parity with considerSubsectionsForAnchor).
+	 */
+	/** True when this capture uses the ordered create-if-not-found location. */
+	private isOrderedCreate(): boolean {
+		return (
+			!!this.choice.insertAfter?.createIfNotFound &&
+			this.choice.insertAfter?.createIfNotFoundLocation ===
+				CREATE_IF_NOT_FOUND_ORDERED
+		);
+	}
+
+	/**
+	 * Index of the first body line after any YAML frontmatter (0 when none).
+	 * Mirrors insertAtNoteBodyStart's frontmatter detection (getBodyStartOffset).
+	 */
+	private getBodyStartLine(): number {
+		const bodyStartOffset = getBodyStartOffset(this.fileContent);
+		return bodyStartOffset > 0
+			? this.fileContent.slice(0, bodyStartOffset).split("\n").length - 1
+			: 0;
+	}
+
+	/**
+	 * Returns CRLF-stripped lines with frontmatter lines blanked and fenced-code
+	 * headings neutralized, so the ordered target search never matches a heading
+	 * that isn't a real body section. Line indices are preserved.
+	 */
+	private maskNonBodyHeadingsForSearch(lines: string[]): string[] {
+		const bodyStartLine = this.getBodyStartLine();
+		const masked = maskFencedHeadings(lines).map((line) =>
+			line.replace(/\r$/, ""),
+		);
+		for (let i = 0; i < bodyStartLine && i < masked.length; i++) {
+			masked[i] = "";
+		}
+		return masked;
+	}
+
+	private createInsertAfterOrdered(
+		formatted: string,
+		targetString: string,
+	): string {
+		const orderBy = this.choice.insertAfter?.orderBy ?? {
+			by: "insertion" as const,
+			direction: "desc" as const,
+			unparseable: "bottom" as const,
+		};
+
+		const firstLine = targetString.split(/\r?\n/, 1)[0];
+		const level = getMarkdownHeadings([firstLine])[0]?.level ?? 0;
+
+		// Reused verbatim so the created block is byte-identical to next-run's search
+		// target (the #742 round-trip invariant that keeps creation idempotent).
+		const payload = `${targetString}\n${formatted}`;
+
+		// Non-heading anchor: ordered placement is meaningless → graceful TOP degrade.
+		if (level === 0) {
+			return insertAtNoteBodyStart(this.fileContent, payload);
+		}
+
+		// CRLF-safe line model: the helper detects headings on \r-stripped lines;
+		// the splice happens on the original lines to preserve EOL bytes.
+		const rawLines = getLinesInString(this.fileContent);
+		const lines = rawLines.map((line) => line.replace(/\r$/, ""));
+
+		// Exclude any YAML frontmatter so a `#`-prefixed YAML line is never treated
+		// as a sibling/ancestor and the new section can never be spliced into the
+		// frontmatter block (frontmatter detection mirrors insertAtNoteBodyStart).
+		const bodyStartLine = this.getBodyStartLine();
+
+		// Idempotency guard for multi-line anchors: the block search (findInsertAfterRange)
+		// matches the WHOLE multi-line target, so a target like "## 2026-06-16\n**Tasks**"
+		// is "not found" when the note already has a bare "## 2026-06-16" without the
+		// **Tasks** line — which would otherwise create a DUPLICATE heading here. When the
+		// heading line itself already exists in the body, insert the content under it
+		// instead (top of section, or section end when insertAtEnd), never duplicating.
+		// Match against fence-masked lines so a `## …` inside a code block is not
+		// mistaken for a real heading (consistent with computeOrderedSectionInsertIndex).
+		const maskedLines = maskFencedHeadings(lines);
+		const headingNeedle = firstLine.replace(/\r$/, "").trimEnd();
+		const existingHeadingLine = maskedLines.findIndex(
+			(line, i) => i >= bodyStartLine && line.trimEnd() === headingNeedle,
+		);
+		if (existingHeadingLine !== -1) {
+			const position = this.choice.insertAfter?.insertAtEnd
+				? this.findInsertAfterPositionAtSectionEnd(
+						maskedLines,
+						getEndOfSection(
+							maskedLines,
+							existingHeadingLine,
+							this.considerSubsectionsForAnchor(
+								maskedLines,
+								existingHeadingLine,
+							),
+						) ?? maskedLines.length - 1,
+						this.fileContent,
+						formatted,
+					)
+				: this.findInsertAfterPositionWithBlankLines(
+						maskedLines,
+						existingHeadingLine,
+						this.fileContent,
+						this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
+					);
+			return this.insertTextAfterPositionInBody(
+				formatted,
+				this.fileContent,
+				position,
+			);
+		}
+
+		const moment =
+			typeof window !== "undefined"
+				? (window.moment as unknown as MomentLike | undefined)
+				: undefined;
+		const slot = computeOrderedSectionInsertIndex(
+			lines,
+			firstLine,
+			level,
+			orderBy,
+			moment,
+			bodyStartLine,
+		);
+
+		if (slot.mode === "bodyStart") {
+			return insertAtNoteBodyStart(this.fileContent, payload);
+		}
+
+		return this.spliceOrderedSection(rawLines, slot, payload);
+	}
+
+	/**
+	 * Splice a created section at the resolved slot, padding it with a single blank
+	 * line above the heading (when the preceding line is non-blank) and below the
+	 * block (when the following line is non-blank) so the heading is never glued to
+	 * neighbouring content (the helpers QuickAdd ships do not pad headings —
+	 * verified — so this is the dedicated separation path for ordered creation).
+	 *
+	 * Byte-preserving: the original `fileContent` is sliced at the insertion offset
+	 * and the existing text on both sides is kept VERBATIM (so a mixed-EOL note is
+	 * never wholesale-normalized — an ordered capture produces a minimal diff). Only
+	 * the inserted block and its two seams use the file's dominant EOL. The offset
+	 * is derived from `rawLines` (which `getLinesInString` produced by splitting on
+	 * "\n", so each prior line consumed its own length + 1 for the "\n"). `\r` is
+	 * stripped only for the blank-line trim checks.
+	 */
+	private spliceOrderedSection(
+		rawLines: string[],
+		slot: Exclude<OrderedSlot, { mode: "bodyStart" }>,
+		payload: string,
+	): string {
+		const content = this.fileContent;
+		const eol = content.includes("\r\n") ? "\r\n" : "\n";
+		const insertIdx = slot.mode === "before" ? slot.line : slot.line + 1;
+
+		// Character offset of the start of line `insertIdx` in the original content.
+		let offset = 0;
+		for (let i = 0; i < insertIdx && i < rawLines.length; i++) {
+			offset += rawLines[i].length + 1; // +1 for the consumed "\n"
+		}
+		if (offset > content.length) offset = content.length;
+		const before = content.slice(0, offset);
+		const after = content.slice(offset);
+
+		const prev =
+			insertIdx > 0 ? (rawLines[insertIdx - 1] ?? "").replace(/\r$/, "") : "";
+		const next =
+			insertIdx < rawLines.length
+				? (rawLines[insertIdx] ?? "").replace(/\r$/, "")
+				: "";
+
+		const payloadLines = payload.split("\n").map((line) => line.replace(/\r$/, ""));
+		// Drop a single trailing empty line that a format ending in "\n" produces, so
+		// separation is controlled solely by the padding below.
+		if (payloadLines.length > 1 && payloadLines[payloadLines.length - 1] === "") {
+			payloadLines.pop();
+		}
+
+		const blockLines: string[] = [];
+		if (insertIdx > 0 && prev.trim() !== "") blockLines.push(""); // blank above heading
+		blockLines.push(...payloadLines);
+		if (insertIdx < rawLines.length && next.trim() !== "") blockLines.push(""); // blank below block
+
+		const blockText = blockLines.join(eol);
+		// Terminate the preceding line when `before` doesn't already end with a
+		// newline (the EOF-without-trailing-newline case), and terminate the block
+		// when content follows it OR when the file already ended with a newline (so
+		// appending at EOF preserves the file's trailing newline). Existing bytes in
+		// before/after stay verbatim.
+		const lead = before.length > 0 && !/\n$/.test(before) ? eol : "";
+		const trail =
+			after.length > 0 || /\n$/.test(content) ? eol : "";
+		return `${before}${lead}${blockText}${trail}${after}`;
 	}
 
 	private async createInsertBeforeIfNotFound(

@@ -64,4 +64,70 @@ describe("CaptureChoice.Load", () => {
 			createIfNotFoundLocation: "top",
 		});
 	});
+
+	it("backfills a safe ordering descriptor for an ordered choice missing orderBy", () => {
+		const choice = new CaptureChoice("Ordered") as any;
+		choice.insertAfter.enabled = true;
+		choice.insertAfter.createIfNotFound = true;
+		choice.insertAfter.createIfNotFoundLocation = "ordered";
+		delete choice.insertAfter.orderBy;
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.insertAfter.orderBy).toEqual({
+			by: "insertion",
+			direction: "desc",
+			unparseable: "bottom",
+		});
+	});
+
+	it("preserves an existing orderBy descriptor on an ordered choice", () => {
+		const choice = new CaptureChoice("OrderedDate") as any;
+		choice.insertAfter.enabled = true;
+		choice.insertAfter.createIfNotFound = true;
+		choice.insertAfter.createIfNotFoundLocation = "ordered";
+		choice.insertAfter.orderBy = {
+			by: "date",
+			direction: "desc",
+			dateFormat: "YYYY-MM-DD",
+			unparseable: "top",
+		};
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.insertAfter.orderBy).toEqual({
+			by: "date",
+			direction: "desc",
+			dateFormat: "YYYY-MM-DD",
+			unparseable: "top",
+		});
+	});
+
+	it("clears inline on an ordered choice (enforces the UI invariant at load)", () => {
+		const choice = new CaptureChoice("InlineOrdered") as any;
+		choice.insertAfter.enabled = true;
+		choice.insertAfter.inline = true;
+		choice.insertAfter.createIfNotFound = true;
+		choice.insertAfter.createIfNotFoundLocation = "ordered";
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.insertAfter.inline).toBe(false);
+		expect(loaded.insertAfter.orderBy).toEqual({
+			by: "insertion",
+			direction: "desc",
+			unparseable: "bottom",
+		});
+	});
+
+	it("does not add orderBy to non-ordered choices", () => {
+		const choice = new CaptureChoice("Top") as any;
+		choice.insertAfter.enabled = true;
+		choice.insertAfter.createIfNotFound = true;
+		choice.insertAfter.createIfNotFoundLocation = "top";
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.insertAfter.orderBy).toBeUndefined();
+	});
 });
