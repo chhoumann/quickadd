@@ -40,6 +40,7 @@ import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
+import { quoteYamlDouble } from "../utils/yamlScalarQuoting";
 import {
 	type ParsedValueToken,
 	parseAnonymousValueOptions,
@@ -706,9 +707,27 @@ export abstract class Formatter {
 			// fallback replacement to a string so non-string variable values (e.g.
 			// arrays from scripts on the non-collected path) don't desync the scanner.
 			const placeholder = getYamlPlaceholder(structuredYamlValue);
-			const replacement =
-				placeholder ??
-				String(transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "");
+			let replacement: string;
+			if (placeholder !== undefined) {
+				replacement = placeholder;
+			} else {
+				const stringVal = String(
+					transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "",
+				);
+				// Type-aware quoting (#757): stop Obsidian coercing a text value
+				// like "0042"/"true" into a Number/Boolean. Quotes only a
+				// coercion-prone string at a sole-value frontmatter position when
+				// the token is |type:text or the property is declared Text.
+				const quote = this.propertyCollector.shouldQuoteScalar({
+					input: output,
+					matchStart: match.index,
+					matchEnd: match.index + match[0].length,
+					rawString: stringVal,
+					explicitText: parsed.inputTypeOverride === "text",
+					autoEnabled: propertyTypesEnabled && collectionActive,
+				});
+				replacement = quote ? quoteYamlDouble(stringVal) : stringVal;
+			}
 
 			// Replace in output and adjust regex position
 			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
