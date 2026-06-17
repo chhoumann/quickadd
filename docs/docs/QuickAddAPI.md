@@ -39,7 +39,7 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester"; placeholder?: string; defaultValue?: string; options?: string[]; dateFormat?: string; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
 **Behavior:**
@@ -49,10 +49,12 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 
 **Field Types:**
 - `text`: Single-line text input
+- `number`: Numeric input, optionally bounded by `numericConfig`
 - `textarea`: Multi-line text input
 - `dropdown`: Fixed dropdown menu (no search, must select from list)
 - `date`: Date input with natural language support (short aliases like `t`, `tm`, `yd` are supported and configurable in settings)
 - `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `slider`: Bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; `sliderConfig.step` defaults to `1`. Invalid slider configs fall back to `number`.
 - `suggester`: **NEW** - Searchable autocomplete with custom options (allows custom input)
   - Supports multi-select mode via `suggesterConfig.multiSelect: true` for comma-separated selections
 
@@ -63,6 +65,7 @@ Opens a one-page modal to collect multiple inputs in one go. Values already pres
 const values = await quickAddApi.requestInputs([
   { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
   { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
+  { id: "confidence", label: "Confidence", type: "slider", defaultValue: "50", sliderConfig: { min: 0, max: 100, step: 5 } },
   { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
   { 
     id: "tags", 

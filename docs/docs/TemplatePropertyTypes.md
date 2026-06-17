@@ -20,7 +20,7 @@ The goal is to make note creation easier and more intuitive. While the string co
 
 **Prefer explicit format-syntax options** when you want a specific input or type, with no beta toggle required:
 
-- [`{{VALUE:x|type:number}}` / `|type:checkbox` / `|type:text`](./FormatSyntax#value-property-types) — pick the right input widget; `|type:text` keeps a number-looking value (e.g. `0042`) a string.
+- [`{{VALUE:x|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text`](./FormatSyntax#value-property-types) — pick the right input widget; `|type:slider|min:0|max:100` is useful for bounded Number properties, and `|type:text` keeps a number-looking value (e.g. `0042`) a string.
 - [`{{VALUE:a,b,c|multi}}`](./FormatSyntax#value-multi) — a multi-select picker that writes a real List (also `|multi:linklist` for link lists).
 - [`{{VDATE:when,fmt|time}}`](./FormatSyntax#vdate-time) — a date **and time** picker for `Date & time` properties.
 
