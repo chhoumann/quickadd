@@ -136,6 +136,34 @@ describe("Formatter case: pipe option", () => {
 		);
 	});
 
+	it("trims anonymous VALUE/NAME per token without mutating the shared value", async () => {
+		formatter.setValueResponse("  My New Blog  ");
+		const result = await formatter.testFormat(
+			"raw=[{{VALUE}}] trimmed=[{{VALUE|trim}}] slug=[{{NAME|trim|case:slug}}]",
+		);
+		expect(result).toBe(
+			"raw=[  My New Blog  ] trimmed=[My New Blog] slug=[my-new-blog]",
+		);
+	});
+
+	it("trims named VALUE per token without mutating cached variables", async () => {
+		formatter.setVariable("title", "  My New Blog  ");
+		const result = await formatter.testFormat(
+			"raw=[{{VALUE:title}}] trimmed=[{{VALUE:title|trim}}] raw2=[{{VALUE:title}}] slug=[{{VALUE:title|trim|case:slug}}]",
+		);
+		expect(result).toBe(
+			"raw=[  My New Blog  ] trimmed=[My New Blog] raw2=[  My New Blog  ] slug=[my-new-blog]",
+		);
+	});
+
+	it("quotes the trimmed value for type:text YAML scalars", async () => {
+		formatter.setVariable("id", "  0042  ");
+		const result = await formatter.testFormat(
+			"---\nid: {{VALUE:id|trim|type:text}}\n---",
+		);
+		expect(result).toBe("---\nid: \"0042\"\n---");
+	});
+
 	it("ignores unknown case styles (pass-through)", async () => {
 		formatter.setVariable("title", "My New Blog");
 		const result = await formatter.testFormat(

@@ -168,6 +168,26 @@ describe('Formatter template property type inference', () => {
 		expect(vars.get('tags')).toEqual(['[[John Doe]]', '[[Jane Doe]]']);
 	});
 
+	it('passes trimmed scalar values to YAML property inference', async () => {
+		(formatter as any).variables.set('tags', '  tag1, tag2  ');
+		await formatter.testFormatWithTemplatePropertyCollection(
+			'---\ntags: {{VALUE:tags|trim}}\n---',
+		);
+		const vars = formatter.getAndClearTemplatePropertyVars();
+		expect(vars.get('tags')).toEqual(['tag1', 'tag2']);
+	});
+
+	it('trims array elements while preserving collected YAML arrays', async () => {
+		(formatter as any).variables.set('tags', [' [[John Doe]] ', ' [[Jane Doe]] ']);
+		const output = await formatter.testFormatWithTemplatePropertyCollection(
+			'---\ntags: {{VALUE:tags|trim}}\n---',
+		);
+		const vars = formatter.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe('---\ntags: []\n---');
+		expect(vars.get('tags')).toEqual(['[[John Doe]]', '[[Jane Doe]]']);
+	});
+
 	it('does not apply case transforms to YAML placeholders', async () => {
 		(formatter as any).variables.set('done', null);
 		const output =
