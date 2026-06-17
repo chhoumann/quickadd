@@ -24,6 +24,8 @@ This field also supports the [format syntax](/FormatSyntax.md), which allows you
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
 
+If a value used in the target file name contains a line break or another control character, QuickAdd folds it to a space in the created path and strips trailing spaces or periods from that path segment. The value inserted into the note content is not changed.
+
 ### How QuickAdd picks a target
 
 When **Capture to active file** is disabled, QuickAdd resolves the _File path /

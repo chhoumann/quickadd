@@ -48,6 +48,7 @@ import { isCancellationError, reportError } from "../utils/errorUtils";
 import { parsePropertyTarget } from "../utils/propertyTarget";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -1138,17 +1139,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private normalizeCaptureFilePath(path: string): string {
-		const normalizedPath = this.stripLeadingSlash(path);
+		const normalizedPath = normalizeGeneratedFilePath(
+			this.stripLeadingSlash(path),
+			"Capture target file path",
+		);
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
 			throw new ChoiceAbortError(
 				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
 			);
 		}
-		const finalPath =
-			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedPath) ||
-			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath)
-				? normalizedPath
-				: this.normalizeMarkdownFilePath("", normalizedPath);
+		const finalPath = this.normalizeCaptureFilePathExtension(normalizedPath);
 
 		// A formatted target like 'notes/.md' has no usable file name (e.g. an
 		// optional token left empty). Fail clearly instead of creating it.
@@ -1160,6 +1160,26 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		return finalPath;
+	}
+
+	private normalizeCaptureFilePathExtension(path: string): string {
+		const markdownExtension = path.match(MARKDOWN_FILE_EXTENSION_REGEX)?.[0];
+		if (markdownExtension) {
+			return `${normalizeGeneratedFilePath(
+				path.replace(MARKDOWN_FILE_EXTENSION_REGEX, ""),
+				"Capture target file path",
+			)}${markdownExtension}`;
+		}
+
+		const canvasExtension = path.match(CANVAS_FILE_EXTENSION_REGEX)?.[0];
+		if (canvasExtension) {
+			return `${normalizeGeneratedFilePath(
+				path.replace(CANVAS_FILE_EXTENSION_REGEX, ""),
+				"Capture target file path",
+			)}${canvasExtension}`;
+		}
+
+		return this.normalizeMarkdownFilePath("", path);
 	}
 
 	/**

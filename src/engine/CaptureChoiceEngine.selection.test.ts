@@ -727,6 +727,46 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(store.get(draftKey)).toBeUndefined();
 	});
 
+	it("folds line breaks out of generated capture target file paths", async () => {
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Issue\n221",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				format: {
+					enabled: true,
+					format: "Capture body",
+				},
+			}),
+			createExecutor(),
+		);
+		const createFileWithInput = vi.fn().mockResolvedValue({
+			path: "Issue 221.md",
+			basename: "Issue 221",
+			extension: "md",
+		});
+		(engine as any).createFileWithInput = createFileWithInput;
+
+		await engine.run();
+
+		expect(createFileWithInput).toHaveBeenCalledWith(
+			"Issue 221.md",
+			"",
+			expect.objectContaining({ suppressTemplaterOnCreate: false }),
+		);
+		expect(setTitleMock).toHaveBeenCalledWith("Issue 221");
+	});
+
 	it("does not copy capture content to clipboard when template creation is cancelled", async () => {
 		const clipboardWriteText = vi.fn(async () => {});
 		Object.defineProperty(navigator, "clipboard", {
