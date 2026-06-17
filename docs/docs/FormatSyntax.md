@@ -143,7 +143,7 @@ Example: `priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}`.
 
 ## `{{VALUE:<variable name>|<default>}}` {#value-default}
 
-Same as above, but with a default value. For single-value prompts (e.g., `{{VALUE:name|Anonymous}}`), the default is pre-populated in the input field - press Enter to accept or clear/edit it. For multi-value suggesters without `|custom`, you must select one of the provided options (no default applies). If you combine keyed options like `|label:`, `|default:`, `|type:`, or `|case:`, shorthand defaults like `|Anonymous` are ignored; use `|default:Anonymous` instead. The bare `|optional` flag is the exception: `{{VALUE:name|Anonymous|optional}}` keeps the shorthand default. Because `optional` is now a reserved flag word, a literal default of "optional" needs the keyed form: `|default:optional`.
+Same as above, but with a default value. For single-value prompts (e.g., `{{VALUE:name|Anonymous}}`), the default is pre-populated in the input field - press Enter to accept or clear/edit it. For multi-value suggesters without `|custom`, you must select one of the provided options (no default applies). If you combine keyed options like `|label:`, `|default:`, `|type:`, `|case:`, or `|trim:`, shorthand defaults like `|Anonymous` are ignored; use `|default:Anonymous` instead. The bare `|optional` flag is the exception: `{{VALUE:name|Anonymous|optional}}` keeps the shorthand default. Because `optional` and `trim` are now reserved flag words, literal defaults of "optional" or "trim" need the keyed form, e.g. `|default:trim`.
 
 Example: `status: {{VALUE:status|Draft}}`.
 
@@ -224,7 +224,7 @@ Variants and combinations:
 
 - `|multi:linklist` wraps each pick as a wikilink, for List properties of links: `{{VALUE:Alice,Bob,Carol|multi:linklist}}` → `- "[[Alice]]"` / `- "[[Bob]]"`.
 - `|multi|custom` lets you add values not in the list (a text box in the picker).
-- Combines with `|name:`, `|label:`, `|text:`, and `|optional`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
+- Combines with `|name:`, `|label:`, `|text:`, and `|optional`. `|case:` and `|trim` are ignored with `|multi` (a list isn't string-transformed).
 
 Notes:
 
