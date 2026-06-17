@@ -583,7 +583,7 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 						id: "cmd",
 						name: "Run script",
 						type: CommandType.UserScript,
-						path: "Scripts/script.js",
+						path: "Scripts/script.md",
 						settings: {
 							"API Key": "legacy-secret",
 							Token: createUserScriptSecretRef("local-secret-ref"),
@@ -599,20 +599,26 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 			assets: [
 				{
 					kind: "user-script",
-					originalPath: "Scripts/script.js",
+					originalPath: "Scripts/script.md",
 					contentEncoding: "base64",
-					content: encodeToBase64(`
-						module.exports = {
-							settings: {
-								options: {
-									"API Key": { "type": "secret" },
-									Token: { type: "text", secret: true },
-									Model: { type: "text" },
-								},
-							},
-							entry: () => {},
-						};
-					`),
+					content: encodeToBase64(
+						[
+							"# Script note",
+							"",
+							"```js",
+							"module.exports = {",
+							"  settings: {",
+							"    options: {",
+							"      \"API Key\": { \"type\": \"secret\" },",
+							"      Token: { type: \"text\", secret: true },",
+							"      Model: { type: \"text\" },",
+							"    },",
+							"  },",
+							"  entry: () => {},",
+							"};",
+							"```",
+						].join("\n"),
+					),
 				},
 			],
 		});

@@ -522,6 +522,7 @@ function buildSecretOptionNamesByPath(
 		try {
 			const detection = detectUserScriptSecretOptions(
 				decodeFromBase64(asset.content),
+				asset.originalPath,
 			);
 			secretOptionNamesByPath.set(
 				asset.originalPath,

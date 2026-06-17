@@ -152,6 +152,7 @@ async function buildSecretOptionNamesByPath(
 
 			const detection = detectUserScriptSecretOptions(
 				await app.vault.adapter.read(path),
+				path,
 			);
 			secretOptionNamesByPath.set(
 				path,

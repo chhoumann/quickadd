@@ -242,7 +242,7 @@ describe("choiceService", () => {
 				id: "cmd-1",
 				name: "Run script",
 				type: "UserScript",
-				path: "Scripts/script.js",
+				path: "Scripts/script.md",
 				settings: {
 					"API Key": "legacy-secret",
 					Token: createUserScriptSecretRef("local-secret-ref"),
@@ -254,17 +254,23 @@ describe("choiceService", () => {
 				vault: {
 					adapter: {
 						exists: vi.fn().mockResolvedValue(true),
-						read: vi.fn().mockResolvedValue(`
-							module.exports = {
-								settings: {
-									options: {
-										"API Key": { "type": "secret" },
-										Token: { type: "text", secret: true },
-										Model: { type: "text" },
-									},
-								},
-							};
-						`),
+						read: vi.fn().mockResolvedValue(
+							[
+								"# Script note",
+								"",
+								"```js",
+								"module.exports = {",
+								"  settings: {",
+								"    options: {",
+								"      \"API Key\": { \"type\": \"secret\" },",
+								"      Token: { type: \"text\", secret: true },",
+								"      Model: { type: \"text\" },",
+								"    },",
+								"  },",
+								"};",
+								"```",
+							].join("\n"),
+						),
 					},
 				},
 			} as unknown as App;

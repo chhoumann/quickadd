@@ -443,7 +443,7 @@ describe("buildPackage", () => {
 				id: "cmd-us",
 				name: "Run script",
 				type: CommandType.UserScript,
-				path: "Scripts/userScript.js",
+				path: "Scripts/userScript.md",
 				settings: {
 					"API Key": "legacy-secret",
 					Token: createUserScriptSecretRef("local-secret-ref"),
@@ -453,18 +453,22 @@ describe("buildPackage", () => {
 		]);
 		const { app } = makeFakeApp({
 			files: {
-				"Scripts/userScript.js": `
-					module.exports = {
-						settings: {
-							options: {
-								"API Key": { "type": "secret" },
-								Token: { type: "text", secret: true },
-								Model: { type: "text" },
-							},
-						},
-						entry: () => {},
-					};
-				`,
+				"Scripts/userScript.md": [
+					"# Script note",
+					"",
+					"```js",
+					"module.exports = {",
+					"  settings: {",
+					"    options: {",
+					"      \"API Key\": { \"type\": \"secret\" },",
+					"      Token: { type: \"text\", secret: true },",
+					"      Model: { type: \"text\" },",
+					"    },",
+					"  },",
+					"  entry: () => {},",
+					"};",
+					"```",
+				].join("\n"),
 			},
 		});
 

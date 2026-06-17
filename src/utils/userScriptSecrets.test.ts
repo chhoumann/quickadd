@@ -83,6 +83,29 @@ describe("userScriptSecrets", () => {
 		expect([...detection.names].sort()).toEqual(["API Key", "Token"]);
 	});
 
+	it("detects secret option names inside markdown note script fences", () => {
+		const detection = detectUserScriptSecretOptions(
+			[
+				"# Script note",
+				"",
+				"```js",
+				"module.exports = {",
+				"  settings: {",
+				"    options: {",
+				"      \"API Key\": { \"type\": \"secret\" },",
+				"      Model: { type: \"text\" },",
+				"    },",
+				"  },",
+				"};",
+				"```",
+			].join("\n"),
+			"Scripts/script.md",
+		);
+
+		expect(detection.foundSecretOptions).toBe(true);
+		expect([...detection.names]).toEqual(["API Key"]);
+	});
+
 	it("ignores options-looking text inside comments and string literals", () => {
 		const detection = detectUserScriptSecretOptions(`
 			const help = "options: { Model: { type: \\"secret\\" } }";
@@ -106,6 +129,22 @@ describe("userScriptSecrets", () => {
 				settings: {
 					options: {
 						[process.env.SECRET_NAME]: { type: "secret" },
+					},
+				},
+			};
+		`);
+
+		expect(detection.foundSecretOptions).toBe(true);
+		expect(detection.names.size).toBe(0);
+	});
+
+	it("treats computed expressions as unknown secret option names", () => {
+		const detection = detectUserScriptSecretOptions(`
+			const PREFIX = "API";
+			module.exports = {
+				settings: {
+					options: {
+						[PREFIX + " Key"]: { type: "secret" },
 					},
 				},
 			};

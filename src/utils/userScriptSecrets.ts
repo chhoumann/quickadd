@@ -1,9 +1,11 @@
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
+import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 
 const USER_SCRIPT_SECRET_PREFIX = "quickadd-user-script";
 const SECRET_MARKER = "__quickaddSecret";
+const MARKDOWN_FILE_EXTENSION_REGEX = /\.md$/i;
 
 type SecretStorageLike = {
 	getSecret?: (id: string) => string | null | Promise<string | null>;
@@ -262,13 +264,19 @@ function readOptionKey(
 	}
 
 	if (source[index] === "[") {
-		let current = skipWhitespaceAndComments(source, index + 1);
+		const current = skipWhitespaceAndComments(source, index + 1);
 		const identifier = readIdentifier(source, current);
 		const end = findMatchingDelimiter(source, index, "[", "]");
 		if (end === -1) return null;
+		const afterIdentifier = identifier
+			? skipWhitespaceAndComments(source, identifier.end)
+			: current;
 
 		return {
-			name: identifier ? (constants.get(identifier.value) ?? null) : null,
+			name:
+				identifier && afterIdentifier === end
+					? (constants.get(identifier.value) ?? null)
+					: null,
 			end: end + 1,
 		};
 	}
@@ -363,44 +371,54 @@ function optionBodyDeclaresSecret(body: string): boolean {
 
 export function detectUserScriptSecretOptions(
 	source: string,
+	path?: string,
 ): UserScriptSecretOptionDetection {
+	const sourceToInspect =
+		path && MARKDOWN_FILE_EXTENSION_REGEX.test(path)
+			? (extractScriptFromMarkdown(source).code ?? "")
+			: source;
 	const names = new Set<string>();
 	let foundSecretOptions = false;
-	const constants = collectStringConstants(source);
+	const constants = collectStringConstants(sourceToInspect);
 
-	for (const { start, end } of findOptionsObjectSpans(source)) {
+	for (const { start, end } of findOptionsObjectSpans(sourceToInspect)) {
 		let current = start;
 
 		while (current < end) {
-			current = skipWhitespaceAndComments(source, current);
-			if (source[current] === ",") {
+			current = skipWhitespaceAndComments(sourceToInspect, current);
+			if (sourceToInspect[current] === ",") {
 				current += 1;
 				continue;
 			}
 			if (current >= end) break;
 
-			const key = readOptionKey(source, current, constants);
+			const key = readOptionKey(sourceToInspect, current, constants);
 			if (!key) {
 				current += 1;
 				continue;
 			}
 
-			current = skipWhitespaceAndComments(source, key.end);
-			if (source[current] !== ":") {
+			current = skipWhitespaceAndComments(sourceToInspect, key.end);
+			if (sourceToInspect[current] !== ":") {
 				current += 1;
 				continue;
 			}
 
-			current = skipWhitespaceAndComments(source, current + 1);
-			if (source[current] !== "{") {
+			current = skipWhitespaceAndComments(sourceToInspect, current + 1);
+			if (sourceToInspect[current] !== "{") {
 				current += 1;
 				continue;
 			}
 
-			const valueEnd = findMatchingDelimiter(source, current, "{", "}");
+			const valueEnd = findMatchingDelimiter(
+				sourceToInspect,
+				current,
+				"{",
+				"}",
+			);
 			if (valueEnd === -1 || valueEnd > end) break;
 
-			const body = source.slice(current + 1, valueEnd);
+			const body = sourceToInspect.slice(current + 1, valueEnd);
 			if (optionBodyDeclaresSecret(body)) {
 				foundSecretOptions = true;
 				if (key.name) names.add(key.name);
