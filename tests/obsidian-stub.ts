@@ -798,6 +798,11 @@ export class Menu {
   static lastShown: Menu | null = null;
   items: MenuItem[] = [];
   shownAt: { type: "mouse" | "position"; detail: unknown } | null = null;
+  useNativeMenu: boolean | null = null;
+  setUseNativeMenu(useNativeMenu: boolean): this {
+    this.useNativeMenu = useNativeMenu;
+    return this;
+  }
   addItem(cb: (item: MenuItem) => void): this {
     const item = new MenuItem();
     cb(item);

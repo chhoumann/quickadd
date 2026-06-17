@@ -39,6 +39,7 @@ export function showChoiceMenu(
 	choiceExecutor: IChoiceExecutor,
 ): void {
 	const menu = new Menu();
+	menu.setUseNativeMenu(false);
 	const menuChoices = collectChoicesForMenu(choices);
 
 	if (menuChoices.length === 0) {

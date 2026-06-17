@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App, MarkdownView, Menu } from "obsidian";
+import { App, Menu } from "obsidian";
+import type { MarkdownView } from "obsidian";
 import {
 	collectChoicesForMenu,
 	getEditorMenuPosition,
@@ -8,6 +9,21 @@ import {
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+
+type RecordedMenu = Menu & {
+	items: Array<{
+		title: string;
+		disabled: boolean;
+		clickHandler: (() => void) | null;
+	}>;
+};
+
+const getLastShownMenu = (): RecordedMenu | null =>
+	(Menu as unknown as { lastShown: RecordedMenu | null }).lastShown;
+
+const setLastShownMenu = (menu: RecordedMenu | null): void => {
+	(Menu as unknown as { lastShown: RecordedMenu | null }).lastShown = menu;
+};
 
 const choice = (
 	id: string,
@@ -35,7 +51,7 @@ const multi = (
 
 describe("choice menu", () => {
 	beforeEach(() => {
-		Menu.lastShown = null;
+		setLastShownMenu(null);
 	});
 
 	it("flattens nested multis into path-labeled executable choices", () => {
@@ -61,9 +77,9 @@ describe("choice menu", () => {
 
 		showChoiceMenu(app, [multi("empty", "Empty", [])], executor);
 
-		expect(Menu.lastShown?.items).toHaveLength(1);
-		expect(Menu.lastShown?.items[0].title).toBe("No choices");
-		expect(Menu.lastShown?.items[0].disabled).toBe(true);
+		expect(getLastShownMenu()?.items).toHaveLength(1);
+		expect(getLastShownMenu()?.items[0].title).toBe("No choices");
+		expect(getLastShownMenu()?.items[0].disabled).toBe(true);
 	});
 
 	it("executes the selected leaf choice through the provided executor", () => {
@@ -74,14 +90,16 @@ describe("choice menu", () => {
 		} as unknown as IChoiceExecutor;
 
 		showChoiceMenu(app, [leaf], executor);
-		Menu.lastShown?.items[0].clickHandler?.();
+		getLastShownMenu()?.items[0].clickHandler?.();
 
 		expect(executor.execute).toHaveBeenCalledWith(leaf);
 	});
 
 	it("positions the menu inside the active editor when an editor container is available", () => {
 		const app = new App();
-		const view = new MarkdownView();
+		const view = {
+			containerEl: document.createElement("div"),
+		} as unknown as MarkdownView;
 		const editorEl = view.containerEl.createDiv({ cls: "cm-editor" });
 		vi.spyOn(editorEl, "getBoundingClientRect").mockReturnValue({
 			left: 100,
@@ -94,7 +112,7 @@ describe("choice menu", () => {
 			y: 200,
 			toJSON: () => ({}),
 		} as DOMRect);
-		app.workspace.getActiveViewOfType = () => view;
+		app.workspace.getActiveViewOfType = () => view as never;
 
 		expect(getEditorMenuPosition(app)).toEqual({ x: 310, y: 305 });
 	});
