@@ -93,10 +93,9 @@ Gemini is supported out of the box.
 Name: Gemini
 URL: https://generativelanguage.googleapis.com
 API Key secret: (AI Studio API key)
-Models (add one or more):
-  - gemini-1.5-pro (Max Tokens: 1000000)
-  - gemini-1.5-flash (Max Tokens: 1000000)
-  - gemini-1.5-flash-8b (Max Tokens: 1000000)
+Models (add one or more — use Browse models for the exact current IDs):
+  - gemini-3-pro (Max Tokens: 1000000)
+  - gemini-3-flash (Max Tokens: 1000000)
 ```
 
 Notes:
@@ -120,6 +119,7 @@ In the **AI Assistant Settings** modal (opened via the **Configure AI Assistant*
 -   **Prompt Template Folder Path**: Path to your folder with prompt templates.
 -   **Show Assistant**: Show status messages from the AI Assistant.
 -   **Default System Prompt**: The default system prompt for the AI Assistant. Sets the behavior of the model.
+-   **Confirm AI tool calls**: When an AI agent runs a tool (see *Tool / function calling* below), whether to ask first. *Destructive tools only* (default) confirms any tool not marked read-only; *Always* confirms every tool; *Never* defers to each tool's own setting. A tool that requires approval is always confirmed regardless.
 
 For each individual AI Assistant command in your macros, you can set these options:
 
@@ -134,6 +134,38 @@ You can also tweak model parameters in advanced settings:
 -   **top_p:** This parameter relates to nucleus sampling. The model considers only the tokens comprising the top 'p' probability mass. For example, 0.1 means only tokens from the top 10% probability mass are considered.
 -   **frequency_penalty:** A parameter ranging between -2.0 and 2.0. Positive values penalize new tokens based on their frequency in the existing text, reducing the model's tendency to repeat the same lines. (Not applicable to Gemini.)
 -   **presence_penalty:** Also ranging between -2.0 and 2.0, positive values penalize new tokens based on their presence in the existing text, encouraging the model to introduce new topics. (Not applicable to Gemini.)
+
+## Tool / function calling (scripts)
+
+Beyond one-shot prompts, the AI Assistant can act as a small **agent**: you give the model a
+prompt plus a set of *tools* (JavaScript functions), and it decides which to call, in a bounded
+multi-step loop, until it has an answer. This is available from the [script API](./QuickAddAPI.md)
+only — tools are JS functions, so they live in a User Script (a macro), not in a stored choice.
+
+```js
+module.exports = async ({ quickAddApi, app }) => {
+  const agent = quickAddApi.ai.agent({
+    model: "gpt-5",
+    system: "You are a vault librarian. Ground every claim in the user's notes.",
+    tools: { ...quickAddApi.ai.tools.vault({ only: ["read_note", "search_notes"] }) },
+  });
+  const { text } = await agent.generate({ prompt: "What do my notes say about gardening?" });
+  return text;
+};
+```
+
+QuickAdd ships **built-in tools** you can opt into (`quickAddApi.ai.tools.vault/workspace/system`),
+and you can declare your own with `quickAddApi.ai.tool({ description, inputSchema, execute })`. See the
+[API reference](./QuickAddAPI.md) for the full surface (agents, tools, structured output via a `schema`).
+
+:::warning Tool calls run your code with model-chosen arguments
+Tool handlers run with full vault and network access. The **model** decides which tool to call and
+with what arguments — possibly influenced by note content it reads. Treat tool results and note
+content as untrusted data, validate the arguments your handlers receive, never pass them to
+`format()`/`eval`/a shell, and never put secrets in a tool's description or arguments. Destructive
+tools ask for confirmation by default (the **Confirm AI tool calls** setting); read-only tools run
+automatically.
+:::
 
 ## AI-Powered Workflows
 

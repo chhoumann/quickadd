@@ -610,6 +610,135 @@ const result = await quickAddApi.ai.chunkedPrompt(
 );
 ```
 
+### Tool / function calling — `ai.agent(config)`
+
+Build an **agent**: give the model a prompt and a set of *tools* (JS functions), and it
+will call them in a bounded multi-step loop until it has an answer. Works across your
+configured OpenAI-compatible, Anthropic, and Gemini providers.
+
+```js
+const agent = quickAddApi.ai.agent({
+  model: "gpt-5",
+  system: "You manage an Obsidian vault. Use the tools to ground your answers.",
+  tools: {
+    // built-in tools, opt-in (see ai.tools.* below)
+    ...quickAddApi.ai.tools.vault({ only: ["read_note", "search_notes"] }),
+    // your own tool
+    save_link: quickAddApi.ai.tool({
+      description: "Append a URL to the reading-list note.",
+      inputSchema: {
+        type: "object",
+        properties: { url: { type: "string" } },
+        required: ["url"],
+      },
+      needsApproval: true, // ask before running (the model chose the args)
+      execute: async ({ url }) => {
+        const file = app.vault.getAbstractFileByPath("Reading list.md");
+        await app.vault.append(file, `\n- ${url}`);
+        return { saved: true };
+      },
+    }),
+  },
+  maxSteps: 12, // optional; default 20, hard-capped at 100
+});
+
+const { text, steps, toolCalls } = await agent.generate({
+  prompt: "Summarise my notes about {{VALUE:topic}} and save any links you find.",
+  assignToVariable: "summary", // optional: writes {{VALUE:summary}} for a later step
+});
+```
+
+**`ai.agent(config)`** returns an Agent. Config:
+- `model` — a configured model name (string) or `{ name }`.
+- `system` — system prompt (defaults to your AI Assistant default system prompt).
+- `tools` — an object map of tool name → tool (from `ai.tool()` and/or `ai.tools.*`).
+- `toolChoice` — `"auto"` (default) | `"none"` | `"required"` | `{ type: "tool", toolName }`.
+- `stopWhen` — one or more stop conditions from `ai.stepCountIs(n)` / `ai.hasToolCall(name)`.
+- `maxSteps` — step budget (default 20, hard cap 100). Sugar for `stopWhen: ai.stepCountIs(n)`.
+- `maxOutputTokens`, `modelOptions` — passed to the provider.
+
+**`agent.generate(options)`** runs the loop and resolves to a result:
+- `text` — the final assistant text.
+- `object` — present **only** when you pass a `schema` (structured output, below).
+- `steps` — the full transcript: `{ text, toolCalls, toolResults, finishReason }[]`.
+- `toolCalls` / `toolResults` — from the last step (`input` / `output` fields, AI-SDK style).
+- `usage` — `{ inputTokens, outputTokens, totalTokens }`.
+- `finishReason` — `"stop" | "max-steps" | "length" | "aborted" | "context-overflow"`.
+
+Options: `prompt` (formatted, like `ai.prompt`), `schema`, `system`/`toolChoice`/`maxOutputTokens`
+(per-call overrides), and `assignToVariable` (write `text` into `{{VALUE:name}}`).
+
+The agent is a **stateless config holder** — each `generate()` is independent (no retained
+conversation). Reuse means reusing the config; run one `generate()` at a time per agent.
+
+### `ai.tool(def)`
+
+Declares a tool. `def`: `{ description, inputSchema (JSON Schema), execute, needsApproval?, readOnly?, strict? }`.
+
+- `inputSchema` is a **JSON-Schema subset** (`type`/`properties`/`required`/`enum`/`items`).
+  Unsupported keywords (`pattern`, `additionalProperties`, `$ref`, `format`, …) are rejected
+  at registration so a provider can't silently drop a constraint.
+- `execute(input, ctx)` runs your code with the model-chosen `input` (validated against the
+  schema first). Return a string (used verbatim) or any JSON-serialisable value.
+- `needsApproval` (boolean or `(args) => boolean`) asks before running. `readOnly: true` marks a
+  tool that only reads, so it auto-runs under the default confirmation setting.
+
+> **Confirmation needs an interactive Obsidian session.** A tool that asks for approval opens a
+> modal and waits for it. For unattended automation (e.g. driving QuickAdd from the CLI), give the
+> agent only `readOnly` tools, or set **Confirm AI tool calls** to *Never* and gate each tool with
+> its own `needsApproval` — otherwise the run blocks on a dialog no one can answer.
+
+> ⚠️ **Security.** Tool handlers run with the same full privilege as your script (Node `require`,
+> `app`, the vault). The **model decides which tool to call and with what arguments**, possibly
+> influenced by note content it reads (indirect prompt injection). QuickAdd never runs model-chosen
+> arguments through the formatter — and **neither should you**: never pass a tool's `input` to
+> `quickAddApi.format()`, `eval`, a shell, or `fetch` without validating it. Never put secrets in a
+> tool's description or arguments (they are sent to the provider). Confirmation is governed by each
+> tool's `needsApproval` plus the global **Confirm AI tool calls** setting (default *destructive only*).
+
+### Built-in tools — `ai.tools.{vault, workspace, system}(options)`
+
+Opt-in groups of ready-made tools. Each returns a tool map you spread into an agent's `tools`.
+Options: `{ only, exclude, prefix, allowedRoots }` (`allowedRoots` confines vault paths to folders).
+
+| Group | Read-only (auto-run) | Write (asks for approval) |
+|---|---|---|
+| `vault` | `read_note`, `list_notes`, `search_notes`, `get_property_values` | `create_note`, `append_to_note`, `insert_under_heading` |
+| `workspace` | `get_active_note`, `get_selection` | — |
+| `system` | `get_date` | — |
+
+Write tools sanitise every model-chosen path (rejecting traversal and config dirs like `.obsidian`/
+`.git`, and symlinks that escape the vault), fail rather than overwrite an existing note, and are
+frontmatter-aware. There are **no ambient tools** — nothing runs unless you spread it into `tools`.
+
+### Structured output — `agent.generate({ prompt, schema })`
+
+Pass a JSON schema to get a validated object back:
+
+```js
+const { object } = await quickAddApi.ai.agent({ model: "gpt-5" }).generate({
+  prompt: "Extract the title and tags from the selection.",
+  schema: {
+    type: "object",
+    properties: { title: { type: "string" }, tags: { type: "array", items: { type: "string" } } },
+    required: ["title", "tags"],
+  },
+});
+// object => { title: "...", tags: ["...", "..."] }
+```
+
+`object` is the parsed, schema-validated result (or `undefined` if the model could not produce a
+match after one repair attempt). Structured output works on current models — OpenAI GPT-5.x (and
+GPT-4o-class), Anthropic Claude 4.x, and Gemini 3.x; it can be combined with tools. Older models
+that do not support schema-constrained output (e.g. legacy OpenAI chat models) reject the request
+outright with a provider error — use a current model rather than expecting a best-effort fallback.
+
+:::note OpenAI reasoning models (GPT-5.x, o-series)
+These accept only the default `temperature` (omit it from `modelOptions`), and QuickAdd
+automatically sends `maxOutputTokens` as `max_completion_tokens` for them. The agent's default
+path sets neither, so `quickAddApi.ai.agent({ model: "gpt-5" })` works as-is.
+:::
+
 ### `getModels(): string[]`
 Returns available AI models.
 
