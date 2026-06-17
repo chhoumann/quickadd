@@ -19,6 +19,10 @@ import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { regenerateIds } from "../utils/macroUtils";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
+import {
+	clearUserScriptSecretsFromCommand,
+	stripUserScriptSecretRefsFromChoice,
+} from "../utils/userScriptSecrets";
 
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 	Template: TemplateChoice,
@@ -56,6 +60,7 @@ export function duplicateChoice(choice: IChoice): IChoice {
 	if (choice.type === "Macro") {
 		(newChoice as IMacroChoice).macro = deepClone((choice as IMacroChoice).macro);
 		regenerateIds((newChoice as IMacroChoice).macro);
+		stripUserScriptSecretRefsFromChoice(newChoice);
 	}
 
 	return newChoice;
@@ -121,7 +126,21 @@ export async function deleteChoiceWithConfirmation(
             `,
 	);
 
-	return userConfirmed;
+	if (!userConfirmed) return false;
+
+	if (isMacro) {
+		await clearUserScriptSecretsFromCommand(app, {
+			type: "NestedChoice",
+			choice,
+		});
+	} else if (isMulti) {
+		await clearUserScriptSecretsFromCommand(app, {
+			type: "NestedChoice",
+			choice,
+		});
+	}
+
+	return true;
 }
 
 /**

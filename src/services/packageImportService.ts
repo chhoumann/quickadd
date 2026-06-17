@@ -22,6 +22,7 @@ import { log } from "../logger/logManager";
 import { decodeFromBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
+import { stripUserScriptSecretRefsFromCommand } from "../utils/userScriptSecrets";
 import {
 	buildPackagePreview,
 	collectReferencedAssetPaths,
@@ -543,6 +544,7 @@ function remapCommands(
 ): void {
 	for (const command of commands) {
 		if (!command) continue;
+		stripUserScriptSecretRefsFromCommand(command);
 
 		if (shouldRegenerateIds) {
 			command.id = uuidv4();

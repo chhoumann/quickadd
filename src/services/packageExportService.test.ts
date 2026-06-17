@@ -14,6 +14,7 @@ import type IMultiChoice from "../types/choices/IMultiChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { createUserScriptSecretRef } from "../utils/userScriptSecrets";
 
 // --- Choice factory helpers (minimal but type-shaped) -----------------------
 
@@ -434,6 +435,39 @@ describe("buildPackage", () => {
 		expect(byPath.get("Scripts/userScript.js")).toBe("user-script");
 		expect(byPath.get("Scripts/condition.js")).toBe("conditional-script");
 		expect(result.missingAssets).toEqual([]);
+	});
+
+	it("strips user-script SecretStorage refs from exported package choices", async () => {
+		const macro = makeMacroChoice("macro1", "Macro", [
+			{
+				id: "cmd-us",
+				name: "Run script",
+				type: CommandType.UserScript,
+				path: "Scripts/userScript.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+					Model: "gpt-4",
+				},
+			} as never,
+		]);
+		const { app } = makeFakeApp({
+			files: {
+				"Scripts/userScript.js": "module.exports = () => {};",
+			},
+		});
+
+		const result = await buildPackage(
+			app as never,
+			buildOptions({ choices: [macro], rootChoiceIds: ["macro1"] }),
+		);
+		const exported = result.pkg.choices[0].choice as IMacroChoice;
+		const exportedCommand = exported.macro.commands[0] as unknown as {
+			settings: Record<string, unknown>;
+		};
+
+		expect(exportedCommand.settings).toEqual({ Model: "gpt-4" });
+		expect(JSON.stringify(result.pkg)).not.toContain("local-secret-ref");
+		expect(JSON.stringify(result.pkg)).not.toContain("__quickaddSecret");
 	});
 
 	it("collects capture-template assets from a Capture choice", async () => {

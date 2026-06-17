@@ -357,3 +357,52 @@ export async function clearUserScriptSecretsFromCommands(
 		await clearUserScriptSecretsFromCommand(app, command);
 	}
 }
+
+function stripSecretRefsFromSettings(settings: unknown): void {
+	if (!isRecord(settings)) return;
+
+	for (const [name, value] of Object.entries(settings)) {
+		if (isUserScriptSecretRef(value)) {
+			delete settings[name];
+		}
+	}
+}
+
+export function stripUserScriptSecretRefsFromCommand(command: unknown): void {
+	if (!isRecord(command)) return;
+
+	if (command.type === "UserScript") {
+		stripSecretRefsFromSettings(command.settings);
+	}
+
+	if (Array.isArray(command.thenCommands)) {
+		stripUserScriptSecretRefsFromCommands(command.thenCommands);
+	}
+	if (Array.isArray(command.elseCommands)) {
+		stripUserScriptSecretRefsFromCommands(command.elseCommands);
+	}
+
+	stripUserScriptSecretRefsFromChoice(command.choice);
+}
+
+export function stripUserScriptSecretRefsFromCommands(commands: unknown): void {
+	if (!Array.isArray(commands)) return;
+
+	for (const command of commands) {
+		stripUserScriptSecretRefsFromCommand(command);
+	}
+}
+
+export function stripUserScriptSecretRefsFromChoice(choice: unknown): void {
+	if (!isRecord(choice)) return;
+
+	if (choice.type === "Macro" && isRecord(choice.macro)) {
+		stripUserScriptSecretRefsFromCommands(choice.macro.commands);
+	}
+
+	if (choice.type === "Multi" && Array.isArray(choice.choices)) {
+		for (const child of choice.choices) {
+			stripUserScriptSecretRefsFromChoice(child);
+		}
+	}
+}

@@ -18,6 +18,7 @@ import { log } from "../logger/logManager";
 import { encodeToBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
+import { stripUserScriptSecretRefsFromChoice } from "../utils/userScriptSecrets";
 
 export interface BuildPackageOptions {
 	choices: IChoice[];
@@ -68,6 +69,7 @@ export async function buildPackage(
 				if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
 				const clonedChoice = deepClone(entry.choice);
 				pruneChoiceTree(clonedChoice, includedChoiceIds);
+				stripUserScriptSecretRefsFromChoice(clonedChoice);
 				return {
 					choice: clonedChoice,
 					pathHint: [...entry.path],
