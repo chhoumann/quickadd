@@ -190,6 +190,14 @@ Transforms the resolved value into a casing style. Supported: `kebab`, `snake`, 
 
 Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 
+## `{{VALUE|trim}}` / `{{NAME|trim}}` / `{{VALUE:<variable>|trim}}` {#value-trim}
+
+Trims leading and trailing whitespace from the resolved value. This is useful in file names and links where an accidental mobile keyboard space would create a different note.
+
+Example: `People/{{VALUE:name|trim}}.md`.
+
+`|trim` only changes the token where it appears. The stored value is still available unchanged to another token, so `{{VALUE:name}}` can preserve spaces while `{{VALUE:name|trim}}` removes them.
+
 ## `{{VALUE:<options>|custom}}` {#value-custom}
 
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.

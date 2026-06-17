@@ -17,6 +17,8 @@ export const VARIABLE_OPTIONAL_SYNTAX =
 	"{{value:<variable name>|optional}}";
 export const VDATE_OPTIONAL_SYNTAX =
 	"{{vdate:<variable name>, <date format>|optional}}";
+export const VALUE_TRIM_SYNTAX = "{{value|trim}}";
+export const VARIABLE_TRIM_SYNTAX = "{{value:<variable name>|trim}}";
 export const VALUE_CASE_SYNTAX = "{{value|case:kebab}}";
 export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
@@ -45,6 +47,8 @@ export const FORMAT_SYNTAX: string[] = [
 	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
+	VALUE_TRIM_SYNTAX,
+	VARIABLE_TRIM_SYNTAX,
 	VALUE_CASE_SYNTAX,
 	VARIABLE_CASE_SYNTAX,
 	VARIABLE_SYNTAX,
@@ -86,6 +90,8 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	GLOBAL_VAR_SYNTAX,
 	VALUE_SYNTAX,
 	NAME_SYNTAX,
+	VALUE_TRIM_SYNTAX,
+	VARIABLE_TRIM_SYNTAX,
 	VALUE_CASE_SYNTAX,
 	VARIABLE_CASE_SYNTAX,
 	VARIABLE_SYNTAX,

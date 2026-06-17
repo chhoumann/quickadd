@@ -126,6 +126,32 @@ describe("Formatter case: pipe option", () => {
 		expect(result).toBe("a=My New Blog b=my-new-blog c=MY NEW BLOG");
 	});
 
+	it("trims anonymous VALUE/NAME per token without mutating the stored value", async () => {
+		formatter.setValueResponse("  Mobile Title  ");
+		const result = await formatter.testFormat(
+			"a={{VALUE}} b={{VALUE|trim}} c={{NAME|trim:false}}",
+		);
+		expect(result).toBe("a=  Mobile Title   b=Mobile Title c=  Mobile Title  ");
+	});
+
+	it("trims named variables per token without mutating stored values", async () => {
+		formatter.setVariable("title", "  Mobile Title  ");
+		const result = await formatter.testFormat(
+			"title={{VALUE:title}} trimmed={{VALUE:title|trim}} raw={{VALUE:title}}",
+		);
+		expect(result).toBe(
+			"title=  Mobile Title   trimmed=Mobile Title raw=  Mobile Title  ",
+		);
+	});
+
+	it("applies trim before case transforms", async () => {
+		formatter.setVariable("title", "  My New Blog  ");
+		const result = await formatter.testFormat(
+			"slug={{VALUE:title|trim|case:slug}}",
+		);
+		expect(result).toBe("slug=my-new-blog");
+	});
+
 	it("supports snake/camel/pascal/title/lower/slug transforms", async () => {
 		formatter.setValueResponse("my new blog");
 		const result = await formatter.testFormat(

@@ -42,6 +42,17 @@ describe("parseValueToken", () => {
 		expect(parsed?.defaultValue).toBe("");
 	});
 
+	it("parses trim without treating it as legacy default", () => {
+		const parsed = parseValueToken("title|trim");
+		expect(parsed?.trim).toBe(true);
+		expect(parsed?.defaultValue).toBe("");
+	});
+
+	it("supports keyed trim false overriding bare trim", () => {
+		expect(parseValueToken("title|trim|trim:false")?.trim).toBe(false);
+		expect(parseValueToken("title|trim:0")?.trim).toBe(false);
+	});
+
 	it("parses title case style", () => {
 		const parsed = parseValueToken("title|case:title");
 		expect(parsed?.caseStyle).toBe("title");
@@ -185,6 +196,14 @@ describe("parseValueToken", () => {
 		expect(warnSpy).toHaveBeenCalled();
 	});
 
+	it("drops |trim when combined with |multi (a list is not string-transformed)", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("a,b,c|multi|trim");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.trim).toBe(false);
+		expect(warnSpy).toHaveBeenCalled();
+	});
+
 	it("leaves multiSelect false for ordinary option lists", () => {
 		expect(parseValueToken("a,b,c")?.multiSelect).toBe(false);
 		expect(parseValueToken("a,b,c|custom")?.multiSelect).toBe(false);
@@ -210,6 +229,15 @@ describe("parseAnonymousValueOptions", () => {
 			"|case:kebab|label:Notes|default:Hello",
 		);
 		expect(parsed.caseStyle).toBe("kebab");
+		expect(parsed.label).toBe("Notes");
+		expect(parsed.defaultValue).toBe("Hello");
+	});
+
+	it("parses trim for unnamed VALUE tokens", () => {
+		const parsed = parseAnonymousValueOptions(
+			"|trim|label:Notes|default:Hello",
+		);
+		expect(parsed.trim).toBe(true);
 		expect(parsed.label).toBe("Notes");
 		expect(parsed.defaultValue).toBe("Hello");
 	});

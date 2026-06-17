@@ -73,6 +73,14 @@ export interface TemplateInclusionState {
 
 const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 
+function transformValueText(
+	value: string,
+	options: { trim?: boolean; caseStyle?: string },
+): string {
+	const trimmed = options.trim ? value.trim() : value;
+	return transformCase(trimmed, options.caseStyle);
+}
+
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
@@ -230,7 +238,7 @@ export abstract class Formatter {
 			if (optionsIndex === -1) return this.value;
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions);
-			const transformed = transformCase(this.value, parsed.caseStyle);
+			const transformed = transformValueText(this.value, parsed);
 			// |type:text on the anonymous {{VALUE|...}} form quotes the same way
 			// as the named form (see replaceVariableInString).
 			if (
@@ -800,8 +808,8 @@ export abstract class Formatter {
 			// Get the raw value from variables
 			const rawValue = this.variables.get(effectiveKey);
 			const rawValueForCollector =
-				caseStyle && typeof rawValue === "string"
-					? transformCase(rawValue, caseStyle)
+				(caseStyle || parsed.trim) && typeof rawValue === "string"
+					? transformValueText(rawValue, parsed)
 					: rawValue;
 
 			// Offer this variable to the property collector for YAML post-processing.
@@ -841,7 +849,7 @@ export abstract class Formatter {
 				replacement = rawValue.join(",");
 			} else {
 				const stringVal = String(
-					transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "",
+					transformValueText(this.getVariableValue(effectiveKey), parsed) ?? "",
 				);
 				// |type:text (#757): write the value as a quoted YAML string at a
 				// sole-value front-matter position so Obsidian can't retype it

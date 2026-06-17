@@ -26,6 +26,7 @@ const VALUE_OPTION_KEYS = new Set([
 	"custom",
 	"type",
 	"case",
+	"trim",
 	"text",
 	"optional",
 	"multi",
@@ -49,6 +50,7 @@ export type ParsedValueToken = {
 	aliasName?: string;
 	label?: string;
 	caseStyle?: string;
+	trim?: boolean;
 	defaultValue: string;
 	allowCustomInput: boolean;
 	suggestedValues: string[];
@@ -126,6 +128,7 @@ type ParsedOptions = {
 	inputTypeOverride?: string;
 	displayValuesRaw?: string;
 	optionalExplicit?: boolean;
+	trimExplicit?: boolean;
 	name?: string;
 	multiSelect?: boolean;
 	multiEmit?: MultiEmit;
@@ -143,6 +146,14 @@ function extractBareOptionalFlag(parts: string[]): {
 } {
 	const { remaining, found } = extractBareFlagPart(parts, "optional");
 	return { remaining, optional: found };
+}
+
+function extractBareTrimFlag(parts: string[]): {
+	remaining: string[];
+	trim: boolean;
+} {
+	const { remaining, found } = extractBareFlagPart(parts, "trim");
+	return { remaining, trim: found };
 }
 
 function hasRecognizedOption(part: string, allowName: boolean): boolean {
@@ -197,6 +208,7 @@ function parseOptions(
 	let inputTypeOverride: string | undefined;
 	let displayValuesRaw: string | undefined;
 	let optionalExplicit: boolean | undefined;
+	let trimExplicit: boolean | undefined;
 	let name: string | undefined;
 	let multiSelect = false;
 	let multiEmit: MultiEmit | undefined;
@@ -226,6 +238,9 @@ function parseOptions(
 				break;
 			case "case":
 				if (value) caseStyle = value;
+				break;
+			case "trim":
+				trimExplicit = parseBooleanFlag(value);
 				break;
 			case "default":
 				defaultValue = value;
@@ -271,6 +286,7 @@ function parseOptions(
 		inputTypeOverride,
 		displayValuesRaw,
 		optionalExplicit,
+		trimExplicit,
 		multiSelect,
 		multiEmit,
 	};
@@ -424,13 +440,16 @@ export function parseValueToken(
 		.filter(Boolean);
 	const hasOptions = suggestedValues.length > 1;
 
-	const { remaining: optionParts, optional: bareOptional } =
+	const { remaining: withoutOptional, optional: bareOptional } =
 		extractBareOptionalFlag(parts);
+	const { remaining: optionParts, trim: bareTrim } =
+		extractBareTrimFlag(withoutOptional);
 	const options = parseOptions(optionParts, hasOptions, true, quiet);
 	let { label, caseStyle, defaultValue, allowCustomInput } = options;
 	let multiSelect = options.multiSelect ?? false;
 	const multiEmit: MultiEmit = options.multiEmit ?? "text";
 	const optional = options.optionalExplicit ?? bareOptional;
+	let trim = options.trimExplicit ?? bareTrim;
 
 	if (!options.usesOptions) {
 		const legacyDefault = defaultValue;
@@ -522,6 +541,13 @@ export function parseValueToken(
 			);
 		caseStyle = undefined;
 	}
+	if (multiSelect && trim) {
+		if (!quiet)
+			console.warn(
+				`QuickAdd: |trim is ignored with |multi in "${tokenDisplay}" — a list is not string-transformed.`,
+			);
+		trim = false;
+	}
 
 	const variableKey = aliasName
 		? aliasName
@@ -534,6 +560,7 @@ export function parseValueToken(
 		variableKey,
 		label,
 		caseStyle,
+		trim,
 		defaultValue,
 		allowCustomInput,
 		suggestedValues,
@@ -551,6 +578,7 @@ export function parseAnonymousValueOptions(
 ): {
 	label?: string;
 	caseStyle?: string;
+	trim: boolean;
 	defaultValue: string;
 	inputTypeOverride?: ValueInputType;
 	optional: boolean;
@@ -560,11 +588,13 @@ export function parseAnonymousValueOptions(
 		.map((part) => part.trim())
 		.filter(Boolean);
 
-	const { remaining: parts, optional: bareOptional } =
+	const { remaining: withoutOptional, optional: bareOptional } =
 		extractBareOptionalFlag(allParts);
+	const { remaining: parts, trim: bareTrim } =
+		extractBareTrimFlag(withoutOptional);
 
 	if (parts.length === 0) {
-		return { defaultValue: "", optional: bareOptional };
+		return { defaultValue: "", optional: bareOptional, trim: bareTrim };
 	}
 
 	const options = parseOptions(parts, false, false);
@@ -588,6 +618,7 @@ export function parseAnonymousValueOptions(
 	return {
 		label,
 		caseStyle,
+		trim: options.trimExplicit ?? bareTrim,
 		defaultValue,
 		inputTypeOverride,
 		optional: options.optionalExplicit ?? bareOptional,
