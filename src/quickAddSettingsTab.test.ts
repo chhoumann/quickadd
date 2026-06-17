@@ -290,4 +290,15 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			"“New note from template” in the launcher",
 		]);
 	});
+
+	it("display renders the settings tab from declarative definitions for older settings runtimes", () => {
+		const tab = makeTab();
+
+		expect(() => tab.display()).not.toThrow();
+
+		expect(tab.containerEl.textContent).toContain("Choices & Packages");
+		expect(tab.containerEl.textContent).toContain("Choice Picker");
+		expect(tab.containerEl.textContent).toContain("Search nested choices");
+		expect(tab.containerEl.querySelector(".qa-setting-full-width")).not.toBeNull();
+	});
 });

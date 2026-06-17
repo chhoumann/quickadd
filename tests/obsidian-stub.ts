@@ -290,10 +290,12 @@ export class Setting {
 }
 
 export class SettingGroup {
+  listEl: HTMLElement;
   groupEl: HTMLElement;
 
   constructor(containerEl: HTMLElement) {
     this.groupEl = document.createElement("div");
+    this.listEl = this.groupEl;
     containerEl.appendChild(this.groupEl);
   }
 

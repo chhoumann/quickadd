@@ -1,14 +1,17 @@
 import type {
 	App,
-	Setting,
+	SettingControl,
 	SettingDefinitionGroup,
 	SettingDefinitionItem,
+	SettingGroupItem,
 	TextAreaComponent,
 } from "obsidian";
 import {
 	ButtonComponent,
 	ExtraButtonComponent,
 	PluginSettingTab,
+	Setting,
+	SettingGroup,
 	TextComponent,
 } from "obsidian";
 import type QuickAdd from "./main";
@@ -38,11 +41,15 @@ import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 /** String-named keys of {@link QuickAddSettings} — used to type the declarative
  * `control` keys so a mistyped key is caught at compile time. */
 type SettingsKey = Extract<keyof QuickAddSettings, string>;
+type QuickAddSettingItem =
+	| SettingGroupItem<SettingsKey>
+	| SettingDefinitionGroup<SettingsKey>;
 
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
 	private choiceViewHandle: MountHandle | null = null;
 	private globalVariablesViewHandle: MountHandle | null = null;
+	private settingRenderCleanups: Array<() => void> = [];
 
 	constructor(app: App, plugin: QuickAdd) {
 		super(app, plugin);
@@ -114,6 +121,16 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		return groups;
 	}
 
+	override display(): void {
+		this.cleanupRenderedSettings();
+		this.destroySettingViews();
+		this.containerEl.empty();
+
+		for (const definition of this.getSettingDefinitions()) {
+			this.renderSettingDefinition(this.containerEl, definition);
+		}
+	}
+
 	override hide(): void {
 		// In declarative mode the framework owns row teardown — unloading the
 		// control Components and running each render def's cleanup closure —
@@ -122,7 +139,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// then; it is not now). destroySettingViews() is the idempotent safety
 		// net for the two Svelte mounts.
 		super.hide();
+		this.cleanupRenderedSettings();
 		this.destroySettingViews();
+	}
+
+	private cleanupRenderedSettings(): void {
+		for (const cleanup of this.settingRenderCleanups.splice(0)) {
+			cleanup();
+		}
 	}
 
 	private destroySettingViews(): void {
@@ -130,6 +154,147 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.choiceViewHandle = null;
 		this.globalVariablesViewHandle?.destroy();
 		this.globalVariablesViewHandle = null;
+	}
+
+	private renderSettingDefinition(
+		containerEl: HTMLElement,
+		definition: SettingDefinitionItem<SettingsKey>,
+	): void {
+		if (!this.isVisible(definition)) return;
+
+		if (this.isSettingGroupDefinition(definition)) {
+			this.renderSettingGroup(containerEl, definition);
+			return;
+		}
+
+		if ("type" in definition && definition.type === "page") {
+			this.renderUnsupportedPage(containerEl, definition.name, definition.desc);
+			return;
+		}
+
+		const syntheticGroup = new SettingGroup(document.createElement("div"));
+		this.renderSettingItem(containerEl, definition, syntheticGroup);
+	}
+
+	private renderSettingGroup(
+		containerEl: HTMLElement,
+		groupDefinition: SettingDefinitionGroup<SettingsKey>,
+	): void {
+		const group = new SettingGroup(containerEl);
+		if (groupDefinition.heading) {
+			group.setHeading(groupDefinition.heading);
+		}
+		if (groupDefinition.cls) {
+			group.addClass(groupDefinition.cls);
+		}
+
+		for (const item of groupDefinition.items ?? []) {
+			this.renderSettingItem(group.listEl, item, group);
+		}
+	}
+
+	private renderSettingItem(
+		containerEl: HTMLElement,
+		item: QuickAddSettingItem,
+		group: SettingGroup,
+	): void {
+		if (!this.isVisible(item)) return;
+
+		if (this.isSettingGroupDefinition(item)) {
+			this.renderSettingGroup(containerEl, item);
+			return;
+		}
+
+		if ("type" in item && item.type === "page") {
+			this.renderUnsupportedPage(containerEl, item.name, item.desc);
+			return;
+		}
+
+		const setting = new Setting(containerEl);
+		setting.setName(item.name);
+		if (item.desc) {
+			setting.setDesc(item.desc);
+		}
+
+		if ("render" in item && item.render) {
+			const cleanup = item.render(setting, group);
+			if (typeof cleanup === "function") {
+				this.settingRenderCleanups.push(cleanup);
+			}
+			return;
+		}
+
+		if ("control" in item && item.control) {
+			this.renderControl(setting, item.control);
+		}
+	}
+
+	private renderControl(
+		setting: Setting,
+		control: SettingControl<SettingsKey>,
+	): void {
+		switch (control.type) {
+			case "toggle":
+				setting.addToggle((toggle) => {
+					toggle
+						.setValue(Boolean(this.getControlValue(control.key)))
+						.onChange((value) => {
+							void this.setControlValue(control.key, value);
+						});
+				});
+				return;
+
+			case "dropdown":
+				setting.addDropdown((dropdown) => {
+					for (const [value, label] of Object.entries(control.options)) {
+						dropdown.addOption(value, String(label));
+					}
+					dropdown
+						.setValue(
+							String(
+								this.getControlValue(control.key) ??
+									control.defaultValue ??
+									"",
+							),
+						)
+						.onChange((value) => {
+							void this.setControlValue(control.key, value);
+						});
+				});
+				return;
+
+			default:
+				setting.setDesc(
+					`${setting.descEl.textContent ? `${setting.descEl.textContent} ` : ""}` +
+						`This setting requires Obsidian 1.13's declarative renderer.`,
+				);
+		}
+	}
+
+	private renderUnsupportedPage(
+		containerEl: HTMLElement,
+		name: string,
+		desc?: string | DocumentFragment,
+	): void {
+		const setting = new Setting(containerEl).setName(name);
+		if (desc) setting.setDesc(desc);
+	}
+
+	private isSettingGroupDefinition(
+		definition: SettingDefinitionItem<SettingsKey>,
+	): definition is SettingDefinitionGroup<SettingsKey> {
+		return (
+			"type" in definition &&
+			(definition.type === "group" || definition.type === "list")
+		);
+	}
+
+	private isVisible(
+		definition: SettingDefinitionItem<SettingsKey> | QuickAddSettingItem,
+	): boolean {
+		if (!("visible" in definition)) return true;
+		const { visible } = definition;
+		return typeof visible === "function" ? visible() : visible !== false;
 	}
 
 	// ----- group builders -----
