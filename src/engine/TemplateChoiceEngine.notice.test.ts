@@ -556,6 +556,38 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		);
 	});
 
+	it("creates markdown files from non-native template source extensions", async () => {
+		const { engine } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.templatePath = "Templates/t_general.eta";
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:name}}";
+		formatFileNameMock.mockResolvedValueOnce("Eta Output");
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Eta Output.md",
+			"Templates/t_general.eta",
+		);
+	});
+
 	it("treats leading-slash filename formats as vault-relative paths", async () => {
 		const { engine, app } = createEngine("ignored", {
 			throwDuringFileName: false,

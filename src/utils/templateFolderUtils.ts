@@ -6,24 +6,27 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 
+const EXPLICIT_FILE_EXTENSION_REGEX = /(?:^|\/)[^/.][^/]*\.[^/.]+$/;
+
 /**
- * Whether a path already carries a template extension the engine can read
- * (`.md`/`.canvas`/`.base`). The three extension regexes are the single source
- * of truth; both {@link getTemplateFile} (to decide whether to append `.md`)
- * and the suggestion filter consume this so they can never disagree.
+ * Whether a path already carries an explicit template source extension.
+ * Extensionless paths keep the legacy `.md` default; any explicit extension is
+ * read as a text template source so users can keep files like `.eta` templates
+ * without renaming them to Markdown.
  */
 export function hasTemplateExtension(path: string): boolean {
 	return (
 		MARKDOWN_FILE_EXTENSION_REGEX.test(path) ||
 		CANVAS_FILE_EXTENSION_REGEX.test(path) ||
-		BASE_FILE_EXTENSION_REGEX.test(path)
+		BASE_FILE_EXTENSION_REGEX.test(path) ||
+		EXPLICIT_FILE_EXTENSION_REGEX.test(path)
 	);
 }
 
 /**
  * Resolve a template path to its vault file exactly the way the template engine
- * does at run time: strip a leading slash, append `.md` when no template
- * extension is present, then look the file up. Returns null when nothing
+ * does at run time: strip a leading slash, append `.md` only when no explicit
+ * template source extension is present, then look the file up. Returns null when nothing
  * resolves.
  *
  * Single source of truth shared by engine execution, choice-builder validation,

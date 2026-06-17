@@ -349,6 +349,14 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		).resolves.toBe("TEMPLATE_BODY");
 	});
 
+	it("replaces {{TEMPLATE:path}} with explicit text-template source extensions", async () => {
+		mocks.templateRun.mockResolvedValue("ETA_TEMPLATE_BODY");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{TEMPLATE:notes/t_general.eta}}"),
+		).resolves.toBe("ETA_TEMPLATE_BODY");
+	});
+
 	it("propagates the target folder into included templates so {{FOLDER}} resolves", async () => {
 		mockTemplateVault({
 			"Partials/Filing.md": "folder={{FOLDER}} name={{FOLDER|name}}",

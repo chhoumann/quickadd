@@ -2,6 +2,7 @@ import { type App, TFile, TFolder } from "obsidian";
 import { describe, expect, it } from "vitest";
 import {
 	getTemplateFile,
+	hasTemplateExtension,
 	isPathWithinTemplateFolders,
 	normalizeTemplateFolderPaths,
 } from "./utilityObsidian";
@@ -86,6 +87,20 @@ describe("isPathWithinTemplateFolders", () => {
 	});
 });
 
+describe("hasTemplateExtension", () => {
+	it("recognizes native template extensions and explicit text-template extensions", () => {
+		expect(hasTemplateExtension("Templates/Daily.md")).toBe(true);
+		expect(hasTemplateExtension("Templates/Board.canvas")).toBe(true);
+		expect(hasTemplateExtension("Templates/View.base")).toBe(true);
+		expect(hasTemplateExtension("Templates/t_general.eta")).toBe(true);
+	});
+
+	it("keeps extensionless template paths on the legacy .md default path", () => {
+		expect(hasTemplateExtension("Templates/Daily")).toBe(false);
+		expect(hasTemplateExtension("Templates/Folder.With.Dot/Daily")).toBe(false);
+	});
+});
+
 describe("getTemplateFile", () => {
 	it("appends .md when no template extension is present", () => {
 		const app = appWith([file("Templates/Daily.md")]);
@@ -111,6 +126,19 @@ describe("getTemplateFile", () => {
 		);
 		expect(getTemplateFile(app, "Templates/View.base")?.path).toBe(
 			"Templates/View.base",
+		);
+	});
+
+	it("resolves explicit non-native template extensions without appending .md", () => {
+		const app = appWith([
+			file("Templates/t_general.eta"),
+			file("Templates/Prompt.njk"),
+		]);
+		expect(getTemplateFile(app, "Templates/t_general.eta")?.path).toBe(
+			"Templates/t_general.eta",
+		);
+		expect(getTemplateFile(app, "Templates/Prompt.njk")?.path).toBe(
+			"Templates/Prompt.njk",
 		);
 	});
 

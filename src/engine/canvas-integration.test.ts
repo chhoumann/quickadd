@@ -57,6 +57,7 @@ describe('Canvas Template Integration', () => {
 			expect(getTemplateExtension('template.md')).toBe('.md');
 			expect(getTemplateExtension('template')).toBe('.md');
 			expect(getTemplateExtension('template.txt')).toBe('.md');
+			expect(getTemplateExtension('template.eta')).toBe('.md');
 		});
 
 		it('should return .base for base templates', () => {

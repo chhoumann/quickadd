@@ -112,9 +112,10 @@ describe("isNoteEffectivelyEmpty", () => {
 });
 
 describe("isMarkdownTemplatePath", () => {
-	it("accepts markdown and extensionless template paths", () => {
+	it("accepts markdown, extensionless, and text-template source paths", () => {
 		expect(isMarkdownTemplatePath("templates/tpl.md")).toBe(true);
 		expect(isMarkdownTemplatePath("templates/tpl")).toBe(true);
+		expect(isMarkdownTemplatePath("templates/t_general.eta")).toBe(true);
 	});
 
 	it("rejects canvas and base templates", () => {
@@ -180,6 +181,21 @@ describe("buildTemplatePickerItems", () => {
 			choice: { name: "Note" },
 		});
 		expect(items[1]).toEqual({ kind: "file", path: "templates/other.md" });
+	});
+
+	it("includes text-template source extensions that apply to markdown notes", () => {
+		const etaChoice = makeTemplateChoice("Eta", "templates/t_general.eta");
+		const choices: IChoice[] = [etaChoice];
+
+		const items = buildTemplatePickerItems(choices, [
+			"templates/t_general.eta",
+			"templates/other.njk",
+		]);
+
+		expect(items).toEqual([
+			{ kind: "choice", choice: etaChoice },
+			{ kind: "file", path: "templates/other.njk" },
+		]);
 	});
 
 	it("skips non-Template choices and Template choices without a template path", () => {
@@ -270,6 +286,21 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		});
 
 		expect(engineConstructorMock.mock.calls[0][4]).toBe("top");
+	});
+
+	it("applies text-template source extensions to markdown notes", async () => {
+		const file = makeFile();
+		const result = await applyTemplateToNote(makeApp("", file), plugin, {
+			templatePath: "templates/t_general.eta",
+			choiceExecutor: makeExecutor(),
+		});
+
+		expect(result).toBe(file);
+		expect(engineConstructorMock).toHaveBeenCalledTimes(1);
+		expect(engineConstructorMock.mock.calls[0][3]).toBe(
+			"templates/t_general.eta",
+		);
+		expect(engineApplyMock).toHaveBeenCalledTimes(1);
 	});
 
 	it("pre-fills {{VALUE}} with the note's basename", async () => {

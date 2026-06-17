@@ -23,7 +23,7 @@ The path is resolved with a **path-safe** subset of the format syntax: macros, i
 A few things don't apply to a *dynamic* template path: the path can't be auto-bundled when exporting a QuickAdd package (it isn't a literal file), and if you use the [one-page input](/Advanced/onePageInputs.md) form, prompts inside the resolved template's body are gathered when the choice runs rather than in the up-front form.
 :::
 
-QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`) templates. The created file uses the same extension as the template.
+QuickAdd can read template source files with any explicit extension, such as `.md`, `.eta`, `.njk`, or `.txt`. Extensionless template paths still default to `.md` for compatibility. Markdown templates create markdown notes; canvas (`.canvas`) and base (`.base`) templates create files of their own type. Other template source extensions are treated as text templates and create markdown notes.
 If you want a new markdown note to include a live embedded Base dashboard, see
 [Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).
 

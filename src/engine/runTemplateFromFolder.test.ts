@@ -83,6 +83,9 @@ describe("createFolderTemplateChoice", () => {
 		expect(createFolderTemplateChoice("Canvas Tpl.canvas").name).toBe(
 			"Canvas Tpl",
 		);
+		expect(createFolderTemplateChoice("Templates/t_general.eta").name).toBe(
+			"t_general",
+		);
 	});
 
 	it("returns a fresh uuid id each call (never persisted, no deterministic collision)", () => {
