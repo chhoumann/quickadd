@@ -558,6 +558,10 @@ export abstract class Formatter {
 		return this.propertyCollector.drain();
 	}
 
+	public mergeTemplatePropertyVars(vars: Map<string, unknown>): void {
+		this.propertyCollector.merge(vars);
+	}
+
 	/**
 	 * Runs a formatting operation in a scope where structured YAML values should
 	 * be collected and replaced with temporary placeholders for later

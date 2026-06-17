@@ -725,7 +725,11 @@ export class CompleteFormatter extends Formatter {
 		// templates ({{TEMPLATE:...}}), which render via this child engine's own
 		// formatter.
 		childEngine.setTargetFolderPath(this.targetFolderPath);
-		return await childEngine.run();
+		const content = await childEngine.run();
+		this.mergeTemplatePropertyVars(
+			childEngine.getAndClearTemplatePropertyVars(),
+		);
+		return content;
 	}
 
 	protected async getSelectedText(): Promise<string> {

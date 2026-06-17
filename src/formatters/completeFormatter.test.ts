@@ -55,6 +55,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		templatePath: string;
 		inclusion?: TemplateInclusionState;
 		targetFolderPath: string | null = null;
+		templatePropertyVars: Map<string, unknown> = new Map();
 
 		constructor(
 			_app: unknown,
@@ -73,6 +74,12 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 
 		run() {
 			return mocks.templateRun.call(this);
+		}
+
+		getAndClearTemplatePropertyVars() {
+			const vars = new Map(this.templatePropertyVars);
+			this.templatePropertyVars.clear();
+			return vars;
 		}
 	},
 }));
@@ -214,6 +221,7 @@ function mockTemplateVault(templates: Record<string, string>) {
 		templatePath: string;
 		inclusion?: TemplateInclusionState;
 		targetFolderPath?: string | null;
+		templatePropertyVars?: Map<string, unknown>;
 	}) {
 		const child = defaultFormatter();
 		if (this.inclusion) {
@@ -223,7 +231,11 @@ function mockTemplateVault(templates: Record<string, string>) {
 		// propagated from the including formatter (so {{FOLDER}} resolves).
 		child.setTargetFolderPath(this.targetFolderPath ?? null);
 
-		return await child.formatFileContent(templates[this.templatePath] ?? "");
+		const content = await child.withTemplatePropertyCollection(() =>
+			child.formatFileContent(templates[this.templatePath] ?? ""),
+		);
+		this.templatePropertyVars = child.getAndClearTemplatePropertyVars();
+		return content;
 	});
 }
 
@@ -359,6 +371,31 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		const result = await f.formatFileContent("{{TEMPLATE:Partials/Filing.md}}");
 
 		expect(result).toBe("folder=Projects/Acme name=Acme");
+	});
+
+	it("propagates structured frontmatter values collected by included templates", async () => {
+		mockTemplateVault({
+			"Partials/Topics.md": "---\ntopics: {{FIELD:topic|multi}}\n---\n",
+		});
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topic",
+			filters: {},
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alpha", "Beta"],
+			hasDefaultValue: false,
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Alpha", "Beta"]);
+		const f = defaultFormatter();
+
+		const result = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent("{{TEMPLATE:Partials/Topics.md}}"),
+		);
+		const vars = f.getAndClearTemplatePropertyVars();
+
+		expect(result).toBe("---\ntopics: []\n---\n");
+		expect(vars.get("topics")).toEqual(["Alpha", "Beta"]);
 	});
 
 	it("terminates self-including templates with a visible placeholder", async () => {

@@ -98,6 +98,12 @@ export class TemplatePropertyCollector {
     return result;
   }
 
+  public merge(vars: Map<string, unknown>): void {
+    for (const [key, value] of vars) {
+      this.map.set(key, value);
+    }
+  }
+
   private buildParseOptions(propertyKey: string): ParseOptions {
     return {
       propertyKey,
