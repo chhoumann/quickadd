@@ -485,7 +485,7 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 				cachedRead: vi.fn(async () => "Project: {{VALUE:project}}"),
 			},
 		} as unknown as App;
-		getTemplateFileMock.mockReturnValue(file);
+		getTemplateFileMock.mockReturnValue(file as never);
 
 		const captureChoice = {
 			...createCaptureChoice("Inbox.md"),
