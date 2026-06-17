@@ -1,3 +1,8 @@
+import {
+	isSecretUserScriptOption,
+	type UserScriptOptionDefinition,
+} from "./userScriptSecrets";
+
 /**
  * Initializes default values for user script settings.
  *
@@ -13,9 +18,7 @@ export function initializeUserScriptSettings(
 	userScriptSettings: {
 		[key: string]: unknown;
 		options?: {
-			[key: string]: {
-				defaultValue?: unknown;
-			};
+			[key: string]: UserScriptOptionDefinition;
 		};
 	}
 ): void {
@@ -29,7 +32,11 @@ export function initializeUserScriptSettings(
 			"defaultValue" in userScriptSettings.options[setting] &&
 			userScriptSettings.options[setting].defaultValue !== undefined;
 
-		if (valueIsNotSetAlready && defaultValueAvailable) {
+		if (
+			valueIsNotSetAlready &&
+			defaultValueAvailable &&
+			!isSecretUserScriptOption(userScriptSettings.options[setting])
+		) {
 			commandSettings[setting] =
 				userScriptSettings.options[setting].defaultValue;
 		}

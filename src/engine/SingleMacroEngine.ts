@@ -9,6 +9,7 @@ import { CommandType } from "../types/macros/CommandType";
 import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
+import { resolveUserScriptSettings } from "../utils/userScriptSecrets";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -299,11 +300,18 @@ export class SingleMacroEngine {
 			}
 
 			const postCommands = updatedCommands.slice(refreshedIndex + 1);
+			const resolvedSettings = await resolveUserScriptSettings(
+				this.app,
+				userScriptCommand,
+				settingsExport && typeof settingsExport === "object"
+					? (settingsExport as Record<string, unknown>)
+					: undefined,
+			);
 
 			const result = await this.executeResolvedMember(
 				resolvedMember.value,
 				engine,
-				userScriptCommand.settings,
+				resolvedSettings,
 			);
 			this.ensureNotAborted();
 
