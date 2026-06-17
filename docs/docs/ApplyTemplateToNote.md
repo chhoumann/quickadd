@@ -20,7 +20,7 @@ You can also right-click a markdown file (in the file explorer, tab header, etc.
 
 The template runs through the full QuickAdd [format syntax](./FormatSyntax.md) pipeline, and Templater syntax is processed as usual.
 
-Only markdown templates can be applied: canvas (`.canvas`) and base (`.base`) templates contain data for their own file types and are excluded from the picker (use a regular [Template choice](./Choices/TemplateChoice.md) to create those). Likewise, the target must be a markdown note.
+Only templates that render into markdown can be applied to an existing note. Markdown templates and text-template source files with explicit extensions such as `.eta`, `.njk`, or `.txt` are included. Canvas (`.canvas`) and base (`.base`) templates contain data for their own file types and are excluded from the picker (use a regular [Template choice](./Choices/TemplateChoice.md) to create those). Likewise, the target must be a markdown note.
 
 ## Smart behaviors
 
