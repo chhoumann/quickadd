@@ -88,16 +88,24 @@ describe("isPathWithinTemplateFolders", () => {
 });
 
 describe("hasTemplateExtension", () => {
-	it("recognizes native template extensions and explicit text-template extensions", () => {
+	it("recognizes native template extensions and supported text-template extensions", () => {
 		expect(hasTemplateExtension("Templates/Daily.md")).toBe(true);
 		expect(hasTemplateExtension("Templates/Board.canvas")).toBe(true);
 		expect(hasTemplateExtension("Templates/View.base")).toBe(true);
 		expect(hasTemplateExtension("Templates/t_general.eta")).toBe(true);
+		expect(hasTemplateExtension("Templates/Prompt.njk")).toBe(true);
+		expect(hasTemplateExtension("Templates/Card.handlebars")).toBe(true);
 	});
 
 	it("keeps extensionless template paths on the legacy .md default path", () => {
 		expect(hasTemplateExtension("Templates/Daily")).toBe(false);
 		expect(hasTemplateExtension("Templates/Folder.With.Dot/Daily")).toBe(false);
+	});
+
+	it("does not treat arbitrary asset extensions as template sources", () => {
+		expect(hasTemplateExtension("Templates/logo.png")).toBe(false);
+		expect(hasTemplateExtension("Templates/schema.json")).toBe(false);
+		expect(hasTemplateExtension("Templates/styles.css")).toBe(false);
 	});
 });
 
@@ -129,7 +137,7 @@ describe("getTemplateFile", () => {
 		);
 	});
 
-	it("resolves explicit non-native template extensions without appending .md", () => {
+	it("resolves supported non-native template extensions without appending .md", () => {
 		const app = appWith([
 			file("Templates/t_general.eta"),
 			file("Templates/Prompt.njk"),
@@ -139,6 +147,16 @@ describe("getTemplateFile", () => {
 		);
 		expect(getTemplateFile(app, "Templates/Prompt.njk")?.path).toBe(
 			"Templates/Prompt.njk",
+		);
+	});
+
+	it("falls back to .md for unsupported explicit extensions", () => {
+		const app = appWith([
+			file("Templates/logo.png"),
+			file("Templates/logo.png.md"),
+		]);
+		expect(getTemplateFile(app, "Templates/logo.png")?.path).toBe(
+			"Templates/logo.png.md",
 		);
 	});
 

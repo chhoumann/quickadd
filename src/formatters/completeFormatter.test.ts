@@ -349,7 +349,7 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		).resolves.toBe("TEMPLATE_BODY");
 	});
 
-	it("replaces {{TEMPLATE:path}} with explicit text-template source extensions", async () => {
+	it("replaces {{TEMPLATE:path}} with supported text-template source extensions", async () => {
 		mocks.templateRun.mockResolvedValue("ETA_TEMPLATE_BODY");
 		const f = defaultFormatter();
 		await expect(

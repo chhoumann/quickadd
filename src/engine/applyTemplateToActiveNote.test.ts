@@ -183,7 +183,7 @@ describe("buildTemplatePickerItems", () => {
 		expect(items[1]).toEqual({ kind: "file", path: "templates/other.md" });
 	});
 
-	it("includes text-template source extensions that apply to markdown notes", () => {
+	it("includes supported text-template source extensions that apply to markdown notes", () => {
 		const etaChoice = makeTemplateChoice("Eta", "templates/t_general.eta");
 		const choices: IChoice[] = [etaChoice];
 
