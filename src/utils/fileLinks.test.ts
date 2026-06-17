@@ -3,6 +3,7 @@ import type { App, TFile } from "obsidian";
 import { Notice } from "obsidian";
 import {
 	buildFileLinkText,
+	buildPortableFileLinkText,
 	copyFileLinkToClipboard,
 	writeTextToClipboard,
 } from "./fileLinks";
@@ -37,12 +38,29 @@ describe("file link helpers", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("builds a destination-agnostic link by default", () => {
+	it("builds editor links through Obsidian with an explicit source path", () => {
 		const app = createApp("[[Projects/Created Note]]");
 		const file = createFile();
 
-		expect(buildFileLinkText(app, file)).toBe("[[Projects/Created Note]]");
-		expect(app.fileManager.generateMarkdownLink).toHaveBeenCalledWith(file, "");
+		expect(buildFileLinkText(app, file, { sourcePath: "Inbox.md" })).toBe(
+			"[[Projects/Created Note]]",
+		);
+		expect(app.fileManager.generateMarkdownLink).toHaveBeenCalledWith(
+			file,
+			"Inbox.md",
+		);
+	});
+
+	it("builds destination-independent clipboard links from vault paths", () => {
+		expect(buildPortableFileLinkText(createFile())).toBe(
+			"[[Projects/Created Note]]",
+		);
+		expect(
+			buildPortableFileLinkText({
+				basename: "Board",
+				path: "Canvases/Board.canvas",
+			} as TFile),
+		).toBe("[[Canvases/Board.canvas]]");
 	});
 
 	it("can build embed text for embed-capable editor insertion", () => {
@@ -68,10 +86,10 @@ describe("file link helpers", () => {
 		vi.stubGlobal("navigator", { clipboard: { writeText } });
 
 		await expect(
-			copyFileLinkToClipboard(createApp(), createFile()),
+			copyFileLinkToClipboard(createFile()),
 		).resolves.toBe(true);
 
-		expect(writeText).toHaveBeenCalledWith("[[Created Note]]");
+		expect(writeText).toHaveBeenCalledWith("[[Projects/Created Note]]");
 		expect(noticeClass.instances.at(-1)?.message).toContain(
 			"Copied link to 'Created Note'",
 		);
@@ -82,7 +100,7 @@ describe("file link helpers", () => {
 		vi.stubGlobal("navigator", { clipboard: { writeText } });
 
 		await expect(
-			copyFileLinkToClipboard(createApp(), createFile()),
+			copyFileLinkToClipboard(createFile()),
 		).resolves.toBe(false);
 
 		expect(noticeClass.instances.at(-1)?.message).toContain(

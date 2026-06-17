@@ -416,7 +416,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 	});
 
 	it("copies the created file link without requiring append-link insertion", async () => {
-		const { engine, app } = createEngine("ignored", {
+		const { engine } = createEngine("ignored", {
 			throwDuringFileName: false,
 		});
 		const createdFile = new TFile();
@@ -434,7 +434,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 
 		await engine.run();
 
-		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(app, createdFile);
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
 	});
 
 	it("keeps template execution successful when clipboard copying reports failure", async () => {

@@ -13,6 +13,11 @@ type FileLinkTextOptions = {
 	placement?: LinkPlacement;
 };
 
+export function buildPortableFileLinkText(file: TFile): string {
+	const path = file.path.replace(/\.md$/i, "");
+	return `[[${path}]]`;
+}
+
 export function buildFileLinkText(
 	app: App,
 	file: TFile,
@@ -48,10 +53,9 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
 }
 
 export async function copyFileLinkToClipboard(
-	app: App,
 	file: TFile,
 ): Promise<boolean> {
-	const linkText = buildFileLinkText(app, file);
+	const linkText = buildPortableFileLinkText(file);
 	const copied = await writeTextToClipboard(linkText);
 
 	if (copied) {

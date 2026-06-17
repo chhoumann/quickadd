@@ -175,7 +175,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (this.choice.copyLinkToClipboard && createdFile) {
-				await copyFileLinkToClipboard(this.app, createdFile);
+				await copyFileLinkToClipboard(createdFile);
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
