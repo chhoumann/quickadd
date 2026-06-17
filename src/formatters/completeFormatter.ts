@@ -541,14 +541,32 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	protected async suggestForField(fieldInput: string) {
+	protected async suggestForField(fieldInput: string): Promise<string | string[]> {
 		try {
 			// Parse the field input to extract field name and filters
-			const { fieldName, filters } = FieldSuggestionParser.parse(fieldInput);
+			const { fieldName, filters, multiSelect } =
+				FieldSuggestionParser.parse(fieldInput);
 
 			// Collect and process via shared collector
 			const { values, hasDefaultValue } =
 				await collectFieldValuesProcessedDetailed(this.app, fieldName, filters);
+
+			// Enhance placeholder with context
+			let placeholder = multiSelect
+				? `Select values for ${fieldName}`
+				: `Enter value for ${fieldName}`;
+			if (hasDefaultValue) {
+				placeholder = multiSelect
+					? `Select values for ${fieldName} (default: ${filters.defaultValue})`
+					: `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+			}
+
+			if (multiSelect) {
+				return await MultiSuggester.Suggest(this.app, values, values, {
+					placeholder,
+					allowCustomValue: true,
+				});
+			}
 
 			if (values.length === 0) {
 				// No values found even after processing defaults
@@ -566,18 +584,12 @@ export class CompleteFormatter extends Formatter {
 				}
 
 				return await GenericInputPrompt.PromptWithContext(
-				this.app,
-				`Enter value for ${fieldName}`,
-				fallbackPrompt,
-				undefined,
-				this.getLinkSourcePath() ?? undefined
+					this.app,
+					`Enter value for ${fieldName}`,
+					fallbackPrompt,
+					undefined,
+					this.getLinkSourcePath() ?? undefined,
 				);
-			}
-
-			// Enhance placeholder with context
-			let placeholder = `Enter value for ${fieldName}`;
-			if (hasDefaultValue) {
-				placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
 			}
 
 			return await InputSuggester.Suggest(this.app, values, values, {

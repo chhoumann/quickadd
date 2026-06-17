@@ -39,6 +39,7 @@ import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import { quoteYamlDouble, shouldQuoteTextScalar } from "../utils/yamlScalarQuoting";
 import { toWikiLink } from "../utils/linkWrap";
+import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import {
 	type ParsedValueToken,
 	parseAnonymousValueOptions,
@@ -880,6 +881,7 @@ export abstract class Formatter {
 
 			if (fullMatch) {
 				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
+				const parsed = FieldSuggestionParser.parse(fullMatch);
 
 				if (!this.hasConcreteVariable(fieldVariableKey)) {
 					this.variables.set(
@@ -888,9 +890,26 @@ export abstract class Formatter {
 					);
 				}
 
-				const replacement = this.hasConcreteVariable(fieldVariableKey)
-					? String(this.variables.get(fieldVariableKey))
+				const rawValue = this.hasConcreteVariable(fieldVariableKey)
+					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fullMatch);
+				let replacement: string;
+
+				if (Array.isArray(rawValue)) {
+					const structuredYamlValue = this.propertyCollector.maybeCollect({
+						input,
+						matchStart: match.index,
+						matchEnd: match.index + match[0].length,
+						rawValue,
+						fallbackKey: parsed.fieldName,
+						collectionActive: this.templatePropertyCollectionDepth > 0,
+						heuristicEnabled: false,
+					});
+					replacement =
+						getYamlPlaceholder(structuredYamlValue) ?? rawValue.join(",");
+				} else {
+					replacement = String(rawValue ?? "");
+				}
 
 				output += replacement;
 			} else {
@@ -1101,7 +1120,9 @@ export abstract class Formatter {
 		return [];
 	}
 
-	protected abstract suggestForField(variableName: string): Promise<string>;
+	protected abstract suggestForField(
+		variableName: string,
+	): Promise<string | string[]>;
 
 	protected async replaceDateVariableInString(input: string) {
 		let output: string = input;

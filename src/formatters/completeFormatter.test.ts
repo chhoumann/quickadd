@@ -748,6 +748,59 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 		expect(mocks.inputSuggesterSuggest).toHaveBeenCalled();
 	});
 
+	it("uses the multi-suggester for FIELD multi-select values", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topic",
+			filters: {},
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alpha", "Beta"],
+			hasDefaultValue: false,
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Alpha", "Beta"]);
+
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{FIELD:topic|multi}}")).resolves.toBe(
+			"Alpha,Beta",
+		);
+		expect(mocks.multiSuggesterSuggest).toHaveBeenCalledWith(
+			expect.anything(),
+			["Alpha", "Beta"],
+			["Alpha", "Beta"],
+			expect.objectContaining({
+				placeholder: "Select values for topic",
+				allowCustomValue: true,
+			}),
+		);
+		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
+	});
+
+	it("keeps FIELD multi-select usable when no existing values are found", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topic",
+			filters: {},
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: [],
+			hasDefaultValue: false,
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Manual"]);
+
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{FIELD:topic|multi}}")).resolves.toBe(
+			"Manual",
+		);
+		expect(mocks.multiSuggesterSuggest).toHaveBeenCalledWith(
+			expect.anything(),
+			[],
+			[],
+			expect.objectContaining({ allowCustomValue: true }),
+		);
+		expect(mocks.genericInputPromptWithContext).not.toHaveBeenCalled();
+	});
+
 	it("falls back to a free-form prompt when no values are found", async () => {
 		mocks.fieldParse.mockReturnValue({
 			fieldName: "status",
