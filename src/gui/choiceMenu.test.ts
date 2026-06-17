@@ -116,4 +116,28 @@ describe("choice menu", () => {
 
 		expect(getEditorMenuPosition(app)).toEqual({ x: 310, y: 305 });
 	});
+
+	it("prefers caret coordinates when the editor exposes CodeMirror geometry", () => {
+		const app = new App();
+		const view = {
+			containerEl: document.createElement("div"),
+			editor: {
+				getCursor: () => ({ line: 3, ch: 7 }),
+				posToOffset: (pos: { line: number; ch: number }) => pos.line * 100 + pos.ch,
+				cm: {
+					coordsAtPos: vi.fn().mockReturnValue({
+						left: 420,
+						top: 240,
+						bottom: 258,
+					}),
+				},
+			},
+		} as unknown as MarkdownView;
+		app.workspace.getActiveViewOfType = () => view as never;
+
+		expect(getEditorMenuPosition(app)).toEqual({ x: 420, y: 258 });
+		expect(
+			(view.editor as unknown as { cm: { coordsAtPos: unknown } }).cm.coordsAtPos,
+		).toHaveBeenCalledWith(307);
+	});
 });

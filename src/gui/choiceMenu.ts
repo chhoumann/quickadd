@@ -6,6 +6,14 @@ import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { resolveChoiceIcon } from "../utils/choiceUtils";
 
+type EditorWithCoordinates = {
+	getCursor?: () => { line: number; ch: number };
+	posToOffset?: (pos: { line: number; ch: number }) => number;
+	cm?: {
+		coordsAtPos?: (offset: number) => { left: number; top: number; bottom: number } | null;
+	};
+};
+
 type MenuChoice = {
 	choice: IChoice;
 	title: string;
@@ -64,6 +72,20 @@ export function showChoiceMenu(
 
 export function getEditorMenuPosition(app: App): { x: number; y: number } {
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	const editor = view?.editor as EditorWithCoordinates | undefined;
+	const cursor = editor?.getCursor?.();
+	const offset =
+		cursor && editor?.posToOffset ? editor.posToOffset(cursor) : undefined;
+	const cursorRect =
+		typeof offset === "number" ? editor?.cm?.coordsAtPos?.(offset) : null;
+
+	if (cursorRect) {
+		return {
+			x: cursorRect.left,
+			y: cursorRect.bottom,
+		};
+	}
+
 	const editorEl = view?.containerEl.querySelector(".cm-editor, .markdown-source-view");
 	const rect = editorEl?.getBoundingClientRect();
 
