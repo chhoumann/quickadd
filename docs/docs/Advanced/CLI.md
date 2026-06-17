@@ -51,8 +51,10 @@ obsidian vault=dev quickadd:run-template \
 ```
 
 - `path=` is the template file (vault-relative). A leading slash is allowed and a
-  missing `.md` extension is added, matching how Template choices resolve paths.
-  If no file resolves there, the command returns `{"ok":false}` up front.
+  missing template source extension resolves as `.md`, matching how Template
+  choices resolve paths. Configured source-only extensions such as `.eta` are
+  accepted, but they still create markdown notes by default. If no file resolves
+  there, the command returns `{"ok":false}` up front.
 - The new note's name comes from `{{value}}` — pass it as `value-value=...`. A
   non-interactive run with an empty or missing name returns `missingFlags`
   instead of creating an unnamed note. The note is created in Obsidian's
@@ -94,4 +96,3 @@ Use `ui` to allow interactive prompts:
 ```bash
 obsidian vault=dev quickadd choice="Daily log" ui
 ```
-

@@ -40,10 +40,16 @@ export {
 } from "./utils/editorInsertion";
 
 export {
+	DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS,
+	buildTemplateInclusionRegex,
+	getTemplateOutputExtension,
 	hasTemplateExtension,
 	getTemplateFile,
+	getTemplateSourceExtensions,
 	normalizeTemplateFolderPaths,
+	normalizeTemplateSourceExtensions,
 	isPathWithinTemplateFolders,
+	stripTemplateOutputExtension,
 } from "./utils/templateFolderUtils";
 
 export {

@@ -13,6 +13,7 @@ import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import {
 	getMarkdownEditorViewForFile,
+	hasTemplateExtension,
 	jumpToNextTemplaterCursorIfPossible,
 } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
@@ -60,9 +61,14 @@ export function templatePickerItemLabel(item: TemplatePickerItem): string {
 		: `Template: ${item.path}`;
 }
 
-function normalizeTemplatePathForComparison(path: string): string {
+function normalizeTemplatePathForComparison(
+	path: string,
+	additionalExtensions?: unknown,
+): string {
 	const stripped = path.replace(/^\/+/, "").toLowerCase();
-	return /\.(md|canvas|base)$/.test(stripped) ? stripped : `${stripped}.md`;
+	return hasTemplateExtension(stripped, additionalExtensions)
+		? stripped
+		: `${stripped}.md`;
 }
 
 /**
@@ -72,6 +78,7 @@ function normalizeTemplatePathForComparison(path: string): string {
 export function buildTemplatePickerItems(
 	choices: IChoice[],
 	templateFilePaths: string[],
+	additionalExtensions?: unknown,
 ): TemplatePickerItem[] {
 	const templateChoices = flattenChoices(choices).filter(
 		(choice): choice is ITemplateChoice =>
@@ -82,7 +89,10 @@ export function buildTemplatePickerItems(
 
 	const coveredPaths = new Set(
 		templateChoices.map((choice) =>
-			normalizeTemplatePathForComparison(choice.templatePath),
+			normalizeTemplatePathForComparison(
+				choice.templatePath,
+				additionalExtensions,
+			),
 		),
 	);
 
@@ -93,7 +103,11 @@ export function buildTemplatePickerItems(
 
 	for (const path of templateFilePaths) {
 		if (!isMarkdownTemplatePath(path)) continue;
-		if (coveredPaths.has(normalizeTemplatePathForComparison(path))) continue;
+		if (
+			coveredPaths.has(
+				normalizeTemplatePathForComparison(path, additionalExtensions),
+			)
+		) continue;
 		items.push({ kind: "file", path });
 	}
 
@@ -226,6 +240,7 @@ async function pickTemplate(
 	const items = buildTemplatePickerItems(
 		plugin.settings.choices,
 		plugin.getTemplateFiles().map((file) => file.path),
+		plugin.settings.templateSourceExtensions,
 	);
 
 	if (items.length === 0) {

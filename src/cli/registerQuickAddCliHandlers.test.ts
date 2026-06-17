@@ -435,6 +435,27 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(executed.templatePath).toBe("Templates/Daily.md");
 	});
 
+	it("accepts eta template source paths without appending .md", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.eta");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({
+					path: "Templates/Daily.eta",
+					"value-value": "Note",
+				}),
+			),
+		);
+		expect(payload.ok).toBe(true);
+		const executed = (
+			executors[0].executeWithOutcome as ReturnType<typeof vi.fn>
+		).mock.calls[0][0];
+		expect(executed.templatePath).toBe("Templates/Daily.eta");
+	});
+
 	it("runs an ephemeral template choice and does not leak path= as a variable", async () => {
 		const { plugin, handlers } = createPlugin([]);
 		withTemplateFile(plugin, "Templates/Daily.md");

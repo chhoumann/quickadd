@@ -2,6 +2,7 @@ import type { Model } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import type IChoice from "./types/choices/IChoice";
 import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
+import { DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS } from "./utils/templateFolderUtils";
 
 /** Position of the "New note from template" row in the Run QuickAdd launcher. */
 export type TemplateFolderLauncherRowPosition = "off" | "top" | "bottom";
@@ -34,6 +35,12 @@ export interface QuickAddSettings {
 		* `migrateToMultipleTemplateFolders` migration.
 		*/
 	templateFolderPaths: string[];
+	/**
+	 * Additional file extensions QuickAdd may read as template source files.
+	 * Native output extensions (`md`, `canvas`, `base`) are always supported.
+	 * Extra source extensions, such as `eta`, create markdown notes by default.
+	 */
+	templateSourceExtensions: string[];
 	announceUpdates: "all" | "major" | "none";
 	version: string;
 	globalVariables: Record<string, string>;
@@ -105,6 +112,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	templateFolderLauncherRow: "bottom",
 	devMode: false,
 	templateFolderPaths: [],
+	templateSourceExtensions: [...DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS],
 	announceUpdates: "major",
 	version: "0.0.0",
 	globalVariables: {},

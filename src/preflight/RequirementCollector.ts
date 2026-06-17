@@ -4,7 +4,6 @@ import {
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
 	GLOBAL_VAR_REGEX,
-	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
 import { Formatter, type PromptContext } from "src/formatters/formatter";
@@ -24,6 +23,7 @@ import {
 	type ParsedFileToken,
 	parseFileToken,
 } from "src/utils/fileSyntax";
+import { buildTemplateInclusionRegex } from "src/utils/templateFolderUtils";
 
 export type FieldType =
 	| "text"
@@ -129,7 +129,10 @@ export class RequirementCollector extends Formatter {
 
 		// Record any template inclusions for callers to handle separately
 		{
-			const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+			const re = buildTemplateInclusionRegex(
+				this.plugin.settings.templateSourceExtensions,
+				"gi",
+			);
 			let m: RegExpExecArray | null;
 			while ((m = re.exec(output)) !== null) {
 				const path = m[1];

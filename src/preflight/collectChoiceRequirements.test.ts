@@ -371,7 +371,9 @@ describe("collectChoiceRequirements - capture targets", () => {
 
 describe("collectChoiceRequirements - template path format syntax (issue #620)", () => {
 	const app = {} as App;
-	const plugin = { settings: { inputPrompt: "single-line" } } as any;
+	const plugin = {
+		settings: { inputPrompt: "single-line", templateSourceExtensions: ["eta"] },
+	} as any;
 
 	function createTemplateChoice(templatePath: string): ITemplateChoice {
 		return {
@@ -443,6 +445,26 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 		);
 
 		expect(getTemplateFileMock).toHaveBeenCalled();
+	});
+
+	it("passes configured source extensions when pre-scanning eta templates", async () => {
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createTemplateChoice("Templates/Note.eta"),
+		);
+
+		expect(getTemplateFileMock).toHaveBeenCalledWith(
+			app,
+			"Templates/Note.eta",
+			["eta"],
+		);
 	});
 
 	it("collects a token in a Capture create-with-template path", async () => {

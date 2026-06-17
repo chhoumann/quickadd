@@ -716,6 +716,10 @@ export class CompleteFormatter extends Formatter {
 		return await childEngine.run();
 	}
 
+	protected getTemplateSourceExtensions(): unknown {
+		return this.plugin.settings.templateSourceExtensions;
+	}
+
 	protected async getSelectedText(): Promise<string> {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!activeView) return "";

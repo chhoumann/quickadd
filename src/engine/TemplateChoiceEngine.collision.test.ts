@@ -93,6 +93,14 @@ vi.mock("../formatters/completeFormatter", () => {
 
 vi.mock("../utilityObsidian", () => ({
 	getTemplater: vi.fn(() => ({})),
+	getTemplateOutputExtension: vi.fn((path: string) => {
+		if (/\.canvas$/i.test(path)) return ".canvas";
+		if (/\.base$/i.test(path)) return ".base";
+		return ".md";
+	}),
+	stripTemplateOutputExtension: vi.fn((path: string) =>
+		path.replace(/\.(md|canvas|base)$/i, ""),
+	),
 	overwriteTemplaterOnce: vi.fn(),
 	getAllFolderPathsInVault: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
@@ -247,6 +255,36 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		expect(createSpy).toHaveBeenCalledWith(
 			"My Board.canvas",
 			"Templates/Board.canvas",
+		);
+	});
+
+	it("uses markdown output for source-only template extensions", async () => {
+		const { app, engine } = createEngine();
+		engine.choice.templatePath = "Templates/Daily.eta";
+		formatFileNameMock.mockResolvedValue("Eta Note");
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			false,
+		);
+
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createExistingFile("Eta Note.md"));
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Eta Note.md",
+			"Templates/Daily.eta",
 		);
 	});
 

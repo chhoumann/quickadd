@@ -557,6 +557,23 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(preview.criticalScriptPaths).not.toContain("Templates/daily.md");
 	});
 
+	it("flags source-only template assets with js code blocks", () => {
+		const m = macro("m1", "Empty", []);
+		const note = asset(
+			"template",
+			"Templates/daily.eta",
+			"# Daily\n\n```js\nmodule.exports = () => exfiltrate();\n```\n",
+		);
+		const pkg = makePackage([pkgChoice(m, ["Empty"])], [note]);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		const file = preview.files.find(
+			(f) => f.originalPath === "Templates/daily.eta",
+		);
+		expect(file?.requiresReview).toBe(true);
+		expect(preview.criticalScriptPaths).toContain("Templates/daily.eta");
+	});
+
 	it("treats a bundled script that overwrites an existing file as critical", () => {
 		const m = macro("m1", "Empty", []);
 		const pkg = makePackage(

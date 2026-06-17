@@ -188,6 +188,15 @@ Body`);
     expect(rc.templatesToScan.has("Templates/Kanban.base")).toBe(true);
   });
 
+  it("records .eta TEMPLATE references for recursive scanning", async () => {
+    const app = makeApp();
+    const plugin = makePlugin();
+    const rc = new RequirementCollector(app, plugin);
+    await rc.scanString("{{TEMPLATE:Templates/Note.eta}}" );
+
+    expect(rc.templatesToScan.has("Templates/Note.eta")).toBe(true);
+  });
+
   it("uses textarea for VALUE tokens with type:multiline", async () => {
     const app = makeApp();
     const plugin = makePlugin({ inputPrompt: "single-line" });

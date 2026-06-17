@@ -160,6 +160,10 @@ export class FormatDisplayFormatter extends Formatter {
 		}
 	}
 
+	protected getTemplateSourceExtensions(): unknown {
+		return this.plugin.settings.templateSourceExtensions;
+	}
+
 	 
 	protected async getSelectedText(): Promise<string> {
 		return "selected_text";

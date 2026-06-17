@@ -56,7 +56,10 @@ function validateTemplate(
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership (templates outside the configured folders are
 	// valid). Mirrors templateChoiceBuilder (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
+	return (
+		getTemplateFile(app, value, plugin.settings.templateSourceExtensions) !==
+			null || "Template not found"
+	);
 }
 
 const selectionOptions = [

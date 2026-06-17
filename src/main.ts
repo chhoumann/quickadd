@@ -526,7 +526,12 @@ export default class QuickAdd extends Plugin {
 		// empty folder list means "suggest every template file in the vault".
 		return this.app.vault
 			.getFiles()
-			.filter((file) => hasTemplateExtension(file.path))
+			.filter((file) =>
+				hasTemplateExtension(
+					file.path,
+					this.settings.templateSourceExtensions,
+				),
+			)
 			.filter((file) => isPathWithinTemplateFolders(file.path, folders));
 	}
 

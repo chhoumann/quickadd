@@ -74,7 +74,10 @@ function validateTemplatePath(
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership: a template outside the configured folders
 	// still runs fine and must not be flagged "not found" (master #1170/#1325).
-	return getTemplateFile(app, value) !== null || "Template not found";
+	return (
+		getTemplateFile(app, value, plugin.settings.templateSourceExtensions) !==
+			null || "Template not found"
+	);
 }
 
 // --- File name format ----------------------------------------------------

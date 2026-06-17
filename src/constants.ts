@@ -162,7 +162,7 @@ export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/i);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(
-	/{{TEMPLATE:([^\n\r}]*\.(?:md|canvas|base))}}/i,
+	/{{TEMPLATE:([^\n\r}]*\.(?:md|canvas|base|eta))}}/i,
 );
 export const GLOBAL_VAR_REGEX = new RegExp(/{{GLOBAL_VAR:([^\n\r}]*)}}/i);
 export const INLINE_JAVASCRIPT_REGEX = new RegExp(

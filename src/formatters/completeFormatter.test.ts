@@ -361,6 +361,20 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(result).toBe("folder=Projects/Acme name=Acme");
 	});
 
+	it("includes eta template source files", async () => {
+		mockTemplateVault({
+			"Partials/Filing.eta": "eta={{VALUE:item}}",
+		});
+		mocks.inputPromptPrompt.mockResolvedValue("Alpha");
+		const f = defaultFormatter();
+
+		const result = await f.formatFileContent(
+			"before {{TEMPLATE:Partials/Filing.eta}} after",
+		);
+
+		expect(result).toBe("before eta=Alpha after");
+	});
+
 	it("terminates self-including templates with a visible placeholder", async () => {
 		mockTemplateVault({
 			"A.md": "before {{TEMPLATE:A.md}} after",

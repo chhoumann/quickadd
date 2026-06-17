@@ -25,6 +25,7 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 ## Templates & Properties
 
 - **Template folder paths** — Folders where templates are stored, used to suggest template files when configuring QuickAdd. Add as many folders as you like: type a folder (with autocomplete) and press **Add** or Enter, then remove one with its row's trash button. Leave the list empty to suggest every template file in the vault. Note that an empty list also disables the **New note from template** launcher row and command, which need at least one configured folder.
+- **Additional template source extensions** — Extra file extensions QuickAdd can read as template source files. `eta` is enabled by default; add extensions without the dot, separated by commas or spaces. Native `md`, `canvas`, and `base` templates are always supported. Source-only extensions create markdown notes by default.
 - **Convert string front matter variables to typed properties (Beta)** — List/object values from scripts are **always** written as proper Obsidian properties (a list value becomes a List property), so templates produce valid front matter out of the box. This toggle **additionally** converts string values into typed properties: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases. See [Template Property Types (Beta)](./TemplatePropertyTypes).
 
 ## Notifications

@@ -20,8 +20,10 @@ import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
 import {
+	DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS,
 	getAllFolderPathsInVault,
 	normalizeTemplateFolderPaths,
+	normalizeTemplateSourceExtensions,
 } from "./utilityObsidian";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
@@ -225,6 +227,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					name: "Template folder paths",
 					desc: "Folders where templates are stored. Used to suggest template files when configuring QuickAdd. Add as many as you like; leave empty to suggest every template file in the vault.",
 					render: (setting) => this.renderTemplateFolderPaths(setting),
+				},
+				{
+					name: "Additional template source extensions",
+					desc: "Extra file extensions QuickAdd may read as template source files. Native md, canvas, and base templates are always supported; source-only extensions create markdown notes by default.",
+					render: (setting) => this.renderTemplateSourceExtensions(setting),
 				},
 				{
 					name: "Convert string front matter variables to typed properties (Beta)",
@@ -536,6 +543,39 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			input.inputEl.removeEventListener("keydown", onKeydown);
 			suggester.destroy();
 		};
+	}
+
+	private renderTemplateSourceExtensions(setting: Setting): void {
+		let textRef: TextComponent | null = null;
+		const value = () =>
+			normalizeTemplateSourceExtensions(
+				settingsStore.getState().templateSourceExtensions,
+			).join(", ");
+
+		setting.addText((text) => {
+			textRef = text;
+			text
+				.setPlaceholder("eta, tpl")
+				.setValue(value())
+				.onChange((raw) => {
+					settingsStore.setState({
+						templateSourceExtensions:
+							normalizeTemplateSourceExtensions(raw),
+					});
+				});
+		});
+
+		setting.addButton((button) => {
+			button.setButtonText("Reset").onClick(() => {
+				const defaults = [
+					...DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS,
+				];
+				settingsStore.setState({
+					templateSourceExtensions: defaults,
+				});
+				textRef?.setValue(defaults.join(", "));
+			});
+		});
 	}
 
 	private renderDevInfo(setting: Setting): void {

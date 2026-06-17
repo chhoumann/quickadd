@@ -100,8 +100,16 @@ function getQuickAddScriptInputs(userScript: unknown): unknown[] {
 	return readInputs(userScript);
 }
 
-async function readTemplate(app: App, path: string): Promise<string> {
-	const file = getTemplateFile(app, path);
+async function readTemplate(
+	app: App,
+	plugin: QuickAdd,
+	path: string,
+): Promise<string> {
+	const file = getTemplateFile(
+		app,
+		path,
+		plugin.settings.templateSourceExtensions,
+	);
 	return file ? await app.vault.cachedRead(file) : "";
 }
 
@@ -118,6 +126,7 @@ async function readTemplate(app: App, path: string): Promise<string> {
  */
 async function scanTemplateSource(
 	app: App,
+	plugin: QuickAdd,
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
@@ -134,7 +143,7 @@ async function scanTemplateSource(
 	const walk = async (path: string) => {
 		if (visited.has(path)) return;
 		visited.add(path);
-		const content = await readTemplate(app, path);
+		const content = await readTemplate(app, plugin, path);
 		await collector.scanString(content);
 		// Snapshot and clear the shared discovery set BEFORE recursing: a nested
 		// walk() runs scanString again, which would otherwise mutate (and then
@@ -168,7 +177,7 @@ async function collectForTemplateChoice(
 	}
 
 	if (choice.templatePath) {
-		await scanTemplateSource(app, collector, choice.templatePath);
+		await scanTemplateSource(app, plugin, collector, choice.templatePath);
 	}
 
 	return collector;
@@ -205,7 +214,7 @@ async function collectForCaptureChoice(
 		createWithTemplate.createWithTemplate &&
 		createWithTemplate.template
 	) {
-		await scanTemplateSource(app, collector, createWithTemplate.template);
+		await scanTemplateSource(app, plugin, collector, createWithTemplate.template);
 	}
 
 	const formattedTarget = choice.captureTo?.trim() ?? "";

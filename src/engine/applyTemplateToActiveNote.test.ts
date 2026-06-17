@@ -33,6 +33,13 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 });
 
 vi.mock("../utilityObsidian", () => ({
+	hasTemplateExtension: vi.fn((path: string, additional?: unknown) => {
+		const extra = Array.isArray(additional) ? additional : ["eta"];
+		const extensions = ["md", "canvas", "base", ...extra];
+		return extensions.some((extension) =>
+			new RegExp(`\\.${extension}$`, "i").test(path),
+		);
+	}),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 	getTemplater: vi.fn(() => ({})),
 	templaterParseTemplate: vi.fn(

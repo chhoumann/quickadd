@@ -11,7 +11,6 @@ import {
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
 	NUMBER_REGEX,
-	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 
 	FIELD_VAR_REGEX_WITH_FILTERS,
@@ -50,6 +49,7 @@ import { parseVDateOptions } from "../utils/vdateSyntax";
 import { applyDateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
+import { buildTemplateInclusionRegex } from "../utils/templateFolderUtils";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -1243,9 +1243,12 @@ export abstract class Formatter {
 
 	protected async replaceTemplateInString(input: string): Promise<string> {
 		let output: string = input;
+		const templateRegex = () =>
+			buildTemplateInclusionRegex(this.getTemplateSourceExtensions());
 
-		while (TEMPLATE_REGEX.test(output)) {
-			const exec = TEMPLATE_REGEX.exec(output);
+		while (templateRegex().test(output)) {
+			const regex = templateRegex();
+			const exec = regex.exec(output);
 			if (!exec || !exec[1]) continue;
 
 			const templatePath = exec[1];
@@ -1254,14 +1257,14 @@ export abstract class Formatter {
 			if (this.templateInclusion.visited.has(templatePath)) {
 				const placeholder = `[QuickAdd: template inclusion cycle detected at "${templatePath}"]`;
 				log.logError(placeholder);
-				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
+				output = this.replacer(output, regex, placeholder);
 				continue;
 			}
 
 			if (this.templateInclusion.depth >= MAX_TEMPLATE_INCLUSION_DEPTH) {
 				const placeholder = `[QuickAdd: max template inclusion depth (${MAX_TEMPLATE_INCLUSION_DEPTH}) exceeded at "${templatePath}"]`;
 				log.logError(placeholder);
-				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
+				output = this.replacer(output, regex, placeholder);
 				continue;
 			}
 
@@ -1273,7 +1276,7 @@ export abstract class Formatter {
 				this.templateInclusion.visited.delete(templatePath);
 			}
 
-			output = this.replacer(output, TEMPLATE_REGEX, templateContent);
+			output = this.replacer(output, regex, templateContent);
 		}
 
 		return output;
@@ -1361,6 +1364,10 @@ export abstract class Formatter {
 	): Promise<string>;
 
 	protected abstract getTemplateContent(templatePath: string): Promise<string>;
+
+	protected getTemplateSourceExtensions(): unknown {
+		return undefined;
+	}
 
 	protected abstract getSelectedText(): Promise<string>;
 

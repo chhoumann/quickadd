@@ -458,7 +458,11 @@ async function runTemplateHandler(
 		// the engine's own resolver (getTemplateFile) so the CLI accepts exactly the
 		// paths the engine does — leading slash stripped, ".md" appended — instead of
 		// a stricter raw lookup that rejects "Templates/Daily" or "/Templates/Daily.md".
-		const file = getTemplateFile(plugin.app, path);
+		const file = getTemplateFile(
+			plugin.app,
+			path,
+			plugin.settings.templateSourceExtensions,
+		);
 		if (!file) {
 			return serialize({
 				ok: false,

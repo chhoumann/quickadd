@@ -13,17 +13,14 @@ import { Notice, TFolder } from "obsidian";
 import type QuickAdd from "../main";
 import {
 	getTemplateFile,
+	getTemplateOutputExtension,
 	getTemplater,
 	overwriteTemplaterOnce,
+	stripTemplateOutputExtension,
 	templaterParseTemplate,
 } from "../utilityObsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
-import {
-	BASE_FILE_EXTENSION_REGEX,
-	CANVAS_FILE_EXTENSION_REGEX,
-	MARKDOWN_FILE_EXTENSION_REGEX,
-} from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import {
@@ -494,13 +491,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	protected getTemplateExtension(templatePath: string): string {
-		if (CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
-			return ".canvas";
-		}
-		if (BASE_FILE_EXTENSION_REGEX.test(templatePath)) {
-			return ".base";
-		}
-		return ".md";
+		return getTemplateOutputExtension(templatePath);
 	}
 
 	protected normalizeTemplateFilePath(
@@ -511,10 +502,9 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const safeFolderPath = this.stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = this.stripLeadingSlash(fileName)
-			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
-			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
-			.replace(BASE_FILE_EXTENSION_REGEX, "");
+		const formattedFileName: string = stripTemplateOutputExtension(
+			this.stripLeadingSlash(fileName),
+		);
 		// Validate the final path segment, not just the whole string — a
 		// trailing-slash name like "Projects/" (optional leaf token left
 		// empty) would otherwise still produce "Projects/.md".
@@ -709,7 +699,11 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	 * template path won't re-evaluate between extension derivation and reading.
 	 */
 	protected async getTemplateContent(resolvedTemplatePath: string): Promise<string> {
-		const templateFile = getTemplateFile(this.app, resolvedTemplatePath);
+		const templateFile = getTemplateFile(
+			this.app,
+			resolvedTemplatePath,
+			this.plugin.settings.templateSourceExtensions,
+		);
 
 		if (!templateFile)
 			throw new Error(

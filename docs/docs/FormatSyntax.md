@@ -332,7 +332,7 @@ Example: `{{MACRO:Choose project|label:Project}}`.
 
 ## `{{TEMPLATE:<TEMPLATEPATH>}}` {#template}
 
-Include templates in your `format`. Supports Templater syntax.
+Include templates in your `format`. Supports Templater syntax and the same template source extensions as Template choices, including `.eta` by default.
 
 Example: `{{TEMPLATE:Templates/Meeting.md}}`.
 

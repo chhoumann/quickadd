@@ -6,34 +6,125 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 
+const NATIVE_TEMPLATE_OUTPUT_EXTENSIONS = ["md", "canvas", "base"] as const;
+export const DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS = ["eta"] as const;
+const EXTENSION_SEGMENT_REGEX = /^[a-z0-9][a-z0-9_-]*$/i;
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeExtension(extension: string): string | null {
+	const normalized = extension.trim().replace(/^\.+/, "").toLowerCase();
+	if (!normalized || !EXTENSION_SEGMENT_REGEX.test(normalized)) return null;
+	return normalized;
+}
+
+/**
+ * Normalizes the user-configurable list of extra template source extensions.
+ * Accepts either an array (the persisted shape) or comma/whitespace-separated
+ * text (used by the settings UI).
+ */
+export function normalizeTemplateSourceExtensions(input: unknown): string[] {
+	const rawEntries = Array.isArray(input)
+		? input
+		: typeof input === "string"
+			? input.split(/[\s,]+/)
+			: [];
+
+	const seen = new Set<string>();
+	const extensions: string[] = [];
+	for (const entry of rawEntries) {
+		if (typeof entry !== "string") continue;
+		const extension = normalizeExtension(entry);
+		if (!extension) continue;
+		if (NATIVE_TEMPLATE_OUTPUT_EXTENSIONS.includes(
+			extension as (typeof NATIVE_TEMPLATE_OUTPUT_EXTENSIONS)[number],
+		)) {
+			continue;
+		}
+		if (seen.has(extension)) continue;
+		seen.add(extension);
+		extensions.push(extension);
+	}
+
+	return extensions;
+}
+
+export function getTemplateSourceExtensions(
+	additionalExtensions: unknown,
+): string[] {
+	const extra =
+		additionalExtensions === undefined
+			? DEFAULT_ADDITIONAL_TEMPLATE_SOURCE_EXTENSIONS
+			: additionalExtensions;
+	return [
+		...NATIVE_TEMPLATE_OUTPUT_EXTENSIONS,
+		...normalizeTemplateSourceExtensions(extra),
+	];
+}
+
 /**
  * Whether a path already carries a template extension the engine can read
- * (`.md`/`.canvas`/`.base`). The three extension regexes are the single source
- * of truth; both {@link getTemplateFile} (to decide whether to append `.md`)
- * and the suggestion filter consume this so they can never disagree.
+ * (`.md`/`.canvas`/`.base`, plus configured source-only extensions such as
+ * `.eta`). Source-only extensions are read as templates but do not determine
+ * the extension of files created from them.
  */
-export function hasTemplateExtension(path: string): boolean {
-	return (
-		MARKDOWN_FILE_EXTENSION_REGEX.test(path) ||
-		CANVAS_FILE_EXTENSION_REGEX.test(path) ||
-		BASE_FILE_EXTENSION_REGEX.test(path)
+export function hasTemplateExtension(
+	path: string,
+	additionalExtensions?: unknown,
+): boolean {
+	return getTemplateSourceExtensions(additionalExtensions).some((extension) =>
+		new RegExp(`\\.${escapeRegExp(extension)}$`, "i").test(path),
+	);
+}
+
+export function getTemplateOutputExtension(templatePath: string): ".md" | ".canvas" | ".base" {
+	if (CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) return ".canvas";
+	if (BASE_FILE_EXTENSION_REGEX.test(templatePath)) return ".base";
+	return ".md";
+}
+
+export function stripTemplateOutputExtension(path: string): string {
+	return path
+		.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
+		.replace(CANVAS_FILE_EXTENSION_REGEX, "")
+		.replace(BASE_FILE_EXTENSION_REGEX, "");
+}
+
+export function buildTemplateInclusionRegex(
+	additionalExtensions?: unknown,
+	flags = "i",
+): RegExp {
+	const extensions = getTemplateSourceExtensions(additionalExtensions)
+		.map(escapeRegExp)
+		.join("|");
+	return new RegExp(
+		`{{TEMPLATE:([^\\n\\r}]*\\.(?:${extensions}))}}`,
+		flags,
 	);
 }
 
 /**
  * Resolve a template path to its vault file exactly the way the template engine
- * does at run time: strip a leading slash, append `.md` when no template
- * extension is present, then look the file up. Returns null when nothing
- * resolves.
+ * does at run time: strip a leading slash, append `.md` when no configured
+ * template source extension is present, then look the file up. Returns null
+ * when nothing resolves.
  *
  * Single source of truth shared by engine execution, choice-builder validation,
  * and preflight scanning so the three never drift (they previously each had
  * their own near-copy, and the preflight copy skipped the leading-slash strip).
  */
-export function getTemplateFile(app: App, templatePath: string): TFile | null {
+export function getTemplateFile(
+	app: App,
+	templatePath: string,
+	additionalExtensions?: unknown,
+): TFile | null {
 	const stripped = templatePath.trim().replace(/^\/+/, "");
 	if (!stripped) return null;
-	const resolved = hasTemplateExtension(stripped) ? stripped : `${stripped}.md`;
+	const resolved = hasTemplateExtension(stripped, additionalExtensions)
+		? stripped
+		: `${stripped}.md`;
 	const file = app.vault.getAbstractFileByPath(resolved);
 	return file instanceof TFile ? file : null;
 }

@@ -181,18 +181,28 @@ function isExecutableBundledAsset(
 	return isScriptKind(kind) || EXECUTABLE_ASSET_PATH_REGEX.test(originalPath);
 }
 
+function assetKindMayContainTemplateScript(
+	kind: QuickAddPackageAssetKind,
+): boolean {
+	return kind === "template" || kind === "capture-template";
+}
+
 // Since #1065 a `.md` note is loadable as a user script (its first ```js fence
-// runs). The `.js` path check above can't see that, so a bundled note that lies
-// about its `kind` (e.g. "template") and is referenced by no choice would slip the
-// disclosure gate, land on disk, and run via any macro pointing at its path.
-// Decode the bundled content and run the SAME extractor the loader uses: only a
-// note that actually contains a runnable js fence is treated as executable, so
-// plain `.md` templates are not flagged. Pure/App-free — operates on the payload.
-function markdownAssetIsExecutable(
+// runs). Template assets can also execute QuickAdd inline JavaScript when the
+// template runs, even if their file extension is source-only (for example
+// `.eta`). Decode the bundled content and run the SAME extractor the loader
+// uses for markdown script notes: only content that actually contains a runnable
+// js fence is treated as executable, so plain templates are not flagged.
+// Pure/App-free — operates on the payload.
+function assetHasRunnableJsFence(
+	kind: QuickAddPackageAssetKind,
 	originalPath: string,
 	content: string,
 ): boolean {
-	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) return false;
+	if (
+		!MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath) &&
+		!assetKindMayContainTemplateScript(kind)
+	) return false;
 	let decoded: string;
 	try {
 		decoded = decodeFromBase64(content);
@@ -203,18 +213,25 @@ function markdownAssetIsExecutable(
 	return code !== null && code.length > 0;
 }
 
-// The runnable code of a bundled executable asset, for static disclosure scans:
-// a `.md` note yields its first js fence (what the loader runs); any other
+// The runnable code of a bundled executable asset, for static disclosure scans.
+// Markdown notes and template assets yield their first js fence; any other
 // executable asset (a `.js`, or a script-kind asset) yields its decoded body.
 // Pure/App-free — operates on the bundled payload only.
-function bundledScriptCode(originalPath: string, content: string): string | null {
+function bundledScriptCode(
+	kind: QuickAddPackageAssetKind,
+	originalPath: string,
+	content: string,
+): string | null {
 	let decoded: string;
 	try {
 		decoded = decodeFromBase64(content);
 	} catch {
 		return null;
 	}
-	if (MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) {
+	if (
+		MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath) ||
+		assetKindMayContainTemplateScript(kind)
+	) {
 		const { code } = extractScriptFromMarkdown(decoded);
 		return code !== null && code.length > 0 ? code : null;
 	}
@@ -748,7 +765,11 @@ export function buildPackagePreview(
 		const requiresReview =
 			executable ||
 			isExecutableBundledAsset(asset.kind, asset.originalPath) ||
-			markdownAssetIsExecutable(asset.originalPath, asset.content);
+			assetHasRunnableJsFence(
+				asset.kind,
+				asset.originalPath,
+				asset.content,
+			);
 		return {
 			originalPath: asset.originalPath,
 			kind: asset.kind,
@@ -840,7 +861,11 @@ export function buildPackagePreview(
 		if (!file.requiresReview) continue;
 		const asset = pkg.assets.find((a) => a.originalPath === file.originalPath);
 		if (!asset) continue;
-		const code = bundledScriptCode(asset.originalPath, asset.content);
+		const code = bundledScriptCode(
+			asset.kind,
+			asset.originalPath,
+			asset.content,
+		);
 		if (!code || !scriptUsesAiTools(code)) continue;
 		capabilityRows.push({
 			flag: "ai-tools",

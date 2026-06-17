@@ -1,9 +1,13 @@
 import { type App, TFile, TFolder } from "obsidian";
 import { describe, expect, it } from "vitest";
 import {
+	buildTemplateInclusionRegex,
+	getTemplateOutputExtension,
 	getTemplateFile,
 	isPathWithinTemplateFolders,
 	normalizeTemplateFolderPaths,
+	normalizeTemplateSourceExtensions,
+	stripTemplateOutputExtension,
 } from "./utilityObsidian";
 
 function file(path: string): TFile {
@@ -114,6 +118,27 @@ describe("getTemplateFile", () => {
 		);
 	});
 
+	it("resolves eta template source files by default", () => {
+		const app = appWith([file("Templates/Daily.eta")]);
+		expect(getTemplateFile(app, "Templates/Daily.eta")?.path).toBe(
+			"Templates/Daily.eta",
+		);
+	});
+
+	it("resolves configured source-only template extensions", () => {
+		const app = appWith([file("Templates/Daily.tpl")]);
+		expect(getTemplateFile(app, "Templates/Daily.tpl", ["tpl"])?.path).toBe(
+			"Templates/Daily.tpl",
+		);
+	});
+
+	it("appends .md for non-configured source extensions", () => {
+		const app = appWith([file("Templates/Daily.tpl.md")]);
+		expect(getTemplateFile(app, "Templates/Daily.tpl", [])?.path).toBe(
+			"Templates/Daily.tpl.md",
+		);
+	});
+
 	it("trims surrounding whitespace before resolving", () => {
 		const app = appWith([file("Templates/Daily.md")]);
 		expect(getTemplateFile(app, "  /Templates/Daily  ")?.path).toBe(
@@ -135,5 +160,50 @@ describe("getTemplateFile", () => {
 	it("returns null when the path resolves to a folder, not a file", () => {
 		const app = appWith([folder("Templates")]);
 		expect(getTemplateFile(app, "Templates.md")).toBeNull();
+	});
+});
+
+describe("template source extension helpers", () => {
+	it("normalizes configured source extensions", () => {
+		expect(
+			normalizeTemplateSourceExtensions([
+				" .ETA ",
+				"tpl",
+				"md",
+				"bad/path",
+				"tpl",
+			]),
+		).toEqual(["eta", "tpl"]);
+		expect(normalizeTemplateSourceExtensions("eta, tpl\nliquid")).toEqual([
+			"eta",
+			"tpl",
+			"liquid",
+		]);
+	});
+
+	it("maps source-only template extensions to markdown output", () => {
+		expect(getTemplateOutputExtension("Templates/Daily.eta")).toBe(".md");
+		expect(getTemplateOutputExtension("Templates/Daily.tpl")).toBe(".md");
+		expect(getTemplateOutputExtension("Templates/Board.canvas")).toBe(".canvas");
+		expect(getTemplateOutputExtension("Templates/View.base")).toBe(".base");
+	});
+
+	it("strips only native output extensions from target file names", () => {
+		expect(stripTemplateOutputExtension("Notes/Daily.md")).toBe("Notes/Daily");
+		expect(stripTemplateOutputExtension("Notes/Board.canvas")).toBe("Notes/Board");
+		expect(stripTemplateOutputExtension("Notes/Daily.eta")).toBe(
+			"Notes/Daily.eta",
+		);
+	});
+
+	it("builds template inclusion regexes from configured source extensions", () => {
+		const regex = buildTemplateInclusionRegex(["eta", "tpl"]);
+		expect(regex.exec("{{TEMPLATE:Templates/A.eta}}")?.[1]).toBe(
+			"Templates/A.eta",
+		);
+		expect(regex.exec("{{TEMPLATE:Templates/A.tpl}}")?.[1]).toBe(
+			"Templates/A.tpl",
+		);
+		expect(regex.test("{{TEMPLATE:Templates/A.png}}")).toBe(false);
 	});
 });
