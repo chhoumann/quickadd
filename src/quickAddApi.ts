@@ -115,8 +115,14 @@ function sanitizeNumericConfig(
 	return Object.keys(config).length > 0 ? config : undefined;
 }
 
+type RequestSliderConfig = {
+	min: number;
+	max: number;
+	step?: number;
+};
+
 function sanitizeSliderConfig(
-	value: SliderConfig | undefined,
+	value: RequestSliderConfig | undefined,
 ): SliderConfig | undefined {
 	if (!value || typeof value !== "object") return undefined;
 	const { min, max } = value;
@@ -167,7 +173,7 @@ export class QuickAddApi {
 					placeholder?: string;
 					defaultValue?: string;
 					numericConfig?: NumericInputConfig;
-					sliderConfig?: SliderConfig;
+					sliderConfig?: RequestSliderConfig;
 					options?: string[];
 					dateFormat?: string;
 					description?: string;

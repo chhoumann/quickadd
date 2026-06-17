@@ -39,7 +39,7 @@ tR += result;
 
 ## User Input Methods
 
-### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
+### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; optional?: boolean; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
 Opens a one-page modal to collect multiple inputs in one go. Values already present in `variables` are used and not re-asked. Returned values are also stored into `variables`.
 
 **Behavior:**

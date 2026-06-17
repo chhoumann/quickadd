@@ -5,6 +5,7 @@ import {
 	splitPipeParts,
 	stripLeadingPipe,
 } from "./pipeSyntax";
+import { log } from "../logger/logManager";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
@@ -308,7 +309,7 @@ function parseOptions(
 				// no-op alias and warns so the author notices the typo.
 				if (value) name = value;
 				else if (!quiet)
-					console.warn(
+					log.logWarning(
 						`QuickAdd: empty |name: ignored; provide a variable name, e.g. {{VALUE:a,b|name:category}}.`,
 					);
 				break;
@@ -350,14 +351,14 @@ function resolveInputType(
 	const normalized = (raw === "boolean" ? "checkbox" : raw) as ValueInputType;
 	if (!OPTION_INCOMPATIBLE_TYPES.has(normalized)) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline, number, slider, checkbox, text.`,
 			);
 		return undefined;
 	}
 	if (hasOptions || allowCustomInput) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Ignoring type:${normalized} for option-list VALUE token "${tokenDisplay}".`,
 			);
 		return undefined;
@@ -394,7 +395,7 @@ function buildNumericConfig(
 	if (options.minRaw !== undefined) {
 		if (min === undefined) {
 			if (!quiet)
-				console.warn(
+				log.logWarning(
 					`QuickAdd: Ignoring invalid min in VALUE token "${tokenDisplay}".`,
 				);
 		} else {
@@ -405,7 +406,7 @@ function buildNumericConfig(
 	if (options.maxRaw !== undefined) {
 		if (max === undefined) {
 			if (!quiet)
-				console.warn(
+				log.logWarning(
 					`QuickAdd: Ignoring invalid max in VALUE token "${tokenDisplay}".`,
 				);
 		} else {
@@ -419,7 +420,7 @@ function buildNumericConfig(
 		config.max < config.min
 	) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Ignoring invalid numeric range in VALUE token "${tokenDisplay}"; max must be greater than or equal to min.`,
 			);
 		delete config.min;
@@ -429,7 +430,7 @@ function buildNumericConfig(
 	if (options.stepRaw !== undefined) {
 		if (step === undefined || step <= 0) {
 			if (!quiet)
-				console.warn(
+				log.logWarning(
 					`QuickAdd: Ignoring invalid step in VALUE token "${tokenDisplay}"; step must be greater than 0.`,
 				);
 		} else {
@@ -452,7 +453,7 @@ function resolveNumericInput(
 } {
 	if (inputTypeOverride !== "number" && inputTypeOverride !== "slider") {
 		if (hasNumericConfig(options) && !quiet) {
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Ignoring numeric range options in "${tokenDisplay}" because type is not number or slider.`,
 			);
 		}
@@ -480,7 +481,7 @@ function resolveNumericInput(
 
 	if (invalidReason) {
 		if (!quiet) {
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Invalid slider configuration in "${tokenDisplay}" (${invalidReason}); falling back to type:number.`,
 			);
 		}
@@ -738,14 +739,14 @@ export function parseValueToken(
 		// The delimiter is reserved for label-scoped keys; an alias containing it
 		// would corrupt resolveExistingVariableKey's base-name stripping.
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |name in "${tokenDisplay}" contains a reserved control character and was ignored.`,
 			);
 		aliasName = undefined;
 	}
 	if (aliasName && RESERVED_VALUE_NAMES.has(aliasName.toLowerCase())) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |name:${aliasName} is reserved and was ignored in "${tokenDisplay}". Choose a different name.`,
 			);
 		aliasName = undefined;
@@ -753,7 +754,7 @@ export function parseValueToken(
 	if (aliasName && !hasOptions && !quiet) {
 		// A named single value is just a renamed prompt; the option list is what
 		// makes |name useful. Honor it but steer authors to the simpler form.
-		console.warn(
+		log.logWarning(
 			`QuickAdd: |name on a single value in "${tokenDisplay}" is redundant — use {{VALUE:${aliasName}}} directly.`,
 		);
 	}
@@ -762,14 +763,14 @@ export function parseValueToken(
 	// case-transformed, and routing an array through transformCase would throw).
 	if (multiSelect && !hasOptions) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |multi needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
 			);
 		multiSelect = false;
 	}
 	if (multiSelect && caseStyle) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |case is ignored with |multi in "${tokenDisplay}" — a list is not case-transformed.`,
 			);
 		caseStyle = undefined;
