@@ -488,7 +488,11 @@ function resolveNumericInput(
 		return { inputTypeOverride: "number", numericConfig };
 	}
 
-	const sliderConfig = { min, max, step };
+	const sliderConfig: SliderConfig = {
+		min: min as number,
+		max: max as number,
+		step: step as number,
+	};
 	return {
 		inputTypeOverride,
 		numericConfig: sliderConfig,
