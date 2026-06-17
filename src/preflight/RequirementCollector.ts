@@ -14,6 +14,8 @@ import { NLDParser } from "src/parsers/NLDParser";
 import {
 	parseValueToken,
 	splitQuotedCommaList,
+	type NumericInputConfig,
+	type SliderConfig,
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
@@ -30,6 +32,7 @@ export type FieldType =
 	| "number"
 	| "textarea"
 	| "dropdown"
+	| "slider"
 	| "date"
 	| "field-suggest"
 	| "file-picker"
@@ -42,6 +45,8 @@ export interface FieldRequirement {
 	description?: string;
 	placeholder?: string;
 	defaultValue?: string;
+	numericConfig?: NumericInputConfig;
+	sliderConfig?: SliderConfig;
 	options?: string[]; // for dropdowns and suggesters
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
 	// Additional metadata
@@ -190,6 +195,8 @@ export class RequirementCollector extends Formatter {
 					!hasOptions && parsed.inputTypeOverride === "checkbox";
 				const isNumber =
 					!hasOptions && parsed.inputTypeOverride === "number";
+				const isSlider =
+					!hasOptions && parsed.inputTypeOverride === "slider";
 				const baseInputType: FieldType =
 					parsed.inputTypeOverride === "multiline" ||
 					this.plugin.settings.inputPrompt === "multi-line"
@@ -204,12 +211,19 @@ export class RequirementCollector extends Formatter {
 							? "dropdown"
 							: isNumber
 								? "number"
-								: baseInputType,
+								: isSlider
+									? "slider"
+									: baseInputType,
 					description,
 					optional: parsed.optional,
 				};
 				if (hasOptions) this.applyOptionFields(req, parsed);
 				else if (isCheckbox) req.options = ["true", "false"];
+				else if (isNumber) req.numericConfig = parsed.numericConfig;
+				else if (isSlider) {
+					req.numericConfig = parsed.numericConfig;
+					req.sliderConfig = parsed.sliderConfig;
+				}
 				if (defaultValue) req.defaultValue = defaultValue;
 				this.requirements.set(requirementId, req);
 			} else {
@@ -349,16 +363,31 @@ export class RequirementCollector extends Formatter {
 	protected async promptForValue(header?: string): Promise<string> {
 		const key = "value";
 		if (!this.requirements.has(key)) {
+			const isCheckbox =
+				this.valuePromptContext?.inputTypeOverride === "checkbox";
+			const isNumber =
+				this.valuePromptContext?.inputTypeOverride === "number";
+			const isSlider =
+				this.valuePromptContext?.inputTypeOverride === "slider";
 			this.requirements.set(key, {
 				id: key,
 				label: header || "Enter value",
 				type:
-					this.valuePromptContext?.inputTypeOverride === "multiline" ||
-					this.plugin.settings.inputPrompt === "multi-line"
+					isCheckbox
+						? "dropdown"
+						: isNumber
+							? "number"
+							: isSlider
+								? "slider"
+								: this.valuePromptContext?.inputTypeOverride === "multiline" ||
+									  this.plugin.settings.inputPrompt === "multi-line"
 						? "textarea"
 						: "text",
 				description: this.valuePromptContext?.description,
 				defaultValue: this.valuePromptContext?.defaultValue,
+				numericConfig: this.valuePromptContext?.numericConfig,
+				sliderConfig: this.valuePromptContext?.sliderConfig,
+				options: isCheckbox ? ["true", "false"] : undefined,
 				source: "collected",
 				optional: this.valuePromptContext?.optional,
 			});
@@ -391,6 +420,10 @@ export class RequirementCollector extends Formatter {
 				.map((s) => s.trim())
 				.filter(Boolean);
 			const hasOptions = optionValues.length > 1;
+			const isNumber = !hasOptions && context?.inputTypeOverride === "number";
+			const isSlider = !hasOptions && context?.inputTypeOverride === "slider";
+			const isCheckbox =
+				!hasOptions && context?.inputTypeOverride === "checkbox";
 			const baseInputType =
 				context?.inputTypeOverride === "multiline" ||
 				this.plugin.settings.inputPrompt === "multi-line"
@@ -399,12 +432,24 @@ export class RequirementCollector extends Formatter {
 			const req: FieldRequirement = {
 				id: key,
 				label: variableName,
-				type: hasOptions ? "dropdown" : baseInputType,
+				type: hasOptions
+					? "dropdown"
+					: isCheckbox
+						? "dropdown"
+						: isNumber
+							? "number"
+							: isSlider
+								? "slider"
+								: baseInputType,
 				description: context?.description,
+				numericConfig: context?.numericConfig,
+				sliderConfig: context?.sliderConfig,
 				source: "collected",
 			};
 			if (hasOptions) {
 				req.options = optionValues;
+			} else if (isCheckbox) {
+				req.options = ["true", "false"];
 			}
 			if (context?.defaultValue) req.defaultValue = context.defaultValue;
 			this.requirements.set(key, req);

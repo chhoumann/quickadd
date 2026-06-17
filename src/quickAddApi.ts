@@ -55,6 +55,7 @@ import { MacroAbortError } from "./errors/MacroAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
 import { formatISODate } from "./utils/dateParser";
 import type { InputPromptOptions } from "./types/inputPrompt";
+import type { NumericInputConfig, SliderConfig } from "./utils/valueSyntax";
 import {
 	applyTemplateToNote,
 	isMarkdownTemplatePath,
@@ -85,6 +86,56 @@ function restoreVariables(
 	}
 }
 
+function sanitizeNumericConfig(
+	value: NumericInputConfig | undefined,
+): NumericInputConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const config: NumericInputConfig = {};
+	if (typeof value.min === "number" && Number.isFinite(value.min)) {
+		config.min = value.min;
+	}
+	if (typeof value.max === "number" && Number.isFinite(value.max)) {
+		config.max = value.max;
+	}
+	if (
+		config.min !== undefined &&
+		config.max !== undefined &&
+		config.max < config.min
+	) {
+		delete config.min;
+		delete config.max;
+	}
+	if (
+		typeof value.step === "number" &&
+		Number.isFinite(value.step) &&
+		value.step > 0
+	) {
+		config.step = value.step;
+	}
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function sanitizeSliderConfig(
+	value: SliderConfig | undefined,
+): SliderConfig | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const { min, max } = value;
+	const step = value.step ?? 1;
+	if (
+		typeof min !== "number" ||
+		typeof max !== "number" ||
+		typeof step !== "number" ||
+		!Number.isFinite(min) ||
+		!Number.isFinite(max) ||
+		!Number.isFinite(step) ||
+		max <= min ||
+		step <= 0
+	) {
+		return undefined;
+	}
+	return { min, max, step };
+}
+
 export class QuickAddApi {
 	public static GetApi(
 		app: App,
@@ -104,9 +155,19 @@ export class QuickAddApi {
 				inputs: Array<{
 					id: string;
 					label?: string;
-					type: "text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester";
+					type:
+						| "text"
+						| "number"
+						| "textarea"
+						| "dropdown"
+						| "date"
+						| "field-suggest"
+						| "suggester"
+						| "slider";
 					placeholder?: string;
 					defaultValue?: string;
+					numericConfig?: NumericInputConfig;
+					sliderConfig?: SliderConfig;
 					options?: string[];
 					dateFormat?: string;
 					description?: string;
@@ -130,13 +191,20 @@ export class QuickAddApi {
 						existing[spec.id] = String(val);
 						continue;
 					}
+					const sliderConfig = sanitizeSliderConfig(spec.sliderConfig);
+					const numericConfig =
+						sliderConfig ?? sanitizeNumericConfig(spec.numericConfig);
+					const type =
+						spec.type === "slider" && !sliderConfig ? "number" : spec.type;
 
 					missing.push({
 						id: spec.id,
 						label: spec.label ?? spec.id,
-						type: spec.type,
+						type,
 						placeholder: spec.placeholder,
 						defaultValue: spec.defaultValue,
+						numericConfig,
+						sliderConfig,
 						options: spec.options,
 						dateFormat: spec.dateFormat,
 						description: spec.description,

@@ -140,6 +140,22 @@
 	color: var(--text-muted);
 }
 
+.quickAddModal .qa-onepage-slider {
+	display: grid;
+	grid-template-columns: minmax(10rem, 1fr) 5.5rem;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+}
+
+.quickAddModal .qa-onepage-slider input[type="range"] {
+	width: 100%;
+}
+
+.quickAddModal .qa-onepage-slider input[type="number"] {
+	width: 5.5rem;
+}
+
 .quickAddModal .qa-onepage-optional-badge {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);

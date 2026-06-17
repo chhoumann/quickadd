@@ -417,8 +417,36 @@ describe("RequirementCollector property types (#757)", () => {
   };
 
   it("maps |type:number to a number field", async () => {
-    const byId = await run("{{VALUE:rating|type:number}}");
+    const byId = await run("{{VALUE:rating|type:number|min:1|max:10|step:1}}");
     expect(byId["rating"].type).toBe("number");
+    expect(byId["rating"].numericConfig).toEqual({ min: 1, max: 10, step: 1 });
+  });
+
+  it("maps |type:slider to a slider field with config", async () => {
+    const byId = await run("{{VALUE:rating|type:slider|min:1|max:10|step:1}}");
+    expect(byId["rating"]).toMatchObject({
+      type: "slider",
+      numericConfig: { min: 1, max: 10, step: 1 },
+      sliderConfig: { min: 1, max: 10, step: 1 },
+    });
+  });
+
+  it("falls back to a number field for invalid slider config", async () => {
+    const byId = await run("{{VALUE:rating|type:slider|max:10}}");
+    expect(byId["rating"]).toMatchObject({
+      type: "number",
+      numericConfig: { max: 10 },
+    });
+    expect(byId["rating"].sliderConfig).toBeUndefined();
+  });
+
+  it("maps unnamed VALUE type:slider to a slider field", async () => {
+    const byId = await run("{{VALUE|type:slider|min:1|max:10|default:5}}");
+    expect(byId["value"]).toMatchObject({
+      type: "slider",
+      defaultValue: "5",
+      sliderConfig: { min: 1, max: 10, step: 1 },
+    });
   });
 
   it("maps |type:checkbox to a true/false dropdown", async () => {

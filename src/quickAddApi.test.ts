@@ -1017,6 +1017,68 @@ describe("requestInputs", () => {
 		expect(missing[0].label).toBe("city");
 	});
 
+	it("forwards number and slider input metadata to the one-page modal", async () => {
+		mocks.onePageModalWaitForClose.mockResolvedValue({
+			rating: "5",
+			confidence: "80",
+		});
+		const { api } = getApi();
+
+		await api.requestInputs([
+			{
+				id: "rating",
+				type: "number",
+				numericConfig: { min: 1, max: 10, step: 1 },
+			},
+			{
+				id: "confidence",
+				type: "slider",
+				sliderConfig: { min: 0, max: 100, step: 5 },
+			},
+		]);
+
+		const missing = onePageModalCalls[0].missing as Array<{
+			id: string;
+			type: string;
+			numericConfig?: unknown;
+			sliderConfig?: unknown;
+		}>;
+		expect(missing).toEqual([
+			expect.objectContaining({
+				id: "rating",
+				type: "number",
+				numericConfig: { min: 1, max: 10, step: 1 },
+			}),
+			expect.objectContaining({
+				id: "confidence",
+				type: "slider",
+				numericConfig: { min: 0, max: 100, step: 5 },
+				sliderConfig: { min: 0, max: 100, step: 5 },
+			}),
+		]);
+	});
+
+	it("downgrades requestInputs sliders without valid config to number", async () => {
+		mocks.onePageModalWaitForClose.mockResolvedValue({ confidence: "80" });
+		const { api } = getApi();
+
+		await api.requestInputs([
+			{ id: "confidence", type: "slider" } as {
+				id: string;
+				type: "slider";
+			},
+		]);
+
+		const missing = onePageModalCalls[0].missing as Array<{
+			type: string;
+			sliderConfig?: unknown;
+		}>;
+		expect(missing[0]).toMatchObject({
+			type: "number",
+			sliderConfig: undefined,
+		});
+	});
+
 	it("formats a date field that returns an @date: value using dateFormat", async () => {
 		mocks.onePageModalWaitForClose.mockResolvedValue({
 			due: "@date:2025-06-21T00:00:00.000Z",

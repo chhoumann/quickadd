@@ -26,6 +26,10 @@ import {
 	mapMappedSuggesterValue,
 	resolveDropdownInitialValue,
 } from "./suggesterValueMapping";
+import {
+	normalizeNumericValue,
+	normalizeSliderValue,
+} from "src/utils/valueSyntax";
 
 type PreviewComputer = (
 	values: Record<string, string>,
@@ -155,11 +159,71 @@ export class OnePageInputModal extends Modal {
 				const input = new TextComponent(setting.controlEl);
 				input.inputEl.type = "number";
 				input.inputEl.inputMode = "decimal";
-				input.inputEl.setAttr("step", "any");
+				if (req.numericConfig?.min !== undefined) {
+					input.inputEl.min = String(req.numericConfig.min);
+				}
+				if (req.numericConfig?.max !== undefined) {
+					input.inputEl.max = String(req.numericConfig.max);
+				}
+				input.inputEl.step =
+					req.numericConfig?.step !== undefined
+						? String(req.numericConfig.step)
+						: "any";
+				const normalizedStarting = req.numericConfig
+					? normalizeNumericValue(starting, req.numericConfig)
+					: starting;
 				input
 					.setPlaceholder(req.placeholder ?? "")
-					.setValue(starting)
-					.onChange((v) => setValue(req.id, v));
+					.setValue(normalizedStarting)
+					.onChange((v) =>
+						setValue(
+							req.id,
+							req.numericConfig ? normalizeNumericValue(v, req.numericConfig) : v,
+						),
+					);
+				setValue(req.id, normalizedStarting);
+				break;
+			}
+			case "slider": {
+				const setting = new Setting(this.contentEl).setName(
+					this.decorateLabel(req),
+				);
+				if (req.description) setting.setDesc(req.description);
+				const sliderConfig = req.sliderConfig ?? { min: 0, max: 100, step: 1 };
+				const isOptionalBlank = req.optional && starting === "";
+				const initial = normalizeSliderValue(starting, sliderConfig);
+				const container = setting.controlEl.createDiv({
+					cls: "qa-onepage-slider",
+				});
+				const range = container.createEl("input");
+				range.type = "range";
+				range.min = String(sliderConfig.min);
+				range.max = String(sliderConfig.max);
+				range.step = String(sliderConfig.step);
+				range.value = initial;
+				const input = new TextComponent(container);
+				input.inputEl.type = "number";
+				input.inputEl.inputMode = "decimal";
+				input.inputEl.min = String(sliderConfig.min);
+				input.inputEl.max = String(sliderConfig.max);
+				input.inputEl.step = String(sliderConfig.step);
+				input.setValue(isOptionalBlank ? "" : initial);
+				setValue(req.id, isOptionalBlank ? "" : initial);
+
+				range.addEventListener("input", () => {
+					input.inputEl.value = range.value;
+					setValue(req.id, range.value);
+				});
+				input.onChange((value) => {
+					if (value === "" && req.optional) {
+						setValue(req.id, "");
+						return;
+					}
+					const normalized = normalizeSliderValue(value, sliderConfig);
+					range.value = normalized;
+					input.inputEl.value = normalized;
+					setValue(req.id, normalized);
+				});
 				break;
 			}
 			case "dropdown": {

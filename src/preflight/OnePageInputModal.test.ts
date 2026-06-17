@@ -295,6 +295,107 @@ describe("OnePageInputModal", () => {
 		});
 	});
 
+	it("renders bounded number fields and submits the normalized value", async () => {
+		const requirements: FieldRequirement[] = [
+			{
+				id: "rating",
+				label: "Rating",
+				type: "number",
+				defaultValue: "999",
+				numericConfig: { min: 1, max: 10, step: 1 },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const number = (modal as any).contentEl.querySelector(
+			'input[type="number"]',
+		) as HTMLInputElement;
+		expect(number.min).toBe("1");
+		expect(number.max).toBe("10");
+		expect(number.step).toBe("1");
+		expect(number.value).toBe("10");
+
+		number.value = "-5";
+		number.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({ rating: "1" });
+	});
+
+	it("renders slider fields and submits the selected numeric value", async () => {
+		const requirements: FieldRequirement[] = [
+			{
+				id: "rating",
+				label: "Rating",
+				type: "slider",
+				defaultValue: "5",
+				sliderConfig: { min: 1, max: 10, step: 1 },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const range = (modal as any).contentEl.querySelector(
+			'input[type="range"]',
+		) as HTMLInputElement;
+		const number = (modal as any).contentEl.querySelector(
+			'input[type="number"]',
+		) as HTMLInputElement;
+		expect(range.min).toBe("1");
+		expect(range.max).toBe("10");
+		expect(range.step).toBe("1");
+		expect(number.value).toBe("5");
+
+		number.value = "999";
+		number.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(range.value).toBe("10");
+		expect(number.value).toBe("10");
+
+		range.value = "7";
+		range.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({ rating: "7" });
+	});
+
+	it("leaves untouched optional sliders empty when they have no default", async () => {
+		const requirements: FieldRequirement[] = [
+			{
+				id: "rating",
+				label: "Rating",
+				type: "slider",
+				optional: true,
+				sliderConfig: { min: 1, max: 10, step: 1 },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const number = (modal as any).contentEl.querySelector(
+			'input[type="number"]',
+		) as HTMLInputElement;
+		expect(number.value).toBe("");
+
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({ rating: "" });
+	});
+
 	// Regression: issue #1180 — One-page input dropped VALUE dropdown
 	// selections for labeled tokens like {{VALUE:option-a,option-b|label:Pick one}},
 	// resulting in an empty captured value instead of the first option.
