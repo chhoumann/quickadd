@@ -31,7 +31,7 @@ function createCommand(settings: Record<string, unknown> = {}): IUserScript {
 	};
 }
 
-function createSettings() {
+function createSettings(optionOverrides: Record<string, unknown> = {}) {
 	return {
 		name: "Script Settings",
 		options: {
@@ -40,6 +40,7 @@ function createSettings() {
 				defaultValue: "must-not-persist",
 				placeholder: "Paste API key",
 				description: "API key",
+				...optionOverrides,
 			},
 		},
 	};
@@ -92,6 +93,37 @@ describe("UserScriptSettingsModal secret settings", () => {
 		expect(JSON.stringify(command.settings)).not.toContain("secret-value");
 		expect(onCommandChange).toHaveBeenCalledTimes(1);
 		expect(input.value).toBe("");
+	});
+
+	it("uses script-defined secret option IDs when saving", async () => {
+		const app = new App();
+		const command = createCommand();
+		const modal = new UserScriptSettingsModal(
+			app,
+			command,
+			createSettings({ id: "readwise-api-key" }),
+		);
+		await flushPromises();
+
+		const input = modal.contentEl.querySelector("input") as HTMLInputElement;
+		inputValue(input, "secret-value");
+
+		const save = modal.contentEl.querySelector(
+			'button[aria-label="Save API Key"]',
+		) as HTMLButtonElement;
+		save.click();
+		await flushPromises();
+
+		expect(
+			app.secretStorage.getSecret(
+				"quickadd-user-script-command-1-readwise-api-key",
+			),
+		).toBe("secret-value");
+		expect(command.settings["API Key"]).toEqual(
+			createUserScriptSecretRef(
+				"quickadd-user-script-command-1-readwise-api-key",
+			),
+		);
 	});
 
 	it("migrates existing plaintext secret settings after opening", async () => {

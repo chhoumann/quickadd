@@ -57,6 +57,7 @@ describe("OpenAI mapping", () => {
 		const body = buildChatBody("openai", "gpt-4o", req) as Record<string, unknown>;
 		const msgs = body.messages as Array<Record<string, unknown>>;
 		const assistant = msgs[1];
+		expect(assistant.content).toBe("");
 		expect((assistant.tool_calls as Array<Record<string, unknown>>)[0]).toMatchObject({
 			id: "call_1",
 			type: "function",

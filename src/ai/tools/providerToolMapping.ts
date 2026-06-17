@@ -79,7 +79,7 @@ function openaiMessages(messages: NormalizedMessage[]): Body[] {
 		if (m.role === "system") out.push({ role: "system", content: m.content });
 		else if (m.role === "user") out.push({ role: "user", content: m.content });
 		else if (m.role === "assistant") {
-			const msg: Body = { role: "assistant", content: m.content || null };
+			const msg: Body = { role: "assistant", content: m.content ?? "" };
 			if (m.toolCalls && m.toolCalls.length > 0) {
 				msg.tool_calls = m.toolCalls.map((c) => ({
 					id: c.id,

@@ -179,6 +179,59 @@ describe("userScriptSecrets", () => {
 		);
 	});
 
+	it("uses script-defined secret option IDs when provided", () => {
+		const command = createCommand();
+		const option = { type: "secret", id: "readwise-api-key" };
+
+		expect(
+			buildUserScriptSecretId(command, "Readwise API key", option),
+		).toBe("quickadd-user-script-command-1-readwise-api-key");
+		expect(buildUserScriptSecretId(command, "API token", option)).toBe(
+			"quickadd-user-script-command-1-readwise-api-key",
+		);
+	});
+
+	it("keeps SecretStorage IDs within Obsidian's 64 character limit", () => {
+		const command = createCommand();
+		command.id = "4e700b0f-1e0c-47c2-aafc-417421efcc73";
+
+		const secretId = buildUserScriptSecretId(command, "Readwise API key");
+
+		expect(secretId.length).toBeLessThanOrEqual(64);
+		expect(secretId).toMatch(/^[a-z0-9-]+$/);
+		expect(secretId).toMatch(/^quickadd-user-script-/);
+		expect(secretId).toBe(buildUserScriptSecretId(command, "Readwise API key"));
+	});
+
+	it("keeps collision fallback SecretStorage IDs within Obsidian's 64 character limit", async () => {
+		const command = createCommand();
+		command.id = "4e700b0f-1e0c-47c2-aafc-417421efcc73";
+		const existingSecretRef = buildUserScriptSecretId(
+			command,
+			"Readwise API key",
+		);
+		const storedSecrets = new Map([[existingSecretRef, "old-secret"]]);
+		const setSecret = vi.fn((name: string, value: string) => {
+			storedSecrets.set(name, value);
+		});
+		const app = createApp({
+			getSecret: vi.fn((name: string) => storedSecrets.get(name) ?? null),
+			setSecret,
+		});
+
+		const secretRef = await storeUserScriptSecret(
+			app,
+			command,
+			"Readwise API key",
+			"new-secret",
+		);
+
+		expect(secretRef).not.toBe(existingSecretRef);
+		expect(secretRef?.length).toBeLessThanOrEqual(64);
+		expect(secretRef).toMatch(/^[a-z0-9-]+$/);
+		expect(setSecret).toHaveBeenCalledWith(secretRef, "new-secret");
+	});
+
 	it("stores a secret and creates a marker without exposing the value", async () => {
 		const setSecret = vi.fn().mockResolvedValue(undefined);
 		const getSecret = vi.fn().mockResolvedValue(null);
@@ -319,6 +372,76 @@ describe("userScriptSecrets", () => {
 			createUserScriptSecretRef("quickadd-user-script-command-1-api-key"),
 		);
 		expect(JSON.stringify(command.settings)).not.toContain("legacy-secret");
+	});
+
+	it("uses script-defined secret option IDs when migrating legacy plaintext settings", async () => {
+		const command = createCommand({
+			"Readwise API key": "legacy-secret",
+		});
+		const setSecret = vi.fn().mockResolvedValue(undefined);
+		const app = createApp({
+			getSecret: vi.fn().mockResolvedValue(null),
+			setSecret,
+		});
+
+		const changed = await migrateUserScriptSecretSettings(app, command, {
+			options: {
+				"Readwise API key": {
+					type: "secret",
+					id: "readwise-api-key",
+				},
+			},
+		});
+
+		expect(changed).toBe(true);
+		expect(setSecret).toHaveBeenCalledWith(
+			"quickadd-user-script-command-1-readwise-api-key",
+			"legacy-secret",
+		);
+		expect(command.settings["Readwise API key"]).toEqual(
+			createUserScriptSecretRef(
+				"quickadd-user-script-command-1-readwise-api-key",
+			),
+		);
+	});
+
+	it("reattaches script-defined secret IDs when option labels change", async () => {
+		const stableRef = "quickadd-user-script-command-1-readwise-api-key";
+		const command = createCommand({
+			"Readwise API key": createUserScriptSecretRef(stableRef),
+		});
+		const app = createApp({
+			getSecret: vi.fn((name: string) =>
+				name === stableRef ? "stored-secret" : null,
+			),
+			setSecret: vi.fn(),
+		});
+		const renamedSettings = {
+			options: {
+				"API token": {
+					type: "secret",
+					id: "readwise-api-key",
+				},
+			},
+		};
+
+		const changed = await migrateUserScriptSecretSettings(
+			app,
+			command,
+			renamedSettings,
+		);
+		const resolved = await resolveUserScriptSettings(
+			app,
+			command,
+			renamedSettings,
+		);
+
+		expect(changed).toBe(true);
+		expect(command.settings["Readwise API key"]).toBeUndefined();
+		expect(command.settings["API token"]).toEqual(
+			createUserScriptSecretRef(stableRef),
+		);
+		expect(resolved["API token"]).toBe("stored-secret");
 	});
 
 	it("does not migrate or clear legacy plaintext when SecretStorage is unavailable", async () => {
