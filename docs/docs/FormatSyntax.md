@@ -354,6 +354,37 @@ Suggest the values of `FIELDNAME` anywhere `{{FIELD:FIELDNAME}}` is used. Fields
 
 Example: `project: {{FIELD:project}}`.
 
+### `{{FIELD:<FIELDNAME>|multi}}` {#field-multi}
+
+Turns FIELD suggestions into a multi-select. Pick several existing field values,
+or add custom values in the picker.
+
+```markdown
+---
+topics: {{FIELD:topic|multi}}
+---
+```
+
+picks `Alpha` and `Beta` →
+
+```yaml
+topics:
+  - Alpha
+  - Beta
+```
+
+Inside front matter, `|multi` writes a real YAML **List** when the token is the
+complete property value. In note bodies, file names, and other text positions it
+renders the selected values as comma-separated text. `|multi` combines with the
+same FIELD filters and defaults as single-value FIELD prompts, for example
+`{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
+
+The one-page input form intentionally does not inline FIELD multi-selects yet:
+vault field values can contain commas, and the current one-page multi input uses
+commas as separators. When a format contains `{{FIELD:...|multi}}`, QuickAdd
+collects other one-page inputs first, then opens the runtime multi-select for
+the FIELD value.
+
 **Enhanced Filtering Options:**
 
 - `{{FIELD:fieldname|folder:path/to/folder}}` - Only suggest values from files in specific folder

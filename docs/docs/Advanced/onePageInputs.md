@@ -35,6 +35,7 @@ Each choice builder has a **One-page input override** dropdown that lets you ove
 
 ## FIELD UX
 - FIELD inputs get inline suggestions from your vault (Dataview if available, with a manual fallback).
+- `{{FIELD:...|multi}}` is collected by the runtime multi-select after the one-page modal. It is not rendered inline in the one-page form because vault field values can contain commas.
 
 ## Optional fields
 - Fields whose tokens carry the `|optional` flag (see [Optional fields](../FormatSyntax.md#optional-fields)) show an "(optional)" badge and may be left empty. An empty optional field stores an intentional empty value — the sequential prompt will not re-ask for it.
