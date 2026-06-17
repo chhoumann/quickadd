@@ -219,7 +219,8 @@ export class OnePageInputModal extends Modal {
 						setValue(req.id, "");
 						return;
 					}
-					const normalized = normalizeSliderValue(value, sliderConfig);
+					const normalized = normalizeNumericValue(value, sliderConfig);
+					if (normalized === "") return;
 					range.value = normalized;
 					input.inputEl.value = normalized;
 					setValue(req.id, normalized);

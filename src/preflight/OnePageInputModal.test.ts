@@ -369,6 +369,45 @@ describe("OnePageInputModal", () => {
 		await expect(modal.waitForClose).resolves.toEqual({ rating: "7" });
 	});
 
+	it("lets negative slider values be typed through the numeric field", async () => {
+		const requirements: FieldRequirement[] = [
+			{
+				id: "score",
+				label: "Score",
+				type: "slider",
+				defaultValue: "0",
+				sliderConfig: { min: -5, max: 5, step: 1 },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const range = (modal as any).contentEl.querySelector(
+			'input[type="range"]',
+		) as HTMLInputElement;
+		const number = (modal as any).contentEl.querySelector(
+			'input[type="number"]',
+		) as HTMLInputElement;
+
+		number.value = "-";
+		number.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(range.value).toBe("0");
+		expect(number.value).toBe("");
+
+		number.value = "-4";
+		number.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(range.value).toBe("-4");
+		expect(number.value).toBe("-4");
+
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({ score: "-4" });
+	});
+
 	it("leaves untouched optional sliders empty when they have no default", async () => {
 		const requirements: FieldRequirement[] = [
 			{
