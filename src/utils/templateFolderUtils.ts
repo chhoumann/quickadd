@@ -1,10 +1,5 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import {
-	BASE_FILE_EXTENSION_REGEX,
-	CANVAS_FILE_EXTENSION_REGEX,
-	MARKDOWN_FILE_EXTENSION_REGEX,
-} from "../constants";
 
 const TEXT_TEMPLATE_SOURCE_EXTENSION_REGEX =
 	/\.(?:md|canvas|base|eta|ejs|njk|hbs|handlebars|mustache|txt)$/i;
