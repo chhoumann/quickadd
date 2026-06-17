@@ -1,9 +1,28 @@
-import type { App, TFile } from "obsidian";
+import type { App, Editor, EditorPosition, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { log } from "../logger/logManager";
 import type { AppendLinkOptions, LinkPlacement } from "../types/linkPlacement";
 import { placementSupportsEmbed } from "../types/linkPlacement";
 import { convertLinkToEmbed } from "./markdownLinks";
+
+function clonePosition(position: EditorPosition): EditorPosition {
+	return { line: position.line, ch: position.ch };
+}
+
+function restoreCursorAfterInsert(
+	editor: Editor,
+	originalCursor: EditorPosition,
+	insertOffset: number,
+	insertedText: string,
+): void {
+	const originalOffset = editor.posToOffset(originalCursor);
+	const restoredOffset =
+		originalOffset > insertOffset
+			? originalOffset + insertedText.length
+			: originalOffset;
+
+	editor.setCursor(editor.offsetToPos(restoredOffset));
+}
 
 /**
  * Returns the active markdown view if it is showing the given file,
@@ -32,7 +51,11 @@ export function appendToCurrentLine(toAppend: string, app: App): boolean {
 			return false;
 		}
 
-		activeView.editor.replaceSelection(toAppend);
+		const editor = activeView.editor;
+		const cursor = clonePosition(editor.getCursor());
+
+		editor.replaceSelection(toAppend);
+		editor.setCursor(cursor);
 		return true;
 	} catch {
 		log.logError(`unable to append '${toAppend}' to current line.`);
@@ -51,23 +74,23 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 		}
 
 		const editor = activeView.editor;
-		const cursor = editor.getCursor();
+		const cursor = clonePosition(editor.getCursor());
 		const lineNumber = cursor.line;
-		const insertedLines = toInsert.split("\n");
-		const insertedLineCount = insertedLines.length;
-		const lastInsertedLineLength =
-			insertedLines[insertedLineCount - 1]?.length ?? 0;
 		if (direction === "above") {
 			// Insert at the beginning of the current line, add content + newline
-			editor.replaceRange(toInsert + "\n", { line: lineNumber, ch: 0 });
-			// Move cursor to end of inserted content (before the newline)
-			editor.setCursor({ line: lineNumber + insertedLineCount - 1, ch: lastInsertedLineLength });
+			const insertPosition = { line: lineNumber, ch: 0 };
+			const insertedText = toInsert + "\n";
+			const insertOffset = editor.posToOffset(insertPosition);
+			editor.replaceRange(insertedText, insertPosition);
+			restoreCursorAfterInsert(editor, cursor, insertOffset, insertedText);
 		} else {
 			// Insert at the end of the current line, add newline + content
 			const currentLine = editor.getLine(lineNumber);
-			editor.replaceRange("\n" + toInsert, { line: lineNumber, ch: currentLine.length });
-			// Move cursor to end of inserted content
-			editor.setCursor({ line: lineNumber + insertedLineCount, ch: lastInsertedLineLength });
+			const insertPosition = { line: lineNumber, ch: currentLine.length };
+			const insertedText = "\n" + toInsert;
+			const insertOffset = editor.posToOffset(insertPosition);
+			editor.replaceRange(insertedText, insertPosition);
+			restoreCursorAfterInsert(editor, cursor, insertOffset, insertedText);
 		}
 		return true;
 	} catch {
