@@ -233,6 +233,7 @@ For API keys, access tokens, and other sensitive values. Secrets are stored in O
 options: {
     "API Key": {
         type: "secret",
+        id: "api-key", // Optional stable storage id
         placeholder: "Paste API key",
         description: "Your API key"
     }
@@ -242,6 +243,8 @@ options: {
 `type: "text"` / `type: "input"` with `secret: true` is still supported for older scripts and is treated as a secret setting.
 
 Secret values are local to the Obsidian app profile. They are not included in QuickAdd package exports and are not synced through the plugin's `data.json`; users must enter them on each device where the script runs.
+
+The optional `id` controls the SecretStorage reference used for the setting. If omitted, QuickAdd uses the option name. Set `id` when you want to rename the visible setting label later without creating a new saved secret.
 
 #### Toggle/Checkbox
 For boolean on/off settings.

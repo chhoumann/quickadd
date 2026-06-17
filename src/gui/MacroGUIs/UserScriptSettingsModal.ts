@@ -15,7 +15,7 @@ import {
 	storeUserScriptSecret,
 } from "../../utils/userScriptSecrets";
 
-type Option = { description?: string } & (
+type Option = { description?: string; id?: string } & (
 	| {
 			type: "text" | "input";
 			value: string;
@@ -224,6 +224,7 @@ export class UserScriptSettingsModal extends Modal {
 					name,
 					pendingValue,
 					getSecretRefFromCommandSetting(this.command, name),
+					this.settings.options?.[name],
 				);
 
 				if (!secretRef) {

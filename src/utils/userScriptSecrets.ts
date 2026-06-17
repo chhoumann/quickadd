@@ -6,6 +6,8 @@ import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 const USER_SCRIPT_SECRET_PREFIX = "quickadd-user-script";
 const SECRET_MARKER = "__quickaddSecret";
 const MARKDOWN_FILE_EXTENSION_REGEX = /\.md$/i;
+const MAX_SECRET_ID_LENGTH = 64;
+const SECRET_ID_HASH_LENGTH = 8;
 
 type SecretStorageLike = {
 	getSecret?: (id: string) => string | null | Promise<string | null>;
@@ -17,6 +19,7 @@ type SecretStorageLike = {
 };
 
 export type UserScriptOptionDefinition = {
+	id?: unknown;
 	type?: unknown;
 	secret?: unknown;
 	defaultValue?: unknown;
@@ -61,6 +64,65 @@ function normalizeSecretIdPart(value: string): string {
 		.replace(/^-+|-+$/g, "");
 
 	return normalized || "setting";
+}
+
+function hashSecretId(value: string): string {
+	let hash = 5381;
+	for (let index = 0; index < value.length; index += 1) {
+		hash = (hash * 33) ^ value.charCodeAt(index);
+	}
+
+	return (hash >>> 0).toString(36).slice(0, SECRET_ID_HASH_LENGTH);
+}
+
+function truncateSecretIdPart(value: string, maxLength: number): string {
+	if (value.length <= maxLength) return value;
+	return value.slice(0, maxLength).replace(/-+$/g, "") || "setting";
+}
+
+function getSecretSettingId(
+	settingName: string,
+	option?: UserScriptOptionDefinition,
+): string {
+	const optionId = option?.id;
+	if (typeof optionId === "string" && optionId.trim().length > 0) {
+		return optionId;
+	}
+
+	return settingName;
+}
+
+function fitSecretId(
+	commandPart: string,
+	settingPart: string,
+	suffixPart?: string,
+): string {
+	const rawParts = suffixPart
+		? [USER_SCRIPT_SECRET_PREFIX, commandPart, settingPart, suffixPart]
+		: [USER_SCRIPT_SECRET_PREFIX, commandPart, settingPart];
+	const raw = rawParts.join("-");
+	if (raw.length <= MAX_SECRET_ID_LENGTH) return raw;
+
+	const hash = hashSecretId(
+		[commandPart, settingPart, suffixPart].filter(Boolean).join(":"),
+	);
+	const separatorBudget = suffixPart ? 4 : 3;
+	const partBudget =
+		MAX_SECRET_ID_LENGTH -
+		USER_SCRIPT_SECRET_PREFIX.length -
+		hash.length -
+		(suffixPart?.length ?? 0) -
+		separatorBudget;
+	const commandBudget = Math.max(8, Math.floor(partBudget * 0.6));
+	const settingBudget = Math.max(8, partBudget - commandBudget);
+
+	return [
+		USER_SCRIPT_SECRET_PREFIX,
+		truncateSecretIdPart(commandPart, commandBudget),
+		truncateSecretIdPart(settingPart, settingBudget),
+		...(suffixPart ? [suffixPart] : []),
+		hash,
+	].join("-");
 }
 
 function formatSecretError(error: unknown): string {
@@ -466,13 +528,13 @@ export function createUserScriptSecretRef(secretRef: string): UserScriptSecretRe
 export function buildUserScriptSecretId(
 	command: IUserScript,
 	settingName: string,
+	option?: UserScriptOptionDefinition,
 ): string {
 	const commandId = command.id?.trim() || command.path || command.name || "script";
-	return [
-		USER_SCRIPT_SECRET_PREFIX,
+	return fitSecretId(
 		normalizeSecretIdPart(commandId),
-		normalizeSecretIdPart(settingName),
-	].join("-");
+		normalizeSecretIdPart(getSecretSettingId(settingName, option)),
+	);
 }
 
 export function getSecretOptionNames(
@@ -484,6 +546,21 @@ export function getSecretOptionNames(
 	return Object.entries(options)
 		.filter(([, option]) => isSecretUserScriptOption(option))
 		.map(([name]) => name);
+}
+
+function getSecretOptionEntries(
+	userScriptSettings: UserScriptSettingsDefinition | undefined,
+): Array<[string, UserScriptOptionDefinition]> {
+	const options = userScriptSettings?.options;
+	if (!options) return [];
+
+	return Object.entries(options).filter(([, option]) =>
+		isSecretUserScriptOption(option),
+	);
+}
+
+function optionDefinesStableSecretId(option: UserScriptOptionDefinition): boolean {
+	return typeof option.id === "string" && option.id.trim().length > 0;
 }
 
 async function readSecretStorageEntry(
@@ -527,9 +604,12 @@ async function buildAvailableSecretRef(
 	command: IUserScript,
 	settingName: string,
 	value: string,
+	option?: UserScriptOptionDefinition,
 ): Promise<string> {
-	const base = buildUserScriptSecretId(command, settingName);
-	let candidate = base;
+	const commandId = command.id?.trim() || command.path || command.name || "script";
+	const commandPart = normalizeSecretIdPart(commandId);
+	const settingPart = normalizeSecretIdPart(getSecretSettingId(settingName, option));
+	let candidate = fitSecretId(commandPart, settingPart);
 	let suffix = 1;
 
 	while (true) {
@@ -537,7 +617,7 @@ async function buildAvailableSecretRef(
 		if (!existing || existing === value) return candidate;
 
 		suffix += 1;
-		candidate = `${base}-${suffix}`;
+		candidate = fitSecretId(commandPart, settingPart, String(suffix));
 	}
 }
 
@@ -547,12 +627,13 @@ export async function storeUserScriptSecret(
 	settingName: string,
 	value: string,
 	existingRef?: string,
+	option?: UserScriptOptionDefinition,
 ): Promise<string | null> {
 	if (value.length === 0) return null;
 
 	const secretRef =
 		existingRef?.trim() ||
-		(await buildAvailableSecretRef(app, command, settingName, value));
+		(await buildAvailableSecretRef(app, command, settingName, value, option));
 	const stored = await writeSecretStorageEntry(app, secretRef, value);
 
 	return stored ? secretRef : null;
@@ -627,12 +708,12 @@ export async function migrateUserScriptSecretSettings(
 	command: IUserScript,
 	userScriptSettings: UserScriptSettingsDefinition | undefined,
 ): Promise<boolean> {
-	const secretOptionNames = getSecretOptionNames(userScriptSettings);
-	if (secretOptionNames.length === 0) return false;
+	const secretOptionEntries = getSecretOptionEntries(userScriptSettings);
+	if (secretOptionEntries.length === 0) return false;
 
 	const secretStorage = getSecretStorage(app);
 	if (!secretStorage?.getSecret || !secretStorage?.setSecret) {
-		const hasLegacySecrets = secretOptionNames.some((name) => {
+		const hasLegacySecrets = secretOptionEntries.some(([name]) => {
 			const value = command.settings?.[name];
 			return typeof value === "string" && value.length > 0;
 		});
@@ -648,16 +729,39 @@ export async function migrateUserScriptSecretSettings(
 
 	let migrated = false;
 
-	for (const settingName of secretOptionNames) {
+	for (const [settingName, option] of secretOptionEntries) {
 		const value = command.settings?.[settingName];
 		if (isUserScriptSecretRef(value)) continue;
-		if (typeof value !== "string" || value.length === 0) continue;
+		if (typeof value !== "string" || value.length === 0) {
+			if (!optionDefinesStableSecretId(option)) continue;
+
+			const secretRef = buildUserScriptSecretId(command, settingName, option);
+			const existingSecret = await readSecretStorageEntry(app, secretRef);
+			if (!existingSecret) continue;
+
+			command.settings[settingName] = createUserScriptSecretRef(secretRef);
+			for (const [existingName, existingValue] of Object.entries(
+				command.settings,
+			)) {
+				if (
+					existingName !== settingName &&
+					isUserScriptSecretRef(existingValue) &&
+					existingValue.secretRef === secretRef
+				) {
+					delete command.settings[existingName];
+				}
+			}
+			migrated = true;
+			continue;
+		}
 
 		const secretRef = await storeUserScriptSecret(
 			app,
 			command,
 			settingName,
 			value,
+			undefined,
+			option,
 		);
 		if (!secretRef) continue;
 
