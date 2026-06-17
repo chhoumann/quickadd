@@ -247,6 +247,52 @@ export async function resolveUserScriptSettings(
 	return resolvedSettings;
 }
 
+export async function migrateUserScriptSecretSettings(
+	app: App | undefined,
+	command: IUserScript,
+	userScriptSettings: UserScriptSettingsDefinition | undefined,
+): Promise<boolean> {
+	const secretOptionNames = getSecretOptionNames(userScriptSettings);
+	if (secretOptionNames.length === 0) return false;
+
+	const secretStorage = getSecretStorage(app);
+	if (!secretStorage?.getSecret || !secretStorage?.setSecret) {
+		const hasLegacySecrets = secretOptionNames.some((name) => {
+			const value = command.settings?.[name];
+			return typeof value === "string" && value.length > 0;
+		});
+
+		if (hasLegacySecrets) {
+			log.logWarning(
+				`SecretStorage unavailable; leaving plaintext user script secret settings for "${command.name}" unchanged.`,
+			);
+		}
+
+		return false;
+	}
+
+	let migrated = false;
+
+	for (const settingName of secretOptionNames) {
+		const value = command.settings?.[settingName];
+		if (isUserScriptSecretRef(value)) continue;
+		if (typeof value !== "string" || value.length === 0) continue;
+
+		const secretRef = await storeUserScriptSecret(
+			app,
+			command,
+			settingName,
+			value,
+		);
+		if (!secretRef) continue;
+
+		command.settings[settingName] = createUserScriptSecretRef(secretRef);
+		migrated = true;
+	}
+
+	return migrated;
+}
+
 export function getSecretRefFromCommandSetting(
 	command: IUserScript,
 	settingName: string,

@@ -9,7 +9,10 @@ import { CommandType } from "../types/macros/CommandType";
 import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
-import { resolveUserScriptSettings } from "../utils/userScriptSecrets";
+import {
+	migrateUserScriptSecretSettings,
+	resolveUserScriptSettings,
+} from "../utils/userScriptSecrets";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -285,6 +288,15 @@ export class SingleMacroEngine {
 					userScriptCommand.settings,
 					settingsExport as Record<string, unknown>,
 				);
+				if (
+					await migrateUserScriptSecretSettings(
+						this.app,
+						userScriptCommand,
+						settingsExport as Record<string, unknown>,
+					)
+				) {
+					await this.plugin.saveSettings?.();
+				}
 			}
 
 			const resolvedMember =

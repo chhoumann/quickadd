@@ -50,6 +50,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import {
+	migrateUserScriptSecretSettings,
 	resolveUserScriptSettings,
 	type UserScriptSettingsDefinition,
 } from "../utils/userScriptSecrets";
@@ -350,6 +351,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		if (userScriptSettings) {
 			// Initialize default values for settings before executing the script
 			initializeUserScriptSettings(command.settings, userScriptSettings);
+			if (
+				await migrateUserScriptSecretSettings(
+					this.app,
+					command,
+					userScriptSettings,
+				)
+			) {
+				await this.plugin.saveSettings?.();
+			}
 		}
 		this.userScriptCommand = command;
 		this.userScriptSettingsDefinition = userScriptSettings;

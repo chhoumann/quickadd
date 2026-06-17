@@ -20,6 +20,7 @@ const {
 	createUserScriptSecretRef,
 	isSecretUserScriptOption,
 	isUserScriptSecretRef,
+	migrateUserScriptSecretSettings,
 	resolveUserScriptSettings,
 	storeUserScriptSecret,
 } = await import("./userScriptSecrets");
@@ -179,5 +180,96 @@ describe("userScriptSecrets", () => {
 
 		await expect(clearUserScriptSecret(app, "secret-ref")).resolves.toBe(true);
 		expect(setSecret).toHaveBeenCalledWith("secret-ref", "");
+	});
+
+	it("migrates legacy plaintext secret settings into SecretStorage", async () => {
+		const command = createCommand({
+			"API Key": "legacy-secret",
+			Model: "gpt-4",
+		});
+		const setSecret = vi.fn().mockResolvedValue(undefined);
+		const app = createApp({
+			getSecret: vi.fn().mockResolvedValue(null),
+			setSecret,
+		});
+
+		const changed = await migrateUserScriptSecretSettings(app, command, {
+			options: {
+				"API Key": { type: "secret" },
+				Model: { type: "text" },
+			},
+		});
+
+		expect(changed).toBe(true);
+		expect(setSecret).toHaveBeenCalledWith(
+			"quickadd-user-script-command-1-api-key",
+			"legacy-secret",
+		);
+		expect(command.settings["API Key"]).toEqual(
+			createUserScriptSecretRef("quickadd-user-script-command-1-api-key"),
+		);
+		expect(JSON.stringify(command.settings)).not.toContain("legacy-secret");
+	});
+
+	it("does not migrate or clear legacy plaintext when SecretStorage is unavailable", async () => {
+		const command = createCommand({
+			"API Key": "legacy-secret",
+		});
+
+		const changed = await migrateUserScriptSecretSettings(undefined, command, {
+			options: {
+				"API Key": { type: "secret" },
+			},
+		});
+
+		expect(changed).toBe(false);
+		expect(command.settings["API Key"]).toBe("legacy-secret");
+		expect(logWarningMock).toHaveBeenCalledWith(
+			expect.stringContaining("SecretStorage unavailable"),
+		);
+	});
+
+	it("leaves plaintext untouched when SecretStorage write fails", async () => {
+		const command = createCommand({
+			"API Key": "legacy-secret",
+		});
+		const app = createApp({
+			getSecret: vi.fn().mockResolvedValue(null),
+			setSecret: vi.fn().mockRejectedValue(new Error("write failed")),
+		});
+
+		const changed = await migrateUserScriptSecretSettings(app, command, {
+			options: {
+				"API Key": { type: "secret" },
+			},
+		});
+
+		expect(changed).toBe(false);
+		expect(command.settings["API Key"]).toBe("legacy-secret");
+		expect(logWarningMock).toHaveBeenCalledWith(
+			expect.stringContaining("Failed to write user script SecretStorage entry"),
+		);
+	});
+
+	it("is a no-op for already migrated secret settings", async () => {
+		const command = createCommand({
+			"API Key": createUserScriptSecretRef(
+				"quickadd-user-script-command-1-api-key",
+			),
+		});
+		const setSecret = vi.fn();
+		const app = createApp({
+			getSecret: vi.fn().mockResolvedValue("existing-secret"),
+			setSecret,
+		});
+
+		const changed = await migrateUserScriptSecretSettings(app, command, {
+			options: {
+				"API Key": { type: "secret" },
+			},
+		});
+
+		expect(changed).toBe(false);
+		expect(setSecret).not.toHaveBeenCalled();
 	});
 });
