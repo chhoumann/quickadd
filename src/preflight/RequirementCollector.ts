@@ -18,6 +18,7 @@ import {
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "src/utils/EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
 import {
 	buildFileDisplayLabels,
 	FILE_PICK_PREFIX,
@@ -431,11 +432,20 @@ export class RequirementCollector extends Formatter {
 		// in the one-page form land where replaceFieldVarInString looks them up
 		// (issue #1184). Actual suggestions are provided by the UI.
 		const key = `${FIELD_VARIABLE_PREFIX}${variableName}`;
+		const { filters } = FieldSuggestionParser.parse(variableName);
 		if (!this.requirements.has(key)) {
 			this.requirements.set(key, {
 				id: key,
 				label: variableName,
 				type: "field-suggest",
+				multiEmit: filters.multiSelect ? "text" : undefined,
+				suggesterConfig: filters.multiSelect
+					? {
+							allowCustomInput: true,
+							caseSensitive: filters.caseSensitive ?? false,
+							multiSelect: true,
+						}
+					: undefined,
 				source: "collected",
 			});
 		}

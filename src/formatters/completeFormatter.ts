@@ -553,6 +553,9 @@ export class CompleteFormatter extends Formatter {
 			if (values.length === 0) {
 				// No values found even after processing defaults
 				let fallbackPrompt = `No existing values were found in your vault.`;
+				if (filters.multiSelect) {
+					fallbackPrompt += `\n\nEnter multiple values separated by commas.`;
+				}
 
 				// Suggest smart defaults if no custom default was provided
 				if (!filters.defaultValue) {
@@ -565,19 +568,31 @@ export class CompleteFormatter extends Formatter {
 					}
 				}
 
-				return await GenericInputPrompt.PromptWithContext(
-				this.app,
-				`Enter value for ${fieldName}`,
-				fallbackPrompt,
-				undefined,
-				this.getLinkSourcePath() ?? undefined
+				const fallbackValue = await GenericInputPrompt.PromptWithContext(
+					this.app,
+					`Enter value for ${fieldName}`,
+					fallbackPrompt,
+					undefined,
+					this.getLinkSourcePath() ?? undefined,
 				);
+				return filters.multiSelect
+					? fallbackValue
+							.split(",")
+							.map((value) => value.trim())
+							.filter(Boolean)
+					: fallbackValue;
 			}
 
 			// Enhance placeholder with context
 			let placeholder = `Enter value for ${fieldName}`;
 			if (hasDefaultValue) {
 				placeholder = `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+			}
+
+			if (filters.multiSelect) {
+				return await this.suggestForValueMulti(values, true, {
+					placeholder,
+				});
 			}
 
 			return await InputSuggester.Suggest(this.app, values, values, {

@@ -9,6 +9,7 @@ export interface FieldFilter {
 	defaultEmpty?: boolean;
 	defaultAlways?: boolean;
 	caseSensitive?: boolean;
+	multiSelect?: boolean;
 	excludeFolders?: string[];
 	excludeTags?: string[];
 	excludeFiles?: string[];
@@ -32,6 +33,11 @@ export class FieldSuggestionParser {
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
+			if (filterPart.toLowerCase() === "multi") {
+				filters.multiSelect = true;
+				continue;
+			}
+
 			const parsed = parsePipeKeyValue(filterPart);
 			if (!parsed) continue; // Skip invalid filter format
 
@@ -78,6 +84,9 @@ export class FieldSuggestionParser {
 					break;
 				case "case-sensitive":
 					filters.caseSensitive = filterValue.toLowerCase() === "true";
+					break;
+				case "multi":
+					filters.multiSelect = filterValue.toLowerCase() !== "false";
 					break;
 				case "exclude-folder":
 					if (!filters.excludeFolders) {

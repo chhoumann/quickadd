@@ -165,9 +165,25 @@ describe("FieldSuggestionParser", () => {
 			});
 		});
 
+		it("should parse bare multi-select mode", () => {
+			const result = FieldSuggestionParser.parse("fieldname|multi");
+			expect(result).toEqual({
+				fieldName: "fieldname",
+				filters: { multiSelect: true },
+			});
+		});
+
+		it("should parse keyed multi-select mode", () => {
+			const result = FieldSuggestionParser.parse("fieldname|multi:false");
+			expect(result).toEqual({
+				fieldName: "fieldname",
+				filters: { multiSelect: false },
+			});
+		});
+
 		it("should handle complex combinations with all filter types", () => {
 			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:active|tag:project|exclude-folder:archive|default:Planning|default-empty:true|case-sensitive:false",
+				"fieldname|folder:active|tag:project|exclude-folder:archive|default:Planning|default-empty:true|case-sensitive:false|multi",
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
@@ -178,6 +194,7 @@ describe("FieldSuggestionParser", () => {
 					defaultValue: "Planning",
 					defaultEmpty: true,
 					caseSensitive: false,
+					multiSelect: true,
 				},
 			});
 		});

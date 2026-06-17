@@ -748,6 +748,53 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 		expect(mocks.inputSuggesterSuggest).toHaveBeenCalled();
 	});
 
+	it("uses the multi suggester for explicit FIELD multi-select", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "people",
+			filters: { multiSelect: true },
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alice", "Bob"],
+			hasDefaultValue: false,
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Alice", "Bob"]);
+
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{FIELD:people|multi}}")).resolves.toBe(
+			"Alice,Bob",
+		);
+		expect(mocks.multiSuggesterSuggest).toHaveBeenCalledWith(
+			expect.anything(),
+			["Alice", "Bob"],
+			["Alice", "Bob"],
+			expect.objectContaining({ allowCustomValue: true }),
+		);
+		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
+	});
+
+	it("collects FIELD multi-select arrays as structured YAML frontmatter", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "people",
+			filters: { multiSelect: true },
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alice", "Bob"],
+			hasDefaultValue: false,
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Alice", "Bob"]);
+
+		const f = defaultFormatter();
+		const output = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent("---\npeople: {{FIELD:people|multi}}\n---\n"),
+		);
+
+		expect(output).toBe("---\npeople: []\n---\n");
+		expect(f.getAndClearTemplatePropertyVars().get("people")).toEqual([
+			"Alice",
+			"Bob",
+		]);
+	});
+
 	it("falls back to a free-form prompt when no values are found", async () => {
 		mocks.fieldParse.mockReturnValue({
 			fieldName: "status",

@@ -249,6 +249,30 @@ Body`);
         type: "field-suggest",
       });
     });
+
+    it("registers explicit FIELD multi-select without changing scalar FIELD", async () => {
+      const app = makeApp();
+      const plugin = makePlugin();
+      const rc = new RequirementCollector(app, plugin);
+      await rc.scanString(
+        "{{FIELD:People}} {{FIELD:People|folder:Contacts|multi}}",
+      );
+
+      expect(rc.requirements.get("FIELD:People")).toMatchObject({
+        type: "field-suggest",
+      });
+      expect(
+        rc.requirements.get("FIELD:People|folder:Contacts|multi"),
+      ).toMatchObject({
+        type: "field-suggest",
+        multiEmit: "text",
+        suggesterConfig: {
+          allowCustomInput: true,
+          caseSensitive: false,
+          multiSelect: true,
+        },
+      });
+    });
   });
 });
 

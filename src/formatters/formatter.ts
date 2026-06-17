@@ -888,9 +888,22 @@ export abstract class Formatter {
 					);
 				}
 
-				const replacement = this.hasConcreteVariable(fieldVariableKey)
-					? String(this.variables.get(fieldVariableKey))
+				const rawValue = this.hasConcreteVariable(fieldVariableKey)
+					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fullMatch);
+				const structuredYamlValue = this.propertyCollector.maybeCollect({
+					input,
+					matchStart: match.index,
+					matchEnd: match.index + match[0].length,
+					rawValue,
+					fallbackKey: fullMatch,
+					collectionActive: this.templatePropertyCollectionDepth > 0,
+					heuristicEnabled: false,
+				});
+				const placeholder = getYamlPlaceholder(structuredYamlValue);
+				const replacement = placeholder ?? (
+					Array.isArray(rawValue) ? rawValue.join(",") : String(rawValue ?? "")
+				);
 
 				output += replacement;
 			} else {
@@ -1101,7 +1114,7 @@ export abstract class Formatter {
 		return [];
 	}
 
-	protected abstract suggestForField(variableName: string): Promise<string>;
+	protected abstract suggestForField(variableName: string): Promise<unknown>;
 
 	protected async replaceDateVariableInString(input: string) {
 		let output: string = input;

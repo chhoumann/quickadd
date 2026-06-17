@@ -9,7 +9,10 @@ import {
 } from "obsidian";
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { createDatePicker } from "src/gui/date-picker/datePicker";
-import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
+import {
+	FIELD_MULTI_VALUES_DATA_KEY,
+	FieldValueInputSuggest,
+} from "src/gui/suggesters/FieldValueInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import {
@@ -26,6 +29,7 @@ import {
 	mapMappedSuggesterValue,
 	resolveDropdownInitialValue,
 } from "./suggesterValueMapping";
+import { encodeMultiSelectValues } from "./multiSelectEncoding";
 
 type PreviewComputer = (
 	values: Record<string, string>,
@@ -373,6 +377,34 @@ export class OnePageInputModal extends Modal {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
+				if (req.suggesterConfig?.multiSelect) {
+					input.inputEl.addEventListener("input", (event) => {
+						const fromCompletion = Boolean(
+							(event as CompletionInputEvent).fromCompletion,
+						);
+						if (!fromCompletion) return;
+
+						const encodedValues =
+							input.inputEl.dataset[FIELD_MULTI_VALUES_DATA_KEY];
+						if (!encodedValues) return;
+
+						try {
+							const parsed = JSON.parse(encodedValues);
+							if (Array.isArray(parsed)) {
+								setValue(
+									req.id,
+									encodeMultiSelectValues(
+										parsed.filter(
+											(item): item is string => typeof item === "string",
+										),
+									),
+								);
+							}
+						} catch {
+							// Ignore malformed internal state and keep the visible text.
+						}
+					});
+				}
 				// Attach inline suggester powered by vault data & filters encoded in
 				// req.id. Collected FIELD requirements are keyed "FIELD:<specifier>";
 				// strip the prefix so the suggester parses the bare field specifier.

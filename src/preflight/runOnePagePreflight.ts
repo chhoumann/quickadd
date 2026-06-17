@@ -10,6 +10,7 @@ import {
 	FILE_VARIABLE_PREFIX,
 } from "src/utils/fileSyntax";
 import { toWikiLink } from "src/utils/linkWrap";
+import { decodeMultiSelectValues } from "./multiSelectEncoding";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
@@ -111,19 +112,22 @@ export async function runOnePagePreflight(
 		Object.entries(values).forEach(([k, v]) => {
 			const multiInfo = multiInfoByKey.get(k);
 			if (multiInfo !== undefined) {
-				const items = String(v)
-					.split(",")
-					.map((s) => s.trim())
-					.filter(Boolean)
-					// Drop typed entries that aren't options unless the token opted
-					// into custom input, matching the runtime MultiSuggester.
-					.filter(
-						(label) =>
-							multiInfo.allowCustom || multiInfo.displayToValue.has(label),
-					)
-					// Map the display label back to its value; a typed custom value
-					// (no mapping) passes through unchanged.
-					.map((label) => multiInfo.displayToValue.get(label) ?? label);
+				const decodedItems = decodeMultiSelectValues(String(v));
+				const items =
+					decodedItems ??
+					String(v)
+						.split(",")
+						.map((s) => s.trim())
+						.filter(Boolean)
+						// Drop typed entries that aren't options unless the token opted
+						// into custom input, matching the runtime MultiSuggester.
+						.filter(
+							(label) =>
+								multiInfo.allowCustom || multiInfo.displayToValue.has(label),
+						)
+						// Map the display label back to its value; a typed custom value
+						// (no mapping) passes through unchanged.
+						.map((label) => multiInfo.displayToValue.get(label) ?? label);
 				choiceExecutor.variables.set(
 					k,
 					multiInfo.emit === "linklist" ? items.map(toWikiLink) : items,

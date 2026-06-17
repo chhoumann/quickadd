@@ -15,6 +15,7 @@ export function generateFieldCacheKey(filters: FieldFilter): string {
 		parts.push(`inline-code-blocks:${filters.inlineCodeBlocks.join(",")}`);
 	}
 	if (filters.caseSensitive) parts.push("case-sensitive:true");
+	if (filters.multiSelect) parts.push("multi:true");
 	if (filters.excludeFolders)
 		parts.push(`exclude-folders:${filters.excludeFolders.join(",")}`);
 	if (filters.excludeTags)

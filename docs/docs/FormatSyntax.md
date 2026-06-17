@@ -366,10 +366,11 @@ Example: `project: {{FIELD:project}}`.
 - `{{FIELD:fieldname|default:Status - To Do}}` - Prepend a default suggestion; the modal placeholder shows it and pressing Enter accepts it.
 - `{{FIELD:fieldname|default:Draft|default-empty:true}}` - Only add the default when no matching values are found.
 - `{{FIELD:fieldname|default:Draft|default-always:true}}` - Keep the default first even if other suggestions exist.
+- `{{FIELD:fieldname|multi}}` - Select multiple values from the field suggestions. In YAML frontmatter, this writes a list; elsewhere, the selected values are inserted as comma-separated text.
 - Combine filters: `{{FIELD:fieldname|folder:daily|tag:work|exclude-folder:templates|inline:true|inline-code-blocks:ad-note}}`
 - Multiple exclusions: `{{FIELD:fieldname|exclude-folder:templates|exclude-folder:archive}}`
 
-Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}`.
+Examples: `status: {{FIELD:status|default:Draft|default-always:true}}`, `people: {{FIELD:person|multi}}`, or `id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}`.
 
 This is currently in beta, and the syntax can change—leave your thoughts [here](https://github.com/chhoumann/quickadd/issues/337).
 

@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
+import { decodeMultiSelectValues } from "./multiSelectEncoding";
 
 vi.mock("obsidian", () => {
 	class Modal {
@@ -179,6 +180,7 @@ const { fieldSuggestConstructorArgs } = vi.hoisted(() => ({
 }));
 
 vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
+	FIELD_MULTI_VALUES_DATA_KEY: "quickaddFieldMultiValues",
 	FieldValueInputSuggest: class {
 		constructor(...args: unknown[]) {
 			fieldSuggestConstructorArgs.push(args);
@@ -407,6 +409,46 @@ describe("OnePageInputModal", () => {
 			});
 			expect(fieldSuggestConstructorArgs).toHaveLength(1);
 			expect(fieldSuggestConstructorArgs[0][2]).toBe("People");
+		});
+
+		it("preserves exact FIELD multi selections that contain commas", async () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "FIELD:People|multi",
+					label: "People|multi",
+					type: "field-suggest",
+					suggesterConfig: { multiSelect: true, allowCustomInput: true },
+				},
+			];
+
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const contentEl = (modal as any).contentEl as HTMLElement;
+			const fieldInput = contentEl.querySelector(
+				"input",
+			) as HTMLInputElement;
+			fieldInput.value = "Doe, Jane, ";
+			fieldInput.dataset.quickaddFieldMultiValues = JSON.stringify([
+				"Doe, Jane",
+			]);
+			const completionEvent = new Event("input", { bubbles: true }) as Event & {
+				fromCompletion?: boolean;
+			};
+			completionEvent.fromCompletion = true;
+			fieldInput.dispatchEvent(completionEvent);
+
+			const submitButton = Array.from(
+				contentEl.querySelectorAll(
+					"button",
+				) as NodeListOf<HTMLButtonElement>,
+			).find(
+				(button) => button.textContent === "Submit",
+			) as HTMLButtonElement;
+			submitButton.click();
+
+			const result = await modal.waitForClose;
+			expect(decodeMultiSelectValues(result["FIELD:People|multi"])).toEqual([
+				"Doe, Jane",
+			]);
 		});
 	});
 
