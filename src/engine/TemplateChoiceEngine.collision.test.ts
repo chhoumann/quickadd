@@ -282,6 +282,41 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		);
 	});
 
+	it("uses normalized generated paths for vault-relative routing", async () => {
+		const { app, engine } = createEngine();
+		formatFileNameMock.mockResolvedValue("Projects\n/Issue 221");
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
+
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue(
+			createExistingFolder("Default"),
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockImplementation(
+			(path: string) => path === "Projects" ? createExistingFolder("Projects") : null,
+		);
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			false,
+		);
+
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createExistingFile("Projects/Issue 221.md"));
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Projects/Issue 221.md",
+			engine.choice.templatePath,
+		);
+	});
+
 	it("prompts before applying increment mode when auto behavior is off", async () => {
 		const { app, engine } = createEngine();
 		const existingFile = createExistingFile("Test Template.md");

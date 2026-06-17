@@ -318,6 +318,22 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(result).toEqual({ kind: "folder", folder: "journals" });
 	});
 
+	it("normalizes control characters before folder route decisions", () => {
+		const app = createApp();
+		vi.mocked(isFolder).mockReturnValue(false);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "journals\n/" }),
+			createExecutor(),
+		);
+
+		const result = (engine as any).resolveCaptureTarget("journals\n/");
+
+		expect(result).toEqual({ kind: "folder", folder: "journals" });
+	});
+
 	it("treats folder path as file when a file exists", () => {
 		const app = createApp();
 		vi.mocked(isFolder).mockReturnValue(true);
@@ -483,6 +499,29 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(resolved).toBe("Inbox/note.md");
 	});
 
+	it("uses normalized folder paths for folder capture pickers", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Existing.md" } as any,
+		]);
+		const suggestSpy = vi.fn(async () => "Inbox/Existing.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox\n/" }),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(getMarkdownFilesInFolder).toHaveBeenCalledWith(
+			expect.anything(),
+			"Inbox/",
+		);
+		expect(resolved).toBe("Inbox/Existing.md");
+	});
+
 	it("orders the folder picker by recency and gates the create row when enabled", async () => {
 		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
 			{ path: "Inbox/Apple.md", basename: "Apple" },
@@ -533,6 +572,56 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(displayItems).toEqual(["Zebra.md", "Apple.md", "Mango.md"]);
 		expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
+	});
+
+	it("suppresses folder create rows for values that normalize to existing files", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Apple.md", basename: "Apple" },
+		] as any);
+
+		const suggestSpy = vi.fn(async () => "Inbox/Apple.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const app = createApp() as any;
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Inbox/Line Break.md" ? { path } : null,
+		);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "Inbox/",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		await (engine as any).selectFileInFolder("Inbox/", false);
+
+		const options = (suggestSpy.mock.calls[0] as unknown[])[3] as {
+			valueExists: (value: string) => boolean;
+		};
+		expect(options.valueExists("Line\nBreak")).toBe(true);
+	});
+
+	it("suppresses vault create rows for basenames normalized to existing files", () => {
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).captureTargetAlreadyExists(
+				"Line\nBreak",
+				new Set(["line break"]),
+			),
+		).toBe(true);
 	});
 
 	it("disables the create row when create-if-not-exists is off", async () => {
