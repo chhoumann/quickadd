@@ -91,6 +91,102 @@ describe("jumpToNextTemplaterCursorIfPossible", () => {
 		).resolves.toBe(true);
 	});
 
+	it("returns true when Templater consumes a cursor marker at the current position", async () => {
+		const app = new App();
+		const file = new TFile();
+		file.path = "QA.md";
+		file.extension = "md";
+		let content = "<% tp.file.cursor() %>Capture text";
+
+		(app as any).workspace.getActiveFile = () => file;
+		(app as any).workspace.getActiveViewOfType = () => ({
+			file,
+			editor: {
+				getCursor: () => ({ line: 0, ch: 0 }),
+				getValue: () => content,
+			},
+		});
+
+		const editorHandler = {
+			jump_to_next_cursor_location: async () => {
+				content = "Capture text";
+			},
+		};
+
+		(app as any).plugins.plugins["templater-obsidian"] = {
+			settings: { auto_jump_to_cursor: true },
+			editor_handler: editorHandler,
+		};
+
+		await expect(
+			jumpToNextTemplaterCursorIfPossible(app as any, file as any),
+		).resolves.toBe(true);
+	});
+
+	it("returns true when Templater consumes an ordered cursor marker", async () => {
+		const app = new App();
+		const file = new TFile();
+		file.path = "QA.md";
+		file.extension = "md";
+		let content = "<% tp.file.cursor(1) %>Capture text";
+
+		(app as any).workspace.getActiveFile = () => file;
+		(app as any).workspace.getActiveViewOfType = () => ({
+			file,
+			editor: {
+				getCursor: () => ({ line: 0, ch: 0 }),
+				getValue: () => content,
+			},
+		});
+
+		const editorHandler = {
+			jump_to_next_cursor_location: async () => {
+				content = "Capture text";
+			},
+		};
+
+		(app as any).plugins.plugins["templater-obsidian"] = {
+			settings: { auto_jump_to_cursor: true },
+			editor_handler: editorHandler,
+		};
+
+		await expect(
+			jumpToNextTemplaterCursorIfPossible(app as any, file as any),
+		).resolves.toBe(true);
+	});
+
+	it("returns false when Templater neither moves nor consumes a cursor marker", async () => {
+		const app = new App();
+		const file = new TFile();
+		file.path = "QA.md";
+		file.extension = "md";
+
+		(app as any).workspace.getActiveFile = () => file;
+		(app as any).workspace.getActiveViewOfType = () => ({
+			file,
+			editor: {
+				getCursor: () => ({ line: 1, ch: 2 }),
+				getValue: () => "Capture text",
+			},
+		});
+
+		const editorHandler = {
+			jump_to_next_cursor_location: async () => {
+				// Templater returns void even when no cursor marker exists.
+				await Promise.resolve();
+			},
+		};
+
+		(app as any).plugins.plugins["templater-obsidian"] = {
+			settings: { auto_jump_to_cursor: true },
+			editor_handler: editorHandler,
+		};
+
+		await expect(
+			jumpToNextTemplaterCursorIfPossible(app as any, file as any),
+		).resolves.toBe(false);
+	});
+
 	it("returns false when Templater auto jump is disabled", async () => {
 		const app = new App();
 		const file = new TFile();

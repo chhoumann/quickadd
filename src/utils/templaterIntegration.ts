@@ -35,26 +35,40 @@ type CursorSnapshot = {
 	ch: number;
 };
 
-function getActiveEditorCursorSnapshot(
+type EditorSnapshot = {
+	cursor: CursorSnapshot | null;
+	value: string | null;
+};
+
+const TEMPLATER_CURSOR_MARKER_REGEX =
+	/<%\s*tp\.file\.cursor\([0-9]*\)\s*%>/g;
+
+function getActiveEditorSnapshot(
 	app: App,
 	file: TFile,
-): CursorSnapshot | null {
+): EditorSnapshot {
 	try {
 		const view = app.workspace.getActiveViewOfType(MarkdownView);
-		if (!view || view.file?.path !== file.path) return null;
-
-		const cursor = view.editor?.getCursor?.();
-		if (
-			!cursor ||
-			typeof cursor.line !== "number" ||
-			typeof cursor.ch !== "number"
-		) {
-			return null;
+		if (!view || view.file?.path !== file.path) {
+			return { cursor: null, value: null };
 		}
 
-		return { line: cursor.line, ch: cursor.ch };
+		const editor = view.editor;
+
+		const cursor = editor?.getCursor?.();
+		const cursorSnapshot =
+			cursor &&
+			typeof cursor.line === "number" &&
+			typeof cursor.ch === "number"
+				? { line: cursor.line, ch: cursor.ch }
+				: null;
+
+		const value =
+			typeof editor?.getValue === "function" ? editor.getValue() : null;
+
+		return { cursor: cursorSnapshot, value };
 	} catch {
-		return null;
+		return { cursor: null, value: null };
 	}
 }
 
@@ -66,6 +80,34 @@ function didCursorMove(
 		before !== null &&
 		after !== null &&
 		(before.line !== after.line || before.ch !== after.ch)
+	);
+}
+
+function countTemplaterCursorMarkers(value: string | null): number | null {
+	if (typeof value !== "string") return null;
+	return [...value.matchAll(TEMPLATER_CURSOR_MARKER_REGEX)].length;
+}
+
+function didConsumeTemplaterCursorMarker(
+	before: string | null,
+	after: string | null,
+): boolean {
+	const beforeMarkerCount = countTemplaterCursorMarkers(before);
+	const afterMarkerCount = countTemplaterCursorMarkers(after);
+	return (
+		beforeMarkerCount !== null &&
+		afterMarkerCount !== null &&
+		beforeMarkerCount > afterMarkerCount
+	);
+}
+
+function didTemplaterHandleCursor(
+	before: EditorSnapshot,
+	after: EditorSnapshot,
+): boolean {
+	return (
+		didCursorMove(before.cursor, after.cursor) ||
+		didConsumeTemplaterCursorMarker(before.value, after.value)
 	);
 }
 
@@ -455,15 +497,15 @@ export async function jumpToNextTemplaterCursorIfPossible(
 	const jump = editorHandler?.jump_to_next_cursor_location;
 
 	if (!autoJumpEnabled) return false;
-	const beforeCursor = getActiveEditorCursorSnapshot(app, file);
+	const beforeJump = getActiveEditorSnapshot(app, file);
 
 	if (typeof jump === "function") {
 		try {
 			// Preserve Templater's internal `this` context.
 			await jump.call(editorHandler, file, true);
-			return didCursorMove(
-				beforeCursor,
-				getActiveEditorCursorSnapshot(app, file),
+			return didTemplaterHandleCursor(
+				beforeJump,
+				getActiveEditorSnapshot(app, file),
 			);
 		} catch (err) {
 			log.logWarning(
@@ -481,9 +523,9 @@ export async function jumpToNextTemplaterCursorIfPossible(
 			"templater-obsidian:jump-to-next-cursor-location",
 		);
 		if (!commandRan) return false;
-		return didCursorMove(
-			beforeCursor,
-			getActiveEditorCursorSnapshot(app, file),
+		return didTemplaterHandleCursor(
+			beforeJump,
+			getActiveEditorSnapshot(app, file),
 		);
 	} catch {
 		// no-op
