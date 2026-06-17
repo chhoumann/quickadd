@@ -29,6 +29,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
 import {
 	appendToCurrentLine,
+	copyFileLinkToClipboard,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
@@ -199,28 +200,27 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 	}
 
-	private insertCaptureLink(
+	private async applyCaptureLinkSideEffects(
 		file: TFile,
 		linkOptions: AppendLinkOptions,
 		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
-	): void {
-		if (!linkOptions.enabled) {
-			return;
-		}
-
-		if (
-			this.shouldSkipRequiredCanvasLinkInsertion(linkOptions, isCanvasTriggered)
-		) {
-			if (this.plugin.settings.showCaptureNotification) {
-				new Notice(
-					"Canvas capture skipped link insertion because no Markdown editor is focused.",
-					DEFAULT_NOTICE_DURATION,
-				);
+	): Promise<void> {
+		if (linkOptions.enabled) {
+			if (
+				this.shouldSkipRequiredCanvasLinkInsertion(linkOptions, isCanvasTriggered)
+			) {
+				if (this.plugin.settings.showCaptureNotification) {
+					new Notice(
+						"Canvas capture skipped link insertion because no Markdown editor is focused.",
+						DEFAULT_NOTICE_DURATION,
+					);
+				}
+			} else {
+				insertFileLinkToActiveView(this.app, file, linkOptions);
 			}
-			return;
 		}
 
-		insertFileLinkToActiveView(this.app, file, linkOptions);
+		await copyFileLinkToClipboard(this.app, file, linkOptions);
 	}
 
 	async run(): Promise<void> {
@@ -419,7 +419,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-			this.insertCaptureLink(file, linkOptions, {
+			await this.applyCaptureLinkSideEffects(file, linkOptions, {
 				isCanvasTriggered: !!canvasTarget,
 			});
 
@@ -516,7 +516,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 		}
 
-		this.insertCaptureLink(file, linkOptions, {
+		await this.applyCaptureLinkSideEffects(file, linkOptions, {
 			isCanvasTriggered: true,
 		});
 

@@ -130,6 +130,8 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
     -   **Enabled (skip if no active file)** – inserts the link when possible and silently drops `{{LINKCURRENT}}` if nothing is open
     -   **Disabled** – never append a link
 
+    Enable _Copy link to clipboard_ to copy the captured file's Obsidian link after the Capture choice finishes. This can be used by itself, so the link is available for pasting somewhere else without inserting it into the active note.
+
     When either enabled mode is selected, a _Link placement_ dropdown appears so you can choose where the link is placed:
     -   **Replace selection** - Replaces any selected text with the link (default)
     -   **After selection** - Preserves selected text and places the link after it

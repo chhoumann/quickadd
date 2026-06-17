@@ -16,6 +16,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
+	copyFileLinkToClipboard,
 	insertFileLinkToActiveView,
 	jumpToNextTemplaterCursorIfPossible,
 	openExistingFileTab,
@@ -168,7 +169,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			});
 
 			if (linkOptions.enabled && createdFile) {
-			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+			}
+
+			if (createdFile) {
+				await copyFileLinkToClipboard(this.app, createdFile, linkOptions);
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {

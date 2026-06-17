@@ -29,6 +29,8 @@ function sanitizeLinkType(
 export interface AppendLinkOptions {
 	/** Whether link appending is enabled */
 	enabled: boolean;
+	/** Whether to copy the generated link to the clipboard after the file is produced */
+	copyToClipboard?: boolean;
 	/** Where to place the appended link */
 	placement: LinkPlacement;
 	/**
@@ -70,6 +72,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 
 		return {
 			enabled: appendLink.enabled,
+			copyToClipboard: appendLink.copyToClipboard ?? false,
 			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
 			linkType: sanitizeLinkType(appendLink.linkType, placement),
@@ -79,6 +82,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 	// Convert legacy boolean format to new options format
 	return {
 		enabled: appendLink,
+		copyToClipboard: false,
 		placement: "replaceSelection", // Default placement for backward compatibility
 		requireActiveFile: appendLink ? true : false,
 		linkType: "link",

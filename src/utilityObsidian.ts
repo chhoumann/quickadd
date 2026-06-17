@@ -37,6 +37,8 @@ export {
 	insertOnNewLineBelow,
 	insertLinkWithPlacement,
 	insertFileLinkToActiveView,
+	buildFileMarkdownLink,
+	copyFileLinkToClipboard,
 } from "./utils/editorInsertion";
 
 export {

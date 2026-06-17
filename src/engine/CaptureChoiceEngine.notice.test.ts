@@ -74,6 +74,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		getMarkdownFilesInFolder: vi.fn(async () => []),
 		getMarkdownFilesWithTag: vi.fn(async () => []),
 		insertFileLinkToActiveView: vi.fn(),
+	copyFileLinkToClipboard: vi.fn(async () => false),
 		insertOnNewLineAbove: vi.fn(),
 		insertOnNewLineBelow: vi.fn(),
 		isFolder: vi.fn(() => false),

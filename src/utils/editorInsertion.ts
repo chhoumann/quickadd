@@ -1,5 +1,4 @@
-import type { App, TFile } from "obsidian";
-import { MarkdownView } from "obsidian";
+import { MarkdownView, Notice, type App, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import type { AppendLinkOptions, LinkPlacement } from "../types/linkPlacement";
 import { placementSupportsEmbed } from "../types/linkPlacement";
@@ -217,7 +216,7 @@ export function insertFileLinkToActiveView(
 	}
 
 	const sourcePath = activeFile?.path ?? "";
-	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
+	const baseLink = buildFileMarkdownLink(app, file, sourcePath);
 	const shouldEmbed =
 		linkOptions.linkType === "embed" &&
 		placementSupportsEmbed(linkOptions.placement);
@@ -231,4 +230,33 @@ export function insertFileLinkToActiveView(
 	);
 
 	return true;
+}
+
+export function buildFileMarkdownLink(
+	app: App,
+	file: TFile,
+	sourcePath = app.workspace.getActiveFile()?.path ?? "",
+): string {
+	return app.fileManager.generateMarkdownLink(file, sourcePath);
+}
+
+export async function copyFileLinkToClipboard(
+	app: App,
+	file: TFile,
+	linkOptions: AppendLinkOptions,
+): Promise<boolean> {
+	if (!linkOptions.copyToClipboard) return false;
+
+	const linkText = buildFileMarkdownLink(app, file);
+
+	try {
+		await navigator.clipboard.writeText(linkText);
+		new Notice("Copied link to clipboard.");
+		return true;
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		log.logError(`Could not copy link to clipboard: ${message}`);
+		new Notice("QuickAdd could not copy the link to the clipboard.");
+		return false;
+	}
 }

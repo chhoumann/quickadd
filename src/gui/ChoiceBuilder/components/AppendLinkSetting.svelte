@@ -1,6 +1,7 @@
 <script lang="ts">
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
+import Toggle from "../../components/Toggle.svelte";
 import type {
 	AppendLinkOptions,
 	LinkPlacement,
@@ -29,6 +30,7 @@ type AppendLinkMode = "required" | "optional" | "disabled";
 
 const normalized = $derived(normalizeAppendLinkOptions(appendLink));
 const normalizedLinkType = $derived(normalized.linkType ?? "link");
+const copyToClipboard = $derived(normalized.copyToClipboard ?? false);
 const currentMode = $derived(
 	normalized.enabled
 		? normalized.requireActiveFile
@@ -56,11 +58,20 @@ const linkTypeOptions = [
 function onModeChange(value: string) {
 	switch (value as AppendLinkMode) {
 		case "disabled":
-			appendLink = false;
+			appendLink = copyToClipboard
+				? {
+					enabled: false,
+					copyToClipboard: true,
+					placement: normalized.placement,
+					requireActiveFile: false,
+					linkType: normalizedLinkType,
+				}
+				: false;
 			break;
 		case "required":
 			appendLink = {
 				enabled: true,
+				copyToClipboard,
 				placement: normalized.placement,
 				requireActiveFile: true,
 				linkType: normalizedLinkType,
@@ -69,6 +80,7 @@ function onModeChange(value: string) {
 		case "optional":
 			appendLink = {
 				enabled: true,
+				copyToClipboard,
 				placement: normalized.placement,
 				requireActiveFile: false,
 				linkType: normalizedLinkType,
@@ -93,6 +105,7 @@ function onPlacementChange(value: string) {
 		: "link";
 	appendLink = {
 		enabled: true,
+		copyToClipboard,
 		placement,
 		requireActiveFile,
 		linkType: nextLinkType,
@@ -109,9 +122,36 @@ function onLinkTypeChange(value: string) {
 		typeof current === "boolean" ? normalized.placement : current.placement;
 	appendLink = {
 		enabled: true,
+		copyToClipboard,
 		placement,
 		requireActiveFile,
 		linkType: value as LinkType,
+	};
+}
+
+function onCopyToClipboardChange(value: boolean) {
+	const current = appendLink;
+	const enabled = typeof current === "boolean" ? normalized.enabled : current.enabled;
+	const requireActiveFile =
+		typeof current === "boolean"
+			? normalized.requireActiveFile
+			: current.requireActiveFile;
+	const placement =
+		typeof current === "boolean" ? normalized.placement : current.placement;
+	const linkType =
+		typeof current === "boolean" ? normalizedLinkType : current.linkType ?? normalizedLinkType;
+
+	if (!value && !enabled) {
+		appendLink = false;
+		return;
+	}
+
+	appendLink = {
+		enabled,
+		copyToClipboard: value,
+		placement,
+		requireActiveFile,
+		linkType,
 	};
 }
 </script>
@@ -122,6 +162,19 @@ function onLinkTypeChange(value: string) {
 >
 	{#snippet control()}
 		<Dropdown value={currentMode} options={modeOptions} onchange={onModeChange} />
+	{/snippet}
+</SettingItem>
+
+<SettingItem
+	name="Copy link to clipboard"
+	desc={`Copy the ${fileLabel} file's Obsidian link after QuickAdd finishes.`}
+>
+	{#snippet control()}
+		<Toggle
+			checked={copyToClipboard}
+			ariaLabel="Copy link to clipboard"
+			onchange={onCopyToClipboardChange}
+		/>
 	{/snippet}
 </SettingItem>
 

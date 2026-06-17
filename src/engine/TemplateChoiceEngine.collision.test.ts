@@ -96,6 +96,7 @@ vi.mock("../utilityObsidian", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	getAllFolderPathsInVault: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
+	copyFileLinkToClipboard: vi.fn(async () => false),
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
 }));
@@ -120,6 +121,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { settingsStore } from "../settingsStore";
 import { getPromptModes } from "../template/fileExistsPolicy";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import * as utilityObsidian from "../utilityObsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
@@ -214,6 +216,7 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		formatTemplatePathMock.mockReset();
 		formatTemplatePathMock.mockImplementation(async (input: string) => input);
 		vi.mocked(GenericSuggester.Suggest).mockReset();
+		vi.mocked(utilityObsidian.copyFileLinkToClipboard).mockClear();
 	});
 
 	it("uses the RESOLVED template path for both the target extension and the read (issue #620)", async () => {
@@ -247,6 +250,43 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		expect(createSpy).toHaveBeenCalledWith(
 			"My Board.canvas",
 			"Templates/Board.canvas",
+		);
+	});
+
+	it("copies the link for the final created file after template creation", async () => {
+		const { app, engine } = createEngine();
+		const createdFile = createExistingFile("Test Template.md");
+		engine.choice.appendLink = {
+			enabled: false,
+			copyToClipboard: true,
+			placement: "replaceSelection",
+			requireActiveFile: false,
+			linkType: "link",
+		};
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			false,
+		);
+
+		vi.spyOn(
+			engine as unknown as {
+				createFileWithTemplate: (
+					filePath: string,
+					templatePath: string,
+				) => Promise<TFile | null>;
+			},
+			"createFileWithTemplate",
+		).mockResolvedValue(createdFile);
+
+		await engine.run();
+
+		expect(utilityObsidian.copyFileLinkToClipboard).toHaveBeenCalledWith(
+			app,
+			createdFile,
+			expect.objectContaining({
+				enabled: false,
+				copyToClipboard: true,
+			}),
 		);
 	});
 

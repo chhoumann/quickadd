@@ -45,6 +45,8 @@ Switching modes hides the fields that don't apply, but your configured folder li
 - **Enabled (skip if no active file)** – insert the link when possible and skip silently otherwise
 - **Disabled** – never append a link
 
+Enable **Copy link to clipboard** to copy the created file's Obsidian link after the Template choice finishes. This can be used on its own, so a choice can create a note and place its link on the clipboard without inserting anything into the active note.
+
 When either enabled mode is selected, **Link placement** lets you choose where the link is placed:
 - **Replace selection** - Replaces any selected text with the link (default)
 - **After selection** - Preserves selected text and places the link after it  

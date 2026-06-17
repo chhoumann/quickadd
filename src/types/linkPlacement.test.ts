@@ -39,6 +39,20 @@ describe("LinkPlacement", () => {
 			};
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
+				copyToClipboard: false,
+				linkType: "link",
+			});
+		});
+
+		it("should preserve copyToClipboard when present", () => {
+			const options: AppendLinkOptions = {
+				enabled: false,
+				copyToClipboard: true,
+				placement: "replaceSelection",
+				requireActiveFile: false,
+			};
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
 				linkType: "link",
 			});
 		});
@@ -47,6 +61,7 @@ describe("LinkPlacement", () => {
 			const result = normalizeAppendLinkOptions(true);
 			expect(result).toEqual({
 				enabled: true,
+				copyToClipboard: false,
 				placement: "replaceSelection",
 				requireActiveFile: true,
 				linkType: "link",
@@ -57,6 +72,7 @@ describe("LinkPlacement", () => {
 			const result = normalizeAppendLinkOptions(false);
 			expect(result).toEqual({
 				enabled: false,
+				copyToClipboard: false,
 				placement: "replaceSelection",
 				requireActiveFile: false,
 				linkType: "link",
@@ -70,7 +86,10 @@ describe("LinkPlacement", () => {
 				requireActiveFile: true,
 				linkType: "embed",
 			};
-			expect(normalizeAppendLinkOptions(options)).toEqual(options);
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				copyToClipboard: false,
+			});
 		});
 
 		it("should sanitize embed linkType when placement does not support embeds", () => {
@@ -82,6 +101,7 @@ describe("LinkPlacement", () => {
 			};
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
+				copyToClipboard: false,
 				linkType: "link",
 			});
 		});

@@ -90,6 +90,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		overwriteTemplaterOnce: vi.fn(),
 		getAllFolderPathsInVault: vi.fn(() => []),
 		insertFileLinkToActiveView: vi.fn(),
+	copyFileLinkToClipboard: vi.fn(async () => false),
 		openExistingFileTab: vi.fn(() => null),
 		openFile: vi.fn(),
 	}));

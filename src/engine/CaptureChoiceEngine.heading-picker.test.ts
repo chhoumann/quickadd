@@ -30,6 +30,7 @@ vi.mock("../utilityObsidian", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
+	copyFileLinkToClipboard: vi.fn(async () => false),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
 	isFolder: vi.fn(() => false),

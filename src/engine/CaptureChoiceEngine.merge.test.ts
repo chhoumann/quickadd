@@ -80,6 +80,7 @@ vi.mock("../utilityObsidian", () => ({
 	getMarkdownFilesInFolder: vi.fn(async () => []),
 	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
+	copyFileLinkToClipboard: vi.fn(async () => false),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
 	isFolder: vi.fn(() => false),
@@ -109,6 +110,7 @@ import { TFile } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import * as utilityObsidian from "../utilityObsidian";
 
 const createCaptureChoice = (): ICaptureChoice => ({
 	name: "Test Capture Choice",
@@ -209,6 +211,7 @@ const createEngine = ({
 describe("CaptureChoiceEngine concurrent-edit merge", () => {
 	beforeEach(() => {
 		formatContentWithFileMock.mockReset();
+		vi.mocked(utilityObsidian.copyFileLinkToClipboard).mockClear();
 	});
 
 	it("proceeds when concurrent edits can be merged cleanly", async () => {
@@ -256,5 +259,31 @@ describe("CaptureChoiceEngine concurrent-edit merge", () => {
 		const result = await (engine as any).onFileExists(filePath, "captured ours");
 
 		expect(result.newFileContent).toBe(formattedFileContent);
+	});
+
+	it("copies the captured file link after a successful capture", async () => {
+		const { engine } = createEngine({
+			firstRead: "existing\n",
+			secondRead: "existing\n",
+			formattedFileContent: "existing\ncaptured\n",
+		});
+		engine.choice.appendLink = {
+			enabled: false,
+			copyToClipboard: true,
+			placement: "replaceSelection",
+			requireActiveFile: false,
+			linkType: "link",
+		};
+
+		await engine.run();
+
+		expect(utilityObsidian.copyFileLinkToClipboard).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ path: "Daily/Test.md" }),
+			expect.objectContaining({
+				enabled: false,
+				copyToClipboard: true,
+			}),
+		);
 	});
 });

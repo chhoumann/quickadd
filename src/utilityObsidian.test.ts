@@ -9,6 +9,8 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import {
 	areSameVaultFilePath,
+	buildFileMarkdownLink,
+	copyFileLinkToClipboard,
 	getAllFolderPathsInVault,
 	getUserScript,
 	normalizeVaultFilePath,
@@ -399,6 +401,79 @@ describe("getUserScript", () => {
 		// CommonJS contract: a note script must assign module.exports/exports.default.
 		// Without it, the export is the empty module object, never a runnable function.
 		expect(typeof script).not.toBe("function");
+	});
+});
+
+describe("file link clipboard helpers", () => {
+	it("builds markdown links through Obsidian's file manager", () => {
+		const file = createFile("Folder/Target.md");
+		const app = {
+			workspace: {
+				getActiveFile: vi.fn(() => createFile("Source.md")),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Target]]"),
+			},
+		} as unknown as App;
+
+		expect(buildFileMarkdownLink(app, file)).toBe("[[Target]]");
+		expect(app.fileManager.generateMarkdownLink).toHaveBeenCalledWith(
+			file,
+			"Source.md",
+		);
+	});
+
+	it("copies the generated link to the clipboard", async () => {
+		const writeText = vi.fn(async () => undefined);
+		vi.stubGlobal("navigator", { clipboard: { writeText } });
+		const file = createFile("Folder/Target.md");
+		const app = {
+			workspace: {
+				getActiveFile: vi.fn(() => null),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Folder/Target]]"),
+			},
+		} as unknown as App;
+
+		await expect(
+			copyFileLinkToClipboard(app, file, {
+				enabled: false,
+				copyToClipboard: true,
+				placement: "replaceSelection",
+				requireActiveFile: false,
+			}),
+		).resolves.toBe(true);
+
+		expect(writeText).toHaveBeenCalledWith("[[Folder/Target]]");
+	});
+
+	it("treats clipboard write failure as a non-fatal side effect", async () => {
+		vi.stubGlobal("navigator", {
+			clipboard: {
+				writeText: vi.fn(async () => {
+					throw new Error("denied");
+				}),
+			},
+		});
+		const file = createFile("Target.md");
+		const app = {
+			workspace: {
+				getActiveFile: vi.fn(() => null),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Target]]"),
+			},
+		} as unknown as App;
+
+		await expect(
+			copyFileLinkToClipboard(app, file, {
+				enabled: false,
+				copyToClipboard: true,
+				placement: "replaceSelection",
+				requireActiveFile: false,
+			}),
+		).resolves.toBe(false);
 	});
 });
 
