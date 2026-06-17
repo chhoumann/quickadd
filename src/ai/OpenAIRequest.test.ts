@@ -367,7 +367,7 @@ describe("OpenAIRequest", () => {
 			getModelProviderMock.mockReturnValue(anthropicProvider);
 		});
 
-		it("posts to /v1/messages with anthropic headers and a user-only message", async () => {
+		it("posts to /v1/messages with a top-level system prompt, model-aware max_tokens, and no stale beta header", async () => {
 			requestUrlMock.mockResolvedValue({
 				json: {
 					id: "msg-1",
@@ -391,19 +391,87 @@ describe("OpenAIRequest", () => {
 
 			const arg = requestUrlMock.mock.calls[0][0];
 			expect(arg.url).toBe("https://api.anthropic.com/v1/messages");
+			// Stale anthropic-beta header dropped.
 			expect(arg.headers).toEqual({
 				"Content-Type": "application/json",
 				"x-api-key": "anthropic-key",
 				"anthropic-version": "2023-06-01",
-				"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15",
 			});
 
 			const body = JSON.parse(arg.body);
 			expect(body).toEqual({
 				model: "claude-3-5-sonnet",
+				// Conservative 4096 default (at/below every current Claude model's output cap).
 				max_tokens: 4096,
 				messages: [{ role: "user", content: "hello claude" }],
+				system: "system prompt",
 			});
+		});
+
+		it("omits the system key when no system prompt is given", async () => {
+			requestUrlMock.mockResolvedValue({
+				json: {
+					id: "msg-1b",
+					model: "claude-3-5-sonnet",
+					role: "assistant",
+					stop_reason: "end_turn",
+					stop_sequence: null,
+					type: "message",
+					content: [{ text: "ok", type: "text" }],
+					usage: { input_tokens: 1, output_tokens: 1 },
+				},
+			});
+
+			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, "");
+			await makeRequest("hi");
+
+			const body = JSON.parse(requestUrlMock.mock.calls[0][0].body);
+			expect("system" in body).toBe(false);
+			expect(body.max_tokens).toBe(4096);
+		});
+
+		it("omits the system key for a whitespace-only system prompt", async () => {
+			requestUrlMock.mockResolvedValue({
+				json: {
+					id: "msg-1c",
+					model: "claude-3-5-sonnet",
+					role: "assistant",
+					stop_reason: "end_turn",
+					stop_sequence: null,
+					type: "message",
+					content: [{ text: "ok", type: "text" }],
+					usage: { input_tokens: 1, output_tokens: 1 },
+				},
+			});
+
+			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, "   ");
+			await makeRequest("hi");
+
+			const body = JSON.parse(requestUrlMock.mock.calls[0][0].body);
+			expect("system" in body).toBe(false);
+		});
+
+		it("extracts text by scanning all content blocks (a leading tool_use block does not break it)", async () => {
+			requestUrlMock.mockResolvedValue({
+				json: {
+					id: "msg-3",
+					model: "claude-3-5-sonnet",
+					role: "assistant",
+					stop_reason: "tool_use",
+					stop_sequence: null,
+					type: "message",
+					content: [
+						{ type: "tool_use", id: "toolu_1", name: "x", input: {} },
+						{ type: "text", text: "after the tool block" },
+					],
+					usage: { input_tokens: 3, output_tokens: 2 },
+				},
+			});
+
+			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, "sys");
+			const result = await makeRequest("q");
+
+			expect(result.content).toBe("after the tool block");
 		});
 
 		it("maps the Anthropic response, summing tokens and preserving stop_sequence", async () => {

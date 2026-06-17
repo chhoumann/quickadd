@@ -46,6 +46,7 @@ export class AIAssistantSettingsModal extends Modal {
 		this.addDefaultModelSetting(this.contentEl);
 		this.addPromptTemplateFolderPathSetting(this.contentEl);
 		this.addShowAssistantSetting(this.contentEl);
+		this.addConfirmToolCallsSetting(this.contentEl);
 
 		this.addDefaultSystemPromptSetting(this.contentEl);
 	}
@@ -112,6 +113,24 @@ export class AIAssistantSettingsModal extends Modal {
 				toggle.setValue(this.settings.showAssistant);
 				toggle.onChange((value) => {
 					this.settings.showAssistant = value;
+				});
+			});
+	}
+
+	addConfirmToolCallsSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Confirm AI tool calls")
+			.setDesc(
+				"When an AI agent runs script-defined or built-in tools, ask before executing. 'Destructive only' confirms tools not marked read-only; 'Always' confirms every tool; 'Never' defers to each tool's own setting. A tool that requires approval is always confirmed regardless.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("destructive", "Destructive tools only (recommended)");
+				dropdown.addOption("always", "Always confirm every tool");
+				dropdown.addOption("never", "Never (use each tool's own setting)");
+				dropdown.setValue(this.settings.confirmToolCalls ?? "destructive");
+				dropdown.onChange((value) => {
+					this.settings.confirmToolCalls =
+						value as QuickAddSettings["ai"]["confirmToolCalls"];
 				});
 			});
 	}

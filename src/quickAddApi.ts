@@ -17,6 +17,18 @@ import {
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
 import type { Model } from "./ai/Provider";
 import { resolveProviderApiKey } from "./ai/providerSecrets";
+import { Agent } from "./ai/tools/Agent";
+import type {
+	AgentConfig,
+	QATool,
+	StopCondition,
+	ToolDefinitionInput,
+} from "./ai/tools/aiToolTypes";
+import { createVaultTools } from "./ai/tools/builtins/vaultTools";
+import { createWorkspaceTools } from "./ai/tools/builtins/workspaceTools";
+import { createSystemTools } from "./ai/tools/builtins/systemTools";
+import type { BuiltinGroupOptions } from "./ai/tools/builtins/shared";
+import { assertAssignableVariableName } from "./ai/tools/assignableVariable";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import GenericCheckboxPrompt from "./gui/GenericCheckboxPrompt/genericCheckboxPrompt";
 import GenericInfoDialog from "./gui/GenericInfoDialog/GenericInfoDialog";
@@ -349,6 +361,8 @@ export class QuickAddApi {
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
+						/** Alias: set the output variable name AND assign it (mirrors ai.agent). */
+						assignToVariable: string;
 						modelOptions: Partial<OpenAIModelParameters>;
 						showAssistantMessages: boolean;
 						systemPrompt: string;
@@ -398,6 +412,10 @@ export class QuickAddApi {
 
 					const apiKey = await resolveProviderApiKey(app, modelProvider);
 
+					if (settings?.assignToVariable) {
+						assertAssignableVariableName(settings.assignToVariable);
+					}
+
 					const assistantRes = await Prompt(
 						app,
 						{
@@ -405,7 +423,10 @@ export class QuickAddApi {
 							prompt,
 							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
-							outputVariableName: settings?.variableName ?? "output",
+							outputVariableName:
+								// `||` not `??`: an empty assignToVariable ("") means "no explicit
+								// variable" (matching ai.agent's length>0 check), so fall through.
+								settings?.assignToVariable || settings?.variableName || "output",
 							showAssistantMessages: settings?.showAssistantMessages ?? true,
 							systemPrompt:
 								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
@@ -423,7 +444,7 @@ export class QuickAddApi {
 						return {};
 					}
 
-					if (settings?.shouldAssignVariables) {
+					if (settings?.shouldAssignVariables || settings?.assignToVariable) {
 						// Copy over `output` and `output-quoted` to the variables (if 'output' is variable name)
 						Object.entries(assistantRes).forEach(([key, value]) => {
 							choiceExecutor.variables.set(key, value);
@@ -439,6 +460,8 @@ export class QuickAddApi {
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
+						/** Alias: set the output variable name AND assign it (mirrors ai.agent). */
+						assignToVariable: string;
 						modelOptions: Partial<OpenAIModelParameters>;
 						showAssistantMessages: boolean;
 						systemPrompt: string;
@@ -493,6 +516,10 @@ export class QuickAddApi {
 
 					const apiKey = await resolveProviderApiKey(app, modelProvider);
 
+					if (settings?.assignToVariable) {
+						assertAssignableVariableName(settings.assignToVariable);
+					}
+
 					const assistantRes = await ChunkedPrompt(
 						app,
 						{
@@ -502,7 +529,10 @@ export class QuickAddApi {
 							chunkSeparator: settings?.chunkSeparator ?? /\n/,
 							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
-							outputVariableName: settings?.variableName ?? "output",
+							outputVariableName:
+								// `||` not `??`: an empty assignToVariable ("") means "no explicit
+								// variable" (matching ai.agent's length>0 check), so fall through.
+								settings?.assignToVariable || settings?.variableName || "output",
 							showAssistantMessages: settings?.showAssistantMessages ?? true,
 							systemPrompt:
 								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
@@ -528,7 +558,7 @@ export class QuickAddApi {
 						return {};
 					}
 
-					if (settings?.shouldAssignVariables) {
+					if (settings?.shouldAssignVariables || settings?.assignToVariable) {
 						// Copy over `output` and `output-quoted` to the variables (if 'output' is variable name)
 						Object.entries(assistantRes).forEach(([key, value]) => {
 							choiceExecutor.variables.set(key, value);
@@ -575,6 +605,41 @@ export class QuickAddApi {
 				},
 				clearRequestLogs() {
 					clearAIRequestLogEntries();
+				},
+				/**
+				 * Create a tool-calling Agent (#714). Construct once with model/system/
+				 * tools/budget, then run `agent.generate({ prompt })` (text + tools) or
+				 * `agent.generate({ prompt, schema })` (structured output).
+				 */
+				agent: (config: AgentConfig): Agent =>
+					new Agent(app, plugin, choiceExecutor, config),
+				/** Declare a tool for an Agent's `tools` map. Pairs a JSON-Schema with a JS handler. */
+				tool: (def: ToolDefinitionInput): QATool => ({
+					...def,
+					__qaTool: true,
+				}),
+				/** Stop condition: end the loop once it has taken `n` steps. */
+				stepCountIs:
+					(n: number): StopCondition =>
+					({ stepNumber }) =>
+						stepNumber >= n,
+				/** Stop condition: end the loop once the named tool has been called. */
+				hasToolCall:
+					(name: string): StopCondition =>
+					({ toolCallNames }) =>
+						toolCallNames.includes(name),
+				/**
+				 * Standard built-in tools (#714), opt-in. Spread a group into an Agent's
+				 * `tools` map, e.g. `tools: { ...quickAddApi.ai.tools.vault() }`. Each group
+				 * factory accepts { only, exclude, prefix, allowedRoots }. Read tools auto-run;
+				 * write tools require confirmation and are path-sanitized + symlink-guarded.
+				 */
+				tools: {
+					vault: (options?: BuiltinGroupOptions) =>
+						createVaultTools(app, options),
+					workspace: (options?: BuiltinGroupOptions) =>
+						createWorkspaceTools(app, options),
+					system: (options?: BuiltinGroupOptions) => createSystemTools(options),
 				},
 			},
 			utility: {

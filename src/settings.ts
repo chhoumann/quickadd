@@ -70,6 +70,13 @@ export interface QuickAddSettings {
 		promptTemplatesFolderPath: string;
 		showAssistant: boolean;
 		providers: AIProvider[];
+		/**
+		 * When AI tool calling (#714) runs a script-defined or built-in tool, ask
+		 * before executing. 'destructive' (default) confirms any tool not marked
+		 * read-only; 'always' confirms every tool; 'never' defers to each tool's own
+		 * needsApproval. A tool that requires approval is always confirmed regardless.
+		 */
+		confirmToolCalls: "never" | "destructive" | "always";
 	};
 	migrations: {
 		migrateToMacroIDFromEmbeddedMacro: boolean;
@@ -115,6 +122,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		promptTemplatesFolderPath: "",
 		showAssistant: true,
 		providers: DefaultProviders,
+		confirmToolCalls: "destructive",
 	},
 	migrations: {
 		/**

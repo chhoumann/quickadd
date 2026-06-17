@@ -404,6 +404,51 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		expect(preview.summary.overwritesFiles).toBe(0);
 		expect(requiresAcknowledgement(preview)).toBe(true);
 	});
+
+	it("discloses a bundled script that gives an AI model vault tools (#714)", () => {
+		const m = macro("m1", "Librarian", [
+			userScript("c1", "run", "scripts/agent.js"),
+		]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Librarian"])],
+			[
+				asset(
+					"user-script",
+					"scripts/agent.js",
+					"module.exports = async ({ quickAddApi }) => {\n" +
+						"  const a = quickAddApi.ai.agent({ model: 'gpt-4o', tools: { ...quickAddApi.ai.tools.vault() } });\n" +
+						"  return (await a.generate({ prompt: 'hi' })).text;\n" +
+						"};",
+				),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		const row = preview.capabilityRows.find((r) => r.flag === "ai-tools");
+		expect(row).toBeDefined();
+		expect(row?.severity).toBe("critical");
+		expect(row?.scriptPath).toBe("scripts/agent.js");
+	});
+
+	it("discloses AI tools hidden in an orphan note's js fence, not a plain script", () => {
+		// Orphan .md (referenced by no choice) with a js fence using destructured ai.tools.
+		const fenced =
+			"Some notes about the agent.\n\n```js\n" +
+			"const { ai } = quickAddApi;\n" +
+			"const tools = ai.tools.workspace();\n" +
+			"```\n";
+		const pkg = makePackage(
+			[pkgChoice(macro("m1", "Plain", [userScript("c1", "run", "scripts/plain.js")]), ["Plain"])],
+			[
+				asset("template", "Notes/hidden-agent.md", fenced),
+				asset("user-script", "scripts/plain.js", "module.exports = () => 1;"),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		const aiToolRows = preview.capabilityRows.filter((r) => r.flag === "ai-tools");
+		expect(aiToolRows.map((r) => r.scriptPath)).toEqual(["Notes/hidden-agent.md"]);
+		// A plain script that never touches AI tools gets no ai-tools row.
+		expect(aiToolRows.some((r) => r.scriptPath === "scripts/plain.js")).toBe(false);
+	});
 });
 
 describe("buildPackagePreview - files manifest, overwrites, orphans, captures", () => {

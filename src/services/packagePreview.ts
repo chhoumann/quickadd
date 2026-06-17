@@ -44,6 +44,7 @@ export type PreviewFlag =
 	| "registers-command"
 	| "obsidian-command"
 	| "ai"
+	| "ai-tools"
 	| "capture-writes"
 	| "template-write"
 	| "overwrites-existing-choice"
@@ -103,6 +104,12 @@ const FLAG_META: Record<PreviewFlag, FlagMeta> = {
 		severity: "warning",
 		label: "AI",
 		description: "Sends note content to your AI provider over the network.",
+	},
+	"ai-tools": {
+		severity: "critical",
+		label: "AI TOOLS",
+		description:
+			"Lets an AI model read and write your vault: the script gives the model tools (functions) it calls with model-chosen arguments.",
 	},
 	"capture-writes": {
 		severity: "warning",
@@ -194,6 +201,36 @@ function markdownAssetIsExecutable(
 	}
 	const { code } = extractScriptFromMarkdown(decoded);
 	return code !== null && code.length > 0;
+}
+
+// The runnable code of a bundled executable asset, for static disclosure scans:
+// a `.md` note yields its first js fence (what the loader runs); any other
+// executable asset (a `.js`, or a script-kind asset) yields its decoded body.
+// Pure/App-free — operates on the bundled payload only.
+function bundledScriptCode(originalPath: string, content: string): string | null {
+	let decoded: string;
+	try {
+		decoded = decodeFromBase64(content);
+	} catch {
+		return null;
+	}
+	if (MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) {
+		const { code } = extractScriptFromMarkdown(decoded);
+		return code !== null && code.length > 0 ? code : null;
+	}
+	return decoded;
+}
+
+// #714: a bundled script that wires up QuickAdd's AI tool-calling lets an AI MODEL
+// read and write the vault with model-chosen arguments — a distinct risk class from
+// "this script runs". Detect the common surface forms: `quickAddApi.ai.tools/.agent/
+// .tool(...)`, the destructured `ai.tools/agent/tool(...)`, and the built-in groups
+// (`tools.vault/workspace/system(...)`). A heuristic for DISCLOSURE only — the
+// security floor (any script ⇒ "full vault + network access, gated") already holds.
+const AI_TOOLS_USE_REGEX =
+	/\bai\s*\.\s*(?:tools|agent|tool)\b|\btools\s*\.\s*(?:vault|workspace|system)\s*\(/;
+function scriptUsesAiTools(code: string): boolean {
+	return AI_TOOLS_USE_REGEX.test(code);
 }
 
 const SEVERITY_ORDER: Record<PreviewSeverity, number> = {
@@ -791,6 +828,24 @@ export function buildPackagePreview(
 			flag: "bundled-script",
 			severity: "critical",
 			title: "Bundles a script file that will be written to your vault",
+			detail: file.originalPath,
+			scriptPath: file.originalPath,
+		});
+	}
+
+	// AI-tools disclosure (#714): scan each reviewable bundled script for AI
+	// tool-calling and surface a distinct critical row. Scans the SAME decoded code
+	// the loader runs, so a note that hides a js fence is covered too.
+	for (const file of files) {
+		if (!file.requiresReview) continue;
+		const asset = pkg.assets.find((a) => a.originalPath === file.originalPath);
+		if (!asset) continue;
+		const code = bundledScriptCode(asset.originalPath, asset.content);
+		if (!code || !scriptUsesAiTools(code)) continue;
+		capabilityRows.push({
+			flag: "ai-tools",
+			severity: "critical",
+			title: "Lets an AI model read and write your vault",
 			detail: file.originalPath,
 			scriptPath: file.originalPath,
 		});
