@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Setting } from "obsidian";
+import type { MultiChoiceDisplayMode } from "../types/choices/IMultiChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 
 export class MultiChoiceSettingsModal extends Modal {
@@ -10,11 +11,13 @@ export class MultiChoiceSettingsModal extends Modal {
 
 	private name: string;
 	private placeholder: string;
+	private displayMode: MultiChoiceDisplayMode;
 
 	constructor(app: App, private choice: IMultiChoice) {
 		super(app);
 		this.name = choice.name;
 		this.placeholder = choice.placeholder ?? "";
+		this.displayMode = choice.displayMode ?? "picker";
 
 		this.waitForClose = new Promise<IMultiChoice | undefined>(
 			(resolve, reject) => {
@@ -52,6 +55,21 @@ export class MultiChoiceSettingsModal extends Modal {
 				});
 			});
 
+		new Setting(this.contentEl)
+			.setName("Open as")
+			.setDesc(
+				"Picker keeps search and browsing. Menu opens a compact flat menu near the editor and labels nested choices by path.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("picker", "Choice picker")
+					.addOption("menu", "Editor menu")
+					.setValue(this.displayMode)
+					.onChange((value) => {
+						this.displayMode = value as MultiChoiceDisplayMode;
+					});
+			});
+
 		const buttonRow = this.contentEl.createDiv();
 		new ButtonComponent(buttonRow)
 			.setButtonText("Save")
@@ -85,6 +103,8 @@ export class MultiChoiceSettingsModal extends Modal {
 			...this.choice,
 			name: this.name.trim() || this.choice.name,
 			placeholder: trimmedPlaceholder ? trimmedPlaceholder : undefined,
+			displayMode:
+				this.displayMode === "menu" ? this.displayMode : undefined,
 		};
 		this.resolvePromise(updated);
 	}

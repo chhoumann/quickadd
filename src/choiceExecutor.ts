@@ -18,6 +18,7 @@ import { isCancellationError, reportError } from "./utils/errorUtils";
 import { getOpenFileOriginLeaf } from "./utilityObsidian";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
+import { showChoiceMenu } from "./gui/choiceMenu";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -224,6 +225,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private onChooseMultiType(multiChoice: IMultiChoice) {
+		if (multiChoice.displayMode === "menu") {
+			showChoiceMenu(this.app, multiChoice.choices, this);
+			return;
+		}
+
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
 			placeholder: multiChoice.placeholder,

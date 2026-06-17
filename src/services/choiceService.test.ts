@@ -194,11 +194,12 @@ describe("choiceService", () => {
 			expect(copy.id).not.toBe(original.id);
 		});
 
-		it("preserves command and onePageInput when duplicating a Multi", () => {
+		it("preserves command, onePageInput, and display mode when duplicating a Multi", () => {
 			const original = createChoice("Multi", "M") as IMultiChoice;
 			(original as unknown as { command: boolean }).command = true;
 			(original as unknown as { onePageInput: string }).onePageInput =
 				"always";
+			original.displayMode = "menu";
 			original.choices = [createChoice("Capture", "Child")];
 
 			const copy = duplicateChoice(original) as IMultiChoice;
@@ -207,6 +208,7 @@ describe("choiceService", () => {
 			expect(
 				(copy as unknown as { onePageInput?: string }).onePageInput,
 			).toBe("always");
+			expect(copy.displayMode).toBe("menu");
 			// children still duplicated with fresh ids
 			expect(copy.choices[0].id).not.toBe(original.choices[0].id);
 		});

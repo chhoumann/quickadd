@@ -419,6 +419,7 @@ export class TFolder {
 }
 
 export class MarkdownView { 
+  containerEl: HTMLElement = document.createElement("div");
   editor = { 
     getCursor() {return {line:0,ch:0};}, 
     replaceSelection() {}, 
