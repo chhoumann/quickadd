@@ -74,10 +74,11 @@ export interface TemplateInclusionState {
 const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 
 function transformValueText(
-	value: string,
+	value: unknown,
 	options: { trim?: boolean; caseStyle?: string },
 ): string {
-	const trimmed = options.trim ? value.trim() : value;
+	const stringValue = String(value ?? "");
+	const trimmed = options.trim ? stringValue.trim() : stringValue;
 	return transformCase(trimmed, options.caseStyle);
 }
 

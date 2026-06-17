@@ -37,7 +37,7 @@ class CaseTestFormatter extends Formatter {
 
 	protected getVariableValue(variableName: string): string {
 		const value = this.variables.get(variableName);
-		return typeof value === "string" ? value : "";
+		return (value as string) ?? "";
 	}
 
 	protected suggestForValue(
@@ -150,6 +150,17 @@ describe("Formatter case: pipe option", () => {
 			"slug={{VALUE:title|trim|case:slug}}",
 		);
 		expect(result).toBe("slug=my-new-blog");
+	});
+
+	it("coerces seeded non-string values before trimming", async () => {
+		formatter.setVariable("count", 42);
+		formatter.setVariable("meta", { toString: () => "  Object Title  " });
+
+		const result = await formatter.testFormat(
+			"count={{VALUE:count|trim}} meta={{VALUE:meta|trim}}",
+		);
+
+		expect(result).toBe("count=42 meta=Object Title");
 	});
 
 	it("supports snake/camel/pascal/title/lower/slug transforms", async () => {
