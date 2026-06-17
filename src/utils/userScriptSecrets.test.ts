@@ -19,11 +19,13 @@ const {
 	clearUserScriptSecret,
 	clearUserScriptSecretsFromCommand,
 	createUserScriptSecretRef,
+	detectUserScriptSecretOptions,
 	isSecretUserScriptOption,
 	isUserScriptSecretRef,
 	migrateUserScriptSecretSettings,
 	resolveUserScriptSettings,
 	storeUserScriptSecret,
+	stripUserScriptSecretRefsFromCommand,
 } = await import("./userScriptSecrets");
 
 function createCommand(settings: Record<string, unknown> = {}): IUserScript {
@@ -61,6 +63,56 @@ describe("userScriptSecrets", () => {
 			isSecretUserScriptOption({ type: "textarea", secret: true }),
 		).toBe(false);
 		expect(isSecretUserScriptOption({ type: "text" })).toBe(false);
+	});
+
+	it("detects secret option names from user-script source", () => {
+		const detection = detectUserScriptSecretOptions(`
+			const TOKEN = "Token";
+			module.exports = {
+				settings: {
+					options: {
+						"API Key": { "type": "secret" },
+						[TOKEN]: { "type": "text", "secret": true },
+						Model: { type: "text" },
+					},
+				},
+			};
+		`);
+
+		expect(detection.foundSecretOptions).toBe(true);
+		expect([...detection.names].sort()).toEqual(["API Key", "Token"]);
+	});
+
+	it("ignores options-looking text inside comments and string literals", () => {
+		const detection = detectUserScriptSecretOptions(`
+			const help = "options: { Model: { type: \\"secret\\" } }";
+			// options: { Token: { type: "secret" } }
+			module.exports = {
+				settings: {
+					options: {
+						Model: { type: "text" },
+					},
+				},
+			};
+		`);
+
+		expect(detection.foundSecretOptions).toBe(false);
+		expect(detection.names.size).toBe(0);
+	});
+
+	it("tracks dynamic secret options even when the setting name is not static", () => {
+		const detection = detectUserScriptSecretOptions(`
+			module.exports = {
+				settings: {
+					options: {
+						[process.env.SECRET_NAME]: { type: "secret" },
+					},
+				},
+			};
+		`);
+
+		expect(detection.foundSecretOptions).toBe(true);
+		expect(detection.names.size).toBe(0);
 	});
 
 	it("does not initialize secret default values into command settings", () => {
@@ -195,6 +247,12 @@ describe("userScriptSecrets", () => {
 		expect(setSecret).toHaveBeenCalledWith("secret-ref", "");
 	});
 
+	it("treats missing SecretStorage as a clear no-op", async () => {
+		await expect(
+			clearUserScriptSecret(undefined, "secret-ref"),
+		).resolves.toBe(true);
+	});
+
 	it("migrates legacy plaintext secret settings into SecretStorage", async () => {
 		const command = createCommand({
 			"API Key": "legacy-secret",
@@ -313,9 +371,59 @@ describe("userScriptSecrets", () => {
 			],
 		};
 
-		await clearUserScriptSecretsFromCommand(app, commandTree);
+		await expect(
+			clearUserScriptSecretsFromCommand(app, commandTree),
+		).resolves.toBe(true);
 
 		expect(deleteSecret).toHaveBeenCalledWith("then-secret");
 		expect(deleteSecret).toHaveBeenCalledWith("nested-secret");
+	});
+
+	it("reports recursive clear failure when a SecretStorage delete fails", async () => {
+		const app = createApp({
+			delete: vi.fn().mockRejectedValue(new Error("delete failed")),
+		});
+		const command = createCommand({
+			"API Key": createUserScriptSecretRef("secret-ref"),
+		});
+
+		await expect(
+			clearUserScriptSecretsFromCommand(app, command),
+		).resolves.toBe(false);
+		expect(logWarningMock).toHaveBeenCalledWith(
+			expect.stringContaining("Failed to clear user script SecretStorage entry"),
+		);
+	});
+
+	it("strips markers and detected legacy plaintext secret settings", () => {
+		const command = createCommand({
+			"API Key": "legacy-secret",
+			Token: createUserScriptSecretRef("local-secret-ref"),
+			Model: "gpt-4",
+		});
+
+		stripUserScriptSecretRefsFromCommand(command, {
+			secretOptionNamesByPath: new Map([
+				["scripts/script.js", new Set(["API Key", "Token"])],
+			]),
+			stripUnknownStringSettings: true,
+		});
+
+		expect(command.settings).toEqual({ Model: "gpt-4" });
+	});
+
+	it("conservatively strips string settings when secret names are unknown", () => {
+		const command = createCommand({
+			"API Key": "legacy-secret",
+			Enabled: true,
+			Model: "gpt-4",
+		});
+
+		stripUserScriptSecretRefsFromCommand(command, {
+			secretOptionNamesByPath: new Map([["scripts/script.js", null]]),
+			stripUnknownStringSettings: true,
+		});
+
+		expect(command.settings).toEqual({ Enabled: true });
 	});
 });

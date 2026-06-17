@@ -22,7 +22,11 @@ import { log } from "../logger/logManager";
 import { decodeFromBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
-import { stripUserScriptSecretRefsFromCommand } from "../utils/userScriptSecrets";
+import {
+	detectUserScriptSecretOptions,
+	stripUserScriptSecretRefsFromCommand,
+} from "../utils/userScriptSecrets";
+import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
 import {
 	buildPackagePreview,
 	collectReferencedAssetPaths,
@@ -253,6 +257,7 @@ export async function applyPackageImport(
 	);
 
 	const catalog = new Map(pkg.choices.map((entry) => [entry.choice.id, entry]));
+	const secretOptionNamesByPath = buildSecretOptionNamesByPath(pkg);
 	const importableChoiceIds = new Set<string>();
 	const importableCache = new Map<string, boolean>();
 	const importableVisiting = new Set<string>();
@@ -376,7 +381,15 @@ export async function applyPackageImport(
 		}
 
 			const clone = deepClone(entry.choice);
-			const remapped = remapChoiceTree(clone, idMap, importableChoiceIds);
+			const remapped = remapChoiceTree(
+				clone,
+				idMap,
+				importableChoiceIds,
+				{
+					secretOptionNamesByPath,
+					stripUnknownStringSettings: true,
+				},
+			);
 			preparedChoices.set(entry.choice.id, remapped);
 		}
 
@@ -498,6 +511,36 @@ export async function applyPackageImport(
 	};
 }
 
+function buildSecretOptionNamesByPath(
+	pkg: QuickAddPackage,
+): Map<string, ReadonlySet<string> | null> {
+	const secretOptionNamesByPath = new Map<string, ReadonlySet<string> | null>();
+
+	for (const asset of pkg.assets) {
+		if (asset.kind !== "user-script") continue;
+
+		try {
+			const detection = detectUserScriptSecretOptions(
+				decodeFromBase64(asset.content),
+			);
+			secretOptionNamesByPath.set(
+				asset.originalPath,
+				detection.foundSecretOptions && detection.names.size === 0
+					? null
+					: detection.names,
+			);
+		} catch (error) {
+			log.logWarning(
+				`QuickAdd import could not inspect user-script settings '${asset.originalPath}': ${
+					(error as Error)?.message ?? error
+				}`,
+			);
+		}
+	}
+
+	return secretOptionNamesByPath;
+}
+
 async function assetExists(app: App, path: string): Promise<boolean> {
 	try {
 		return await app.vault.adapter.exists(path);
@@ -510,6 +553,7 @@ function remapChoiceTree(
 	choice: IChoice,
 	idMap: Map<string, string>,
 	importableChoiceIds: Set<string>,
+	secretSanitizerOptions: UserScriptSecretSanitizerOptions,
 ): IChoice {
 	const originalId = choice.id;
 	const finalId = idMap.get(originalId) ?? originalId;
@@ -521,7 +565,13 @@ function remapChoiceTree(
 		if (isDuplicated) {
 			macroChoice.macro.id = uuidv4();
 		}
-		remapCommands(macroChoice.macro.commands, idMap, importableChoiceIds, isDuplicated);
+		remapCommands(
+			macroChoice.macro.commands,
+			idMap,
+			importableChoiceIds,
+			isDuplicated,
+			secretSanitizerOptions,
+		);
 	}
 
 	if (choice.type === "Multi") {
@@ -529,7 +579,14 @@ function remapChoiceTree(
 		if (Array.isArray(multi.choices)) {
 			multi.choices = multi.choices
 				.filter((child) => importableChoiceIds.has(child.id))
-				.map((child) => remapChoiceTree(child, idMap, importableChoiceIds));
+				.map((child) =>
+					remapChoiceTree(
+						child,
+						idMap,
+						importableChoiceIds,
+						secretSanitizerOptions,
+					),
+				);
 		}
 	}
 
@@ -541,10 +598,11 @@ function remapCommands(
 	idMap: Map<string, string>,
 	importableChoiceIds: Set<string>,
 	shouldRegenerateIds: boolean,
+	secretSanitizerOptions: UserScriptSecretSanitizerOptions,
 ): void {
 	for (const command of commands) {
 		if (!command) continue;
-		stripUserScriptSecretRefsFromCommand(command);
+		stripUserScriptSecretRefsFromCommand(command, secretSanitizerOptions);
 
 		if (shouldRegenerateIds) {
 			command.id = uuidv4();
@@ -564,12 +622,14 @@ function remapCommands(
 					idMap,
 					importableChoiceIds,
 					shouldRegenerateIds,
+					secretSanitizerOptions,
 				);
 				remapCommands(
 					conditional.elseCommands,
 					idMap,
 					importableChoiceIds,
 					shouldRegenerateIds,
+					secretSanitizerOptions,
 				);
 				break;
 			}
@@ -580,6 +640,7 @@ function remapCommands(
 					nested.choice,
 					idMap,
 					importableChoiceIds,
+					secretSanitizerOptions,
 				);
 			}
 			break;

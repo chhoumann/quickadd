@@ -571,7 +571,7 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 		expect(result.updatedChoices[0].name).toBe("Orig");
 	});
 
-	it("strips user-script SecretStorage refs from imported package choices", async () => {
+	it("strips user-script secrets from imported package choices", async () => {
 		const { app } = createFakeApp();
 		const macro = {
 			...makeChoice("macro", "Macro", "Macro"),
@@ -585,7 +585,8 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 						type: CommandType.UserScript,
 						path: "Scripts/script.js",
 						settings: {
-							"API Key": createUserScriptSecretRef("local-secret-ref"),
+							"API Key": "legacy-secret",
+							Token: createUserScriptSecretRef("local-secret-ref"),
 							Model: "gpt-4",
 						},
 					} as IUserScript,
@@ -595,6 +596,25 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 		} as IMacroChoice;
 		const pkg = makePackage({
 			choices: [makePackageChoice(macro)],
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "Scripts/script.js",
+					contentEncoding: "base64",
+					content: encodeToBase64(`
+						module.exports = {
+							settings: {
+								options: {
+									"API Key": { "type": "secret" },
+									Token: { type: "text", secret: true },
+									Model: { type: "text" },
+								},
+							},
+							entry: () => {},
+						};
+					`),
+				},
+			],
 		});
 
 		const result = await applyPackageImport({
@@ -609,6 +629,7 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 		const command = inserted.macro.commands[0] as IUserScript;
 
 		expect(command.settings).toEqual({ Model: "gpt-4" });
+		expect(JSON.stringify(inserted)).not.toContain("legacy-secret");
 		expect(JSON.stringify(inserted)).not.toContain("local-secret-ref");
 		expect(JSON.stringify(inserted)).not.toContain("__quickaddSecret");
 	});

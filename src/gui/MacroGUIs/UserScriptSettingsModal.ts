@@ -212,7 +212,6 @@ export class UserScriptSettingsModal extends Modal {
 		});
 
 		setting.addButton((button) => {
-			button.buttonEl.setAttribute("aria-label", `Save ${name}`);
 			button.setIcon("save").setTooltip("Save secret").onClick(async () => {
 				if (pendingValue.length === 0) {
 					new Notice("Paste a secret before saving.");
@@ -239,10 +238,10 @@ export class UserScriptSettingsModal extends Modal {
 				this.onCommandChange?.();
 				new Notice("Secret saved.");
 			});
+			button.buttonEl.setAttribute("aria-label", `Save ${name}`);
 		});
 
 		setting.addButton((button) => {
-			button.buttonEl.setAttribute("aria-label", `Clear ${name}`);
 			button.setIcon("trash-2").setTooltip("Clear secret").onClick(async () => {
 				const secretRef = getSecretRefFromCommandSetting(this.command, name);
 				if (secretRef) {
@@ -260,6 +259,7 @@ export class UserScriptSettingsModal extends Modal {
 				this.onCommandChange?.();
 				new Notice("Secret cleared.");
 			});
+			button.buttonEl.setAttribute("aria-label", `Clear ${name}`);
 		});
 
 		return setting;

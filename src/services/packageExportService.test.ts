@@ -437,7 +437,7 @@ describe("buildPackage", () => {
 		expect(result.missingAssets).toEqual([]);
 	});
 
-	it("strips user-script SecretStorage refs from exported package choices", async () => {
+	it("strips user-script secrets from exported package choices", async () => {
 		const macro = makeMacroChoice("macro1", "Macro", [
 			{
 				id: "cmd-us",
@@ -445,14 +445,26 @@ describe("buildPackage", () => {
 				type: CommandType.UserScript,
 				path: "Scripts/userScript.js",
 				settings: {
-					"API Key": createUserScriptSecretRef("local-secret-ref"),
+					"API Key": "legacy-secret",
+					Token: createUserScriptSecretRef("local-secret-ref"),
 					Model: "gpt-4",
 				},
 			} as never,
 		]);
 		const { app } = makeFakeApp({
 			files: {
-				"Scripts/userScript.js": "module.exports = () => {};",
+				"Scripts/userScript.js": `
+					module.exports = {
+						settings: {
+							options: {
+								"API Key": { "type": "secret" },
+								Token: { type: "text", secret: true },
+								Model: { type: "text" },
+							},
+						},
+						entry: () => {},
+					};
+				`,
 			},
 		});
 
@@ -466,6 +478,7 @@ describe("buildPackage", () => {
 		};
 
 		expect(exportedCommand.settings).toEqual({ Model: "gpt-4" });
+		expect(JSON.stringify(result.pkg)).not.toContain("legacy-secret");
 		expect(JSON.stringify(result.pkg)).not.toContain("local-secret-ref");
 		expect(JSON.stringify(result.pkg)).not.toContain("__quickaddSecret");
 	});

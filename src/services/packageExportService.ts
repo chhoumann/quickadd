@@ -3,10 +3,10 @@ import { normalizePath } from "obsidian";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type {
- QuickAddPackage,
- QuickAddPackageAsset,
- QuickAddPackageChoice,
- QuickAddPackageAssetKind,
+	QuickAddPackage,
+	QuickAddPackageAsset,
+	QuickAddPackageChoice,
+	QuickAddPackageAssetKind,
 } from "../types/packages/QuickAddPackage";
 import { QUICKADD_PACKAGE_SCHEMA_VERSION } from "../types/packages/QuickAddPackage";
 import {
@@ -15,10 +15,13 @@ import {
 	collectFileDependencies,
 } from "../utils/packageTraversal";
 import { log } from "../logger/logManager";
-import { encodeToBase64 } from "../utils/base64";
+import { decodeFromBase64, encodeToBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
-import { stripUserScriptSecretRefsFromChoice } from "../utils/userScriptSecrets";
+import {
+	detectUserScriptSecretOptions,
+	stripUserScriptSecretRefsFromChoice,
+} from "../utils/userScriptSecrets";
 
 export interface BuildPackageOptions {
 	choices: IChoice[];
@@ -62,6 +65,9 @@ export async function buildPackage(
 	const assetDescriptors = collectAssetDescriptors(scripts, files);
 
 	const assets = await encodeAssets(app, assetDescriptors);
+	const secretOptionNamesByPath = buildSecretOptionNamesByPath(
+		assets.encodedAssets,
+	);
 
 	const packageChoices: QuickAddPackageChoice[] = closure.choiceIds.map(
 			(choiceId) => {
@@ -69,7 +75,10 @@ export async function buildPackage(
 				if (!entry) throw new Error(`Choice '${choiceId}' missing from catalog.`);
 				const clonedChoice = deepClone(entry.choice);
 				pruneChoiceTree(clonedChoice, includedChoiceIds);
-				stripUserScriptSecretRefsFromChoice(clonedChoice);
+				stripUserScriptSecretRefsFromChoice(clonedChoice, {
+					secretOptionNamesByPath,
+					stripUnknownStringSettings: true,
+				});
 				return {
 					choice: clonedChoice,
 					pathHint: [...entry.path],
@@ -143,37 +152,67 @@ async function encodeAssets(
 	app: App,
 	descriptors: AssetDescriptor[],
 ): Promise<EncodedAssets> {
-   const encodedAssets: QuickAddPackageAsset[] = [];
-   const missingAssets: MissingAsset[] = [];
+	const encodedAssets: QuickAddPackageAsset[] = [];
+	const missingAssets: MissingAsset[] = [];
 
-   for (const { path, kind } of descriptors) {
-      try {
-        const exists = await app.vault.adapter.exists(path);
-        if (!exists) {
-          missingAssets.push({ path, kind });
-          log.logWarning(`QuickAdd export skipped missing ${kind}: ${path}`);
-          continue;
-        }
+	for (const { path, kind } of descriptors) {
+		try {
+			const exists = await app.vault.adapter.exists(path);
+			if (!exists) {
+				missingAssets.push({ path, kind });
+				log.logWarning(`QuickAdd export skipped missing ${kind}: ${path}`);
+				continue;
+			}
 
-        const content = await app.vault.adapter.read(path);
+			const content = await app.vault.adapter.read(path);
 
-        encodedAssets.push({
-          kind,
-          originalPath: path,
-          contentEncoding: "base64",
-          content: encodeToBase64(content),
-        });
-      } catch (error) {
-        missingAssets.push({ path, kind });
-        log.logWarning(
-          `QuickAdd export failed to read ${kind} '${path}': ${
-            (error as Error)?.message ?? error
-          }`,
-        );
-      }
-    }
+			encodedAssets.push({
+				kind,
+				originalPath: path,
+				contentEncoding: "base64",
+				content: encodeToBase64(content),
+			});
+		} catch (error) {
+			missingAssets.push({ path, kind });
+			log.logWarning(
+				`QuickAdd export failed to read ${kind} '${path}': ${
+					(error as Error)?.message ?? error
+				}`,
+			);
+		}
+	}
 
 	return { encodedAssets, missingAssets };
+}
+
+function buildSecretOptionNamesByPath(
+	assets: QuickAddPackageAsset[],
+): Map<string, ReadonlySet<string> | null> {
+	const secretOptionNamesByPath = new Map<string, ReadonlySet<string> | null>();
+
+	for (const asset of assets) {
+		if (asset.kind !== "user-script") continue;
+
+		try {
+			const detection = detectUserScriptSecretOptions(
+				decodeFromBase64(asset.content),
+			);
+			secretOptionNamesByPath.set(
+				asset.originalPath,
+				detection.foundSecretOptions && detection.names.size === 0
+					? null
+					: detection.names,
+			);
+		} catch (error) {
+			log.logWarning(
+				`QuickAdd export could not inspect user-script settings '${asset.originalPath}': ${
+					(error as Error)?.message ?? error
+				}`,
+			);
+		}
+	}
+
+	return secretOptionNamesByPath;
 }
 
 function pruneChoiceTree(

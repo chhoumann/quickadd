@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import { Notice, type App } from "obsidian";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import { CaptureChoiceBuilder } from "../gui/ChoiceBuilder/captureChoiceBuilder";
 import { TemplateChoiceBuilder } from "../gui/ChoiceBuilder/templateChoiceBuilder";
@@ -21,8 +21,11 @@ import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
 	clearUserScriptSecretsFromCommand,
+	detectUserScriptSecretOptions,
 	stripUserScriptSecretRefsFromChoice,
 } from "../utils/userScriptSecrets";
+import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
+import { log } from "../logger/logManager";
 
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 	Template: TemplateChoice,
@@ -40,7 +43,10 @@ export function createChoice(type: ChoiceType, name: string): IChoice {
 /**
  * Recursively duplicates a choice, ensuring unique ids and deep-cloning macros.
  */
-export function duplicateChoice(choice: IChoice): IChoice {
+export function duplicateChoice(
+	choice: IChoice,
+	secretSanitizerOptions?: UserScriptSecretSanitizerOptions,
+): IChoice {
 	const newChoice = createChoice(choice.type, `${choice.name} (copy)`);
 
 	if (choice.type === "Multi") {
@@ -50,7 +56,9 @@ export function duplicateChoice(choice: IChoice): IChoice {
 		// the other choice types). `choices` is excluded here and set via the
 		// recursive map below so children get fresh ids, not the source's.
 		Object.assign(newMulti, excludeKeys(sourceMulti, ["id", "name", "choices"]));
-		newMulti.choices = sourceMulti.choices.map(duplicateChoice);
+		newMulti.choices = sourceMulti.choices.map((child) =>
+			duplicateChoice(child, secretSanitizerOptions)
+		);
 		return newMulti;
 	}
 
@@ -60,10 +68,107 @@ export function duplicateChoice(choice: IChoice): IChoice {
 	if (choice.type === "Macro") {
 		(newChoice as IMacroChoice).macro = deepClone((choice as IMacroChoice).macro);
 		regenerateIds((newChoice as IMacroChoice).macro);
-		stripUserScriptSecretRefsFromChoice(newChoice);
+		stripUserScriptSecretRefsFromChoice(newChoice, secretSanitizerOptions);
 	}
 
 	return newChoice;
+}
+
+export async function duplicateChoiceWithUserScriptSecretSanitization(
+	choice: IChoice,
+	app: App,
+): Promise<IChoice> {
+	const secretOptionNamesByPath = await buildSecretOptionNamesByPath(app, choice);
+
+	return duplicateChoice(choice, {
+		secretOptionNamesByPath,
+		stripUnknownStringSettings: true,
+	});
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === "object";
+}
+
+function collectUserScriptPathsFromCommand(
+	command: unknown,
+	paths: Set<string>,
+): void {
+	if (!isRecord(command)) return;
+
+	if (command.type === "UserScript" && typeof command.path === "string") {
+		paths.add(command.path);
+	}
+
+	if (Array.isArray(command.thenCommands)) {
+		for (const child of command.thenCommands) {
+			collectUserScriptPathsFromCommand(child, paths);
+		}
+	}
+
+	if (Array.isArray(command.elseCommands)) {
+		for (const child of command.elseCommands) {
+			collectUserScriptPathsFromCommand(child, paths);
+		}
+	}
+
+	collectUserScriptPathsFromChoice(command.choice, paths);
+}
+
+function collectUserScriptPathsFromChoice(
+	choice: unknown,
+	paths: Set<string>,
+): void {
+	if (!isRecord(choice)) return;
+
+	if (choice.type === "Macro" && isRecord(choice.macro)) {
+		const commands = choice.macro.commands;
+		if (Array.isArray(commands)) {
+			for (const command of commands) {
+				collectUserScriptPathsFromCommand(command, paths);
+			}
+		}
+	}
+
+	if (choice.type === "Multi" && Array.isArray(choice.choices)) {
+		for (const child of choice.choices) {
+			collectUserScriptPathsFromChoice(child, paths);
+		}
+	}
+}
+
+async function buildSecretOptionNamesByPath(
+	app: App,
+	choice: IChoice,
+): Promise<Map<string, ReadonlySet<string> | null>> {
+	const paths = new Set<string>();
+	collectUserScriptPathsFromChoice(choice, paths);
+	const secretOptionNamesByPath = new Map<string, ReadonlySet<string> | null>();
+
+	for (const path of paths) {
+		try {
+			const exists = await app.vault.adapter.exists(path);
+			if (!exists) continue;
+
+			const detection = detectUserScriptSecretOptions(
+				await app.vault.adapter.read(path),
+			);
+			secretOptionNamesByPath.set(
+				path,
+				detection.foundSecretOptions && detection.names.size === 0
+					? null
+					: detection.names,
+			);
+		} catch (error) {
+			log.logWarning(
+				`QuickAdd could not inspect user-script settings '${path}' while duplicating choice: ${
+					(error as Error)?.message ?? error
+				}`,
+			);
+		}
+	}
+
+	return secretOptionNamesByPath;
 }
 
 /**
@@ -129,15 +234,23 @@ export async function deleteChoiceWithConfirmation(
 	if (!userConfirmed) return false;
 
 	if (isMacro) {
-		await clearUserScriptSecretsFromCommand(app, {
+		const cleared = await clearUserScriptSecretsFromCommand(app, {
 			type: "NestedChoice",
 			choice,
 		});
+		if (!cleared) {
+			new Notice("Could not clear user script secrets. Choice was not deleted.");
+			return false;
+		}
 	} else if (isMulti) {
-		await clearUserScriptSecretsFromCommand(app, {
+		const cleared = await clearUserScriptSecretsFromCommand(app, {
 			type: "NestedChoice",
 			choice,
 		});
+		if (!cleared) {
+			new Notice("Could not clear user script secrets. Choice was not deleted.");
+			return false;
+		}
 	}
 
 	return true;

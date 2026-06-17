@@ -154,7 +154,17 @@ export class CommandSequenceEditor {
 				);
 				if (!promptAnswer) return;
 
-				await clearUserScriptSecretsFromCommand(this.app, command);
+				const secretsCleared = await clearUserScriptSecretsFromCommand(
+					this.app,
+					command
+				);
+				if (!secretsCleared) {
+					new Notice(
+						"Could not clear user script secrets. Command was not deleted."
+					);
+					return;
+				}
+
 				this.commandsRef = this.commandsRef.filter((c) => c.id !== commandId);
 				this.emitCommandsChanged();
 			},
