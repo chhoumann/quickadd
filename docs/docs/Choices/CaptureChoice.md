@@ -149,6 +149,8 @@ When _Capture to active file_ is disabled, the **Behavior** section shows an _Op
 -   _View Mode_ - how to display the opened file: **Source**, **Preview**, **Live Preview**, or **Default**.
 -   _Focus new pane_ - a toggle to focus the opened tab immediately after opening. Shown for every location except **Reuse current tab**.
 
+When QuickAdd opens and focuses a Markdown capture target in an editable mode, it places the editor cursor at the end of the inserted capture so you can keep typing there. This is skipped for preview/unfocused opens and when Templater cursor markers take over.
+
 ### Run Templater on entire destination file after capture
 
 The **Behavior** section also has a _Run Templater on entire destination file after capture_ toggle. This is an advanced / legacy option: it executes any `<% %>` anywhere in the destination file, including inside code blocks. Leave it off unless you specifically need that whole-file Templater pass.

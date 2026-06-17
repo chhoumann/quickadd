@@ -41,6 +41,7 @@ import {
 	openExistingFileTab,
 	openFile,
 	overwriteTemplaterOnce,
+	setMarkdownCursorAtOffset,
 	templaterParseTemplate,
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
@@ -71,6 +72,14 @@ import {
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
+
+type CaptureWriteResult = {
+	file: TFile;
+	newFileContent: string;
+	captureContent: string;
+	cursorEndOffset?: number;
+	cursorPlacementSafe?: boolean;
+};
 
 export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	choice: ICaptureChoice;
@@ -305,7 +314,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				path: string,
 				capture: string,
 				linkOptions?: AppendLinkOptions,
-			) => Promise<{ file: TFile; newFileContent: string; captureContent: string }>;
+			) => Promise<CaptureWriteResult>;
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
 
@@ -368,8 +377,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				);
 			}
 
-			const { file, newFileContent, captureContent } =
+			const {
+				file,
+				newFileContent,
+				captureContent,
+				cursorEndOffset,
+				cursorPlacementSafe = true,
+			} =
 				await getFileAndAddContentFn(filePath, content);
+			let expectedCursorContent: string | null = null;
+			let canPlaceCursorAtCapture = cursorPlacementSafe;
 
 			this.captureResolvedOrderedHeading();
 
@@ -413,8 +430,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				contentCommitted = true;
 				if (this.choice.templater?.afterCapture === "wholeFile") {
 					await overwriteTemplaterOnce(this.app, file);
+					canPlaceCursorAtCapture = false;
 				}
-				await this.applyCapturePropertyVars(file);
+				const frontmatterPostProcessed =
+					await this.applyCapturePropertyVars(file);
+				if (frontmatterPostProcessed) {
+					canPlaceCursorAtCapture = false;
+				}
+				expectedCursorContent = canPlaceCursorAtCapture ? newFileContent : null;
 			}
 
 			// Content is committed. Record success BEFORE the cosmetic steps below
@@ -447,7 +470,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					});
 				}
 
-				await jumpToNextTemplaterCursorIfPossible(this.app, file);
+				const templaterHandledCursor =
+					await jumpToNextTemplaterCursorIfPossible(this.app, file);
+				if (
+					!templaterHandledCursor &&
+					canPlaceCursorAtCapture &&
+					focus &&
+					expectedCursorContent !== null &&
+					typeof cursorEndOffset === "number"
+				) {
+					setMarkdownCursorAtOffset(
+						this.app,
+						file,
+						cursorEndOffset,
+						expectedCursorContent,
+					);
+				}
 			}
 		} catch (err) {
 			if (!contentCommitted) {
@@ -1040,11 +1078,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async onFileExists(
 		filePath: string,
 		content: string,
-	): Promise<{
-		file: TFile;
-		newFileContent: string;
-		captureContent: string;
-	}> {
+	): Promise<CaptureWriteResult> {
 		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
 
@@ -1073,10 +1107,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
+		const cursorEndOffset = this.formatter.getCaptureInsertionEndOffset();
 
 		const secondReadFileContent: string = await this.app.vault.read(file);
 
 		let newFileContent = formattedFileContent;
+		let cursorPlacementSafe = true;
 		if (secondReadFileContent !== fileContent) {
 			const res = merge(
 				secondReadFileContent,
@@ -1090,20 +1126,23 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			);
 
 			newFileContent = res.joinedResults() as string;
+			cursorPlacementSafe = false;
 		}
 
-		return { file, newFileContent, captureContent: formatted };
+		return {
+			file,
+			newFileContent,
+			captureContent: formatted,
+			cursorEndOffset: cursorEndOffset ?? undefined,
+			cursorPlacementSafe,
+		};
 	}
 
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
 		linkOptions?: AppendLinkOptions,
-	): Promise<{
-		file: TFile;
-		newFileContent: string;
-		captureContent: string;
-	}> {
+	): Promise<CaptureWriteResult> {
 		// Extract filename without extension from the full path.
 		const fileBasename = basenameWithoutMdOrCanvas(filePath);
 		this.formatter.setTitle(fileBasename);
@@ -1190,8 +1229,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
+		const cursorEndOffset = this.formatter.getCaptureInsertionEndOffset();
 
-		return { file, newFileContent, captureContent: formattedCaptureContent };
+		return {
+			file,
+			newFileContent,
+			captureContent: formattedCaptureContent,
+			cursorEndOffset: cursorEndOffset ?? undefined,
+			cursorPlacementSafe: true,
+		};
 	}
 
 	private async formatFilePath(captureTo: string) {
@@ -1274,14 +1320,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 	}
 
-	private async applyCapturePropertyVars(file: TFile): Promise<void> {
+	private async applyCapturePropertyVars(file: TFile): Promise<boolean> {
 		if (this.capturePropertyVars.size === 0) {
-			return;
+			return false;
 		}
 
 		if (!shouldPostProcessFrontMatter(file, this.capturePropertyVars)) {
 			this.capturePropertyVars.clear();
-			return;
+			return false;
 		}
 
 		log.logMessage(
@@ -1289,5 +1335,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		await postProcessFrontMatter(this.app, file, this.capturePropertyVars);
 		this.capturePropertyVars.clear();
+		return true;
 	}
 }

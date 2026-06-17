@@ -9,7 +9,10 @@ import {
 	insertOnNewLineBelow,
 	insertFileLinkToActiveView,
 	isFolder,
+	jumpToNextTemplaterCursorIfPossible,
 	openFile,
+	overwriteTemplaterOnce,
+	setMarkdownCursorAtOffset,
 } from "../utilityObsidian";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
@@ -88,6 +91,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		consumeCreatedClipboardAttachmentPaths() {
 			return createdClipboardAttachmentPaths.splice(0);
 		}
+		getCaptureInsertionEndOffset() {
+			return null;
+		}
 	},
 	setUseSelectionAsCaptureValueMock,
 }));
@@ -107,6 +113,7 @@ vi.mock("../utilityObsidian", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
+	setMarkdownCursorAtOffset: vi.fn(() => true),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
 }));
@@ -214,6 +221,10 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		vi.mocked(openFile).mockClear();
 		vi.mocked(insertFileLinkToActiveView).mockReset();
 		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
+		vi.mocked(overwriteTemplaterOnce).mockClear();
+		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockReset();
+		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockResolvedValue(false);
+		vi.mocked(setMarkdownCursorAtOffset).mockClear();
 	});
 
 	it("uses global setting when no override is set", async () => {
@@ -291,6 +302,141 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 				focus: true,
 			}),
 		);
+	});
+
+	it("places the cursor after a focused opened file-based capture", async () => {
+		const app = createApp();
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "Line A\nCAPTURE\nLine B",
+			captureContent: "CAPTURE\n",
+			cursorEndOffset: "Line A\nCAPTURE\n".length,
+			cursorPlacementSafe: true,
+		});
+
+		await engine.run();
+
+		expect(setMarkdownCursorAtOffset).toHaveBeenCalledWith(
+			app,
+			file,
+			"Line A\nCAPTURE\n".length,
+			"Line A\nCAPTURE\nLine B",
+		);
+	});
+
+	it("does not place the cursor when the opened file is not focused", async () => {
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+			fileOpening: {
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: false,
+			},
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "CAPTURE",
+			captureContent: "CAPTURE",
+			cursorEndOffset: "CAPTURE".length,
+			cursorPlacementSafe: true,
+		});
+
+		await engine.run();
+
+		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
+	});
+
+	it("does not override Templater cursor jumps", async () => {
+		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockResolvedValue(true);
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "CAPTURE",
+			captureContent: "CAPTURE",
+			cursorEndOffset: "CAPTURE".length,
+			cursorPlacementSafe: true,
+		});
+
+		await engine.run();
+
+		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
+	});
+
+	it("does not place the cursor after whole-file Templater post-processing", async () => {
+		const choice = createChoice({
+			openFile: true,
+			captureToActiveFile: false,
+			templater: { afterCapture: "wholeFile" },
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: true } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "CAPTURE",
+			captureContent: "CAPTURE",
+			cursorEndOffset: "CAPTURE".length,
+			cursorPlacementSafe: true,
+		});
+
+		await engine.run();
+
+		expect(overwriteTemplaterOnce).toHaveBeenCalled();
+		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
 });
 

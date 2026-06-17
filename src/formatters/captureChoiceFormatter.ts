@@ -20,7 +20,7 @@ import {
 } from "./helpers/orderedSectionPlacement";
 import {
 	getBodyStartOffset,
-	insertAtNoteBodyStart,
+	insertAtNoteBodyStartWithResult,
 } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 
@@ -89,6 +89,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		* (issue #527).
 		*/
 	private linebreaksProcessed = false;
+	private captureInsertionEndOffset: number | null = null;
 
 	public setDestinationFile(file: TFile): void {
 		this.file = file;
@@ -133,6 +134,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const paths = this.createdClipboardAttachmentPaths;
 		this.createdClipboardAttachmentPaths = [];
 		return paths;
+	}
+
+	public getCaptureInsertionEndOffset(): number | null {
+		return this.captureInsertionEndOffset;
+	}
+
+	private setCaptureInsertionEndOffset(offset: number | null): void {
+		this.captureInsertionEndOffset =
+			typeof offset === "number" && Number.isFinite(offset) && offset >= 0
+				? offset
+				: null;
 	}
 
 	protected shouldUseSelectionForValue(): boolean {
@@ -246,6 +258,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		fileContent: string,
 		file: TFile,
 	): Promise<string> {
+		this.setCaptureInsertionEndOffset(null);
 		this.choice = choice;
 		this.file = file;
 		this.fileContent = fileContent;
@@ -314,6 +327,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				!formatted.startsWith("\n");
 			const separator = shouldInsertLinebreak || needsLeadingNewline ? "\n" : "";
 
+			this.setCaptureInsertionEndOffset(
+				this.fileContent.length + separator.length + formatted.length,
+			);
 			return `${this.fileContent}${separator}${formatted}`;
 		}
 
@@ -327,7 +343,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		// Default "write to top" path: insert after any frontmatter so the YAML block
 		// is never broken, and never glue the capture onto the first body line (#647).
-		return insertAtNoteBodyStart(this.fileContent, formatted);
+		return this.insertAtNoteBodyStartTracking(formatted);
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
@@ -787,6 +803,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const matchEnd = matchIndex + targetString.length;
+		this.setCaptureInsertionEndOffset(matchEnd + formatted.length);
 		if (this.choice.insertAfter?.replaceExisting) {
 			const endOfLine = this.getInlineEndOfLine(matchEnd);
 			return (
@@ -817,16 +834,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			return insertAtNoteBodyStart(
-				this.fileContent,
-				insertAfterLineAndFormatted,
-			);
+			return this.insertAtNoteBodyStartTracking(insertAfterLineAndFormatted);
 		}
 
 		if (
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_BOTTOM
 		) {
+			this.setCaptureInsertionEndOffset(
+				this.fileContent.length + 1 + insertAfterLineAndFormatted.length,
+			);
 			return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
 		}
 
@@ -953,7 +970,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 		// Non-heading anchor: ordered placement is meaningless → graceful TOP degrade.
 		if (level === 0) {
-			return insertAtNoteBodyStart(this.fileContent, payload);
+			return this.insertAtNoteBodyStartTracking(payload);
 		}
 
 		// CRLF-safe line model: the helper detects headings on \r-stripped lines;
@@ -1021,7 +1038,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		);
 
 		if (slot.mode === "bodyStart") {
-			return insertAtNoteBodyStart(this.fileContent, payload);
+			return this.insertAtNoteBodyStartTracking(payload);
 		}
 
 		return this.spliceOrderedSection(rawLines, slot, payload);
@@ -1088,6 +1105,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const lead = before.length > 0 && !/\n$/.test(before) ? eol : "";
 		const trail =
 			after.length > 0 || /\n$/.test(content) ? eol : "";
+		const insertedStartOffset = before.length + lead.length;
+		this.setCaptureInsertionEndOffset(insertedStartOffset + blockText.length);
 		return `${before}${lead}${blockText}${trail}${after}`;
 	}
 
@@ -1111,9 +1130,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			insertBefore.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			return insertAtNoteBodyStart(
-				this.fileContent,
+			return this.insertAtNoteBodyStartTracking(
 				formattedAndInsertBeforeLine,
+				formatted.length,
 			);
 		}
 
@@ -1121,6 +1140,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			insertBefore.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_BOTTOM
 		) {
+			this.setCaptureInsertionEndOffset(
+				this.fileContent.length + 1 + formatted.length,
+			);
 			return `${this.fileContent}\n${formattedAndInsertBeforeLine}`;
 		}
 
@@ -1141,6 +1163,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 					formattedAndInsertBeforeLine,
 					this.fileContent,
 					cursor.line,
+					formatted.length,
 				);
 			} catch {
 				throw new ChoiceAbortError(
@@ -1164,16 +1187,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_TOP
 		) {
-			return insertAtNoteBodyStart(
-				this.fileContent,
-				insertAfterLineAndFormatted,
-			);
+			return this.insertAtNoteBodyStartTracking(insertAfterLineAndFormatted);
 		}
 
 		if (
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_BOTTOM
 		) {
+			this.setCaptureInsertionEndOffset(
+				this.fileContent.length + 1 + insertAfterLineAndFormatted.length,
+			);
 			return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
 		}
 
@@ -1206,6 +1229,26 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		throw new ChoiceAbortError(
 			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
 		);
+	}
+
+	private insertAtNoteBodyStartTracking(
+		text: string,
+		cursorOffsetInText = text.length,
+	): string {
+		const result = insertAtNoteBodyStartWithResult(this.fileContent, text);
+		if (result.insertedStartOffset === null) {
+			this.setCaptureInsertionEndOffset(null);
+			return result.content;
+		}
+
+		const clampedOffset = Math.max(
+			0,
+			Math.min(cursorOffsetInText, text.length),
+		);
+		this.setCaptureInsertionEndOffset(
+			result.insertedStartOffset + clampedOffset,
+		);
+		return result.content;
 	}
 
 	private insertTextAfterPositionInBody(
@@ -1250,6 +1293,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 				? rawText.slice(0, -1)
 				: rawText;
 
+		this.setCaptureInsertionEndOffset(pre.length + 1 + text.length);
 		return `${pre}\n${text}${post}`;
 	}
 
@@ -1257,10 +1301,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		text: string,
 		body: string,
 		pos: number,
+		cursorOffsetInText = text.length,
 	): string {
 		const separator = body.length > 0 && !text.endsWith("\n") ? "\n" : "";
+		const clampedOffset = Math.max(
+			0,
+			Math.min(cursorOffsetInText, text.length),
+		);
 
 		if (pos <= 0) {
+			this.setCaptureInsertionEndOffset(clampedOffset);
 			return `${text}${separator}${body}`;
 		}
 
@@ -1268,6 +1318,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const pre = splitContent.slice(0, pos).join("\n");
 		const post = splitContent.slice(pos).join("\n");
 
+		this.setCaptureInsertionEndOffset(pre.length + 1 + clampedOffset);
 		return `${pre}\n${text}${separator}${post}`;
 	}
 }
