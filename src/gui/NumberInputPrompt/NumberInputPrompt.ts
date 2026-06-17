@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type { TextComponent } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type { InputPromptOptions } from "../../types/inputPrompt";
+import { normalizeNumericValue } from "../../utils/valueSyntax";
 
 /**
  * A {@link GenericInputPrompt} that renders an `<input type="number">` for
@@ -70,8 +71,23 @@ export default class NumberInputPrompt extends GenericInputPrompt {
 		);
 		textComponent.inputEl.type = "number";
 		textComponent.inputEl.inputMode = "decimal";
-		// Allow decimals/scientific notation; the browser still rejects letters.
-		textComponent.inputEl.setAttr("step", "any");
+		const numeric = this.options?.numeric;
+		if (numeric?.min !== undefined) {
+			textComponent.inputEl.min = String(numeric.min);
+		}
+		if (numeric?.max !== undefined) {
+			textComponent.inputEl.max = String(numeric.max);
+		}
+		textComponent.inputEl.setAttr(
+			"step",
+			numeric?.step !== undefined ? String(numeric.step) : "any",
+		);
 		return textComponent;
+	}
+
+	protected transformInputOnSubmit(input: string): string {
+		if (!this.options?.numeric) return input;
+		if (input === "" && this.isOptionalPrompt) return "";
+		return normalizeNumericValue(input, this.options.numeric);
 	}
 }

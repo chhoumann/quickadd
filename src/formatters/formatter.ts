@@ -44,6 +44,8 @@ import {
 	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
+	type NumericInputConfig,
+	type SliderConfig,
 	type ValueInputType,
 } from "../utils/valueSyntax";
 import { parseVDateOptions } from "../utils/vdateSyntax";
@@ -62,6 +64,8 @@ export interface PromptContext {
 	placeholder?: string;
 	variableKey?: string;
 	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
+	numericConfig?: NumericInputConfig;
+	sliderConfig?: SliderConfig;
 	optional?: boolean; // Token carries |optional: empty submissions are accepted as the answer.
 	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker.
 }
@@ -269,6 +273,12 @@ export abstract class Formatter {
 			}
 			if (parsed.inputTypeOverride && !context.inputTypeOverride) {
 				context.inputTypeOverride = parsed.inputTypeOverride;
+			}
+			if (parsed.numericConfig && !context.numericConfig) {
+				context.numericConfig = parsed.numericConfig;
+			}
+			if (parsed.sliderConfig && !context.sliderConfig) {
+				context.sliderConfig = parsed.sliderConfig;
 			}
 			if (parsed.optional) {
 				context.optional = true;
@@ -687,6 +697,8 @@ export abstract class Formatter {
 				defaultValue,
 				description: helperText,
 				inputTypeOverride: parsed.inputTypeOverride,
+				numericConfig: parsed.numericConfig,
+				sliderConfig: parsed.sliderConfig,
 				variableKey,
 				optional: parsed.optional,
 			});
