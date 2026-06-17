@@ -53,7 +53,7 @@ export class TemplatePropertyCollector {
     const propertyKeyMatch = lineContent.match(/^\s*([^:]+):/);
     const fallbackPathKey = propertyKeyMatch ? propertyKeyMatch[1].trim() : fallbackKey;
 
-    const listItemPattern = /^-\s*['"]?\{\{(?:VALUE|FIELD):[^}]+\}\}['"]?\s*$/i;
+	const listItemPattern = /^-\s*['"]?\{\{(?:VALUE|FIELD):[^}]+\}\}['"]?\s*$/i;
     let propertyPath: string[] | null = null;
 
     if (context.isKeyValuePosition) {
@@ -98,11 +98,11 @@ export class TemplatePropertyCollector {
     return result;
   }
 
-  public merge(vars: Map<string, unknown>): void {
-    for (const [key, value] of vars) {
-      this.map.set(key, value);
-    }
-  }
+	public merge(vars: Map<string, unknown>): void {
+		for (const [key, value] of vars) {
+			this.map.set(key, value);
+		}
+	}
 
   private buildParseOptions(propertyKey: string): ParseOptions {
     return {
