@@ -65,7 +65,7 @@ function validateTemplate(
 	// A path with format syntax (e.g. "Templates/{{value:type}} Template.md")
 	// only resolves when the capture runs, so show a neutral hint rather than
 	// flagging it "not found" (issue #620).
-if (hasTemplatePathSyntax(value)) {
+	if (hasTemplatePathSyntax(value)) {
 		return {
 			valid: true,
 			message: "Contains format syntax — resolved at run time.",

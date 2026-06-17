@@ -661,10 +661,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			throw new ChoiceAbortError("Capture format file is empty.");
 		}
 
-		const file = getTemplateFile(this.app, sourcePath);
+		const resolvedSourcePath =
+			await this.formatter.formatTemplateFilePath(sourcePath);
+		const file = getTemplateFile(this.app, resolvedSourcePath);
 		if (!file) {
 			throw new ChoiceAbortError(
-				`Capture format file not found: ${sourcePath}`,
+				`Capture format file not found: ${resolvedSourcePath}`,
 			);
 		}
 
