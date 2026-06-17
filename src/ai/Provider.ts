@@ -37,17 +37,32 @@ export function getProviderKind(provider: {
 }): ProviderKind {
 	if (provider.kind) return provider.kind;
 	const name = (provider.name ?? "").toLowerCase();
-	const endpoint = (provider.endpoint ?? "").toLowerCase();
-	if (name === "anthropic" || endpoint.includes("api.anthropic.com")) {
+	const host = endpointHost(provider.endpoint);
+	// Match the parsed HOSTNAME precisely (exact or a real subdomain), not a raw
+	// substring of the whole URL — so e.g. `https://evil.com/?api.anthropic.com`
+	// can't be mistaken for Anthropic.
+	const isHost = (h: string) => host === h || host.endsWith(`.${h}`);
+	if (name === "anthropic" || isHost("api.anthropic.com")) {
 		return "anthropic";
 	}
-	if (
-		name === "gemini" ||
-		endpoint.includes("generativelanguage.googleapis.com")
-	) {
+	if (name === "gemini" || isHost("generativelanguage.googleapis.com")) {
 		return "gemini";
 	}
 	return "openai";
+}
+
+/** Lowercased hostname of an endpoint, or "" if it can't be parsed (scheme optional). */
+function endpointHost(endpoint?: string): string {
+	const raw = (endpoint ?? "").trim();
+	if (!raw) return "";
+	for (const candidate of [raw, `https://${raw}`]) {
+		try {
+			return new URL(candidate).hostname.toLowerCase();
+		} catch {
+			/* try next form */
+		}
+	}
+	return "";
 }
 
 export interface Model {
