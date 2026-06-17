@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import { Notice, type App } from "obsidian";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -105,6 +105,7 @@ const {
 	configureChoice,
 	createToggleCommandChoice,
 	CommandRegistry,
+	duplicateChoiceWithUserScriptSecretSanitization,
 	moveChoice,
 	findChoiceById,
 } = await import("./choiceService");
@@ -113,6 +114,7 @@ const { TemplateChoice } = await import("../types/choices/TemplateChoice");
 const { CaptureChoice } = await import("../types/choices/CaptureChoice");
 const { MacroChoice } = await import("../types/choices/MacroChoice");
 const { MultiChoice } = await import("../types/choices/MultiChoice");
+const { createUserScriptSecretRef } = await import("../utils/userScriptSecrets");
 
 // Minimal fakes — App/QuickAdd are only used as opaque references here.
 const fakeApp = { name: "fake-app" } as unknown as App;
@@ -125,6 +127,7 @@ describe("choiceService", () => {
 		mocks.multiModal.mockReset();
 		mocks.yesNoPrompt.mockReset();
 		mocks.storeChoices = [];
+		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
 	});
 
 	describe("createChoice", () => {
@@ -231,6 +234,62 @@ describe("choiceService", () => {
 			// Mutating the copy does not affect the original.
 			copy.macro.commands[0].name = "Changed";
 			expect(original.macro.commands[0].name).toBe("Cmd");
+		});
+
+		it("strips user-script secrets when duplicating macros", async () => {
+			const original = createChoice("Macro", "Mac") as IMacroChoice;
+			original.macro.commands.push({
+				id: "cmd-1",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.md",
+				settings: {
+					"API Key": "legacy-secret",
+					Token: createUserScriptSecretRef("local-secret-ref"),
+					Model: "gpt-4",
+					Enabled: true,
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+			const app = {
+				vault: {
+					adapter: {
+						exists: vi.fn().mockResolvedValue(true),
+						read: vi.fn().mockResolvedValue(
+							[
+								"# Script note",
+								"",
+								"```js",
+								"module.exports = {",
+								"  settings: {",
+								"    options: {",
+								"      \"API Key\": { \"type\": \"secret\" },",
+								"      Token: { type: \"text\", secret: true },",
+								"      Model: { type: \"text\" },",
+								"    },",
+								"  },",
+								"};",
+								"```",
+							].join("\n"),
+						),
+					},
+				},
+			} as unknown as App;
+
+			const copy = await duplicateChoiceWithUserScriptSecretSanitization(
+				original,
+				app,
+			) as IMacroChoice;
+			const copiedCommand = copy.macro.commands[0] as unknown as {
+				settings: Record<string, unknown>;
+			};
+
+			expect(copiedCommand.settings).toEqual({
+				Model: "gpt-4",
+				Enabled: true,
+			});
+			expect(JSON.stringify(copy)).not.toContain("legacy-secret");
+			expect(JSON.stringify(copy)).not.toContain("local-secret-ref");
+			expect(JSON.stringify(copy)).not.toContain("__quickaddSecret");
 		});
 
 		it("recursively duplicates nested Multi choices and preserves placeholder/collapsed", () => {
@@ -352,6 +411,59 @@ describe("choiceService", () => {
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
 			expect(message).toContain("MyMacro");
 			expect(message).toContain("macro commands");
+		});
+
+		it("clears nested user-script secrets when deleting a Macro choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const deleteSecret = vi.fn();
+			const app = {
+				secretStorage: {
+					delete: deleteSecret,
+				},
+			} as unknown as App;
+			const macro = createChoice("Macro", "MyMacro") as IMacroChoice;
+			macro.macro.commands.push({
+				id: "cmd",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+
+			await deleteChoiceWithConfirmation(macro, app);
+
+			expect(deleteSecret).toHaveBeenCalledWith("local-secret-ref");
+		});
+
+		it("keeps a Macro choice when clearing nested secrets fails", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const app = {
+				secretStorage: {
+					delete: vi.fn().mockRejectedValue(new Error("delete failed")),
+				},
+			} as unknown as App;
+			const macro = createChoice("Macro", "MyMacro") as IMacroChoice;
+			macro.macro.commands.push({
+				id: "cmd",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+
+			const result = await deleteChoiceWithConfirmation(macro, app);
+
+			expect(result).toBe(false);
+			expect((Notice as unknown as { instances: { message: string }[] }).instances)
+				.toContainEqual({
+					message: "Could not clear user script secrets. Choice was not deleted.",
+					timeout: undefined,
+					messageEl: expect.any(HTMLElement),
+				});
 		});
 
 		it("does not include Multi/Macro warnings for a plain Template choice", async () => {

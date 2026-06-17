@@ -52,6 +52,7 @@ import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileComman
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { getUserScriptMemberAccess } from "../../utilityObsidian";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
+import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 
 type ConditionalHandler = (command: IConditionalCommand) => Promise<boolean>;
 
@@ -152,6 +153,17 @@ export class CommandSequenceEditor {
 					`If you click yes, you will delete '${command.name}'.`
 				);
 				if (!promptAnswer) return;
+
+				const secretsCleared = await clearUserScriptSecretsFromCommand(
+					this.app,
+					command
+				);
+				if (!secretsCleared) {
+					new Notice(
+						"Could not clear user script secrets. Command was not deleted."
+					);
+					return;
+				}
 
 				this.commandsRef = this.commandsRef.filter((c) => c.id !== commandId);
 				this.emitCommandsChanged();

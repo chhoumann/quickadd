@@ -227,6 +227,57 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		);
 	});
 
+	it("migrates legacy plaintext secret settings before invoking the entry export", async () => {
+		const entryFn = vi.fn().mockResolvedValue("entry-result");
+		const secretStore = new Map<string, string>();
+		const secretApp = {
+			secretStorage: {
+				getSecret: vi.fn((name: string) => secretStore.get(name) ?? null),
+				setSecret: vi.fn((name: string, value: string) => {
+					secretStore.set(name, value);
+				}),
+			},
+		} as unknown as App;
+		const saveSettings = vi.fn().mockResolvedValue(undefined);
+		const pluginWithSave = { saveSettings } as unknown as QuickAdd;
+		userScriptCommand.settings = {
+			"API Key": "legacy-secret",
+		};
+
+		mockGetUserScript.mockResolvedValue({
+			entry: entryFn,
+			settings: {
+				options: {
+					"API Key": {
+						type: "secret",
+					},
+				},
+			},
+		});
+
+		const engine = new MacroChoiceEngine(
+			secretApp,
+			pluginWithSave,
+			macroChoice,
+			choiceExecutor,
+			variables,
+		);
+
+		await engine["executeUserScript"](userScriptCommand);
+
+		expect(secretStore.get("quickadd-user-script-user-script-api-key")).toBe(
+			"legacy-secret",
+		);
+		expect(JSON.stringify(userScriptCommand.settings)).not.toContain(
+			"legacy-secret",
+		);
+		expect(entryFn).toHaveBeenCalledWith(
+			expect.objectContaining({ variables: expect.any(Object) }),
+			{ "API Key": "legacy-secret" },
+		);
+		expect(saveSettings).toHaveBeenCalledTimes(1);
+	});
+
 	it("ignores malformed primitive settings exports at the user-script boundary", async () => {
 		const entryFn = vi.fn().mockResolvedValue("entry-result");
 

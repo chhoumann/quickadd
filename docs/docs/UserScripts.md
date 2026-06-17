@@ -213,19 +213,35 @@ User scripts can define configurable options that users can set through the Quic
 ### Option Types
 
 #### Text Input
-For string values, API keys, paths, etc.
+For regular string values, paths, names, etc.
+
+```javascript
+options: {
+    "Project": {
+        type: "text",              // or "input"
+        defaultValue: "",
+        placeholder: "Project name",
+        description: "Default project" // Optional: help text
+    }
+}
+```
+
+#### Secret Input
+For API keys, access tokens, and other sensitive values. Secrets are stored in Obsidian's SecretStorage and QuickAdd stores only a reference in `data.json`.
 
 ```javascript
 options: {
     "API Key": {
-        type: "text",              // or "input"
-        defaultValue: "",
-        placeholder: "Enter API key",
-        secret: true,              // Optional: masks input for sensitive data
-        description: "Your API key" // Optional: help text
+        type: "secret",
+        placeholder: "Paste API key",
+        description: "Your API key"
     }
 }
 ```
+
+`type: "text"` / `type: "input"` with `secret: true` is still supported for older scripts and is treated as a secret setting.
+
+Secret values are local to the Obsidian app profile. They are not included in QuickAdd package exports and are not synced through the plugin's `data.json`; users must enter them on each device where the script runs.
 
 #### Toggle/Checkbox
 For boolean on/off settings.
@@ -280,10 +296,8 @@ module.exports = {
         author: "Your Name",
         options: {
             "API Key": {
-                type: "text",
-                defaultValue: "",
+                type: "secret",
                 placeholder: "sk-...",
-                secret: true,
                 description: "OpenAI API key"
             },
             "Model": {

@@ -516,9 +516,32 @@ export class FuzzySuggestModal<T = unknown> {
 };
 
 export const Modal = class {
-  constructor(app: any) {}
-  open() {}
-  close() {}
+	app: any;
+	containerEl: HTMLElement;
+	modalEl: HTMLElement;
+	contentEl: HTMLElement;
+	titleEl: HTMLElement;
+
+	constructor(app: any) {
+		this.app = app;
+		this.containerEl = document.createElement("div");
+		this.modalEl = document.createElement("div");
+		this.titleEl = document.createElement("div");
+		this.contentEl = document.createElement("div");
+		this.modalEl.appendChild(this.titleEl);
+		this.modalEl.appendChild(this.contentEl);
+		this.containerEl.appendChild(this.modalEl);
+		document.body.appendChild(this.containerEl);
+	}
+
+	open() {
+		(this as any).onOpen?.();
+	}
+
+	close() {
+		(this as any).onClose?.();
+		this.containerEl.remove();
+	}
 };
 
 export const Scope = class {

@@ -199,6 +199,108 @@ describe("SingleMacroEngine member access", () => {
 		expect(choiceExecutor.variables.get("newValue")).toBe("hello");
 	});
 
+	it("migrates legacy plaintext secret settings before member-access execution", async () => {
+		const secretStore = new Map<string, string>();
+		const secretApp = {
+			secretStorage: {
+				getSecret: vi.fn((name: string) => secretStore.get(name) ?? null),
+				setSecret: vi.fn((name: string, value: string) => {
+					secretStore.set(name, value);
+				}),
+			},
+		} as unknown as App;
+		const saveSettings = vi.fn().mockResolvedValue(undefined);
+		const pluginWithSave = { saveSettings } as unknown as QuickAdd;
+		const userScript = createUserScript("user-script", "script.js");
+		userScript.settings = {
+			"API Key": "legacy-secret",
+		};
+		const macroChoice = baseMacroChoice([userScript]);
+		const choices: IChoice[] = [macroChoice];
+
+		const engineInstance = macroEngineFactory();
+		macroEngineFactory = () => engineInstance;
+		const exportFn = vi.fn().mockReturnValue("secret-result");
+
+		mockGetUserScript.mockResolvedValue({
+			settings: {
+				options: {
+					"API Key": {
+						type: "secret",
+					},
+				},
+			},
+			f: exportFn,
+		});
+
+		const engine = new SingleMacroEngine(
+			secretApp,
+			pluginWithSave,
+			choices,
+			choiceExecutor,
+		);
+
+		await engine.runAndGetOutput("My Macro::f");
+
+		expect(secretStore.get("quickadd-user-script-user-script-api-key")).toBe(
+			"legacy-secret",
+		);
+		expect(JSON.stringify(userScript.settings)).not.toContain("legacy-secret");
+		expect(exportFn).toHaveBeenCalledWith(engineInstance.params, {
+			"API Key": "legacy-secret",
+		});
+		expect(saveSettings).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not resolve or migrate settings for non-callable member access", async () => {
+		const getSecret = vi.fn(() => {
+			throw new Error("should not read secrets for metadata access");
+		});
+		const setSecret = vi.fn();
+		const secretApp = {
+			secretStorage: {
+				getSecret,
+				setSecret,
+			},
+		} as unknown as App;
+		const saveSettings = vi.fn().mockResolvedValue(undefined);
+		const pluginWithSave = { saveSettings } as unknown as QuickAdd;
+		const userScript = createUserScript("user-script", "script.js");
+		userScript.settings = {
+			"API Key": {
+				__quickaddSecret: true,
+				secretRef: "missing-secret",
+			},
+		};
+		const macroChoice = baseMacroChoice([userScript]);
+		const choices: IChoice[] = [macroChoice];
+		const exportedSettings = {
+			options: {
+				"API Key": {
+					type: "secret",
+				},
+			},
+		};
+
+		mockGetUserScript.mockResolvedValue({
+			settings: exportedSettings,
+		});
+
+		const engine = new SingleMacroEngine(
+			secretApp,
+			pluginWithSave,
+			choices,
+			choiceExecutor,
+		);
+
+		const result = await engine.runAndGetOutput("My Macro::settings");
+
+		expect(result).toBe(JSON.stringify(exportedSettings));
+		expect(getSecret).not.toHaveBeenCalled();
+		expect(setSecret).not.toHaveBeenCalled();
+		expect(saveSettings).not.toHaveBeenCalled();
+	});
+
 	it("reaches a unique member on a later script while preserving pre and post execution", async () => {
 		const preCommand = {
 			id: "wait-1",

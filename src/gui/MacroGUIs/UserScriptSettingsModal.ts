@@ -1,11 +1,19 @@
 import type { App } from "obsidian";
-import { Modal, Setting, TextAreaComponent } from "obsidian";
+import { Modal, Notice, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { getQuickAddInstance } from "../../quickAddInstance";
 import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 import { initializeUserScriptSettings } from "../../utils/userScriptSettings";
+import {
+	clearUserScriptSecret,
+	createUserScriptSecretRef,
+	getSecretRefFromCommandSetting,
+	isSecretUserScriptOption,
+	migrateUserScriptSecretSettings,
+	storeUserScriptSecret,
+} from "../../utils/userScriptSecrets";
 
 type Option = { description?: string } & (
 	| {
@@ -20,6 +28,12 @@ type Option = { description?: string } & (
 			value: string;
 			placeholder?: string;
 			defaultValue: string;
+	  }
+	| {
+			type: "secret";
+			value?: string;
+			placeholder?: string;
+			defaultValue?: string;
 	  }
 	| {
 			type: "checkbox" | "toggle";
@@ -65,11 +79,12 @@ export class UserScriptSettingsModal extends Modal {
 	) {
 		super(app);
 
-		this.display();
 		if (!this.command.settings) this.command.settings = {};
 
 		// Initialize default values for settings
 		initializeUserScriptSettings(this.command.settings, this.settings);
+		this.display();
+		void this.migrateSecretSettings();
 	}
 
 	protected display() {
@@ -89,6 +104,16 @@ export class UserScriptSettingsModal extends Modal {
 		for (const option in options) {
 			if (!Object.prototype.hasOwnProperty.call(options, option)) continue;
 			const entry = options[option];
+			if (isSecretUserScriptOption(entry)) {
+				const setting = this.addSecretInput(
+					option,
+					"placeholder" in entry ? entry.placeholder : undefined,
+				);
+				if (entry.description) {
+					setting.setDesc(entry.description);
+				}
+				continue;
+			}
 
 			let value = entry.defaultValue;
 
@@ -152,6 +177,92 @@ export class UserScriptSettingsModal extends Modal {
 				setPasswordOnBlur(input.inputEl);
 			}
 		});
+	}
+
+	private addSecretInput(name: string, placeholder?: string) {
+		const setting = new Setting(this.contentEl).setName(name);
+		let pendingValue = "";
+		let inputEl: HTMLInputElement | undefined;
+
+		const hasSecret = () => {
+			const value = this.command.settings?.[name];
+			return (
+				getSecretRefFromCommandSetting(this.command, name) !== undefined ||
+				(typeof value === "string" && value.length > 0)
+			);
+		};
+		const updatePlaceholder = () => {
+			if (!inputEl) return;
+			inputEl.placeholder = hasSecret()
+				? "Secret saved"
+				: (placeholder ?? "Paste secret");
+		};
+
+		setting.addText((input) => {
+			input
+				.setValue("")
+				.onChange((value) => {
+					pendingValue = value;
+				});
+			input.inputEl.type = "password";
+			input.inputEl.addClass("qa-user-script-secret-input");
+			input.inputEl.setAttribute("aria-label", name);
+			inputEl = input.inputEl;
+			updatePlaceholder();
+		});
+
+		setting.addButton((button) => {
+			button.setIcon("save").setTooltip("Save secret").onClick(async () => {
+				if (pendingValue.length === 0) {
+					new Notice("Paste a secret before saving.");
+					return;
+				}
+
+				const secretRef = await storeUserScriptSecret(
+					this.app,
+					this.command,
+					name,
+					pendingValue,
+					getSecretRefFromCommandSetting(this.command, name),
+				);
+
+				if (!secretRef) {
+					new Notice("SecretStorage is unavailable. Secret was not saved.");
+					return;
+				}
+
+				this.command.settings[name] = createUserScriptSecretRef(secretRef);
+				pendingValue = "";
+				if (inputEl) inputEl.value = "";
+				updatePlaceholder();
+				this.onCommandChange?.();
+				new Notice("Secret saved.");
+			});
+			button.buttonEl.setAttribute("aria-label", `Save ${name}`);
+		});
+
+		setting.addButton((button) => {
+			button.setIcon("trash-2").setTooltip("Clear secret").onClick(async () => {
+				const secretRef = getSecretRefFromCommandSetting(this.command, name);
+				if (secretRef) {
+					const cleared = await clearUserScriptSecret(this.app, secretRef);
+					if (!cleared) {
+						new Notice("SecretStorage is unavailable. Secret was not cleared.");
+						return;
+					}
+				}
+
+				delete this.command.settings[name];
+				pendingValue = "";
+				if (inputEl) inputEl.value = "";
+				updatePlaceholder();
+				this.onCommandChange?.();
+				new Notice("Secret cleared.");
+			});
+			button.buttonEl.setAttribute("aria-label", `Clear ${name}`);
+		});
+
+		return setting;
 	}
 
 	private addTextArea(
@@ -224,5 +335,18 @@ export class UserScriptSettingsModal extends Modal {
 			(formatDisplay.innerText = await displayFormatter.format(value)))();
 
 		return setting;
+	}
+
+	private async migrateSecretSettings() {
+		if (
+			await migrateUserScriptSecretSettings(
+				this.app,
+				this.command,
+				this.settings,
+			)
+		) {
+			this.onCommandChange?.();
+			this.display();
+		}
 	}
 }

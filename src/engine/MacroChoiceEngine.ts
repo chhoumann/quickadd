@@ -49,6 +49,11 @@ import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
+import {
+	migrateUserScriptSecretSettings,
+	resolveUserScriptSettings,
+	type UserScriptSettingsDefinition,
+} from "../utils/userScriptSecrets";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
@@ -162,6 +167,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
 	private userScriptCommand: IUserScript | null;
+	private userScriptSettingsDefinition: UserScriptSettingsDefinition | undefined;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
 	private readonly preloadedUserScripts: Map<string, unknown>;
 	private readonly promptLabel?: string;
@@ -248,6 +254,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
 		this.promptLabel = promptLabel;
+		this.userScriptSettingsDefinition = undefined;
 		const sharedVariables = this.initSharedVariables(
 			choiceExecutor,
 			variables
@@ -340,13 +347,13 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			command.settings = {};
 		}
 
-		this.userScriptCommand = command;
-
 		const userScriptSettings = getUserScriptSettings(userScript);
 		if (userScriptSettings) {
 			// Initialize default values for settings before executing the script
 			initializeUserScriptSettings(command.settings, userScriptSettings);
 		}
+		this.userScriptCommand = command;
+		this.userScriptSettingsDefinition = userScriptSettings;
 
 		try {
 			await this.userScriptDelegator(userScript);
@@ -359,7 +366,26 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			throw err;
 		} finally {
 			this.userScriptCommand = null;
+			this.userScriptSettingsDefinition = undefined;
 		}
+	}
+
+	private async getResolvedUserScriptSettings(command: IUserScript) {
+		if (
+			await migrateUserScriptSecretSettings(
+				this.app,
+				command,
+				this.userScriptSettingsDefinition,
+			)
+		) {
+			await this.plugin.saveSettings?.();
+		}
+
+		return resolveUserScriptSettings(
+			this.app,
+			command,
+			this.userScriptSettingsDefinition,
+		);
 	}
 
 	private async runScriptWithSettings(
@@ -383,12 +409,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		) {
 			return await this.onExportIsFunction(
 				userScript.entry,
-				command.settings
+				await this.getResolvedUserScriptSettings(command),
 			);
 		}
 
 		if (typeof userScript === "function") {
-			return await this.onExportIsFunction(userScript, command.settings);
+			return await this.onExportIsFunction(
+				userScript,
+				await this.getResolvedUserScriptSettings(command),
+			);
 		}
 	}
 

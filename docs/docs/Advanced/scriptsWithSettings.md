@@ -46,6 +46,11 @@ module.exports = {
                 placeholder: "Placeholder",
                 description: "Description here.",
             },
+            "API Key": {
+                type: "secret",
+                placeholder: "Paste API key",
+                description: "Stored securely with Obsidian SecretStorage.",
+            },
             "Checkbox": {
                 type: "checkbox",
                 defaultValue: false,
@@ -71,6 +76,7 @@ module.exports = {
 
 ## Setting types
 - `text` and `input`: A text field.
+- `secret`: A password-style input stored with Obsidian SecretStorage. QuickAdd stores only a reference in `data.json`; package exports omit secret values and local secret references. The older `text` / `input` plus `secret: true` form is still treated as a secret setting.
 - `textarea`: A multi-line text area.
 - `checkbox` and `toggle`: A checkbox.
 - `dropdown` and `select`: A dropdown.

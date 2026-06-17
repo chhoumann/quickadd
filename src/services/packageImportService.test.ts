@@ -34,6 +34,7 @@ import type {
 	ChoiceImportDecision,
 	AssetImportDecision,
 } from "./packageImportService";
+const { createUserScriptSecretRef } = await import("../utils/userScriptSecrets");
 
 // --- Fake app / vault -------------------------------------------------------
 
@@ -568,6 +569,75 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 		expect(result.addedChoiceIds).toEqual(["uuid-1"]);
 		expect(result.updatedChoices[0].id).toBe("uuid-1");
 		expect(result.updatedChoices[0].name).toBe("Orig");
+	});
+
+	it("strips user-script secrets from imported package choices", async () => {
+		const { app } = createFakeApp();
+		const macro = {
+			...makeChoice("macro", "Macro", "Macro"),
+			macro: {
+				id: "macro-id",
+				name: "M",
+				commands: [
+					{
+						id: "cmd",
+						name: "Run script",
+						type: CommandType.UserScript,
+						path: "Scripts/script.md",
+						settings: {
+							"API Key": "legacy-secret",
+							Token: createUserScriptSecretRef("local-secret-ref"),
+							Model: "gpt-4",
+						},
+					} as IUserScript,
+				],
+			},
+			runOnStartup: false,
+		} as IMacroChoice;
+		const pkg = makePackage({
+			choices: [makePackageChoice(macro)],
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "Scripts/script.md",
+					contentEncoding: "base64",
+					content: encodeToBase64(
+						[
+							"# Script note",
+							"",
+							"```js",
+							"module.exports = {",
+							"  settings: {",
+							"    options: {",
+							"      \"API Key\": { \"type\": \"secret\" },",
+							"      Token: { type: \"text\", secret: true },",
+							"      Model: { type: \"text\" },",
+							"    },",
+							"  },",
+							"  entry: () => {},",
+							"};",
+							"```",
+						].join("\n"),
+					),
+				},
+			],
+		});
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: decisions([["macro", "import"]]),
+			assetDecisions: [],
+		});
+
+		const inserted = result.updatedChoices[0] as IMacroChoice;
+		const command = inserted.macro.commands[0] as IUserScript;
+
+		expect(command.settings).toEqual({ Model: "gpt-4" });
+		expect(JSON.stringify(inserted)).not.toContain("legacy-secret");
+		expect(JSON.stringify(inserted)).not.toContain("local-secret-ref");
+		expect(JSON.stringify(inserted)).not.toContain("__quickaddSecret");
 	});
 
 	it("propagates duplication to descendants and regenerates macro/command ids", async () => {

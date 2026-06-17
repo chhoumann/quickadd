@@ -12,7 +12,7 @@
 		createToggleCommandChoice,
 		findChoiceById,
 		deleteChoiceWithConfirmation,
-		duplicateChoice,
+		duplicateChoiceWithUserScriptSecretSanitization,
 		addChoiceToTree,
 		moveChoice as moveChoiceService,
 		removeChoiceById,
@@ -238,8 +238,11 @@
 		save();
 	}
 
-	function handleDuplicateChoice(sourceChoice: IChoice) {
-		const newChoice = duplicateChoice(liveChoice(sourceChoice));
+	async function handleDuplicateChoice(sourceChoice: IChoice) {
+		const newChoice = await duplicateChoiceWithUserScriptSecretSanitization(
+			liveChoice(sourceChoice),
+			app,
+		);
 		choices = [...choices, newChoice];
 		save();
 	}
