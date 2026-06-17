@@ -99,7 +99,7 @@ async function seedChoices() {
 			}),
 			captureChoice({
 				id: `${TEST_PREFIX}above`,
-				content: "ABOVE-1\nABOVE-2",
+				content: "A\nABOVE-2",
 				newLineCapture: { enabled: true, direction: "above" },
 			}),
 			captureChoice({
@@ -212,14 +212,14 @@ describe("Capture active-file cursor position", () => {
 
 	it("keeps the cursor with the original line after inserting above", async () => {
 		const note = sandbox.path("above.md");
-		await openNoteAtCursor(note, "alpha\nbeta", { line: 1, ch: 2 });
+		await openNoteAtCursor(note, "alpha\nbravo", { line: 1, ch: 4 });
 
 		await runCapture(`${TEST_PREFIX}above`);
 
 		const result = await inspectEditor();
 		expect(result.activeFile).toBe(note);
-		expect(result.content).toBe("alpha\nABOVE-1\nABOVE-2\nbeta");
-		expect(result.cursor).toEqual({ line: 3, ch: 2 });
+		expect(result.content).toBe("alpha\nA\nABOVE-2\nbravo");
+		expect(result.cursor).toEqual({ line: 3, ch: 4 });
 	});
 
 	it("keeps the cursor in place after inserting below", async () => {

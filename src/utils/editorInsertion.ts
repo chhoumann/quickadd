@@ -11,17 +11,25 @@ function clonePosition(position: EditorPosition): EditorPosition {
 
 function restoreCursorAfterInsert(
 	editor: Editor,
-	originalCursor: EditorPosition,
+	originalOffset: number,
 	insertOffset: number,
 	insertedText: string,
 ): void {
-	const originalOffset = editor.posToOffset(originalCursor);
 	const restoredOffset =
 		originalOffset > insertOffset
 			? originalOffset + insertedText.length
 			: originalOffset;
 
 	editor.setCursor(editor.offsetToPos(restoredOffset));
+}
+
+function hasSingleCollapsedSelection(editor: Editor): boolean {
+	const selections = editor.listSelections();
+	return (
+		selections.length === 1 &&
+		selections[0].anchor.line === selections[0].head.line &&
+		selections[0].anchor.ch === selections[0].head.ch
+	);
 }
 
 /**
@@ -53,9 +61,12 @@ export function appendToCurrentLine(toAppend: string, app: App): boolean {
 
 		const editor = activeView.editor;
 		const cursor = clonePosition(editor.getCursor());
+		const shouldRestoreCursor = hasSingleCollapsedSelection(editor);
 
 		editor.replaceSelection(toAppend);
-		editor.setCursor(cursor);
+		if (shouldRestoreCursor) {
+			editor.setCursor(cursor);
+		}
 		return true;
 	} catch {
 		log.logError(`unable to append '${toAppend}' to current line.`);
@@ -75,6 +86,7 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 
 		const editor = activeView.editor;
 		const cursor = clonePosition(editor.getCursor());
+		const originalOffset = editor.posToOffset(cursor);
 		const lineNumber = cursor.line;
 		if (direction === "above") {
 			// Insert at the beginning of the current line, add content + newline
@@ -82,7 +94,7 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 			const insertedText = toInsert + "\n";
 			const insertOffset = editor.posToOffset(insertPosition);
 			editor.replaceRange(insertedText, insertPosition);
-			restoreCursorAfterInsert(editor, cursor, insertOffset, insertedText);
+			restoreCursorAfterInsert(editor, originalOffset, insertOffset, insertedText);
 		} else {
 			// Insert at the end of the current line, add newline + content
 			const currentLine = editor.getLine(lineNumber);
@@ -90,7 +102,7 @@ export function insertOnNewLine(toInsert: string, direction: "above" | "below", 
 			const insertedText = "\n" + toInsert;
 			const insertOffset = editor.posToOffset(insertPosition);
 			editor.replaceRange(insertedText, insertPosition);
-			restoreCursorAfterInsert(editor, cursor, insertOffset, insertedText);
+			restoreCursorAfterInsert(editor, originalOffset, insertOffset, insertedText);
 		}
 		return true;
 	} catch {

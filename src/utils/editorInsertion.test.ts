@@ -4,11 +4,14 @@ import { appendToCurrentLine, insertOnNewLine } from "./editorInsertion";
 
 class TextEditor {
 	private value: string;
-	private cursor: EditorPosition;
+	private selection: { anchor: EditorPosition; head: EditorPosition };
 
-	constructor(value: string, cursor: EditorPosition) {
+	constructor(value: string, cursor: EditorPosition, head: EditorPosition = cursor) {
 		this.value = value;
-		this.cursor = { ...cursor };
+		this.selection = {
+			anchor: { ...cursor },
+			head: { ...head },
+		};
 	}
 
 	getValue(): string {
@@ -16,11 +19,23 @@ class TextEditor {
 	}
 
 	getCursor(): EditorPosition {
-		return { ...this.cursor };
+		return { ...this.selection.head };
 	}
 
 	setCursor(position: EditorPosition): void {
-		this.cursor = { ...position };
+		this.selection = {
+			anchor: { ...position },
+			head: { ...position },
+		};
+	}
+
+	listSelections() {
+		return [
+			{
+				anchor: { ...this.selection.anchor },
+				head: { ...this.selection.head },
+			},
+		];
 	}
 
 	getLine(line: number): string {
@@ -47,15 +62,18 @@ class TextEditor {
 	}
 
 	replaceSelection(text: string): void {
-		const offset = this.posToOffset(this.cursor);
-		this.value = `${this.value.slice(0, offset)}${text}${this.value.slice(offset)}`;
-		this.cursor = this.offsetToPos(offset + text.length);
+		const anchorOffset = this.posToOffset(this.selection.anchor);
+		const headOffset = this.posToOffset(this.selection.head);
+		const from = Math.min(anchorOffset, headOffset);
+		const to = Math.max(anchorOffset, headOffset);
+		this.value = `${this.value.slice(0, from)}${text}${this.value.slice(to)}`;
+		this.setCursor(this.offsetToPos(from + text.length));
 	}
 
 	replaceRange(text: string, position: EditorPosition): void {
 		const offset = this.posToOffset(position);
 		this.value = `${this.value.slice(0, offset)}${text}${this.value.slice(offset)}`;
-		this.cursor = this.offsetToPos(offset + text.length);
+		this.setCursor(this.offsetToPos(offset + text.length));
 	}
 }
 
@@ -79,13 +97,13 @@ describe("editor insertion cursor preservation", () => {
 	});
 
 	it("keeps the cursor with the original text when inserting above", () => {
-		const editor = new TextEditor("alpha\nbeta", { line: 1, ch: 2 });
+		const editor = new TextEditor("alpha\nbravo", { line: 1, ch: 4 });
 
-		const inserted = insertOnNewLine("one\ntwo", "above", appWithEditor(editor));
+		const inserted = insertOnNewLine("x\ntwo", "above", appWithEditor(editor));
 
 		expect(inserted).toBe(true);
-		expect(editor.getValue()).toBe("alpha\none\ntwo\nbeta");
-		expect(editor.getCursor()).toEqual({ line: 3, ch: 2 });
+		expect(editor.getValue()).toBe("alpha\nx\ntwo\nbravo");
+		expect(editor.getCursor()).toEqual({ line: 3, ch: 4 });
 	});
 
 	it("keeps the cursor in place when inserting below the current line", () => {
@@ -96,5 +114,19 @@ describe("editor insertion cursor preservation", () => {
 		expect(inserted).toBe(true);
 		expect(editor.getValue()).toBe("alpha\none\ntwo\nbeta");
 		expect(editor.getCursor()).toEqual({ line: 0, ch: 2 });
+	});
+
+	it("does not override editor selection behavior for current-line replacement", () => {
+		const editor = new TextEditor(
+			"alpha beta",
+			{ line: 0, ch: 6 },
+			{ line: 0, ch: 10 },
+		);
+
+		const inserted = appendToCurrentLine("CAPTURED", appWithEditor(editor));
+
+		expect(inserted).toBe(true);
+		expect(editor.getValue()).toBe("alpha CAPTURED");
+		expect(editor.getCursor()).toEqual({ line: 0, ch: 14 });
 	});
 });
