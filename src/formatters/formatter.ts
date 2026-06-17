@@ -291,15 +291,11 @@ export abstract class Formatter {
 	}
 
 	protected async replaceClipboardInString(input: string): Promise<string> {
-		let output: string = input;
+		if (!CLIPBOARD_REGEX.test(input)) return input;
 
 		const clipboardContent = await this.getClipboardContent();
-
-		while (CLIPBOARD_REGEX.test(output)) {
-			output = this.replacer(output, CLIPBOARD_REGEX, clipboardContent);
-		}
-
-		return output;
+		const regex = new RegExp(CLIPBOARD_REGEX.source, "gi");
+		return input.replace(regex, () => clipboardContent);
 	}
 
 

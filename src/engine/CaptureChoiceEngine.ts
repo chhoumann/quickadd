@@ -224,6 +224,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	async run(): Promise<void> {
+		let contentCommitted = false;
 		try {
 			// Reset any pending structured values before starting a new capture run
 			this.capturePropertyVars.clear();
@@ -256,6 +257,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			if (canvasTarget?.kind === "text") {
 				await this.handleCanvasTextCapture(canvasTarget, action, linkOptions);
+				contentCommitted = true;
 				return;
 			}
 
@@ -390,6 +392,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				if (!inserted) {
 					// No active Markdown editor — the capture did not land. Report a
 					// failure instead of falling through to the success notice/callback.
+					await this.cleanupCreatedClipboardAttachments();
 					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 					log.logError(
 						`Capture "${this.choice.name}": no active Markdown editor to insert into.`,
@@ -397,8 +400,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					this.choiceExecutor.recordExecutionResult?.({ status: "error" });
 					return;
 				}
+				contentCommitted = true;
 			} else {
 				await this.app.vault.modify(file, newFileContent);
+				contentCommitted = true;
 				if (this.choice.templater?.afterCapture === "wholeFile") {
 					await overwriteTemplaterOnce(this.app, file);
 				}
@@ -438,6 +443,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				await jumpToNextTemplaterCursorIfPossible(this.app, file);
 			}
 		} catch (err) {
+			if (!contentCommitted) {
+				await this.cleanupCreatedClipboardAttachments();
+			}
 			if (
 				handleMacroAbort(err, {
 					logPrefix: "Capture execution aborted",
@@ -450,6 +458,26 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
+		} finally {
+			if (contentCommitted) {
+				this.formatter.consumeCreatedClipboardAttachmentPaths();
+			}
+		}
+	}
+
+	private async cleanupCreatedClipboardAttachments(): Promise<void> {
+		const paths = this.formatter.consumeCreatedClipboardAttachmentPaths();
+		for (const path of paths) {
+			try {
+				const file = this.app.vault.getAbstractFileByPath(path);
+				if (file instanceof TFile) {
+					await this.app.vault.delete(file);
+				}
+			} catch (error) {
+				log.logWarning(
+					`QuickAdd: failed to clean up clipboard attachment '${path}': ${String(error)}`,
+				);
+			}
 		}
 	}
 

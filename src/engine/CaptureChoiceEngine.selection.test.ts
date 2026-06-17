@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, type App } from "obsidian";
+import { Notice, TFile, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	getMarkdownFilesInFolder,
+	insertOnNewLineBelow,
 	insertFileLinkToActiveView,
 	isFolder,
 	openFile,
@@ -22,12 +23,14 @@ const {
 	singleTemplateRunMock,
 	promptResponses,
 	promptHydratedValues,
+	createdClipboardAttachmentPaths,
 } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
 	singleTemplateRunMock: vi.fn(async () => ""),
 	promptResponses: [] as string[],
 	promptHydratedValues: [] as string[],
+	createdClipboardAttachmentPaths: [] as string[],
 }));
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -45,6 +48,11 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			return await work();
 		}
 		async formatContentOnly(content: string) {
+			if (/\{\{clipboard\}\}/i.test(content)) {
+				createdClipboardAttachmentPaths.push("Clipboard image.png");
+				return content.replace(/\{\{clipboard\}\}/gi, "![[Clipboard image.png]]");
+			}
+
 			if (!/\{\{value\}\}/i.test(content)) return content;
 
 			const draftHandler = new InputPromptDraftHandler(
@@ -71,6 +79,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
+		}
+		consumeCreatedClipboardAttachmentPaths() {
+			return createdClipboardAttachmentPaths.splice(0);
 		}
 	},
 	setUseSelectionAsCaptureValueMock,
@@ -131,6 +142,7 @@ const createApp = () =>
 				exists: vi.fn(async () => false),
 			},
 			getAbstractFileByPath: vi.fn(() => null),
+			delete: vi.fn(async () => {}),
 			modify: vi.fn(async () => {}),
 			read: vi.fn(async () => ""),
 		},
@@ -192,8 +204,10 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		setTitleMock.mockClear();
 		promptResponses.length = 0;
 		promptHydratedValues.length = 0;
+		createdClipboardAttachmentPaths.length = 0;
 		InputPromptDraftStore.getInstance().clearAll();
 		vi.mocked(openFile).mockClear();
+		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 	});
 
 	it("uses global setting when no override is set", async () => {
@@ -627,6 +641,47 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(clipboardWriteText).not.toHaveBeenCalled();
+	});
+
+	it("removes a created clipboard attachment when editor insertion fails before commit", async () => {
+		const targetFile = new TFile();
+		targetFile.path = "Inbox.md";
+		targetFile.basename = "Inbox";
+		const attachmentFile = new TFile();
+		attachmentFile.path = "Clipboard image.png";
+		attachmentFile.basename = "Clipboard image";
+		const app = createApp() as any;
+		app.workspace.getActiveFile = vi.fn(() => targetFile);
+		app.vault.adapter.exists = vi.fn(async () => true);
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Inbox.md" ? targetFile : attachmentFile,
+		);
+		vi.mocked(insertOnNewLineBelow).mockReturnValue(false);
+
+		const executor = createExecutor();
+		executor.recordExecutionResult = vi.fn();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureToActiveFile: true,
+				newLineCapture: { enabled: true, direction: "below" },
+				format: { enabled: true, format: "{{clipboard}}" },
+			}),
+			executor,
+		);
+
+		await engine.run();
+
+		expect(app.vault.delete).toHaveBeenCalledWith(attachmentFile);
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+		});
 	});
 
 	it("keeps submitted VALUE prompt draft after failed target creation and clears it after success", async () => {

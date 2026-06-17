@@ -63,6 +63,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		getAndClearTemplatePropertyVars() {
 			return new Map();
 		}
+		consumeCreatedClipboardAttachmentPaths() {
+			return [];
+		}
 	}
 	return {
 		CaptureChoiceFormatter: CaptureChoiceFormatterMock,
