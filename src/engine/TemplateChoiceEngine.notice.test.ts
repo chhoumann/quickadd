@@ -667,6 +667,70 @@ describe("TemplateChoiceEngine destination path resolution", () => {
 		);
 	});
 
+	it("collapses newlines in generated note names before creating files", async () => {
+		const { engine } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:name}}";
+
+		formatFileNameMock.mockResolvedValueOnce("This is the VALUE\n");
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"This is the VALUE.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("collapses control characters within generated subpaths", async () => {
+		const { engine } = createEngine("ignored", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		const createdFile = new TFile();
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createdFile);
+
+		engine.choice.folder.enabled = false;
+		engine.choice.fileNameFormat.enabled = true;
+		engine.choice.fileNameFormat.format = "{{VALUE:path}}";
+
+		formatFileNameMock.mockResolvedValueOnce("Projects/This\r\n\tNote");
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Projects/This Note.md",
+			engine.choice.templatePath,
+		);
+	});
+
 	it("keeps relative subpaths under the default location when the first segment does not exist at vault root", async () => {
 		const { engine, app } = createEngine("ignored", {
 			throwDuringFileName: false,

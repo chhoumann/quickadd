@@ -483,6 +483,32 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(resolved).toBe("Inbox/note.md");
 	});
 
+	it("collapses newlines in generated capture target file names", async () => {
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox/This is the VALUE\n" }),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(resolved).toBe("Inbox/This is the VALUE.md");
+	});
+
+	it("collapses newlines before an explicit capture target extension", async () => {
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox/This is the VALUE\n.md" }),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(resolved).toBe("Inbox/This is the VALUE.md");
+	});
+
 	it("orders the folder picker by recency and gates the create row when enabled", async () => {
 		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
 			{ path: "Inbox/Apple.md", basename: "Apple" },

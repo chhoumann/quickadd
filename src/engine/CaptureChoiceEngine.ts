@@ -50,6 +50,7 @@ import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
+import { normalizeGeneratedFilePath } from "../utils/pathValidation";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import {
 	postProcessFrontMatter,
@@ -1138,16 +1139,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private normalizeCaptureFilePath(path: string): string {
-		const normalizedPath = this.stripLeadingSlash(path);
+		const extensionMatch = path.match(/\.(md|canvas)$/i);
+		const extensionlessPath = this.stripLeadingSlash(path)
+			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
+			.replace(CANVAS_FILE_EXTENSION_REGEX, "");
+		const normalizedPath = normalizeGeneratedFilePath(extensionlessPath);
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
 			throw new ChoiceAbortError(
 				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
 			);
 		}
 		const finalPath =
-			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedPath) ||
-			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath)
-				? normalizedPath
+			extensionMatch
+				? `${normalizedPath}${extensionMatch[0]}`
 				: this.normalizeMarkdownFilePath("", normalizedPath);
 
 		// A formatted target like 'notes/.md' has no usable file name (e.g. an

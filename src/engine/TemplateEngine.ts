@@ -31,6 +31,7 @@ import {
 	INVALID_FOLDER_CONTROL_CHARS_REGEX,
 	INVALID_FOLDER_TRAILING_CHARS_REGEX,
 	isReservedWindowsDeviceName,
+	normalizeGeneratedFilePath,
 } from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -511,10 +512,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const safeFolderPath = this.stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = this.stripLeadingSlash(fileName)
-			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
-			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
-			.replace(BASE_FILE_EXTENSION_REGEX, "");
+		const formattedFileName: string = normalizeGeneratedFilePath(
+			this.stripLeadingSlash(fileName)
+				.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
+				.replace(CANVAS_FILE_EXTENSION_REGEX, "")
+				.replace(BASE_FILE_EXTENSION_REGEX, ""),
+		);
 		// Validate the final path segment, not just the whole string — a
 		// trailing-slash name like "Projects/" (optional leaf token left
 		// empty) would otherwise still produce "Projects/.md".

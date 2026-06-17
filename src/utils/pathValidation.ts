@@ -6,6 +6,10 @@ export const INVALID_FOLDER_CONTROL_CHARS_REGEX = new RegExp(
 	`[${String.fromCharCode(0x00)}-${String.fromCharCode(0x1f)}]`,
 	"u",
 );
+const INVALID_FOLDER_CONTROL_CHARS_RUN_REGEX = new RegExp(
+	`${INVALID_FOLDER_CONTROL_CHARS_REGEX.source}+`,
+	"gu",
+);
 export const INVALID_FOLDER_CHARS_REGEX = /[\\/:*?"<>|]/u;
 export const INVALID_FOLDER_TRAILING_CHARS_REGEX = /[. ]$/u;
 
@@ -36,4 +40,17 @@ export const RESERVED_WINDOWS_DEVICE_NAMES = new Set([
 
 export function isReservedWindowsDeviceName(name: string): boolean {
 	return RESERVED_WINDOWS_DEVICE_NAMES.has(name.toUpperCase());
+}
+
+export function normalizeGeneratedFilePath(path: string): string {
+	return path
+		.split("/")
+		.map((segment) => {
+			const normalized = segment.replace(
+				INVALID_FOLDER_CONTROL_CHARS_RUN_REGEX,
+				" ",
+			);
+			return normalized === segment ? segment : normalized.trim();
+		})
+		.join("/");
 }
