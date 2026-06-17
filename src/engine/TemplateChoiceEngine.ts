@@ -28,6 +28,7 @@ import {
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
+import { copyFileLinkToClipboard } from "../utils/fileLinks";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -170,7 +171,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			});
 
 			if (linkOptions.enabled && createdFile) {
-			insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+			}
+
+			if (this.choice.copyLinkToClipboard && createdFile) {
+				await copyFileLinkToClipboard(this.app, createdFile);
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {

@@ -27,6 +27,8 @@ export default interface ITemplateChoice extends IChoice {
 	 * - AppendLinkOptions: New format with configurable placement options
 	 */
 	appendLink: boolean | AppendLinkOptions;
+	/** Copy a link to the created/resolved file after the template runs. */
+	copyLinkToClipboard?: boolean;
 	openFile: boolean;
 	fileOpening: {
 		location: OpenLocation;

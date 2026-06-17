@@ -55,6 +55,12 @@ When either enabled mode is selected, **Link placement** lets you choose where t
 
 **Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
 
+**Copy link to clipboard**. Copies a link to the created file after the Template
+choice runs. This works separately from **Link to created file**, so you can copy
+the link without inserting it into the current note, or do both. The copied link
+is generated without a destination note, which makes it suitable for pasting into
+another note.
+
 **If the target file already exists**. Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.
 
 **Open**. Will open the created file. When enabled, additional file-opening controls appear (these are shared with the Capture choice):
