@@ -415,6 +415,8 @@ Example: `> {{selected}}`.
 
 The current clipboard content. Will be empty if clipboard access fails due to permissions or security restrictions.
 
+In Capture choices, if the clipboard has no text but contains an image, QuickAdd saves the image using Obsidian's attachment location settings and inserts an embedded attachment link. If the clipboard has text, the text is used.
+
 Example: `Copied: {{CLIPBOARD}}`.
 
 ## `{{RANDOM:<length>}}` {#random}

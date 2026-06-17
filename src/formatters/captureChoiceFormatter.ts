@@ -30,6 +30,14 @@ import { parentFolderPath } from "../utils/pathUtils";
 	* dropped, even though String.prototype.trim() strips them (issue #760).
 	*/
 const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
+const IMAGE_CLIPBOARD_MIME_EXTENSIONS: Record<string, string> = {
+	"image/png": "png",
+	"image/jpeg": "jpg",
+	"image/jpg": "jpg",
+	"image/gif": "gif",
+	"image/webp": "webp",
+	"image/svg+xml": "svg",
+};
 
 function isCaptureContentEmpty(content: string): boolean {
 	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
@@ -41,6 +49,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private fileContent = "";
 	private sourcePath: string | null = null;
 	private useSelectionAsCaptureValue = true;
+	private clipboardAttachmentLink: string | null | undefined;
 	/**
 		* Tracks whether the current formatter instance has already run Templater on the
 		* capture payload.  This prevents the same content from being parsed twice in
@@ -127,6 +136,78 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	protected getLinkSourcePath(): string | null {
 		return this.sourcePath ?? this.file?.path ?? null;
+	}
+
+	protected async getClipboardContent(): Promise<string> {
+		const text = await super.getClipboardContent();
+		if (text.length > 0) return text;
+
+		if (this.clipboardAttachmentLink !== undefined) {
+			return this.clipboardAttachmentLink ?? "";
+		}
+
+		this.clipboardAttachmentLink = await this.saveClipboardImageAsAttachment();
+		return this.clipboardAttachmentLink ?? "";
+	}
+
+	private async saveClipboardImageAsAttachment(): Promise<string | null> {
+		const clipboard = navigator.clipboard as Clipboard & {
+			read?: () => Promise<ClipboardItem[]>;
+		};
+		if (typeof clipboard?.read !== "function") {
+			return null;
+		}
+
+		try {
+			const item = await this.getFirstClipboardImageItem(clipboard);
+			if (!item) return null;
+
+			const blob = await item.clipboardItem.getType(item.mimeType);
+			const extension = IMAGE_CLIPBOARD_MIME_EXTENSIONS[item.mimeType];
+			const filename = `Clipboard image ${this.formatAttachmentTimestamp(new Date())}.${extension}`;
+			const attachmentPath =
+				await this.app.fileManager.getAvailablePathForAttachment(
+					filename,
+					this.getLinkSourcePath() ?? undefined,
+				);
+			const file = await this.app.vault.createBinary(
+				attachmentPath,
+				await blob.arrayBuffer(),
+			);
+			const link = this.app.fileManager.generateMarkdownLink(
+				file,
+				this.getLinkSourcePath() ?? "",
+			);
+
+			return link.startsWith("!") ? link : `!${link}`;
+		} catch {
+			return null;
+		}
+	}
+
+	private async getFirstClipboardImageItem(clipboard: {
+		read: () => Promise<ClipboardItem[]>;
+	}): Promise<{ clipboardItem: ClipboardItem; mimeType: string } | null> {
+		const items = await clipboard.read();
+		for (const clipboardItem of items) {
+			const mimeType = clipboardItem.types.find(
+				(type) => IMAGE_CLIPBOARD_MIME_EXTENSIONS[type] !== undefined,
+			);
+			if (mimeType) {
+				return { clipboardItem, mimeType };
+			}
+		}
+
+		return null;
+	}
+
+	private formatAttachmentTimestamp(date: Date): string {
+		const pad = (value: number) => String(value).padStart(2, "0");
+		return [
+			date.getFullYear(),
+			pad(date.getMonth() + 1),
+			pad(date.getDate()),
+		].join("-") + ` ${pad(date.getHours())}.${pad(date.getMinutes())}.${pad(date.getSeconds())}`;
 	}
 
 	protected getCurrentFileLink(): string | null {
