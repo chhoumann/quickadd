@@ -15,6 +15,7 @@ import setProviderModelDiscoveryMode from "./setProviderModelDiscoveryMode";
 import { deepClone } from "src/utils/deepClone";
 import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSecretStorage";
 import migrateToMultipleTemplateFolders from "./migrateToMultipleTemplateFolders";
+import setProviderKind from "./setProviderKind";
 import { settingsStore } from "src/settingsStore";
 
 const migrations: Migrations = {
@@ -31,6 +32,7 @@ const migrations: Migrations = {
 	setProviderModelDiscoveryMode,
 	migrateProviderApiKeysToSecretStorage,
 	migrateToMultipleTemplateFolders,
+	setProviderKind,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {

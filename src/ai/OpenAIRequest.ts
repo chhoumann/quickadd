@@ -8,10 +8,21 @@ import {
 } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
+import { getProviderKind } from "./Provider";
 import { getModelProvider } from "./aiHelpers";
+import type { NormalizedChatRequest } from "./tools/NormalizedTools";
+import {
+	buildChatBody,
+	parseChatResponse,
+	type ProviderKind,
+} from "./tools/providerToolMapping";
 import { log } from "src/logger/logManager";
 import { estimateTokenCount } from "./tokenEstimator";
 import { buildProviderError, classifyProviderError } from "./providerErrors";
+import type {
+	NormalizedStopReason,
+	NormalizedToolCall,
+} from "./tools/NormalizedTools";
 
 export interface CommonResponse {
 	id: string;
@@ -22,9 +33,21 @@ export interface CommonResponse {
 		completionTokens: number;
 		totalTokens: number;
 	};
+	/** Raw provider stop/finish reason (kept for back-compat + debugging). */
 	stopReason: string;
 	stopSequence: string | null;
 	created: number;
+	// --- Tool-calling additions (#714); all optional so existing consumers are unaffected. ---
+	/** Tool calls the model requested this turn, normalized across providers. */
+	toolCalls?: NormalizedToolCall[];
+	/** Provider stop reason mapped to a neutral enum, for the execute loop. */
+	normalizedStopReason?: NormalizedStopReason;
+	/**
+	 * Opaque provider-specific blocks that must be echoed back unchanged on the
+	 * next turn (e.g. Gemini `thoughtSignature` parts). Carried on the assistant
+	 * turn the loop reconstructs.
+	 */
+	providerRaw?: unknown;
 }
 
 // Shared request execution for all providers: call `requestUrl` with
@@ -71,7 +94,12 @@ function mapAnthropicResponseToCommon(
 	return {
 		id: response.id,
 		model: response.model,
-		content: response.content[0].text,
+		// Scan all blocks and join the text ones — reading content[0] breaks the
+		// moment a non-text block (e.g. a tool_use block) is first.
+		content: response.content
+			.filter((block) => block.type === "text")
+			.map((block) => block.text ?? "")
+			.join(""),
 		usage: {
 			promptTokens: response.usage.input_tokens,
 			completionTokens: response.usage.output_tokens,
@@ -101,8 +129,19 @@ type OpenAIReqResponse = {
 	created: number;
 };
 
+// A content block can be text OR a non-text block (e.g. tool_use); only `type` is
+// guaranteed. Modeled honestly so the tool-calling layer (PR2) can read tool_use
+// blocks without the type lying about every block having a string `text`.
+export interface AnthropicContentBlock {
+	type: string;
+	text?: string;
+	id?: string;
+	name?: string;
+	input?: Record<string, unknown>;
+}
+
 export interface AnthropicResponse {
-	content: { text: string; type: string }[];
+	content: AnthropicContentBlock[];
 	id: string;
 	model: string;
 	role: string;
@@ -160,14 +199,37 @@ async function makeOpenAIRequest(
 	);
 }
 
+// Conservative Anthropic output budget. The Messages API REQUIRES max_tokens, but
+// model.maxTokens is the *context window*, not an output cap — so derive a sensible
+// floor and clamp it to the window (a small/mis-registered model can't request more
+// than it has). A dedicated per-model output field is a future refinement.
+export function anthropicMaxTokens(model: Model): number {
+	const ceiling = 8192;
+	return Number.isFinite(model.maxTokens) && model.maxTokens > 0
+		? Math.min(ceiling, model.maxTokens)
+		: ceiling;
+}
+
 async function makeAnthropicRequest(
 	apiKey: string,
 	model: Model,
 	modelProvider: AIProvider,
+	systemPrompt: string,
 	modelParams: Partial<OpenAIModelParameters>,
 	prompt: string,
 	afterRequestCallback?: () => void
 ): Promise<AnthropicResponse> {
+	const body: Record<string, unknown> = {
+		model: model.name,
+		max_tokens: anthropicMaxTokens(model),
+		messages: [{ role: "user", content: prompt }],
+	};
+	// Send the system prompt at the top level (the Messages API has no system role
+	// inside `messages`). Previously dropped entirely — this is a real behaviour fix.
+	if (systemPrompt && systemPrompt.trim().length > 0) {
+		body.system = systemPrompt;
+	}
+
 	return dispatchProviderRequest<AnthropicResponse>(
 		{
 			url: `${modelProvider.endpoint}/v1/messages`,
@@ -176,13 +238,8 @@ async function makeAnthropicRequest(
 				"Content-Type": "application/json",
 				"x-api-key": apiKey,
 				"anthropic-version": "2023-06-01",
-				"anthropic-beta": "max-tokens-3-5-sonnet-2024-07-15"
 			},
-			body: JSON.stringify({
-				model: model.name,
-				max_tokens: 4096,
-				messages: [{ role: "user", content: prompt }],
-			}),
+			body: JSON.stringify(body),
 		},
 		modelProvider.name,
 		afterRequestCallback
@@ -318,27 +375,34 @@ export function OpenAIRequest(
 			const restoreCursor = preventCursorChange(app);
 
 			let response: CommonResponse;
-          if (modelProvider.name === "Anthropic") {
+			// Route on the provider KIND (not the display name) so a custom-named
+			// Anthropic/Gemini provider — e.g. { name: "Claude Proxy", kind: "anthropic" } —
+			// gets the right wire shape here too, matching the ai.agent chat path.
+			// getProviderKind falls back to name inference, so the built-in
+			// "Anthropic"/"Gemini" providers are unchanged.
+			const providerKind = getProviderKind(modelProvider);
+			if (providerKind === "anthropic") {
 				const anthropicResponse = await makeAnthropicRequest(
 					apiKey,
 					model,
 					modelProvider,
+					systemPrompt,
 					modelParams,
 					prompt,
 					restoreCursor
 				);
 				response = mapAnthropicResponseToCommon(anthropicResponse);
-          } else if (modelProvider.name === "Gemini") {
-            const geminiResponse = await makeGeminiRequest(
-              apiKey,
-              model,
-              modelProvider,
-              systemPrompt,
-              modelParams,
-              prompt,
-              restoreCursor
-            );
-            response = mapGeminiResponseToCommon(geminiResponse);
+			} else if (providerKind === "gemini") {
+				const geminiResponse = await makeGeminiRequest(
+					apiKey,
+					model,
+					modelProvider,
+					systemPrompt,
+					modelParams,
+					prompt,
+					restoreCursor
+				);
+				response = mapGeminiResponseToCommon(geminiResponse);
 			} else {
 				const openaiResponse = await makeOpenAIRequest(
 					apiKey,
@@ -394,4 +458,145 @@ export function OpenAIRequest(
 			);
 		}
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Multi-turn chat entrypoint (#714) — used by the tool-calling Agent loop.
+// Sibling to OpenAIRequest: the single-prompt path above stays byte-identical.
+// Builds a provider body from a NormalizedChatRequest, dispatches, and parses
+// tool calls. It does NOT arm preventCursorChange — the Agent captures the cursor
+// ONCE per generate() and passes its restore fn here so intermediate turns don't
+// re-arm it.
+// ---------------------------------------------------------------------------
+async function dispatchChat(
+	kind: ProviderKind,
+	apiKey: string,
+	modelProvider: AIProvider,
+	model: Model,
+	body: Record<string, unknown>,
+	afterRequestCallback?: () => void,
+): Promise<Record<string, unknown>> {
+	if (kind === "anthropic") {
+		return dispatchProviderRequest<Record<string, unknown>>(
+			{
+				url: `${modelProvider.endpoint}/v1/messages`,
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"x-api-key": apiKey,
+					"anthropic-version": "2023-06-01",
+				},
+				body: JSON.stringify(body),
+			},
+			modelProvider.name,
+			afterRequestCallback,
+		);
+	}
+	if (kind === "gemini") {
+		const url = `${modelProvider.endpoint}/v1beta/models/${encodeURIComponent(
+			model.name,
+		)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+		return dispatchProviderRequest<Record<string, unknown>>(
+			{ url, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+			modelProvider.name,
+			afterRequestCallback,
+		);
+	}
+	return dispatchProviderRequest<Record<string, unknown>>(
+		{
+			url: `${modelProvider.endpoint}/chat/completions`,
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify(body),
+		},
+		modelProvider.name,
+		afterRequestCallback,
+	);
+}
+
+export async function chatRequest(
+	app: App,
+	apiKey: string,
+	model: Model,
+	request: NormalizedChatRequest,
+	afterRequestCallback?: () => void,
+): Promise<CommonResponse> {
+	void app; // cursor handling is owned by the caller (Agent) for the whole loop
+	if (settingsStore.getState().disableOnlineFeatures) {
+		throw new Error(
+			"Blocking request: Online features are disabled in settings.",
+		);
+	}
+
+	const modelProvider = getModelProvider(model.name);
+	if (!modelProvider) {
+		throw new Error(`Model ${model.name} not found with any provider.`);
+	}
+	const kind = getProviderKind(modelProvider);
+	const body = buildChatBody(kind, model.name, request, anthropicMaxTokens(model));
+
+	// Compact log summary — never dump the whole transcript / tool data into the log.
+	const systemMsg = request.messages.find((m) => m.role === "system");
+	const lastUser = [...request.messages]
+		.reverse()
+		.find((m) => m.role === "user");
+	const requestStart = Date.now();
+	const requestLogId = beginAIRequestLogEntry({
+		provider: modelProvider.name,
+		endpoint: modelProvider.endpoint,
+		model: model.name,
+		systemPrompt: systemMsg && systemMsg.role === "system" ? systemMsg.content : "",
+		prompt:
+			lastUser && lastUser.role === "user" ? lastUser.content : "[tool-calling turn]",
+		modelOptions: request.modelParams ?? {},
+	});
+
+	try {
+		const json = await dispatchChat(
+			kind,
+			apiKey,
+			modelProvider,
+			model,
+			body,
+			afterRequestCallback,
+		);
+		const parsed = parseChatResponse(kind, json);
+		const durationMs = Date.now() - requestStart;
+		finishAIRequestLogEntry(requestLogId, {
+			status: "success",
+			durationMs,
+			usage: parsed.usage,
+		});
+		log.logMessage(`[AI Chat ${requestLogId}] Success in ${durationMs}ms`);
+
+		return {
+			id: (json.id as string) ?? `${Date.now()}`,
+			model: model.name,
+			content: parsed.content,
+			usage: parsed.usage,
+			stopReason: parsed.rawStopReason,
+			stopSequence: null,
+			created: Date.now(),
+			toolCalls: parsed.toolCalls,
+			normalizedStopReason: parsed.normalizedStopReason,
+			providerRaw: parsed.providerRaw,
+		};
+	} catch (error) {
+		const errorMessage =
+			(error as { message?: string }).message ?? String(error);
+		const durationMs = Date.now() - requestStart;
+		finishAIRequestLogEntry(requestLogId, {
+			status: "error",
+			durationMs,
+			errorMessage,
+		});
+		log.logError(error as Error);
+		throw new Error(
+			`Error while making request to ${modelProvider.name}: ${errorMessage}`,
+			{ cause: error },
+		);
+	}
 }

@@ -1,5 +1,13 @@
 export type ModelDiscoveryMode = "modelsDev" | "providerApi" | "auto";
 
+/**
+ * Which wire protocol a provider speaks. Used to select the request/response
+ * adapter for tool calling + structured output (#714) instead of matching the
+ * provider's display NAME — a custom Anthropic-compatible provider named anything
+ * other than "Anthropic" must still get the Anthropic wire shape.
+ */
+export type ProviderKind = "openai" | "anthropic" | "gemini";
+
 export interface AIProvider {
 	name: string;
 	endpoint: string;
@@ -12,6 +20,34 @@ export interface AIProvider {
 	autoSyncModels?: boolean;
 	/** Controls how QuickAdd discovers browseable models for this provider. */
 	modelSource: ModelDiscoveryMode;
+	/** Wire protocol. Optional for back-compat; inferred when absent (see getProviderKind). */
+	kind?: ProviderKind;
+}
+
+/**
+ * Resolve a provider's wire kind. Prefers the explicit `kind` field; otherwise
+ * infers from the (legacy) name/endpoint so providers saved before the field
+ * existed still route correctly. Unknown → "openai" (the OpenAI-compatible default,
+ * matching today's fallback branch).
+ */
+export function getProviderKind(provider: {
+	kind?: ProviderKind;
+	name?: string;
+	endpoint?: string;
+}): ProviderKind {
+	if (provider.kind) return provider.kind;
+	const name = (provider.name ?? "").toLowerCase();
+	const endpoint = (provider.endpoint ?? "").toLowerCase();
+	if (name === "anthropic" || endpoint.includes("api.anthropic.com")) {
+		return "anthropic";
+	}
+	if (
+		name === "gemini" ||
+		endpoint.includes("generativelanguage.googleapis.com")
+	) {
+		return "gemini";
+	}
+	return "openai";
 }
 
 export interface Model {
@@ -22,6 +58,7 @@ export interface Model {
 const OpenAIProvider: AIProvider = {
 	name: "OpenAI",
 	endpoint: "https://api.openai.com/v1",
+	kind: "openai",
 	apiKey: "",
 	models: [
 		{
@@ -68,6 +105,7 @@ const OpenAIProvider: AIProvider = {
 const GeminiProvider: AIProvider = {
 	name: "Gemini",
 	endpoint: "https://generativelanguage.googleapis.com",
+	kind: "gemini",
 	apiKey: "",
 	models: [
         {
