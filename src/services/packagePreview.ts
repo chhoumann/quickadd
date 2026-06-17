@@ -479,6 +479,20 @@ function collectChoice(
 
 	if (isCaptureChoice(choice)) {
 		walk.flags.add("capture-writes");
+		if (
+			choice.format?.enabled &&
+			choice.format.source === "file" &&
+			choice.format.filePath
+		) {
+			walk.usages.push({
+				choiceId: walk.choiceId,
+				path: choice.format.filePath,
+				asScript: false,
+				impliedKind: "capture-format",
+				breadcrumb: joinCrumb([...crumbs, "capture format"]),
+			});
+		}
+
 		const createCfg = choice.createFileIfItDoesntExist;
 		if (
 			createCfg?.enabled &&

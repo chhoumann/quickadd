@@ -3,6 +3,7 @@ import type { AppendLinkOptions } from "../linkPlacement";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
+export type CaptureFormatSource = "inline" | "file";
 
 /** How to derive a sort key from a section heading's text (issue #481). */
 export type SectionOrderBy =
@@ -37,7 +38,12 @@ export default interface ICaptureChoice extends IChoice {
 		createWithTemplate: boolean;
 		template: string;
 	};
-	format: { enabled: boolean; format: string };
+	format: {
+		enabled: boolean;
+		format: string;
+		source?: CaptureFormatSource;
+		filePath?: string;
+	};
 	/**
 		* Override whether editor selection should be used as the default {{VALUE}}.
 		* Undefined means follow the global setting.

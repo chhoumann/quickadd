@@ -191,7 +191,13 @@ async function collectForCaptureChoice(
 
 	await collector.scanString(choice.captureTo);
 
-	if (choice.format?.enabled) {
+	if (
+		choice.format?.enabled &&
+		choice.format.source === "file" &&
+		choice.format.filePath
+	) {
+		await scanTemplateSource(app, collector, choice.format.filePath);
+	} else if (choice.format?.enabled) {
 		await collector.scanString(choice.format.format);
 	}
 

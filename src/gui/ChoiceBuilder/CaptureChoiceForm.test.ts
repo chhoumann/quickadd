@@ -154,4 +154,27 @@ describe("CaptureChoiceForm", () => {
 		expect(props.choice.insertAfter.enabled).toBe(false);
 		expect(props.choice.prepend).toBe(false);
 	});
+
+	it("switches capture format between inline text and file source without clearing inline text", async () => {
+		const { container, getByLabelText, queryByLabelText, props } = mountForm();
+		props.choice.format.enabled = true;
+		props.choice.format.format = "Inline body";
+		flushSync();
+
+		expect(getByLabelText("Format")).toBeInstanceOf(HTMLTextAreaElement);
+
+		const select = selectUnderSetting(container, "Capture format source");
+		await fireEvent.change(select, { target: { value: "file" } });
+		flushSync();
+
+		expect(props.choice.format.source).toBe("file");
+		expect(props.choice.format.format).toBe("Inline body");
+		expect(queryByLabelText("Format")).toBeNull();
+		expect(getByLabelText("Capture format file")).toBeInstanceOf(HTMLInputElement);
+
+		await fireEvent.input(getByLabelText("Capture format file"), {
+			target: { value: "Templates/Capture.md" },
+		});
+		expect(props.choice.format.filePath).toBe("Templates/Capture.md");
+	});
 });

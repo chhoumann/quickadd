@@ -507,6 +507,30 @@ describe("buildPackage", () => {
 		expect(result.pkg.assets[0].originalPath).toBe("Templates/capture.md");
 	});
 
+	it("collects capture-format assets from a Capture choice", async () => {
+		const capture = makeCaptureChoice("cap1", "Capture");
+		capture.format = {
+			enabled: true,
+			format: "Inline fallback",
+			source: "file",
+			filePath: "Templates/capture-format.md",
+		};
+		const { app } = makeFakeApp({
+			files: { "Templates/capture-format.md": "format body" },
+		});
+
+		const result = await buildPackage(
+			app as never,
+			buildOptions({ choices: [capture], rootChoiceIds: ["cap1"] }),
+		);
+
+		expect(result.pkg.assets).toHaveLength(1);
+		expect(result.pkg.assets[0].kind).toBe("capture-format");
+		expect(result.pkg.assets[0].originalPath).toBe(
+			"Templates/capture-format.md",
+		);
+	});
+
 	it("records missing assets when the file does not exist and does not encode them", async () => {
 		const template = makeTemplateChoice(
 			"t1",

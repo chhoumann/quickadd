@@ -30,6 +30,7 @@ export interface ScriptDependencyCollection {
 export interface FileDependencyCollection {
 	templatePaths: Set<string>;
 	captureTemplatePaths: Set<string>;
+	captureFormatPaths: Set<string>;
 }
 
 const EMPTY_SET = new Set<string>();
@@ -333,6 +334,7 @@ export function collectFileDependencies(
 	const visitedChoices = new Set<string>();
 	const templatePaths = new Set<string>();
 	const captureTemplatePaths = new Set<string>();
+	const captureFormatPaths = new Set<string>();
 
 	const visitChoice = (choice: IChoice) => {
 		if (!choice) return;
@@ -343,6 +345,15 @@ export function collectFileDependencies(
 
 		if (isTemplateChoice(choice) && choice.templatePath) {
 			templatePaths.add(choice.templatePath);
+		}
+
+		if (
+			isCaptureChoice(choice) &&
+			choice.format?.enabled &&
+			choice.format.source === "file" &&
+			choice.format.filePath
+		) {
+			captureFormatPaths.add(choice.format.filePath);
 		}
 
 		if (
@@ -397,5 +408,5 @@ export function collectFileDependencies(
 		if (entry) visitChoice(entry.choice);
 	}
 
-	return { templatePaths, captureTemplatePaths };
+	return { templatePaths, captureTemplatePaths, captureFormatPaths };
 }

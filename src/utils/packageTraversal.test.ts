@@ -662,6 +662,44 @@ describe("collectFileDependencies", () => {
 		expect(result.templatePaths.size).toBe(0);
 	});
 
+	it("collects capture format files when the format source is file", () => {
+		const cap = {
+			...makeCapture("C", undefined, "c"),
+			format: {
+				enabled: true,
+				format: "Inline fallback",
+				source: "file",
+				filePath: "templates/capture-format.md",
+			},
+		} as ICaptureChoice;
+		const { catalog, choiceIds } = closureFor([cap], ["c"]);
+
+		const result = collectFileDependencies(catalog, choiceIds);
+
+		expect([...result.captureFormatPaths]).toEqual([
+			"templates/capture-format.md",
+		]);
+		expect(result.templatePaths.size).toBe(0);
+		expect(result.captureTemplatePaths.size).toBe(0);
+	});
+
+	it("does not collect inline capture formats as files", () => {
+		const cap = {
+			...makeCapture("C", undefined, "c"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:templates/inline.md}}",
+				source: "inline",
+				filePath: "templates/ignored.md",
+			},
+		} as ICaptureChoice;
+		const { catalog, choiceIds } = closureFor([cap], ["c"]);
+
+		const result = collectFileDependencies(catalog, choiceIds);
+
+		expect(result.captureFormatPaths.size).toBe(0);
+	});
+
 	it("does not collect a capture template when createFileIfItDoesntExist is disabled", () => {
 		const cap = makeCapture("C", {
 			enabled: false,

@@ -671,6 +671,35 @@ describe("collectReferencedAssetPaths", () => {
 		const paths = collectReferencedAssetPaths(pkg).sort();
 		expect(paths).toEqual(["scripts/a.js", "scripts/cond.js"]);
 	});
+
+	it("collects capture format file references", () => {
+		const capture = {
+			id: "cap1",
+			name: "Cap",
+			type: "Capture",
+			command: false,
+			captureTo: "Inbox.md",
+			captureToActiveFile: false,
+			format: {
+				enabled: true,
+				format: "Inline fallback",
+				source: "file",
+				filePath: "templates/capture-format.md",
+			},
+		} as unknown as ICaptureChoice;
+		const pkg = makePackage([pkgChoice(capture, ["Cap"])], []);
+
+		expect(collectReferencedAssetPaths(pkg)).toEqual([
+			"templates/capture-format.md",
+		]);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.missingReferences).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ path: "templates/capture-format.md" }),
+			]),
+		);
+	});
 });
 
 describe("decodeAssetPreview", () => {

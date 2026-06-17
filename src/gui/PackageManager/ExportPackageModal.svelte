@@ -44,6 +44,7 @@
 		conditionalScripts: number;
 		templateFiles: number;
 		captureTemplates: number;
+		captureFormats: number;
 	}
 
 	type ExportWarnings = {
@@ -56,6 +57,7 @@
 		"conditional-script": "Conditional script",
 		template: "Template file",
 		"capture-template": "Capture template",
+		"capture-format": "Capture format",
 	};
 
 	let searchQuery = $state("");
@@ -181,6 +183,7 @@
 				conditionalScripts: 0,
 				templateFiles: 0,
 				captureTemplates: 0,
+				captureFormats: 0,
 			};
 		}
 
@@ -199,6 +202,7 @@
 			conditionalScripts: scripts.conditionalScriptPaths.size,
 			templateFiles: files.templatePaths.size,
 			captureTemplates: files.captureTemplatePaths.size,
+			captureFormats: files.captureFormatPaths.size,
 		};
 	}
 
@@ -388,8 +392,8 @@
 				<span>Scripts embedded</span>
 			</div>
 			<div>
-				<strong>{summary.templateFiles + summary.captureTemplates}</strong>
-				<span>Templates embedded</span>
+				<strong>{summary.templateFiles + summary.captureTemplates + summary.captureFormats}</strong>
+				<span>Template files embedded</span>
 			</div>
 		</div>
 		{#if summary.missingChoiceIds.length > 0}

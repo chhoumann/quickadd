@@ -65,6 +65,35 @@ describe("CaptureChoice.Load", () => {
 		});
 	});
 
+	it("defaults legacy capture formats to inline source", () => {
+		const choice = new CaptureChoice("Legacy") as any;
+		choice.format = { enabled: true, format: "{{VALUE}}" };
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.format).toEqual({
+			enabled: true,
+			format: "{{VALUE}}",
+			source: "inline",
+			filePath: "",
+		});
+	});
+
+	it("normalizes invalid capture format sources to inline", () => {
+		const choice = new CaptureChoice("Invalid") as any;
+		choice.format = {
+			enabled: true,
+			format: "{{VALUE}}",
+			source: "remote",
+			filePath: 42,
+		};
+
+		const loaded = CaptureChoice.Load(choice);
+
+		expect(loaded.format.source).toBe("inline");
+		expect(loaded.format.filePath).toBe("");
+	});
+
 	it("backfills a safe ordering descriptor for an ordered choice missing orderBy", () => {
 		const choice = new CaptureChoice("Ordered") as any;
 		choice.insertAfter.enabled = true;
