@@ -234,16 +234,7 @@ export async function deleteChoiceWithConfirmation(
 
 	if (!userConfirmed) return false;
 
-	if (isMacro) {
-		const cleared = await clearUserScriptSecretsFromCommand(app, {
-			type: "NestedChoice",
-			choice,
-		});
-		if (!cleared) {
-			new Notice("Could not clear user script secrets. Choice was not deleted.");
-			return false;
-		}
-	} else if (isMulti) {
+	if (isMacro || isMulti) {
 		const cleared = await clearUserScriptSecretsFromCommand(app, {
 			type: "NestedChoice",
 			choice,
