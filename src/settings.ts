@@ -93,7 +93,6 @@ export interface QuickAddSettings {
 		setProviderModelDiscoveryMode: boolean;
 		migrateProviderApiKeysToSecretStorage: boolean;
 		migrateToMultipleTemplateFolders: boolean;
-		setProviderKind: boolean;
 	};
 }
 
@@ -147,6 +146,5 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		setProviderModelDiscoveryMode: false,
 		migrateProviderApiKeysToSecretStorage: false,
 		migrateToMultipleTemplateFolders: false,
-		setProviderKind: false,
 	},
 };

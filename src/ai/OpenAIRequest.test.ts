@@ -401,8 +401,8 @@ describe("OpenAIRequest", () => {
 			const body = JSON.parse(arg.body);
 			expect(body).toEqual({
 				model: "claude-3-5-sonnet",
-				// min(8192, 200000) — derived from the model's context window, not hardcoded 4096.
-				max_tokens: 8192,
+				// Conservative 4096 default (at/below every current Claude model's output cap).
+				max_tokens: 4096,
 				messages: [{ role: "user", content: "hello claude" }],
 				system: "system prompt",
 			});
@@ -427,7 +427,7 @@ describe("OpenAIRequest", () => {
 
 			const body = JSON.parse(requestUrlMock.mock.calls[0][0].body);
 			expect("system" in body).toBe(false);
-			expect(body.max_tokens).toBe(8192);
+			expect(body.max_tokens).toBe(4096);
 		});
 
 		it("omits the system key for a whitespace-only system prompt", async () => {

@@ -199,12 +199,14 @@ async function makeOpenAIRequest(
 	);
 }
 
-// Conservative Anthropic output budget. The Messages API REQUIRES max_tokens, but
-// model.maxTokens is the *context window*, not an output cap — so derive a sensible
-// floor and clamp it to the window (a small/mis-registered model can't request more
-// than it has). A dedicated per-model output field is a future refinement.
+// Conservative Anthropic output budget. The Messages API REQUIRES max_tokens and
+// REJECTS (400) any value above a model's OUTPUT cap — and model.maxTokens is the
+// *context window*, not the output cap. So default to 4096, which is at or below the
+// output limit of every current Claude model (incl. Claude 3 Haiku's 4096), matching
+// the long-standing pre-#714 default. Callers needing more pass maxOutputTokens
+// explicitly (honored uncapped). A dedicated per-model output field is a future refinement.
 export function anthropicMaxTokens(model: Model): number {
-	const ceiling = 8192;
+	const ceiling = 4096;
 	return Number.isFinite(model.maxTokens) && model.maxTokens > 0
 		? Math.min(ceiling, model.maxTokens)
 		: ceiling;
