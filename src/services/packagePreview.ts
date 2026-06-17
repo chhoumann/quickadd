@@ -17,7 +17,7 @@ import type {
 import { flattenChoices } from "../utils/choiceUtils";
 import { decodeFromBase64 } from "../utils/base64";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
+import { MARKDOWN_FILE_EXTENSION_REGEX, TEMPLATE_REGEX } from "../constants";
 
 /**
  * Pure, App-free analysis of a QuickAdd package for the import preview.
@@ -362,6 +362,74 @@ function joinCrumb(parts: Array<string | undefined>): string {
 	return parts.filter((part): part is string => Boolean(part)).join(" › ");
 }
 
+function collectTemplateInclusions(input: string | undefined): string[] {
+	if (!input) return [];
+	const refs: string[] = [];
+	const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(input)) !== null) {
+		const path = match[1]?.trim();
+		if (path) refs.push(path);
+	}
+	return refs;
+}
+
+function expandBundledTemplateUsages(
+	pkg: QuickAddPackage,
+	usagesByPath: Map<string, PreviewUsageSite[]>,
+): void {
+	const assetsByPath = new Map(
+		pkg.assets.map((asset) => [asset.originalPath, asset]),
+	);
+	const queue = [...usagesByPath.keys()];
+	const scanned = new Set<string>();
+
+	for (let i = 0; i < queue.length; i += 1) {
+		const path = queue[i];
+		if (scanned.has(path)) continue;
+		scanned.add(path);
+
+		const asset = assetsByPath.get(path);
+		if (!asset) continue;
+		if (asset.kind !== "template" && asset.kind !== "capture-template") continue;
+
+		let content: string;
+		try {
+			content = decodeFromBase64(asset.content);
+		} catch {
+			continue;
+		}
+
+		const parentUsages = usagesByPath.get(path) ?? [];
+		for (const nestedPath of collectTemplateInclusions(content)) {
+			const existing = usagesByPath.get(nestedPath) ?? [];
+			const nestedUsages = parentUsages.map((usage) => ({
+				...usage,
+				path: nestedPath,
+				asScript: false,
+				impliedKind: "capture-template" as QuickAddPackageAssetKind,
+				breadcrumb: `${usage.breadcrumb} › template include`,
+			}));
+			usagesByPath.set(nestedPath, [...existing, ...nestedUsages]);
+			queue.push(nestedPath);
+		}
+	}
+}
+
+function collectUsagesByPath(pkg: QuickAddPackage): Map<string, PreviewUsageSite[]> {
+	const { choiceWalks } = walkPackage(pkg);
+	const usagesByPath = new Map<string, PreviewUsageSite[]>();
+	for (const walk of choiceWalks) {
+		for (const usage of walk.usages) {
+			const list = usagesByPath.get(usage.path) ?? [];
+			list.push(usage);
+			usagesByPath.set(usage.path, list);
+		}
+	}
+	expandBundledTemplateUsages(pkg, usagesByPath);
+	return usagesByPath;
+}
+
 function commandLabel(command: ICommand): string {
 	const name = command.name?.trim();
 	return name && name.length > 0 ? name : String(command.type);
@@ -492,6 +560,18 @@ function collectChoice(
 				impliedKind: "capture-template",
 				breadcrumb: joinCrumb([...crumbs, "new-file template"]),
 			});
+		}
+
+		if (choice.format?.enabled) {
+			for (const path of collectTemplateInclusions(choice.format.format)) {
+				walk.usages.push({
+					choiceId: walk.choiceId,
+					path,
+					asScript: false,
+					impliedKind: "capture-template",
+					breadcrumb: joinCrumb([...crumbs, "capture format template"]),
+				});
+			}
 		}
 	}
 
@@ -683,14 +763,7 @@ function collectCommands(
  * single vault pass.
  */
 export function collectReferencedAssetPaths(pkg: QuickAddPackage): string[] {
-	const { choiceWalks } = walkPackage(pkg);
-	const paths = new Set<string>();
-	for (const walk of choiceWalks) {
-		for (const usage of walk.usages) {
-			if (usage.path) paths.add(usage.path);
-		}
-	}
-	return Array.from(paths);
+	return Array.from(collectUsagesByPath(pkg).keys());
 }
 
 // Cheap decoded-size estimate (no decode). Assumes RFC 4648 base64 as produced
@@ -725,15 +798,7 @@ export function buildPackagePreview(
 		flattenChoices(existingChoices).map((choice) => choice.id),
 	);
 
-	// Index usage sites by referenced path.
-	const usagesByPath = new Map<string, PreviewUsageSite[]>();
-	for (const walk of choiceWalks) {
-		for (const usage of walk.usages) {
-			const list = usagesByPath.get(usage.path) ?? [];
-			list.push(usage);
-			usagesByPath.set(usage.path, list);
-		}
-	}
+	const usagesByPath = collectUsagesByPath(pkg);
 	const referencedAsScript = new Set<string>();
 	for (const [path, usages] of usagesByPath) {
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);

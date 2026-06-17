@@ -22,6 +22,7 @@ import {
 	detectUserScriptSecretOptions,
 	stripUserScriptSecretRefsFromChoice,
 } from "../utils/userScriptSecrets";
+import { TEMPLATE_REGEX } from "../constants";
 
 export interface BuildPackageOptions {
 	choices: IChoice[];
@@ -112,6 +113,17 @@ interface AssetDescriptor {
 	kind: QuickAddPackageAssetKind;
 }
 
+function collectTemplateInclusions(input: string): string[] {
+	const refs: string[] = [];
+	const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(input)) !== null) {
+		const path = match[1]?.trim();
+		if (path) refs.push(path);
+	}
+	return refs;
+}
+
 interface EncodedAssets {
 	encodedAssets: QuickAddPackageAsset[];
 	missingAssets: MissingAsset[];
@@ -154,8 +166,14 @@ async function encodeAssets(
 ): Promise<EncodedAssets> {
 	const encodedAssets: QuickAddPackageAsset[] = [];
 	const missingAssets: MissingAsset[] = [];
+	const queue = [...descriptors];
+	const queuedPaths = new Set(queue.map((descriptor) => descriptor.path));
+	const processedPaths = new Set<string>();
 
-	for (const { path, kind } of descriptors) {
+	for (let i = 0; i < queue.length; i += 1) {
+		const { path, kind } = queue[i];
+		if (processedPaths.has(path)) continue;
+		processedPaths.add(path);
 		try {
 			const exists = await app.vault.adapter.exists(path);
 			if (!exists) {
@@ -172,6 +190,17 @@ async function encodeAssets(
 				contentEncoding: "base64",
 				content: encodeToBase64(content),
 			});
+
+			if (kind === "template" || kind === "capture-template") {
+				for (const nestedPath of collectTemplateInclusions(content)) {
+					if (queuedPaths.has(nestedPath)) continue;
+					queuedPaths.add(nestedPath);
+					queue.push({
+						path: nestedPath,
+						kind: "capture-template",
+					});
+				}
+			}
 		} catch (error) {
 			missingAssets.push({ path, kind });
 			log.logWarning(

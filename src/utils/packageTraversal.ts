@@ -9,6 +9,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { CommandType } from "../types/macros/CommandType";
+import { TEMPLATE_REGEX } from "../constants";
 
 export interface ChoiceCatalogEntry {
 	choice: IChoice;
@@ -33,6 +34,18 @@ export interface FileDependencyCollection {
 }
 
 const EMPTY_SET = new Set<string>();
+
+function collectTemplateInclusions(input: string | undefined): string[] {
+	if (!input) return [];
+	const refs: string[] = [];
+	const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(input)) !== null) {
+		const path = match[1]?.trim();
+		if (path) refs.push(path);
+	}
+	return refs;
+}
 
 function isMultiChoice(choice: IChoice): choice is IMultiChoice {
 	return choice.type === "Multi";
@@ -352,6 +365,12 @@ export function collectFileDependencies(
 			choice.createFileIfItDoesntExist.template
 		) {
 			captureTemplatePaths.add(choice.createFileIfItDoesntExist.template);
+		}
+
+		if (isCaptureChoice(choice) && choice.format?.enabled) {
+			for (const path of collectTemplateInclusions(choice.format.format)) {
+				captureTemplatePaths.add(path);
+			}
 		}
 
 		if (isMultiChoice(choice) && Array.isArray(choice.choices)) {

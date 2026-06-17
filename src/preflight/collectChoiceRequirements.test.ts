@@ -473,4 +473,41 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 		// Dynamic path → body not pre-read.
 		expect(getTemplateFileMock).not.toHaveBeenCalled();
 	});
+
+	it("collects tokens from templates included in Capture format", async () => {
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const templateFile = { path: "Templates/Capture Body.md" };
+		getTemplateFileMock.mockReturnValue(templateFile as any);
+		const appWithTemplate = {
+			vault: {
+				cachedRead: vi.fn(async () => "{{VALUE:fromFile}}"),
+			},
+		} as unknown as App;
+
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "Before {{TEMPLATE:Templates/Capture Body.md}} after",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			appWithTemplate,
+			{ settings: { inputPrompt: "single-line" } } as any,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(getTemplateFileMock).toHaveBeenCalledWith(
+			appWithTemplate,
+			"Templates/Capture Body.md",
+		);
+		expect(requirements).toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "fromFile" })]),
+		);
+	});
 });

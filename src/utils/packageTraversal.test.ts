@@ -58,6 +58,7 @@ function makeCapture(
 	name: string,
 	createFileIfItDoesntExist?: ICaptureChoice["createFileIfItDoesntExist"],
 	id = uid("capture"),
+	format?: ICaptureChoice["format"],
 ): ICaptureChoice {
 	return {
 		id,
@@ -65,6 +66,7 @@ function makeCapture(
 		type: "Capture",
 		command: false,
 		createFileIfItDoesntExist,
+		format,
 	} as unknown as ICaptureChoice;
 }
 
@@ -660,6 +662,43 @@ describe("collectFileDependencies", () => {
 			"templates/cap.md",
 		]);
 		expect(result.templatePaths.size).toBe(0);
+	});
+
+	it("collects template inclusions from capture format", () => {
+		const cap = makeCapture(
+			"C",
+			undefined,
+			"c",
+			{
+				enabled: true,
+				format: "Before {{TEMPLATE:templates/capture-body.md}} after",
+			},
+		);
+		const { catalog, choiceIds } = closureFor([cap], ["c"]);
+
+		const result = collectFileDependencies(catalog, choiceIds);
+
+		expect([...result.captureTemplatePaths]).toEqual([
+			"templates/capture-body.md",
+		]);
+		expect(result.templatePaths.size).toBe(0);
+	});
+
+	it("ignores template inclusion tokens in disabled capture format", () => {
+		const cap = makeCapture(
+			"C",
+			undefined,
+			"c",
+			{
+				enabled: false,
+				format: "{{TEMPLATE:templates/ignored.md}}",
+			},
+		);
+		const { catalog, choiceIds } = closureFor([cap], ["c"]);
+
+		const result = collectFileDependencies(catalog, choiceIds);
+
+		expect(result.captureTemplatePaths.size).toBe(0);
 	});
 
 	it("does not collect a capture template when createFileIfItDoesntExist is disabled", () => {

@@ -134,7 +134,10 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
-<SettingItem name="Capture format" desc="Set the format of the capture.">
+<SettingItem
+	name="Capture format"
+	desc="Set the format of the capture. Use the TEMPLATE format token to keep long capture bodies in a vault file."
+>
 	{#snippet control()}
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}

@@ -193,6 +193,11 @@ async function collectForCaptureChoice(
 
 	if (choice.format?.enabled) {
 		await collector.scanString(choice.format.format);
+		const nested = [...collector.templatesToScan];
+		collector.templatesToScan.clear();
+		for (const ref of nested) {
+			await scanTemplateSource(app, collector, ref);
+		}
 	}
 
 	// Capture's "create file if it doesn't exist → with template" runs through

@@ -648,6 +648,41 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		);
 	});
 
+	it("reports missing nested template includes from bundled capture templates", () => {
+		const capture = {
+			id: "cap1",
+			name: "Cap",
+			type: "Capture",
+			command: false,
+			captureTo: "Inbox.md",
+			captureToActiveFile: false,
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:templates/capture-body.md}}",
+			},
+		} as unknown as ICaptureChoice;
+		const pkg = makePackage(
+			[pkgChoice(capture, ["Cap"])],
+			[
+				asset(
+					"capture-template",
+					"templates/capture-body.md",
+					"{{TEMPLATE:templates/footer.md}}",
+				),
+			],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		expect(preview.missingReferences).toEqual([
+			expect.objectContaining({
+				path: "templates/footer.md",
+				asScript: false,
+				breadcrumb: "Cap › capture format template › template include",
+			}),
+		]);
+	});
+
 	it("flags an existing choice id as an overwrite", () => {
 		const m = macro("m1", "Existing", []);
 		const pkg = makePackage([pkgChoice(m, ["Existing"])]);
@@ -670,6 +705,58 @@ describe("collectReferencedAssetPaths", () => {
 		const pkg = makePackage([pkgChoice(m, ["Multi-ref"])]);
 		const paths = collectReferencedAssetPaths(pkg).sort();
 		expect(paths).toEqual(["scripts/a.js", "scripts/cond.js"]);
+	});
+
+	it("collects template inclusions from capture format", () => {
+		const capture = {
+			id: "cap1",
+			name: "Cap",
+			type: "Capture",
+			command: false,
+			captureTo: "Inbox.md",
+			captureToActiveFile: false,
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:templates/capture-body.md}}",
+			},
+		} as unknown as ICaptureChoice;
+		const pkg = makePackage([pkgChoice(capture, ["Cap"])]);
+
+		const paths = collectReferencedAssetPaths(pkg);
+
+		expect(paths).toEqual(["templates/capture-body.md"]);
+	});
+
+	it("collects nested template inclusions from bundled capture format templates", () => {
+		const capture = {
+			id: "cap1",
+			name: "Cap",
+			type: "Capture",
+			command: false,
+			captureTo: "Inbox.md",
+			captureToActiveFile: false,
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:templates/capture-body.md}}",
+			},
+		} as unknown as ICaptureChoice;
+		const pkg = makePackage(
+			[pkgChoice(capture, ["Cap"])],
+			[
+				asset(
+					"capture-template",
+					"templates/capture-body.md",
+					"{{TEMPLATE:templates/footer.md}}",
+				),
+			],
+		);
+
+		const paths = collectReferencedAssetPaths(pkg);
+
+		expect(paths).toEqual([
+			"templates/capture-body.md",
+			"templates/footer.md",
+		]);
 	});
 });
 

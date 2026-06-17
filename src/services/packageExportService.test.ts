@@ -507,6 +507,35 @@ describe("buildPackage", () => {
 		expect(result.pkg.assets[0].originalPath).toBe("Templates/capture.md");
 	});
 
+	it("collects nested template includes from capture-template assets", async () => {
+		const capture = makeCaptureChoice(
+			"cap1",
+			"Capture",
+			"Templates/capture.md",
+		);
+		const { app } = makeFakeApp({
+			files: {
+				"Templates/capture.md": "capture {{TEMPLATE:Templates/footer.md}}",
+				"Templates/footer.md": "footer",
+			},
+		});
+
+		const result = await buildPackage(
+			app as never,
+			buildOptions({ choices: [capture], rootChoiceIds: ["cap1"] }),
+		);
+
+		expect(result.missingAssets).toHaveLength(0);
+		expect(result.pkg.assets.map((asset) => asset.originalPath)).toEqual([
+			"Templates/capture.md",
+			"Templates/footer.md",
+		]);
+		expect(result.pkg.assets.map((asset) => asset.kind)).toEqual([
+			"capture-template",
+			"capture-template",
+		]);
+	});
+
 	it("records missing assets when the file does not exist and does not encode them", async () => {
 		const template = makeTemplateChoice(
 			"t1",

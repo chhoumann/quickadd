@@ -336,6 +336,10 @@ Include templates in your `format`. Supports Templater syntax.
 
 Example: `{{TEMPLATE:Templates/Meeting.md}}`.
 
+The path must include an explicit `.md`, `.canvas`, or `.base` extension. In
+Capture format, this is the recommended way to keep a long capture body in an
+editable vault file.
+
 ## `{{GLOBAL_VAR:<name>}}` {#global-var}
 
 Inserts the value of a globally defined snippet from QuickAdd settings. Snippet values can include other QuickAdd tokens (e.g., `{{VALUE:...}}`, `{{VDATE:...}}`) and are processed by the usual formatter passes. The `GLOBAL_VAR` keyword itself is case‑insensitive, but the snippet name must match the name you defined (it is case‑sensitive).
