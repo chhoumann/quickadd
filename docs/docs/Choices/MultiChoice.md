@@ -16,6 +16,19 @@ You can optionally set a placeholder for each Multi choice. This text shows up i
 
 Keep in mind that [searching covers everything nested under the multi](#searching-nested-choices), so word the placeholder accordingly.
 
+## Opening as a context menu
+
+By default, opening a Multi choice shows the normal QuickAdd choice picker. This is still the best option for large menus because it supports fuzzy search and nested search results.
+
+If you use a small Multi choice as an editing toolbar, set **Open with** to **Context menu at editor caret** in the Multi choice settings. When that Multi runs from an active editor, QuickAdd opens a compact Obsidian menu near the caret so you can pick a nested Template, Capture, Macro, or Multi choice without moving to the center of the screen.
+
+A few details:
+
+- Context menu mode is per Multi choice. Existing Multi choices keep using the choice picker.
+- Nested Multi choices open as another small menu at the same caret position, with a back item to return to the previous level.
+- Context menu mode does not include fuzzy search. Keep these menus short and focused.
+- If QuickAdd cannot find an active editor caret, it falls back to the normal choice picker instead of failing.
+
 ## Searching nested choices
 
 Typing in the choice picker searches every choice nested inside the current level's multis — not just the level you are looking at. Nested matches show their folder path (for example `Work / Meetings`) beneath the choice name. This also applies to the root picker opened by the **QuickAdd: Run** command or the ribbon icon.

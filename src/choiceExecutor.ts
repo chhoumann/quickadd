@@ -10,6 +10,7 @@ import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { openMultiChoiceContextMenu } from "./gui/suggesters/choiceContextMenu";
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
@@ -224,6 +225,15 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private onChooseMultiType(multiChoice: IMultiChoice) {
+		if (
+			multiChoice.displayMode === "context-menu" &&
+			openMultiChoiceContextMenu(this.plugin, multiChoice, {
+				choiceExecutor: this,
+			})
+		) {
+			return;
+		}
+
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
 			placeholder: multiChoice.placeholder,

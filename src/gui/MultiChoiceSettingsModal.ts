@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Setting } from "obsidian";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import type { MultiChoiceDisplayMode } from "../types/choices/IMultiChoice";
 
 export class MultiChoiceSettingsModal extends Modal {
 	public waitForClose: Promise<IMultiChoice | undefined>;
@@ -10,11 +11,13 @@ export class MultiChoiceSettingsModal extends Modal {
 
 	private name: string;
 	private placeholder: string;
+	private displayMode: MultiChoiceDisplayMode;
 
 	constructor(app: App, private choice: IMultiChoice) {
 		super(app);
 		this.name = choice.name;
 		this.placeholder = choice.placeholder ?? "";
+		this.displayMode = choice.displayMode ?? "suggester";
 
 		this.waitForClose = new Promise<IMultiChoice | undefined>(
 			(resolve, reject) => {
@@ -52,6 +55,22 @@ export class MultiChoiceSettingsModal extends Modal {
 				});
 			});
 
+		new Setting(this.contentEl)
+			.setName("Open with")
+			.setDesc(
+				"The normal choice picker supports fuzzy search. Context menu opens a small menu near the editor caret and falls back to the picker when no editor caret is available.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("suggester", "Choice picker")
+					.addOption("context-menu", "Context menu at editor caret")
+					.setValue(this.displayMode)
+					.onChange((value) => {
+						this.displayMode =
+							value === "context-menu" ? "context-menu" : "suggester";
+					});
+			});
+
 		const buttonRow = this.contentEl.createDiv();
 		new ButtonComponent(buttonRow)
 			.setButtonText("Save")
@@ -85,6 +104,8 @@ export class MultiChoiceSettingsModal extends Modal {
 			...this.choice,
 			name: this.name.trim() || this.choice.name,
 			placeholder: trimmedPlaceholder ? trimmedPlaceholder : undefined,
+			displayMode:
+				this.displayMode === "context-menu" ? "context-menu" : undefined,
 		};
 		this.resolvePromise(updated);
 	}

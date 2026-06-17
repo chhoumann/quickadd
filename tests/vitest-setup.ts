@@ -27,6 +27,7 @@ for (const proto of [HTMLElement.prototype, SVGElement.prototype]) {
 		addClass?: unknown;
 		removeClass?: unknown;
 		empty?: unknown;
+		setText?: unknown;
 		createDiv?: unknown;
 		createEl?: unknown;
 	};
@@ -45,6 +46,11 @@ for (const proto of [HTMLElement.prototype, SVGElement.prototype]) {
 	if (typeof p.empty !== "function") {
 		p.empty = function empty(this: Element) {
 			this.textContent = "";
+		};
+	}
+	if (typeof p.setText !== "function") {
+		p.setText = function setText(this: Element, text: string) {
+			this.textContent = text;
 		};
 	}
 	if (typeof p.createDiv !== "function") {
