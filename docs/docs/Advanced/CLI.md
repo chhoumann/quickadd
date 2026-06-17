@@ -83,6 +83,8 @@ obsidian vault=dev quickadd \
   vars='{"project":"QuickAdd","sprint":42}'
 ```
 
+Values are passed through exactly as provided. If a choice should ignore accidental leading or trailing whitespace for a specific token, use `|trim` in that format string, for example `{{VALUE:project|trim}}`.
+
 ## Non-interactive behavior
 
 By default, `quickadd` and `quickadd:run` are non-interactive. If QuickAdd
@@ -94,4 +96,3 @@ Use `ui` to allow interactive prompts:
 ```bash
 obsidian vault=dev quickadd choice="Daily log" ui
 ```
-
