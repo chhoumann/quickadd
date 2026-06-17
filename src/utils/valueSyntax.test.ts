@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
 	buildValueVariableKey,
+	normalizeNumericValue,
+	normalizeSliderValue,
 	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
@@ -127,6 +129,77 @@ describe("parseValueToken", () => {
 		expect(warnSpy).not.toHaveBeenCalled();
 	});
 
+	it("parses numeric constraints for number inputs", () => {
+		const parsed = parseValueToken("Rating|type:number|min:1|max:10|step:0.5");
+		expect(parsed?.inputTypeOverride).toBe("number");
+		expect(parsed?.numericConfig).toEqual({ min: 1, max: 10, step: 0.5 });
+	});
+
+	it("keeps min/max/step as shorthand defaults unless a numeric type is present", () => {
+		expect(parseValueToken("x|min:5")?.defaultValue).toBe("min:5");
+		expect(parseValueToken("x|min:5|max:10")?.defaultValue).toBe(
+			"min:5|max:10",
+		);
+	});
+
+	it("parses slider type only with an explicit valid range", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("Rating|type:slider|min:1|max:10|step:0.5");
+		expect(parsed?.inputTypeOverride).toBe("slider");
+		expect(parsed?.numericConfig).toEqual({ min: 1, max: 10, step: 0.5 });
+		expect(parsed?.sliderConfig).toEqual({ min: 1, max: 10, step: 0.5 });
+		expect(warnSpy).not.toHaveBeenCalled();
+	});
+
+	it("falls back to number for slider tokens without finite min and max", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const parsed = parseValueToken("Rating|type:slider|max:10");
+		expect(parsed?.inputTypeOverride).toBe("number");
+		expect(parsed?.numericConfig).toEqual({ max: 10 });
+		expect(parsed?.sliderConfig).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("falling back to type:number"),
+		);
+	});
+
+	it("falls back to number for invalid slider ranges and steps", () => {
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const invalidRange = parseValueToken("Rating|type:slider|min:10|max:1");
+		const invalidStep = parseValueToken(
+			"Rating|type:slider|min:1|max:10|step:0",
+		);
+		expect(invalidRange?.inputTypeOverride).toBe("number");
+		expect(invalidRange?.numericConfig).toBeUndefined();
+		expect(invalidStep?.inputTypeOverride).toBe("number");
+		expect(invalidStep?.numericConfig).toEqual({ min: 1, max: 10 });
+		expect(warnSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it("defaults slider step to one when omitted", () => {
+		const parsed = parseValueToken("Rating|type:slider|min:-5|max:5");
+		expect(parsed?.sliderConfig).toEqual({ min: -5, max: 5, step: 1 });
+	});
+
+	it("normalizes numeric values to bounds and step", () => {
+		expect(normalizeNumericValue("999", { min: 1, max: 10 })).toBe("10");
+		expect(normalizeNumericValue("-5", { min: 1, max: 10 })).toBe("1");
+		expect(normalizeNumericValue("4", { min: 1, max: 10, step: 2 })).toBe(
+			"5",
+		);
+		expect(normalizeNumericValue("0.26", { min: 0, max: 1, step: 0.25 })).toBe(
+			"0.25",
+		);
+		expect(normalizeNumericValue("garbage", { min: 1, max: 10 })).toBe("");
+	});
+
+	it("normalizes slider values to a concrete bounded value", () => {
+		const config = { min: 1, max: 10, step: 2 };
+		expect(normalizeSliderValue("999", config)).toBe("10");
+		expect(normalizeSliderValue("-5", config)).toBe("1");
+		expect(normalizeSliderValue("4", config)).toBe("5");
+		expect(normalizeSliderValue("garbage", config)).toBe("1");
+	});
+
 	it("treats type:boolean as an alias for checkbox", () => {
 		expect(parseValueToken("Done|type:boolean")?.inputTypeOverride).toBe(
 			"checkbox",
@@ -137,7 +210,7 @@ describe("parseValueToken", () => {
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		expect(parseValueToken("Body|type:wide")?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("multiline, number, checkbox, text"),
+			expect.stringContaining("multiline, number, slider, checkbox, text"),
 		);
 	});
 
@@ -203,6 +276,16 @@ describe("parseAnonymousValueOptions", () => {
 		expect(parsed.inputTypeOverride).toBe("multiline");
 		expect(parsed.label).toBe("Notes");
 		expect(parsed.defaultValue).toBe("Hello");
+	});
+
+	it("parses slider type and numeric config for unnamed VALUE tokens", () => {
+		const parsed = parseAnonymousValueOptions(
+			"|type:slider|min:1|max:10|step:1|default:5",
+		);
+		expect(parsed.inputTypeOverride).toBe("slider");
+		expect(parsed.numericConfig).toEqual({ min: 1, max: 10, step: 1 });
+		expect(parsed.sliderConfig).toEqual({ min: 1, max: 10, step: 1 });
+		expect(parsed.defaultValue).toBe("5");
 	});
 
 	it("parses case style for unnamed VALUE tokens", () => {
