@@ -247,10 +247,11 @@ export abstract class Formatter {
 	}
 
 	private applyValueTextOptions(
-		value: string,
+		value: unknown,
 		options: { trim?: boolean; caseStyle?: string },
 	): string {
-		const trimmed = options.trim ? value.trim() : value;
+		const text = String(value ?? "");
+		const trimmed = options.trim ? text.trim() : text;
 		return transformCase(trimmed, options.caseStyle);
 	}
 

@@ -236,6 +236,16 @@ describe('Formatter template property type inference', () => {
 			expect(vars.size).toBe(0);
 		});
 
+		it('coerces non-string values before applying text-only trim options', async () => {
+			(formatter as any).variables.set('rating', 8.5);
+			const output = await formatter.testFormatWithTemplatePropertyCollection(
+				'---\nrating: {{VALUE:rating|trim}}\n---',
+			);
+			const vars = formatter.getAndClearTemplatePropertyVars();
+			expect(output).toBe('---\nrating: 8.5\n---');
+			expect(vars.size).toBe(0);
+		});
+
 		it('does NOT collect plain strings (stays raw)', async () => {
 			(formatter as any).variables.set('title', 'Phantom Menace');
 			const output = await formatter.testFormatWithTemplatePropertyCollection(
