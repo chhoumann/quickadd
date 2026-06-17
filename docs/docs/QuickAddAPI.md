@@ -683,10 +683,12 @@ Declares a tool. `def`: `{ description, inputSchema (JSON Schema), execute, need
 - `needsApproval` (boolean or `(args) => boolean`) asks before running. `readOnly: true` marks a
   tool that only reads, so it auto-runs under the default confirmation setting.
 
-> **Confirmation needs an interactive Obsidian session.** A tool that asks for approval opens a
-> modal and waits for it. For unattended automation (e.g. driving QuickAdd from the CLI), give the
-> agent only `readOnly` tools, or set **Confirm AI tool calls** to *Never* and gate each tool with
-> its own `needsApproval` — otherwise the run blocks on a dialog no one can answer.
+:::note Confirmation needs an interactive Obsidian session
+A tool that asks for approval opens a modal and waits for it. For unattended automation (e.g.
+driving QuickAdd from the CLI), give the agent only `readOnly` tools, or set **Confirm AI tool
+calls** to *Never* and gate each tool with its own `needsApproval` — otherwise the run blocks on a
+dialog no one can answer.
+:::
 
 > ⚠️ **Security.** Tool handlers run with the same full privilege as your script (Node `require`,
 > `app`, the vault). The **model decides which tool to call and with what arguments**, possibly

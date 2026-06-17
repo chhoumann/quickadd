@@ -198,16 +198,20 @@ function parseOpenAIResponse(json: Record<string, unknown>): ParsedChatResult {
 	};
 }
 
+/** A tool call's args MUST be a JSON object — arrays/primitives violate the contract. */
+function asArgsRecord(value: unknown): Record<string, unknown> | null {
+	return value !== null && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
 function parseOpenAIToolCall(tc: OpenAIToolCallRaw): NormalizedToolCall {
 	const raw = tc.function.arguments;
 	if (typeof raw === "string") {
 		try {
-			return {
-				id: tc.id,
-				name: tc.function.name,
-				args: JSON.parse(raw || "{}") as Record<string, unknown>,
-				rawArgs: raw,
-			};
+			const rec = asArgsRecord(JSON.parse(raw || "{}"));
+			if (!rec) throw new Error("tool arguments are not a JSON object");
+			return { id: tc.id, name: tc.function.name, args: rec, rawArgs: raw };
 		} catch {
 			return {
 				id: tc.id,
@@ -219,11 +223,17 @@ function parseOpenAIToolCall(tc: OpenAIToolCallRaw): NormalizedToolCall {
 		}
 	}
 	// Defensive: some OpenAI-compatible servers (Ollama native) send an object.
-	return {
-		id: tc.id,
-		name: tc.function.name,
-		args: (raw as Record<string, unknown>) ?? {},
-	};
+	const rec = asArgsRecord(raw);
+	if (!rec) {
+		return {
+			id: tc.id,
+			name: tc.function.name,
+			args: null,
+			rawArgs: typeof raw === "string" ? raw : JSON.stringify(raw ?? {}),
+			parseError: true,
+		};
+	}
+	return { id: tc.id, name: tc.function.name, args: rec };
 }
 
 // ===========================================================================

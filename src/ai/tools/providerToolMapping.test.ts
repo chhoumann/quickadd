@@ -89,6 +89,17 @@ describe("OpenAI mapping", () => {
 		expect(res.toolCalls[0].parseError).toBeUndefined();
 	});
 
+	it("flags non-object args (array/primitive) as parseError — args must be an object", () => {
+		const arr = parseChatResponse("openai", {
+			choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ id: "c1", function: { name: "t", arguments: "[1,2]" } }] } }],
+		});
+		expect(arr.toolCalls[0]).toMatchObject({ args: null, parseError: true });
+		const prim = parseChatResponse("openai", {
+			choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ id: "c2", function: { name: "t", arguments: 5 as unknown as string } }] } }],
+		});
+		expect(prim.toolCalls[0]).toMatchObject({ args: null, parseError: true });
+	});
+
 	it("uses max_completion_tokens for reasoning models (gpt-5+/o-series), max_tokens otherwise", () => {
 		const req: NormalizedChatRequest = {
 			messages: [{ role: "user", content: "q" }],

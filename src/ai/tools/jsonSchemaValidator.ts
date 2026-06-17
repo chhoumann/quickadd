@@ -103,13 +103,15 @@ export function assertRegisterableSchema(
 	}
 
 	if (schema.items !== undefined) {
+		// Tuple-style `items` (an array of schemas) is NOT validated at runtime
+		// (validateValue only applies a single items schema), so reject it at
+		// registration rather than let the constraint be silently skipped.
 		if (Array.isArray(schema.items)) {
-			schema.items.forEach((sub, i) =>
-				assertRegisterableSchema(sub, `${where}.items[${i}]`),
+			throw new ToolSchemaError(
+				`${where}.items as an array (tuple validation) is not supported in QuickAdd's schema subset.`,
 			);
-		} else {
-			assertRegisterableSchema(schema.items, `${where}.items`);
 		}
+		assertRegisterableSchema(schema.items, `${where}.items`);
 	}
 
 	if (schema.enum !== undefined && !Array.isArray(schema.enum)) {
@@ -171,7 +173,10 @@ export function validateValue(
 		const obj = value as Record<string, unknown>;
 		if (Array.isArray(schema.required)) {
 			for (const key of schema.required) {
-				if (!(key in obj)) return `${path}.${key}: required property is missing`;
+				// own-property check: `key in obj` would match inherited props
+				// (e.g. a required "toString" would pass even when absent).
+				if (!Object.prototype.hasOwnProperty.call(obj, key))
+					return `${path}.${key}: required property is missing`;
 			}
 		}
 		if (schema.properties) {

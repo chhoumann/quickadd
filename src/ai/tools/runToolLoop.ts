@@ -149,13 +149,16 @@ export function stringifyToolResult(
 		}
 	}
 	if (byteLength(s) > maxBytes) {
-		// Byte-accurate truncation: shrink the char cut until it fits the byte cap
-		// (so multibyte content can't overshoot), without splitting a code point.
-		let cut = Math.min(s.length, maxBytes);
-		while (cut > 0 && byteLength(s.slice(0, cut)) > maxBytes) {
+		// Byte-accurate truncation: reserve room for the marker so the FINAL string
+		// (content + marker) still fits maxBytes, and shrink the char cut until the
+		// prefix fits that budget without splitting a code point.
+		const marker = " …[truncated]";
+		const budget = Math.max(0, maxBytes - byteLength(marker));
+		let cut = Math.min(s.length, budget);
+		while (cut > 0 && byteLength(s.slice(0, cut)) > budget) {
 			cut = Math.floor(cut * 0.9) || cut - 1;
 		}
-		s = s.slice(0, cut) + " …[truncated]";
+		s = s.slice(0, cut) + marker;
 	}
 	return { content: s, isError: false };
 }

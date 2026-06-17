@@ -161,7 +161,7 @@ export function createVaultTools(
 			),
 			needsApproval: true,
 			execute: async ({ path, content }) => {
-				const norm = sanitizeVaultPath(ensureMd(String(path)), { allowedRoots: roots });
+				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				await assertWriteStaysInVault(app, norm);
 				await ensureParentFolder(app, norm);
 				const file = await app.vault.create(norm, String(content ?? ""));
@@ -181,7 +181,7 @@ export function createVaultTools(
 			),
 			needsApproval: true,
 			execute: async ({ path, content, position }) => {
-				const norm = sanitizeVaultPath(String(path), { allowedRoots: roots });
+				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
 				const body = await app.vault.read(file);
@@ -208,7 +208,7 @@ export function createVaultTools(
 			),
 			needsApproval: true,
 			execute: async ({ path, heading, content }) => {
-				const norm = sanitizeVaultPath(String(path), { allowedRoots: roots });
+				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
 				const headings = app.metadataCache.getFileCache(file)?.headings ?? [];
@@ -249,8 +249,17 @@ function toInt(v: unknown, fallback: number): number {
 function clamp(n: number, lo: number, hi: number): number {
 	return Math.max(lo, Math.min(hi, n));
 }
-function ensureMd(path: string): string {
-	return /\.[a-z0-9]+$/i.test(path) ? path : `${path}.md`;
+// These are NOTE tools: confine them to markdown. A bare name gets `.md`; an
+// explicit non-`.md` extension is refused so a model can't create/modify a `.js`
+// (which a macro could then run) or any other arbitrary file type via a "note" tool.
+function ensureMarkdownPath(path: string): string {
+	if (/\.md$/i.test(path)) return path;
+	if (/\.[a-z0-9]+$/i.test(path)) {
+		throw new Error(
+			`This tool only operates on markdown notes (.md); refused path: "${path}".`,
+		);
+	}
+	return `${path}.md`;
 }
 function requireFile(app: App, normalizedPath: string): TFile {
 	const file = app.vault.getAbstractFileByPath(normalizedPath);

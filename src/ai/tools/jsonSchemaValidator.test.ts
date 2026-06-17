@@ -58,6 +58,15 @@ describe("assertRegisterableSchema", () => {
 			assertRegisterableSchema({ type: "object", required: "name" as never }),
 		).toThrow(ToolSchemaError);
 	});
+
+	it("rejects tuple-style items (an array of schemas) — not validated at runtime", () => {
+		expect(() =>
+			assertRegisterableSchema({
+				type: "array",
+				items: [{ type: "string" }, { type: "integer" }] as never,
+			}),
+		).toThrow(ToolSchemaError);
+	});
 });
 
 describe("validateValue", () => {
@@ -80,6 +89,11 @@ describe("validateValue", () => {
 
 	it("flags a missing required property", () => {
 		expect(validateValue({ count: 1 }, schema)).toMatch(/required/);
+	});
+
+	it("treats an inherited (prototype) property as missing for required (own-property check)", () => {
+		// `toString` exists on the prototype but not as an own property → must be flagged.
+		expect(validateValue({}, { type: "object", required: ["toString"] })).toMatch(/required/);
 	});
 
 	it("flags a wrong type", () => {

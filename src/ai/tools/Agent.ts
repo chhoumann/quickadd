@@ -392,6 +392,18 @@ export class Agent {
 		const first = parseStructured(loop.finalTurn.content, schema);
 		if (first.ok) return first.value;
 
+		// The first parse above is free (no network). The repair re-ask below makes a
+		// new outbound call, so DON'T do it when the loop ended in a terminal
+		// non-success state (online disabled mid-run → "aborted", or "context-overflow")
+		// or online features are now off — that would bypass the mid-run stop.
+		if (
+			loop.finishReason === "aborted" ||
+			loop.finishReason === "context-overflow" ||
+			settingsStore.getState().disableOnlineFeatures
+		) {
+			return undefined;
+		}
+
 		// One bounded repair re-ask: a fresh stricter request (never a format() pass).
 		// No tools + responseFormat is the valid no-tools shape for every provider.
 		// loop.messages omits the final assistant turn, so include the bad reply

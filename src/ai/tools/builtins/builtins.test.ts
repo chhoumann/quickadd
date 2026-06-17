@@ -70,8 +70,20 @@ describe("vault write tools — safety", () => {
 		const app = makeApp();
 		const tools = createVaultTools(app);
 		await expect(
-			tools.create_note.execute({ path: "Notes/.obsidian/evil/main.js" }, { toolCallId: "c", toolName: "create_note" }),
+			tools.create_note.execute({ path: "Notes/.obsidian/evil/main.md" }, { toolCallId: "c", toolName: "create_note" }),
 		).rejects.toBeInstanceOf(UnsafeVaultPathError);
+		expect((app.vault.create as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
+	});
+
+	it("note writers refuse a non-markdown extension (no .js/.css etc.)", async () => {
+		const app = makeApp();
+		const tools = createVaultTools(app);
+		await expect(
+			tools.create_note.execute({ path: "Notes/evil.js" }, { toolCallId: "c", toolName: "create_note" }),
+		).rejects.toThrow(/markdown/i);
+		await expect(
+			tools.append_to_note.execute({ path: "Notes/style.css", content: "x" }, { toolCallId: "c", toolName: "append_to_note" }),
+		).rejects.toThrow(/markdown/i);
 		expect((app.vault.create as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
 	});
 

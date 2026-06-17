@@ -424,7 +424,9 @@ export class QuickAddApi {
 							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName:
-								settings?.assignToVariable ?? settings?.variableName ?? "output",
+								// `||` not `??`: an empty assignToVariable ("") means "no explicit
+								// variable" (matching ai.agent's length>0 check), so fall through.
+								settings?.assignToVariable || settings?.variableName || "output",
 							showAssistantMessages: settings?.showAssistantMessages ?? true,
 							systemPrompt:
 								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
@@ -528,7 +530,9 @@ export class QuickAddApi {
 							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
 							outputVariableName:
-								settings?.assignToVariable ?? settings?.variableName ?? "output",
+								// `||` not `??`: an empty assignToVariable ("") means "no explicit
+								// variable" (matching ai.agent's length>0 check), so fall through.
+								settings?.assignToVariable || settings?.variableName || "output",
 							showAssistantMessages: settings?.showAssistantMessages ?? true,
 							systemPrompt:
 								settings?.systemPrompt ?? AISettings.defaultSystemPrompt,
