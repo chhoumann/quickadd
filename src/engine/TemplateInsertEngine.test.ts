@@ -208,7 +208,7 @@ function makeEngine(
 ): TemplateInsertEngine {
 	return new TemplateInsertEngine(
 		harness.app,
-		{} as QuickAdd,
+		{ settings: { templateSourceExtensions: ["eta"] } } as QuickAdd,
 		file,
 		TEMPLATE_PATH,
 		mode,
