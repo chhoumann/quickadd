@@ -351,15 +351,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		if (userScriptSettings) {
 			// Initialize default values for settings before executing the script
 			initializeUserScriptSettings(command.settings, userScriptSettings);
-			if (
-				await migrateUserScriptSecretSettings(
-					this.app,
-					command,
-					userScriptSettings,
-				)
-			) {
-				await this.plugin.saveSettings?.();
-			}
 		}
 		this.userScriptCommand = command;
 		this.userScriptSettingsDefinition = userScriptSettings;
@@ -377,6 +368,24 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			this.userScriptCommand = null;
 			this.userScriptSettingsDefinition = undefined;
 		}
+	}
+
+	private async getResolvedUserScriptSettings(command: IUserScript) {
+		if (
+			await migrateUserScriptSecretSettings(
+				this.app,
+				command,
+				this.userScriptSettingsDefinition,
+			)
+		) {
+			await this.plugin.saveSettings?.();
+		}
+
+		return resolveUserScriptSettings(
+			this.app,
+			command,
+			this.userScriptSettingsDefinition,
+		);
 	}
 
 	private async runScriptWithSettings(
@@ -400,22 +409,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		) {
 			return await this.onExportIsFunction(
 				userScript.entry,
-				await resolveUserScriptSettings(
-					this.app,
-					command,
-					this.userScriptSettingsDefinition,
-				),
+				await this.getResolvedUserScriptSettings(command),
 			);
 		}
 
 		if (typeof userScript === "function") {
 			return await this.onExportIsFunction(
 				userScript,
-				await resolveUserScriptSettings(
-					this.app,
-					command,
-					this.userScriptSettingsDefinition,
-				),
+				await this.getResolvedUserScriptSettings(command),
 			);
 		}
 	}

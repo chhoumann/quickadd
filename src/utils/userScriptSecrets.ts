@@ -238,12 +238,6 @@ export async function resolveUserScriptSettings(
 		}
 	}
 
-	for (const name of secretOptionNames) {
-		if (!(name in resolvedSettings)) {
-			resolvedSettings[name] = "";
-		}
-	}
-
 	return resolvedSettings;
 }
 
@@ -299,4 +293,67 @@ export function getSecretRefFromCommandSetting(
 ): string | undefined {
 	const value = command.settings?.[settingName];
 	return isUserScriptSecretRef(value) ? value.secretRef : undefined;
+}
+
+async function clearRefsFromSettings(
+	app: App | undefined,
+	settings: unknown,
+): Promise<void> {
+	if (!isRecord(settings)) return;
+
+	const secretRefs = Object.values(settings)
+		.filter(isUserScriptSecretRef)
+		.map((value) => value.secretRef);
+
+	await Promise.all(
+		secretRefs.map((secretRef) => clearUserScriptSecret(app, secretRef)),
+	);
+}
+
+async function clearSecretsFromChoice(
+	app: App | undefined,
+	choice: unknown,
+): Promise<void> {
+	if (!isRecord(choice)) return;
+
+	if (choice.type === "Macro" && isRecord(choice.macro)) {
+		await clearUserScriptSecretsFromCommands(app, choice.macro.commands);
+	}
+
+	if (choice.type === "Multi" && Array.isArray(choice.choices)) {
+		for (const child of choice.choices) {
+			await clearSecretsFromChoice(app, child);
+		}
+	}
+}
+
+export async function clearUserScriptSecretsFromCommand(
+	app: App | undefined,
+	command: unknown,
+): Promise<void> {
+	if (!isRecord(command)) return;
+
+	if (command.type === "UserScript") {
+		await clearRefsFromSettings(app, command.settings);
+	}
+
+	if (Array.isArray(command.thenCommands)) {
+		await clearUserScriptSecretsFromCommands(app, command.thenCommands);
+	}
+	if (Array.isArray(command.elseCommands)) {
+		await clearUserScriptSecretsFromCommands(app, command.elseCommands);
+	}
+
+	await clearSecretsFromChoice(app, command.choice);
+}
+
+export async function clearUserScriptSecretsFromCommands(
+	app: App | undefined,
+	commands: unknown,
+): Promise<void> {
+	if (!Array.isArray(commands)) return;
+
+	for (const command of commands) {
+		await clearUserScriptSecretsFromCommand(app, command);
+	}
 }

@@ -17,6 +17,7 @@ vi.mock("../logger/logManager", () => ({
 const {
 	buildUserScriptSecretId,
 	clearUserScriptSecret,
+	clearUserScriptSecretsFromCommand,
 	createUserScriptSecretRef,
 	isSecretUserScriptOption,
 	isUserScriptSecretRef,
@@ -152,6 +153,18 @@ describe("userScriptSecrets", () => {
 		expect(command.settings["API Key"]).toBe("legacy-secret");
 	});
 
+	it("preserves absence for unset secret settings at runtime", async () => {
+		const command = createCommand();
+
+		const resolved = await resolveUserScriptSettings(undefined, command, {
+			options: {
+				"API Key": { type: "secret" },
+			},
+		});
+
+		expect("API Key" in resolved).toBe(false);
+	});
+
 	it("throws a clear error when a marker cannot resolve on this device", async () => {
 		const command = createCommand({
 			"API Key": createUserScriptSecretRef(
@@ -271,5 +284,38 @@ describe("userScriptSecrets", () => {
 
 		expect(changed).toBe(false);
 		expect(setSecret).not.toHaveBeenCalled();
+	});
+
+	it("clears secret refs recursively from deleted command trees", async () => {
+		const deleteSecret = vi.fn().mockResolvedValue(undefined);
+		const app = createApp({ delete: deleteSecret });
+		const commandTree = {
+			type: "Conditional",
+			thenCommands: [
+				createCommand({
+					"API Key": createUserScriptSecretRef("then-secret"),
+				}),
+			],
+			elseCommands: [
+				{
+					type: "NestedChoice",
+					choice: {
+						type: "Macro",
+						macro: {
+							commands: [
+								createCommand({
+									"API Key": createUserScriptSecretRef("nested-secret"),
+								}),
+							],
+						},
+					},
+				},
+			],
+		};
+
+		await clearUserScriptSecretsFromCommand(app, commandTree);
+
+		expect(deleteSecret).toHaveBeenCalledWith("then-secret");
+		expect(deleteSecret).toHaveBeenCalledWith("nested-secret");
 	});
 });

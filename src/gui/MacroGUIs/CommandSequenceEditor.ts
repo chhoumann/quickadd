@@ -52,6 +52,7 @@ import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileComman
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { getUserScriptMemberAccess } from "../../utilityObsidian";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
+import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 
 type ConditionalHandler = (command: IConditionalCommand) => Promise<boolean>;
 
@@ -153,6 +154,7 @@ export class CommandSequenceEditor {
 				);
 				if (!promptAnswer) return;
 
+				await clearUserScriptSecretsFromCommand(this.app, command);
 				this.commandsRef = this.commandsRef.filter((c) => c.id !== commandId);
 				this.emitCommandsChanged();
 			},

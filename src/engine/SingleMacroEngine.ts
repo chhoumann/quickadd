@@ -288,15 +288,6 @@ export class SingleMacroEngine {
 					userScriptCommand.settings,
 					settingsExport as Record<string, unknown>,
 				);
-				if (
-					await migrateUserScriptSecretSettings(
-						this.app,
-						userScriptCommand,
-						settingsExport as Record<string, unknown>,
-					)
-				) {
-					await this.plugin.saveSettings?.();
-				}
 			}
 
 			const resolvedMember =
@@ -312,18 +303,32 @@ export class SingleMacroEngine {
 			}
 
 			const postCommands = updatedCommands.slice(refreshedIndex + 1);
-			const resolvedSettings = await resolveUserScriptSettings(
-				this.app,
-				userScriptCommand,
-				settingsExport && typeof settingsExport === "object"
-					? (settingsExport as Record<string, unknown>)
-					: undefined,
-			);
+			let memberSettings = userScriptCommand.settings;
+			if (typeof resolvedMember.value === "function") {
+				if (
+					await migrateUserScriptSecretSettings(
+						this.app,
+						userScriptCommand,
+						settingsExport && typeof settingsExport === "object"
+							? (settingsExport as Record<string, unknown>)
+							: undefined,
+					)
+				) {
+					await this.plugin.saveSettings?.();
+				}
+				memberSettings = await resolveUserScriptSettings(
+					this.app,
+					userScriptCommand,
+					settingsExport && typeof settingsExport === "object"
+						? (settingsExport as Record<string, unknown>)
+						: undefined,
+				);
+			}
 
 			const result = await this.executeResolvedMember(
 				resolvedMember.value,
 				engine,
-				resolvedSettings,
+				memberSettings,
 			);
 			this.ensureNotAborted();
 
