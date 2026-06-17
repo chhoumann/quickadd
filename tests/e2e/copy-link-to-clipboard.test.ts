@@ -22,6 +22,7 @@ let obsidian: ObsidianClient;
 let sandbox: SandboxApi;
 let qa: PluginHandle;
 let lock: VaultRunLock | undefined;
+const ACTIVE_NOTE_CONTENT = "Active note must not receive the copied link.";
 
 type QuickAddData = {
 	choices: Record<string, unknown>[];
@@ -126,6 +127,16 @@ async function runChoice(name: string) {
 	await obsidian.exec("quickadd:run", { choice: name });
 }
 
+async function openSandboxFile(path: string) {
+	await obsidian.exec("eval", {
+		code: `(async () => {
+			const file = app.vault.getAbstractFileByPath(${JSON.stringify(sandbox.path(path))});
+			await app.workspace.getLeaf().openFile(file);
+			return app.workspace.getActiveFile()?.path;
+		})()`,
+	});
+}
+
 async function reloadPluginCode() {
 	await obsidian.exec("eval", {
 		code: '(async () => { await app.plugins.disablePlugin("quickadd"); await app.plugins.enablePlugin("quickadd"); return true; })()',
@@ -133,6 +144,12 @@ async function reloadPluginCode() {
 }
 
 beforeAll(async () => {
+	if (!process.env.QUICKADD_E2E_VAULT_PATH) {
+		throw new Error(
+			"copy-link-to-clipboard E2E must run with start:e2e-obsidian -- --print-env exports.",
+		);
+	}
+
 	obsidian = createQuickAddObsidianClient();
 	lock = await acquireQuickAddVaultRunLock(obsidian);
 	await lock.publishMarker(obsidian);
@@ -145,6 +162,10 @@ beforeAll(async () => {
 	});
 
 	await sandbox.write("template.md", "Template content", {
+		waitForContent: true,
+		waitOptions: WAIT_OPTS,
+	});
+	await sandbox.write("active-note.md", ACTIVE_NOTE_CONTENT, {
 		waitForContent: true,
 		waitOptions: WAIT_OPTS,
 	});
@@ -192,6 +213,7 @@ describe("copy produced file link to clipboard", () => {
 
 	it("copies the created Template choice link without inserting it", async () => {
 		await setClipboard("before-template");
+		await openSandboxFile("active-note.md");
 
 		await runChoice("__qa-test-600-template-copy");
 		await sandbox.waitForContent(
@@ -201,10 +223,12 @@ describe("copy produced file link to clipboard", () => {
 		);
 
 		expect(await readClipboard()).toBe("[[template-created]]");
+		expect(await sandbox.read("active-note.md")).toBe(ACTIVE_NOTE_CONTENT);
 	});
 
 	it("copies the captured file link without requiring an active target note", async () => {
 		await setClipboard("before-capture");
+		await openSandboxFile("active-note.md");
 
 		await runChoice("__qa-test-600-capture-copy");
 		await sandbox.waitForContent(
@@ -214,5 +238,6 @@ describe("copy produced file link to clipboard", () => {
 		);
 
 		expect(await readClipboard()).toBe("[[capture-created]]");
+		expect(await sandbox.read("active-note.md")).toBe(ACTIVE_NOTE_CONTENT);
 	});
 });
