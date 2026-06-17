@@ -18,10 +18,10 @@ import {
 	GLOBAL_VAR_REGEX,
 	INLINE_JAVASCRIPT_REGEX,
 	MACRO_REGEX,
-	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
 import { transformCase } from "src/utils/caseTransform";
+import { buildTemplateInclusionRegex } from "src/utils/templateFolderUtils";
 
 export interface AIRequestLogEntry {
 	id: string;
@@ -567,7 +567,9 @@ function templateReferencesChunk(template: string): boolean {
 // rendered probe below must still prove that the chunk value was actually used.
 function templateHasDynamicExpansionSite(template: string): boolean {
 	return (
-		TEMPLATE_REGEX.test(template) ||
+		buildTemplateInclusionRegex(
+			settingsStore.getState().templateSourceExtensions,
+		).test(template) ||
 		MACRO_REGEX.test(template) ||
 		GLOBAL_VAR_REGEX.test(template) ||
 		INLINE_JAVASCRIPT_REGEX.test(template)

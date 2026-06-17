@@ -125,6 +125,23 @@ describe("getTemplateFile", () => {
 		);
 	});
 
+	it("prefers exact source-only template files over markdown fallback", () => {
+		const app = appWith([
+			file("Templates/Daily.eta"),
+			file("Templates/Daily.eta.md"),
+		]);
+		expect(getTemplateFile(app, "Templates/Daily.eta")?.path).toBe(
+			"Templates/Daily.eta",
+		);
+	});
+
+	it("keeps old markdown fallback for missing source-only template files", () => {
+		const app = appWith([file("Templates/Daily.eta.md")]);
+		expect(getTemplateFile(app, "Templates/Daily.eta")?.path).toBe(
+			"Templates/Daily.eta.md",
+		);
+	});
+
 	it("resolves configured source-only template extensions", () => {
 		const app = appWith([file("Templates/Daily.tpl")]);
 		expect(getTemplateFile(app, "Templates/Daily.tpl", ["tpl"])?.path).toBe(

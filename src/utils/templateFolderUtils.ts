@@ -126,7 +126,21 @@ export function getTemplateFile(
 		? stripped
 		: `${stripped}.md`;
 	const file = app.vault.getAbstractFileByPath(resolved);
-	return file instanceof TFile ? file : null;
+	if (file instanceof TFile) return file;
+
+	// Backward compatibility: before source-only extensions were recognized,
+	// a path like "Templates/Daily.eta" resolved to "Templates/Daily.eta.md".
+	// Preserve that alias when no exact source file exists.
+	if (
+		resolved === stripped &&
+		getTemplateOutputExtension(stripped) === ".md" &&
+		!MARKDOWN_FILE_EXTENSION_REGEX.test(stripped)
+	) {
+		const markdownFallback = app.vault.getAbstractFileByPath(`${stripped}.md`);
+		return markdownFallback instanceof TFile ? markdownFallback : null;
+	}
+
+	return null;
 }
 
 /**

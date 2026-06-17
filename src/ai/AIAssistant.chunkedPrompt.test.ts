@@ -4,6 +4,7 @@ import type { CommonResponse } from "./OpenAIRequest";
 
 const storeState = vi.hoisted(() => ({
 	disableOnlineFeatures: false,
+	templateSourceExtensions: ["eta"],
 }));
 
 const mocks = vi.hoisted(() => ({
@@ -79,6 +80,7 @@ function makeSettings(overrides: Partial<Parameters<typeof ChunkedPrompt>[1]> = 
 beforeEach(() => {
 	vi.clearAllMocks();
 	storeState.disableOnlineFeatures = false;
+	storeState.templateSourceExtensions = ["eta"];
 	mocks.openAIRequest.mockReturnValue(mocks.makeRequest);
 	mocks.isLikelyContextLimitError.mockImplementation((error: unknown) =>
 		error instanceof Error && /context/i.test(error.message)
@@ -210,6 +212,26 @@ describe("ChunkedPrompt", () => {
 		);
 
 		expect(mocks.makeRequest.mock.calls.length).toBeGreaterThanOrEqual(1);
+	});
+
+	it("accepts configured source-only template extensions as dynamic chunk sites", async () => {
+		storeState.templateSourceExtensions = ["tpl"];
+		const formatter = vi.fn(
+			async (_template: string, variables: { [k: string]: unknown }) =>
+				`Included template chunk: ${variables.chunk}`,
+		);
+
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				promptTemplate: "{{TEMPLATE:Prompts/chunk.tpl}}",
+			}),
+			formatter,
+		);
+
+		expect(mocks.makeRequest).toHaveBeenCalledWith(
+			"Included template chunk: alpha beta",
+		);
 	});
 
 	// Finding #4 (regression): a separator-poor over-budget input must bail via the
