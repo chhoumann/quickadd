@@ -1,5 +1,9 @@
 import type { TFile, CachedMetadata } from "obsidian";
 import type { FieldFilter } from "./FieldSuggestionParser";
+import {
+	normalizeFrontmatterTagValues,
+	normalizeTag,
+} from "./tagNormalizer";
 
 export class EnhancedFieldSuggestionFileFilter {
 	/**
@@ -157,33 +161,23 @@ export class EnhancedFieldSuggestionFileFilter {
 
 		// Get tags from frontmatter
 		if (metadata.frontmatter?.tags) {
-			const frontmatterTags = Array.isArray(metadata.frontmatter.tags)
-				? metadata.frontmatter.tags
-				: [metadata.frontmatter.tags];
-			
-			tags.push(...frontmatterTags.map(tag => this.normalizeTag(tag)));
+			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tags));
 		}
 
 		if (metadata.frontmatter?.tag) {
-			const frontmatterTag = Array.isArray(metadata.frontmatter.tag)
-				? metadata.frontmatter.tag
-				: [metadata.frontmatter.tag];
-			
-			tags.push(...frontmatterTag.map(tag => this.normalizeTag(tag)));
+			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tag));
 		}
 
 		// Get inline tags
 		if (metadata.tags) {
-			tags.push(...metadata.tags.map(tag => this.normalizeTag(tag.tag)));
+			tags.push(...metadata.tags.map(tag => normalizeTag(tag.tag)));
 		}
 
 		return tags.filter(Boolean);
 	}
 
 	private static normalizeTag(tag: unknown): string {
-		const tagString = typeof tag === "string" ? tag : String(tag);
-		const trimmed = tagString.trim();
-		return trimmed.startsWith("#") ? trimmed.substring(1).trim() : trimmed;
+		return normalizeTag(tag);
 	}
 
 	private static normalizePath(path: string): string {

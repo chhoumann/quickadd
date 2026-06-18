@@ -17,7 +17,7 @@ const createMockFile = (path: string): TFile => {
 };
 
 // Mock CachedMetadata
-const createMockMetadata = (tags?: string[], frontmatterTags?: string[]): CachedMetadata => {
+const createMockMetadata = (tags?: string[], frontmatterTags?: unknown): CachedMetadata => {
 	const metadata: any = {};
 	
 	if (tags) {
@@ -274,6 +274,38 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 				files,
 				{ tags: ["topic"] },
 				() => createMockMetadata(undefined, ["#topic"]),
+			);
+			expect(result.map(f => f.path)).toEqual(["note.md"]);
+		});
+
+		it("should split comma-separated scalar frontmatter tags", () => {
+			const files = [createMockFile("note.md")];
+			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+				files,
+				{ tags: ["work", "project"] },
+				() => createMockMetadata(undefined, "work, project"),
+			);
+			expect(result.map(f => f.path)).toEqual(["note.md"]);
+		});
+
+		it("should split whitespace-separated scalar frontmatter tags", () => {
+			const files = [createMockFile("note.md")];
+			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+				files,
+				{ tags: ["work", "project"] },
+				() => createMockMetadata(undefined, "work project"),
+			);
+			expect(result.map(f => f.path)).toEqual(["note.md"]);
+		});
+
+		it("should split scalar singular frontmatter tag values", () => {
+			const files = [createMockFile("note.md")];
+			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+				files,
+				{ tags: ["work", "project"] },
+				() => ({
+					frontmatter: { tag: "#work, project" },
+				} as CachedMetadata),
 			);
 			expect(result.map(f => f.path)).toEqual(["note.md"]);
 		});

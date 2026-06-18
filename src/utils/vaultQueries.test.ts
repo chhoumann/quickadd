@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { App, TFile } from "obsidian";
 import {
 	frontmatterValueMatches,
+	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithProperty,
+	getMarkdownFilesWithTag,
 } from "./vaultQueries";
 
 describe("frontmatterValueMatches", () => {
@@ -108,5 +110,82 @@ describe("getMarkdownFilesWithProperty", () => {
 			.map((f) => f.path)
 			.sort();
 		expect(paths).toEqual(["Arr D.md", "Draft A.md", "Draft B.md"].sort());
+	});
+
+	it("applies tag pipe filters to scalar frontmatter tags", () => {
+		const tagApp = makeApp([
+			{
+				path: "Draft A.md",
+				basename: "Draft A",
+				frontmatter: { type: "draft", tags: "work, project" },
+			},
+			{
+				path: "Draft B.md",
+				basename: "Draft B",
+				frontmatter: { type: "draft", tags: "work" },
+			},
+			{
+				path: "Note C.md",
+				basename: "Note C",
+				frontmatter: { type: "note", tags: "work, project" },
+			},
+		]);
+
+		const paths = getMarkdownFilesWithProperty(tagApp, "type", "draft", {
+			tags: ["work", "project"],
+		}).map((f) => f.path);
+
+		expect(paths).toEqual(["Draft A.md"]);
+	});
+});
+
+describe("tag-based vault queries", () => {
+	const app = makeApp([
+		{
+			path: "Comma.md",
+			basename: "Comma",
+			frontmatter: { tags: "work, project" },
+		},
+		{
+			path: "Space.md",
+			basename: "Space",
+			frontmatter: { tags: "#work project" },
+		},
+		{
+			path: "Singular.md",
+			basename: "Singular",
+			frontmatter: { tag: "#work, project" },
+		},
+		{
+			path: "Object.md",
+			basename: "Object",
+			frontmatter: { tags: { tag: "work" } },
+		},
+	]);
+
+	it("finds bare tag targets with scalar frontmatter tags", () => {
+		const paths = getMarkdownFilesWithTag(app, "#work").map((f) => f.path);
+
+		expect(paths.sort()).toEqual(
+			["Comma.md", "Singular.md", "Space.md"].sort(),
+		);
+	});
+
+	it("matches compound filters against scalar frontmatter tags", () => {
+		const paths = getMarkdownFilesMatchingFilter(app, {
+			tags: ["work", "project"],
+		}).map((f) => f.path);
+
+		expect(paths.sort()).toEqual(
+			["Comma.md", "Singular.md", "Space.md"].sort(),
+		);
+	});
+
+	it("excludes scalar frontmatter tags", () => {
+		const paths = getMarkdownFilesMatchingFilter(app, {
+			excludeTags: ["project"],
+		}).map((f) => f.path);
+
+		expect(paths).toEqual(["Object.md"]);
 	});
 });
