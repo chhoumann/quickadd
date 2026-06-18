@@ -7,12 +7,12 @@ import { getAllFolderPathsInVault } from "../../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
 import { isCanvasTargetPath, normalizeVaultPath } from "../canvasNodes";
-import { isPropertyTarget, parsePropertyTarget } from "../../../utils/propertyTarget";
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 import CanvasNodePicker from "./CanvasNodePicker.svelte";
+import { getCaptureTargetFeedback } from "./captureTargetFeedback";
 
 /** Reactive port of captureChoiceBuilder.addCapturedToSetting. */
 let {
@@ -51,23 +51,17 @@ const suggesters = [
 		new FormatSyntaxSuggester(app, el, plugin),
 ];
 
-// A `property:` target filters notes by a frontmatter field — it is NOT a path,
-// so showing the file-name format preview would render a misleading fake path.
-const isProperty = $derived(isPropertyTarget(choice.captureTo ?? ""));
-// Exclude property targets from canvas detection so a contrived value like
+const captureTargetFeedback = $derived.by(() =>
+	getCaptureTargetFeedback(choice.captureTo ?? ""),
+);
+// Filter/property targets are not paths, so showing the file-name format preview
+// would render a misleading fake path.
+const usesPickerTargetSyntax = $derived(captureTargetFeedback !== null);
+// Exclude picker syntax from canvas detection so a contrived value like
 // `property:type=foo.canvas` never offers the (meaningless) canvas-node picker.
 const isCanvasTarget = $derived(
-	!isProperty && isCanvasTargetPath(choice.captureTo),
+	!usesPickerTargetSyntax && isCanvasTargetPath(choice.captureTo),
 );
-const propertyHint = $derived.by(() => {
-	const parsed = parsePropertyTarget(choice.captureTo ?? "");
-	if (!parsed || !parsed.field) {
-		return "Add a field name, e.g. property:type=draft";
-	}
-	return parsed.value !== undefined
-		? `Filters notes whose frontmatter ${parsed.field} = ${parsed.value}`
-		: `Filters notes that have the frontmatter field ${parsed.field}`;
-});
 
 function onCaptureToActiveFileChange(value: boolean) {
 	// Read the prior state BEFORE mutating (one-way toggle, not bind).
@@ -89,6 +83,7 @@ function onCaptureToActiveFileChange(value: boolean) {
 function onCaptureToChange(value: string) {
 	const previousCanvasPath = normalizeVaultPath(choice.captureTo);
 	const wasCanvasTarget = isCanvasTargetPath(choice.captureTo);
+	const nextUsesPickerTargetSyntax = getCaptureTargetFeedback(value) !== null;
 	choice.captureTo = value;
 	const nextCanvasPath = normalizeVaultPath(value);
 	const nextIsCanvasTarget = isCanvasTargetPath(value);
@@ -97,9 +92,20 @@ function onCaptureToChange(value: string) {
 		nextIsCanvasTarget &&
 		previousCanvasPath !== nextCanvasPath;
 
-	if (!nextIsCanvasTarget || canvasPathChanged) {
+	if (nextUsesPickerTargetSyntax || !nextIsCanvasTarget || canvasPathChanged) {
 		choice.captureToCanvasNodeId = "";
 	}
+}
+
+function validateCaptureTo(value: string) {
+	const feedback = getCaptureTargetFeedback(value);
+	if (!feedback) return true;
+
+	return {
+		valid: feedback.valid,
+		message: feedback.message,
+		variant: feedback.valid ? ("success" as const) : undefined,
+	};
 }
 </script>
 
@@ -122,9 +128,7 @@ function onCaptureToChange(value: string) {
 		name="File path / format"
 		desc={"Choose a file, folder, #tag, property:field=value, or format syntax (e.g., {{DATE}})"}
 	/>
-	{#if isProperty}
-		<div class="qa-field-hint qa-field-hint--neutral">{propertyHint}</div>
-	{:else}
+	{#if !usesPickerTargetSyntax}
 		<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
 	{/if}
 	<ValidatedInput
@@ -134,6 +138,7 @@ function onCaptureToChange(value: string) {
 		suggestions={captureTargetSuggestions}
 		maxSuggestions={50}
 		makeSuggesters={suggesters}
+		validator={validateCaptureTo}
 		ariaLabel="File path / format"
 		onChange={onCaptureToChange}
 	/>

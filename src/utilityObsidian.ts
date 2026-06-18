@@ -66,6 +66,7 @@ export {
 	isFolder,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
+	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithProperty,
 } from "./utils/vaultQueries";
 

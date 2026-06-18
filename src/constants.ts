@@ -24,6 +24,7 @@ export const VARIABLE_TRIM_SYNTAX = "{{value:<variable name>|trim}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
 export const FIELD_VAR_MULTI_SYNTAX = "{{field:<field name>|multi}}";
 export const FILE_SYNTAX = "{{file:<folder>}}";
+export const FILE_MULTI_SYNTAX = "{{file:<folder>|multi}}";
 export const FILE_LINK_SYNTAX = "{{file:<folder>|link}}";
 export const FILE_PATH_SYNTAX = "{{file:<folder>|path}}";
 export const MATH_VALUE_SYNTAX = "{{mvalue}}";
@@ -66,6 +67,7 @@ export const FORMAT_SYNTAX: string[] = [
 	"{{field:<fieldname>|inline:true}}",
 	"{{field:<fieldname>|inline:true|inline-code-blocks:ad-note}}",
 	FILE_SYNTAX,
+	FILE_MULTI_SYNTAX,
 	FILE_LINK_SYNTAX,
 	FILE_PATH_SYNTAX,
 	LINKCURRENT_SYNTAX,

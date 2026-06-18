@@ -14,7 +14,10 @@ function makeFile(path: string) {
 	return { path, name: segment, basename, parent: { path: parentPath } };
 }
 
-const makeApp = (paths: string[]) =>
+const makeApp = (
+	paths: string[],
+	metadata: Record<string, unknown> = {},
+) =>
 	({
 		workspace: { getActiveFile: () => null },
 		vault: {
@@ -22,7 +25,10 @@ const makeApp = (paths: string[]) =>
 			cachedRead: async () => "",
 			getMarkdownFiles: () => paths.map(makeFile),
 		},
-		metadataCache: { getFileCache: () => null },
+		metadataCache: {
+			getFileCache: (file: { path: string }) =>
+				(metadata[file.path] as never) ?? null,
+		},
 	}) as never;
 
 const makePlugin = () =>
@@ -53,6 +59,18 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(req?.displayOptions).toEqual(["Alpha", "Beta"]);
 	});
 
+	it("uses title metadata for FILE option display labels", async () => {
+		const app = makeApp(["People/01HX.md"], {
+			"People/01HX.md": { frontmatter: { title: "Ada Lovelace" } },
+		});
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString("{{FILE:People|link}}");
+
+		const key = parseFileToken("People|link")!.variableKey;
+		const req = rc.requirements.get(key);
+		expect(req?.displayOptions).toEqual(["Ada Lovelace (01HX)"]);
+	});
+
 	it("records a suggester (free text) only when |custom, with the flags set", async () => {
 		const app = makeApp(["People/Tom.md"]);
 		const rc = new RequirementCollector(app, makePlugin());
@@ -74,6 +92,18 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		const req = rc.requirements.get(key);
 		expect(req?.type).toBe("suggester");
 		expect(req?.options).toEqual([]);
+	});
+
+	it("marks FILE multi-select requirements as runtime-only", async () => {
+		const app = makeApp(["People/Tom.md", "People/Jack.md"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString("{{FILE:People|multi|link}}");
+
+		const key = parseFileToken("People|multi|link")!.variableKey;
+		const req = rc.requirements.get(key);
+		expect(req?.runtimeOnly).toBe(true);
+		expect(req?.type).toBe("suggester");
+		expect(req?.suggesterConfig?.multiSelect).toBe(true);
 	});
 
 	it("records ONE requirement for two |name:-shared tokens across modes", async () => {

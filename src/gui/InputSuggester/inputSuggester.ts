@@ -35,6 +35,12 @@ type Options = {
 	 * target the caller recognises (e.g. an existing file reached by basename).
 	 */
 	valueExists: (value: string) => boolean;
+	/**
+	 * Optional text used for fuzzy matching. Visual rendering still comes from
+	 * displayItems/renderItem; this lets file pickers search both title labels and
+	 * vault paths.
+	 */
+	searchItems: string[];
 };
 
 /**
@@ -48,6 +54,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 
 	private renderItem?: SuggestRender<string>;
 	private displayItems: string[];
+	private searchItems: string[];
 	private items: string[];
 	private warnedOnEmptyDisplay = false;
 	private allowCustomValue = true;
@@ -79,6 +86,8 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 
 		this.items = items;
 		this.displayItems = displayItems.map((value) => normalizeDisplayItem(value));
+		this.searchItems =
+			options.searchItems?.map((value) => normalizeDisplayItem(value)) ?? [];
 
 		this.promise = new Promise<string>((resolve, reject) => {
 			this.resolvePromise = resolve;
@@ -122,6 +131,13 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 				return normalizeDisplayItem(displayItem ?? item);
 			});
 		}
+		if (this.searchItems.length !== this.items.length) {
+			this.searchItems = this.items.map((item, index) => {
+				return normalizeDisplayItem(
+					this.searchItems[index] ?? this.displayItems[index] ?? item,
+				);
+			});
+		}
 
 		if (options.skippable) {
 			installSkipAffordance(this, () => this.skip());
@@ -135,8 +151,8 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		if (item === this.inputEl.value) return item;
 
 		const index = this.items.indexOf(item);
-		const displayItem = index >= 0 ? this.displayItems[index] : undefined;
-		return normalizeDisplayItem(displayItem ?? item);
+		const searchItem = index >= 0 ? this.searchItems[index] : undefined;
+		return normalizeDisplayItem(searchItem ?? item);
 	}
 
 	getItems(): string[] {

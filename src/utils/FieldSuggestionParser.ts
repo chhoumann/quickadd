@@ -5,7 +5,13 @@ import {
 } from "./pipeSyntax";
 
 export interface FieldFilter {
+	/**
+	 * Legacy single-folder include. Kept for compatibility with existing callers.
+	 * New code should read both this and `folders`; repeated `folder:` filters
+	 * populate `folders` and mean "any of these folders".
+	 */
 	folder?: string;
+	folders?: string[];
 	tags?: string[];
 	inline?: boolean;
 	inlineCodeBlocks?: string[];
@@ -54,7 +60,13 @@ export class FieldSuggestionParser {
 					multiSelect = parseBooleanFlag(filterValue);
 					break;
 				case "folder":
-					filters.folder = filterValue;
+					if (!filters.folders) {
+						filters.folders = [];
+					}
+					filters.folders.push(filterValue);
+					if (!filters.folder) {
+						filters.folder = filterValue;
+					}
 					break;
 				case "tag": {
 					if (!filters.tags) {

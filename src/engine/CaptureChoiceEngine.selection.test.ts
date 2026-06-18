@@ -6,6 +6,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	getMarkdownFilesInFolder,
+	getMarkdownFilesMatchingFilter,
 	insertOnNewLineBelow,
 	insertFileLinkToActiveView,
 	isFolder,
@@ -19,6 +20,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { InputPromptDraftHandler } from "../utils/InputPromptDraftHandler";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
+import { log } from "../logger/logManager";
 
 const {
 	setUseSelectionAsCaptureValueMock,
@@ -103,6 +105,7 @@ vi.mock("../utilityObsidian", () => ({
 	// to "inserted" so capture-to-active-file paths proceed to the cosmetic/openFile steps.
 	appendToCurrentLine: vi.fn(() => true),
 	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesMatchingFilter: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
@@ -157,6 +160,10 @@ const createApp = () =>
 			delete: vi.fn(async () => {}),
 			modify: vi.fn(async () => {}),
 			read: vi.fn(async () => ""),
+			getMarkdownFiles: vi.fn(() => []),
+		},
+		metadataCache: {
+			getFileCache: vi.fn(() => null),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -219,6 +226,8 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		createdClipboardAttachmentPaths.length = 0;
 		InputPromptDraftStore.getInstance().clearAll();
 		vi.mocked(openFile).mockClear();
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReset();
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
 		vi.mocked(insertFileLinkToActiveView).mockReset();
 		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 		vi.mocked(overwriteTemplaterOnce).mockClear();
@@ -438,6 +447,45 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		expect(overwriteTemplaterOnce).toHaveBeenCalled();
 		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
+
+	it("warns when FILE multi cannot become a YAML list in Capture", async () => {
+		const warningSpy = vi
+			.spyOn(log, "logWarning")
+			.mockImplementation(() => {});
+		const choice = createChoice({
+			format: {
+				enabled: true,
+				format: "---\nrelated: {{FILE:People|multi}}\n---\n",
+			},
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "content",
+			captureContent: "content",
+		});
+
+		try {
+			await engine.run();
+
+			expect(warningSpy).toHaveBeenCalledWith(
+				expect.stringContaining("{{FILE:…|multi}}"),
+			);
+		} finally {
+			warningSpy.mockRestore();
+		}
+	});
 });
 
 describe("CaptureChoiceEngine capture target resolution", () => {
@@ -567,8 +615,62 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			kind: "property",
 			field: "type",
 			value: "draft",
-			filter: { folder: "Notes" },
+			filter: { folder: "Notes", folders: ["Notes"] },
 		});
+	});
+
+	it("resolves a hashtag target with extra pipe filters", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "#work|tag:project" }),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).resolveCaptureTarget("#work|tag:project"),
+		).toEqual({
+			kind: "filter",
+			filter: { tags: ["work", "project"] },
+		});
+	});
+
+	it("resolves repeated folder filters as a filtered target", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "folder:Goals|folder:Projects|tag:active" }),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).resolveCaptureTarget(
+				"folder:Goals|folder:Projects|tag:active",
+			),
+		).toEqual({
+			kind: "filter",
+			filter: {
+				folder: "Goals",
+				folders: ["Goals", "Projects"],
+				tags: ["active"],
+			},
+		});
+	});
+
+	it("rejects multi-select on capture target filters", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "tag:work|multi" }),
+			createExecutor(),
+		);
+
+		expect(() =>
+			(engine as any).resolveCaptureTarget("tag:work|multi"),
+		).toThrow(ChoiceAbortError);
 	});
 
 	it("throws on a property target with no field name", () => {
@@ -718,25 +820,31 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await (engine as any).selectFileInFolder("Inbox/", false);
 
 		expect(suggestSpy).toHaveBeenCalledTimes(1);
-		const [, displayItems, items, options] = suggestSpy.mock
-			.calls[0] as unknown as [
-			unknown,
-			string[],
-			string[],
-			{
-				allowCustomValue: boolean;
-				customValueLabel: (value: string) => string;
-			},
-		];
+			const [, displayItems, items, options] = suggestSpy.mock
+				.calls[0] as unknown as [
+				unknown,
+				string[],
+				string[],
+				{
+					allowCustomValue: boolean;
+					customValueLabel: (value: string) => string;
+					searchItems: string[];
+				},
+			];
 
 		// Recently opened (Zebra) first, then the rest alphabetically.
 		expect(items).toEqual([
 			"Inbox/Zebra.md",
 			"Inbox/Apple.md",
 			"Inbox/Mango.md",
-		]);
-		expect(displayItems).toEqual(["Zebra.md", "Apple.md", "Mango.md"]);
-		expect(options.allowCustomValue).toBe(true);
+			]);
+			expect(displayItems).toEqual(["Zebra", "Apple", "Mango"]);
+			expect(options.searchItems).toEqual([
+				"Zebra Inbox/Zebra.md",
+				"Apple Inbox/Apple.md",
+				"Mango Inbox/Mango.md",
+			]);
+			expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
 	});
 

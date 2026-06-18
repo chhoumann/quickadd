@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 import { log } from "src/logger/logManager";
+import type { FieldFilter } from "./FieldSuggestionParser";
 
 type DataviewFileLike = { path: string };
 
@@ -14,6 +15,14 @@ type DataviewQueryApi = {
 		value: { values: unknown[][] };
 	}>;
 };
+
+function escapeDataviewString(value: string): string {
+	return value.replace(/[\\"]/g, "\\$&");
+}
+
+function escapeRegex(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function isDataviewFileLike(value: unknown): value is DataviewFileLike {
 	return (
@@ -52,7 +61,7 @@ export class DataviewIntegration {
 		try {
 			// Query for all pages that have this field
 			// Properly escape field name to prevent injection
-			const escapedFieldName = fieldName.replace(/[\\"]/g, '\\$&');
+			const escapedFieldName = escapeDataviewString(fieldName);
 			const safe = `field("${escapedFieldName}")`;
 			const query = `TABLE ${safe} WHERE ${safe}`;
 			const result = await dv.query(query);
@@ -113,10 +122,7 @@ export class DataviewIntegration {
 	static async getFieldValuesWithFilter(
 		app: App, 
 		fieldName: string, 
-		folder?: string, 
-		tags?: string[],
-		excludeFolders?: string[],
-		excludeTags?: string[]
+		filters: FieldFilter = {},
 	): Promise<Set<string>> {
 		const values = new Set<string>();
 		const dv = this.getDataviewAPI(app);
@@ -128,36 +134,45 @@ export class DataviewIntegration {
 		try {
 			// Build the WHERE clause
 			// Properly escape field name to prevent injection
-			const escapedFieldName = fieldName.replace(/[\\"]/g, '\\$&');
+			const escapedFieldName = escapeDataviewString(fieldName);
 			const safe = `field("${escapedFieldName}")`;
 			const conditions: string[] = [safe]; // Field must exist
-			
-			if (folder) {
-				// Normalize folder path
-				const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
-				conditions.push(`regexmatch("^${normalizedFolder}/", file.path)`);
+
+			const includeFolders = (filters.folders?.length
+				? filters.folders
+				: filters.folder
+					? [filters.folder]
+					: [])
+				.map(folder => folder.replace(/^\/+|\/+$/g, ""))
+				.filter(Boolean);
+			if (includeFolders.length > 0) {
+				const folderConditions = includeFolders.map(folder => {
+					const escapedFolder = escapeRegex(folder);
+					return `regexmatch("^${escapedFolder}/", file.path)`;
+				});
+				conditions.push(`(${folderConditions.join(" OR ")})`);
 			}
 			
-			if (tags && tags.length > 0) {
+			if (filters.tags && filters.tags.length > 0) {
 				// Add tag conditions (file must have all specified tags)
-				tags.forEach(tag => {
+				filters.tags.forEach(tag => {
 					const tagName = tag.startsWith('#') ? tag : `#${tag}`;
-					conditions.push(`contains(file.tags, "${tagName}")`);
+					conditions.push(`contains(file.tags, "${escapeDataviewString(tagName)}")`);
 				});
 			}
 			
 			// Add exclusion conditions
-			if (excludeFolders && excludeFolders.length > 0) {
-				excludeFolders.forEach(excludeFolder => {
+			if (filters.excludeFolders && filters.excludeFolders.length > 0) {
+				filters.excludeFolders.forEach(excludeFolder => {
 					const normalizedFolder = excludeFolder.replace(/^\/+|\/+$/g, '');
-					conditions.push(`!regexmatch("^${normalizedFolder}/", file.path)`);
+					conditions.push(`!regexmatch("^${escapeRegex(normalizedFolder)}/", file.path)`);
 				});
 			}
 			
-			if (excludeTags && excludeTags.length > 0) {
-				excludeTags.forEach(excludeTag => {
+			if (filters.excludeTags && filters.excludeTags.length > 0) {
+				filters.excludeTags.forEach(excludeTag => {
 					const tagName = excludeTag.startsWith('#') ? excludeTag : `#${excludeTag}`;
-					conditions.push(`!contains(file.tags, "${tagName}")`);
+					conditions.push(`!contains(file.tags, "${escapeDataviewString(tagName)}")`);
 				});
 			}
 			

@@ -17,7 +17,20 @@ describe("FieldSuggestionParser", () => {
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
-				filters: { folder: "daily" },
+				filters: { folder: "daily", folders: ["daily"] },
+			});
+		});
+
+		it("parses repeated folder filters as an include list", () => {
+			const result = FieldSuggestionParser.parse(
+				"fieldname|folder:daily|folder:projects",
+			);
+			expect(result).toEqual({
+				fieldName: "fieldname",
+				filters: {
+					folder: "daily",
+					folders: ["daily", "projects"],
+				},
 			});
 		});
 
@@ -70,6 +83,7 @@ describe("FieldSuggestionParser", () => {
 				fieldName: "fieldname",
 				filters: {
 					folder: "daily",
+					folders: ["daily"],
 					tags: ["work"],
 					inline: true,
 				},
@@ -84,6 +98,7 @@ describe("FieldSuggestionParser", () => {
 				fieldName: "fieldname",
 				filters: {
 					folder: "daily",
+					folders: ["daily"],
 					tags: ["work"],
 				},
 				multiSelect: true,
@@ -124,6 +139,7 @@ describe("FieldSuggestionParser", () => {
 				fieldName: "fieldname",
 				filters: {
 					folder: "daily",
+					folders: ["daily"],
 					tags: ["work"],
 				},
 			});
@@ -135,7 +151,10 @@ describe("FieldSuggestionParser", () => {
 			);
 			expect(result).toEqual({
 				fieldName: "fieldname",
-				filters: { folder: "daily/notes/work" },
+				filters: {
+					folder: "daily/notes/work",
+					folders: ["daily/notes/work"],
+				},
 			});
 		});
 
@@ -195,6 +214,7 @@ describe("FieldSuggestionParser", () => {
 				fieldName: "fieldname",
 				filters: {
 					folder: "active",
+					folders: ["active"],
 					tags: ["project"],
 					excludeFolders: ["archive"],
 					defaultValue: "Planning",

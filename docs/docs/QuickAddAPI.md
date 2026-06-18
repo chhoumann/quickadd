@@ -941,8 +941,9 @@ Retrieves all unique values for a specific field across your vault.
 **Parameters:**
 - `fieldName`: The name of the field to search for
 - `options`: (Optional) Filtering options:
-  - `folder`: Only search in specific folder (e.g., "daily/notes")
-  - `tags`: Only search in files with specific tags (array)
+  - `folder`: Only search in a specific folder (e.g., "daily/notes")
+  - `folders`: Only search in any of these folders (OR filter)
+  - `tags`: Only search in files with all of these tags (AND filter)
   - `includeInline`: Include Dataview inline fields (default: false)
   - `includeInlineCodeBlocks`: Include inline fields inside specific fenced code block types when `includeInline` is true (e.g., `["ad-note"]`)
 
@@ -966,9 +967,18 @@ const projectTypes = await quickAddApi.fieldSuggestions.getFieldValues(
 );
 ```
 
+With multiple folder filters:
+```javascript
+// Get relation types from either goals or projects
+const relationTypes = await quickAddApi.fieldSuggestions.getFieldValues(
+    "type",
+    { folders: ["goals", "projects"] }
+);
+```
+
 With tag filter:
 ```javascript
-// Get priorities from work-tagged files
+// Get priorities from files tagged with both #work and #important
 const priorities = await quickAddApi.fieldSuggestions.getFieldValues(
     "priority",
     { tags: ["work", "important"] }

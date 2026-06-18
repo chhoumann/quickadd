@@ -1473,9 +1473,18 @@
 	color: var(--text-muted);
 }
 
+.qa-field-hint--success {
+	color: var(--text-success, var(--color-green, #0aa344));
+}
+
 input.is-invalid,
 textarea.is-invalid {
 	box-shadow: 0 0 0 1px var(--text-error);
+}
+
+input.is-valid,
+textarea.is-valid {
+	box-shadow: 0 0 0 1px var(--text-success, var(--color-green, #0aa344));
 }
 
 /* Suggestion highlighting */

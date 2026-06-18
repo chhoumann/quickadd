@@ -1,5 +1,9 @@
 import type { TFile, CachedMetadata } from "obsidian";
 import type { FieldFilter } from "./FieldSuggestionParser";
+import {
+	normalizeFrontmatterTagValues,
+	normalizeTag,
+} from "./tagNormalizer";
 
 export class FieldSuggestionFileFilter {
 	/**
@@ -15,8 +19,11 @@ export class FieldSuggestionFileFilter {
 		}
 
 		return files.filter((file) => {
-			// Check folder filter
-			if (filters.folder && !this.matchesFolder(file, filters.folder)) {
+			const folders = this.getIncludeFolders(filters);
+			if (
+				folders.length > 0 &&
+				!folders.some((folder) => this.matchesFolder(file, folder))
+			) {
 				return false;
 			}
 
@@ -31,6 +38,15 @@ export class FieldSuggestionFileFilter {
 
 			return true;
 		});
+	}
+
+	private static getIncludeFolders(filters: FieldFilter): string[] {
+		const folders = filters.folders?.length
+			? filters.folders
+			: filters.folder
+				? [filters.folder]
+				: [];
+		return [...new Set(folders.map((folder) => this.normalizePath(folder)).filter(Boolean))];
 	}
 
 	private static matchesFolder(file: TFile, folderPath: string): boolean {
@@ -62,13 +78,13 @@ export class FieldSuggestionFileFilter {
 		const fileTags = this.getAllTags(metadata);
 
 		// Normalize required tags (remove leading # and trim)
-		const normalizedRequiredTags = requiredTags.map((tag) =>
-			tag.startsWith("#") ? tag.substring(1).trim() : tag.trim(),
-		);
+		const normalizedRequiredTags = requiredTags.map(normalizeTag).filter(Boolean);
 
 		// Check if file has all required tags (AND logic)
 		return normalizedRequiredTags.every((requiredTag) =>
-			fileTags.includes(requiredTag),
+			fileTags.some((fileTag) =>
+				fileTag === requiredTag || fileTag.startsWith(requiredTag + "/"),
+			),
 		);
 	}
 
@@ -76,35 +92,19 @@ export class FieldSuggestionFileFilter {
 		const tags: string[] = [];
 
 		if (metadata.frontmatter?.tags) {
-			const frontmatterTags = Array.isArray(metadata.frontmatter.tags)
-				? metadata.frontmatter.tags
-				: [metadata.frontmatter.tags];
-			
-			tags.push(...frontmatterTags.map(tag => {
-				const tagStr = typeof tag === 'string' ? tag : String(tag);
-				return tagStr.startsWith("#") ? tagStr.substring(1).trim() : tagStr.trim();
-			}));
+			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tags));
 		}
 
 		if (metadata.frontmatter?.tag) {
-			const frontmatterTag = Array.isArray(metadata.frontmatter.tag)
-				? metadata.frontmatter.tag
-				: [metadata.frontmatter.tag];
-			
-			tags.push(...frontmatterTag.map(tag => {
-				const tagStr = typeof tag === 'string' ? tag : String(tag);
-				return tagStr.startsWith("#") ? tagStr.substring(1).trim() : tagStr.trim();
-			}));
+			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tag));
 		}
 
 		// Get inline tags
 		if (metadata.tags) {
-			tags.push(...metadata.tags.map(tag => 
-				tag.tag.startsWith("#") ? tag.tag.substring(1).trim() : tag.tag.trim()
-			));
+			tags.push(...metadata.tags.map(tag => normalizeTag(tag.tag)));
 		}
 
-		return tags;
+		return tags.filter(Boolean);
 	}
 
 	private static normalizePath(path: string): string {

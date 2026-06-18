@@ -11,6 +11,7 @@ import { collectChoiceRequirements } from "./collectChoiceRequirements";
 
 const {
 	getMarkdownFilesInFolderMock,
+	getMarkdownFilesMatchingFilterMock,
 	getMarkdownFilesWithTagMock,
 	getMarkdownFilesWithPropertyMock,
 	getUserScriptMock,
@@ -20,6 +21,7 @@ const {
 	logMessageMock,
 } = vi.hoisted(() => ({
 	getMarkdownFilesInFolderMock: vi.fn(() => []),
+	getMarkdownFilesMatchingFilterMock: vi.fn(() => []),
 	getMarkdownFilesWithTagMock: vi.fn(() => []),
 	getMarkdownFilesWithPropertyMock: vi.fn(() => []),
 	getUserScriptMock: vi.fn(),
@@ -31,6 +33,7 @@ const {
 
 vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: getMarkdownFilesInFolderMock,
+	getMarkdownFilesMatchingFilter: getMarkdownFilesMatchingFilterMock,
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
 	getMarkdownFilesWithProperty: getMarkdownFilesWithPropertyMock,
 	getUserScript: getUserScriptMock,
@@ -117,6 +120,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 
 	beforeEach(() => {
 		getMarkdownFilesInFolderMock.mockReset();
+		getMarkdownFilesMatchingFilterMock.mockReset();
 		getMarkdownFilesWithTagMock.mockReset();
 		getUserScriptMock.mockReset();
 		isFolderMock.mockReset();
@@ -298,7 +302,12 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 });
 
 describe("collectChoiceRequirements - capture targets", () => {
-	const app = {} as App;
+	const getFileCacheMock = vi.fn();
+	const app = {
+		metadataCache: {
+			getFileCache: getFileCacheMock,
+		},
+	} as unknown as App;
 	const plugin = {
 		settings: {
 			inputPrompt: "single-line",
@@ -313,13 +322,25 @@ describe("collectChoiceRequirements - capture targets", () => {
 
 	beforeEach(() => {
 		getMarkdownFilesInFolderMock.mockReset();
+		getMarkdownFilesMatchingFilterMock.mockReset();
 		getMarkdownFilesWithTagMock.mockReset();
 		getMarkdownFilesWithPropertyMock.mockReset();
 		isFolderMock.mockReset();
 		logWarningMock.mockReset();
 		getMarkdownFilesInFolderMock.mockReturnValue([]);
+		getMarkdownFilesMatchingFilterMock.mockReturnValue([]);
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
 		getMarkdownFilesWithPropertyMock.mockReturnValue([]);
+		getFileCacheMock.mockReset();
+		getFileCacheMock.mockImplementation((file: { path: string }) => {
+			if (file.path === "Goals/Alpha.md") {
+				return { frontmatter: { title: "Alpha Goal" } };
+			}
+			if (file.path === "Projects/Beta.md") {
+				return { headings: [{ level: 1, heading: "Beta Heading" }] };
+			}
+			return null;
+		});
 	});
 
 	it("normalizes capture folder paths ending in .md", async () => {
@@ -412,6 +433,41 @@ describe("collectChoiceRequirements - capture targets", () => {
 			expect.objectContaining({ folder: "Notes" }),
 		);
 	});
+
+	it("forces the capture target dropdown for file filter targets", async () => {
+		getMarkdownFilesMatchingFilterMock.mockReturnValue([
+			{ path: "Goals/Alpha.md" } as never,
+			{ path: "Projects/Beta.md" } as never,
+		]);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("folder:Goals|folder:Projects|tag:active"),
+		);
+
+		expect(getMarkdownFilesMatchingFilterMock).toHaveBeenCalledWith(
+			app,
+			expect.objectContaining({
+				folder: "Goals",
+				folders: ["Goals", "Projects"],
+				tags: ["active"],
+			}),
+		);
+			const target = requirements.find(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			);
+			expect(target?.options).toEqual([
+				"Goals/Alpha.md",
+				"Projects/Beta.md",
+			]);
+			expect(target?.displayOptions).toEqual([
+				"Alpha Goal (Alpha)",
+				"Beta Heading (Beta)",
+			]);
+		});
 
 	it("does not force the dropdown for a tokenized property value", async () => {
 		const requirements = await collectChoiceRequirements(

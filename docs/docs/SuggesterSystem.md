@@ -16,6 +16,10 @@ Type `#` to search through all tags in your vault.
 ### File Search
 Type `[[` to start searching through all files in your vault.
 
+QuickAdd file pickers show a note's frontmatter `title` when available, then its
+first level-1 heading, then its file basename. The selected item is still the
+real vault path.
+
 ### Heading Search
 Type `[[#` to start searching through all headings in your vault.
 

@@ -30,6 +30,7 @@ import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/lin
 import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
+	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
 	insertFileLinkToActiveView,
@@ -47,11 +48,13 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { parsePropertyTarget } from "../utils/propertyTarget";
+import { parseCaptureFileFilterTarget } from "../utils/captureFileFilterTarget";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
+import { buildFileDisplayLabels } from "../utils/fileSyntax";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import {
 	postProcessFrontMatter,
@@ -355,12 +358,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				// Match the `|multi` flag specifically: a pipe, then `multi`
 				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
 				// `|multi1`, `|multi-select`, etc.
-				/\{\{VALUE:[^}]*\|\s*multi(?=[:}|]|$)/i.test(
+				/\{\{(?:VALUE|FILE):[^}]*\|\s*multi(?=[:}|]|$)/i.test(
 					this.choice?.format?.format ?? "",
 				)
 			) {
 				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}} in this capture writes a comma-separated string, not a YAML list. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
+					"QuickAdd: {{VALUE:…|multi}} and {{FILE:…|multi}} in this capture write comma-separated strings, not YAML lists. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
 				);
 			}
 
@@ -772,6 +775,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					return this.selectFileInFolder("", true);
 				case "tag":
 					return this.selectFileWithTag(resolution.tag);
+				case "filter":
+					return this.selectFileWithFilter(resolution.filter);
 				case "property":
 					return this.selectFileWithProperty(
 						resolution.field,
@@ -790,6 +795,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	):
 		| { kind: "vault" }
 		| { kind: "tag"; tag: string }
+		| { kind: "filter"; filter: FieldFilter }
 		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
@@ -808,13 +814,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return { kind: "vault" };
 		}
 
-		if (rawCaptureTo.startsWith("#")) {
-			return {
-				kind: "tag",
-				tag: rawCaptureTo.replace(/\.md$/, ""),
-			};
-		}
-
 		// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
 		// Checked before the `.base`/extension/folder branches so a property value
 		// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
@@ -830,6 +829,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				field: propertyTarget.field,
 				value: propertyTarget.value,
 				filter: propertyTarget.filter,
+			};
+		}
+
+		const fileFilterTarget = parseCaptureFileFilterTarget(rawCaptureTo);
+		if (fileFilterTarget) {
+			if (fileFilterTarget.multiSelect) {
+				throw new ChoiceAbortError(
+					"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
+				);
+			}
+			return {
+				kind: "filter",
+				filter: fileFilterTarget.filter,
 			};
 		}
 
@@ -917,21 +929,36 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
 		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
-		const filePaths = orderFilesForPicker(
+		const orderedFiles = orderFilesForPicker(
 			filesInFolder,
 			buildPickerOrderingDeps(this.app),
-		).map((f) => f.path);
+		);
+		const filePaths = orderedFiles.map((f) => f.path);
+		const displayItems = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
+		const searchItems = filePaths.map(
+			(path, index) => `${displayItems[index] ?? path} ${path}`,
+		);
+		const existingLabels = new Set(
+			displayItems.map((label) => label.toLowerCase()),
+		);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
 				this.app,
-				filePaths.map((item) => item.replace(folderPathSlash, "")),
+				displayItems,
 				filePaths,
 				{
+					renderItem: (path, el) =>
+						renderNotePathSuggestion(el, path, this.app),
+					searchItems,
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
+						existingLabels.has(value.toLowerCase()) ||
 						this.captureTargetExists(folderPathSlash, value),
 				},
 			);
@@ -961,6 +988,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
 
 		return this.selectFileFromSet(filesWithTag, `No files with tag ${tag}.`);
+	}
+
+	private async selectFileWithFilter(filter: FieldFilter): Promise<string> {
+		const files = getMarkdownFilesMatchingFilter(this.app, filter);
+		return this.selectFileFromSet(
+			files,
+			"No files matched the capture target filters.",
+		);
 	}
 
 	private async selectFileWithProperty(
@@ -1035,10 +1070,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(files.length > 0, notFoundMessage);
 
 		// Quick-Switcher-style ordering; show note names (not raw paths).
-		const filePaths = orderFilesForPicker(
+		const orderedFiles = orderFilesForPicker(
 			files,
 			buildPickerOrderingDeps(this.app),
-		).map((f) => f.path);
+		);
+		const filePaths = orderedFiles.map((f) => f.path);
+		const displayItems = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
+		const searchItems = filePaths.map(
+			(path, index) => `${displayItems[index] ?? path} ${path}`,
+		);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		// Build once (not per keystroke): existing note basenames across the vault.
 		const vaultBasenames = new Set(
@@ -1046,17 +1089,23 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				.getMarkdownFiles()
 				.map((f) => f.basename.toLowerCase()),
 		);
+		const existingLabels = new Set(
+			displayItems.map((label) => label.toLowerCase()),
+		);
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
 				this.app,
-				filePaths,
+				displayItems,
 				filePaths,
 				{
-					renderItem: (path, el) => renderNotePathSuggestion(el, path),
+					renderItem: (path, el) =>
+						renderNotePathSuggestion(el, path, this.app),
+					searchItems,
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
+						existingLabels.has(value.toLowerCase()) ||
 						this.captureTargetAlreadyExists(value, vaultBasenames),
 				},
 			);

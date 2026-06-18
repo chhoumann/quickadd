@@ -1,4 +1,4 @@
-import type { TFile } from "obsidian";
+import type { CachedMetadata, TFile } from "obsidian";
 import {
 	FieldSuggestionParser,
 	type FieldFilter,
@@ -36,6 +36,8 @@ export type ParsedFileToken = {
 	allowCustomInput: boolean;
 	/** Reuses the FIELD file filter so folder/tag/exclude-* behave identically. */
 	filter: FieldFilter;
+	/** Pick several files and store/render them as a list. */
+	multiSelect: boolean;
 	/** Variables-map key. Full token identity by default; `|name:` shares it. */
 	variableKey: string;
 };
@@ -54,6 +56,13 @@ function normalizeFolder(path: string): string {
  */
 function buildFileScopeSignature(folderPath: string, filter: FieldFilter): string {
 	const parts = [`folder=${normalizeFolder(folderPath)}`];
+	if (filter.folders?.length)
+		parts.push(
+			`folders=${[...filter.folders]
+				.map(normalizeFolder)
+				.sort()
+				.join(",")}`,
+		);
 	if (filter.tags?.length)
 		parts.push(`tags=${[...filter.tags].sort().join(",")}`);
 	if (filter.excludeFolders?.length)
@@ -82,9 +91,10 @@ function buildFileSignature(parsed: {
 	label?: string;
 	optional: boolean;
 	allowCustomInput: boolean;
+	multiSelect: boolean;
 	filter: FieldFilter;
 }): string {
-	const { folderPath, mode, label, optional, allowCustomInput, filter } =
+	const { folderPath, mode, label, optional, allowCustomInput, multiSelect, filter } =
 		parsed;
 	const parts = [
 		buildFileScopeSignature(folderPath, filter),
@@ -93,6 +103,7 @@ function buildFileSignature(parsed: {
 	if (label) parts.push(`label=${label}`);
 	if (optional) parts.push("optional");
 	if (allowCustomInput) parts.push("custom");
+	if (multiSelect) parts.push("multi");
 	return parts.join("|");
 }
 
@@ -125,6 +136,10 @@ export function parseFileToken(raw: string): ParsedFileToken | null {
 	remaining = customResult.remaining;
 	const allowCustomInput = customResult.found;
 
+	const multiResult = extractBareFlagPart(remaining, "multi");
+	remaining = multiResult.remaining;
+	const bareMultiSelect = multiResult.found;
+
 	let mode: FileMode = "name";
 	const afterMode: string[] = [];
 	for (const part of remaining) {
@@ -152,6 +167,7 @@ export function parseFileToken(raw: string): ParsedFileToken | null {
 	// segment is the folder, so any `|folder:` sub-option the parser picks up is
 	// intentionally discarded below (the positional folder always wins).
 	const fieldParsed = FieldSuggestionParser.parse(raw);
+	const multiSelect = bareMultiSelect || (fieldParsed.multiSelect ?? false);
 	const filter: FieldFilter = {
 		folder: folderPath,
 		tags: fieldParsed.filters.tags,
@@ -166,13 +182,14 @@ export function parseFileToken(raw: string): ParsedFileToken | null {
 	// must not silently reuse each other's pick. Mode/label/optional/custom are
 	// intentionally NOT in the alias key, so one pick renders across modes.
 	const variableKey = aliasName
-		? `${FILE_VARIABLE_PREFIX}name=${aliasName}|${buildFileScopeSignature(folderPath, filter)}`
+		? `${FILE_VARIABLE_PREFIX}name=${aliasName}|${buildFileScopeSignature(folderPath, filter)}${multiSelect ? "|multi" : ""}`
 		: `${FILE_VARIABLE_PREFIX}${buildFileSignature({
 				folderPath,
 				mode,
 				label,
 				optional,
 				allowCustomInput,
+				multiSelect,
 				filter,
 			})}`;
 
@@ -185,6 +202,7 @@ export function parseFileToken(raw: string): ParsedFileToken | null {
 		optional,
 		allowCustomInput,
 		filter,
+		multiSelect,
 		variableKey,
 	};
 }
@@ -231,20 +249,85 @@ export function fileBasenameFromPath(value: string): string {
 	return segment.replace(/\.(md|canvas|base)$/i, "");
 }
 
-/**
- * Display labels for a folder's files: basenames, with the parent folder
- * appended when a basename is ambiguous within the list so duplicate-named files
- * are still distinguishable in the picker.
- */
-export function buildFileDisplayLabels(files: TFile[]): string[] {
-	const counts = new Map<string, number>();
-	for (const file of files) {
-		counts.set(file.basename, (counts.get(file.basename) ?? 0) + 1);
-	}
-	return files.map((file) => {
-		if ((counts.get(file.basename) ?? 0) <= 1) return file.basename;
-		const parent = file.parent?.path;
-		const where = parent && parent !== "/" ? parent : "vault root";
-		return `${file.basename} (${where})`;
+function scalarTitleValue(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0
+		? value.trim()
+		: undefined;
+}
+
+function frontmatterTitle(frontmatter?: Record<string, unknown>): string | undefined {
+	if (!frontmatter) return undefined;
+	const entry = Object.entries(frontmatter).find(
+		([key]) => key.toLowerCase() === "title",
+	);
+	return entry ? scalarTitleValue(entry[1]) : undefined;
+}
+
+function firstLevelHeading(metadata?: CachedMetadata | null): string | undefined {
+	const heading = metadata?.headings?.find((entry) => entry.level === 1);
+	return scalarTitleValue(heading?.heading);
+}
+
+function parentLabel(file: TFile): string {
+	const parent = file.parent?.path;
+	if (parent && parent !== "/") return parent;
+	if (file.path.includes("/")) return file.path.slice(0, file.path.lastIndexOf("/"));
+	return "vault root";
+}
+
+function basenameFor(file: TFile): string {
+	if (file.basename) return file.basename;
+	return fileBasenameFromPath(file.path);
+}
+
+export interface FileDisplayInfo {
+	primary: string;
+	secondary: string;
+	label: string;
+}
+
+export function buildFileDisplayInfos(
+	files: TFile[],
+	metadataCache?: (file: TFile) => CachedMetadata | null,
+): FileDisplayInfo[] {
+	const baseLabels = files.map((file) => {
+		const metadata = metadataCache?.(file) ?? null;
+		const basename = basenameFor(file);
+		const primary =
+			frontmatterTitle(metadata?.frontmatter as Record<string, unknown> | undefined) ??
+			firstLevelHeading(metadata) ??
+			basename;
+		const label = primary === basename
+			? basename
+			: `${primary} (${basename})`;
+		return { file, primary, label };
 	});
+
+	const counts = new Map<string, number>();
+	for (const { label } of baseLabels) {
+		counts.set(label, (counts.get(label) ?? 0) + 1);
+	}
+
+	return baseLabels.map(({ file, primary, label }) => {
+		const uniqueLabel = (counts.get(label) ?? 0) <= 1
+			? label
+			: `${label} - ${parentLabel(file)}`;
+		return {
+			primary,
+			secondary: file.path,
+			label: uniqueLabel,
+		};
+	});
+}
+
+/**
+ * Display labels for a folder's files: readable title/H1 labels first, with the
+ * basename and parent folder folded in when needed so duplicate labels stay
+ * distinguishable in plain-text suggesters.
+ */
+export function buildFileDisplayLabels(
+	files: TFile[],
+	metadataCache?: (file: TFile) => CachedMetadata | null,
+): string[] {
+	return buildFileDisplayInfos(files, metadataCache).map((info) => info.label);
 }

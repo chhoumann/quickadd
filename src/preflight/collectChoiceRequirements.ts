@@ -12,6 +12,7 @@ import type { ICommand } from "src/types/macros/ICommand";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import {
 	getMarkdownFilesInFolder,
+	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
 	getTemplateFile,
@@ -21,7 +22,9 @@ import {
 import { log } from "src/logger/logManager";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
 import { parsePropertyTarget } from "src/utils/propertyTarget";
+import { parseCaptureFileFilterTarget } from "src/utils/captureFileFilterTarget";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
+import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import {
@@ -273,18 +276,25 @@ async function collectForCaptureChoice(
 			? parsePropertyTarget(normalizedTarget)
 			: null;
 	const isPropertyTarget = !!propertyTarget && !!propertyTarget.field;
-	const isTagTarget = !isPropertyTarget && normalizedTarget.startsWith("#");
+	const fileFilterTarget =
+		!isPropertyTarget && !hasTemplatePathSyntax(normalizedTarget)
+			? parseCaptureFileFilterTarget(normalizedTarget)
+			: null;
+	const isFilterTarget = !!fileFilterTarget && !fileFilterTarget.multiSelect;
+	const isTagTarget = !isPropertyTarget && !isFilterTarget && normalizedTarget.startsWith("#");
 	const trimmedPath = normalizedTarget.replace(/\/$|\.md$/g, "");
 	const isFolderTarget =
 		!isTagTarget &&
 		!isPropertyTarget &&
+		!isFilterTarget &&
 		(normalizedTarget === "" || isFolder(app, trimmedPath));
 	const looksLikeFolderBySuffix =
-		!isPropertyTarget && normalizedTarget.endsWith("/");
+		!isPropertyTarget && !isFilterTarget && normalizedTarget.endsWith("/");
 
 	if (
 		!choice.captureToActiveFile &&
 		(isPropertyTarget ||
+			isFilterTarget ||
 			isTagTarget ||
 			isFolderTarget ||
 			looksLikeFolderBySuffix)
@@ -297,6 +307,8 @@ async function collectForCaptureChoice(
 				propertyTarget.value,
 				propertyTarget.filter,
 			);
+		} else if (isFilterTarget && fileFilterTarget) {
+			files = getMarkdownFilesMatchingFilter(app, fileFilterTarget.filter);
 		} else if (isTagTarget) {
 			files = getMarkdownFilesWithTag(app, normalizedTarget);
 		} else {
@@ -306,15 +318,21 @@ async function collectForCaptureChoice(
 			files = getMarkdownFilesInFolder(app, base);
 		}
 
-		const options = orderFilesForPicker(
+		const orderedFiles = orderFilesForPicker(
 			files,
 			buildPickerOrderingDeps(app),
-		).map((file) => file.path);
+		);
+		const options = orderedFiles.map((file) => file.path);
+		const displayOptions = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => app.metadataCache?.getFileCache(file) ?? null,
+		);
 		collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
 			id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			label: "Select capture target file",
 			type: "dropdown",
 			options,
+			displayOptions,
 			placeholder: options.length
 				? undefined
 				: "No files found in target scope",

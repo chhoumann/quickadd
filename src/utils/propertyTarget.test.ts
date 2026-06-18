@@ -75,7 +75,7 @@ describe("parsePropertyTarget", () => {
 		expect(parsePropertyTarget("property:type=draft|folder:Notes")).toEqual({
 			field: "type",
 			value: "draft",
-			filter: { folder: "Notes" },
+			filter: { folder: "Notes", folders: ["Notes"] },
 		});
 		const parsed = parsePropertyTarget(
 			"property:type=draft|exclude-folder:Archive|exclude-tag:done",

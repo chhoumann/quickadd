@@ -2,6 +2,10 @@ import type { App, CachedMetadata, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import { EnhancedFieldSuggestionFileFilter } from "./EnhancedFieldSuggestionFileFilter";
 import type { FieldFilter } from "./FieldSuggestionParser";
+import {
+	normalizeFrontmatterTagValues,
+	normalizeTag,
+} from "./tagNormalizer";
 
 export function getAllFolderPathsInVault(app: App): string[] {
 	return app.vault
@@ -40,14 +44,7 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 	if (!tagPairs) return [];
 
 	const tags = tagPairs
-		.flatMap(([key, value]) => {
-			if (typeof value === "string") {
-				// separator can either be comma or space separated
-				return value.split(/,|\s+/).map((v) => v.trim());
-			} else if (Array.isArray(value)) {
-				return value as string[];
-			}
-		})
+		.flatMap(([, value]) => normalizeFrontmatterTagValues(value))
 		.filter((v) => !!v) as string[]; // fair to cast after filtering out falsy values
 
 	return tags;
@@ -63,7 +60,7 @@ function getFileTags(app: App, file: TFile): string[] {
 	}
 
 	if (fileCache.tags && Array.isArray(fileCache.tags)) {
-		tagsInFile.push(...fileCache.tags.map((v) => v.tag.replace(/^#/, "")));
+		tagsInFile.push(...fileCache.tags.map((v) => normalizeTag(v.tag)));
 	}
 
 	return tagsInFile;
@@ -77,6 +74,17 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 
 		return fileTags.includes(targetTag);
 	});
+}
+
+export function getMarkdownFilesMatchingFilter(
+	app: App,
+	filter: FieldFilter,
+): TFile[] {
+	return EnhancedFieldSuggestionFileFilter.filterFiles(
+		app.vault.getMarkdownFiles(),
+		filter,
+		(file) => app.metadataCache.getFileCache(file),
+	);
 }
 
 /**

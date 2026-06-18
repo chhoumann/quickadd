@@ -9,6 +9,9 @@ import { InlineFieldParser } from "./InlineFieldParser";
 export function generateFieldCacheKey(filters: FieldFilter): string {
 	const parts: string[] = [];
 	if (filters.folder) parts.push(`folder:${filters.folder}`);
+	if (filters.folders?.length) {
+		parts.push(`folders:${filters.folders.join(",")}`);
+	}
 	if (filters.tags) parts.push(`tags:${filters.tags.join(",")}`);
 	if (filters.inline) parts.push("inline:true");
 	if (filters.inlineCodeBlocks?.length) {
@@ -81,10 +84,7 @@ export async function collectFieldValuesRaw(
 			const dvValues = await DataviewIntegration.getFieldValuesWithFilter(
 				app,
 				fieldName,
-				filters.folder,
-				filters.tags,
-				filters.excludeFolders,
-				filters.excludeTags,
+				filters,
 			);
 			if (dvValues.size > 0) return dvValues;
 		}
@@ -98,6 +98,7 @@ export async function collectFieldValuesRaw(
 async function collectTagValues(app: App, filters: FieldFilter): Promise<Set<string>> {
 	const hasFileFilters =
 		Boolean(filters.folder) ||
+		Boolean(filters.folders?.length) ||
 		Boolean(filters.tags?.length) ||
 		Boolean(filters.excludeFolders?.length) ||
 		Boolean(filters.excludeTags?.length) ||

@@ -990,14 +990,38 @@ export abstract class Formatter {
 				this.variables.set(key, await this.suggestForFile(parsed));
 			}
 
-			output += this.renderFileValue(this.variables.get(key), parsed.mode);
+			const renderedValue = this.renderFileValue(
+				this.variables.get(key),
+				parsed.mode,
+			);
+			if (Array.isArray(renderedValue)) {
+				const structuredYamlValue = this.propertyCollector.maybeCollect({
+					input,
+					matchStart: match.index,
+					matchEnd: match.index + match[0].length,
+					rawValue: renderedValue,
+					fallbackKey: parsed.aliasName ?? parsed.folderPath,
+					collectionActive: this.templatePropertyCollectionDepth > 0,
+					heuristicEnabled: false,
+				});
+				output += getYamlPlaceholder(structuredYamlValue) ?? renderedValue.join(",");
+			} else {
+				output += renderedValue;
+			}
 			lastIndex = regex.lastIndex;
 		}
 
 		return output + input.slice(lastIndex);
 	}
 
-	private renderFileValue(stored: unknown, mode: FileMode): string {
+	private renderFileValue(stored: unknown, mode: FileMode): string | string[] {
+		if (Array.isArray(stored)) {
+			return stored.map((value) => this.renderSingleFileValue(value, mode));
+		}
+		return this.renderSingleFileValue(stored, mode);
+	}
+
+	private renderSingleFileValue(stored: unknown, mode: FileMode): string {
 		if (mode === "link") return this.getFileLinkForStoredValue(stored);
 
 		const decoded = decodeFileValue(stored);
@@ -1064,7 +1088,7 @@ export abstract class Formatter {
 	 */
 	protected abstract suggestForFile(
 		parsed: ParsedFileToken,
-	): Promise<string> | string;
+	): Promise<string | string[]> | string | string[];
 
 	protected abstract promptForMathValue(): Promise<string>;
 

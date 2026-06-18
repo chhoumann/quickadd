@@ -80,6 +80,20 @@ describe("FieldSuggestionFileFilter", () => {
 			]);
 		});
 
+		it("should filter files by multiple folders (OR logic)", () => {
+			const result = FieldSuggestionFileFilter.filterFiles(
+				mockFiles,
+				{ folder: "daily", folders: ["daily", "projects"] },
+				mockMetadataCache,
+			);
+			expect(result.map((f) => f.path)).toEqual([
+				"daily/2024-01-01.md",
+				"daily/2024-01-02.md",
+				"projects/project1.md",
+				"projects/work/task1.md",
+			]);
+		});
+
 		it("should filter files by nested folder", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
@@ -178,6 +192,93 @@ describe("FieldSuggestionFileFilter", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				filesWithFrontmatter,
 				{ tags: ["Test"] },
+				metadataWithFrontmatter,
+			);
+			expect(result).toHaveLength(1);
+			expect(result[0].path).toBe("note1.md");
+		});
+
+		it("should split comma-separated scalar frontmatter tags", () => {
+			const filesWithFrontmatter = [
+				{ path: "note1.md" } as TFile,
+				{ path: "note2.md" } as TFile,
+			];
+
+			const metadataWithFrontmatter = (file: TFile) => {
+				if (file.path === "note1.md") {
+					return {
+						frontmatter: { tags: "Test, Work" },
+					} as CachedMetadata;
+				}
+				if (file.path === "note2.md") {
+					return {
+						frontmatter: { tags: "Test" },
+					} as CachedMetadata;
+				}
+				return null;
+			};
+
+			const result = FieldSuggestionFileFilter.filterFiles(
+				filesWithFrontmatter,
+				{ tags: ["Test", "Work"] },
+				metadataWithFrontmatter,
+			);
+			expect(result).toHaveLength(1);
+			expect(result[0].path).toBe("note1.md");
+		});
+
+		it("should split whitespace-separated scalar frontmatter tags", () => {
+			const filesWithFrontmatter = [
+				{ path: "note1.md" } as TFile,
+				{ path: "note2.md" } as TFile,
+			];
+
+			const metadataWithFrontmatter = (file: TFile) => {
+				if (file.path === "note1.md") {
+					return {
+						frontmatter: { tags: "#Test Work" },
+					} as CachedMetadata;
+				}
+				if (file.path === "note2.md") {
+					return {
+						frontmatter: { tags: "Test" },
+					} as CachedMetadata;
+				}
+				return null;
+			};
+
+			const result = FieldSuggestionFileFilter.filterFiles(
+				filesWithFrontmatter,
+				{ tags: ["Test", "Work"] },
+				metadataWithFrontmatter,
+			);
+			expect(result).toHaveLength(1);
+			expect(result[0].path).toBe("note1.md");
+		});
+
+		it("should split scalar singular frontmatter tag values", () => {
+			const filesWithFrontmatter = [
+				{ path: "note1.md" } as TFile,
+				{ path: "note2.md" } as TFile,
+			];
+
+			const metadataWithFrontmatter = (file: TFile) => {
+				if (file.path === "note1.md") {
+					return {
+						frontmatter: { tag: "#Test, Work" },
+					} as CachedMetadata;
+				}
+				if (file.path === "note2.md") {
+					return {
+						frontmatter: { tag: "Test" },
+					} as CachedMetadata;
+				}
+				return null;
+			};
+
+			const result = FieldSuggestionFileFilter.filterFiles(
+				filesWithFrontmatter,
+				{ tags: ["Test", "Work"] },
 				metadataWithFrontmatter,
 			);
 			expect(result).toHaveLength(1);

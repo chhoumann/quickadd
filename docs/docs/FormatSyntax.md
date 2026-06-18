@@ -408,8 +408,10 @@ the FIELD value.
 
 **Enhanced Filtering Options:**
 
-- `{{FIELD:fieldname|folder:path/to/folder}}` - Only suggest values from files in specific folder
-- `{{FIELD:fieldname|tag:tagname}}` - Only suggest values from files with specific tag
+- `{{FIELD:fieldname|folder:path/to/folder}}` - Only suggest values from files in a specific folder
+- `{{FIELD:fieldname|folder:goals|folder:projects}}` - Suggest values from either folder
+- `{{FIELD:fieldname|tag:tagname}}` - Only suggest values from files with a specific tag
+- `{{FIELD:fieldname|tag:active|tag:project}}` - Only suggest values from files that have both tags
 - `{{FIELD:fieldname|inline:true}}` - Include Dataview inline fields (fieldname:: value)
 - `{{FIELD:fieldname|inline:true|inline-code-blocks:ad-note}}` - Include inline fields inside specific fenced code blocks (opt-in)
 - `{{FIELD:fieldname|exclude-folder:templates}}` - Exclude values from files in specific folder
@@ -418,8 +420,11 @@ the FIELD value.
 - `{{FIELD:fieldname|default:Status - To Do}}` - Prepend a default suggestion; the modal placeholder shows it and pressing Enter accepts it.
 - `{{FIELD:fieldname|default:Draft|default-empty:true}}` - Only add the default when no matching values are found.
 - `{{FIELD:fieldname|default:Draft|default-always:true}}` - Keep the default first even if other suggestions exist.
-- Combine filters: `{{FIELD:fieldname|folder:daily|tag:work|exclude-folder:templates|inline:true|inline-code-blocks:ad-note}}`
+- Combine filters: `{{FIELD:fieldname|folder:goals|folder:projects|tag:work|tag:active|exclude-folder:templates|inline:true|inline-code-blocks:ad-note}}`
 - Multiple exclusions: `{{FIELD:fieldname|exclude-folder:templates|exclude-folder:archive}}`
+
+Repeated `folder:` filters are OR filters. Repeated `tag:` filters are AND
+filters. Exclusions remove any matching file.
 
 Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}`.
 
@@ -429,11 +434,16 @@ This is currently in beta, and the syntax can change—leave your thoughts [here
 
 Prompts you to pick a markdown **file** from `<folder>` and inserts the choice. Unlike `{{FIELD:...}}` (which suggests the *values* of a YAML field), this suggests the files themselves — handy for "metadata folders" such as a `People/` or `Research Topics/` folder where each note is an option. Because the options are real files, the list always reflects what currently exists, which keeps your links consistent.
 
+The picker shows a note's frontmatter `title` when available, then its first
+level-1 heading, then its file basename. QuickAdd still stores the selected file
+path internally, so friendly labels do not change which file is inserted.
+
 By default the **basename** (just the file name, no folder or extension) is inserted. Output modes:
 
 - `{{FILE:People}}` — inserts the basename, e.g. `Tom`.
 - `{{FILE:People|link}}` — inserts a resolved wikilink, e.g. `[[Tom]]`, using your link settings (wikilink vs. Markdown, shortest path, etc.). In a capture it resolves relative to the capture target; in a template it resolves like `{{LINKCURRENT}}`. Do **not** wrap this in `[[ ]]` yourself — you'd get `[[[[Tom]]]]`.
 - `{{FILE:People|path}}` — inserts the vault-relative path, e.g. `People/Tom.md`.
+- `{{FILE:People|multi}}` — lets you pick several files.
 
 Example — add a wikilink to a `research-topics` frontmatter list (quote it so the YAML stays a valid list item):
 
@@ -446,6 +456,7 @@ research-topics:
 
 - `{{FILE:<folder>|optional}}` — allow skipping the pick (resolves to nothing).
 - `{{FILE:<folder>|custom}}` — also allow typing a value that isn't in the folder.
+- `{{FILE:<folder>|multi}}` — select multiple files. In frontmatter/property positions where QuickAdd collects structured properties, QuickAdd writes a YAML list. In note bodies, file names, existing-note captures, and other text positions, it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every selected file.
 - `{{FILE:<folder>|label:Pick a person}}` — set the picker's placeholder text.
 - `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. Like `{{VALUE}}` and `{{FIELD}}`, FILE tokens are cached by identity: tokens that differ (by folder, filters, mode, or `|label:`) prompt independently, while *identical* tokens reuse one pick. So to choose **two different** files from the same folder, give them distinct labels — e.g. `{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}` prompt separately. To reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — give them the same `|name:`. Tokens that share an id should target the same folder/filters; the shared pick is required if *any* occurrence omits `|optional`.
 - Filtering reuses the `{{FIELD}}` grammar: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
@@ -454,8 +465,10 @@ Notes:
 
 - The folder is the first part of the token; a `|folder:` option is **not** used here (that's `{{FIELD}}` syntax) and is ignored.
 - The folder is matched **recursively** (its subfolders are included). Point at the leaf folder (e.g. `{{FILE:fields/people}}`) to scope tightly.
+- Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
 - Markdown files only.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default basename mode.
+- One-page input forms collect other inputs first, then open the runtime FILE multi-select, because file names and title labels can contain commas.
 
 ## `{{selected}}` {#selected}
 
