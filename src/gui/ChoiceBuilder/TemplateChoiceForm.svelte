@@ -268,6 +268,18 @@ function onModeChange(value: string) {
 <SettingItem name="Behavior" heading />
 
 <SettingItem
+	name="Search existing notes before creating"
+	desc="For the default note-title prompt, show matching notes first. Choosing one opens it unchanged; choosing the create row continues with this template."
+>
+	{#snippet control()}
+		<Toggle
+			checked={choice.discoverExistingNotesBeforeCreate ?? false}
+			onchange={(value) => (choice.discoverExistingNotesBeforeCreate = value)}
+		/>
+	{/snippet}
+</SettingItem>
+
+<SettingItem
 	name="If the target file already exists"
 	desc="Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file."
 >

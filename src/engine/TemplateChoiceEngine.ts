@@ -12,6 +12,10 @@ import {
 	resolveCreateNewCollisionFilePath,
 	type FileExistsModeId,
 } from "../template/fileExistsPolicy";
+import {
+	promptForTemplateNoteDiscovery,
+	shouldRunTemplateNoteDiscovery,
+} from "./templateNoteDiscovery";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
@@ -66,12 +70,36 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					: "required",
 			);
 
-			// Resolve format tokens in the template path ONCE, up front (issue
-			// #620). Doing it before folder/file-name resolution means a cancelled
-			// path prompt aborts the run before any folder is created, and the
-			// resolved path feeds BOTH the target extension/name (below) and the
-			// content read — so the file that's read and the file that's created
-			// can never disagree.
+			const format = this.choice.fileNameFormat.enabled
+				? this.choice.fileNameFormat.format
+				: VALUE_SYNTAX;
+
+			if (
+				shouldRunTemplateNoteDiscovery(
+					this.choice,
+					format,
+					this.choiceExecutor.variables.get("value"),
+				)
+			) {
+				const discovery = await promptForTemplateNoteDiscovery(
+					this.app,
+					this.choice,
+				);
+				if (discovery.kind === "openExisting") {
+					await this.openDiscoveredExistingNote(discovery.file);
+					this.choiceExecutor.recordExecutionResult?.({
+						status: "success",
+						file: discovery.file,
+					});
+					return;
+				}
+
+				this.choiceExecutor.variables.set("value", discovery.title);
+			}
+
+			// Resolve format tokens in the template path ONCE, after discovery has
+			// either selected "create" or been skipped. Existing-note discovery exits
+			// before any template-path prompt, folder creation, or template side effect.
 			const templatePath = await this.resolveTemplateSourcePath(
 				this.choice.templatePath,
 			);
@@ -91,9 +119,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// Make the resolved folder available to {{FOLDER}} in the file name.
 			this.formatter.setTargetFolderPath(folderPath);
 
-			const format = this.choice.fileNameFormat.enabled
-				? this.choice.fileNameFormat.format
-				: VALUE_SYNTAX;
 			const formattedName = await this.formatter.formatFileName(
 				format,
 				this.choice.name,
@@ -283,6 +308,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					createdFile: existingFile,
 					shouldAutoOpen: true,
 				};
+		}
+	}
+
+	private async openDiscoveredExistingNote(file: TFile): Promise<void> {
+		const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+		const openExistingTab = openExistingFileTab(this.app, file, true);
+
+		if (!openExistingTab) {
+			await openFile(this.app, file, {
+				...fileOpening,
+				focus: true,
+				originLeaf: this.originLeaf,
+			});
 		}
 	}
 

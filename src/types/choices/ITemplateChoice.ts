@@ -21,6 +21,11 @@ export default interface ITemplateChoice extends IChoice {
 	templatePath: string;
 	folder: TemplateFolderConfig;
 	fileNameFormat: { enabled: boolean; format: string };
+	/**
+	 * When enabled for the default note-title prompt, QuickAdd shows existing notes
+	 * before committing to creating a new one.
+	 */
+	discoverExistingNotesBeforeCreate?: boolean;
 	/** 
 	 * Configure link appending behavior. 
 	 * - boolean: Legacy format for backward compatibility (true = enabled with default placement)
