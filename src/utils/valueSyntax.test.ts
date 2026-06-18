@@ -42,6 +42,19 @@ describe("parseValueToken", () => {
 		expect(parsed?.defaultValue).toBe("");
 	});
 
+	it("parses trim without treating it as a legacy default", () => {
+		const parsed = parseValueToken("title|trim");
+		expect(parsed?.trim).toBe(true);
+		expect(parsed?.defaultValue).toBe("");
+		expect(parsed?.variableKey).toBe("title");
+	});
+
+	it("supports keyed trim flags", () => {
+		expect(parseValueToken("title|trim:true")?.trim).toBe(true);
+		expect(parseValueToken("title|trim:false")?.trim).toBe(false);
+		expect(parseValueToken("title|trim|trim:false")?.trim).toBe(false);
+	});
+
 	it("parses title case style", () => {
 		const parsed = parseValueToken("title|case:title");
 		expect(parsed?.caseStyle).toBe("title");
@@ -212,6 +225,13 @@ describe("parseAnonymousValueOptions", () => {
 		expect(parsed.caseStyle).toBe("kebab");
 		expect(parsed.label).toBe("Notes");
 		expect(parsed.defaultValue).toBe("Hello");
+	});
+
+	it("parses trim for unnamed VALUE tokens", () => {
+		const parsed = parseAnonymousValueOptions("|trim|label:Notes");
+		expect(parsed.trim).toBe(true);
+		expect(parsed.label).toBe("Notes");
+		expect(parsed.defaultValue).toBe("");
 	});
 
 	it("warns and ignores unknown type for unnamed VALUE tokens", () => {
@@ -420,6 +440,16 @@ describe("optional flag (issue #1259)", () => {
 		expect(withDefault.optional).toBe(true);
 		expect(withDefault.defaultValue).toBe("My default");
 		expect(parseAnonymousValueOptions("|My default").optional).toBe(false);
+	});
+
+	it("keeps shorthand defaults when combined with trim", () => {
+		const parsed = parseValueToken("x|tomorrow|trim");
+		expect(parsed?.trim).toBe(true);
+		expect(parsed?.defaultValue).toBe("tomorrow");
+
+		const anonymous = parseAnonymousValueOptions("|My default|trim");
+		expect(anonymous.trim).toBe(true);
+		expect(anonymous.defaultValue).toBe("My default");
 	});
 });
 

@@ -190,6 +190,21 @@ Transforms the resolved value into a casing style. Supported: `kebab`, `snake`, 
 
 Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 
+## `{{VALUE|trim}}` / `{{NAME|trim}}` / `{{VALUE:<variable>|trim}}` {#value-trim}
+
+Trims leading and trailing whitespace from the resolved value for this token. This is useful for file names, links, and properties where accidental spaces from mobile keyboards or pasted text would create a different note or link target.
+
+Example: `[[{{VALUE:title|trim}}]]`.
+
+`|trim` is applied per token and does not mutate the stored value. This means you can reuse the same answer in raw and trimmed forms:
+
+```markdown
+Raw: {{VALUE:title}}
+Link: [[{{VALUE:title|trim}}]]
+```
+
+It composes with other VALUE options, for example `{{VALUE:title|trim|case:slug}}`. For `|multi` values, string entries are trimmed while the value stays a List. The keyed form `|trim:false` turns trimming off when a shared snippet adds it.
+
 ## `{{VALUE:<options>|custom}}` {#value-custom}
 
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
@@ -216,7 +231,7 @@ Variants and combinations:
 
 - `|multi:linklist` wraps each pick as a wikilink, for List properties of links: `{{VALUE:Alice,Bob,Carol|multi:linklist}}` → `- "[[Alice]]"` / `- "[[Bob]]"`.
 - `|multi|custom` lets you add values not in the list (a text box in the picker).
-- Combines with `|name:`, `|label:`, `|text:`, and `|optional`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
+- Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
 
 Notes:
 

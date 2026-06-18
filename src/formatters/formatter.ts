@@ -230,7 +230,7 @@ export abstract class Formatter {
 			if (optionsIndex === -1) return this.value;
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions);
-			const transformed = transformCase(this.value, parsed.caseStyle);
+			const transformed = this.applyValueTextOptions(this.value, parsed);
 			// |type:text on the anonymous {{VALUE|...}} form quotes the same way
 			// as the named form (see replaceVariableInString).
 			if (
@@ -244,6 +244,32 @@ export abstract class Formatter {
 		});
 
 		return output;
+	}
+
+	private applyValueTextOptions(
+		value: unknown,
+		options: { trim?: boolean; caseStyle?: string },
+	): string {
+		const text = String(value ?? "");
+		const trimmed = options.trim ? text.trim() : text;
+		return transformCase(trimmed, options.caseStyle);
+	}
+
+	private applyValueTokenOptions(
+		value: unknown,
+		parsed: ParsedValueToken,
+	): unknown {
+		if (Array.isArray(value)) {
+			return parsed.trim
+				? value.map((item) =>
+						typeof item === "string" ? item.trim() : item,
+					)
+				: value;
+		}
+		if (typeof value === "string") {
+			return this.applyValueTextOptions(value, parsed);
+		}
+		return value;
 	}
 
 	private getValuePromptContext(input: string): PromptContext | undefined {
@@ -790,19 +816,13 @@ export abstract class Formatter {
 				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
 
-			const {
-				variableName,
-				caseStyle,
-			} = parsed;
+			const { variableName } = parsed;
 
 			const effectiveKey = await this.ensureValueVariableResolved(parsed);
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(effectiveKey);
-			const rawValueForCollector =
-				caseStyle && typeof rawValue === "string"
-					? transformCase(rawValue, caseStyle)
-					: rawValue;
+			const effectiveRawValue = this.applyValueTokenOptions(rawValue, parsed);
 
 			// Offer this variable to the property collector for YAML post-processing.
 			// Collecting structured values (arrays/objects/numbers/booleans) into a
@@ -814,7 +834,7 @@ export abstract class Formatter {
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
-				rawValue: rawValueForCollector,
+				rawValue: effectiveRawValue,
 				fallbackKey: variableName,
 				collectionActive,
 				// |type:text forces a string: never run the string->structured
@@ -834,14 +854,17 @@ export abstract class Formatter {
 			let replacement: string;
 			if (placeholder !== undefined) {
 				replacement = placeholder;
-			} else if (Array.isArray(rawValue)) {
+			} else if (Array.isArray(effectiveRawValue)) {
 				// A |multi (or script) array that was NOT collected (body text, or a
 				// capture flow that suppresses frontmatter collection): join with
 				// commas. Guards against transformCase()/String() on an array.
-				replacement = rawValue.join(",");
+				replacement = effectiveRawValue.join(",");
 			} else {
 				const stringVal = String(
-					transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "",
+					this.applyValueTextOptions(
+						this.getVariableValue(effectiveKey),
+						parsed,
+					) ?? "",
 				);
 				// |type:text (#757): write the value as a quoted YAML string at a
 				// sole-value front-matter position so Obsidian can't retype it

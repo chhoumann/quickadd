@@ -325,6 +325,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 					"{{VALUE:title|label:Helper text}}",
 					"{{VALUE:option1,option2|label:Pick one}}",
 					"{{VALUE:title|label:Snake case|default:My_Title}}",
+					"{{VALUE:title|trim}}",
 					"{{VALUE:title|optional}}"
 				);
 			} else if (tokenDef.token === FormatSyntaxToken.File) {

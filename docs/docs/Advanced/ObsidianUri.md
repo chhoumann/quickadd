@@ -21,6 +21,8 @@ The only required parameter is `choice` which selects the choice to run by its n
 
 [Variables to your choice](../FormatSyntax.md) are passed as additional `value-VARIABLE_NAME` parameters, with `value-` prefixing the name. Variables with a space in their name can still be used, but the spaces in the name must be encoded as `%20` as usual. For example, a capture asking for a variable named `log notes` would be passed as `value-log%20notes=...` in the URI.
 
+Variable values are used exactly as encoded in the URI. If a format should ignore accidental leading or trailing whitespace for one token, add `|trim` to that token, for example `{{VALUE:log notes|trim}}`.
+
 Keep in mind that unnamed variables (a bare `{{VALUE}}`/`{{NAME}}` or `{{MVALUE}}`) cannot be filled by the URI and you will instead be prompted inside Obsidian as usual.
 
 ## Vault parameter
