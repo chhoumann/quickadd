@@ -83,6 +83,7 @@ function onCaptureToActiveFileChange(value: boolean) {
 function onCaptureToChange(value: string) {
 	const previousCanvasPath = normalizeVaultPath(choice.captureTo);
 	const wasCanvasTarget = isCanvasTargetPath(choice.captureTo);
+	const nextUsesPickerTargetSyntax = getCaptureTargetFeedback(value) !== null;
 	choice.captureTo = value;
 	const nextCanvasPath = normalizeVaultPath(value);
 	const nextIsCanvasTarget = isCanvasTargetPath(value);
@@ -91,7 +92,7 @@ function onCaptureToChange(value: string) {
 		nextIsCanvasTarget &&
 		previousCanvasPath !== nextCanvasPath;
 
-	if (!nextIsCanvasTarget || canvasPathChanged) {
+	if (nextUsesPickerTargetSyntax || !nextIsCanvasTarget || canvasPathChanged) {
 		choice.captureToCanvasNodeId = "";
 	}
 }

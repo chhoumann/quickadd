@@ -242,14 +242,16 @@ describe("CaptureChoiceForm", () => {
 	});
 
 	it("does not show the canvas node picker for filter syntax that ends in .canvas", async () => {
-		const { container, getByLabelText } = mountForm();
+		const { container, getByLabelText, props } = mountForm();
 		const input = getByLabelText("File path / format") as HTMLInputElement;
+		props.choice.captureToCanvasNodeId = "stale-node-id";
 
 		input.value = "folder:Boards.canvas";
 		await fireEvent.input(input);
 		await settleValidation();
 
 		expect(settingNames(container)).not.toContain("Target canvas node");
+		expect(props.choice.captureToCanvasNodeId).toBe("");
 		expect(describedHint(container, input).textContent).toContain(
 			"Recognized filtered picker",
 		);

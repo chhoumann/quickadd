@@ -19,6 +19,7 @@ function compact(values: readonly string[] | undefined): string[] {
 
 function formatList(values: readonly string[], finalJoiner = "or"): string {
 	if (values.length <= 1) return values[0] ?? "";
+	if (finalJoiner === "+") return values.join(" + ");
 	if (values.length === 2) return `${values[0]} ${finalJoiner} ${values[1]}`;
 	return `${values.slice(0, -1).join(", ")}, ${finalJoiner} ${values[values.length - 1]}`;
 }

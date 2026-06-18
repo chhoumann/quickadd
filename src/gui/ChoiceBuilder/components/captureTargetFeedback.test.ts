@@ -22,6 +22,15 @@ describe("getCaptureTargetFeedback", () => {
 		expect(feedback?.message).toContain("tags active + work");
 	});
 
+	it("formats three or more tag filters as an AND-style list", () => {
+		const feedback = getCaptureTargetFeedback(
+			"tag:active|tag:work|tag:urgent",
+		);
+
+		expect(feedback?.message).toContain("tags active + work + urgent");
+		expect(feedback?.message).not.toContain(", +");
+	});
+
 	it("recognizes hashtag targets with additional tag filters", () => {
 		const feedback = getCaptureTargetFeedback("#work|tag:#project");
 
