@@ -151,6 +151,24 @@ describe("appendFrontmatterPropertyLinkValue", () => {
 		expect(frontmatter.related).toEqual(["[[Existing]]", "[[Created]]"]);
 	});
 
+	it("preserves existing property key casing when the DOM key is normalized", () => {
+		const frontmatter: Record<string, unknown> = {
+			"Related Items": ["[[Existing]]"],
+		};
+
+		appendFrontmatterPropertyLinkValue(
+			frontmatter,
+			"related items",
+			"[[Created]]",
+		);
+
+		expect(frontmatter["Related Items"]).toEqual([
+			"[[Existing]]",
+			"[[Created]]",
+		]);
+		expect(frontmatter["related items"]).toBeUndefined();
+	});
+
 	it("appends links to string properties", () => {
 		const frontmatter = { related: "existing" };
 
@@ -187,6 +205,21 @@ describe("appendFrontmatterPropertyLinkValue", () => {
 		expect(() =>
 			appendFrontmatterPropertyLinkValue({}, "   ", "[[Created]]"),
 		).toThrow(/empty frontmatter property key/);
+	});
+
+	it("rejects ambiguous property keys instead of guessing which one to update", () => {
+		const frontmatter = {
+			"Related Items": "",
+			"related items": "",
+		};
+
+		expect(() =>
+			appendFrontmatterPropertyLinkValue(
+				frontmatter,
+				"related items",
+				"[[Created]]",
+			),
+		).toThrow(/multiple properties/);
 	});
 });
 

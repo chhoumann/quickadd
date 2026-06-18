@@ -54,11 +54,12 @@ export function appendFrontmatterPropertyLinkValue(
 	propertyKey: string,
 	linkText: string,
 ): void {
-	const key = propertyKey.trim();
-	if (!key) {
+	const requestedKey = propertyKey.trim();
+	if (!requestedKey) {
 		throw new Error("Cannot append link to an empty frontmatter property key.");
 	}
 
+	const key = resolveFrontmatterPropertyKey(frontmatter, requestedKey);
 	const existing = frontmatter[key];
 	if (Array.isArray(existing)) {
 		existing.push(linkText);
@@ -78,6 +79,28 @@ export function appendFrontmatterPropertyLinkValue(
 	throw new Error(
 		`Cannot append link to frontmatter property '${key}' because it contains a ${typeof existing} value.`,
 	);
+}
+
+function resolveFrontmatterPropertyKey(
+	frontmatter: Record<string, unknown>,
+	propertyKey: string,
+): string {
+	const normalizedPropertyKey = normalizePropertyKey(propertyKey);
+	const matchingKeys = Object.keys(frontmatter).filter(
+		(key) => normalizePropertyKey(key) === normalizedPropertyKey,
+	);
+
+	if (matchingKeys.length > 1) {
+		throw new Error(
+			`Cannot append link to frontmatter property '${propertyKey}' because the note has multiple properties that normalize to that key.`,
+		);
+	}
+
+	return matchingKeys[0] ?? propertyKey;
+}
+
+function normalizePropertyKey(propertyKey: string): string {
+	return propertyKey.trim().toLowerCase();
 }
 
 export async function appendLinkToFrontmatterProperty(
