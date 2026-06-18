@@ -281,7 +281,10 @@ async function collectForCaptureChoice(
 			? parseCaptureFileFilterTarget(normalizedTarget)
 			: null;
 	const isFilterTarget = !!fileFilterTarget && !fileFilterTarget.multiSelect;
-	const isTagTarget = !isPropertyTarget && !isFilterTarget && normalizedTarget.startsWith("#");
+	const isTagTarget =
+		!isPropertyTarget &&
+		!fileFilterTarget &&
+		normalizedTarget.startsWith("#");
 	const trimmedPath = normalizedTarget.replace(/\/$|\.md$/g, "");
 	const isFolderTarget =
 		!isTagTarget &&
