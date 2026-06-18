@@ -60,6 +60,7 @@ import {
 } from "../utils/fileLinks";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
+import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { buildFileDisplayLabels } from "../utils/fileSyntax";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -245,6 +246,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		if (linkOptions.destination?.type === "specifiedFile") {
 			await appendFileLinkToDestinationFile(this.app, file, linkOptions);
+			return;
+		}
+
+		const propertyTarget = this.choiceExecutor.focusedProperty;
+		if (propertyTarget) {
+			await appendLinkToFrontmatterProperty(this.app, propertyTarget, file);
 			return;
 		}
 

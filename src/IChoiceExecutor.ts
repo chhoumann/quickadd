@@ -3,6 +3,7 @@ import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type { MacroAbortError } from "./errors/MacroAbortError";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
+import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
@@ -18,6 +19,12 @@ export interface IChoiceExecutor {
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome>;
 	variables: Map<string, unknown>;
+	/**
+	 * Frontmatter property value focused when the outermost choice execution began.
+	 * Append Link uses this to avoid the stale CodeMirror cursor Obsidian reports
+	 * while a Properties field owns focus.
+	 */
+	focusedProperty?: FrontmatterPropertyTarget | null;
 	/**
 	 * Records the structured outcome of the current execution so an orchestrator
 	 * (the URI x-callback handler, via {@link ChoiceExecutor.executeWithOutcome}) can

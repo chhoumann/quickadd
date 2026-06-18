@@ -37,6 +37,7 @@ import {
 	copyFileLinkToClipboard,
 	getAppendLinkDestinationFile,
 } from "../utils/fileLinks";
+import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -216,6 +217,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						this.app,
 						createdFile,
 						linkOptions,
+					);
+				} else if (this.choiceExecutor.focusedProperty) {
+					await appendLinkToFrontmatterProperty(
+						this.app,
+						this.choiceExecutor.focusedProperty,
+						createdFile,
 					);
 				} else {
 					insertFileLinkToActiveView(this.app, createdFile, linkOptions);
