@@ -29,6 +29,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
+	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
@@ -48,7 +49,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	private beginExecutionContext(): void {
 		if (this.executionDepth === 0) {
-			this.focusedProperty = getFocusedPropertyTarget(this.app);
+			this.focusedProperty =
+				this.focusedPropertyOverride !== undefined
+					? this.focusedPropertyOverride
+					: getFocusedPropertyTarget(this.app);
 		}
 		this.executionDepth++;
 	}
@@ -112,6 +116,19 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		} finally {
 			this.pendingResult = savedResult;
 			this.endExecutionContext();
+		}
+	}
+
+	async executeWithFocusedProperty(
+		choice: IChoice,
+		focusedProperty: FrontmatterPropertyTarget | null,
+	): Promise<void> {
+		const previousOverride = this.focusedPropertyOverride;
+		this.focusedPropertyOverride = focusedProperty;
+		try {
+			await this.execute(choice);
+		} finally {
+			this.focusedPropertyOverride = previousOverride;
 		}
 	}
 
@@ -251,6 +268,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private onChooseMultiType(multiChoice: IMultiChoice) {
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
+			focusedProperty: this.focusedProperty,
 			placeholder: multiChoice.placeholder,
 		});
 	}

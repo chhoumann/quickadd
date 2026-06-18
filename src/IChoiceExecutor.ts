@@ -8,6 +8,15 @@ import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
 	/**
+	 * Executes a choice while reusing a frontmatter property target captured before
+	 * an intermediate UI layer, such as a Multi-choice suggester, stole focus.
+	 * Optional so existing stubs can fall back to {@link execute}.
+	 */
+	executeWithFocusedProperty?(
+		choice: IChoice,
+		focusedProperty: FrontmatterPropertyTarget | null,
+	): Promise<void>;
+	/**
 	 * Executes a Template/Capture choice and returns its structured outcome
 	 * (success with the affected file, error, or cancelled) instead of the void
 	 * {@link execute}. Callers that must report real success/failure — the URI
