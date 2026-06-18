@@ -4,7 +4,7 @@ vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
-import { flushSync } from "svelte";
+import { flushSync, tick } from "svelte";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import CaptureChoiceForm from "./CaptureChoiceForm.svelte";
@@ -96,6 +96,23 @@ function mountForm() {
 	return { ...result, props };
 }
 
+async function settleValidation() {
+	await tick();
+	await tick();
+}
+
+function describedHint(
+	container: HTMLElement,
+	input: HTMLInputElement,
+): HTMLElement {
+	const hintId = input.getAttribute("aria-describedby");
+	return container.querySelector(`#${hintId}`) as HTMLElement;
+}
+
+function previewRows(container: HTMLElement): HTMLElement[] {
+	return Array.from(container.querySelectorAll(".qa-preview-row"));
+}
+
 describe("CaptureChoiceForm", () => {
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
 		const { container } = mountForm();
@@ -185,5 +202,56 @@ describe("CaptureChoiceForm", () => {
 		const { container } = mountForm();
 
 		expect(settingNames(container).at(-1)).toBe("Icon");
+	});
+
+	it("shows recognized feedback and hides the path preview for picker filter targets", async () => {
+		const { container, getByLabelText } = mountForm();
+		const input = getByLabelText("File path / format") as HTMLInputElement;
+		expect(previewRows(container)).toHaveLength(2);
+
+		input.value = "folder:Goals|folder:Projects|tag:active";
+		await fireEvent.input(input);
+		await settleValidation();
+
+		const hint = describedHint(container, input);
+		expect(previewRows(container)).toHaveLength(1);
+		expect(hint.textContent).toContain("Recognized filtered picker");
+		expect(hint.textContent).toContain("folders Goals or Projects");
+		expect(hint.textContent).toContain("tag active");
+		expect(hint.classList.contains("qa-field-hint--success")).toBe(true);
+		expect(input.classList.contains("is-valid")).toBe(true);
+		expect(input.getAttribute("aria-invalid")).toBe("false");
+	});
+
+	it("rejects multi-select capture target filters before runtime", async () => {
+		const { container, getByLabelText } = mountForm();
+		const input = getByLabelText("File path / format") as HTMLInputElement;
+		expect(previewRows(container)).toHaveLength(2);
+
+		input.value = "tag:work|multi";
+		await fireEvent.input(input);
+		await settleValidation();
+
+		const hint = describedHint(container, input);
+		expect(previewRows(container)).toHaveLength(1);
+		expect(hint.textContent).toBe(
+			"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
+		);
+		expect(input.classList.contains("is-invalid")).toBe(true);
+		expect(input.getAttribute("aria-invalid")).toBe("true");
+	});
+
+	it("does not show the canvas node picker for filter syntax that ends in .canvas", async () => {
+		const { container, getByLabelText } = mountForm();
+		const input = getByLabelText("File path / format") as HTMLInputElement;
+
+		input.value = "folder:Boards.canvas";
+		await fireEvent.input(input);
+		await settleValidation();
+
+		expect(settingNames(container)).not.toContain("Target canvas node");
+		expect(describedHint(container, input).textContent).toContain(
+			"Recognized filtered picker",
+		);
 	});
 });

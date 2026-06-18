@@ -5,10 +5,11 @@ import type { TextInputSuggest } from "../../suggesters/suggest";
 import { suggester } from "./suggesterAction";
 
 type AnySuggest = Pick<TextInputSuggest<unknown>, "destroy">;
+type HintVariant = "neutral" | "success";
 type ValidatorResult =
 	| boolean
 	| string
-	| { valid: boolean; message?: string };
+	| { valid: boolean; message?: string; variant?: HintVariant };
 type Validator = (
 	value: string,
 ) => ValidatorResult | Promise<ValidatorResult>;
@@ -57,6 +58,7 @@ let {
 
 let invalid = $state(false);
 let hintMessage = $state("");
+let hintVariant = $state<HintVariant>("neutral");
 let validateToken = 0;
 let disposed = false;
 const hintId = `qa-hint-${Math.random().toString(36).slice(2)}`;
@@ -66,9 +68,14 @@ const normalize = (raw: string) => (trim ? raw.trim() : raw);
 // Shows the hint message; marks the field invalid only when isInvalid. A valid
 // result that still carries a message renders as a neutral hint (not an error),
 // e.g. a template path with format syntax that "resolves at run time".
-function setHint(message?: string, isInvalid = false) {
+function setHint(
+	message?: string,
+	isInvalid = false,
+	variant: HintVariant = "neutral",
+) {
 	invalid = isInvalid;
 	hintMessage = message ?? "";
+	hintVariant = isInvalid ? "neutral" : variant;
 }
 
 async function runValidator(candidate: string): Promise<boolean> {
@@ -92,7 +99,11 @@ async function runValidator(candidate: string): Promise<boolean> {
 		setHint(res, true);
 		return false;
 	}
-	setHint(res.message ?? (res.valid ? undefined : "Invalid value"), !res.valid);
+	setHint(
+		res.message ?? (res.valid ? undefined : "Invalid value"),
+		!res.valid,
+		res.valid ? (res.variant ?? "neutral") : "neutral",
+	);
 	return res.valid;
 }
 
@@ -132,6 +143,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 	<textarea
 		class="qa-validated-input-full-width qa-validated-input-margin-8 qa-validated-input-textarea"
 		class:is-invalid={invalid}
+		class:is-valid={!invalid && hintVariant === "success" && hintMessage.length > 0}
 		{placeholder}
 		{disabled}
 		aria-label={ariaLabel}
@@ -146,6 +158,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		type="text"
 		class="qa-validated-input-full-width qa-validated-input-margin-8"
 		class:is-invalid={invalid}
+		class:is-valid={!invalid && hintVariant === "success" && hintMessage.length > 0}
 		{placeholder}
 		{disabled}
 		aria-label={ariaLabel}
@@ -158,7 +171,8 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 {/if}
 <div
 	class="qa-field-hint"
-	class:qa-field-hint--neutral={!invalid}
+	class:qa-field-hint--neutral={!invalid && hintVariant === "neutral"}
+	class:qa-field-hint--success={!invalid && hintVariant === "success"}
 	id={hintId}
 	aria-live="polite"
 >{hintMessage}</div>
