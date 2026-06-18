@@ -76,6 +76,24 @@ Similarly, you can type a **tag name** in the _Capture To_ field, and QuickAdd w
 
 If you have a tag called `#people`, and you type `#people` in the _Capture To_ field, QuickAdd will ask you which file to capture to, assuming the file has the `#people` tag.
 
+### Capturing to filtered files
+
+You can combine folder and tag filters in the _Capture To_ field with `|`.
+This is useful when the destination could live in several folders, or when it
+must match several tags.
+
+- `folder:Goals|folder:Projects` - notes inside either folder
+- `tag:active|tag:work` - notes that have both tags
+- `folder:Goals|folder:Projects|tag:active|tag:work` - active work notes in either folder
+- `folder:Goals|exclude-folder:Archive|exclude-tag:done` - goals that are not archived or done
+
+Repeated `folder:` filters are OR filters. Repeated `tag:` filters are AND
+filters. Exclusions remove any matching file.
+
+Capture still writes to one destination per run. If you want to select multiple
+related files for metadata, use the `{{FILE:<folder>|multi}}` format syntax in
+the capture format instead of the _Capture To_ field.
+
 ### Capturing to a property
 
 You can pre-filter the picker by an arbitrary **frontmatter property** by typing
@@ -111,6 +129,13 @@ Notes:
 - As with the tag picker, typing a new note name (with **Create file if it
   doesn't exist** enabled) creates that note — it will not automatically receive
   the property.
+
+### File picker labels
+
+When QuickAdd asks you to choose a note, it shows the note's frontmatter `title`
+when available, then its first level-1 heading, then its file basename. The
+selected destination remains the real vault path, so captures still write to the
+same file even when the displayed label is friendlier than the filename.
 
 ## Capture Options
 
