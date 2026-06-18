@@ -45,10 +45,14 @@ vi.mock("../quickAddSettingsTab", () => {
 
 const {
 	copyFileLinkToClipboardMock,
+	appendFileLinkToDestinationFileMock,
+	getAppendLinkDestinationFileMock,
 	formatFileNameMock,
 	formatFileContentMock,
 } = vi.hoisted(() => {
 	const copyFileLink = vi.fn();
+	const appendFileLink = vi.fn();
+	const getDestinationFile = vi.fn();
 	const formatName =
 		vi.fn<(format: string, prompt: string) => Promise<string>>();
 	const formatContent = vi
@@ -57,6 +61,8 @@ const {
 
 	return {
 		copyFileLinkToClipboardMock: copyFileLink,
+		appendFileLinkToDestinationFileMock: appendFileLink,
+		getAppendLinkDestinationFileMock: getDestinationFile,
 		formatFileNameMock: formatName,
 		formatFileContentMock: formatContent,
 	};
@@ -93,7 +99,9 @@ vi.mock("../formatters/completeFormatter", () => {
 });
 
 vi.mock("../utils/fileLinks", () => ({
+	appendFileLinkToDestinationFile: appendFileLinkToDestinationFileMock,
 	copyFileLinkToClipboard: copyFileLinkToClipboardMock,
+	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
 vi.mock("../utilityObsidian", () => ({
@@ -228,10 +236,14 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 	beforeEach(() => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		noticeClass.instances.length = 0;
-		InputPromptDraftStore.getInstance().clearAll();
-		copyFileLinkToClipboardMock.mockReset();
-		copyFileLinkToClipboardMock.mockResolvedValue(true);
-		formatFileNameMock.mockReset();
+			InputPromptDraftStore.getInstance().clearAll();
+			appendFileLinkToDestinationFileMock.mockReset();
+			appendFileLinkToDestinationFileMock.mockResolvedValue(true);
+			copyFileLinkToClipboardMock.mockReset();
+			copyFileLinkToClipboardMock.mockResolvedValue(true);
+			getAppendLinkDestinationFileMock.mockReset();
+			getAppendLinkDestinationFileMock.mockReturnValue(null);
+			formatFileNameMock.mockReset();
 		formatFileContentMock.mockReset();
 		formatFileContentMock.mockResolvedValue("");
 	});
@@ -415,9 +427,9 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(store.get(draftKey)).toBe("Submitted template name");
 	});
 
-	it("copies the created file link without requiring append-link insertion", async () => {
-		const { engine } = createEngine("ignored", {
-			throwDuringFileName: false,
+		it("copies the created file link without requiring append-link insertion", async () => {
+			const { engine } = createEngine("ignored", {
+				throwDuringFileName: false,
 		});
 		const createdFile = new TFile();
 		createdFile.path = "Test Template.md";
@@ -434,11 +446,76 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 
 		await engine.run();
 
-		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
-	});
+			expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
+		});
 
-	it("keeps template execution successful when clipboard copying reports failure", async () => {
-		const { engine, choiceExecutor } = createEngine("ignored", {
+		it("appends the created file link to a specified destination without an active editor", async () => {
+			const { engine, app } = createEngine("ignored", {
+				throwDuringFileName: false,
+			});
+			const createdFile = new TFile();
+			createdFile.path = "Test Template.md";
+			createdFile.name = "Test Template.md";
+			createdFile.extension = "md";
+			createdFile.basename = "Test Template";
+			const destinationFile = new TFile();
+			destinationFile.path = "Indexes/MOC.md";
+			destinationFile.name = "MOC.md";
+			destinationFile.extension = "md";
+			destinationFile.basename = "MOC";
+
+			engine.choice.appendLink = {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "embed",
+				destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
+			};
+			getAppendLinkDestinationFileMock.mockReturnValue(destinationFile);
+			(
+				engine as unknown as {
+					createFileWithTemplate: () => Promise<TFile | null>;
+				}
+			).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
+
+			await engine.run();
+
+			expect(appendFileLinkToDestinationFileMock).toHaveBeenCalledWith(
+				app,
+				createdFile,
+				expect.objectContaining({
+					destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
+					linkType: "link",
+				}),
+			);
+		});
+
+		it("does not create the template note when a specified append-link destination is missing", async () => {
+			const { engine } = createEngine("ignored", {
+				throwDuringFileName: false,
+			});
+			const createFileWithTemplate = vi.fn();
+
+			engine.choice.appendLink = {
+				enabled: true,
+				placement: "newLine",
+				requireActiveFile: false,
+				destination: { type: "specifiedFile", path: "Indexes/Missing.md" },
+			};
+			(
+				engine as unknown as {
+					createFileWithTemplate: () => Promise<TFile | null>;
+				}
+			).createFileWithTemplate = createFileWithTemplate;
+
+			await engine.run();
+
+			expect(createFileWithTemplate).not.toHaveBeenCalled();
+			expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
+		});
+
+		it("keeps template execution successful when clipboard copying reports failure", async () => {
+			const { engine, choiceExecutor } = createEngine("ignored", {
 			throwDuringFileName: false,
 		});
 		const createdFile = new TFile();

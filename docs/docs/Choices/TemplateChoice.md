@@ -55,18 +55,26 @@ append template content, insert links, or copy links. Selecting the explicit
 
 Switching modes hides the fields that don't apply, but your configured folder list is kept — switching back restores it.
 
-**Link to created file**. Choose how QuickAdd should insert a link to the created file in the current note. Pick one of three modes:
-- **Enabled (requires active file)** – throw an error if no note is focused (legacy behavior)
-- **Enabled (skip if no active file)** – insert the link when possible and skip silently otherwise
+**Link to created file**. Choose whether QuickAdd should insert a link to the created file. Pick one of three modes:
+- **Enabled (strict)** – require the configured link destination to be available
+- **Enabled (skip if unavailable)** – insert the link when possible and skip silently when a current-note destination has no focused Markdown editor
 - **Disabled** – never append a link
 
-When either enabled mode is selected, **Link placement** lets you choose where the link is placed:
+When either enabled mode is selected, **Link destination** controls where the link is written:
+- **Current note** – insert the link into the active Markdown editor
+- **Specified note** – append the link to the bottom of an existing Markdown note, such as an index or MOC, without opening that note
+
+For **Current note**, strict mode keeps the legacy behavior and requires a focused Markdown editor. For **Specified note**, QuickAdd validates the destination note before creating the new note.
+
+For the **Current note** destination, **Link placement** lets you choose where the link is placed:
 - **Replace selection** - Replaces any selected text with the link (default)
 - **After selection** - Preserves selected text and places the link after it  
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
 
 **Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
+
+For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
 
 **Copy link to clipboard**. Copies a link to the created file after the Template
 choice runs. This works separately from **Link to created file**, so you can copy

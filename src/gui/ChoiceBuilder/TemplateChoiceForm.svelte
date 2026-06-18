@@ -268,7 +268,7 @@ function onModeChange(value: string) {
 {/if}
 
 <SettingItem name="Linking" heading />
-<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" />
+<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" {app} />
 <SettingItem
 	name="Copy link to clipboard"
 	desc="Copy a link to the created file after the Template choice runs."

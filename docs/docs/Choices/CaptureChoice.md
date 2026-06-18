@@ -127,18 +127,26 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
     -   **After line…** — insert after a target line. You can either type the target now, or enable **Choose heading when capturing** to pick a heading from the note at run time. See [Insert after](#insert-after).
     -   **Before line…**
     -   **Bottom of file**
--   _Link to captured file_ is a dropdown that controls whether QuickAdd inserts a link to the captured file in the current note. You can choose between three modes:
-    -   **Enabled (requires active file)** – keeps the legacy behavior and throws an error if no note is focused (except Canvas-triggered capture, where link insertion is skipped)
-    -   **Enabled (skip if no active file)** – inserts the link when possible and silently drops `{{LINKCURRENT}}` if nothing is open
+-   _Link to captured file_ is a dropdown that controls whether QuickAdd inserts a link to the captured file. You can choose between three modes:
+    -   **Enabled (strict)** – require the configured link destination to be available
+    -   **Enabled (skip if unavailable)** – inserts the link when possible and silently drops current-note link insertion when nothing is open
     -   **Disabled** – never append a link
 
-    When either enabled mode is selected, a _Link placement_ dropdown appears so you can choose where the link is placed:
+    When either enabled mode is selected, _Link destination_ controls where the link is written:
+    -   **Current note** – insert the link into the active Markdown editor
+    -   **Specified note** – append the link to the bottom of an existing Markdown note, such as an index or MOC, without opening that note
+
+    For **Current note**, strict mode keeps the legacy behavior and requires a focused Markdown editor, except Canvas-triggered capture skips link insertion when no Markdown editor is available. For **Specified note**, QuickAdd validates the destination note before writing the capture.
+
+    For the **Current note** destination, a _Link placement_ dropdown appears so you can choose where the link is placed:
     -   **Replace selection** - Replaces any selected text with the link (default)
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
 
     When placement is **Replace selection**, an extra _Link type_ dropdown appears, letting you choose **Link** or **Embed**. Embed is only respected for the Replace selection placement.
+
+    For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file after each successful capture. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
 
 ### Opening the captured file
 
