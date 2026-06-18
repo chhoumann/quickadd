@@ -71,6 +71,18 @@ For the **Current note** destination, **Link placement** lets you choose where t
 - **After selection** - Preserves selected text and places the link after it  
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
+- **In frontmatter property** - Adds the link to a named frontmatter property
+
+When **In frontmatter property** is selected, set the property name and choose how strictly QuickAdd should handle missing or non-list properties:
+- **Create or convert** (default) - Create the property if it is missing, or convert an existing scalar value into a list before appending the new link. Object values still throw an error.
+- **Create if missing** - Create the property if it is missing. Existing scalar/object values still throw an error.
+- **Require list** - Append only to an existing list property. Empty/null properties are treated as empty lists; missing properties and existing scalar/object values throw an error.
+
+If the cursor is in an editable Obsidian Properties field when the Template
+choice starts, and the placement is not **In frontmatter property**, QuickAdd
+appends the link to that focused property instead of using the stale editor
+cursor behind the Properties panel. Text properties receive the link at the end
+of the value, and list properties receive a new list item.
 
 **Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
 

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-	type LinkPlacement,
 	type AppendLinkOptions,
+	type LinkPlacement,
+	isAppendLinkEnabled,
 	isAppendLinkOptions,
 	normalizeAppendLinkOptions,
-	isAppendLinkEnabled,
 	placementSupportsEmbed,
+	placementSupportsFrontmatter,
 } from "./linkPlacement";
 
 describe("LinkPlacement", () => {
@@ -36,46 +37,48 @@ describe("LinkPlacement", () => {
 				enabled: true,
 				placement: "afterSelection",
 				requireActiveFile: false,
-				};
-				expect(normalizeAppendLinkOptions(options)).toEqual({
-					...options,
-					linkType: "link",
-					destination: { type: "activeFile" },
-				});
+			};
+
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+				destination: { type: "activeFile" },
 			});
+		});
 
 		it("should convert true to enabled with default placement", () => {
 			const result = normalizeAppendLinkOptions(true);
 			expect(result).toEqual({
 				enabled: true,
-					placement: "replaceSelection",
-					requireActiveFile: true,
-					linkType: "link",
-					destination: { type: "activeFile" },
-				});
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "link",
+				destination: { type: "activeFile" },
 			});
+		});
 
 		it("should convert false to disabled with default placement", () => {
 			const result = normalizeAppendLinkOptions(false);
 			expect(result).toEqual({
 				enabled: false,
-					placement: "replaceSelection",
-					requireActiveFile: false,
-					linkType: "link",
-					destination: { type: "activeFile" },
-				});
+				placement: "replaceSelection",
+				requireActiveFile: false,
+				linkType: "link",
+				destination: { type: "activeFile" },
 			});
+		});
 
 		it("should keep embed linkType when placement supports embeds", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
 				placement: "replaceSelection",
-					requireActiveFile: true,
-					linkType: "embed",
-					destination: { type: "activeFile" },
-				};
-				expect(normalizeAppendLinkOptions(options)).toEqual(options);
-			});
+				requireActiveFile: true,
+				linkType: "embed",
+				destination: { type: "activeFile" },
+			};
+
+			expect(normalizeAppendLinkOptions(options)).toEqual(options);
+		});
 
 		it("should sanitize embed linkType when placement does not support embeds", () => {
 			const options: AppendLinkOptions = {
@@ -84,49 +87,84 @@ describe("LinkPlacement", () => {
 				requireActiveFile: true,
 				linkType: "embed",
 			};
-				expect(normalizeAppendLinkOptions(options)).toEqual({
-					...options,
-					linkType: "link",
-					destination: { type: "activeFile" },
-				});
+
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+				destination: { type: "activeFile" },
 			});
+		});
 
 		it("should default linkType to link when omitted", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
 				placement: "newLine",
 				requireActiveFile: true,
-				};
-				expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
-			});
+			};
 
-			it("preserves and trims a specified file destination", () => {
-				const options: AppendLinkOptions = {
-					enabled: true,
-					placement: "newLine",
-					requireActiveFile: false,
-					destination: { type: "specifiedFile", path: "  Indexes/MOC.md  " },
-				};
-				expect(normalizeAppendLinkOptions(options)).toEqual({
-					...options,
-					linkType: "link",
-					destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
-				});
-			});
+			expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
+		});
 
-			it("sanitizes embeds for specified file destinations", () => {
-				const options: AppendLinkOptions = {
-					enabled: true,
-					placement: "replaceSelection",
-					requireActiveFile: true,
-					linkType: "embed",
-					destination: { type: "specifiedFile", path: "Index.md" },
-				};
-				expect(normalizeAppendLinkOptions(options)).toEqual({
-					...options,
-					linkType: "link",
-				});
+		it("preserves and trims a specified file destination", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "newLine",
+				requireActiveFile: false,
+				destination: { type: "specifiedFile", path: "  Indexes/MOC.md  " },
+			};
+
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+				destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
 			});
+		});
+
+		it("sanitizes embeds for specified file destinations", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "embed",
+				destination: { type: "specifiedFile", path: "Index.md" },
+			};
+
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+				destination: { type: "specifiedFile", path: "Index.md" },
+			});
+		});
+
+		it("should preserve frontmatter placement options", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "inFrontmatter",
+				requireActiveFile: true,
+				linkType: "embed",
+				frontmatterProperty: "related",
+				frontmatterHandling: "alwaysAppend",
+			};
+
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				linkType: "link",
+				destination: { type: "activeFile" },
+			});
+		});
+
+		it("should default frontmatter handling to create or convert", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "inFrontmatter",
+				requireActiveFile: true,
+				frontmatterProperty: "related",
+			};
+
+			expect(normalizeAppendLinkOptions(options).frontmatterHandling).toBe(
+				"alwaysAppend",
+			);
+		});
 	});
 
 	describe("isAppendLinkEnabled", () => {
@@ -159,6 +197,7 @@ describe("LinkPlacement", () => {
 				"afterSelection",
 				"endOfLine",
 				"newLine",
+				"inFrontmatter",
 			];
 
 			for (const placement of placements) {
@@ -178,6 +217,17 @@ describe("LinkPlacement", () => {
 			expect(placementSupportsEmbed("afterSelection")).toBe(false);
 			expect(placementSupportsEmbed("endOfLine")).toBe(false);
 			expect(placementSupportsEmbed("newLine")).toBe(false);
+			expect(placementSupportsEmbed("inFrontmatter")).toBe(false);
+		});
+	});
+
+	describe("placementSupportsFrontmatter", () => {
+		it("should return true only for frontmatter placement", () => {
+			expect(placementSupportsFrontmatter("inFrontmatter")).toBe(true);
+			expect(placementSupportsFrontmatter("replaceSelection")).toBe(false);
+			expect(placementSupportsFrontmatter("afterSelection")).toBe(false);
+			expect(placementSupportsFrontmatter("endOfLine")).toBe(false);
+			expect(placementSupportsFrontmatter("newLine")).toBe(false);
 		});
 	});
 });

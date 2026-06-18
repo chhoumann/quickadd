@@ -5,7 +5,8 @@ export type LinkPlacement =
 	| "replaceSelection"  // Replace the current selection with the link
 	| "afterSelection"    // Insert the link after the current selection
 	| "endOfLine"         // Insert the link at the end of the current line
-	| "newLine";          // Insert the link on a new line
+	| "newLine"           // Insert the link on a new line
+	| "inFrontmatter";    // Insert the link into a frontmatter property
 
 export type LinkType = "link" | "embed";
 
@@ -13,8 +14,21 @@ export type AppendLinkDestination =
 	| { type: "activeFile" }
 	| { type: "specifiedFile"; path: string };
 
+export type FrontmatterHandling =
+	| "error"
+	| "createProperty"
+	| "alwaysAppend";
+
+export const DEFAULT_FRONTMATTER_HANDLING: FrontmatterHandling = "alwaysAppend";
+
 export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 	return placement === "replaceSelection";
+}
+
+export function placementSupportsFrontmatter(
+	placement: LinkPlacement,
+): boolean {
+	return placement === "inFrontmatter";
 }
 
 function sanitizeLinkType(
@@ -66,6 +80,14 @@ export interface AppendLinkOptions {
 	 * the active Markdown editor.
 	 */
 	destination?: AppendLinkDestination;
+	/**
+	 * Frontmatter property to append to when placement is "inFrontmatter".
+	 */
+	frontmatterProperty?: string;
+	/**
+	 * How to handle missing and non-list frontmatter properties.
+	 */
+	frontmatterHandling?: FrontmatterHandling;
 }
 
 /**
@@ -100,6 +122,11 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 			requireActiveFile: appendLink.requireActiveFile ?? true,
 			linkType: sanitizeLinkType(appendLink.linkType, placement, destination),
 			destination,
+			frontmatterProperty: appendLink.frontmatterProperty,
+			frontmatterHandling:
+				placementSupportsFrontmatter(placement)
+					? appendLink.frontmatterHandling ?? DEFAULT_FRONTMATTER_HANDLING
+					: appendLink.frontmatterHandling,
 		};
 	}
 

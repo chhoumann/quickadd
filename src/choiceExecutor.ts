@@ -18,11 +18,18 @@ import { isCancellationError, reportError } from "./utils/errorUtils";
 import { getOpenFileOriginLeaf } from "./utilityObsidian";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
+import {
+	getFocusedPropertyTarget,
+	type FrontmatterPropertyTarget,
+} from "./utils/frontmatterPropertyLinks";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
+	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
+	private executionDepth = 0;
+	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
@@ -40,6 +47,23 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.pendingResult = result;
 	}
 
+	private beginExecutionContext(): void {
+		if (this.executionDepth === 0) {
+			this.focusedProperty =
+				this.focusedPropertyOverride !== undefined
+					? this.focusedPropertyOverride
+					: getFocusedPropertyTarget(this.app);
+		}
+		this.executionDepth++;
+	}
+
+	private endExecutionContext(): void {
+		this.executionDepth = Math.max(0, this.executionDepth - 1);
+		if (this.executionDepth === 0) {
+			this.focusedProperty = null;
+		}
+	}
+
 	async execute(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
 		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
@@ -47,6 +71,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
 		// choice's recorded result never leaks into the outer choice's reported outcome.
 		const savedResult = this.pendingResult;
+		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		promptDraftStore.beginExecutionScope();
@@ -90,6 +115,20 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			throw error;
 		} finally {
 			this.pendingResult = savedResult;
+			this.endExecutionContext();
+		}
+	}
+
+	async executeWithFocusedProperty(
+		choice: IChoice,
+		focusedProperty: FrontmatterPropertyTarget | null,
+	): Promise<void> {
+		const previousOverride = this.focusedPropertyOverride;
+		this.focusedPropertyOverride = focusedProperty;
+		try {
+			await this.execute(choice);
+		} finally {
+			this.focusedPropertyOverride = previousOverride;
 		}
 	}
 
@@ -109,6 +148,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	): Promise<ChoiceOutcome> {
 		this.pendingAbort = null;
 		this.pendingResult = null;
+		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		promptDraftStore.beginExecutionScope();
@@ -145,6 +185,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			}
 			reportError(error, "Error executing choice from URI");
 			return { status: "error" };
+		} finally {
+			this.endExecutionContext();
 		}
 	}
 
@@ -226,6 +268,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private onChooseMultiType(multiChoice: IMultiChoice) {
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
+			focusedProperty: this.focusedProperty,
 			placeholder: multiChoice.placeholder,
 		});
 	}

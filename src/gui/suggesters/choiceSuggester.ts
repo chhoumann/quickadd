@@ -15,6 +15,8 @@ import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { log } from "../../logger/logManager";
 import { settingsStore } from "../../settingsStore";
 import { flattenChoicesWithPath } from "../../utils/choiceUtils";
+import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
+import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import {
 	hasConfiguredTemplateFolders,
 	runTemplateFromFolder,
@@ -78,6 +80,7 @@ type NestedSearchCandidate = {
 
 type ChoiceSuggesterOptions = {
 	choiceExecutor?: IChoiceExecutor;
+	focusedProperty?: FrontmatterPropertyTarget | null;
 	placeholder?: string;
 	placeholderStack?: Array<string | undefined>;
 	/**
@@ -98,6 +101,7 @@ function createTemplateFolderRow(): IChoice {
 }
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private choiceExecutor: IChoiceExecutor;
+	private focusedProperty: FrontmatterPropertyTarget | null = null;
 	private placeholderStack: Array<string | undefined> = [];
 	private currentPlaceholder?: string;
 	private nestedSearchCandidates?: NestedSearchCandidate[];
@@ -128,6 +132,10 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// property is already assigned; a field initializer runs before it.
 		this.choiceExecutor =
 			options?.choiceExecutor ?? new ChoiceExecutor(this.app, this.plugin);
+		this.focusedProperty =
+			options && "focusedProperty" in options
+				? options.focusedProperty ?? null
+				: getFocusedPropertyTarget(this.app);
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.currentPlaceholder = options?.placeholder?.trim() || undefined;
 		if (this.currentPlaceholder) this.setPlaceholder(this.currentPlaceholder);
@@ -290,7 +298,14 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		if (item.type === "Multi")
 			this.onChooseMultiType(<IMultiChoice>item);
 		else {
-			void this.choiceExecutor.execute(item).catch((error) => {
+			const execute =
+				this.focusedProperty && this.choiceExecutor.executeWithFocusedProperty
+					? this.choiceExecutor.executeWithFocusedProperty(
+							item,
+							this.focusedProperty,
+						)
+					: this.choiceExecutor.execute(item);
+			void execute.catch((error) => {
 				log.logError(`Failed to execute selected choice: ${error}`);
 			});
 		}
@@ -315,6 +330,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 
 		ChoiceSuggester.Open(this.plugin, choices, {
 			choiceExecutor: this.choiceExecutor,
+			focusedProperty: this.focusedProperty,
 			placeholder: nextPlaceholder,
 			placeholderStack: nextStack,
 		});

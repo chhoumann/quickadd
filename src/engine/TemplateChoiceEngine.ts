@@ -17,7 +17,10 @@ import {
 	shouldRunTemplateNoteDiscovery,
 } from "./templateNoteDiscovery";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import { normalizeAppendLinkOptions } from "../types/linkPlacement";
+import {
+	normalizeAppendLinkOptions,
+	placementSupportsFrontmatter,
+} from "../types/linkPlacement";
 import {
 	getAllFolderPathsInVault,
 	insertFileLinkToActiveView,
@@ -37,6 +40,7 @@ import {
 	copyFileLinkToClipboard,
 	getAppendLinkDestinationFile,
 } from "../utils/fileLinks";
+import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -202,9 +206,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 			}
 
-			// File is created/resolved (the commit point). Record success BEFORE the
-			// cosmetic steps below (link / open / templater jump) so a later cosmetic
-			// failure cannot downgrade the outcome for an x-callback caller.
+			// File is created/resolved (the commit point). Record success before
+			// append-link/open-file steps so a later post-commit failure cannot make
+			// automation callers retry and duplicate the Template side effect.
 			this.choiceExecutor.recordExecutionResult?.({
 				status: "success",
 				file: createdFile,
@@ -217,8 +221,20 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						createdFile,
 						linkOptions,
 					);
+				} else if (placementSupportsFrontmatter(linkOptions.placement)) {
+					await insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				} else if (this.choiceExecutor.focusedProperty) {
+					await appendLinkToFrontmatterProperty(
+						this.app,
+						this.choiceExecutor.focusedProperty,
+						createdFile,
+					);
 				} else {
-					insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+					await insertFileLinkToActiveView(
+						this.app,
+						createdFile,
+						linkOptions,
+					);
 				}
 			}
 

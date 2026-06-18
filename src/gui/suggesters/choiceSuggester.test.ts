@@ -13,10 +13,20 @@ vi.mock("../../engine/runTemplateFromFolder", async (importOriginal) => {
 	return { ...actual, runTemplateFromFolder: vi.fn().mockResolvedValue(undefined) };
 });
 
+vi.mock("../../utils/frontmatterPropertyLinks", async (importOriginal) => {
+	const actual =
+		await importOriginal<Record<string, unknown>>();
+	return { ...actual, getFocusedPropertyTarget: vi.fn(() => null) };
+});
+
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
+import {
+	getFocusedPropertyTarget,
+	type FrontmatterPropertyTarget,
+} from "../../utils/frontmatterPropertyLinks";
 import { MultiChoice } from "../../types/choices/MultiChoice";
 import { settingsStore } from "../../settingsStore";
 import { runTemplateFromFolder } from "../../engine/runTemplateFromFolder";
@@ -115,14 +125,21 @@ describe("ChoiceSuggester", () => {
 		rootChoices = [topNote, work, footnotes];
 
 		settingsStore.setState({ searchNestedChoices: true });
+		vi.mocked(getFocusedPropertyTarget).mockReturnValue(null);
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
 
-	function makeSuggester(choices: IChoice[]): ChoiceSuggester {
-		return new ChoiceSuggester(plugin, choices, { choiceExecutor: executor });
+	function makeSuggester(
+		choices: IChoice[],
+		options: { focusedProperty?: FrontmatterPropertyTarget | null } = {},
+	): ChoiceSuggester {
+		return new ChoiceSuggester(plugin, choices, {
+			choiceExecutor: executor,
+			...options,
+		});
 	}
 
 	describe("template folder launcher row", () => {
@@ -396,11 +413,53 @@ describe("ChoiceSuggester", () => {
 			expect(executed).toEqual([newMeeting]);
 		});
 
+		it("executes leaves with a focused property captured before the suggester opened", () => {
+			const focusedProperty = {
+				file: { path: "Host.md" },
+				key: "related",
+			} as FrontmatterPropertyTarget;
+			const executeWithFocusedProperty = vi.fn(async () => {});
+			executor.executeWithFocusedProperty = executeWithFocusedProperty;
+			const suggester = makeSuggester(rootChoices, { focusedProperty });
+
+			suggester.onChooseItem(newMeeting, new MouseEvent("click"));
+
+			expect(executeWithFocusedProperty).toHaveBeenCalledWith(
+				newMeeting,
+				focusedProperty,
+			);
+			expect(executed).toEqual([]);
+		});
+
+		it("captures the focused property by default for a top-level suggester", () => {
+			const focusedProperty = {
+				file: { path: "Host.md" },
+				key: "related",
+			} as FrontmatterPropertyTarget;
+			vi.mocked(getFocusedPropertyTarget).mockReturnValue(focusedProperty);
+			const executeWithFocusedProperty = vi.fn(async () => {});
+			executor.executeWithFocusedProperty = executeWithFocusedProperty;
+
+			const suggester = makeSuggester(rootChoices);
+			suggester.onChooseItem(newMeeting, new MouseEvent("click"));
+
+			expect(getFocusedPropertyTarget).toHaveBeenCalledWith(app);
+			expect(executeWithFocusedProperty).toHaveBeenCalledWith(
+				newMeeting,
+				focusedProperty,
+			);
+			expect(executed).toEqual([]);
+		});
+
 		it("appends a sentinel back item when drilling into a Multi", () => {
 			const openSpy = vi
 				.spyOn(ChoiceSuggester, "Open")
 				.mockImplementation(() => {});
-			const suggester = makeSuggester(rootChoices);
+			const focusedProperty = {
+				file: { path: "Host.md" },
+				key: "related",
+			} as FrontmatterPropertyTarget;
+			const suggester = makeSuggester(rootChoices, { focusedProperty });
 
 			suggester.onChooseItem(work, new MouseEvent("click"));
 
@@ -409,6 +468,7 @@ describe("ChoiceSuggester", () => {
 				IChoice[],
 				{
 					choiceExecutor?: IChoiceExecutor;
+					focusedProperty?: FrontmatterPropertyTarget | null;
 					placeholder?: string;
 					placeholderStack?: Array<string | undefined>;
 				},
@@ -420,6 +480,7 @@ describe("ChoiceSuggester", () => {
 			// The same executor is threaded through, so variables survive
 			// drill-down, and the placeholder stack records the origin level.
 			expect(options.choiceExecutor).toBe(executor);
+			expect(options.focusedProperty).toBe(focusedProperty);
 			expect(options.placeholder).toBe("Work");
 			expect(options.placeholderStack).toEqual([undefined]);
 		});
