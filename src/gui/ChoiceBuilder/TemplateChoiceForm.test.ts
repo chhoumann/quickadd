@@ -255,4 +255,10 @@ describe("TemplateChoiceForm", () => {
 			container.querySelector(".qa-choice-icon-setting-preview svg"),
 		).toHaveAttribute("data-icon", "file-text");
 	});
+
+	it("keeps the optional icon override at the bottom of the form", () => {
+		const { container } = mountForm();
+
+		expect(settingNames(container).at(-1)).toBe("Icon");
+	});
 });

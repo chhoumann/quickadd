@@ -88,7 +88,6 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 </script>
 
 <ChoiceNameHeader bind:name={choice.name} {app} />
-<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 
 <SettingItem name="Location" heading />
 <CaptureTargetSetting bind:choice {app} {plugin} />
@@ -187,3 +186,5 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 </SettingItem>
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
+
+<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />

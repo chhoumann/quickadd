@@ -70,9 +70,9 @@ export class MacroBuilder extends Modal {
 		this.containerEl.addClass("quickAddModal", "macroBuilder");
 		this.contentEl.empty();
 		this.addCenteredHeader(this.choice.name);
-		this.addIconSetting();
 		this.addCommandEditor();
 		this.addRunOnStartupSetting();
+		this.addIconSetting();
 	}
 
 	protected addCenteredHeader(header: string): void {

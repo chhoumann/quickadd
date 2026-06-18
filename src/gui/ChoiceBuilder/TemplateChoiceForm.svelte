@@ -169,7 +169,6 @@ function onModeChange(value: string) {
 </script>
 
 <ChoiceNameHeader bind:name={choice.name} {app} />
-<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 
 <SettingItem name="Template" heading />
 
@@ -309,3 +308,5 @@ function onModeChange(value: string) {
 {/if}
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
+
+<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
