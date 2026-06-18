@@ -2,8 +2,7 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { log } from "../logger/logManager";
 import type { AppendLinkOptions, LinkPlacement } from "../types/linkPlacement";
-import { placementSupportsEmbed } from "../types/linkPlacement";
-import { convertLinkToEmbed } from "./markdownLinks";
+import { buildFileLinkText } from "./fileLinks";
 
 /**
  * Returns the active markdown view if it is showing the given file,
@@ -217,11 +216,11 @@ export function insertFileLinkToActiveView(
 	}
 
 	const sourcePath = activeFile?.path ?? "";
-	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
-	const shouldEmbed =
-		linkOptions.linkType === "embed" &&
-		placementSupportsEmbed(linkOptions.placement);
-	const linkText = shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
+	const linkText = buildFileLinkText(app, file, {
+		sourcePath,
+		linkType: linkOptions.linkType,
+		placement: linkOptions.placement,
+	});
 
 	insertLinkWithPlacement(
 		app,
