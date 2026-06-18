@@ -248,6 +248,51 @@ describe("TemplateChoiceEngine note discovery", () => {
 		);
 	});
 
+	it("honors foldered unresolved-link targets as vault-relative paths", async () => {
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({
+			kind: "create",
+			title: "Projects/Missing Roadmap",
+			vaultRelativePath: "Projects/Missing Roadmap",
+		});
+		const { engine, choiceExecutor, created } = buildEngine(
+			choice({
+				folder: {
+					enabled: true,
+					folders: ["Inbox"],
+					chooseWhenCreatingNote: false,
+					createInSameFolderAsActiveFile: false,
+					chooseFromSubfolders: false,
+				},
+			}),
+		);
+		formatFileNameMock.mockImplementation(async () => {
+			expect(choiceExecutor.variables.get("value")).toBe(
+				"Projects/Missing Roadmap",
+			);
+			return "Projects/Missing Roadmap";
+		});
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						path: string,
+						template: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(created);
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Projects/Missing Roadmap.md",
+			"Templates/Project.md",
+		);
+		expect(formatFileNameMock).not.toHaveBeenCalled();
+		expect(choiceExecutor.variables.has("value")).toBe(false);
+	});
+
 	it("skips discovery when VALUE was already supplied by CLI, URI, or preflight", async () => {
 		const { engine } = buildEngine(choice(), new Map([["value", "Seeded"]]));
 

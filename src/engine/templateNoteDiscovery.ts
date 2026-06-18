@@ -17,7 +17,7 @@ const EXISTING_PREFIX = "@quickadd-existing-note:";
 const UNRESOLVED_PREFIX = "@quickadd-unresolved-note:";
 
 export type TemplateNoteDiscoveryResult =
-	| { kind: "create"; title: string }
+	| { kind: "create"; title: string; vaultRelativePath?: string }
 	| { kind: "openExisting"; file: TFile };
 
 type DiscoveryCandidate = {
@@ -54,6 +54,22 @@ function decodeUnresolvedTitle(item: string): string {
 
 function normalizedKey(value: string): string {
 	return value.trim().replace(/\.md$/i, "").toLowerCase();
+}
+
+function normalizeVaultPath(value: string): string {
+	return value.trim().replace(/^\/+/, "");
+}
+
+function isLiteralMarkdownPath(path: string): boolean {
+	return path.trim().length > 0 && !path.includes("{{");
+}
+
+function templatePathExclusions(choice: ITemplateChoice): Set<string> {
+	if (!isLiteralMarkdownPath(choice.templatePath)) return new Set();
+
+	const normalized = normalizeVaultPath(choice.templatePath);
+	const markdownPath = /\.md$/i.test(normalized) ? normalized : `${normalized}.md`;
+	return new Set([markdownPath.toLowerCase()]);
 }
 
 function addPathKeys(keys: Set<string>, path: string, basename: string): void {
@@ -118,11 +134,12 @@ function collectUnresolvedTargets(app: App): string[] {
 	return [...targets.values()].sort((a, b) => a.localeCompare(b));
 }
 
-function buildDiscoveryCandidates(app: App): {
+function buildDiscoveryCandidates(app: App, choice: ITemplateChoice): {
 	candidates: DiscoveryCandidate[];
 	existingKeys: Set<string>;
 } {
 	const existingKeys = new Set<string>();
+	const excludedPaths = templatePathExclusions(choice);
 	const markdownFiles = orderFilesForPicker(
 		app.vault.getMarkdownFiles(),
 		buildPickerOrderingDeps(app),
@@ -130,6 +147,9 @@ function buildDiscoveryCandidates(app: App): {
 
 	const candidates: DiscoveryCandidate[] = [];
 	for (const file of markdownFiles) {
+		if (excludedPaths.has(normalizeVaultPath(file.path).toLowerCase())) {
+			continue;
+		}
 		addPathKeys(existingKeys, file.path, file.basename);
 		const aliases = readAliases(app, file);
 		const searchable = [file.basename, file.path, ...aliases].join(" ");
@@ -177,7 +197,7 @@ export async function promptForTemplateNoteDiscovery(
 	app: App,
 	choice: ITemplateChoice,
 ): Promise<TemplateNoteDiscoveryResult> {
-	const { candidates, existingKeys } = buildDiscoveryCandidates(app);
+	const { candidates, existingKeys } = buildDiscoveryCandidates(app, choice);
 	const candidateByItem = new Map(
 		candidates.map((candidate) => [candidate.item, candidate]),
 	);
@@ -225,15 +245,24 @@ export async function promptForTemplateNoteDiscovery(
 			if (file instanceof TFile) {
 				return { kind: "openExisting", file };
 			}
+			throw new Error("Selected note no longer exists. Please run QuickAdd again.");
 		}
 
-		const title = isUnresolvedItem(selected)
-			? decodeUnresolvedTitle(selected)
-			: selected;
+		if (isUnresolvedItem(selected)) {
+			const title = normalizeGeneratedFilePath(
+				decodeUnresolvedTitle(selected),
+				"Note title",
+			);
+			return {
+				kind: "create",
+				title,
+				...(title.includes("/") ? { vaultRelativePath: title } : {}),
+			};
+		}
 
 		return {
 			kind: "create",
-			title: normalizeGeneratedFilePath(title, "Note title"),
+			title: normalizeGeneratedFilePath(selected, "Note title"),
 		};
 	} catch (error) {
 		if (isCancellationError(error)) {
@@ -247,4 +276,5 @@ export const testExports = {
 	buildDiscoveryCandidates,
 	collectUnresolvedTargets,
 	normalizeUnresolvedTarget,
+	templatePathExclusions,
 };

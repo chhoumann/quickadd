@@ -139,7 +139,7 @@ describe("template note discovery", () => {
 
 	it("builds existing-note and unresolved-link candidates for the picker", () => {
 		const alice = file("Existing/Alice.md");
-		const built = testExports.buildDiscoveryCandidates(app([alice]));
+		const built = testExports.buildDiscoveryCandidates(app([alice]), choice());
 
 		expect(built.candidates.map((candidate) => candidate.display)).toContain(
 			"Alice Existing/Alice.md A. Example",
@@ -149,6 +149,22 @@ describe("template note discovery", () => {
 		);
 		expect(built.candidates.map((candidate) => candidate.unresolvedTitle)).not.toContain(
 			"Existing/Alice",
+		);
+	});
+
+	it("excludes the selected literal template file from existing-note candidates", () => {
+		const template = file("Templates/Project.md");
+		const alice = file("Existing/Alice.md");
+		const built = testExports.buildDiscoveryCandidates(
+			app([template, alice]),
+			choice({ templatePath: "Templates/Project.md" }),
+		);
+
+		expect(built.candidates.map((candidate) => candidate.renderPath)).toContain(
+			"Existing/Alice.md",
+		);
+		expect(built.candidates.map((candidate) => candidate.renderPath)).not.toContain(
+			"Templates/Project.md",
 		);
 	});
 
@@ -170,6 +186,33 @@ describe("template note discovery", () => {
 		const result = await promptForTemplateNoteDiscovery(app([alice]), choice());
 
 		expect(result).toEqual({ kind: "create", title: "Missing Project" });
+	});
+
+	it("tags foldered unresolved-link rows with a vault-relative target path", async () => {
+		const alice = file("People/Alice.md");
+		inputSuggestMock.mockImplementation(async (_app, _display, items) =>
+			items.find((item: string) => item.includes("Projects/Missing Roadmap")),
+		);
+
+		const result = await promptForTemplateNoteDiscovery(app([alice]), choice());
+
+		expect(result).toEqual({
+			kind: "create",
+			title: "Projects/Missing Roadmap",
+			vaultRelativePath: "Projects/Missing Roadmap",
+		});
+	});
+
+	it("aborts instead of creating a sentinel-named note when a selected existing row is stale", async () => {
+		const alice = file("People/Alice.md");
+		const staleApp = app([alice]);
+		(staleApp.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>)
+			.mockReturnValueOnce(null);
+		inputSuggestMock.mockImplementation(async (_app, _display, items) => items[0]);
+
+		await expect(
+			promptForTemplateNoteDiscovery(staleApp, choice()),
+		).rejects.toThrow("Selected note no longer exists");
 	});
 
 	it("suppresses the generic create row for exact existing or unresolved names", async () => {

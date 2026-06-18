@@ -37,6 +37,7 @@ import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { parentFolderPath } from "../utils/pathUtils";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -56,6 +57,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 	public async run(): Promise<void> {
 		let restoreDiscoveryValue: (() => void) | null = null;
+		let discoveryVaultRelativePath: string | null = null;
 
 		try {
 			invariant(this.choice.templatePath, () => {
@@ -97,6 +99,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 
 				restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
+				discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
 			}
 
 			// Resolve format tokens in the template path ONCE, after discovery has
@@ -108,7 +111,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			let folderPath = "";
 
-			if (this.choice.folder.enabled) {
+			if (discoveryVaultRelativePath) {
+				folderPath = parentFolderPath(discoveryVaultRelativePath);
+			} else if (this.choice.folder.enabled) {
 				folderPath = await this.getFolderPath();
 			} else {
 				// Respect Obsidian's "Default location for new notes" setting
@@ -121,15 +126,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// Make the resolved folder available to {{FOLDER}} in the file name.
 			this.formatter.setTargetFolderPath(folderPath);
 
-			const formattedName = await this.formatter.formatFileName(
-				format,
-				this.choice.name,
-			);
+			const formattedName = discoveryVaultRelativePath
+				? discoveryVaultRelativePath
+				: await this.formatter.formatFileName(format, this.choice.name);
 			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
-			const { fileName, strippedPrefix } = this.stripDuplicateFolderPrefix(
-				routedName,
-				folderPath,
-			);
+			const { fileName, strippedPrefix } = discoveryVaultRelativePath
+				? { fileName: routedName, strippedPrefix: false }
+				: this.stripDuplicateFolderPrefix(
+					routedName,
+					folderPath,
+				);
 			const treatAsVaultRelativePath =
 				this.shouldTreatFormattedNameAsVaultRelativePath(
 					routedName,
@@ -138,7 +144,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 
 			const targetFilePath = this.normalizeTemplateFilePath(
-				treatAsVaultRelativePath ? "" : folderPath,
+				discoveryVaultRelativePath || treatAsVaultRelativePath ? "" : folderPath,
 				fileName,
 				templatePath,
 			);
