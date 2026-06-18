@@ -36,42 +36,46 @@ describe("LinkPlacement", () => {
 				enabled: true,
 				placement: "afterSelection",
 				requireActiveFile: false,
-			};
-			expect(normalizeAppendLinkOptions(options)).toEqual({
-				...options,
-				linkType: "link",
+				};
+				expect(normalizeAppendLinkOptions(options)).toEqual({
+					...options,
+					linkType: "link",
+					destination: { type: "activeFile" },
+				});
 			});
-		});
 
 		it("should convert true to enabled with default placement", () => {
 			const result = normalizeAppendLinkOptions(true);
 			expect(result).toEqual({
 				enabled: true,
-				placement: "replaceSelection",
-				requireActiveFile: true,
-				linkType: "link",
+					placement: "replaceSelection",
+					requireActiveFile: true,
+					linkType: "link",
+					destination: { type: "activeFile" },
+				});
 			});
-		});
 
 		it("should convert false to disabled with default placement", () => {
 			const result = normalizeAppendLinkOptions(false);
 			expect(result).toEqual({
 				enabled: false,
-				placement: "replaceSelection",
-				requireActiveFile: false,
-				linkType: "link",
+					placement: "replaceSelection",
+					requireActiveFile: false,
+					linkType: "link",
+					destination: { type: "activeFile" },
+				});
 			});
-		});
 
 		it("should keep embed linkType when placement supports embeds", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
 				placement: "replaceSelection",
-				requireActiveFile: true,
-				linkType: "embed",
-			};
-			expect(normalizeAppendLinkOptions(options)).toEqual(options);
-		});
+					requireActiveFile: true,
+					linkType: "embed",
+					destination: { type: "activeFile" },
+				};
+				expect(normalizeAppendLinkOptions(options)).toEqual(options);
+			});
 
 		it("should sanitize embed linkType when placement does not support embeds", () => {
 			const options: AppendLinkOptions = {
@@ -80,20 +84,49 @@ describe("LinkPlacement", () => {
 				requireActiveFile: true,
 				linkType: "embed",
 			};
-			expect(normalizeAppendLinkOptions(options)).toEqual({
-				...options,
-				linkType: "link",
+				expect(normalizeAppendLinkOptions(options)).toEqual({
+					...options,
+					linkType: "link",
+					destination: { type: "activeFile" },
+				});
 			});
-		});
 
 		it("should default linkType to link when omitted", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
 				placement: "newLine",
 				requireActiveFile: true,
-			};
-			expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
-		});
+				};
+				expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
+			});
+
+			it("preserves and trims a specified file destination", () => {
+				const options: AppendLinkOptions = {
+					enabled: true,
+					placement: "newLine",
+					requireActiveFile: false,
+					destination: { type: "specifiedFile", path: "  Indexes/MOC.md  " },
+				};
+				expect(normalizeAppendLinkOptions(options)).toEqual({
+					...options,
+					linkType: "link",
+					destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
+				});
+			});
+
+			it("sanitizes embeds for specified file destinations", () => {
+				const options: AppendLinkOptions = {
+					enabled: true,
+					placement: "replaceSelection",
+					requireActiveFile: true,
+					linkType: "embed",
+					destination: { type: "specifiedFile", path: "Index.md" },
+				};
+				expect(normalizeAppendLinkOptions(options)).toEqual({
+					...options,
+					linkType: "link",
+				});
+			});
 	});
 
 	describe("isAppendLinkEnabled", () => {

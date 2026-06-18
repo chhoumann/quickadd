@@ -26,7 +26,10 @@ import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/linkPlacement";
+import {
+	normalizeAppendLinkOptions,
+	type AppendLinkOptions,
+} from "../types/linkPlacement";
 import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
@@ -51,6 +54,10 @@ import { parsePropertyTarget } from "../utils/propertyTarget";
 import { parseCaptureFileFilterTarget } from "../utils/captureFileFilterTarget";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import {
+	appendFileLinkToDestinationFile,
+	getAppendLinkDestinationFile,
+} from "../utils/fileLinks";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
@@ -75,6 +82,8 @@ import {
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
+
+type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
 type CaptureWriteResult = {
 	file: TFile;
@@ -207,16 +216,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	): boolean {
 		return (
 			isCanvasTriggered &&
+			linkOptions.destination?.type !== "specifiedFile" &&
 			linkOptions.requireActiveFile &&
 			!this.hasActiveMarkdownCaptureContext()
 		);
 	}
 
-	private insertCaptureLink(
+	private async insertCaptureLink(
 		file: TFile,
 		linkOptions: AppendLinkOptions,
 		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
-	): void {
+	): Promise<void> {
 		if (!linkOptions.enabled) {
 			return;
 		}
@@ -233,7 +243,33 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		if (linkOptions.destination?.type === "specifiedFile") {
+			await appendFileLinkToDestinationFile(this.app, file, linkOptions);
+			return;
+		}
+
 		insertFileLinkToActiveView(this.app, file, linkOptions);
+	}
+
+	private validateAppendLinkDestination(
+		linkOptions: NormalizedAppendLinkOptions,
+	): boolean {
+		if (
+			!linkOptions.enabled ||
+			linkOptions.destination.type !== "specifiedFile"
+		) {
+			return true;
+		}
+
+		if (getAppendLinkDestinationFile(this.app, linkOptions.destination)) {
+			return true;
+		}
+
+		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+		log.logError(
+			`Append link target file not found or is not a Markdown file: ${linkOptions.destination.path}`,
+		);
+		return false;
 	}
 
 	async run(): Promise<void> {
@@ -247,6 +283,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					? "optional"
 					: "required",
 			);
+			if (!this.validateAppendLinkDestination(linkOptions)) return;
 			const selectionOverride = this.choice.useSelectionAsCaptureValue;
 			const globalSelectionAsValue =
 				this.plugin.settings.useSelectionAsCaptureValue ?? true;
@@ -457,7 +494,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
-			this.insertCaptureLink(file, linkOptions, {
+			await this.insertCaptureLink(file, linkOptions, {
 				isCanvasTriggered: !!canvasTarget,
 			});
 
@@ -594,7 +631,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 		}
 
-		this.insertCaptureLink(file, linkOptions, {
+		await this.insertCaptureLink(file, linkOptions, {
 			isCanvasTriggered: true,
 		});
 

@@ -126,7 +126,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 <WritePositionSetting bind:choice {app} {plugin} />
 
 <SettingItem name="Linking" heading />
-<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" />
+<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
 
 <SettingItem name="Content" heading />
 <SettingItem name="Task" desc="Formats the value as a task.">

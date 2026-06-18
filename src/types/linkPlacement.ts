@@ -9,6 +9,10 @@ export type LinkPlacement =
 
 export type LinkType = "link" | "embed";
 
+export type AppendLinkDestination =
+	| { type: "activeFile" }
+	| { type: "specifiedFile"; path: string };
+
 export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 	return placement === "replaceSelection";
 }
@@ -16,10 +20,26 @@ export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 function sanitizeLinkType(
 	linkType: LinkType | undefined,
 	placement: LinkPlacement,
+	destination: AppendLinkDestination,
 ): LinkType {
-	return linkType === "embed" && placementSupportsEmbed(placement)
+	return linkType === "embed" &&
+		destination.type === "activeFile" &&
+		placementSupportsEmbed(placement)
 		? "embed"
 		: "link";
+}
+
+function normalizeAppendLinkDestination(
+	destination: AppendLinkDestination | undefined,
+): AppendLinkDestination {
+	if (destination?.type === "specifiedFile") {
+		return {
+			type: "specifiedFile",
+			path: typeof destination.path === "string" ? destination.path.trim() : "",
+		};
+	}
+
+	return { type: "activeFile" };
 }
 
 /**
@@ -41,6 +61,11 @@ export interface AppendLinkOptions {
 	 * Defaults to "link" for legacy settings.
 	 */
 	linkType?: LinkType;
+	/**
+	 * Where the generated link should be written. Omitted legacy settings target
+	 * the active Markdown editor.
+	 */
+	destination?: AppendLinkDestination;
 }
 
 /**
@@ -64,15 +89,17 @@ export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): ap
  * @param appendLink - Legacy boolean or new options format
  * @returns Normalized AppendLinkOptions
  */
-export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions & { linkType: LinkType } {
+export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions & { linkType: LinkType; destination: AppendLinkDestination } {
 	if (isAppendLinkOptions(appendLink)) {
 		const placement = appendLink.placement ?? "replaceSelection";
+		const destination = normalizeAppendLinkDestination(appendLink.destination);
 
 		return {
 			enabled: appendLink.enabled,
 			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
-			linkType: sanitizeLinkType(appendLink.linkType, placement),
+			linkType: sanitizeLinkType(appendLink.linkType, placement, destination),
+			destination,
 		};
 	}
 
@@ -82,6 +109,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 		placement: "replaceSelection", // Default placement for backward compatibility
 		requireActiveFile: appendLink ? true : false,
 		linkType: "link",
+		destination: { type: "activeFile" },
 	};
 }
 

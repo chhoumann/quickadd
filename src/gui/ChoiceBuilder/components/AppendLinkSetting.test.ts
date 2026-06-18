@@ -29,6 +29,7 @@ describe("AppendLinkSetting", () => {
 		});
 		expect(settingNames(container)).toEqual([
 			"Link to captured file",
+			"Link destination",
 			"Link placement",
 			"Link type",
 		]);
@@ -46,8 +47,29 @@ describe("AppendLinkSetting", () => {
 		});
 		expect(settingNames(container)).toEqual([
 			"Link to captured file",
+			"Link destination",
 			"Link placement",
 		]);
+		expect(settingNames(container)).not.toContain("Link type");
+	});
+
+	it("shows a destination file input instead of placement controls for specified-note links", () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "replaceSelection",
+			requireActiveFile: false,
+			linkType: "embed",
+			destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+		expect(settingNames(container)).toEqual([
+			"Link to created file",
+			"Link destination",
+			"Destination file",
+		]);
+		expect(settingNames(container)).not.toContain("Link placement");
 		expect(settingNames(container)).not.toContain("Link type");
 	});
 });

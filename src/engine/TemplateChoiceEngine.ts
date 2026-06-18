@@ -32,12 +32,18 @@ import {
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
-import { copyFileLinkToClipboard } from "../utils/fileLinks";
+import {
+	appendFileLinkToDestinationFile,
+	copyFileLinkToClipboard,
+	getAppendLinkDestinationFile,
+} from "../utils/fileLinks";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
+
+type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -73,6 +79,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					? "optional"
 					: "required",
 			);
+			if (!this.validateAppendLinkDestination(linkOptions)) return;
 
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
@@ -204,7 +211,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			});
 
 			if (linkOptions.enabled && createdFile) {
-				insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				if (linkOptions.destination.type === "specifiedFile") {
+					await appendFileLinkToDestinationFile(
+						this.app,
+						createdFile,
+						linkOptions,
+					);
+				} else {
+					insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+				}
 			}
 
 			if (this.choice.copyLinkToClipboard && createdFile) {
@@ -269,6 +284,27 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			variables.delete("value");
 		};
+	}
+
+	private validateAppendLinkDestination(
+		linkOptions: NormalizedAppendLinkOptions,
+	): boolean {
+		if (
+			!linkOptions.enabled ||
+			linkOptions.destination.type !== "specifiedFile"
+		) {
+			return true;
+		}
+
+		if (getAppendLinkDestinationFile(this.app, linkOptions.destination)) {
+			return true;
+		}
+
+		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+		log.logError(
+			`Append link target file not found or is not a Markdown file: ${linkOptions.destination.path}`,
+		);
+		return false;
 	}
 
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {
