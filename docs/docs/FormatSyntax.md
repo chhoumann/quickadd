@@ -351,6 +351,8 @@ Include templates in your `format`. Supports Templater syntax.
 
 Example: `{{TEMPLATE:Templates/Meeting.md}}`.
 
+In Capture choices, this can be the entire capture format. Put the full capture body in a template file, then set the Capture format to `{{TEMPLATE:Templates/Capture Format.md}}`. QuickAdd inserts the file contents and then runs the usual capture formatting passes on the result.
+
 ## `{{GLOBAL_VAR:<name>}}` {#global-var}
 
 Inserts the value of a globally defined snippet from QuickAdd settings. Snippet values can include other QuickAdd tokens (e.g., `{{VALUE:...}}`, `{{VDATE:...}}`) and are processed by the usual formatter passes. The `GLOBAL_VAR` keyword itself is case‑insensitive, but the snippet name must match the name you defined (it is case‑sensitive).

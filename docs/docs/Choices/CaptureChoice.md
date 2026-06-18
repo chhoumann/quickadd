@@ -433,6 +433,16 @@ If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will inse
 
 You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
 
+If the capture format is long, put the full format in a template file and use a `{{TEMPLATE:...}}` token as the capture format:
+
+```text
+{{TEMPLATE:Templates/Capture Format.md}}
+```
+
+QuickAdd replaces the token with the template file contents, then processes the result through the normal capture formatter. The referenced file can contain the same format syntax you would otherwise type inline, such as `{{VALUE}}`, `{{DATE}}`, `{{MACRO:...}}`, inline scripts, and additional `{{TEMPLATE:...}}` includes. Include the file extension in the token; template includes support `.md`, `.canvas`, and `.base` files.
+
+This is useful when you want to edit, version, or reuse a complete capture format as a normal note. You can also use `{{TEMPLATE:Templates/Partial.md}}` inside a larger inline capture format when only part of the format should come from a file.
+
 If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](/Examples/Capture_InsertBaseTemplateIntoActiveFile.md).
 If you want QuickAdd to create a brand new note that already contains an
 embedded Base, use a Template choice instead. See
