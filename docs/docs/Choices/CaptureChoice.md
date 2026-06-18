@@ -169,6 +169,12 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
 
+    If the cursor is in an editable Obsidian Properties field when the Capture
+    choice starts, QuickAdd appends the link to that property instead of using
+    the stale editor cursor behind the Properties panel. Text properties receive
+    the link at the end of the value, and list properties receive a new list
+    item.
+
     When placement is **Replace selection**, an extra _Link type_ dropdown appears, letting you choose **Link** or **Embed**. Embed is only respected for the Replace selection placement.
 
     For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file after each successful capture. It does not create the index file, insert under a heading, update properties, or remove duplicate links.

@@ -72,6 +72,11 @@ For the **Current note** destination, **Link placement** lets you choose where t
 - **End of line** - Places the link at the end of the current line
 - **New line** - Places the link on a new line below the cursor
 
+If the cursor is in an editable Obsidian Properties field when the Template
+choice starts, QuickAdd appends the link to that property instead of using the
+stale editor cursor behind the Properties panel. Text properties receive the link
+at the end of the value, and list properties receive a new list item.
+
 **Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
 
 For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
