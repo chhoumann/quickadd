@@ -221,8 +221,11 @@ describe("TemplateChoiceEngine note discovery", () => {
 			kind: "create",
 			title: "Brand New Project",
 		});
-		formatFileNameMock.mockResolvedValue("Brand New Project");
 		const { engine, choiceExecutor, created } = buildEngine();
+		formatFileNameMock.mockImplementation(async () => {
+			expect(choiceExecutor.variables.get("value")).toBe("Brand New Project");
+			return "Brand New Project";
+		});
 		const createSpy = vi
 			.spyOn(
 				engine as unknown as {
@@ -237,7 +240,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 
 		await engine.run();
 
-		expect(choiceExecutor.variables.get("value")).toBe("Brand New Project");
+		expect(choiceExecutor.variables.has("value")).toBe(false);
 		expect(formatFileNameMock).toHaveBeenCalledWith("{{value}}", "Project note");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Brand New Project.md",

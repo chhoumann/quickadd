@@ -4,6 +4,7 @@ import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { VALUE_SYNTAX } from "src/constants";
 import { OnePageInputModal } from "./OnePageInputModal";
 import {
 	canonicalizeOnePageFileValue,
@@ -14,6 +15,20 @@ import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
 } from "./collectChoiceRequirements";
+import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
+
+function shouldPromptAtRuntimeForDiscovery(
+	choice: IChoice,
+	requirementId: string,
+): boolean {
+	if (choice.type !== "Template" || requirementId !== "value") return false;
+
+	const templateChoice = choice as ITemplateChoice;
+	const format = templateChoice.fileNameFormat?.enabled
+		? templateChoice.fileNameFormat.format
+		: VALUE_SYNTAX;
+	return shouldLeaveTemplateTitleForDiscovery(templateChoice, format);
+}
 
 export async function runOnePagePreflight(
 	app: App,
@@ -40,7 +55,9 @@ export async function runOnePagePreflight(
 		if (unresolved.length === 0) return false; // Everything prefilled, skip modal
 
 		const modalRequirements = unresolved.filter(
-			(requirement) => !requirement.runtimeOnly,
+			(requirement) =>
+				!requirement.runtimeOnly &&
+				!shouldPromptAtRuntimeForDiscovery(choice, requirement.id),
 		);
 		if (modalRequirements.length === 0) return false;
 

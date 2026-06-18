@@ -55,6 +55,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	public async run(): Promise<void> {
+		let restoreDiscoveryValue: (() => void) | null = null;
+
 		try {
 			invariant(this.choice.templatePath, () => {
 				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
@@ -94,7 +96,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					return;
 				}
 
-				this.choiceExecutor.variables.set("value", discovery.title);
+				restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
 			}
 
 			// Resolve format tokens in the template path ONCE, after discovery has
@@ -242,7 +244,25 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running template choice "${this.choice.name}"`);
+		} finally {
+			restoreDiscoveryValue?.();
 		}
+	}
+
+	private setTemporaryValueVariable(value: string): () => void {
+		const variables = this.choiceExecutor.variables;
+		const hadPreviousValue = variables.has("value");
+		const previousValue = variables.get("value");
+
+		variables.set("value", value);
+
+		return () => {
+			if (hadPreviousValue) {
+				variables.set("value", previousValue);
+				return;
+			}
+			variables.delete("value");
+		};
 	}
 
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {

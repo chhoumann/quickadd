@@ -7,7 +7,11 @@ import { isCancellationError } from "src/utils/errorUtils";
 import { UserCancelError } from "src/errors/UserCancelError";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import { NAME_SYNTAX, VALUE_SYNTAX } from "src/constants";
+
+export {
+	shouldRunTemplateNoteDiscovery,
+	usesDefaultTemplateTitlePrompt,
+} from "src/utils/templateNoteDiscoveryEligibility";
 
 const EXISTING_PREFIX = "@quickadd-existing-note:";
 const UNRESOLVED_PREFIX = "@quickadd-unresolved-note:";
@@ -167,28 +171,6 @@ function renderExistingSuggestion(
 
 	const content = el.querySelector(".suggestion-content");
 	content?.createDiv({ cls: "suggestion-note", text: `Alias: ${alias}` });
-}
-
-export function usesDefaultTemplateTitlePrompt(
-	choice: ITemplateChoice,
-	format: string,
-): boolean {
-	if (!choice.fileNameFormat?.enabled) return true;
-	const normalized = format.trim().toLowerCase();
-	return (
-		normalized === VALUE_SYNTAX.toLowerCase() ||
-		normalized === NAME_SYNTAX.toLowerCase()
-	);
-}
-
-export function shouldRunTemplateNoteDiscovery(
-	choice: ITemplateChoice,
-	format: string,
-	seededValue: unknown,
-): boolean {
-	if (!choice.discoverExistingNotesBeforeCreate) return false;
-	if (seededValue !== undefined && seededValue !== null) return false;
-	return usesDefaultTemplateTitlePrompt(choice, format);
 }
 
 export async function promptForTemplateNoteDiscovery(
