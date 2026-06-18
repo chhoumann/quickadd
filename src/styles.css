@@ -156,6 +156,24 @@
 	width: 5.5rem;
 }
 
+@media screen and (max-width: 540px) {
+	.quickAddModal .qa-onepage-slider-setting {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0.5rem;
+	}
+
+	.quickAddModal .qa-onepage-slider-setting .setting-item-info,
+	.quickAddModal .qa-onepage-slider-setting .setting-item-control {
+		width: 100%;
+		margin-inline-end: 0;
+	}
+
+	.quickAddModal .qa-onepage-slider {
+		grid-template-columns: minmax(0, 1fr) 5.5rem;
+	}
+}
+
 .quickAddModal .qa-onepage-optional-badge {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);

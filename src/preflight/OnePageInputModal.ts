@@ -188,6 +188,9 @@ export class OnePageInputModal extends Modal {
 				const setting = new Setting(this.contentEl).setName(
 					this.decorateLabel(req),
 				);
+				setting.controlEl.parentElement?.addClass(
+					"qa-onepage-slider-setting",
+				);
 				if (req.description) setting.setDesc(req.description);
 				const sliderConfig = req.sliderConfig ?? { min: 0, max: 100, step: 1 };
 				const isOptionalBlank = req.optional && starting === "";
