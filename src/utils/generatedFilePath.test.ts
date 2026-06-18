@@ -44,8 +44,21 @@ describe("normalizeGeneratedFilePath", () => {
 		);
 	});
 
+	it("preserves leading and trailing folder separators", () => {
+		expect(normalizeGeneratedFilePath("/Projects/Issue 221")).toBe(
+			"/Projects/Issue 221",
+		);
+		expect(normalizeGeneratedFilePath("journals/")).toBe("journals/");
+	});
+
 	it("rejects segments that become empty after formatting", () => {
 		expect(() => normalizeGeneratedFilePath("Folder/\n/Note")).toThrow(
+			"File path contains an empty path segment after formatting.",
+		);
+	});
+
+	it("rejects direct empty path segments", () => {
+		expect(() => normalizeGeneratedFilePath("Folder//Note")).toThrow(
 			"File path contains an empty path segment after formatting.",
 		);
 	});

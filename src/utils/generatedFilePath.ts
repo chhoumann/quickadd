@@ -16,9 +16,21 @@ export function normalizeGeneratedFilePath(
 	path: string,
 	label = "File path",
 ): string {
-	return path
-		.split("/")
-		.map((segment) => normalizeGeneratedFilePathSegment(segment, label))
+	const segments = path.split("/");
+	return segments
+		.map((segment, index) => {
+			if (
+				segment.length === 0
+				&& index !== 0
+				&& index !== segments.length - 1
+			) {
+				throw new Error(
+					`${label} contains an empty path segment after formatting.`,
+				);
+			}
+
+			return normalizeGeneratedFilePathSegment(segment, label);
+		})
 		.join("/");
 }
 
