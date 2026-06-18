@@ -284,4 +284,90 @@ describe("runOnePagePreflight template extension handling", () => {
 		expect(modalOpenMock).not.toHaveBeenCalled();
 		expect(executor.variables.has("FIELD:topic|multi")).toBe(false);
 	});
+
+	it("leaves the default Template note title for discovery instead of the one-page modal", async () => {
+		const templateFile = new TFile();
+		templateFile.path = "Templates/Daily.md";
+		templateFile.name = "Daily.md";
+		templateFile.basename = "Daily";
+		templateFile.extension = "md";
+
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+			},
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) =>
+					path === "Templates/Daily.md" ? templateFile : null,
+				),
+				cachedRead: vi.fn(async () => ""),
+			},
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+
+		const choice = createTemplateChoice("Templates/Daily.md");
+		choice.discoverExistingNotesBeforeCreate = true;
+		choice.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
+
+		const executor = createExecutor();
+
+		const result = await runOnePagePreflight(app, plugin, executor, choice);
+
+		expect(result).toBe(false);
+		expect(modalOpenMock).not.toHaveBeenCalled();
+		expect(executor.variables.has("value")).toBe(false);
+	});
+
+	it("still collects other Template prompts while leaving the note title for discovery", async () => {
+		const templateFile = new TFile();
+		templateFile.path = "Templates/Project.md";
+		templateFile.name = "Project.md";
+		templateFile.basename = "Project";
+		templateFile.extension = "md";
+
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+			},
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) =>
+					path === "Templates/Project.md" ? templateFile : null,
+				),
+				cachedRead: vi.fn(async () => "Project: {{VALUE:project}}"),
+			},
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+
+		const choice = createTemplateChoice("Templates/Project.md");
+		choice.discoverExistingNotesBeforeCreate = true;
+		choice.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
+
+		const executor = createExecutor();
+		modalResult = { project: "Atlas" };
+
+		const result = await runOnePagePreflight(app, plugin, executor, choice);
+
+		expect(result).toBe(true);
+		expect(executor.variables.has("value")).toBe(false);
+		expect(executor.variables.get("project")).toBe("Atlas");
+		expect(modalOpenMock).toHaveBeenCalledTimes(1);
+		const requirements = modalOpenMock.mock.calls[0][1] as Array<{ id: string }>;
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			"project",
+		]);
+	});
 });

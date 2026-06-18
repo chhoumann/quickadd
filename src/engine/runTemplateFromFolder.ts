@@ -40,6 +40,7 @@ export function createFolderTemplateChoice(templatePath: string): ITemplateChoic
 	// Creating a brand-new note from a template — land in it, like the user expects.
 	choice.openFile = true;
 	choice.fileNameFormat = { enabled: true, format: VALUE_SYNTAX };
+	choice.discoverExistingNotesBeforeCreate = true;
 	return choice;
 }
 

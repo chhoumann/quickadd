@@ -9,6 +9,7 @@ import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean | AppendLinkOptions;
 	copyLinkToClipboard: boolean;
+	discoverExistingNotesBeforeCreate: boolean;
 	fileNameFormat: { enabled: boolean; format: string };
 	folder: TemplateFolderConfig;
 	openFile: boolean;
@@ -26,6 +27,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 
 		this.templatePath = "";
 		this.fileNameFormat = { enabled: false, format: "" };
+		this.discoverExistingNotesBeforeCreate = false;
 		this.folder = {
 			enabled: false,
 			folders: [],

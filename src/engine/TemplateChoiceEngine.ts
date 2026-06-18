@@ -12,6 +12,10 @@ import {
 	resolveCreateNewCollisionFilePath,
 	type FileExistsModeId,
 } from "../template/fileExistsPolicy";
+import {
+	promptForTemplateNoteDiscovery,
+	shouldRunTemplateNoteDiscovery,
+} from "./templateNoteDiscovery";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { normalizeAppendLinkOptions } from "../types/linkPlacement";
 import {
@@ -33,6 +37,7 @@ import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { parentFolderPath } from "../utils/pathUtils";
 
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
@@ -51,6 +56,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	public async run(): Promise<void> {
+		let restoreDiscoveryValue: (() => void) | null = null;
+		let discoveryVaultRelativePath: string | null = null;
+
 		try {
 			invariant(this.choice.templatePath, () => {
 				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
@@ -66,19 +74,46 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					: "required",
 			);
 
-			// Resolve format tokens in the template path ONCE, up front (issue
-			// #620). Doing it before folder/file-name resolution means a cancelled
-			// path prompt aborts the run before any folder is created, and the
-			// resolved path feeds BOTH the target extension/name (below) and the
-			// content read — so the file that's read and the file that's created
-			// can never disagree.
+			const format = this.choice.fileNameFormat.enabled
+				? this.choice.fileNameFormat.format
+				: VALUE_SYNTAX;
+
+			if (
+				shouldRunTemplateNoteDiscovery(
+					this.choice,
+					format,
+					this.choiceExecutor.variables.get("value"),
+				)
+			) {
+				const discovery = await promptForTemplateNoteDiscovery(
+					this.app,
+					this.choice,
+				);
+				if (discovery.kind === "openExisting") {
+					await this.openDiscoveredExistingNote(discovery.file);
+					this.choiceExecutor.recordExecutionResult?.({
+						status: "success",
+						file: discovery.file,
+					});
+					return;
+				}
+
+				restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
+				discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
+			}
+
+			// Resolve format tokens in the template path ONCE, after discovery has
+			// either selected "create" or been skipped. Existing-note discovery exits
+			// before any template-path prompt, folder creation, or template side effect.
 			const templatePath = await this.resolveTemplateSourcePath(
 				this.choice.templatePath,
 			);
 
 			let folderPath = "";
 
-			if (this.choice.folder.enabled) {
+			if (discoveryVaultRelativePath) {
+				folderPath = parentFolderPath(discoveryVaultRelativePath);
+			} else if (this.choice.folder.enabled) {
 				folderPath = await this.getFolderPath();
 			} else {
 				// Respect Obsidian's "Default location for new notes" setting
@@ -91,18 +126,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// Make the resolved folder available to {{FOLDER}} in the file name.
 			this.formatter.setTargetFolderPath(folderPath);
 
-			const format = this.choice.fileNameFormat.enabled
-				? this.choice.fileNameFormat.format
-				: VALUE_SYNTAX;
-			const formattedName = await this.formatter.formatFileName(
-				format,
-				this.choice.name,
-			);
+			const formattedName = discoveryVaultRelativePath
+				? discoveryVaultRelativePath
+				: await this.formatter.formatFileName(format, this.choice.name);
 			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
-			const { fileName, strippedPrefix } = this.stripDuplicateFolderPrefix(
-				routedName,
-				folderPath,
-			);
+			const { fileName, strippedPrefix } = discoveryVaultRelativePath
+				? { fileName: routedName, strippedPrefix: false }
+				: this.stripDuplicateFolderPrefix(
+					routedName,
+					folderPath,
+				);
 			const treatAsVaultRelativePath =
 				this.shouldTreatFormattedNameAsVaultRelativePath(
 					routedName,
@@ -111,7 +144,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 
 			const targetFilePath = this.normalizeTemplateFilePath(
-				treatAsVaultRelativePath ? "" : folderPath,
+				discoveryVaultRelativePath || treatAsVaultRelativePath ? "" : folderPath,
 				fileName,
 				templatePath,
 			);
@@ -217,7 +250,25 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
 			reportError(err, `Error running template choice "${this.choice.name}"`);
+		} finally {
+			restoreDiscoveryValue?.();
 		}
+	}
+
+	private setTemporaryValueVariable(value: string): () => void {
+		const variables = this.choiceExecutor.variables;
+		const hadPreviousValue = variables.has("value");
+		const previousValue = variables.get("value");
+
+		variables.set("value", value);
+
+		return () => {
+			if (hadPreviousValue) {
+				variables.set("value", previousValue);
+				return;
+			}
+			variables.delete("value");
+		};
 	}
 
 	private async getSelectedFileExistsMode(): Promise<FileExistsModeId> {
@@ -283,6 +334,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					createdFile: existingFile,
 					shouldAutoOpen: true,
 				};
+		}
+	}
+
+	private async openDiscoveredExistingNote(file: TFile): Promise<void> {
+		const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+		const openExistingTab = openExistingFileTab(this.app, file, true);
+
+		if (!openExistingTab) {
+			await openFile(this.app, file, {
+				...fileOpening,
+				focus: true,
+				originLeaf: this.originLeaf,
+			});
 		}
 	}
 

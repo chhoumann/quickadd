@@ -27,6 +27,7 @@ function templateChoice(): ITemplateChoice {
 			chooseFromSubfolders: false,
 		},
 		fileNameFormat: { enabled: false, format: "" },
+		discoverExistingNotesBeforeCreate: false,
 		appendLink: false,
 		openFile: false,
 		fileOpening: {
@@ -114,6 +115,47 @@ describe("TemplateChoiceForm", () => {
 			"active-file",
 			"prompt",
 		]);
+	});
+
+	it("persists the discovery-before-create toggle", async () => {
+		const { container, props } = mountForm();
+		const toggle = settingItem(
+			container,
+			"Search existing notes before creating",
+		).querySelector<HTMLInputElement>('input[type="checkbox"]');
+
+		expect(toggle).not.toBeNull();
+		expect(props.choice.discoverExistingNotesBeforeCreate).toBe(false);
+
+		await fireEvent.click(toggle!);
+
+		expect(props.choice.discoverExistingNotesBeforeCreate).toBe(true);
+	});
+
+	it("disables discovery when file name format is not the default title prompt", async () => {
+		const { container, props } = mountForm();
+		props.choice.fileNameFormat = {
+			enabled: true,
+			format: "Project {{VALUE}}",
+		};
+		flushSync();
+
+		const item = settingItem(container, "Search existing notes before creating");
+		const toggle = item.querySelector<HTMLElement>(".checkbox-container");
+
+		expect(toggle?.classList.contains("is-disabled")).toBe(true);
+		expect(item.textContent).toContain(
+			"Only available when the file name prompt is the default note title",
+		);
+
+		await fireEvent.click(toggle!);
+
+		expect(props.choice.discoverExistingNotesBeforeCreate).toBe(false);
+
+		props.choice.fileNameFormat.format = "{{VALUE}}";
+		flushSync();
+
+		expect(toggle?.classList.contains("is-disabled")).toBe(false);
 	});
 
 	it("opens a legacy choice on its derived mode", () => {

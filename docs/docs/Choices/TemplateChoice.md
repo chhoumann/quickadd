@@ -8,6 +8,11 @@ The template choice type is not meant to be a replacement for [Templater](https:
 If you just want to spin up a note from a template in your [template folder](/Settings.md#templates--properties) without maintaining a Template choice per file, use the **New note from template** command. It lists the templates in your configured folder, prompts for the new note's name, and creates it in Obsidian's default location. When a template folder is configured, the same entry also appears in **Run QuickAdd** — at the bottom by default, or move it to the top / hide it under [Settings → Choice Picker](/Settings.md#choice-picker) — and it's scriptable via [`quickadd:run-template`](/Advanced/CLI.md#quickaddrun-template). Make a Template choice (below) when you need a fixed location, file-name format, linking, or a hotkey.
 :::
 
+**New note from template** uses a discovery-first title picker. As you type the
+new note name, QuickAdd shows matching existing notes and unresolved wikilink
+targets first. Choose an existing note to open it unchanged, or choose the
+**Create new note** row to create the note from the selected template.
+
 The Template choice builder groups its settings into four sections: **Template** (template path and file name format), **Location** (where the file is created), **Linking** (whether and how to link to the created file), and **Behavior** (what happens when the file already exists, and how the file is opened).
 
 ![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](/img/choices/template-builder.png)
@@ -33,6 +38,14 @@ Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}}
 If you disable **File Name Format**, QuickAdd uses `{{VALUE}}` as the file name format. This keeps the default behavior of prompting for a file name when you run the choice, with the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs.
 
 If a value used in the file name contains a line break or another control character, QuickAdd folds it to a space in the created path and strips trailing spaces or periods from that path segment. The original value is still available unchanged in the template body, so multi-line prompts can create readable note content without making the note hard to link.
+
+**Search existing notes before creating**. For Template choices that use the
+default note-title prompt, this opens the same discovery-first picker used by
+**New note from template**. Matching notes and unresolved wikilink targets appear
+while you type, so you can open an existing note instead of creating a duplicate.
+Selecting an existing note opens it unchanged and does not apply the template,
+append template content, insert links, or copy links. Selecting the explicit
+**Create new note** row continues with normal Template creation.
 
 **New note location**. A dropdown that controls where the note is created. Pick one of four modes:
 - **Obsidian default** – use Obsidian's "Default location for new notes" setting.

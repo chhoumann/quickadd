@@ -38,6 +38,8 @@ import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import { suggester } from "./components/suggesterAction";
+import { VALUE_SYNTAX } from "../../constants";
+import { usesDefaultTemplateTitlePrompt } from "../../utils/templateNoteDiscoveryEligibility";
 
 /**
  * Reactive replacement for TemplateChoiceBuilder.display(). Conditional rows are
@@ -82,6 +84,19 @@ const fileNameSuggesters = [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
 		new FormatSyntaxSuggester(app, el, plugin, true),
 ];
+const discoverySupported = $derived(
+	usesDefaultTemplateTitlePrompt(
+		choice,
+		choice.fileNameFormat.enabled
+			? choice.fileNameFormat.format
+			: VALUE_SYNTAX,
+	),
+);
+const discoveryDescription = $derived(
+	discoverySupported
+		? "For the default note-title prompt, show matching notes first. Choosing one opens it unchanged; choosing the create row continues with this template."
+		: "Only available when the file name prompt is the default note title: no custom format, {{VALUE}}, or {{NAME}}.",
+);
 
 // --- Folder selector -----------------------------------------------------
 // The four persisted folder booleans encode mutually-exclusive destination
@@ -266,6 +281,19 @@ function onModeChange(value: string) {
 </SettingItem>
 
 <SettingItem name="Behavior" heading />
+
+<SettingItem
+	name="Search existing notes before creating"
+	desc={discoveryDescription}
+>
+	{#snippet control()}
+		<Toggle
+			checked={choice.discoverExistingNotesBeforeCreate ?? false}
+			disabled={!discoverySupported}
+			onchange={(value) => (choice.discoverExistingNotesBeforeCreate = value)}
+		/>
+	{/snippet}
+</SettingItem>
 
 <SettingItem
 	name="If the target file already exists"
