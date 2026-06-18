@@ -95,7 +95,7 @@ describe("AppendLinkSetting", () => {
 			"Link destination",
 			"Link placement",
 			"Frontmatter property",
-			"Frontmatter appending behavior",
+			"Property handling",
 		]);
 		expect(
 			(
@@ -112,6 +112,27 @@ describe("AppendLinkSetting", () => {
 				.querySelector('input[aria-label="Frontmatter property"]')
 				?.getAttribute("aria-invalid"),
 		).toBe("false");
+	});
+
+	it("defaults frontmatter handling to create or convert", () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "inFrontmatter",
+			requireActiveFile: true,
+			linkType: "link",
+			frontmatterProperty: "related",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		const handlingSelect = Array.from(container.querySelectorAll("select")).at(
+			-1,
+		) as HTMLSelectElement;
+		expect(handlingSelect.value).toBe("alwaysAppend");
+		expect(
+			Array.from(handlingSelect.options).map((option) => option.textContent),
+		).toEqual(["Create or convert", "Create if missing", "Require list"]);
 	});
 
 	it("marks an empty frontmatter property as invalid", () => {
@@ -186,7 +207,7 @@ describe("AppendLinkSetting", () => {
 			"Link destination",
 			"Link placement",
 			"Frontmatter property",
-			"Frontmatter appending behavior",
+			"Property handling",
 		]);
 		expect(
 			(

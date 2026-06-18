@@ -10,6 +10,7 @@ import type {
 	LinkType,
 } from "../../../types/linkPlacement";
 import {
+	DEFAULT_FRONTMATTER_HANDLING,
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 	placementSupportsFrontmatter,
@@ -38,7 +39,7 @@ type AppendLinkDestinationMode = "activeFile" | "specifiedFile";
 const normalized = $derived(normalizeAppendLinkOptions(appendLink));
 const normalizedLinkType = $derived(normalized.linkType ?? "link");
 const normalizedFrontmatterHandling = $derived(
-	normalized.frontmatterHandling ?? "error",
+	normalized.frontmatterHandling ?? DEFAULT_FRONTMATTER_HANDLING,
 );
 const destinationPath = $derived(
 	normalized.destination.type === "specifiedFile"
@@ -78,9 +79,9 @@ const linkTypeOptions = [
 	{ value: "embed", label: "Embed" },
 ];
 const frontmatterHandlingOptions = [
-	{ value: "error", label: "Require existing list" },
-	{ value: "createProperty", label: "Create missing property" },
-	{ value: "alwaysAppend", label: "Create or convert to list" },
+	{ value: "alwaysAppend", label: "Create or convert" },
+	{ value: "createProperty", label: "Create if missing" },
+	{ value: "error", label: "Require list" },
 ];
 
 function nextOptions(overrides: Partial<AppendLinkOptions>): AppendLinkOptions {
@@ -249,8 +250,8 @@ function validateDestinationFile(raw: string) {
 			</SettingItem>
 
 			<SettingItem
-				name="Frontmatter appending behavior"
-				desc="Choose what QuickAdd should do when the property is missing or not a list."
+				name="Property handling"
+				desc="Choose how strict QuickAdd should be when the property is missing or not a list."
 			>
 				{#snippet control()}
 					<Dropdown

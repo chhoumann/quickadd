@@ -134,6 +134,40 @@ describe("insertFileLinkToActiveView", () => {
 		expect(editor.replaceRange).not.toHaveBeenCalled();
 	});
 
+	it("uses create-or-convert handling by default for frontmatter links", async () => {
+		const frontmatter: Record<string, unknown> = { related: "[[Existing]]" };
+		const activeFile = { path: "Folder/Host.md" } as TFile;
+		const createdFile = { path: "Folder/Created.md" } as TFile;
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn(() => ({
+					file: activeFile,
+					editor: {},
+				})),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Created]]"),
+				processFrontMatter: vi.fn(
+					async (
+						_file: TFile,
+						update: (fm: Record<string, unknown>) => void,
+					) => update(frontmatter),
+				),
+			},
+		} as unknown as App;
+
+		await expect(
+			insertFileLinkToActiveView(app, createdFile, {
+				enabled: true,
+				placement: "inFrontmatter",
+				requireActiveFile: true,
+				frontmatterProperty: "related",
+			}),
+		).resolves.toBe(true);
+
+		expect(frontmatter.related).toEqual(["[[Existing]]", "[[Created]]"]);
+	});
+
 	it("propagates configured frontmatter insertion failures", async () => {
 		const app = {
 			workspace: {

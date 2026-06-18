@@ -19,6 +19,8 @@ export type FrontmatterHandling =
 	| "createProperty"
 	| "alwaysAppend";
 
+export const DEFAULT_FRONTMATTER_HANDLING: FrontmatterHandling = "alwaysAppend";
+
 export function placementSupportsEmbed(placement: LinkPlacement): boolean {
 	return placement === "replaceSelection";
 }
@@ -71,7 +73,7 @@ export interface AppendLinkOptions {
 	/**
 	 * Controls how the link renders. "embed" is only respected when placement is replaceSelection.
 	 * Defaults to "link" for legacy settings.
- */
+	 */
 	linkType?: LinkType;
 	/**
 	 * Where the generated link should be written. Omitted legacy settings target
@@ -121,7 +123,10 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 			linkType: sanitizeLinkType(appendLink.linkType, placement, destination),
 			destination,
 			frontmatterProperty: appendLink.frontmatterProperty,
-			frontmatterHandling: appendLink.frontmatterHandling,
+			frontmatterHandling:
+				placementSupportsFrontmatter(placement)
+					? appendLink.frontmatterHandling ?? DEFAULT_FRONTMATTER_HANDLING
+					: appendLink.frontmatterHandling,
 		};
 	}
 

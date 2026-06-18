@@ -615,7 +615,10 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
 			app,
 			createdFile,
-			engine.choice.appendLink,
+			expect.objectContaining({
+				...(engine.choice.appendLink as object),
+				destination: { type: "activeFile" },
+			}),
 		);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",

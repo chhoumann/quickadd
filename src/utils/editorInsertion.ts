@@ -1,10 +1,11 @@
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { log } from "../logger/logManager";
-import type {
-	AppendLinkOptions,
-	FrontmatterHandling,
-	LinkPlacement,
+import {
+	DEFAULT_FRONTMATTER_HANDLING,
+	type AppendLinkOptions,
+	type FrontmatterHandling,
+	type LinkPlacement,
 } from "../types/linkPlacement";
 import { buildFileLinkText } from "./fileLinks";
 import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
@@ -110,7 +111,7 @@ export async function insertLinkWithPlacement(
 	const {
 		requireActiveView = true,
 		frontmatterProperty,
-		frontmatterHandling = "error",
+		frontmatterHandling = DEFAULT_FRONTMATTER_HANDLING,
 	} = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {

@@ -1403,7 +1403,10 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
 			app,
 			linkedFile,
-			appendLink,
+			expect.objectContaining({
+				...appendLink,
+				destination: { type: "activeFile" },
+			}),
 		);
 	});
 

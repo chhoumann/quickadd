@@ -1,6 +1,9 @@
 import type { App, TFile } from "obsidian";
 import { log } from "../logger/logManager";
-import type { FrontmatterHandling } from "../types/linkPlacement";
+import {
+	DEFAULT_FRONTMATTER_HANDLING,
+	type FrontmatterHandling,
+} from "../types/linkPlacement";
 import { getOwnerDocument } from "./activeWindow";
 
 const TYPED_PROPERTY_INPUT_SELECTOR = [
@@ -86,7 +89,7 @@ export function appendConfiguredFrontmatterPropertyLinkValue(
 	frontmatter: Record<string, unknown>,
 	propertyKey: string,
 	linkText: string,
-	frontmatterHandling: FrontmatterHandling = "error",
+	frontmatterHandling: FrontmatterHandling = DEFAULT_FRONTMATTER_HANDLING,
 ): void {
 	const requestedKey = propertyKey.trim();
 	if (!requestedKey) {
@@ -157,7 +160,7 @@ export async function appendLinkToConfiguredFrontmatterProperty(
 	targetFile: TFile,
 	propertyKey: string,
 	fileToLink: TFile,
-	frontmatterHandling: FrontmatterHandling = "error",
+	frontmatterHandling: FrontmatterHandling = DEFAULT_FRONTMATTER_HANDLING,
 ): Promise<void> {
 	const linkText = app.fileManager.generateMarkdownLink(
 		fileToLink,

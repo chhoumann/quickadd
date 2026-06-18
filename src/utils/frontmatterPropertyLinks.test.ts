@@ -317,6 +317,25 @@ describe("appendConfiguredFrontmatterPropertyLinkValue", () => {
 		).toThrow(/not a list/);
 	});
 
+	it("defaults to creating missing properties and converting scalars", () => {
+		const missingFrontmatter: Record<string, unknown> = {};
+		const scalarFrontmatter = { related: "[[Existing]]" };
+
+		appendConfiguredFrontmatterPropertyLinkValue(
+			missingFrontmatter,
+			"related",
+			"[[Created]]",
+		);
+		appendConfiguredFrontmatterPropertyLinkValue(
+			scalarFrontmatter,
+			"related",
+			"[[Created]]",
+		);
+
+		expect(missingFrontmatter.related).toEqual(["[[Created]]"]);
+		expect(scalarFrontmatter.related).toEqual(["[[Existing]]", "[[Created]]"]);
+	});
+
 	it("rejects missing properties in error mode", () => {
 		expect(() =>
 			appendConfiguredFrontmatterPropertyLinkValue(

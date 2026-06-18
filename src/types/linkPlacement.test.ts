@@ -152,6 +152,19 @@ describe("LinkPlacement", () => {
 				destination: { type: "activeFile" },
 			});
 		});
+
+		it("should default frontmatter handling to create or convert", () => {
+			const options: AppendLinkOptions = {
+				enabled: true,
+				placement: "inFrontmatter",
+				requireActiveFile: true,
+				frontmatterProperty: "related",
+			};
+
+			expect(normalizeAppendLinkOptions(options).frontmatterHandling).toBe(
+				"alwaysAppend",
+			);
+		});
 	});
 
 	describe("isAppendLinkEnabled", () => {
