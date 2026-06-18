@@ -495,6 +495,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		await engine.run();
 		store.commitExecutionScope();
 
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: createdFile,
