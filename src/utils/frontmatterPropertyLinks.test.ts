@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import {
+	appendConfiguredFrontmatterPropertyLinkValue,
 	appendFrontmatterPropertyLinkValue,
+	appendLinkToConfiguredFrontmatterProperty,
 	appendLinkToFrontmatterProperty,
 	getFocusedPropertyTarget,
 	type FrontmatterPropertyTarget,
@@ -223,6 +225,176 @@ describe("appendFrontmatterPropertyLinkValue", () => {
 	});
 });
 
+describe("appendConfiguredFrontmatterPropertyLinkValue", () => {
+	it("appends links into list properties in every handling mode", () => {
+		for (const frontmatterHandling of [
+			"error",
+			"createProperty",
+			"alwaysAppend",
+		] as const) {
+			const frontmatter = { related: ["[[Existing]]"] };
+
+			appendConfiguredFrontmatterPropertyLinkValue(
+				frontmatter,
+				"related",
+				"[[Created]]",
+				frontmatterHandling,
+			);
+
+			expect(frontmatter.related).toEqual(["[[Existing]]", "[[Created]]"]);
+		}
+	});
+
+	it("creates missing properties for createProperty and alwaysAppend", () => {
+		const createPropertyFrontmatter: Record<string, unknown> = {};
+		const alwaysAppendFrontmatter: Record<string, unknown> = {};
+
+		appendConfiguredFrontmatterPropertyLinkValue(
+			createPropertyFrontmatter,
+			"related",
+			"[[Created]]",
+			"createProperty",
+		);
+		appendConfiguredFrontmatterPropertyLinkValue(
+			alwaysAppendFrontmatter,
+			"related",
+			"[[Created]]",
+			"alwaysAppend",
+		);
+
+		expect(createPropertyFrontmatter.related).toEqual(["[[Created]]"]);
+		expect(alwaysAppendFrontmatter.related).toEqual(["[[Created]]"]);
+	});
+
+	it("treats null and empty string properties as empty lists", () => {
+		const frontmatter: Record<string, unknown> = {
+			empty: "",
+			related: null,
+		};
+
+		appendConfiguredFrontmatterPropertyLinkValue(
+			frontmatter,
+			"related",
+			"[[Created]]",
+			"error",
+		);
+		appendConfiguredFrontmatterPropertyLinkValue(
+			frontmatter,
+			"empty",
+			"[[Created]]",
+			"error",
+		);
+
+		expect(frontmatter.related).toEqual(["[[Created]]"]);
+		expect(frontmatter.empty).toEqual(["[[Created]]"]);
+	});
+
+	it("converts scalar values to lists only for alwaysAppend", () => {
+		const frontmatter = { related: "[[Existing]]", count: 1 };
+
+		appendConfiguredFrontmatterPropertyLinkValue(
+			frontmatter,
+			"related",
+			"[[Created]]",
+			"alwaysAppend",
+		);
+		appendConfiguredFrontmatterPropertyLinkValue(
+			frontmatter,
+			"count",
+			"[[Created]]",
+			"alwaysAppend",
+		);
+
+		expect(frontmatter.related).toEqual(["[[Existing]]", "[[Created]]"]);
+		expect(frontmatter.count).toEqual([1, "[[Created]]"]);
+		expect(() =>
+			appendConfiguredFrontmatterPropertyLinkValue(
+				{ related: "[[Existing]]" },
+				"related",
+				"[[Created]]",
+				"createProperty",
+			),
+		).toThrow(/not a list/);
+	});
+
+	it("rejects missing properties in error mode", () => {
+		expect(() =>
+			appendConfiguredFrontmatterPropertyLinkValue(
+				{},
+				"related",
+				"[[Created]]",
+				"error",
+			),
+		).toThrow(/does not exist/);
+	});
+
+	it("rejects object values in every handling mode", () => {
+		for (const frontmatterHandling of [
+			"error",
+			"createProperty",
+			"alwaysAppend",
+		] as const) {
+			const frontmatter = { related: { nested: true } };
+
+			expect(() =>
+				appendConfiguredFrontmatterPropertyLinkValue(
+					frontmatter,
+					"related",
+					"[[Created]]",
+					frontmatterHandling,
+				),
+			).toThrow(/object value/);
+			expect(frontmatter.related).toEqual({ nested: true });
+		}
+	});
+
+	it("trims and rejects empty configured property keys", () => {
+		expect(() =>
+			appendConfiguredFrontmatterPropertyLinkValue(
+				{},
+				"   ",
+				"[[Created]]",
+				"alwaysAppend",
+			),
+		).toThrow(/empty frontmatter property key/);
+	});
+
+	it("preserves existing property key casing when configured key is normalized", () => {
+		const frontmatter: Record<string, unknown> = {
+			"Related Items": ["[[Existing]]"],
+		};
+
+		appendConfiguredFrontmatterPropertyLinkValue(
+			frontmatter,
+			"related items",
+			"[[Created]]",
+			"alwaysAppend",
+		);
+
+		expect(frontmatter["Related Items"]).toEqual([
+			"[[Existing]]",
+			"[[Created]]",
+		]);
+		expect(frontmatter["related items"]).toBeUndefined();
+	});
+
+	it("rejects ambiguous configured property keys", () => {
+		const frontmatter = {
+			"Related Items": [],
+			"related items": [],
+		};
+
+		expect(() =>
+			appendConfiguredFrontmatterPropertyLinkValue(
+				frontmatter,
+				"related items",
+				"[[Created]]",
+				"alwaysAppend",
+			),
+		).toThrow(/multiple properties/);
+	});
+});
+
 describe("appendLinkToFrontmatterProperty", () => {
 	it("uses the focused property's file as the markdown link source", async () => {
 		const targetFile = makeFile("Folder/Host.md");
@@ -279,5 +451,46 @@ describe("appendLinkToFrontmatterProperty", () => {
 				createdFile,
 			),
 		).resolves.toBe(false);
+	});
+});
+
+describe("appendLinkToConfiguredFrontmatterProperty", () => {
+	it("uses the configured property's file as the markdown link source", async () => {
+		const targetFile = makeFile("Folder/Host.md");
+		const createdFile = makeFile("Folder/Sub/Created.md");
+		const frontmatter: Record<string, unknown> = { related: ["[[Existing]]"] };
+		const generateMarkdownLink = vi.fn(() => "[[Sub/Created|Created]]");
+		const processFrontMatter = vi.fn(
+			async (_file: TFile, update: (fm: Record<string, unknown>) => void) => {
+				update(frontmatter);
+			},
+		);
+		const app = {
+			fileManager: {
+				generateMarkdownLink,
+				processFrontMatter,
+			},
+		} as unknown as App;
+
+		await appendLinkToConfiguredFrontmatterProperty(
+			app,
+			targetFile,
+			"related",
+			createdFile,
+			"error",
+		);
+
+		expect(generateMarkdownLink).toHaveBeenCalledWith(
+			createdFile,
+			"Folder/Host.md",
+		);
+		expect(processFrontMatter).toHaveBeenCalledWith(
+			targetFile,
+			expect.any(Function),
+		);
+		expect(frontmatter.related).toEqual([
+			"[[Existing]]",
+			"[[Sub/Created|Created]]",
+		]);
 	});
 });

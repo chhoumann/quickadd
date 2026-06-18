@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/svelte";
+import { fireEvent, render } from "@testing-library/svelte";
 import AppendLinkSetting from "./AppendLinkSetting.svelte";
 import type { AppendLinkOptions } from "../../../types/linkPlacement";
 
@@ -17,7 +17,7 @@ describe("AppendLinkSetting", () => {
 		expect(settingNames(container)).toEqual(["Link to created file"]);
 	});
 
-	it("shows placement + link type when enabled with an embed-capable placement", () => {
+	it("shows destination + placement + link type when enabled with an embed-capable placement", () => {
 		const appendLink: AppendLinkOptions = {
 			enabled: true,
 			placement: "replaceSelection",
@@ -27,6 +27,7 @@ describe("AppendLinkSetting", () => {
 		const { container } = render(AppendLinkSetting, {
 			props: { appendLink, fileLabel: "captured" },
 		});
+
 		expect(settingNames(container)).toEqual([
 			"Link to captured file",
 			"Link destination",
@@ -45,6 +46,7 @@ describe("AppendLinkSetting", () => {
 		const { container } = render(AppendLinkSetting, {
 			props: { appendLink, fileLabel: "captured" },
 		});
+
 		expect(settingNames(container)).toEqual([
 			"Link to captured file",
 			"Link destination",
@@ -64,6 +66,7 @@ describe("AppendLinkSetting", () => {
 		const { container } = render(AppendLinkSetting, {
 			props: { appendLink, fileLabel: "created" },
 		});
+
 		expect(settingNames(container)).toEqual([
 			"Link to created file",
 			"Link destination",
@@ -71,5 +74,129 @@ describe("AppendLinkSetting", () => {
 		]);
 		expect(settingNames(container)).not.toContain("Link placement");
 		expect(settingNames(container)).not.toContain("Link type");
+		expect(settingNames(container)).not.toContain("Frontmatter property");
+	});
+
+	it("shows frontmatter property controls for current-note frontmatter placement", () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "inFrontmatter",
+			requireActiveFile: true,
+			linkType: "link",
+			frontmatterProperty: "related",
+			frontmatterHandling: "alwaysAppend",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		expect(settingNames(container)).toEqual([
+			"Link to created file",
+			"Link destination",
+			"Link placement",
+			"Frontmatter property",
+			"Frontmatter appending behavior",
+		]);
+		expect(
+			(
+				container.querySelector(
+					'input[aria-label="Frontmatter property"]',
+				) as HTMLInputElement
+			).value,
+		).toBe("related");
+		expect(
+			Array.from(container.querySelectorAll("select")).at(-1)?.value,
+		).toBe("alwaysAppend");
+		expect(
+			container
+				.querySelector('input[aria-label="Frontmatter property"]')
+				?.getAttribute("aria-invalid"),
+		).toBe("false");
+	});
+
+	it("marks an empty frontmatter property as invalid", () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "inFrontmatter",
+			requireActiveFile: true,
+			linkType: "link",
+			frontmatterProperty: "   ",
+			frontmatterHandling: "error",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		expect(
+			container
+				.querySelector('input[aria-label="Frontmatter property"]')
+				?.getAttribute("aria-invalid"),
+		).toBe("true");
+	});
+
+	it("preserves frontmatter settings when changing append-link mode", async () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "inFrontmatter",
+			requireActiveFile: true,
+			linkType: "link",
+			frontmatterProperty: "related",
+			frontmatterHandling: "createProperty",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "captured" },
+		});
+
+		const modeSelect = container.querySelector("select") as HTMLSelectElement;
+		await fireEvent.change(modeSelect, { target: { value: "optional" } });
+
+		expect(
+			(
+				container.querySelector(
+					'input[aria-label="Frontmatter property"]',
+				) as HTMLInputElement
+			).value,
+		).toBe("related");
+		expect(
+			Array.from(container.querySelectorAll("select")).at(-1)?.value,
+		).toBe("createProperty");
+	});
+
+	it("preserves frontmatter settings when disabled and re-enabled", async () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "inFrontmatter",
+			requireActiveFile: true,
+			linkType: "link",
+			frontmatterProperty: "related",
+			frontmatterHandling: "alwaysAppend",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		const modeSelect = container.querySelector("select") as HTMLSelectElement;
+		await fireEvent.change(modeSelect, { target: { value: "disabled" } });
+		expect(settingNames(container)).toEqual(["Link to created file"]);
+
+		await fireEvent.change(modeSelect, { target: { value: "required" } });
+
+		expect(settingNames(container)).toEqual([
+			"Link to created file",
+			"Link destination",
+			"Link placement",
+			"Frontmatter property",
+			"Frontmatter appending behavior",
+		]);
+		expect(
+			(
+				container.querySelector(
+					'input[aria-label="Frontmatter property"]',
+				) as HTMLInputElement
+			).value,
+		).toBe("related");
+		expect(
+			Array.from(container.querySelectorAll("select")).at(-1)?.value,
+		).toBe("alwaysAppend");
 	});
 });

@@ -5,12 +5,14 @@ import Dropdown from "../../components/Dropdown.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 import type {
 	AppendLinkOptions,
+	FrontmatterHandling,
 	LinkPlacement,
 	LinkType,
 } from "../../../types/linkPlacement";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
+	placementSupportsFrontmatter,
 } from "../../../types/linkPlacement";
 import { normalizeAppendLinkDestinationPath } from "../../../utils/fileLinks";
 
@@ -35,6 +37,9 @@ type AppendLinkDestinationMode = "activeFile" | "specifiedFile";
 
 const normalized = $derived(normalizeAppendLinkOptions(appendLink));
 const normalizedLinkType = $derived(normalized.linkType ?? "link");
+const normalizedFrontmatterHandling = $derived(
+	normalized.frontmatterHandling ?? "error",
+);
 const destinationPath = $derived(
 	normalized.destination.type === "specifiedFile"
 		? normalized.destination.path
@@ -66,76 +71,82 @@ const placementOptions = [
 	{ value: "afterSelection", label: "After selection" },
 	{ value: "endOfLine", label: "End of line" },
 	{ value: "newLine", label: "New line" },
+	{ value: "inFrontmatter", label: "In frontmatter property" },
 ];
 const linkTypeOptions = [
 	{ value: "link", label: "Link" },
 	{ value: "embed", label: "Embed" },
 ];
+const frontmatterHandlingOptions = [
+	{ value: "error", label: "Require existing list" },
+	{ value: "createProperty", label: "Create missing property" },
+	{ value: "alwaysAppend", label: "Create or convert to list" },
+];
+
+function nextOptions(overrides: Partial<AppendLinkOptions>): AppendLinkOptions {
+	const current = appendLink;
+	const currentOptions =
+		typeof current === "boolean" ? normalized : current;
+	const placement = overrides.placement ?? currentOptions.placement;
+	const destination =
+		overrides.destination ?? currentOptions.destination ?? normalized.destination;
+	const linkType =
+		destination.type === "activeFile" && placementSupportsEmbed(placement)
+			? overrides.linkType ?? currentOptions.linkType ?? normalizedLinkType
+			: "link";
+
+	return {
+		enabled: overrides.enabled ?? true,
+		placement,
+		requireActiveFile:
+			overrides.requireActiveFile ??
+			currentOptions.requireActiveFile ??
+			normalized.requireActiveFile,
+		linkType,
+		destination,
+		frontmatterProperty:
+			overrides.frontmatterProperty ?? currentOptions.frontmatterProperty,
+		frontmatterHandling:
+			overrides.frontmatterHandling ?? currentOptions.frontmatterHandling,
+	};
+}
 
 function onModeChange(value: string) {
 	switch (value as AppendLinkMode) {
 		case "disabled":
-			appendLink = false;
+			appendLink = nextOptions({ enabled: false });
 			break;
 		case "required":
-			appendLink = {
-				enabled: true,
-				placement: normalized.placement,
-				requireActiveFile: true,
-				linkType: normalizedLinkType,
-				destination: normalized.destination,
-			};
+			appendLink = nextOptions({ requireActiveFile: true });
 			break;
 		case "optional":
-			appendLink = {
-				enabled: true,
-				placement: normalized.placement,
-				requireActiveFile: false,
-				linkType: normalizedLinkType,
-				destination: normalized.destination,
-			};
+			appendLink = nextOptions({ requireActiveFile: false });
 			break;
 	}
 }
 
 function onPlacementChange(value: string) {
-	const placement = value as LinkPlacement;
-	const current = appendLink;
-	const requireActiveFile =
-		typeof current === "boolean"
-			? normalized.requireActiveFile
-			: current.requireActiveFile;
-	const previousLinkType =
-		typeof current === "boolean"
-			? normalizedLinkType
-			: current.linkType ?? normalizedLinkType;
-	const nextLinkType = placementSupportsEmbed(placement)
-		? previousLinkType
-		: "link";
-	appendLink = {
-		enabled: true,
-		placement,
-		requireActiveFile,
-		linkType: nextLinkType,
-		destination: normalized.destination,
-	};
+	appendLink = nextOptions({
+		placement: value as LinkPlacement,
+	});
 }
 
 function onLinkTypeChange(value: string) {
-	const current = appendLink;
-	const requireActiveFile =
-		typeof current === "boolean"
-			? normalized.requireActiveFile
-			: current.requireActiveFile;
-	const placement =
-		typeof current === "boolean" ? normalized.placement : current.placement;
-	appendLink = {
-		enabled: true,
-		placement,
-		requireActiveFile,
+	appendLink = nextOptions({
 		linkType: value as LinkType,
-		destination: normalized.destination,
-	};
+	});
+}
+
+function onFrontmatterPropertyInput(event: Event) {
+	appendLink = nextOptions({
+		frontmatterProperty: (event.currentTarget as HTMLInputElement).value,
+	});
+}
+
+function onFrontmatterHandlingChange(value: string) {
+	appendLink = nextOptions({
+		frontmatterHandling: value as FrontmatterHandling,
+	});
 }
 
 function onDestinationChange(value: string) {
@@ -143,23 +154,13 @@ function onDestinationChange(value: string) {
 		(value as AppendLinkDestinationMode) === "specifiedFile"
 			? { type: "specifiedFile" as const, path: destinationPath }
 			: { type: "activeFile" as const };
-	appendLink = {
-		enabled: true,
-		placement: normalized.placement,
-		requireActiveFile: normalized.requireActiveFile,
-		linkType: destination.type === "specifiedFile" ? "link" : normalizedLinkType,
-		destination,
-	};
+	appendLink = nextOptions({ destination });
 }
 
 function onDestinationPathChange(value: string) {
-	appendLink = {
-		enabled: true,
-		placement: normalized.placement,
-		requireActiveFile: normalized.requireActiveFile,
-		linkType: "link",
+	appendLink = nextOptions({
 		destination: { type: "specifiedFile", path: value.trim() },
-	};
+	});
 }
 
 function validateDestinationFile(raw: string) {
@@ -223,6 +224,39 @@ function validateDestinationFile(raw: string) {
 						value={normalizedLinkType}
 						options={linkTypeOptions}
 						onchange={onLinkTypeChange}
+					/>
+				{/snippet}
+			</SettingItem>
+		{/if}
+
+		{#if placementSupportsFrontmatter(normalized.placement)}
+			<SettingItem
+				name="Frontmatter property"
+				desc="Required property to insert the link into."
+			>
+				{#snippet control()}
+					<input
+						type="text"
+						class="text-input"
+						value={normalized.frontmatterProperty ?? ""}
+						aria-label="Frontmatter property"
+						aria-invalid={!(normalized.frontmatterProperty?.trim())}
+						placeholder="related"
+						required
+						oninput={onFrontmatterPropertyInput}
+					/>
+				{/snippet}
+			</SettingItem>
+
+			<SettingItem
+				name="Frontmatter appending behavior"
+				desc="Choose what QuickAdd should do when the property is missing or not a list."
+			>
+				{#snippet control()}
+					<Dropdown
+						value={normalizedFrontmatterHandling}
+						options={frontmatterHandlingOptions}
+						onchange={onFrontmatterHandlingChange}
 					/>
 				{/snippet}
 			</SettingItem>

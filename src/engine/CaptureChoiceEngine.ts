@@ -28,6 +28,7 @@ import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import {
 	normalizeAppendLinkOptions,
+	placementSupportsFrontmatter,
 	type AppendLinkOptions,
 } from "../types/linkPlacement";
 import {
@@ -232,6 +233,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		if (linkOptions.destination?.type === "specifiedFile") {
+			await appendFileLinkToDestinationFile(this.app, file, linkOptions);
+			return;
+		}
+
+		if (placementSupportsFrontmatter(linkOptions.placement)) {
+			await insertFileLinkToActiveView(this.app, file, linkOptions);
+			return;
+		}
+
 		if (
 			this.shouldSkipRequiredCanvasLinkInsertion(linkOptions, isCanvasTriggered)
 		) {
@@ -244,18 +255,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		if (linkOptions.destination?.type === "specifiedFile") {
-			await appendFileLinkToDestinationFile(this.app, file, linkOptions);
-			return;
-		}
-
 		const propertyTarget = this.choiceExecutor.focusedProperty;
 		if (propertyTarget) {
 			await appendLinkToFrontmatterProperty(this.app, propertyTarget, file);
 			return;
 		}
 
-		insertFileLinkToActiveView(this.app, file, linkOptions);
+		await insertFileLinkToActiveView(this.app, file, linkOptions);
 	}
 
 	private validateAppendLinkDestination(
@@ -487,10 +493,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				expectedCursorContent = canPlaceCursorAtCapture ? newFileContent : null;
 			}
 
-			// Content is committed. Record success BEFORE the cosmetic steps below
-			// (notice / link / open / cursor jump) so a later cosmetic failure cannot
-			// downgrade the outcome — otherwise an x-callback caller would see an error,
-			// retry, and duplicate the capture.
+			// Content is committed. Record success before append-link/open-file steps
+			// so a later post-commit failure cannot make automation callers retry and
+			// duplicate the Capture side effect.
 			this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
 
 			// Show success notification
@@ -628,7 +633,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		await setCanvasTextCaptureContent(this.app, target, nextText);
 		markContentCommitted();
 
-		// Committed; record success before cosmetic steps (see run() for rationale).
+		// Committed; append-link/open-file steps remain post-commit (see run()).
 		this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
 
 		if (this.plugin.settings.showCaptureNotification) {

@@ -1326,6 +1326,87 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
 	});
 
+	it("does not skip configured frontmatter link insertion for canvas file-card capture", async () => {
+		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+			throw new Error("frontmatter link insertion failed");
+		});
+
+		const canvasFile = {
+			path: "Boards/Map.canvas",
+			basename: "Map",
+			extension: "canvas",
+		};
+		const linkedFile = {
+			path: "Folder/Note.md",
+			basename: "Note",
+			extension: "md",
+		} as TFile;
+		const app = createApp() as any;
+		app.workspace.activeLeaf = {
+			view: {
+				getViewType: () => "canvas",
+				file: canvasFile,
+				canvas: {
+					selection: new Set([
+						{ type: "file", file: { path: "Folder/Note.md" } },
+					]),
+				},
+			},
+		};
+		app.workspace.getActiveFile = vi.fn(() => canvasFile);
+		app.workspace.getActiveViewOfType = vi.fn(() => null);
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Folder/Note.md" ? linkedFile : null,
+		);
+		app.vault.modify = vi.fn(async () => {});
+
+		const executor = createExecutor();
+		executor.recordExecutionResult = vi.fn();
+		const appendLink = {
+			enabled: true,
+			placement: "inFrontmatter" as const,
+			requireActiveFile: true,
+			linkType: "link" as const,
+			frontmatterProperty: "related",
+			frontmatterHandling: "error" as const,
+		};
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: false,
+				},
+			} as any,
+			createChoice({
+				appendLink,
+				captureToActiveFile: true,
+				activeFileWritePosition: "top",
+			}),
+			executor,
+		);
+
+		(engine as any).fileExists = vi.fn(async () => true);
+		(engine as any).onFileExists = vi.fn(async () => ({
+			file: linkedFile,
+			newFileContent: "updated",
+			captureContent: "capture",
+		}));
+
+		await engine.run();
+
+		expect(app.vault.modify).toHaveBeenCalledWith(linkedFile, "updated");
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: linkedFile,
+		});
+		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
+			app,
+			linkedFile,
+			appendLink,
+		);
+	});
+
 	it("skips required append-link insertion for active canvas text-card capture without markdown context", async () => {
 		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
 			throw new Error("link insertion should be skipped");

@@ -1,8 +1,13 @@
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { log } from "../logger/logManager";
-import type { AppendLinkOptions, LinkPlacement } from "../types/linkPlacement";
+import type {
+	AppendLinkOptions,
+	FrontmatterHandling,
+	LinkPlacement,
+} from "../types/linkPlacement";
 import { buildFileLinkText } from "./fileLinks";
+import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
 
 /**
  * Returns the active markdown view if it is showing the given file,
@@ -92,13 +97,21 @@ export function insertOnNewLineBelow(toInsert: string, app: App): boolean {
  * – Keeps the editor's undo history clean by performing a single
  *   CodeMirror transaction.
  */
-export function insertLinkWithPlacement(
+export async function insertLinkWithPlacement(
 	app: App,
 	text: string,
 	mode: LinkPlacement = "replaceSelection",
-	options: { requireActiveView?: boolean; } = {},
-) {
-	const { requireActiveView = true } = options;
+	options: {
+		requireActiveView?: boolean;
+		frontmatterProperty?: string;
+		frontmatterHandling?: FrontmatterHandling;
+	} = {},
+): Promise<void> {
+	const {
+		requireActiveView = true,
+		frontmatterProperty,
+		frontmatterHandling = "error",
+	} = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
 		const message = "Cannot append link because no active Markdown view is available.";
@@ -106,6 +119,23 @@ export function insertLinkWithPlacement(
 			throw new Error(message);
 		}
 		log.logMessage(message);
+		return;
+	}
+
+	if (mode === "inFrontmatter") {
+		const file = view.file;
+		if (!file) {
+			throw new Error("Cannot append link because the active Markdown view has no file.");
+		}
+
+		await app.fileManager.processFrontMatter(file, (frontmatter) => {
+			appendConfiguredFrontmatterPropertyLinkValue(
+				frontmatter,
+				frontmatterProperty ?? "",
+				text,
+				frontmatterHandling,
+			);
+		});
 		return;
 	}
 
@@ -195,38 +225,37 @@ export function insertLinkWithPlacement(
  * @param linkOptions - Options controlling link insertion behavior
  * @returns True if the link was inserted, false otherwise
  */
-export function insertFileLinkToActiveView(
+export async function insertFileLinkToActiveView(
 	app: App,
 	file: TFile,
 	linkOptions: AppendLinkOptions,
-): boolean {
+): Promise<boolean> {
 	if (!linkOptions?.enabled) return false;
 
-	const activeFile = app.workspace.getActiveFile();
-	if (!activeFile && linkOptions.requireActiveFile) {
-		throw new Error("Append link is enabled but there's no active file to insert into.");
-	}
-
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
-	if (!view) {
+	if (!view || !view.file) {
 		if (linkOptions.requireActiveFile) {
 			throw new Error("Cannot append link because no active Markdown view is available.");
 		}
 		return false;
 	}
 
-	const sourcePath = activeFile?.path ?? "";
+	const sourcePath = view.file.path;
 	const linkText = buildFileLinkText(app, file, {
 		sourcePath,
 		linkType: linkOptions.linkType,
 		placement: linkOptions.placement,
 	});
 
-	insertLinkWithPlacement(
+	await insertLinkWithPlacement(
 		app,
 		linkText,
 		linkOptions.placement,
-		{ requireActiveView: false },
+		{
+			requireActiveView: false,
+			frontmatterProperty: linkOptions.frontmatterProperty,
+			frontmatterHandling: linkOptions.frontmatterHandling,
+		},
 	);
 
 	return true;

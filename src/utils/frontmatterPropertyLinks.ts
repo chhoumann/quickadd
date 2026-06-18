@@ -1,5 +1,6 @@
 import type { App, TFile } from "obsidian";
 import { log } from "../logger/logManager";
+import type { FrontmatterHandling } from "../types/linkPlacement";
 import { getOwnerDocument } from "./activeWindow";
 
 const TYPED_PROPERTY_INPUT_SELECTOR = [
@@ -81,6 +82,54 @@ export function appendFrontmatterPropertyLinkValue(
 	);
 }
 
+export function appendConfiguredFrontmatterPropertyLinkValue(
+	frontmatter: Record<string, unknown>,
+	propertyKey: string,
+	linkText: string,
+	frontmatterHandling: FrontmatterHandling = "error",
+): void {
+	const requestedKey = propertyKey.trim();
+	if (!requestedKey) {
+		throw new Error("Cannot append link to an empty frontmatter property key.");
+	}
+
+	const key = resolveFrontmatterPropertyKey(frontmatter, requestedKey);
+	const existing = frontmatter[key];
+	if (Array.isArray(existing)) {
+		existing.push(linkText);
+		return;
+	}
+
+	if (existing === null || existing === "") {
+		frontmatter[key] = [linkText];
+		return;
+	}
+
+	if (existing === undefined) {
+		if (frontmatterHandling === "error") {
+			throw new Error(
+				`Cannot append link to frontmatter property '${key}' because it does not exist.`,
+			);
+		}
+		frontmatter[key] = [linkText];
+		return;
+	}
+
+	if (typeof existing === "object") {
+		throw new Error(
+			`Cannot append link to frontmatter property '${key}' because it contains an object value.`,
+		);
+	}
+
+	if (frontmatterHandling !== "alwaysAppend") {
+		throw new Error(
+			`Cannot append link to frontmatter property '${key}' because it is not a list and frontmatter handling is '${frontmatterHandling}'.`,
+		);
+	}
+
+	frontmatter[key] = [existing, linkText];
+}
+
 function resolveFrontmatterPropertyKey(
 	frontmatter: Record<string, unknown>,
 	propertyKey: string,
@@ -101,6 +150,28 @@ function resolveFrontmatterPropertyKey(
 
 function normalizePropertyKey(propertyKey: string): string {
 	return propertyKey.trim().toLowerCase();
+}
+
+export async function appendLinkToConfiguredFrontmatterProperty(
+	app: App,
+	targetFile: TFile,
+	propertyKey: string,
+	fileToLink: TFile,
+	frontmatterHandling: FrontmatterHandling = "error",
+): Promise<void> {
+	const linkText = app.fileManager.generateMarkdownLink(
+		fileToLink,
+		targetFile.path,
+	);
+
+	await app.fileManager.processFrontMatter(targetFile, (frontmatter) => {
+		appendConfiguredFrontmatterPropertyLinkValue(
+			frontmatter,
+			propertyKey,
+			linkText,
+			frontmatterHandling,
+		);
+	});
 }
 
 export async function appendLinkToFrontmatterProperty(

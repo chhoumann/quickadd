@@ -168,12 +168,18 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
     -   **After selection** - Preserves selected text and places the link after it
     -   **End of line** - Places the link at the end of the current line
     -   **New line** - Places the link on a new line below the cursor
+    -   **In frontmatter property** - Adds the link to a named frontmatter property
+
+    When **In frontmatter property** is selected, set the property name and choose how QuickAdd handles missing or non-list properties:
+    -   **Require existing list** - Append only to an existing list property. Empty/null properties are treated as empty lists; missing properties and existing scalar/object values throw an error.
+    -   **Create missing property** - Create the property if it is missing. Existing scalar/object values still throw an error.
+    -   **Create or convert to list** - Create the property if it is missing, or convert an existing scalar value into a list before appending the new link. Object values still throw an error.
 
     If the cursor is in an editable Obsidian Properties field when the Capture
-    choice starts, QuickAdd appends the link to that property instead of using
-    the stale editor cursor behind the Properties panel. Text properties receive
-    the link at the end of the value, and list properties receive a new list
-    item.
+    choice starts, and the placement is not **In frontmatter property**, QuickAdd
+    appends the link to that focused property instead of using the stale editor
+    cursor behind the Properties panel. Text properties receive the link at the
+    end of the value, and list properties receive a new list item.
 
     When placement is **Replace selection**, an extra _Link type_ dropdown appears, letting you choose **Link** or **Embed**. Embed is only respected for the Replace selection placement.
 

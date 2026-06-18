@@ -136,6 +136,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
+import { insertFileLinkToActiveView } from "../utilityObsidian";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -236,14 +237,15 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 	beforeEach(() => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		noticeClass.instances.length = 0;
-			InputPromptDraftStore.getInstance().clearAll();
-			appendFileLinkToDestinationFileMock.mockReset();
-			appendFileLinkToDestinationFileMock.mockResolvedValue(true);
-			copyFileLinkToClipboardMock.mockReset();
-			copyFileLinkToClipboardMock.mockResolvedValue(true);
-			getAppendLinkDestinationFileMock.mockReset();
-			getAppendLinkDestinationFileMock.mockReturnValue(null);
-			formatFileNameMock.mockReset();
+		InputPromptDraftStore.getInstance().clearAll();
+		appendFileLinkToDestinationFileMock.mockReset();
+		appendFileLinkToDestinationFileMock.mockResolvedValue(true);
+		copyFileLinkToClipboardMock.mockReset();
+		copyFileLinkToClipboardMock.mockResolvedValue(true);
+		getAppendLinkDestinationFileMock.mockReset();
+		getAppendLinkDestinationFileMock.mockReturnValue(null);
+		vi.mocked(insertFileLinkToActiveView).mockReset();
+		formatFileNameMock.mockReset();
 		formatFileContentMock.mockReset();
 		formatFileContentMock.mockResolvedValue("");
 	});
@@ -578,6 +580,47 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			file: createdFile,
 		});
 		expect(store.get(draftKey)).toBeUndefined();
+	});
+
+	it("keeps template execution successful when configured frontmatter link insertion fails after creation", async () => {
+		const { engine, choiceExecutor, app } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		const createdFile = new TFile();
+		createdFile.path = "Test Template.md";
+		createdFile.name = "Test Template.md";
+		createdFile.extension = "md";
+		createdFile.basename = "Test Template";
+
+		engine.choice.appendLink = {
+			enabled: true,
+			placement: "inFrontmatter",
+			requireActiveFile: true,
+			linkType: "link",
+			frontmatterProperty: "related",
+			frontmatterHandling: "error",
+		};
+		choiceExecutor.recordExecutionResult = vi.fn();
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
+		vi.mocked(insertFileLinkToActiveView).mockRejectedValueOnce(
+			new Error("frontmatter property is missing"),
+		);
+
+		await engine.run();
+
+		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
+			app,
+			createdFile,
+			engine.choice.appendLink,
+		);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: createdFile,
+		});
 	});
 });
 
