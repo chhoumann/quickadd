@@ -32,6 +32,8 @@ If you want a new markdown note to include a live embedded Base dashboard, see
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
 If you disable **File Name Format**, QuickAdd uses `{{VALUE}}` as the file name format. This keeps the default behavior of prompting for a file name when you run the choice, with the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs.
 
+If a value used in the file name contains a line break or another control character, QuickAdd folds it to a space in the created path and strips trailing spaces or periods from that path segment. The original value is still available unchanged in the template body, so multi-line prompts can create readable note content without making the note hard to link.
+
 **New note location**. A dropdown that controls where the note is created. Pick one of four modes:
 - **Obsidian default** – use Obsidian's "Default location for new notes" setting.
 - **In a specific folder** – create the note in the folder(s) you configure below. If you specify one folder, the note is created there; if you specify multiple, you'll get a suggester asking which folder to use. An **Include subfolders** toggle (shown only in this mode) lets the suggester offer the selected folders *and* their subfolders. Folder paths support QuickAdd [format syntax](/FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables — for example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
@@ -52,6 +54,11 @@ When either enabled mode is selected, **Link placement** lets you choose where t
 - **New line** - Places the link on a new line below the cursor
 
 **Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
+
+**Copy link to clipboard**. Copies a link to the created file after the Template
+choice runs. This works separately from **Link to created file**, so you can copy
+the link without inserting it into the current note, or do both. The copied link
+is a vault-path wikilink, which makes it suitable for pasting into another note.
 
 **If the target file already exists**. Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file.
 

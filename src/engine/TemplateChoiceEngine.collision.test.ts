@@ -288,6 +288,73 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		);
 	});
 
+	it("folds line breaks out of generated file paths before creating notes", async () => {
+		const { app, engine } = createEngine();
+		formatFileNameMock.mockResolvedValue("Issue 221\nTitle");
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			false,
+		);
+
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createExistingFile("Issue 221 Title.md"));
+
+		await engine.run();
+
+		expect(app.vault.adapter.exists).toHaveBeenCalledWith(
+			"Issue 221 Title.md",
+		);
+		expect(createSpy).toHaveBeenCalledWith(
+			"Issue 221 Title.md",
+			engine.choice.templatePath,
+		);
+	});
+
+	it("uses normalized generated paths for vault-relative routing", async () => {
+		const { app, engine } = createEngine();
+		formatFileNameMock.mockResolvedValue("Projects\n/Issue 221");
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
+
+		(app.fileManager.getNewFileParent as ReturnType<typeof vi.fn>).mockReturnValue(
+			createExistingFolder("Default"),
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockImplementation(
+			(path: string) => path === "Projects" ? createExistingFolder("Projects") : null,
+		);
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			false,
+		);
+
+		const createSpy = vi
+			.spyOn(
+				engine as unknown as {
+					createFileWithTemplate: (
+						filePath: string,
+						templatePath: string,
+					) => Promise<TFile | null>;
+				},
+				"createFileWithTemplate",
+			)
+			.mockResolvedValue(createExistingFile("Projects/Issue 221.md"));
+
+		await engine.run();
+
+		expect(createSpy).toHaveBeenCalledWith(
+			"Projects/Issue 221.md",
+			engine.choice.templatePath,
+		);
+	});
+
 	it("prompts before applying increment mode when auto behavior is off", async () => {
 		const { app, engine } = createEngine();
 		const existingFile = createExistingFile("Test Template.md");

@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, type App } from "obsidian";
+import { Notice, TFile, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	getMarkdownFilesInFolder,
+	insertOnNewLineBelow,
 	insertFileLinkToActiveView,
 	isFolder,
 	openFile,
@@ -22,12 +23,14 @@ const {
 	singleTemplateRunMock,
 	promptResponses,
 	promptHydratedValues,
+	createdClipboardAttachmentPaths,
 } = vi.hoisted(() => ({
 	setUseSelectionAsCaptureValueMock: vi.fn(),
 	setTitleMock: vi.fn(),
 	singleTemplateRunMock: vi.fn(async () => ""),
 	promptResponses: [] as string[],
 	promptHydratedValues: [] as string[],
+	createdClipboardAttachmentPaths: [] as string[],
 }));
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -45,6 +48,11 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			return await work();
 		}
 		async formatContentOnly(content: string) {
+			if (/\{\{clipboard\}\}/i.test(content)) {
+				createdClipboardAttachmentPaths.push("Clipboard image.png");
+				return content.replace(/\{\{clipboard\}\}/gi, "![[Clipboard image.png]]");
+			}
+
 			if (!/\{\{value\}\}/i.test(content)) return content;
 
 			const draftHandler = new InputPromptDraftHandler(
@@ -64,6 +72,11 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			return content.replace(/\{\{value\}\}/gi, submitted);
 		}
 		async formatContentWithFile(content: string) {
+			if (/\{\{clipboard\}\}/i.test(content)) {
+				createdClipboardAttachmentPaths.push("Clipboard image.png");
+				return content.replace(/\{\{clipboard\}\}/gi, "![[Clipboard image.png]]");
+			}
+
 			return content;
 		}
 		async formatFileName(name: string) {
@@ -71,6 +84,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
+		}
+		consumeCreatedClipboardAttachmentPaths() {
+			return createdClipboardAttachmentPaths.splice(0);
 		}
 	},
 	setUseSelectionAsCaptureValueMock,
@@ -131,6 +147,7 @@ const createApp = () =>
 				exists: vi.fn(async () => false),
 			},
 			getAbstractFileByPath: vi.fn(() => null),
+			delete: vi.fn(async () => {}),
 			modify: vi.fn(async () => {}),
 			read: vi.fn(async () => ""),
 		},
@@ -192,8 +209,11 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		setTitleMock.mockClear();
 		promptResponses.length = 0;
 		promptHydratedValues.length = 0;
+		createdClipboardAttachmentPaths.length = 0;
 		InputPromptDraftStore.getInstance().clearAll();
 		vi.mocked(openFile).mockClear();
+		vi.mocked(insertFileLinkToActiveView).mockReset();
+		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 	});
 
 	it("uses global setting when no override is set", async () => {
@@ -314,6 +334,22 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		);
 
 		const result = (engine as any).resolveCaptureTarget("journals/");
+
+		expect(result).toEqual({ kind: "folder", folder: "journals" });
+	});
+
+	it("normalizes control characters before folder route decisions", () => {
+		const app = createApp();
+		vi.mocked(isFolder).mockReturnValue(false);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "journals\n/" }),
+			createExecutor(),
+		);
+
+		const result = (engine as any).resolveCaptureTarget("journals\n/");
 
 		expect(result).toEqual({ kind: "folder", folder: "journals" });
 	});
@@ -483,6 +519,29 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(resolved).toBe("Inbox/note.md");
 	});
 
+	it("uses normalized folder paths for folder capture pickers", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Existing.md" } as any,
+		]);
+		const suggestSpy = vi.fn(async () => "Inbox/Existing.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox\n/" }),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(getMarkdownFilesInFolder).toHaveBeenCalledWith(
+			expect.anything(),
+			"Inbox/",
+		);
+		expect(resolved).toBe("Inbox/Existing.md");
+	});
+
 	it("orders the folder picker by recency and gates the create row when enabled", async () => {
 		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
 			{ path: "Inbox/Apple.md", basename: "Apple" },
@@ -533,6 +592,56 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(displayItems).toEqual(["Zebra.md", "Apple.md", "Mango.md"]);
 		expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
+	});
+
+	it("suppresses folder create rows for values that normalize to existing files", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
+			{ path: "Inbox/Apple.md", basename: "Apple" },
+		] as any);
+
+		const suggestSpy = vi.fn(async () => "Inbox/Apple.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const app = createApp() as any;
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Inbox/Line Break.md" ? { path } : null,
+		);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "Inbox/",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		await (engine as any).selectFileInFolder("Inbox/", false);
+
+		const options = (suggestSpy.mock.calls[0] as unknown[])[3] as {
+			valueExists: (value: string) => boolean;
+		};
+		expect(options.valueExists("Line\nBreak")).toBe(true);
+	});
+
+	it("suppresses vault create rows for basenames normalized to existing files", () => {
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).captureTargetAlreadyExists(
+				"Line\nBreak",
+				new Set(["line break"]),
+			),
+		).toBe(true);
 	});
 
 	it("disables the create row when create-if-not-exists is off", async () => {
@@ -627,6 +736,47 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(clipboardWriteText).not.toHaveBeenCalled();
+	});
+
+	it("removes a created clipboard attachment when editor insertion fails before commit", async () => {
+		const targetFile = new TFile();
+		targetFile.path = "Inbox.md";
+		targetFile.basename = "Inbox";
+		const attachmentFile = new TFile();
+		attachmentFile.path = "Clipboard image.png";
+		attachmentFile.basename = "Clipboard image";
+		const app = createApp() as any;
+		app.workspace.getActiveFile = vi.fn(() => targetFile);
+		app.vault.adapter.exists = vi.fn(async () => true);
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Inbox.md" ? targetFile : attachmentFile,
+		);
+		vi.mocked(insertOnNewLineBelow).mockReturnValue(false);
+
+		const executor = createExecutor();
+		executor.recordExecutionResult = vi.fn();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureToActiveFile: true,
+				newLineCapture: { enabled: true, direction: "below" },
+				format: { enabled: true, format: "{{clipboard}}" },
+			}),
+			executor,
+		);
+
+		await engine.run();
+
+		expect(app.vault.delete).toHaveBeenCalledWith(attachmentFile);
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+		});
 	});
 
 	it("keeps submitted VALUE prompt draft after failed target creation and clears it after success", async () => {
@@ -725,6 +875,46 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		expect(promptHydratedValues).toContain("Capture body to preserve");
 		expect(store.get(draftKey)).toBeUndefined();
+	});
+
+	it("folds line breaks out of generated capture target file paths", async () => {
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Issue\n221",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				format: {
+					enabled: true,
+					format: "Capture body",
+				},
+			}),
+			createExecutor(),
+		);
+		const createFileWithInput = vi.fn().mockResolvedValue({
+			path: "Issue 221.md",
+			basename: "Issue 221",
+			extension: "md",
+		});
+		(engine as any).createFileWithInput = createFileWithInput;
+
+		await engine.run();
+
+		expect(createFileWithInput).toHaveBeenCalledWith(
+			"Issue 221.md",
+			"",
+			expect.objectContaining({ suppressTemplaterOnCreate: false }),
+		);
+		expect(setTitleMock).toHaveBeenCalledWith("Issue 221");
 	});
 
 	it("does not copy capture content to clipboard when template creation is cancelled", async () => {
@@ -935,6 +1125,70 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		expect(setTextMock).toHaveBeenCalled();
 		expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
+	});
+
+	it("does not delete a clipboard attachment after a canvas text-card write if later link insertion fails", async () => {
+		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+			throw new Error("link insertion failed after canvas write");
+		});
+
+		const canvasFile = new TFile();
+		canvasFile.path = "Boards/Map.canvas";
+		canvasFile.basename = "Map";
+		canvasFile.extension = "canvas";
+		const attachmentFile = new TFile();
+		attachmentFile.path = "Clipboard image.png";
+		attachmentFile.basename = "Clipboard image";
+		const setTextMock = vi.fn();
+		const app = createApp() as any;
+		app.workspace.activeLeaf = {
+			view: {
+				getViewType: () => "canvas",
+				file: canvasFile,
+				canvas: {
+					selection: new Set([
+						{
+							id: "text-node-1",
+							type: "text",
+							text: "Current",
+							setText: setTextMock,
+						},
+					]),
+					getData: vi.fn(() => ({
+						nodes: [{ id: "text-node-1", type: "text", text: "Current" }],
+					})),
+					requestSave: vi.fn(),
+				},
+			},
+		};
+		app.workspace.getActiveFile = vi.fn(() => canvasFile);
+		app.workspace.getActiveViewOfType = vi.fn(() => ({}));
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Clipboard image.png" ? attachmentFile : null,
+		);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				appendLink: true,
+				captureToActiveFile: true,
+				activeFileWritePosition: "top",
+				format: { enabled: true, format: "{{clipboard}}" },
+			}),
+			createExecutor(),
+		);
+
+		await engine.run();
+
+		expect(setTextMock).toHaveBeenCalledWith("![[Clipboard image.png]]");
+		expect(insertFileLinkToActiveView).toHaveBeenCalled();
+		expect(app.vault.delete).not.toHaveBeenCalledWith(attachmentFile);
 	});
 
 	it("creates missing linked markdown file for configured canvas file-card targets", async () => {

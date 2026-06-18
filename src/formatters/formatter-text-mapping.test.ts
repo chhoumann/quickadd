@@ -201,6 +201,15 @@ describe("Formatter VALUE text mapping", () => {
 		expect(formatter.lastSuggestCall?.allowCustomInput).toBe(true);
 	});
 
+	it("trims custom typed option-list values at replacement time", async () => {
+		formatter.setNextSuggestionResult("  urgent!  ");
+		const result = await formatter.testFormat(
+			"{{VALUE:🔼,⏫|text:Normal,High|custom|trim}}",
+		);
+
+		expect(result).toBe("urgent!");
+	});
+
 	it("does not remap typed custom values that equal display labels", async () => {
 		formatter.setNextSuggestionResult("High");
 		const result = await formatter.testFormat(

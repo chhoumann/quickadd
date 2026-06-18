@@ -102,5 +102,25 @@ describe("FormatSyntaxSuggester case style suggestions", () => {
 		expect(suggestions).toContain("upper");
 		suggester.destroy();
 	});
-});
 
+	it("includes a trim example in VALUE variable suggestions", async () => {
+		const app = {
+			dom: { appContainerEl: document.body },
+			keymap: { pushScope: () => {}, popScope: () => {} },
+		} as any;
+		const plugin = {
+			settings: { choices: [], globalVariables: {} },
+			getTemplateFiles: () => [],
+		} as any;
+
+		const inputEl = document.createElement("input");
+		inputEl.value = "{{VALUE";
+		inputEl.selectionStart = inputEl.value.length;
+		inputEl.selectionEnd = inputEl.value.length;
+
+		const suggester = new FormatSyntaxSuggester(app, inputEl, plugin);
+		const suggestions = await suggester.getSuggestions(inputEl.value);
+		expect(suggestions).toContain("{{VALUE:title|trim}}");
+		suggester.destroy();
+	});
+});

@@ -38,6 +38,7 @@ import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import { quoteYamlDouble, shouldQuoteTextScalar } from "../utils/yamlScalarQuoting";
 import { toWikiLink } from "../utils/linkWrap";
+import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import {
 	type ParsedValueToken,
 	parseAnonymousValueOptions,
@@ -230,7 +231,7 @@ export abstract class Formatter {
 			if (optionsIndex === -1) return this.value;
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions);
-			const transformed = transformCase(this.value, parsed.caseStyle);
+			const transformed = this.applyValueTextOptions(this.value, parsed);
 			// |type:text on the anonymous {{VALUE|...}} form quotes the same way
 			// as the named form (see replaceVariableInString).
 			if (
@@ -244,6 +245,32 @@ export abstract class Formatter {
 		});
 
 		return output;
+	}
+
+	private applyValueTextOptions(
+		value: unknown,
+		options: { trim?: boolean; caseStyle?: string },
+	): string {
+		const text = String(value ?? "");
+		const trimmed = options.trim ? text.trim() : text;
+		return transformCase(trimmed, options.caseStyle);
+	}
+
+	private applyValueTokenOptions(
+		value: unknown,
+		parsed: ParsedValueToken,
+	): unknown {
+		if (Array.isArray(value)) {
+			return parsed.trim
+				? value.map((item) =>
+						typeof item === "string" ? item.trim() : item,
+					)
+				: value;
+		}
+		if (typeof value === "string") {
+			return this.applyValueTextOptions(value, parsed);
+		}
+		return value;
 	}
 
 	private getValuePromptContext(input: string): PromptContext | undefined {
@@ -291,15 +318,11 @@ export abstract class Formatter {
 	}
 
 	protected async replaceClipboardInString(input: string): Promise<string> {
-		let output: string = input;
+		if (!CLIPBOARD_REGEX.test(input)) return input;
 
 		const clipboardContent = await this.getClipboardContent();
-
-		while (CLIPBOARD_REGEX.test(output)) {
-			output = this.replacer(output, CLIPBOARD_REGEX, clipboardContent);
-		}
-
-		return output;
+		const regex = new RegExp(CLIPBOARD_REGEX.source, "gi");
+		return input.replace(regex, () => clipboardContent);
 	}
 
 
@@ -557,6 +580,10 @@ export abstract class Formatter {
 		return this.propertyCollector.drain();
 	}
 
+	public mergeTemplatePropertyVars(vars: Map<string, unknown>): void {
+		this.propertyCollector.merge(vars);
+	}
+
 	/**
 	 * Runs a formatting operation in a scope where structured YAML values should
 	 * be collected and replaced with temporary placeholders for later
@@ -790,19 +817,13 @@ export abstract class Formatter {
 				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
 
-			const {
-				variableName,
-				caseStyle,
-			} = parsed;
+			const { variableName } = parsed;
 
 			const effectiveKey = await this.ensureValueVariableResolved(parsed);
 
 			// Get the raw value from variables
 			const rawValue = this.variables.get(effectiveKey);
-			const rawValueForCollector =
-				caseStyle && typeof rawValue === "string"
-					? transformCase(rawValue, caseStyle)
-					: rawValue;
+			const effectiveRawValue = this.applyValueTokenOptions(rawValue, parsed);
 
 			// Offer this variable to the property collector for YAML post-processing.
 			// Collecting structured values (arrays/objects/numbers/booleans) into a
@@ -814,7 +835,7 @@ export abstract class Formatter {
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
-				rawValue: rawValueForCollector,
+				rawValue: effectiveRawValue,
 				fallbackKey: variableName,
 				collectionActive,
 				// |type:text forces a string: never run the string->structured
@@ -834,14 +855,17 @@ export abstract class Formatter {
 			let replacement: string;
 			if (placeholder !== undefined) {
 				replacement = placeholder;
-			} else if (Array.isArray(rawValue)) {
+			} else if (Array.isArray(effectiveRawValue)) {
 				// A |multi (or script) array that was NOT collected (body text, or a
 				// capture flow that suppresses frontmatter collection): join with
 				// commas. Guards against transformCase()/String() on an array.
-				replacement = rawValue.join(",");
+				replacement = effectiveRawValue.join(",");
 			} else {
 				const stringVal = String(
-					transformCase(this.getVariableValue(effectiveKey), caseStyle) ?? "",
+					this.applyValueTextOptions(
+						this.getVariableValue(effectiveKey),
+						parsed,
+					) ?? "",
 				);
 				// |type:text (#757): write the value as a quoted YAML string at a
 				// sole-value front-matter position so Obsidian can't retype it
@@ -880,6 +904,7 @@ export abstract class Formatter {
 
 			if (fullMatch) {
 				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
+				const parsed = FieldSuggestionParser.parse(fullMatch);
 
 				if (!this.hasConcreteVariable(fieldVariableKey)) {
 					this.variables.set(
@@ -888,9 +913,26 @@ export abstract class Formatter {
 					);
 				}
 
-				const replacement = this.hasConcreteVariable(fieldVariableKey)
-					? String(this.variables.get(fieldVariableKey))
+				const rawValue = this.hasConcreteVariable(fieldVariableKey)
+					? this.variables.get(fieldVariableKey)
 					: this.getVariableValue(fullMatch);
+				let replacement: string;
+
+				if (Array.isArray(rawValue)) {
+					const structuredYamlValue = this.propertyCollector.maybeCollect({
+						input,
+						matchStart: match.index,
+						matchEnd: match.index + match[0].length,
+						rawValue,
+						fallbackKey: parsed.fieldName,
+						collectionActive: this.templatePropertyCollectionDepth > 0,
+						heuristicEnabled: false,
+					});
+					replacement =
+						getYamlPlaceholder(structuredYamlValue) ?? rawValue.join(",");
+				} else {
+					replacement = String(rawValue ?? "");
+				}
 
 				output += replacement;
 			} else {
@@ -1101,7 +1143,9 @@ export abstract class Formatter {
 		return [];
 	}
 
-	protected abstract suggestForField(variableName: string): Promise<string>;
+	protected abstract suggestForField(
+		variableName: string,
+	): Promise<string | string[]>;
 
 	protected async replaceDateVariableInString(input: string) {
 		let output: string = input;

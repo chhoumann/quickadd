@@ -256,6 +256,17 @@ function onModeChange(value: string) {
 
 <SettingItem name="Linking" heading />
 <AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" />
+<SettingItem
+	name="Copy link to clipboard"
+	desc="Copy a link to the created file after the Template choice runs."
+>
+	{#snippet control()}
+		<Toggle
+			checked={choice.copyLinkToClipboard ?? false}
+			onchange={(value) => (choice.copyLinkToClipboard = value)}
+		/>
+	{/snippet}
+</SettingItem>
 
 <SettingItem name="Behavior" heading />
 

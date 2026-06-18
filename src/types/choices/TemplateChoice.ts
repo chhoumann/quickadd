@@ -8,6 +8,7 @@ import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean | AppendLinkOptions;
+	copyLinkToClipboard: boolean;
 	fileNameFormat: { enabled: boolean; format: string };
 	folder: TemplateFolderConfig;
 	openFile: boolean;
@@ -33,6 +34,7 @@ export class TemplateChoice extends Choice implements ITemplateChoice {
 			chooseFromSubfolders: false,
 		};
 		this.appendLink = false;
+		this.copyLinkToClipboard = false;
 		this.openFile = false;
 		this.fileOpening = normalizeFileOpening();
 		this.fileExistsBehavior = { kind: "prompt" };

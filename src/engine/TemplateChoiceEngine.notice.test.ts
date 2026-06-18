@@ -43,13 +43,20 @@ vi.mock("../quickAddSettingsTab", () => {
 	};
 });
 
-const { formatFileNameMock, formatFileContentMock } = vi.hoisted(() => {
-	const formatName = vi.fn<(format: string, prompt: string) => Promise<string>>();
+const {
+	copyFileLinkToClipboardMock,
+	formatFileNameMock,
+	formatFileContentMock,
+} = vi.hoisted(() => {
+	const copyFileLink = vi.fn();
+	const formatName =
+		vi.fn<(format: string, prompt: string) => Promise<string>>();
 	const formatContent = vi
 		.fn<(...args: unknown[]) => Promise<string>>()
 		.mockResolvedValue("");
 
 	return {
+		copyFileLinkToClipboardMock: copyFileLink,
 		formatFileNameMock: formatName,
 		formatFileContentMock: formatContent,
 	};
@@ -84,6 +91,10 @@ vi.mock("../formatters/completeFormatter", () => {
 		formatFileContentMock,
 	};
 });
+
+vi.mock("../utils/fileLinks", () => ({
+	copyFileLinkToClipboard: copyFileLinkToClipboardMock,
+}));
 
 vi.mock("../utilityObsidian", async (importOriginal) => ({
 	...(await importOriginal<object>()),
@@ -219,6 +230,8 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		noticeClass.instances.length = 0;
 		InputPromptDraftStore.getInstance().clearAll();
+		copyFileLinkToClipboardMock.mockReset();
+		copyFileLinkToClipboardMock.mockResolvedValue(true);
 		formatFileNameMock.mockReset();
 		formatFileContentMock.mockReset();
 		formatFileContentMock.mockResolvedValue("");
@@ -401,6 +414,94 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		store.commitExecutionScope();
 
 		expect(store.get(draftKey)).toBe("Submitted template name");
+	});
+
+	it("copies the created file link without requiring append-link insertion", async () => {
+		const { engine } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		const createdFile = new TFile();
+		createdFile.path = "Test Template.md";
+		createdFile.name = "Test Template.md";
+		createdFile.extension = "md";
+		createdFile.basename = "Test Template";
+
+		engine.choice.copyLinkToClipboard = true;
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
+
+		await engine.run();
+
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
+	});
+
+	it("keeps template execution successful when clipboard copying reports failure", async () => {
+		const { engine, choiceExecutor } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		const createdFile = new TFile();
+		createdFile.path = "Test Template.md";
+		createdFile.name = "Test Template.md";
+		createdFile.extension = "md";
+		createdFile.basename = "Test Template";
+
+		engine.choice.copyLinkToClipboard = true;
+		choiceExecutor.recordExecutionResult = vi.fn();
+		copyFileLinkToClipboardMock.mockResolvedValue(false);
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: createdFile,
+		});
+	});
+
+	it("keeps template execution successful when clipboard copying throws", async () => {
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Test Template Choice",
+			placeholder: "",
+		});
+		const { engine, choiceExecutor } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		const createdFile = new TFile();
+		createdFile.path = "Test Template.md";
+		createdFile.name = "Test Template.md";
+		createdFile.extension = "md";
+		createdFile.basename = "Test Template";
+
+		engine.choice.copyLinkToClipboard = true;
+		choiceExecutor.recordExecutionResult = vi.fn();
+		copyFileLinkToClipboardMock.mockRejectedValue(new Error("clipboard denied"));
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
+
+		store.beginExecutionScope();
+		store.handleSubmittedDraft(draftKey, "Submitted template name");
+
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: createdFile,
+		});
+		expect(store.get(draftKey)).toBeUndefined();
 	});
 });
 

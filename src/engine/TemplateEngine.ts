@@ -22,6 +22,7 @@ import {
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
 import { reportError } from "../utils/errorUtils";
+import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import {
 	INVALID_FOLDER_CHARS_REGEX,
@@ -502,8 +503,13 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const safeFolderPath = this.stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = stripTemplateOutputExtension(
+		const normalizedFileName = normalizeGeneratedFilePath(
 			this.stripLeadingSlash(fileName),
+			"File name",
+		);
+		const formattedFileName: string = normalizeGeneratedFilePath(
+			stripTemplateOutputExtension(normalizedFileName),
+			"File name",
 		);
 		// Validate the final path segment, not just the whole string — a
 		// trailing-slash name like "Projects/" (optional leaf token left

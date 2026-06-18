@@ -30,6 +30,14 @@ import { parentFolderPath } from "../utils/pathUtils";
 	* dropped, even though String.prototype.trim() strips them (issue #760).
 	*/
 const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
+const imageClipboardMimeExtensions: Record<string, string> = {
+	"image/png": "png",
+	"image/jpeg": "jpg",
+	"image/jpg": "jpg",
+	"image/gif": "gif",
+	"image/webp": "webp",
+	"image/svg+xml": "svg",
+};
 
 function isCaptureContentEmpty(content: string): boolean {
 	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
@@ -41,6 +49,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private fileContent = "";
 	private sourcePath: string | null = null;
 	private useSelectionAsCaptureValue = true;
+	private clipboardImageFallbackEnabled = false;
+	private clipboardAttachmentLink: string | null | undefined;
+	private createdClipboardAttachmentPaths: string[] = [];
 	/**
 		* Tracks whether the current formatter instance has already run Templater on the
 		* capture payload.  This prevents the same content from being parsed twice in
@@ -82,6 +93,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	public setDestinationFile(file: TFile): void {
 		this.file = file;
 		this.sourcePath = file.path;
+		this.clipboardAttachmentLink = undefined;
 		// {{FOLDER}} in a capture body resolves to the destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
 	}
@@ -89,6 +101,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	public setDestinationSourcePath(path: string): void {
 		this.sourcePath = path;
 		this.file = null;
+		this.clipboardAttachmentLink = undefined;
 		this.setTargetFolderPath(parentFolderPath(path));
 	}
 
@@ -116,6 +129,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.lastResolvedInsertAfterHeading;
 	}
 
+	public consumeCreatedClipboardAttachmentPaths(): string[] {
+		const paths = this.createdClipboardAttachmentPaths;
+		this.createdClipboardAttachmentPaths = [];
+		return paths;
+	}
+
 	protected shouldUseSelectionForValue(): boolean {
 		return this.useSelectionAsCaptureValue;
 	}
@@ -127,6 +146,86 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 
 	protected getLinkSourcePath(): string | null {
 		return this.sourcePath ?? this.file?.path ?? null;
+	}
+
+	protected async getClipboardContent(): Promise<string> {
+		const text = await super.getClipboardContent();
+		if (text.length > 0 || !this.clipboardImageFallbackEnabled) {
+			return text;
+		}
+
+		if (this.clipboardAttachmentLink !== undefined) {
+			return this.clipboardAttachmentLink ?? "";
+		}
+
+		this.clipboardAttachmentLink = await this.saveClipboardImageAsAttachment();
+		return this.clipboardAttachmentLink ?? "";
+	}
+
+	private async withClipboardImageFallback<T>(work: () => Promise<T>): Promise<T> {
+		const previous = this.clipboardImageFallbackEnabled;
+		this.clipboardImageFallbackEnabled = true;
+		try {
+			return await work();
+		} finally {
+			this.clipboardImageFallbackEnabled = previous;
+		}
+	}
+
+	private async saveClipboardImageAsAttachment(): Promise<string | null> {
+		const clipboard = navigator.clipboard as Clipboard & {
+			read?: () => Promise<ClipboardItem[]>;
+		};
+		if (typeof clipboard?.read !== "function") return null;
+
+		let item: { clipboardItem: ClipboardItem; mimeType: string } | null;
+		let data: ArrayBuffer;
+		try {
+			item = await this.getFirstClipboardImageItem(clipboard);
+			if (!item) return null;
+
+			const blob = await item.clipboardItem.getType(item.mimeType);
+			data = await blob.arrayBuffer();
+		} catch {
+			return null;
+		}
+
+		const extension = imageClipboardMimeExtensions[item.mimeType];
+		const filename = `Clipboard image ${this.formatAttachmentTimestamp(new Date())}.${extension}`;
+		const sourcePath = this.getLinkSourcePath() ?? "";
+		const attachmentPath =
+			await this.app.fileManager.getAvailablePathForAttachment(
+				filename,
+				sourcePath || undefined,
+			);
+		const file = await this.app.vault.createBinary(attachmentPath, data);
+		this.createdClipboardAttachmentPaths.push(file.path);
+		const link = this.app.fileManager.generateMarkdownLink(file, sourcePath);
+
+		return link.startsWith("!") ? link : `!${link}`;
+	}
+
+	private async getFirstClipboardImageItem(clipboard: {
+		read: () => Promise<ClipboardItem[]>;
+	}): Promise<{ clipboardItem: ClipboardItem; mimeType: string } | null> {
+		const items = await clipboard.read();
+		for (const clipboardItem of items) {
+			const mimeType = clipboardItem.types.find(
+				(type) => imageClipboardMimeExtensions[type] !== undefined,
+			);
+			if (mimeType) return { clipboardItem, mimeType };
+		}
+
+		return null;
+	}
+
+	private formatAttachmentTimestamp(date: Date): string {
+		const pad = (value: number) => String(value).padStart(2, "0");
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+			date.getDate(),
+		)} ${pad(date.getHours())}.${pad(date.getMinutes())}.${pad(
+			date.getSeconds(),
+		)}`;
 	}
 
 	protected getCurrentFileLink(): string | null {
@@ -178,8 +277,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
-		let formatted = await super.formatFileContent(
-			await this.expandTemplateLinebreaksOnce(input),
+		let formatted = await this.withClipboardImageFallback(async () =>
+			super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
 		);
 
 		// Run templater only once per capture payload to prevent #533 double execution
@@ -234,8 +333,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	async formatContentOnly(input: string): Promise<string> {
 		// Process the input with templater (if needed) at this stage
 		// This is the first pass where we want to run any templater code
-		const formatted = await super.formatFileContent(
-			await this.expandTemplateLinebreaksOnce(input),
+		const formatted = await this.withClipboardImageFallback(async () =>
+			super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
 		);
 
 		// DON'T run templater parsing here - it will be handled either by:

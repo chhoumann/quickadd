@@ -45,6 +45,15 @@ function settingNames(container: HTMLElement): string[] {
 	);
 }
 
+function settingItem(container: HTMLElement, name: string): HTMLElement {
+	const item = Array.from(container.querySelectorAll(".setting-item")).find(
+		(el) =>
+			el.querySelector(".setting-item-name")?.textContent?.trim() === name,
+	);
+	if (!item) throw new Error(`Setting item not found: ${name}`);
+	return item as HTMLElement;
+}
+
 function locationDropdown(container: HTMLElement): HTMLSelectElement {
 	const el = container.querySelector<HTMLSelectElement>(
 		'select.dropdown[aria-label="New note location"]',
@@ -199,5 +208,19 @@ describe("TemplateChoiceForm", () => {
 		expect(
 			names.includes("New file naming") || names.includes("Update action"),
 		).toBe(true);
+	});
+
+	it("persists the copy-link-to-clipboard toggle", async () => {
+		const { container, props } = mountForm();
+		expect(props.choice.copyLinkToClipboard).toBeUndefined();
+
+		const toggle = settingItem(container, "Copy link to clipboard").querySelector(
+			".checkbox-container",
+		) as HTMLElement;
+		await fireEvent.click(toggle);
+		flushSync();
+
+		expect(props.choice.copyLinkToClipboard).toBe(true);
+		expect(toggle.classList.contains("is-enabled")).toBe(true);
 	});
 });

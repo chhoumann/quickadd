@@ -190,6 +190,21 @@ Transforms the resolved value into a casing style. Supported: `kebab`, `snake`, 
 
 Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 
+## `{{VALUE|trim}}` / `{{NAME|trim}}` / `{{VALUE:<variable>|trim}}` {#value-trim}
+
+Trims leading and trailing whitespace from the resolved value for this token. This is useful for file names, links, and properties where accidental spaces from mobile keyboards or pasted text would create a different note or link target.
+
+Example: `[[{{VALUE:title|trim}}]]`.
+
+`|trim` is applied per token and does not mutate the stored value. This means you can reuse the same answer in raw and trimmed forms:
+
+```markdown
+Raw: {{VALUE:title}}
+Link: [[{{VALUE:title|trim}}]]
+```
+
+It composes with other VALUE options, for example `{{VALUE:title|trim|case:slug}}`. For `|multi` values, string entries are trimmed while the value stays a List. The keyed form `|trim:false` turns trimming off when a shared snippet adds it.
+
 ## `{{VALUE:<options>|custom}}` {#value-custom}
 
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
@@ -216,7 +231,7 @@ Variants and combinations:
 
 - `|multi:linklist` wraps each pick as a wikilink, for List properties of links: `{{VALUE:Alice,Bob,Carol|multi:linklist}}` → `- "[[Alice]]"` / `- "[[Bob]]"`.
 - `|multi|custom` lets you add values not in the list (a text box in the picker).
-- Combines with `|name:`, `|label:`, `|text:`, and `|optional`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
+- Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
 
 Notes:
 
@@ -354,6 +369,37 @@ Suggest the values of `FIELDNAME` anywhere `{{FIELD:FIELDNAME}}` is used. Fields
 
 Example: `project: {{FIELD:project}}`.
 
+### `{{FIELD:<FIELDNAME>|multi}}` {#field-multi}
+
+Turns FIELD suggestions into a multi-select. Pick several existing field values,
+or add custom values in the picker.
+
+```markdown
+---
+topics: {{FIELD:topic|multi}}
+---
+```
+
+picks `Alpha` and `Beta` →
+
+```yaml
+topics:
+  - Alpha
+  - Beta
+```
+
+Inside front matter, `|multi` writes a real YAML **List** when the token is the
+complete property value. In note bodies, file names, and other text positions it
+renders the selected values as comma-separated text. `|multi` combines with the
+same FIELD filters and defaults as single-value FIELD prompts, for example
+`{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
+
+The one-page input form intentionally does not inline FIELD multi-selects yet:
+vault field values can contain commas, and the current one-page multi input uses
+commas as separators. When a format contains `{{FIELD:...|multi}}`, QuickAdd
+collects other one-page inputs first, then opens the runtime multi-select for
+the FIELD value.
+
 **Enhanced Filtering Options:**
 
 - `{{FIELD:fieldname|folder:path/to/folder}}` - Only suggest values from files in specific folder
@@ -414,6 +460,8 @@ Example: `> {{selected}}`.
 ## `{{CLIPBOARD}}` {#clipboard}
 
 The current clipboard content. Will be empty if clipboard access fails due to permissions or security restrictions.
+
+In Capture choice content, if the clipboard has no text but contains a supported image, QuickAdd saves the image using Obsidian's attachment location settings and inserts an embedded attachment link. Clipboard text takes precedence when both text and an image are available.
 
 Example: `Copied: {{CLIPBOARD}}`.
 

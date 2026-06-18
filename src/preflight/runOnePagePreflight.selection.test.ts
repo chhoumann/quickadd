@@ -243,4 +243,45 @@ describe("runOnePagePreflight template extension handling", () => {
 			"Templates/Kanban.base.md",
 		);
 	});
+
+	it("leaves FIELD multi-select prompts for runtime instead of the one-page modal", async () => {
+		const templateFile = new TFile();
+		templateFile.path = "Templates/FieldMulti.md";
+		templateFile.name = "FieldMulti.md";
+		templateFile.basename = "FieldMulti";
+		templateFile.extension = "md";
+
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+			},
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) =>
+					path === "Templates/FieldMulti.md" ? templateFile : null,
+				),
+				cachedRead: vi.fn(async () => "topics: {{FIELD:topic|multi}}"),
+			},
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+
+		const executor = createExecutor();
+
+		const result = await runOnePagePreflight(
+			app,
+			plugin,
+			executor,
+			createTemplateChoice("Templates/FieldMulti.md"),
+		);
+
+		expect(result).toBe(false);
+		expect(modalOpenMock).not.toHaveBeenCalled();
+		expect(executor.variables.has("FIELD:topic|multi")).toBe(false);
+	});
 });

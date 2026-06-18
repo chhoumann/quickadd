@@ -3,13 +3,13 @@ import { Formatter } from "./formatter";
 
 class FieldTitleFormatter extends Formatter {
 	public fieldCalls: string[] = [];
-	private fieldResponses: Map<string, string> = new Map();
+	private fieldResponses: Map<string, string | string[]> = new Map();
 
 	constructor() {
 		super();
 	}
 
-	public setMockFieldResponse(specifier: string, value: string): void {
+	public setMockFieldResponse(specifier: string, value: string | string[]): void {
 		this.fieldResponses.set(specifier, value);
 	}
 
@@ -28,11 +28,15 @@ class FieldTitleFormatter extends Formatter {
 		return await this.format(input);
 	}
 
+	public async runFormatWithPropertyCollection(input: string): Promise<string> {
+		return await this.withTemplatePropertyCollection(() => this.format(input));
+	}
+
 	protected suggestForFile(): string {
 		return "";
 	}
 
-	protected async suggestForField(specifier: string): Promise<string> {
+	protected async suggestForField(specifier: string): Promise<string | string[]> {
 		this.fieldCalls.push(specifier);
 		const value = this.fieldResponses.get(specifier);
 
@@ -169,5 +173,40 @@ describe("Formatter FIELD and TITLE namespace handling", () => {
 
 		expect(result).toBe("{{FIELD:type}}");
 		expect(formatter.fieldCalls).toEqual(["type"]);
+	});
+
+	it("collects FIELD multi arrays as YAML list properties", async () => {
+		formatter.setMockFieldResponse("topic|multi", ["Alpha", "Beta"]);
+
+		const output = await formatter.runFormatWithPropertyCollection(
+			"---\ntopics: {{FIELD:topic|multi}}\n---\n",
+		);
+		const vars = formatter.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe("---\ntopics: []\n---\n");
+		expect(vars.get("topics")).toEqual(["Alpha", "Beta"]);
+	});
+
+	it("joins FIELD multi arrays outside frontmatter property positions", async () => {
+		formatter.setMockFieldResponse("topic|multi", ["Alpha", "Beta"]);
+
+		await expect(
+			formatter.runFormatWithPropertyCollection(
+				"Body topics: {{FIELD:topic|multi}}",
+			),
+		).resolves.toBe("Body topics: Alpha,Beta");
+		expect(formatter.getAndClearTemplatePropertyVars().size).toBe(0);
+	});
+
+	it("collects FIELD multi arrays from YAML list item token positions", async () => {
+		formatter.setMockFieldResponse("topic|multi", ["Alpha", "Beta"]);
+
+		const output = await formatter.runFormatWithPropertyCollection(
+			"---\ntopics:\n  - \"{{FIELD:topic|multi}}\"\n---\n",
+		);
+		const vars = formatter.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe("---\ntopics:\n  - \"[]\"\n---\n");
+		expect(vars.get("topics")).toEqual(["Alpha", "Beta"]);
 	});
 });
