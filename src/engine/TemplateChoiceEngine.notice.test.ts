@@ -463,6 +463,44 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 			file: createdFile,
 		});
 	});
+
+	it("keeps template execution successful when clipboard copying throws", async () => {
+		const store = InputPromptDraftStore.getInstance();
+		const draftKey = store.makeKey({
+			kind: "single",
+			header: "Test Template Choice",
+			placeholder: "",
+		});
+		const { engine, choiceExecutor } = createEngine("ignored", {
+			throwDuringFileName: false,
+		});
+		const createdFile = new TFile();
+		createdFile.path = "Test Template.md";
+		createdFile.name = "Test Template.md";
+		createdFile.extension = "md";
+		createdFile.basename = "Test Template";
+
+		engine.choice.copyLinkToClipboard = true;
+		choiceExecutor.recordExecutionResult = vi.fn();
+		copyFileLinkToClipboardMock.mockRejectedValue(new Error("clipboard denied"));
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(createdFile);
+
+		store.beginExecutionScope();
+		store.handleSubmittedDraft(draftKey, "Submitted template name");
+
+		await engine.run();
+		store.commitExecutionScope();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: createdFile,
+		});
+		expect(store.get(draftKey)).toBeUndefined();
+	});
 });
 
 describe("TemplateChoiceEngine file casing resolution", () => {

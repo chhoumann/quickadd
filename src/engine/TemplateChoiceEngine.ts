@@ -175,7 +175,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			}
 
 			if (this.choice.copyLinkToClipboard && createdFile) {
-				await copyFileLinkToClipboard(createdFile);
+				try {
+					await copyFileLinkToClipboard(createdFile);
+				} catch (error) {
+					log.logWarning(
+						`Could not copy link to clipboard for '${createdFile.path}': ${
+							error instanceof Error ? error.message : String(error)
+						}`,
+					);
+				}
 			}
 
 			if ((this.choice.openFile || shouldAutoOpen) && createdFile) {
