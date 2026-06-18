@@ -469,6 +469,25 @@ describe("collectChoiceRequirements - capture targets", () => {
 			]);
 		});
 
+	it("does not reinterpret multi-select capture target filters as tag targets", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("#work|multi"),
+		);
+
+		expect(getMarkdownFilesMatchingFilterMock).not.toHaveBeenCalled();
+		expect(getMarkdownFilesWithTagMock).not.toHaveBeenCalled();
+		expect(getMarkdownFilesInFolderMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(false);
+	});
+
 	it("does not force the dropdown for a tokenized property value", async () => {
 		const requirements = await collectChoiceRequirements(
 			app,
