@@ -25,6 +25,7 @@ Each choice builder has a **One-page input override** dropdown that lets you ove
   - `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`
   - Nested `{{TEMPLATE:path}}` are scanned recursively.
 - `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` render as textareas in the one-page modal.
+- `{{VALUE:name|type:number|min:1|max:10}}` renders as a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` renders as a slider plus numeric input.
 - Capture target file when capturing to a folder or tag.
 - Script-declared inputs (from user scripts inside macros), if provided.
 
@@ -73,6 +74,7 @@ export const quickadd = {
   inputs: [
     { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
     { id: "due", label: "Due date", type: "date", dateFormat: "YYYY-MM-DD" },
+    { id: "confidence", label: "Confidence", type: "slider", defaultValue: "50", sliderConfig: { min: 0, max: 100, step: 5 } },
     { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] }
   ]
 };
@@ -93,10 +95,12 @@ export const quickadd = {
 Supported input fields:
 - `id` (string, required)
 - `label` (string)
-- `type` ("text" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester")
+- `type` ("text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider")
 - `placeholder` (string)
 - `defaultValue` (string)
 - `options` (string[] for dropdown and suggester)
+- `numericConfig` (object for number: `{ min?: number, max?: number, step?: number }`)
+- `sliderConfig` (object for slider: `{ min: number, max: number, step?: number }`; `min` and `max` are required, `step` defaults to `1`)
 - `dateFormat` (string for date)
 - `description` (string)
 - `optional` (boolean — field may be left empty; shows an "(optional)" badge)
@@ -104,10 +108,12 @@ Supported input fields:
 
 **Field Type Details:**
 - `text`: Single-line text input
+- `number`: Numeric input, optionally bounded by `numericConfig`
 - `textarea`: Multi-line text input
 - `dropdown`: Fixed dropdown menu (no search, must select from list)
 - `date`: Date input with natural language support
 - `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `slider`: Bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; invalid configs fall back to `number`.
 - `suggester`: **NEW** - Searchable autocomplete with custom options (allows typing custom values)
   - Supports multi-select mode via `suggesterConfig.multiSelect: true`
   - Multi-select: Select multiple items, separated by commas. Suggestions stay open after each selection.
@@ -121,6 +127,7 @@ export default async function entry({ quickAddApi }) {
   const values = await quickAddApi.requestInputs([
     { id: "project", label: "Project", type: "text", defaultValue: "Inbox" },
     { id: "due", label: "Due", type: "date", dateFormat: "YYYY-MM-DD" },
+    { id: "confidence", label: "Confidence", type: "slider", defaultValue: "50", sliderConfig: { min: 0, max: 100, step: 5 } },
     { id: "status", label: "Status", type: "dropdown", options: ["Todo","Doing","Done"] },
     { 
       id: "tags", 

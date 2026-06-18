@@ -1,10 +1,13 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import {
 	buildValueVariableKey,
+	normalizeNumericValue,
+	normalizeSliderValue,
 	parseAnonymousValueOptions,
 	parseValueToken,
 	resolveExistingVariableKey,
 } from "./valueSyntax";
+import { log } from "../logger/logManager";
 
 describe("parseValueToken", () => {
 	afterEach(() => {
@@ -113,21 +116,21 @@ describe("parseValueToken", () => {
 	});
 
 	it("warns and ignores unknown type values", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("Body|type:wide");
 		expect(parsed?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
 
 	it("warns and ignores type for option lists", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("Red,Green|type:multiline");
 		expect(parsed?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
 	});
 
 	it("parses type:number / checkbox / text without warning", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		expect(parseValueToken("Rating|type:number")?.inputTypeOverride).toBe(
 			"number",
 		);
@@ -140,6 +143,77 @@ describe("parseValueToken", () => {
 		expect(warnSpy).not.toHaveBeenCalled();
 	});
 
+	it("parses numeric constraints for number inputs", () => {
+		const parsed = parseValueToken("Rating|type:number|min:1|max:10|step:0.5");
+		expect(parsed?.inputTypeOverride).toBe("number");
+		expect(parsed?.numericConfig).toEqual({ min: 1, max: 10, step: 0.5 });
+	});
+
+	it("keeps min/max/step as shorthand defaults unless a numeric type is present", () => {
+		expect(parseValueToken("x|min:5")?.defaultValue).toBe("min:5");
+		expect(parseValueToken("x|min:5|max:10")?.defaultValue).toBe(
+			"min:5|max:10",
+		);
+	});
+
+	it("parses slider type only with an explicit valid range", () => {
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const parsed = parseValueToken("Rating|type:slider|min:1|max:10|step:0.5");
+		expect(parsed?.inputTypeOverride).toBe("slider");
+		expect(parsed?.numericConfig).toEqual({ min: 1, max: 10, step: 0.5 });
+		expect(parsed?.sliderConfig).toEqual({ min: 1, max: 10, step: 0.5 });
+		expect(warnSpy).not.toHaveBeenCalled();
+	});
+
+	it("falls back to number for slider tokens without finite min and max", () => {
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const parsed = parseValueToken("Rating|type:slider|max:10");
+		expect(parsed?.inputTypeOverride).toBe("number");
+		expect(parsed?.numericConfig).toEqual({ max: 10 });
+		expect(parsed?.sliderConfig).toBeUndefined();
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("falling back to type:number"),
+		);
+	});
+
+	it("falls back to number for invalid slider ranges and steps", () => {
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const invalidRange = parseValueToken("Rating|type:slider|min:10|max:1");
+		const invalidStep = parseValueToken(
+			"Rating|type:slider|min:1|max:10|step:0",
+		);
+		expect(invalidRange?.inputTypeOverride).toBe("number");
+		expect(invalidRange?.numericConfig).toBeUndefined();
+		expect(invalidStep?.inputTypeOverride).toBe("number");
+		expect(invalidStep?.numericConfig).toEqual({ min: 1, max: 10 });
+		expect(warnSpy).toHaveBeenCalledTimes(2);
+	});
+
+	it("defaults slider step to one when omitted", () => {
+		const parsed = parseValueToken("Rating|type:slider|min:-5|max:5");
+		expect(parsed?.sliderConfig).toEqual({ min: -5, max: 5, step: 1 });
+	});
+
+	it("normalizes numeric values to bounds and step", () => {
+		expect(normalizeNumericValue("999", { min: 1, max: 10 })).toBe("10");
+		expect(normalizeNumericValue("-5", { min: 1, max: 10 })).toBe("1");
+		expect(normalizeNumericValue("4", { min: 1, max: 10, step: 2 })).toBe(
+			"5",
+		);
+		expect(normalizeNumericValue("0.26", { min: 0, max: 1, step: 0.25 })).toBe(
+			"0.25",
+		);
+		expect(normalizeNumericValue("garbage", { min: 1, max: 10 })).toBe("");
+	});
+
+	it("normalizes slider values to a concrete bounded value", () => {
+		const config = { min: 1, max: 10, step: 2 };
+		expect(normalizeSliderValue("999", config)).toBe("10");
+		expect(normalizeSliderValue("-5", config)).toBe("1");
+		expect(normalizeSliderValue("4", config)).toBe("5");
+		expect(normalizeSliderValue("garbage", config)).toBe("1");
+	});
+
 	it("treats type:boolean as an alias for checkbox", () => {
 		expect(parseValueToken("Done|type:boolean")?.inputTypeOverride).toBe(
 			"checkbox",
@@ -147,15 +221,15 @@ describe("parseValueToken", () => {
 	});
 
 	it("still rejects an unknown type and names the new supported set", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		expect(parseValueToken("Body|type:wide")?.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalledWith(
-			expect.stringContaining("multiline, number, checkbox, text"),
+			expect.stringContaining("multiline, number, slider, checkbox, text"),
 		);
 	});
 
 	it("ignores a scalar type on an option-list token", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		expect(
 			parseValueToken("Red,Green|type:number")?.inputTypeOverride,
 		).toBeUndefined();
@@ -175,7 +249,7 @@ describe("parseValueToken", () => {
 	});
 
 	it("warns and ignores |multi without an option list", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		expect(parseValueToken("Only|multi")?.multiSelect).toBe(false);
 		expect(parseValueToken("Only|multi:linklist")?.multiSelect).toBe(false);
 		expect(warnSpy).toHaveBeenCalled();
@@ -191,7 +265,7 @@ describe("parseValueToken", () => {
 	});
 
 	it("drops |case when combined with |multi (a list is not case-transformed)", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("a,b,c|multi|case:upper");
 		expect(parsed?.multiSelect).toBe(true);
 		expect(parsed?.caseStyle).toBeUndefined();
@@ -218,6 +292,16 @@ describe("parseAnonymousValueOptions", () => {
 		expect(parsed.defaultValue).toBe("Hello");
 	});
 
+	it("parses slider type and numeric config for unnamed VALUE tokens", () => {
+		const parsed = parseAnonymousValueOptions(
+			"|type:slider|min:1|max:10|step:1|default:5",
+		);
+		expect(parsed.inputTypeOverride).toBe("slider");
+		expect(parsed.numericConfig).toEqual({ min: 1, max: 10, step: 1 });
+		expect(parsed.sliderConfig).toEqual({ min: 1, max: 10, step: 1 });
+		expect(parsed.defaultValue).toBe("5");
+	});
+
 	it("parses case style for unnamed VALUE tokens", () => {
 		const parsed = parseAnonymousValueOptions(
 			"|case:kebab|label:Notes|default:Hello",
@@ -235,7 +319,7 @@ describe("parseAnonymousValueOptions", () => {
 	});
 
 	it("warns and ignores unknown type for unnamed VALUE tokens", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseAnonymousValueOptions("|type:wide");
 		expect(parsed.inputTypeOverride).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
@@ -285,7 +369,7 @@ describe("named variables (|name:, issue #148)", () => {
 	});
 
 	it("warns and ignores reserved names", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("a,b|name:title");
 		expect(parsed?.aliasName).toBeUndefined();
 		// Falls back to the option-list key (no alias).
@@ -294,7 +378,7 @@ describe("named variables (|name:, issue #148)", () => {
 	});
 
 	it("warns and ignores a name containing the reserved key delimiter", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("a,b|name:foo\u001Fbar")
 		expect(parsed?.aliasName).toBeUndefined();
 		expect(parsed?.variableKey).toBe("a,b");
@@ -302,7 +386,7 @@ describe("named variables (|name:, issue #148)", () => {
 	});
 
 	it("stays silent when parsed in quiet mode", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		// Reserved name would normally warn; quiet mode (the pre-pass) suppresses it.
 		const parsed = parseValueToken("a,b|name:title", { quiet: true });
 		expect(parsed?.aliasName).toBeUndefined();
@@ -310,7 +394,7 @@ describe("named variables (|name:, issue #148)", () => {
 	});
 
 	it("warns and ignores an empty name", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("a,b|name:");
 		expect(parsed?.aliasName).toBeUndefined();
 		expect(parsed?.variableKey).toBe("a,b");
@@ -318,7 +402,7 @@ describe("named variables (|name:, issue #148)", () => {
 	});
 
 	it("honors but warns about name on a single value", () => {
-		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const parsed = parseValueToken("Some prompt|name:bar");
 		expect(parsed?.hasOptions).toBe(false);
 		expect(parsed?.aliasName).toBe("bar");

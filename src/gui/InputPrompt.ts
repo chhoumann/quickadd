@@ -1,6 +1,7 @@
 import GenericWideInputPrompt from "./GenericWideInputPrompt/GenericWideInputPrompt";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import NumberInputPrompt from "./NumberInputPrompt/NumberInputPrompt";
+import SliderInputPrompt from "./SliderInputPrompt/SliderInputPrompt";
 import { getQuickAddInstance } from "../quickAddInstance";
 import type { ValueInputType } from "../utils/valueSyntax";
 
@@ -11,6 +12,9 @@ export default class InputPrompt {
 		}
 		if (inputTypeOverride === "number") {
 			return NumberInputPrompt;
+		}
+		if (inputTypeOverride === "slider") {
+			return SliderInputPrompt;
 		}
 		// "checkbox" is resolved before the factory (a true/false suggester),
 		// and "text" only affects YAML quoting at write time — both fall

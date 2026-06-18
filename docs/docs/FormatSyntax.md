@@ -166,23 +166,27 @@ Example:
 
 **Keyboard:** In the multi-line prompt, pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** is left unbound, so it still moves focus out of the field.
 
-## `{{VALUE:<variable>|type:number}}` / `|type:checkbox` / `|type:text` {#value-property-types}
+## `{{VALUE:<variable>|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text` {#value-property-types}
 
 Tailors the input to an Obsidian property type. These are single-value prompts (no comma options / `|custom`):
 
-- `|type:number` shows a numeric input. The value is written unquoted (`rating: 42`), so Obsidian reads it as a **Number**.
+- `|type:number` shows a numeric input. The value is written unquoted (`rating: 42`), so Obsidian reads it as a **Number**. Add `|min:`, `|max:`, and/or `|step:` to constrain the input.
+- `|type:slider` shows a bounded number picker with a slider and numeric input. `|min:` and `|max:` are required; `|step:` defaults to `1`. If the slider range is missing or invalid, QuickAdd falls back to the numeric input instead of guessing a range.
 - `|type:checkbox` (alias `|type:boolean`) shows a forced **true / false** picker — useful for a `checkbox` property. The `|label:` becomes the picker's title so you know which property you're setting. Writes `done: true` (a boolean).
 - `|type:text` keeps the value a **string**. It writes the value as a quoted YAML scalar (`id: "0042"`), so Obsidian can't retype it — without it, a text property given `0042` is read as the number `42`, `true` as a boolean, and a value like `#todo` or `[a]` is mis-parsed entirely.
 
 ```markdown
 ---
-rating: {{VALUE:rating|type:number}}
+rating: {{VALUE:rating|type:number|min:1|max:10}}
+confidence: {{VALUE:confidence|type:slider|min:0|max:100|step:5|default:50}}
 done: {{VALUE:done|type:checkbox|label:Completed?}}
 id: {{VALUE:id|type:text}}
 ---
 ```
 
-**Good to know:** plain number and checkbox values already round-trip correctly without `|type:` — `count: {{VALUE:count}}` typed `42` becomes a Number, and `{{VALUE:true,false}}` becomes a Boolean. The `|type:` options add the right input widget and validation, and `|type:text` closes the cases Obsidian gets "wrong" (a text value that looks like a number/boolean, or one that starts with a YAML character like `#` or `[`). Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
+`|min:`, `|max:`, and `|step:` are only parsed as numeric options when the token also uses `|type:number` or `|type:slider`. Without a numeric type, they remain ordinary text/default syntax for backwards compatibility.
+
+**Good to know:** plain number and checkbox values already round-trip correctly without `|type:` — `count: {{VALUE:count}}` typed `42` becomes a Number, and `{{VALUE:true,false}}` becomes a Boolean. The `|type:` options add the right input widget and validation, `|type:slider` gives bounded numeric range ergonomics, and `|type:text` closes the cases Obsidian gets "wrong" (a text value that looks like a number/boolean, or one that starts with a YAML character like `#` or `[`). Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
 
 ## `{{VALUE|case:<style>}}` / `{{NAME|case:<style>}}` / `{{VALUE:<variable>|case:<style>}}` {#value-case}
 

@@ -180,6 +180,85 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		);
 	});
 
+	it("preserves script-declared number and slider inputs", async () => {
+		getUserScriptMock.mockResolvedValue({
+			quickadd: {
+				inputs: [
+					{
+						id: "rating",
+						type: "number",
+						label: "Rating",
+						numericConfig: { min: 1, max: 10, step: 1 },
+					},
+					{
+						id: "confidence",
+						type: "slider",
+						label: "Confidence",
+						defaultValue: "5",
+						sliderConfig: { min: 0, max: 100, step: 5 },
+					},
+				],
+			},
+		});
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createMacroChoice(scriptCommand),
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "rating",
+					type: "number",
+					numericConfig: { min: 1, max: 10, step: 1 },
+					source: "script",
+				}),
+				expect.objectContaining({
+					id: "confidence",
+					type: "slider",
+					defaultValue: "5",
+					numericConfig: { min: 0, max: 100, step: 5 },
+					sliderConfig: { min: 0, max: 100, step: 5 },
+					source: "script",
+				}),
+			]),
+		);
+	});
+
+	it("downgrades script-declared sliders with invalid config to number", async () => {
+		getUserScriptMock.mockResolvedValue({
+			quickadd: {
+				inputs: [
+					{
+						id: "confidence",
+						type: "slider",
+						label: "Confidence",
+						sliderConfig: { max: 100 },
+					},
+				],
+			},
+		});
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createMacroChoice(scriptCommand),
+		);
+
+		expect(requirements).toEqual([
+			expect.objectContaining({
+				id: "confidence",
+				type: "number",
+				sliderConfig: undefined,
+				source: "script",
+			}),
+		]);
+	});
+
 	it("ignores malformed input entries", async () => {
 		const exported = (() => {}) as ((...args: unknown[]) => unknown) & {
 			quickadd?: unknown;

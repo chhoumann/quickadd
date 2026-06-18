@@ -11,6 +11,7 @@ import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
 import type QuickAdd from "../main";
 import type { IDateParser } from "../parsers/IDateParser";
+import type { InputPromptOptions } from "../types/inputPrompt";
 import { NLDParser } from "../parsers/NLDParser";
 import {
 	FieldSuggestionParser,
@@ -23,6 +24,7 @@ import {
 	FILE_PICK_PREFIX,
 	type ParsedFileToken,
 } from "../utils/fileSyntax";
+import { normalizeNumericValue } from "../utils/valueSyntax";
 import {
 	collectFieldValuesProcessedDetailed,
 	collectFieldValuesRaw,
@@ -335,8 +337,12 @@ export class CompleteFormatter extends Formatter {
 			if (this.shouldUseSelectionForValue()) {
 				const selectedText: string = await this.getSelectedTextForValue();
 				if (selectedText) {
-					this.value = selectedText;
-					return this.value;
+					const normalizedSelection =
+						this.normalizeSelectedTextForPrompt(selectedText);
+					if (normalizedSelection !== undefined) {
+						this.value = normalizedSelection;
+						return this.value;
+					}
 				}
 			}
 			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
@@ -370,9 +376,9 @@ export class CompleteFormatter extends Formatter {
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
 				const description = this.valuePromptContext?.description;
-				const promptOptions = this.valuePromptContext?.optional
-					? { optional: true }
-					: undefined;
+				const promptOptions = this.buildInputPromptOptions(
+					this.valuePromptContext,
+				);
 				if (linkSourcePath) {
 					this.value = await promptFactory.PromptWithContext(
 						this.app,
@@ -402,6 +408,35 @@ export class CompleteFormatter extends Formatter {
 		}
 
 		return this.value;
+	}
+
+	private normalizeSelectedTextForPrompt(
+		selectedText: string,
+	): string | undefined {
+		const context = this.valuePromptContext;
+		if (
+			context?.inputTypeOverride !== "number" &&
+			context?.inputTypeOverride !== "slider"
+		) {
+			return selectedText;
+		}
+
+		const numericConfig = context.sliderConfig ?? context.numericConfig;
+		const normalized = normalizeNumericValue(selectedText, numericConfig);
+		return normalized === "" ? undefined : normalized;
+	}
+
+	private buildInputPromptOptions(
+		context: PromptContext | undefined,
+	): InputPromptOptions | undefined {
+		if (!context?.optional && !context?.numericConfig && !context?.sliderConfig) {
+			return undefined;
+		}
+		return {
+			optional: context?.optional,
+			numeric: context?.numericConfig,
+			slider: context?.sliderConfig,
+		};
 	}
 
 	protected async promptForVariable(
@@ -447,7 +482,7 @@ export class CompleteFormatter extends Formatter {
 					(context?.defaultValue ? context.defaultValue : undefined),
 				context?.defaultValue,
 				context?.description,
-				context?.optional ? { optional: true } : undefined,
+				this.buildInputPromptOptions(context),
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {

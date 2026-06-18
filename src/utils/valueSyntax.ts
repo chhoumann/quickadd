@@ -5,20 +5,41 @@ import {
 	splitPipeParts,
 	stripLeadingPipe,
 } from "./pipeSyntax";
+import { log } from "../logger/logManager";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
 
-export type ValueInputType = "multiline" | "number" | "checkbox" | "text";
+export type ValueInputType =
+	| "multiline"
+	| "number"
+	| "slider"
+	| "checkbox"
+	| "text";
+
+export type NumericInputConfig = {
+	min?: number;
+	max?: number;
+	step?: number;
+};
+
+export type SliderConfig = {
+	min: number;
+	max: number;
+	step: number;
+};
 
 // Types that render a different input widget but are meaningless alongside a
 // comma option-list or |custom (those already pick from a fixed/free set).
 const OPTION_INCOMPATIBLE_TYPES = new Set<ValueInputType>([
 	"multiline",
 	"number",
+	"slider",
 	"checkbox",
 	"text",
 ]);
+
+const NUMERIC_RANGE_OPTION_KEYS = new Set(["min", "max", "step"]);
 
 const VALUE_OPTION_KEYS = new Set([
 	"label",
@@ -56,6 +77,8 @@ export type ParsedValueToken = {
 	displayValues?: string[];
 	hasOptions: boolean;
 	inputTypeOverride?: ValueInputType;
+	numericConfig?: NumericInputConfig;
+	sliderConfig?: SliderConfig;
 	optional: boolean;
 	/** Trims leading/trailing whitespace from this token's rendered value. */
 	trim: boolean;
@@ -127,6 +150,9 @@ type ParsedOptions = {
 	allowCustomInput: boolean;
 	usesOptions: boolean;
 	inputTypeOverride?: string;
+	minRaw?: string;
+	maxRaw?: string;
+	stepRaw?: string;
 	displayValuesRaw?: string;
 	optionalExplicit?: boolean;
 	trimExplicit?: boolean;
@@ -172,6 +198,16 @@ function hasRecognizedOption(part: string, allowName: boolean): boolean {
 	return keys.has(parsed.key);
 }
 
+function hasNumericType(optionParts: string[], allowName: boolean): boolean {
+	const optionKeys = allowName ? NAMED_VALUE_OPTION_KEYS : VALUE_OPTION_KEYS;
+	return optionParts.some((part) => {
+		const parsed = parsePipeKeyValue(part.trim());
+		if (!parsed || parsed.key !== "type" || !optionKeys.has("type")) return false;
+		const value = parsed.value.trim().toLowerCase();
+		return value === "number" || value === "slider";
+	});
+}
+
 function parseOptions(
 	optionParts: string[],
 	hasOptions: boolean,
@@ -187,8 +223,13 @@ function parseOptions(
 	}
 
 	const optionKeys = allowName ? NAMED_VALUE_OPTION_KEYS : VALUE_OPTION_KEYS;
+	const allowNumericOptions = hasNumericType(optionParts, allowName);
 	const hasExplicitOption = optionParts.some((part) =>
-		hasRecognizedOption(part, allowName),
+		hasRecognizedOption(part, allowName) ||
+		(allowNumericOptions &&
+			NUMERIC_RANGE_OPTION_KEYS.has(
+				parsePipeKeyValue(part.trim())?.key ?? "",
+			)),
 	);
 	const hasCustomFlag =
 		hasOptions &&
@@ -213,6 +254,9 @@ function parseOptions(
 	let defaultValue = "";
 	let allowCustomInput = false;
 	let inputTypeOverride: string | undefined;
+	let minRaw: string | undefined;
+	let maxRaw: string | undefined;
+	let stepRaw: string | undefined;
 	let displayValuesRaw: string | undefined;
 	let optionalExplicit: boolean | undefined;
 	let trimExplicit: boolean | undefined;
@@ -237,7 +281,11 @@ function parseOptions(
 		const parsed = parsePipeKeyValue(trimmed);
 		if (!parsed) continue;
 		const { key, value } = parsed;
-		if (!optionKeys.has(key)) continue;
+		if (
+			!optionKeys.has(key) &&
+			!(allowNumericOptions && NUMERIC_RANGE_OPTION_KEYS.has(key))
+		)
+			continue;
 
 		switch (key) {
 			case "label":
@@ -254,6 +302,15 @@ function parseOptions(
 				break;
 			case "type":
 				if (value) inputTypeOverride = value;
+				break;
+			case "min":
+				minRaw = value;
+				break;
+			case "max":
+				maxRaw = value;
+				break;
+			case "step":
+				stepRaw = value;
 				break;
 			case "text":
 				displayValuesRaw = value;
@@ -274,7 +331,7 @@ function parseOptions(
 				// no-op alias and warns so the author notices the typo.
 				if (value) name = value;
 				else if (!quiet)
-					console.warn(
+					log.logWarning(
 						`QuickAdd: empty |name: ignored; provide a variable name, e.g. {{VALUE:a,b|name:category}}.`,
 					);
 				break;
@@ -291,6 +348,9 @@ function parseOptions(
 		name,
 		usesOptions: true,
 		inputTypeOverride,
+		minRaw,
+		maxRaw,
+		stepRaw,
 		displayValuesRaw,
 		optionalExplicit,
 		trimExplicit,
@@ -314,19 +374,206 @@ function resolveInputType(
 	const normalized = (raw === "boolean" ? "checkbox" : raw) as ValueInputType;
 	if (!OPTION_INCOMPATIBLE_TYPES.has(normalized)) {
 		if (!quiet)
-			console.warn(
-				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline, number, checkbox, text.`,
+			log.logWarning(
+				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline, number, slider, checkbox, text.`,
 			);
 		return undefined;
 	}
 	if (hasOptions || allowCustomInput) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: Ignoring type:${normalized} for option-list VALUE token "${tokenDisplay}".`,
 			);
 		return undefined;
 	}
 	return normalized;
+}
+
+function parseFiniteNumber(value: string | undefined): number | undefined {
+	if (value === undefined) return undefined;
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+	const parsed = Number(trimmed);
+	return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function hasNumericConfig(options: ParsedOptions): boolean {
+	return (
+		options.minRaw !== undefined ||
+		options.maxRaw !== undefined ||
+		options.stepRaw !== undefined
+	);
+}
+
+function buildNumericConfig(
+	options: ParsedOptions,
+	tokenDisplay: string,
+	quiet: boolean,
+): NumericInputConfig | undefined {
+	const min = parseFiniteNumber(options.minRaw);
+	const max = parseFiniteNumber(options.maxRaw);
+	const step = parseFiniteNumber(options.stepRaw);
+	const config: NumericInputConfig = {};
+
+	if (options.minRaw !== undefined) {
+		if (min === undefined) {
+			if (!quiet)
+				log.logWarning(
+					`QuickAdd: Ignoring invalid min in VALUE token "${tokenDisplay}".`,
+				);
+		} else {
+			config.min = min;
+		}
+	}
+
+	if (options.maxRaw !== undefined) {
+		if (max === undefined) {
+			if (!quiet)
+				log.logWarning(
+					`QuickAdd: Ignoring invalid max in VALUE token "${tokenDisplay}".`,
+				);
+		} else {
+			config.max = max;
+		}
+	}
+
+	if (
+		config.min !== undefined &&
+		config.max !== undefined &&
+		config.max < config.min
+	) {
+		if (!quiet)
+			log.logWarning(
+				`QuickAdd: Ignoring invalid numeric range in VALUE token "${tokenDisplay}"; max must be greater than or equal to min.`,
+			);
+		delete config.min;
+		delete config.max;
+	}
+
+	if (options.stepRaw !== undefined) {
+		if (step === undefined || step <= 0) {
+			if (!quiet)
+				log.logWarning(
+					`QuickAdd: Ignoring invalid step in VALUE token "${tokenDisplay}"; step must be greater than 0.`,
+				);
+		} else {
+			config.step = step;
+		}
+	}
+
+	return Object.keys(config).length > 0 ? config : undefined;
+}
+
+function resolveNumericInput(
+	options: ParsedOptions,
+	tokenDisplay: string,
+	inputTypeOverride: ValueInputType | undefined,
+	quiet: boolean,
+): {
+	inputTypeOverride?: ValueInputType;
+	numericConfig?: NumericInputConfig;
+	sliderConfig?: SliderConfig;
+} {
+	if (inputTypeOverride !== "number" && inputTypeOverride !== "slider") {
+		if (hasNumericConfig(options) && !quiet) {
+			log.logWarning(
+				`QuickAdd: Ignoring numeric range options in "${tokenDisplay}" because type is not number or slider.`,
+			);
+		}
+		return { inputTypeOverride };
+	}
+
+	if (inputTypeOverride !== "slider") {
+		const numericConfig = buildNumericConfig(options, tokenDisplay, quiet);
+		return { inputTypeOverride, numericConfig };
+	}
+
+	const min = parseFiniteNumber(options.minRaw);
+	const max = parseFiniteNumber(options.maxRaw);
+	const step = options.stepRaw === undefined
+		? 1
+		: parseFiniteNumber(options.stepRaw);
+	const invalidReason =
+		min === undefined || max === undefined
+			? "slider requires finite min and max values"
+			: max <= min
+				? "max must be greater than min"
+				: step === undefined || step <= 0
+					? "step must be greater than 0"
+					: undefined;
+
+	if (invalidReason) {
+		if (!quiet) {
+			log.logWarning(
+				`QuickAdd: Invalid slider configuration in "${tokenDisplay}" (${invalidReason}); falling back to type:number.`,
+			);
+		}
+		const numericConfig = buildNumericConfig(options, tokenDisplay, true);
+		return { inputTypeOverride: "number", numericConfig };
+	}
+
+	const sliderConfig: SliderConfig = {
+		min: min as number,
+		max: max as number,
+		step: step as number,
+	};
+	return {
+		inputTypeOverride,
+		numericConfig: sliderConfig,
+		sliderConfig,
+	};
+}
+
+function decimalPlaces(value: number): number {
+	const asString = String(value);
+	const exponentMatch = /e-(\d+)$/i.exec(asString);
+	if (exponentMatch) return Number(exponentMatch[1]);
+	const decimalIndex = asString.indexOf(".");
+	return decimalIndex === -1 ? 0 : asString.length - decimalIndex - 1;
+}
+
+function formatRoundedNumber(value: number, precision: number): string {
+	return String(Number(value.toFixed(precision)));
+}
+
+export function normalizeNumericValue(
+	value: string | undefined,
+	config?: NumericInputConfig,
+): string {
+	const trimmed = value?.trim() ?? "";
+	if (!trimmed) return "";
+
+	const parsed = Number(trimmed);
+	if (!Number.isFinite(parsed)) return "";
+
+	const min = config?.min;
+	const max = config?.max;
+	let normalized = parsed;
+	if (min !== undefined) normalized = Math.max(min, normalized);
+	if (max !== undefined) normalized = Math.min(max, normalized);
+
+	if (config?.step !== undefined && config.step > 0) {
+		const base = min ?? 0;
+		const stepsFromBase = Math.round((normalized - base) / config.step);
+		normalized = base + stepsFromBase * config.step;
+		if (min !== undefined) normalized = Math.max(min, normalized);
+		if (max !== undefined) normalized = Math.min(max, normalized);
+		const precision = Math.max(
+			decimalPlaces(base),
+			decimalPlaces(config.step),
+		);
+		return formatRoundedNumber(normalized, precision);
+	}
+
+	return String(normalized);
+}
+
+export function normalizeSliderValue(
+	value: string | undefined,
+	config: SliderConfig,
+): string {
+	const normalized = normalizeNumericValue(value, config);
+	return normalized || String(config.min);
 }
 
 // The "double-quote class" that opens/closes a quoted option: the straight
@@ -482,6 +729,12 @@ export function parseValueToken(
 		},
 		quiet,
 	);
+	const numericInput = resolveNumericInput(
+		options,
+		tokenDisplay,
+		inputTypeOverride,
+		quiet,
+	);
 	let displayValues: string[] | undefined;
 
 	if (options.displayValuesRaw !== undefined) {
@@ -513,14 +766,14 @@ export function parseValueToken(
 		// The delimiter is reserved for label-scoped keys; an alias containing it
 		// would corrupt resolveExistingVariableKey's base-name stripping.
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |name in "${tokenDisplay}" contains a reserved control character and was ignored.`,
 			);
 		aliasName = undefined;
 	}
 	if (aliasName && RESERVED_VALUE_NAMES.has(aliasName.toLowerCase())) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |name:${aliasName} is reserved and was ignored in "${tokenDisplay}". Choose a different name.`,
 			);
 		aliasName = undefined;
@@ -528,7 +781,7 @@ export function parseValueToken(
 	if (aliasName && !hasOptions && !quiet) {
 		// A named single value is just a renamed prompt; the option list is what
 		// makes |name useful. Honor it but steer authors to the simpler form.
-		console.warn(
+		log.logWarning(
 			`QuickAdd: |name on a single value in "${tokenDisplay}" is redundant — use {{VALUE:${aliasName}}} directly.`,
 		);
 	}
@@ -537,14 +790,14 @@ export function parseValueToken(
 	// case-transformed, and routing an array through transformCase would throw).
 	if (multiSelect && !hasOptions) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |multi needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
 			);
 		multiSelect = false;
 	}
 	if (multiSelect && caseStyle) {
 		if (!quiet)
-			console.warn(
+			log.logWarning(
 				`QuickAdd: |case is ignored with |multi in "${tokenDisplay}" — a list is not case-transformed.`,
 			);
 		caseStyle = undefined;
@@ -566,7 +819,9 @@ export function parseValueToken(
 		suggestedValues,
 		displayValues,
 		hasOptions,
-		inputTypeOverride,
+		inputTypeOverride: numericInput.inputTypeOverride,
+		numericConfig: numericInput.numericConfig,
+		sliderConfig: numericInput.sliderConfig,
 		optional,
 		trim,
 		multiSelect,
@@ -581,6 +836,8 @@ export function parseAnonymousValueOptions(
 	caseStyle?: string;
 	defaultValue: string;
 	inputTypeOverride?: ValueInputType;
+	numericConfig?: NumericInputConfig;
+	sliderConfig?: SliderConfig;
 	optional: boolean;
 	trim: boolean;
 } {
@@ -616,12 +873,20 @@ export function parseAnonymousValueOptions(
 		hasOptions: false,
 		allowCustomInput: options.allowCustomInput,
 	});
+	const numericInput = resolveNumericInput(
+		options,
+		tokenDisplay,
+		inputTypeOverride,
+		false,
+	);
 
 	return {
 		label,
 		caseStyle,
 		defaultValue,
-		inputTypeOverride,
+		inputTypeOverride: numericInput.inputTypeOverride,
+		numericConfig: numericInput.numericConfig,
+		sliderConfig: numericInput.sliderConfig,
 		optional: options.optionalExplicit ?? bareOptional,
 		trim: options.trimExplicit ?? bareTrim,
 	};

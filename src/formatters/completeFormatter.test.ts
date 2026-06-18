@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
 	inputPromptPromptWithContext: vi.fn(),
+	inputPromptFactory: vi.fn(),
 	genericInputPromptWithContext: vi.fn(),
 	inputSuggesterSuggest: vi.fn(),
 	genericSuggesterSuggest: vi.fn(),
@@ -93,7 +94,8 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
 
 vi.mock("../gui/InputPrompt", () => ({
 	default: class {
-		factory() {
+		factory(inputTypeOverride?: string) {
+			mocks.inputPromptFactory(inputTypeOverride);
 			return {
 				Prompt: mocks.inputPromptPrompt,
 				PromptWithContext: mocks.inputPromptPromptWithContext,
@@ -656,6 +658,23 @@ describe("CompleteFormatter - selection handling", () => {
 		// Selection short-circuits the prompt.
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
+
+	it("normalizes selected text for anonymous bounded number VALUE", async () => {
+		const f = defaultFormatter({}, { selection: "999" });
+		await expect(
+			f.formatFolderPath("v={{VALUE|type:number|min:1|max:10|step:2}}"),
+		).resolves.toBe("v=10");
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("prompts when selected text is invalid for anonymous number VALUE", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("4");
+		const f = defaultFormatter({}, { selection: "not a number" });
+		await expect(
+			f.formatFolderPath("v={{VALUE|type:number|min:1|max:10|step:1}}"),
+		).resolves.toBe("v=4");
+		expect(mocks.inputPromptPrompt).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("CompleteFormatter - clipboard handling", () => {
@@ -691,6 +710,29 @@ describe("CompleteFormatter - {{VALUE}} prompting", () => {
 		expect(mocks.inputPromptPrompt).toHaveBeenCalledTimes(1);
 	});
 
+	it("passes slider configuration to anonymous VALUE prompts", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("7");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath(
+				"{{VALUE|type:slider|min:1|max:10|step:1|default:5|optional}}",
+			),
+		).resolves.toBe("7");
+		expect(mocks.inputPromptFactory).toHaveBeenCalledWith("slider");
+		expect(mocks.inputPromptPrompt).toHaveBeenCalledWith(
+			expect.anything(),
+			"Enter value",
+			undefined,
+			"5",
+			undefined,
+			{
+				optional: true,
+				numeric: { min: 1, max: 10, step: 1 },
+				slider: { min: 1, max: 10, step: 1 },
+			},
+		);
+	});
+
 	it("wraps a user-cancellation in MacroAbortError", async () => {
 		// isCancellationError only treats specific string messages as cancels.
 		mocks.inputPromptPrompt.mockRejectedValue("No input given.");
@@ -714,6 +756,27 @@ describe("CompleteFormatter - {{VALUE:variable}} prompting", () => {
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{VALUE:name}}")).resolves.toBe(
 			"Alice",
+		);
+	});
+
+	it("passes numeric configuration to named VALUE prompts", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("5");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("{{VALUE:rating|type:number|min:1|max:10|step:1}}"),
+		).resolves.toBe("5");
+		expect(mocks.inputPromptFactory).toHaveBeenCalledWith("number");
+		expect(mocks.inputPromptPrompt).toHaveBeenCalledWith(
+			expect.anything(),
+			"rating",
+			undefined,
+			"",
+			undefined,
+			{
+				optional: false,
+				numeric: { min: 1, max: 10, step: 1 },
+				slider: undefined,
+			},
 		);
 	});
 
