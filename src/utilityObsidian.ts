@@ -37,6 +37,7 @@ export {
 	insertOnNewLineBelow,
 	insertLinkWithPlacement,
 	insertFileLinkToActiveView,
+	setMarkdownCursorAtOffset,
 } from "./utils/editorInsertion";
 
 export {

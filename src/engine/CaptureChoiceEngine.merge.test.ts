@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { formatContentWithFileMock } = vi.hoisted(() => ({
+const { formatContentWithFileMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
 	formatContentWithFileMock: vi.fn(),
+	getCaptureInsertionEndOffsetMock: vi.fn(),
 }));
 
 vi.mock("../quickAddSettingsTab", () => {
@@ -75,6 +76,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		consumeCreatedClipboardAttachmentPaths() {
 			return [];
 		}
+		getCaptureInsertionEndOffset() {
+			return getCaptureInsertionEndOffsetMock();
+		}
 	},
 }));
 
@@ -93,6 +97,7 @@ vi.mock("../utilityObsidian", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
+	setMarkdownCursorAtOffset: vi.fn(),
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -205,6 +210,7 @@ const createEngine = ({
 	);
 
 	formatContentWithFileMock.mockResolvedValue(formattedFileContent);
+	getCaptureInsertionEndOffsetMock.mockReturnValue(formattedFileContent.length);
 
 	return { engine, filePath };
 };
@@ -212,6 +218,7 @@ const createEngine = ({
 describe("CaptureChoiceEngine concurrent-edit merge", () => {
 	beforeEach(() => {
 		formatContentWithFileMock.mockReset();
+		getCaptureInsertionEndOffsetMock.mockReset();
 	});
 
 	it("proceeds when concurrent edits can be merged cleanly", async () => {
@@ -230,6 +237,7 @@ describe("CaptureChoiceEngine concurrent-edit merge", () => {
 			"alpha changed by sync\nbeta\ngamma\ncaptured ours\n",
 		);
 		expect(result.captureContent).toBe("captured ours");
+		expect(result.cursorPlacementSafe).toBe(false);
 	});
 
 	it("aborts when concurrent edits conflict", async () => {
@@ -259,5 +267,7 @@ describe("CaptureChoiceEngine concurrent-edit merge", () => {
 		const result = await (engine as any).onFileExists(filePath, "captured ours");
 
 		expect(result.newFileContent).toBe(formattedFileContent);
+		expect(result.cursorPlacementSafe).toBe(true);
+		expect(result.cursorEndOffset).toBe(formattedFileContent.length);
 	});
 });

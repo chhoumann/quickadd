@@ -1,4 +1,4 @@
-import type { App, TFile } from "obsidian";
+import { MarkdownView, type App, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
 
@@ -29,6 +29,87 @@ export type TemplaterPluginLike = {
 		) => Promise<void>;
 	};
 };
+
+type CursorSnapshot = {
+	line: number;
+	ch: number;
+};
+
+type EditorSnapshot = {
+	cursor: CursorSnapshot | null;
+	value: string | null;
+};
+
+const TEMPLATER_CURSOR_MARKER_REGEX =
+	/<%\s*tp\.file\.cursor\([0-9]*\)\s*%>/g;
+
+function getActiveEditorSnapshot(
+	app: App,
+	file: TFile,
+): EditorSnapshot {
+	try {
+		const view = app.workspace.getActiveViewOfType(MarkdownView);
+		if (!view || view.file?.path !== file.path) {
+			return { cursor: null, value: null };
+		}
+
+		const editor = view.editor;
+
+		const cursor = editor?.getCursor?.();
+		const cursorSnapshot =
+			cursor &&
+			typeof cursor.line === "number" &&
+			typeof cursor.ch === "number"
+				? { line: cursor.line, ch: cursor.ch }
+				: null;
+
+		const value =
+			typeof editor?.getValue === "function" ? editor.getValue() : null;
+
+		return { cursor: cursorSnapshot, value };
+	} catch {
+		return { cursor: null, value: null };
+	}
+}
+
+function didCursorMove(
+	before: CursorSnapshot | null,
+	after: CursorSnapshot | null,
+): boolean {
+	return (
+		before !== null &&
+		after !== null &&
+		(before.line !== after.line || before.ch !== after.ch)
+	);
+}
+
+function countTemplaterCursorMarkers(value: string | null): number | null {
+	if (typeof value !== "string") return null;
+	return [...value.matchAll(TEMPLATER_CURSOR_MARKER_REGEX)].length;
+}
+
+function didConsumeTemplaterCursorMarker(
+	before: string | null,
+	after: string | null,
+): boolean {
+	const beforeMarkerCount = countTemplaterCursorMarkers(before);
+	const afterMarkerCount = countTemplaterCursorMarkers(after);
+	return (
+		beforeMarkerCount !== null &&
+		afterMarkerCount !== null &&
+		beforeMarkerCount > afterMarkerCount
+	);
+}
+
+function didTemplaterHandleCursor(
+	before: EditorSnapshot,
+	after: EditorSnapshot,
+): boolean {
+	return (
+		didCursorMove(before.cursor, after.cursor) ||
+		didConsumeTemplaterCursorMarker(before.value, after.value)
+	);
+}
 
 /**
  * Wait until the filesystem reports a stable mtime for the file or the timeout elapses.
@@ -406,22 +487,26 @@ export async function templaterParseTemplate(
 export async function jumpToNextTemplaterCursorIfPossible(
 	app: App,
 	file: TFile,
-): Promise<void> {
-	if (file.extension !== "md") return;
-	if (app.workspace.getActiveFile()?.path !== file.path) return;
+): Promise<boolean> {
+	if (file.extension !== "md") return false;
+	if (app.workspace.getActiveFile()?.path !== file.path) return false;
 
 	const plugin = getTemplaterPlugin(app);
 	const autoJumpEnabled = !!plugin?.settings?.auto_jump_to_cursor;
 	const editorHandler = plugin?.editor_handler;
 	const jump = editorHandler?.jump_to_next_cursor_location;
 
-	if (!autoJumpEnabled) return;
+	if (!autoJumpEnabled) return false;
+	const beforeJump = getActiveEditorSnapshot(app, file);
 
 	if (typeof jump === "function") {
 		try {
 			// Preserve Templater's internal `this` context.
 			await jump.call(editorHandler, file, true);
-			return;
+			return didTemplaterHandleCursor(
+				beforeJump,
+				getActiveEditorSnapshot(app, file),
+			);
 		} catch (err) {
 			log.logWarning(
 				`jumpToNextTemplaterCursorIfPossible: API failed – ${(err as Error).message}`,
@@ -430,14 +515,20 @@ export async function jumpToNextTemplaterCursorIfPossible(
 	}
 
 	try {
-		(
+		const commandRan = !!(
 			app.commands as unknown as {
 				executeCommandById?: (commandId: string) => boolean;
 			}
 		).executeCommandById?.(
 			"templater-obsidian:jump-to-next-cursor-location",
 		);
+		if (!commandRan) return false;
+		return didTemplaterHandleCursor(
+			beforeJump,
+			getActiveEditorSnapshot(app, file),
+		);
 	} catch {
 		// no-op
 	}
+	return false;
 }

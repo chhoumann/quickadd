@@ -1,5 +1,11 @@
 import { getFrontMatterInfo } from "obsidian";
 
+export interface NoteBodyInsertionResult {
+	content: string;
+	insertedStartOffset: number | null;
+	insertedEndOffset: number | null;
+}
+
 /**
  * Offset at which the note body begins — immediately after the YAML frontmatter
  * block when present, otherwise 0.
@@ -33,10 +39,19 @@ export function getBodyStartOffset(content: string): number {
  * own line (leaving a blank-line separation when the body already ends in a newline).
  * Capture callers pass the payload as-is for tight single-snippet insertion.
  */
-export function insertAtNoteBodyStart(content: string, text: string): string {
+export function insertAtNoteBodyStartWithResult(
+	content: string,
+	text: string,
+): NoteBodyInsertionResult {
 	// Inserting nothing leaves the note untouched (defensive: capture callers
 	// already drop empty payloads upstream, but keep the helper safe in isolation).
-	if (text.length === 0) return content;
+	if (text.length === 0) {
+		return {
+			content,
+			insertedStartOffset: null,
+			insertedEndOffset: null,
+		};
+	}
 
 	const start = getBodyStartOffset(content);
 	const head = content.slice(0, start);
@@ -47,5 +62,16 @@ export function insertAtNoteBodyStart(content: string, text: string): string {
 	const trailingSeparator =
 		rest.length > 0 && !text.endsWith("\n") && !/^\r?\n/.test(rest) ? "\n" : "";
 
-	return `${head}${leadingSeparator}${text}${trailingSeparator}${rest}`;
+	const insertedStartOffset = head.length + leadingSeparator.length;
+	const insertedEndOffset = insertedStartOffset + text.length;
+
+	return {
+		content: `${head}${leadingSeparator}${text}${trailingSeparator}${rest}`,
+		insertedStartOffset,
+		insertedEndOffset,
+	};
+}
+
+export function insertAtNoteBodyStart(content: string, text: string): string {
+	return insertAtNoteBodyStartWithResult(content, text).content;
 }

@@ -231,3 +231,31 @@ export function insertFileLinkToActiveView(
 
 	return true;
 }
+
+export function setMarkdownCursorAtOffset(
+	app: App,
+	file: TFile,
+	offset: number,
+	expectedContent: string,
+): boolean {
+	try {
+		if (file.extension !== "md") return false;
+		if (!Number.isSafeInteger(offset) || offset < 0) return false;
+		if (offset > expectedContent.length) return false;
+
+		const view = app.workspace.getActiveViewOfType(MarkdownView);
+		if (!view || view.file?.path !== file.path) return false;
+		if (view.getMode() === "preview") return false;
+
+		const editor = view.editor;
+		if (!editor || editor.getValue() !== expectedContent) return false;
+
+		editor.setCursor(editor.offsetToPos(offset));
+		return true;
+	} catch {
+		log.logMessage(
+			`Unable to place cursor after capture in '${file.path}'.`,
+		);
+		return false;
+	}
+}

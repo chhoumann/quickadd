@@ -206,6 +206,33 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("CAPTURE\nLine A\nLine B");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe("CAPTURE\n".length);
+	});
+
+	it("tracks cursor after top insertion below frontmatter", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"CAPTURE",
+			createChoice({ captureToActiveFile: false, prepend: false }),
+			"---\ntitle: Test\n---\nBody",
+			createFile(),
+		);
+
+		expect(result).toBe("---\ntitle: Test\n---\nCAPTURE\nBody");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE") + "CAPTURE".length,
+		);
 	});
 
 	it("writes to bottom for non-active targets when prepend is true", async () => {
@@ -229,6 +256,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("Line A\nLine B\nCAPTURE");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(result.length);
 	});
 
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
@@ -286,6 +314,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Inbox\nBody\nCAPTURE\n## Later\nNext");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
+		);
 	});
 
 	it("separates capture content from the matched line when inserting before", async () => {
@@ -316,6 +347,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("Line A\nCAPTURE\nLine B");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE") + "CAPTURE".length,
+		);
 	});
 
 	it("resolves format syntax in insert-before target lines", async () => {
@@ -347,6 +381,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Inbox\nCAPTURE\nProject Alpha\nBody");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
+		);
 	});
 
 	it("creates a missing insert-before target below the capture", async () => {
@@ -377,6 +414,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Inbox\nCAPTURE\n## Missing");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE") + "CAPTURE".length,
+		);
 	});
 
 	it("keeps existing body content separated when creating a missing insert-before target at top", async () => {
@@ -407,6 +447,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("CAPTURE\n## Missing\nBody");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe("CAPTURE".length);
 	});
 
 	it("keeps frontmatter body content separated when creating a missing insert-before target at top", async () => {
@@ -437,6 +478,47 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("---\ntitle: Test\n---\nCAPTURE\n## Missing\nBody");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE") + "CAPTURE".length,
+		);
+	});
+
+	it("tracks cursor after inline insert-after in the matched occurrence", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			" CAPTURE",
+			createChoice({
+				insertAfter: {
+					enabled: true,
+					after: "Status:",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					inline: true,
+					replaceExisting: false,
+					blankLineAfterMatchMode: "auto",
+				},
+			}),
+			"Status: first\nStatus: second",
+			createFile(),
+		);
+
+		expect(result).toBe("Status: CAPTURE first\nStatus: second");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			"Status: CAPTURE".length,
+		);
 	});
 
 	it("captures a non-breaking-space-only payload instead of dropping it as empty (issue #760)", async () => {
@@ -571,6 +653,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Title\n## Foo\nCAPTURE\nexisting\n## Bar");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
+		);
 	});
 
 	it("matches the heading override literally, never resolving token-like heading text (#738)", async () => {
@@ -613,6 +698,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("## {{DATE}}\nCAPTURE\nbody");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
+		);
 	});
 
 	it("takes the block (section) path for a heading override even if a stale inline flag is set (#738 blocker)", async () => {
@@ -654,6 +742,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("## Foo\nCAPTURE\nexisting");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
+		);
 	});
 
 	it("creates a typed heading override via create-if-not-found, byte-symmetric with search (#738/#742)", async () => {
@@ -694,6 +785,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Title\nbody\n## Tasks\nCAPTURE\n");
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(result.length);
 	});
 
 	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {
@@ -736,6 +828,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 
 		expect(result).toBe(
 			"## Tasks\nCAPTURE\nfirst\n\n## Other\nx\n\n## Tasks\nsecond",
+		);
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
 	});
 });
