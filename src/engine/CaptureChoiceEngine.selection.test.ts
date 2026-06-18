@@ -72,6 +72,11 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			return content.replace(/\{\{value\}\}/gi, submitted);
 		}
 		async formatContentWithFile(content: string) {
+			if (/\{\{clipboard\}\}/i.test(content)) {
+				createdClipboardAttachmentPaths.push("Clipboard image.png");
+				return content.replace(/\{\{clipboard\}\}/gi, "![[Clipboard image.png]]");
+			}
+
 			return content;
 		}
 		async formatFileName(name: string) {
@@ -207,6 +212,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		createdClipboardAttachmentPaths.length = 0;
 		InputPromptDraftStore.getInstance().clearAll();
 		vi.mocked(openFile).mockClear();
+		vi.mocked(insertFileLinkToActiveView).mockReset();
 		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 	});
 
@@ -990,6 +996,70 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		expect(setTextMock).toHaveBeenCalled();
 		expect(insertFileLinkToActiveView).not.toHaveBeenCalled();
+	});
+
+	it("does not delete a clipboard attachment after a canvas text-card write if later link insertion fails", async () => {
+		vi.mocked(insertFileLinkToActiveView).mockImplementation(() => {
+			throw new Error("link insertion failed after canvas write");
+		});
+
+		const canvasFile = new TFile();
+		canvasFile.path = "Boards/Map.canvas";
+		canvasFile.basename = "Map";
+		canvasFile.extension = "canvas";
+		const attachmentFile = new TFile();
+		attachmentFile.path = "Clipboard image.png";
+		attachmentFile.basename = "Clipboard image";
+		const setTextMock = vi.fn();
+		const app = createApp() as any;
+		app.workspace.activeLeaf = {
+			view: {
+				getViewType: () => "canvas",
+				file: canvasFile,
+				canvas: {
+					selection: new Set([
+						{
+							id: "text-node-1",
+							type: "text",
+							text: "Current",
+							setText: setTextMock,
+						},
+					]),
+					getData: vi.fn(() => ({
+						nodes: [{ id: "text-node-1", type: "text", text: "Current" }],
+					})),
+					requestSave: vi.fn(),
+				},
+			},
+		};
+		app.workspace.getActiveFile = vi.fn(() => canvasFile);
+		app.workspace.getActiveViewOfType = vi.fn(() => ({}));
+		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
+			path === "Clipboard image.png" ? attachmentFile : null,
+		);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				appendLink: true,
+				captureToActiveFile: true,
+				activeFileWritePosition: "top",
+				format: { enabled: true, format: "{{clipboard}}" },
+			}),
+			createExecutor(),
+		);
+
+		await engine.run();
+
+		expect(setTextMock).toHaveBeenCalledWith("![[Clipboard image.png]]");
+		expect(insertFileLinkToActiveView).toHaveBeenCalled();
+		expect(app.vault.delete).not.toHaveBeenCalledWith(attachmentFile);
 	});
 
 	it("creates missing linked markdown file for configured canvas file-card targets", async () => {

@@ -256,8 +256,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const canvasTarget = activeCanvasTarget ?? configuredCanvasTarget;
 
 			if (canvasTarget?.kind === "text") {
-				await this.handleCanvasTextCapture(canvasTarget, action, linkOptions);
-				contentCommitted = true;
+				await this.handleCanvasTextCapture(
+					canvasTarget,
+					action,
+					linkOptions,
+					() => {
+						contentCommitted = true;
+					},
+				);
 				return;
 			}
 
@@ -485,6 +491,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		target: CanvasTextCaptureTarget,
 		action: CaptureAction,
 		linkOptions: AppendLinkOptions,
+		markContentCommitted: () => void,
 	): Promise<void> {
 		if (
 			action === "currentLine" ||
@@ -533,6 +540,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.captureResolvedOrderedHeading();
 
 		await setCanvasTextCaptureContent(this.app, target, nextText);
+		markContentCommitted();
 
 		// Committed; record success before cosmetic steps (see run() for rationale).
 		this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
