@@ -16,6 +16,10 @@ You can optionally set a placeholder for each Multi choice. This text shows up i
 
 Keep in mind that [searching covers everything nested under the multi](#searching-nested-choices), so word the placeholder accordingly.
 
+## Icons
+
+Choices shown in the QuickAdd picker use the same Obsidian/Lucide icons as registered QuickAdd commands. Each choice type has a default icon, and you can override it from the choice's **Icon** setting. Icons are monochrome and inherit the active Obsidian theme color.
+
 ## Searching nested choices
 
 Typing in the choice picker searches every choice nested inside the current level's multis — not just the level you are looking at. Nested matches show their folder path (for example `Work / Meetings`) beneath the choice name. This also applies to the root picker opened by the **QuickAdd: Run** command or the ribbon icon.

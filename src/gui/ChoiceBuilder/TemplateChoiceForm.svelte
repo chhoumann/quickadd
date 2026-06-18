@@ -37,6 +37,7 @@ import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
+import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
 import { VALUE_SYNTAX } from "../../constants";
 import { usesDefaultTemplateTitlePrompt } from "../../utils/templateNoteDiscoveryEligibility";
@@ -335,3 +336,5 @@ function onModeChange(value: string) {
 {/if}
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
+
+<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />

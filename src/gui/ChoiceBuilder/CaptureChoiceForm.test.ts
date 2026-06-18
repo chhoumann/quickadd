@@ -76,6 +76,14 @@ function selectUnderSetting(
 	return item?.querySelector("select") as HTMLSelectElement;
 }
 
+function choiceIconInput(container: HTMLElement): HTMLInputElement {
+	const el = container.querySelector<HTMLInputElement>(
+		'input[aria-label="Choice icon"]',
+	);
+	if (!el) throw new Error("Choice icon input not found");
+	return el;
+}
+
 function mountForm() {
 	const props = createCaptureChoiceFormProps({
 		choice: captureChoice(),
@@ -153,5 +161,29 @@ describe("CaptureChoiceForm", () => {
 		expect(props.choice.insertBefore?.enabled).toBe(true);
 		expect(props.choice.insertAfter.enabled).toBe(false);
 		expect(props.choice.prepend).toBe(false);
+	});
+
+	it("edits the choice icon override and previews the default", async () => {
+		const { container, props } = mountForm();
+		const input = choiceIconInput(container);
+
+		expect(input.placeholder).toBe("pencil");
+		expect(
+			container.querySelector(".qa-choice-icon-setting-preview svg"),
+		).toHaveAttribute("data-icon", "pencil");
+
+		await fireEvent.input(input, { target: { value: "inbox" } });
+		flushSync();
+
+		expect(props.choice.icon).toBe("inbox");
+		expect(
+			container.querySelector(".qa-choice-icon-setting-preview svg"),
+		).toHaveAttribute("data-icon", "inbox");
+	});
+
+	it("keeps the optional icon override at the bottom of the form", () => {
+		const { container } = mountForm();
+
+		expect(settingNames(container).at(-1)).toBe("Icon");
 	});
 });

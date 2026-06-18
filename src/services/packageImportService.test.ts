@@ -327,8 +327,10 @@ describe("analysePackage", () => {
 describe("applyPackageImport - root insertion", () => {
 	it("appends a brand-new root choice", async () => {
 		const { app } = createFakeApp();
+		const choice = makeChoice("new", "New", "Template");
+		choice.icon = "star";
 		const pkg = makePackage({
-			choices: [makePackageChoice(makeChoice("new", "New", "Template"))],
+			choices: [makePackageChoice(choice)],
 		});
 
 		const result = await applyPackageImport({
@@ -342,6 +344,7 @@ describe("applyPackageImport - root insertion", () => {
 		expect(result.addedChoiceIds).toEqual(["new"]);
 		expect(result.overwrittenChoiceIds).toEqual([]);
 		expect(result.updatedChoices.map((c) => c.id)).toEqual(["new"]);
+		expect(result.updatedChoices[0].icon).toBe("star");
 	});
 
 	it("overwrites an existing root choice in place", async () => {

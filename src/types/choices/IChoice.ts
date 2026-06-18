@@ -8,9 +8,9 @@ export default interface IChoice {
 	/** Per-choice override for one-page flow. undefined = follow global setting */
 	onePageInput?: "always" | "never" | undefined;
 	/**
-	 * Optional per-choice icon id (lucide/Obsidian) for the registered command,
-	 * shown on the mobile toolbar and in the command palette. undefined = use the
-	 * per-type default (see resolveChoiceIcon). Never persisted as a default.
+	 * Optional per-choice icon id (lucide/Obsidian), shown in the choice picker
+	 * and on registered commands. undefined = use the per-type default (see
+	 * resolveChoiceIcon). Never persisted as a default.
 	 */
 	icon?: string;
 }

@@ -521,6 +521,29 @@ describe("ChoiceSuggester", () => {
 			expect(el.textContent).toBe("Top note");
 		});
 
+		it("renders the default choice-type icon", async () => {
+			const suggester = makeSuggester(rootChoices);
+
+			const el = await render(suggester, topNote);
+
+			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
+				"data-icon",
+				"file-text",
+			);
+		});
+
+		it("renders a per-choice icon override", async () => {
+			const starred = { ...choice("Starred"), icon: "star" };
+			const suggester = makeSuggester([starred]);
+
+			const el = await render(suggester, starred);
+
+			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
+				"data-icon",
+				"star",
+			);
+		});
+
 		it("styles the sentinel back item but not a Multi named '← Back'", async () => {
 			const impostor = multi("← Back", []);
 			const back = makeBack(rootChoices);
@@ -537,6 +560,32 @@ describe("ChoiceSuggester", () => {
 			expect(
 				impostorEl.classList.contains("quickadd-choice-suggestion-back")
 			).toBe(false);
+		});
+
+		it("does not render an icon for the sentinel back item", async () => {
+			const back = makeBack(rootChoices);
+			const suggester = makeSuggester([back]);
+
+			const el = await render(suggester, back);
+
+			expect(el.querySelector(".quickadd-choice-icon")).toBeNull();
+		});
+
+		it("uses a create-file icon for the template-folder launcher row", async () => {
+			const row: IChoice = {
+				id: RUN_TEMPLATE_FROM_FOLDER_ID,
+				name: "New note from template…",
+				type: "Template",
+				command: false,
+			};
+			const suggester = makeSuggester([row]);
+
+			const el = await render(suggester, row);
+
+			expect(el.querySelector(".quickadd-choice-icon svg")).toHaveAttribute(
+				"data-icon",
+				"file-plus",
+			);
 		});
 	});
 });
