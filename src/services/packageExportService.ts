@@ -142,11 +142,6 @@ function collectAssetDescriptors(
 		if (!descriptors.has(path)) descriptors.set(path, "capture-template");
 	}
 
-	for (const path of files.captureFormatPaths) {
-		if (!path) continue;
-		if (!descriptors.has(path)) descriptors.set(path, "capture-format");
-	}
-
 	return Array.from(descriptors.entries()).map(([path, kind]) => ({
 		path,
 		kind,

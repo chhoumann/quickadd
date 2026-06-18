@@ -2,7 +2,6 @@ import { Choice } from "./Choice";
 import type ICaptureChoice from "./ICaptureChoice";
 import type {
 	BlankLineAfterMatchMode,
-	CaptureFormatSource,
 	SectionOrdering,
 } from "./ICaptureChoice";
 import { CREATE_IF_NOT_FOUND_ORDERED } from "../../constants";
@@ -21,12 +20,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		createWithTemplate: boolean;
 		template: string;
 	};
-	format: {
-		enabled: boolean;
-		format: string;
-		source?: CaptureFormatSource;
-		filePath?: string;
-	};
+	format: { enabled: boolean; format: string };
 	useSelectionAsCaptureValue?: boolean;
 	insertAfter: {
 		enabled: boolean;
@@ -77,12 +71,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			createWithTemplate: false,
 			template: "",
 		};
-		this.format = {
-			enabled: false,
-			format: "",
-			source: "inline",
-			filePath: "",
-		};
+		this.format = { enabled: false, format: "" };
 		this.insertAfter = {
 			enabled: false,
 			after: "",
@@ -150,20 +139,6 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		if (!loaded.templater) loaded.templater = { afterCapture: "none" };
 		if (loaded.templater.afterCapture !== "wholeFile") {
 			loaded.templater.afterCapture = "none";
-		}
-		if (!loaded.format) {
-			loaded.format = {
-				enabled: false,
-				format: "",
-				source: "inline",
-				filePath: "",
-			};
-		}
-		if (loaded.format.source !== "file") {
-			loaded.format.source = "inline";
-		}
-		if (typeof loaded.format.filePath !== "string") {
-			loaded.format.filePath = "";
 		}
 		if (loaded.insertAfter && !loaded.insertAfter.blankLineAfterMatchMode) {
 			loaded.insertAfter.blankLineAfterMatchMode = "auto";

@@ -741,17 +741,6 @@ function applyAssetPathOverrides(
 		}
 		case "Capture": {
 			const captureChoice = choice as ICaptureChoice;
-			const captureFormatPath = captureChoice.format?.filePath;
-			if (captureFormatPath) {
-				const replacement = pathOverrides.get(captureFormatPath);
-				if (replacement && captureChoice.format) {
-					captureChoice.format = {
-						...captureChoice.format,
-						filePath: replacement,
-					};
-				}
-			}
-
 			const templatePath = captureChoice.createFileIfItDoesntExist?.template;
 			if (templatePath) {
 				const replacement = pathOverrides.get(templatePath);

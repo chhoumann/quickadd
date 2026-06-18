@@ -6,8 +6,7 @@ export type QuickAddPackageAssetKind =
 	| "user-script"
 	| "conditional-script"
 	| "template"
-	| "capture-template"
-	| "capture-format";
+	| "capture-template";
 
 export interface QuickAddPackageAsset {
 	kind: QuickAddPackageAssetKind;
@@ -65,8 +64,7 @@ function isPackageAsset(value: unknown): value is QuickAddPackageAsset {
 		kind === "user-script" ||
 		kind === "conditional-script" ||
 		kind === "template" ||
-		kind === "capture-template" ||
-		kind === "capture-format";
+		kind === "capture-template";
 	return (
 		validKind &&
 		typeof originalPath === "string" &&

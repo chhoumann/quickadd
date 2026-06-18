@@ -32,7 +32,6 @@ import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
-	getTemplateFile,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
@@ -291,7 +290,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				);
 			}
 
-			const content = await this.getCaptureContent();
+			const content = this.getCaptureContent();
 
 			type GetFileAndAddContentFn = (
 				path: string,
@@ -339,7 +338,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
 				// `|multi1`, `|multi-select`, etc.
 				/\{\{VALUE:[^}]*\|\s*multi(?=[:}|]|$)/i.test(
-					content,
+					this.choice?.format?.format ?? "",
 				)
 			) {
 				log.logWarning(
@@ -486,7 +485,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.formatter.setTitle(basenameWithoutMdOrCanvas(file.basename));
 		this.formatter.setDestinationFile(file);
 
-		const captureTemplate = await this.getCaptureContent();
+		const captureTemplate = this.getCaptureContent();
 		const existingText = getCanvasTextCaptureContent(target);
 
 		// "Choose heading when capturing" on a canvas text card: resolve the heading from
@@ -642,35 +641,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		return file instanceof TFile ? await this.app.vault.read(file) : "";
 	}
 
-	private async getCaptureContent(): Promise<string> {
+	private getCaptureContent(): string {
 		let content: string;
 
 		if (!this.choice.format.enabled) content = VALUE_SYNTAX;
-		else if (this.choice.format.source === "file") {
-			content = await this.getCaptureFormatFileContent();
-		} else content = this.choice.format.format;
+		else content = this.choice.format.format;
 
 		if (this.choice.task) content = `- [ ] ${content}\n`;
 
 		return content;
-	}
-
-	private async getCaptureFormatFileContent(): Promise<string> {
-		const sourcePath = this.choice.format.filePath?.trim() ?? "";
-		if (!sourcePath) {
-			throw new ChoiceAbortError("Capture format file is empty.");
-		}
-
-		const resolvedSourcePath =
-			await this.formatter.formatTemplateFilePath(sourcePath);
-		const file = getTemplateFile(this.app, resolvedSourcePath);
-		if (!file) {
-			throw new ChoiceAbortError(
-				`Capture format file not found: ${resolvedSourcePath}`,
-			);
-		}
-
-		return await this.app.vault.cachedRead(file);
 	}
 
 	/**

@@ -1074,12 +1074,6 @@ describe("applyPackageImport - assets", () => {
 				createWithTemplate: true,
 				template: "templates/orig.md",
 			},
-			format: {
-				enabled: true,
-				format: "Inline fallback",
-				source: "file",
-				filePath: "templates/capture-format.md",
-			},
 		} as ICaptureChoice;
 
 		const macroChoice = {
@@ -1140,12 +1134,6 @@ describe("applyPackageImport - assets", () => {
 					contentEncoding: "base64",
 					content: encodeToBase64("script body"),
 				},
-				{
-					kind: "capture-format",
-					originalPath: "templates/capture-format.md",
-					contentEncoding: "base64",
-					content: encodeToBase64("format body"),
-				},
 			],
 		});
 
@@ -1158,11 +1146,6 @@ describe("applyPackageImport - assets", () => {
 			{
 				originalPath: "scripts/orig.js",
 				destinationPath: "scripts/new.js",
-				mode: "write",
-			},
-			{
-				originalPath: "templates/capture-format.md",
-				destinationPath: "templates/new-capture-format.md",
 				mode: "write",
 			},
 		];
@@ -1189,9 +1172,6 @@ describe("applyPackageImport - assets", () => {
 		) as ICaptureChoice;
 		expect(insertedCapture.createFileIfItDoesntExist.template).toBe(
 			"templates/new.md",
-		);
-		expect(insertedCapture.format.filePath).toBe(
-			"templates/new-capture-format.md",
 		);
 
 		const insertedMacro = result.updatedChoices.find(

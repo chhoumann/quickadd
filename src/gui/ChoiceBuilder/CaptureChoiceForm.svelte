@@ -34,21 +34,6 @@ let {
 	plugin: QuickAdd;
 } = $props();
 
-if (!choice.format) {
-	choice.format = {
-		enabled: false,
-		format: "",
-		source: "inline",
-		filePath: "",
-	};
-}
-if (choice.format.source !== "file") {
-	choice.format.source = "inline";
-}
-if (typeof choice.format.filePath !== "string") {
-	choice.format.filePath = "";
-}
-
 const templateFilePaths = $derived(
 	plugin.getTemplateFiles().map((f) => f.path),
 );
@@ -66,10 +51,7 @@ function validateTemplate(
 	// only resolves when the capture runs, so show a neutral hint rather than
 	// flagging it "not found" (issue #620).
 	if (hasTemplatePathSyntax(value)) {
-		return {
-			valid: true,
-			message: "Contains format syntax — resolved at run time.",
-		};
+		return { valid: true, message: "Contains format syntax — resolved at run time." };
 	}
 	// Resolve like the engine does at run time rather than requiring
 	// suggestion-list membership (templates outside the configured folders are
@@ -82,19 +64,12 @@ const selectionOptions = [
 	{ value: "enabled", label: "Use selection" },
 	{ value: "disabled", label: "Ignore selection" },
 ];
-const formatSourceOptions = [
-	{ value: "inline", label: "Inline format" },
-	{ value: "file", label: "File" },
-];
 const selectionOverride = $derived(
 	typeof choice.useSelectionAsCaptureValue === "boolean"
 		? choice.useSelectionAsCaptureValue
 			? "enabled"
 			: "disabled"
 		: "",
-);
-const formatSource = $derived(
-	choice.format.source === "file" ? "file" : "inline",
 );
 
 function onSelectionChange(value: string) {
@@ -103,24 +78,6 @@ function onSelectionChange(value: string) {
 		return;
 	}
 	choice.useSelectionAsCaptureValue = value === "enabled";
-}
-
-function validateCaptureFormatFile(
-	raw: string,
-): boolean | string | { valid: boolean; message?: string } {
-	const value = raw.trim();
-	if (!value) return true;
-	if (hasTemplatePathSyntax(value)) {
-		return {
-			valid: true,
-			message: "Contains format syntax — resolved at run time.",
-		};
-	}
-	return getTemplateFile(app, value) !== null || "Capture format file not found";
-}
-
-function onFormatSourceChange(value: string) {
-	choice.format.source = value === "file" ? "file" : "inline";
 }
 
 function onTemplaterAfterCaptureChange(value: boolean) {
@@ -182,54 +139,17 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}
 </SettingItem>
-{#if choice.format.enabled}
-	<SettingItem
-		name="Capture format source"
-		desc="Choose whether the format is written here or loaded from a vault file."
-	>
-		{#snippet control()}
-			<Dropdown
-				value={formatSource}
-				options={formatSourceOptions}
-				onchange={onFormatSourceChange}
-			/>
-		{/snippet}
-	</SettingItem>
-	{#if formatSource === "file"}
-		<ValidatedInput
-			bind:value={choice.format.filePath}
-			placeholder="Capture format file path"
-			{app}
-			suggestions={templateFilePaths}
-			maxSuggestions={50}
-			validator={validateCaptureFormatFile}
-			required={true}
-			requiredMessage="Capture format file is required"
-			ariaLabel="Capture format file"
-		/>
-	{:else}
-		<FormatPreviewField value={choice.format.format} {app} {plugin} />
-		<ValidatedInput
-			inputKind="textarea"
-			bind:value={choice.format.format}
-			placeholder="Format"
-			required={true}
-			requiredMessage="Capture format is required when enabled"
-			makeSuggesters={formatSuggesters}
-			ariaLabel="Format"
-		/>
-	{/if}
-{:else}
-	<FormatPreviewField value={choice.format.format} {app} {plugin} />
-	<ValidatedInput
-		inputKind="textarea"
-		bind:value={choice.format.format}
-		placeholder="Format"
-		disabled={true}
-		makeSuggesters={formatSuggesters}
-		ariaLabel="Format"
-	/>
-{/if}
+<FormatPreviewField value={choice.format.format} {app} {plugin} />
+<ValidatedInput
+	inputKind="textarea"
+	bind:value={choice.format.format}
+	placeholder="Format"
+	disabled={!choice.format.enabled}
+	required={choice.format.enabled}
+	requiredMessage="Capture format is required when enabled"
+	makeSuggesters={formatSuggesters}
+	ariaLabel="Format"
+/>
 
 <SettingItem name="Behavior" heading />
 {#if !choice.captureToActiveFile}

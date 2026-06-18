@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, TFile, type App } from "obsidian";
+import { Notice, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -32,11 +32,6 @@ const {
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
 	CaptureChoiceFormatter: class {
-		constructor(
-			_app?: App,
-			_plugin?: unknown,
-			private readonly executor?: IChoiceExecutor,
-		) {}
 		setLinkToCurrentFileBehavior() {}
 		setUseSelectionAsCaptureValue(value: boolean) {
 			setUseSelectionAsCaptureValueMock(value);
@@ -74,11 +69,6 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatFileName(name: string) {
 			return name;
 		}
-		async formatTemplateFilePath(path: string) {
-			return path.replace(/\{\{VALUE:([^}]+)\}\}/gi, (_match, name) =>
-				String(this.executor?.variables.get(String(name).trim()) ?? ""),
-			);
-		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
 		}
@@ -97,13 +87,6 @@ vi.mock("../utilityObsidian", () => ({
 	insertOnNewLineBelow: vi.fn(() => true),
 	isFolder: vi.fn(() => false),
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
-	getTemplateFile: vi.fn((app: App, templatePath: string) => {
-		const stripped = templatePath.trim().replace(/^\/+/, "");
-		const resolved = /\.(md|canvas|base)$/i.test(stripped)
-			? stripped
-			: `${stripped}.md`;
-		return app.vault.getAbstractFileByPath(resolved);
-	}),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
@@ -203,15 +186,6 @@ const createExecutor = (): IChoiceExecutor => ({
 	variables: new Map<string, unknown>(),
 });
 
-function makeTFile(path: string): TFile {
-	const file = new TFile();
-	file.path = path;
-	file.name = path.split("/").pop() ?? path;
-	file.basename = file.name.replace(/\.[^.]+$/, "");
-	file.extension = file.name.includes(".") ? file.name.split(".").pop() ?? "" : "";
-	return file;
-}
-
 describe("CaptureChoiceEngine selection-as-value resolution", () => {
 	beforeEach(() => {
 		setUseSelectionAsCaptureValueMock.mockClear();
@@ -310,120 +284,6 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		setTitleMock.mockClear();
 		singleTemplateRunMock.mockReset();
 		singleTemplateRunMock.mockResolvedValue("");
-		promptResponses.length = 0;
-		promptHydratedValues.length = 0;
-	});
-
-	it("uses a vault file as the raw capture format before formatting", async () => {
-		const app = createApp();
-		const target = makeTFile("Inbox.md");
-		const source = makeTFile("Formats/CaptureBody.md");
-		vi.mocked(app.vault.adapter.exists).mockImplementation(
-			async (path: string) => path === target.path,
-		);
-		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation(
-			(path: string) => {
-				if (path === target.path) return target;
-				if (path === source.path) return source;
-				return null;
-			},
-		);
-		app.vault.cachedRead = vi.fn(async () => "From file: {{VALUE}}");
-		app.vault.read = vi.fn(async () => "");
-		app.vault.modify = vi.fn(async () => {});
-		promptResponses.push("Alpha");
-
-		const engine = new CaptureChoiceEngine(
-			app,
-			{ settings: { useSelectionAsCaptureValue: false } } as any,
-			createChoice({
-				format: {
-					enabled: true,
-					format: "Inline fallback",
-					source: "file",
-					filePath: "Formats/CaptureBody",
-				},
-			}),
-			createExecutor(),
-		);
-
-		await engine.run();
-
-		expect(app.vault.cachedRead).toHaveBeenCalledWith(source);
-		expect(app.vault.modify).toHaveBeenCalledWith(target, "From file: Alpha");
-	});
-
-	it("resolves format syntax in the capture format file path before reading", async () => {
-		const app = createApp();
-		const target = makeTFile("Inbox.md");
-		const source = makeTFile("Formats/CaptureBody.md");
-		vi.mocked(app.vault.adapter.exists).mockImplementation(
-			async (path: string) => path === target.path,
-		);
-		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation(
-			(path: string) => {
-				if (path === target.path) return target;
-				if (path === source.path) return source;
-				return null;
-			},
-		);
-		app.vault.cachedRead = vi.fn(async () => "Dynamic file: {{VALUE}}");
-		app.vault.read = vi.fn(async () => "");
-		app.vault.modify = vi.fn(async () => {});
-		promptResponses.push("Beta");
-		const executor = createExecutor();
-		executor.variables.set("formatName", "CaptureBody");
-
-		const engine = new CaptureChoiceEngine(
-			app,
-			{ settings: { useSelectionAsCaptureValue: false } } as any,
-			createChoice({
-				format: {
-					enabled: true,
-					format: "Inline fallback",
-					source: "file",
-					filePath: "Formats/{{VALUE:formatName}}",
-				},
-			}),
-			executor,
-		);
-
-		await engine.run();
-
-		expect(app.vault.cachedRead).toHaveBeenCalledWith(source);
-		expect(app.vault.modify).toHaveBeenCalledWith(target, "Dynamic file: Beta");
-	});
-
-	it("aborts before writing when the capture format file is missing", async () => {
-		const app = createApp();
-		const target = makeTFile("Inbox.md");
-		vi.mocked(app.vault.adapter.exists).mockImplementation(
-			async (path: string) => path === target.path,
-		);
-		vi.mocked(app.vault.getAbstractFileByPath).mockImplementation(
-			(path: string) => (path === target.path ? target : null),
-		);
-		app.vault.cachedRead = vi.fn(async () => "should not read");
-		app.vault.modify = vi.fn(async () => {});
-
-		const engine = new CaptureChoiceEngine(
-			app,
-			{ settings: { useSelectionAsCaptureValue: false } } as any,
-			createChoice({
-				format: {
-					enabled: true,
-					format: "Inline fallback",
-					source: "file",
-					filePath: "Formats/Missing.md",
-				},
-			}),
-			createExecutor(),
-		);
-
-		await engine.run();
-
-		expect(app.vault.cachedRead).not.toHaveBeenCalled();
-		expect(app.vault.modify).not.toHaveBeenCalled();
 	});
 
 	it("treats folder path without trailing slash as folder when folder exists", () => {

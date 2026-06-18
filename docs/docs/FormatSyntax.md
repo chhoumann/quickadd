@@ -336,7 +336,7 @@ Include templates in your `format`. Supports Templater syntax.
 
 Example: `{{TEMPLATE:Templates/Meeting.md}}`.
 
-For Capture choices where the entire capture format should live in a file, use the Capture choice's **Capture format source** setting instead. Keep `{{TEMPLATE:...}}` for including a reusable part inside an inline format.
+In Capture choices, this can be the entire capture format. Put the full capture body in a template file, then set the Capture format to `{{TEMPLATE:Templates/Capture Format.md}}`. QuickAdd inserts the file contents and then runs the usual capture formatting passes on the result.
 
 ## `{{GLOBAL_VAR:<name>}}` {#global-var}
 
