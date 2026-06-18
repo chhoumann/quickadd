@@ -642,7 +642,7 @@ export class CompleteFormatter extends Formatter {
 		return generateFieldCacheKey(filters);
 	}
 
-	protected async suggestForFile(parsed: ParsedFileToken): Promise<string> {
+	protected async suggestForFile(parsed: ParsedFileToken): Promise<string | string[]> {
 		try {
 			const files = EnhancedFieldSuggestionFileFilter.filterFiles(
 				this.app.vault.getMarkdownFiles(),
@@ -665,15 +665,40 @@ export class CompleteFormatter extends Formatter {
 					undefined,
 					parsed.optional ? { optional: true } : undefined,
 				);
+				if (parsed.multiSelect) {
+					return typed ? [`${FILE_CUSTOM_PREFIX}${typed}`] : [];
+				}
 				return typed ? `${FILE_CUSTOM_PREFIX}${typed}` : "";
 			}
 
-			const displayItems = buildFileDisplayLabels(files);
+			const displayItems = buildFileDisplayLabels(
+				files,
+				(file) => this.app.metadataCache.getFileCache(file),
+			);
 			const items = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
+
+			if (parsed.multiSelect) {
+				const result = await MultiSuggester.Suggest(
+					this.app,
+					displayItems,
+					items,
+					{
+						placeholder,
+						allowCustomValue: parsed.allowCustomInput,
+						...(parsed.optional ? { skippable: true } : {}),
+					},
+				);
+				return result.map((item) =>
+					items.includes(item) ? item : `${FILE_CUSTOM_PREFIX}${item}`,
+				);
+			}
 
 			if (parsed.allowCustomInput) {
 				const basenames = new Set(
 					files.map((file) => file.basename.toLowerCase()),
+				);
+				const displayLabels = new Set(
+					displayItems.map((label) => label.toLowerCase()),
 				);
 				const result = await InputSuggester.Suggest(
 					this.app,
@@ -683,7 +708,9 @@ export class CompleteFormatter extends Formatter {
 						placeholder,
 						// Typing a real basename (e.g. "Tom", or "tom") should pick that
 						// file, not add a separate, indistinguishable custom row.
-						valueExists: (typed) => basenames.has(typed.toLowerCase()),
+						valueExists: (typed) =>
+							basenames.has(typed.toLowerCase()) ||
+							displayLabels.has(typed.toLowerCase()),
 						...(parsed.optional ? { skippable: true } : {}),
 					},
 				);

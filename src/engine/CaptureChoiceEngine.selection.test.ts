@@ -159,6 +159,10 @@ const createApp = () =>
 			delete: vi.fn(async () => {}),
 			modify: vi.fn(async () => {}),
 			read: vi.fn(async () => ""),
+			getMarkdownFiles: vi.fn(() => []),
+		},
+		metadataCache: {
+			getFileCache: vi.fn(() => null),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -793,7 +797,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			"Inbox/Apple.md",
 			"Inbox/Mango.md",
 		]);
-		expect(displayItems).toEqual(["Zebra.md", "Apple.md", "Mango.md"]);
+		expect(displayItems).toEqual(["Zebra", "Apple", "Mango"]);
 		expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
 	});

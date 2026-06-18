@@ -421,8 +421,8 @@ describe("collectChoiceRequirements - capture targets", () => {
 
 	it("forces the capture target dropdown for file filter targets", async () => {
 		getMarkdownFilesMatchingFilterMock.mockReturnValue([
-			{ path: "Goals/Alpha.md" },
-			{ path: "Projects/Beta.md" },
+			{ path: "Goals/Alpha.md" } as never,
+			{ path: "Projects/Beta.md" } as never,
 		]);
 
 		const requirements = await collectChoiceRequirements(

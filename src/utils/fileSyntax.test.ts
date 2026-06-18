@@ -39,6 +39,12 @@ describe("parseFileToken", () => {
 		expect(parsed?.allowCustomInput).toBe(true);
 	});
 
+	it("parses multi-select as FILE behavior", () => {
+		const parsed = parseFileToken("People|multi");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.variableKey).toContain("|multi");
+	});
+
 	it("parses label and the |name: alias", () => {
 		const parsed = parseFileToken("People|link|label:Pick a person|name:reviewer");
 		expect(parsed?.label).toBe("Pick a person");
@@ -199,11 +205,27 @@ describe("buildFileDisplayLabels", () => {
 		expect(labels).toEqual(["Tom", "Jack"]);
 	});
 
-	it("disambiguates duplicate basenames with the parent folder", () => {
+	it("disambiguates duplicate labels with the parent folder", () => {
 		const labels = buildFileDisplayLabels([
 			makeFile("Companies/Apple.md"),
 			makeFile("Fruits/Apple.md"),
 		]);
-		expect(labels).toEqual(["Apple (Companies)", "Apple (Fruits)"]);
+		expect(labels).toEqual(["Apple - Companies", "Apple - Fruits"]);
+	});
+
+	it("prefers frontmatter title and keeps basename searchable", () => {
+		const file = makeFile("People/01HX.md");
+		const labels = buildFileDisplayLabels([file], () => ({
+			frontmatter: { title: "Ada Lovelace" },
+		} as never));
+		expect(labels).toEqual(["Ada Lovelace (01HX)"]);
+	});
+
+	it("falls back to the first H1 when no title property exists", () => {
+		const file = makeFile("People/01HX.md");
+		const labels = buildFileDisplayLabels([file], () => ({
+			headings: [{ heading: "Ada Lovelace", level: 1 }],
+		} as never));
+		expect(labels).toEqual(["Ada Lovelace (01HX)"]);
 	});
 });

@@ -526,7 +526,18 @@ export class RequirementCollector extends Formatter {
 				existing.suggesterConfig = {
 					allowCustomInput: true,
 					caseSensitive: false,
-					multiSelect: false,
+					multiSelect: parsed.multiSelect,
+				};
+			}
+			if (parsed.multiSelect) {
+				existing.type = "suggester";
+				existing.runtimeOnly = true;
+				existing.suggesterConfig = {
+					allowCustomInput:
+						existing.suggesterConfig?.allowCustomInput ??
+						parsed.allowCustomInput,
+					caseSensitive: false,
+					multiSelect: true,
 				};
 			}
 			return;
@@ -541,14 +552,18 @@ export class RequirementCollector extends Formatter {
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
 		const options = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
-		const displayOptions = buildFileDisplayLabels(files);
+		const displayOptions = buildFileDisplayLabels(
+			files,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
 		// A non-custom FILE is a FORCED choice: render it as a dropdown so the
 		// one-page form can't store a raw typed value (a free-text suggester would
 		// let "type name + Enter" bypass the option list, mirroring the runtime
 		// GenericSuggester vs InputSuggester split). Fall back to a suggester (free
 		// text) when |custom, or when the folder is empty so the field isn't a
 		// dead, disabled dropdown.
-		const useSuggester = parsed.allowCustomInput || options.length === 0;
+		const useSuggester =
+			parsed.allowCustomInput || parsed.multiSelect || options.length === 0;
 		// Disambiguate same-scope tokens that differ only by mode (e.g. a basename
 		// and a link to the same folder) when no explicit |label.
 		const autoLabel =
@@ -563,12 +578,13 @@ export class RequirementCollector extends Formatter {
 			options,
 			displayOptions,
 			optional: parsed.optional,
+			runtimeOnly: parsed.multiSelect,
 			...(useSuggester
 				? {
 						suggesterConfig: {
 							allowCustomInput: parsed.allowCustomInput,
 							caseSensitive: false,
-							multiSelect: false,
+							multiSelect: parsed.multiSelect,
 						},
 					}
 				: {}),

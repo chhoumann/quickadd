@@ -54,6 +54,7 @@ import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
+import { buildFileDisplayLabels } from "../utils/fileSyntax";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import {
 	postProcessFrontMatter,
@@ -928,21 +929,32 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
 
 		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
-		const filePaths = orderFilesForPicker(
+		const orderedFiles = orderFilesForPicker(
 			filesInFolder,
 			buildPickerOrderingDeps(this.app),
-		).map((f) => f.path);
+		);
+		const filePaths = orderedFiles.map((f) => f.path);
+		const displayItems = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
+		const existingLabels = new Set(
+			displayItems.map((label) => label.toLowerCase()),
+		);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
 				this.app,
-				filePaths.map((item) => item.replace(folderPathSlash, "")),
+				displayItems,
 				filePaths,
 				{
+					renderItem: (path, el) =>
+						renderNotePathSuggestion(el, path, this.app),
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
+						existingLabels.has(value.toLowerCase()) ||
 						this.captureTargetExists(folderPathSlash, value),
 				},
 			);
@@ -1054,10 +1066,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		invariant(files.length > 0, notFoundMessage);
 
 		// Quick-Switcher-style ordering; show note names (not raw paths).
-		const filePaths = orderFilesForPicker(
+		const orderedFiles = orderFilesForPicker(
 			files,
 			buildPickerOrderingDeps(this.app),
-		).map((f) => f.path);
+		);
+		const filePaths = orderedFiles.map((f) => f.path);
+		const displayItems = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		// Build once (not per keystroke): existing note basenames across the vault.
 		const vaultBasenames = new Set(
@@ -1065,17 +1082,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				.getMarkdownFiles()
 				.map((f) => f.basename.toLowerCase()),
 		);
+		const existingLabels = new Set(
+			displayItems.map((label) => label.toLowerCase()),
+		);
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
 				this.app,
-				filePaths,
+				displayItems,
 				filePaths,
 				{
-					renderItem: (path, el) => renderNotePathSuggestion(el, path),
+					renderItem: (path, el) =>
+						renderNotePathSuggestion(el, path, this.app),
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
+						existingLabels.has(value.toLowerCase()) ||
 						this.captureTargetAlreadyExists(value, vaultBasenames),
 				},
 			);

@@ -44,7 +44,7 @@ class FileTestFormatter extends Formatter {
 
 	constructor(
 		app: unknown,
-		private responder: (parsed: ParsedFileToken) => string,
+		private responder: (parsed: ParsedFileToken) => string | string[],
 		linkSource: string | null = null,
 	) {
 		super(app as App);
@@ -55,13 +55,19 @@ class FileTestFormatter extends Formatter {
 		return this.linkSource;
 	}
 
-	protected suggestForFile(parsed: ParsedFileToken): string {
+	protected suggestForFile(parsed: ParsedFileToken): string | string[] {
 		this.calls += 1;
 		return this.responder(parsed);
 	}
 
 	public run(input: string): Promise<string> {
 		return this.replaceFileInString(input);
+	}
+
+	public runWithPropertyCollection(input: string): Promise<string> {
+		return this.withTemplatePropertyCollection(() =>
+			this.replaceFileInString(input),
+		);
 	}
 
 	/** Test seam: pre-seed a stored FILE value to exercise rendering directly. */
@@ -240,5 +246,36 @@ describe("Formatter {{FILE:...}} token", () => {
 		});
 		expect(await f.run("a {{FILE:}} b")).toBe("a {{FILE:}} b");
 		expect(f.calls).toBe(0);
+	});
+
+	it("joins FILE multi-select arrays outside frontmatter property positions", async () => {
+		const f = new FileTestFormatter(
+			makeApp(["People/Tom.md", "People/Jack.md"]),
+			() => [
+				`${FILE_PICK_PREFIX}People/Tom.md`,
+				`${FILE_PICK_PREFIX}People/Jack.md`,
+			],
+		);
+		expect(await f.run("People: {{FILE:People|multi}}")).toBe(
+			"People: Tom,Jack",
+		);
+	});
+
+	it("collects FILE multi-select arrays as YAML list properties", async () => {
+		const f = new FileTestFormatter(
+			makeApp(["People/Tom.md", "People/Jack.md"]),
+			() => [
+				`${FILE_PICK_PREFIX}People/Tom.md`,
+				`${FILE_PICK_PREFIX}People/Jack.md`,
+			],
+		);
+
+		const output = await f.runWithPropertyCollection(
+			"---\npeople: {{FILE:People|multi|link}}\n---\n",
+		);
+		const vars = f.getAndClearTemplatePropertyVars();
+
+		expect(output).toBe("---\npeople: []\n---\n");
+		expect(vars.get("people")).toEqual(["[[Tom@]]", "[[Jack@]]"]);
 	});
 });

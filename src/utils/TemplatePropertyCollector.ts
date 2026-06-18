@@ -53,7 +53,7 @@ export class TemplatePropertyCollector {
     const propertyKeyMatch = lineContent.match(/^\s*([^:]+):/);
     const fallbackPathKey = propertyKeyMatch ? propertyKeyMatch[1].trim() : fallbackKey;
 
-	const listItemPattern = /^-\s*['"]?\{\{(?:VALUE|FIELD):[^}]+\}\}['"]?\s*$/i;
+	const listItemPattern = /^-\s*['"]?\{\{(?:VALUE|FIELD|FILE):[^}]+\}\}['"]?\s*$/i;
     let propertyPath: string[] | null = null;
 
     if (context.isKeyValuePosition) {
