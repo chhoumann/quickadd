@@ -18,6 +18,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		setInsertAfterTargetOverride(target: string | null) {
 			setInsertAfterTargetOverrideMock(target);
 		}
+		consumeCreatedClipboardAttachmentPaths() {
+			return [];
+		}
 	},
 }));
 
