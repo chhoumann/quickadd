@@ -4,6 +4,7 @@ import {
 	FuzzySuggestModal,
 	MarkdownRenderer,
 	prepareFuzzySearch,
+	setIcon,
 } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import { ChoiceExecutor } from "../../choiceExecutor";
@@ -18,6 +19,7 @@ import {
 	hasConfiguredTemplateFolders,
 	runTemplateFromFolder,
 } from "../../engine/runTemplateFromFolder";
+import { resolveChoiceIcon } from "../../utils/choiceUtils";
 
 const backLabel = "← Back";
 
@@ -216,12 +218,22 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		el.empty();
 		el.classList.remove("mod-complex");
 		const breadcrumb = this.breadcrumbById.get(item.item.id);
-		let nameEl: HTMLElement = el;
+
+		const row = el.createDiv({ cls: "quickadd-choice-suggestion-content" });
+		this.renderChoiceIcon(item.item, row);
+
+		let nameEl: HTMLElement;
 		if (breadcrumb) {
 			el.classList.add("mod-complex");
-			const content = el.createDiv({ cls: "suggestion-content" });
+			const content = row.createDiv({
+				cls: "suggestion-content quickadd-choice-suggestion-text",
+			});
 			nameEl = content.createDiv({ cls: "suggestion-title" });
 			content.createDiv({ cls: "suggestion-note", text: breadcrumb });
+		} else {
+			nameEl = row.createDiv({
+				cls: "quickadd-choice-suggestion-title quickadd-choice-suggestion-text",
+			});
 		}
 		void MarkdownRenderer.render(this.app, item.item.name, nameEl, "", this.markdownComponent)
 			.catch((error) => {
@@ -233,6 +245,23 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			el.classList.add("quickadd-choice-suggestion-back");
 		if (item.item.id === RUN_TEMPLATE_FROM_FOLDER_ID)
 			el.classList.add("quickadd-choice-suggestion-run-template");
+	}
+
+	private renderChoiceIcon(choice: IChoice, parent: HTMLElement): void {
+		const iconId = this.getChoiceSuggestionIcon(choice);
+		if (!iconId) return;
+
+		const iconEl = document.createElement("span");
+		iconEl.classList.add("quickadd-choice-icon");
+		iconEl.setAttribute("aria-hidden", "true");
+		parent.appendChild(iconEl);
+		setIcon(iconEl, iconId);
+	}
+
+	private getChoiceSuggestionIcon(choice: IChoice): string | undefined {
+		if (choice.id === BACK_CHOICE_ID) return undefined;
+		if (choice.id === RUN_TEMPLATE_FROM_FOLDER_ID) return "file-plus";
+		return resolveChoiceIcon(choice);
 	}
 
 	getItemText(item: IChoice): string {
