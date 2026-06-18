@@ -13,6 +13,7 @@ import {
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
+import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -69,6 +70,7 @@ export class MacroBuilder extends Modal {
 		this.containerEl.addClass("quickAddModal", "macroBuilder");
 		this.contentEl.empty();
 		this.addCenteredHeader(this.choice.name);
+		this.addIconSetting();
 		this.addCommandEditor();
 		this.addRunOnStartupSetting();
 	}
@@ -117,6 +119,12 @@ export class MacroBuilder extends Modal {
 					this.choice.runOnStartup = value;
 				})
 			);
+	}
+
+	private addIconSetting(): void {
+		addChoiceIconSetting(this.app, this.contentEl, this.choice, (icon) => {
+			this.choice.icon = icon;
+		});
 	}
 
 	private reload() {

@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Setting } from "obsidian";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import { addChoiceIconSetting } from "./ChoiceBuilder/components/choiceIconSetting";
 
 export class MultiChoiceSettingsModal extends Modal {
 	public waitForClose: Promise<IMultiChoice | undefined>;
@@ -10,11 +11,13 @@ export class MultiChoiceSettingsModal extends Modal {
 
 	private name: string;
 	private placeholder: string;
+	private icon: string | undefined;
 
 	constructor(app: App, private choice: IMultiChoice) {
 		super(app);
 		this.name = choice.name;
 		this.placeholder = choice.placeholder ?? "";
+		this.icon = typeof choice.icon === "string" ? choice.icon : undefined;
 
 		this.waitForClose = new Promise<IMultiChoice | undefined>(
 			(resolve, reject) => {
@@ -52,6 +55,15 @@ export class MultiChoiceSettingsModal extends Modal {
 				});
 			});
 
+		addChoiceIconSetting(
+			this.app,
+			this.contentEl,
+			{ type: this.choice.type, icon: this.icon },
+			(icon) => {
+				this.icon = icon;
+			},
+		);
+
 		const buttonRow = this.contentEl.createDiv();
 		new ButtonComponent(buttonRow)
 			.setButtonText("Save")
@@ -85,6 +97,7 @@ export class MultiChoiceSettingsModal extends Modal {
 			...this.choice,
 			name: this.name.trim() || this.choice.name,
 			placeholder: trimmedPlaceholder ? trimmedPlaceholder : undefined,
+			icon: this.icon,
 		};
 		this.resolvePromise(updated);
 	}

@@ -225,6 +225,7 @@ describe("generateDefaultPackagePath", () => {
 describe("buildPackage", () => {
 	it("builds a package for a single template choice with its template asset", async () => {
 		const template = makeTemplateChoice("t1", "Daily", "Templates/daily.md");
+		template.icon = "star";
 		const { app } = makeFakeApp({
 			files: { "Templates/daily.md": "# Daily {{date}}" },
 		});
@@ -241,6 +242,7 @@ describe("buildPackage", () => {
 
 		expect(result.pkg.choices).toHaveLength(1);
 		expect(result.pkg.choices[0].choice.id).toBe("t1");
+		expect(result.pkg.choices[0].choice.icon).toBe("star");
 		expect(result.pkg.choices[0].parentChoiceId).toBeNull();
 		expect(result.pkg.choices[0].pathHint).toEqual(["Daily"]);
 

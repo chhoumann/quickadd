@@ -17,6 +17,7 @@ import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import CaptureTargetSetting from "./components/CaptureTargetSetting.svelte";
 import WritePositionSetting from "./components/WritePositionSetting.svelte";
+import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 
 /**
  * Reactive replacement for CaptureChoiceBuilder.display(). Every conditional row
@@ -87,6 +88,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 </script>
 
 <ChoiceNameHeader bind:name={choice.name} {app} />
+<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 
 <SettingItem name="Location" heading />
 <CaptureTargetSetting bind:choice {app} {plugin} />

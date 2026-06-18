@@ -188,8 +188,10 @@ describe("choiceService", () => {
 			const original = createChoice("Capture", "Cap") as ITemplateChoice;
 			// Mutate a simple property to verify it is carried over.
 			(original as unknown as { command: boolean }).command = true;
+			original.icon = "inbox";
 			const copy = duplicateChoice(original);
 			expect(copy.command).toBe(true);
+			expect(copy.icon).toBe("inbox");
 			expect(copy.name).toBe("Cap (copy)");
 			expect(copy.id).not.toBe(original.id);
 		});
@@ -200,10 +202,12 @@ describe("choiceService", () => {
 			(original as unknown as { onePageInput: string }).onePageInput =
 				"always";
 			original.choices = [createChoice("Capture", "Child")];
+			original.icon = "folder-open";
 
 			const copy = duplicateChoice(original) as IMultiChoice;
 
 			expect(copy.command).toBe(true);
+			expect(copy.icon).toBe("folder-open");
 			expect(
 				(copy as unknown as { onePageInput?: string }).onePageInput,
 			).toBe("always");

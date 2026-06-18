@@ -37,6 +37,7 @@ import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
+import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
 
 /**
@@ -168,6 +169,7 @@ function onModeChange(value: string) {
 </script>
 
 <ChoiceNameHeader bind:name={choice.name} {app} />
+<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 
 <SettingItem name="Template" heading />
 

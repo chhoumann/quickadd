@@ -62,6 +62,14 @@ function locationDropdown(container: HTMLElement): HTMLSelectElement {
 	return el;
 }
 
+function choiceIconInput(container: HTMLElement): HTMLInputElement {
+	const el = container.querySelector<HTMLInputElement>(
+		'input[aria-label="Choice icon"]',
+	);
+	if (!el) throw new Error("Choice icon input not found");
+	return el;
+}
+
 const plugin = {
 	getTemplateFiles: () => [],
 	settings: { choices: [] },
@@ -222,5 +230,29 @@ describe("TemplateChoiceForm", () => {
 
 		expect(props.choice.copyLinkToClipboard).toBe(true);
 		expect(toggle.classList.contains("is-enabled")).toBe(true);
+	});
+
+	it("edits the choice icon override and clears back to the default", async () => {
+		const { container, props } = mountForm();
+		const input = choiceIconInput(container);
+
+		expect(input.placeholder).toBe("file-text");
+		expect(
+			container.querySelector(".qa-choice-icon-setting-preview svg"),
+		).toHaveAttribute("data-icon", "file-text");
+
+		await fireEvent.input(input, { target: { value: "star" } });
+		flushSync();
+		expect(props.choice.icon).toBe("star");
+		expect(
+			container.querySelector(".qa-choice-icon-setting-preview svg"),
+		).toHaveAttribute("data-icon", "star");
+
+		await fireEvent.input(input, { target: { value: "   " } });
+		flushSync();
+		expect(props.choice.icon).toBeUndefined();
+		expect(
+			container.querySelector(".qa-choice-icon-setting-preview svg"),
+		).toHaveAttribute("data-icon", "file-text");
 	});
 });
