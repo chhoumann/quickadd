@@ -302,7 +302,12 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 });
 
 describe("collectChoiceRequirements - capture targets", () => {
-	const app = {} as App;
+	const getFileCacheMock = vi.fn();
+	const app = {
+		metadataCache: {
+			getFileCache: getFileCacheMock,
+		},
+	} as unknown as App;
 	const plugin = {
 		settings: {
 			inputPrompt: "single-line",
@@ -326,6 +331,16 @@ describe("collectChoiceRequirements - capture targets", () => {
 		getMarkdownFilesMatchingFilterMock.mockReturnValue([]);
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
 		getMarkdownFilesWithPropertyMock.mockReturnValue([]);
+		getFileCacheMock.mockReset();
+		getFileCacheMock.mockImplementation((file: { path: string }) => {
+			if (file.path === "Goals/Alpha.md") {
+				return { frontmatter: { title: "Alpha Goal" } };
+			}
+			if (file.path === "Projects/Beta.md") {
+				return { headings: [{ level: 1, heading: "Beta Heading" }] };
+			}
+			return null;
+		});
 	});
 
 	it("normalizes capture folder paths ending in .md", async () => {
@@ -440,15 +455,19 @@ describe("collectChoiceRequirements - capture targets", () => {
 				tags: ["active"],
 			}),
 		);
-		const target = requirements.find(
-			(requirement) =>
-				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
-		);
-		expect(target?.options).toEqual([
-			"Goals/Alpha.md",
-			"Projects/Beta.md",
-		]);
-	});
+			const target = requirements.find(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			);
+			expect(target?.options).toEqual([
+				"Goals/Alpha.md",
+				"Projects/Beta.md",
+			]);
+			expect(target?.displayOptions).toEqual([
+				"Alpha Goal (Alpha)",
+				"Beta Heading (Beta)",
+			]);
+		});
 
 	it("does not force the dropdown for a tokenized property value", async () => {
 		const requirements = await collectChoiceRequirements(

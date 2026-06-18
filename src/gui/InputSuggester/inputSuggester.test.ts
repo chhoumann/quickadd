@@ -115,6 +115,21 @@ describe("InputSuggester", () => {
 		expect(suggestions[suggestions.length - 1]?.item).toBe("Brand new");
 	});
 
+	it("matches custom search text while returning the underlying item", () => {
+		const suggester = new InputSuggester(
+			app,
+			["Project Display Title"],
+			["Projects/uuid-project.md"],
+			{ searchItems: ["Project Display Title Projects/uuid-project.md"] },
+		);
+
+		suggester.inputEl.value = "uuid-project";
+
+		const suggestions = suggester.getSuggestions("uuid-project");
+
+		expect(suggestions[0]?.item).toBe("Projects/uuid-project.md");
+	});
+
 	it("aligns displayItems length with items length", () => {
 		const shortDisplay = ["Alpha"];
 		const shortItems = ["Alpha", "Beta", "Gamma"];

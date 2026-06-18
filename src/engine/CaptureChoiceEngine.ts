@@ -358,12 +358,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				// Match the `|multi` flag specifically: a pipe, then `multi`
 				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
 				// `|multi1`, `|multi-select`, etc.
-				/\{\{VALUE:[^}]*\|\s*multi(?=[:}|]|$)/i.test(
+				/\{\{(?:VALUE|FILE):[^}]*\|\s*multi(?=[:}|]|$)/i.test(
 					this.choice?.format?.format ?? "",
 				)
 			) {
 				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}} in this capture writes a comma-separated string, not a YAML list. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
+					"QuickAdd: {{VALUE:…|multi}} and {{FILE:…|multi}} in this capture write comma-separated strings, not YAML lists. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
 				);
 			}
 
@@ -938,6 +938,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			orderedFiles,
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
+		const searchItems = filePaths.map(
+			(path, index) => `${displayItems[index] ?? path} ${path}`,
+		);
 		const existingLabels = new Set(
 			displayItems.map((label) => label.toLowerCase()),
 		);
@@ -951,6 +954,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				{
 					renderItem: (path, el) =>
 						renderNotePathSuggestion(el, path, this.app),
+					searchItems,
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>
@@ -1075,6 +1079,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			orderedFiles,
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
+		const searchItems = filePaths.map(
+			(path, index) => `${displayItems[index] ?? path} ${path}`,
+		);
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		// Build once (not per keystroke): existing note basenames across the vault.
 		const vaultBasenames = new Set(
@@ -1094,6 +1101,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				{
 					renderItem: (path, el) =>
 						renderNotePathSuggestion(el, path, this.app),
+					searchItems,
 					allowCustomValue: allowCreate,
 					customValueLabel: (value) => `Create new note: ${value}`,
 					valueExists: (value) =>

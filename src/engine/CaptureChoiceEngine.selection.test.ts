@@ -20,6 +20,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { InputPromptDraftHandler } from "../utils/InputPromptDraftHandler";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
+import { log } from "../logger/logManager";
 
 const {
 	setUseSelectionAsCaptureValueMock,
@@ -446,6 +447,45 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		expect(overwriteTemplaterOnce).toHaveBeenCalled();
 		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
+
+	it("warns when FILE multi cannot become a YAML list in Capture", async () => {
+		const warningSpy = vi
+			.spyOn(log, "logWarning")
+			.mockImplementation(() => {});
+		const choice = createChoice({
+			format: {
+				enabled: true,
+				format: "---\nrelated: {{FILE:People|multi}}\n---\n",
+			},
+		});
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			choice,
+			createExecutor(),
+		);
+		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
+
+		(engine as any).getFormattedPathToCaptureTo = vi
+			.fn()
+			.mockResolvedValue("Test.md");
+		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
+		(engine as any).onFileExists = vi.fn().mockResolvedValue({
+			file,
+			newFileContent: "content",
+			captureContent: "content",
+		});
+
+		try {
+			await engine.run();
+
+			expect(warningSpy).toHaveBeenCalledWith(
+				expect.stringContaining("{{FILE:…|multi}}"),
+			);
+		} finally {
+			warningSpy.mockRestore();
+		}
+	});
 });
 
 describe("CaptureChoiceEngine capture target resolution", () => {
@@ -780,25 +820,31 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await (engine as any).selectFileInFolder("Inbox/", false);
 
 		expect(suggestSpy).toHaveBeenCalledTimes(1);
-		const [, displayItems, items, options] = suggestSpy.mock
-			.calls[0] as unknown as [
-			unknown,
-			string[],
-			string[],
-			{
-				allowCustomValue: boolean;
-				customValueLabel: (value: string) => string;
-			},
-		];
+			const [, displayItems, items, options] = suggestSpy.mock
+				.calls[0] as unknown as [
+				unknown,
+				string[],
+				string[],
+				{
+					allowCustomValue: boolean;
+					customValueLabel: (value: string) => string;
+					searchItems: string[];
+				},
+			];
 
 		// Recently opened (Zebra) first, then the rest alphabetically.
 		expect(items).toEqual([
 			"Inbox/Zebra.md",
 			"Inbox/Apple.md",
 			"Inbox/Mango.md",
-		]);
-		expect(displayItems).toEqual(["Zebra", "Apple", "Mango"]);
-		expect(options.allowCustomValue).toBe(true);
+			]);
+			expect(displayItems).toEqual(["Zebra", "Apple", "Mango"]);
+			expect(options.searchItems).toEqual([
+				"Zebra Inbox/Zebra.md",
+				"Apple Inbox/Apple.md",
+				"Mango Inbox/Mango.md",
+			]);
+			expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
 	});
 

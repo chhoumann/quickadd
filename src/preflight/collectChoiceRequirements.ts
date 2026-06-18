@@ -24,6 +24,7 @@ import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
 import { parsePropertyTarget } from "src/utils/propertyTarget";
 import { parseCaptureFileFilterTarget } from "src/utils/captureFileFilterTarget";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
+import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import {
@@ -317,15 +318,21 @@ async function collectForCaptureChoice(
 			files = getMarkdownFilesInFolder(app, base);
 		}
 
-		const options = orderFilesForPicker(
+		const orderedFiles = orderFilesForPicker(
 			files,
 			buildPickerOrderingDeps(app),
-		).map((file) => file.path);
+		);
+		const options = orderedFiles.map((file) => file.path);
+		const displayOptions = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => app.metadataCache?.getFileCache(file) ?? null,
+		);
 		collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
 			id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			label: "Select capture target file",
 			type: "dropdown",
 			options,
+			displayOptions,
 			placeholder: options.length
 				? undefined
 				: "No files found in target scope",
