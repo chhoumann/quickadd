@@ -37,15 +37,10 @@ export function buildFileLinkText(
 	return shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
 }
 
-function hasExplicitExtension(path: string): boolean {
-	const fileName = path.split("/").pop() ?? "";
-	return /\.[^./\\]+$/.test(fileName);
-}
-
 export function normalizeAppendLinkDestinationPath(rawPath: string): string {
 	const path = rawPath.trim().replace(/^\/+/, "");
 	if (!path) return "";
-	return hasExplicitExtension(path) ? path : `${path}.md`;
+	return /\.md$/i.test(path) ? path : `${path}.md`;
 }
 
 export function getAppendLinkDestinationFile(

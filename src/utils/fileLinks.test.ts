@@ -155,16 +155,20 @@ describe("file link helpers", () => {
 		expect(normalizeAppendLinkDestinationPath("Indexes/MOC.md")).toBe(
 			"Indexes/MOC.md",
 		);
+		expect(normalizeAppendLinkDestinationPath("Daily/2026.06.18")).toBe(
+			"Daily/2026.06.18.md",
+		);
 		expect(normalizeAppendLinkDestinationPath("Boards/MOC.canvas")).toBe(
-			"Boards/MOC.canvas",
+			"Boards/MOC.canvas.md",
 		);
 	});
 
 	it("resolves only existing Markdown files as append-link destinations", () => {
 		const contents = new Map<string, string>();
 		const index = makeFile("Indexes/MOC.md");
+		const dotted = makeFile("Daily/2026.06.18.md");
 		const canvas = makeFile("Indexes/MOC.canvas");
-		const app = makeDestinationApp([index, canvas], contents);
+		const app = makeDestinationApp([index, dotted, canvas], contents);
 
 		expect(
 			getAppendLinkDestinationFile(app, {
@@ -172,6 +176,12 @@ describe("file link helpers", () => {
 				path: "Indexes/MOC",
 			}),
 		).toBe(index);
+		expect(
+			getAppendLinkDestinationFile(app, {
+				type: "specifiedFile",
+				path: "Daily/2026.06.18",
+			}),
+		).toBe(dotted);
 		expect(
 			getAppendLinkDestinationFile(app, {
 				type: "specifiedFile",
