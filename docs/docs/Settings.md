@@ -14,7 +14,7 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 - **Search nested choices** — When searching in the choice picker, also match choices nested inside Multi choices and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.
 - **"New note from template" in the launcher** — Where the row that lists templates from your configured template folder appears in Run QuickAdd, so you can create a note from a template without a dedicated Template choice. *Show at the bottom* (default) keeps your most-used choice in the first slot; *Show at the top* makes it the first item; *Hide* removes it. Only appears when a [template folder](#templates--properties) is configured; the **New note from template** command works regardless.
 
-Individual [Multi Choices](./Choices/MultiChoice#opening-as-a-context-menu) can also open as a compact context menu at the editor caret instead of using the choice picker.
+Individual [Multi Choices](./Choices/MultiChoice#opening-as-a-compact-menu) can also open as a compact launch menu near the active editor instead of using the choice picker.
 
 ## Input
 

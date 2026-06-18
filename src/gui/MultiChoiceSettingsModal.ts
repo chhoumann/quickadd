@@ -58,12 +58,12 @@ export class MultiChoiceSettingsModal extends Modal {
 		new Setting(this.contentEl)
 			.setName("Open with")
 			.setDesc(
-				"The normal choice picker supports fuzzy search. Context menu opens a small menu near the editor caret and falls back to the picker when no editor caret is available.",
+				"The normal choice picker supports fuzzy search. Compact menu opens a small launch menu near the active editor when possible. Child choices keep their own configured behavior.",
 			)
 			.addDropdown((dropdown) => {
 				dropdown
 					.addOption("suggester", "Choice picker")
-					.addOption("context-menu", "Context menu at editor caret")
+					.addOption("context-menu", "Compact menu near editor")
 					.setValue(this.displayMode)
 					.onChange((value) => {
 						this.displayMode =
