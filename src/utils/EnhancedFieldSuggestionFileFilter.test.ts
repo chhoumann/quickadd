@@ -78,6 +78,24 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			]);
 		});
 
+		it("should include files from any repeated folder filter", () => {
+			const filters: FieldFilter = {
+				folder: "folder1",
+				folders: ["folder1", "folder2"],
+			};
+			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+				mockFiles,
+				filters,
+				mockMetadataCache,
+			);
+			expect(result.map(f => f.path)).toEqual([
+				"folder1/file1.md",
+				"folder1/subfolder/file2.md",
+				"folder2/file3.md",
+				"folder2/file4.md",
+			]);
+		});
+
 		it("should filter by tag inclusion", () => {
 			const filters: FieldFilter = { tags: ["todo"] };
 			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
@@ -89,6 +107,16 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			expect(result.map(f => f.path)).toContain("folder1/file1.md");
 			expect(result.map(f => f.path)).toContain("folder2/file4.md");
 			expect(result.map(f => f.path)).toContain("root-file.md");
+		});
+
+		it("should require all inclusion tags", () => {
+			const filters: FieldFilter = { tags: ["project", "todo"] };
+			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+				mockFiles,
+				filters,
+				mockMetadataCache,
+			);
+			expect(result.map(f => f.path)).toEqual(["folder1/file1.md"]);
 		});
 
 		it("should exclude folders", () => {
@@ -238,6 +266,16 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			);
 			expect(result).toHaveLength(1);
 			expect(result[0].path).toBe("folder1/subfolder/file2.md");
+		});
+
+		it("should normalize leading # in frontmatter tags", () => {
+			const files = [createMockFile("note.md")];
+			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+				files,
+				{ tags: ["topic"] },
+				() => createMockMetadata(undefined, ["#topic"]),
+			);
+			expect(result.map(f => f.path)).toEqual(["note.md"]);
 		});
 
 		it("should handle frontmatter tags for exclusion", () => {

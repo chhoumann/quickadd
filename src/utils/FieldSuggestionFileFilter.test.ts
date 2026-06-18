@@ -80,6 +80,20 @@ describe("FieldSuggestionFileFilter", () => {
 			]);
 		});
 
+		it("should filter files by multiple folders (OR logic)", () => {
+			const result = FieldSuggestionFileFilter.filterFiles(
+				mockFiles,
+				{ folder: "daily", folders: ["daily", "projects"] },
+				mockMetadataCache,
+			);
+			expect(result.map((f) => f.path)).toEqual([
+				"daily/2024-01-01.md",
+				"daily/2024-01-02.md",
+				"projects/project1.md",
+				"projects/work/task1.md",
+			]);
+		});
+
 		it("should filter files by nested folder", () => {
 			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,

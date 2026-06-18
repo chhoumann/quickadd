@@ -770,6 +770,7 @@ export class QuickAddApi {
 					fieldName: string,
 					options?: {
 						folder?: string;
+						folders?: string[];
 						tags?: string[];
 						includeInline?: boolean;
 						includeInlineCodeBlocks?: string[];
@@ -780,6 +781,7 @@ export class QuickAddApi {
 						.filter((value) => value.length > 0);
 					const filters = {
 						folder: options?.folder,
+						folders: options?.folders,
 						tags: options?.tags,
 						inline: options?.includeInline ?? false,
 						inlineCodeBlocks,

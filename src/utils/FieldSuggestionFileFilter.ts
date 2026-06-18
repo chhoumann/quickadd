@@ -15,8 +15,11 @@ export class FieldSuggestionFileFilter {
 		}
 
 		return files.filter((file) => {
-			// Check folder filter
-			if (filters.folder && !this.matchesFolder(file, filters.folder)) {
+			const folders = this.getIncludeFolders(filters);
+			if (
+				folders.length > 0 &&
+				!folders.some((folder) => this.matchesFolder(file, folder))
+			) {
 				return false;
 			}
 
@@ -31,6 +34,15 @@ export class FieldSuggestionFileFilter {
 
 			return true;
 		});
+	}
+
+	private static getIncludeFolders(filters: FieldFilter): string[] {
+		const folders = filters.folders?.length
+			? filters.folders
+			: filters.folder
+				? [filters.folder]
+				: [];
+		return [...new Set(folders.map((folder) => this.normalizePath(folder)).filter(Boolean))];
 	}
 
 	private static matchesFolder(file: TFile, folderPath: string): boolean {
@@ -68,7 +80,9 @@ export class FieldSuggestionFileFilter {
 
 		// Check if file has all required tags (AND logic)
 		return normalizedRequiredTags.every((requiredTag) =>
-			fileTags.includes(requiredTag),
+			fileTags.some((fileTag) =>
+				fileTag === requiredTag || fileTag.startsWith(requiredTag + "/"),
+			),
 		);
 	}
 

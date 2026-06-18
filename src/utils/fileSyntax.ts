@@ -54,6 +54,13 @@ function normalizeFolder(path: string): string {
  */
 function buildFileScopeSignature(folderPath: string, filter: FieldFilter): string {
 	const parts = [`folder=${normalizeFolder(folderPath)}`];
+	if (filter.folders?.length)
+		parts.push(
+			`folders=${[...filter.folders]
+				.map(normalizeFolder)
+				.sort()
+				.join(",")}`,
+		);
 	if (filter.tags?.length)
 		parts.push(`tags=${[...filter.tags].sort().join(",")}`);
 	if (filter.excludeFolders?.length)

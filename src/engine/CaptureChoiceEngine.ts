@@ -30,6 +30,7 @@ import { normalizeAppendLinkOptions, type AppendLinkOptions } from "../types/lin
 import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
+	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
 	insertFileLinkToActiveView,
@@ -47,6 +48,7 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { parsePropertyTarget } from "../utils/propertyTarget";
+import { parseCaptureFileFilterTarget } from "../utils/captureFileFilterTarget";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
@@ -772,6 +774,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					return this.selectFileInFolder("", true);
 				case "tag":
 					return this.selectFileWithTag(resolution.tag);
+				case "filter":
+					return this.selectFileWithFilter(resolution.filter);
 				case "property":
 					return this.selectFileWithProperty(
 						resolution.field,
@@ -790,6 +794,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	):
 		| { kind: "vault" }
 		| { kind: "tag"; tag: string }
+		| { kind: "filter"; filter: FieldFilter }
 		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
@@ -808,13 +813,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return { kind: "vault" };
 		}
 
-		if (rawCaptureTo.startsWith("#")) {
-			return {
-				kind: "tag",
-				tag: rawCaptureTo.replace(/\.md$/, ""),
-			};
-		}
-
 		// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
 		// Checked before the `.base`/extension/folder branches so a property value
 		// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
@@ -830,6 +828,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				field: propertyTarget.field,
 				value: propertyTarget.value,
 				filter: propertyTarget.filter,
+			};
+		}
+
+		const fileFilterTarget = parseCaptureFileFilterTarget(rawCaptureTo);
+		if (fileFilterTarget) {
+			if (fileFilterTarget.multiSelect) {
+				throw new ChoiceAbortError(
+					"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
+				);
+			}
+			return {
+				kind: "filter",
+				filter: fileFilterTarget.filter,
 			};
 		}
 
@@ -961,6 +972,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
 
 		return this.selectFileFromSet(filesWithTag, `No files with tag ${tag}.`);
+	}
+
+	private async selectFileWithFilter(filter: FieldFilter): Promise<string> {
+		const files = getMarkdownFilesMatchingFilter(this.app, filter);
+		return this.selectFileFromSet(
+			files,
+			"No files matched the capture target filters.",
+		);
 	}
 
 	private async selectFileWithProperty(

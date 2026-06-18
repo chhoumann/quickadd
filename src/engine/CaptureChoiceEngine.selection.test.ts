@@ -6,6 +6,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	getMarkdownFilesInFolder,
+	getMarkdownFilesMatchingFilter,
 	insertOnNewLineBelow,
 	insertFileLinkToActiveView,
 	isFolder,
@@ -103,6 +104,7 @@ vi.mock("../utilityObsidian", () => ({
 	// to "inserted" so capture-to-active-file paths proceed to the cosmetic/openFile steps.
 	appendToCurrentLine: vi.fn(() => true),
 	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesMatchingFilter: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
@@ -219,6 +221,8 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		createdClipboardAttachmentPaths.length = 0;
 		InputPromptDraftStore.getInstance().clearAll();
 		vi.mocked(openFile).mockClear();
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReset();
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
 		vi.mocked(insertFileLinkToActiveView).mockReset();
 		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 		vi.mocked(overwriteTemplaterOnce).mockClear();
@@ -567,8 +571,62 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			kind: "property",
 			field: "type",
 			value: "draft",
-			filter: { folder: "Notes" },
+			filter: { folder: "Notes", folders: ["Notes"] },
 		});
+	});
+
+	it("resolves a hashtag target with extra pipe filters", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "#work|tag:project" }),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).resolveCaptureTarget("#work|tag:project"),
+		).toEqual({
+			kind: "filter",
+			filter: { tags: ["work", "project"] },
+		});
+	});
+
+	it("resolves repeated folder filters as a filtered target", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "folder:Goals|folder:Projects|tag:active" }),
+			createExecutor(),
+		);
+
+		expect(
+			(engine as any).resolveCaptureTarget(
+				"folder:Goals|folder:Projects|tag:active",
+			),
+		).toEqual({
+			kind: "filter",
+			filter: {
+				folder: "Goals",
+				folders: ["Goals", "Projects"],
+				tags: ["active"],
+			},
+		});
+	});
+
+	it("rejects multi-select on capture target filters", () => {
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "tag:work|multi" }),
+			createExecutor(),
+		);
+
+		expect(() =>
+			(engine as any).resolveCaptureTarget("tag:work|multi"),
+		).toThrow(ChoiceAbortError);
 	});
 
 	it("throws on a property target with no field name", () => {

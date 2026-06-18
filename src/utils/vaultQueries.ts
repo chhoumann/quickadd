@@ -79,6 +79,17 @@ export function getMarkdownFilesWithTag(app: App, tag: string): TFile[] {
 	});
 }
 
+export function getMarkdownFilesMatchingFilter(
+	app: App,
+	filter: FieldFilter,
+): TFile[] {
+	return EnhancedFieldSuggestionFileFilter.filterFiles(
+		app.vault.getMarkdownFiles(),
+		filter,
+		(file) => app.metadataCache.getFileCache(file),
+	);
+}
+
 /**
  * Whether a frontmatter value equals a (case-insensitive, trimmed) target string.
  * Pure and Obsidian-free so it can be unit-tested directly.

@@ -27,30 +27,21 @@ export class EnhancedFieldSuggestionFileFilter {
 		metadataCache: (file: TFile) => CachedMetadata | null,
 	): TFile[] {
 		let hasInclusionFilters = false;
-		let includedFiles: TFile[] = [];
+		let includedFiles = files;
 
-		// Folder filter
-		if (filters.folder) {
+		const folders = this.getIncludeFolders(filters);
+		if (folders.length > 0) {
 			hasInclusionFilters = true;
-			const folder = filters.folder;
-			const folderFiles = files.filter(file => this.matchesFolder(file, folder));
-			includedFiles.push(...folderFiles);
+			includedFiles = includedFiles.filter(file =>
+				folders.some(folder => this.matchesFolder(file, folder))
+			);
 		}
 
-		// Tag filter
 		if (filters.tags && filters.tags.length > 0) {
 			hasInclusionFilters = true;
-			const tags = filters.tags;
-			const tagFiles = files.filter(file => 
-				this.matchesTags(file, tags, metadataCache)
+			includedFiles = includedFiles.filter(file =>
+				this.matchesAllTags(file, filters.tags ?? [], metadataCache)
 			);
-			
-			if (filters.folder) {
-				// If we already have folder filtering, intersect the results
-				includedFiles = includedFiles.filter(file => tagFiles.includes(file));
-			} else {
-				includedFiles.push(...tagFiles);
-			}
 		}
 
 		// If no inclusion filters were specified, include all files
@@ -72,7 +63,7 @@ export class EnhancedFieldSuggestionFileFilter {
 
 			// Exclude by tag
 			if (filters.excludeTags && filters.excludeTags.length > 0) {
-				if (this.matchesTags(file, filters.excludeTags, metadataCache)) {
+				if (this.matchesAnyTag(file, filters.excludeTags, metadataCache)) {
 					return false;
 				}
 			}
@@ -86,6 +77,16 @@ export class EnhancedFieldSuggestionFileFilter {
 
 			return true;
 		});
+	}
+
+	private static getIncludeFolders(filters: FieldFilter): string[] {
+		const folders = filters.folders?.length
+			? filters.folders
+			: filters.folder
+				? [filters.folder]
+				: [];
+
+		return [...new Set(folders.map(folder => this.normalizePath(folder)).filter(Boolean))];
 	}
 
 	private static matchesFolder(file: TFile, folder: string): boolean {
@@ -103,10 +104,27 @@ export class EnhancedFieldSuggestionFileFilter {
 		);
 	}
 
+	private static matchesAllTags(
+		file: TFile,
+		requiredTags: string[],
+		metadataCache: (file: TFile) => CachedMetadata | null,
+	): boolean {
+		return this.matchesTags(file, requiredTags, metadataCache, "all");
+	}
+
+	private static matchesAnyTag(
+		file: TFile,
+		requiredTags: string[],
+		metadataCache: (file: TFile) => CachedMetadata | null,
+	): boolean {
+		return this.matchesTags(file, requiredTags, metadataCache, "any");
+	}
+
 	private static matchesTags(
 		file: TFile,
 		requiredTags: string[],
 		metadataCache: (file: TFile) => CachedMetadata | null,
+		mode: "all" | "any",
 	): boolean {
 		const metadata = metadataCache(file);
 		if (!metadata) {
@@ -115,13 +133,18 @@ export class EnhancedFieldSuggestionFileFilter {
 
 		// Get all tags from the file (both frontmatter and inline)
 		const fileTags = this.getAllTags(metadata);
+		const normalizedRequiredTags = requiredTags
+			.map(tag => this.normalizeTag(tag))
+			.filter(Boolean);
 
-		// Check if file has any of the required tags (OR logic for inclusion, AND logic for exclusion)
-		return requiredTags.some(requiredTag =>
-			fileTags.some(fileTag => 
+		const matchesRequiredTag = (requiredTag: string) =>
+			fileTags.some(fileTag =>
 				fileTag === requiredTag || fileTag.startsWith(requiredTag + "/")
-			)
-		);
+			);
+
+		return mode === "all"
+			? normalizedRequiredTags.every(matchesRequiredTag)
+			: normalizedRequiredTags.some(matchesRequiredTag);
 	}
 
 	private static matchesFile(file: TFile, targetFile: string): boolean {
@@ -138,9 +161,7 @@ export class EnhancedFieldSuggestionFileFilter {
 				? metadata.frontmatter.tags
 				: [metadata.frontmatter.tags];
 			
-			tags.push(...frontmatterTags.map(tag => 
-				typeof tag === 'string' ? tag : String(tag)
-			));
+			tags.push(...frontmatterTags.map(tag => this.normalizeTag(tag)));
 		}
 
 		if (metadata.frontmatter?.tag) {
@@ -148,19 +169,21 @@ export class EnhancedFieldSuggestionFileFilter {
 				? metadata.frontmatter.tag
 				: [metadata.frontmatter.tag];
 			
-			tags.push(...frontmatterTag.map(tag => 
-				typeof tag === 'string' ? tag : String(tag)
-			));
+			tags.push(...frontmatterTag.map(tag => this.normalizeTag(tag)));
 		}
 
 		// Get inline tags
 		if (metadata.tags) {
-			tags.push(...metadata.tags.map(tag => 
-				tag.tag.startsWith("#") ? tag.tag.substring(1) : tag.tag
-			));
+			tags.push(...metadata.tags.map(tag => this.normalizeTag(tag.tag)));
 		}
 
-		return tags;
+		return tags.filter(Boolean);
+	}
+
+	private static normalizeTag(tag: unknown): string {
+		const tagString = typeof tag === "string" ? tag : String(tag);
+		const trimmed = tagString.trim();
+		return trimmed.startsWith("#") ? trimmed.substring(1).trim() : trimmed;
 	}
 
 	private static normalizePath(path: string): string {
