@@ -15,6 +15,7 @@ import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
 import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
 import { TemplateEngine } from "./TemplateEngine";
+import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 
 export const templateInsertModes = [
 	{
@@ -201,17 +202,18 @@ export class TemplateInsertEngine extends TemplateEngine {
 				choice.fileNameFormat.format,
 				choice.name,
 			);
+			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
 			// Mirror TemplateChoiceEngine's resolution of formatted names that
 			// contain folders, so the move offer matches what the choice
 			// would actually have produced.
 			const stripped = this.stripDuplicateFolderPrefix(
-				formattedName,
+				routedName,
 				folderPath,
 			);
 			fileName = stripped.fileName;
 			treatAsVaultRelativePath =
 				this.shouldTreatFormattedNameAsVaultRelativePath(
-					formattedName,
+					routedName,
 					stripped.strippedPrefix,
 					folderSettings?.enabled ?? false,
 				);

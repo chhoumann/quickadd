@@ -27,6 +27,7 @@ import {
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -96,13 +97,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				format,
 				this.choice.name,
 			);
+			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
 			const { fileName, strippedPrefix } = this.stripDuplicateFolderPrefix(
-				formattedName,
+				routedName,
 				folderPath,
 			);
 			const treatAsVaultRelativePath =
 				this.shouldTreatFormattedNameAsVaultRelativePath(
-					formattedName,
+					routedName,
 					strippedPrefix,
 					this.choice.folder.enabled,
 				);

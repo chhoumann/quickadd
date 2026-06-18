@@ -25,6 +25,7 @@ import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 import { reportError } from "../utils/errorUtils";
+import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import {
 	INVALID_FOLDER_CHARS_REGEX,
@@ -511,10 +512,17 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		const safeFolderPath = this.stripLeadingSlash(folderPath);
 		const actualFolderPath: string = safeFolderPath ? `${safeFolderPath}/` : "";
 		const extension = this.getTemplateExtension(templatePath);
-		const formattedFileName: string = this.stripLeadingSlash(fileName)
-			.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
-			.replace(CANVAS_FILE_EXTENSION_REGEX, "")
-			.replace(BASE_FILE_EXTENSION_REGEX, "");
+		const normalizedFileName = normalizeGeneratedFilePath(
+			this.stripLeadingSlash(fileName),
+			"File name",
+		);
+		const formattedFileName: string = normalizeGeneratedFilePath(
+			normalizedFileName
+				.replace(MARKDOWN_FILE_EXTENSION_REGEX, "")
+				.replace(CANVAS_FILE_EXTENSION_REGEX, "")
+				.replace(BASE_FILE_EXTENSION_REGEX, ""),
+			"File name",
+		);
 		// Validate the final path segment, not just the whole string — a
 		// trailing-slash name like "Projects/" (optional leaf token left
 		// empty) would otherwise still produce "Projects/.md".

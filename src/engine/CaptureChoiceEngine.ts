@@ -48,6 +48,7 @@ import { isCancellationError, reportError } from "../utils/errorUtils";
 import { parsePropertyTarget } from "../utils/propertyTarget";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
@@ -761,25 +762,25 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		// 4) trailing "/" => folder picker (explicit)
 		// 5) known file extension => file
 		// 6) ambiguous => folder if it exists and no same-name file exists; else file
-		const normalizedCaptureTo = this.stripLeadingSlash(
+		const rawCaptureTo = this.stripLeadingSlash(
 			formattedCaptureTo.trim(),
 		);
 
-		if (normalizedCaptureTo === "") {
+		if (rawCaptureTo === "") {
 			return { kind: "vault" };
 		}
 
-		if (normalizedCaptureTo.startsWith("#")) {
+		if (rawCaptureTo.startsWith("#")) {
 			return {
 				kind: "tag",
-				tag: normalizedCaptureTo.replace(/\.md$/, ""),
+				tag: rawCaptureTo.replace(/\.md$/, ""),
 			};
 		}
 
 		// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
 		// Checked before the `.base`/extension/folder branches so a property value
 		// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
-		const propertyTarget = parsePropertyTarget(normalizedCaptureTo);
+		const propertyTarget = parsePropertyTarget(rawCaptureTo);
 		if (propertyTarget) {
 			if (!propertyTarget.field) {
 				throw new ChoiceAbortError(
@@ -793,6 +794,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				filter: propertyTarget.filter,
 			};
 		}
+
+		const normalizedCaptureTo = normalizeGeneratedFilePath(
+			rawCaptureTo,
+			"Capture target file path",
+		);
 
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)) {
 			throw new ChoiceAbortError(
@@ -838,9 +844,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const withinScope = value.startsWith(folderPathSlash)
 			? value
 			: `${folderPathSlash}${value}`;
-		const candidates = [withinScope];
-		if (!/\.(md|canvas)$/i.test(withinScope)) {
-			candidates.push(`${withinScope}.md`, `${withinScope}.canvas`);
+		let normalizedWithinScope: string;
+		try {
+			normalizedWithinScope = normalizeGeneratedFilePath(
+				withinScope,
+				"Capture target file path",
+			);
+		} catch {
+			return false;
+		}
+
+		const candidates = [normalizedWithinScope];
+		if (!/\.(md|canvas)$/i.test(normalizedWithinScope)) {
+			candidates.push(
+				`${normalizedWithinScope}.md`,
+				`${normalizedWithinScope}.canvas`,
+			);
 		}
 		return candidates.some(
 			(path) => !!this.app.vault.getAbstractFileByPath(path),
@@ -940,8 +959,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	): boolean {
 		const raw = value.trim();
 		if (!raw) return false;
-		const base = raw.replace(/\.(md|canvas)$/i, "");
-		const pathCandidates = [raw, `${base}.md`, `${base}.canvas`];
+		let normalized: string;
+		try {
+			normalized = normalizeGeneratedFilePath(
+				raw,
+				"Capture target file path",
+			);
+		} catch {
+			return false;
+		}
+
+		const base = normalized.replace(/\.(md|canvas)$/i, "");
+		const pathCandidates = [normalized, `${base}.md`, `${base}.canvas`];
 		if (
 			pathCandidates.some(
 				(path) => !!this.app.vault.getAbstractFileByPath(path),
@@ -949,7 +978,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		) {
 			return true;
 		}
-		return vaultBasenames.has(base.toLowerCase());
+		const basename = base.slice(base.lastIndexOf("/") + 1);
+		return vaultBasenames.has(basename.toLowerCase());
 	}
 
 	/**
@@ -1174,17 +1204,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private normalizeCaptureFilePath(path: string): string {
-		const normalizedPath = this.stripLeadingSlash(path);
+		const normalizedPath = normalizeGeneratedFilePath(
+			this.stripLeadingSlash(path),
+			"Capture target file path",
+		);
 		if (BASE_FILE_EXTENSION_REGEX.test(normalizedPath)) {
 			throw new ChoiceAbortError(
 				`Capture to '.base' files is not supported (${normalizedPath}). Use a Template choice instead.`,
 			);
 		}
-		const finalPath =
-			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedPath) ||
-			CANVAS_FILE_EXTENSION_REGEX.test(normalizedPath)
-				? normalizedPath
-				: this.normalizeMarkdownFilePath("", normalizedPath);
+		const finalPath = this.normalizeCaptureFilePathExtension(normalizedPath);
 
 		// A formatted target like 'notes/.md' has no usable file name (e.g. an
 		// optional token left empty). Fail clearly instead of creating it.
@@ -1196,6 +1225,26 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		return finalPath;
+	}
+
+	private normalizeCaptureFilePathExtension(path: string): string {
+		const markdownExtension = path.match(MARKDOWN_FILE_EXTENSION_REGEX)?.[0];
+		if (markdownExtension) {
+			return `${normalizeGeneratedFilePath(
+				path.replace(MARKDOWN_FILE_EXTENSION_REGEX, ""),
+				"Capture target file path",
+			)}${markdownExtension}`;
+		}
+
+		const canvasExtension = path.match(CANVAS_FILE_EXTENSION_REGEX)?.[0];
+		if (canvasExtension) {
+			return `${normalizeGeneratedFilePath(
+				path.replace(CANVAS_FILE_EXTENSION_REGEX, ""),
+				"Capture target file path",
+			)}${canvasExtension}`;
+		}
+
+		return this.normalizeMarkdownFilePath("", path);
 	}
 
 	/**
