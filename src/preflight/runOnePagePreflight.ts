@@ -39,6 +39,11 @@ export async function runOnePagePreflight(
 
 		if (unresolved.length === 0) return false; // Everything prefilled, skip modal
 
+		const modalRequirements = unresolved.filter(
+			(requirement) => !requirement.runtimeOnly,
+		);
+		if (modalRequirements.length === 0) return false;
+
 		// Show modal
 		// Optional live preview of a couple of key outputs (best-effort)
 		const computePreview = async (values: Record<string, string>) => {
@@ -64,7 +69,7 @@ export async function runOnePagePreflight(
 
 		const modal = new OnePageInputModal(
 			app,
-			unresolved,
+			modalRequirements,
 			choiceExecutor.variables,
 			computePreview,
 		);
@@ -88,7 +93,7 @@ export async function runOnePagePreflight(
 				displayToValue: Map<string, string>;
 			}
 		>();
-		for (const req of unresolved) {
+		for (const req of modalRequirements) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				fileOptionsByKey.set(req.id, req.options ?? []);
 			}

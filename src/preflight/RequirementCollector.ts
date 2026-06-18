@@ -18,6 +18,7 @@ import {
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "src/utils/EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
 import {
 	buildFileDisplayLabels,
 	FILE_PICK_PREFIX,
@@ -50,6 +51,8 @@ export interface FieldRequirement {
 	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
+	/** Prompt at runtime instead of the one-page form when the form has no safe widget. */
+	runtimeOnly?: boolean;
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
 	optional?: boolean;
 	suggesterConfig?: {
@@ -430,13 +433,15 @@ export class RequirementCollector extends Formatter {
 		// Key the requirement with the runtime "FIELD:" prefix so values entered
 		// in the one-page form land where replaceFieldVarInString looks them up
 		// (issue #1184). Actual suggestions are provided by the UI.
+		const parsed = FieldSuggestionParser.parse(variableName);
 		const key = `${FIELD_VARIABLE_PREFIX}${variableName}`;
 		if (!this.requirements.has(key)) {
 			this.requirements.set(key, {
 				id: key,
-				label: variableName,
+				label: parsed.fieldName || variableName,
 				type: "field-suggest",
 				source: "collected",
+				runtimeOnly: parsed.multiSelect,
 			});
 		}
 		return "";

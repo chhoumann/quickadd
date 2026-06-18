@@ -1,4 +1,8 @@
-import { parsePipeKeyValue, splitPipeParts } from "./pipeSyntax";
+import {
+	parseBooleanFlag,
+	parsePipeKeyValue,
+	splitPipeParts,
+} from "./pipeSyntax";
 
 export interface FieldFilter {
 	folder?: string;
@@ -25,13 +29,20 @@ export class FieldSuggestionParser {
 	static parse(input: string): {
 		fieldName: string;
 		filters: FieldFilter;
+		multiSelect?: boolean;
 	} {
 		const parts = splitPipeParts(input).map((p) => p.trim());
 		const fieldName = parts[0];
 		const filters: FieldFilter = {};
+		let multiSelect = false;
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
+			if (filterPart.toLowerCase() === "multi") {
+				multiSelect = true;
+				continue;
+			}
+
 			const parsed = parsePipeKeyValue(filterPart);
 			if (!parsed) continue; // Skip invalid filter format
 
@@ -39,6 +50,9 @@ export class FieldSuggestionParser {
 			const filterValue = parsed.value;
 
 			switch (filterType) {
+				case "multi":
+					multiSelect = parseBooleanFlag(filterValue);
+					break;
 				case "folder":
 					filters.folder = filterValue;
 					break;
@@ -105,6 +119,8 @@ export class FieldSuggestionParser {
 			}
 		}
 
-		return { fieldName, filters };
+		return multiSelect
+			? { fieldName, filters, multiSelect }
+			: { fieldName, filters };
 	}
 }

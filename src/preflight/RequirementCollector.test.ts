@@ -249,6 +249,20 @@ Body`);
         type: "field-suggest",
       });
     });
+
+    it("marks FIELD multi-select requirements as runtime-only", async () => {
+      const app = makeApp();
+      const plugin = makePlugin();
+      const rc = new RequirementCollector(app, plugin);
+      await rc.scanString("{{FIELD:People|multi|folder:Contacts}}");
+
+      expect(rc.requirements.get("FIELD:People|multi|folder:Contacts")).toMatchObject({
+        id: "FIELD:People|multi|folder:Contacts",
+        label: "People",
+        type: "field-suggest",
+        runtimeOnly: true,
+      });
+    });
   });
 });
 

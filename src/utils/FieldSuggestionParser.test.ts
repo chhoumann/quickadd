@@ -76,6 +76,28 @@ describe("FieldSuggestionParser", () => {
 			});
 		});
 
+		it("should parse multi-select as FIELD behavior, not a filter", () => {
+			const result = FieldSuggestionParser.parse(
+				"fieldname|multi|folder:daily|tag:work",
+			);
+			expect(result).toEqual({
+				fieldName: "fieldname",
+				filters: {
+					folder: "daily",
+					tags: ["work"],
+				},
+				multiSelect: true,
+			});
+		});
+
+		it("should allow multi-select to be explicitly disabled", () => {
+			const result = FieldSuggestionParser.parse("fieldname|multi:false");
+			expect(result).toEqual({
+				fieldName: "fieldname",
+				filters: {},
+			});
+		});
+
 		it("should handle tags with # prefix", () => {
 			const result = FieldSuggestionParser.parse("fieldname|tag:#work");
 			expect(result).toEqual({

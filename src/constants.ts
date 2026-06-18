@@ -22,6 +22,7 @@ export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
 export const VALUE_TRIM_SYNTAX = "{{value|trim}}";
 export const VARIABLE_TRIM_SYNTAX = "{{value:<variable name>|trim}}";
 export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
+export const FIELD_VAR_MULTI_SYNTAX = "{{field:<field name>|multi}}";
 export const FILE_SYNTAX = "{{file:<folder>}}";
 export const FILE_LINK_SYNTAX = "{{file:<folder>|link}}";
 export const FILE_PATH_SYNTAX = "{{file:<folder>|path}}";
@@ -59,6 +60,7 @@ export const FORMAT_SYNTAX: string[] = [
 	VARIABLE_NAME_SYNTAX,
 	VARIABLE_OPTIONAL_SYNTAX,
 	FIELD_VAR_SYNTAX,
+	FIELD_VAR_MULTI_SYNTAX,
 	"{{field:<fieldname>|folder:<path>}}",
 	"{{field:<fieldname>|tag:<tagname>}}",
 	"{{field:<fieldname>|inline:true}}",
