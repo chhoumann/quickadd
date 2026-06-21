@@ -50,9 +50,11 @@ import {
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
-import { parsePropertyTarget } from "../utils/propertyTarget";
-import { parseCaptureFileFilterTarget } from "../utils/captureFileFilterTarget";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
+import {
+	resolveCaptureTarget as resolveCaptureTargetFromString,
+	type CaptureTargetResolution,
+} from "./helpers/captureTargetResolution";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import {
 	appendFileLinkToDestinationFile,
@@ -857,97 +859,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 	}
 
+	/**
+	 * Adapter: classifies the formatted "Capture to" string into a concrete
+	 * destination via the pure {@link resolveCaptureTargetFromString}, binding the
+	 * live vault probes. Kept as a method so the existing call site and tests stay
+	 * unchanged.
+	 */
 	private resolveCaptureTarget(
 		formattedCaptureTo: string,
-	):
-		| { kind: "vault" }
-		| { kind: "filter"; filter: FieldFilter }
-		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
-		| { kind: "folder"; folder: string }
-		| { kind: "file"; path: string } {
-		// Resolution order:
-		// 1) empty => vault picker
-		// 2) #tag/tag:/folder: filters => filtered picker
-		// 3) property:<field>[=<value>] => frontmatter-property picker
-		// 4) trailing "/" => folder picker (explicit)
-		// 5) known file extension => file
-		// 6) ambiguous => folder if it exists and no same-name file exists; else file
-		const rawCaptureTo = this.stripLeadingSlash(
-			formattedCaptureTo.trim(),
-		);
-
-		if (rawCaptureTo === "") {
-			return { kind: "vault" };
-		}
-
-		// `property:<field>[=<value>]` pre-filters by a frontmatter field (issue #466).
-		// Checked before the `.base`/extension/folder branches so a property value
-		// containing `.md`/`/` (or a trailing `/`) can never misroute to a file/folder.
-		const propertyTarget = parsePropertyTarget(rawCaptureTo);
-		if (propertyTarget) {
-			if (!propertyTarget.field) {
-				throw new ChoiceAbortError(
-					"Property capture target needs a field name, e.g. property:type=draft",
-				);
-			}
-			return {
-				kind: "property",
-				field: propertyTarget.field,
-				value: propertyTarget.value,
-				filter: propertyTarget.filter,
-			};
-		}
-
-		const fileFilterTarget = parseCaptureFileFilterTarget(rawCaptureTo);
-		if (fileFilterTarget) {
-			if (fileFilterTarget.multiSelect) {
-				throw new ChoiceAbortError(
-					"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
-				);
-			}
-			return {
-				kind: "filter",
-				filter: fileFilterTarget.filter,
-			};
-		}
-
-		const normalizedCaptureTo = normalizeGeneratedFilePath(
-			rawCaptureTo,
-			"Capture target file path",
-		);
-
-		if (BASE_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)) {
-			throw new ChoiceAbortError(
-				`Capture to '.base' files is not supported (${normalizedCaptureTo}). Use a Template choice instead.`,
-			);
-		}
-
-		const endsWithSlash = normalizedCaptureTo.endsWith("/");
-		const folderPath = normalizedCaptureTo.replace(/\/+$/, "");
-
-		if (endsWithSlash) {
-			return { kind: "folder", folder: folderPath };
-		}
-
-		if (
-			MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedCaptureTo) ||
-			CANVAS_FILE_EXTENSION_REGEX.test(normalizedCaptureTo)
-		) {
-			return { kind: "file", path: normalizedCaptureTo };
-		}
-
-		// Guard against ambiguity where a folder and file share the same name.
-		const fileCandidatePath = this.normalizeMarkdownFilePath("", folderPath);
-		const fileCandidate = this.app.vault.getAbstractFileByPath(
-			fileCandidatePath,
-		);
-		const fileExists = !!fileCandidate;
-
-		if (isFolder(this.app, folderPath) && !fileExists) {
-			return { kind: "folder", folder: folderPath };
-		}
-
-		return { kind: "file", path: normalizedCaptureTo };
+	): CaptureTargetResolution {
+		return resolveCaptureTargetFromString(formattedCaptureTo, {
+			getAbstractFileByPath: (path) =>
+				this.app.vault.getAbstractFileByPath(path),
+			isFolder: (path) => isFolder(this.app, path),
+			normalizeMarkdownFilePath: (folderPath, fileName) =>
+				this.normalizeMarkdownFilePath(folderPath, fileName),
+		});
 	}
 
 	/**
