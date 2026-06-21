@@ -64,6 +64,9 @@
     "type": "git",
     "url": "https://github.com/chhoumann/quickadd.git"
   },
+  "engines": {
+    "node": ">=20.18.1"
+  },
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -71,7 +74,9 @@
       "esbuild"
     ],
     "overrides": {
-      "obsidian-calendar-ui>svelte": "^5.56.3"
+      "obsidian-calendar-ui>svelte": "^5.56.3",
+      "@semantic-release/github>undici": "7.28.0",
+      "jsdom>undici": "7.28.0"
     }
   },
   "release": {
