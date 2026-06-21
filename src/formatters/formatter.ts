@@ -127,6 +127,10 @@ export abstract class Formatter {
 		}
 	}
 
+	public getAnonymousValue(): string | undefined {
+		return this.value;
+	}
+
 	protected replacer(str: string, reg: RegExp, replaceValue: string) {
 		return str.replace(reg, function () {
 			return replaceValue;
