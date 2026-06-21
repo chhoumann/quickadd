@@ -178,9 +178,13 @@ export async function runOnePagePreflight(
 		Object.entries(values).forEach(([k, v]) => {
 			const multiInfo = multiInfoByKey.get(k);
 			if (multiInfo !== undefined) {
-				const items = splitMultiSelectLabels(
-					String(v),
-					multiInfo.displayToValue,
+				// Prefer the modal's unambiguous per-pick selection (survives the
+				// "a"+"b" vs literal "a, b" collision); fall back to parsing the
+				// ", "-joined text when the user manually edited the field.
+				const pickedLabels = modal.multiSelections.get(k);
+				const items = (
+					pickedLabels ??
+					splitMultiSelectLabels(String(v), multiInfo.displayToValue)
 				)
 					// Drop typed entries that aren't options unless the token opted
 					// into custom input, matching the runtime MultiSuggester.

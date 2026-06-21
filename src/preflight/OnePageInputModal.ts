@@ -40,6 +40,12 @@ export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
 	private readonly initialValues: Map<string, string>;
 	private readonly result = new Map<string, string>();
+	// Unambiguous ordered selections per multi-select field, recorded per-pick from
+	// the suggester (see SuggesterInputSuggest.onSelect). The ", "-joined input
+	// text alone can't distinguish picking "a" then "b" from picking a single
+	// option named "a, b"; consumers prefer this array when it still matches the
+	// final text (pure click flow), falling back to text parsing after manual edits.
+	public readonly multiSelections = new Map<string, string[]>();
 	// Date fields whose current (non-blank) text failed to parse.
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
@@ -531,6 +537,13 @@ export class OnePageInputModal extends Modal {
 							displayOptions,
 							caseSensitive,
 							multiSelect,
+							multiSelect
+								? (item) => {
+										const arr = this.multiSelections.get(req.id) ?? [];
+										arr.push(item);
+										this.multiSelections.set(req.id, arr);
+									}
+								: undefined,
 						);
 					} catch {
 						// Non-fatal; falls back to plain text input
@@ -601,6 +614,15 @@ export class OnePageInputModal extends Modal {
 				`QuickAdd: "${erroredDate.label}" is not a valid date. Fix it or clear it before submitting.`,
 			);
 			return;
+		}
+
+		// Reconcile the per-pick multi-select arrays against the final text: if the
+		// user manually edited the field after picking (so the recorded picks no
+		// longer reproduce the text), drop the array and let the consumer fall back
+		// to text parsing. Otherwise the unambiguous picked order is authoritative.
+		for (const [id, picks] of this.multiSelections) {
+			const text = (this.result.get(id) ?? "").replace(/,\s*$/, "").trim();
+			if (picks.join(", ") !== text) this.multiSelections.delete(id);
 		}
 
 		this.result.forEach((v, k) => {
