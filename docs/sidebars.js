@@ -92,6 +92,11 @@ const sidebars = {
 				},
 				{
 					type: "doc",
+					id: "SuggesterSystem",
+					label: "Suggester System",
+				},
+				{
+					type: "doc",
 					id: "InlineScripts",
 					label: "Inline Scripts",
 				},
@@ -193,6 +198,11 @@ const sidebars = {
 					type: "doc",
 					id: "Advanced/ObsidianUri",
 					label: "Obsidian URI",
+				},
+				{
+					type: "doc",
+					id: "Advanced/CLI",
+					label: "QuickAdd CLI",
 				},
 			],
 		},
