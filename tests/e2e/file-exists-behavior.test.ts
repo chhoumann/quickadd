@@ -16,6 +16,7 @@ import {
 
 const PLUGIN_ID = "quickadd";
 const TPL_CONTENT = "QA_TEMPLATE_CONTENT";
+const TPL_FM = "---\nstatus: draft\npriority: high\n---\nQA_TEMPLATE_BODY";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 
 let obsidian: ObsidianClient;
@@ -46,13 +47,14 @@ function templateChoice(
 	id: string,
 	format: string,
 	fileExistsBehavior?: Record<string, unknown>,
+	templatePath = sandbox.path("tpl.md"),
 ) {
 	return {
 		id,
 		name: id,
 		type: "Template",
 		command: false,
-		templatePath: sandbox.path("tpl.md"),
+		templatePath,
 		fileNameFormat: { enabled: true, format },
 		folder: {
 			enabled: false,
@@ -76,6 +78,12 @@ function templateChoice(
 /** Write a file into the sandbox and wait for Obsidian to index it. */
 async function seedFile(name: string, content = "EXISTING") {
 	await sandbox.write(name, content, { waitForContent: true, waitOptions: WAIT_OPTS });
+	const path = sandbox.path(name);
+	await obsidian.waitFor(async () => {
+		return await obsidian.dev.evalJson<boolean>(
+			`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(path)}))`,
+		);
+	}, WAIT_OPTS);
 }
 
 /** Run a QuickAdd choice. */
@@ -94,6 +102,13 @@ function expectOrderedSubstrings(
 	expect(firstIndex).toBeGreaterThanOrEqual(0);
 	expect(secondIndex).toBeGreaterThanOrEqual(0);
 	expect(firstIndex).toBeLessThan(secondIndex);
+}
+
+function expectSingleFrontmatterBlock(content: string) {
+	expect(content.match(/^---$/gm)).toHaveLength(2);
+	expect(content).toContain("status: done");
+	expect(content).toContain("priority: high");
+	expect(content).not.toContain("status: draft");
 }
 
 /** Run a QuickAdd choice and wait for a new file to appear. */
@@ -137,6 +152,7 @@ beforeAll(async () => {
 	});
 
 	await seedFile("tpl.md", TPL_CONTENT);
+	await seedFile("tpl-fm.md", TPL_FM);
 }, 30_000);
 
 afterAll(async () => {
@@ -184,6 +200,8 @@ describe("functional: file collision behaviors", () => {
 				templateChoice("__qa-test-t13-alldigit", `${root}/0001`, behavior.increment),
 				templateChoice("__qa-test-t14-nodigit", `${root}/qa-t14-hello`, behavior.increment),
 				templateChoice("__qa-test-t15-dupid", `${root}/tt0780504`, behavior.duplicateSuffix),
+				templateChoice("__qa-test-t16-atop-fm", `${root}/qa-t16-append-top-fm`, behavior.appendTop, sandbox.path("tpl-fm.md")),
+				templateChoice("__qa-test-t17-abot-fm", `${root}/qa-t17-append-bottom-fm`, behavior.appendBottom, sandbox.path("tpl-fm.md")),
 			);
 		});
 
@@ -250,6 +268,34 @@ describe("functional: file collision behaviors", () => {
 		await seedFile("qa-t10-append-top.md", "ORIGINAL_TOP_TEST");
 		const content = await runChoiceAndWaitForContent("__qa-test-t10-atop", "qa-t10-append-top.md", TPL_CONTENT);
 		expectOrderedSubstrings(content, TPL_CONTENT, "ORIGINAL_TOP_TEST");
+	});
+
+	it("T10a: append to top with frontmatter merges properties", async () => {
+		await seedFile(
+			"qa-t16-append-top-fm.md",
+			"---\nstatus: done\n---\nEXISTING_CONTENT",
+		);
+		const content = await runChoiceAndWaitForContent(
+			"__qa-test-t16-atop-fm",
+			"qa-t16-append-top-fm.md",
+			"priority: high",
+		);
+		expectSingleFrontmatterBlock(content);
+		expectOrderedSubstrings(content, "QA_TEMPLATE_BODY", "EXISTING_CONTENT");
+	});
+
+	it("T10b: append to bottom with frontmatter merges properties", async () => {
+		await seedFile(
+			"qa-t17-append-bottom-fm.md",
+			"---\nstatus: done\n---\nEXISTING_CONTENT",
+		);
+		const content = await runChoiceAndWaitForContent(
+			"__qa-test-t17-abot-fm",
+			"qa-t17-append-bottom-fm.md",
+			"priority: high",
+		);
+		expectSingleFrontmatterBlock(content);
+		expectOrderedSubstrings(content, "EXISTING_CONTENT", "QA_TEMPLATE_BODY");
 	});
 
 	it("T11: overwrite", async () => {

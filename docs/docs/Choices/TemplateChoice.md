@@ -134,6 +134,13 @@ These options modify the existing markdown, canvas, or base file:
 - **Append to top**: Adds the template content to the beginning of the existing file
 - **Overwrite file**: Replaces the existing file content with the template
 
+For markdown files, **Append to bottom** and **Append to top** handle template
+frontmatter the same way as [Apply Template to Note](/ApplyTemplateToNote.md):
+the template's frontmatter properties are merged into the existing note instead
+of inserting a second `---` block. Existing note values win, and missing or
+empty properties are filled from the template. Canvas and base files receive the
+template content as-is.
+
 ### Create Another File
 
 These options keep the existing file untouched and create a new file instead:
