@@ -168,7 +168,7 @@ async function scanContentWithTemplateIncludes(
 	app: App,
 	collector: RequirementCollector,
 	content: string,
-	visitedTemplates = new Set<string>(),
+	templateStack = new Set<string>(),
 	depth = 0,
 ): Promise<void> {
 	// templatesToScan is a queue for this content scan. Clear it before and
@@ -181,15 +181,19 @@ async function scanContentWithTemplateIncludes(
 	if (depth >= MAX_TEMPLATE_INCLUSION_DEPTH) return;
 
 	for (const ref of nested) {
-		if (visitedTemplates.has(ref)) continue;
-		visitedTemplates.add(ref);
-		await scanContentWithTemplateIncludes(
-			app,
-			collector,
-			await readTemplate(app, ref),
-			visitedTemplates,
-			depth + 1,
-		);
+		if (templateStack.has(ref)) continue;
+		templateStack.add(ref);
+		try {
+			await scanContentWithTemplateIncludes(
+				app,
+				collector,
+				await readTemplate(app, ref),
+				templateStack,
+				depth + 1,
+			);
+		} finally {
+			templateStack.delete(ref);
+		}
 	}
 }
 
@@ -277,6 +281,22 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.format.format,
+		);
+	}
+
+	if (choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.insertAfter.after,
+		);
+	}
+
+	if (choice.insertBefore?.enabled) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.insertBefore.before,
 		);
 	}
 

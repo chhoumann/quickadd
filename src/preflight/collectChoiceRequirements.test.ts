@@ -217,6 +217,71 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("collects requirements from TEMPLATE includes in Capture insert-after targets", async () => {
+		templateBodies.set(
+			"Templates/Heading.md",
+			"## {{VALUE:insertAfterHeading}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			insertAfter: {
+				...createCaptureChoice("Inbox.md").insertAfter,
+				enabled: true,
+				after: "{{TEMPLATE:Templates/Heading.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "insertAfterHeading" }),
+			]),
+		);
+	});
+
+	it("collects requirements from TEMPLATE includes in Capture insert-before targets", async () => {
+		templateBodies.set(
+			"Templates/Before.md",
+			"## {{VALUE:insertBeforeHeading}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			insertBefore: {
+				enabled: true,
+				before: "{{TEMPLATE:Templates/Before.md}}",
+				createIfNotFound: false,
+				createIfNotFoundLocation: "top",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "insertBeforeHeading" }),
+			]),
+		);
+	});
+
 	it("collects requirements from TEMPLATE includes in Template file names", async () => {
 		templateBodies.set("Templates/Source.md", "Body");
 		templateBodies.set(
@@ -325,6 +390,49 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 		expect(cachedReadMock).not.toHaveBeenCalledWith(
 			expect.objectContaining({ path: "Templates/T10.md" }),
+		);
+	});
+
+	it("allows a template reached at max depth to be scanned again after the stack unwinds", async () => {
+		templateBodies.set(
+			"Templates/Root Deep.md",
+			"{{TEMPLATE:Templates/Deep0.md}} {{TEMPLATE:Templates/Shared.md}}",
+		);
+		for (let index = 0; index < 8; index++) {
+			templateBodies.set(
+				`Templates/Deep${index}.md`,
+				`{{TEMPLATE:Templates/Deep${index + 1}.md}}`,
+			);
+		}
+		templateBodies.set("Templates/Deep8.md", "{{TEMPLATE:Templates/Shared.md}}");
+		templateBodies.set("Templates/Shared.md", "{{TEMPLATE:Templates/Nested.md}}");
+		templateBodies.set("Templates/Nested.md", "{{VALUE:sharedNestedValue}}");
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/Root Deep.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "sharedNestedValue" }),
+			]),
+		);
+		expect(cachedReadMock).toHaveBeenCalledWith(
+			expect.objectContaining({ path: "Templates/Nested.md" }),
 		);
 	});
 
