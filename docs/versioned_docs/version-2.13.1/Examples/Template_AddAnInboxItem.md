@@ -6,4 +6,4 @@ Template Path: `bins/templates/Inbox Template.md`
 
 File name format: `{{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}`
 
-![A Template choice for adding an inbox item](/img/choices/template-builder.png)
+![A Template choice for adding an inbox item](../Images/choices/template-builder.png)

@@ -8,7 +8,7 @@ Allows to quickly capture your input and save it from anywhere in Obsidian, with
 -   Save interesting links for later reading and watching
 -   Individually timed notes in Daily notes file
 
-![The QuickAdd Capture builder, showing the Location and Position sections](/img/choices/capture-builder.png)
+![The QuickAdd Capture builder, showing the Location and Position sections](../Images/choices/capture-builder.png)
 
 ## Capture To
 

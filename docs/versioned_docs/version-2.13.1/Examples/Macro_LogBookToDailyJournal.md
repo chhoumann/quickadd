@@ -2,7 +2,7 @@
 title: "Macro: Log book to daily journal"
 ---
 
-![The Macro builder for the log-book macro](/img/choices/macro-builder.png)
+![The Macro builder for the log-book macro](../Images/choices/macro-builder.png)
 
 ```js
 // You have to export the function you wish to run.

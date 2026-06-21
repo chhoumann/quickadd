@@ -15,7 +15,7 @@ targets first. Choose an existing note to open it unchanged, or choose the
 
 The Template choice builder groups its settings into four sections: **Template** (template path and file name format), **Location** (where the file is created), **Linking** (whether and how to link to the created file), and **Behavior** (what happens when the file already exists, and how the file is opened).
 
-![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](/img/choices/template-builder.png)
+![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](../Images/choices/template-builder.png)
 
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
