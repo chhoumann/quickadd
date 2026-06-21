@@ -166,8 +166,19 @@ export class FileNameDisplayFormatter extends Formatter {
 		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
 			const cleanDateFormat = dateFormat?.trim();
-			const { defaultValue: cleanDefaultValue, optional } =
-				parseVDateOptions(rawOptions);
+			// Parse defensively: a malformed |startof:/|endof: option can throw, and
+			// since format() catches and returns the whole raw input on any error, an
+			// unparseable VDATE option would otherwise blank out EVERY other preview
+			// substitution. Treat a parse failure as "no options".
+			let cleanDefaultValue: string | undefined;
+			let optional = false;
+			try {
+				({ defaultValue: cleanDefaultValue, optional } =
+					parseVDateOptions(rawOptions));
+			} catch {
+				cleanDefaultValue = undefined;
+				optional = false;
+			}
 
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete

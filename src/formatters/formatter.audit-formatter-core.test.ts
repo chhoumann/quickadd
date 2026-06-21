@@ -110,8 +110,11 @@ class TestFormatter extends Formatter {
 	}
 }
 
+let previousMoment: unknown;
+
 beforeEach(() => {
 	(globalThis as any).window ??= globalThis;
+	previousMoment = (globalThis as any).window.moment;
 	(globalThis as any).window.moment = (_iso?: unknown) => ({
 		isValid: () => true,
 		format: (fmt?: string) => `[${fmt}]`,
@@ -119,6 +122,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	// Restore the prior global so this stub doesn't bleed into later suites.
+	(globalThis as any).window.moment = previousMoment;
 	vi.restoreAllMocks();
 });
 

@@ -613,9 +613,12 @@ export class CompleteFormatter extends Formatter {
 
 	protected async suggestForField(fieldInput: string): Promise<string | string[]> {
 		try {
-			// Parse the field input to extract field name and filters
+			// Parse the field input to extract field name and filters. Do NOT warn
+			// on unknown keys here: the field replacer in formatter.ts already parses
+			// the same token with { warnUnknown: true } before calling this, so
+			// warning again would emit a duplicate notice per malformed FIELD token.
 			const { fieldName, filters, multiSelect } =
-				FieldSuggestionParser.parse(fieldInput, { warnUnknown: true });
+				FieldSuggestionParser.parse(fieldInput);
 
 			// Collect and process via shared collector
 			const { values, hasDefaultValue } =
