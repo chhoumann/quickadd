@@ -214,6 +214,12 @@ export class AIAssistantCommandSettingsModal extends Modal {
 				const isKnown = stored === "Ask me" || models.includes(stored);
 				if (stored && !isKnown) {
 					dropdown.addOption(stored, `(missing) ${stored}`);
+					// Disable it so the stale value is shown but can't be re-selected
+					// and re-saved as a valid choice.
+					const missingOption = Array.from(
+						dropdown.selectEl.options,
+					).find((option) => option.value === stored);
+					if (missingOption) missingOption.disabled = true;
 				}
 
 				dropdown.setValue(stored);

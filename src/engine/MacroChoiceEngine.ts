@@ -527,10 +527,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		let targetChoice: IChoice;
 		try {
 			targetChoice = this.plugin.getChoiceById(command.choiceId);
-		} catch {
-			// getChoiceById throws when the referenced choice was deleted; surface a
-			// friendly message naming the stored command and skip instead of aborting
-			// the whole macro.
+		} catch (error) {
+			// getChoiceById throws ONLY a "Choice <id> not found" error when the
+			// referenced choice was deleted; surface a friendly message naming the
+			// stored command and skip instead of aborting the whole macro. Rethrow
+			// anything else so a genuine fault isn't silently swallowed (which would
+			// let the macro continue in a corrupted state).
+			const message = error instanceof Error ? error.message : String(error);
+			if (!/not found/i.test(message)) throw error;
 			log.logError(
 				`choice '${command.name}' could not be found.`
 			);
