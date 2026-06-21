@@ -25,10 +25,10 @@ import {
 import {
 	decodeFileValue,
 	fileBasenameFromPath,
-	type FileMode,
 	type ParsedFileToken,
 	parseFileToken,
 } from "../utils/fileSyntax";
+import { renderStoredFileValue } from "./helpers/fileTokenRendering";
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
@@ -994,9 +994,10 @@ export abstract class Formatter {
 				this.variables.set(key, await this.suggestForFile(parsed));
 			}
 
-			const renderedValue = this.renderFileValue(
+			const renderedValue = renderStoredFileValue(
 				this.variables.get(key),
 				parsed.mode,
+				(stored) => this.getFileLinkForStoredValue(stored),
 			);
 			if (Array.isArray(renderedValue)) {
 				const structuredYamlValue = this.propertyCollector.maybeCollect({
@@ -1016,33 +1017,6 @@ export abstract class Formatter {
 		}
 
 		return output + input.slice(lastIndex);
-	}
-
-	private renderFileValue(stored: unknown, mode: FileMode): string | string[] {
-		if (Array.isArray(stored)) {
-			return stored.map((value) => this.renderSingleFileValue(value, mode));
-		}
-		return this.renderSingleFileValue(stored, mode);
-	}
-
-	private renderSingleFileValue(stored: unknown, mode: FileMode): string {
-		if (mode === "link") return this.getFileLinkForStoredValue(stored);
-
-		const decoded = decodeFileValue(stored);
-		switch (decoded.kind) {
-			case "empty":
-				return "";
-			case "file":
-				return mode === "path"
-					? decoded.path
-					: fileBasenameFromPath(decoded.path);
-			case "custom":
-			case "raw":
-				// Literal, user-provided text (a |custom type-in, a one-page typed
-				// value, or a script-seeded string). It is NEVER resolved to a real
-				// file — only a `@file:` pick from the filtered list is.
-				return decoded.kind === "custom" ? decoded.text : decoded.value;
-		}
 	}
 
 	/**
