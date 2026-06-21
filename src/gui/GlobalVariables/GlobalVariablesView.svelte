@@ -23,18 +23,25 @@
     items = Object.keys(globals).map((k) => ({ name: k, value: globals[k] ?? "" }));
   }
 
-  // True while this component is writing its own edits to the store, so the
-  // store subscriber does not reload (and collapse/drop) the rows the user is
-  // actively editing. Empty-name rows are dropped on persist (they cannot be
-  // keyed), and duplicate names overwrite each other in the persisted record;
-  // suppressing the self-triggered reload keeps those in-memory rows (and their
-  // values) on screen mid-edit instead of making them vanish.
+  // True while this component is writing its own (valid) edits to the store, so
+  // the store subscriber does not reload (and collapse) the rows the user is
+  // actively editing. Invalid states (empty or duplicate names) are never
+  // written at all (see persistToSettings), so they can't corrupt the store.
   let suppressReload = false;
 
   function persistToSettings() {
+    // Never publish a lossy record. An empty name can't be keyed (it would be
+    // dropped) and duplicate names collapse last-wins — writing either to the
+    // store (and the debounced data.json save) is the data-loss footgun. While
+    // any name is empty or duplicated, keep the edit local and leave the
+    // previously-persisted values intact until the names are valid again.
+    const names = items.map((it) => it.name);
+    const hasEmpty = names.some((n) => !n);
+    const hasDuplicate = new Set(names).size !== names.length;
+    if (hasEmpty || hasDuplicate) return;
+
     const next: Record<string, string> = {};
     for (const it of items) {
-      if (!it.name) continue;
       next[it.name] = it.value ?? "";
     }
     suppressReload = true;

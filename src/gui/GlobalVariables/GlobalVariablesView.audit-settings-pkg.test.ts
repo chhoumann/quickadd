@@ -79,8 +79,12 @@ describe("GlobalVariablesView mid-edit persistence (audit)", () => {
 		const valueTextareas = getValueTextareas(container);
 		expect(valueTextareas).toHaveLength(1);
 		expect(valueTextareas[0].value).toBe("snippet-data");
-		// The store may hold {} now, but the user has not lost their snippet.
-		expect(settingsStore.getState().globalVariables).toEqual({});
+		// And the store is NOT corrupted with a lossy record: an empty (unkeyable)
+		// name is never written, so the previously-persisted value is preserved
+		// until the name is valid again (Codex review follow-up).
+		expect(settingsStore.getState().globalVariables).toEqual({
+			foo: "snippet-data",
+		});
 	});
 
 	it("does not collapse a second row when its name transiently duplicates another", async () => {
@@ -106,5 +110,11 @@ describe("GlobalVariablesView mid-edit persistence (audit)", () => {
 		const valueTextareas = getValueTextareas(container);
 		expect(valueTextareas).toHaveLength(2);
 		expect(valueTextareas.map((t) => t.value)).toContain("second-value");
+		// The duplicate name is never persisted (no last-wins collapse): the
+		// store keeps the prior valid record until the names are unique again.
+		expect(settingsStore.getState().globalVariables).toEqual({
+			foo: "first-value",
+			bar: "second-value",
+		});
 	});
 });
