@@ -71,7 +71,9 @@
       "esbuild"
     ],
     "overrides": {
-      "obsidian-calendar-ui>svelte": "^5.56.3"
+      "obsidian-calendar-ui>svelte": "^5.56.3",
+      "@semantic-release/github>undici": "7.28.0",
+      "jsdom>undici": "7.28.0"
     }
   },
   "release": {
