@@ -7,7 +7,10 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
-import { collectChoiceRequirements } from "./collectChoiceRequirements";
+import {
+	collectChoiceRequirements,
+	getUnresolvedRequirements,
+} from "./collectChoiceRequirements";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -98,6 +101,17 @@ function createCaptureChoice(captureTo: string): ICaptureChoice {
 			direction: "vertical",
 			mode: "default",
 			focus: true,
+		},
+	};
+}
+
+function enableCaptureTargetCreation(choice: ICaptureChoice): ICaptureChoice {
+	return {
+		...choice,
+		createFileIfItDoesntExist: {
+			enabled: true,
+			createWithTemplate: false,
+			template: "",
 		},
 	};
 }
@@ -922,19 +936,83 @@ describe("collectChoiceRequirements - capture targets", () => {
 				tags: ["active"],
 			}),
 		);
-			const target = requirements.find(
-				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
-			);
-			expect(target?.options).toEqual([
-				"Goals/Alpha.md",
-				"Projects/Beta.md",
-			]);
-			expect(target?.displayOptions).toEqual([
-				"Alpha Goal (Alpha)",
-				"Beta Heading (Beta)",
-			]);
+		const target = requirements.find(
+			(requirement) =>
+				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+		);
+		expect(target?.options).toEqual([
+			"Goals/Alpha.md",
+			"Projects/Beta.md",
+		]);
+		expect(target?.displayOptions).toEqual([
+			"Alpha Goal (Alpha)",
+			"Beta Heading (Beta)",
+		]);
+	});
+
+	it("leaves empty create-enabled capture target scopes to the runtime picker", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			enableCaptureTargetCreation(
+				createCaptureChoice("folder:Goals|tag:active"),
+			),
+		);
+
+		const target = requirements.find(
+			(requirement) =>
+				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+		);
+		expect(target).toMatchObject({
+			type: "file-picker",
+			runtimeOnly: true,
+			options: [],
+			displayOptions: [],
+			placeholder: "Type a new note name in the capture target picker",
 		});
+	});
+
+	it("allows a CLI-provided target path to satisfy an empty create-enabled scope", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			enableCaptureTargetCreation(
+				createCaptureChoice("folder:Goals|tag:active"),
+			),
+		);
+		const variables = new Map<string, unknown>([
+			[QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Goals/New target.md"],
+		]);
+
+		expect(getUnresolvedRequirements(requirements, variables)).not.toContainEqual(
+			expect.objectContaining({
+				id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			}),
+		);
+	});
+
+	it("keeps an empty disabled dropdown when target creation is off", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("folder:Goals|tag:active"),
+		);
+
+		const target = requirements.find(
+			(requirement) =>
+				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+		);
+		expect(target).toMatchObject({
+			type: "dropdown",
+			options: [],
+			displayOptions: [],
+			placeholder: "No files found in target scope",
+		});
+		expect(target?.runtimeOnly).toBeUndefined();
+	});
 
 	it("does not reinterpret multi-select capture target filters as tag targets", async () => {
 		const requirements = await collectChoiceRequirements(

@@ -91,6 +91,9 @@ By default, `quickadd` and `quickadd:run` are non-interactive. If QuickAdd
 detects missing inputs, it returns a JSON payload with `missing` fields and
 `missingFlags` suggestions instead of opening prompts.
 
+Pass a returned `missingFlags` entry back exactly as shown. Some generated flags
+fill internal runtime selections, such as a preselected capture target file.
+
 Use `ui` to allow interactive prompts:
 
 ```bash

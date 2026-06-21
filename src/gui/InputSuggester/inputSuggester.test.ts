@@ -54,6 +54,27 @@ describe("InputSuggester", () => {
 		).not.toThrow();
 	});
 
+	it("does not throw when tab-completing an empty suggestion list", () => {
+		const suggester = new InputSuggester(app, [], []);
+		(suggester as unknown as {
+			chooser: {
+				values: { item: string }[];
+				selectedItem: number;
+			};
+		}).chooser = {
+			values: [],
+			selectedItem: 0,
+		};
+		suggester.inputEl.value = "Draft";
+
+		expect(() =>
+			suggester.inputEl.dispatchEvent(
+				new KeyboardEvent("keydown", { code: "Tab" }),
+			),
+		).not.toThrow();
+		expect(suggester.inputEl.value).toBe("Draft");
+	});
+
 	it("omits the custom create row when allowCustomValue is false", () => {
 		const suggester = new InputSuggester(
 			app,

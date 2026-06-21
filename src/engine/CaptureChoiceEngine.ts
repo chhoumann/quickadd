@@ -35,7 +35,6 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
@@ -840,38 +839,35 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
-			switch (resolution.kind) {
-				case "vault":
-					return this.selectFileInFolder("", true);
-				case "tag":
-					return this.selectFileWithTag(resolution.tag);
-				case "filter":
-					return this.selectFileWithFilter(resolution.filter);
-				case "property":
-					return this.selectFileWithProperty(
-						resolution.field,
-						resolution.value,
-						resolution.filter,
-					);
-				case "folder":
-					return this.selectFileInFolder(resolution.folder, false);
-				case "file":
-					return this.normalizeCaptureFilePath(resolution.path);
-			}
+		switch (resolution.kind) {
+			case "vault":
+				return this.selectFileInFolder("", true);
+			case "filter":
+				return this.selectFileWithFilter(resolution.filter);
+			case "property":
+				return this.selectFileWithProperty(
+					resolution.field,
+					resolution.value,
+					resolution.filter,
+				);
+			case "folder":
+				return this.selectFileInFolder(resolution.folder, false);
+			case "file":
+				return this.normalizeCaptureFilePath(resolution.path);
 		}
+	}
 
 	private resolveCaptureTarget(
 		formattedCaptureTo: string,
 	):
 		| { kind: "vault" }
-		| { kind: "tag"; tag: string }
 		| { kind: "filter"; filter: FieldFilter }
 		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
 		// Resolution order:
 		// 1) empty => vault picker
-		// 2) #tag => tag picker
+		// 2) #tag/tag:/folder: filters => filtered picker
 		// 3) property:<field>[=<value>] => frontmatter-property picker
 		// 4) trailing "/" => folder picker (explicit)
 		// 5) known file extension => file
@@ -995,8 +991,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				? folderPath
 				: `${folderPath}/`;
 		const filesInFolder = getMarkdownFilesInFolder(this.app, folderPathSlash);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 
-		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
+		invariant(
+			allowCreate || filesInFolder.length > 0,
+			`Folder ${folderPathSlash} is empty.`,
+		);
 
 		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
 		const orderedFiles = orderFilesForPicker(
@@ -1014,7 +1014,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const existingLabels = new Set(
 			displayItems.map((label) => label.toLowerCase()),
 		);
-		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
@@ -1022,6 +1021,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				displayItems,
 				filePaths,
 				{
+					placeholder: allowCreate
+						? "Choose a note or type to create one"
+						: undefined,
+					emptyStateText: allowCreate
+						? "Type a note name to create it"
+						: undefined,
 					renderItem: (path, el) =>
 						renderNotePathSuggestion(el, path, this.app),
 					searchItems,
@@ -1051,13 +1056,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			: `${folderPathSlash}${targetFilePath}`;
 
 		return await this.formatFilePath(filePath);
-	}
-
-	private async selectFileWithTag(tag: string): Promise<string> {
-		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
-		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
-
-		return this.selectFileFromSet(filesWithTag, `No files with tag ${tag}.`);
 	}
 
 	private async selectFileWithFilter(filter: FieldFilter): Promise<string> {
@@ -1137,7 +1135,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		files: TFile[],
 		notFoundMessage: string,
 	): Promise<string> {
-		invariant(files.length > 0, notFoundMessage);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
+
+		invariant(allowCreate || files.length > 0, notFoundMessage);
 
 		// Quick-Switcher-style ordering; show note names (not raw paths).
 		const orderedFiles = orderFilesForPicker(
@@ -1152,7 +1152,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const searchItems = filePaths.map(
 			(path, index) => `${displayItems[index] ?? path} ${path}`,
 		);
-		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		// Build once (not per keystroke): existing note basenames across the vault.
 		const vaultBasenames = new Set(
 			this.app.vault
@@ -1169,6 +1168,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				displayItems,
 				filePaths,
 				{
+					placeholder: allowCreate
+						? "Choose a note or type to create one"
+						: undefined,
+					emptyStateText: allowCreate
+						? "Type a note name to create it"
+						: undefined,
 					renderItem: (path, el) =>
 						renderNotePathSuggestion(el, path, this.app),
 					searchItems,

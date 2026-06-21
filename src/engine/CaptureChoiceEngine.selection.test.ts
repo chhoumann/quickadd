@@ -7,6 +7,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesMatchingFilter,
+	getMarkdownFilesWithProperty,
 	insertOnNewLineBelow,
 	insertFileLinkToActiveView,
 	isFolder,
@@ -106,6 +107,7 @@ vi.mock("../utilityObsidian", () => ({
 	appendToCurrentLine: vi.fn(() => true),
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getMarkdownFilesMatchingFilter: vi.fn(() => []),
+	getMarkdownFilesWithProperty: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
@@ -228,6 +230,8 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		vi.mocked(openFile).mockClear();
 		vi.mocked(getMarkdownFilesMatchingFilter).mockReset();
 		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
+		vi.mocked(getMarkdownFilesWithProperty).mockReset();
+		vi.mocked(getMarkdownFilesWithProperty).mockReturnValue([]);
 		vi.mocked(insertFileLinkToActiveView).mockReset();
 		vi.mocked(insertOnNewLineBelow).mockReturnValue(true);
 		vi.mocked(overwriteTemplaterOnce).mockClear();
@@ -820,31 +824,31 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await (engine as any).selectFileInFolder("Inbox/", false);
 
 		expect(suggestSpy).toHaveBeenCalledTimes(1);
-			const [, displayItems, items, options] = suggestSpy.mock
-				.calls[0] as unknown as [
-				unknown,
-				string[],
-				string[],
-				{
-					allowCustomValue: boolean;
-					customValueLabel: (value: string) => string;
-					searchItems: string[];
-				},
-			];
+		const [, displayItems, items, options] = suggestSpy.mock
+			.calls[0] as unknown as [
+			unknown,
+			string[],
+			string[],
+			{
+				allowCustomValue: boolean;
+				customValueLabel: (value: string) => string;
+				searchItems: string[];
+			},
+		];
 
 		// Recently opened (Zebra) first, then the rest alphabetically.
 		expect(items).toEqual([
 			"Inbox/Zebra.md",
 			"Inbox/Apple.md",
 			"Inbox/Mango.md",
-			]);
-			expect(displayItems).toEqual(["Zebra", "Apple", "Mango"]);
-			expect(options.searchItems).toEqual([
-				"Zebra Inbox/Zebra.md",
-				"Apple Inbox/Apple.md",
-				"Mango Inbox/Mango.md",
-			]);
-			expect(options.allowCustomValue).toBe(true);
+		]);
+		expect(displayItems).toEqual(["Zebra", "Apple", "Mango"]);
+		expect(options.searchItems).toEqual([
+			"Zebra Inbox/Zebra.md",
+			"Apple Inbox/Apple.md",
+			"Mango Inbox/Mango.md",
+		]);
+		expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
 	});
 
@@ -919,6 +923,168 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			allowCustomValue: boolean;
 		};
 		expect(options.allowCustomValue).toBe(false);
+	});
+
+	it("opens the folder picker for an empty folder when create-if-not-exists is on", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([]);
+		const suggestSpy = vi.fn(async () => "New From Empty");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "Inbox/",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).selectFileInFolder("Inbox", false);
+
+		expect(suggestSpy).toHaveBeenCalledTimes(1);
+		const [, displayItems, items, options] = suggestSpy.mock
+			.calls[0] as unknown as [
+			unknown,
+			string[],
+			string[],
+			{
+				allowCustomValue: boolean;
+				placeholder: string;
+				emptyStateText: string;
+				valueExists: (value: string) => boolean;
+			},
+		];
+		expect(displayItems).toEqual([]);
+		expect(items).toEqual([]);
+		expect(options.allowCustomValue).toBe(true);
+		expect(options.placeholder).toBe("Choose a note or type to create one");
+		expect(options.emptyStateText).toBe("Type a note name to create it");
+		expect(options.valueExists("New From Empty")).toBe(false);
+		expect(resolved).toBe("Inbox/New From Empty.md");
+	});
+
+	it("keeps empty folder captures as an error when create-if-not-exists is off", async () => {
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([]);
+		const suggestSpy = vi.fn();
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "Inbox/" }),
+			createExecutor(),
+		);
+
+		await expect(
+			(engine as any).selectFileInFolder("Inbox", false),
+		).rejects.toThrow("Folder Inbox/ is empty.");
+		expect(suggestSpy).not.toHaveBeenCalled();
+	});
+
+	it("opens scoped filter pickers with no matches when create-if-not-exists is on", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
+		const suggestSpy = vi.fn(async () => "New From Empty");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "#empty",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(getMarkdownFilesMatchingFilter).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.objectContaining({ tags: ["empty"] }),
+		);
+		expect(suggestSpy).toHaveBeenCalledTimes(1);
+		const [, displayItems, items, options] = suggestSpy.mock
+			.calls[0] as unknown as [
+			unknown,
+			string[],
+			string[],
+			{
+				allowCustomValue: boolean;
+				placeholder: string;
+				emptyStateText: string;
+			},
+		];
+		expect(displayItems).toEqual([]);
+		expect(items).toEqual([]);
+		expect(options.allowCustomValue).toBe(true);
+		expect(options.placeholder).toBe("Choose a note or type to create one");
+		expect(options.emptyStateText).toBe("Type a note name to create it");
+		expect(resolved).toBe("New From Empty.md");
+	});
+
+	it("opens empty property pickers with vault-wide duplicate suppression when create-if-not-exists is on", async () => {
+		vi.mocked(getMarkdownFilesWithProperty).mockReturnValue([]);
+		const suggestSpy = vi.fn(async () => "Fresh Draft");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const app = createApp() as any;
+		app.vault.getMarkdownFiles = vi.fn(() => [
+			{ path: "Archive/Existing.md", basename: "Existing" },
+		]);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "property:type=draft",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+
+		const resolved = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(getMarkdownFilesWithProperty).toHaveBeenCalledWith(
+			app,
+			"type",
+			"draft",
+			expect.any(Object),
+		);
+		const options = (suggestSpy.mock.calls[0] as unknown[])[3] as {
+			valueExists: (value: string) => boolean;
+		};
+		expect(options.valueExists("Existing")).toBe(true);
+		expect(options.valueExists("Fresh Draft")).toBe(false);
+		expect(resolved).toBe("Fresh Draft.md");
+	});
+
+	it("keeps empty scoped filter captures as an error when create-if-not-exists is off", async () => {
+		const suggestSpy = vi.fn();
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "#empty" }),
+			createExecutor(),
+		);
+
+		await expect(
+			(engine as any).getFormattedPathToCaptureTo(false),
+		).rejects.toThrow("No files matched the capture target filters.");
+		expect(suggestSpy).not.toHaveBeenCalled();
 	});
 
 	it("uses extensionless title for created .canvas capture files", async () => {
