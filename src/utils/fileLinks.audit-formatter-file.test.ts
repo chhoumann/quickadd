@@ -36,16 +36,12 @@ describe("clipboard copy emits a portable wikilink (audit)", () => {
 		const writeText = vi.fn().mockResolvedValue(undefined);
 		vi.stubGlobal("navigator", { clipboard: { writeText } });
 
-		const generateMarkdownLink = vi.fn(
-			() => "../wrong/relative/Created%20Note.md",
-		);
-		// Even if an App with link-format settings exists in the environment, the
-		// clipboard path must not consult it (no app argument is passed).
-		void generateMarkdownLink;
-
+		// copyFileLinkToClipboard takes no App, so it cannot consult the vault's
+		// link-format setting; the clipboard text is a portable full-path wikilink
+		// regardless of how Markdown links are configured. Asserting the exact
+		// written value is the meaningful runtime check.
 		await expect(copyFileLinkToClipboard(createFile())).resolves.toBe(true);
 
-		expect(generateMarkdownLink).not.toHaveBeenCalled();
 		expect(writeText).toHaveBeenCalledWith("[[Projects/Created Note]]");
 	});
 });
