@@ -1,7 +1,11 @@
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
+import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
+import {
+	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+	TEMPLATE_REGEX,
+} from "src/constants";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -163,6 +167,52 @@ async function readTemplate(app: App, path: string): Promise<string> {
 	return file ? await app.vault.cachedRead(file) : "";
 }
 
+function getRawTemplateRefs(content: string): Set<string> {
+	const refs = new Set<string>();
+	const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(content)) !== null) {
+		if (match[1]) refs.add(match[1]);
+	}
+	return refs;
+}
+
+async function scanContentWithTemplateIncludes(
+	app: App,
+	collector: RequirementCollector,
+	content: string,
+	templateStack = new Set<string>(),
+	depth = 0,
+): Promise<void> {
+	// templatesToScan is a queue for this content scan. Clear it before and
+	// after scanning so refs from unrelated strings are not drained together.
+	const rawTemplateRefs = getRawTemplateRefs(content);
+	collector.templatesToScan.clear();
+	await collector.scanString(content);
+	const nested = [...collector.templatesToScan].filter((ref) =>
+		rawTemplateRefs.has(ref),
+	);
+	collector.templatesToScan.clear();
+
+	if (depth >= MAX_TEMPLATE_INCLUSION_DEPTH) return;
+
+	for (const ref of nested) {
+		if (templateStack.has(ref)) continue;
+		templateStack.add(ref);
+		try {
+			await scanContentWithTemplateIncludes(
+				app,
+				collector,
+				await readTemplate(app, ref),
+				templateStack,
+				depth + 1,
+			);
+		} finally {
+			templateStack.delete(ref);
+		}
+	}
+}
+
 /**
  * Collects requirements from a template *source* path and (when resolvable) its
  * body. Shared by Template choices and Capture "create with template" so both
@@ -188,23 +238,12 @@ async function scanTemplateSource(
 		return;
 	}
 
-	const visited = new Set<string>();
-	const walk = async (path: string) => {
-		if (visited.has(path)) return;
-		visited.add(path);
-		const content = await readTemplate(app, path);
-		await collector.scanString(content);
-		// Snapshot and clear the shared discovery set BEFORE recursing: a nested
-		// walk() runs scanString again, which would otherwise mutate (and then
-		// clear) the very set we're iterating, dropping sibling/grandchild
-		// templates from the scan.
-		const nested = [...collector.templatesToScan];
-		collector.templatesToScan.clear();
-		for (const ref of nested) {
-			if (!visited.has(ref)) await walk(ref);
-		}
-	};
-	await walk(templatePath);
+	await scanContentWithTemplateIncludes(
+		app,
+		collector,
+		await readTemplate(app, templatePath),
+		new Set([templatePath]),
+	);
 }
 
 async function collectForTemplateChoice(
@@ -216,12 +255,16 @@ async function collectForTemplateChoice(
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
 	if (choice.fileNameFormat?.enabled) {
-		await collector.scanString(choice.fileNameFormat.format);
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.fileNameFormat.format,
+		);
 	}
 
 	if (choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
-			await collector.scanString(folder);
+			await scanContentWithTemplateIncludes(app, collector, folder);
 		}
 	}
 
@@ -247,10 +290,30 @@ async function collectForCaptureChoice(
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
-	await collector.scanString(choice.captureTo);
+	await scanContentWithTemplateIncludes(app, collector, choice.captureTo);
 
 	if (choice.format?.enabled) {
-		await collector.scanString(choice.format.format);
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.format.format,
+		);
+	}
+
+	if (choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.insertAfter.after,
+		);
+	}
+
+	if (choice.insertBefore?.enabled) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.insertBefore.before,
+		);
 	}
 
 	// Capture's "create file if it doesn't exist → with template" runs through

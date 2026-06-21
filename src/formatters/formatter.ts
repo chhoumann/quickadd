@@ -76,7 +76,7 @@ export interface TemplateInclusionState {
 	depth: number;
 }
 
-const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
+export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 
 export abstract class Formatter {
 	protected value: string;
