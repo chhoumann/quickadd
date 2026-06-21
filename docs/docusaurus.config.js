@@ -22,7 +22,12 @@ const config = {
   url: 'https://quickadd.obsidian.guide',
   baseUrl: '/',
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'throw',
+      onBrokenMarkdownImages: 'throw',
+    },
+  },
   favicon: 'img/favicon.ico',
 
   // GitHub pages deployment config.

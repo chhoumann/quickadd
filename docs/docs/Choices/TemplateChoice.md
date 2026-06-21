@@ -5,7 +5,7 @@ title: Template
 The template choice type is not meant to be a replacement for [Templater](https://github.com/SilentVoid13/Templater/) plugin or core `Templates`. It's meant to augment them, to add more possibilities. You can use both QuickAdd format syntax in a Templater template - and both will work.
 
 :::tip Run a template without making a choice
-If you just want to spin up a note from a template in your [template folder](/Settings.md#templates--properties) without maintaining a Template choice per file, use the **New note from template** command. It lists the templates in your configured folder, prompts for the new note's name, and creates it in Obsidian's default location. When a template folder is configured, the same entry also appears in **Run QuickAdd** — at the bottom by default, or move it to the top / hide it under [Settings → Choice Picker](/Settings.md#choice-picker) — and it's scriptable via [`quickadd:run-template`](/Advanced/CLI.md#quickaddrun-template). Make a Template choice (below) when you need a fixed location, file-name format, linking, or a hotkey.
+If you just want to spin up a note from a template in your [template folder](../Settings.md#templates--properties) without maintaining a Template choice per file, use the **New note from template** command. It lists the templates in your configured folder, prompts for the new note's name, and creates it in Obsidian's default location. When a template folder is configured, the same entry also appears in **Run QuickAdd** — at the bottom by default, or move it to the top / hide it under [Settings → Choice Picker](../Settings.md#choice-picker) — and it's scriptable via [`quickadd:run-template`](../Advanced/CLI.md#quickaddrun-template). Make a Template choice (below) when you need a fixed location, file-name format, linking, or a hotkey.
 :::
 
 **New note from template** uses a discovery-first title picker. As you type the
@@ -20,20 +20,20 @@ The Template choice builder groups its settings into four sections: **Template**
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
 
-The Template Path supports QuickAdd [format syntax](/FormatSyntax.md), so the path can be dynamic. For example, `Templates/{{VALUE:collectionName}} Template.md` prompts for a collection name and resolves to a path like `Templates/Games Template.md` when the choice runs. Named values (`{{VALUE:client}}`), dates (`{{DATE:YYYY}}`), fields, and global variables all work in the path. The same applies to the Capture choice's *Create file with template* path.
+The Template Path supports QuickAdd [format syntax](../FormatSyntax.md), so the path can be dynamic. For example, `Templates/{{VALUE:collectionName}} Template.md` prompts for a collection name and resolves to a path like `Templates/Games Template.md` when the choice runs. Named values (`{{VALUE:client}}`), dates (`{{DATE:YYYY}}`), fields, and global variables all work in the path. The same applies to the Capture choice's *Create file with template* path.
 
 The path is resolved with a **path-safe** subset of the format syntax: macros, inline JavaScript, and `{{TEMPLATE:...}}` inclusion are **not** run while computing a path, and `{{title}}` cannot be used in a path (the title is derived from the created file, not the source template). Note-relative tokens — `{{FOLDER}}`, `{{FILENAMECURRENT}}`, `{{LINKCURRENT}}`, and `{{LINKSECTION}}` — are left as-is in a template path, since they describe the runtime note/folder context (the target folder, or the active note and the cursor's heading) rather than the source template (`{{FOLDER}}` is still available in file names and template bodies). The created file's extension comes from the *resolved* path, so a token that expands to `.canvas`/`.base` produces a canvas/base file.
 
 :::note
-A few things don't apply to a *dynamic* template path: the path can't be auto-bundled when exporting a QuickAdd package (it isn't a literal file), and if you use the [one-page input](/Advanced/onePageInputs.md) form, prompts inside the resolved template's body are gathered when the choice runs rather than in the up-front form.
+A few things don't apply to a *dynamic* template path: the path can't be auto-bundled when exporting a QuickAdd package (it isn't a literal file), and if you use the [one-page input](../Advanced/onePageInputs.md) form, prompts inside the resolved template's body are gathered when the choice runs rather than in the up-front form.
 :::
 
 QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`) templates. The created file uses the same extension as the template.
 If you want a new markdown note to include a live embedded Base dashboard, see
-[Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).
+[Template: Create an MOC Note with a Link Dashboard](../Examples/Template_CreateMOCNoteWithLinkDashboard.md).
 
 ## Optional
-**File Name Format**. You can specify a format for the file name, which is based on the [format syntax](/FormatSyntax.md).
+**File Name Format**. You can specify a format for the file name, which is based on the [format syntax](../FormatSyntax.md).
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
 If you disable **File Name Format**, QuickAdd uses `{{VALUE}}` as the file name format. This keeps the default behavior of prompting for a file name when you run the choice, with the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs.
 
@@ -49,7 +49,7 @@ append template content, insert links, or copy links. Selecting the explicit
 
 **New note location**. A dropdown that controls where the note is created. Pick one of four modes:
 - **Obsidian default** – use Obsidian's "Default location for new notes" setting.
-- **In a specific folder** – create the note in the folder(s) you configure below. If you specify one folder, the note is created there; if you specify multiple, you'll get a suggester asking which folder to use. An **Include subfolders** toggle (shown only in this mode) lets the suggester offer the selected folders *and* their subfolders. Folder paths support QuickAdd [format syntax](/FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables — for example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
+- **In a specific folder** – create the note in the folder(s) you configure below. If you specify one folder, the note is created there; if you specify multiple, you'll get a suggester asking which folder to use. An **Include subfolders** toggle (shown only in this mode) lets the suggester offer the selected folders *and* their subfolders. Folder paths support QuickAdd [format syntax](../FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables — for example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
 - **Same folder as current file** – create the note next to the currently active file (falls back to the vault root if no file is open).
 - **Ask for folder each time** – prompt you to pick any folder in the vault each time the choice runs.
 
@@ -135,7 +135,7 @@ These options modify the existing markdown, canvas, or base file:
 - **Overwrite file**: Replaces the existing file content with the template
 
 For markdown files, **Append to bottom** and **Append to top** handle template
-frontmatter the same way as [Apply Template to Note](/ApplyTemplateToNote.md):
+frontmatter the same way as [Apply Template to Note](../ApplyTemplateToNote.md):
 the template's frontmatter properties are merged into the existing note instead
 of inserting a second `---` block. Existing note values win, and missing or
 empty properties are filled from the template. Canvas and base files receive the
