@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { insertOnNewLineBelow } from "../utilityObsidian";
 
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
@@ -343,6 +344,51 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		await engine.run();
 
 		expect(noticeClass.instances[0]!.message).toMatch(/nothing to capture/i);
+	});
+
+	// Codex re-review: an empty payload on an editor-insertion action must NOT
+	// touch the editor (a newLine* insert adds a blank line; currentLine's
+	// replaceSelection("") deletes the selection) while reporting "nothing to
+	// capture".
+	it("does not insert into the editor on an empty newLine capture", async () => {
+		const insertOnNewLineBelowMock = vi.mocked(insertOnNewLineBelow);
+		insertOnNewLineBelowMock.mockClear();
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		app.workspace.getActiveFile = vi.fn(() => captureFile);
+		formatContentOnlyMock.mockResolvedValue("");
+		formatContentWithFileMock.mockResolvedValue("existing body");
+		const choice = {
+			...createCaptureChoice(),
+			captureToActiveFile: true,
+			newLineCapture: { enabled: true, direction: "below" as const },
+		};
+		const engine = buildRunEngine(choice, app);
+
+		await engine.run();
+
+		expect(insertOnNewLineBelowMock).not.toHaveBeenCalled();
+		expect(noticeClass.instances[0]!.message).toMatch(/nothing to capture/i);
+	});
+
+	it("still inserts into the editor on a non-empty newLine capture", async () => {
+		const insertOnNewLineBelowMock = vi.mocked(insertOnNewLineBelow);
+		insertOnNewLineBelowMock.mockClear();
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		app.workspace.getActiveFile = vi.fn(() => captureFile);
+		formatContentOnlyMock.mockResolvedValue("a real line");
+		formatContentWithFileMock.mockResolvedValue("a real line");
+		const choice = {
+			...createCaptureChoice(),
+			captureToActiveFile: true,
+			newLineCapture: { enabled: true, direction: "below" as const },
+		};
+		const engine = buildRunEngine(choice, app);
+
+		await engine.run();
+
+		expect(insertOnNewLineBelowMock).toHaveBeenCalled();
 	});
 });
 

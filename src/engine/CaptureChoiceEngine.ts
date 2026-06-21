@@ -499,6 +499,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			// Handle capture to active file with special actions
 			if (isEditorInsertionAction) {
+				if (captureIsNoOp) {
+					// Empty/whitespace payload: do NOT touch the editor. Inserting
+					// would add a blank line (newLineAbove/Below) or replace — i.e.
+					// DELETE — the active selection (currentLine), modifying the note
+					// while the run reports "nothing to capture". Skip the insertion
+					// so the no-op notice below is truthful and harmless.
+					contentCommitted = true;
+				} else {
 				// Parse Templater syntax in the capture content.
 				// If Templater isn't installed, it just returns the capture content.
 				const content = await templaterParseTemplate(
@@ -532,6 +540,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					return;
 				}
 				contentCommitted = true;
+				}
 			} else {
 				await this.app.vault.modify(file, newFileContent);
 				contentCommitted = true;
