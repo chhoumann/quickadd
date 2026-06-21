@@ -15,11 +15,19 @@ let {
 	formatterKind = "format",
 	app,
 	plugin,
+	targetFolderPath,
 }: {
 	value: string;
 	formatterKind?: "format" | "fileName";
 	app: App;
 	plugin: QuickAdd;
+	/**
+	 * The choice's configured target folder, so {{FOLDER}} / {{FOLDER|name}}
+	 * preview meaningfully. When unknown we fall back to a "Folder/Name"
+	 * placeholder rather than an empty string (no caller wires the real path in
+	 * yet, but the placeholder keeps the FOLDER token from previewing blank).
+	 */
+	targetFolderPath?: string;
 } = $props();
 
 let preview = $state("Loading preview…");
@@ -37,6 +45,12 @@ const formatter = $derived(
 
 $effect(() => {
 	const current = value;
+	// Resolve {{FOLDER}} / {{FOLDER|name}} against the configured target folder,
+	// or a "Folder/Name" placeholder so the token never previews blank when no
+	// caller wires the real path in (issue: FOLDER preview always empty).
+	formatter.setTargetFolderPath(
+		targetFolderPath?.trim() ? targetFolderPath : "Folder/Name",
+	);
 	const token = ++previewToken;
 	void (async () => {
 		try {

@@ -6,6 +6,7 @@ import {
 	stripLeadingPipe,
 } from "./pipeSyntax";
 import { log } from "../logger/logManager";
+import { isSupportedCaseStyle, SUPPORTED_CASE_STYLES } from "./caseTransform";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
@@ -786,6 +787,18 @@ export function parseValueToken(
 		);
 	}
 
+	// An unrecognized |case: style (e.g. a typo like "keb" or "uppercase") is
+	// silently passed through unchanged by transformCase at render time, so warn
+	// here — mirroring the |type: unsupported-value warning — so the author sees
+	// their mistake instead of debugging an untransformed value.
+	if (caseStyle && !isSupportedCaseStyle(caseStyle)) {
+		if (!quiet)
+			log.logWarning(
+				`QuickAdd: Unsupported |case style "${caseStyle}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
+			);
+		caseStyle = undefined;
+	}
+
 	// |multi needs an option list and is incompatible with |case (a list is not
 	// case-transformed, and routing an array through transformCase would throw).
 	if (multiSelect && !hasOptions) {
@@ -801,6 +814,23 @@ export function parseValueToken(
 				`QuickAdd: |case is ignored with |multi in "${tokenDisplay}" — a list is not case-transformed.`,
 			);
 		caseStyle = undefined;
+	}
+
+	// A bare `|custom` only enables free-text-with-autocomplete on an option-list
+	// token (2+ values). On a single value it falls through to being parsed as the
+	// literal default text "custom", silently pre-filling the prompt with that
+	// word. Warn (mirroring "|multi needs an option list") so the author isn't
+	// surprised, and drop the bogus default so the prompt opens empty.
+	if (
+		!hasOptions &&
+		!options.usesOptions &&
+		optionParts.some((part) => part.trim().toLowerCase() === "custom")
+	) {
+		if (!quiet)
+			log.logWarning(
+				`QuickAdd: |custom needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
+			);
+		if (defaultValue.toLowerCase() === "custom") defaultValue = "";
 	}
 
 	const variableKey = aliasName
@@ -831,6 +861,7 @@ export function parseValueToken(
 
 export function parseAnonymousValueOptions(
 	rawOptions: string,
+	opts?: { quiet?: boolean },
 ): {
 	label?: string;
 	caseStyle?: string;
@@ -841,6 +872,7 @@ export function parseAnonymousValueOptions(
 	optional: boolean;
 	trim: boolean;
 } {
+	const quiet = opts?.quiet ?? false;
 	const normalized = stripLeadingPipe(rawOptions);
 	const allParts = splitPipeParts(normalized)
 		.map((part) => part.trim())
@@ -866,6 +898,18 @@ export function parseAnonymousValueOptions(
 	let { label, caseStyle, defaultValue } = options;
 	if (!options.usesOptions) {
 		defaultValue = defaultValue.trim();
+	}
+
+	// Warn on an unrecognized |case style (typo) so the anonymous form gets the
+	// same feedback as the named/single form (parseValueToken). Gated on quiet
+	// so the prompt-context pre-pass (which also calls this) does not double the
+	// notice — mirroring parseValueToken's quiet handling.
+	if (caseStyle && !isSupportedCaseStyle(caseStyle)) {
+		if (!quiet)
+			log.logWarning(
+				`QuickAdd: Unsupported |case style "${caseStyle}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
+			);
+		caseStyle = undefined;
 	}
 
 	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {

@@ -105,6 +105,17 @@ export class CompleteFormatter extends Formatter {
 
 		this.valueHeader = valueHeader;
 		let output = await this.format(input);
+		// A {{title}} produced AFTER the raw-input check — by an expanded global
+		// snippet ({{GLOBAL_VAR:x}} -> {{title}}) or a {{VALUE}} that resolved to
+		// the literal text "{{title}}" — would otherwise survive into the file name
+		// (the token pass below omits `title`, leaving it verbatim). Re-check post
+		// format() so it throws the same circular-dependency error, mirroring
+		// formatTemplateFilePath's post-global-expansion guard.
+		if (/\{\{title\}\}/i.test(output)) {
+			throw new Error(
+				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
+			);
+		}
 		// {{filenamecurrent}} + {{folder}} in one pass (links stay literal in a
 		// file name; {{title}} threw above). One pass so no token re-scans
 		// another's output (#1358).
@@ -141,10 +152,21 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
+		const formatted = await this.format(folderName);
+		// As in formatFileName: a {{title}} injected by a global snippet or a
+		// {{VALUE}} resolving to "{{title}}" slips past the raw-input check above,
+		// then the folder-only token pass would leave it literal in the path.
+		// Re-check post format() so it throws the circular-dependency error.
+		if (/\{\{title\}\}/i.test(formatted)) {
+			throw new Error(
+				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
+			);
+		}
+
 		// {{FOLDER}} in a folder definition is self-referential: the target
 		// folder isn't known while folders are being resolved, so it collapses
 		// to an empty string rather than leaking the literal token into a path.
-		return this.replaceCurrentFileTokensInString(await this.format(folderName), {
+		return this.replaceCurrentFileTokensInString(formatted, {
 			folder: true,
 		});
 	}
@@ -414,6 +436,19 @@ export class CompleteFormatter extends Formatter {
 		selectedText: string,
 	): string | undefined {
 		const context = this.valuePromptContext;
+
+		// |type:checkbox forces a true/false picker (no free text). An active editor
+		// selection must not short-circuit that contract: only accept the selection
+		// when it is itself a boolean ("true"/"false", case/space-insensitive),
+		// otherwise return undefined so promptForValue falls through to the forced
+		// true/false picker instead of storing arbitrary selected text.
+		if (context?.inputTypeOverride === "checkbox") {
+			const boolText = selectedText.trim().toLowerCase();
+			return boolText === "true" || boolText === "false"
+				? boolText
+				: undefined;
+		}
+
 		if (
 			context?.inputTypeOverride !== "number" &&
 			context?.inputTypeOverride !== "slider"
@@ -580,7 +615,7 @@ export class CompleteFormatter extends Formatter {
 		try {
 			// Parse the field input to extract field name and filters
 			const { fieldName, filters, multiSelect } =
-				FieldSuggestionParser.parse(fieldInput);
+				FieldSuggestionParser.parse(fieldInput, { warnUnknown: true });
 
 			// Collect and process via shared collector
 			const { values, hasDefaultValue } =
@@ -597,7 +632,20 @@ export class CompleteFormatter extends Formatter {
 			}
 
 			if (multiSelect) {
-				return await MultiSuggester.Suggest(this.app, values, values, {
+				// When the vault has no existing values yet, seed the picker with the
+				// same smart defaults the single-select no-values fallback surfaces
+				// (e.g. To Do / In Progress / Done), so a brand-new {{FIELD:x|multi}}
+				// offers starting hints instead of an empty list. Custom values stay
+				// enabled so the user can still type anything.
+				let multiValues = values;
+				if (values.length === 0 && !filters.defaultValue) {
+					const smartDefaults = FieldValueProcessor.getSmartDefaults(
+						fieldName,
+						[],
+					);
+					if (smartDefaults.length > 0) multiValues = smartDefaults;
+				}
+				return await MultiSuggester.Suggest(this.app, multiValues, multiValues, {
 					placeholder,
 					allowCustomValue: true,
 				});

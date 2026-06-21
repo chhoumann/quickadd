@@ -196,6 +196,14 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			token: FormatSyntaxToken.FolderTarget,
 			suggestion: "{{folder|name}}",
 		},
+		// formatFileName resolves {{FILENAMECURRENT}} (the source note's
+		// basename), so it is valid here; {{title}} is deliberately excluded
+		// because it throws in file names.
+		{
+			regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.FilenameCurrent,
+			suggestion: FILENAMECURRENT_SYNTAX,
+		},
 	];
 
 	constructor(
@@ -331,18 +339,18 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			} else if (tokenDef.token === FormatSyntaxToken.File) {
 				// Pick a file from a folder; default inserts the basename.
 				suggestions.push("{{FILE:<folder>}}");
-				// |link / |path insert characters invalid in a file name, so only
-				// offer them outside the file-name field.
+				// |link / |path insert characters invalid in a file name, and
+				// |optional permits an all-optional name that resolves empty
+				// (rejected at creation time), so only offer them outside the
+				// file-name field.
 				if (!this.suggestForFileNames) {
 					suggestions.push(
 						"{{FILE:<folder>|link}}",
 						"{{FILE:<folder>|path}}",
+						"{{FILE:<folder>|optional}}",
 					);
 				}
-				suggestions.push(
-					"{{FILE:<folder>|optional}}",
-					"{{FILE:<folder>|custom}}",
-				);
+				suggestions.push("{{FILE:<folder>|custom}}");
 			}
 		}
 

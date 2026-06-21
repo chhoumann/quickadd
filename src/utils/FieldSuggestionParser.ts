@@ -1,3 +1,4 @@
+import { log } from "../logger/logManager";
 import {
 	parseBooleanFlag,
 	parsePipeKeyValue,
@@ -32,7 +33,10 @@ export class FieldSuggestionParser {
 	 * - "fieldname|folder:daily" -> { fieldName: "fieldname", filters: { folder: "daily" } }
 	 * - "fieldname|folder:daily|tag:work|tag:project" -> { fieldName: "fieldname", filters: { folder: "daily", tags: ["work", "project"] } }
 	 */
-	static parse(input: string): {
+	static parse(
+		input: string,
+		options?: { warnUnknown?: boolean },
+	): {
 		fieldName: string;
 		filters: FieldFilter;
 		multiSelect?: boolean;
@@ -127,6 +131,24 @@ export class FieldSuggestionParser {
 						filters.excludeFiles = [];
 					}
 					filters.excludeFiles.push(filterValue);
+					break;
+				default:
+					// An unrecognized pipe key (typically a typo like
+					// `exclud-tag` or `fodler`) would otherwise be dropped
+					// silently, leaving the user with unfiltered suggestions and
+					// no indication the filter did nothing. Surface a warning so
+					// the mistake is discoverable — but ONLY for the {{FIELD}}
+					// grammar (warnUnknown). This parser is also shared by the
+					// {{FILE:...|label:/name:}}, property:, and capture-scope
+					// grammars, which legitimately carry keys this switch does
+					// not know and peel off elsewhere; warning there would emit
+					// false "Unknown FIELD filter" notices and leak internal
+					// sentinels like __capture_scope.
+					if (options?.warnUnknown) {
+						log.logWarning(
+							`Unknown FIELD filter "${filterType}" in "{{FIELD:${input}}}" was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-empty, default-always, case-sensitive, multi.`,
+						);
+					}
 					break;
 			}
 		}
