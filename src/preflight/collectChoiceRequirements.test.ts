@@ -193,6 +193,62 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("collects requirements from TEMPLATE includes in Capture targets", async () => {
+		templateBodies.set(
+			"Templates/Capture Target.md",
+			"Inbox/{{VALUE:captureTargetName}}.md",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("{{TEMPLATE:Templates/Capture Target.md}}"),
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "captureTargetName" }),
+			]),
+		);
+	});
+
+	it("collects requirements from TEMPLATE includes in Template file names", async () => {
+		templateBodies.set("Templates/Source.md", "Body");
+		templateBodies.set(
+			"Templates/File Name.md",
+			"{{VALUE:templateFileName}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const templateChoice = {
+			...createTemplateChoice("Templates/Source.md"),
+			fileNameFormat: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/File Name.md}}",
+			},
+		} as ITemplateChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			templateChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "templateFileName" }),
+			]),
+		);
+	});
+
 	it("recursively collects nested TEMPLATE includes in Capture formats", async () => {
 		templateBodies.set(
 			"Templates/Capture Outer.md",

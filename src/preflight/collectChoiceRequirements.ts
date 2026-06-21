@@ -235,12 +235,16 @@ async function collectForTemplateChoice(
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
 	if (choice.fileNameFormat?.enabled) {
-		await collector.scanString(choice.fileNameFormat.format);
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.fileNameFormat.format,
+		);
 	}
 
 	if (choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
-			await collector.scanString(folder);
+			await scanContentWithTemplateIncludes(app, collector, folder);
 		}
 	}
 
@@ -266,7 +270,7 @@ async function collectForCaptureChoice(
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
-	await collector.scanString(choice.captureTo);
+	await scanContentWithTemplateIncludes(app, collector, choice.captureTo);
 
 	if (choice.format?.enabled) {
 		await scanContentWithTemplateIncludes(
