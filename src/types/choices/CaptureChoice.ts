@@ -11,6 +11,7 @@ import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
 	appendLink: boolean | AppendLinkOptions;
+	copyLinkToClipboard: boolean;
 	captureTo: string;
 	captureToActiveFile: boolean;
 	captureToCanvasNodeId: string;
@@ -62,6 +63,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 		super(name, "Capture");
 
 		this.appendLink = false;
+		this.copyLinkToClipboard = false;
 		this.captureTo = "";
 		this.captureToActiveFile = false;
 		this.captureToCanvasNodeId = "";

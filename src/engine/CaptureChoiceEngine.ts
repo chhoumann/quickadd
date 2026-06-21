@@ -57,6 +57,7 @@ import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import {
 	appendFileLinkToDestinationFile,
+	copyFileLinkToClipboard,
 	getAppendLinkDestinationFile,
 } from "../utils/fileLinks";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
@@ -262,6 +263,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		await insertFileLinkToActiveView(this.app, file, linkOptions);
+	}
+
+	private async copyCapturedFileLinkToClipboard(file: TFile): Promise<void> {
+		if (!this.choice.copyLinkToClipboard) {
+			return;
+		}
+
+		try {
+			await copyFileLinkToClipboard(file);
+		} catch (error) {
+			log.logWarning(
+				`Could not copy link to clipboard for '${file.path}': ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
 	}
 
 	private validateAppendLinkDestination(
@@ -506,6 +523,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				});
 			}
 
+			await this.copyCapturedFileLinkToClipboard(file);
+
 			await this.insertCaptureLink(file, linkOptions, {
 				isCanvasTriggered: !!canvasTarget,
 			});
@@ -642,6 +661,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				action,
 			});
 		}
+
+		await this.copyCapturedFileLinkToClipboard(file);
 
 		await this.insertCaptureLink(file, linkOptions, {
 			isCanvasTriggered: true,

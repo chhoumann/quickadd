@@ -127,6 +127,17 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 <SettingItem name="Linking" heading />
 <AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
+<SettingItem
+	name="Copy link to clipboard"
+	desc="Copy a link to the captured file after the Capture choice runs."
+>
+	{#snippet control()}
+		<Toggle
+			checked={choice.copyLinkToClipboard ?? false}
+			onchange={(value) => (choice.copyLinkToClipboard = value)}
+		/>
+	{/snippet}
+</SettingItem>
 
 <SettingItem name="Content" heading />
 <SettingItem name="Task" desc="Formats the value as a task.">
