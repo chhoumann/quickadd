@@ -7,7 +7,10 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
-import { collectChoiceRequirements } from "./collectChoiceRequirements";
+import {
+	collectChoiceRequirements,
+	getUnresolvedRequirements,
+} from "./collectChoiceRequirements";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -968,6 +971,26 @@ describe("collectChoiceRequirements - capture targets", () => {
 			displayOptions: [],
 			placeholder: "Type a new note name in the capture target picker",
 		});
+	});
+
+	it("allows a CLI-provided target path to satisfy an empty create-enabled scope", async () => {
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			enableCaptureTargetCreation(
+				createCaptureChoice("folder:Goals|tag:active"),
+			),
+		);
+		const variables = new Map<string, unknown>([
+			[QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Goals/New target.md"],
+		]);
+
+		expect(getUnresolvedRequirements(requirements, variables)).not.toContainEqual(
+			expect.objectContaining({
+				id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			}),
+		);
 	});
 
 	it("keeps an empty disabled dropdown when target creation is off", async () => {

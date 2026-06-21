@@ -35,7 +35,6 @@ import {
 	appendToCurrentLine,
 	getMarkdownFilesInFolder,
 	getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithTag,
 	getMarkdownFilesWithProperty,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
@@ -840,38 +839,35 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
-			switch (resolution.kind) {
-				case "vault":
-					return this.selectFileInFolder("", true);
-				case "tag":
-					return this.selectFileWithTag(resolution.tag);
-				case "filter":
-					return this.selectFileWithFilter(resolution.filter);
-				case "property":
-					return this.selectFileWithProperty(
-						resolution.field,
-						resolution.value,
-						resolution.filter,
-					);
-				case "folder":
-					return this.selectFileInFolder(resolution.folder, false);
-				case "file":
-					return this.normalizeCaptureFilePath(resolution.path);
-			}
+		switch (resolution.kind) {
+			case "vault":
+				return this.selectFileInFolder("", true);
+			case "filter":
+				return this.selectFileWithFilter(resolution.filter);
+			case "property":
+				return this.selectFileWithProperty(
+					resolution.field,
+					resolution.value,
+					resolution.filter,
+				);
+			case "folder":
+				return this.selectFileInFolder(resolution.folder, false);
+			case "file":
+				return this.normalizeCaptureFilePath(resolution.path);
 		}
+	}
 
 	private resolveCaptureTarget(
 		formattedCaptureTo: string,
 	):
 		| { kind: "vault" }
-		| { kind: "tag"; tag: string }
 		| { kind: "filter"; filter: FieldFilter }
 		| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 		| { kind: "folder"; folder: string }
 		| { kind: "file"; path: string } {
 		// Resolution order:
 		// 1) empty => vault picker
-		// 2) #tag => tag picker
+		// 2) #tag/tag:/folder: filters => filtered picker
 		// 3) property:<field>[=<value>] => frontmatter-property picker
 		// 4) trailing "/" => folder picker (explicit)
 		// 5) known file extension => file
@@ -1060,13 +1056,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			: `${folderPathSlash}${targetFilePath}`;
 
 		return await this.formatFilePath(filePath);
-	}
-
-	private async selectFileWithTag(tag: string): Promise<string> {
-		const tagWithHash = tag.startsWith("#") ? tag : `#${tag}`;
-		const filesWithTag = getMarkdownFilesWithTag(this.app, tagWithHash);
-
-		return this.selectFileFromSet(filesWithTag, `No files with tag ${tag}.`);
 	}
 
 	private async selectFileWithFilter(filter: FieldFilter): Promise<string> {
