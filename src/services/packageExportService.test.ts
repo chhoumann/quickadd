@@ -610,6 +610,7 @@ describe("writePackageToVault", () => {
 			app as never,
 			pkg,
 			"QuickAdd Packages/out.quickadd.json",
+			{ confirmOverwrite: async () => true },
 		);
 
 		expect(writes).toHaveLength(1);
@@ -627,6 +628,7 @@ describe("writePackageToVault", () => {
 			app as never,
 			pkg,
 			"  QuickAdd Packages\\nested\\out.json  ",
+			{ confirmOverwrite: async () => true },
 		);
 
 		expect(writes[0].path).toBe("QuickAdd Packages/nested/out.json");
@@ -662,7 +664,9 @@ describe("writePackageToVault", () => {
 			existsImpl: () => true,
 		});
 
-		await writePackageToVault(app as never, pkg, "Existing/file.json");
+		await writePackageToVault(app as never, pkg, "Existing/file.json", {
+			confirmOverwrite: async () => true,
+		});
 
 		expect(createdFolders).toEqual([]);
 		expect(app.vault.createFolder).not.toHaveBeenCalled();

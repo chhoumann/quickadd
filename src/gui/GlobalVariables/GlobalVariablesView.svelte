@@ -23,13 +23,26 @@
     items = Object.keys(globals).map((k) => ({ name: k, value: globals[k] ?? "" }));
   }
 
+  // True while this component is writing its own edits to the store, so the
+  // store subscriber does not reload (and collapse/drop) the rows the user is
+  // actively editing. Empty-name rows are dropped on persist (they cannot be
+  // keyed), and duplicate names overwrite each other in the persisted record;
+  // suppressing the self-triggered reload keeps those in-memory rows (and their
+  // values) on screen mid-edit instead of making them vanish.
+  let suppressReload = false;
+
   function persistToSettings() {
     const next: Record<string, string> = {};
     for (const it of items) {
       if (!it.name) continue;
       next[it.name] = it.value ?? "";
     }
-    settingsStore.setState({ globalVariables: next });
+    suppressReload = true;
+    try {
+      settingsStore.setState({ globalVariables: next });
+    } finally {
+      suppressReload = false;
+    }
   }
 
   function addVariable() {
@@ -66,7 +79,12 @@
   }
 
   $effect(() => {
-    const unsubscribe = settingsStore.subscribe(() => loadFromSettings());
+    const unsubscribe = settingsStore.subscribe(() => {
+      // Ignore the store change this component just produced, so our own
+      // debounced persist does not reload over the rows being edited.
+      if (suppressReload) return;
+      loadFromSettings();
+    });
     loadFromSettings();
     return () => {
       if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
