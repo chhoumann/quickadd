@@ -21,14 +21,14 @@ QuickAdd treats file names as basename-first by default:
 - If you provide an explicit supported extension (for example `.md` or `.canvas`), QuickAdd keeps that extension.
 - Capture to `.base` files is not supported. Use a Template choice for `.base` workflows.
 
-This field also supports the [format syntax](/FormatSyntax.md), which allows you to use dynamic file names.
+This field also supports the [format syntax](../FormatSyntax.md), which allows you to use dynamic file names.
 I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 This automatically finds the file for the day, and whatever I enter will be captured to it.
 
 ### Capturing to folders
 
 You can also type a **folder name** into the _Capture To_ field, and QuickAdd will ask you which file in the folder you'd like to capture to.
-This also supports the [format syntax](/FormatSyntax.md). You can even write a filename in the suggester that opens, and it will create the file for you - assuming you have the _Create file if it doesn't exist_ setting enabled.
+This also supports the [format syntax](../FormatSyntax.md). You can even write a filename in the suggester that opens, and it will create the file for you - assuming you have the _Create file if it doesn't exist_ setting enabled.
 
 For example, you might have a folder called `CRM/people`. In this folder, you have a note for the people in your life. You can type `CRM/people` in the _Capture To_ field, and QuickAdd will ask you which file to capture to. You can then type `John Doe` in the suggester, and QuickAdd will create a file called `John Doe.md` in the `CRM/people` folder.
 
@@ -216,17 +216,17 @@ You can do practically anything here. Think of it as a mini template.
 
 If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will insert whatever you enter in the prompt, or (if selection-as-value is enabled) the current editor selection.
 
-You can use [format syntax](/FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
+You can use [format syntax](../FormatSyntax.md) here, which allows you to use dynamic values in your capture format.
 
-If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](/Examples/Capture_InsertBaseTemplateIntoActiveFile.md).
+If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](../Examples/Capture_InsertBaseTemplateIntoActiveFile.md).
 If you want QuickAdd to create a brand new note that already contains an
 embedded Base, use a Template choice instead. See
-[Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).
+[Template: Create an MOC Note with a Link Dashboard](../Examples/Template_CreateMOCNoteWithLinkDashboard.md).
 
 If your capture format includes an inline `js quickadd` block and you need to
 transform user input, prefer reading input in script code through
 `this.quickAddApi.inputPrompt(...)` and/or assigning script variables on
 `this.variables`. Avoid relying on `{{VALUE}}` inside JavaScript string
-literals. See [Inline scripts](/InlineScripts.md#execution-order-and-value).
+literals. See [Inline scripts](../InlineScripts.md#execution-order-and-value).
 
 In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.

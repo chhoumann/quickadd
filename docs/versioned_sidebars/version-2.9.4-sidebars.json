@@ -53,6 +53,11 @@
         },
         {
           "type": "doc",
+          "id": "SuggesterSystem",
+          "label": "🔎 Suggester System"
+        },
+        {
+          "type": "doc",
           "id": "InlineScripts",
           "label": "💻 Inline Scripts"
         },

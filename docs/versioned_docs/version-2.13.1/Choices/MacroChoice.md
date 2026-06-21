@@ -30,7 +30,7 @@ A **macro** is a collection of commands that execute sequentially. Each macro is
 3. Give your macro choice a descriptive name
 4. Click the configure button (⚙️) to open the macro builder
 
-![The Macro builder](/img/choices/macro-builder.png)
+![The Macro builder](../Images/choices/macro-builder.png)
 
 ### Step 2: Build Your Macro
 
@@ -432,7 +432,7 @@ selector form.
 
 ## Macro Settings
 
-![The Macro builder, including the Run on startup toggle](/img/choices/macro-builder.png)
+![The Macro builder, including the Run on startup toggle](../Images/choices/macro-builder.png)
 
 ### Run on startup
 Enable this to automatically run a macro when Obsidian starts. Useful for:

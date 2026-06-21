@@ -4,7 +4,7 @@ title: Multis
 
 Multi-choices are pretty simple. They're like folders for other choices. Here are mine. They're the ones which you can 'open' and 'close'.
 
-![The Multi choice settings modal](/img/choices/multi-choice.png)
+![The Multi choice settings modal](../Images/choices/multi-choice.png)
 
 To actually add something in this "folder", you need to drag it in! This is not easy to do when it is the first item in the multi-folder.
 

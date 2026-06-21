@@ -6,24 +6,24 @@ The template choice type is not meant to be a replacement for [Templater](https:
 
 The Template choice builder groups its settings into four sections: **Template** (template path and file name format), **Location** (where the file is created), **Linking** (whether and how to link to the created file), and **Behavior** (what happens when the file already exists, and how the file is opened).
 
-![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](/img/choices/template-builder.png)
+![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](../Images/choices/template-builder.png)
 
 ## Mandatory
 **Template Path**. This is a path to the template you wish to insert. Paths are vault-relative; a leading `/` is ignored.
 
 QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`) templates. The created file uses the same extension as the template.
 If you want a new markdown note to include a live embedded Base dashboard, see
-[Template: Create an MOC Note with a Link Dashboard](/Examples/Template_CreateMOCNoteWithLinkDashboard.md).
+[Template: Create an MOC Note with a Link Dashboard](../Examples/Template_CreateMOCNoteWithLinkDashboard.md).
 
 ## Optional
-**File Name Format**. You can specify a format for the file name, which is based on the [format syntax](/FormatSyntax.md).
+**File Name Format**. You can specify a format for the file name, which is based on the [format syntax](../FormatSyntax.md).
 Basically, this allows you to have dynamic file names. If you wrote `£ {{DATE}} {{NAME}}`, it would translate to a file name like `£ 2021-06-12 Manually-Written-File-Name`, where `Manually-Written-File-Name` is a value you enter when invoking the template.
 If you disable **File Name Format**, QuickAdd uses `{{VALUE}}` as the file name format. This keeps the default behavior of prompting for a file name when you run the choice, with the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs.
 
 **Create in folder**. In which folder should the file be created in.
 You can specify as many folders as you want. If you don't, it'll just create the file in the root directory. If you specify one folder, it'll automatically create the file in there.
 If you specify multiple folders, you'll get a suggester asking which of the folders you wish to create the file in.
-Folder paths also support QuickAdd [format syntax](/FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables. For example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
+Folder paths also support QuickAdd [format syntax](../FormatSyntax.md), including `{{VALUE}}`, named values such as `{{VALUE:client}}`, dates, and global variables. For example, `Projects/{{VALUE:client}}/{{DATE:YYYY}}` prompts for a client and creates the file under that client's folder for the current year.
 
 When **Create in folder** is enabled, a few sub-toggles appear:
 - **Choose folder when creating a new note** – instead of using the folders configured here, prompt you to pick a destination folder each time the choice runs.
