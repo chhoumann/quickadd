@@ -115,7 +115,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			};
 
 			const { value } = this.inputEl;
-			this.inputEl.value = values[selectedItem].item ?? value;
+			this.inputEl.value = values[selectedItem]?.item ?? value;
 		});
 
 		if (options.placeholder) this.setPlaceholder(options.placeholder);

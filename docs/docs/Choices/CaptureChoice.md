@@ -46,7 +46,8 @@ format_ value after applying format syntax:
 Folder pickers include Markdown files in the selected folder and its nested
 folders. The picker also accepts custom input, so you can type a new file name
 or path and let QuickAdd create it when **Create file if it doesn't exist** is
-enabled. The picker still needs at least one matching Markdown file to open.
+enabled. When creation is enabled, the picker still opens for an empty folder,
+tag, property, or filtered scope so you can type the first note name to create.
 
 The list is ordered like Obsidian's Quick Switcher: notes you opened most
 recently appear first (this session first, then your recent-files history), then

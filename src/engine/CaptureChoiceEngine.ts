@@ -995,8 +995,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				? folderPath
 				: `${folderPath}/`;
 		const filesInFolder = getMarkdownFilesInFolder(this.app, folderPathSlash);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 
-		invariant(filesInFolder.length > 0, `Folder ${folderPathSlash} is empty.`);
+		invariant(
+			allowCreate || filesInFolder.length > 0,
+			`Folder ${folderPathSlash} is empty.`,
+		);
 
 		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
 		const orderedFiles = orderFilesForPicker(
@@ -1014,7 +1018,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const existingLabels = new Set(
 			displayItems.map((label) => label.toLowerCase()),
 		);
-		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		let targetFilePath: string;
 		try {
 			targetFilePath = await InputSuggester.Suggest(
@@ -1022,6 +1025,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				displayItems,
 				filePaths,
 				{
+					placeholder: allowCreate
+						? "Choose a note or type to create one"
+						: undefined,
+					emptyStateText: allowCreate
+						? "Type a note name to create it"
+						: undefined,
 					renderItem: (path, el) =>
 						renderNotePathSuggestion(el, path, this.app),
 					searchItems,
@@ -1137,7 +1146,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		files: TFile[],
 		notFoundMessage: string,
 	): Promise<string> {
-		invariant(files.length > 0, notFoundMessage);
+		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
+
+		invariant(allowCreate || files.length > 0, notFoundMessage);
 
 		// Quick-Switcher-style ordering; show note names (not raw paths).
 		const orderedFiles = orderFilesForPicker(
@@ -1152,7 +1163,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const searchItems = filePaths.map(
 			(path, index) => `${displayItems[index] ?? path} ${path}`,
 		);
-		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 		// Build once (not per keystroke): existing note basenames across the vault.
 		const vaultBasenames = new Set(
 			this.app.vault
@@ -1169,6 +1179,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				displayItems,
 				filePaths,
 				{
+					placeholder: allowCreate
+						? "Choose a note or type to create one"
+						: undefined,
+					emptyStateText: allowCreate
+						? "Type a note name to create it"
+						: undefined,
 					renderItem: (path, el) =>
 						renderNotePathSuggestion(el, path, this.app),
 					searchItems,

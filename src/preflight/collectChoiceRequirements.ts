@@ -393,16 +393,31 @@ async function collectForCaptureChoice(
 			orderedFiles,
 			(file) => app.metadataCache?.getFileCache(file) ?? null,
 		);
-		collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
-			id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
-			label: "Select capture target file",
-			type: "dropdown",
-			options,
-			displayOptions,
-			placeholder: options.length
-				? undefined
-				: "No files found in target scope",
-		});
+		const allowCreateTarget =
+			choice.createFileIfItDoesntExist?.enabled ?? false;
+		if (options.length === 0 && allowCreateTarget) {
+			collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
+				id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				label: "Select capture target file",
+				type: "file-picker",
+				source: "collected",
+				options,
+				displayOptions,
+				runtimeOnly: true,
+				placeholder: "Type a new note name in the capture target picker",
+			});
+		} else {
+			collector.requirements.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, {
+				id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				label: "Select capture target file",
+				type: "dropdown",
+				options,
+				displayOptions,
+				placeholder: options.length
+					? undefined
+					: "No files found in target scope",
+			});
+		}
 	}
 
 	if (seedCaptureSelectionAsValue) {
