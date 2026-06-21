@@ -45,9 +45,11 @@ vi.mock("../quickAddSettingsTab", () => {
 
 const {
 	appendFileLinkToDestinationFileMock,
+	copyFileLinkToClipboardMock,
 	getAppendLinkDestinationFileMock,
 } = vi.hoisted(() => ({
 	appendFileLinkToDestinationFileMock: vi.fn(),
+	copyFileLinkToClipboardMock: vi.fn(),
 	getAppendLinkDestinationFileMock: vi.fn(),
 }));
 
@@ -85,6 +87,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 
 vi.mock("../utils/fileLinks", () => ({
 	appendFileLinkToDestinationFile: appendFileLinkToDestinationFileMock,
+	copyFileLinkToClipboard: copyFileLinkToClipboardMock,
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
@@ -227,6 +230,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 		settingsStore.setState(structuredClone(defaultSettingsState));
 		noticeClass.instances.length = 0;
 		appendFileLinkToDestinationFileMock.mockReset();
+		copyFileLinkToClipboardMock.mockReset();
 		getAppendLinkDestinationFileMock.mockReset();
 	});
 
@@ -343,6 +347,8 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		noticeClass.instances.length = 0;
 		appendFileLinkToDestinationFileMock.mockReset();
 		appendFileLinkToDestinationFileMock.mockResolvedValue(true);
+		copyFileLinkToClipboardMock.mockReset();
+		copyFileLinkToClipboardMock.mockResolvedValue(true);
 		getAppendLinkDestinationFileMock.mockReset();
 	});
 
@@ -393,11 +399,48 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		return {
 			app,
 			captureFile,
+			choice,
 			destinationFile,
 			choiceExecutor,
 			engine: new CaptureChoiceEngine(app, plugin, choice, choiceExecutor),
 		};
 	}
+
+	it("copies the captured file link after committing without append-link insertion", async () => {
+		const { app, captureFile, choice, choiceExecutor, engine } =
+			createAppendLinkHarness();
+		choice.appendLink = false;
+		choice.copyLinkToClipboard = true;
+
+		await engine.run();
+
+		expect(app.vault.modify).toHaveBeenCalledWith(captureFile, "");
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: captureFile,
+		});
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
+		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
+	});
+
+	it("keeps capture execution successful when clipboard copying throws", async () => {
+		const { app, captureFile, choice, choiceExecutor, engine } =
+			createAppendLinkHarness();
+		choice.appendLink = false;
+		choice.copyLinkToClipboard = true;
+		copyFileLinkToClipboardMock.mockRejectedValueOnce(
+			new Error("clipboard denied"),
+		);
+
+		await engine.run();
+
+		expect(app.vault.modify).toHaveBeenCalledWith(captureFile, "");
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: captureFile,
+		});
+	});
 
 	it("appends the captured file link to a specified destination without an active editor", async () => {
 		const { app, captureFile, destinationFile, choiceExecutor, engine } =
@@ -422,7 +465,8 @@ describe("CaptureChoiceEngine append-link destination", () => {
 	});
 
 	it("does not write the capture when a specified append-link destination is missing", async () => {
-		const { app, engine, choiceExecutor } = createAppendLinkHarness();
+		const { app, choice, engine, choiceExecutor } = createAppendLinkHarness();
+		choice.copyLinkToClipboard = true;
 		getAppendLinkDestinationFileMock.mockReturnValue(null);
 
 		await engine.run();
@@ -431,5 +475,6 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		expect(app.vault.modify).not.toHaveBeenCalled();
 		expect(choiceExecutor.recordExecutionResult).not.toHaveBeenCalled();
 		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
+		expect(copyFileLinkToClipboardMock).not.toHaveBeenCalled();
 	});
 });
