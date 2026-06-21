@@ -33,7 +33,7 @@ export class MultiChoiceSettingsModal extends Modal {
 
 	private display() {
 		this.contentEl.empty();
-		this.titleEl.setText("Edit Multi Choice");
+		this.titleEl.setText("Edit folder");
 
 		new Setting(this.contentEl)
 			.setName("Name")
@@ -46,10 +46,10 @@ export class MultiChoiceSettingsModal extends Modal {
 		new Setting(this.contentEl)
 			.setName("Placeholder")
 			.setDesc(
-				"Shown in the choice picker search box when this multi choice opens. Leave blank to use the multi name.",
+				"Shown in the choice picker search box when this folder opens. Leave blank to use the folder name.",
 			)
 			.addText((text) => {
-				text.setPlaceholder("Defaults to the multi name");
+				text.setPlaceholder("Defaults to the folder name");
 				text.setValue(this.placeholder).onChange((value) => {
 					this.placeholder = value;
 				});

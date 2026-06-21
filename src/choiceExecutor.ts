@@ -1,4 +1,4 @@
-import type { App, WorkspaceLeaf } from "obsidian";
+import { Notice, type App, type WorkspaceLeaf } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -266,10 +266,21 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private onChooseMultiType(multiChoice: IMultiChoice) {
+		// An empty folder run via command/URI would otherwise open a dead, item-less
+		// picker (no Back row is appended on this path) that reads as a broken command.
+		// Surface a Notice instead so the user knows the folder simply has nothing in it.
+		if (multiChoice.choices.length === 0) {
+			new Notice(`Folder "${multiChoice.name}" is empty.`);
+			return;
+		}
+
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
 			focusedProperty: this.focusedProperty,
-			placeholder: multiChoice.placeholder,
+			// Fall back to the folder name when no custom placeholder is set, matching the
+			// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
+			// the same folder show the same search hint.
+			placeholder: multiChoice.placeholder?.trim() || multiChoice.name,
 		});
 	}
 }

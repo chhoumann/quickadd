@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { App } from "obsidian";
-	import { Platform, prepareFuzzySearch } from "obsidian";
+	import { Notice, Platform, prepareFuzzySearch } from "obsidian";
 	import { settingsStore } from "src/settingsStore";
 	import { log } from "src/logger/logManager";
 	import { tick, untrack } from "svelte";
@@ -14,11 +14,14 @@
 		deleteChoiceWithConfirmation,
 		duplicateChoiceWithUserScriptSecretSanitization,
 		addChoiceToTree,
+		insertChoiceAfter,
 		moveChoice as moveChoiceService,
+		moveChoiceToRoot,
 		removeChoiceById,
 		setFolderChildrenById,
 		setMultiCollapsedById,
 	} from "../../services/choiceService";
+	import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
 	import type { ChoiceType } from "../../types/choices/choiceType";
 	import type IChoice from "../../types/choices/IChoice";
 	import type IMultiChoice from "../../types/choices/IMultiChoice";
@@ -176,6 +179,18 @@
 		return findChoiceById(choices, choice.id) ?? choice;
 	}
 
+	// True when `choice` or any descendant is command-enabled. Gates command
+	// registration when duplicating so a command-less folder never reaches the
+	// registry (and so a folder with command-enabled children DOES get them
+	// registered via the recursive addCommandForChoice).
+	function subtreeHasCommand(choice: IChoice): boolean {
+		if (choice.command) return true;
+		if (isMultiChoice(choice)) {
+			return (choice.choices ?? []).some(subtreeHasCommand);
+		}
+		return false;
+	}
+
 	async function deleteChoice(choice: IChoice) {
 		const target = liveChoice(choice);
 		const userConfirmed = await deleteChoiceWithConfirmation(target, app);
@@ -185,7 +200,10 @@
 		// $state array without relying on the top-array reassignment to heal an
 		// in-place nested mutation (which would silently fail for a nested-only delete).
 		choices = removeChoiceById(choices, choice.id).updated;
-		commandRegistry.disableCommand(choice);
+		// Deleting removes the whole subtree, so recursively unregister the
+		// commands of any command-enabled descendants too (toggling a folder's
+		// own command off, by contrast, must leave its children registered).
+		commandRegistry.disableCommand(choice, { recursive: true });
 		save();
 	}
 
@@ -243,12 +261,35 @@
 			liveChoice(sourceChoice),
 			app,
 		);
-		choices = [...choices, newChoice];
+		// Insert the copy right after its source (same parent folder), not at the
+		// bottom of the root list — so duplicating a nested row produces a visible,
+		// adjacent copy. Fall back to a root append if the source can't be located.
+		choices =
+			insertChoiceAfter(choices, sourceChoice.id, newChoice) ?? [
+				...choices,
+				newChoice,
+			];
+		// A duplicate carries command:true when its source did; register its command so
+		// the copy is immediately usable from the palette instead of only appearing
+		// command-enabled until the next plugin reload. enableCommand -> addCommandForChoice
+		// recurses into a folder's children, so registering once covers any command-enabled
+		// descendants too. Gate on the subtree actually containing a command so we never
+		// touch the registry for a command-less folder.
+		if (subtreeHasCommand(newChoice)) {
+			commandRegistry.enableCommand(newChoice);
+		}
 		save();
+		new Notice(`Duplicated "${sourceChoice.name}".`);
+		await revealChoice(newChoice.id);
 	}
 
 	function handleMoveChoice(choice: IChoice, targetId: string) {
-		choices = moveChoiceService(choices, choice.id, targetId);
+		// The "Move to: (root)" menu item routes through onMove with a sentinel id
+		// (no real folder target exists for root), so re-append at the top level.
+		choices =
+			targetId === MOVE_TO_ROOT_TARGET_ID
+				? moveChoiceToRoot(choices, choice.id)
+				: moveChoiceService(choices, choice.id, targetId);
 		save();
 	}
 

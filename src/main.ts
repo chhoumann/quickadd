@@ -27,7 +27,7 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
-import { isMajorUpdate } from "./utils/semver";
+import { parseSemver } from "./utils/semver";
 import { resolveChoiceIcon } from "./utils/choiceUtils";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
@@ -142,7 +142,11 @@ export default class QuickAdd extends Plugin {
 
 				menu.addItem((item) =>
 					item
-						.setTitle("Apply QuickAdd template")
+						// Aligns with the command-palette label
+						// (QUICK_ADD_COMMAND_LABELS.applyTemplate) so the same action reads
+						// consistently across both surfaces. Obsidian prefixes commands with
+						// "QuickAdd:"; the file menu is unprefixed, so add it here.
+						.setTitle(`QuickAdd: ${QUICK_ADD_COMMAND_LABELS.applyTemplate}`)
 						.setIcon("file-plus")
 						.onClick(() => {
 							void applyTemplateToNote(this.app, this, {
@@ -253,9 +257,14 @@ export default class QuickAdd extends Plugin {
 				return;
 			}
 
+			// Names are not unique; getChoice returns the FIRST match. Warn so an
+			// ambiguous target is diagnosable rather than silently running the wrong one.
+			this.warnIfChoiceNameAmbiguous(parameters.choice);
+
 			if (choice.type !== "Template" && choice.type !== "Capture") {
 				log.logWarning(
-					`QuickAdd URI x-callback supports Template and Capture choices only ('${choice.name}' is ${choice.type}).`,
+					`QuickAdd URI x-callback supports Template and Capture choices only ('${choice.name}' is ${choice.type}). ` +
+						`A URI with x-* callback params cannot run a ${choice.type} choice while "Enable URI callbacks" is on; remove the x-* params to run it on the legacy path.`,
 				);
 				this.fireUriError(targets, "unsupported-choice-type");
 				return;
@@ -345,6 +354,10 @@ export default class QuickAdd extends Plugin {
 			);
 			return;
 		}
+		// Choice names are not unique; getChoice returns the FIRST match. Warn the user
+		// (via Notice) when the name is ambiguous so an automation that silently ran the
+		// wrong choice is at least diagnosable.
+		this.warnIfChoiceNameAmbiguous(parameters.choice);
 		const choiceExecutor = new ChoiceExecutor(this.app, this);
 		this.applyUriValueParameters(choiceExecutor, parameters);
 		try {
@@ -361,8 +374,9 @@ export default class QuickAdd extends Plugin {
 		Object.entries(parameters)
 			.filter(([key]) => key.startsWith("value-"))
 			.forEach(([key, value]) => {
-				if (typeof value === "string") {
-					choiceExecutor.variables.set(key.slice(6), value);
+				const variableName = key.slice(6);
+				if (variableName && typeof value === "string") {
+					choiceExecutor.variables.set(variableName, value);
 				}
 			});
 	}
@@ -514,7 +528,53 @@ export default class QuickAdd extends Plugin {
 		return null;
 	}
 
-	public removeCommandForChoice(choice: IChoice) {
+	/** Count how many choices anywhere in the tree carry `name` (names aren't unique). */
+	private countChoicesByName(
+		name: string,
+		choices: IChoice[] = this.settings.choices,
+	): number {
+		let count = 0;
+		for (const choice of choices) {
+			if (choice.name === name) count++;
+			if (choice.type === "Multi") {
+				count += this.countChoicesByName(
+					name,
+					(choice as IMultiChoice).choices,
+				);
+			}
+		}
+		return count;
+	}
+
+	/** Surface a Notice when a URI's `choice=<name>` is ambiguous, so an automation
+	 * that ran the wrong (first-matching) choice is at least diagnosable. */
+	private warnIfChoiceNameAmbiguous(name: string): void {
+		const matches = this.countChoicesByName(name);
+		if (matches > 1) {
+			log.logWarning(
+				`QuickAdd URI: ${matches} choices are named '${name}'. Ran the first match — rename choices to keep names unique so URIs target the right one.`,
+			);
+		}
+	}
+
+	public removeCommandForChoice(
+		choice: IChoice,
+		options?: { recursive?: boolean },
+	) {
+		// Recurse ONLY when the whole subtree is going away (a folder DELETE):
+		// a Multi (folder) registers commands for its command-enabled descendants,
+		// so tearing it down must remove theirs too, or deleting a folder leaves
+		// orphaned palette entries that throw "Choice <id> not found" when invoked.
+		//
+		// Do NOT recurse when only the folder's OWN command is being removed (e.g.
+		// toggling the folder's command off, or the remove half of an update): the
+		// children remain and their still-enabled commands must stay registered.
+		if (options?.recursive && choice.type === "Multi") {
+			for (const child of (<IMultiChoice>choice).choices) {
+				this.removeCommandForChoice(child, options);
+			}
+		}
+
 		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
 	}
 
@@ -531,6 +591,25 @@ export default class QuickAdd extends Plugin {
 	}
 
 	private announceUpdate() {
+		// `isFeatureUpdate`: the "major" announce tier promises "new features, breaking
+		// changes". QuickAdd ships features as semantic-release feat: commits, which become
+		// MINOR bumps (e.g. 2.13.x -> 2.14.0), never MAJOR — so gating purely on the major
+		// digit (isMajorUpdate) would suppress the modal for every feature release. Treat a
+		// major OR minor increase as a feature update so feature releases are announced as
+		// documented, while patch-only bumps stay quiet. Unparseable versions fall back to
+		// showing the update (mirrors isMajorUpdate's err-on-the-side-of-showing default).
+		const isFeatureUpdate = (
+			currentVersion: string,
+			previousVersion: string,
+		): boolean => {
+			const current = parseSemver(currentVersion);
+			const previous = parseSemver(previousVersion);
+			if (!current || !previous) return true;
+			if (current.major !== previous.major)
+				return current.major > previous.major;
+			return current.minor > previous.minor;
+		};
+
 		const currentVersion = this.manifest.version;
 		const knownVersion = this.settings.version;
 
@@ -541,7 +620,10 @@ export default class QuickAdd extends Plugin {
 
 		if (preference === "none") {
 			shouldAnnounce = false;
-		} else if (preference === "major" && !isMajorUpdate(currentVersion, knownVersion)) {
+		} else if (
+			preference === "major" &&
+			!isFeatureUpdate(currentVersion, knownVersion)
+		) {
 			shouldAnnounce = false;
 		}
 
