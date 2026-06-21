@@ -174,6 +174,17 @@ describe("maskNonBodyHeadingsForSearch", () => {
 		expect(masked[3]).toBe("## Real"); // real heading kept
 		expect(masked[5]).not.toBe("## Fake"); // fenced heading neutralized
 	});
+
+	it("does not mask a real body heading when frontmatter holds an unclosed code fence (CodeRabbit #1404)", () => {
+		// A YAML block scalar containing an indented code fence: maskFencedHeadings
+		// must run on body-scoped lines, otherwise the unclosed frontmatter fence
+		// leaks into the body and neutralizes the real heading.
+		const file = "---\nnote: |\n  ```js\n  example\n---\n## Real\n- x";
+		const lines = file.split("\n");
+		const realIdx = lines.indexOf("## Real");
+		const masked = maskNonBodyHeadingsForSearch(lines, file);
+		expect(masked[realIdx]).toBe("## Real");
+	});
 });
 
 describe("anchorAllowsSubsections", () => {

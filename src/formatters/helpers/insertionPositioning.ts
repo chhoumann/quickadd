@@ -295,14 +295,19 @@ export function maskNonBodyHeadingsForSearch(
 	lines: string[],
 	fileContent: string,
 ): string[] {
+	// Blank the frontmatter lines BEFORE fence masking, not after: maskFencedHeadings
+	// scans every line it is given, so an unclosed ```/~~~ marker inside the YAML
+	// frontmatter (e.g. a block scalar holding a code-fence example) would otherwise
+	// leave the scanner "in a fence" at the body boundary and neutralize a real body
+	// heading. Scoping the masking to the body avoids that leak. For frontmatter
+	// without fence markers this is identical to masking first then blanking.
 	const bodyStartLine = getBodyStartLine(fileContent);
-	const masked = maskFencedHeadings(lines).map((line) =>
+	const bodyScopedLines = lines.map((line, index) =>
+		index < bodyStartLine ? "" : line,
+	);
+	return maskFencedHeadings(bodyScopedLines).map((line) =>
 		line.replace(/\r$/, ""),
 	);
-	for (let i = 0; i < bodyStartLine && i < masked.length; i++) {
-		masked[i] = "";
-	}
-	return masked;
 }
 
 export function insertTextAfterPositionInBody(
