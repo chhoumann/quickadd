@@ -226,9 +226,17 @@ export const createDatePicker = (
 
 	if (timeInput) {
 		timeInput.addEventListener("change", () => {
-			const [h, m] = timeInput.value.split(":").map((p) => Number.parseInt(p, 10));
-			if (Number.isNaN(h) || Number.isNaN(m)) return;
-			currentTime = { hour: h, minute: m };
+			// Clearing the field drops the time back to midnight instead of
+			// keeping the previously merged wall-clock time on later day picks.
+			if (timeInput.value.trim() === "") {
+				currentTime = { hour: 0, minute: 0 };
+			} else {
+				const [h, m] = timeInput.value
+					.split(":")
+					.map((p) => Number.parseInt(p, 10));
+				if (Number.isNaN(h) || Number.isNaN(m)) return;
+				currentTime = { hour: h, minute: m };
+			}
 			// Re-emit so editing the time after picking a day updates the value
 			// instead of being dropped.
 			if (selectedIso) {

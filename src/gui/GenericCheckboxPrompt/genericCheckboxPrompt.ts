@@ -8,11 +8,17 @@ export default class GenericCheckboxPrompt extends Modal {
 	private resolved: boolean;
 	private _selectedItems: string[];
 
-	public static Open(app: App, items: string[], selectedItems?: string[]) {
+	public static Open(
+		app: App,
+		items: string[],
+		selectedItems?: string[],
+		header?: string
+	) {
 		const newSuggester = new GenericCheckboxPrompt(
 			app,
 			items,
-			selectedItems
+			selectedItems,
+			header
 		);
 		return newSuggester.promise;
 	}
@@ -20,7 +26,8 @@ export default class GenericCheckboxPrompt extends Modal {
 	public constructor(
 		app: App,
 		private items: string[],
-		readonly selectedItems: string[] = []
+		readonly selectedItems: string[] = [],
+		private readonly header?: string
 	) {
 		super(app);
 		// This clones the item so that we don't get any unexpected modifications of the
@@ -39,6 +46,7 @@ export default class GenericCheckboxPrompt extends Modal {
 	private display() {
 		this.contentEl.empty();
 		this.containerEl.addClass("quickAddModal", "checkboxPrompt");
+		if (this.header) this.titleEl.textContent = this.header;
 		this.addCheckboxRows();
 		this.addSubmitButton();
 	}
@@ -94,5 +102,16 @@ export default class GenericCheckboxPrompt extends Modal {
 
 				this.close();
 			});
+
+		// Explicit Cancel affordance — without it, Esc was the only way to
+		// dismiss, which is undiscoverable. Cancelling rejects (like Esc) so
+		// the caller can distinguish it from an empty submission.
+		const cancelButton: ButtonComponent = new ButtonComponent(
+			submitButtonContainer
+		);
+
+		cancelButton.setButtonText("Cancel").onClick((evt) => {
+			this.close();
+		});
 	}
 }

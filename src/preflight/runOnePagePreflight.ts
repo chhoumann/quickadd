@@ -17,6 +17,51 @@ import {
 } from "./collectChoiceRequirements";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 
+/**
+ * Reconstruct the picked labels from the ", "-joined suggester string.
+ *
+ * A naive split on "," loses options whose value/label itself contains a comma
+ * (from a quoted-comma option list, #239): "a, b, c, d" must round-trip to
+ * ["a, b", "c, d"], not ["a","b","c","d"]. We greedily consume the longest known
+ * display label at each position so comma-bearing options survive; anything that
+ * doesn't match a known label (typed custom text) falls back to a "," split of
+ * the remainder so custom-allowed tokens keep working.
+ */
+export function splitMultiSelectLabels(
+	joined: string,
+	displayToValue: Map<string, string>,
+): string[] {
+	const text = joined.trim();
+	if (!text) return [];
+
+	// Longest-first so "a, b" wins over a hypothetical shorter "a" prefix.
+	const knownLabels = Array.from(displayToValue.keys()).sort(
+		(a, b) => b.length - a.length,
+	);
+
+	const out: string[] = [];
+	let rest = text;
+	while (rest.length > 0) {
+		const matched = knownLabels.find(
+			(label) => rest === label || rest.startsWith(`${label}, `),
+		);
+		if (!matched) break;
+		out.push(matched);
+		rest = rest === matched ? "" : rest.slice(matched.length + 2);
+	}
+
+	// Remainder is unrecognized (typed custom text or unmatched labels): fall back
+	// to a plain comma split so custom-allowed tokens still capture it.
+	if (rest.length > 0) {
+		for (const piece of rest.split(",")) {
+			const trimmed = piece.trim();
+			if (trimmed) out.push(trimmed);
+		}
+	}
+
+	return out;
+}
+
 function shouldPromptAtRuntimeForDiscovery(
 	choice: IChoice,
 	requirementId: string,
@@ -133,10 +178,10 @@ export async function runOnePagePreflight(
 		Object.entries(values).forEach(([k, v]) => {
 			const multiInfo = multiInfoByKey.get(k);
 			if (multiInfo !== undefined) {
-				const items = String(v)
-					.split(",")
-					.map((s) => s.trim())
-					.filter(Boolean)
+				const items = splitMultiSelectLabels(
+					String(v),
+					multiInfo.displayToValue,
+				)
 					// Drop typed entries that aren't options unless the token opted
 					// into custom input, matching the runtime MultiSuggester.
 					.filter(

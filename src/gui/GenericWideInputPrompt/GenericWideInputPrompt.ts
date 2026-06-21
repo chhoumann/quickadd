@@ -6,6 +6,7 @@ import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 import { attachTextareaIndent } from "../components/textareaIndent";
+import { isSkipPromptShortcut } from "../GenericInputPrompt/GenericInputPrompt";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -114,7 +115,7 @@ export default class GenericWideInputPrompt extends Modal {
 
 		if (this.isOptionalPrompt) {
 			const hintEl = this.contentEl.createDiv({
-				text: "Optional — leave empty or press Skip.",
+				text: "Optional — leave empty, press Skip, or ctrl/cmd+shift+↵.",
 				cls: "setting-item-description",
 			});
 			hintEl.setCssStyles({ marginBottom: "0.75rem" });
@@ -206,6 +207,14 @@ export default class GenericWideInputPrompt extends Modal {
 	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	private submitEnterCallback = (evt: KeyboardEvent) => {
+		// Skip is checked first: ctrl/cmd+shift+Enter leaves the field empty on
+		// optional prompts. Without this guard it would fall through to the
+		// ctrl/cmd+Enter submit below, the collision noted in issue #1259.
+		if (this.isOptionalPrompt && isSkipPromptShortcut(evt)) {
+			evt.preventDefault();
+			this.skip();
+			return;
+		}
 		if ((evt.ctrlKey || evt.metaKey) && evt.key === "Enter") {
 			evt.preventDefault();
 			this.submit();

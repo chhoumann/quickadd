@@ -329,19 +329,41 @@ export class QuickAddApi {
 					options,
 				);
 			},
-			checkboxPrompt: (items: string[], selectedItems?: string[]) => {
-				return QuickAddApi.checkboxPrompt(app, items, selectedItems);
+			checkboxPrompt: (
+				items: string[],
+				selectedItems?: string[],
+				header?: string,
+			) => {
+				return QuickAddApi.checkboxPrompt(
+					app,
+					items,
+					selectedItems,
+					header,
+				);
 			},
 			executeChoice: async (
 				choiceName: string,
 				variables?: Record<string, unknown>,
 			) => {
-				const choice: IChoice = plugin.getChoiceByName(choiceName);
-				if (!choice)
+				// getChoiceByName THROWS when the name doesn't match a choice, so
+				// look it up defensively: report + return (don't abort the macro)
+				// to honor the documented "reports an error, does not throw"
+				// contract. The `!choice` fallback also covers any non-throwing
+				// lookup that yields a falsy result.
+				let choice: IChoice | undefined;
+				try {
+					choice = plugin.getChoiceByName(choiceName);
+				} catch {
+					choice = undefined;
+				}
+
+				if (!choice) {
 					reportError(
 						new Error(`Choice named '${choiceName}' not found`),
 						"API executeChoice error",
 					);
+					return;
+				}
 
 				if (variables) {
 					Object.keys(variables).forEach((key) => {
@@ -805,27 +827,38 @@ export class QuickAddApi {
 						const value = cache?.frontmatter?.[fieldName];
 						if (value !== undefined && value !== null) {
 							if (Array.isArray(value)) {
+								// Skip null/undefined and nested objects before
+								// stringifying — String(null) is "null" and an
+								// object yields "[object Object]"; both are noise.
 								value.forEach((x) => {
-									const strValue = x.toString().trim();
+									if (x === undefined || x === null) return;
+									if (typeof x === "object") return;
+									const strValue = String(x).trim();
 									if (strValue) values.add(strValue);
 								});
 							} else if (typeof value !== "object") {
-								const strValue = value.toString().trim();
+								const strValue = String(value).trim();
 								if (strValue) values.add(strValue);
 							}
 						}
 
 						// Get values from inline fields if requested
 						if (filters.inline) {
-							const content = await app.vault.read(file);
-							const inlineValues = InlineFieldParser.getFieldValues(
-								content,
-								fieldName,
-								{
-									includeCodeBlocks: inlineCodeBlocks,
-								},
-							);
-							inlineValues.forEach((v) => values.add(v));
+							// One unreadable file must not abort the whole call;
+							// skip it (mirrors FieldValueCollector).
+							try {
+								const content = await app.vault.read(file);
+								const inlineValues = InlineFieldParser.getFieldValues(
+									content,
+									fieldName,
+									{
+										includeCodeBlocks: inlineCodeBlocks,
+									},
+								);
+								inlineValues.forEach((v) => values.add(v));
+							} catch {
+								// Ignore files whose contents cannot be read.
+							}
 						}
 					}
 
@@ -988,9 +1021,14 @@ export class QuickAddApi {
 		app: App,
 		items: string[],
 		selectedItems?: string[],
+		header?: string,
 	) {
 		try {
-			return await GenericCheckboxPrompt.Open(app, items, selectedItems);
+			// Only forward `header` when provided so existing 3-argument call
+			// sites stay byte-identical (no trailing `undefined`).
+			return await (header === undefined
+				? GenericCheckboxPrompt.Open(app, items, selectedItems)
+				: GenericCheckboxPrompt.Open(app, items, selectedItems, header));
 		} catch (error) {
 			throwIfPromptCancelled(error);
 			return undefined;

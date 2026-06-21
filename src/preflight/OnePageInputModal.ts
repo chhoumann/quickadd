@@ -1,6 +1,7 @@
 import {
 	DropdownComponent,
 	Modal,
+	Notice,
 	Setting,
 	TextAreaComponent,
 	TextComponent,
@@ -114,6 +115,35 @@ export class OnePageInputModal extends Modal {
 			.addButton((btn) =>
 				btn.setButtonText("Cancel").onClick(() => this.cancel()),
 			);
+	}
+
+	onOpen() {
+		// Auto-focus the first field so keyboard-first users can start typing
+		// immediately, matching the single-field prompts.
+		const firstField = this.contentEl.querySelector<HTMLElement>(
+			"input, textarea, select",
+		);
+		firstField?.focus();
+
+		// Mod+Enter submits without reaching for the mouse. Guarded because the
+		// test mock's Modal has no scope.
+		const scope = (
+			this as unknown as {
+				scope?: {
+					register?: (
+						mods: string[],
+						key: string,
+						cb: () => boolean,
+					) => void;
+				};
+			}
+		).scope;
+		if (typeof scope?.register === "function") {
+			scope.register(["Mod"], "Enter", () => {
+				this.submit();
+				return false;
+			});
+		}
 	}
 
 	private renderField(req: FieldRequirement) {
@@ -555,6 +585,24 @@ export class OnePageInputModal extends Modal {
 		const requirementsById = new Map(
 			this.requirements.map((req) => [req.id, req]),
 		);
+
+		// A required date whose typed text failed to parse must not slip through:
+		// without a parse error the value would be silently dropped (and the
+		// script path has no sequential re-prompt to recover it). Block Submit and
+		// point the user at the offending field instead.
+		const erroredDate = this.requirements.find(
+			(req) =>
+				req.type === "date" &&
+				!req.optional &&
+				this.dateParseErrors.has(req.id),
+		);
+		if (erroredDate) {
+			new Notice(
+				`QuickAdd: "${erroredDate.label}" is not a valid date. Fix it or clear it before submitting.`,
+			);
+			return;
+		}
+
 		this.result.forEach((v, k) => {
 			const requirement = requirementsById.get(k);
 
