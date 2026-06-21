@@ -95,6 +95,59 @@ Capture still writes to one destination per run. If you want to select multiple
 related files for metadata, use the `{{FILE:<folder>|multi}}` format syntax in
 the capture format instead of the _Capture To_ field.
 
+### Capturing the same entry to multiple files
+
+Capture writes to one destination each time it runs. To write the same entry to
+several fixed files, compose multiple Capture choices with a Macro:
+
+1. Create one Capture choice for each destination file.
+2. Give each Capture choice the same format variable, for example
+   `- {{VALUE:entry}}`.
+3. Create a Macro and add each Capture choice as a **Nested Choice** command.
+4. Run the Macro. QuickAdd prompts for `entry` once and reuses that value for
+   the later Capture choices.
+
+For example, to log the same event to two person notes:
+
+| Choice | Capture To | Format |
+| --- | --- | --- |
+| Log to Person A | `People/Person A.md` | `- {{VALUE:entry}}` |
+| Log to Person B | `People/Person B.md` | `- {{VALUE:entry}}` |
+
+Then create a Macro such as `Log event with Person A and Person B` and add both
+Capture choices as nested commands.
+
+If the destination files are dynamic, use one Capture choice with a formatted
+target path and run it repeatedly from a user script. For example:
+
+| Setting | Value |
+| --- | --- |
+| Capture To | `People/{{VALUE:person}}.md` |
+| Format | `- {{VALUE:entry}}` |
+
+Then call that Capture choice once for each selected person:
+
+```js
+module.exports = async ({ quickAddApi }) => {
+	const entry = await quickAddApi.inputPrompt("Entry");
+	const people = await quickAddApi.checkboxPrompt([
+		"Person A",
+		"Person B",
+		"Person C",
+	]);
+
+	for (const person of people) {
+		await quickAddApi.executeChoice("Log event to person", {
+			entry,
+			person,
+		});
+	}
+};
+```
+
+Pass the variables object on every `executeChoice` call. Each call clears its
+temporary variables after the target choice runs.
+
 ### Capturing to a property
 
 You can pre-filter the picker by an arbitrary **frontmatter property** by typing
