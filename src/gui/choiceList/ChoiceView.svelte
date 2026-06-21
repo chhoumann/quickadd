@@ -203,7 +203,10 @@
 		// Deleting removes the whole subtree, so recursively unregister the
 		// commands of any command-enabled descendants too (toggling a folder's
 		// own command off, by contrast, must leave its children registered).
-		commandRegistry.disableCommand(choice, { recursive: true });
+		// Use the resolved live `target`, not `choice`: with an active filter the
+		// passed `choice` can be a truncated clone (only matching children), which
+		// would otherwise leave hidden command-enabled descendants orphaned.
+		commandRegistry.disableCommand(target, { recursive: true });
 		save();
 	}
 
