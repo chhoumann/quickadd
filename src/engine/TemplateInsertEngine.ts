@@ -171,15 +171,19 @@ export class TemplateInsertEngine extends TemplateEngine {
 		this.formatter.setTargetFolderPath(null);
 
 		if (folderSettings?.enabled) {
-			if (
-				folderSettings.chooseWhenCreatingNote ||
-				folderSettings.chooseFromSubfolders
-			) {
+			if (folderSettings.chooseWhenCreatingNote) {
 				return null;
 			}
 
 			if (folderSettings.createInSameFolderAsActiveFile) {
 				folderPath = this.targetFile.parent?.path ?? "";
+			} else if (folderSettings.chooseFromSubfolders) {
+				// chooseFromSubfolders only drives a runtime picker in "specified"
+				// mode (the engine gates its branch on
+				// !(chooseWhenCreatingNote || createInSameFolderAsActiveFile)). A
+				// stale flag left on an active-file-mode choice is inert there and
+				// must not suppress the move offer here.
+				return null;
 			} else if (folderSettings.folders.length === 1) {
 				folderPath = await this.formatter.formatFolderPath(
 					folderSettings.folders[0],

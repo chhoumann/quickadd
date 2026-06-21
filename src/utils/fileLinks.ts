@@ -88,9 +88,11 @@ export async function appendFileLinkToDestinationFile(
 }
 
 export async function writeTextToClipboard(text: string): Promise<boolean> {
+	// Returns false without surfacing its own Notice so callers own the single
+	// user-facing failure message (avoids stacked duplicate notices).
 	const clipboard = globalThis.navigator?.clipboard;
 	if (!clipboard?.writeText) {
-		log.logWarning("QuickAdd: Clipboard API is unavailable.");
+		log.logMessage("QuickAdd: Clipboard API is unavailable.");
 		return false;
 	}
 
@@ -98,7 +100,7 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
 		await clipboard.writeText(text);
 		return true;
 	} catch (error) {
-		log.logWarning(
+		log.logMessage(
 			`QuickAdd: Could not copy link to clipboard: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
@@ -109,8 +111,15 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
 
 export async function copyFileLinkToClipboard(
 	file: TFile,
+	app?: App,
 ): Promise<boolean> {
-	const linkText = buildPortableFileLinkText(file);
+	// When an App is available, honor the vault's link-format settings
+	// (Wikilinks vs Markdown links, shortest-path, etc.) so the copied link
+	// matches what "Append link" produces. Fall back to a portable
+	// full-path wikilink when no App is supplied.
+	const linkText = app
+		? buildFileLinkText(app, file, { linkType: "link" })
+		: buildPortableFileLinkText(file);
 	const copied = await writeTextToClipboard(linkText);
 
 	if (copied) {

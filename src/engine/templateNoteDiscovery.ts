@@ -260,9 +260,14 @@ export async function promptForTemplateNoteDiscovery(
 			};
 		}
 
+		const typedTitle = normalizeGeneratedFilePath(selected, "Note title");
 		return {
 			kind: "create",
-			title: normalizeGeneratedFilePath(selected, "Note title"),
+			title: typedTitle,
+			// A typed name containing "/" is a vault-relative path, mirroring the
+			// unresolved-link branch above — otherwise the same text resolves to a
+			// different destination depending on whether it matched a link.
+			...(typedTitle.includes("/") ? { vaultRelativePath: typedTitle } : {}),
 		};
 	} catch (error) {
 		if (isCancellationError(error)) {

@@ -87,6 +87,15 @@ import { handleMacroAbort } from "../utils/macroAbortHandler";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
+// Mirrors CaptureChoiceFormatter's "nothing to capture" definition: only ASCII
+// whitespace counts as empty (Unicode spaces like U+00A0 are intentional content,
+// see #760). Kept local so the engine's no-op detection does not depend on the
+// formatter module's mocked shape in tests.
+const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
+function isCaptureContentEmpty(content: string): boolean {
+	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
+}
+
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
 type CaptureWriteResult = {
@@ -207,6 +216,26 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		new Notice(msg, DEFAULT_NOTICE_DURATION);
 	}
 
+	/**
+	 * Shown instead of the success notice when the formatted capture payload is
+	 * empty/whitespace-only: the file is unchanged (the formatter returns it as-is,
+	 * and editor insertion replaces the selection with an empty string), so a
+	 * confident "Captured to …" would be misleading. `wasNewFile` keeps the "note
+	 * created" fact honest when create-if-not-found still made an empty file.
+	 */
+	private showNothingToCaptureNotice(
+		file: TFile,
+		{ wasNewFile }: { wasNewFile: boolean },
+	) {
+		const fileName = `'${file.basename}'`;
+		new Notice(
+			wasNewFile
+				? `Created ${fileName} — nothing to capture (no content)`
+				: `Nothing to capture — ${fileName} unchanged`,
+			DEFAULT_NOTICE_DURATION,
+		);
+	}
+
 	private hasActiveMarkdownCaptureContext(): boolean {
 		const hasActiveFile = !!this.app.workspace.getActiveFile();
 		const hasActiveMarkdownView =
@@ -272,7 +301,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		try {
-			await copyFileLinkToClipboard(file);
+			await copyFileLinkToClipboard(file, this.app);
 		} catch (error) {
 			log.logWarning(
 				`Could not copy link to clipboard for '${file.path}': ${
@@ -425,13 +454,15 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				this.suppressFrontmatterCollection &&
 				// Match the `|multi` flag specifically: a pipe, then `multi`
 				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
-				// `|multi1`, `|multi-select`, etc.
-				/\{\{(?:VALUE|FILE):[^}]*\|\s*multi(?=[:}|]|$)/i.test(
+				// `|multi1`, `|multi-select`, etc. FIELD is included because
+				// {{FIELD:…|multi}} degrades to a comma-joined string in the exact
+				// same way VALUE/FILE do (see formatter.ts replaceFieldVarInString).
+				/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi(?=[:}|]|$)/i.test(
 					this.choice?.format?.format ?? "",
 				)
 			) {
 				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}} and {{FILE:…|multi}} in this capture write comma-separated strings, not YAML lists. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
+					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings, not YAML lists. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
 				);
 			}
 
@@ -458,6 +489,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				await getFileAndAddContentFn(filePath, content);
 			let expectedCursorContent: string | null = null;
 			let canPlaceCursorAtCapture = cursorPlacementSafe;
+			// The formatted capture payload is empty/whitespace-only: the formatter
+			// returns the file unchanged and editor insertion replaces the selection
+			// with "" — i.e. a no-op. Surface a distinct notice instead of a false
+			// "Captured to …" success (e.g. a {{VALUE}} prompt cancelled to empty).
+			const captureIsNoOp = isCaptureContentEmpty(captureContent);
 
 			this.captureResolvedOrderedHeading();
 
@@ -518,10 +554,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
-				this.showSuccessNotice(file, {
-					wasNewFile: !fileAlreadyExists,
-					action,
-				});
+				if (captureIsNoOp) {
+					this.showNothingToCaptureNotice(file, {
+						wasNewFile: !fileAlreadyExists,
+					});
+				} else {
+					this.showSuccessNotice(file, {
+						wasNewFile: !fileAlreadyExists,
+						action,
+					});
+				}
 			}
 
 			await this.copyCapturedFileLinkToClipboard(file);
@@ -653,14 +695,23 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		await setCanvasTextCaptureContent(this.app, target, nextText);
 		markContentCommitted();
 
+		// An empty/whitespace capture leaves the card text unchanged (the formatter
+		// returns existingText as-is) — surface a no-op notice instead of a false
+		// "Captured to …" success, consistent with the note-body path in run().
+		const captureIsNoOp = nextText === existingText;
+
 		// Committed; append-link/open-file steps remain post-commit (see run()).
 		this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
 
 		if (this.plugin.settings.showCaptureNotification) {
-			this.showSuccessNotice(file, {
-				wasNewFile: false,
-				action,
-			});
+			if (captureIsNoOp) {
+				this.showNothingToCaptureNotice(file, { wasNewFile: false });
+			} else {
+				this.showSuccessNotice(file, {
+					wasNewFile: false,
+					action,
+				});
+			}
 		}
 
 		await this.copyCapturedFileLinkToClipboard(file);
@@ -718,8 +769,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
 	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
 	 * parsed with the same `getMarkdownHeadings` the inserter uses (so what is offered can
-	 * never desync from what is matched). `allowCustomValue` lets the user type a heading on
-	 * a new / heading-less target (created via "Create line if not found"). `content` is the
+	 * never desync from what is matched). `allowCustomValue` lets the user type a NEW heading
+	 * only when "Create line if not found" is enabled — otherwise the override path can only
+	 * match an existing line and would abort after the user already typed one (the picker must
+	 * never offer to create a heading the engine cannot create). `content` is the
 	 * destination's current text — a note body, or a Canvas text card's text. A no-op unless
 	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
 	 * before any write.
@@ -727,6 +780,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async maybeResolveInsertAfterHeading(content: string): Promise<void> {
 		const insertAfter = this.choice.insertAfter;
 		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
+
+		const allowCreate = !!insertAfter.createIfNotFound;
 
 		const lines = getLinesInString(content);
 		const headings = getMarkdownHeadings(lines);
@@ -743,10 +798,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				headingDisplay,
 				headingLines,
 				{
-					allowCustomValue: true,
+					allowCustomValue: allowCreate,
 					placeholder: "Choose a heading to insert under",
-					emptyStateText: "No headings found — type a heading to create",
-					customValueLabel: (value) => `Insert after new line: ${value}`,
+					emptyStateText: allowCreate
+						? "No headings found — type a heading to create"
+						: "No headings found in the target note",
+					customValueLabel: (value) =>
+						`Insert after new line: ${value}`,
 				},
 			);
 		} catch (error) {

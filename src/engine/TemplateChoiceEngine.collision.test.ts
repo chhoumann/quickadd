@@ -645,7 +645,7 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		);
 	});
 
-	it("keeps non-markdown append collisions on the raw append path", async () => {
+	it("refuses to append a template to a canvas file (would corrupt JSON)", async () => {
 		const { app, engine } = createEngine();
 		const existingFile = createExistingFile("Test Board.canvas", "canvas");
 		engine.choice.fileExistsBehavior = { kind: "apply", mode: "appendTop" };
@@ -672,13 +672,12 @@ describe("TemplateChoiceEngine collision behavior", () => {
 
 		await engine.run();
 
+		// Append must NOT proceed through either the raw-concat path or the
+		// markdown insert engine — both would corrupt the canvas JSON.
+		expect(rawAppendSpy).not.toHaveBeenCalled();
 		expect(templateInsertConstructorMock).not.toHaveBeenCalled();
 		expect(templateInsertSetLinkToCurrentFileBehaviorMock).not.toHaveBeenCalled();
-		expect(rawAppendSpy).toHaveBeenCalledWith(
-			existingFile,
-			engine.choice.templatePath,
-			"top",
-		);
+		expect(app.vault.modify).not.toHaveBeenCalled();
 	});
 
 	it("falls back to prompt behavior when fileExistsBehavior is missing at runtime", async () => {
