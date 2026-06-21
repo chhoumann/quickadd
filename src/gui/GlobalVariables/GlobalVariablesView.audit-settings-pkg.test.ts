@@ -159,9 +159,10 @@ describe("GlobalVariablesView mid-edit persistence (audit)", () => {
 		vi.advanceTimersByTime(250);
 		flushSync();
 
-		// Stored under the trimmed key so {{GLOBAL_VAR:spaced}} resolves it.
-		expect(
-			Object.keys(settingsStore.getState().globalVariables),
-		).toContain("spaced");
+		// Stored under the trimmed key so {{GLOBAL_VAR:spaced}} resolves it, and
+		// NOT under the raw untrimmed key (which would be unreferenceable).
+		const keys = Object.keys(settingsStore.getState().globalVariables);
+		expect(keys).toContain("spaced");
+		expect(keys).not.toContain("  spaced  ");
 	});
 });
