@@ -464,7 +464,29 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				: "required",
 		);
 
-		return await insertEngine.apply();
+		return await this.withAnonymousValueForInsertEngine(() =>
+			insertEngine.apply()
+		);
+	}
+
+	private async withAnonymousValueForInsertEngine<T>(
+		work: () => Promise<T>,
+	): Promise<T> {
+		const anonymousValue = this.formatter.getAnonymousValue();
+		const variables = this.choiceExecutor.variables;
+		const shouldSeedValue =
+			anonymousValue !== undefined && !variables.has("value");
+
+		if (!shouldSeedValue) {
+			return await work();
+		}
+
+		variables.set("value", anonymousValue);
+		try {
+			return await work();
+		} finally {
+			variables.delete("value");
+		}
 	}
 
 	/**

@@ -47,6 +47,7 @@ const {
 	formatFileNameMock,
 	formatFileContentMock,
 	formatTemplatePathMock,
+	getAnonymousValueMock,
 	templateInsertApplyMock,
 	templateInsertConstructorMock,
 	templateInsertSetLinkToCurrentFileBehaviorMock,
@@ -66,6 +67,7 @@ const {
 			formatFileNameMock: formatName,
 			formatFileContentMock: formatContent,
 			formatTemplatePathMock: formatPath,
+			getAnonymousValueMock: vi.fn<() => string | undefined>(),
 			templateInsertApplyMock: vi.fn(),
 			templateInsertConstructorMock: vi.fn(),
 			templateInsertSetLinkToCurrentFileBehaviorMock: vi.fn(),
@@ -86,6 +88,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		}
 		async formatTemplateFilePath(input: string) {
 			return formatTemplatePathMock(input);
+		}
+		getAnonymousValue() {
+			return getAnonymousValueMock();
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map<string, unknown>();
@@ -241,6 +246,7 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		formatFileContentMock.mockReset();
 		formatTemplatePathMock.mockReset();
 		formatTemplatePathMock.mockImplementation(async (input: string) => input);
+		getAnonymousValueMock.mockReset();
 		templateInsertApplyMock.mockReset();
 		templateInsertConstructorMock.mockReset();
 		templateInsertSetLinkToCurrentFileBehaviorMock.mockReset();
@@ -589,6 +595,29 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			expect(templateInsertApplyMock).toHaveBeenCalledTimes(1);
 		},
 	);
+
+	it("carries the resolved anonymous VALUE into markdown append collisions", async () => {
+		const { app, choiceExecutor, engine } = createEngine();
+		const existingFile = createExistingFile("Test Template.md");
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "appendBottom" };
+		getAnonymousValueMock.mockReturnValue("Prompted file name");
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFile,
+		);
+		templateInsertApplyMock.mockImplementation(async () => {
+			expect(choiceExecutor.variables.get("value")).toBe("Prompted file name");
+			return existingFile;
+		});
+
+		await engine.run();
+
+		expect(choiceExecutor.variables.has("value")).toBe(false);
+		expect(templateInsertApplyMock).toHaveBeenCalledTimes(1);
+	});
 
 	it("preserves optional LINKCURRENT behavior when append-link does not require an active file", async () => {
 		const { app, engine } = createEngine();
