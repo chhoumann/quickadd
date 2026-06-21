@@ -51,6 +51,8 @@ export default interface ICaptureChoice extends IChoice {
 		* - AppendLinkOptions: New format with configurable placement options
 		*/
 	appendLink: boolean | AppendLinkOptions;
+	/** Copy a link to the captured file after the capture runs. */
+	copyLinkToClipboard?: boolean;
 	task: boolean;
 	insertAfter: {
 		enabled: boolean;

@@ -76,6 +76,15 @@ function selectUnderSetting(
 	return item?.querySelector("select") as HTMLSelectElement;
 }
 
+function settingItem(container: HTMLElement, name: string): HTMLElement {
+	const item = Array.from(container.querySelectorAll(".setting-item")).find(
+		(el) =>
+			el.querySelector(".setting-item-name")?.textContent?.trim() === name,
+	);
+	if (!item) throw new Error(`Setting item not found: ${name}`);
+	return item as HTMLElement;
+}
+
 function choiceIconInput(container: HTMLElement): HTMLInputElement {
 	const el = container.querySelector<HTMLInputElement>(
 		'input[aria-label="Choice icon"]',
@@ -202,6 +211,20 @@ describe("CaptureChoiceForm", () => {
 		const { container } = mountForm();
 
 		expect(settingNames(container).at(-1)).toBe("Icon");
+	});
+
+	it("persists the copy-link-to-clipboard toggle", async () => {
+		const { container, props } = mountForm();
+		expect(props.choice.copyLinkToClipboard).toBeUndefined();
+
+		const toggle = settingItem(container, "Copy link to clipboard").querySelector(
+			".checkbox-container",
+		) as HTMLElement;
+		await fireEvent.click(toggle);
+		flushSync();
+
+		expect(props.choice.copyLinkToClipboard).toBe(true);
+		expect(toggle.classList.contains("is-enabled")).toBe(true);
 	});
 
 	it("shows recognized feedback and hides the path preview for picker filter targets", async () => {

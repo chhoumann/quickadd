@@ -185,6 +185,12 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
 
     For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file after each successful capture. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
 
+-   _Copy link to clipboard_ copies a link to the captured file after the Capture
+    choice runs. This works separately from _Link to captured file_, so you can
+    copy the link without inserting it into the current note, or do both. The
+    copied link is a vault-path wikilink, which makes it suitable for pasting
+    into another note.
+
 ### Opening the captured file
 
 When _Capture to active file_ is disabled, the **Behavior** section shows an _Open_ toggle (described as "Open the captured file."). Enabling it reveals the shared file-opening controls:
