@@ -228,6 +228,82 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("does not collect requirements beyond the runtime TEMPLATE inclusion depth", async () => {
+		for (let index = 0; index < 9; index++) {
+			templateBodies.set(
+				`Templates/T${index}.md`,
+				`{{TEMPLATE:Templates/T${index + 1}.md}}`,
+			);
+		}
+		templateBodies.set(
+			"Templates/T9.md",
+			"{{VALUE:atRuntimeLimit}} {{TEMPLATE:Templates/T10.md}}",
+		);
+		templateBodies.set("Templates/T10.md", "{{VALUE:tooDeep}}");
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/T0.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "atRuntimeLimit" }),
+			]),
+		);
+		expect(requirements).not.toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "tooDeep" })]),
+		);
+		expect(cachedReadMock).not.toHaveBeenCalledWith(
+			expect.objectContaining({ path: "Templates/T10.md" }),
+		);
+	});
+
+	it("collects requirements from Capture create-with-template literal bodies", async () => {
+		templateBodies.set(
+			"Templates/Create Body.md",
+			"Created with {{VALUE:createBodyValue}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			createFileIfItDoesntExist: {
+				enabled: true,
+				createWithTemplate: true,
+				template: "Templates/Create Body.md",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "createBodyValue" }),
+			]),
+		);
+	});
+
 	it("keeps recursive TEMPLATE scanning for Template choices", async () => {
 		templateBodies.set(
 			"Templates/Outer.md",

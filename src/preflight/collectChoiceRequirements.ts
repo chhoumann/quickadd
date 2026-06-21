@@ -1,5 +1,6 @@
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
+import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import type QuickAdd from "src/main";
@@ -168,6 +169,7 @@ async function scanContentWithTemplateIncludes(
 	collector: RequirementCollector,
 	content: string,
 	visitedTemplates = new Set<string>(),
+	depth = 0,
 ): Promise<void> {
 	// templatesToScan is a queue for this content scan. Clear it before and
 	// after scanning so refs from unrelated strings are not drained together.
@@ -175,6 +177,8 @@ async function scanContentWithTemplateIncludes(
 	await collector.scanString(content);
 	const nested = [...collector.templatesToScan];
 	collector.templatesToScan.clear();
+
+	if (depth >= MAX_TEMPLATE_INCLUSION_DEPTH) return;
 
 	for (const ref of nested) {
 		if (visitedTemplates.has(ref)) continue;
@@ -184,6 +188,7 @@ async function scanContentWithTemplateIncludes(
 			collector,
 			await readTemplate(app, ref),
 			visitedTemplates,
+			depth + 1,
 		);
 	}
 }
