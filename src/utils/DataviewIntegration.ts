@@ -180,11 +180,28 @@ export class DataviewIntegration {
 			const query = `TABLE ${safe} WHERE ${whereClause}`;
 			const result = await dv.query(query);
 			
+			// Dataview's query builder can't express exclude-file, so apply it by
+			// dropping excluded files' rows here — keeping Dataview's richer value
+			// parsing (comma-splitting, link/file-object handling) instead of
+			// bypassing Dataview to the manual collector. Matches the manual
+			// filter's semantics: exact file name (with extension) OR full path.
+			const excludeFiles = filters.excludeFiles ?? [];
+			const isExcludedRowFile = (row: unknown[]): boolean => {
+				if (excludeFiles.length === 0) return false;
+				const fileCol = row[0] as { path?: unknown } | null;
+				const filePath =
+					fileCol && typeof fileCol.path === "string" ? fileCol.path : null;
+				if (!filePath) return false;
+				const baseName = filePath.split("/").pop() ?? filePath;
+				return excludeFiles.some((e) => e === filePath || e === baseName);
+			};
+
 			if (result.successful && result.value.values) {
 				// Process results same as above
 				for (const row of result.value.values) {
+					if (isExcludedRowFile(row)) continue;
 					const fieldValue = row[1];
-					
+
 					if (Array.isArray(fieldValue)) {
 						fieldValue.forEach(v => {
 							if (v && typeof v === 'string') {

@@ -3,12 +3,19 @@ import { App, TFile } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import { collectFieldValuesProcessed } from "./FieldValueCollector";
 
-// Dataview IS installed in these tests. The query API returns a sentinel value
-// that would only ever come from the Dataview branch, so we can prove whether
-// that branch ran.
+// Dataview IS installed in these tests. The query API returns TABLE rows shaped
+// [fileLink, fieldValue]; the first column carries the file (with .path), which
+// the collector uses to honor exclude-file WITHOUT abandoning Dataview's richer
+// value parsing (comma-splitting, link/file-object handling).
 const dataviewQuery = vi.fn(async () => ({
 	successful: true,
-	value: { values: [[null, "from-dataview"]] },
+	value: {
+		values: [
+			[{ path: "Template.md" }, "TemplateValue"],
+			[{ path: "notes/Real.md" }, "RealValue"],
+			[{ path: "notes/Multi.md" }, "A, B"], // comma value -> Dataview splits it
+		],
+	},
 }));
 
 vi.mock("obsidian-dataview", () => ({
@@ -30,28 +37,38 @@ describe("FieldValueCollector - exclude-file with Dataview installed (integratio
 		dataviewQuery.mockClear();
 	});
 
-	it("honors exclude-file even when Dataview is available by bypassing Dataview", async () => {
+	it("honors exclude-file via the Dataview path, dropping the excluded file's row while keeping Dataview's parsing", async () => {
 		const app = new App();
-
-		const templateFile = makeFile("Template.md");
-		const realFile = makeFile("notes/Real.md");
-		app.vault.getMarkdownFiles = () => [templateFile, realFile];
-		app.metadataCache.getFileCache = (file: TFile) => {
-			if (file.path === "Template.md") {
-				return { frontmatter: { project: "TemplateValue" } } as any;
-			}
-			return { frontmatter: { project: "RealValue" } } as any;
-		};
+		// No markdown files, so any value can only come from the Dataview branch.
+		app.vault.getMarkdownFiles = () => [];
 
 		const values = await collectFieldValuesProcessed(app, "project", {
 			excludeFiles: ["Template.md"],
 		});
 
-		// Dataview must NOT have been consulted (its sentinel would otherwise win).
-		expect(values).not.toContain("from-dataview");
-		// The excluded file's value is dropped, the other file's value remains.
+		// Dataview IS used now (not bypassed), so its row handling is preserved.
+		expect(dataviewQuery).toHaveBeenCalled();
+		// The excluded file's row is dropped...
 		expect(values).not.toContain("TemplateValue");
+		// ...while a non-excluded file's value remains...
 		expect(values).toContain("RealValue");
+		// ...and Dataview's comma-splitting still yields separate values
+		// (manual fallback would have returned a single "A, B" suggestion).
+		expect(values).toContain("A");
+		expect(values).toContain("B");
+		expect(values).not.toContain("A, B");
+	});
+
+	it("matches exclude-file by basename when given a full path target, too", async () => {
+		const app = new App();
+		app.vault.getMarkdownFiles = () => [];
+
+		const values = await collectFieldValuesProcessed(app, "project", {
+			excludeFiles: ["notes/Real.md"],
+		});
+
+		expect(values).not.toContain("RealValue");
+		expect(values).toContain("TemplateValue");
 	});
 
 	it("still uses Dataview when no exclude-file filter is present", async () => {
@@ -60,7 +77,8 @@ describe("FieldValueCollector - exclude-file with Dataview installed (integratio
 
 		const values = await collectFieldValuesProcessed(app, "project", {});
 
-		expect(values).toContain("from-dataview");
 		expect(dataviewQuery).toHaveBeenCalled();
+		expect(values).toContain("TemplateValue");
+		expect(values).toContain("RealValue");
 	});
 });
