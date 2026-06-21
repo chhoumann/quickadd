@@ -226,18 +226,37 @@ export class AIAssistantProvidersModal extends Modal {
             .setName("Add Model")
             .addButton((button) => {
                 button.setButtonText("Add Model").onClick(async () => {
-                    const modelName = await GenericInputPrompt.Prompt(
-                        this.app,
-                        "Model Name"
-                    );
-                    const maxTokens = await GenericInputPrompt.Prompt(
-                        this.app,
-                        "Max Tokens"
-                    );
+                    let modelName: string;
+                    let maxTokens: string;
+                    try {
+                        modelName = await GenericInputPrompt.Prompt(
+                            this.app,
+                            "Model Name"
+                        );
+                        maxTokens = await GenericInputPrompt.Prompt(
+                            this.app,
+                            "Max Tokens"
+                        );
+                    } catch {
+                        // Cancelling either prompt is a clean no-op.
+                        return;
+                    }
+
+                    const trimmedName = modelName.trim();
+                    if (!trimmedName) {
+                        new Notice("Model name cannot be empty.");
+                        return;
+                    }
+
+                    const parsedMaxTokens = parseInt(maxTokens, 10);
+                    if (!Number.isInteger(parsedMaxTokens) || parsedMaxTokens <= 0) {
+                        new Notice("Max tokens must be a positive number.");
+                        return;
+                    }
 
                     this.selectedProvider!.models.push({
-                        name: modelName,
-                        maxTokens: parseInt(maxTokens),
+                        name: trimmedName,
+                        maxTokens: parsedMaxTokens,
                     });
 
                     this.reload();
@@ -321,24 +340,15 @@ export class AIAssistantProvidersModal extends Modal {
 		CancelButton.setDestructive();
 		CancelButton.onClick(() => {
 			if (!this.selectedProvider || !this._selectedProviderClone) return;
-			const noChangesMade = !checkObjectDiff(
-				this.selectedProvider,
-				this._selectedProviderClone
-			);
 
-			if (noChangesMade) {
-				this.selectedProvider = null;
-				this._selectedProviderClone = null;
-
-				this.reload();
-				return;
-			}
-
+			// Cancel always returns to the provider list. Restore the original
+			// values (discarding edits), then reload — never close(), so the
+			// modal doesn't flash-close-and-reopen via onClose's reopen branch.
 			Object.assign(this.selectedProvider, this._selectedProviderClone);
-			this.selectedProvider = this._selectedProviderClone;
+			this.selectedProvider = null;
 			this._selectedProviderClone = null;
 
-			this.close();
+			this.reload();
 		});
 
 		const SaveButton = new ButtonComponent(buttonRow);
@@ -363,18 +373,17 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
 	onClose(): void {
-		if (this.selectedProvider) {
-			// go back to main view
-			this.selectedProvider = null;
-			this.reload();
-			this.open();
+		// If the user dismissed while editing a provider (Escape / X), discard
+		// the in-progress edits by restoring the clone, then resolve and close.
+		// We do NOT reopen the modal here — reopening on close made Escape re-show
+		// the dialog and required a second Escape to actually leave.
+		if (this.selectedProvider && this._selectedProviderClone) {
+			Object.assign(this.selectedProvider, this._selectedProviderClone);
 		}
+		this.selectedProvider = null;
+		this._selectedProviderClone = null;
 
 		this.resolvePromise(this.providers);
 		super.onClose();
 	}
-}
-
-function checkObjectDiff(obj1: unknown, obj2: unknown) {
-	return JSON.stringify(obj1) !== JSON.stringify(obj2);
 }

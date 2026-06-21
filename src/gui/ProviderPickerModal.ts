@@ -100,6 +100,15 @@ export class ProviderPickerModal extends Modal {
                 return;
               }
 
+              const alreadyExists = this.providers.some(
+                (p) =>
+                  p.name === preset.name && p.endpoint === preset.endpoint,
+              );
+              if (alreadyExists) {
+                new Notice(`${preset.name} is already configured.`);
+                return;
+              }
+
               const provider: AIProvider = {
                 name: preset.name,
                 endpoint: preset.endpoint,
@@ -110,7 +119,9 @@ export class ProviderPickerModal extends Modal {
               };
               this.providers.push(provider);
               new Notice(`${preset.name} added. Click Edit to configure models.`);
-              this.display();
+              // Close after a successful add so the success is unambiguous and
+              // a stray second click can't push a duplicate.
+              this.close();
             } catch (err) {
               new Notice(`Failed to add provider: ${(err as { message?: string }).message ?? err}`);
             }
@@ -126,7 +137,7 @@ export class ProviderPickerModal extends Modal {
           const provider: AIProvider = { name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
           new Notice("Custom provider added. Click Edit to configure.");
-          this.display();
+          this.close();
         });
       });
   }

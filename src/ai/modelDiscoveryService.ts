@@ -5,6 +5,7 @@ import {
 	mapEndpointToModelsDevKey,
 	mapModelsDevToQuickAdd,
 } from "./modelsDirectory";
+import { buildProviderError } from "./providerErrors";
 import { settingsStore } from "src/settingsStore";
 
 const DEFAULT_MAX_TOKENS = 128_000;
@@ -95,10 +96,17 @@ async function fetchViaProviderApi(
 
 	let data: ProviderApiResponse;
 	try {
+		// Use `throw: false` so we can read the response body ourselves and turn
+		// any 4xx/5xx into a structured provider error (e.g. "invalid api key")
+		// instead of Obsidian's bare "Request failed, status N".
 		const response = await requestUrl({
 			url,
 			headers,
+			throw: false,
 		});
+		if (response.status >= 400) {
+			throw buildProviderError(provider.name, response);
+		}
 		data = (await response.json) as ProviderApiResponse;
 	} catch (err) {
 		throw new Error(`Provider rejected /v1/models request: ${(err as Error).message}`);

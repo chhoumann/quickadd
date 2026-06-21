@@ -226,7 +226,7 @@ export async function runAIAssistant(
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Blocking request to OpenAI: Online features are disabled in settings."
+			"Online features are disabled in settings. Enable them to use the AI Assistant."
 		);
 	}
 
@@ -345,7 +345,7 @@ export async function Prompt(
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Blocking request to OpenAI: Online features are disabled in settings."
+			"Online features are disabled in settings. Enable them to use the AI Assistant."
 		);
 	}
 
@@ -421,7 +421,10 @@ export async function Prompt(
 
 export class RateLimiter {
 	private queue: (() => Promise<unknown>)[] = [];
-	private pendingPromises: Promise<unknown>[] = [];
+	// Start timestamps of the requests dispatched within the current window. Old
+	// entries are pruned on every schedule() so this acts as a sliding window:
+	// no more than `maxRequests` may START within any `intervalMs` span.
+	private startTimes: number[] = [];
 
 	constructor(private maxRequests: number, private intervalMs: number) {}
 
@@ -439,34 +442,40 @@ export class RateLimiter {
 	}
 
 	private schedule() {
-		if (
-			this.queue.length === 0 ||
-			this.pendingPromises.length >= this.maxRequests
-		) {
+		if (this.queue.length === 0) {
 			return;
 		}
+
+		const now = Date.now();
+		// Drop start timestamps older than the window so they no longer count
+		// against the per-interval cap.
+		this.startTimes = this.startTimes.filter(
+			(t) => now - t < this.intervalMs
+		);
+
+		if (this.startTimes.length >= this.maxRequests) {
+			// Window is full; wait until the oldest in-window start ages out,
+			// then re-evaluate.
+			const oldest = this.startTimes[0];
+			const waitMs = Math.max(0, this.intervalMs - (now - oldest));
+			window.setTimeout(() => this.schedule(), waitMs + 1);
+			return;
+		}
+
 		const promiseFactory = this.queue.shift();
 		if (!promiseFactory) {
 			return;
 		}
 
+		this.startTimes.push(now);
 		const promise = promiseFactory();
-		this.pendingPromises.push(promise);
-		void promise.then(
-			() => {
-				this.pendingPromises = this.pendingPromises.filter(
-					(p) => p !== promise
-				);
-				this.schedule();
-			},
-			() => {
-				this.pendingPromises = this.pendingPromises.filter(
-					(p) => p !== promise
-				);
-				this.schedule();
-			}
-		);
+		// A freed slot opens only when an in-window start ages out, so re-check
+		// once this dispatch leaves the window.
 		window.setTimeout(() => this.schedule(), this.intervalMs);
+		// Keep draining the queue immediately for any remaining slots in the
+		// current window.
+		this.schedule();
+		void promise;
 	}
 }
 
@@ -703,7 +712,7 @@ export async function ChunkedPrompt(
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
 		throw new Error(
-			"Blocking request to OpenAI: Online features are disabled in settings."
+			"Online features are disabled in settings. Enable them to use the AI Assistant."
 		);
 	}
 
