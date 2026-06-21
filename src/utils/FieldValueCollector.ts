@@ -78,9 +78,17 @@ export async function collectFieldValuesRaw(
 		if (tagValues.size > 0) return tagValues;
 	}
 
-	// Try Dataview when allowed; fall back to manual collection
+	// Try Dataview when allowed; fall back to manual collection.
+	// Dataview's query builder translates exclude-folder/exclude-tag but NOT
+	// exclude-file, so bypass it (like the inline path) when an exclude-file
+	// filter is present and let the manual collector honor it via
+	// EnhancedFieldSuggestionFileFilter. Otherwise the exclusion is dropped.
 	try {
-		if (!filters.inline && DataviewIntegration.isAvailable(app)) {
+		if (
+			!filters.inline &&
+			!filters.excludeFiles?.length &&
+			DataviewIntegration.isAvailable(app)
+		) {
 			const dvValues = await DataviewIntegration.getFieldValuesWithFilter(
 				app,
 				fieldName,

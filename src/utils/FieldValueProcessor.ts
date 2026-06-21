@@ -68,9 +68,19 @@ export class FieldValueProcessor {
 		let processedValues = [...values];
 		let hasDefault = false;
 
+		// Existing values are deduplicated case-insensitively by default, so the
+		// default must be compared with the same fold; otherwise a default that
+		// differs only by case from an existing value (e.g. default:done vs a
+		// collected "Done") is added as a separate, near-identical entry.
+		const isPresent = (value: string): boolean =>
+			filters.caseSensitive
+				? value === defaultValue
+				: this.normalizeForComparison(value) ===
+					this.normalizeForComparison(defaultValue);
+
 		if (filters.defaultAlways) {
 			// Always include default at the beginning, remove if already present
-			processedValues = processedValues.filter(v => v !== defaultValue);
+			processedValues = processedValues.filter((v) => !isPresent(v));
 			processedValues.unshift(defaultValue);
 			hasDefault = true;
 		} else if (filters.defaultEmpty && values.length === 0) {
@@ -79,13 +89,25 @@ export class FieldValueProcessor {
 			hasDefault = true;
 		} else if (!filters.defaultEmpty && !filters.defaultAlways) {
 			// Default behavior: include if not already present and prepend
-			if (!processedValues.includes(defaultValue)) {
+			if (!processedValues.some(isPresent)) {
 				processedValues.unshift(defaultValue);
 				hasDefault = true;
 			}
 		}
 
 		return { processedValues, hasDefault };
+	}
+
+	/**
+	 * Normalize a value for case-insensitive comparison, mirroring
+	 * FieldValueDeduplicator's fold (Unicode NFD + diacritic strip + lowercase)
+	 * so default-value matching is consistent with case-insensitive dedup.
+	 */
+	private static normalizeForComparison(value: string): string {
+		return value
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.toLowerCase();
 	}
 
 	/**
