@@ -35,14 +35,19 @@
     // store (and the debounced data.json save) is the data-loss footgun. While
     // any name is empty or duplicated, keep the edit local and leave the
     // previously-persisted values intact until the names are valid again.
-    const names = items.map((it) => it.name);
+    // Validate and persist on TRIMMED names: the {{GLOBAL_VAR:<name>}} token
+    // trims the name before lookup, so a whitespace-only name ("   ") is
+    // effectively empty and "foo " collides with "foo". Treat both as
+    // invalid/duplicate (keep the edit local) and write trimmed, referenceable
+    // keys when valid.
+    const names = items.map((it) => it.name.trim());
     const hasEmpty = names.some((n) => !n);
     const hasDuplicate = new Set(names).size !== names.length;
     if (hasEmpty || hasDuplicate) return;
 
     const next: Record<string, string> = {};
     for (const it of items) {
-      next[it.name] = it.value ?? "";
+      next[it.name.trim()] = it.value ?? "";
     }
     suppressReload = true;
     try {

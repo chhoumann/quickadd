@@ -117,4 +117,51 @@ describe("GlobalVariablesView mid-edit persistence (audit)", () => {
 			bar: "second-value",
 		});
 	});
+
+	it("treats a whitespace-only name as empty (does not persist a ' ' key)", async () => {
+		settingsStore.setState({ globalVariables: { foo: "snippet-data" } });
+
+		const { container } = render(GlobalVariablesView, {
+			props: { app: appWithSuggestSupport(), plugin: fakePlugin() },
+		});
+
+		// User replaces the name with only spaces while editing.
+		const nameInput = getNameInputs(container)[0];
+		nameInput.value = "   ";
+		await fireEvent.input(nameInput);
+		vi.advanceTimersByTime(250);
+		flushSync();
+
+		// A whitespace-only name is effectively empty ({{GLOBAL_VAR}} trims before
+		// lookup), so it is NOT written — the prior value is preserved.
+		expect(settingsStore.getState().globalVariables).toEqual({
+			foo: "snippet-data",
+		});
+	});
+
+	it("persists a trimmed, referenceable key when the name has stray whitespace", async () => {
+		settingsStore.setState({ globalVariables: {} });
+
+		const { container } = render(GlobalVariablesView, {
+			props: { app: appWithSuggestSupport(), plugin: fakePlugin() },
+		});
+
+		const addButton = Array.from(
+			container.querySelectorAll<HTMLButtonElement>("button"),
+		).find((b) => b.textContent === "Add variable");
+		expect(addButton).toBeDefined();
+		await fireEvent.click(addButton!);
+		flushSync();
+
+		const nameInput = getNameInputs(container)[0];
+		nameInput.value = "  spaced  ";
+		await fireEvent.input(nameInput);
+		vi.advanceTimersByTime(250);
+		flushSync();
+
+		// Stored under the trimmed key so {{GLOBAL_VAR:spaced}} resolves it.
+		expect(
+			Object.keys(settingsStore.getState().globalVariables),
+		).toContain("spaced");
+	});
 });
