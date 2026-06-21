@@ -334,10 +334,28 @@ export class ConditionalCommandSettingsModal extends Modal {
 			.setCta()
 			.setButtonText("Save")
 			.onClick(() => {
+				if (!this.validateCondition()) return;
 				this.applyChanges();
 				this.resolve(this.originalCommand);
 				this.close();
 			});
+	}
+
+	private validateCondition(): boolean {
+		const condition = this.workingCommand.condition;
+		if (condition.mode === "variable") {
+			if (!condition.variableName.trim()) {
+				new Notice("QuickAdd: Enter a variable name before saving.");
+				return false;
+			}
+			return true;
+		}
+
+		if (!condition.scriptPath.trim()) {
+			new Notice("QuickAdd: Enter a script path before saving.");
+			return false;
+		}
+		return true;
 	}
 
 	private applyChanges() {

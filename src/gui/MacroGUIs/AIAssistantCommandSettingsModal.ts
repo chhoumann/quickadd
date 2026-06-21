@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
+import { ButtonComponent, Modal, Setting, TextAreaComponent, debounce } from "obsidian";
 import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
 import { getQuickAddInstance } from "src/quickAddInstance";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
@@ -18,12 +18,16 @@ import { estimateTokenCount } from "src/ai/tokenEstimator";
 import { getModelNames } from "src/ai/aiHelpers";
 
 export class AIAssistantCommandSettingsModal extends Modal {
-	public waitForClose: Promise<IAIAssistantCommand>;
+	public waitForClose: Promise<IAIAssistantCommand | null>;
 
-	private resolvePromise: (settings: IAIAssistantCommand) => void;
+	private resolvePromise: (settings: IAIAssistantCommand | null) => void;
 	private rejectPromise: (reason?: unknown) => void;
 
 	private settings: IAIAssistantCommand;
+	// Snapshot of the command as it was opened, so Cancel/Esc can restore the live
+	// object (the same reference the caller persists) instead of committing edits.
+	private readonly originalSettings: IAIAssistantCommand;
+	private isResolved = false;
 	private showAdvancedSettings = false;
 
 	private get systemPromptTokenLength(): number {
@@ -35,8 +39,9 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		super(app);
 
 		this.settings = settings;
+		this.originalSettings = this.cloneSettings(settings);
 
-		this.waitForClose = new Promise<IAIAssistantCommand>(
+		this.waitForClose = new Promise<IAIAssistantCommand | null>(
 			(resolve, reject) => {
 				this.rejectPromise = reject;
 				this.resolvePromise = resolve;
@@ -45,6 +50,32 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		this.open();
 		this.display();
+	}
+
+	private resolve(value: IAIAssistantCommand | null) {
+		if (this.isResolved) return;
+		this.isResolved = true;
+		this.resolvePromise(value);
+	}
+
+	// Proxy-safe deep clone of the editable fields. Avoids structuredClone, which
+	// throws DataCloneError on a Svelte dev-mode $state proxy (the command passed in
+	// is one such proxy when edited from the macro command list).
+	private cloneSettings(settings: IAIAssistantCommand): IAIAssistantCommand {
+		return {
+			...settings,
+			promptTemplate: { ...settings.promptTemplate },
+			modelParameters: { ...settings.modelParameters },
+		};
+	}
+
+	// Restore the live command (same reference the caller persists) to its opened
+	// state so Cancel/Esc discards edits, including the nested objects.
+	private restoreOriginal(): void {
+		const snapshot = this.cloneSettings(this.originalSettings);
+		Object.assign(this.settings, snapshot);
+		this.settings.promptTemplate = snapshot.promptTemplate;
+		this.settings.modelParameters = snapshot.modelParameters;
 	}
 
 	private display(): void {
@@ -96,6 +127,31 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		}
 
 		this.addSystemPromptSetting(this.contentEl);
+
+		this.addButtonBar(this.contentEl);
+	}
+
+	private addButtonBar(container: HTMLElement): void {
+		const buttonRow = container.createDiv({
+			cls: "qa-command-button-row",
+		});
+
+		new ButtonComponent(buttonRow)
+			.setButtonText("Cancel")
+			.onClick(() => {
+				// Dismissing via Cancel discards every edit made in this session.
+				this.restoreOriginal();
+				this.resolve(null);
+				this.close();
+			});
+
+		new ButtonComponent(buttonRow)
+			.setButtonText("Save")
+			.setCta()
+			.onClick(() => {
+				this.resolve(this.settings);
+				this.close();
+			});
 	}
 
 	private reload(): void {
@@ -150,7 +206,17 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 				dropdown.addOption("Ask me", "Ask me");
 
-				dropdown.setValue(this.settings.model);
+				// If the pinned model was deleted, the option no longer exists and
+				// setValue would silently fall back to the first option while the
+				// stored (now invalid) name persists. Surface the mismatch with a
+				// disabled "(missing)" entry so the dropdown reflects the saved value.
+				const stored = this.settings.model;
+				const isKnown = stored === "Ask me" || models.includes(stored);
+				if (stored && !isKnown) {
+					dropdown.addOption(stored, `(missing) ${stored}`);
+				}
+
+				dropdown.setValue(stored);
 				dropdown.onChange((value) => {
 					this.settings.model = value;
 
@@ -317,7 +383,12 @@ export class AIAssistantCommandSettingsModal extends Modal {
 	}
 
 	onClose(): void {
-		this.resolvePromise(this.settings);
+		// Dismissing via Esc / click-outside / X discards edits (matches the
+		// Conditional/Open File modals). Only the Save button commits the working copy.
+		if (!this.isResolved) {
+			this.restoreOriginal();
+			this.resolve(null);
+		}
 		super.onClose();
 	}
 }

@@ -508,16 +508,32 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
 		// @ts-ignore
-		 
+		const registry = this.app.commands.commands;
+		// When the command registry is available, a missing id means the source
+		// plugin was disabled/uninstalled; executeCommandById would silently no-op,
+		// so surface a clear error instead of letting the macro look successful.
+		if (registry && !registry[command.commandId]) {
+			log.logError(
+				`Obsidian command '${command.name}' is no longer available.`
+			);
+			return;
+		}
+
+		// @ts-ignore
 		this.app.commands.executeCommandById(command.commandId);
 	}
 
 	protected async executeChoice(command: IChoiceCommand) {
-		const targetChoice: IChoice = this.plugin.getChoiceById(
-			command.choiceId
-		);
-		if (!targetChoice) {
-			log.logError("choice could not be found.");
+		let targetChoice: IChoice;
+		try {
+			targetChoice = this.plugin.getChoiceById(command.choiceId);
+		} catch {
+			// getChoiceById throws when the referenced choice was deleted; surface a
+			// friendly message naming the stored command and skip instead of aborting
+			// the whole macro.
+			log.logError(
+				`choice '${command.name}' could not be found.`
+			);
 			return;
 		}
 
@@ -584,7 +600,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	private async executeAIAssistant(command: IAIAssistantCommand) {
 		if (settingsStore.getState().disableOnlineFeatures) {
 			throw new Error(
-				"Blocking request to OpenAI: Online features are disabled in settings."
+				"Blocking request: Online features are disabled in settings."
 			);
 		}
 
@@ -665,6 +681,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		await this.executeCommands(branch);
+
+		// executeCommands swallows aborts (signals + returns) so the inner branch
+		// loop stops; re-throw the pending abort here so the outer macro loop halts
+		// too instead of running the commands after this conditional.
+		const abort = this.choiceExecutor.consumeAbortSignal?.();
+		if (abort) {
+			throw abort;
+		}
 	}
 
 	public async runSubset(commands: ICommand[]): Promise<void> {
@@ -765,9 +789,19 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			const resolvedPath = await formatter.formatFileName(command.filePath, "");
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
-			// Validate path to prevent traversal attacks
-			const safePath = "/" + normalizedPath;
-			if (safePath.includes("..") || safePath.includes("//")) {
+			// Validate path segments to prevent traversal attacks. A substring check
+			// would wrongly reject legitimate filenames that merely contain ".." (e.g.
+			// 'log..2024.md') or "//"; only a literal '..' path segment or an empty
+			// segment (from '//') is an actual traversal/malformed path.
+			const segments = normalizedPath.split("/");
+			const hasTraversal = segments.some(
+				(segment, index) =>
+					segment === ".." ||
+					// An empty segment is a doubled slash; the leading slash of an
+					// absolute path is allowed (index 0), as is a single trailing slash.
+					(segment === "" && index !== 0 && index !== segments.length - 1)
+			);
+			if (hasTraversal) {
 				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
 				return;
 			}
