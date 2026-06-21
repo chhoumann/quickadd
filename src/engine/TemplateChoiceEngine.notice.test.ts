@@ -448,10 +448,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 
 		await engine.run();
 
-			expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(
-				createdFile,
-				expect.anything(),
-			);
+			expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
 		});
 
 		it("appends the created file link to a specified destination without an active editor", async () => {
@@ -577,10 +574,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		await engine.run();
 		store.commitExecutionScope();
 
-		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(
-			createdFile,
-			expect.anything(),
-		);
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: createdFile,

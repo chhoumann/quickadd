@@ -301,7 +301,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		}
 
 		try {
-			await copyFileLinkToClipboard(file, this.app);
+			await copyFileLinkToClipboard(file);
 		} catch (error) {
 			log.logWarning(
 				`Could not copy link to clipboard for '${file.path}': ${

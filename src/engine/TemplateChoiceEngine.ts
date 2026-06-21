@@ -264,7 +264,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			if (this.choice.copyLinkToClipboard && createdFile) {
 				try {
-					await copyFileLinkToClipboard(createdFile, this.app);
+					await copyFileLinkToClipboard(createdFile);
 				} catch (error) {
 					log.logWarning(
 						`Could not copy link to clipboard for '${createdFile.path}': ${

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { App , TFile } from "obsidian";
+import type { TFile } from "obsidian";
 import { Notice } from "obsidian";
 import { copyFileLinkToClipboard, writeTextToClipboard } from "./fileLinks";
 import { log } from "../logger/logManager";
@@ -17,7 +17,7 @@ function createFile(): TFile {
 	} as TFile;
 }
 
-describe("clipboard copy respects vault link settings (audit)", () => {
+describe("clipboard copy emits a portable wikilink (audit)", () => {
 	beforeEach(() => {
 		noticeClass.instances.length = 0;
 	});
@@ -27,29 +27,25 @@ describe("clipboard copy respects vault link settings (audit)", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("uses generateMarkdownLink (honoring link-format settings) when an App is supplied", async () => {
+	// Codex review follow-up: clipboard text has no destination note, so honoring
+	// the vault's link-format setting (which can produce relative Markdown links)
+	// would generate a link relative to an implicit empty source — wrong once
+	// pasted into a note in another folder. Always emit a portable full-path
+	// wikilink so the copied link resolves wherever it is pasted.
+	it("always emits a portable full-path wikilink (never a source-relative link)", async () => {
 		const writeText = vi.fn().mockResolvedValue(undefined);
 		vi.stubGlobal("navigator", { clipboard: { writeText } });
 
-		const generateMarkdownLink = vi.fn(() => "[Created Note](Projects/Created%20Note.md)");
-		const app = {
-			fileManager: { generateMarkdownLink },
-		} as unknown as App;
-
-		await expect(copyFileLinkToClipboard(createFile(), app)).resolves.toBe(true);
-
-		expect(generateMarkdownLink).toHaveBeenCalledTimes(1);
-		expect(writeText).toHaveBeenCalledWith(
-			"[Created Note](Projects/Created%20Note.md)",
+		const generateMarkdownLink = vi.fn(
+			() => "../wrong/relative/Created%20Note.md",
 		);
-	});
-
-	it("still emits a portable wikilink when no App is supplied (backward compatible)", async () => {
-		const writeText = vi.fn().mockResolvedValue(undefined);
-		vi.stubGlobal("navigator", { clipboard: { writeText } });
+		// Even if an App with link-format settings exists in the environment, the
+		// clipboard path must not consult it (no app argument is passed).
+		void generateMarkdownLink;
 
 		await expect(copyFileLinkToClipboard(createFile())).resolves.toBe(true);
 
+		expect(generateMarkdownLink).not.toHaveBeenCalled();
 		expect(writeText).toHaveBeenCalledWith("[[Projects/Created Note]]");
 	});
 });

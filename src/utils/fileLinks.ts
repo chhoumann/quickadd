@@ -109,17 +109,13 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
 	}
 }
 
-export async function copyFileLinkToClipboard(
-	file: TFile,
-	app?: App,
-): Promise<boolean> {
-	// When an App is available, honor the vault's link-format settings
-	// (Wikilinks vs Markdown links, shortest-path, etc.) so the copied link
-	// matches what "Append link" produces. Fall back to a portable
-	// full-path wikilink when no App is supplied.
-	const linkText = app
-		? buildFileLinkText(app, file, { linkType: "link" })
-		: buildPortableFileLinkText(file);
+export async function copyFileLinkToClipboard(file: TFile): Promise<boolean> {
+	// Always use a portable full-path wikilink. Clipboard text has no destination
+	// note, so honoring the vault's link-format setting (which "Append link" can,
+	// because it has a real target) would generate a link relative to an implicit
+	// empty source — wrong once pasted into a note in any other folder. A
+	// full-path wikilink resolves correctly wherever it is pasted.
+	const linkText = buildPortableFileLinkText(file);
 	const copied = await writeTextToClipboard(linkText);
 
 	if (copied) {

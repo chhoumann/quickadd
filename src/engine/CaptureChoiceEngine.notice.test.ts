@@ -419,10 +419,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 			status: "success",
 			file: captureFile,
 		});
-		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(
-			captureFile,
-			expect.anything(),
-		);
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
 		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
 	});
 
@@ -438,10 +435,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		await engine.run();
 
 		expect(app.vault.modify).toHaveBeenCalledWith(captureFile, "");
-		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(
-			captureFile,
-			expect.anything(),
-		);
+		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: captureFile,
