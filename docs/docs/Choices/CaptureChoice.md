@@ -486,6 +486,8 @@ If the capture format is long, put the full format in a template file and use a 
 
 QuickAdd replaces the token with the template file contents, then processes the result through the normal capture formatter. The referenced file can contain the same format syntax you would otherwise type inline, such as `{{VALUE}}`, `{{DATE}}`, `{{MACRO:...}}`, inline scripts, and additional `{{TEMPLATE:...}}` includes. Include the file extension in the token; template includes support `.md`, `.canvas`, and `.base` files.
 
+One-page input preflight and `quickadd:check` scan the referenced template files too, so prompts inside a file-backed capture format appear up front like inline capture format prompts.
+
 This is useful when you want to edit, version, or reuse a complete capture format as a normal note. You can also use `{{TEMPLATE:Templates/Partial.md}}` inside a larger inline capture format when only part of the format should come from a file.
 
 If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](/Examples/Capture_InsertBaseTemplateIntoActiveFile.md).
