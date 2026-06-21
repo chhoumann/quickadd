@@ -2,7 +2,10 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
+import {
+	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+	TEMPLATE_REGEX,
+} from "src/constants";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -164,6 +167,16 @@ async function readTemplate(app: App, path: string): Promise<string> {
 	return file ? await app.vault.cachedRead(file) : "";
 }
 
+function getRawTemplateRefs(content: string): Set<string> {
+	const refs = new Set<string>();
+	const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+	let match: RegExpExecArray | null;
+	while ((match = re.exec(content)) !== null) {
+		if (match[1]) refs.add(match[1]);
+	}
+	return refs;
+}
+
 async function scanContentWithTemplateIncludes(
 	app: App,
 	collector: RequirementCollector,
@@ -173,9 +186,12 @@ async function scanContentWithTemplateIncludes(
 ): Promise<void> {
 	// templatesToScan is a queue for this content scan. Clear it before and
 	// after scanning so refs from unrelated strings are not drained together.
+	const rawTemplateRefs = getRawTemplateRefs(content);
 	collector.templatesToScan.clear();
 	await collector.scanString(content);
-	const nested = [...collector.templatesToScan];
+	const nested = [...collector.templatesToScan].filter((ref) =>
+		rawTemplateRefs.has(ref),
+	);
 	collector.templatesToScan.clear();
 
 	if (depth >= MAX_TEMPLATE_INCLUSION_DEPTH) return;

@@ -193,6 +193,81 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("does not recurse into TEMPLATE includes introduced by global variables", async () => {
+		templateBodies.set(
+			"Templates/From Global.md",
+			"{{VALUE:fromGlobalTemplate}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{GLOBAL_VAR:TemplateRef}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			{
+				settings: {
+					...plugin.settings,
+					globalVariables: {
+						TemplateRef: "{{TEMPLATE:Templates/From Global.md}}",
+					},
+				},
+			} as any,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).not.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "fromGlobalTemplate" }),
+			]),
+		);
+		expect(cachedReadMock).not.toHaveBeenCalledWith(
+			expect.objectContaining({ path: "Templates/From Global.md" }),
+		);
+	});
+
+	it("still collects ordinary requirements introduced by global variables", async () => {
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{GLOBAL_VAR:ValueRef}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			{
+				settings: {
+					...plugin.settings,
+					globalVariables: {
+						ValueRef: "{{VALUE:fromGlobalValue}}",
+					},
+				},
+			} as any,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "fromGlobalValue" }),
+			]),
+		);
+	});
+
 	it("collects requirements from TEMPLATE includes in Capture targets", async () => {
 		templateBodies.set(
 			"Templates/Capture Target.md",
