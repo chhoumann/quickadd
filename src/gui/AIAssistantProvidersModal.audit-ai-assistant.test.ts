@@ -97,6 +97,24 @@ describe("AIAssistantProvidersModal Add Model validation", () => {
 		expect(providers[0].models).toHaveLength(0);
 	});
 
+	it("rejects a numeric value with a trailing suffix (e.g. '10abc') rather than coercing it", async () => {
+		const providers = [provider()];
+		const modal = openProviderEdit(providers);
+
+		mocks.genericInputPromptMock
+			.mockResolvedValueOnce("gpt-4o") // name
+			.mockResolvedValueOnce("10abc"); // parseInt would coerce this to 10
+
+		clickButtonByText(modal, "Add Model");
+		await vi.waitFor(() =>
+			expect(mocks.genericInputPromptMock).toHaveBeenCalledTimes(2),
+		);
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(providers[0].models).toHaveLength(0);
+	});
+
 	it("rejects an empty model name", async () => {
 		const providers = [provider()];
 		const modal = openProviderEdit(providers);

@@ -64,7 +64,10 @@ describe("ProviderPickerModal add behavior", () => {
 		const connectButtons = Array.from(
 			modal.contentEl.querySelectorAll<HTMLButtonElement>("button"),
 		).filter((b) => b.textContent === "Connect");
-		connectButtons[0]?.click();
+		// Assert the button exists so the test can't pass for the wrong reason
+		// (a missing button silently no-op'ing the click).
+		expect(connectButtons[0]).toBeDefined();
+		connectButtons[0].click();
 
 		// Still only the one pre-existing provider; the duplicate was refused.
 		expect(providers).toHaveLength(1);

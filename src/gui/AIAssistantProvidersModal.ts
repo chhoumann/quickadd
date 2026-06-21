@@ -248,11 +248,14 @@ export class AIAssistantProvidersModal extends Modal {
                         return;
                     }
 
-                    const parsedMaxTokens = parseInt(maxTokens, 10);
-                    if (!Number.isInteger(parsedMaxTokens) || parsedMaxTokens <= 0) {
+                    // Reject non-numeric input outright: parseInt would silently
+                    // accept "10abc" as 10. Require a plain positive integer.
+                    const normalizedMaxTokens = maxTokens.trim();
+                    if (!/^[1-9]\d*$/.test(normalizedMaxTokens)) {
                         new Notice("Max tokens must be a positive number.");
                         return;
                     }
+                    const parsedMaxTokens = Number(normalizedMaxTokens);
 
                     this.selectedProvider!.models.push({
                         name: trimmedName,

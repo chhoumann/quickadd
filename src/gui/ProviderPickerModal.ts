@@ -100,9 +100,16 @@ export class ProviderPickerModal extends Modal {
                 return;
               }
 
+              // Normalize before comparing so trivially-equivalent providers
+              // (case / surrounding space / a trailing slash on the endpoint)
+              // still count as duplicates.
+              const normName = (v: string) => v.trim().toLowerCase();
+              const normEndpoint = (v: string) =>
+                v.trim().toLowerCase().replace(/\/+$/, "");
               const alreadyExists = this.providers.some(
                 (p) =>
-                  p.name === preset.name && p.endpoint === preset.endpoint,
+                  normName(p.name) === normName(preset.name) &&
+                  normEndpoint(p.endpoint) === normEndpoint(preset.endpoint),
               );
               if (alreadyExists) {
                 new Notice(`${preset.name} is already configured.`);
