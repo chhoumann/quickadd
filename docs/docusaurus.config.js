@@ -2,7 +2,6 @@
 // Note: type annotations allow type checking and IDEs autocompletion
 
 const {themes} = require('prism-react-renderer');
-const yaml = require('js-yaml');
 const lightCodeTheme = themes.github;
 const darkCodeTheme = themes.dracula;
 
@@ -16,36 +15,6 @@ try {
 
 const latestStableVersion = docsVersions[0];
 
-function parseFrontMatterWithJsYaml({fileContent}) {
-  const contentWithoutBom = fileContent.replace(/^\uFEFF/, '');
-  const opener = /^---[ \t]*(?:\r?\n|$)/.exec(contentWithoutBom);
-  if (!opener) {
-    return {
-      frontMatter: {},
-      content: contentWithoutBom.trim(),
-    };
-  }
-
-  const afterOpener = contentWithoutBom.slice(opener[0].length);
-  const closer = /(?:^|\r?\n)---[ \t]*(?:\r?\n|$)/.exec(afterOpener);
-  if (!closer) {
-    throw new Error('Invalid YAML front matter fence');
-  }
-
-  const frontMatter = yaml.load(afterOpener.slice(0, closer.index)) ?? {};
-  if (
-    typeof frontMatter !== 'object' ||
-    Array.isArray(frontMatter)
-  ) {
-    throw new Error('Markdown front matter must be a YAML mapping');
-  }
-
-  return {
-    frontMatter,
-    content: afterOpener.slice(closer.index + closer[0].length).trim(),
-  };
-}
-
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'QuickAdd',
@@ -55,9 +24,6 @@ const config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
-  markdown: {
-    parseFrontMatter: async (params) => parseFrontMatterWithJsYaml(params),
-  },
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.

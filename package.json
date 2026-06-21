@@ -64,6 +64,9 @@
     "type": "git",
     "url": "https://github.com/chhoumann/quickadd.git"
   },
+  "engines": {
+    "node": ">=20.18.1"
+  },
   "packageManager": "pnpm@10.32.1",
   "pnpm": {
     "onlyBuiltDependencies": [
