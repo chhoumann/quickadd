@@ -25,7 +25,7 @@ const {
 	getMarkdownFilesWithTagMock: vi.fn(() => []),
 	getMarkdownFilesWithPropertyMock: vi.fn(() => []),
 	getUserScriptMock: vi.fn(),
-	getTemplateFileMock: vi.fn(() => null),
+	getTemplateFileMock: vi.fn((_app?: unknown, _path?: string) => null),
 	isFolderMock: vi.fn(() => false),
 	logWarningMock: vi.fn(),
 	logMessageMock: vi.fn(),
