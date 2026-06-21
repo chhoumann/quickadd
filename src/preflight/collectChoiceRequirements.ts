@@ -163,6 +163,31 @@ async function readTemplate(app: App, path: string): Promise<string> {
 	return file ? await app.vault.cachedRead(file) : "";
 }
 
+async function scanContentWithTemplateIncludes(
+	app: App,
+	collector: RequirementCollector,
+	content: string,
+	visitedTemplates = new Set<string>(),
+): Promise<void> {
+	// templatesToScan is a queue for this content scan. Clear it before and
+	// after scanning so refs from unrelated strings are not drained together.
+	collector.templatesToScan.clear();
+	await collector.scanString(content);
+	const nested = [...collector.templatesToScan];
+	collector.templatesToScan.clear();
+
+	for (const ref of nested) {
+		if (visitedTemplates.has(ref)) continue;
+		visitedTemplates.add(ref);
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			await readTemplate(app, ref),
+			visitedTemplates,
+		);
+	}
+}
+
 /**
  * Collects requirements from a template *source* path and (when resolvable) its
  * body. Shared by Template choices and Capture "create with template" so both
@@ -188,23 +213,12 @@ async function scanTemplateSource(
 		return;
 	}
 
-	const visited = new Set<string>();
-	const walk = async (path: string) => {
-		if (visited.has(path)) return;
-		visited.add(path);
-		const content = await readTemplate(app, path);
-		await collector.scanString(content);
-		// Snapshot and clear the shared discovery set BEFORE recursing: a nested
-		// walk() runs scanString again, which would otherwise mutate (and then
-		// clear) the very set we're iterating, dropping sibling/grandchild
-		// templates from the scan.
-		const nested = [...collector.templatesToScan];
-		collector.templatesToScan.clear();
-		for (const ref of nested) {
-			if (!visited.has(ref)) await walk(ref);
-		}
-	};
-	await walk(templatePath);
+	await scanContentWithTemplateIncludes(
+		app,
+		collector,
+		await readTemplate(app, templatePath),
+		new Set([templatePath]),
+	);
 }
 
 async function collectForTemplateChoice(
@@ -250,7 +264,11 @@ async function collectForCaptureChoice(
 	await collector.scanString(choice.captureTo);
 
 	if (choice.format?.enabled) {
-		await collector.scanString(choice.format.format);
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.format.format,
+		);
 	}
 
 	// Capture's "create file if it doesn't exist → with template" runs through

@@ -102,6 +102,158 @@ function createCaptureChoice(captureTo: string): ICaptureChoice {
 	};
 }
 
+describe("collectChoiceRequirements - template include scanning", () => {
+	const templateBodies = new Map<string, string>();
+	const cachedReadMock = vi.fn(
+		async (file: { path: string }) => templateBodies.get(file.path) ?? "",
+	);
+	const app = {
+		vault: {
+			cachedRead: cachedReadMock,
+		},
+		metadataCache: {
+			getFileCache: vi.fn(() => null),
+		},
+	} as unknown as App;
+	const plugin = {
+		settings: {
+			inputPrompt: "single-line",
+			globalVariables: {},
+			useSelectionAsCaptureValue: true,
+		},
+	} as any;
+
+	function createTemplateChoice(templatePath: string): ITemplateChoice {
+		return {
+			id: "template-choice",
+			name: "Template Choice",
+			type: "Template",
+			command: false,
+			templatePath,
+			fileNameFormat: { enabled: false, format: "" },
+			folder: {
+				enabled: false,
+				folders: [],
+				chooseWhenCreatingNote: false,
+				createInSameFolderAsActiveFile: false,
+				chooseFromSubfolders: false,
+			},
+			appendLink: false,
+			openFile: false,
+			fileOpening: {
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: true,
+			},
+			fileExistsBehavior: { kind: "prompt" },
+		} as ITemplateChoice;
+	}
+
+	beforeEach(() => {
+		templateBodies.clear();
+		cachedReadMock.mockClear();
+		getTemplateFileMock.mockReset();
+		getTemplateFileMock.mockImplementation((_app: App, path: string) =>
+			templateBodies.has(path) ? ({ path } as never) : null,
+		);
+	});
+
+	it("collects requirements from TEMPLATE includes in Capture formats", async () => {
+		templateBodies.set(
+			"Templates/Capture Format.md",
+			"Included value: {{VALUE:includedValue}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/Capture Format.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "includedValue" }),
+			]),
+		);
+		expect(cachedReadMock).toHaveBeenCalledWith(
+			expect.objectContaining({ path: "Templates/Capture Format.md" }),
+		);
+	});
+
+	it("recursively collects nested TEMPLATE includes in Capture formats", async () => {
+		templateBodies.set(
+			"Templates/Capture Outer.md",
+			"Outer {{TEMPLATE:Templates/Capture Inner.md}}",
+		);
+		templateBodies.set(
+			"Templates/Capture Inner.md",
+			"Inner {{VALUE:nestedIncludedValue}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/Capture Outer.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			captureChoice,
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "nestedIncludedValue" }),
+			]),
+		);
+	});
+
+	it("keeps recursive TEMPLATE scanning for Template choices", async () => {
+		templateBodies.set(
+			"Templates/Outer.md",
+			"Outer {{TEMPLATE:Templates/Inner.md}}",
+		);
+		templateBodies.set("Templates/Inner.md", "Inner {{VALUE:templateValue}}");
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createTemplateChoice("Templates/Outer.md"),
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "templateValue" }),
+			]),
+		);
+	});
+});
+
 describe("collectChoiceRequirements - macro script metadata", () => {
 	const app = {} as App;
 	const plugin = {} as any;
