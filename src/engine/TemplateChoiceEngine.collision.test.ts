@@ -43,8 +43,14 @@ vi.mock("../quickAddSettingsTab", () => {
 	};
 });
 
-const { formatFileNameMock, formatFileContentMock, formatTemplatePathMock } =
-	vi.hoisted(() => {
+const {
+	formatFileNameMock,
+	formatFileContentMock,
+	formatTemplatePathMock,
+	templateInsertApplyMock,
+	templateInsertConstructorMock,
+	templateInsertSetLinkToCurrentFileBehaviorMock,
+} = vi.hoisted(() => {
 		const formatName =
 			vi.fn<(format: string, prompt: string) => Promise<string>>();
 		const formatContent = vi
@@ -60,6 +66,9 @@ const { formatFileNameMock, formatFileContentMock, formatTemplatePathMock } =
 			formatFileNameMock: formatName,
 			formatFileContentMock: formatContent,
 			formatTemplatePathMock: formatPath,
+			templateInsertApplyMock: vi.fn(),
+			templateInsertConstructorMock: vi.fn(),
+			templateInsertSetLinkToCurrentFileBehaviorMock: vi.fn(),
 		};
 	});
 
@@ -110,6 +119,24 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
+vi.mock("./TemplateInsertEngine", () => {
+	class TemplateInsertEngineMock {
+		constructor(...args: unknown[]) {
+			templateInsertConstructorMock(...args);
+		}
+
+		setLinkToCurrentFileBehavior(behavior: "required" | "optional") {
+			templateInsertSetLinkToCurrentFileBehaviorMock(behavior);
+		}
+
+		async apply() {
+			return await templateInsertApplyMock();
+		}
+	}
+
+	return { TemplateInsertEngine: TemplateInsertEngineMock };
+});
+
 vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
 }));
@@ -149,12 +176,12 @@ const createTemplateChoice = (): ITemplateChoice => ({
 	fileExistsBehavior: { kind: "prompt" },
 });
 
-const createExistingFile = (path: string) => {
+const createExistingFile = (path: string, extension = "md") => {
 	const file = new TFile();
 	file.path = path;
 	file.name = path.split("/").pop() ?? path;
-	file.extension = "md";
-	file.basename = file.name.replace(/\.md$/, "");
+	file.extension = extension;
+	file.basename = file.name.replace(new RegExp(`\\.${extension}$`), "");
 	return file;
 };
 
@@ -193,9 +220,10 @@ const createEngine = () => {
 		consumeAbortSignal: vi.fn(),
 	};
 
+	const plugin = { settings: settingsStore.getState() } as any;
 	const engine = new TemplateChoiceEngine(
 		app,
-		{ settings: settingsStore.getState() } as any,
+		plugin,
 		createTemplateChoice(),
 		choiceExecutor,
 	);
@@ -203,7 +231,7 @@ const createEngine = () => {
 	formatFileNameMock.mockResolvedValue("Test Template");
 	formatFileContentMock.mockResolvedValue("");
 
-	return { app, engine };
+	return { app, engine, choiceExecutor, plugin };
 };
 
 describe("TemplateChoiceEngine collision behavior", () => {
@@ -213,6 +241,9 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		formatFileContentMock.mockReset();
 		formatTemplatePathMock.mockReset();
 		formatTemplatePathMock.mockImplementation(async (input: string) => input);
+		templateInsertApplyMock.mockReset();
+		templateInsertConstructorMock.mockReset();
+		templateInsertSetLinkToCurrentFileBehaviorMock.mockReset();
 		vi.mocked(GenericSuggester.Suggest).mockReset();
 	});
 
@@ -512,6 +543,112 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		expect(createSpy).toHaveBeenCalledWith(
 			"Test Template (1).md",
 			engine.choice.templatePath,
+		);
+	});
+
+	it.each([
+		["appendTop", "top"],
+		["appendBottom", "bottom"],
+	] as const)(
+		"delegates markdown %s collisions to TemplateInsertEngine",
+		async (mode, position) => {
+			const { app, choiceExecutor, engine, plugin } = createEngine();
+			const existingFile = createExistingFile("Test Template.md");
+			engine.choice.fileExistsBehavior = { kind: "apply", mode };
+
+			(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+				true,
+			);
+			(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+				existingFile,
+			);
+			templateInsertApplyMock.mockResolvedValue(existingFile);
+
+			const rawAppendSpy = vi.spyOn(
+				engine as unknown as {
+					appendToFileWithTemplate: () => Promise<TFile | null>;
+				},
+				"appendToFileWithTemplate",
+			);
+
+			await engine.run();
+
+			expect(rawAppendSpy).not.toHaveBeenCalled();
+			expect(templateInsertConstructorMock).toHaveBeenCalledWith(
+				app,
+				plugin,
+				existingFile,
+				engine.choice.templatePath,
+				position,
+				choiceExecutor,
+				engine.choice.templatePath,
+			);
+			expect(templateInsertSetLinkToCurrentFileBehaviorMock).toHaveBeenCalledWith(
+				"required",
+			);
+			expect(templateInsertApplyMock).toHaveBeenCalledTimes(1);
+		},
+	);
+
+	it("preserves optional LINKCURRENT behavior when append-link does not require an active file", async () => {
+		const { app, engine } = createEngine();
+		const existingFile = createExistingFile("Test Template.md");
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "appendBottom" };
+		engine.choice.appendLink = {
+			enabled: true,
+			requireActiveFile: false,
+			placement: "newLine",
+			destination: { type: "activeFile" },
+		};
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFile,
+		);
+		templateInsertApplyMock.mockResolvedValue(existingFile);
+
+		await engine.run();
+
+		expect(templateInsertSetLinkToCurrentFileBehaviorMock).toHaveBeenCalledWith(
+			"optional",
+		);
+	});
+
+	it("keeps non-markdown append collisions on the raw append path", async () => {
+		const { app, engine } = createEngine();
+		const existingFile = createExistingFile("Test Board.canvas", "canvas");
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "appendTop" };
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(
+			true,
+		);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			existingFile,
+		);
+
+		const rawAppendSpy = vi
+			.spyOn(
+				engine as unknown as {
+					appendToFileWithTemplate: (
+						file: TFile,
+						templatePath: string,
+						position: "top" | "bottom",
+					) => Promise<TFile | null>;
+				},
+				"appendToFileWithTemplate",
+			)
+			.mockResolvedValue(existingFile);
+
+		await engine.run();
+
+		expect(templateInsertConstructorMock).not.toHaveBeenCalled();
+		expect(templateInsertSetLinkToCurrentFileBehaviorMock).not.toHaveBeenCalled();
+		expect(rawAppendSpy).toHaveBeenCalledWith(
+			existingFile,
+			engine.choice.templatePath,
+			"top",
 		);
 	});
 

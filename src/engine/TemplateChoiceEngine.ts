@@ -43,6 +43,7 @@ import {
 import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
+import { TemplateInsertEngine } from "./TemplateInsertEngine";
 import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
@@ -188,6 +189,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					targetFilePath,
 					existingFile,
 					templatePath,
+					linkOptions,
 				));
 				if (!createdFile) {
 					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
@@ -352,6 +354,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		targetFilePath: string,
 		existingFile: TFile | null,
 		templatePath: string,
+		linkOptions: NormalizedAppendLinkOptions,
 	): Promise<{ createdFile: TFile | null; shouldAutoOpen: boolean }> {
 		const mode = getFileExistsMode(modeId);
 
@@ -362,6 +365,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						mode.id,
 						existingFile!,
 						templatePath,
+						linkOptions,
 					),
 					shouldAutoOpen: false,
 				};
@@ -406,19 +410,22 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		modeId: "appendTop" | "appendBottom" | "overwrite",
 		existingFile: TFile,
 		templatePath: string,
+		linkOptions: NormalizedAppendLinkOptions,
 	): Promise<TFile | null> {
 		switch (modeId) {
 			case "appendTop":
-				return await this.appendToFileWithTemplate(
+				return await this.appendToExistingFileWithTemplate(
 					existingFile,
 					templatePath,
 					"top",
+					linkOptions,
 				);
 			case "appendBottom":
-				return await this.appendToFileWithTemplate(
+				return await this.appendToExistingFileWithTemplate(
 					existingFile,
 					templatePath,
 					"bottom",
+					linkOptions,
 				);
 			case "overwrite":
 				return await this.overwriteFileWithTemplate(
@@ -426,6 +433,38 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					templatePath,
 				);
 		}
+	}
+
+	private async appendToExistingFileWithTemplate(
+		existingFile: TFile,
+		resolvedTemplatePath: string,
+		position: "top" | "bottom",
+		linkOptions: NormalizedAppendLinkOptions,
+	): Promise<TFile | null> {
+		if (existingFile.extension !== "md") {
+			return await this.appendToFileWithTemplate(
+				existingFile,
+				resolvedTemplatePath,
+				position,
+			);
+		}
+
+		const insertEngine = new TemplateInsertEngine(
+			this.app,
+			this.plugin,
+			existingFile,
+			resolvedTemplatePath,
+			position,
+			this.choiceExecutor,
+			resolvedTemplatePath,
+		);
+		insertEngine.setLinkToCurrentFileBehavior(
+			linkOptions.enabled && !linkOptions.requireActiveFile
+				? "optional"
+				: "required",
+		);
+
+		return await insertEngine.apply();
 	}
 
 	/**

@@ -104,11 +104,13 @@ export class TemplateInsertEngine extends TemplateEngine {
 		private readonly templatePath: string,
 		private readonly mode: TemplateInsertModeId,
 		choiceExecutor?: IChoiceExecutor,
+		resolvedTemplatePath?: string,
 	) {
 		super(app, plugin, choiceExecutor);
+		this.resolvedTemplatePath = resolvedTemplatePath ?? null;
 	}
 
-	private resolvedTemplatePath: string | null = null;
+	private resolvedTemplatePath: string | null;
 
 	public async run(): Promise<void> {
 		await this.apply();
