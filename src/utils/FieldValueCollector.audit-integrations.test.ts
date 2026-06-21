@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { App, TFile } from "obsidian";
+import { App } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import { collectFieldValuesProcessed } from "./FieldValueCollector";
 
@@ -21,15 +21,6 @@ const dataviewQuery = vi.fn(async () => ({
 vi.mock("obsidian-dataview", () => ({
 	getAPI: () => ({ query: dataviewQuery }),
 }));
-
-function makeFile(path: string): TFile {
-	const file = new TFile();
-	file.path = path;
-	file.name = path.split("/").pop() ?? path;
-	file.basename = file.name.replace(/\.md$/, "");
-	file.extension = "md";
-	return file;
-}
 
 describe("FieldValueCollector - exclude-file with Dataview installed (integrations audit)", () => {
 	beforeEach(() => {
