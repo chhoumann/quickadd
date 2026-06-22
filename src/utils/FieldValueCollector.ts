@@ -78,7 +78,12 @@ export async function collectFieldValuesRaw(
 		if (tagValues.size > 0) return tagValues;
 	}
 
-	// Try Dataview when allowed; fall back to manual collection
+	// Try Dataview when allowed; fall back to manual collection. Dataview's query
+	// builder can't express exclude-file, but getFieldValuesWithFilter now applies
+	// it by dropping excluded files' rows, so the Dataview path is kept (with its
+	// richer value parsing — comma-splitting, link/file objects) even when an
+	// exclude-file filter is present. Only the inline path still bypasses Dataview
+	// (inline fields aren't in Dataview's metadata).
 	try {
 		if (!filters.inline && DataviewIntegration.isAvailable(app)) {
 			const dvValues = await DataviewIntegration.getFieldValuesWithFilter(
