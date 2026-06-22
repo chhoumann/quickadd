@@ -11,6 +11,11 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private options: string[];
 	private caseSensitive: boolean;
 	private multiSelect: boolean;
+	// Fires with the exact item picked on each multi-select selection. The
+	// resulting ", "-joined input text is ambiguous when an option's label equals
+	// the join of two other option labels (e.g. "a", "b", and "a, b"); the
+	// per-pick event lets callers record an unambiguous ordered selection.
+	private onSelect?: (item: string) => void;
 
 	constructor(
 		app: App,
@@ -18,11 +23,13 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 		options: string[],
 		caseSensitive = false,
 		multiSelect = false,
+		onSelect?: (item: string) => void,
 	) {
 		super(app, inputEl);
 		this.options = options.map((option) => normalizeDisplayItem(option));
 		this.caseSensitive = caseSensitive;
 		this.multiSelect = multiSelect;
+		this.onSelect = onSelect;
 
 		// Add accessibility attribute for multi-select mode
 		if (this.multiSelect) {
@@ -91,6 +98,11 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private selectMultipleItem(item: string): void {
 		const { alreadySelected } = this.parseMultiSelectInput(this.inputEl.value);
 		alreadySelected.push(item);
+
+		// Report the exact picked item so callers can keep an unambiguous ordered
+		// selection (the joined text alone can't distinguish picking "a" then "b"
+		// from picking a single option literally named "a, b").
+		this.onSelect?.(item);
 
 		const hasMoreItems = this.getRemainingOptions(alreadySelected).length > 0;
 

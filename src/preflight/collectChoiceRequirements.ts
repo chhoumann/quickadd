@@ -525,7 +525,12 @@ export function getUnresolvedRequirements(
 	requirements: FieldRequirement[],
 	variables: Map<string, unknown>,
 ): FieldRequirement[] {
-	return requirements.filter(
-		(requirement) => !resolveExistingVariableKey(variables, requirement.id),
-	);
+	return requirements.filter((requirement) => {
+		const resolvedKey = resolveExistingVariableKey(variables, requirement.id);
+		// A variable explicitly set to null is unresolved (the documented rule is
+		// "missing or null"); resolveExistingVariableKey only rejects undefined,
+		// so re-check the resolved value here.
+		if (!resolvedKey) return true;
+		return variables.get(resolvedKey) == null;
+	});
 }

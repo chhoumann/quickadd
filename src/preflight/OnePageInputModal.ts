@@ -1,6 +1,7 @@
 import {
 	DropdownComponent,
 	Modal,
+	Notice,
 	Setting,
 	TextAreaComponent,
 	TextComponent,
@@ -39,6 +40,12 @@ export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
 	private readonly initialValues: Map<string, string>;
 	private readonly result = new Map<string, string>();
+	// Unambiguous ordered selections per multi-select field, recorded per-pick from
+	// the suggester (see SuggesterInputSuggest.onSelect). The ", "-joined input
+	// text alone can't distinguish picking "a" then "b" from picking a single
+	// option named "a, b"; consumers prefer this array when it still matches the
+	// final text (pure click flow), falling back to text parsing after manual edits.
+	public readonly multiSelections = new Map<string, string[]>();
 	// Date fields whose current (non-blank) text failed to parse.
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
@@ -114,6 +121,35 @@ export class OnePageInputModal extends Modal {
 			.addButton((btn) =>
 				btn.setButtonText("Cancel").onClick(() => this.cancel()),
 			);
+	}
+
+	onOpen() {
+		// Auto-focus the first field so keyboard-first users can start typing
+		// immediately, matching the single-field prompts.
+		const firstField = this.contentEl.querySelector<HTMLElement>(
+			"input, textarea, select",
+		);
+		firstField?.focus();
+
+		// Mod+Enter submits without reaching for the mouse. Guarded because the
+		// test mock's Modal has no scope.
+		const scope = (
+			this as unknown as {
+				scope?: {
+					register?: (
+						mods: string[],
+						key: string,
+						cb: () => boolean,
+					) => void;
+				};
+			}
+		).scope;
+		if (typeof scope?.register === "function") {
+			scope.register(["Mod"], "Enter", () => {
+				this.submit();
+				return false;
+			});
+		}
 	}
 
 	private renderField(req: FieldRequirement) {
@@ -501,6 +537,13 @@ export class OnePageInputModal extends Modal {
 							displayOptions,
 							caseSensitive,
 							multiSelect,
+							multiSelect
+								? (item) => {
+										const arr = this.multiSelections.get(req.id) ?? [];
+										arr.push(item);
+										this.multiSelections.set(req.id, arr);
+									}
+								: undefined,
 						);
 					} catch {
 						// Non-fatal; falls back to plain text input
@@ -555,6 +598,33 @@ export class OnePageInputModal extends Modal {
 		const requirementsById = new Map(
 			this.requirements.map((req) => [req.id, req]),
 		);
+
+		// A required date whose typed text failed to parse must not slip through:
+		// without a parse error the value would be silently dropped (and the
+		// script path has no sequential re-prompt to recover it). Block Submit and
+		// point the user at the offending field instead.
+		const erroredDate = this.requirements.find(
+			(req) =>
+				req.type === "date" &&
+				!req.optional &&
+				this.dateParseErrors.has(req.id),
+		);
+		if (erroredDate) {
+			new Notice(
+				`QuickAdd: "${erroredDate.label}" is not a valid date. Fix it or clear it before submitting.`,
+			);
+			return;
+		}
+
+		// Reconcile the per-pick multi-select arrays against the final text: if the
+		// user manually edited the field after picking (so the recorded picks no
+		// longer reproduce the text), drop the array and let the consumer fall back
+		// to text parsing. Otherwise the unambiguous picked order is authoritative.
+		for (const [id, picks] of this.multiSelections) {
+			const text = (this.result.get(id) ?? "").replace(/,\s*$/, "").trim();
+			if (picks.join(", ") !== text) this.multiSelections.delete(id);
+		}
+
 		this.result.forEach((v, k) => {
 			const requirement = requirementsById.get(k);
 

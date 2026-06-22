@@ -87,7 +87,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			};
 
 			const { value } = this.inputEl;
-			this.inputEl.value = values[selectedItem].item ?? value;
+			this.inputEl.value = values[selectedItem]?.item ?? value;
 		});
 
 		if (this.displayItems.length !== this.items.length) {

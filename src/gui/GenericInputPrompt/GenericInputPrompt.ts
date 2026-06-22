@@ -6,6 +6,21 @@ import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 
+/**
+ * The keyboard gesture that skips an optional prompt: ctrl/cmd+shift+Enter.
+ * Mirrors the optional suggesters' `Mod+Shift+Enter` skip binding so all
+ * optional prompt surfaces share one shortcut. Checking shift here is what keeps
+ * it from colliding with the wide prompt's ctrl/cmd+Enter submit (issue #1259).
+ */
+export function isSkipPromptShortcut(evt: KeyboardEvent): boolean {
+	return (
+		!evt.isComposing &&
+		evt.key === "Enter" &&
+		evt.shiftKey &&
+		(evt.ctrlKey || evt.metaKey)
+	);
+}
+
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
 
@@ -115,7 +130,7 @@ export default class GenericInputPrompt extends Modal {
 
 		if (this.isOptionalPrompt) {
 			const hintEl = this.contentEl.createDiv({
-				text: "Optional — leave empty or press Skip.",
+				text: "Optional — leave empty, press Skip, or ctrl/cmd+shift+↵.",
 				cls: "setting-item-description",
 			});
 			hintEl.setCssStyles({ marginBottom: "0.75rem" });
@@ -203,6 +218,13 @@ export default class GenericInputPrompt extends Modal {
 	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	protected submitEnterCallback = (evt: KeyboardEvent) => {
+		// Skip is checked first so ctrl/cmd+shift+Enter leaves the field empty
+		// instead of submitting (only on optional prompts).
+		if (this.isOptionalPrompt && isSkipPromptShortcut(evt)) {
+			evt.preventDefault();
+			this.skip();
+			return;
+		}
 		if (!evt.isComposing && evt.key === "Enter") {
 			evt.preventDefault();
 			this.submit();

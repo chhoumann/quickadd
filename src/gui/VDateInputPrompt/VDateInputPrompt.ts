@@ -1,5 +1,5 @@
 import type { App, Debouncer } from "obsidian";
-import { TextComponent, debounce } from "obsidian";
+import { Notice, TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
@@ -64,7 +64,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.dateFormat =
 			dateFormat || (this.withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 		this.defaultValue = defaultValue;
-		this.currentInput = defaultValue ?? "";
+		// super() (via display() -> createInputField) already hydrated the input
+		// element + this.currentInput to the restored draft (or the defaultValue
+		// when there is no draft). Seed currentInput from the actual input value
+		// so the initial preview reflects a restored draft instead of being
+		// clobbered back to the defaultValue.
+		this.currentInput = this.inputComponent?.inputEl?.value ?? defaultValue ?? "";
 
 		// Mount the picker here (NOT in createInputField, which runs during the
 		// super() display() call before this.withTime is set), so the time
@@ -183,7 +188,15 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			this.selectedIso = undefined;
 			this.lastPickerDisplayValue = undefined;
 			this.syncPickerSelection();
-			this.setPreviewText(VDateInputPrompt.PREVIEW_PLACEHOLDER, false);
+			// An optional blank is an intentional answer, so reassure the user it
+			// will be left empty (matching the one-page date field) rather than
+			// showing the neutral "Preview will appear here" placeholder.
+			this.setPreviewText(
+				this.isOptionalPrompt
+					? "Will be left empty"
+					: VDateInputPrompt.PREVIEW_PLACEHOLDER,
+				false,
+			);
 			return;
 		}
 
@@ -305,6 +318,13 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			if (parsed.isValid && parsed.isoString) {
 				return `@date:${parsed.isoString}`;
 			}
+			// The preview already shows this typed text is not a valid date; the
+			// raw value is handed back verbatim (so nothing is silently dropped),
+			// but surface a notice so the user/caller is not left without any
+			// signal that the date could not be parsed.
+			new Notice(
+				`QuickAdd: "${trimmed}" could not be parsed as a date; using it as-is.`,
+			);
 		}
 		return input;
 	}

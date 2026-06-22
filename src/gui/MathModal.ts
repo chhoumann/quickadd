@@ -20,7 +20,9 @@ export class MathModal extends Modal {
 	private didSubmit = false;
 
 	private keybindListener = (evt: KeyboardEvent) => {
-		if (evt.ctrlKey && evt.key === "Enter") {
+		// Accept Cmd+Enter on macOS as well as Ctrl+Enter, matching
+		// GenericWideInputPrompt; a bare Enter inserts a newline here.
+		if ((evt.ctrlKey || evt.metaKey) && evt.key === "Enter") {
 			this.submit();
 		}
 
@@ -71,6 +73,12 @@ export class MathModal extends Modal {
 		);
 
 		tc.inputEl.addEventListener("keydown", this.keybindListener);
+
+		const hintEl = this.contentEl.createDiv({
+			text: "Ctrl/Cmd+Enter to submit · Tab to jump to the cursor marker",
+			cls: "setting-item-description",
+		});
+		hintEl.setCssStyles({ marginTop: "0.5rem" });
 
 		this.createButtonBar(this.contentEl.createDiv());
 	}
@@ -144,7 +152,7 @@ export class MathModal extends Modal {
 
 	private resolveInput() {
 		const output = this.inputEl.value
-			.replace("\\n", `\\\\n`)
+			.replace(/\\n/g, `\\\\n`)
 			.replace(new RegExp(LATEX_CURSOR_MOVE_HERE, "g"), "");
 		if (!this.didSubmit) this.rejectPromise("No input given.");
 		else this.resolvePromise(output);
