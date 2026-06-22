@@ -84,7 +84,7 @@ appends the link to that focused property instead of using the stale editor
 cursor behind the Properties panel. Text properties receive the link at the end
 of the value, and list properties receive a new list item.
 
-**Link type**. Shown only when **Link placement** is **Replace selection**. Choose whether replacing the selection should insert a **Link** or an **Embed**.
+**Link type**. Shown for any **Current note** body placement — **Replace selection**, **After selection**, **End of line**, and **New line**. Choose whether QuickAdd inserts a **Link** (`[[Note]]`) or an **Embed** (`![[Note]]`). An embed transcludes the linked note's contents at the placement position, so for example **New line** + **Embed** drops `![[Note]]` on its own line. The inline placements (**After selection**, **End of line**) insert the embed inline on the same line. The **In frontmatter property** placement and the **Specified note** destination stay link-only.
 
 For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
 
