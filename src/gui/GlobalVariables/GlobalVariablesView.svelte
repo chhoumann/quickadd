@@ -23,13 +23,38 @@
     items = Object.keys(globals).map((k) => ({ name: k, value: globals[k] ?? "" }));
   }
 
+  // True while this component is writing its own (valid) edits to the store, so
+  // the store subscriber does not reload (and collapse) the rows the user is
+  // actively editing. Invalid states (empty or duplicate names) are never
+  // written at all (see persistToSettings), so they can't corrupt the store.
+  let suppressReload = false;
+
   function persistToSettings() {
+    // Never publish a lossy record. An empty name can't be keyed (it would be
+    // dropped) and duplicate names collapse last-wins — writing either to the
+    // store (and the debounced data.json save) is the data-loss footgun. While
+    // any name is empty or duplicated, keep the edit local and leave the
+    // previously-persisted values intact until the names are valid again.
+    // Validate and persist on TRIMMED names: the {{GLOBAL_VAR:<name>}} token
+    // trims the name before lookup, so a whitespace-only name ("   ") is
+    // effectively empty and "foo " collides with "foo". Treat both as
+    // invalid/duplicate (keep the edit local) and write trimmed, referenceable
+    // keys when valid.
+    const names = items.map((it) => it.name.trim());
+    const hasEmpty = names.some((n) => !n);
+    const hasDuplicate = new Set(names).size !== names.length;
+    if (hasEmpty || hasDuplicate) return;
+
     const next: Record<string, string> = {};
     for (const it of items) {
-      if (!it.name) continue;
-      next[it.name] = it.value ?? "";
+      next[it.name.trim()] = it.value ?? "";
     }
-    settingsStore.setState({ globalVariables: next });
+    suppressReload = true;
+    try {
+      settingsStore.setState({ globalVariables: next });
+    } finally {
+      suppressReload = false;
+    }
   }
 
   function addVariable() {
@@ -66,7 +91,12 @@
   }
 
   $effect(() => {
-    const unsubscribe = settingsStore.subscribe(() => loadFromSettings());
+    const unsubscribe = settingsStore.subscribe(() => {
+      // Ignore the store change this component just produced, so our own
+      // debounced persist does not reload over the rows being edited.
+      if (suppressReload) return;
+      loadFromSettings();
+    });
     loadFromSettings();
     return () => {
       if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);

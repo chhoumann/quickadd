@@ -278,11 +278,17 @@
 			const buildResult = await preparePackage();
 			if (!buildResult) return;
 
-			await writePackageToVault(app, buildResult.pkg, trimmedPath);
+			const { overwritten } = await writePackageToVault(
+				app,
+				buildResult.pkg,
+				trimmedPath,
+			);
+			const choiceCount = buildResult.pkg.choices.length;
+			const choiceLabel = `${choiceCount} choice${choiceCount === 1 ? "" : "s"}`;
 			new Notice(
-				`Saved package (${buildResult.pkg.choices.length} choice${
-					buildResult.pkg.choices.length === 1 ? "" : "s"
-				}) to '${trimmedPath}'.`,
+				overwritten
+					? `Overwrote package (${choiceLabel}) at '${trimmedPath}'.`
+					: `Saved package (${choiceLabel}) to '${trimmedPath}'.`,
 			);
 
 			if (exportWarnings) {
@@ -291,8 +297,15 @@
 				close();
 			}
 		} catch (error) {
+			const message = (error as Error)?.message ?? String(error);
+			// Declining the overwrite confirmation is a deliberate no-op, not a
+			// failure: surface it neutrally instead of "Save failed: Save cancelled: …".
+			if (message.startsWith("Save cancelled:")) {
+				new Notice("Save cancelled.");
+				return;
+			}
 			console.error(error);
-			new Notice(`Save failed: ${(error as Error)?.message ?? String(error)}`);
+			new Notice(`Save failed: ${message}`);
 		} finally {
 			actionInProgress = null;
 		}

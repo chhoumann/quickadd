@@ -15,6 +15,7 @@ import {
 	collectFileDependencies,
 } from "../utils/packageTraversal";
 import { log } from "../logger/logManager";
+import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import { decodeFromBase64, encodeToBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
@@ -238,17 +239,61 @@ function pruneChoiceTree(
 		});
 }
 
+export interface WritePackageOptions {
+	/**
+	 * Invoked when the target path already exists, so the caller can confirm the
+	 * overwrite before any data is replaced. Returning false aborts the write
+	 * (writePackageToVault throws so the caller can report a clean cancellation).
+	 * Defaults to a Yes/No prompt. Injectable for tests / non-interactive callers.
+	 */
+	confirmOverwrite?: (normalizedPath: string) => Promise<boolean>;
+}
+
+export interface WritePackageResult {
+	overwritten: boolean;
+}
+
+async function defaultConfirmOverwrite(
+	app: App,
+	normalizedPath: string,
+): Promise<boolean> {
+	try {
+		return await GenericYesNoPrompt.Prompt(
+			app,
+			"Overwrite existing file?",
+			`A file already exists at '${normalizedPath}'. Saving the package will overwrite it. Continue?`,
+		);
+	} catch {
+		// Dismissing the prompt (Esc) is treated as "do not overwrite".
+		return false;
+	}
+}
+
 export async function writePackageToVault(
 	app: App,
 	pkg: QuickAddPackage,
 	outputPath: string,
-): Promise<void> {
+	options: WritePackageOptions = {},
+): Promise<WritePackageResult> {
 	const normalizedPath = normalizePath(outputPath.trim());
 	if (!normalizedPath) {
 		throw new Error("Output path cannot be empty.");
 	}
 
+	const overwriting = await app.vault.adapter.exists(normalizedPath);
+	if (overwriting) {
+		const confirm =
+			options.confirmOverwrite ??
+			((path: string) => defaultConfirmOverwrite(app, path));
+		const confirmed = await confirm(normalizedPath);
+		if (!confirmed) {
+			throw new Error(`Save cancelled: '${normalizedPath}' already exists.`);
+		}
+	}
+
 	await ensureParentFolders(app, normalizedPath);
 	const serialized = JSON.stringify(pkg, null, 2);
 	await app.vault.adapter.write(normalizedPath, serialized);
+
+	return { overwritten: overwriting };
 }
