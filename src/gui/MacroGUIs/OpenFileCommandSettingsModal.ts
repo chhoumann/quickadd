@@ -32,8 +32,11 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	onClose() {
 		super.onClose();
+		// Dismissing via Esc / click-outside / X discards edits (resolve null),
+		// matching the sibling Conditional/Branch modals. Only the Save button
+		// commits the working copy (it resolves before close()).
 		if (!this.isResolved) {
-			this.resolvePromise(this.command);
+			this.resolvePromise(null);
 			this.isResolved = true;
 		}
 	}

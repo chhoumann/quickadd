@@ -364,7 +364,12 @@ export class CommandSequenceEditor {
 				this.scriptCandidates,
 				selector,
 			);
-			if (!resolved) return;
+			if (!resolved) {
+				new Notice(
+					`QuickAdd: No script or js-block note named "${value}" found.`
+				);
+				return;
+			}
 
 			if (resolved.isMarkdown) {
 				const reason = await noteScriptError(this.app, resolved.file);
@@ -440,7 +445,10 @@ export class CommandSequenceEditor {
 		const addChoiceFromInput = () => {
 			const value: string = input.getValue();
 			const choice = this.choices.find((c) => c.name === value);
-			if (!choice) return;
+			if (!choice) {
+				new Notice(`QuickAdd: No choice named "${value}".`);
+				return;
+			}
 
 			this.addCommand(new ChoiceCommand(choice.name, choice.id));
 

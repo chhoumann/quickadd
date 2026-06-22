@@ -37,7 +37,9 @@
 
     function onTimeInput(e: Event & { currentTarget: HTMLInputElement }) {
         const next = e.currentTarget.valueAsNumber;
-        time = Number.isNaN(next) ? 0 : next;
+        // Coerce NaN (empty/invalid) to 0 and clamp negatives: a negative wait is
+        // nonsensical (setTimeout treats it as 0) and the label would read "for -50 ms".
+        time = Number.isNaN(next) || next < 0 ? 0 : next;
         resizeInput();
         onUpdateCommand({ ...command, time });
     }
@@ -46,7 +48,7 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandLabel">{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" placeholder="   " value={time} class="dotInput" aria-label="Wait duration in milliseconds">ms</span>
+    <span class="quickAddCommandLabel">{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" min="0" placeholder="   " value={time} class="dotInput" aria-label="Wait duration in milliseconds">ms</span>
     <div class="quickAddCommandControls">
         <IconButton
             iconId="trash-2"
