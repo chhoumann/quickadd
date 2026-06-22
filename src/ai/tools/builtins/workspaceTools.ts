@@ -18,7 +18,12 @@ export function createWorkspaceTools(
 			readOnly: true,
 			execute: async () => {
 				const file = app.workspace.getActiveFile();
-				if (!(file instanceof TFile)) return { active: null };
+				// Only markdown notes count as the "active note": getActiveFile()
+				// returns a TFile for ANY active file (PDF, image, canvas, …), and
+				// cachedRead-ing those would feed raw/binary bytes into the transcript.
+				if (!(file instanceof TFile) || file.extension !== "md") {
+					return { active: null };
+				}
 				const content = await app.vault.cachedRead(file);
 				return {
 					active: {

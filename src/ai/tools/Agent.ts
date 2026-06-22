@@ -12,6 +12,7 @@ import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { settingsStore } from "../../settingsStore";
 import { CompleteFormatter } from "../../formatters/completeFormatter";
+import { makeNoticeHandler } from "../makeNoticeHandler";
 import { MacroAbortError } from "../../errors/MacroAbortError";
 import { getModelByName, getModelProvider } from "../aiHelpers";
 import type { Model } from "../Provider";
@@ -193,48 +194,83 @@ export class Agent {
 			Math.min(this.config.maxSteps ?? DEFAULT_MAX_STEPS, MAX_STEPS_CEILING),
 		);
 
-		const loop = await runToolLoop({
-			request,
-			maxSteps,
-			dispatch: async (req, ctx) => {
-				const turnReq = this.buildTurnRequest(req, ctx.isFinalStep, responseFormat);
-				const cr = await chatRequest(
-					this.app,
-					apiKey,
+		// Mirror the legacy ai.prompt status surface (makeNoticeHandler): a single
+		// persistent Notice updated through the multi-step run, only when the
+		// "Show assistant messages" setting is on. No-op handler otherwise.
+		const notice = makeNoticeHandler(pluginSettings.ai.showAssistant);
+		notice.setMessage("starting", "QuickAdd is running the AI agent.");
+
+		try {
+			const loop = await runToolLoop({
+				request,
+				maxSteps,
+				dispatch: async (req, ctx) => {
+					const turnReq = this.buildTurnRequest(req, ctx.isFinalStep, responseFormat);
+					const cr = await chatRequest(
+						this.app,
+						apiKey,
+						model,
+						turnReq,
+						restoreCursor,
+					);
+					return toParsed(cr);
+				},
+				getTool: (name) => registry.get(name),
+				confirm: (call, tool) => this.confirm(call, tool),
+				validateArgs: (tool, args) =>
+					validateValue(args, tool.definition.parameters),
+				isAbortError,
+				isContextOverflow: (e) => classifyProviderError(e) === "input_context",
+				isOnlineDisabled: () => settingsStore.getState().disableOnlineFeatures,
+				shouldStop: this.buildShouldStop(),
+				onStepFinish: (step) => this.reportStep(notice, step),
+			});
+
+			const result = this.toGenerateResult(loop);
+
+			if (options.schema) {
+				result.object = await this.resolveStructuredObject(
+					loop,
+					request,
 					model,
-					turnReq,
+					apiKey,
+					options.schema,
 					restoreCursor,
 				);
-				return toParsed(cr);
-			},
-			getTool: (name) => registry.get(name),
-			confirm: (call, tool) => this.confirm(call, tool),
-			validateArgs: (tool, args) =>
-				validateValue(args, tool.definition.parameters),
-			isAbortError,
-			isContextOverflow: (e) => classifyProviderError(e) === "input_context",
-			isOnlineDisabled: () => settingsStore.getState().disableOnlineFeatures,
-			shouldStop: this.buildShouldStop(),
-		});
+			}
 
-		const result = this.toGenerateResult(loop);
+			if (
+				typeof options.assignToVariable === "string" &&
+				options.assignToVariable
+			) {
+				this.assignVariable(options.assignToVariable, result.text);
+			}
 
-		if (options.schema) {
-			result.object = await this.resolveStructuredObject(
-				loop,
-				request,
-				model,
-				apiKey,
-				options.schema,
-				restoreCursor,
+			notice.setMessage(
+				"finished",
+				`Ran ${result.steps.length} step${result.steps.length === 1 ? "" : "s"}.`,
 			);
-		}
+			window.setTimeout(() => notice.hide(), 5000);
 
-		if (typeof options.assignToVariable === "string" && options.assignToVariable) {
-			this.assignVariable(options.assignToVariable, result.text);
+			return result;
+		} catch (error) {
+			notice.setMessage("dead", (error as { message?: string })?.message ?? "");
+			window.setTimeout(() => notice.hide(), 5000);
+			throw error;
 		}
+	}
 
-		return result;
+	/** Emit a per-step progress Notice mirroring the legacy ai.prompt status surface. */
+	private reportStep(
+		notice: { setMessage: (status: string, msg: string) => void },
+		step: LoopStep,
+	): void {
+		const toolNames = step.toolCalls.map((c) => c.name);
+		const msg =
+			toolNames.length > 0
+				? `Step ${step.stepNumber + 1}: running ${toolNames.join(", ")}.`
+				: `Step ${step.stepNumber + 1}: generating a response.`;
+		notice.setMessage("thinking", msg);
 	}
 
 	// --- request assembly -------------------------------------------------
@@ -338,9 +374,15 @@ export class Agent {
 		call: { id: string; name: string; args: Record<string, unknown> | null },
 		tool: ToolEntry,
 	): Promise<boolean> {
-		const needs = await this.needsConfirmation(tool, call.args ?? {});
+		const args = call.args ?? {};
+		// A tool's own needsApproval:true is the safety floor — it is "always ask"
+		// regardless of the global setting AND regardless of "Approve all this run",
+		// so we never let an allow-all click bypass it (a later destructive write tool
+		// the author marked needsApproval:true must still be re-confirmed).
+		const perToolFloor = await this.resolvePerToolApproval(tool, args);
+		const needs = perToolFloor || this.needsGlobalConfirmation(tool);
 		if (!needs) return true;
-		if (this.approveAllThisRun) return true;
+		if (this.approveAllThisRun && !perToolFloor) return true;
 
 		const outcome = await AIToolConfirmModal.Prompt(
 			this.app,
@@ -357,18 +399,22 @@ export class Agent {
 		return outcome === "allow";
 	}
 
-	private async needsConfirmation(
+	/**
+	 * Resolve a tool's OWN needsApproval gate (the "always ask" floor). True here
+	 * means the call must be confirmed even under "Approve all this run".
+	 */
+	private async resolvePerToolApproval(
 		tool: ToolEntry,
 		args: Record<string, unknown>,
 	): Promise<boolean> {
 		const declared = this.config.tools?.[tool.definition.name];
 		const perTool = declared?.needsApproval;
-		const resolved =
-			typeof perTool === "function"
-				? await perTool({ args })
-				: perTool === true;
-		if (resolved) return true; // a tool's own approval is the floor — always confirm
+		return typeof perTool === "function"
+			? await perTool({ args })
+			: perTool === true;
+	}
 
+	private needsGlobalConfirmation(tool: ToolEntry): boolean {
 		// Default to "destructive" when the persisted value is missing: main.ts
 		// shallow-merges loadedData, so an existing user's pre-`confirmToolCalls`
 		// `ai` object replaces DEFAULT_SETTINGS.ai wholesale and leaves this

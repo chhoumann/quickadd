@@ -182,7 +182,13 @@ export async function runToolLoop(
 			return finish("aborted");
 		}
 
-		const isFinalStep = forceFinal || step === maxSteps - 1;
+		// A step is final because the budget ran out (step ceiling) OR because a
+		// prior step tripped stopWhen / the transcript-bytes ceiling (forceFinal).
+		// Track WHICH so the early-return branch can report 'max-steps' only when the
+		// budget forced it — the residual-toolCalls heuristic is unreachable via the
+		// Agent, which strips tools on the final step (tools:undefined/toolChoice:'none').
+		const budgetForcedFinal = step === maxSteps - 1;
+		const isFinalStep = forceFinal || budgetForcedFinal;
 		const turnReq: NormalizedChatRequest = {
 			...deps.request,
 			messages,
@@ -224,13 +230,23 @@ export async function runToolLoop(
 				usage: turn.usage,
 			});
 			await deps.onStepFinish?.(steps[steps.length - 1]);
-			// On the forced-final step the model can't actually run tools, so we land here.
+			// 'length' is a genuine provider output-cutoff signal and takes precedence.
+			// Otherwise report 'max-steps' only when the budget (step ceiling) forced
+			// this final step after at least one tool-using step — and no graceful stop
+			// (stopWhen / transcript-bytes) had already pre-empted it. Reaching a
+			// budget-forced final step at step > 0 means every prior step made tool
+			// calls (else the loop returns "stop" earlier), so the budget genuinely cut
+			// off an in-progress agentic run. A model that simply stopped, a single-turn
+			// (maxSteps 1) answer, or a stopWhen/transcript-forced wrap-up is 'stop'.
+			// (The Agent strips tools on the final step, so the model can no longer emit
+			// tool calls here; deriving max-steps from residual toolCalls was unreachable
+			// through the Agent.)
 			const reason: LoopFinishReason =
 				turn.normalizedStopReason === "length"
 					? "length"
-					: !isFinalStep || turn.toolCalls.length === 0
-						? "stop"
-						: "max-steps";
+					: budgetForcedFinal && !forceFinal && step > 0
+						? "max-steps"
+						: "stop";
 			return finish(reason);
 		}
 
