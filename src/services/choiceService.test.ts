@@ -571,8 +571,27 @@ describe("choiceService", () => {
 			const registry = new CommandRegistry(plugin);
 			const choice = createChoice("Template", "T");
 			registry.disableCommand(choice);
+			// Toggle-off path: no recursive flag, so a folder's children keep
+			// their still-enabled commands.
 			expect(removeCommandForChoice).toHaveBeenCalledWith(choice);
 			expect(addCommandForChoice).not.toHaveBeenCalled();
+		});
+
+		it("disableCommand forwards { recursive: true } for a folder delete", () => {
+			const addCommandForChoice = vi.fn();
+			const removeCommandForChoice = vi.fn();
+			const plugin = {
+				addCommandForChoice,
+				removeCommandForChoice,
+			} as unknown as QuickAdd;
+			const registry = new CommandRegistry(plugin);
+			const folder = createChoice("Multi", "Folder");
+			registry.disableCommand(folder, { recursive: true });
+			// Delete path: the whole subtree is gone, so recurse to unregister
+			// command-enabled descendants too.
+			expect(removeCommandForChoice).toHaveBeenCalledWith(folder, {
+				recursive: true,
+			});
 		});
 
 		it("updateCommand removes the old choice then adds the new one in order", () => {

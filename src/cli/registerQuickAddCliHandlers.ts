@@ -354,6 +354,9 @@ async function runResolvedChoice(
 					command,
 					choice: describeChoice(choice),
 					file: outcome.file?.path,
+					// The outcome path confirms the engine actually completed (a file
+					// was created / capture written), so this success is verified.
+					verified: true,
 					durationMs,
 				});
 			}
@@ -398,6 +401,13 @@ async function runResolvedChoice(
 			ok: true,
 			command,
 			choice: describeChoice(choice),
+			// Legacy void-execute path: the Template/Capture engines swallow runtime
+			// failures (empty file name, failing inline script, write error) without
+			// signalling abort, so a resolving execute() does NOT guarantee a file was
+			// created. Flag the success as unverified so scripts keying retry/notify
+			// logic off `ok` can tell it apart from the verified outcome path (and use
+			// quickadd:check up front, or quickadd:run-template for a verified create).
+			verified: false,
 			durationMs,
 		});
 	} catch (error) {
@@ -669,14 +679,14 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 
 	register(
 		CLI_COMMANDS.runDefault,
-		"Run a QuickAdd choice",
+		"Run a QuickAdd choice (ok:true reports the choice ran without aborting; check the verified flag to know if a file was created)",
 		RUN_FLAGS,
 		(params: CliData) =>
 			runChoiceHandler(plugin, params, CLI_COMMANDS.runDefault),
 	);
 	register(
 		CLI_COMMANDS.run,
-		"Run a QuickAdd choice",
+		"Run a QuickAdd choice (ok:true reports the choice ran without aborting; check the verified flag to know if a file was created)",
 		RUN_FLAGS,
 		(params: CliData) => runChoiceHandler(plugin, params, CLI_COMMANDS.run),
 	);

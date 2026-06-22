@@ -17,6 +17,7 @@ import { MacroChoice } from "../types/choices/MacroChoice";
 import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { regenerateIds } from "../utils/macroUtils";
+import { flattenChoices } from "../utils/choiceUtils";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
@@ -215,16 +216,21 @@ export async function deleteChoiceWithConfirmation(
 	const isMulti = choice.type === "Multi";
 	const isMacro = choice.type === "Macro";
 
+	// Count the FULL subtree (flattenChoices includes the folder itself, so drop it),
+	// not just direct children — a recursive delete removes everything nested. Special-
+	// case 0 (no scary "delete all (0) choices") and pluralize correctly.
+	const buildMultiWarning = (multi: IMultiChoice): string => {
+		const descendantCount = flattenChoices(multi.choices).length;
+		if (descendantCount === 0) return "";
+		const noun = descendantCount === 1 ? "choice" : "choices";
+		return `Deleting this choice will delete all (${descendantCount}) ${noun} inside it (including nested folders)!`;
+	};
+
 	const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(
 		app,
 		`Confirm deletion of choice`,
 		`Please confirm that you wish to delete '${choice.name}'.
-            ${isMulti
-			? "Deleting this choice will delete all (" +
-			(choice as IMultiChoice).choices.length +
-			") choices inside it!"
-			: ""
-		}
+            ${isMulti ? buildMultiWarning(choice as IMultiChoice) : ""}
             ${isMacro
 			? "Deleting this choice will delete its macro commands!"
 			: ""
@@ -292,11 +298,19 @@ export class CommandRegistry {
 		this.plugin.addCommandForChoice(choice);
 	}
 
-	disableCommand(choice: IChoice): void {
-		this.plugin.removeCommandForChoice(choice);
+	disableCommand(choice: IChoice, options?: { recursive?: boolean }): void {
+		// Pass `recursive` through only when supplied (a folder DELETE) so the
+		// common, non-recursive case keeps its single-argument call shape.
+		if (options) {
+			this.plugin.removeCommandForChoice(choice, options);
+		} else {
+			this.plugin.removeCommandForChoice(choice);
+		}
 	}
 
 	updateCommand(oldChoice: IChoice, newChoice: IChoice): void {
+		// Non-recursive remove: the children remain and addCommandForChoice below
+		// re-registers any command-enabled descendants of newChoice.
 		this.plugin.removeCommandForChoice(oldChoice);
 		this.plugin.addCommandForChoice(newChoice);
 	}
@@ -334,6 +348,30 @@ export function moveChoice(
 	// Insert at end of the target multi
 	const inserted = insertIntoMulti(withoutMoving, targetMultiId, removed);
 	return inserted ?? rootChoices;
+}
+
+/**
+ * Move a choice OUT of its folder back to the top level (appended at root).
+ * Immutable; returns a new roots array. No-op when the choice is missing or is
+ * already at the top level. The counterpart to `moveChoice` (which only moves INTO
+ * folders) — gives keyboard/menu users a way out that drag offers only via pointer.
+ */
+export function moveChoiceToRoot(
+	rootChoices: IChoice[],
+	movingId: string,
+): IChoice[] {
+	if (!movingId) return rootChoices;
+
+	// Already at root: nothing to do.
+	if (rootChoices.some((c) => c.id === movingId)) return rootChoices;
+
+	const { updated: withoutMoving, removed } = removeChoiceById(
+		rootChoices,
+		movingId,
+	);
+	if (!removed) return rootChoices;
+
+	return [...withoutMoving, removed];
 }
 
 /**
@@ -410,6 +448,44 @@ export function insertIntoMulti(
 		}
 		if (c.type !== "Multi") return c;
 		const inner = insertIntoMulti((c as IMultiChoice).choices, targetId, child);
+		if (inner) {
+			changed = true;
+			return { ...(c as IMultiChoice), choices: inner } as IChoice;
+		}
+		return c;
+	});
+
+	return changed ? updated : undefined;
+}
+
+/**
+ * Immutably insert `newChoice` immediately after the choice with id `afterId`,
+ * keeping it in the SAME parent (root or folder) as its sibling. Only the touched
+ * branch is recreated (siblings keep their identity). Returns `undefined` when no
+ * such sibling exists, so callers can fall back to a root append. Used by the
+ * duplicate action so the copy lands next to its source instead of at the bottom
+ * of the root list.
+ */
+export function insertChoiceAfter(
+	choices: IChoice[],
+	afterId: string,
+	newChoice: IChoice,
+): IChoice[] | undefined {
+	const index = choices.findIndex((c) => c.id === afterId);
+	if (index !== -1) {
+		const updated = [...choices];
+		updated.splice(index + 1, 0, newChoice);
+		return updated;
+	}
+
+	let changed = false;
+	const updated = choices.map((c) => {
+		if (c.type !== "Multi") return c;
+		const inner = insertChoiceAfter(
+			(c as IMultiChoice).choices,
+			afterId,
+			newChoice,
+		);
 		if (inner) {
 			changed = true;
 			return { ...(c as IMultiChoice), choices: inner } as IChoice;

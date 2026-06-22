@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { Modal, Setting } from "obsidian";
+import { Modal, Notice, Setting } from "obsidian";
 import { normalizeDisplayItem } from "../suggesters/utils";
 
 export interface MultiSuggesterOptions {
@@ -30,6 +30,10 @@ export default class MultiSuggester extends Modal {
 	private readonly opts: MultiSuggesterOptions;
 	private readonly selected = new Set<string>();
 	private readonly customValues: string[] = [];
+	// The in-progress custom-value text. Held on the instance (not a render-scoped
+	// local) so submit() can fold an un-"Add"ed draft into the result instead of
+	// silently dropping it.
+	private draft = "";
 
 	public static Suggest(
 		app: App,
@@ -83,27 +87,26 @@ export default class MultiSuggester extends Modal {
 		}
 
 		if (this.opts.allowCustomValue) {
-			let draft = "";
 			new Setting(contentEl)
 				.setName("Add a custom value")
-				.addText((text) =>
+				.addText((text) => {
 					text
 						.setPlaceholder("Not in the list…")
-						.onChange((v) => (draft = v)),
-				)
-				.addButton((btn) =>
-					btn.setButtonText("Add").onClick(() => {
-						const trimmed = draft.trim();
-						if (!trimmed) return;
-						if (
-							!this.items.includes(trimmed) &&
-							!this.customValues.includes(trimmed)
-						) {
-							this.customValues.push(trimmed);
+						.setValue(this.draft)
+						.onChange((v) => (this.draft = v));
+					text.inputEl.addClass("qa-multi-custom-input");
+					// Enter is the natural "commit this value" gesture; without it the
+					// typed value is only added by the explicit "Add" button and is
+					// otherwise silently lost.
+					text.inputEl.addEventListener("keydown", (evt) => {
+						if (evt.key === "Enter") {
+							evt.preventDefault();
+							this.commitDraft();
 						}
-						this.selected.add(trimmed);
-						this.render();
-					}),
+					});
+				})
+				.addButton((btn) =>
+					btn.setButtonText("Add").onClick(() => this.commitDraft()),
 				);
 		}
 
@@ -128,7 +131,61 @@ export default class MultiSuggester extends Modal {
 		}
 	}
 
+	/**
+	 * Commit the current custom-value draft into the selection. Returns `false`
+	 * (with a Notice) for blank or duplicate input so the user gets feedback instead
+	 * of a silent no-op; on success the draft is cleared and the list re-rendered with
+	 * focus restored to the custom-value field for rapid multi-add.
+	 */
+	private commitDraft(): boolean {
+		const trimmed = this.draft.trim();
+		if (!trimmed) {
+			new Notice("Enter a value to add.");
+			return false;
+		}
+		const alreadySelected =
+			(this.items.includes(trimmed) || this.customValues.includes(trimmed)) &&
+			this.selected.has(trimmed);
+		if (alreadySelected) {
+			new Notice(`"${trimmed}" is already added.`);
+			return false;
+		}
+		if (
+			!this.items.includes(trimmed) &&
+			!this.customValues.includes(trimmed)
+		) {
+			this.customValues.push(trimmed);
+		}
+		this.selected.add(trimmed);
+		this.draft = "";
+		this.render();
+		// render() rebuilds contentEl, dropping focus from the (now-recreated) custom
+		// input; restore it so adding several values in a row stays fluid.
+		this.focusCustomInput();
+		return true;
+	}
+
+	private focusCustomInput(): void {
+		const input = this.contentEl.querySelector<HTMLInputElement>(
+			".qa-multi-custom-input",
+		);
+		input?.focus();
+	}
+
 	private submit() {
+		// Fold any non-empty, un-"Add"ed draft into the selection so a user who typed a
+		// value and pressed Done (the common submit gesture) doesn't silently lose it.
+		if (this.opts.allowCustomValue && this.draft.trim()) {
+			const trimmed = this.draft.trim();
+			if (
+				!this.items.includes(trimmed) &&
+				!this.customValues.includes(trimmed)
+			) {
+				this.customValues.push(trimmed);
+			}
+			this.selected.add(trimmed);
+			this.draft = "";
+		}
 		this.didSubmit = true;
 		this.close();
 	}

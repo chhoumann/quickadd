@@ -6,6 +6,40 @@ import type IMultiChoice from "src/types/choices/IMultiChoice";
 export type MoveTarget = { id: string; path: string };
 
 /**
+ * Sentinel target id for "Move to: (root)". Passed through the existing `onMove`
+ * action (so no new wiring is needed in the row components); the ChoiceView handler
+ * recognises it and re-appends the choice at the top level. The constant prefix
+ * cannot collide with a real uuid-keyed choice.
+ */
+export const MOVE_TO_ROOT_TARGET_ID = "quickadd:move-to-root";
+
+/**
+ * True when `choice` lives inside a Multi (folder) rather than at the top level of
+ * `roots`. Drives whether the "Move to: (root)" affordance is offered — there is
+ * nowhere to move a choice that is already at root.
+ */
+export function isChoiceNested(
+  choice: IChoice,
+  roots: IChoice[] | undefined,
+): boolean {
+  const source: IChoice[] = Array.isArray(roots) ? roots : [];
+  if (source.some((c) => c.id === choice.id)) return false;
+
+  const walk = (list: IChoice[]): boolean => {
+    for (const c of list) {
+      if (c.type === "Multi") {
+        const children = (c as IMultiChoice).choices ?? [];
+        if (children.some((child) => child.id === choice.id)) return true;
+        if (walk(children)) return true;
+      }
+    }
+    return false;
+  };
+
+  return walk(source);
+}
+
+/**
  * Compute eligible Multi targets for moving `moving` into, excluding self and descendants.
  * Returns label paths as "Parent / Child".
  */
@@ -83,6 +117,17 @@ function buildChoiceMenu(
     .addItem((item) => item.setTitle("Duplicate").setIcon("copy").onClick(actions.onDuplicate))
     .addItem((item) => item.setTitle("Delete").setIcon("trash-2").onClick(actions.onDelete))
     .addSeparator();
+
+  // Offer a way back OUT of a folder for keyboard/menu users (cross-zone drag is
+  // pointer-only). Only meaningful when the choice is currently nested.
+  if (isChoiceNested(choice, roots)) {
+    menu.addItem((item) =>
+      item
+        .setTitle("Move to: (root)")
+        .setIcon("folder-up")
+        .onClick(() => actions.onMove(MOVE_TO_ROOT_TARGET_ID)),
+    );
+  }
 
   const targets = computeEligibleMultiTargets(choice, roots);
   if (targets.length === 0) {
