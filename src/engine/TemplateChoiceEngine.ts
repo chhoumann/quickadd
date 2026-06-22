@@ -1,5 +1,5 @@
 import type { App, WorkspaceLeaf } from "obsidian";
-import { TFile } from "obsidian";
+import { Notice, TFile } from "obsidian";
 import invariant from "src/utils/invariant";
 import { VALUE_SYNTAX } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
@@ -45,6 +45,7 @@ import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
 import { UserCancelError } from "../errors/UserCancelError";
+import { MacroAbortError } from "../errors/MacroAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
 
@@ -163,6 +164,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
+			let createdNew = false;
 			if (await this.app.vault.adapter.exists(targetFilePath)) {
 				const modeId = await this.getSelectedFileExistsMode();
 				const mode = getFileExistsMode(modeId);
@@ -206,6 +208,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					log.logWarning(`Could not create file '${targetFilePath}'.`);
 					return;
 				}
+				createdNew = true;
 			}
 
 			// File is created/resolved (the commit point). Record success before
@@ -217,25 +220,44 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			});
 
 			if (linkOptions.enabled && createdFile) {
-				if (linkOptions.destination.type === "specifiedFile") {
-					await appendFileLinkToDestinationFile(
-						this.app,
-						createdFile,
-						linkOptions,
-					);
-				} else if (placementSupportsFrontmatter(linkOptions.placement)) {
-					await insertFileLinkToActiveView(this.app, createdFile, linkOptions);
-				} else if (this.choiceExecutor.focusedProperty) {
-					await appendLinkToFrontmatterProperty(
-						this.app,
-						this.choiceExecutor.focusedProperty,
-						createdFile,
-					);
-				} else {
-					await insertFileLinkToActiveView(
-						this.app,
-						createdFile,
-						linkOptions,
+				// The note is already committed (success recorded above). A link
+				// failure here — most commonly strict "Link to created file" with no
+				// active Markdown view — must not surface as "Error running template
+				// choice", which implies the run failed and tempts a duplicate re-run.
+				// Report it as a non-fatal warning that names the created file.
+				try {
+					if (linkOptions.destination.type === "specifiedFile") {
+						await appendFileLinkToDestinationFile(
+							this.app,
+							createdFile,
+							linkOptions,
+						);
+					} else if (placementSupportsFrontmatter(linkOptions.placement)) {
+						await insertFileLinkToActiveView(this.app, createdFile, linkOptions);
+					} else if (this.choiceExecutor.focusedProperty) {
+						await appendLinkToFrontmatterProperty(
+							this.app,
+							this.choiceExecutor.focusedProperty,
+							createdFile,
+						);
+					} else {
+						await insertFileLinkToActiveView(
+							this.app,
+							createdFile,
+							linkOptions,
+						);
+					}
+				} catch (linkError) {
+					// An abort propagating through the link step still aborts the run.
+					if (linkError instanceof MacroAbortError) {
+						throw linkError;
+					}
+					log.logWarning(
+						`Created '${createdFile.basename}' but could not insert the link: ${
+							linkError instanceof Error
+								? linkError.message
+								: String(linkError)
+						}`,
 					);
 				}
 			}
@@ -269,6 +291,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				}
 
 				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);
+			} else if (
+				createdNew &&
+				!linkOptions.enabled &&
+				!this.choice.copyLinkToClipboard
+			) {
+				// The note was created but nothing else surfaces it (not opened, no
+				// link appended, not copied to clipboard). Confirm the creation so
+				// the run isn't silent — mirroring Capture's success notice.
+				new Notice(`Created '${createdFile.basename}'.`);
 			}
 		} catch (err) {
 			if (
@@ -376,11 +407,24 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					async (path) => await this.app.vault.adapter.exists(path),
 				);
 
+				const createdFile = await this.createFileWithTemplate(
+					nextFilePath,
+					templatePath,
+				);
+
+				// A collision forced a different name. If the file won't be opened,
+				// the user otherwise gets no signal which name was actually used and
+				// may re-run, accumulating "Plan (1)", "Plan (2)", … clutter.
+				if (
+					createdFile &&
+					nextFilePath !== targetFilePath &&
+					!this.choice.openFile
+				) {
+					new Notice(`Created '${createdFile.basename}'.`);
+				}
+
 				return {
-					createdFile: await this.createFileWithTemplate(
-						nextFilePath,
-						templatePath,
-					),
+					createdFile,
 					shouldAutoOpen: false,
 				};
 			}
@@ -441,6 +485,20 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		position: "top" | "bottom",
 		linkOptions: NormalizedAppendLinkOptions,
 	): Promise<TFile | null> {
+		if (
+			existingFile.extension === "canvas" ||
+			existingFile.extension === "base"
+		) {
+			// Appending raw template text to a canvas/base file would splice it
+			// into the file's structured JSON content and corrupt it. Only the
+			// "Overwrite" file-exists option is safe for these formats.
+			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+			log.logError(
+				`Cannot append to '${existingFile.path}': appending a template to a ${existingFile.extension} file would corrupt it. Use the "Overwrite" file-exists option instead.`,
+			);
+			return null;
+		}
+
 		if (existingFile.extension !== "md") {
 			return await this.appendToFileWithTemplate(
 				existingFile,

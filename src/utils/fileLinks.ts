@@ -88,9 +88,11 @@ export async function appendFileLinkToDestinationFile(
 }
 
 export async function writeTextToClipboard(text: string): Promise<boolean> {
+	// Returns false without surfacing its own Notice so callers own the single
+	// user-facing failure message (avoids stacked duplicate notices).
 	const clipboard = globalThis.navigator?.clipboard;
 	if (!clipboard?.writeText) {
-		log.logWarning("QuickAdd: Clipboard API is unavailable.");
+		log.logMessage("QuickAdd: Clipboard API is unavailable.");
 		return false;
 	}
 
@@ -98,7 +100,7 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
 		await clipboard.writeText(text);
 		return true;
 	} catch (error) {
-		log.logWarning(
+		log.logMessage(
 			`QuickAdd: Could not copy link to clipboard: ${
 				error instanceof Error ? error.message : String(error)
 			}`,
@@ -107,9 +109,12 @@ export async function writeTextToClipboard(text: string): Promise<boolean> {
 	}
 }
 
-export async function copyFileLinkToClipboard(
-	file: TFile,
-): Promise<boolean> {
+export async function copyFileLinkToClipboard(file: TFile): Promise<boolean> {
+	// Always use a portable full-path wikilink. Clipboard text has no destination
+	// note, so honoring the vault's link-format setting (which "Append link" can,
+	// because it has a real target) would generate a link relative to an implicit
+	// empty source — wrong once pasted into a note in any other folder. A
+	// full-path wikilink resolves correctly wherever it is pasted.
 	const linkText = buildPortableFileLinkText(file);
 	const copied = await writeTextToClipboard(linkText);
 

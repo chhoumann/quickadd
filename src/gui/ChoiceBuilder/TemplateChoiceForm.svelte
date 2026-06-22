@@ -138,6 +138,10 @@ $effect(() => {
 
 function addFolder() {
 	const input = folderInputValue.trim();
+	// An empty entry resolves to the vault root at run time and renders as an
+	// invisible blank row, while silently suppressing the "add a folder" warning.
+	// Treat a blank Add as a no-op.
+	if (!input) return;
 	if (choice.folder.folders.some((folder) => folder === input)) {
 		log.logWarning("cannot add same folder twice.");
 		return;
@@ -288,8 +292,13 @@ function onModeChange(value: string) {
 	desc={discoveryDescription}
 >
 	{#snippet control()}
+		<!-- When discovery is unsupported (custom file-name format) the engine
+		     ignores the stored flag, so show the toggle as off to match the
+		     runtime behavior rather than a misleading checked-but-greyed state. -->
 		<Toggle
-			checked={choice.discoverExistingNotesBeforeCreate ?? false}
+			checked={discoverySupported
+				? (choice.discoverExistingNotesBeforeCreate ?? false)
+				: false}
 			disabled={!discoverySupported}
 			onchange={(value) => (choice.discoverExistingNotesBeforeCreate = value)}
 		/>

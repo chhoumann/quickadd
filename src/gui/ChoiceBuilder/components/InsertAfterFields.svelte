@@ -321,13 +321,16 @@ function onPromptHeadingToggle(value: boolean) {
 
 	<SettingItem
 		name="Consider subsections"
-		desc={insertAfter.promptHeading
-			? "Also include the chosen heading’s subsections (nested headings inside its section)."
-			: "Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section."}
+		desc={!insertAfter.insertAtEnd
+			? "Only affects placement when “Insert at end of section” is on."
+			: insertAfter.promptHeading
+				? "Also include the chosen heading’s subsections (nested headings inside its section)."
+				: "Also include the section’s subsections (requires target to be a heading starting with #). Subsections are headings inside the section."}
 	>
 		{#snippet control()}
 			<Toggle
 				bind:checked={insertAfter.considerSubsections}
+				disabled={!insertAfter.insertAtEnd}
 				onchange={onConsiderSubsectionsToggle}
 			/>
 		{/snippet}

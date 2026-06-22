@@ -153,6 +153,8 @@ function validateCaptureTo(value: string) {
 					value={choice.captureToCanvasNodeId ?? ""}
 					placeholder="Canvas node id"
 					ariaLabel="Canvas node id"
+					required
+					requiredMessage="A canvas capture target requires a node id — pick a card below or paste an exact node id."
 					onChange={(value) => (choice.captureToCanvasNodeId = value.trim())}
 				/>
 			{/snippet}

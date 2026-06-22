@@ -6,6 +6,12 @@ import {
 } from "../types/linkPlacement";
 import { getOwnerDocument } from "./activeWindow";
 
+const FRONTMATTER_HANDLING_LABELS: Record<FrontmatterHandling, string> = {
+	alwaysAppend: "Create or convert",
+	createProperty: "Create if missing",
+	error: "Require list",
+};
+
 const TYPED_PROPERTY_INPUT_SELECTOR = [
 	'input[type="number"]',
 	'input[type="date"]',
@@ -126,7 +132,7 @@ export function appendConfiguredFrontmatterPropertyLinkValue(
 
 	if (frontmatterHandling !== "alwaysAppend") {
 		throw new Error(
-			`Cannot append link to frontmatter property '${key}' because it is not a list and frontmatter handling is '${frontmatterHandling}'.`,
+			`Cannot append link to frontmatter property '${key}' because it is not a list and the link-handling mode is '${FRONTMATTER_HANDLING_LABELS[frontmatterHandling]}'. Choose '${FRONTMATTER_HANDLING_LABELS.alwaysAppend}' to convert it into a list and append.`,
 		);
 	}
 
@@ -193,8 +199,8 @@ export async function appendLinkToFrontmatterProperty(
 		});
 		return true;
 	} catch (error) {
-		log.logWarning(
-			`QuickAdd: could not append link to frontmatter property '${target.key}' in '${target.file.path}': ${
+		log.logError(
+			`QuickAdd: created the file but could not append the link to frontmatter property '${target.key}' in '${target.file.path}': ${
 				error instanceof Error ? error.message : String(error)
 			}`,
 		);
