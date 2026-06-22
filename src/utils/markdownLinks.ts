@@ -48,7 +48,18 @@ export function convertLinkToEmbed(link: string): string {
 
 	const markdownTarget = extractMarkdownLinkTarget(link);
 	if (markdownTarget) {
-		return `![[${markdownTarget}]]`;
+		// Markdown links percent-encode the path (e.g. spaces become %20), but a
+		// wiki embed resolves only against the literal vault path. Decode so
+		// `[A B](A%20B.md)` becomes `![[A B.md]]` instead of an unresolved
+		// `![[A%20B.md]]`. Fall back to the raw target when it is not valid
+		// percent-encoding (e.g. a lone `%`), so malformed input never throws.
+		let decodedTarget = markdownTarget;
+		try {
+			decodedTarget = decodeURIComponent(markdownTarget);
+		} catch {
+			decodedTarget = markdownTarget;
+		}
+		return `![[${decodedTarget}]]`;
 	}
 
 	return link.startsWith("!") ? link : `!${link}`;

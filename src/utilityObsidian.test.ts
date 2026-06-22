@@ -162,6 +162,23 @@ describe("convertLinkToEmbed", () => {
 		const link = "   [Label](../Another Note.md#Heading)   ";
 		expect(convertLinkToEmbed(link)).toBe("![[../Another Note.md#Heading]]");
 	});
+
+	it("decodes percent-encoded markdown link paths so embeds resolve", () => {
+		// Obsidian's "Markdown links" format percent-encodes spaces; a wiki embed
+		// must use the literal path or it will not resolve.
+		expect(convertLinkToEmbed("[My Meeting Note](My%20Meeting%20Note.md)")).toBe(
+			"![[My Meeting Note.md]]",
+		);
+		expect(
+			convertLinkToEmbed("[Note](Folder%20A/My%20Note.md#Heading%20One)"),
+		).toBe("![[Folder A/My Note.md#Heading One]]");
+	});
+
+	it("falls back to the raw target when percent-decoding fails", () => {
+		// A lone `%` is not valid percent-encoding; decodeURIComponent would throw,
+		// so the raw target is embedded rather than crashing.
+		expect(convertLinkToEmbed("[Bad](100%.md)")).toBe("![[100%.md]]");
+	});
 });
 
 describe("extractMarkdownLinkTarget", () => {
