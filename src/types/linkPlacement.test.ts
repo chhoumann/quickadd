@@ -80,19 +80,37 @@ describe("LinkPlacement", () => {
 			expect(normalizeAppendLinkOptions(options)).toEqual(options);
 		});
 
-		it("should sanitize embed linkType when placement does not support embeds", () => {
+		it("preserves embed linkType for every active-note body placement", () => {
+			const bodyPlacements: LinkPlacement[] = [
+				"replaceSelection",
+				"afterSelection",
+				"endOfLine",
+				"newLine",
+			];
+
+			for (const placement of bodyPlacements) {
+				const options: AppendLinkOptions = {
+					enabled: true,
+					placement,
+					requireActiveFile: true,
+					linkType: "embed",
+					destination: { type: "activeFile" },
+				};
+
+				expect(normalizeAppendLinkOptions(options).linkType).toBe("embed");
+			}
+		});
+
+		it("sanitizes embed linkType for frontmatter placement", () => {
 			const options: AppendLinkOptions = {
 				enabled: true,
-				placement: "endOfLine",
+				placement: "inFrontmatter",
 				requireActiveFile: true,
 				linkType: "embed",
+				frontmatterProperty: "related",
 			};
 
-			expect(normalizeAppendLinkOptions(options)).toEqual({
-				...options,
-				linkType: "link",
-				destination: { type: "activeFile" },
-			});
+			expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
 		});
 
 		it("should default linkType to link when omitted", () => {
@@ -212,11 +230,14 @@ describe("LinkPlacement", () => {
 	});
 
 	describe("placementSupportsEmbed", () => {
-		it("should return true only for replaceSelection placement", () => {
+		it("returns true for every active-note Markdown body placement", () => {
 			expect(placementSupportsEmbed("replaceSelection")).toBe(true);
-			expect(placementSupportsEmbed("afterSelection")).toBe(false);
-			expect(placementSupportsEmbed("endOfLine")).toBe(false);
-			expect(placementSupportsEmbed("newLine")).toBe(false);
+			expect(placementSupportsEmbed("afterSelection")).toBe(true);
+			expect(placementSupportsEmbed("endOfLine")).toBe(true);
+			expect(placementSupportsEmbed("newLine")).toBe(true);
+		});
+
+		it("returns false for frontmatter placement", () => {
 			expect(placementSupportsEmbed("inFrontmatter")).toBe(false);
 		});
 	});

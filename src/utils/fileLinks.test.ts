@@ -10,7 +10,7 @@ import {
 	normalizeAppendLinkDestinationPath,
 	writeTextToClipboard,
 } from "./fileLinks";
-import type { AppendLinkOptions } from "../types/linkPlacement";
+import type { AppendLinkOptions, LinkPlacement } from "../types/linkPlacement";
 
 type NoticeTestClass = typeof Notice & {
 	instances: Array<{ message: string; timeout?: number }>;
@@ -113,6 +113,38 @@ describe("file link helpers", () => {
 				sourcePath: "Inbox.md",
 			}),
 		).toBe("![[Created Note]]");
+	});
+
+	it("builds embed text for every active-note body placement", () => {
+		const app = createApp("[[Created Note]]");
+		const bodyPlacements: LinkPlacement[] = [
+			"replaceSelection",
+			"afterSelection",
+			"endOfLine",
+			"newLine",
+		];
+
+		for (const placement of bodyPlacements) {
+			expect(
+				buildFileLinkText(app, createFile(), {
+					linkType: "embed",
+					placement,
+					sourcePath: "Inbox.md",
+				}),
+			).toBe("![[Created Note]]");
+		}
+	});
+
+	it("keeps frontmatter placement link-only even when embed is requested", () => {
+		const app = createApp("[[Created Note]]");
+
+		expect(
+			buildFileLinkText(app, createFile(), {
+				linkType: "embed",
+				placement: "inFrontmatter",
+				sourcePath: "Inbox.md",
+			}),
+		).toBe("[[Created Note]]");
 	});
 
 	it("returns false when clipboard writes are unavailable", async () => {
