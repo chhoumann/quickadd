@@ -16,6 +16,7 @@ export class ModelDirectoryModal extends Modal {
   private selectedIds = new Set<string>();
   private mode: "add" | "replace" = "add";
   private resolved = false;
+  private loadError: string | null = null;
 
   constructor(app: App, provider: AIProvider) {
     super(app);
@@ -35,8 +36,10 @@ export class ModelDirectoryModal extends Modal {
       const apiKey = await resolveProviderApiKey(this.app, this.provider);
       this.allModels = await discoverProviderModels(this.provider, apiKey);
       this.filtered = this.allModels.slice();
+      this.loadError = null;
     } catch (err) {
-      new Notice(`Failed to load model directory: ${(err as { message?: string }).message ?? err}`);
+      this.loadError = `${(err as { message?: string }).message ?? err}`;
+      new Notice(`Failed to load model directory: ${this.loadError}`);
     }
   }
 
@@ -54,7 +57,7 @@ export class ModelDirectoryModal extends Modal {
     new Setting(this.contentEl)
       .setName("Search")
       .addText((text) => {
-        text.setPlaceholder("Filter by name or id").onChange((value) => {
+        text.setPlaceholder("Filter by name").onChange((value) => {
           const q = value.trim().toLowerCase();
           this.filtered = this.allModels.filter((m) => m.name.toLowerCase().includes(q));
           this.renderList();
@@ -102,8 +105,25 @@ export class ModelDirectoryModal extends Modal {
     if (!list) return;
     list.empty();
 
+    if (this.filtered.length === 0) {
+      const message = this.loadError
+        ? `Couldn't load models: ${this.loadError}. Check the API key and endpoint.`
+        : this.allModels.length === 0
+          ? "No models available for this provider."
+          : "No models match your filter.";
+      (list as HTMLElement).createDiv({
+        text: message,
+        cls: "qa-model-directory-empty",
+      });
+      return;
+    }
+
     for (const m of this.filtered) {
-      const row = list.createDiv({ cls: "qa-model-row" });
+      // Wrap the checkbox and name in a <label> so clicking the model text
+      // toggles it and screen readers get a labelled control.
+      const row = (list as HTMLElement).createEl("label", {
+        cls: "qa-model-row",
+      });
 
       const cb = this.contentEl.ownerDocument.createElement("input");
       cb.type = "checkbox";

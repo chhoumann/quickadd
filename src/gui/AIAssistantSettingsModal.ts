@@ -6,6 +6,8 @@ import { getQuickAddInstance } from "src/quickAddInstance";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
 import { getModelNames } from "src/ai/aiHelpers";
+import { GenericTextSuggester } from "./suggesters/genericTextSuggester";
+import { getAllFolderPathsInVault } from "src/utilityObsidian";
 
 type AIAssistantSettings = QuickAddSettings["ai"];
 
@@ -85,7 +87,17 @@ export class AIAssistantSettingsModal extends Modal {
 
 				dropdown.addOption("Ask me", "Ask me");
 
-				dropdown.setValue(this.settings.defaultModel);
+				// If the pinned model was deleted, the option no longer exists and
+				// setValue would silently fall back to the first option while the
+				// stored (now invalid) name persists. Surface the mismatch with a
+				// disabled "(missing)" entry so the dropdown reflects the saved value.
+				const stored = this.settings.defaultModel;
+				const isKnown = stored === "Ask me" || models.includes(stored);
+				if (stored && !isKnown) {
+					dropdown.addOption(stored, `(missing) ${stored}`);
+				}
+
+				dropdown.setValue(stored);
 				dropdown.onChange((value) => {
 					this.settings.defaultModel = value;
 				});
@@ -101,6 +113,12 @@ export class AIAssistantSettingsModal extends Modal {
 					(value) => {
 						this.settings.promptTemplatesFolderPath = value;
 					}
+				);
+
+				new GenericTextSuggester(
+					this.app,
+					text.inputEl,
+					getAllFolderPathsInVault(this.app)
 				);
 			});
 	}

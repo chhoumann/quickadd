@@ -1,7 +1,12 @@
 import { Notice } from "obsidian";
 
-const noticeMsg = (task: string, message: string) =>
-	`Assistant is ${task}.${message ? `\n\n${message}` : ""}`;
+const noticeMsg = (task: string, message: string) => {
+	// The "dead" status is the failure surface; "Assistant is dead." reads as a
+	// jarring, unhelpful headline, so use clear failure wording instead.
+	const headline =
+		task === "dead" ? "AI request failed." : `Assistant is ${task}.`;
+	return `${headline}${message ? `\n\n${message}` : ""}`;
+};
 
 interface NoticeHandler {
     setMessage: (status: string, msg: string) => void;

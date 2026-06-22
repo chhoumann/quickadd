@@ -338,7 +338,7 @@ export function OpenAIRequest(
 	return async function makeRequest(prompt: string): Promise<CommonResponse> {
 		if (settingsStore.getState().disableOnlineFeatures) {
 			throw new Error(
-				"Blocking request to OpenAI: Online features are disabled in settings."
+				"Blocking request: Online features are disabled in settings."
 			);
 		}
 
