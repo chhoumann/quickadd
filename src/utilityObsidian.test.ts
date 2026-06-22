@@ -179,6 +179,25 @@ describe("convertLinkToEmbed", () => {
 		// so the raw target is embedded rather than crashing.
 		expect(convertLinkToEmbed("[Bad](100%.md)")).toBe("![[100%.md]]");
 	});
+
+	it("keeps a literal heading separator while decoding the heading text", () => {
+		expect(convertLinkToEmbed("[L](Notes/My%20Note.md#My%20Heading)")).toBe(
+			"![[Notes/My Note.md#My Heading]]",
+		);
+	});
+
+	it("does not decode encoded wiki delimiters into separators", () => {
+		// A percent-encoded #/^/| is a literal character in the path, not a wiki
+		// separator. Decoding it would silently re-target the embed (e.g. point at
+		// a heading), so those escapes stay encoded while spaces still decode.
+		expect(convertLinkToEmbed("[C Sharp](C%23%20Guide.md)")).toBe(
+			"![[C%23 Guide.md]]",
+		);
+		expect(convertLinkToEmbed("[Block](Note%5E%20id.md)")).toBe(
+			"![[Note%5E id.md]]",
+		);
+		expect(convertLinkToEmbed("[Pipe](a%7C%20b.md)")).toBe("![[a%7C b.md]]");
+	});
 });
 
 describe("extractMarkdownLinkTarget", () => {
