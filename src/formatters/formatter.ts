@@ -239,7 +239,15 @@ export abstract class Formatter {
 			if (optionsIndex === -1) return this.value;
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions);
-			const transformed = this.applyValueTextOptions(this.value, parsed);
+			// Apply |default on an empty submission, mirroring the named path
+			// (ensureValueVariableResolved): the |default pre-fills the prompt, but
+			// a user who clears the box should still get the default unless the
+			// token is |optional (an optional empty is taken at face value).
+			const effectiveValue =
+				this.value === "" && parsed.defaultValue && !parsed.optional
+					? parsed.defaultValue
+					: this.value;
+			const transformed = this.applyValueTextOptions(effectiveValue, parsed);
 			// |type:text on the anonymous {{VALUE|...}} form quotes the same way
 			// as the named form (see replaceVariableInString).
 			if (
@@ -293,7 +301,10 @@ export abstract class Formatter {
 			if (optionsIndex === -1) continue;
 			const rawOptions = inner.slice(optionsIndex);
 
-			const parsed = parseAnonymousValueOptions(rawOptions);
+			// Quiet: this is the prompt-context pre-pass; the actual replacer
+			// pass (replaceValueInString) emits any |case warning so it fires
+			// once, not twice.
+			const parsed = parseAnonymousValueOptions(rawOptions, { quiet: true });
 			if (!context) context = {};
 
 			if (!context.description && parsed.label) {
@@ -320,15 +331,16 @@ export abstract class Formatter {
 	}
 
 	protected async replaceSelectedInString(input: string): Promise<string> {
-		let output: string = input;
+		if (!SELECTED_REGEX.test(input)) return input;
 
 		const selectedText = await this.getSelectedText();
-
-		while (SELECTED_REGEX.test(output)) {
-			output = this.replacer(output, SELECTED_REGEX, selectedText);
-		}
-
-		return output;
+		// Single global function-replacer pass (mirrors replaceClipboardInString):
+		// the inserted selection is arbitrary user text and may itself contain the
+		// literal "{{SELECTED}}" token, so a re-scanning while-loop would re-match
+		// it every iteration and grow without bound, hanging Obsidian (#1358-class).
+		// A function replacer inserts it literally and is never re-scanned.
+		const regex = new RegExp(SELECTED_REGEX.source, "gi");
+		return input.replace(regex, () => selectedText);
 	}
 
 	protected async replaceClipboardInString(input: string): Promise<string> {
@@ -662,9 +674,14 @@ export abstract class Formatter {
 		}
 		if (previous !== signature && !this.namedSuggesterConflictsWarned.has(nameKey)) {
 			this.namedSuggesterConflictsWarned.add(nameKey);
-			console.warn(
-				`QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`,
-			);
+			const message = `QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`;
+			// Surface as a Notice (consistent with the other |name: warnings, which
+			// all use log.logWarning) — the conflict silently drops the second
+			// option list, so the user needs to see it on-screen, not only in
+			// devtools. Warn-once dedupe is kept by the guard above. The console.warn
+			// is retained for the diagnostic log/trail.
+			log.logWarning(message);
+			console.warn(message);
 		}
 	}
 
@@ -920,7 +937,9 @@ export abstract class Formatter {
 
 			if (fullMatch) {
 				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
-				const parsed = FieldSuggestionParser.parse(fullMatch);
+				const parsed = FieldSuggestionParser.parse(fullMatch, {
+					warnUnknown: true,
+				});
 
 				if (!this.hasConcreteVariable(fieldVariableKey)) {
 					this.variables.set(
@@ -1162,141 +1181,143 @@ export abstract class Formatter {
 	): Promise<string | string[]>;
 
 	protected async replaceDateVariableInString(input: string) {
-		let output: string = input;
+		// Scan with a GLOBAL regex + accumulator (mirrors replaceFieldVarInString)
+		// so a malformed/empty-name {{VDATE:}} token is skipped (left literal) and
+		// every LATER valid {{VDATE}} is still prompted. The previous in-place
+		// while-loop `break`ed the entire scan on the first empty-name match, which
+		// silently dropped all subsequent date prompts. The accumulator also never
+		// re-scans a replacement, so a stored value re-containing the token can't
+		// loop.
+		const regex = new RegExp(DATE_VARIABLE_REGEX.source, "gi");
+		let output = "";
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
 
-		while (DATE_VARIABLE_REGEX.test(output)) {
-			const match = DATE_VARIABLE_REGEX.exec(output);
-			if (!match || !match[1]) break;
+		while ((match = regex.exec(input)) !== null) {
+			output += input.slice(lastIndex, match.index);
+			lastIndex = match.index + match[0].length;
 
-			const variableName = match[1].trim();
+			const variableName = match[1]?.trim();
+			// Empty/incomplete token (e.g. {{VDATE:}} or {{VDATE:,YYYY}}): leave it
+			// literal and keep scanning so a later valid token still resolves.
+			if (!variableName) {
+				output += match[0];
+				continue;
+			}
+
 			const { defaultValue, optional, withTime, snap } = parseVDateOptions(match[3]);
 			// A |time/|datetime token with no explicit format gets a datetime
 			// default so the rendered value carries the picked time.
 			const dateFormat =
 				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
-			// Skip processing if variable name or format is empty
-			// This prevents crashes when typing incomplete patterns like {{VDATE:,
-			if (!variableName) {
-				break;
-			}
+			const existingValue = this.variables.get(variableName);
 
-			if (variableName) {
-				const existingValue = this.variables.get(variableName);
+			// Check if we already have this date variable stored.
+			// Only `undefined` counts as unset — null and "" are intentional
+			// values (same contract as VALUE variables, see #872), so a
+			// script-set "" renders empty instead of re-prompting.
+			if (existingValue === undefined) {
+				// Prompt for date input with VDATE context
+				const dateInput = await this.promptForVariable(
+					variableName,
+					{ type: "VDATE", dateFormat, defaultValue, optional, withTime }
+				);
+				if (optional && !dateInput?.trim()) {
+					// Optional date left blank or skipped: answered-empty.
+					this.variables.set(variableName, "");
+				} else if (dateInput?.startsWith("@date:")) {
+					this.variables.set(variableName, dateInput);
+				} else {
+					if (!this.dateParser)
+						throw new Error("Date parser is not available");
 
-				// Check if we already have this date variable stored.
-				// Only `undefined` counts as unset — null and "" are intentional
-				// values (same contract as VALUE variables, see #872), so a
-				// script-set "" renders empty instead of re-prompting.
-				if (existingValue === undefined) {
-					// Prompt for date input with VDATE context
-					const dateInput = await this.promptForVariable(
-						variableName,
-						{ type: "VDATE", dateFormat, defaultValue, optional, withTime }
+					const aliasMap = settingsStore.getState().dateAliases;
+					const normalizedInput = normalizeDateInput(
+						dateInput,
+						aliasMap,
 					);
-					if (optional && !dateInput?.trim()) {
-						// Optional date left blank or skipped: answered-empty.
-						this.variables.set(variableName, "");
-					} else if (dateInput?.startsWith("@date:")) {
-						this.variables.set(variableName, dateInput);
-					} else {
-						if (!this.dateParser)
-							throw new Error("Date parser is not available");
+					const parseAttempt = this.dateParser.parseDate(normalizedInput);
 
-						const aliasMap = settingsStore.getState().dateAliases;
-						const normalizedInput = normalizeDateInput(
-							dateInput,
-							aliasMap,
+					if (parseAttempt) {
+						// Store the ISO string with a special prefix
+						this.variables.set(
+							variableName,
+							`@date:${parseAttempt.moment.toISOString()}`,
 						);
-						const parseAttempt = this.dateParser.parseDate(normalizedInput);
-
-						if (parseAttempt) {
-							// Store the ISO string with a special prefix
-							this.variables.set(
-								variableName,
-								`@date:${parseAttempt.moment.toISOString()}`,
-							);
-						} else {
-							throw new Error(
-								`unable to parse date variable ${dateInput}${
-									optional
-										? ""
-										: ". Tip: add |optional inside the {{VDATE}} token to allow leaving this date empty"
-								}`,
-							);
-						}
+					} else {
+						throw new Error(
+							`unable to parse date variable ${dateInput}${
+								optional
+									? ""
+									: ". Tip: add |optional inside the {{VDATE}} token to allow leaving this date empty"
+							}`,
+						);
 					}
 				}
+			}
 
-				// Format the date based on what's stored
-				let formattedDate = "";
-				let storedValue = this.variables.get(variableName);
+			// Format the date based on what's stored
+			let formattedDate = "";
+			let storedValue = this.variables.get(variableName);
 
-				// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain string,
-				// attempt to coerce it into the internal @date:ISO form so formatting works.
-				if (
-					typeof storedValue === "string" &&
-					storedValue &&
-					!storedValue.startsWith("@date:")
-				) {
-					if (this.dateParser) {
-						const aliasMap = settingsStore.getState().dateAliases;
-						const normalizedInput = normalizeDateInput(storedValue, aliasMap);
-						const parseAttempt = this.dateParser.parseDate(normalizedInput);
+			// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain string,
+			// attempt to coerce it into the internal @date:ISO form so formatting works.
+			if (
+				typeof storedValue === "string" &&
+				storedValue &&
+				!storedValue.startsWith("@date:")
+			) {
+				if (this.dateParser) {
+					const aliasMap = settingsStore.getState().dateAliases;
+					const normalizedInput = normalizeDateInput(storedValue, aliasMap);
+					const parseAttempt = this.dateParser.parseDate(normalizedInput);
 
-						// Keep backwards compatibility: only coerce if we can parse it.
-						if (parseAttempt) {
-							const iso = parseAttempt.moment.toISOString();
-							const coerced = `@date:${iso}`;
-							this.variables.set(variableName, coerced);
-							storedValue = coerced;
-						}
-					}
-				} else if (storedValue instanceof Date) {
-					// Some callers may pass actual Date objects through the JS API.
-					if (!Number.isNaN(storedValue.getTime())) {
-						const coerced = `@date:${storedValue.toISOString()}`;
+					// Keep backwards compatibility: only coerce if we can parse it.
+					if (parseAttempt) {
+						const iso = parseAttempt.moment.toISOString();
+						const coerced = `@date:${iso}`;
 						this.variables.set(variableName, coerced);
 						storedValue = coerced;
 					}
 				}
-
-				if (typeof storedValue === "string" && storedValue.startsWith("@date:")) {
-					// It's a date variable, extract and format it
-					const isoString = storedValue.substring(6);
-
-					if (this.dateParser && window.moment) {
-						const moment = window.moment(isoString);
-						if (moment && moment.isValid()) {
-							// Snap is per-occurrence (issue #511): the stored
-							// @date:ISO stays raw, so {{VDATE:d,F1|startof:week}}
-							// and {{VDATE:d,F2}} share one picked date but only one
-							// snaps. A fresh moment per iteration prevents leaks.
-							formattedDate = applyDateSnap(moment, snap).format(
-								dateFormat,
-							);
-						}
-					}
-				} else if (typeof storedValue === "string" && storedValue) {
-					// Backward compatibility: use the stored value as-is
-					formattedDate = storedValue;
-				} else if (storedValue != null) {
-					// Fallback: avoid throwing if a non-string value is stored.
-					formattedDate = formatUnknownValue(storedValue);
+			} else if (storedValue instanceof Date) {
+				// Some callers may pass actual Date objects through the JS API.
+				if (!Number.isNaN(storedValue.getTime())) {
+					const coerced = `@date:${storedValue.toISOString()}`;
+					this.variables.set(variableName, coerced);
+					storedValue = coerced;
 				}
-
-				// Replace the specific match rather than using regex again
-				// to handle multiple VDATE variables with same name but different formats.
-				// Replacer function so `$` patterns in stored values are literal —
-				// a raw string replacement would re-expand `$&` into the token and
-				// loop forever.
-				output = output.replace(match[0], () => formattedDate);
-			} else {
-				break;
 			}
+
+			if (typeof storedValue === "string" && storedValue.startsWith("@date:")) {
+				// It's a date variable, extract and format it
+				const isoString = storedValue.substring(6);
+
+				if (this.dateParser && window.moment) {
+					const moment = window.moment(isoString);
+					if (moment && moment.isValid()) {
+						// Snap is per-occurrence (issue #511): the stored
+						// @date:ISO stays raw, so {{VDATE:d,F1|startof:week}}
+						// and {{VDATE:d,F2}} share one picked date but only one
+						// snaps. A fresh moment per iteration prevents leaks.
+						formattedDate = applyDateSnap(moment, snap).format(
+							dateFormat,
+						);
+					}
+				}
+			} else if (typeof storedValue === "string" && storedValue) {
+				// Backward compatibility: use the stored value as-is
+				formattedDate = storedValue;
+			} else if (storedValue != null) {
+				// Fallback: avoid throwing if a non-string value is stored.
+				formattedDate = formatUnknownValue(storedValue);
+			}
+
+			output += formattedDate;
 		}
 
-		return output;
+		return output + input.slice(lastIndex);
 	}
 
 	protected async replaceTemplateInString(input: string): Promise<string> {

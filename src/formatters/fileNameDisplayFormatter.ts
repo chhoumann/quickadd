@@ -13,6 +13,7 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
+import { parseVDateOptions } from "../utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
@@ -155,29 +156,55 @@ export class FileNameDisplayFormatter extends Formatter {
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		let output: string = input;
-		
-		// Enhanced date variable preview with realistic examples
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
+
+		// Mirror FormatDisplayFormatter's VDATE preview so the file-name preview
+		// shows the same default/optional hints (issue #511). Like the body
+		// preview, this renders the current date WITHOUT applying |startof:/
+		// |endof: snap — snap is only resolved in the real CompleteFormatter
+		// pass, and snapping only the file-name preview would diverge from the
+		// body preview.
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
 			const cleanDateFormat = dateFormat?.trim();
-			
+			// Parse defensively: a malformed |startof:/|endof: option can throw, and
+			// since format() catches and returns the whole raw input on any error, an
+			// unparseable VDATE option would otherwise blank out EVERY other preview
+			// substitution. Treat a parse failure as "no options".
+			let cleanDefaultValue: string | undefined;
+			let optional = false;
+			try {
+				({ defaultValue: cleanDefaultValue, optional } =
+					parseVDateOptions(rawOptions));
+			} catch {
+				cleanDefaultValue = undefined;
+				optional = false;
+			}
+
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete
 			}
 
-			// Generate a realistic preview using current date
+			// Generate a realistic preview using the current date.
 			const previewDate = new Date();
 			let formattedExample: string;
-			
+
 			try {
 				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
 			} catch {
 				formattedExample = `[${cleanDateFormat}]`;
 			}
-			
+
+			// If there's a default value, indicate it in the preview
+			if (cleanDefaultValue) {
+				formattedExample += ` (default: ${cleanDefaultValue})`;
+			}
+			if (optional) {
+				formattedExample += ` (optional)`;
+			}
+
 			return formattedExample;
 		});
-		
+
 		return output;
 	}
 

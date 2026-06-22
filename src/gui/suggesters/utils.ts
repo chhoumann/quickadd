@@ -18,13 +18,17 @@ export function normalizeDisplayItem(value: unknown): string {
 type SkipCapableModal = {
 	scope?: Scope;
 	setInstructions?: (instructions: Instruction[]) => void;
+	// SuggestModal exposes modalEl; used to mount a touch/mouse-friendly Skip
+	// button. Optional because the test stub's FuzzySuggestModal lacks it.
+	modalEl?: HTMLElement;
 };
 
 /**
  * Wires the skip affordance for optional tokens onto a suggester modal: an
- * instructions footer plus a Mod+Shift+Enter scope binding that invokes the
- * modal's skip resolution. Both hooks are runtime-guarded because the test
- * stub's FuzzySuggestModal provides neither scope nor setInstructions.
+ * instructions footer, a Mod+Shift+Enter scope binding, and a touch/mouse Skip
+ * button — all invoking the modal's skip resolution. Every hook is
+ * runtime-guarded because the test stub's FuzzySuggestModal provides none of
+ * scope, setInstructions, or modalEl.
  */
 export function installSkipAffordance(
 	modal: SkipCapableModal,
@@ -42,6 +46,26 @@ export function installSkipAffordance(
 			{ command: "ctrl/cmd+shift+↵", purpose: "to skip (leave empty)" },
 			{ command: "esc", purpose: "to cancel" },
 		]);
+	}
+
+	// Mod+Shift+Enter is keyboard-only; mobile/pointer users get no modifier
+	// keys, so add a visible Skip button (matching the text prompt and
+	// MultiSuggester) that resolves the same "leave empty" answer.
+	const modalEl = modal.modalEl;
+	if (modalEl && typeof modalEl.createDiv === "function") {
+		const skipBar = modalEl.createDiv({
+			cls: "qa-suggester-skip-bar",
+		});
+		const skipButton = skipBar.createEl("button", {
+			text: "Skip (leave empty)",
+			cls: "qa-suggester-skip-button",
+		});
+		skipButton.type = "button";
+		skipButton.setAttribute("aria-label", "Skip and leave empty");
+		skipButton.addEventListener("click", (evt) => {
+			evt.preventDefault();
+			onSkip();
+		});
 	}
 }
 

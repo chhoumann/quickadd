@@ -28,6 +28,25 @@ function normalizeStyle(style?: string): CaseStyle | null {
 	}
 }
 
+/** The case styles {@link transformCase} understands, in the order shown to the
+ *  user when an unrecognized |case: style is rejected. */
+export const SUPPORTED_CASE_STYLES: readonly CaseStyle[] = [
+	"kebab",
+	"snake",
+	"camel",
+	"pascal",
+	"title",
+	"lower",
+	"upper",
+	"slug",
+];
+
+/** Returns true when `style` resolves to a known case style; false (with a
+ *  non-empty input) means the author typo'd it and it will be ignored. */
+export function isSupportedCaseStyle(style?: string): boolean {
+	return normalizeStyle(style) !== null;
+}
+
 function upperFirstLowerRest(word: string): string {
 	if (!word) return word;
 	const lower = word.toLowerCase();
