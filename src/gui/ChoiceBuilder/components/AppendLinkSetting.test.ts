@@ -36,22 +36,44 @@ describe("AppendLinkSetting", () => {
 		]);
 	});
 
-	it("hides link type for placements that do not support embeds", () => {
+	it.each([
+		"afterSelection",
+		"endOfLine",
+		"newLine",
+	] as const)(
+		"shows link type for the %s body placement",
+		(placement) => {
+			const appendLink: AppendLinkOptions = {
+				enabled: true,
+				placement,
+				requireActiveFile: false,
+				linkType: "embed",
+			};
+			const { container } = render(AppendLinkSetting, {
+				props: { appendLink, fileLabel: "captured" },
+			});
+
+			expect(settingNames(container)).toEqual([
+				"Link to captured file",
+				"Link destination",
+				"Link placement",
+				"Link type",
+			]);
+		},
+	);
+
+	it("hides link type for the frontmatter placement", () => {
 		const appendLink: AppendLinkOptions = {
 			enabled: true,
-			placement: "endOfLine",
+			placement: "inFrontmatter",
 			requireActiveFile: false,
 			linkType: "link",
+			frontmatterProperty: "related",
 		};
 		const { container } = render(AppendLinkSetting, {
 			props: { appendLink, fileLabel: "captured" },
 		});
 
-		expect(settingNames(container)).toEqual([
-			"Link to captured file",
-			"Link destination",
-			"Link placement",
-		]);
 		expect(settingNames(container)).not.toContain("Link type");
 	});
 
