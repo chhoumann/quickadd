@@ -6,7 +6,13 @@ export function estimateTokenCount(text: string): number {
 	if (text.length === 0) return 0;
 
 	const bytes = new TextEncoder().encode(text).length;
-	const hasNonAscii = /[^\x00-\x7F]/.test(text);
+	let hasNonAscii = false;
+	for (let i = 0; i < text.length; i++) {
+		if (text.charCodeAt(i) > 127) {
+			hasNonAscii = true;
+			break;
+		}
+	}
 	const bytesPerToken = hasNonAscii
 		? MIXED_BYTES_PER_TOKEN_ESTIMATE
 		: ASCII_BYTES_PER_TOKEN_ESTIMATE;

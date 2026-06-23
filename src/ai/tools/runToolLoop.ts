@@ -25,7 +25,7 @@ export interface ToolEntry {
 	execute: (
 		args: Record<string, unknown>,
 		ctx: { toolCallId: string; toolName: string },
-	) => unknown | Promise<unknown>;
+	) => unknown;
 	readOnly?: boolean;
 }
 

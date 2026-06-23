@@ -89,7 +89,7 @@ export function assertRegisterableSchema(
 			throw new ToolSchemaError(`${where}.properties must be an object.`);
 		}
 		for (const [key, sub] of Object.entries(schema.properties)) {
-			assertRegisterableSchema(sub as JSONSchema, `${where}.properties.${key}`);
+			assertRegisterableSchema(sub, `${where}.properties.${key}`);
 		}
 	}
 
@@ -152,7 +152,7 @@ export function validateValue(
 	// type
 	if (schema.type !== undefined) {
 		const types = Array.isArray(schema.type) ? schema.type : [schema.type];
-		if (!types.some((t) => matchesType(value, t as JSONSchemaType))) {
+		if (!types.some((t) => matchesType(value, t))) {
 			return `${path}: expected ${types.join(" | ")}, got ${typeOfValue(value)}`;
 		}
 	}
@@ -182,7 +182,7 @@ export function validateValue(
 		if (schema.properties) {
 			for (const [key, sub] of Object.entries(schema.properties)) {
 				if (key in obj) {
-					const err = validateValue(obj[key], sub as JSONSchema, `${path}.${key}`);
+					const err = validateValue(obj[key], sub, `${path}.${key}`);
 					if (err) return err;
 				}
 			}
@@ -209,8 +209,8 @@ function deepEqual(a: unknown, b: unknown): boolean {
 		return a.length === b.length && a.every((x, i) => deepEqual(x, b[i]));
 	}
 	if (typeof a === "object" && typeof b === "object") {
-		const ka = Object.keys(a as object);
-		const kb = Object.keys(b as object);
+		const ka = Object.keys(a);
+		const kb = Object.keys(b);
 		if (ka.length !== kb.length) return false;
 		return ka.every((k) =>
 			deepEqual(

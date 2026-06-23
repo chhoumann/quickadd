@@ -173,6 +173,7 @@ const createApp = () =>
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),
+			trashFile: vi.fn(async () => {}),
 		},
 	} as unknown as App);
 
@@ -1193,7 +1194,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		await engine.run();
 
-		expect(app.vault.delete).toHaveBeenCalledWith(attachmentFile);
+		expect(app.fileManager.trashFile).toHaveBeenCalledWith(attachmentFile);
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "error",
 		});
@@ -1692,7 +1693,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 
 		expect(setTextMock).toHaveBeenCalledWith("![[Clipboard image.png]]");
 		expect(insertFileLinkToActiveView).toHaveBeenCalled();
-		expect(app.vault.delete).not.toHaveBeenCalledWith(attachmentFile);
+		expect(app.fileManager.trashFile).not.toHaveBeenCalledWith(attachmentFile);
 	});
 
 	it("creates missing linked markdown file for configured canvas file-card targets", async () => {

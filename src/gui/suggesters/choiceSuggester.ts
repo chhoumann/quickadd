@@ -22,6 +22,7 @@ import {
 	runTemplateFromFolder,
 } from "../../engine/runTemplateFromFolder";
 import { resolveChoiceIcon } from "../../utils/choiceUtils";
+import { createOwnedElement } from "../../utils/activeWindow";
 
 const backLabel = "← Back";
 
@@ -259,7 +260,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		const iconId = this.getChoiceSuggestionIcon(choice);
 		if (!iconId) return;
 
-		const iconEl = document.createElement("span");
+		const iconEl = createOwnedElement(parent, "span");
 		iconEl.classList.add("quickadd-choice-icon");
 		iconEl.setAttribute("aria-hidden", "true");
 		parent.appendChild(iconEl);

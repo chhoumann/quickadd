@@ -231,7 +231,7 @@ export abstract class Formatter {
 		// Important: use a replacer function so `$` in user input is treated literally.
 		const regex = new RegExp(NAME_VALUE_REGEX.source, "gi");
 		output = output.replace(regex, (...args) => {
-			const token = args[0] as string;
+			const token = args[0];
 			const offset = args[args.length - 2] as number;
 			const source = args[args.length - 1] as string;
 			const inner = token.slice(2, -2);

@@ -45,7 +45,7 @@ function getFrontmatterTags(fileCache: CachedMetadata): string[] {
 
 	const tags = tagPairs
 		.flatMap(([, value]) => normalizeFrontmatterTagValues(value))
-		.filter((v) => !!v) as string[]; // fair to cast after filtering out falsy values
+		.filter((v) => !!v);
 
 	return tags;
 }
@@ -162,7 +162,7 @@ export function getMarkdownFilesWithProperty(
 	if (hasFilter) {
 		files = EnhancedFieldSuggestionFileFilter.filterFiles(
 			files,
-			filter as FieldFilter,
+			filter,
 			(file) => app.metadataCache.getFileCache(file),
 		);
 	}

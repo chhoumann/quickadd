@@ -639,7 +639,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			try {
 				const file = this.app.vault.getAbstractFileByPath(path);
 				if (file instanceof TFile) {
-					await this.app.vault.delete(file);
+					await this.app.fileManager.trashFile(file);
 				}
 			} catch (error) {
 				log.logWarning(
