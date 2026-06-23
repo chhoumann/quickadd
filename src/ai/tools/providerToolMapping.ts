@@ -46,7 +46,7 @@ type Body = Record<string, unknown>;
 export function injectStrictObjectSchema(schema: JSONSchema): JSONSchema {
 	const out: JSONSchema = Array.isArray(schema)
 		? schema
-		: { ...(schema as JSONSchema) };
+		: { ...schema };
 
 	const isObject =
 		out.type === "object" ||

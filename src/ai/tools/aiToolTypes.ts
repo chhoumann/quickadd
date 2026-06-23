@@ -21,7 +21,7 @@ export interface ToolDefinitionInput {
 	execute: (
 		input: Record<string, unknown>,
 		ctx: ToolExecuteContext,
-	) => unknown | Promise<unknown>;
+	) => unknown;
 	/**
 	 * Per-tool human-in-the-loop gate (AI-SDK name). A tool resolving to true is
 	 * ALWAYS confirmed regardless of the global confirmToolCalls setting.

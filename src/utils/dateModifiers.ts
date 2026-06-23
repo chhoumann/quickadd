@@ -1,5 +1,8 @@
-import type { Moment, unitOfTime } from "moment";
+import type { moment } from "obsidian";
 import { parsePipeKeyValue } from "./pipeSyntax";
+
+type Moment = ReturnType<typeof moment.unix>;
+type StartOf = NonNullable<Parameters<Moment["startOf"]>[0]>;
 
 /**
  * Shared "snap a date to the start/end of a period" support for {{DATE}} and
@@ -17,13 +20,13 @@ export type DateSnapBoundary = "start" | "end";
 export interface DateSnap {
 	boundary: DateSnapBoundary;
 	/** Canonical moment unit, e.g. "week", "isoWeek", "month". */
-	unit: unitOfTime.StartOf;
+	unit: StartOf;
 }
 
 // Lower-cased user input -> canonical moment unit. Plural/short aliases are
 // accepted for ergonomics; everything else throws so a typo can never silently
 // no-op (moment's startOf returns the date unchanged on an unknown unit).
-const UNIT_ALIASES: Record<string, unitOfTime.StartOf> = {
+const UNIT_ALIASES: Record<string, StartOf> = {
 	year: "year",
 	years: "year",
 	y: "year",
@@ -49,7 +52,7 @@ export const VALID_DATE_SNAP_UNITS = "year, quarter, month, week, isoweek, day";
  * Normalises a user-supplied unit to moment's canonical form, throwing a
  * self-correcting error on anything unrecognised.
  */
-export function normalizeDateUnit(raw: string): unitOfTime.StartOf {
+export function normalizeDateUnit(raw: string): StartOf {
 	const key = raw.trim().toLowerCase();
 	const unit = UNIT_ALIASES[key];
 	if (!unit) {

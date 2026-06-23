@@ -47,7 +47,6 @@ import type {
 	GenerateStep,
 	PublicToolCall,
 	PublicToolResult,
-	QATool,
 } from "./aiToolTypes";
 
 const TOOL_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
@@ -74,7 +73,7 @@ function toParsed(cr: CommonResponse): ParsedChatResult {
 }
 
 function toPublicToolChoice(
-	choice: AgentConfig["toolChoice"] | GenerateOptions["toolChoice"],
+	choice: AgentConfig["toolChoice"],
 ): NormalizedToolChoice | undefined {
 	if (!choice) return undefined;
 	if (typeof choice === "string") return choice;
@@ -316,7 +315,7 @@ export class Agent {
 					parameters: tool.inputSchema,
 					strict: tool.strict,
 				},
-				execute: (args, ctx) => (tool as QATool).execute(args, ctx),
+				execute: (args, ctx) => tool.execute(args, ctx),
 				readOnly: tool.readOnly,
 			});
 		}

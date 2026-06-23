@@ -321,7 +321,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			)
 			.addSlider((slider) => {
 				slider.setLimits(0, 1, 0.1);
-				slider.setDynamicTooltip();
 				slider.setValue(
 					this.settings.modelParameters.temperature ??
 						DEFAULT_TEMPERATURE
@@ -340,7 +339,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			)
 			.addSlider((slider) => {
 				slider.setLimits(0, 1, 0.1);
-				slider.setDynamicTooltip();
 				slider.setValue(
 					this.settings.modelParameters.top_p ?? DEFAULT_TOP_P
 				);
@@ -358,7 +356,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			)
 			.addSlider((slider) => {
 				slider.setLimits(0, 2, 0.1);
-				slider.setDynamicTooltip();
 				slider.setValue(
 					this.settings.modelParameters.frequency_penalty ??
 						DEFAULT_FREQUENCY_PENALTY
@@ -377,7 +374,6 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			)
 			.addSlider((slider) => {
 				slider.setLimits(0, 2, 0.1);
-				slider.setDynamicTooltip();
 				slider.setValue(
 					this.settings.modelParameters.presence_penalty ??
 						DEFAULT_PRESENCE_PENALTY

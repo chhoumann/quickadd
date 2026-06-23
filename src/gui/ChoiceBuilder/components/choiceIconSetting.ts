@@ -3,6 +3,7 @@ import { ICON_LIST } from "../../../types/IconType";
 import type { ChoiceType } from "../../../types/choices/choiceType";
 import { defaultIconForChoiceType } from "../../../utils/choiceUtils";
 import { GenericTextSuggester } from "../../suggesters/genericTextSuggester";
+import { createOwnedElement } from "../../../utils/activeWindow";
 
 export interface ChoiceIconSettingState {
 	type: ChoiceType;
@@ -31,7 +32,7 @@ export function addChoiceIconSetting(
 		.setDesc(`Lucide/Obsidian icon id. Leave empty to use ${defaultIcon}.`);
 	setting.settingEl.addClass("qa-choice-icon-setting");
 
-	const preview = document.createElement("span");
+	const preview = createOwnedElement(parent, "span");
 	preview.classList.add("qa-choice-icon-setting-preview");
 	preview.setAttribute("aria-hidden", "true");
 	setting.controlEl.appendChild(preview);

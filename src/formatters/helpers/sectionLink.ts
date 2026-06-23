@@ -25,7 +25,7 @@ export interface SimpleHeading {
 // `#`/`^` subpath markers, and `{` `}` (so a heading literally containing a
 // QuickAdd token like `{{TITLE}}` can't have that token rewritten inside the
 // generated link). CR/LF are included for CRLF buffers.
-const OBSIDIAN_ANCHOR_STRIP = /[!"#$%&()*+,.:;<=>?@^`{|}~/\[\]\\\r\n]/g;
+const OBSIDIAN_ANCHOR_STRIP = /[!"#$%&()*+,.:;<=>?@^`{|}~/[\]\\\r\n]/g;
 
 /**
  * Normalizes heading text into the form Obsidian uses to resolve a `#heading`

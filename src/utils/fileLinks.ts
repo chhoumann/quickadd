@@ -90,7 +90,7 @@ export async function appendFileLinkToDestinationFile(
 export async function writeTextToClipboard(text: string): Promise<boolean> {
 	// Returns false without surfacing its own Notice so callers own the single
 	// user-facing failure message (avoids stacked duplicate notices).
-	const clipboard = globalThis.navigator?.clipboard;
+	const clipboard = window.navigator?.clipboard;
 	if (!clipboard?.writeText) {
 		log.logMessage("QuickAdd: Clipboard API is unavailable.");
 		return false;
