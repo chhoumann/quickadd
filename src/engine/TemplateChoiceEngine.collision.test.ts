@@ -390,6 +390,61 @@ describe("TemplateChoiceEngine collision behavior", () => {
 		expect(app.vault.adapter.exists).toHaveBeenCalledWith("Test Template.md");
 	});
 
+	it("aborts (does not open the file-exists prompt) on a non-interactive run when the target exists", async () => {
+		const { app, engine, choiceExecutor } = createEngine();
+		// Non-interactive (CLI without `ui`): no one can answer the prompt.
+		choiceExecutor.interactive = false;
+		engine.choice.fileExistsBehavior = { kind: "prompt" };
+
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			createExistingFile("Test Template.md"),
+		);
+		const createSpy = vi.spyOn(
+			engine as unknown as {
+				createFileWithTemplate: (
+					filePath: string,
+					templatePath: string,
+				) => Promise<TFile | null>;
+			},
+			"createFileWithTemplate",
+		);
+
+		await engine.run();
+
+		// The unanswerable prompt is never opened; instead the run aborts cleanly.
+		expect(GenericSuggester.Suggest).not.toHaveBeenCalled();
+		expect(createSpy).not.toHaveBeenCalled();
+		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
+		const abortArg = vi.mocked(choiceExecutor.signalAbort!).mock.calls[0][0];
+		expect(abortArg.message).toMatch(/non-interactive/i);
+		expect(abortArg.message).toMatch(/already exists/i);
+	});
+
+	it("aborts the folder chooser on a non-interactive run instead of hanging", async () => {
+		const { engine, choiceExecutor } = createEngine();
+		choiceExecutor.interactive = false;
+		// chooseWhenCreatingNote => the folder chooser would prompt across the vault.
+		engine.choice.folder = {
+			enabled: true,
+			folders: [],
+			chooseWhenCreatingNote: true,
+			createInSameFolderAsActiveFile: false,
+			chooseFromSubfolders: false,
+		};
+
+		await engine.run();
+
+		// The run aborts before the folder chooser opens (it would be an
+		// InputSuggester here); the abort signal with an actionable message is the
+		// proof. GenericSuggester is the file-exists prompt and must also stay closed.
+		expect(GenericSuggester.Suggest).not.toHaveBeenCalled();
+		expect(choiceExecutor.signalAbort).toHaveBeenCalledTimes(1);
+		const abortArg = vi.mocked(choiceExecutor.signalAbort!).mock.calls[0][0];
+		expect(abortArg.message).toMatch(/non-interactive/i);
+		expect(abortArg.message).toMatch(/folder/i);
+	});
+
 	it("creates an incremented file from the original target after prompting", async () => {
 		const { app, engine } = createEngine();
 		const createdFile = createExistingFile("Test Template1.md");

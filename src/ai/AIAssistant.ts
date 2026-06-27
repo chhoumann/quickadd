@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { UserCancelError } from "src/errors/UserCancelError";
+import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import { settingsStore } from "src/settingsStore";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
@@ -176,7 +177,8 @@ function toError(reason: unknown): Error {
 async function getTargetPromptTemplate(
 	app: App,
 	userDefinedPromptTemplate: Params["promptTemplate"],
-	promptTemplates: TFile[]
+	promptTemplates: TFile[],
+	interactive = true
 ): Promise<[string, string]> {
 	let targetFile;
 
@@ -185,6 +187,15 @@ async function getTargetPromptTemplate(
 			item.path.endsWith(userDefinedPromptTemplate.name)
 		);
 	} else {
+		// Non-interactive run (CLI without `ui`): the prompt-template picker has no
+		// one to answer it, so opening it would hang. Abort with an actionable error.
+		if (!interactive) {
+			throw new ChoiceAbortError(
+				"This AI command asks which prompt template to use, but this run is non-interactive. " +
+					"Enable a specific prompt template in the command, or re-run with the ui flag."
+			);
+		}
+
 		const basenames = promptTemplates.map((f) => f.basename);
 
 		targetFile = await GenericSuggester.Suggest(
@@ -217,6 +228,13 @@ interface Params {
 	promptTemplateFolder: string;
 	showAssistantMessages: boolean;
 	modelOptions: Partial<OpenAIModelParameters>;
+	/**
+	 * Whether the run may open a blocking picker (the prompt-template suggester).
+	 * Defaults to interactive; the non-interactive CLI sets it false so the picker
+	 * aborts with a clear error instead of hanging. Optional so existing callers
+	 * (api.ai) are unaffected.
+	 */
+	interactive?: boolean;
 }
 
 export async function runAIAssistant(
@@ -247,7 +265,8 @@ export async function runAIAssistant(
 		const [targetKey, targetPrompt] = await getTargetPromptTemplate(
 			app,
 			promptTemplate,
-			promptTemplates
+			promptTemplates,
+			settings.interactive ?? true
 		);
 
 		notice.setMessage(

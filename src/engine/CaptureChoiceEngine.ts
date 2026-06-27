@@ -786,9 +786,33 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
 	 * before any write.
 	 */
+	/**
+	 * Abort a runtime capture-target file picker on a non-interactive run (CLI
+	 * without `ui`) instead of hanging on an unanswerable suggester. Reached when a
+	 * format-syntax "Capture to" resolves to a folder/tag/property scope the
+	 * requirement collector could not pre-collect.
+	 */
+	private assertInteractiveCaptureTarget(): void {
+		if (this.choiceExecutor.interactive === false) {
+			throw new ChoiceAbortError(
+				`'${this.choice.name}' needs to ask which note to capture into, but this run is non-interactive. ` +
+					`Point "Capture to" at a specific file, or re-run with the ui flag.`,
+			);
+		}
+	}
+
 	private async maybeResolveInsertAfterHeading(content: string): Promise<void> {
 		const insertAfter = this.choice.insertAfter;
 		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
+
+		// Non-interactive run (CLI without `ui`): the heading picker has no one to
+		// answer it, so opening it would hang. Abort with an actionable error.
+		if (this.choiceExecutor.interactive === false) {
+			throw new ChoiceAbortError(
+				`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
+					`Turn off "Choose heading when capturing" and set a fixed heading, or re-run with the ui flag.`,
+			);
+		}
 
 		const allowCreate = !!insertAfter.createIfNotFound;
 
@@ -992,6 +1016,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			`Folder ${folderPathSlash} is empty.`,
 		);
 
+		// Non-interactive run (CLI without `ui`): a format-syntax "Capture to" target
+		// resolves to a folder/vault scope at runtime (the requirement collector
+		// cannot pre-collect it), so this picker would hang. Abort with a clear error.
+		// Placed after the empty-folder check so a genuinely empty scope surfaces its
+		// own accurate error rather than the prompt message.
+		this.assertInteractiveCaptureTarget();
+
 		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
 		const orderedFiles = orderFilesForPicker(
 			filesInFolder,
@@ -1132,6 +1163,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const allowCreate = this.choice.createFileIfItDoesntExist?.enabled ?? false;
 
 		invariant(allowCreate || files.length > 0, notFoundMessage);
+
+		// See selectFileInFolder: a format-syntax tag/property capture target resolves
+		// to a runtime file picker the requirement collector can't pre-collect. Placed
+		// after the no-match check so an empty result surfaces its own accurate error.
+		this.assertInteractiveCaptureTarget();
 
 		// Quick-Switcher-style ordering; show note names (not raw paths).
 		const orderedFiles = orderFilesForPicker(

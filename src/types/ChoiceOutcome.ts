@@ -10,8 +10,13 @@ import type { TFile } from "obsidian";
  * `cancelled` distinguishes a genuine user prompt-dismissal (`"user"`) from an
  * involuntary script/config abort (`"aborted"`). `error` means the choice failed
  * (the detailed message is kept in the internal log, never surfaced externally).
+ *
+ * `reason` carries the abort message for a local, trusted caller (the CLI) to
+ * surface — e.g. "needs to ask … re-run with the ui flag". The URI x-callback
+ * handler deliberately ignores it, reporting only `cancelKind`, so no vault detail
+ * leaks to an external callback URL.
  */
 export type ChoiceOutcome =
 	| { status: "success"; file?: TFile }
 	| { status: "error" }
-	| { status: "cancelled"; cancelKind: "user" | "aborted" };
+	| { status: "cancelled"; cancelKind: "user" | "aborted"; reason?: string };

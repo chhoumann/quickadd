@@ -37,6 +37,7 @@ import {
 	extractHeadingsFromLines,
 } from "./helpers/sectionLink";
 import { UserCancelError } from "../errors/UserCancelError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 
 export class CompleteFormatter extends Formatter {
@@ -354,6 +355,24 @@ export class CompleteFormatter extends Formatter {
 		return await this.getSelectedText();
 	}
 
+	/**
+	 * Central guard for every token prompt this formatter can open. The requirement
+	 * collector pre-collects the inputs it can see, but tokens hidden behind a
+	 * format-syntax template path or capture target (which it cannot resolve up
+	 * front) still reach the formatter at runtime. On a non-interactive run (the CLI
+	 * without `ui`) there is no one to answer such a prompt, so opening it would hang
+	 * forever — abort with an actionable error instead. GUI runs leave `interactive`
+	 * at its default (true/undefined) and are unaffected.
+	 */
+	private assertInteractivePrompt(what: string): void {
+		if (this.choiceExecutor?.interactive === false) {
+			throw new ChoiceAbortError(
+				`This run is non-interactive but a value for ${what} was not provided up front. ` +
+					`Pass it (e.g. a value- flag) or re-run with the ui flag.`,
+			);
+		}
+	}
+
 	protected async promptForValue(header?: string): Promise<string> {
 		if (this.value === undefined) {
 			if (this.shouldUseSelectionForValue()) {
@@ -367,6 +386,8 @@ export class CompleteFormatter extends Formatter {
 					}
 				}
 			}
+			// No selection resolved the value; any path below opens a prompt.
+			this.assertInteractivePrompt("{{VALUE}}");
 			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
 			// picker as the named form (resolved before the InputPrompt factory).
 			if (this.valuePromptContext?.inputTypeOverride === "checkbox") {
@@ -478,6 +499,9 @@ export class CompleteFormatter extends Formatter {
 		header?: string,
 		context?: PromptContext,
 	): Promise<string> {
+		this.assertInteractivePrompt(
+			header ? `{{VALUE:${header}}}` : "a template variable",
+		);
 		try {
 			// Use VDateInputPrompt for VDATE variables
 			if (context?.type === "VDATE") {
@@ -528,6 +552,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async promptForMathValue(): Promise<string> {
+		this.assertInteractivePrompt("a {{MATH}} expression");
 		try {
 			return await MathModal.Prompt();
 		} catch (error) {
@@ -548,6 +573,9 @@ export class CompleteFormatter extends Formatter {
 			optional?: boolean;
 		},
 	) {
+		this.assertInteractivePrompt(
+			context?.variableKey ? `{{VALUE:${context.variableKey}}}` : "a value choice",
+		);
 		try {
 			const displayValues = context?.displayValues ?? suggestedValues;
 			if (allowCustomInput) {
@@ -589,6 +617,11 @@ export class CompleteFormatter extends Formatter {
 			optional?: boolean;
 		},
 	): Promise<string[]> {
+		this.assertInteractivePrompt(
+			context?.variableKey
+				? `{{VALUE:${context.variableKey}}}`
+				: "a multi-select value",
+		);
 		try {
 			const displayValues = context?.displayValues ?? suggestedValues;
 			return await MultiSuggester.Suggest(
@@ -612,6 +645,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async suggestForField(fieldInput: string): Promise<string | string[]> {
+		this.assertInteractivePrompt(`{{FIELD:${fieldInput}}}`);
 		try {
 			// Parse the field input to extract field name and filters. Do NOT warn
 			// on unknown keys here: the field replacer in formatter.ts already parses
@@ -694,6 +728,9 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async suggestForFile(parsed: ParsedFileToken): Promise<string | string[]> {
+		this.assertInteractivePrompt(
+			`{{FILE}} (pick a file from ${parsed.folderPath})`,
+		);
 		try {
 			const files = EnhancedFieldSuggestionFileFilter.filterFiles(
 				this.app.vault.getMarkdownFiles(),

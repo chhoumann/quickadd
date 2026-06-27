@@ -5,6 +5,7 @@ import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { UserCancelError } from "../errors/UserCancelError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
 // Capture the override the engine pushes into the formatter for the "Under heading…" path.
 const { setInsertAfterTargetOverrideMock } = vi.hoisted(() => ({
@@ -211,6 +212,29 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## New Heading");
 		// Custom value isn't a known heading line → notice falls back to the raw value.
 		expect((engine as any).resolvedInsertAfterHeading).toBe("## New Heading");
+	});
+
+	it("aborts (without opening the picker) on a non-interactive run", async () => {
+		const suggestSpy = vi.fn(async () => "## Tasks");
+		(InputSuggester as any).Suggest = suggestSpy;
+		// Non-interactive (CLI without `ui`): the heading picker has no one to answer.
+		const executor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+			interactive: false,
+		};
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(),
+			executor,
+		);
+
+		await expect(
+			(engine as any).maybeResolveInsertAfterHeading(HEADING_NOTE),
+		).rejects.toBeInstanceOf(ChoiceAbortError);
+		expect(suggestSpy).not.toHaveBeenCalled();
+		expect(setInsertAfterTargetOverrideMock).not.toHaveBeenCalled();
 	});
 
 	it("aborts cleanly (UserCancelError) when the picker is dismissed", async () => {

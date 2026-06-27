@@ -46,6 +46,7 @@ import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
 import { UserCancelError } from "../errors/UserCancelError";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
 
@@ -363,6 +364,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return this.choice.fileExistsBehavior.mode;
 		}
 
+		// Non-interactive run (CLI without `ui`): there is no one to answer the
+		// "file already exists" prompt, so opening it would hang forever. Abort with
+		// an actionable error instead. This is the default behaviour for new Template
+		// choices, so it is the most common non-interactive hang.
+		if (this.choiceExecutor.interactive === false) {
+			throw new ChoiceAbortError(
+				`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
+					`Set the choice's "If the file already exists" behaviour to a specific action (e.g. Increment, Overwrite), or re-run with the ui flag.`,
+			);
+		}
+
 		const promptModes = getPromptModes();
 
 		try {
@@ -598,6 +610,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		]);
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
+		// Propagate non-interactivity so a folder chooser aborts (instead of hanging)
+		// in a headless CLI run; a single configured folder never prompts regardless.
+		const interactive = this.choiceExecutor.interactive;
 
 		if (
 			this.choice.folder?.chooseFromSubfolders &&
@@ -619,6 +634,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				allowCreate: true,
 				allowedRoots: folders,
 				topItems,
+				interactive,
 			});
 		}
 
@@ -629,6 +645,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await this.getOrCreateFolder(allFoldersInVault, {
 				allowCreate: true,
 				topItems,
+				interactive,
 			});
 		}
 
@@ -645,6 +662,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await this.getOrCreateFolder([activeFile.parent.path], {
 				allowCreate: true,
 				topItems,
+				interactive,
 			});
 		}
 
@@ -652,6 +670,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			allowCreate: true,
 			allowedRoots: folders,
 			topItems,
+			interactive,
 		});
 	}
 
