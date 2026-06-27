@@ -48,6 +48,7 @@ import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import {
 	migrateUserScriptSecretSettings,
@@ -485,6 +486,22 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		// Non-interactive run (CLI without `ui`): a user script that exports an object
+		// of MULTIPLE named members opens a picker to choose which to run, which has
+		// no one to answer it headlessly. A single-member export is unambiguous, so
+		// run it directly (the interactive path keeps its existing picker behaviour).
+		if (this.choiceExecutor.interactive === false) {
+			const keys = Object.keys(obj);
+			if (keys.length === 1) {
+				await this.userScriptDelegator(obj[keys[0]]);
+				return;
+			}
+			throw new ChoiceAbortError(
+				"This macro's user script exports multiple members and needs to ask which one to run, but this run is non-interactive. " +
+					"Reference a single member (e.g. myScript::start), or re-run with the ui flag.",
+			);
+		}
+
 		try {
 			const keys = Object.keys(obj);
 			const selected: string = await GenericSuggester.Suggest(
@@ -613,6 +630,14 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const options = getModelNames();
 		let modelName: string;
 		if (command.model === "Ask me") {
+			// Non-interactive run (CLI without `ui`): the "Ask me" model picker has no
+			// one to answer it. Abort with an actionable error instead of hanging.
+			if (this.choiceExecutor.interactive === false) {
+				throw new ChoiceAbortError(
+					"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
+						"Pick a specific model in the command, or re-run with the ui flag.",
+				);
+			}
 			try {
 				modelName = await GenericSuggester.Suggest(this.app, options, options);
 			} catch (error) {
@@ -658,6 +683,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				systemPrompt: command.systemPrompt,
 				showAssistantMessages: aiSettings.showAssistant,
 				modelOptions: command.modelParameters,
+				interactive: this.choiceExecutor.interactive,
 			},
 			async (input: string) => {
 				return formatter.formatFileContent(input);

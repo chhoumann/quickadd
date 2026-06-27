@@ -161,6 +161,7 @@ vi.mock("../logger/logManager", () => ({
 
 const { CompleteFormatter } = await import("./completeFormatter");
 const { MacroAbortError } = await import("../errors/MacroAbortError");
+const { ChoiceAbortError } = await import("../errors/ChoiceAbortError");
 
 // --- Test helpers --------------------------------------------------------
 
@@ -747,6 +748,50 @@ describe("CompleteFormatter - {{VALUE}} prompting", () => {
 		mocks.inputPromptPrompt.mockRejectedValue(realError);
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{VALUE}}")).rejects.toBe(realError);
+	});
+});
+
+describe("CompleteFormatter - non-interactive guard (CLI without ui)", () => {
+	// A non-interactive ChoiceExecutor: the formatter must abort any token prompt
+	// (instead of hanging on an unanswerable modal) when a value wasn't provided.
+	const nonInteractiveFormatter = () => {
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const plugin = makePlugin({});
+		return new CompleteFormatter(app as any, plugin as any, {
+			variables: new Map<string, unknown>(),
+			interactive: false,
+			execute: vi.fn(),
+		} as any);
+	};
+
+	it("aborts on an unresolved anonymous {{VALUE}} without opening the prompt", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("typed");
+		const f = nonInteractiveFormatter();
+		await expect(f.formatFolderPath("{{VALUE}}")).rejects.toBeInstanceOf(
+			ChoiceAbortError,
+		);
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("aborts on an unresolved {{VALUE:opts}} suggester without opening it", async () => {
+		mocks.genericSuggesterSuggest.mockResolvedValue("a");
+		const f = nonInteractiveFormatter();
+		await expect(
+			f.formatFolderPath("{{VALUE:a,b,c}}"),
+		).rejects.toBeInstanceOf(ChoiceAbortError);
+		expect(mocks.genericSuggesterSuggest).not.toHaveBeenCalled();
+	});
+
+	it("does NOT abort when the value is provided up front", async () => {
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const plugin = makePlugin({});
+		const f = new CompleteFormatter(app as any, plugin as any, {
+			variables: new Map<string, unknown>([["value", "Given"]]),
+			interactive: false,
+			execute: vi.fn(),
+		} as any);
+		await expect(f.formatFolderPath("{{VALUE}}")).resolves.toBe("Given");
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 });
 

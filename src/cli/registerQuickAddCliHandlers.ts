@@ -313,6 +313,11 @@ async function runResolvedChoice(
 		setExecutorVariables(choiceExecutor, variables);
 
 		const interactiveMode = isTruthy(params.ui);
+		// Without `ui`, engine prompts the requirement collector can't pre-satisfy
+		// (the "file already exists" prompt, folder chooser, heading picker) would
+		// hang forever on an unanswerable modal. Mark the run non-interactive so the
+		// engines abort those with a clear error instead. `ui` keeps full prompting.
+		choiceExecutor.interactive = interactiveMode;
 		if (!interactiveMode) {
 			const requirements = await collectChoiceRequirements(
 				plugin.app,
@@ -364,10 +369,14 @@ async function runResolvedChoice(
 				return serialize({
 					ok: false,
 					command,
+					// Surface the engine's actionable abort reason (e.g. the non-interactive
+					// "file already exists" / folder-chooser guard) when present, so a
+					// headless caller learns how to fix it instead of a bare "aborted".
 					error:
-						outcome.cancelKind === "user"
+						outcome.reason ||
+						(outcome.cancelKind === "user"
 							? "Execution cancelled by user"
-							: "Execution aborted",
+							: "Execution aborted"),
 					aborted: true,
 					choice: describeChoice(choice),
 					durationMs,

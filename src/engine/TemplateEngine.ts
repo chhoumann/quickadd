@@ -35,6 +35,7 @@ import {
 } from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
@@ -44,6 +45,13 @@ type FolderChoiceOptions = {
 	placeholder?: string;
 	allowedRoots?: string[];
 	topItems?: Array<{ path: string; label: string }>;
+	/**
+	 * When `false`, refuse to open the folder-chooser suggester (no one can answer
+	 * it in a non-interactive CLI run) and abort with a clear error instead of
+	 * hanging. Defaults to interactive. A single configured folder never prompts,
+	 * so it is unaffected regardless of this flag.
+	 */
+	interactive?: boolean;
 };
 
 type FolderSelectionContext = {
@@ -115,6 +123,15 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 		if (!this.shouldPromptForFolder(context)) {
 			return await this.handleSingleSelection(context);
+		}
+
+		// Non-interactive run (CLI without `ui`): the folder chooser has no one to
+		// answer it, so opening it would hang. Abort with an actionable error.
+		if (options.interactive === false) {
+			throw new ChoiceAbortError(
+				"This choice needs to ask which folder to create the note in, but this run is non-interactive. " +
+					"Configure a single target folder, or re-run with the ui flag.",
+			);
 		}
 
 		const selection = await this.promptUntilAllowed(context);

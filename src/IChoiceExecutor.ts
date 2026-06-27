@@ -29,6 +29,17 @@ export interface IChoiceExecutor {
 	): Promise<ChoiceOutcome>;
 	variables: Map<string, unknown>;
 	/**
+	 * Whether this execution may open blocking interactive UI (suggesters/modals)
+	 * for inputs the requirement collector cannot pre-satisfy — e.g. the
+	 * "file already exists" prompt, the folder chooser, or the heading picker.
+	 * Defaults to interactive (`true`/`undefined`) so GUI runs are unchanged.
+	 * Non-interactive callers (the `quickadd:run`/`run-template` CLI without the
+	 * `ui` flag, and any headless automation) set this to `false`; engines then
+	 * abort such a prompt with a clear, actionable error instead of hanging forever
+	 * on an unanswerable modal.
+	 */
+	interactive?: boolean;
+	/**
 	 * Frontmatter property value focused when the outermost choice execution began.
 	 * Append Link uses this to avoid the stale CodeMirror cursor Obsidian reports
 	 * while a Properties field owns focus.

@@ -25,6 +25,10 @@ import {
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
+	// Default to interactive so every GUI entry point (command palette, ribbon,
+	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
+	// without `ui`) flip this to false so engine prompts abort instead of hanging.
+	public interactive = true;
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
@@ -164,9 +168,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			if (this.pendingAbort) {
 				promptDraftStore.rollbackExecutionScope();
 				const abort = this.consumeAbortSignal();
+				const isUser = abort instanceof UserCancelError;
 				return {
 					status: "cancelled",
-					cancelKind: abort instanceof UserCancelError ? "user" : "aborted",
+					cancelKind: isUser ? "user" : "aborted",
+					// Only surface the message for an involuntary abort (e.g. the
+					// non-interactive prompt guards). A user dismissal keeps its stable
+					// "cancelled by user" text and leaks no internals.
+					reason: isUser ? undefined : abort?.message,
 				};
 			}
 
@@ -178,10 +187,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope();
 			if (error instanceof UserCancelError) {
+				// Stable user-facing text; no internal message surfaced.
 				return { status: "cancelled", cancelKind: "user" };
 			}
 			if (error instanceof MacroAbortError) {
-				return { status: "cancelled", cancelKind: "aborted" };
+				return { status: "cancelled", cancelKind: "aborted", reason: error.message };
 			}
 			reportError(error, "Error executing choice from URI");
 			return { status: "error" };
