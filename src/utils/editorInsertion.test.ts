@@ -190,6 +190,9 @@ describe("insertFileLinkToActiveView", () => {
 			fileManager: {
 				generateMarkdownLink: vi.fn(() => "[[Created]]"),
 			},
+			metadataCache: {
+				fileToLinktext: vi.fn(() => "Created"),
+			},
 		} as unknown as App;
 
 		await expect(
@@ -202,8 +205,8 @@ describe("insertFileLinkToActiveView", () => {
 			}),
 		).resolves.toBe(true);
 
-		// buildFileLinkText converts the wikilink to an embed, and the newLine
-		// placement prepends a newline before inserting at end of the line.
+		// buildFileLinkText wraps the native wikilink text as an embed, and the
+		// newLine placement prepends a newline before inserting at end of the line.
 		expect(replaceRange).toHaveBeenCalledWith("\n![[Created]]", {
 			line: 0,
 			ch: "Host line one".length,

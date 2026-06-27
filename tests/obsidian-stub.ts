@@ -357,6 +357,7 @@ export class App {
   metadataCache: any = {
     getFileCache: () => undefined,
     isUserIgnored: () => false,
+    fileToLinktext: (file: any) => file?.basename ?? "",
   };
   commands: any = {
     commands: {},

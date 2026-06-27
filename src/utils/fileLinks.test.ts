@@ -18,10 +18,14 @@ type NoticeTestClass = typeof Notice & {
 
 const noticeClass = Notice as unknown as NoticeTestClass;
 
-function createApp(linkText = "[[Created Note]]"): App {
+function createApp(linkText = "[[Created Note]]", linktext = "Created Note"): App {
 	return {
 		fileManager: {
 			generateMarkdownLink: vi.fn(() => linkText),
+		},
+		metadataCache: {
+			// Embeds are built from the literal wikilink text, not the formatted link.
+			fileToLinktext: vi.fn(() => linktext),
 		},
 	} as unknown as App;
 }
@@ -105,14 +109,22 @@ describe("file link helpers", () => {
 
 	it("can build embed text for embed-capable editor insertion", () => {
 		const app = createApp("[[Created Note]]");
+		const file = createFile();
 
 		expect(
-			buildFileLinkText(app, createFile(), {
+			buildFileLinkText(app, file, {
 				linkType: "embed",
 				placement: "replaceSelection",
 				sourcePath: "Inbox.md",
 			}),
 		).toBe("![[Created Note]]");
+		// Embeds are built natively from the literal wikilink text, never by
+		// reformatting/decoding a generated Markdown link.
+		expect(app.metadataCache.fileToLinktext).toHaveBeenCalledWith(
+			file,
+			"Inbox.md",
+		);
+		expect(app.fileManager.generateMarkdownLink).not.toHaveBeenCalled();
 	});
 
 	it("builds embed text for every active-note body placement", () => {

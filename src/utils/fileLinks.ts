@@ -8,7 +8,6 @@ import type {
 	LinkType,
 } from "../types/linkPlacement";
 import { placementSupportsEmbed } from "../types/linkPlacement";
-import { convertLinkToEmbed } from "./markdownLinks";
 
 const CLIPBOARD_NOTICE_DURATION_MS = 4000;
 
@@ -29,12 +28,21 @@ export function buildFileLinkText(
 	options: FileLinkTextOptions = {},
 ): string {
 	const sourcePath = options.sourcePath ?? "";
-	const baseLink = app.fileManager.generateMarkdownLink(file, sourcePath);
 	const shouldEmbed =
 		options.linkType === "embed" &&
 		(!options.placement || placementSupportsEmbed(options.placement));
 
-	return shouldEmbed ? convertLinkToEmbed(baseLink) : baseLink;
+	if (shouldEmbed) {
+		// Embeds are always wiki-style transclusions (`![[...]]`) regardless of the
+		// vault's link-format setting, because Obsidian renders `![](...)` as an
+		// attachment image, not a note embed. fileToLinktext returns the literal,
+		// link-format-aware wikilink text (no percent-encoding), so the embed needs
+		// no decoding or delimiter sanitizing.
+		return `![[${app.metadataCache.fileToLinktext(file, sourcePath)}]]`;
+	}
+
+	// Regular links honor the vault's "New link format" + markdown/wiki setting.
+	return app.fileManager.generateMarkdownLink(file, sourcePath);
 }
 
 export function normalizeAppendLinkDestinationPath(rawPath: string): string {

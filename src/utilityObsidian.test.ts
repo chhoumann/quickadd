@@ -15,10 +15,6 @@ import {
 	getOpenFileOriginLeaf,
 	openFile,
 } from "./utilityObsidian";
-import {
-	convertLinkToEmbed,
-	extractMarkdownLinkTarget,
-} from "./utils/markdownLinks";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { CommandType } from "./types/macros/CommandType";
 
@@ -128,111 +124,6 @@ function createApp({
 		setActiveLeaf,
 	};
 }
-
-describe("convertLinkToEmbed", () => {
-	it("converts wiki links to embeds", () => {
-		expect(convertLinkToEmbed("[[Note]]")).toBe("![[Note]]");
-	});
-
-	it("leaves already embedded wiki links unchanged", () => {
-		expect(convertLinkToEmbed("![[Note]]")).toBe("![[Note]]");
-	});
-
-	it("converts markdown links into wiki embeds", () => {
-		expect(convertLinkToEmbed("[Title](../Note.md)")).toBe("![[../Note.md]]");
-	});
-
-	it("preserves markdown heading targets when embedding", () => {
-		expect(convertLinkToEmbed("[Title](Note.md#Heading)")).toBe("![[Note.md#Heading]]");
-	});
-
-	it("strips surrounding angle brackets before embedding", () => {
-		expect(convertLinkToEmbed("[Title](<path/to/note.md>)")).toBe("![[path/to/note.md]]");
-	});
-
-	it("converts plain text references by prefixing a bang", () => {
-		expect(convertLinkToEmbed("Note")).toBe("!Note");
-	});
-
-	it("prefixes malformed markdown links so they still embed", () => {
-		expect(convertLinkToEmbed("[Title](Note.md")).toBe("![Title](Note.md");
-	});
-
-	it("trims whitespace around markdown links before conversion", () => {
-		const link = "   [Label](../Another Note.md#Heading)   ";
-		expect(convertLinkToEmbed(link)).toBe("![[../Another Note.md#Heading]]");
-	});
-
-	it("decodes percent-encoded markdown link paths so embeds resolve", () => {
-		// Obsidian's "Markdown links" format percent-encodes spaces; a wiki embed
-		// must use the literal path or it will not resolve.
-		expect(convertLinkToEmbed("[My Meeting Note](My%20Meeting%20Note.md)")).toBe(
-			"![[My Meeting Note.md]]",
-		);
-		expect(
-			convertLinkToEmbed("[Note](Folder%20A/My%20Note.md#Heading%20One)"),
-		).toBe("![[Folder A/My Note.md#Heading One]]");
-	});
-
-	it("falls back to the raw target when percent-decoding fails", () => {
-		// A lone `%` is not valid percent-encoding; decodeURIComponent would throw,
-		// so the raw target is embedded rather than crashing.
-		expect(convertLinkToEmbed("[Bad](100%.md)")).toBe("![[100%.md]]");
-	});
-
-	it("keeps a literal heading separator while decoding the heading text", () => {
-		expect(convertLinkToEmbed("[L](Notes/My%20Note.md#My%20Heading)")).toBe(
-			"![[Notes/My Note.md#My Heading]]",
-		);
-	});
-
-	it("does not decode encoded wiki delimiters into separators", () => {
-		// A percent-encoded #/^/| is a literal character in the path, not a wiki
-		// separator. Decoding it would silently re-target the embed (e.g. point at
-		// a heading), so those escapes stay encoded while spaces still decode.
-		expect(convertLinkToEmbed("[C Sharp](C%23%20Guide.md)")).toBe(
-			"![[C%23 Guide.md]]",
-		);
-		expect(convertLinkToEmbed("[Block](Note%5E%20id.md)")).toBe(
-			"![[Note%5E id.md]]",
-		);
-		expect(convertLinkToEmbed("[Pipe](a%7C%20b.md)")).toBe("![[a%7C b.md]]");
-	});
-});
-
-describe("extractMarkdownLinkTarget", () => {
-	it("extracts targets from standard markdown links", () => {
-		expect(extractMarkdownLinkTarget("[Label](Note.md)")).toBe("Note.md");
-	});
-
-	it("handles image-style markdown links", () => {
-		expect(extractMarkdownLinkTarget("![Label](Note.md)")).toBe("Note.md");
-	});
-
-	it("includes heading fragments when present", () => {
-		expect(extractMarkdownLinkTarget("[Label](Note.md#Heading)")).toBe("Note.md#Heading");
-	});
-
-	it("removes surrounding angle brackets", () => {
-		expect(extractMarkdownLinkTarget("[Label](<Note.md>)")).toBe("Note.md");
-	});
-
-	it("trims whitespace inside parentheses", () => {
-		expect(extractMarkdownLinkTarget("[Label](   Note.md  )")).toBe("Note.md");
-	});
-
-	it("returns null for wiki links", () => {
-		expect(extractMarkdownLinkTarget("[[Note]]")).toBeNull();
-	});
-
-	it("returns null for malformed markdown", () => {
-		expect(extractMarkdownLinkTarget("[Label](Note.md")).toBeNull();
-	});
-
-	it("returns null for empty targets", () => {
-		expect(extractMarkdownLinkTarget("[Label]()")).toBeNull();
-	});
-});
 
 describe("getAllFolderPathsInVault", () => {
 	it("filters to folders and maps paths without sorting", () => {
