@@ -21,8 +21,25 @@ export type FrontmatterHandling =
 
 export const DEFAULT_FRONTMATTER_HANDLING: FrontmatterHandling = "alwaysAppend";
 
+/**
+ * Active-note Markdown body placements that insert into the editor and can
+ * therefore carry an embed (`![[...]]`). "inFrontmatter" is excluded because a
+ * frontmatter property value is link-only. Specified-note destinations stay
+ * link-only via their own guards (sanitizeLinkType requires an activeFile
+ * destination, and appendFileLinkToDestinationFile hardcodes "link"), so they
+ * are unaffected by this set even when a body placement is selected.
+ *
+ * A new placement is NOT embed-capable until it is deliberately added here.
+ */
+const EMBED_CAPABLE_PLACEMENTS: ReadonlySet<LinkPlacement> = new Set([
+	"replaceSelection",
+	"afterSelection",
+	"endOfLine",
+	"newLine",
+]);
+
 export function placementSupportsEmbed(placement: LinkPlacement): boolean {
-	return placement === "replaceSelection";
+	return EMBED_CAPABLE_PLACEMENTS.has(placement);
 }
 
 export function placementSupportsFrontmatter(
@@ -71,7 +88,10 @@ export interface AppendLinkOptions {
 	 */
 	requireActiveFile: boolean;
 	/**
-	 * Controls how the link renders. "embed" is only respected when placement is replaceSelection.
+	 * Controls how the link renders. "embed" is respected for the active note's
+	 * Markdown body placements (replaceSelection, afterSelection, endOfLine,
+	 * newLine). It is normalized to "link" for "inFrontmatter" and for
+	 * specified-note destinations, which are link-only.
 	 * Defaults to "link" for legacy settings.
 	 */
 	linkType?: LinkType;

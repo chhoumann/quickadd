@@ -168,6 +168,52 @@ describe("insertFileLinkToActiveView", () => {
 		expect(frontmatter.related).toEqual(["[[Existing]]", "[[Created]]"]);
 	});
 
+	it("inserts an embed on a new line for newLine placement", async () => {
+		const activeFile = { path: "Host.md" } as TFile;
+		const createdFile = { path: "Notes/Created.md" } as TFile;
+		const replaceRange = vi.fn();
+		const editor = {
+			listSelections: vi.fn(() => [
+				{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 0 } },
+			]),
+			replaceSelection: vi.fn(),
+			replaceRange,
+			getLine: vi.fn(() => "Host line one"),
+			posToOffset: vi.fn(
+				({ line, ch }: { line: number; ch: number }) => line * 1000 + ch,
+			),
+		};
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn(() => ({ file: activeFile, editor })),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Created]]"),
+			},
+			metadataCache: {
+				fileToLinktext: vi.fn(() => "Created"),
+			},
+		} as unknown as App;
+
+		await expect(
+			insertFileLinkToActiveView(app, createdFile, {
+				enabled: true,
+				placement: "newLine",
+				requireActiveFile: false,
+				linkType: "embed",
+				destination: { type: "activeFile" },
+			}),
+		).resolves.toBe(true);
+
+		// buildFileLinkText wraps the native wikilink text as an embed, and the
+		// newLine placement prepends a newline before inserting at end of the line.
+		expect(replaceRange).toHaveBeenCalledWith("\n![[Created]]", {
+			line: 0,
+			ch: "Host line one".length,
+		});
+		expect(editor.replaceSelection).not.toHaveBeenCalled();
+	});
+
 	it("propagates configured frontmatter insertion failures", async () => {
 		const app = {
 			workspace: {

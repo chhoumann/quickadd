@@ -218,7 +218,7 @@ function validateDestinationFile(raw: string) {
 		{#if placementSupportsEmbed(normalized.placement)}
 			<SettingItem
 				name="Link type"
-				desc="Choose whether replacing the selection inserts a link or an embed."
+				desc="Choose whether to insert a link or an embed. Embeds transclude the note's contents at the placement position."
 			>
 				{#snippet control()}
 					<Dropdown
