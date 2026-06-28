@@ -333,6 +333,23 @@ export class AIAssistantProvidersModal extends Modal {
 			});
 	}
 
+	// Discard in-progress edits to the selected provider by restoring the
+	// snapshot taken on Edit. We swap the array entry wholesale rather than
+	// Object.assign-ing the clone over the live object: Object.assign cannot
+	// remove keys the edit ADDED but the snapshot lacks (e.g. an apiKeyRef set on
+	// a default provider that had none), so those edits would survive Cancel.
+	private restoreSelectedProviderFromClone(): void {
+		if (!this.selectedProvider || !this._selectedProviderClone) return;
+
+		const index = this.providers.indexOf(this.selectedProvider);
+		if (index !== -1) {
+			this.providers[index] = this._selectedProviderClone;
+		}
+
+		this.selectedProvider = null;
+		this._selectedProviderClone = null;
+	}
+
 	addProviderSettingButtonRow(container: HTMLElement) {
 		const buttonRow = container.createDiv({
 			cls: "button-row qa-ai-provider-button-row",
@@ -342,14 +359,10 @@ export class AIAssistantProvidersModal extends Modal {
 		CancelButton.setButtonText("Cancel");
 		CancelButton.setDestructive();
 		CancelButton.onClick(() => {
-			if (!this.selectedProvider || !this._selectedProviderClone) return;
-
-			// Cancel always returns to the provider list. Restore the original
-			// values (discarding edits), then reload — never close(), so the
-			// modal doesn't flash-close-and-reopen via onClose's reopen branch.
-			Object.assign(this.selectedProvider, this._selectedProviderClone);
-			this.selectedProvider = null;
-			this._selectedProviderClone = null;
+			// Cancel always returns to the provider list, discarding edits. We
+			// never close() here so the modal doesn't flash-close-and-reopen via
+			// onClose's path.
+			this.restoreSelectedProviderFromClone();
 
 			this.reload();
 		});
@@ -377,14 +390,10 @@ export class AIAssistantProvidersModal extends Modal {
 
 	onClose(): void {
 		// If the user dismissed while editing a provider (Escape / X), discard
-		// the in-progress edits by restoring the clone, then resolve and close.
+		// the in-progress edits by restoring the snapshot, then resolve and close.
 		// We do NOT reopen the modal here — reopening on close made Escape re-show
 		// the dialog and required a second Escape to actually leave.
-		if (this.selectedProvider && this._selectedProviderClone) {
-			Object.assign(this.selectedProvider, this._selectedProviderClone);
-		}
-		this.selectedProvider = null;
-		this._selectedProviderClone = null;
+		this.restoreSelectedProviderFromClone();
 
 		this.resolvePromise(this.providers);
 		super.onClose();
