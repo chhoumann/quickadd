@@ -194,6 +194,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private suggest: Suggest<T>;
 	private currentRequestId = 0;
 	private isOpen = false;
+	private destroyed = false;
 	private noResultsTimeout: number | null = null;
 	private currentQuery = "";
 
@@ -293,6 +294,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	async onInputChanged(event?: Event): Promise<void> {
+		// A pending debounced call can fire after destroy() removed the input
+		// listeners; bail so a destroyed instance never re-opens.
+		if (this.destroyed) return;
 		const completionEvent = event as CompletionInputEvent | undefined;
 		// Handle multi-select mode: keep suggestions open after selection
 		if (completionEvent?.fromCompletion && completionEvent.keepOpen) {
@@ -366,6 +370,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	open(container: HTMLElement, inputEl: HTMLElement): void {
+		// An async getSuggestions() may resolve after destroy() and reach open();
+		// refuse to re-open a destroyed instance (would spawn an orphaned popup).
+		if (this.destroyed) return;
 		// Always add listeners; if already open just update popper position
 		if (!this.isOpen) {
 			this.app.keymap.pushScope(this.scope);
@@ -381,7 +388,16 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			containerDocument === inputDocument ? container : inputDocument.body;
 		ownerCompatibleContainer.appendChild(this.suggestEl);
 
-		// Create Popper only when needed
+		// open() runs on every keystroke (onInputChanged re-opens to refresh the
+		// suggestions). If a Popper already exists, reposition it instead of
+		// creating a new one — recreating here would leak a Popper instance, and
+		// the scroll/resize listeners it attaches, on every keystroke. The Popper
+		// (and the global listeners below) are torn down together in close().
+		if (this.popper) {
+			void this.popper.update();
+			return;
+		}
+
 		this.popper = createPopper(inputEl, this.suggestEl, {
 			placement: "bottom-start",
 			modifiers: [
@@ -417,7 +433,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			],
 		});
 
-		// Add global listeners (idempotent due to capture true)
+		// Add global listeners (paired with the Popper lifecycle: removed in close()).
 		const activeDocument = inputDocument;
 		const activeWindow = getOwnerWindow(inputEl);
 		activeDocument.addEventListener("pointerdown", this.globalClickListener, true);
@@ -460,17 +476,19 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		activeWindow.removeEventListener("resize", this.globalResizeListener);
 		activeWindow.removeEventListener("blur", this.globalBlurListener);
 
-		const classKey = this.constructor.name;
-		const byClass = instanceMap.get(this.inputEl);
-		if (byClass) {
-			byClass.delete(classKey);
-			if (byClass.size === 0) {
-				instanceMap.delete(this.inputEl);
-			}
-		}
+		// Intentionally keep this instance registered in instanceMap. close()
+		// only hides the dropdown; the input/focus/blur listeners stay attached
+		// so typing can re-open it. Unregistering here (while leaving those
+		// listeners live) would orphan the instance: a later same-class suggester
+		// on this input would miss the dedup in the constructor and never
+		// destroy() us, leaking our input listeners and spawning duplicate
+		// popups. Deregistration belongs to destroy().
 	}
 
 	destroy(): void {
+		// Mark dead first so any in-flight async getSuggestions() or pending
+		// debounced onInputChanged() that resolves after this point can't re-open.
+		this.destroyed = true;
 		this.close();
 		// Remove input listeners
 		this.inputEl.removeEventListener("input", this.inputEventListener);

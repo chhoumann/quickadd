@@ -11,11 +11,8 @@ import {
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
-import {
-	estimateModelInputBudget,
-	estimateTokenCount,
-} from "src/ai/tokenEstimator";
-import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { estimateTokenCount } from "src/ai/tokenEstimator";
+import { getMaxChunkTokensUpperBound, getModelNames } from "src/ai/aiHelpers";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
@@ -120,10 +117,25 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 				dropdown.addOption("Ask me", "Ask me");
 
-				dropdown.setValue(this.settings.model);
+				// If the pinned model was deleted, the option no longer exists and
+				// setValue would silently fall back to the first option while the
+				// stored (now invalid) name persists. Surface the mismatch with a
+				// disabled "(missing)" entry so the dropdown reflects the saved
+				// value (mirrors AIAssistantCommandSettingsModal).
+				const stored = this.settings.model;
+				const isKnown = stored === "Ask me" || models.includes(stored);
+				if (stored && !isKnown) {
+					dropdown.addOption(stored, `(missing) ${stored}`);
+					const missingOption = Array.from(
+						dropdown.selectEl.options,
+					).find((option) => option.value === stored);
+					if (missingOption) missingOption.disabled = true;
+				}
+
+				dropdown.setValue(stored);
 				dropdown.onChange((value) => {
 					this.settings.model = value;
-					
+
 					this.reload();
 				});
 			});
@@ -317,20 +329,12 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				"Maximum estimated tokens for each chunk of your text (the {{chunk}} portion only — the system prompt and prompt template are accounted for separately). Counts are estimated locally; the provider enforces the exact limit. Leave room for the model's response. Values above the model's estimated input budget are capped automatically."
 			)
 			.addSlider((slider) => {
-				const model = getModelByName(this.settings.model);
-
-				if (!model) {
-					throw new Error(
-						`Model ${this.settings.model} not found in settings`
-					);
-				}
-
-				// Upper bound mirrors the runtime budget: the model's estimated
-				// input budget minus the (estimated) system prompt overhead.
-				const sliderMax = Math.max(
-					1,
-					estimateModelInputBudget(model.maxTokens) -
-						this.systemPromptTokenLength
+				// The selected model may be unknown at config time — the "Ask me"
+				// sentinel (resolved at runtime) or a model that was removed. Use
+				// a fallback bound instead of throwing, which would blank the modal.
+				const sliderMax = getMaxChunkTokensUpperBound(
+					this.settings.model,
+					this.systemPromptTokenLength,
 				);
 				slider.setLimits(1, sliderMax, 1);
 
