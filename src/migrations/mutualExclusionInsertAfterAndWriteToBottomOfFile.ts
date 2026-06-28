@@ -16,7 +16,10 @@ function recursiveMigrateSettingInChoices(choices: IChoice[]): IChoice[] {
 		}
 
 		if (isCaptureChoice(choice)) {
-			if (choice.insertAfter.enabled && choice.prepend) {
+			// `insertAfter` may be absent on legacy/imported/hand-edited choices;
+			// migrations run on raw settings before CaptureChoice.Load normalizes
+			// them. Treat a missing object as not-enabled instead of throwing.
+			if (choice.insertAfter?.enabled && choice.prepend) {
 				choice.prepend = false;
 			}
 		}
@@ -35,7 +38,7 @@ function migrateSettingsInMacros(macros: IMacro[]): IMacro[] {
 				isCaptureChoice(command.choice)
 			) {
 				if (
-					command.choice.insertAfter.enabled &&
+					command.choice.insertAfter?.enabled &&
 					command.choice.prepend
 				) {
 					command.choice.prepend = false;
