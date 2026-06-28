@@ -122,6 +122,29 @@ export class FieldValueProcessor {
 	}
 
 	/**
+	 * Returns the entry in `values` that matches `value` under the dedup case fold,
+	 * or `value` itself when none does (issue #1429). Used to map an active-note
+	 * preselection onto the existing (vault-cased) suggestion before handing it to
+	 * the multi-select picker, so a case variant (active `Done` vs collected `done`)
+	 * toggles the existing option instead of adding a duplicate custom row. With
+	 * `caseSensitive` the value is returned unchanged.
+	 */
+	static canonicalizeAgainst(
+		values: string[],
+		value: string,
+		caseSensitive = false,
+	): string {
+		if (caseSensitive) return value;
+		const normalized = this.normalizeForComparison(value);
+		return (
+			values.find(
+				(candidate) =>
+					this.normalizeForComparison(candidate) === normalized,
+			) ?? value
+		);
+	}
+
+	/**
 	 * Normalize a value for case-insensitive comparison, mirroring
 	 * FieldValueDeduplicator's fold (Unicode NFD + diacritic strip + lowercase)
 	 * so default-value matching is consistent with case-insensitive dedup.

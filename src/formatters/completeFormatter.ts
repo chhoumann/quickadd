@@ -728,12 +728,23 @@ export class CompleteFormatter extends Formatter {
 				}
 				// Pre-check the active note's value(s) (scalar -> one, list -> each).
 				// Never [undefined]: activeDefault is null | string | string[].
+				// Canonicalize each against the collected suggestions under the dedup
+				// case fold, so an active "Done" toggles a collected "done" option
+				// instead of adding a duplicate custom row (matching FIELD's
+				// case-insensitive dedup).
 				const preselected =
 					activeDefault === null
 						? undefined
-						: Array.isArray(activeDefault)
-							? activeDefault
-							: [activeDefault];
+						: (Array.isArray(activeDefault)
+								? activeDefault
+								: [activeDefault]
+							).map((v) =>
+								FieldValueProcessor.canonicalizeAgainst(
+									multiValues,
+									v,
+									filters.caseSensitive,
+								),
+							);
 				return await MultiSuggester.Suggest(this.app, multiValues, multiValues, {
 					placeholder,
 					allowCustomValue: true,

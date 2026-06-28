@@ -59,15 +59,17 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
 					: getFocusedPropertyTarget(this.app);
-			// Snapshot the trigger-time editor context ONCE, at the outermost
-			// boundary. Deliberately depth-0-only: a nested execute() (a {{MACRO}}
-			// that opens a file then runs a FIELD template, or the API path) keeps the
-			// ORIGINAL trigger note as the source for {{...|default-from:active}},
-			// mirroring focusedProperty's depth-0 semantics. getActiveFile() tracks the
-			// active markdown leaf — which the QuickAdd suggester/modal overlay does not
-			// change — so a live read here is the trigger note, with no focus-drift
-			// override needed (unlike focusedProperty, whose DOM activeElement IS stolen
-			// by the modal).
+			// Snapshot the trigger-time editor context at the outermost boundary, so a
+			// nested execute() (a {{MACRO}} that opens a file then runs a FIELD
+			// template, or the API path) keeps the ORIGINAL trigger note as the source
+			// for {{...|default-from:active}}, mirroring focusedProperty's depth-0
+			// semantics. Unlike focusedProperty — whose DOM activeElement IS stolen by
+			// the modal and so must be captured+re-injected through the Multi suggester
+			// — getActiveFile() tracks the active markdown LEAF, which a suggester/modal
+			// overlay does not change. So the Multi path (outer execute() clears this,
+			// then the chosen leaf's own depth-0 execute() re-reads it) still yields the
+			// trigger note on the live re-read; no focus-drift override is needed.
+			// Verified live: launcher → Multi → leaf still defaults from the trigger note.
 			this.triggerContext = { activeFile: this.app.workspace.getActiveFile() };
 		}
 		this.executionDepth++;

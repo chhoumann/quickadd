@@ -157,6 +157,10 @@ vi.mock("../utils/FieldValueProcessor", async () => {
 				actual.FieldValueProcessor.promoteValueToFront.bind(
 					actual.FieldValueProcessor,
 				),
+			canonicalizeAgainst:
+				actual.FieldValueProcessor.canonicalizeAgainst.bind(
+					actual.FieldValueProcessor,
+				),
 		},
 	};
 });
@@ -1129,6 +1133,28 @@ describe("CompleteFormatter - FIELD default-from:active (issue #1429)", () => {
 		const [, , , opts] = mocks.multiSuggesterSuggest.mock.calls[0];
 		expect(opts.preselected).toEqual(["Beta", "Zeta"]);
 		expect(opts.allowCustomValue).toBe(true);
+	});
+
+	it("canonicalizes a case-variant active value onto the collected option (no duplicate row)", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topics",
+			filters: { defaultFrom: "active" },
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["done", "open"],
+			hasDefaultValue: false,
+		});
+		// Active note uses different casing than the collected vault value.
+		mocks.resolveActiveDefault.mockReturnValue(["Done"]);
+		mocks.multiSuggesterSuggest.mockResolvedValue(["done"]);
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await f.formatFolderPath("{{FIELD:topics|multi|default-from:active}}");
+
+		const [, , , opts] = mocks.multiSuggesterSuggest.mock.calls[0];
+		// "Done" is folded onto the collected "done" option, not added as custom.
+		expect(opts.preselected).toEqual(["done"]);
 	});
 
 	it("pre-checks a scalar active value in a multi-select picker as a single item", async () => {

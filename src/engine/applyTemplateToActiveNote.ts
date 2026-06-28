@@ -125,6 +125,15 @@ export async function applyTemplateToNote(
 			return null;
 		}
 
+		// This path runs a template through the executor WITHOUT going through
+		// ChoiceExecutor.execute(), so beginExecutionContext() never captures the
+		// trigger context. Seed it here so {{FIELD:<field>|default-from:active}} in
+		// the applied template can read the note being applied to (issue #1429). Use
+		// the resolved target file: it is the active note for the command, and the
+		// explicit params.file for the API path. `??=` so a caller that already
+		// captured a context is never clobbered.
+		params.choiceExecutor.triggerContext ??= { activeFile: file };
+
 		const interactive = !params.templatePath;
 		let source: TemplatePickerItem;
 		if (params.templatePath) {

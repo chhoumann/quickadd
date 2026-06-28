@@ -335,6 +335,38 @@ Body`);
       const req = rc.requirements.get("FIELD:project|default-from:active");
       expect(req?.defaultValue).toBeUndefined();
     });
+
+    it("falls back to the literal |default: for the prefill when the active value is absent", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ other: "x" }),
+        makePlugin(),
+        executorWithActive() as any,
+      );
+      await rc.scanString(
+        "{{FIELD:project|default:Inbox|default-from:active}}",
+      );
+
+      expect(
+        rc.requirements.get("FIELD:project|default:Inbox|default-from:active")
+          ?.defaultValue,
+      ).toBe("Inbox");
+    });
+
+    it("prefers the active value over the literal |default:", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ project: "Endeavor" }),
+        makePlugin(),
+        executorWithActive() as any,
+      );
+      await rc.scanString(
+        "{{FIELD:project|default:Inbox|default-from:active}}",
+      );
+
+      expect(
+        rc.requirements.get("FIELD:project|default:Inbox|default-from:active")
+          ?.defaultValue,
+      ).toBe("Endeavor");
+    });
   });
 });
 

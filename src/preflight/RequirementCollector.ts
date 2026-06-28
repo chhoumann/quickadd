@@ -500,8 +500,16 @@ export class RequirementCollector extends Formatter {
 					this.choiceExecutor?.triggerContext?.activeFile ?? null,
 					parsed.fieldName,
 				);
-				if (typeof resolved === "string") {
-					requirement.defaultValue = resolved;
+				// The active value wins; when it resolves nothing (no active note,
+				// missing/empty property) fall back to the literal |default: so the
+				// one-page form matches the runtime path, which still prepends that
+				// default. `{{FIELD:x|default:Inbox|default-from:active}}` therefore
+				// prefills Inbox instead of an empty field.
+				const effectiveDefault =
+					(typeof resolved === "string" ? resolved : undefined) ??
+					parsed.filters.defaultValue;
+				if (effectiveDefault !== undefined) {
+					requirement.defaultValue = effectiveDefault;
 				}
 			}
 			this.requirements.set(key, requirement);
