@@ -45,10 +45,15 @@ async function handleCitationsPlugin(params, citationsPlugin, settings) {
 
     params.variables = {
         ...params.variables,
-        fileName: replaceIllegalFileNameCharactersInString(entry.title),
+        // Fall back to the citekey when an entry has no usable title. Use ||
+        // (not ??) so an empty-string title is treated as missing too, matching
+        // the suggester's `if (item.title)` display check above.
+        fileName: replaceIllegalFileNameCharactersInString(entry.title || selectedLibraryEntryKey),
         citekey: selectedLibraryEntryKey,
         id: selectedLibraryEntryKey,
-        author: entry.authorString.split(', ').map(author => `[[${author}]]`).join(", "),
+        author: entry.authorString
+            ? entry.authorString.split(', ').map(author => `[[${author}]]`).join(", ")
+            : "",
         doi: entry.DOI,
 
         // https://github.com/hans/obsidian-citation-plugin/blob/cb601fceda8c70c0404dd250c50cdf83d5d04979/src/types.ts#L46
@@ -86,7 +91,17 @@ function replaceIllegalFileNameCharactersInString(string) {
 }
 
 function importAllKeywordsAsTags(keywords) {
-    keywords.forEach((element , index) => keywords[index] = (" #" + element.replace(" ","_")))
+    // BibTeX 'keywords' fields are sometimes a single delimited string rather
+    // than an array; normalize to an array first.
+    const list = Array.isArray(keywords)
+        ? keywords
+        : String(keywords).split(/[;,]/);
 
-    return(keywords)
+    // Map to a NEW array so we never mutate the citation plugin's own library
+    // object, and replace every space (not just the first) so multi-word
+    // keywords become a single valid tag.
+    return list
+        .map((keyword) => String(keyword).trim())
+        .filter((keyword) => keyword.length > 0)
+        .map((keyword) => " #" + keyword.replace(/\s+/g, "_"));
 }
