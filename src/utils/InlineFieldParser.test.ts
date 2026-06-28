@@ -33,6 +33,25 @@ assignee:: John Doe
 			);
 		});
 
+		it("should keep a comma inside a wikilink attached to its link", () => {
+			const content = "Related:: [[Note, with comma]]";
+			const result = InlineFieldParser.parseInlineFields(content);
+
+			expect(result.get("Related")).toEqual(
+				new Set(["[[Note, with comma]]"]),
+			);
+		});
+
+		it("should split a wikilink list while preserving inner commas", () => {
+			const content =
+				"Related:: [[Plain Note]], [[Another, with comma]]";
+			const result = InlineFieldParser.parseInlineFields(content);
+
+			expect(result.get("Related")).toEqual(
+				new Set(["[[Plain Note]]", "[[Another, with comma]]"]),
+			);
+		});
+
 		it("should handle multiple occurrences of same field", () => {
 			const content = `
 First note

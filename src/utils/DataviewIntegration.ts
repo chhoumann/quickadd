@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { getAPI } from "obsidian-dataview";
 import { log } from "src/logger/logManager";
 import type { FieldFilter } from "./FieldSuggestionParser";
+import { splitWikilinkAwareList } from "./splitWikilinkAwareList";
 
 type DataviewFileLike = { path: string };
 
@@ -97,15 +98,9 @@ export class DataviewIntegration {
 						// Handle single file object from Dataview
 						values.add(fieldValue.path);
 					} else if (fieldValue && typeof fieldValue === 'string') {
-						// Handle comma-separated values
-						if (fieldValue.includes(',')) {
-							fieldValue.split(',')
-								.map(v => v.trim())
-								.filter(v => v.length > 0)
-								.forEach(v => values.add(v));
-						} else {
-							values.add(fieldValue.trim());
-						}
+						// Handle comma-separated values, keeping commas inside
+						// `[[wikilinks]]` attached to their link.
+						splitWikilinkAwareList(fieldValue).forEach(v => values.add(v));
 					} else if (fieldValue && typeof fieldValue !== 'object') {
 						// Handle other non-object values
 						values.add(String(fieldValue).trim());
@@ -227,14 +222,9 @@ export class DataviewIntegration {
 						// Handle single file object from Dataview
 						values.add(fieldValue.path);
 					} else if (fieldValue && typeof fieldValue === 'string') {
-						if (fieldValue.includes(',')) {
-							fieldValue.split(',')
-								.map(v => v.trim())
-								.filter(v => v.length > 0)
-								.forEach(v => values.add(v));
-						} else {
-							values.add(fieldValue.trim());
-						}
+						// Handle comma-separated values, keeping commas inside
+						// `[[wikilinks]]` attached to their link.
+						splitWikilinkAwareList(fieldValue).forEach(v => values.add(v));
 					} else if (fieldValue && typeof fieldValue !== 'object') {
 						values.add(String(fieldValue).trim());
 					}

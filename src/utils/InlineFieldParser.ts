@@ -1,3 +1,5 @@
+import { splitWikilinkAwareList } from "./splitWikilinkAwareList";
+
 export class InlineFieldParser {
 	// Regex to match inline fields in the format "fieldname:: value"
 	// Captures: fieldname and value (until end of line or next field)
@@ -41,15 +43,10 @@ export class InlineFieldParser {
 				fields.set(fieldName, new Set());
 			}
 
-			// Handle list syntax (comma-separated values)
-			if (fieldValue.includes(",")) {
-				const values = fieldValue
-					.split(",")
-					.map((v) => v.trim())
-					.filter((v) => v.length > 0);
-				values.forEach((v) => fields.get(fieldName)?.add(v));
-			} else {
-				fields.get(fieldName)?.add(fieldValue);
+			// Handle list syntax (comma-separated values), keeping commas inside
+			// `[[wikilinks]]` attached to their link instead of splitting them.
+			for (const v of splitWikilinkAwareList(fieldValue)) {
+				fields.get(fieldName)?.add(v);
 			}
 		}
 
