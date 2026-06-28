@@ -30,7 +30,11 @@ function splitTopLevel(value: string, delimiter = ","): string[] {
 			continue;
 		}
 
-		if (char === '"' || char === "'") {
+		// Only the straight double quote is a delimiter. Single quotes/apostrophes
+		// are intentionally NOT quotes - they are ubiquitous in property text
+		// (O'Brien, 'tis), and treating them as quotes silently swallowed the comma
+		// in values like "O'Brien, Alice" so the value never split.
+		if (char === '"') {
 			quote = char;
 			current += char;
 			continue;
