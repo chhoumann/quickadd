@@ -21,6 +21,7 @@ import {
 import { parseVDateOptions } from "src/utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "src/utils/EnhancedFieldSuggestionFileFilter";
 import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
+import { resolveActiveNoteFieldDefault } from "src/utils/activeNoteFieldDefault";
 import {
 	buildFileDisplayLabels,
 	FILE_PICK_PREFIX,
@@ -481,13 +482,29 @@ export class RequirementCollector extends Formatter {
 		const parsed = FieldSuggestionParser.parse(variableName);
 		const key = `${FIELD_VARIABLE_PREFIX}${variableName}`;
 		if (!this.requirements.has(key)) {
-			this.requirements.set(key, {
+			const requirement: FieldRequirement = {
 				id: key,
 				label: parsed.fieldName || variableName,
 				type: "field-suggest",
 				source: "collected",
 				runtimeOnly: parsed.multiSelect,
-			});
+			};
+			// Single-select |default-from:active (issue #1429): resolve the active
+			// note's current value so the one-page form prefills it (OnePageInputModal
+			// reads req.defaultValue as the starting value). Gate strictly on "active".
+			// Multi FIELD is runtimeOnly — it bypasses the one-page form and preselects
+			// at runtime in the MultiSuggester instead, so it sets no defaultValue here.
+			if (!parsed.multiSelect && parsed.filters.defaultFrom === "active") {
+				const resolved = resolveActiveNoteFieldDefault(
+					this.app,
+					this.choiceExecutor?.triggerContext?.activeFile ?? null,
+					parsed.fieldName,
+				);
+				if (typeof resolved === "string") {
+					requirement.defaultValue = resolved;
+				}
+			}
+			this.requirements.set(key, requirement);
 		}
 		return "";
 	}

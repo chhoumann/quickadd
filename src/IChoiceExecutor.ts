@@ -4,6 +4,7 @@ import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type { MacroAbortError } from "./errors/MacroAbortError";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks";
+import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
@@ -45,6 +46,15 @@ export interface IChoiceExecutor {
 	 * while a Properties field owns focus.
 	 */
 	focusedProperty?: FrontmatterPropertyTarget | null;
+	/**
+	 * Snapshot of the editor context (currently just the active file) taken when
+	 * the OUTERMOST choice execution began, before any QuickAdd UI opens or a
+	 * Template choice creates/opens a new note. `{{FIELD:<field>|default-from:active}}`
+	 * reads the active note's current property from this to default the prompt.
+	 * Optional so existing stubs and the legacy void {@link execute} path are
+	 * unaffected; absent/undefined means "no trigger-derived default".
+	 */
+	triggerContext?: QuickAddTriggerContext | null;
 	/**
 	 * Records the structured outcome of the current execution so an orchestrator
 	 * (the URI x-callback handler, via {@link ChoiceExecutor.executeWithOutcome}) can

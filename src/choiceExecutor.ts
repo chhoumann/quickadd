@@ -22,6 +22,7 @@ import {
 	getFocusedPropertyTarget,
 	type FrontmatterPropertyTarget,
 } from "./utils/frontmatterPropertyLinks";
+import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -30,6 +31,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	// without `ui`) flip this to false so engine prompts abort instead of hanging.
 	public interactive = true;
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
+	public triggerContext: QuickAddTriggerContext | null = null;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
@@ -57,6 +59,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
 					: getFocusedPropertyTarget(this.app);
+			// Snapshot the trigger-time editor context ONCE, at the outermost
+			// boundary. Deliberately depth-0-only: a nested execute() (a {{MACRO}}
+			// that opens a file then runs a FIELD template, or the API path) keeps the
+			// ORIGINAL trigger note as the source for {{...|default-from:active}},
+			// mirroring focusedProperty's depth-0 semantics. getActiveFile() tracks the
+			// active markdown leaf — which the QuickAdd suggester/modal overlay does not
+			// change — so a live read here is the trigger note, with no focus-drift
+			// override needed (unlike focusedProperty, whose DOM activeElement IS stolen
+			// by the modal).
+			this.triggerContext = { activeFile: this.app.workspace.getActiveFile() };
 		}
 		this.executionDepth++;
 	}
@@ -65,6 +77,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.executionDepth = Math.max(0, this.executionDepth - 1);
 		if (this.executionDepth === 0) {
 			this.focusedProperty = null;
+			this.triggerContext = null;
 		}
 	}
 

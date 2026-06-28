@@ -31,6 +31,8 @@ import {
 	generateFieldCacheKey,
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
+import { resolveActiveNoteFieldDefault } from "../utils/activeNoteFieldDefault";
+import { log } from "../logger/logManager";
 import { Formatter, type PromptContext } from "./formatter";
 import {
 	buildSectionSubpath,
@@ -654,18 +656,60 @@ export class CompleteFormatter extends Formatter {
 			const { fieldName, filters, multiSelect } =
 				FieldSuggestionParser.parse(fieldInput);
 
-			// Collect and process via shared collector
-			const { values, hasDefaultValue } =
+			// Resolve the active-note default (issue #1429) BEFORE collection but apply
+			// it AFTER, so the resolved value never enters the collection cache key
+			// (which is keyed partly on filters.defaultValue). Gate strictly on
+			// "active"; an unknown source is ignored. `null` => no usable active value
+			// (no/non-Markdown active file, or a missing/empty/object property).
+			const activeDefault =
+				filters.defaultFrom === "active"
+					? resolveActiveNoteFieldDefault(
+							this.app,
+							this.choiceExecutor?.triggerContext?.activeFile ?? null,
+							fieldName,
+						)
+					: null;
+
+			// Collect and process via shared collector (filters unmutated).
+			const { values: collectedValues, hasDefaultValue: literalHasDefault } =
 				await collectFieldValuesProcessedDetailed(this.app, fieldName, filters);
+
+			let values = collectedValues;
+			let hasDefaultValue = literalHasDefault;
+			// The default shown in the placeholder hint: the active-note value wins
+			// over a literal |default: when both are present.
+			let effectiveDefault = filters.defaultValue;
+
+			if (!multiSelect && typeof activeDefault === "string") {
+				// Promote the active note's scalar value to the top so an empty-query
+				// Enter accepts it, matching the existing default-always semantics.
+				values = FieldValueProcessor.promoteValueToFront(
+					values,
+					activeDefault,
+					filters.caseSensitive,
+				);
+				effectiveDefault = activeDefault;
+				hasDefaultValue = true;
+			} else if (
+				!multiSelect &&
+				Array.isArray(activeDefault) &&
+				activeDefault.length > 0
+			) {
+				// A list-valued property has no single default; lists apply to |multi
+				// only. Log (console-only) so a user expecting a default isn't mystified.
+				log.logMessage(
+					`{{FIELD:${fieldName}|default-from:active}}: the active note's "${fieldName}" is a list value, which applies only to |multi FIELD prompts, so no default was prefilled.`,
+				);
+			}
 
 			// Enhance placeholder with context
 			let placeholder = multiSelect
 				? `Select values for ${fieldName}`
 				: `Enter value for ${fieldName}`;
-			if (hasDefaultValue) {
+			if (hasDefaultValue && effectiveDefault) {
 				placeholder = multiSelect
-					? `Select values for ${fieldName} (default: ${filters.defaultValue})`
-					: `Enter value for ${fieldName} (default: ${filters.defaultValue})`;
+					? `Select values for ${fieldName} (default: ${effectiveDefault})`
+					: `Enter value for ${fieldName} (default: ${effectiveDefault})`;
 			}
 
 			if (multiSelect) {
@@ -682,9 +726,20 @@ export class CompleteFormatter extends Formatter {
 					);
 					if (smartDefaults.length > 0) multiValues = smartDefaults;
 				}
+				// Pre-check the active note's value(s) (scalar -> one, list -> each).
+				// Never [undefined]: activeDefault is null | string | string[].
+				const preselected =
+					activeDefault === null
+						? undefined
+						: Array.isArray(activeDefault)
+							? activeDefault
+							: [activeDefault];
 				return await MultiSuggester.Suggest(this.app, multiValues, multiValues, {
 					placeholder,
 					allowCustomValue: true,
+					...(preselected && preselected.length > 0
+						? { preselected }
+						: {}),
 				});
 			}
 

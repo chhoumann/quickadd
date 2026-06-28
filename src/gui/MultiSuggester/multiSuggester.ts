@@ -9,6 +9,14 @@ export interface MultiSuggesterOptions {
 	allowCustomValue?: boolean;
 	/** Optional token: a "Skip" affordance resolves an empty selection. */
 	skippable?: boolean;
+	/**
+	 * Values pre-checked when the picker opens (issue #1429). Values present in
+	 * the option list are toggled on; values not in the list are added as
+	 * pre-checked custom rows (so e.g. a list-valued active-note property whose
+	 * members aren't all in the vault still preselects them). The user can deselect
+	 * any of them. Empty/undefined preselects nothing.
+	 */
+	preselected?: string[];
 }
 
 /**
@@ -55,12 +63,34 @@ export default class MultiSuggester extends Modal {
 		this.displayItems =
 			displayItems.length === items.length ? displayItems : items;
 		this.opts = options;
+		this.seedPreselection(options.preselected);
 		this.waitForClose = new Promise<string[]>((resolve, reject) => {
 			this.resolvePromise = resolve;
 			this.rejectPromise = reject;
 		});
 		this.render();
 		this.open();
+	}
+
+	/**
+	 * Pre-checks the given values before the first render. Option-list values are
+	 * simply marked selected; values not in the list become pre-checked custom
+	 * rows (deduped) so they render alongside the options. Blank entries are
+	 * ignored. Order of the custom rows follows the preselection order.
+	 */
+	private seedPreselection(preselected?: string[]): void {
+		if (!preselected?.length) return;
+		for (const raw of preselected) {
+			const value = raw?.trim();
+			if (!value) continue;
+			if (
+				!this.items.includes(value) &&
+				!this.customValues.includes(value)
+			) {
+				this.customValues.push(value);
+			}
+			this.selected.add(value);
+		}
 	}
 
 	private render() {

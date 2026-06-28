@@ -99,6 +99,29 @@ export class FieldValueProcessor {
 	}
 
 	/**
+	 * Promotes `value` to the front of an already-processed suggestion list,
+	 * removing any existing entry that matches under the same case fold used for
+	 * deduplication (issue #1429). Used for a context-derived default
+	 * (`default-from:active`) so it appears first without duplicating an existing
+	 * suggestion, mirroring the `default-always` branch of {@link applyDefaultValues}
+	 * — but applied AFTER vault collection, so it never perturbs the collection
+	 * cache key. The promoted entry keeps the supplied value's casing (the active
+	 * note's current value), which is the value the user is inheriting.
+	 */
+	static promoteValueToFront(
+		values: string[],
+		value: string,
+		caseSensitive = false,
+	): string[] {
+		const isPresent = (candidate: string): boolean =>
+			caseSensitive
+				? candidate === value
+				: this.normalizeForComparison(candidate) ===
+					this.normalizeForComparison(value);
+		return [value, ...values.filter((candidate) => !isPresent(candidate))];
+	}
+
+	/**
 	 * Normalize a value for case-insensitive comparison, mirroring
 	 * FieldValueDeduplicator's fold (Unicode NFD + diacritic strip + lowercase)
 	 * so default-value matching is consistent with case-insensitive dedup.
