@@ -29,6 +29,24 @@ vi.mock("src/logger/logManager", () => ({
 }));
 
 import { GenericTextSuggester } from "./genericTextSuggester";
+import { TextInputSuggest } from "./suggest";
+
+// A suggester whose getSuggestions stays pending until the test resolves it, so
+// we can interleave destroy() with an in-flight async lookup.
+class DeferredSuggest extends TextInputSuggest<string> {
+	public resolvePending: ((items: string[]) => void) | null = null;
+	getSuggestions(): Promise<string[]> {
+		return new Promise((resolve) => {
+			this.resolvePending = resolve;
+		});
+	}
+	renderSuggestion(item: string, el: HTMLElement): void {
+		el.textContent = item;
+	}
+	selectSuggestion(): void {
+		// no-op for tests
+	}
+}
 
 function createApp(): App {
 	return {
@@ -148,5 +166,31 @@ describe("TextInputSuggest resource lifecycle", () => {
 		// input listeners would leak and produce duplicate popups.
 		new GenericTextSuggester(app, input, ["abcde"]);
 		expect(destroySpy).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not re-open when an in-flight async getSuggestions resolves after destroy()", async () => {
+		const suggest = new DeferredSuggest(app, input);
+
+		input.value = "a";
+		const inFlight = suggest.onInputChanged(); // awaits the pending lookup
+		expect(suggest.resolvePending).not.toBeNull();
+
+		// Destroy mid-flight, then let the lookup resolve. A destroyed instance
+		// must not spawn an orphaned popup.
+		suggest.destroy();
+		suggest.resolvePending?.(["a", "ab"]);
+		await inFlight;
+
+		expect(createPopperMock).not.toHaveBeenCalled();
+	});
+
+	it("ignores onInputChanged fired after destroy() (pending debounce)", async () => {
+		const suggest = new GenericTextSuggester(app, input, ["abcde"]);
+
+		suggest.destroy();
+		input.value = "a";
+		await suggest.onInputChanged();
+
+		expect(createPopperMock).not.toHaveBeenCalled();
 	});
 });

@@ -194,6 +194,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private suggest: Suggest<T>;
 	private currentRequestId = 0;
 	private isOpen = false;
+	private destroyed = false;
 	private noResultsTimeout: number | null = null;
 	private currentQuery = "";
 
@@ -293,6 +294,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	async onInputChanged(event?: Event): Promise<void> {
+		// A pending debounced call can fire after destroy() removed the input
+		// listeners; bail so a destroyed instance never re-opens.
+		if (this.destroyed) return;
 		const completionEvent = event as CompletionInputEvent | undefined;
 		// Handle multi-select mode: keep suggestions open after selection
 		if (completionEvent?.fromCompletion && completionEvent.keepOpen) {
@@ -366,6 +370,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	open(container: HTMLElement, inputEl: HTMLElement): void {
+		// An async getSuggestions() may resolve after destroy() and reach open();
+		// refuse to re-open a destroyed instance (would spawn an orphaned popup).
+		if (this.destroyed) return;
 		// Always add listeners; if already open just update popper position
 		if (!this.isOpen) {
 			this.app.keymap.pushScope(this.scope);
@@ -479,6 +486,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	destroy(): void {
+		// Mark dead first so any in-flight async getSuggestions() or pending
+		// debounced onInputChanged() that resolves after this point can't re-open.
+		this.destroyed = true;
 		this.close();
 		// Remove input listeners
 		this.inputEl.removeEventListener("input", this.inputEventListener);
