@@ -250,4 +250,47 @@ describe("FieldValueProcessor", () => {
 			expect(result.hasDefaultValue).toBe(true);
 		});
 	});
+
+	describe("promoteValueToFront (issue #1429)", () => {
+		it("prepends a value not already present", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront(
+					["Beta", "Gamma"],
+					"Alpha",
+				),
+			).toEqual(["Alpha", "Beta", "Gamma"]);
+		});
+
+		it("promotes an existing value to the front without duplicating it", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront(
+					["Beta", "Alpha", "Gamma"],
+					"Alpha",
+				),
+			).toEqual(["Alpha", "Beta", "Gamma"]);
+		});
+
+		it("removes a case-insensitive duplicate and keeps the promoted casing", () => {
+			// The active note's casing ("Done") wins over the vault's ("done").
+			expect(
+				FieldValueProcessor.promoteValueToFront(["done", "Open"], "Done"),
+			).toEqual(["Done", "Open"]);
+		});
+
+		it("keeps a case-differing value when caseSensitive is true", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront(
+					["done", "Open"],
+					"Done",
+					true,
+				),
+			).toEqual(["Done", "done", "Open"]);
+		});
+
+		it("handles an empty source list", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront([], "Alpha"),
+			).toEqual(["Alpha"]);
+		});
+	});
 });

@@ -264,6 +264,78 @@ Body`);
       });
     });
   });
+
+  // Issue #1429: a single-select |default-from:active FIELD prefills the one-page
+  // form with the active note's current property value via req.defaultValue.
+  describe("FIELD default-from:active (issue #1429)", () => {
+    const mdFile = { extension: "md", path: "Active.md" } as any;
+    const appWithActive = (frontmatter: Record<string, unknown>) =>
+      ({
+        workspace: { getActiveFile: () => mdFile },
+        vault: { getAbstractFileByPath: () => null, cachedRead: async () => "" },
+        metadataCache: {
+          getFileCache: (f: any) =>
+            f === mdFile ? { frontmatter } : null,
+        },
+      } as any);
+    const executorWithActive = () => ({
+      variables: new Map<string, unknown>(),
+      triggerContext: { activeFile: mdFile },
+    });
+
+    it("prefills req.defaultValue from the active note's scalar property", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ project: "The Great Endeavor" }),
+        makePlugin(),
+        executorWithActive() as any,
+      );
+      await rc.scanString("project: {{FIELD:project|default-from:active}}");
+
+      expect(
+        rc.requirements.get("FIELD:project|default-from:active"),
+      ).toMatchObject({
+        type: "field-suggest",
+        defaultValue: "The Great Endeavor",
+      });
+    });
+
+    it("leaves defaultValue undefined when the active note lacks the property", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ other: "x" }),
+        makePlugin(),
+        executorWithActive() as any,
+      );
+      await rc.scanString("{{FIELD:project|default-from:active}}");
+
+      const req = rc.requirements.get("FIELD:project|default-from:active");
+      expect(req?.type).toBe("field-suggest");
+      expect(req?.defaultValue).toBeUndefined();
+    });
+
+    it("does not prefill (and stays runtime-only) for a multi FIELD", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ topics: ["Alpha", "Beta"] }),
+        makePlugin(),
+        executorWithActive() as any,
+      );
+      await rc.scanString("{{FIELD:topics|multi|default-from:active}}");
+
+      const req = rc.requirements.get("FIELD:topics|multi|default-from:active");
+      expect(req?.runtimeOnly).toBe(true);
+      expect(req?.defaultValue).toBeUndefined();
+    });
+
+    it("leaves defaultValue undefined when no executor/trigger context is present", async () => {
+      const rc = new RequirementCollector(
+        appWithActive({ project: "Endeavor" }),
+        makePlugin(),
+      );
+      await rc.scanString("{{FIELD:project|default-from:active}}");
+
+      const req = rc.requirements.get("FIELD:project|default-from:active");
+      expect(req?.defaultValue).toBeUndefined();
+    });
+  });
 });
 
 describe("RequirementCollector — named suggester (issue #148)", () => {
