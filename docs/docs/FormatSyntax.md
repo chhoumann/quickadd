@@ -406,6 +406,57 @@ commas as separators. When a format contains `{{FIELD:...|multi}}`, QuickAdd
 collects other one-page inputs first, then opens the runtime multi-select for
 the FIELD value.
 
+### `{{FIELD:<FIELDNAME>|default-from:active}}` {#field-default-from-active}
+
+Defaults the FIELD prompt to the value the same property already has on the
+**active note** - the note that was focused when you triggered QuickAdd. This is
+useful for metadata inheritance: from an active project/person/area note, trigger
+a capture or template and carry a property such as `project`, `type`, or `area`
+over to the new content as the default. You can still accept it, pick another
+suggestion, or type a different value.
+
+Active note:
+
+```yaml
+---
+project: The Great Endeavor
+---
+```
+
+Format:
+
+```md
+project: {{FIELD:project|default-from:active}}
+```
+
+The `project` prompt defaults to `The Great Endeavor`. The active note is captured
+when the run starts, before any QuickAdd modal can move focus, so the default
+reflects the note you triggered from.
+
+Behavior:
+
+- The normal FIELD suggestion list still comes from your vault (and honors
+  `folder:`/`tag:`/`exclude-*`/`inline` filters); the active value is just
+  promoted to the top as the default and pre-filled in the one-page form. It is
+  promoted even if it already exists in the suggestions.
+- If no Markdown note is active, the note doesn't have the property, or the value
+  is empty, it falls back to a normal `{{FIELD:<field>}}` prompt with no default.
+- Scalar string/number/boolean values are used as-is. A YAML **list** value
+  applies only to `|multi` FIELD prompts, where each list item is pre-checked in
+  the multi-select picker; for a single-select prompt a list value is skipped (no
+  default). Object/map and null values are never used as defaults.
+- The property name is matched case-insensitively against the active note's
+  properties, so `{{FIELD:Project|default-from:active}}` still reads a `project`
+  property.
+- This is different from `|default:` (a literal default value) and intentionally
+  not `|default:current` (which would clash with `current` as a real field value).
+
+Combine it with `|multi` to inherit a list property:
+
+```md
+topics: {{FIELD:topics|multi|default-from:active}}
+```
+
 **Enhanced Filtering Options:**
 
 - `{{FIELD:fieldname|folder:path/to/folder}}` - Only suggest values from files in a specific folder
@@ -420,6 +471,7 @@ the FIELD value.
 - `{{FIELD:fieldname|default:Status - To Do}}` - Prepend a default suggestion; the modal placeholder shows it and pressing Enter accepts it.
 - `{{FIELD:fieldname|default:Draft|default-empty:true}}` - Only add the default when no matching values are found.
 - `{{FIELD:fieldname|default:Draft|default-always:true}}` - Keep the default first even if other suggestions exist.
+- `{{FIELD:fieldname|default-from:active}}` - Default to the active note's current value of this property (see [above](#field-default-from-active)).
 - Combine filters: `{{FIELD:fieldname|folder:goals|folder:projects|tag:work|tag:active|exclude-folder:templates|inline:true|inline-code-blocks:ad-note}}`
 - Multiple exclusions: `{{FIELD:fieldname|exclude-folder:templates|exclude-folder:archive}}`
 
@@ -428,7 +480,7 @@ filters. Exclusions remove any matching file.
 
 Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}`.
 
-This is currently in beta, and the syntax can change—leave your thoughts [here](https://github.com/chhoumann/quickadd/issues/337).
+This is currently in beta, and the syntax can change—leave your thoughts [here](https://github.com/chhoumann/quickadd/issues/1429).
 
 ## `{{FILE:<folder>}}` {#file}
 
