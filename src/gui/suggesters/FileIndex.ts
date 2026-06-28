@@ -39,17 +39,12 @@ class LRUCache<T> {
 		this.maxSize = maxSize;
 	}
 
-	get(key: string): T | undefined {
-		const value = this.cache.get(key);
-		if (value !== undefined) {
-			// Move to end (most recently used)
-			this.cache.delete(key);
-			this.cache.set(key, value);
-		}
-		return value;
-	}
-
-	/** Reads a value without affecting recency ordering (safe inside sort comparators). */
+	/**
+	 * Reads a value without affecting recency ordering. This is the ONLY read
+	 * accessor: recency must be promoted exclusively by real file-open events via
+	 * set(), never by index reads. A mutating get() was deliberately removed - it
+	 * reordered the LRU to vault-iteration order during reindex (see git history).
+	 */
 	peek(key: string): T | undefined {
 		return this.cache.get(key);
 	}
@@ -376,7 +371,12 @@ export class FileIndex {
 			blockIds,
 			tags,
 			modified: file.stat.mtime,
-			openedAt: this.recentFiles.get(file.path),
+			// peek() (not get()) so building/rebuilding the index never reorders
+			// the recency LRU. get() is a mutating accessor (moves the key to
+			// most-recently-used), so a full reindex - which calls this for every
+			// file in vault-iteration order - would rewrite the LRU to vault order
+			// and evict the wrong "oldest" entry on the next file open.
+			openedAt: this.recentFiles.peek(file.path),
 			folder: file.parent?.path ?? ""
 		};
 	}

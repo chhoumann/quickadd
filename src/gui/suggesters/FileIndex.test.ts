@@ -612,4 +612,46 @@ describe('FileIndex recency accessors (note-picker seam)', () => {
 		expect(first).toBe(second);
 		expect(typeof first).toBe('number');
 	});
+
+	it('a full reindex does not reorder the recency LRU (createIndexedFile peeks)', async () => {
+		// Open order establishes recency: A (oldest) -> B -> C (newest).
+		fireFileOpen({ path: 'A.md' } as TFile);
+		fireFileOpen({ path: 'B.md' } as TFile);
+		fireFileOpen({ path: 'C.md' } as TFile);
+
+		const lruKeys = () =>
+			Array.from(
+				(
+					(fileIndex as unknown as {
+						recentFiles: { cache: Map<string, number> };
+					}).recentFiles.cache
+				).keys(),
+			);
+		expect(lruKeys()).toEqual(['A.md', 'B.md', 'C.md']);
+
+		// Vault iteration order intentionally differs from open order. With the
+		// mutating get() bug, reindexing each file rewrites the LRU to this order,
+		// leaving C.md (not A.md) as the next eviction victim.
+		const makeFile = (path: string): TFile =>
+			({
+				path,
+				basename: path.replace(/\.md$/, ''),
+				extension: 'md',
+				parent: { path: '' },
+				stat: { mtime: 1 },
+			}) as unknown as TFile;
+		(mockApp.vault.getMarkdownFiles as unknown as ReturnType<typeof vi.fn>).mockReturnValue([
+			makeFile('C.md'),
+			makeFile('B.md'),
+			makeFile('A.md'),
+		]);
+		mockApp.metadataCache.getFileCache = vi.fn(() => ({}));
+
+		await fileIndex.ensureIndexed();
+
+		// Recency order is preserved: A.md is still the oldest / next-evicted.
+		expect(lruKeys()).toEqual(['A.md', 'B.md', 'C.md']);
+		// And openedAt values survive the reindex unchanged.
+		expect(typeof fileIndex.getFile('A.md')?.openedAt).toBe('number');
+	});
 });
