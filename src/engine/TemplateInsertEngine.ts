@@ -8,7 +8,10 @@ import {
 	getMarkdownEditorViewForFile,
 	templaterParseTemplate,
 } from "../utilityObsidian";
-import { assignFrontmatterValue } from "./helpers/frontmatterPostProcessor";
+import {
+	assignFrontmatterValue,
+	hasUnsafeFrontmatterKey,
+} from "./helpers/frontmatterPostProcessor";
 import invariant from "../utils/invariant";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
@@ -363,7 +366,21 @@ export class TemplateInsertEngine extends TemplateEngine {
 			this.targetFile,
 			(frontmatter: Record<string, unknown>) => {
 				for (const [key, value] of Object.entries(parsed)) {
-					const existing = frontmatter[key];
+					// Defense in depth: never merge a prototype-pollution key from
+					// template front matter authored elsewhere.
+					if (hasUnsafeFrontmatterKey([key])) {
+						log.logWarning(
+							`Skipping front matter merge for unsafe key "${key}" to avoid prototype pollution.`,
+						);
+						continue;
+					}
+					// Only an OWN value counts as "existing": reading inherited
+					// members (e.g. Object.prototype.constructor / toString) would
+					// wrongly treat a legitimately-named template key as already
+					// present and silently drop it.
+					const existing = Object.hasOwn(frontmatter, key)
+						? frontmatter[key]
+						: undefined;
 					if (
 						existing === undefined ||
 						existing === null ||
