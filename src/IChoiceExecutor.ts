@@ -9,13 +9,19 @@ import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
 	/**
-	 * Executes a choice while reusing a frontmatter property target captured before
-	 * an intermediate UI layer, such as a Multi-choice suggester, stole focus.
-	 * Optional so existing stubs can fall back to {@link execute}.
+	 * Executes a choice while reusing context captured before an intermediate UI
+	 * layer, such as a Multi-choice suggester, ran: the frontmatter property target
+	 * (DOM focus is stolen by the suggester) and the trigger-time
+	 * {@link QuickAddTriggerContext} (cleared when the outer Multi execute()
+	 * returns). Both are re-injected so the eventual leaf run uses the original
+	 * trigger note for `{{...|default-from:active}}`. Optional so existing stubs can
+	 * fall back to {@link execute}; `triggerContext` is optional so callers that only
+	 * carry a focused property need not pass it (the executor then reads it live).
 	 */
 	executeWithFocusedProperty?(
 		choice: IChoice,
 		focusedProperty: FrontmatterPropertyTarget | null,
+		triggerContext?: QuickAddTriggerContext | null,
 	): Promise<void>;
 	/**
 	 * Executes a Template/Capture choice and returns its structured outcome

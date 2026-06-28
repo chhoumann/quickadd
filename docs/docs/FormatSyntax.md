@@ -480,7 +480,7 @@ filters. Exclusions remove any matching file.
 
 Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}`.
 
-This is currently in beta, and the syntax can change—leave your thoughts [here](https://github.com/chhoumann/quickadd/issues/1429).
+This is currently in beta, and the syntax can change—leave your thoughts [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
 
 ## `{{FILE:<folder>}}` {#file}
 

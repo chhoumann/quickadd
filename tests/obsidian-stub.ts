@@ -337,7 +337,9 @@ export class App {
   };
   workspace: any = {
     getActiveViewOfType: () => undefined,
+    getActiveFile: () => null,
     getLeaf: () => ({}),
+    getLeavesOfType: () => [],
     setActiveLeaf: () => {},
     iterateRootLeaves: () => {},
     getLastOpenFiles: () => [],

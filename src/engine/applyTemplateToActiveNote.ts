@@ -118,22 +118,27 @@ export async function applyTemplateToNote(
 	plugin: QuickAdd,
 	params: ApplyTemplateToNoteParams,
 ): Promise<TFile | null> {
+	const file = params.file ?? app.workspace.getActiveFile();
+	if (!file || file.extension !== "md") {
+		new Notice("QuickAdd: No active markdown note to apply a template to.");
+		return null;
+	}
+
+	// This path runs a template through the executor WITHOUT going through
+	// ChoiceExecutor.execute(), so beginExecutionContext() never captures the
+	// trigger context. Seed it here so {{FIELD:<field>|default-from:active}} in
+	// the applied template can read the note being applied to (issue #1429): the
+	// active note for the command, or the explicit params.file for the API path.
+	// Seed only when absent (never clobber a caller-supplied context) and restore
+	// the prior value in `finally`, so a reused executor — e.g. a script applying
+	// templates to several notes in turn, or a later `format()` on the same API
+	// object — never inherits this call's note for a subsequent default-from:active.
+	const previousTriggerContext = params.choiceExecutor.triggerContext;
+	if (previousTriggerContext == null) {
+		params.choiceExecutor.triggerContext = { activeFile: file };
+	}
+
 	try {
-		const file = params.file ?? app.workspace.getActiveFile();
-		if (!file || file.extension !== "md") {
-			new Notice("QuickAdd: No active markdown note to apply a template to.");
-			return null;
-		}
-
-		// This path runs a template through the executor WITHOUT going through
-		// ChoiceExecutor.execute(), so beginExecutionContext() never captures the
-		// trigger context. Seed it here so {{FIELD:<field>|default-from:active}} in
-		// the applied template can read the note being applied to (issue #1429). Use
-		// the resolved target file: it is the active note for the command, and the
-		// explicit params.file for the API path. `??=` so a caller that already
-		// captured a context is never clobbered.
-		params.choiceExecutor.triggerContext ??= { activeFile: file };
-
 		const interactive = !params.templatePath;
 		let source: TemplatePickerItem;
 		if (params.templatePath) {
@@ -217,6 +222,10 @@ export async function applyTemplateToNote(
 		}
 		reportError(err, "Error applying template to note");
 		return null;
+	} finally {
+		// Restore the executor's prior trigger context (see the seeding note above)
+		// so this direct, non-execute() path never leaks state across calls.
+		params.choiceExecutor.triggerContext = previousTriggerContext;
 	}
 }
 

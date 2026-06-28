@@ -17,6 +17,7 @@ import { settingsStore } from "../../settingsStore";
 import { flattenChoicesWithPath } from "../../utils/choiceUtils";
 import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
+import type { QuickAddTriggerContext } from "../../types/QuickAddTriggerContext";
 import {
 	hasConfiguredTemplateFolders,
 	runTemplateFromFolder,
@@ -82,6 +83,13 @@ type NestedSearchCandidate = {
 type ChoiceSuggesterOptions = {
 	choiceExecutor?: IChoiceExecutor;
 	focusedProperty?: FrontmatterPropertyTarget | null;
+	/**
+	 * Trigger-time editor context (the active note) captured when the launcher
+	 * opened, threaded through nested Multi levels so a leaf choice's
+	 * {{...|default-from:active}} still reads the original trigger note (issue
+	 * #1429). Absent at the top level → captured live in the constructor.
+	 */
+	triggerContext?: QuickAddTriggerContext | null;
 	placeholder?: string;
 	placeholderStack?: Array<string | undefined>;
 	/**
@@ -103,6 +111,7 @@ function createTemplateFolderRow(): IChoice {
 export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private choiceExecutor: IChoiceExecutor;
 	private focusedProperty: FrontmatterPropertyTarget | null = null;
+	private triggerContext: QuickAddTriggerContext | null = null;
 	private placeholderStack: Array<string | undefined> = [];
 	private currentPlaceholder?: string;
 	private nestedSearchCandidates?: NestedSearchCandidate[];
@@ -137,6 +146,13 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			options && "focusedProperty" in options
 				? options.focusedProperty ?? null
 				: getFocusedPropertyTarget(this.app);
+		// Capture the trigger-time active note when the launcher opens (top level),
+		// or reuse the one threaded down from a parent Multi level. getActiveFile()
+		// reads the active markdown leaf, which the suggester overlay doesn't change.
+		this.triggerContext =
+			options && "triggerContext" in options
+				? options.triggerContext ?? null
+				: { activeFile: this.app.workspace.getActiveFile() };
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.currentPlaceholder = options?.placeholder?.trim() || undefined;
 		if (this.currentPlaceholder) this.setPlaceholder(this.currentPlaceholder);
@@ -299,13 +315,18 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		if (item.type === "Multi")
 			this.onChooseMultiType(<IMultiChoice>item);
 		else {
-			const execute =
-				this.focusedProperty && this.choiceExecutor.executeWithFocusedProperty
-					? this.choiceExecutor.executeWithFocusedProperty(
-							item,
-							this.focusedProperty,
-						)
-					: this.choiceExecutor.execute(item);
+			// Route through executeWithFocusedProperty whenever it exists so the
+			// captured focusedProperty AND triggerContext (issue #1429) are both
+			// re-injected for the leaf run — the suggester cleared the executor's
+			// live context when the outer Multi execute() returned. Falls back to
+			// execute() only for stub executors without the method.
+			const execute = this.choiceExecutor.executeWithFocusedProperty
+				? this.choiceExecutor.executeWithFocusedProperty(
+						item,
+						this.focusedProperty,
+						this.triggerContext,
+					)
+				: this.choiceExecutor.execute(item);
 			void execute.catch((error) => {
 				log.logError(`Failed to execute selected choice: ${error}`);
 			});
@@ -332,6 +353,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		ChoiceSuggester.Open(this.plugin, choices, {
 			choiceExecutor: this.choiceExecutor,
 			focusedProperty: this.focusedProperty,
+			triggerContext: this.triggerContext,
 			placeholder: nextPlaceholder,
 			placeholderStack: nextStack,
 		});
