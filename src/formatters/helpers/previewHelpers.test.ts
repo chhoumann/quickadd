@@ -116,5 +116,31 @@ describe('PreviewHelpers', () => {
 			const result = DateFormatPreviewGenerator.generate('MMM D, YYYY', testDate);
 			expect(result).toBe('Jan 15, 2024');
 		});
+
+		// Regression: the old sequential .replace() chain re-scanned already
+		// substituted output, so later single-letter tokens (M, m, s, D, ...)
+		// clobbered letters inside spelled-out month/day names.
+		it('does not corrupt spelled-out month names', () => {
+			expect(DateFormatPreviewGenerator.generate('MMMM', new Date(2024, 2, 15))).toBe('March'); // was "3arch"
+			expect(DateFormatPreviewGenerator.generate('MMMM', new Date(2024, 4, 15))).toBe('May'); // was "5ay"
+			expect(DateFormatPreviewGenerator.generate('MMMM', new Date(2024, 7, 15))).toBe('August'); // was "Augu45t"
+			expect(DateFormatPreviewGenerator.generate('MMMM', new Date(2024, 8, 15))).toBe('September'); // was "Septe30ber"
+			expect(DateFormatPreviewGenerator.generate('MMMM', new Date(2024, 10, 15))).toBe('November'); // was "Nove30ber"
+			expect(DateFormatPreviewGenerator.generate('MMMM', new Date(2024, 11, 15))).toBe('December'); // was "15ece30ber"
+		});
+
+		it('does not corrupt spelled-out weekday names containing token letters', () => {
+			// 2024-08-13 Tue, -14 Wed, -15 Thu — each contains a lowercase 's'.
+			expect(DateFormatPreviewGenerator.generate('dddd', new Date(2024, 7, 13))).toBe('Tuesday'); // was "Tue45day"
+			expect(DateFormatPreviewGenerator.generate('dddd', new Date(2024, 7, 14))).toBe('Wednesday'); // was "Wedne45day"
+			expect(DateFormatPreviewGenerator.generate('dddd', new Date(2024, 7, 15))).toBe('Thursday'); // was "Thur45day"
+		});
+
+		it('preserves spelled-out names inside a combined format', () => {
+			// 2024-09-05 is a Thursday — exercises dddd + MMMM + D + YYYY together.
+			expect(
+				DateFormatPreviewGenerator.generate('dddd, MMMM D, YYYY', new Date(2024, 8, 5)),
+			).toBe('Thursday, September 5, 2024');
+		});
 	});
 });

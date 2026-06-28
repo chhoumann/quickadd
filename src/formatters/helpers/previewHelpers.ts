@@ -133,37 +133,55 @@ export class DateFormatPreviewGenerator {
 	 */
 	static generate(format: string, date: Date = new Date()): string {
 		const year = date.getFullYear();
-		const month = (date.getMonth() + 1).toString().padStart(2, '0');
-		const day = date.getDate().toString().padStart(2, '0');
-		const hours = date.getHours().toString().padStart(2, '0');
-		const minutes = date.getMinutes().toString().padStart(2, '0');
-		const seconds = date.getSeconds().toString().padStart(2, '0');
-		
-		// Handle common format patterns - order matters for longer patterns first!
-		return format
-			// Year patterns
-			.replace(/YYYY/g, year.toString())
-			.replace(/YY/g, year.toString().slice(-2))
-			// Month patterns  
-			.replace(/MMMM/g, this.MONTH_NAMES[date.getMonth()])
-			.replace(/MMM/g, this.MONTH_NAMES_SHORT[date.getMonth()])
-			.replace(/MM/g, month)
-			.replace(/M/g, (date.getMonth() + 1).toString())
-			// Day patterns
-			.replace(/dddd/g, this.DAY_NAMES[date.getDay()])
-			.replace(/ddd/g, this.DAY_NAMES_SHORT[date.getDay()])
-			.replace(/DD/g, day)
-			.replace(/D/g, date.getDate().toString())
-			// Time patterns
-			.replace(/HH/g, hours)
-			.replace(/H/g, date.getHours().toString())
-			.replace(/mm/g, minutes)
-			.replace(/m/g, date.getMinutes().toString())
-			.replace(/ss/g, seconds)
-			.replace(/s/g, date.getSeconds().toString())
-			// Week patterns
-			.replace(/ww/g, this.getWeekNumber(date).toString().padStart(2, '0'))
-			.replace(/w/g, this.getWeekNumber(date).toString());
+		const week = this.getWeekNumber(date);
+
+		// Token -> replacement value, ordered longest-first WITHIN each leading
+		// character so a single left-to-right scan always consumes the longest
+		// matching token at each position. The previous implementation chained
+		// `.replace()` calls, which re-scanned already-substituted text: a later
+		// single-letter token (M, m, s, D, ...) would clobber letters inside a
+		// spelled-out month/day name (e.g. "March" -> "3arch", "September" ->
+		// "Septe<min>ber", "Thursday" -> "Thur<sec>day"). Appending matched values
+		// to a separate buffer means substituted names are never re-scanned.
+		const tokens: Array<[string, string]> = [
+			['YYYY', year.toString()],
+			['YY', year.toString().slice(-2)],
+			['MMMM', this.MONTH_NAMES[date.getMonth()]],
+			['MMM', this.MONTH_NAMES_SHORT[date.getMonth()]],
+			['MM', (date.getMonth() + 1).toString().padStart(2, '0')],
+			['M', (date.getMonth() + 1).toString()],
+			['dddd', this.DAY_NAMES[date.getDay()]],
+			['ddd', this.DAY_NAMES_SHORT[date.getDay()]],
+			['DD', date.getDate().toString().padStart(2, '0')],
+			['D', date.getDate().toString()],
+			['HH', date.getHours().toString().padStart(2, '0')],
+			['H', date.getHours().toString()],
+			['mm', date.getMinutes().toString().padStart(2, '0')],
+			['m', date.getMinutes().toString()],
+			['ss', date.getSeconds().toString().padStart(2, '0')],
+			['s', date.getSeconds().toString()],
+			['ww', week.toString().padStart(2, '0')],
+			['w', week.toString()],
+		];
+
+		let result = '';
+		let i = 0;
+		while (i < format.length) {
+			let matched = false;
+			for (const [token, value] of tokens) {
+				if (format.startsWith(token, i)) {
+					result += value;
+					i += token.length;
+					matched = true;
+					break;
+				}
+			}
+			if (!matched) {
+				result += format[i];
+				i += 1;
+			}
+		}
+		return result;
 	}
 
 	private static getWeekNumber(date: Date): number {
