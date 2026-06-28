@@ -11,11 +11,8 @@ import {
 	DEFAULT_TEMPERATURE,
 	DEFAULT_TOP_P,
 } from "src/ai/OpenAIModelParameters";
-import {
-	estimateModelInputBudget,
-	estimateTokenCount,
-} from "src/ai/tokenEstimator";
-import { getModelByName, getModelNames } from "src/ai/aiHelpers";
+import { estimateTokenCount } from "src/ai/tokenEstimator";
+import { getMaxChunkTokensUpperBound, getModelNames } from "src/ai/aiHelpers";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
@@ -317,20 +314,12 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				"Maximum estimated tokens for each chunk of your text (the {{chunk}} portion only — the system prompt and prompt template are accounted for separately). Counts are estimated locally; the provider enforces the exact limit. Leave room for the model's response. Values above the model's estimated input budget are capped automatically."
 			)
 			.addSlider((slider) => {
-				const model = getModelByName(this.settings.model);
-
-				if (!model) {
-					throw new Error(
-						`Model ${this.settings.model} not found in settings`
-					);
-				}
-
-				// Upper bound mirrors the runtime budget: the model's estimated
-				// input budget minus the (estimated) system prompt overhead.
-				const sliderMax = Math.max(
-					1,
-					estimateModelInputBudget(model.maxTokens) -
-						this.systemPromptTokenLength
+				// The selected model may be unknown at config time — the "Ask me"
+				// sentinel (resolved at runtime) or a model that was removed. Use
+				// a fallback bound instead of throwing, which would blank the modal.
+				const sliderMax = getMaxChunkTokensUpperBound(
+					this.settings.model,
+					this.systemPromptTokenLength,
 				);
 				slider.setLimits(1, sliderMax, 1);
 
