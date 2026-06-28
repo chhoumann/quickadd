@@ -302,9 +302,12 @@ async function writeJson(filePath, value) {
 }
 
 export async function launchObsidianInstance(options) {
-	// Validate (and create when absent) the instance dir here too, so a future
-	// "relaunch existing instance" path cannot bypass the temp-squat guard that
-	// prepareObsidianProfile applies in the normal start flow.
+	// Validate (and create when absent) the profile tree here too, so a future
+	// "relaunch existing instance" path that calls launch without the normal
+	// prepareObsidianProfile/main preflight cannot bypass the temp-squat guard.
+	// Parent-first: a loose profileRoot must not stay attacker-writable around
+	// the validated instance dir.
+	await ensureSecureDir(options.profileRoot);
 	await ensureSecureDir(options.instancePath);
 	await execFileAsync("/usr/bin/open", [
 		"-n",
