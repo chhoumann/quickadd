@@ -5,6 +5,7 @@ import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 import {
+	assertSecureDirIfPresent,
 	INSTANCE_MARKER_FILE,
 	resolveInstanceOptions,
 } from "./start-obsidian-e2e-instance.mjs";
@@ -364,6 +365,13 @@ export async function reapOrphanedInstances(options = {}) {
 
 	if (!profileRoot) return { scanned: 0, reaped: [] };
 
+	// Refuse to scan/remove through a hijacked or symlinked profile root (the same
+	// temp-squat guard the start path applies before writing into it). Absent root
+	// => nothing to reap.
+	if (!(await assertSecureDirIfPresent(profileRoot))) {
+		return { scanned: 0, reaped: [] };
+	}
+
 	let entries;
 	try {
 		entries = await readdir(profileRoot);
@@ -416,6 +424,9 @@ async function main() {
 	}
 
 	const options = resolveInstanceOptions(rawOptions);
+	// Refuse to operate inside a hijacked/symlinked profile root before we stop or
+	// remove anything under it.
+	await assertSecureDirIfPresent(options.profileRoot);
 	const summary = await stopInstance(options.instancePath, {
 		dryRun: rawOptions.dryRun,
 		profileRoot: options.profileRoot,

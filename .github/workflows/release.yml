@@ -48,14 +48,28 @@ jobs:
               with:
                   app-id: ${{ secrets.RELEASE_APP_ID }}
                   private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+                  # Least privilege: without these, the minted token inherits ALL of the
+                  # App's installation permissions. semantic-release only needs to push the
+                  # release commit/tag + create the Release (contents) and comment on the
+                  # released issues/PRs (issues/pull-requests). Attestation/Find-PR/Comment
+                  # steps use the default GITHUB_TOKEN, not this token.
+                  permission-contents: write
+                  permission-issues: write
+                  permission-pull-requests: write
 
             - name: Checkout
               uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
               with:
-                  # semantic-release needs full history + tags and the persisted App
-                  # credential to push the release commit. Do not change these.
+                  # semantic-release needs full history + tags to analyze commits.
                   fetch-depth: 0
+                  # The token is still passed so checkout fetches as the App, but we do
+                  # NOT persist it into .git/config: install/build/test run BEFORE the
+                  # release and a compromised dependency could otherwise read the App
+                  # credential off disk. semantic-release authenticates its push from the
+                  # GITHUB_TOKEN env on the Release step (it builds an x-access-token URL,
+                  # it never reads .git/config), so the push still works without it.
                   token: ${{ steps.app-token.outputs.token }}
+                  persist-credentials: false
 
             - name: Setup pnpm
               uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
