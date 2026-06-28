@@ -366,6 +366,30 @@ describe("TemplateInsertEngine.apply", () => {
 		expect(harness.frontmatter).toEqual({ status: "draft" });
 	});
 
+	it("top: merges a legitimately-named 'prototype' property without dropping it or polluting (prototype-pollution guard is collateral-free)", async () => {
+		const harness = makeHarness({
+			templateContent: "---\nprototype: Board A\nstatus: draft\n---\nTPL_BODY",
+			noteContent: "EXISTING",
+		});
+		const file = makeFile();
+
+		try {
+			await makeEngine(harness, file, "top").apply();
+
+			// A leaf key named `prototype`/`constructor` is legitimate user metadata
+			// and must still merge - the guard only blocks prototype-pollution
+			// traversal, not these names outright.
+			expect(harness.frontmatter).toEqual({
+				prototype: "Board A",
+				status: "draft",
+			});
+			// And nothing leaked onto the global prototype.
+			expect(({} as Record<string, unknown>).prototype).toBeUndefined();
+		} finally {
+			delete (Object.prototype as Record<string, unknown>).prototype;
+		}
+	});
+
 	it("frontmatter-only template: merges properties without touching the body", async () => {
 		const harness = makeHarness({
 			templateContent: "---\nstatus: draft\n---\n",

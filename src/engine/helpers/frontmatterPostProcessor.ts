@@ -240,12 +240,55 @@ export async function postProcessFrontMatter(
 	}
 }
 
+/**
+ * Key segments that become a prototype-pollution gadget only when a value is
+ * assigned by DESCENDING THROUGH them (i.e. they appear as a non-terminal path
+ * segment). As a terminal/leaf key they are harmless own-property writes and are
+ * also legitimate user metadata names, so they are permitted in that position.
+ */
+const UNSAFE_DESCENT_SEGMENTS = new Set(["prototype", "constructor"]);
+
+/**
+ * True when assigning a value along this front-matter key path would corrupt JS
+ * prototype state instead of writing the file's own front matter.
+ *
+ * `__proto__` is rejected at every position: descending through it reaches
+ * `Object.prototype` and pollutes it globally for the whole renderer, and
+ * assigning to it as a leaf invokes the prototype setter (reparenting the
+ * object). `constructor`/`prototype` are rejected only as a non-terminal segment
+ * - the classic `constructor.prototype` descent gadget; as a terminal key they
+ * are plain, legitimate front-matter properties and must not be dropped.
+ *
+ * Exact-string match is intentional: every collected segment is trimmed upstream
+ * (see {@link import("../../utils/TemplatePropertyCollector")}) and only the
+ * exact string `__proto__` trips the JS prototype setter, so whitespace-padded
+ * or differently-cased variants are inert and must not be rejected.
+ */
+export function hasUnsafeFrontmatterKey(path: string[]): boolean {
+	return path.some((segment, index) => {
+		if (segment === "__proto__") return true;
+		const isTerminal = index === path.length - 1;
+		return !isTerminal && UNSAFE_DESCENT_SEGMENTS.has(segment);
+	});
+}
+
 export function assignFrontmatterValue(
 	frontmatter: Record<string, unknown>,
 	path: string[],
 	value: unknown,
 ): void {
 	if (path.length === 0) return;
+	// Refuse to write through prototype-pollution vectors. The path can originate
+	// from template/note content authored elsewhere (synced/shared data.json,
+	// imported packages); following a `__proto__`/`constructor`/`prototype`
+	// segment would corrupt global JS prototype state for the whole renderer
+	// rather than the file's own front matter, so we drop the assignment.
+	if (hasUnsafeFrontmatterKey(path)) {
+		log.logWarning(
+			`Skipping front matter assignment for unsafe key path "${path.join(".")}" to avoid prototype pollution.`,
+		);
+		return;
+	}
 	let target = frontmatter;
 	for (let i = 0; i < path.length - 1; i++) {
 		const segment = path[i];
