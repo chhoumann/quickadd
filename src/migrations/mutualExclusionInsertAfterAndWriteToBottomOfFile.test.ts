@@ -61,6 +61,46 @@ describe("mutualExclusionInsertAfterAndWriteToBottomOfFile migration", () => {
 		).toBe(true);
 	});
 
+	it("handles a capture choice nested inside a Multi choice (recursion path)", async () => {
+		// recursiveMigrateSettingInChoices recurses into Multi.choices, so a grouped
+		// capture lacking insertAfter hits the same guarded line. Multi groups are a
+		// common data.json shape; lock the recursion path in so a future refactor of
+		// the Multi branch can't silently reintroduce the throw.
+		const plugin = {
+			settings: {
+				choices: [
+					{
+						id: "multi-1",
+						name: "Group",
+						type: "Multi",
+						choices: [
+							{
+								id: "grouped-legacy",
+								name: "Grouped Legacy",
+								type: "Capture",
+								prepend: true,
+								// no `insertAfter`
+							},
+							{
+								id: "grouped-enabled",
+								name: "Grouped Enabled",
+								type: "Capture",
+								prepend: true,
+								insertAfter: { enabled: true },
+							},
+						],
+					},
+				],
+				macros: [],
+			},
+		} as any;
+
+		await expect(migration.migrate(plugin)).resolves.toBeUndefined();
+		// Missing insertAfter -> untouched; enabled insertAfter -> prepend disabled.
+		expect(plugin.settings.choices[0].choices[0].prepend).toBe(true);
+		expect(plugin.settings.choices[0].choices[1].prepend).toBe(false);
+	});
+
 	it("still disables prepend when insertAfter is enabled (top-level and nested)", async () => {
 		const plugin = {
 			settings: {
