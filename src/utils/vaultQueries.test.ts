@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { App, TFile } from "obsidian";
 import {
 	frontmatterValueMatches,
+	getMarkdownFilesInFolder,
 	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithProperty,
 	getMarkdownFilesWithTag,
@@ -136,6 +137,46 @@ describe("getMarkdownFilesWithProperty", () => {
 		}).map((f) => f.path);
 
 		expect(paths).toEqual(["Draft A.md"]);
+	});
+});
+
+describe("getMarkdownFilesInFolder", () => {
+	function folderApp(paths: string[]): App {
+		const files = paths.map((p) => ({
+			path: p,
+			basename: (p.split("/").pop() ?? p).replace(/\.md$/, ""),
+		}));
+		return {
+			vault: { getMarkdownFiles: () => files as unknown as TFile[] },
+		} as unknown as App;
+	}
+
+	const app = folderApp([
+		"Projects/a.md",
+		"Projects/sub/b.md",
+		"ProjectsArchive/c.md",
+		"Projects 2024/d.md",
+		"Projects.md",
+		"Other/e.md",
+	]);
+
+	it("anchors a bare folder name and ignores prefix-sharing siblings", () => {
+		const paths = getMarkdownFilesInFolder(app, "Projects")
+			.map((f) => f.path)
+			.sort();
+		// NOT ProjectsArchive/, "Projects 2024/", or the sibling file Projects.md.
+		expect(paths).toEqual(["Projects/a.md", "Projects/sub/b.md"].sort());
+	});
+
+	it("treats a trailing slash identically (callers pre-append '/')", () => {
+		const paths = getMarkdownFilesInFolder(app, "Projects/")
+			.map((f) => f.path)
+			.sort();
+		expect(paths).toEqual(["Projects/a.md", "Projects/sub/b.md"].sort());
+	});
+
+	it("returns the whole vault for an empty folder path", () => {
+		expect(getMarkdownFilesInFolder(app, "").length).toBe(6);
 	});
 });
 
