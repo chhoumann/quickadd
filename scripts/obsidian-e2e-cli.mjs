@@ -5,6 +5,7 @@ import process from "node:process";
 import { promisify } from "node:util";
 import { provisionVault } from "./provision-obsidian-e2e-vault.mjs";
 import {
+	ensureSecureDir,
 	launchObsidianInstance,
 	parseArgs as parseInstanceArgs,
 	prepareObsidianProfile,
@@ -170,6 +171,9 @@ async function main() {
 	}
 
 	const options = resolveInstanceOptions(parseInstanceArgs(parsed.instanceArgs));
+	// Validate the profile root we own before the reaper scans/removes anything in
+	// it, so a hijacked root aborts the run loudly instead of being trusted.
+	await ensureSecureDir(options.profileRoot);
 	await reapStaleInstances(options);
 	await ensureObsidianInstance(options);
 	process.exitCode = await spawnObsidian(options, parsed.commandArgs);

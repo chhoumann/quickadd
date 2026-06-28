@@ -134,7 +134,60 @@ function safeName(value) {
 		.replace(/^-+|-+$/g, "") || "vault";
 }
 
+// Refuse to write our Obsidian profile into a directory we do not exclusively
+// own. The profile root defaults under world-writable /tmp; if a co-located
+// actor pre-creates it (or symlinks it elsewhere) before our first run,
+// fs.mkdir(..., {recursive}) is a no-op for ownership/mode and we would
+// otherwise write the keychain-bearing HOME (and obsidian.json) through their
+// directory. lstat FIRST so we never mkdir THROUGH a pre-existing symlink, then
+// create only when absent, then assert the result is a real directory we own
+// with no group/other access. Callers must secure a parent before its children
+// so each child is created inside an already-0o700 tree the attacker cannot
+// enter (and /tmp's sticky bit then prevents swapping our owned dir entry).
+export async function ensureSecureDir(dir, options = {}) {
+	const currentUid =
+		"currentUid" in options
+			? options.currentUid
+			: typeof process.getuid === "function"
+				? process.getuid()
+				: null;
+
+	let stat;
+	try {
+		stat = await fs.lstat(dir);
+	} catch (error) {
+		if (error?.code !== "ENOENT") throw error;
+		await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+		stat = await fs.lstat(dir);
+	}
+
+	if (stat.isSymbolicLink() || !stat.isDirectory()) {
+		throw new Error(
+			`Refusing to use ${dir}: it is a symlink or not a regular directory.`,
+		);
+	}
+	if (currentUid !== null && stat.uid !== currentUid) {
+		throw new Error(
+			`Refusing to use ${dir}: owned by uid ${stat.uid}, not ${currentUid}.`,
+		);
+	}
+	// We own it; if it is group/other-accessible (an older run under a loose
+	// umask, or another tool) tighten it so the keychain-bearing profile stays
+	// private.
+	if ((stat.mode & 0o077) !== 0) {
+		await fs.chmod(dir, 0o700);
+	}
+
+	return dir;
+}
+
 export async function prepareObsidianProfile(options) {
+	// Fail closed if our profile tree is not a private directory we own
+	// (temp-squat / TOCTOU guard). Secure the root before the instance dir so the
+	// instance dir is created inside an already-validated 0o700 tree.
+	await ensureSecureDir(options.profileRoot);
+	await ensureSecureDir(options.instancePath);
+
 	const userDataPath = path.join(options.obsidianHome, "Library", "Application Support", "obsidian");
 	await fs.mkdir(userDataPath, { recursive: true, mode: 0o700 });
 	await fs.mkdir(path.join(options.obsidianHome, "Library", "Logs"), { recursive: true, mode: 0o700 });
@@ -352,6 +405,9 @@ async function main() {
 	}
 
 	const options = resolveInstanceOptions(rawOptions);
+	// Validate the profile root we own before the reaper scans/removes anything in
+	// it, so a hijacked root aborts the run loudly instead of being trusted.
+	await ensureSecureDir(options.profileRoot);
 	await reapStaleInstances(options);
 	const provisionResult = await provisionVault(options);
 	const profileResult = await prepareObsidianProfile(options);
