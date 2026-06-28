@@ -1,11 +1,16 @@
 /**
- * Runtime write guard for AI built-in vault writers (#714).
+ * Runtime symlink/realpath write guard for untrusted-input vault writers.
  *
- * String sanitization (sanitizeVaultPath) is not enough: Obsidian's desktop adapter
- * follows symlinks, so a write to an in-vault symlink can land OUTSIDE the vault
- * while a confirm shows an in-vault path (runtime-proven in review). This resolves
- * the realpath of the target (or its nearest existing ancestor, since the file may
- * not exist yet) and the vault root, and throws if the target is not contained.
+ * Shared by the AI built-in vault writers (#714) and the package-import asset
+ * writer — both write data the user did not author byte-for-byte (model output /
+ * an imported community package), so both must confine writes to the vault.
+ *
+ * Lexical string sanitization (sanitizeVaultPath / validateAssetDestination) is
+ * not enough: Obsidian's desktop adapter follows symlinks, so a write to an
+ * in-vault symlink can land OUTSIDE the vault while a confirm shows an in-vault
+ * path (runtime-proven in review). This resolves the realpath of the target (or
+ * its nearest existing ancestor, since the file may not exist yet) and the vault
+ * root, and throws if the target is not contained.
  *
  * Desktop only — FileSystemAdapter + Node fs/path are accessed lazily via
  * `window.require` so the mobile bundle (no symlinks, no require) is never affected.
@@ -70,12 +75,40 @@ export async function assertWriteStaysInVault(
 		probe = parent;
 	}
 
-	const realTarget = await fs.promises.realpath(probe).catch(() => probe);
+	let realTarget: string;
+	try {
+		realTarget = await fs.promises.realpath(probe);
+	} catch {
+		// `probe` exists (lstatSync above) yet cannot be resolved: it is, or passes
+		// through, a DANGLING symlink whose ultimate target does not exist. A write
+		// still FOLLOWS that symlink and can land outside the vault, and we cannot
+		// prove where — so fail CLOSED. (On Linux/glibc realpath throws ENOENT here;
+		// the previous `.catch(() => probe)` fallback trusted the unresolved in-vault
+		// path and let the escape through.)
+		throw new VaultWriteEscapeError(
+			`Refusing to write to "${vaultRelativePath}": it resolves through an unresolvable (dangling) symlink.`,
+		);
+	}
 	const rel = path.relative(realBase, realTarget);
 	const escapes = rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
 	if (escapes) {
 		throw new VaultWriteEscapeError(
 			`Refusing to write to "${vaultRelativePath}": it resolves (via a symlink) outside the vault.`,
+		);
+	}
+
+	// Reject a target that RESOLVES into a dot/config directory (.obsidian, .git,
+	// .trash, ...) even though it stays inside the vault. The lexical per-segment
+	// dot-floor only sees the LITERAL destination, so a pre-existing in-vault
+	// symlink like `safe -> .obsidian/plugins/pkg` would otherwise smuggle an
+	// untrusted "safe/main.js" write into a config/executable directory. Checking
+	// the realpath-resolved segments closes that symlink-mediated config-dir drop.
+	const resolvedEscapesIntoConfigDir = rel
+		.split(path.sep)
+		.some((segment) => segment.startsWith("."));
+	if (resolvedEscapesIntoConfigDir) {
+		throw new VaultWriteEscapeError(
+			`Refusing to write to "${vaultRelativePath}": it resolves (via a symlink) into a config/hidden directory.`,
 		);
 	}
 }

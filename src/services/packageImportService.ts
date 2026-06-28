@@ -22,6 +22,8 @@ import { log } from "../logger/logManager";
 import { decodeFromBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
+import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import {
 	detectUserScriptSecretOptions,
 	stripUserScriptSecretRefsFromCommand,
@@ -149,7 +151,12 @@ export async function analysePackage(
 
 	const assetConflicts: AssetConflict[] = [];
 	for (const asset of pkg.assets) {
-		const exists = await app.vault.adapter.exists(asset.originalPath);
+		// Never stat an out-of-vault path from an untrusted package: a crafted
+		// originalPath like "../../../etc/passwd" must not reach the filesystem.
+		// Treat it as not-present (the write path rejects it anyway).
+		const exists = escapesVaultBoundary(asset.originalPath)
+			? false
+			: await app.vault.adapter.exists(asset.originalPath);
 		assetConflicts.push({
 			originalPath: asset.originalPath,
 			exists,
@@ -183,6 +190,11 @@ export async function analysePackagePreview(
 	await Promise.all(
 		Array.from(candidatePaths, async (path) => {
 			if (!path) return;
+			// Out-of-vault paths from an untrusted package never reach the
+			// filesystem; leaving them out of existsByPath surfaces them honestly
+			// as missing/orphan references in the preview instead of stat-probing
+			// (and possibly mislabeling an outside file as "present").
+			if (escapesVaultBoundary(path)) return;
 			if (await assetExists(app, path)) existsByPath.add(path);
 		}),
 	);
@@ -236,7 +248,18 @@ function validateAssetDestination(rawPath: string): string {
 		);
 	}
 
-	if (segments[0]?.startsWith(".") && !segments[0].startsWith("..%")) {
+	// Reject a leading-dot config/hidden directory at ANY depth, not just the
+	// first segment: "notes/.git/hooks/post-commit" or "docs/.obsidian/plugins/
+	// x/main.js" would otherwise pass (segments[0] is "notes"/"docs") yet drop a
+	// code-execution payload into a trusted dir on the real filesystem — a vector
+	// the realpath guard can't see because the target stays inside the vault. The
+	// check is structural (segment starts with "."), so casing variants
+	// (.Obsidian) are caught too. The "..%"-prefix carve-out keeps url-encoded
+	// traversal text (e.g. "..%2fevil.md") importable as a benign literal filename.
+	const configSegment = segments.find(
+		(segment) => segment.startsWith(".") && !segment.startsWith("..%"),
+	);
+	if (configSegment) {
 		throw new Error(
 			`Refusing to import asset into a config directory: "${normalized}".`,
 		);
@@ -478,6 +501,18 @@ export async function applyPackageImport(
 		);
 		return { asset, destinationPath };
 	});
+
+	// Symlink/realpath containment, as a PRE-PASS before any write: if a
+	// destination resolves through a pre-existing in-vault symlink to outside the
+	// vault, abort the whole import before touching disk. Every destination is
+	// checked (mirroring the lexical validateAssetDestination pass above), so a
+	// package carrying a vault-escaping asset is refused wholesale and surfaced
+	// loudly rather than silently dropped — consistent with how an absolute/".."
+	// destination already aborts regardless of the per-asset import mode.
+	// Desktop-only; a no-op on mobile and in tests (non-FileSystemAdapter).
+	for (const { destinationPath } of resolvedAssetDestinations) {
+		await assertWriteStaysInVault(app, destinationPath);
+	}
 
 	for (const { asset, destinationPath } of resolvedAssetDestinations) {
 		const decision = assetDecisionMap.get(asset.originalPath);

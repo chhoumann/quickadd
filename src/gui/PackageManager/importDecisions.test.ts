@@ -216,3 +216,45 @@ describe("ExistenceResolver — monotonic token (regression: re-paste race)", ()
 		expect(result).toBe(true);
 	});
 });
+
+describe("ExistenceResolver — vault-boundary containment (security)", () => {
+	function spyApp() {
+		// adapter.exists would happily stat anything (incl. out-of-vault) and the
+		// index lookup would too — so the spies prove the boundary check, not luck.
+		const exists = vi.fn(async () => true);
+		const getAbstractFileByPath = vi.fn(() => ({}) as unknown);
+		const app = {
+			vault: { getAbstractFileByPath, adapter: { exists } },
+		} as unknown as App;
+		return { app, exists, getAbstractFileByPath };
+	}
+	const flush = () => new Promise((r) => setTimeout(r, 0));
+
+	it("never stats an out-of-vault destination and reports it not-present", async () => {
+		const { app, exists } = spyApp();
+		const resolver = new ExistenceResolver(app);
+		const escaping = "../../../etc/passwd";
+		let result: boolean | undefined;
+		resolver.schedule(escaping, escaping, (e) => (result = e));
+		await flush();
+		expect(result).toBe(false);
+		expect(exists).not.toHaveBeenCalled();
+	});
+
+	it("optimistic() reports an out-of-vault path not-present without an index lookup", () => {
+		const { app, getAbstractFileByPath } = spyApp();
+		const resolver = new ExistenceResolver(app);
+		expect(resolver.optimistic("/etc/passwd")).toBe(false);
+		expect(getAbstractFileByPath).not.toHaveBeenCalled();
+	});
+
+	it("still resolves a legitimate in-vault path via the adapter", async () => {
+		const { app, exists } = spyApp();
+		const resolver = new ExistenceResolver(app);
+		let result: boolean | undefined;
+		resolver.schedule("scripts/x.js", "scripts/x.js", (e) => (result = e));
+		await flush();
+		expect(exists).toHaveBeenCalledWith("scripts/x.js");
+		expect(result).toBe(true);
+	});
+});

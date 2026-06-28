@@ -13,7 +13,7 @@ import { type App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "../../../utilityObsidian";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
-import { assertWriteStaysInVault } from "./vaultWriteGuards";
+import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
 import type { JSONSchema } from "../NormalizedTools";
 import type { QATool } from "../aiToolTypes";
 import { applyGroupOptions, type BuiltinGroupOptions, type ToolSetMap } from "./shared";

@@ -17,7 +17,7 @@
  *
  * This module is PURE (no Obsidian import) so it is fully unit-testable. The
  * symlink / realpath-containment check that writers MUST also perform needs the
- * FileSystemAdapter and lives with the writers (see builtins/vaultWriteGuards.ts).
+ * FileSystemAdapter and lives in the shared util (see utils/vaultWriteGuards.ts).
  */
 import {
 	INVALID_FOLDER_CHARS_REGEX,
