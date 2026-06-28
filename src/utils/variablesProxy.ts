@@ -36,9 +36,14 @@ export function createVariablesProxy(
 		getOwnPropertyDescriptor(_t, prop: string | symbol) {
 			if (prop === "hasOwnProperty") {
 				return {
+					// Must stay consistent with the actual target property, which
+					// is a normal (configurable + writable) own property of the
+					// object literal. Reporting configurable:false here violates
+					// the [[GetOwnProperty]] proxy invariant and makes
+					// Object.getOwnPropertyDescriptor(proxy, "hasOwnProperty") throw.
 					value: target.hasOwnProperty,
-					writable: false,
-					configurable: false,
+					writable: true,
+					configurable: true,
 					enumerable: false,
 				};
 			}

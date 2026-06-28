@@ -77,6 +77,26 @@ describe("createVariablesProxy", () => {
 		expect((proxy as Record<string, unknown>).toString).toBeUndefined();
 	});
 
+	it("does not throw when introspecting the hasOwnProperty descriptor", () => {
+		const backing = new Map<string, unknown>();
+		const proxy = createVariablesProxy(backing);
+
+		// Reporting configurable:false for the configurable target property
+		// violates the [[GetOwnProperty]] invariant and throws a TypeError.
+		const descriptor = Object.getOwnPropertyDescriptor(
+			proxy,
+			"hasOwnProperty",
+		);
+		expect(descriptor).toBeDefined();
+		expect(descriptor?.configurable).toBe(true);
+		expect(typeof descriptor?.value).toBe("function");
+
+		// Related introspection paths must also not throw.
+		expect(() =>
+			Object.prototype.propertyIsEnumerable.call(proxy, "hasOwnProperty"),
+		).not.toThrow();
+	});
+
 	it("enumerates via Object.entries and Object.values", () => {
 		const backing = new Map<string, unknown>([
 			["a", 1],
