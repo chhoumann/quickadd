@@ -156,7 +156,7 @@ export async function analysePackage(
 		// Treat it as not-present (the write path rejects it anyway).
 		const exists = escapesVaultBoundary(asset.originalPath)
 			? false
-			: await assetExists(app, asset.originalPath);
+			: await app.vault.adapter.exists(asset.originalPath);
 		assetConflicts.push({
 			originalPath: asset.originalPath,
 			exists,
@@ -502,12 +502,14 @@ export async function applyPackageImport(
 		return { asset, destinationPath };
 	});
 
-	// Symlink/realpath containment, as a PRE-PASS before any write so the import
-	// is all-or-nothing (matching the lexical validation above): if a destination
-	// resolves through a pre-existing in-vault symlink to outside the vault, abort
-	// before touching disk rather than after partially writing earlier assets.
+	// Symlink/realpath containment: reject BEFORE any write so a destination that
+	// resolves through a pre-existing in-vault symlink to outside the vault aborts
+	// the import without first writing earlier (safe) assets. Only assets that will
+	// actually be written are checked — an explicitly skipped asset is never
+	// written, so the user can still skip an unsafe asset and import the rest.
 	// Desktop-only; a no-op on mobile and in tests (non-FileSystemAdapter).
-	for (const { destinationPath } of resolvedAssetDestinations) {
+	for (const { asset, destinationPath } of resolvedAssetDestinations) {
+		if (assetDecisionMap.get(asset.originalPath)?.mode === "skip") continue;
 		await assertWriteStaysInVault(app, destinationPath);
 	}
 

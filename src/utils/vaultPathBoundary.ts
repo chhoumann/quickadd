@@ -21,22 +21,27 @@
  * reference as "missing". The only concern here is escaping the vault.
  */
 
+// These primitives are intentionally NOT exported: each is only safe in the
+// fixed order escapesVaultBoundary applies them (e.g. hasTraversalSegment must
+// run on a backslash-normalized string). Exporting them invites a caller to use
+// one in isolation and silently reopen a bypass. Export only escapesVaultBoundary.
+
 /** Trim and convert backslashes to '/'. Does NOT resolve '.'/'..' or strip
  * slashes, so absolute/traversal markers survive for the checks below. */
-export function toSlashedPath(rawPath: string): string {
+function toSlashedPath(rawPath: string): string {
 	return (rawPath ?? "").trim().replace(/\\/g, "/");
 }
 
 /** True for POSIX-absolute ("/x", and backslash-normalized UNC "//host/share"),
  * Windows drive ("C:\\x" → "C:/x") and drive-relative ("C:x") paths. Expects a
  * backslash-normalized string (see {@link toSlashedPath}). */
-export function isAbsoluteVaultPath(slashedPath: string): boolean {
+function isAbsoluteVaultPath(slashedPath: string): boolean {
 	return slashedPath.startsWith("/") || /^[a-zA-Z]:/.test(slashedPath);
 }
 
 /** True if any '/'-separated segment is exactly "..", i.e. a path-traversal
  * segment at any depth. ("..%2fevil.md" is a single literal segment, NOT "..".) */
-export function hasTraversalSegment(slashedPath: string): boolean {
+function hasTraversalSegment(slashedPath: string): boolean {
 	return slashedPath.split("/").some((segment) => segment === "..");
 }
 

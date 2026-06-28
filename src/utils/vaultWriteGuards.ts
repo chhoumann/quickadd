@@ -75,7 +75,20 @@ export async function assertWriteStaysInVault(
 		probe = parent;
 	}
 
-	const realTarget = await fs.promises.realpath(probe).catch(() => probe);
+	let realTarget: string;
+	try {
+		realTarget = await fs.promises.realpath(probe);
+	} catch {
+		// `probe` exists (lstatSync above) yet cannot be resolved: it is, or passes
+		// through, a DANGLING symlink whose ultimate target does not exist. A write
+		// still FOLLOWS that symlink and can land outside the vault, and we cannot
+		// prove where — so fail CLOSED. (On Linux/glibc realpath throws ENOENT here;
+		// the previous `.catch(() => probe)` fallback trusted the unresolved in-vault
+		// path and let the escape through.)
+		throw new VaultWriteEscapeError(
+			`Refusing to write to "${vaultRelativePath}": it resolves through an unresolvable (dangling) symlink.`,
+		);
+	}
 	const rel = path.relative(realBase, realTarget);
 	const escapes = rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel);
 	if (escapes) {

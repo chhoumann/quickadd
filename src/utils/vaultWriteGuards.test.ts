@@ -83,4 +83,51 @@ describe("assertWriteStaysInVault (real symlink containment)", () => {
 			assertWriteStaysInVault(plainApp, "../escape.js"),
 		).resolves.toBeUndefined();
 	});
+
+	it("rejects a write through a DANGLING in-vault symlink (target not yet created)", async () => {
+		// out.md -> ../outside/new.md, where new.md does NOT exist. A write still
+		// follows the symlink and lands outside. (macOS realpath resolves the path
+		// and the escape is caught; Linux realpath throws ENOENT and the fail-closed
+		// branch catches it — both must reject.)
+		fs.symlinkSync(
+			path.join(outsideDir, "new.md"),
+			path.join(vaultDir, "out.md"),
+			"file",
+		);
+		await expect(
+			assertWriteStaysInVault(app, "out.md"),
+		).rejects.toBeInstanceOf(VaultWriteEscapeError);
+	});
+
+	it("fails closed when realpath cannot resolve an existing target (Linux ENOENT path)", async () => {
+		// Deterministically exercise the fail-closed branch on every platform: the
+		// target exists (lstat) but realpath throws. The pre-fix `.catch(() =>
+		// probe)` fallback trusted the unresolved in-vault path and let it through.
+		const base = vaultDir;
+		const shimFs = {
+			promises: {
+				realpath: async (p: string) => {
+					if (p === base) return base;
+					throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+				},
+			},
+			lstatSync: () => ({}),
+		};
+		(window as unknown as { require: (m: string) => unknown }).require = (
+			mod: string,
+		) => {
+			if (mod === "fs") return shimFs;
+			if (mod === "path") return path;
+			throw new Error(`unexpected require(${mod})`);
+		};
+		const AdapterCtor = FileSystemAdapter as unknown as new (
+			basePath: string,
+		) => FileSystemAdapter;
+		const shimApp = {
+			vault: { adapter: new AdapterCtor(base) },
+		} as unknown as App;
+		await expect(
+			assertWriteStaysInVault(shimApp, "out.md"),
+		).rejects.toBeInstanceOf(VaultWriteEscapeError);
+	});
 });

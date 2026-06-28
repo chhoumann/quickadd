@@ -489,12 +489,67 @@ describe("asset write containment (security)", () => {
 		// All-or-nothing: the lexically-safe, FIRST-ordered asset is NOT written,
 		// proving the guard ran as a pre-pass (not inline per-asset).
 		expect(state.writes.size).toBe(0);
-		// Wired with the resolved DESTINATION path, for every asset.
+		// Wired with the resolved DESTINATION path, for every written asset.
 		expect(assertWriteStaysInVault).toHaveBeenCalledWith(app, "scripts/safe.js");
 		expect(assertWriteStaysInVault).toHaveBeenCalledWith(
 			app,
 			"scripts/escapes.js",
 		);
+	});
+
+	it("does not realpath-guard an explicitly skipped asset (skip the unsafe, import the rest)", async () => {
+		const { app, state } = createFakeApp();
+		// The skipped asset's destination "escapes"; the guard would throw for it.
+		vi.mocked(assertWriteStaysInVault).mockImplementation(
+			async (_app, destinationPath) => {
+				if (destinationPath === "linked/evil.js") {
+					throw new Error(
+						`Refusing to write to "${destinationPath}": resolves outside the vault.`,
+					);
+				}
+			},
+		);
+
+		const pkg = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "scripts/safe.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("safe"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "linked/evil.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("evil"),
+				},
+			],
+		});
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [],
+			assetDecisions: [
+				{
+					originalPath: "linked/evil.js",
+					destinationPath: "linked/evil.js",
+					mode: "skip",
+				},
+			],
+		});
+
+		// The unsafe asset is skipped (never guarded, never written); the rest imports.
+		expect(result.writtenAssets).toEqual(["scripts/safe.js"]);
+		expect(result.skippedAssets).toEqual(["linked/evil.js"]);
+		expect(state.writes.has("scripts/safe.js")).toBe(true);
+		expect(assertWriteStaysInVault).not.toHaveBeenCalledWith(
+			app,
+			"linked/evil.js",
+		);
+		expect(assertWriteStaysInVault).toHaveBeenCalledWith(app, "scripts/safe.js");
 	});
 });
 

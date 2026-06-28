@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
+import { escapesVaultBoundary } from "../../utils/vaultPathBoundary";
 import type {
 	AssetImportMode,
 	AssetImportDecision,
@@ -248,6 +249,8 @@ export class ExistenceResolver {
 	optimistic(path: string): boolean {
 		const trimmed = path.trim();
 		if (!trimmed) return false;
+		// Untrusted package paths that escape the vault are never "present".
+		if (escapesVaultBoundary(trimmed)) return false;
 		return Boolean(
 			this.app.vault.getAbstractFileByPath(normalizePath(trimmed)),
 		);
@@ -256,6 +259,9 @@ export class ExistenceResolver {
 	private async resolve(path: string): Promise<boolean> {
 		const trimmed = path.trim();
 		if (!trimmed) return false;
+		// Never stat an out-of-vault path from an untrusted package: a crafted
+		// destination like "../../../etc/passwd" must not reach the filesystem.
+		if (escapesVaultBoundary(trimmed)) return false;
 		try {
 			return await this.app.vault.adapter.exists(normalizePath(trimmed));
 		} catch {
