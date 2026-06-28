@@ -374,7 +374,13 @@ export class TemplateInsertEngine extends TemplateEngine {
 						);
 						continue;
 					}
-					const existing = frontmatter[key];
+					// Only an OWN value counts as "existing": reading inherited
+					// members (e.g. Object.prototype.constructor / toString) would
+					// wrongly treat a legitimately-named template key as already
+					// present and silently drop it.
+					const existing = Object.hasOwn(frontmatter, key)
+						? frontmatter[key]
+						: undefined;
 					if (
 						existing === undefined ||
 						existing === null ||
