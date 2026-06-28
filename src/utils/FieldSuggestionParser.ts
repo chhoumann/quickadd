@@ -19,6 +19,15 @@ export interface FieldFilter {
 	defaultValue?: string;
 	defaultEmpty?: boolean;
 	defaultAlways?: boolean;
+	/**
+	 * Source for a context-derived default (issue #1429). The only value v1
+	 * understands is `"active"`: resolve the default from the active note's
+	 * current frontmatter property at QuickAdd trigger time. Stored lowercased;
+	 * an unrecognized source is ignored (the FIELD prompt behaves as if no
+	 * `default-from` were present). Intentionally distinct from the literal
+	 * `default:` option and from `default:current` (see the issue's rationale).
+	 */
+	defaultFrom?: string;
 	caseSensitive?: boolean;
 	excludeFolders?: string[];
 	excludeTags?: string[];
@@ -100,6 +109,13 @@ export class FieldSuggestionParser {
 				case "default":
 					filters.defaultValue = filterValue;
 					break;
+				case "default-from":
+					// e.g. |default-from:active — resolve the default from a context
+					// source (the active note's property) rather than a literal value.
+					// The resolution happens in the runtime/preflight FIELD paths; here
+					// we only record the requested source (lowercased).
+					filters.defaultFrom = filterValue.toLowerCase();
+					break;
 				case "default-empty":
 					filters.defaultEmpty = filterValue.toLowerCase() === "true";
 					break;
@@ -146,7 +162,7 @@ export class FieldSuggestionParser {
 					// sentinels like __capture_scope.
 					if (options?.warnUnknown) {
 						log.logWarning(
-							`Unknown FIELD filter "${filterType}" in "{{FIELD:${input}}}" was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-empty, default-always, case-sensitive, multi.`,
+							`Unknown FIELD filter "${filterType}" in "{{FIELD:${input}}}" was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi.`,
 						);
 					}
 					break;

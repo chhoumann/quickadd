@@ -22,6 +22,7 @@ import {
 	getFocusedPropertyTarget,
 	type FrontmatterPropertyTarget,
 } from "./utils/frontmatterPropertyLinks";
+import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -30,10 +31,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	// without `ui`) flip this to false so engine prompts abort instead of hanging.
 	public interactive = true;
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
+	public triggerContext: QuickAddTriggerContext | null = null;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
+	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
 
 	constructor(private app: App, private plugin: QuickAdd) {}
 
@@ -57,6 +60,21 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
 					: getFocusedPropertyTarget(this.app);
+			// Snapshot the trigger-time editor context at the outermost boundary, so a
+			// nested execute() (a {{MACRO}} that opens a file then runs a FIELD
+			// template, or the API path) keeps the ORIGINAL trigger note as the source
+			// for {{...|default-from:active}}, mirroring focusedProperty's depth-0
+			// semantics. The Multi path opens a nested suggester and lets the outer
+			// execute() return (clearing this at depth 0), so — like focusedProperty —
+			// the captured context is threaded through the suggester and re-injected as
+			// triggerContextOverride for the chosen leaf's own depth-0 run, instead of a
+			// live re-read at leaf time. A direct execute() (command palette/ribbon) has
+			// no override and reads live, which is the trigger note (the active markdown
+			// leaf is unchanged by the launching modal).
+			this.triggerContext =
+				this.triggerContextOverride !== undefined
+					? this.triggerContextOverride
+					: { activeFile: this.app.workspace.getActiveFile() };
 		}
 		this.executionDepth++;
 	}
@@ -65,6 +83,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.executionDepth = Math.max(0, this.executionDepth - 1);
 		if (this.executionDepth === 0) {
 			this.focusedProperty = null;
+			this.triggerContext = null;
 		}
 	}
 
@@ -126,13 +145,20 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async executeWithFocusedProperty(
 		choice: IChoice,
 		focusedProperty: FrontmatterPropertyTarget | null,
+		triggerContext?: QuickAddTriggerContext | null,
 	): Promise<void> {
-		const previousOverride = this.focusedPropertyOverride;
+		const previousFocusedOverride = this.focusedPropertyOverride;
+		const previousTriggerOverride = this.triggerContextOverride;
 		this.focusedPropertyOverride = focusedProperty;
+		// `triggerContext` is `undefined` only when the caller didn't capture one;
+		// leave the override unset so the executor reads it live. A captured value
+		// (including `null` for "no active note at trigger time") IS injected.
+		this.triggerContextOverride = triggerContext;
 		try {
 			await this.execute(choice);
 		} finally {
-			this.focusedPropertyOverride = previousOverride;
+			this.focusedPropertyOverride = previousFocusedOverride;
+			this.triggerContextOverride = previousTriggerOverride;
 		}
 	}
 
@@ -287,6 +313,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
 			choiceExecutor: this,
 			focusedProperty: this.focusedProperty,
+			triggerContext: this.triggerContext,
 			// Fall back to the folder name when no custom placeholder is set, matching the
 			// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
 			// the same folder show the same search hint.

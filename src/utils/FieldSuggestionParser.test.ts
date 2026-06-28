@@ -168,6 +168,41 @@ describe("FieldSuggestionParser", () => {
 			});
 		});
 
+		it("parses default-from:active into a lowercased defaultFrom (issue #1429)", () => {
+			const result = FieldSuggestionParser.parse(
+				"project|default-from:active",
+			);
+			expect(result).toEqual({
+				fieldName: "project",
+				filters: { defaultFrom: "active" },
+			});
+		});
+
+		it("lowercases the default-from source value", () => {
+			const result = FieldSuggestionParser.parse(
+				"project|default-from:Active",
+			);
+			expect(result).toEqual({
+				fieldName: "project",
+				filters: { defaultFrom: "active" },
+			});
+		});
+
+		it("keeps default-from alongside the literal default and other filters", () => {
+			const result = FieldSuggestionParser.parse(
+				"project|folder:Projects|default:Inbox|default-from:active",
+			);
+			expect(result).toEqual({
+				fieldName: "project",
+				filters: {
+					folder: "Projects",
+					folders: ["Projects"],
+					defaultValue: "Inbox",
+					defaultFrom: "active",
+				},
+			});
+		});
+
 		it("should parse default-empty and default-always filters", () => {
 			const result = FieldSuggestionParser.parse(
 				"fieldname|default:To Do|default-empty:true|default-always:false",

@@ -250,4 +250,73 @@ describe("FieldValueProcessor", () => {
 			expect(result.hasDefaultValue).toBe(true);
 		});
 	});
+
+	describe("promoteValueToFront (issue #1429)", () => {
+		it("prepends a value not already present", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront(
+					["Beta", "Gamma"],
+					"Alpha",
+				),
+			).toEqual(["Alpha", "Beta", "Gamma"]);
+		});
+
+		it("promotes an existing value to the front without duplicating it", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront(
+					["Beta", "Alpha", "Gamma"],
+					"Alpha",
+				),
+			).toEqual(["Alpha", "Beta", "Gamma"]);
+		});
+
+		it("removes a case-insensitive duplicate and keeps the promoted casing", () => {
+			// The active note's casing ("Done") wins over the vault's ("done").
+			expect(
+				FieldValueProcessor.promoteValueToFront(["done", "Open"], "Done"),
+			).toEqual(["Done", "Open"]);
+		});
+
+		it("keeps a case-differing value when caseSensitive is true", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront(
+					["done", "Open"],
+					"Done",
+					true,
+				),
+			).toEqual(["Done", "done", "Open"]);
+		});
+
+		it("handles an empty source list", () => {
+			expect(
+				FieldValueProcessor.promoteValueToFront([], "Alpha"),
+			).toEqual(["Alpha"]);
+		});
+	});
+
+	describe("canonicalizeAgainst (issue #1429)", () => {
+		it("maps a value to its case-folded match in the list", () => {
+			expect(
+				FieldValueProcessor.canonicalizeAgainst(["done", "open"], "Done"),
+			).toBe("done");
+		});
+
+		it("returns the value unchanged when no case-fold match exists", () => {
+			expect(
+				FieldValueProcessor.canonicalizeAgainst(["open"], "Done"),
+			).toBe("Done");
+		});
+
+		it("returns the value unchanged under caseSensitive", () => {
+			expect(
+				FieldValueProcessor.canonicalizeAgainst(["done"], "Done", true),
+			).toBe("Done");
+		});
+
+		it("folds diacritics like the deduplicator", () => {
+			expect(
+				FieldValueProcessor.canonicalizeAgainst(["café"], "CAFE"),
+			).toBe("café");
+		});
+	});
 });

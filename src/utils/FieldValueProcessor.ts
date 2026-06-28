@@ -99,6 +99,52 @@ export class FieldValueProcessor {
 	}
 
 	/**
+	 * Promotes `value` to the front of an already-processed suggestion list,
+	 * removing any existing entry that matches under the same case fold used for
+	 * deduplication (issue #1429). Used for a context-derived default
+	 * (`default-from:active`) so it appears first without duplicating an existing
+	 * suggestion, mirroring the `default-always` branch of {@link applyDefaultValues}
+	 * — but applied AFTER vault collection, so it never perturbs the collection
+	 * cache key. The promoted entry keeps the supplied value's casing (the active
+	 * note's current value), which is the value the user is inheriting.
+	 */
+	static promoteValueToFront(
+		values: string[],
+		value: string,
+		caseSensitive = false,
+	): string[] {
+		const isPresent = (candidate: string): boolean =>
+			caseSensitive
+				? candidate === value
+				: this.normalizeForComparison(candidate) ===
+					this.normalizeForComparison(value);
+		return [value, ...values.filter((candidate) => !isPresent(candidate))];
+	}
+
+	/**
+	 * Returns the entry in `values` that matches `value` under the dedup case fold,
+	 * or `value` itself when none does (issue #1429). Used to map an active-note
+	 * preselection onto the existing (vault-cased) suggestion before handing it to
+	 * the multi-select picker, so a case variant (active `Done` vs collected `done`)
+	 * toggles the existing option instead of adding a duplicate custom row. With
+	 * `caseSensitive` the value is returned unchanged.
+	 */
+	static canonicalizeAgainst(
+		values: string[],
+		value: string,
+		caseSensitive = false,
+	): string {
+		if (caseSensitive) return value;
+		const normalized = this.normalizeForComparison(value);
+		return (
+			values.find(
+				(candidate) =>
+					this.normalizeForComparison(candidate) === normalized,
+			) ?? value
+		);
+	}
+
+	/**
 	 * Normalize a value for case-insensitive comparison, mirroring
 	 * FieldValueDeduplicator's fold (Unicode NFD + diacritic strip + lowercase)
 	 * so default-value matching is consistent with case-insensitive dedup.

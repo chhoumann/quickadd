@@ -296,6 +296,54 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		expect(executor.variables.get("value")).toBe("Custom");
 	});
 
+	it("seeds the trigger context with the target note, then restores it (issue #1429)", async () => {
+		const file = makeFile();
+		const executor = makeExecutor();
+		let contextDuringApply: unknown;
+		engineApplyMock.mockImplementationOnce(async () => {
+			contextDuringApply = (
+				executor as unknown as { triggerContext?: unknown }
+			).triggerContext;
+			return file;
+		});
+
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+			templatePath: "templates/tpl.md",
+			choiceExecutor: executor,
+		});
+
+		// During apply, default-from:active resolves against the target note...
+		expect(contextDuringApply).toEqual({ activeFile: file });
+		// ...and the executor is restored afterward so a reused executor (a script
+		// applying templates to several notes) never leaks the stale note.
+		expect(
+			(executor as unknown as { triggerContext?: unknown }).triggerContext,
+		).toBeUndefined();
+	});
+
+	it("does not clobber a caller-supplied trigger context", async () => {
+		const file = makeFile();
+		const callerContext = { activeFile: makeFile() };
+		const executor = makeExecutor();
+		const ctx = () =>
+			(executor as unknown as { triggerContext?: unknown }).triggerContext;
+		(executor as unknown as { triggerContext?: unknown }).triggerContext =
+			callerContext;
+		let contextDuringApply: unknown;
+		engineApplyMock.mockImplementationOnce(async () => {
+			contextDuringApply = ctx();
+			return file;
+		});
+
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+			templatePath: "templates/tpl.md",
+			choiceExecutor: executor,
+		});
+
+		expect(contextDuringApply).toBe(callerContext);
+		expect(ctx()).toBe(callerContext);
+	});
+
 	it("returns null without an active markdown note", async () => {
 		const result = await applyTemplateToNote(makeApp("", null), plugin, {
 			templatePath: "templates/tpl.md",

@@ -427,6 +427,9 @@ describe("ChoiceSuggester", () => {
 			expect(executeWithFocusedProperty).toHaveBeenCalledWith(
 				newMeeting,
 				focusedProperty,
+				// Trigger context (issue #1429) is threaded as the 3rd arg; the stub
+				// workspace has no active file.
+				{ activeFile: null },
 			);
 			expect(executed).toEqual([]);
 		});
@@ -447,6 +450,9 @@ describe("ChoiceSuggester", () => {
 			expect(executeWithFocusedProperty).toHaveBeenCalledWith(
 				newMeeting,
 				focusedProperty,
+				// Trigger context (issue #1429) is threaded as the 3rd arg; the stub
+				// workspace has no active file.
+				{ activeFile: null },
 			);
 			expect(executed).toEqual([]);
 		});
@@ -469,6 +475,7 @@ describe("ChoiceSuggester", () => {
 				{
 					choiceExecutor?: IChoiceExecutor;
 					focusedProperty?: FrontmatterPropertyTarget | null;
+					triggerContext?: { activeFile: unknown } | null;
 					placeholder?: string;
 					placeholderStack?: Array<string | undefined>;
 				},
@@ -481,8 +488,31 @@ describe("ChoiceSuggester", () => {
 			// drill-down, and the placeholder stack records the origin level.
 			expect(options.choiceExecutor).toBe(executor);
 			expect(options.focusedProperty).toBe(focusedProperty);
+			// The trigger context (issue #1429) is threaded down so a leaf choice
+			// still defaults from the original trigger note, not a re-read.
+			expect(options.triggerContext).toEqual({ activeFile: null });
 			expect(options.placeholder).toBe("Work");
 			expect(options.placeholderStack).toEqual([undefined]);
+		});
+
+		it("threads a captured trigger context to the leaf execution (issue #1429)", () => {
+			const triggerContext = {
+				activeFile: { path: "Trigger.md", extension: "md" },
+			} as never;
+			const executeWithFocusedProperty = vi.fn(async () => {});
+			executor.executeWithFocusedProperty = executeWithFocusedProperty;
+			// Simulate a nested level that received the context from its parent.
+			const suggester = makeSuggester(rootChoices, {
+				triggerContext,
+			} as never);
+
+			suggester.onChooseItem(newMeeting, new MouseEvent("click"));
+
+			expect(executeWithFocusedProperty).toHaveBeenCalledWith(
+				newMeeting,
+				null,
+				triggerContext,
+			);
 		});
 
 		it("navigates back without appending another back item", () => {

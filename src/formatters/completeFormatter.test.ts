@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TemplateInclusionState } from "./formatter";
+import type { FieldValueProcessor as FieldValueProcessorType } from "../utils/FieldValueProcessor";
 
 /**
  * Unit tests for the concrete CompleteFormatter.
@@ -33,6 +34,7 @@ const mocks = vi.hoisted(() => ({
 	collectProcessedDetailed: vi.fn(),
 	collectRaw: vi.fn(),
 	getSmartDefaults: vi.fn(() => [] as string[]),
+	resolveActiveDefault: vi.fn(() => null as string | string[] | null),
 	dateAliases: {} as Record<string, string>,
 }));
 
@@ -142,8 +144,29 @@ vi.mock("../utils/FieldValueCollector", () => ({
 	generateFieldCacheKey: (f: unknown) => JSON.stringify(f),
 }));
 
-vi.mock("../utils/FieldValueProcessor", () => ({
-	FieldValueProcessor: { getSmartDefaults: mocks.getSmartDefaults },
+vi.mock("../utils/FieldValueProcessor", async () => {
+	// Keep the real promoteValueToFront (issue #1429) so the active-default
+	// promotion is exercised end-to-end; only getSmartDefaults is stubbed.
+	const actual = (await vi.importActual(
+		"../utils/FieldValueProcessor",
+	)) as { FieldValueProcessor: typeof FieldValueProcessorType };
+	return {
+		FieldValueProcessor: {
+			getSmartDefaults: mocks.getSmartDefaults,
+			promoteValueToFront:
+				actual.FieldValueProcessor.promoteValueToFront.bind(
+					actual.FieldValueProcessor,
+				),
+			canonicalizeAgainst:
+				actual.FieldValueProcessor.canonicalizeAgainst.bind(
+					actual.FieldValueProcessor,
+				),
+		},
+	};
+});
+
+vi.mock("../utils/activeNoteFieldDefault", () => ({
+	resolveActiveNoteFieldDefault: mocks.resolveActiveDefault,
 }));
 
 vi.mock("../settingsStore", () => ({
@@ -250,6 +273,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.macroGetVariables.mockReturnValue(new Map());
 	mocks.getSmartDefaults.mockReturnValue([]);
+	mocks.resolveActiveDefault.mockReturnValue(null);
 
 	// Deterministic clipboard: empty by default. navigator may not exist in
 	// the jsdom-less environment, so define it.
@@ -980,6 +1004,217 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 		await expect(
 			f.formatFolderPath("{{FIELD:status}}"),
 		).rejects.toBeInstanceOf(MacroAbortError);
+	});
+});
+
+describe("CompleteFormatter - FIELD default-from:active (issue #1429)", () => {
+	// A formatter whose choiceExecutor carries a trigger-time active file, so the
+	// resolver receives the captured file (and we can assert it).
+	function formatterWithActiveFile(activeFile: unknown) {
+		const app = makeApp({
+			activeFile: null,
+			selection: null,
+			generatedLink: "",
+		});
+		const choiceExecutor = {
+			variables: new Map<string, unknown>(),
+			triggerContext: { activeFile },
+		};
+		return new CompleteFormatter(
+			app as any,
+			makePlugin() as any,
+			choiceExecutor as any,
+		);
+	}
+
+	it("promotes the active note's scalar value to the top suggestion and accepts it", async () => {
+		const activeFile = { extension: "md", path: "Active.md" };
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "project",
+			filters: { defaultFrom: "active" },
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Old Project", "The Great Endeavor"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue("The Great Endeavor");
+		mocks.inputSuggesterSuggest.mockImplementation(
+			(_app, _display, items) => Promise.resolve(items[0]),
+		);
+
+		const f = formatterWithActiveFile(activeFile);
+		await expect(
+			f.formatFolderPath("{{FIELD:project|default-from:active}}"),
+		).resolves.toBe("The Great Endeavor");
+
+		// The resolver was handed the captured trigger-time active file.
+		expect(mocks.resolveActiveDefault).toHaveBeenCalledWith(
+			expect.anything(),
+			activeFile,
+			"project",
+		);
+		// The active value is promoted to the front, de-duplicated.
+		const [, , items, opts] = mocks.inputSuggesterSuggest.mock.calls[0];
+		expect(items).toEqual(["The Great Endeavor", "Old Project"]);
+		expect(opts.placeholder).toContain("default: The Great Endeavor");
+	});
+
+	it("prepends the active value when it is not already a vault suggestion", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "project",
+			filters: { defaultFrom: "active" },
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Other"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue("Fresh");
+		mocks.inputSuggesterSuggest.mockResolvedValue("Fresh");
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await f.formatFolderPath("{{FIELD:project|default-from:active}}");
+
+		const [, , items] = mocks.inputSuggesterSuggest.mock.calls[0];
+		expect(items).toEqual(["Fresh", "Other"]);
+	});
+
+	it("falls back to normal FIELD behavior when there is no active default", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "project",
+			filters: { defaultFrom: "active" },
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["A", "B"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue(null);
+		mocks.inputSuggesterSuggest.mockResolvedValue("A");
+
+		const f = formatterWithActiveFile(null);
+		await f.formatFolderPath("{{FIELD:project|default-from:active}}");
+
+		const [, , items, opts] = mocks.inputSuggesterSuggest.mock.calls[0];
+		expect(items).toEqual(["A", "B"]);
+		expect(opts.placeholder).not.toContain("default:");
+	});
+
+	it("does NOT resolve an active default for a plain FIELD (no default-from)", async () => {
+		mocks.fieldParse.mockReturnValue({ fieldName: "project", filters: {} });
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["A"],
+			hasDefaultValue: false,
+		});
+		mocks.inputSuggesterSuggest.mockResolvedValue("A");
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await f.formatFolderPath("{{FIELD:project}}");
+
+		expect(mocks.resolveActiveDefault).not.toHaveBeenCalled();
+	});
+
+	it("pre-checks the active note's list value in the multi-select picker", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topics",
+			filters: { defaultFrom: "active" },
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alpha", "Beta", "Gamma"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue(["Beta", "Zeta"]);
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Beta", "Zeta"]);
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await expect(
+			f.formatFolderPath("{{FIELD:topics|multi|default-from:active}}"),
+		).resolves.toBe("Beta,Zeta");
+
+		const [, , , opts] = mocks.multiSuggesterSuggest.mock.calls[0];
+		expect(opts.preselected).toEqual(["Beta", "Zeta"]);
+		expect(opts.allowCustomValue).toBe(true);
+	});
+
+	it("canonicalizes a case-variant active value onto the collected option (no duplicate row)", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topics",
+			filters: { defaultFrom: "active" },
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["done", "open"],
+			hasDefaultValue: false,
+		});
+		// Active note uses different casing than the collected vault value.
+		mocks.resolveActiveDefault.mockReturnValue(["Done"]);
+		mocks.multiSuggesterSuggest.mockResolvedValue(["done"]);
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await f.formatFolderPath("{{FIELD:topics|multi|default-from:active}}");
+
+		const [, , , opts] = mocks.multiSuggesterSuggest.mock.calls[0];
+		// "Done" is folded onto the collected "done" option, not added as custom.
+		expect(opts.preselected).toEqual(["done"]);
+	});
+
+	it("pre-checks a scalar active value in a multi-select picker as a single item", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topics",
+			filters: { defaultFrom: "active" },
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alpha"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue("Alpha");
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Alpha"]);
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await f.formatFolderPath("{{FIELD:topics|multi|default-from:active}}");
+
+		const [, , , opts] = mocks.multiSuggesterSuggest.mock.calls[0];
+		expect(opts.preselected).toEqual(["Alpha"]);
+	});
+
+	it("does not preselect anything in multi when there is no active value", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "topics",
+			filters: { defaultFrom: "active" },
+			multiSelect: true,
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Alpha"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue(null);
+		mocks.multiSuggesterSuggest.mockResolvedValue([]);
+
+		const f = formatterWithActiveFile(null);
+		await f.formatFolderPath("{{FIELD:topics|multi|default-from:active}}");
+
+		const [, , , opts] = mocks.multiSuggesterSuggest.mock.calls[0];
+		expect(opts.preselected).toBeUndefined();
+	});
+
+	it("does not prefill a single-select default when the active value is a list", async () => {
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "project",
+			filters: { defaultFrom: "active" },
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["A", "B"],
+			hasDefaultValue: false,
+		});
+		mocks.resolveActiveDefault.mockReturnValue(["X", "Y"]);
+		mocks.inputSuggesterSuggest.mockResolvedValue("A");
+
+		const f = formatterWithActiveFile({ extension: "md", path: "A.md" });
+		await f.formatFolderPath("{{FIELD:project|default-from:active}}");
+
+		const [, , items, opts] = mocks.inputSuggesterSuggest.mock.calls[0];
+		expect(items).toEqual(["A", "B"]);
+		expect(opts.placeholder).not.toContain("default:");
 	});
 });
 
