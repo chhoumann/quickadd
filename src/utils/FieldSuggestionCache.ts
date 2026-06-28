@@ -107,10 +107,13 @@ export class FieldSuggestionCache {
 	 */
 	clear(fieldName?: string): void {
 		if (fieldName) {
-			// Clear all entries for this field
+			// Clear all entries for this field. Compare the decoded field-name
+			// component rather than a raw `${fieldName}:` prefix, which would both
+			// over-match (a different field literally named `${fieldName}:...`) and
+			// mis-match once keys are JSON-encoded.
 			const keysToDelete: string[] = [];
 			for (const key of this.cache.keys()) {
-				if (key.startsWith(`${fieldName}:`) || key === fieldName) {
+				if (this.keyFieldName(key) === fieldName) {
 					keysToDelete.push(key);
 				}
 			}
@@ -166,6 +169,25 @@ export class FieldSuggestionCache {
 	}
 
 	private makeKey(fieldName: string, cacheKey?: string): string {
-		return cacheKey ? `${fieldName}:${cacheKey}` : fieldName;
+		// Encode both components unambiguously. A raw `${fieldName}:${cacheKey}`
+		// join collides when a field name itself contains a colon, e.g.
+		// makeKey("foo", "bar:baz") === makeKey("foo:bar", "baz"). JSON-encoding a
+		// tuple keeps every (fieldName, cacheKey) pair distinct. Empty/undefined
+		// cacheKey collapse to the same key (legacy behavior).
+		return JSON.stringify([fieldName, cacheKey || null]);
+	}
+
+	/** Decode the field-name component of a key produced by {@link makeKey}. */
+	private keyFieldName(key: string): string | undefined {
+		try {
+			const parsed = JSON.parse(key) as unknown;
+			if (Array.isArray(parsed) && typeof parsed[0] === "string") {
+				return parsed[0];
+			}
+		} catch {
+			// Keys are always produced by makeKey, so this is unreachable in
+			// practice; fall through to undefined defensively.
+		}
+		return undefined;
 	}
 }

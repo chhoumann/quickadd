@@ -61,4 +61,27 @@ describe('templatePropertyStringParser', () => {
 		const expectedFirst = "\"value with \\\"quote\\\" inside\"";
 		expect(segments).toEqual([expectedFirst, '"second"']);
 	});
+
+	it('treats apostrophes as literal text, not quote delimiters', () => {
+		// The apostrophe in O'Brien must not open a quote and swallow the comma.
+		const segments = splitTopLevel("O'Brien, Alice");
+		expect(segments).toEqual(["O'Brien", "Alice"]);
+	});
+
+	it('splits multi-value property values containing an apostrophe into an array', () => {
+		const result = parseStructuredPropertyValueFromString("O'Brien, Alice");
+		expect(result).toEqual(["O'Brien", "Alice"]);
+	});
+
+	it('still protects commas inside straight double quotes', () => {
+		const segments = splitTopLevel('"Doe, Jane", Bob');
+		expect(segments).toEqual(['"Doe, Jane"', 'Bob']);
+	});
+
+	it('treats curly quotes as literal text (only the straight quote is a delimiter)', () => {
+		// A lone curly close-quote (e.g. the inches symbol) must not open a quote
+		// context and swallow the following comma.
+		const segments = splitTopLevel('5” long, blue');
+		expect(segments).toEqual(['5” long', 'blue']);
+	});
 });

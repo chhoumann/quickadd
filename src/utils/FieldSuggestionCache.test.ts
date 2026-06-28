@@ -67,6 +67,31 @@ describe("FieldSuggestionCache", () => {
 			expect(cache.get("field1")).toBeNull();
 			expect(cache.get("field2")).toBeNull();
 		});
+
+		it("clears only the exact field, not a colon-prefixed sibling field", () => {
+			cache.set("foo", new Set(["a"]), "folder");
+			cache.set("foo:bar", new Set(["b"]));
+
+			cache.clear("foo");
+
+			// The distinct field "foo:bar" must survive clearing "foo".
+			expect(cache.get("foo", "folder")).toBeNull();
+			expect(cache.get("foo:bar")).toEqual(new Set(["b"]));
+		});
+	});
+
+	describe("key collisions", () => {
+		it("keeps (fieldName, cacheKey) pairs distinct when a field name contains a colon", () => {
+			const valuesA = new Set(["a"]);
+			const valuesB = new Set(["b"]);
+
+			// With a raw ':' join these two pairs both map to "foo:bar:baz".
+			cache.set("foo", valuesA, "bar:baz");
+			cache.set("foo:bar", valuesB, "baz");
+
+			expect(cache.get("foo", "bar:baz")).toEqual(valuesA);
+			expect(cache.get("foo:bar", "baz")).toEqual(valuesB);
+		});
 	});
 
 	describe("automatic cleanup", () => {

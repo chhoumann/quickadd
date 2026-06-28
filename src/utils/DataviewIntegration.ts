@@ -24,6 +24,16 @@ function escapeRegex(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// A folder is embedded into a regex pattern that itself lives inside a DQL
+// double-quoted string literal: regexmatch("^<folder>/", file.path). It must be
+// escaped for BOTH contexts: escapeRegex neutralizes regex metacharacters but
+// NOT the double-quote that would terminate the DQL string early, so wrap the
+// result with escapeDataviewString. Order matters - regex first (so the pattern
+// is correct), then DQL (so the backslashes/quotes survive the string lexer).
+function escapeRegexForDataviewString(value: string): string {
+	return escapeDataviewString(escapeRegex(value));
+}
+
 function isDataviewFileLike(value: unknown): value is DataviewFileLike {
 	return (
 		typeof value === "object" &&
@@ -147,7 +157,7 @@ export class DataviewIntegration {
 				.filter(Boolean);
 			if (includeFolders.length > 0) {
 				const folderConditions = includeFolders.map(folder => {
-					const escapedFolder = escapeRegex(folder);
+					const escapedFolder = escapeRegexForDataviewString(folder);
 					return `regexmatch("^${escapedFolder}/", file.path)`;
 				});
 				conditions.push(`(${folderConditions.join(" OR ")})`);
@@ -165,7 +175,7 @@ export class DataviewIntegration {
 			if (filters.excludeFolders && filters.excludeFolders.length > 0) {
 				filters.excludeFolders.forEach(excludeFolder => {
 					const normalizedFolder = excludeFolder.replace(/^\/+|\/+$/g, '');
-					conditions.push(`!regexmatch("^${escapeRegex(normalizedFolder)}/", file.path)`);
+					conditions.push(`!regexmatch("^${escapeRegexForDataviewString(normalizedFolder)}/", file.path)`);
 				});
 			}
 			

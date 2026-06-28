@@ -25,12 +25,19 @@ export const MAX_ERROR_LOG_SIZE = 100;
  * ```
  */
 export function toError(err: unknown, contextMessage?: string): Error {
-  // If it's already an Error, just add context if needed
+  // If it's already an Error, return it as-is when there's no context to add.
   if (err instanceof Error) {
-    if (contextMessage) {
-      err.message = `${contextMessage}: ${err.message}`;
+    if (!contextMessage) {
+      return err;
     }
-    return err;
+    // Do NOT mutate the caller's Error. Mutating err.message compounds context
+    // prefixes when the same Error instance is reported through multiple layers
+    // (e.g. "outer: inner: original"). Return a fresh Error that prepends the
+    // context while preserving the original name and stack trace.
+    const wrapped = new Error(`${contextMessage}: ${err.message}`);
+    wrapped.name = err.name;
+    wrapped.stack = err.stack;
+    return wrapped;
   }
   
   // If it's a string, create a new Error with it
