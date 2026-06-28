@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	assertSecureDirIfPresent,
 	ensureSecureDir,
 	INSTANCE_MARKER_FILE,
 	parseArgs,
@@ -120,15 +121,15 @@ describe("ensureSecureDir", () => {
 		}
 	});
 
-	it("tightens a pre-existing group/world-accessible dir we own", async () => {
+	it("rejects a pre-existing group/world-accessible dir (planted-child race)", async () => {
 		const root = await makeTempDir("quickadd-secure");
 		const dir = path.join(root, "loose");
 		await fs.mkdir(dir, { recursive: true });
 		await fs.chmod(dir, 0o777);
 
-		await ensureSecureDir(dir);
-
-		expect((await fs.lstat(dir)).mode & 0o077).toBe(0);
+		// A loose dir may already hold a foreign-planted child symlink that a parent
+		// chmod would not undo, so we refuse it outright rather than "repair" it.
+		await expect(ensureSecureDir(dir)).rejects.toThrow(/group\/other-accessible/);
 	});
 
 	it("refuses a symlink at the profile path (never follows it)", async () => {
@@ -162,6 +163,37 @@ describe("ensureSecureDir", () => {
 		// Platforms without process.getuid resolve currentUid to null; the owner
 		// check is then skipped rather than throwing against an undefined uid.
 		await expect(ensureSecureDir(dir, { currentUid: null })).resolves.toBe(dir);
+	});
+});
+
+describe("assertSecureDirIfPresent", () => {
+	it("returns false for an absent dir without creating it", async () => {
+		const root = await makeTempDir("quickadd-secure");
+		const dir = path.join(root, "missing");
+
+		await expect(assertSecureDirIfPresent(dir)).resolves.toBe(false);
+		// Teardown must not create the root it is asked to clean up.
+		await expect(fs.lstat(dir)).rejects.toMatchObject({ code: "ENOENT" });
+	});
+
+	it("accepts an existing private dir we own", async () => {
+		const root = await makeTempDir("quickadd-secure");
+		const dir = path.join(root, "ours");
+		await fs.mkdir(dir, { recursive: true, mode: 0o700 });
+
+		await expect(assertSecureDirIfPresent(dir)).resolves.toBe(true);
+	});
+
+	it("refuses a symlinked profile root (teardown must not traverse it)", async () => {
+		const root = await makeTempDir("quickadd-secure");
+		const target = path.join(root, "attacker-owned");
+		await fs.mkdir(target, { recursive: true });
+		const link = path.join(root, "profile-root");
+		await fs.symlink(target, link);
+
+		await expect(assertSecureDirIfPresent(link)).rejects.toThrow(
+			/symlink or not a regular directory/,
+		);
 	});
 });
 

@@ -16,11 +16,13 @@ const releaseYml = fs.readFileSync(releaseYmlPath, "utf8");
 
 // Each step in release.yml begins with a `- name:` list item. Split the file
 // into those blocks so an assertion targets exactly one step (and is immune to
-// steps being reordered).
+// steps being reordered). Full-line comments are dropped first so a guard that
+// is COMMENTED OUT (e.g. `# persist-credentials: false`) cannot satisfy a check.
 function stepBlocks(content: string): string[] {
+	const lines = content.split("\n").filter((line) => !/^\s*#/.test(line));
 	const blocks: string[] = [];
 	let current: string[] = [];
-	for (const line of content.split("\n")) {
+	for (const line of lines) {
 		if (/^\s*- name:/.test(line)) {
 			if (current.length > 0) blocks.push(current.join("\n"));
 			current = [line];
@@ -43,9 +45,12 @@ describe("release workflow hardening", () => {
 		const checkout = stepContaining("uses: actions/checkout@");
 		// The token is still passed (semantic-release pushes via the GITHUB_TOKEN env
 		// on the Release step, but checkout fetches as the App); we just refuse to
-		// write it into .git/config where untrusted install/build/test code could read it.
-		expect(checkout).toContain("token: ${{ steps.app-token.outputs.token }}");
-		expect(checkout).toContain("persist-credentials: false");
+		// write it into .git/config where untrusted install/build/test code could read
+		// it. Anchored to real YAML lines so a commented-out guard cannot pass.
+		expect(checkout).toMatch(
+			/^\s*token:\s*\$\{\{\s*steps\.app-token\.outputs\.token\s*\}\}\s*$/m,
+		);
+		expect(checkout).toMatch(/^\s*persist-credentials:\s*false\s*$/m);
 	});
 
 	it("scopes the minted App token to least privilege", () => {
@@ -53,8 +58,8 @@ describe("release workflow hardening", () => {
 		// Without explicit permission-* inputs the token inherits ALL of the App's
 		// installation permissions. These three are the complete set semantic-release
 		// uses (push commit/tag + create Release; comment on issues/PRs).
-		expect(appToken).toContain("permission-contents: write");
-		expect(appToken).toContain("permission-issues: write");
-		expect(appToken).toContain("permission-pull-requests: write");
+		expect(appToken).toMatch(/^\s*permission-contents:\s*write\s*$/m);
+		expect(appToken).toMatch(/^\s*permission-issues:\s*write\s*$/m);
+		expect(appToken).toMatch(/^\s*permission-pull-requests:\s*write\s*$/m);
 	});
 });
