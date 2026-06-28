@@ -53,13 +53,23 @@ describe("release workflow hardening", () => {
 		expect(checkout).toMatch(/^\s*persist-credentials:\s*false\s*$/m);
 	});
 
-	it("scopes the minted App token to least privilege", () => {
+	it("scopes the minted App token to exactly the least-privilege set", () => {
 		const appToken = stepContaining("uses: actions/create-github-app-token@");
+		// Collect every permission-* input declared on the step (comments already
+		// stripped by stepBlocks).
+		const permissions: Record<string, string> = {};
+		for (const line of appToken.split("\n")) {
+			const match = line.match(/^\s*(permission-[a-z-]+):\s*(\S+)\s*$/);
+			if (match) permissions[match[1]] = match[2];
+		}
 		// Without explicit permission-* inputs the token inherits ALL of the App's
-		// installation permissions. These three are the complete set semantic-release
-		// uses (push commit/tag + create Release; comment on issues/PRs).
-		expect(appToken).toMatch(/^\s*permission-contents:\s*write\s*$/m);
-		expect(appToken).toMatch(/^\s*permission-issues:\s*write\s*$/m);
-		expect(appToken).toMatch(/^\s*permission-pull-requests:\s*write\s*$/m);
+		// installation permissions. Assert the list is CLOSED: exactly these three
+		// scopes (push commit/tag + create Release; comment on issues/PRs) and
+		// nothing broader - a future over-permission addition must fail this test.
+		expect(permissions).toEqual({
+			"permission-contents": "write",
+			"permission-issues": "write",
+			"permission-pull-requests": "write",
+		});
 	});
 });
