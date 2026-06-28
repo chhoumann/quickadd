@@ -129,3 +129,97 @@ describe("workspace + system tools", () => {
 		expect(res.date.length).toBeGreaterThan(0);
 	});
 });
+
+// allowedRoots confinement for the workspace group (#714, other-confinement-gap).
+// get_active_note/get_selection expose the user's ambient editor state; when a
+// script author opts into allowedRoots they expect notes OUTSIDE those folders to
+// stay invisible — the vault group already honors this, the workspace group did not.
+describe("workspace tools — allowedRoots confinement", () => {
+	function mdFile(path: string): TFile {
+		const f = Object.create(TFile.prototype) as TFile;
+		const basename = path.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
+		Object.assign(f, { path, basename, extension: "md" });
+		return f;
+	}
+	function appWithActive(path: string, content: string, cachedRead = vi.fn(async () => content)) {
+		return makeApp({
+			vault: { cachedRead },
+			workspace: { getActiveFile: () => mdFile(path) },
+		});
+	}
+	function appWithSelection(filePath: string | null, selection: string) {
+		const view = {
+			file: filePath === null ? null : mdFile(filePath),
+			editor: { getSelection: () => selection },
+		};
+		return makeApp({ workspace: { getActiveViewOfType: () => view } });
+	}
+	const call = (tools: ReturnType<typeof createWorkspaceTools>, name: "get_active_note" | "get_selection") =>
+		tools[name].execute({}, { toolCallId: "c", toolName: name });
+
+	describe("get_active_note", () => {
+		it("hides the active note (and skips the read) when it is OUTSIDE the roots", async () => {
+			const cachedRead = vi.fn(async () => "TOP SECRET");
+			const app = appWithActive("Secret/passwords.md", "TOP SECRET", cachedRead);
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			expect(await call(tools, "get_active_note")).toEqual({ active: null });
+			// Confinement must short-circuit before any content is read.
+			expect(cachedRead).not.toHaveBeenCalled();
+		});
+		it("returns the note when it is INSIDE the roots", async () => {
+			const app = appWithActive("AI/scratch.md", "# in scope");
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			const res = (await call(tools, "get_active_note")) as { active: { path: string; content: string } | null };
+			expect(res.active).toMatchObject({ path: "AI/scratch.md", content: "# in scope" });
+		});
+		it("is NOT fooled by a sibling whose path shares the root prefix", async () => {
+			const app = appWithActive("AInotes/leak.md", "leak");
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			expect(await call(tools, "get_active_note")).toEqual({ active: null });
+		});
+		it("is NOT fooled by a leading-space sibling folder (path compared by identity)", async () => {
+			const cachedRead = vi.fn(async () => "TOP SECRET");
+			const app = appWithActive(" AI/secret.md", "TOP SECRET", cachedRead);
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			expect(await call(tools, "get_active_note")).toEqual({ active: null });
+			expect(cachedRead).not.toHaveBeenCalled();
+		});
+		it("default (no roots) returns the note unchanged regardless of folder", async () => {
+			const app = appWithActive("Secret/passwords.md", "TOP SECRET");
+			const tools = createWorkspaceTools(app);
+			const res = (await call(tools, "get_active_note")) as { active: { path: string } | null };
+			expect(res.active).toMatchObject({ path: "Secret/passwords.md" });
+		});
+		it("all-blank roots behave identically to no roots (vault-wide)", async () => {
+			for (const allowedRoots of [[""], ["  "]]) {
+				const app = appWithActive("Secret/passwords.md", "TOP SECRET");
+				const tools = createWorkspaceTools(app, { allowedRoots });
+				const res = (await call(tools, "get_active_note")) as { active: { path: string } | null };
+				expect(res.active).toMatchObject({ path: "Secret/passwords.md" });
+			}
+		});
+	});
+
+	describe("get_selection", () => {
+		it("returns empty when the active view's file is OUTSIDE the roots", async () => {
+			const app = appWithSelection("Secret/passwords.md", "secret highlight");
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			expect(await call(tools, "get_selection")).toEqual({ selection: "" });
+		});
+		it("returns the selection when the active view's file is INSIDE the roots", async () => {
+			const app = appWithSelection("AI/scratch.md", "in-scope highlight");
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			expect(await call(tools, "get_selection")).toEqual({ selection: "in-scope highlight" });
+		});
+		it("denies a confined view whose file is null (deferred/empty view)", async () => {
+			const app = appWithSelection(null, "orphan selection");
+			const tools = createWorkspaceTools(app, { allowedRoots: ["AI"] });
+			expect(await call(tools, "get_selection")).toEqual({ selection: "" });
+		});
+		it("default (no roots) returns the selection regardless of folder", async () => {
+			const app = appWithSelection("Secret/passwords.md", "secret highlight");
+			const tools = createWorkspaceTools(app);
+			expect(await call(tools, "get_selection")).toEqual({ selection: "secret highlight" });
+		});
+	});
+});

@@ -25,6 +25,7 @@ import {
 	INVALID_FOLDER_TRAILING_CHARS_REGEX,
 	isReservedWindowsDeviceName,
 } from "../../utils/pathValidation";
+import { isUnderAllowedRoot, normalizeRoot } from "./allowedRoots";
 
 export class UnsafeVaultPathError extends Error {
 	constructor(message: string) {
@@ -106,6 +107,9 @@ export function sanitizeVaultPath(
 	return normalized;
 }
 
+// Root-confinement helpers (normalizeRoot / isUnderAllowedRoot) live in
+// ./allowedRoots so the workspace tools and this sanitizer share ONE policy.
+
 function validateSegment(segment: string, fullPath: string): void {
 	if (INVALID_FOLDER_CONTROL_CHARS_REGEX.test(segment)) {
 		throw new UnsafeVaultPathError(
@@ -131,14 +135,3 @@ function validateSegment(segment: string, fullPath: string): void {
 	}
 }
 
-function normalizeRoot(root: string): string {
-	return (root ?? "")
-		.trim()
-		.replace(/\\/g, "/")
-		.replace(/\/+/g, "/")
-		.replace(/^\/+|\/+$/g, "");
-}
-
-function isUnderAllowedRoot(path: string, roots: string[]): boolean {
-	return roots.some((root) => path === root || path.startsWith(`${root}/`));
-}
