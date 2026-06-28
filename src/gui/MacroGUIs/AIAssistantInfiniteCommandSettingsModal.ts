@@ -117,10 +117,25 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 				dropdown.addOption("Ask me", "Ask me");
 
-				dropdown.setValue(this.settings.model);
+				// If the pinned model was deleted, the option no longer exists and
+				// setValue would silently fall back to the first option while the
+				// stored (now invalid) name persists. Surface the mismatch with a
+				// disabled "(missing)" entry so the dropdown reflects the saved
+				// value (mirrors AIAssistantCommandSettingsModal).
+				const stored = this.settings.model;
+				const isKnown = stored === "Ask me" || models.includes(stored);
+				if (stored && !isKnown) {
+					dropdown.addOption(stored, `(missing) ${stored}`);
+					const missingOption = Array.from(
+						dropdown.selectEl.options,
+					).find((option) => option.value === stored);
+					if (missingOption) missingOption.disabled = true;
+				}
+
+				dropdown.setValue(stored);
 				dropdown.onChange((value) => {
 					this.settings.model = value;
-					
+
 					this.reload();
 				});
 			});

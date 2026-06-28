@@ -102,6 +102,25 @@ describe("InfiniteAIAssistantCommandSettingsModal max-chunk-tokens", () => {
 		}).not.toThrow();
 	});
 
+	it("surfaces a removed model as a disabled (missing) option instead of a blank dropdown", () => {
+		const settings = makeSettings("removed-model-9000");
+
+		const modal = new InfiniteAIAssistantCommandSettingsModal(
+			new App() as App,
+			settings,
+		);
+
+		const select = modal.contentEl.querySelector<HTMLSelectElement>("select");
+		expect(select).not.toBeNull();
+
+		const missing = Array.from(select!.options).find(
+			(option) => option.value === "removed-model-9000",
+		);
+		expect(missing).toBeDefined();
+		expect(missing!.textContent).toBe("(missing) removed-model-9000");
+		expect(missing!.disabled).toBe(true);
+	});
+
 	it("still renders for a known model", () => {
 		const settings = makeSettings("gpt-4o");
 
