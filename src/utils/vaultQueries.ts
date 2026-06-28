@@ -21,9 +21,21 @@ export function isFolder(app: App, path: string): boolean {
 }
 
 export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] {
+	// Anchor the match to a path-segment boundary so a folder scope never bleeds
+	// into prefix-sharing siblings (e.g. folder "Projects" must not match
+	// "ProjectsArchive/x.md" or "Projects.md"). A trailing slash is normalized
+	// away first so callers that pre-append "/" (CaptureChoiceEngine,
+	// collectChoiceRequirements) and callers that pass a bare folder name (AI
+	// tools, AIAssistant) both scope identically. An empty path means the whole
+	// vault.
+	const normalized = folderPath.replace(/\/+$/, "");
+	if (normalized === "") {
+		return app.vault.getMarkdownFiles();
+	}
+	const prefix = `${normalized}/`;
 	return app.vault
 		.getMarkdownFiles()
-		.filter((f) => f.path.startsWith(folderPath));
+		.filter((f) => f.path === normalized || f.path.startsWith(prefix));
 }
 
 function getFrontmatterTags(fileCache: CachedMetadata): string[] {
