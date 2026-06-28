@@ -64,13 +64,16 @@ describe("addDefaultAIProviders migration", () => {
 		expect("OpenAIApiKey" in settingsStore.getState().ai).toBe(false);
 	});
 
-	it("still populates default providers when there is no legacy key", async () => {
+	it("populates providers byte-for-byte identical to the defaults (deep equal, no shared refs) when there is no legacy key", async () => {
 		await addDefaultAIProviders.migrate(mockPlugin);
 
 		const storedProviders = settingsStore.getState().ai.providers;
-		expect(storedProviders.map((p) => p.name)).toEqual(
-			DefaultProviders.map((p) => p.name),
-		);
+
+		// Same serialized data as the defaults — endpoint, kind, models,
+		// autoSyncModels, modelSource, apiKey are all preserved.
+		expect(storedProviders).toEqual(DefaultProviders);
+
+		// ...but independent copies, not the shared global objects.
 		for (const globalProvider of DefaultProviders) {
 			expect(storedProviders).not.toContain(globalProvider);
 		}
