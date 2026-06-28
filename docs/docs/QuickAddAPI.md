@@ -704,7 +704,8 @@ dialog no one can answer.
 ### Built-in tools — `ai.tools.{vault, workspace, system}(options)`
 
 Opt-in groups of ready-made tools. Each returns a tool map you spread into an agent's `tools`.
-Options: `{ only, exclude, prefix, allowedRoots }` (`allowedRoots` confines vault paths to folders).
+Options: `{ only, exclude, prefix, allowedRoots }` (`allowedRoots` confines a group to the listed
+folders).
 
 | Group | Read-only (auto-run) | Write (asks for approval) |
 |---|---|---|
@@ -715,6 +716,16 @@ Options: `{ only, exclude, prefix, allowedRoots }` (`allowedRoots` confines vaul
 Write tools sanitise every model-chosen path (rejecting traversal and config dirs like `.obsidian`/
 `.git`, and symlinks that escape the vault), fail rather than overwrite an existing note, and are
 frontmatter-aware. There are **no ambient tools** — nothing runs unless you spread it into `tools`.
+
+`allowedRoots` confines both groups it applies to. For `vault` it bounds the paths the model may
+read or write. For `workspace` it bounds which file's content the agent can pull in: `get_active_note`
+returns `active:null` and `get_selection` returns an empty string whenever the currently-open file
+lives **outside** the roots, so a note you fenced off can't be surfaced into the transcript by a
+model steered through injected content. (`system` ignores it — `get_date` touches no files.) An
+absent or all-blank `allowedRoots` is vault-wide, the default. Note that confinement scopes what
+*these* tools expose; it is not a sandbox for an untrusted agent — your own script's `require`/
+`fetch`/`quickAddApi.utility.*` remain ambient — so only hand a group to an agent you trust with the
+folders you grant it.
 
 ### Structured output — `agent.generate({ prompt, schema })`
 
