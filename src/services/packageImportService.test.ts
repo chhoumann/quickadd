@@ -497,9 +497,12 @@ describe("asset write containment (security)", () => {
 		);
 	});
 
-	it("does not realpath-guard an explicitly skipped asset (skip the unsafe, import the rest)", async () => {
+	it("aborts on a vault-escaping destination even when that asset is marked skip", async () => {
+		// Consistency: the lexical guard already aborts the whole import on an
+		// absolute/".." destination regardless of mode; the realpath pre-pass does
+		// the same for a symlink escape. A package carrying a vault-escaping asset is
+		// refused wholesale and surfaced loudly, not silently dropped via "skip".
 		const { app, state } = createFakeApp();
-		// The skipped asset's destination "escapes"; the guard would throw for it.
 		vi.mocked(assertWriteStaysInVault).mockImplementation(
 			async (_app, destinationPath) => {
 				if (destinationPath === "linked/evil.js") {
@@ -527,29 +530,56 @@ describe("asset write containment (security)", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
-			app,
-			existingChoices: [],
-			pkg,
-			choiceDecisions: [],
-			assetDecisions: [
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [
+					{
+						originalPath: "linked/evil.js",
+						destinationPath: "linked/evil.js",
+						mode: "skip",
+					},
+				],
+			}),
+		).rejects.toThrow(/outside the vault/);
+
+		// All-or-nothing: nothing is written, including the lexically-safe asset.
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("aborts on a lexically-unsafe destination even when that asset is marked skip", async () => {
+		// Documents the pre-existing lexical behavior the realpath pre-pass matches.
+		const { app, state } = createFakeApp();
+		const pkg = makePackage({
+			assets: [
 				{
-					originalPath: "linked/evil.js",
-					destinationPath: "linked/evil.js",
-					mode: "skip",
+					kind: "template",
+					originalPath: "../evil.md",
+					contentEncoding: "base64",
+					content: encodeToBase64("evil"),
 				},
 			],
 		});
 
-		// The unsafe asset is skipped (never guarded, never written); the rest imports.
-		expect(result.writtenAssets).toEqual(["scripts/safe.js"]);
-		expect(result.skippedAssets).toEqual(["linked/evil.js"]);
-		expect(state.writes.has("scripts/safe.js")).toBe(true);
-		expect(assertWriteStaysInVault).not.toHaveBeenCalledWith(
-			app,
-			"linked/evil.js",
-		);
-		expect(assertWriteStaysInVault).toHaveBeenCalledWith(app, "scripts/safe.js");
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [
+					{
+						originalPath: "../evil.md",
+						destinationPath: "../evil.md",
+						mode: "skip",
+					},
+				],
+			}),
+		).rejects.toThrow(/traversal|\.\./);
+		expect(state.writes.size).toBe(0);
 	});
 });
 

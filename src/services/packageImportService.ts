@@ -502,14 +502,15 @@ export async function applyPackageImport(
 		return { asset, destinationPath };
 	});
 
-	// Symlink/realpath containment: reject BEFORE any write so a destination that
-	// resolves through a pre-existing in-vault symlink to outside the vault aborts
-	// the import without first writing earlier (safe) assets. Only assets that will
-	// actually be written are checked — an explicitly skipped asset is never
-	// written, so the user can still skip an unsafe asset and import the rest.
+	// Symlink/realpath containment, as a PRE-PASS before any write: if a
+	// destination resolves through a pre-existing in-vault symlink to outside the
+	// vault, abort the whole import before touching disk. Every destination is
+	// checked (mirroring the lexical validateAssetDestination pass above), so a
+	// package carrying a vault-escaping asset is refused wholesale and surfaced
+	// loudly rather than silently dropped — consistent with how an absolute/".."
+	// destination already aborts regardless of the per-asset import mode.
 	// Desktop-only; a no-op on mobile and in tests (non-FileSystemAdapter).
-	for (const { asset, destinationPath } of resolvedAssetDestinations) {
-		if (assetDecisionMap.get(asset.originalPath)?.mode === "skip") continue;
+	for (const { destinationPath } of resolvedAssetDestinations) {
 		await assertWriteStaysInVault(app, destinationPath);
 	}
 
