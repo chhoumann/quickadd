@@ -381,7 +381,16 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			containerDocument === inputDocument ? container : inputDocument.body;
 		ownerCompatibleContainer.appendChild(this.suggestEl);
 
-		// Create Popper only when needed
+		// open() runs on every keystroke (onInputChanged re-opens to refresh the
+		// suggestions). If a Popper already exists, reposition it instead of
+		// creating a new one — recreating here would leak a Popper instance, and
+		// the scroll/resize listeners it attaches, on every keystroke. The Popper
+		// (and the global listeners below) are torn down together in close().
+		if (this.popper) {
+			void this.popper.update();
+			return;
+		}
+
 		this.popper = createPopper(inputEl, this.suggestEl, {
 			placement: "bottom-start",
 			modifiers: [
@@ -417,7 +426,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			],
 		});
 
-		// Add global listeners (idempotent due to capture true)
+		// Add global listeners (paired with the Popper lifecycle: removed in close()).
 		const activeDocument = inputDocument;
 		const activeWindow = getOwnerWindow(inputEl);
 		activeDocument.addEventListener("pointerdown", this.globalClickListener, true);
@@ -460,14 +469,13 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		activeWindow.removeEventListener("resize", this.globalResizeListener);
 		activeWindow.removeEventListener("blur", this.globalBlurListener);
 
-		const classKey = this.constructor.name;
-		const byClass = instanceMap.get(this.inputEl);
-		if (byClass) {
-			byClass.delete(classKey);
-			if (byClass.size === 0) {
-				instanceMap.delete(this.inputEl);
-			}
-		}
+		// Intentionally keep this instance registered in instanceMap. close()
+		// only hides the dropdown; the input/focus/blur listeners stay attached
+		// so typing can re-open it. Unregistering here (while leaving those
+		// listeners live) would orphan the instance: a later same-class suggester
+		// on this input would miss the dedup in the constructor and never
+		// destroy() us, leaking our input listeners and spawning duplicate
+		// popups. Deregistration belongs to destroy().
 	}
 
 	destroy(): void {
