@@ -845,9 +845,30 @@ export function prepareFuzzySearch(query: string) {
   };
 }
 
+// Minimal FileSystemAdapter so the symlink/realpath write guard
+// (src/utils/vaultWriteGuards.ts) can be exercised in a unit test. The guard
+// bails out unless `adapter instanceof FileSystemAdapter`; existing tests pass
+// plain-object adapters (never `instanceof` a class), so they remain no-ops.
+// `getFullPath` joins with a forward slash — tests drive it with POSIX base
+// paths (os.tmpdir()), matching the desktop adapter's contract closely enough
+// for realpath containment checks.
+export class FileSystemAdapter {
+  private readonly basePath: string;
+  constructor(basePath = "/vault") {
+    this.basePath = basePath;
+  }
+  getBasePath(): string {
+    return this.basePath;
+  }
+  getFullPath(normalizedPath: string): string {
+    return `${this.basePath}/${normalizedPath}`.replace(/\/+/g, "/");
+  }
+}
+
 // Default export for compatibility
 export default {
   App,
+  FileSystemAdapter,
   Component,
   BaseComponent,
   ButtonComponent,

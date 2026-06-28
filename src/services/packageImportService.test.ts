@@ -24,12 +24,24 @@ vi.mock("uuid", () => ({
 	v4: () => `uuid-${++uuidMock.counter}`,
 }));
 
+// The realpath/symlink write guard is desktop-only and a no-op against the
+// plain-object test adapter. Mock it so we can (a) keep that no-op default and
+// (b) assert how applyPackageImport WIRES it (called with destinations, as an
+// all-or-nothing pre-pass before any write). The guard's real containment logic
+// is covered by src/utils/vaultWriteGuards.test.ts with an actual symlink.
+vi.mock("../utils/vaultWriteGuards", () => ({
+	assertWriteStaysInVault: vi.fn(async () => {}),
+	VaultWriteEscapeError: class VaultWriteEscapeError extends Error {},
+}));
+
 import {
 	parseQuickAddPackage,
 	readQuickAddPackage,
 	analysePackage,
+	analysePackagePreview,
 	applyPackageImport,
 } from "./packageImportService";
+import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import type {
 	ChoiceImportDecision,
 	AssetImportDecision,
@@ -48,6 +60,7 @@ interface FakeVaultState {
 function createFakeApp(initialExisting: string[] = []): {
 	app: App;
 	state: FakeVaultState;
+	adapter: { exists: ReturnType<typeof vi.fn> };
 } {
 	const state: FakeVaultState = {
 		existingPaths: new Set(initialExisting),
@@ -85,7 +98,7 @@ function createFakeApp(initialExisting: string[] = []): {
 		},
 	} as unknown as App;
 
-	return { app, state };
+	return { app, state, adapter };
 }
 
 // --- Fixture builders -------------------------------------------------------
@@ -150,6 +163,10 @@ function decisions(
 
 beforeEach(() => {
 	uuidMock.counter = 0;
+	// Default the write guard back to a no-op so a per-test override (the
+	// pre-pass wiring test) never leaks into other cases.
+	vi.mocked(assertWriteStaysInVault).mockReset();
+	vi.mocked(assertWriteStaysInVault).mockImplementation(async () => {});
 });
 
 // --- parseQuickAddPackage ---------------------------------------------------
@@ -319,6 +336,165 @@ describe("analysePackage", () => {
 			{ originalPath: "scripts/exists.js", exists: true, kind: "user-script" },
 			{ originalPath: "templates/new.md", exists: false, kind: "template" },
 		]);
+	});
+});
+
+// --- Path-traversal containment (security) ----------------------------------
+
+describe("existence probes stay inside the vault boundary", () => {
+	const ESCAPING_PATHS = [
+		"../../../etc/passwd",
+		"/etc/passwd",
+		"C:\\Windows\\System32\\drivers\\etc\\hosts",
+		"\\\\server\\share\\secret",
+	];
+
+	it("never stats an out-of-vault asset originalPath in analysePackage", async () => {
+		const { app, adapter } = createFakeApp();
+		const pkg = makePackage({
+			assets: ESCAPING_PATHS.map((originalPath) => ({
+				kind: "template" as const,
+				originalPath,
+				contentEncoding: "base64" as const,
+				content: "",
+			})),
+		});
+
+		const analysis = await analysePackage(app, [], pkg);
+
+		// Each escaping path is reported as not-present WITHOUT a filesystem probe.
+		for (const originalPath of ESCAPING_PATHS) {
+			expect(adapter.exists).not.toHaveBeenCalledWith(originalPath);
+			expect(
+				analysis.assetConflicts.find((c) => c.originalPath === originalPath)
+					?.exists,
+			).toBe(false);
+		}
+	});
+
+	it("never stats an out-of-vault path in analysePackagePreview and surfaces it as missing", async () => {
+		const { app, adapter } = createFakeApp();
+		// A choice that REFERENCES (does not bundle) an out-of-vault template path.
+		const escaping = "../../../etc/passwd";
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: escaping,
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(adapter.exists).not.toHaveBeenCalledWith(escaping);
+		// Honest preview: an out-of-vault reference is "missing", never silently
+		// reported as a present/reused vault file.
+		expect(preview.missingReferences.map((m) => m.path)).toContain(escaping);
+	});
+
+	it("still probes in-vault config-dir references (no over-rejection)", async () => {
+		const inVaultDotDir = ".obsidian/snippets/x.js";
+		const { app, adapter } = createFakeApp([inVaultDotDir]);
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: inVaultDotDir,
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		// The in-vault dot-dir path IS probed and recognized as present, so it is
+		// NOT mislabeled as a missing reference.
+		expect(adapter.exists).toHaveBeenCalledWith(inVaultDotDir);
+		expect(preview.missingReferences.map((m) => m.path)).not.toContain(
+			inVaultDotDir,
+		);
+	});
+});
+
+describe("asset write containment (security)", () => {
+	it("rejects writing into a NESTED config/hidden directory", async () => {
+		for (const originalPath of [
+			"notes/.git/hooks/post-commit",
+			"docs/.obsidian/plugins/x/main.js",
+			"a/b/.trash/x.md",
+		]) {
+			const { app, state } = createFakeApp();
+			const pkg = makePackage({
+				assets: [
+					{
+						kind: "template",
+						originalPath,
+						contentEncoding: "base64",
+						content: encodeToBase64("payload"),
+					},
+				],
+			});
+
+			await expect(
+				applyPackageImport({
+					app,
+					existingChoices: [],
+					pkg,
+					choiceDecisions: [],
+					assetDecisions: [],
+				}),
+			).rejects.toThrow(/config directory/);
+			expect(state.writes.size).toBe(0);
+		}
+	});
+
+	it("runs the realpath guard as an all-or-nothing pre-pass before any write", async () => {
+		const { app, state } = createFakeApp();
+		// Second asset's destination "escapes"; the guard (mocked) throws for it.
+		vi.mocked(assertWriteStaysInVault).mockImplementation(
+			async (_app, destinationPath) => {
+				if (destinationPath === "scripts/escapes.js") {
+					throw new Error(
+						`Refusing to write to "${destinationPath}": it resolves (via a symlink) outside the vault.`,
+					);
+				}
+			},
+		);
+
+		const pkg = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "scripts/safe.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("safe"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "scripts/escapes.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("evil"),
+				},
+			],
+		});
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [],
+			}),
+		).rejects.toThrow(/outside the vault/);
+
+		// All-or-nothing: the lexically-safe, FIRST-ordered asset is NOT written,
+		// proving the guard ran as a pre-pass (not inline per-asset).
+		expect(state.writes.size).toBe(0);
+		// Wired with the resolved DESTINATION path, for every asset.
+		expect(assertWriteStaysInVault).toHaveBeenCalledWith(app, "scripts/safe.js");
+		expect(assertWriteStaysInVault).toHaveBeenCalledWith(
+			app,
+			"scripts/escapes.js",
+		);
 	});
 });
 
