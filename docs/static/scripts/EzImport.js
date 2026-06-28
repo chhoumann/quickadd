@@ -10,10 +10,12 @@ const READWISE_API_URL = "https://readwise.io/api/v2/";
 const READWISE_CACHE_KEY = "ez-import-readwise-cache";
 
 /*
-    Cache structure:
+    Cache structure (keyed by the stable Readwise item id, NOT the title, so
+    two items that happen to share a title don't collide into one entry):
     {
         ...
-        [item title]: {
+        [item id]: {
+            id: item id,
             title: item title,
             createdFileWithItem: true/false,
             ignore: true/false,
@@ -54,7 +56,7 @@ function setCacheItems(items) {
 }
 
 const LogAndThrowError = (error) => {
-	new Notice("error", 10000);
+	new Notice(error, 10000);
 	throw new Error(error);
 };
 
@@ -127,7 +129,7 @@ async function getReadwiseHighlights(type) {
 		const cache = getReadwiseCache();
 		if (cache) {
 			for (const result of results) {
-				const cacheItem = cache[result.title];
+				const cacheItem = cache[result.id];
 				if (
 					!cacheItem ||
 					(cacheItem && !cacheItem.ignore && !cacheItem.createdFileWithItem)
@@ -139,7 +141,8 @@ async function getReadwiseHighlights(type) {
 			// No cache. Build.
 			const newCache = {};
 			for (const item of results) {
-				newCache[item.title] = {
+				newCache[item.id] = {
+					id: item.id,
 					title: item.title,
 					createdFileWithItem: false,
 				};
@@ -162,8 +165,9 @@ async function getReadwiseHighlights(type) {
 		LogAndThrowError("No item selected.");
 	}
 
-	if (Settings[USE_CACHE]) {
-		const cacheItem = getCacheItem(item.title);
+	// Manual Entry has no Readwise id, so it is never cached.
+	if (Settings[USE_CACHE] && item.id != null) {
+		const cacheItem = getCacheItem(item.id);
 		let newCacheItem;
 
 		if (cacheItem) {
@@ -173,12 +177,13 @@ async function getReadwiseHighlights(type) {
 			};
 		} else {
 			newCacheItem = {
+				id: item.id,
 				title: item.title,
 				createdFileWithItem: true,
 			};
 		}
 
-		setCacheItem(item.title, newCacheItem);
+		setCacheItem(item.id, newCacheItem);
 	}
 
 	const safeTitle = replaceIllegalFileNameCharactersInString(item.title);
