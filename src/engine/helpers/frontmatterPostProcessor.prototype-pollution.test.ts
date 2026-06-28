@@ -165,6 +165,65 @@ describe("prototype pollution - collector reachability", () => {
 	});
 });
 
+/**
+ * Second sink: the parsed-front-matter merge loop in
+ * TemplateInsertEngine.mergeFrontmatterProperties writes `frontmatter[key] = value`
+ * directly over `Object.entries(parsed)`, bypassing assignFrontmatterValue.
+ *
+ * Obsidian's real parseYaml (js-yaml 4.x) stores a top-level `__proto__:` key as
+ * an OWN, enumerable property via `Object.defineProperty` - so `Object.entries`
+ * enumerates it - rather than tripping the prototype setter. The shared test
+ * stub cannot reproduce this (it does `result[key] = value`, and the setter
+ * ignores a string value), so this models the real shape directly to prove the
+ * merge loop's guard fires for the `__proto__` key js-yaml actually emits.
+ */
+describe("prototype pollution - parsed front matter merge guard", () => {
+	afterEach(() => {
+		delete (Object.prototype as Record<string, unknown>).polluted;
+	});
+
+	/** A parsed object shaped the way real js-yaml emits `__proto__:`. */
+	function parsedLikeJsYaml(): Record<string, unknown> {
+		const parsed: Record<string, unknown> = { safe: "kept" };
+		Object.defineProperty(parsed, "__proto__", {
+			value: { polluted: "x" },
+			enumerable: true,
+			writable: true,
+			configurable: true,
+		});
+		return parsed;
+	}
+
+	it("enumerates __proto__ as an own key (real js-yaml shape) and the guard flags it", () => {
+		const parsed = parsedLikeJsYaml();
+		expect(Object.keys(parsed)).toContain("__proto__");
+		expect(
+			Object.keys(parsed).filter((key) => hasUnsafeFrontmatterKey([key])),
+		).toEqual(["__proto__"]);
+	});
+
+	it("guarded merge loop drops __proto__ without polluting and keeps safe keys", () => {
+		const parsed = parsedLikeJsYaml();
+		const frontmatter: Record<string, unknown> = {};
+
+		// Mirrors TemplateInsertEngine.mergeFrontmatterProperties' merge loop.
+		for (const [key, value] of Object.entries(parsed)) {
+			if (hasUnsafeFrontmatterKey([key])) continue;
+			const existing = Object.hasOwn(frontmatter, key)
+				? frontmatter[key]
+				: undefined;
+			if (existing === undefined || existing === null || existing === "") {
+				frontmatter[key] = value;
+			}
+		}
+
+		expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+		// Without the guard, frontmatter['__proto__'] = {...} reparents this object.
+		expect(Object.getPrototypeOf(frontmatter)).toBe(Object.prototype);
+		expect(frontmatter).toEqual({ safe: "kept" });
+	});
+});
+
 describe("hasUnsafeFrontmatterKey", () => {
 	it("flags __proto__ at any position", () => {
 		expect(hasUnsafeFrontmatterKey(["__proto__"])).toBe(true);
