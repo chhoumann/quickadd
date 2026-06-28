@@ -99,6 +99,24 @@ describe("assertWriteStaysInVault (real symlink containment)", () => {
 		).rejects.toBeInstanceOf(VaultWriteEscapeError);
 	});
 
+	it("rejects a write that resolves (via an in-vault symlink) INTO a config dir", async () => {
+		// safe -> .obsidian/plugins/pkg (an in-vault symlink to a config dir). The
+		// literal "safe/main.js" has no dot segment so the lexical floor passes, and
+		// it stays inside the vault so the containment check passes — but the write
+		// would land in .obsidian/plugins. The resolved-segment dot check blocks it.
+		fs.mkdirSync(path.join(vaultDir, ".obsidian", "plugins", "pkg"), {
+			recursive: true,
+		});
+		fs.symlinkSync(
+			path.join(vaultDir, ".obsidian", "plugins", "pkg"),
+			path.join(vaultDir, "safe"),
+			"dir",
+		);
+		await expect(
+			assertWriteStaysInVault(app, "safe/main.js"),
+		).rejects.toBeInstanceOf(VaultWriteEscapeError);
+	});
+
 	it("fails closed when realpath cannot resolve an existing target (Linux ENOENT path)", async () => {
 		// Deterministically exercise the fail-closed branch on every platform: the
 		// target exists (lstat) but realpath throws. The pre-fix `.catch(() =>

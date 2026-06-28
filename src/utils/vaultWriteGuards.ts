@@ -96,6 +96,21 @@ export async function assertWriteStaysInVault(
 			`Refusing to write to "${vaultRelativePath}": it resolves (via a symlink) outside the vault.`,
 		);
 	}
+
+	// Reject a target that RESOLVES into a dot/config directory (.obsidian, .git,
+	// .trash, ...) even though it stays inside the vault. The lexical per-segment
+	// dot-floor only sees the LITERAL destination, so a pre-existing in-vault
+	// symlink like `safe -> .obsidian/plugins/pkg` would otherwise smuggle an
+	// untrusted "safe/main.js" write into a config/executable directory. Checking
+	// the realpath-resolved segments closes that symlink-mediated config-dir drop.
+	const resolvedEscapesIntoConfigDir = rel
+		.split(path.sep)
+		.some((segment) => segment.startsWith("."));
+	if (resolvedEscapesIntoConfigDir) {
+		throw new VaultWriteEscapeError(
+			`Refusing to write to "${vaultRelativePath}": it resolves (via a symlink) into a config/hidden directory.`,
+		);
+	}
 }
 
 function exists(fs: NodeFs, p: string): boolean {
