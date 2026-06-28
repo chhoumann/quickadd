@@ -1,11 +1,16 @@
 /**
- * Runtime write guard for AI built-in vault writers (#714).
+ * Runtime symlink/realpath write guard for untrusted-input vault writers.
  *
- * String sanitization (sanitizeVaultPath) is not enough: Obsidian's desktop adapter
- * follows symlinks, so a write to an in-vault symlink can land OUTSIDE the vault
- * while a confirm shows an in-vault path (runtime-proven in review). This resolves
- * the realpath of the target (or its nearest existing ancestor, since the file may
- * not exist yet) and the vault root, and throws if the target is not contained.
+ * Shared by the AI built-in vault writers (#714) and the package-import asset
+ * writer — both write data the user did not author byte-for-byte (model output /
+ * an imported community package), so both must confine writes to the vault.
+ *
+ * Lexical string sanitization (sanitizeVaultPath / validateAssetDestination) is
+ * not enough: Obsidian's desktop adapter follows symlinks, so a write to an
+ * in-vault symlink can land OUTSIDE the vault while a confirm shows an in-vault
+ * path (runtime-proven in review). This resolves the realpath of the target (or
+ * its nearest existing ancestor, since the file may not exist yet) and the vault
+ * root, and throws if the target is not contained.
  *
  * Desktop only — FileSystemAdapter + Node fs/path are accessed lazily via
  * `window.require` so the mobile bundle (no symlinks, no require) is never affected.
