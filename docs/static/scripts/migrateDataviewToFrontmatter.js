@@ -145,11 +145,14 @@ async function start(params, settings) {
             });
         });
 
-        // Now update the content to remove inline properties
-        // We need to read the file again because processFrontMatter already saved it
-        const updatedContent = await app.vault.read(activeFile);
-        const { cleanedContent: finalContent } = parseInlineFieldsWithWikilinks(updatedContent, propertiesToMigrate, migrateAll);
-        await app.vault.modify(activeFile, finalContent);
+        // Now strip the migrated inline properties from the body. Use vault.process
+        // so the read + rewrite is a single atomic operation (processFrontMatter
+        // already persisted the frontmatter; a separate read-then-modify could
+        // clobber a concurrent edit or sync that landed in between).
+        await app.vault.process(activeFile, (data) => {
+            const { cleanedContent } = parseInlineFieldsWithWikilinks(data, propertiesToMigrate, migrateAll);
+            return cleanedContent;
+        });
 
         // Show success message
         const fieldNames = Array.from(fields.keys()).join(", ");
@@ -176,47 +179,114 @@ function parseInlineFieldsWithWikilinks(content, allowedProperties = [], migrate
     const fields = new Map();
     const allowedPropertiesLower = allowedProperties.map(p => p.toLowerCase());
 
-    // Split content into frontmatter and body
+    // Split content into frontmatter and body. Frontmatter is preserved verbatim
+    // and is never scanned for fields or collapsed.
     const { frontmatterEnd, hasExistingFrontmatter, frontmatterText } = findFrontmatterEnd(content);
     const bodyContent = hasExistingFrontmatter ? content.slice(frontmatterEnd) : content;
 
-    // Process each line in the body
+    // Process each line in the body.
     const bodyLines = bodyContent.split('\n');
     const cleanedBodyLines = [];
+    // Parallel to cleanedBodyLines: a "protected" line (a fence delimiter or any
+    // line inside a fenced code block) is kept verbatim and never collapsed.
+    const protectedFlags = [];
+
+    // Track the currently open fenced code block, if any. fenceDepth is the
+    // blockquote nesting level the fence opened at (0 = top level), so a fence
+    // inside "> ..." is closed by a closer at the same quote depth.
+    let fenceChar = null; // '`' or '~'
+    let fenceLen = 0;
+    let fenceDepth = 0;
 
     for (let i = 0; i < bodyLines.length; i++) {
         const line = bodyLines[i];
-        const trimmedLine = line.trim();
 
-        // Check if this line is an inline field
+        if (fenceChar !== null) {
+            // Inside a fenced code block. Strip exactly the fence's blockquote
+            // container; if this line carries fewer markers, the blockquote (and
+            // therefore the fenced block) has ended - reprocess the line below as
+            // non-fence so a real field after the block still migrates.
+            const { depth, content } = stripBlockquote(line, fenceDepth);
+            if (depth >= fenceDepth) {
+                // Still inside the block: preserve verbatim, never migrate. Only a
+                // matching closing fence (same marker, long enough, no info string)
+                // at the same quote depth ends it.
+                if (isClosingFence(content, fenceChar, fenceLen)) {
+                    fenceChar = null;
+                    fenceLen = 0;
+                    fenceDepth = 0;
+                }
+                cleanedBodyLines.push(line);
+                protectedFlags.push(true);
+                continue;
+            }
+            // Blockquote container exited: end the fence and fall through so this
+            // line is handled normally.
+            fenceChar = null;
+            fenceLen = 0;
+            fenceDepth = 0;
+        }
+
+        // Not inside a code block: an opening fence (top-level or blockquoted)
+        // starts one. Detect it on the blockquote-stripped content and remember the
+        // quote depth so the matching closer is recognised.
+        {
+            const { depth, content } = stripBlockquote(line, Infinity);
+            const fence = openingFence(content);
+            if (fence) {
+                fenceChar = fence.char;
+                fenceLen = fence.len;
+                fenceDepth = depth;
+                cleanedBodyLines.push(line);
+                protectedFlags.push(true);
+                continue;
+            }
+        }
+
+        // Outside any code fence: decide whether this line is a migratable field.
+        const trimmedLine = line.trim();
         let isPropertyToRemove = false;
 
-        if (trimmedLine && trimmedLine.includes('::')) {
-            // Skip task checkboxes
-            if (!/^[-*+]\s+\[[xX ]\]/.test(trimmedLine)) {
-                // Try to match inline field
-                const fieldMatch = trimmedLine.match(/^([^:]+?)::\s*(.+?)$/);
+        if (
+            trimmedLine.includes('::') &&
+            // Skip task checkboxes (e.g. "- [ ] do:: thing").
+            !/^[-*+]\s+\[[xX ]\]/.test(trimmedLine)
+        ) {
+            // Mask inline code spans so a "::" inside code is not read as a field
+            // separator. Masking preserves length so positions stay aligned with
+            // the original line.
+            const maskedLine = maskInlineCode(trimmedLine);
+            const fieldMatch = maskedLine.match(/^([^:]+?)::(.*)$/);
 
-                if (fieldMatch) {
-                    const fieldName = fieldMatch[1].trim();
-                    const fieldValue = fieldMatch[2].trim();
+            if (fieldMatch) {
+                const nameEnd = fieldMatch[1].length;
+                // The field name must be free of inline code. If masking changed
+                // the name region, the line is mid-content (e.g. a code span sits
+                // before the colon), not a clean "name:: value" field - leave it
+                // verbatim so we never delete the code span that precedes it.
+                const nameIsClean =
+                    maskedLine.slice(0, nameEnd) === trimmedLine.slice(0, nameEnd);
 
-                    // Check if this is a property we should migrate
-                    if (fieldValue) {
+                if (nameIsClean) {
+                    const fieldName = trimmedLine.slice(0, nameEnd).trim();
+                    // Skip the "::" separator; recover the real value (including any
+                    // backticks) from the original line.
+                    const fieldValue = trimmedLine.slice(nameEnd + 2).trim();
+
+                    if (fieldName && fieldValue) {
                         const fieldNameLower = fieldName.toLowerCase();
                         const shouldMigrate = migrateAll ||
                             (allowedPropertiesLower.length > 0 && allowedPropertiesLower.includes(fieldNameLower));
 
                         if (shouldMigrate) {
-                            // This line should be removed
+                            // This line should be removed (moved to frontmatter).
                             isPropertyToRemove = true;
 
-                            // Store the field value for frontmatter
                             if (!fields.has(fieldName)) {
                                 fields.set(fieldName, new Set());
                             }
 
-                            // Parse the value with special handling for wikilinks
+                            // Parse the value with special handling for wikilinks.
                             const parsedValues = parseCommaSeparatedWithWikilinks(fieldValue);
                             parsedValues.forEach(value => fields.get(fieldName).add(value));
                         }
@@ -225,24 +295,104 @@ function parseInlineFieldsWithWikilinks(content, allowedProperties = [], migrate
             }
         }
 
-        // Keep the line if it's not a property to remove
+        // Keep the line if it's not a property to remove.
         if (!isPropertyToRemove) {
             cleanedBodyLines.push(line);
+            protectedFlags.push(false);
         }
     }
 
-    // Reconstruct the content
-    let cleanedContent;
-    if (hasExistingFrontmatter) {
-        cleanedContent = frontmatterText + cleanedBodyLines.join('\n');
-    } else {
-        cleanedContent = cleanedBodyLines.join('\n');
+    // Collapse runs of 2+ consecutive blank lines down to a single blank line, but
+    // never touch blank lines inside fenced code blocks (verbatim guarantee). This
+    // also leaves the frontmatter untouched, unlike a global newline regex.
+    const collapsedLines = [];
+    let blankRun = 0;
+    for (let i = 0; i < cleanedBodyLines.length; i++) {
+        const bodyLine = cleanedBodyLines[i];
+        if (!protectedFlags[i] && bodyLine.trim() === '') {
+            blankRun += 1;
+            if (blankRun <= 1) {
+                collapsedLines.push(bodyLine);
+            }
+        } else {
+            blankRun = 0;
+            collapsedLines.push(bodyLine);
+        }
     }
 
-    // Remove excessive blank lines (more than 2 consecutive)
-    cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n');
+    const cleanedBody = collapsedLines.join('\n');
+    const cleanedContent = hasExistingFrontmatter
+        ? frontmatterText + cleanedBody
+        : cleanedBody;
 
     return { fields, cleanedContent };
+}
+
+/**
+ * Strip up to `max` leading blockquote markers from a line. A marker is up to 3
+ * spaces of indentation, a ">", and one optional following space, and markers
+ * nest ("> > " or ">> "). Returns the number of markers stripped (`depth`) and the
+ * remaining `content`. This lets fenced code blocks be tracked inside blockquotes:
+ * the block's content and its closing fence sit at the same quote depth as the
+ * opener, and a line with fewer markers means the blockquote (and the block) ended.
+ */
+function stripBlockquote(line, max) {
+    let content = line;
+    let depth = 0;
+    while (depth < max) {
+        const match = content.match(/^ {0,3}>( ?)/);
+        if (!match) break;
+        depth += 1;
+        content = content.slice(match[0].length);
+    }
+    return { depth, content };
+}
+
+/**
+ * Detect an opening code fence (``` or ~~~) on a line whose blockquote markers
+ * have already been stripped. Per CommonMark a fence may be indented 0-3 spaces
+ * (4+ is an indented code block) and may carry an info string. Returns
+ * { char, len } for the marker, or null.
+ *
+ * Out of scope - 4-space INDENTED code blocks are not detected. Telling a genuine
+ * indented code block apart from list-continuation text needs list/paragraph block
+ * context (CommonMark: indented code cannot interrupt a paragraph, a 4-space indent
+ * under a list item is list content rather than code, and loose lists even put a
+ * blank line before such continuation). A line-based script lacks that context, and
+ * a partial heuristic would either reintroduce data loss (deleting indented code)
+ * or cause the opposite bug - silently skipping a real inline field merely indented
+ * under a list (Dataview parses those as fields, so users expect them to migrate).
+ * Only indented code at the very start of the body is unambiguous, which is too
+ * narrow to justify a separate indented-block parser. Fenced code (top-level and
+ * blockquoted) and inline code ARE detected without that context and are preserved;
+ * an inline-field-like line inside a genuine indented code block may still migrate.
+ */
+function openingFence(line) {
+    const match = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (!match) return null;
+    return { char: match[1][0], len: match[1].length };
+}
+
+/**
+ * A closing fence uses the same marker character, is at least as long as the
+ * opening fence, and carries no info string (only optional trailing whitespace).
+ */
+function isClosingFence(line, fenceChar, fenceLen) {
+    // Allow a trailing CR so CRLF files close their fences correctly.
+    const match = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*\r?$/);
+    if (!match) return false;
+    const marker = match[1];
+    return marker[0] === fenceChar && marker.length >= fenceLen;
+}
+
+/**
+ * Replace inline code spans with equal-length blanks so a "::" inside code is not
+ * mistaken for an inline-field separator. Supports arbitrary backtick-run lengths
+ * (`code`, ``co`de``). Character positions are preserved so the caller can slice
+ * the original line by offsets computed on the masked line.
+ */
+function maskInlineCode(text) {
+    return text.replace(/(`+)(?:(?!\1)[\s\S])*?\1/g, (span) => ' '.repeat(span.length));
 }
 
 /**
