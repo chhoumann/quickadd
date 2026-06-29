@@ -713,10 +713,12 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			"Boards/Kanban.base",
 		);
+		// A vault-wide "Capture to" legitimately honours a preselected pick, so the
+		// `.base` guard is exercised on the path it actually uses.
 		const engine = new CaptureChoiceEngine(
 			app,
 			{ settings: { useSelectionAsCaptureValue: false } } as any,
-			createChoice(),
+			createChoice({ captureTo: "" }),
 			executor,
 		);
 
@@ -1800,5 +1802,134 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(fileExistsMock).not.toHaveBeenCalled();
 		expect(onFileExistsMock).not.toHaveBeenCalled();
 		expect(app.vault.modify).not.toHaveBeenCalled();
+	});
+});
+
+describe("CaptureChoiceEngine reserved capture-target variable (security)", () => {
+	const makeEngine = (
+		choice: Partial<ICaptureChoice>,
+		preselected: string | undefined,
+	) => {
+		const app = createApp();
+		const executor = createExecutor();
+		if (preselected !== undefined) {
+			executor.variables.set(
+				QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				preselected,
+			);
+		}
+		return new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice(choice),
+			executor,
+		);
+	};
+
+	// The reserved variable is attacker-injectable across QuickAdd's trust
+	// boundaries (obsidian:// URI, CLI value-<name>=, {{VALUE:__qa.…}} tokens). For
+	// a definite-file "Capture to" the configured path is authoritative, so a stray
+	// reserved key must NOT redirect the write to an arbitrary note.
+	it("ignores an injected target variable for a fixed-file Capture target", async () => {
+		const engine = makeEngine({ captureTo: "Inbox.md" }, "Secrets/payload.md");
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Inbox.md");
+	});
+
+	it("ignores an injected target variable for a definite file target with extension", async () => {
+		const engine = makeEngine(
+			{ captureTo: "Notes/Daily.md" },
+			"Secrets/payload.md",
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Notes/Daily.md");
+	});
+
+	it("ignores an injected target variable when capturing to the active file", async () => {
+		const app = createApp();
+		(app.workspace.getActiveFile as any) = vi.fn(() => ({ path: "Active.md" }));
+		const executor = createExecutor();
+		executor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Secrets/payload.md",
+		);
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureToActiveFile: true }),
+			executor,
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(true);
+
+		expect(result).toBe("Active.md");
+	});
+
+	// The legitimate flow: a folder-scoped capture genuinely needs a runtime file
+	// selection, supplied by trusted preflight OR a non-interactive CLI value. That
+	// selection (inside the scope) is still honoured.
+	it("honours a preselected target for a folder-scope Capture target", async () => {
+		const engine = makeEngine({ captureTo: "Inbox/" }, "Inbox/Picked.md");
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Inbox/Picked.md");
+	});
+
+	it("honours a preselected target for a vault-wide Capture target", async () => {
+		const engine = makeEngine({ captureTo: "" }, "Anywhere/Picked.md");
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Anywhere/Picked.md");
+	});
+
+	// A folder scope confines the pick to the folder (mirroring the interactive
+	// picker's re-prefix) so an injected out-of-folder value cannot escape it.
+	it("confines an out-of-folder preselected target back into the folder", async () => {
+		const engine = makeEngine({ captureTo: "Inbox/" }, "Outside/Note.md");
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Inbox/Outside/Note.md");
+		expect(result).not.toBe("Outside/Note.md");
+	});
+
+	// A filter scope without "create if it doesn't exist" only accepts notes the
+	// filter matches; an injected out-of-set value is rejected and the normal
+	// picker runs instead.
+	it("rejects an out-of-set preselected target for a filter scope (create off)", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([
+			{ path: "Work/A.md" } as any,
+		]);
+		const suggestSpy = vi.fn(async () => "Work/A.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = makeEngine({ captureTo: "tag:work" }, "Secrets/Payload.md");
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Work/A.md");
+		expect(result).not.toBe("Secrets/Payload.md");
+		expect(suggestSpy).toHaveBeenCalled();
+	});
+
+	it("honours an in-set preselected target for a filter scope (create off)", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([
+			{ path: "Work/A.md" } as any,
+		]);
+		const suggestSpy = vi.fn(async () => "should-not-be-used");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = makeEngine({ captureTo: "tag:work" }, "Work/A.md");
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Work/A.md");
+		expect(suggestSpy).not.toHaveBeenCalled();
 	});
 });

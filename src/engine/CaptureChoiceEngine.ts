@@ -36,6 +36,7 @@ import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithProperty,
+	getMarkdownFilesWithTag,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
@@ -55,6 +56,10 @@ import {
 	resolveCaptureTarget as resolveCaptureTargetFromString,
 	type CaptureTargetResolution,
 } from "./helpers/captureTargetResolution";
+import {
+	classifyCaptureTargetScope,
+	type CaptureTargetScope,
+} from "./helpers/captureTargetScope";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import {
 	appendFileLinkToDestinationFile,
@@ -905,24 +910,36 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async getFormattedPathToCaptureTo(
 		shouldCaptureToActiveFile: boolean,
 	): Promise<string> {
-		// One-page preflight: if a specific target file was already chosen, use it
-		const preselected = this.choiceExecutor?.variables?.get(
-			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
-		) as string | undefined;
-		if (
-			!shouldCaptureToActiveFile &&
-			preselected &&
-			typeof preselected === "string" &&
-			preselected.length > 0
-		) {
-			return this.normalizeCaptureFilePath(preselected);
-		}
-
 		if (shouldCaptureToActiveFile) {
 			const activeFile = this.app.workspace.getActiveFile();
 			invariant(activeFile, "Cannot capture to active file - no active file.");
 
 			return activeFile.path;
+		}
+
+		// A preselected capture target (the trusted one-page preflight pick, or a
+		// non-interactive CLI `value-__qa.captureTargetFilePath`) is honoured ONLY
+		// when the configured "Capture to" actually needs a runtime file pick — the
+		// same scopes the requirement collector emits the pick for — AND the value is
+		// confined to that scope. For a definite-file target the configured path is
+		// authoritative, so a reserved variable injected across a trust boundary (an
+		// obsidian:// URI, the CLI, or a {{VALUE:__qa.…}} token in a synced/imported
+		// choice) cannot redirect the capture to an arbitrary note.
+		const preselected = this.getPreselectedCaptureTargetPath();
+		if (preselected !== undefined) {
+			const scope = classifyCaptureTargetScope(
+				{ isFolder: (path) => isFolder(this.app, path) },
+				this.choice.captureTo ?? "",
+				false,
+			);
+			if (scope) {
+				const confined = this.confinePreselectedToScope(scope, preselected);
+				if (confined !== null) {
+					return this.normalizeCaptureFilePath(confined);
+				}
+				// Out-of-scope value: ignore it and fall back to the normal
+				// picker/resolution below (which aborts a non-interactive run).
+			}
 		}
 
 		const captureTo = this.choice.captureTo;
@@ -947,6 +964,77 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				return this.selectFileInFolder(resolution.folder, false);
 			case "file":
 				return this.normalizeCaptureFilePath(resolution.path);
+		}
+	}
+
+	/**
+	 * The capture-target file path supplied out-of-band for this run, read from the
+	 * reserved internal variable: set by trusted preflight plumbing (the one-page
+	 * input modal) or by a non-interactive CLI `value-__qa.captureTargetFilePath`.
+	 * Returns `undefined` when absent or blank. The caller honours it only for a
+	 * runtime-picker scope and confines it to that scope, so a reserved key injected
+	 * across a trust boundary cannot hijack a definite-file capture target.
+	 */
+	private getPreselectedCaptureTargetPath(): string | undefined {
+		const preselected = this.choiceExecutor?.variables?.get(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+		);
+		return typeof preselected === "string" && preselected.length > 0
+			? preselected
+			: undefined;
+	}
+
+	/**
+	 * Confines a preselected capture target to the SAME destination set the matching
+	 * interactive picker would accept, so the value can never escape the configured
+	 * "Capture to" scope:
+	 *  - folder: re-prefixed into the folder, mirroring {@link selectFileInFolder}
+	 *    (an empty folderPathSlash is the whole-vault scope, so no confinement).
+	 *  - filter/property/tag with creation OFF: must be one of the matched files.
+	 *  - filter/property/tag with creation ON: any in-vault path (a new note is
+	 *    allowed, matching the runtime picker's "type to create" affordance).
+	 * Returns `null` when the value is outside the scope; the caller then falls back
+	 * to the normal picker/resolution instead of honouring it.
+	 */
+	private confinePreselectedToScope(
+		scope: CaptureTargetScope,
+		preselected: string,
+	): string | null {
+		const stripped = this.stripLeadingSlash(preselected);
+
+		if (scope.kind === "folder") {
+			return scope.folderPathSlash &&
+				!stripped.startsWith(scope.folderPathSlash)
+				? `${scope.folderPathSlash}${stripped}`
+				: stripped;
+		}
+
+		const allowCreate =
+			this.choice.createFileIfItDoesntExist?.enabled ?? false;
+		if (allowCreate) {
+			return stripped;
+		}
+
+		const matched = this.resolveScopeFiles(scope);
+		return matched.some((file) => file.path === stripped) ? stripped : null;
+	}
+
+	/** The notes a tag/filter/property capture scope currently matches. */
+	private resolveScopeFiles(scope: CaptureTargetScope): TFile[] {
+		switch (scope.kind) {
+			case "filter":
+				return getMarkdownFilesMatchingFilter(this.app, scope.filter);
+			case "property":
+				return getMarkdownFilesWithProperty(
+					this.app,
+					scope.field,
+					scope.value,
+					scope.filter,
+				);
+			case "tag":
+				return getMarkdownFilesWithTag(this.app, scope.tag);
+			case "folder":
+				return getMarkdownFilesInFolder(this.app, scope.folderPathSlash);
 		}
 	}
 
