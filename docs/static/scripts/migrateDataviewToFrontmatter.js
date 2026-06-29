@@ -119,35 +119,37 @@ async function start(params, settings) {
                 }
 
                 // Frontmatter property names behave case-insensitively in Obsidian,
-                // so find an existing key that matches case-insensitively to merge
-                // into rather than creating a near-duplicate (e.g. both "Reference"
-                // and "reference").
-                const existingKey = Object.keys(frontmatter).find(
+                // so collect EVERY key that matches case-insensitively. A hand-edited
+                // or synced note (or a note migrated by an older version of this
+                // script) can hold more than one case variant - e.g. both "Reference"
+                // and "reference", or both "Tags" and "tags" - and we must merge them
+                // all into one key rather than stranding (or dropping) a variant.
+                const matchingKeys = Object.keys(frontmatter).filter(
                     key => key.toLowerCase() === normalizedFieldName.toLowerCase()
                 );
 
                 // The reserved "tags" property must be stored lowercase, so always
-                // target "tags"; other properties reuse the existing key's case (or
-                // the field name) so we never strand a duplicate behind.
-                const targetKey = isTags ? 'tags' : (existingKey ?? normalizedFieldName);
+                // target "tags"; other properties reuse the first existing key's case
+                // (or the field name).
+                const targetKey = isTags ? 'tags' : (matchingKeys[0] ?? normalizedFieldName);
 
-                // Read the existing value from wherever it currently lives, and drop
-                // a wrong-cased key so the merge does not leave a duplicate.
-                const existingValue = existingKey !== undefined ? frontmatter[existingKey] : undefined;
-                if (existingKey !== undefined && existingKey !== targetKey) {
-                    delete frontmatter[existingKey];
+                // Gather the existing values from every case variant, then drop the
+                // non-target keys so no duplicate survives.
+                const existingValues = [];
+                for (const key of matchingKeys) {
+                    const value = frontmatter[key];
+                    if (value !== undefined && value !== null) {
+                        if (Array.isArray(value)) existingValues.push(...value);
+                        else existingValues.push(value);
+                    }
+                    if (key !== targetKey) delete frontmatter[key];
                 }
 
-                if (existingValue !== undefined && existingValue !== null) {
-                    // Property already exists - merge the values
-                    const existingArray = Array.isArray(existingValue)
-                        ? existingValue
-                        : [existingValue];
-
+                if (existingValues.length > 0) {
                     // Combine, then deduplicate by string form WITHOUT coercing the
                     // stored values - keep the original typed values (numbers,
                     // booleans) so an existing "rating: 5" stays a number.
-                    const combined = [...existingArray, ...valuesArray];
+                    const combined = [...existingValues, ...valuesArray];
                     const seen = new Set();
                     const deduplicated = [];
                     for (const value of combined) {
