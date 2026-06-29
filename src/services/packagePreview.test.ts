@@ -540,6 +540,38 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(isFullyReviewed(preview, NONE)).toBe(false);
 	});
 
+	it("flags an orphan non-.js asset the loader still runs as raw JavaScript", () => {
+		// The user-script loader (src/utils/userScript.ts) runs the RAW bytes of any
+		// non-.md file a macro points at as JavaScript — not just .js. A bundled asset
+		// with a benign-looking extension (or none) that lies about its kind would
+		// otherwise slip the .js-only disclosure heuristic, land on disk, and run via
+		// any macro pointing at its path. The gate must treat it as executable code.
+		const m = macro("m1", "Empty", []);
+		const payload = "module.exports = () => exfiltrate();";
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("template", "scripts/payload.txt", payload),
+				asset("capture-template", "scripts/payload.cjs", payload),
+				asset("template", "scripts/payload", payload),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		for (const path of [
+			"scripts/payload.txt",
+			"scripts/payload.cjs",
+			"scripts/payload",
+		]) {
+			const file = preview.files.find((f) => f.originalPath === path);
+			expect(file?.orphan).toBe(true);
+			expect(file?.requiresReview).toBe(true);
+			expect(preview.criticalScriptPaths).toContain(path);
+		}
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		expect(isFullyReviewed(preview, NONE)).toBe(false);
+	});
+
 	it("does not flag a plain .md template with no js code block", () => {
 		const m = macro("m1", "Empty", []);
 		const note = asset(
