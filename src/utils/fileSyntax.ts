@@ -50,6 +50,21 @@ function normalizeFolder(path: string): string {
 }
 
 /**
+ * Serialize a filter list into a delimiter-safe, order-insensitive token. A
+ * filter value can itself contain a comma (Obsidian folder/tag/file names may,
+ * and the token grammar only ever splits on `|`), so a plain `,`-join is NOT
+ * injective: `['a,b']` and `['a', 'b']` would both render as `a,b` and collapse
+ * two distinct tokens to one variableKey. JSON-encoding the sorted array keeps
+ * the encoding unambiguous (`["a,b"]` vs `["a","b"]`).
+ */
+function encodeSignatureList(
+	values: readonly string[],
+	transform: (value: string) => string = (value) => value,
+): string {
+	return JSON.stringify([...values].map(transform).sort());
+}
+
+/**
  * The slash- and order-insensitive part of the cache key that determines WHICH
  * files the picker lists (folder + tag/exclude-* filters). Two tokens that share
  * this list can meaningfully share a pick; two that don't, can't.
@@ -57,25 +72,17 @@ function normalizeFolder(path: string): string {
 function buildFileScopeSignature(folderPath: string, filter: FieldFilter): string {
 	const parts = [`folder=${normalizeFolder(folderPath)}`];
 	if (filter.folders?.length)
-		parts.push(
-			`folders=${[...filter.folders]
-				.map(normalizeFolder)
-				.sort()
-				.join(",")}`,
-		);
+		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeFolder)}`);
 	if (filter.tags?.length)
-		parts.push(`tags=${[...filter.tags].sort().join(",")}`);
+		parts.push(`tags=${encodeSignatureList(filter.tags)}`);
 	if (filter.excludeFolders?.length)
 		parts.push(
-			`xfolder=${[...filter.excludeFolders]
-				.map(normalizeFolder)
-				.sort()
-				.join(",")}`,
+			`xfolder=${encodeSignatureList(filter.excludeFolders, normalizeFolder)}`,
 		);
 	if (filter.excludeTags?.length)
-		parts.push(`xtag=${[...filter.excludeTags].sort().join(",")}`);
+		parts.push(`xtag=${encodeSignatureList(filter.excludeTags)}`);
 	if (filter.excludeFiles?.length)
-		parts.push(`xfile=${[...filter.excludeFiles].sort().join(",")}`);
+		parts.push(`xfile=${encodeSignatureList(filter.excludeFiles)}`);
 	return parts.join("|");
 }
 
