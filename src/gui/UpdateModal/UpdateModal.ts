@@ -37,13 +37,28 @@ export async function getReleaseNotesAfter(
 		throw: false,
 	});
 
-	const releases: Release[] | { message: string } = response.json;
+	const body: unknown = response.json;
 
-	if ((response.status >= 400 && "message" in releases) || !Array.isArray(releases)) {
-		throw new Error(
-			`Failed to fetch releases: ${releases.message ?? "Unknown error"}`
-		);
+	// Treat any error status OR a non-array body as a failure. GitHub returns the
+	// release list (a JSON array) only on success and a `{ message }` object on
+	// error, but with `throw: false` an error status still reaches here - and an
+	// intermediary can return an error status alongside a stale array or a literal
+	// `null`/primitive. Read `.message` only when it's actually a string, so a
+	// null/primitive body degrades to "Unknown error" instead of throwing a
+	// TypeError (`null.message` / `"message" in null`) that would mask the real
+	// failure.
+	if (response.status >= 400 || !Array.isArray(body)) {
+		const message =
+			typeof body === "object" &&
+			body !== null &&
+			"message" in body &&
+			typeof (body as { message?: unknown }).message === "string"
+				? (body as { message: string }).message
+				: "Unknown error";
+		throw new Error(`Failed to fetch releases: ${message}`);
 	}
+
+	const releases = body as Release[];
 
 	const startReleaseIdx = releases.findIndex(
 		(release) => release.tag_name === releaseTagName

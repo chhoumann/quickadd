@@ -176,9 +176,17 @@ export class FieldValueProcessor {
 		};
 
 		const normalizedFieldName = fieldName.toLowerCase();
-		
-		// Check for exact matches
-		if (commonDefaults[normalizedFieldName]) {
+
+		// Check for exact matches. `commonDefaults` is a plain object, so a bare
+		// `[normalizedFieldName]` lookup resolves inherited members for magic field
+		// names: `{{FIELD:constructor}}` yields the Object function (truthy, length
+		// 1) instead of a `string[]`, which then crashes `.slice`/`.map` in
+		// completeFormatter and aborts the choice. The field name flows unsanitized
+		// from a `{{FIELD:<name>}}` token (and may come from an imported package
+		// template), so restrict to own keys.
+		if (
+			Object.prototype.hasOwnProperty.call(commonDefaults, normalizedFieldName)
+		) {
 			return commonDefaults[normalizedFieldName];
 		}
 

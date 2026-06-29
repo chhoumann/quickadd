@@ -143,6 +143,32 @@ describe("FieldValueProcessor", () => {
 			const defaults = FieldValueProcessor.getSmartDefaults("unknown", manyValues);
 			expect(defaults).toHaveLength(5);
 		});
+
+		it("returns an array (not a prototype member) for magic field names", () => {
+			// `{{FIELD:constructor}}` flows here verbatim and lowercased. A plain-
+			// object lookup resolves Object.prototype.constructor (the Object
+			// function, length 1), which passes the `.length > 0` guards in
+			// completeFormatter and then crashes `.slice`/`.map`, aborting the
+			// choice. `__proto__` resolves to Object.prototype (also non-array).
+			// These two are the only inherited members whose name survives
+			// `.toLowerCase()`; both must degrade to an empty list like any unknown
+			// field.
+			for (const name of ["constructor", "__proto__"]) {
+				const defaults = FieldValueProcessor.getSmartDefaults(name, []);
+				expect(Array.isArray(defaults)).toBe(true);
+				expect(defaults).toEqual([]);
+			}
+		});
+
+		it("falls back to existing values for a magic field name", () => {
+			const defaults = FieldValueProcessor.getSmartDefaults("constructor", [
+				"x",
+				"x",
+				"y",
+			]);
+			expect(Array.isArray(defaults)).toBe(true);
+			expect(defaults[0]).toBe("x");
+		});
 	});
 
 	describe("validateDefaultValue", () => {

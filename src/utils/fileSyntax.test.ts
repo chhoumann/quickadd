@@ -117,6 +117,31 @@ describe("parseFileToken", () => {
 			expect(pub).not.toBe(priv);
 		});
 
+		it("does NOT collapse a comma-bearing filter value with two separate values", () => {
+			// `exclude-folder:a,b` is a single folder literally named "a,b" (the
+			// grammar only splits on `|`), whereas two `exclude-folder:` parts are
+			// two distinct folders. They scope different file lists and must keep
+			// distinct identities - a `,`-joined signature would collapse both to
+			// `xfolder=a,b` and silently reuse one token's pick for the other.
+			const single = parseFileToken("People|exclude-folder:a,b")!.variableKey;
+			const split = parseFileToken(
+				"People|exclude-folder:a|exclude-folder:b",
+			)!.variableKey;
+			expect(single).not.toBe(split);
+		});
+
+		it("keeps comma-bearing tag/exclude-tag/exclude-file values distinct from split values", () => {
+			expect(parseFileToken("People|tag:a,b")!.variableKey).not.toBe(
+				parseFileToken("People|tag:a|tag:b")!.variableKey,
+			);
+			expect(parseFileToken("People|exclude-tag:a,b")!.variableKey).not.toBe(
+				parseFileToken("People|exclude-tag:a|exclude-tag:b")!.variableKey,
+			);
+			expect(parseFileToken("People|exclude-file:a,b")!.variableKey).not.toBe(
+				parseFileToken("People|exclude-file:a|exclude-file:b")!.variableKey,
+			);
+		});
+
 		it("DOES share |name: across modes within the same scope", () => {
 			const name = parseFileToken("People|tag:x|name:ref")!.variableKey;
 			const link = parseFileToken("People|tag:x|link|name:ref")!.variableKey;

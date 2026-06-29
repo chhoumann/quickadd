@@ -178,6 +178,17 @@ export function mapLegacyFileExistsModeToId(
 		return null;
 	}
 
+	// `legacyFileExistsModeMap` is a plain object, so a bare `[mode]` lookup
+	// would resolve inherited members for magic keys (`__proto__` ->
+	// Object.prototype, `constructor` -> the Object function, `toString`/
+	// `valueOf` -> functions). All are truthy, silently defeating the `?? null`
+	// fallback and returning a non-`FileExistsModeId`. Restrict to own keys so
+	// any unknown input - including a hand-edited or imported `fileExistsMode` -
+	// falls back cleanly.
+	if (!Object.prototype.hasOwnProperty.call(legacyFileExistsModeMap, mode)) {
+		return null;
+	}
+
 	return legacyFileExistsModeMap[mode] ?? null;
 }
 

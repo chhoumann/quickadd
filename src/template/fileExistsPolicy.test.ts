@@ -90,6 +90,32 @@ describe("fileExistsPolicy registry", () => {
 		);
 		expect(mapLegacyFileExistsModeToId("Nothing")).toBe("doNothing");
 	});
+
+	it("returns null for unknown legacy modes", () => {
+		expect(mapLegacyFileExistsModeToId("")).toBeNull();
+		expect(mapLegacyFileExistsModeToId("not a real mode")).toBeNull();
+		expect(mapLegacyFileExistsModeToId(123)).toBeNull();
+		expect(mapLegacyFileExistsModeToId(undefined)).toBeNull();
+	});
+
+	it("returns null for prototype magic keys (no inherited members)", () => {
+		// A hand-edited data.json or imported package could set `fileExistsMode`
+		// to a JS magic key. A plain-object lookup would resolve the inherited
+		// member (truthy), defeating the `?? null` fallback and later throwing
+		// "Unknown file exists mode" at template-run time.
+		// Every key here resolves to an inherited member pre-fix (this lookup is
+		// not lowercased, so the camelCase members match too).
+		for (const key of [
+			"__proto__",
+			"constructor",
+			"toString",
+			"valueOf",
+			"hasOwnProperty",
+			"isPrototypeOf",
+		]) {
+			expect(mapLegacyFileExistsModeToId(key)).toBeNull();
+		}
+	});
 });
 
 describe("fileExistsPolicy collision naming", () => {
