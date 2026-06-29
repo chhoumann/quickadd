@@ -470,9 +470,86 @@ function isClosingFence(line, fenceChar, fenceLen) {
  * mistaken for an inline-field separator. Supports arbitrary backtick-run lengths
  * (`code`, ``co`de``). Character positions are preserved so the caller can slice
  * the original line by offsets computed on the masked line.
+ *
+ * Implemented as a single linear pass over the backtick runs. The earlier regex
+ * /(`+)(?:(?!\1)[\s\S])*?\1/g combined a backreferenced opener, a lazy body, and a
+ * negative lookahead, which backtracks super-linearly (seconds of main-thread
+ * freeze) on a long backtick run with no matching-length closer - reachable from a
+ * synced/shared note that the user migrates. This scanner reproduces the regex's
+ * exact masking behaviour with O(n) work: a run of k backticks is closed by the
+ * first run of at least k backticks (its first k backticks form the closer, the
+ * regex's `\1`), preferring the longest opener length the engine would have
+ * matched. An unclosed opener stays verbatim.
  */
 function maskInlineCode(text) {
-    return text.replace(/(`+)(?:(?!\1)[\s\S])*?\1/g, (span) => ' '.repeat(span.length));
+    const n = text.length;
+
+    // Index every maximal run of backticks once.
+    const runStart = [];
+    const runLen = [];
+    for (let i = 0; i < n; ) {
+        if (text.charCodeAt(i) === 96 /* ` */) {
+            let j = i + 1;
+            while (j < n && text.charCodeAt(j) === 96) j++;
+            runStart.push(i);
+            runLen.push(j - i);
+            i = j;
+        } else {
+            i++;
+        }
+    }
+    const runCount = runStart.length;
+    if (runCount === 0) return text;
+
+    // suffixMax[a] = longest run over runs[a..end]; suffixMax[runCount] = 0. Lets the
+    // best closer for a given opener be found without re-scanning later runs.
+    const suffixMax = new Array(runCount + 1);
+    suffixMax[runCount] = 0;
+    for (let a = runCount - 1; a >= 0; a--) {
+        suffixMax[a] = Math.max(runLen[a], suffixMax[a + 1]);
+    }
+
+    const out = text.split('');
+    const blank = (from, to) => { for (let p = from; p < to; p++) out[p] = ' '; };
+
+    // Walk each logical opener. `a` is the run we sit in; `i`/`m` are the opener's
+    // start position and remaining backtick count (m < runLen[a] only when a prior
+    // closer already consumed a prefix of this run).
+    let a = 0;
+    let i = runStart[0];
+    let m = runLen[0];
+    while (true) {
+        const half = m >> 1;            // floor(m/2): longest opener that closes inside this run
+        const maxLater = suffixMax[a + 1];
+        const kUpper = Math.min(m, maxLater); // longest opener that closes in a later run
+
+        if (kUpper > half) {
+            // Greedy opener of length kUpper; closer is the first later run that long.
+            const k = kUpper;
+            let b = a + 1;
+            while (runLen[b] < k) b++;  // exists because maxLater >= k
+            const matchEnd = runStart[b] + k;
+            blank(i, matchEnd);
+            const leftover = runLen[b] - k;
+            if (leftover > 0) { a = b; i = matchEnd; m = leftover; continue; }
+            a = b + 1;
+        } else if (half > 0) {
+            // Closer is the next `half` backticks inside this same run.
+            const matchEnd = i + 2 * half;
+            blank(i, matchEnd);
+            const leftover = m - 2 * half; // 0 (even run) or 1 (odd run)
+            if (leftover > 0) { i = matchEnd; m = leftover; continue; }
+            a = a + 1;
+        } else {
+            // m === 1 with no later backticks: a lone backtick stays literal.
+            a = a + 1;
+        }
+
+        if (a >= runCount) break;
+        i = runStart[a];
+        m = runLen[a];
+    }
+    return out.join('');
 }
 
 /**
