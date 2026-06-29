@@ -24,6 +24,20 @@ describe("classifyCaptureTargetScope", () => {
 		).toBeNull();
 	});
 
+	it("returns null for a tokenized folder-suffix target (resolved at run time)", () => {
+		expect(
+			classifyCaptureTargetScope(noFolders, "Projects/{{VALUE}}/", false),
+		).toBeNull();
+		// Even if the literal token folder happens to exist, the token defers it.
+		expect(
+			classifyCaptureTargetScope(
+				withFolders(["Projects/{{VALUE}}"]),
+				"Projects/{{VALUE}}/",
+				false,
+			),
+		).toBeNull();
+	});
+
 	it("classifies an empty target as the whole-vault folder scope", () => {
 		expect(classifyCaptureTargetScope(noFolders, "", false)).toEqual({
 			kind: "folder",

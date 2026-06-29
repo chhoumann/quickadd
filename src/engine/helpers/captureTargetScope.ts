@@ -49,20 +49,19 @@ export function classifyCaptureTargetScope(
 
 	const normalizedTarget = (rawCaptureTo ?? "").trim().replace(/^\/+/, "");
 
-	// A target carrying a format token can only be resolved at run time (it is not
-	// a stable picker scope), so it never gets a preflight requirement or a
-	// preselected pick — mirror that here.
-	const tokenized = hasTemplatePathSyntax(normalizedTarget);
+	// A target carrying a format token (e.g. `Projects/{{VALUE}}.md`,
+	// `Notes/{{DATE}}/`, `#{{VALUE}}`) is only resolvable at run time, so in EVERY
+	// shape - file, folder, tag, property - it is never a stable picker scope: it
+	// gets no preflight requirement and the engine never honours a preselected pick
+	// for it. Returning early keeps that uniform across all branches below.
+	if (hasTemplatePathSyntax(normalizedTarget)) return null;
 
-	const propertyTarget = !tokenized
-		? parsePropertyTarget(normalizedTarget)
-		: null;
+	const propertyTarget = parsePropertyTarget(normalizedTarget);
 	const isPropertyTarget = !!propertyTarget && !!propertyTarget.field;
 
-	const fileFilterTarget =
-		!isPropertyTarget && !tokenized
-			? parseCaptureFileFilterTarget(normalizedTarget)
-			: null;
+	const fileFilterTarget = !isPropertyTarget
+		? parseCaptureFileFilterTarget(normalizedTarget)
+		: null;
 	// A multi-select filter is not a single-destination capture scope.
 	const isFilterTarget = !!fileFilterTarget && !fileFilterTarget.multiSelect;
 

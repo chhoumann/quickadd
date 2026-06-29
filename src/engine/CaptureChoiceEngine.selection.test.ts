@@ -2004,4 +2004,77 @@ describe("CaptureChoiceEngine reserved capture-target variable (security)", () =
 		expect(result).not.toBe("Secrets/Dangerous.md");
 		expect(suggestSpy).toHaveBeenCalled();
 	});
+
+	// A trailing-space/dot variant normalizes to an existing note before the write,
+	// so the existence check must normalize too - otherwise it slips past as "new".
+	it("rejects a trailing-space variant of an existing note for a filter scope (create on)", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
+		const app = createApp();
+		(app.vault.getAbstractFileByPath as any) = vi.fn((p: string) =>
+			p === "Secrets/Dangerous.md" ? ({ path: p } as any) : null,
+		);
+		const suggestSpy = vi.fn(async () => {
+			throw "cancelled";
+		});
+		(InputSuggester as any).Suggest = suggestSpy;
+		const executor = createExecutor();
+		executor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Secrets/Dangerous.md ", // trailing space
+		);
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "tag:work",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			executor,
+		);
+
+		// Rejected -> falls through to the (cancelling) picker, never honoured.
+		await expect(
+			(engine as any).getFormattedPathToCaptureTo(false),
+		).rejects.toBeTruthy();
+		expect(suggestSpy).toHaveBeenCalled();
+	});
+
+	// Mirror the picker's basename guard: a bare name colliding with an existing
+	// note's basename anywhere must not be accepted as a new note.
+	it("rejects a basename-colliding preselected for a filter scope (create on)", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([]);
+		const app = createApp();
+		(app.vault.getAbstractFileByPath as any) = vi.fn(() => null);
+		(app.vault.getMarkdownFiles as any) = vi.fn(() => [
+			{ path: "Archive/Daily.md", basename: "Daily" },
+		]);
+		const suggestSpy = vi.fn(async () => {
+			throw "cancelled";
+		});
+		(InputSuggester as any).Suggest = suggestSpy;
+		const executor = createExecutor();
+		executor.variables.set(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Daily");
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "tag:work",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			executor,
+		);
+
+		await expect(
+			(engine as any).getFormattedPathToCaptureTo(false),
+		).rejects.toBeTruthy();
+		expect(suggestSpy).toHaveBeenCalled();
+	});
 });

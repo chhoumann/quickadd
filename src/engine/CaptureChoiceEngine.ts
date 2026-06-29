@@ -1023,17 +1023,19 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return null;
 		}
 
-		// Creation is on: the picker offers a new name, but never an existing
-		// unmatched note, so honour the value only when it does not already exist.
-		return this.captureTargetPathExists(stripped) ? null : stripped;
-	}
-
-	/** Whether a vault-relative path resolves to an existing note (with or without a markdown/canvas extension). */
-	private captureTargetPathExists(path: string): boolean {
-		const base = path.replace(/\.(md|canvas)$/i, "");
-		return [path, `${base}.md`, `${base}.canvas`].some(
-			(candidate) => !!this.app.vault.getAbstractFileByPath(candidate),
+		// Creation is on: the picker offers a NEW name but suppresses any existing
+		// note (by normalized path OR basename anywhere - selectFileFromSet +
+		// captureTargetAlreadyExists). Mirror it exactly so an injected value cannot
+		// append to an arbitrary existing note or spawn a duplicate-basename note.
+		// captureTargetAlreadyExists normalizes the value the same way the eventual
+		// write does (trailing space/dot stripped), so a `Note.md ` variant of an
+		// existing note is still caught.
+		const vaultBasenames = new Set(
+			this.app.vault.getMarkdownFiles().map((f) => f.basename.toLowerCase()),
 		);
+		return this.captureTargetAlreadyExists(stripped, vaultBasenames)
+			? null
+			: stripped;
 	}
 
 	/** The notes a tag/filter/property capture scope currently matches. */
