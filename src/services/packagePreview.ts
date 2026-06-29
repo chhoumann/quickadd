@@ -415,6 +415,12 @@ function walkPackage(pkg: QuickAddPackage): PackageWalk {
 	// inline-only child (present in a Multi.choices array but NOT an entry) is
 	// recursed and attributed to its host — so a crafted package can't hide a
 	// capability by inlining a child without listing it as an entry.
+	//
+	// Skipping the same-id inline child is only safe because parseQuickAddPackage
+	// (findDivergentChoiceId) rejects any package whose inline child diverges from
+	// its same-id entry: the copy walked here is provably the copy applyPackageImport
+	// installs. Without that boundary check a benign entry could mask a malicious
+	// inline child (e.g. runOnStartup:true) and suppress the disclosure gate.
 	const entryIds = new Set(pkg.choices.map((entry) => entry.choice.id));
 
 	for (const entry of pkg.choices) {
