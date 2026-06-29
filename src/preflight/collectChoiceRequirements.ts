@@ -25,8 +25,7 @@ import {
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
-import { parsePropertyTarget } from "src/utils/propertyTarget";
-import { parseCaptureFileFilterTarget } from "src/utils/captureFileFilterTarget";
+import { classifyCaptureTargetScope } from "src/engine/helpers/captureTargetScope";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
@@ -329,59 +328,36 @@ async function collectForCaptureChoice(
 		await scanTemplateSource(app, collector, createWithTemplate.template);
 	}
 
-	const formattedTarget = choice.captureTo?.trim() ?? "";
-	const normalizedTarget = formattedTarget.replace(/^\/+/, "");
-	// A `property:` target whose field/value carries a format token can only be
-	// resolved at run time (mirrors the tokenized-file-path case), so skip the
-	// preflight dropdown for it rather than forcing a dead "no files" picker.
-	const propertyTarget =
-		!hasTemplatePathSyntax(normalizedTarget)
-			? parsePropertyTarget(normalizedTarget)
-			: null;
-	const isPropertyTarget = !!propertyTarget && !!propertyTarget.field;
-	const fileFilterTarget =
-		!isPropertyTarget && !hasTemplatePathSyntax(normalizedTarget)
-			? parseCaptureFileFilterTarget(normalizedTarget)
-			: null;
-	const isFilterTarget = !!fileFilterTarget && !fileFilterTarget.multiSelect;
-	const isTagTarget =
-		!isPropertyTarget &&
-		!fileFilterTarget &&
-		normalizedTarget.startsWith("#");
-	const trimmedPath = normalizedTarget.replace(/\/$|\.md$/g, "");
-	const isFolderTarget =
-		!isTagTarget &&
-		!isPropertyTarget &&
-		!isFilterTarget &&
-		(normalizedTarget === "" || isFolder(app, trimmedPath));
-	const looksLikeFolderBySuffix =
-		!isPropertyTarget && !isFilterTarget && normalizedTarget.endsWith("/");
+	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
+	// needs a runtime file pick and, if so, the scope. Keeping the engine and this
+	// collector on the same classification guarantees a preselected pick is honoured
+	// exactly when it was legitimately collected, never silently dropped or hijacked.
+	const captureScope = classifyCaptureTargetScope(
+		{ isFolder: (path) => isFolder(app, path) },
+		choice.captureTo ?? "",
+		choice.captureToActiveFile,
+	);
 
-	if (
-		!choice.captureToActiveFile &&
-		(isPropertyTarget ||
-			isFilterTarget ||
-			isTagTarget ||
-			isFolderTarget ||
-			looksLikeFolderBySuffix)
-	) {
+	if (captureScope) {
 		let files: TFile[] = [];
-		if (isPropertyTarget && propertyTarget) {
-			files = getMarkdownFilesWithProperty(
-				app,
-				propertyTarget.field,
-				propertyTarget.value,
-				propertyTarget.filter,
-			);
-		} else if (isFilterTarget && fileFilterTarget) {
-			files = getMarkdownFilesMatchingFilter(app, fileFilterTarget.filter);
-		} else if (isTagTarget) {
-			files = getMarkdownFilesWithTag(app, normalizedTarget);
-		} else {
-			const folder = normalizedTarget.replace(/(?:\/|\.md)+$/g, "");
-			const base =
-				folder === "" ? "" : folder.endsWith("/") ? folder : `${folder}/`;
-			files = getMarkdownFilesInFolder(app, base);
+		switch (captureScope.kind) {
+			case "property":
+				files = getMarkdownFilesWithProperty(
+					app,
+					captureScope.field,
+					captureScope.value,
+					captureScope.filter,
+				);
+				break;
+			case "filter":
+				files = getMarkdownFilesMatchingFilter(app, captureScope.filter);
+				break;
+			case "tag":
+				files = getMarkdownFilesWithTag(app, captureScope.tag);
+				break;
+			case "folder":
+				files = getMarkdownFilesInFolder(app, captureScope.folderPathSlash);
+				break;
 		}
 
 		const orderedFiles = orderFilesForPicker(

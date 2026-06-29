@@ -29,6 +29,7 @@ import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssis
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { parseSemver } from "./utils/semver";
 import { resolveChoiceIcon } from "./utils/choiceUtils";
+import { isReservedVariableKey } from "./utils/reservedVariableKeys";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
@@ -375,7 +376,16 @@ export default class QuickAdd extends Plugin {
 			.filter(([key]) => key.startsWith("value-"))
 			.forEach(([key, value]) => {
 				const variableName = key.slice(6);
-				if (variableName && typeof value === "string") {
+				// Never let an incoming URI populate a reserved internal variable
+				// (e.g. the capture-target file path): obsidian:// links are reachable
+				// by any webpage/app, so honouring `value-__qa.…` would let an external
+				// caller drive internal plumbing. There is no legitimate URI use for
+				// these keys.
+				if (
+					variableName &&
+					typeof value === "string" &&
+					!isReservedVariableKey(variableName)
+				) {
 					choiceExecutor.variables.set(variableName, value);
 				}
 			});
