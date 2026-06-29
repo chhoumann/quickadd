@@ -193,4 +193,22 @@ describe("TextInputSuggest resource lifecycle", () => {
 
 		expect(createPopperMock).not.toHaveBeenCalled();
 	});
+
+	it("keeps replacing same-class suggesters discoverable after the registry self-prunes", () => {
+		// First instance: registers under this input.
+		new GenericTextSuggester(app, input, ["x"]);
+
+		// Second instance on the same input destroys the first; that destroy empties
+		// the input's per-class map and prunes the input from instanceMap. The new
+		// instance must re-attach itself, or it becomes invisible to later dedup.
+		const second = new GenericTextSuggester(app, input, ["x"]);
+		const secondDestroy = vi.spyOn(second, "destroy");
+
+		// Third instance must find and destroy the second (proving it stayed
+		// tracked). Without the re-attach fix the second is orphaned: its input
+		// listeners leak and a duplicate popup can spawn.
+		new GenericTextSuggester(app, input, ["x"]);
+
+		expect(secondDestroy).toHaveBeenCalledTimes(1);
+	});
 });
