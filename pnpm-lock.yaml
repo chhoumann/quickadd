@@ -90,8 +90,8 @@ importers:
         specifier: 2.30.1
         version: 2.30.1
       obsidian:
-        specifier: 1.13.1
-        version: 1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6)
+        specifier: 1.13.0
+        version: 1.13.0(@codemirror/state@6.5.0)(@codemirror/view@6.38.6)
       obsidian-e2e:
         specifier: 0.6.0
         version: 0.6.0(vite-plus@0.1.24(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(svelte@5.56.4(@typescript-eslint/types@8.62.0))(typescript@6.0.3)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0))
@@ -2508,8 +2508,8 @@ packages:
     peerDependencies:
       vite-plus: ^0.1.11
 
-  obsidian@1.13.1:
-    resolution: {integrity: sha512-qtTEA2pmhJzhuhJqzbBFRYhpIOqvW+krDYjtFynv66KbxBbumHBlsJfWw3I4jtnK/6fZwbQhCrmmDdRwXmX56w==}
+  obsidian@1.13.0:
+    resolution: {integrity: sha512-PHw5+SAPlJ0S3leFvJ0wgFg63Z3DavxL6+d1ll+8toXR2ZlYKc1rMWqdUv9LgUbTwPQUyY6yfhOMMivampRRiQ==}
     peerDependencies:
       '@codemirror/state': 6.5.0
       '@codemirror/view': 6.38.6
@@ -3548,7 +3548,7 @@ snapshots:
 
   '@codemirror/view@6.38.6':
     dependencies:
-      '@codemirror/state': 6.5.0
+      '@codemirror/state': 6.6.0
       crelt: 1.0.6
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
@@ -5520,7 +5520,7 @@ snapshots:
       vite-plus: 0.1.24(@types/node@26.0.1)(@vitest/coverage-v8@4.1.9)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@29.1.1)(svelte@5.56.4(@typescript-eslint/types@8.62.0))(typescript@6.0.3)(vite@8.1.0(@types/node@26.0.1)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0)
       yaml: 2.9.0
 
-  obsidian@1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6):
+  obsidian@1.13.0(@codemirror/state@6.5.0)(@codemirror/view@6.38.6):
     dependencies:
       '@codemirror/state': 6.5.0
       '@codemirror/view': 6.38.6
