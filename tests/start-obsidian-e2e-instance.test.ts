@@ -3,12 +3,15 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	assertObsidianMeetsMinAppVersion,
 	assertSecureDirIfPresent,
+	compareObsidianVersions,
 	ensureSecureDir,
 	INSTANCE_MARKER_FILE,
 	parseArgs,
 	prepareObsidianProfile,
 	resolveInstanceOptions,
+	resolveObsidianAppVersion,
 	toInstanceShellExports,
 } from "../scripts/start-obsidian-e2e-instance.mjs";
 
@@ -194,6 +197,173 @@ describe("assertSecureDirIfPresent", () => {
 		await expect(assertSecureDirIfPresent(link)).rejects.toThrow(
 			/symlink or not a regular directory/,
 		);
+	});
+});
+
+function u32(n: number): Buffer {
+	const b = Buffer.alloc(4);
+	b.writeUInt32LE(n, 0);
+	return b;
+}
+
+// Build a spec-correct asar (matching the real Pickle layout: [size pickle][header
+// pickle][file data], with the header JSON 4-byte aligned inside the header
+// pickle). `extraJsonPad` widens the header JSON by EXACTLY that many bytes (the
+// `_pad` key is always present, so each +1 shifts the length to the next 4-byte
+// residue) — exercising the alignment padding that a naive `16 + jsonLength`
+// reader gets wrong.
+function buildAsar(version: string, extraJsonPad = 0): Buffer {
+	const pkg = Buffer.from(JSON.stringify({ version }), "utf8");
+	const files: Record<string, unknown> = {
+		"package.json": { offset: "0", size: pkg.length },
+		_pad: "x".repeat(extraJsonPad),
+	};
+	const json = Buffer.from(JSON.stringify({ files }), "utf8");
+	const aligned = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4)]);
+	const headerPayload = Buffer.concat([u32(json.length), aligned]);
+	const headerPickle = Buffer.concat([u32(headerPayload.length), headerPayload]);
+	const sizePickle = Buffer.concat([u32(4), u32(headerPickle.length)]);
+	return Buffer.concat([sizePickle, headerPickle, pkg]);
+}
+
+async function makeConfigDir(versions: string[]): Promise<string> {
+	const dir = await makeTempDir("obsidian-config");
+	// Real asars (carrying their own package.json version), so the resolver reads
+	// the same code path it does against a live config dir, not a filename shortcut.
+	await Promise.all(
+		versions.map((v) => fs.writeFile(path.join(dir, `obsidian-${v}.asar`), buildAsar(v))),
+	);
+	return dir;
+}
+
+async function makeWorktreeWithManifest(minAppVersion: string): Promise<string> {
+	const dir = await makeTempDir("quickadd-worktree");
+	await fs.writeFile(
+		path.join(dir, "manifest.json"),
+		JSON.stringify({ id: "quickadd", minAppVersion }),
+	);
+	return dir;
+}
+
+describe("compareObsidianVersions", () => {
+	it("orders by major, minor, then patch and ignores suffixes", () => {
+		expect(compareObsidianVersions("1.13.0", "1.13.0")).toBe(0);
+		expect(compareObsidianVersions("1.13.1", "1.13.0")).toBeGreaterThan(0);
+		expect(compareObsidianVersions("1.12.7", "1.13.0")).toBeLessThan(0);
+		expect(compareObsidianVersions("1.13.0-insider", "1.13.0")).toBe(0);
+		expect(compareObsidianVersions("2.0.0", "1.99.99")).toBeGreaterThan(0);
+	});
+});
+
+describe("resolveObsidianAppVersion", () => {
+	it("picks the newest installed asar in the config dir", async () => {
+		const configDir = await makeConfigDir(["1.12.7", "1.13.0"]);
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [],
+		});
+		expect(resolved.appVersion).toBe("1.13.0");
+		expect(resolved.cachedVersions.sort()).toEqual(["1.12.7", "1.13.0"]);
+	});
+
+	it("floors at the bundled installer asar when the config dir is empty", async () => {
+		const configDir = await makeConfigDir([]);
+		const bundled = path.join(await makeTempDir("obsidian-app"), "obsidian.asar");
+		await fs.writeFile(bundled, buildAsar("1.12.7"));
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [bundled],
+		});
+		expect(resolved.appVersion).toBe("1.12.7");
+		expect(resolved.installerVersion).toBe("1.12.7");
+	});
+
+	it("returns null appVersion when nothing can be determined", async () => {
+		const configDir = await makeConfigDir([]);
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [path.join(configDir, "does-not-exist.asar")],
+		});
+		expect(resolved.appVersion).toBeNull();
+	});
+
+	it("skips a partial/corrupt cached asar instead of trusting its filename", async () => {
+		// A half-downloaded obsidian-1.13.0.asar (truncated/garbage) must NOT count as
+		// a runnable 1.13.0 — Obsidian would fall back to the valid 1.12.7 build.
+		const configDir = await makeConfigDir(["1.12.7"]);
+		await fs.writeFile(path.join(configDir, "obsidian-1.13.0.asar"), "not-a-real-asar");
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [],
+		});
+		expect(resolved.appVersion).toBe("1.12.7");
+		expect(resolved.cachedVersions).toEqual(["1.12.7"]);
+	});
+
+	it("reads the asar version at every header-length 4-byte alignment residue", async () => {
+		// Real asar headers are arbitrary lengths; the parser must not assume the
+		// header JSON is 4-byte aligned. Cover all four residues — a reader that uses
+		// `16 + jsonLength` instead of the header pickle size misreads 3 of these.
+		const residues = new Set<number>();
+		for (let pad = 0; pad < 4; pad++) {
+			const asar = buildAsar("1.13.0", pad);
+			// Header JSON length lives at byte 12 (raw, pre-alignment) in the layout.
+			residues.add(asar.readUInt32LE(12) % 4);
+			const dir = await makeTempDir("asar-align");
+			await fs.writeFile(path.join(dir, "obsidian-1.13.0.asar"), asar);
+			const resolved = await resolveObsidianAppVersion({
+				obsidianConfigDir: dir,
+				bundledAsarCandidates: [],
+			});
+			expect(resolved.appVersion, `pad=${pad}`).toBe("1.13.0");
+		}
+		// Guard the guard: prove the four builds really span all four residues, so a
+		// future tweak can't silently collapse coverage (as an earlier version did).
+		expect(residues).toEqual(new Set([0, 1, 2, 3]));
+	});
+});
+
+describe("assertObsidianMeetsMinAppVersion", () => {
+	it("passes when the running app meets minAppVersion (green)", async () => {
+		const worktreePath = await makeWorktreeWithManifest("1.13.0");
+		const configDir = await makeConfigDir(["1.12.7", "1.13.0"]);
+		await expect(
+			assertObsidianMeetsMinAppVersion({
+				worktreePath,
+				obsidianConfigDir: configDir,
+				bundledAsarCandidates: [],
+			}),
+		).resolves.toEqual({
+			appVersion: "1.13.0",
+			installerVersion: null,
+			minAppVersion: "1.13.0",
+		});
+	});
+
+	it("fails loudly when Obsidian fell back below minAppVersion (red)", async () => {
+		const worktreePath = await makeWorktreeWithManifest("1.13.0");
+		// Only a sub-minimum 1.12.7 build installed — the exact fallback that made
+		// setDestructive look "absent on 1.13.0".
+		const configDir = await makeConfigDir(["1.12.7"]);
+		await expect(
+			assertObsidianMeetsMinAppVersion({
+				worktreePath,
+				obsidianConfigDir: configDir,
+				bundledAsarCandidates: [],
+			}),
+		).rejects.toThrow(/1\.12\.7 is BELOW the plugin's minAppVersion 1\.13\.0/);
+	});
+
+	it("refuses to run when the app version cannot be determined", async () => {
+		const worktreePath = await makeWorktreeWithManifest("1.13.0");
+		const configDir = await makeConfigDir([]);
+		await expect(
+			assertObsidianMeetsMinAppVersion({
+				worktreePath,
+				obsidianConfigDir: configDir,
+				bundledAsarCandidates: [],
+			}),
+		).rejects.toThrow(/Could not determine the running Obsidian app version/);
 	});
 });
 

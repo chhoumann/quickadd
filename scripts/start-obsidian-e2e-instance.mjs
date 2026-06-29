@@ -2,6 +2,7 @@
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
@@ -393,6 +394,191 @@ export async function trustVaultAndVerifyQuickAdd(options) {
 	throw new Error(`QuickAdd did not become available in ${options.vaultName}. Last error: ${lastError}`);
 }
 
+// --- minAppVersion guard ------------------------------------------------------
+//
+// Obsidian has TWO versions: the installer shell (the .app, shown in the window
+// title) and the auto-updated app code (obsidian-<version>.asar, == the
+// `apiVersion` plugins see). minAppVersion is enforced against the app-code
+// version, not the installer. On macOS the app-code asar lives in the LOGIN
+// user's Application Support dir, resolved from getpwuid (os.userInfo) rather
+// than $HOME — so even though this harness isolates $HOME/--user-data-dir, the
+// launched instance loads the newest asar from the real config dir, floored at
+// the installer's bundled asar. When NO installed asar reaches minAppVersion,
+// Obsidian silently runs the bundled installer build, which can be BELOW
+// minAppVersion. e2e then runs against an app QuickAdd does not support, so a
+// "missing API" crash there is a false signal (this is exactly what makes a
+// 1.13.0-only call like ButtonComponent.setDestructive look "absent on 1.13.0").
+// This guard resolves the real app-code version and fails loudly when it is
+// below the plugin's declared minAppVersion.
+//
+// Why predict from disk instead of querying the live instance: Obsidian does not
+// expose `apiVersion` to a CDP-evaluated snippet (require("obsidian") is not
+// resolvable outside plugin scope, and the window title carries the INSTALLER
+// version, not the app-code version), so the app-code version cannot be read from
+// the running renderer. We therefore resolve it the same way Obsidian does — the
+// newest valid installed asar in the real config dir, floored at the bundled
+// installer asar. The guard runs BEFORE launch, so a fresh instance loads exactly
+// what we resolved. Residual edge: a warm instance reused from an earlier run
+// (see the CLI's isInstanceReady reuse) reflects the asar resolution at ITS
+// launch; an Obsidian update mid-session is not re-detected. Instances are reaped
+// per worktree and Obsidian versions are stable within a run, so this is bounded.
+
+const OBSIDIAN_ASAR_VERSION_RE = /^obsidian-(\d+\.\d+\.\d+)\.asar$/;
+
+function macObsidianConfigDir() {
+	return path.join(
+		os.userInfo().homedir,
+		"Library",
+		"Application Support",
+		"obsidian",
+	);
+}
+
+// Only consulted as the floor when the config dir has no usable cached asar
+// (a fresh machine / CI that never auto-updated). Standard install locations
+// only — a bundle registered elsewhere with an empty cache resolves to null and
+// the guard then refuses to run blind rather than guess.
+function bundledAsarCandidates(obsidianApp) {
+	const leaf = path.join(
+		`${obsidianApp}.app`,
+		"Contents",
+		"Resources",
+		"obsidian.asar",
+	);
+	return [
+		path.join("/Applications", leaf),
+		path.join(os.userInfo().homedir, "Applications", leaf),
+	];
+}
+
+// Numeric 3-part compare; ignores any pre-release suffix. >0 if a>b, 0, <0.
+export function compareObsidianVersions(a, b) {
+	const parse = (v) => {
+		const m = String(v).match(/(\d+)\.(\d+)\.(\d+)/);
+		return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [0, 0, 0];
+	};
+	const x = parse(a);
+	const y = parse(b);
+	return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+}
+
+// Read the `version` from an asar archive's package.json without unpacking it.
+// Returns null on any malformed/missing input (never throws) so a stray file in
+// the config dir cannot break the guard.
+//
+// asar layout: [size pickle (8 bytes)] [header pickle] [file data]. The size
+// pickle's payload (byte 4, UInt32LE) is the header pickle's byte length, so file
+// data begins at 8 + headerPickleLength. The header pickle wraps a Pickle string:
+// its raw length is at byte 12 and its JSON bytes start at byte 16. Pickle
+// 4-byte-aligns the string, so the data base must come from the header pickle
+// length, NOT `16 + jsonLength` (which lands in the alignment padding when the
+// JSON length is not a multiple of 4).
+async function readAsarPackageVersion(asarPath) {
+	let handle;
+	try {
+		handle = await fs.open(asarPath, "r");
+		const head = Buffer.alloc(16);
+		await handle.read(head, 0, 16, 0);
+		const headerPickleLength = head.readUInt32LE(4);
+		const jsonLength = head.readUInt32LE(12);
+		if (!Number.isInteger(jsonLength) || jsonLength <= 0 || jsonLength > 64 * 1024 * 1024) {
+			return null;
+		}
+		const dataBase = 8 + headerPickleLength;
+		const headerBuf = Buffer.alloc(jsonLength);
+		await handle.read(headerBuf, 0, jsonLength, 16);
+		const header = JSON.parse(headerBuf.toString("utf8"));
+		const entry = header?.files?.["package.json"];
+		if (!entry) return null;
+		const size = Number(entry.size);
+		const offset = Number(entry.offset);
+		if (!Number.isFinite(size) || !Number.isFinite(offset) || size <= 0) return null;
+		const fileBuf = Buffer.alloc(size);
+		await handle.read(fileBuf, 0, size, dataBase + offset);
+		const version = JSON.parse(fileBuf.toString("utf8"))?.version;
+		return typeof version === "string" ? version : null;
+	} catch {
+		return null;
+	} finally {
+		await handle?.close().catch(() => {});
+	}
+}
+
+// Resolve the Obsidian app-code version that the launched instance runs:
+// the newest installed obsidian-*.asar in the real config dir, floored at the
+// bundled installer asar. configDir/bundledAsarCandidates are injectable for
+// tests. appVersion is null when no version can be determined at all.
+export async function resolveObsidianAppVersion(options = {}) {
+	const obsidianApp = options.obsidianApp ?? DEFAULT_OBSIDIAN_APP;
+	const configDir = options.obsidianConfigDir ?? macObsidianConfigDir();
+
+	const cachedVersions = [];
+	try {
+		for (const name of await fs.readdir(configDir)) {
+			if (!OBSIDIAN_ASAR_VERSION_RE.test(name)) continue;
+			// Trust the asar's own package.json, not the filename: a partial/corrupt
+			// download parses to null and is skipped (Obsidian would not load it
+			// either), so a half-downloaded obsidian-<newer>.asar cannot make the
+			// guard pass while the live app actually falls back to an older build.
+			const version = await readAsarPackageVersion(path.join(configDir, name));
+			if (version) cachedVersions.push(version);
+		}
+	} catch {
+		// Config dir missing/unreadable — fall back to the bundled installer below.
+	}
+
+	let installerVersion = null;
+	const candidates = options.bundledAsarCandidates ?? bundledAsarCandidates(obsidianApp);
+	for (const candidate of candidates) {
+		installerVersion = await readAsarPackageVersion(candidate);
+		if (installerVersion) break;
+	}
+
+	const all = [...cachedVersions, installerVersion].filter(Boolean);
+	const appVersion = all.length
+		? all.reduce((max, v) => (compareObsidianVersions(v, max) > 0 ? v : max))
+		: null;
+
+	return { appVersion, installerVersion, cachedVersions, configDir };
+}
+
+async function readPluginMinAppVersion(worktreePath) {
+	const manifestPath = path.join(worktreePath, "manifest.json");
+	const minAppVersion = JSON.parse(await fs.readFile(manifestPath, "utf8"))?.minAppVersion;
+	if (typeof minAppVersion !== "string" || !/\d+\.\d+\.\d+/.test(minAppVersion)) {
+		throw new Error(`manifest.json at ${manifestPath} has no usable minAppVersion.`);
+	}
+	return minAppVersion;
+}
+
+// Fail loudly when the running Obsidian app-code version is below the plugin's
+// minAppVersion (or cannot be determined). Returns the resolved versions for the
+// caller to surface. Filesystem-based: independent of the running instance.
+export async function assertObsidianMeetsMinAppVersion(options) {
+	const minAppVersion = await readPluginMinAppVersion(options.worktreePath);
+	const { appVersion, installerVersion, configDir } = await resolveObsidianAppVersion(options);
+
+	if (!appVersion) {
+		throw new Error(
+			`Could not determine the running Obsidian app version (no obsidian-*.asar in ${configDir} ` +
+				`and no bundled installer asar found). Refusing to run e2e against an unknown build that may ` +
+				`be below the plugin's minAppVersion ${minAppVersion}.`,
+		);
+	}
+
+	if (compareObsidianVersions(appVersion, minAppVersion) < 0) {
+		throw new Error(
+			`Obsidian app version ${appVersion} is BELOW the plugin's minAppVersion ${minAppVersion}` +
+				`${installerVersion ? ` (installer shell ${installerVersion})` : ""}. Obsidian fell back to a ` +
+				`build QuickAdd does not support, so any e2e "missing API" failure here is a FALSE signal, not a ` +
+				`real bug. Update Obsidian to >= ${minAppVersion} (install it, or let it download an ` +
+				`obsidian-*.asar into ${configDir}) before running e2e.`,
+		);
+	}
+
+	return { appVersion, installerVersion, minAppVersion };
+}
+
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -447,6 +633,14 @@ async function main() {
 	const provisionResult = await provisionVault(options);
 	const profileResult = await prepareObsidianProfile(options);
 	options.userDataPath = profileResult.userDataPath;
+	// Resolve and assert the Obsidian app-code version BEFORE launching: a build
+	// below minAppVersion makes every "missing API" failure a false signal, so fail
+	// loudly here rather than spawn a doomed sub-minimum instance (which would be
+	// left running for later reuse) and hit a confusing "QuickAdd did not become
+	// available" timeout. Filesystem-based, so it needs no running instance.
+	const compatibility = options.launch
+		? await assertObsidianMeetsMinAppVersion(options)
+		: null;
 	const launchResult = options.launch
 		? await launchObsidianInstance(options)
 		: { pid: null, pidPath: null };
@@ -460,6 +654,7 @@ async function main() {
 		...provisionResult,
 		...profileResult,
 		...launchResult,
+		...(compatibility ?? {}),
 		obsidianHome: options.obsidianHome,
 		resolvedVaultPath,
 		verifiedQuickAdd,
@@ -472,6 +667,12 @@ async function main() {
 		console.log(`Vault path: ${result.vaultPath}`);
 		console.log(`Obsidian HOME: ${result.obsidianHome}`);
 		if (result.pid) console.log(`Obsidian PID: ${result.pid}`);
+		if (result.appVersion) {
+			const installer = result.installerVersion ? `, installer ${result.installerVersion}` : "";
+			console.log(
+				`Obsidian app version: ${result.appVersion}${installer} (plugin minAppVersion ${result.minAppVersion})`,
+			);
+		}
 		if (result.verifiedQuickAdd) console.log("QuickAdd command check: ok");
 	}
 
