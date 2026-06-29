@@ -258,4 +258,127 @@ Id:: 999999
 			expect(result).toEqual(new Set(["343434", "121212"]));
 		});
 	});
+
+	describe("fenced code block edge cases", () => {
+		it("leaves an unclosed fence intact (behaviour-preserving)", () => {
+			// The old regex only stripped a fence once it found a matching
+			// closer, so an unclosed opener stripped nothing and its fields
+			// still surfaced. The linear scanner preserves that exactly rather
+			// than guessing the rest of the note is code.
+			const content = `
+real:: kept
+\`\`\`
+secret:: stillseen
+trailing:: alsoseen`;
+			const result = InlineFieldParser.parseInlineFields(content);
+
+			expect(result.get("real")).toEqual(new Set(["kept"]));
+			expect(result.get("secret")).toEqual(new Set(["stillseen"]));
+			expect(result.get("trailing")).toEqual(new Set(["alsoseen"]));
+		});
+
+		it("ignores a nested fence of a shorter backtick run", () => {
+			// A 4-backtick fence wrapping a 3-backtick sample (the canonical way
+			// to show fenced code inside Markdown) is one block: the inner
+			// 3-backtick lines do not close the 4-backtick opener.
+			const content = `
+before:: a
+\`\`\`\`markdown
+\`\`\`
+inside:: ignored
+\`\`\`
+\`\`\`\`
+after:: b`;
+			const result = InlineFieldParser.parseInlineFields(content);
+
+			expect(result.get("before")).toEqual(new Set(["a"]));
+			expect(result.has("inside")).toBe(false);
+			expect(result.get("after")).toEqual(new Set(["b"]));
+		});
+
+		it("resumes parsing fields after a properly closed fence", () => {
+			const content = `
+before:: a
+\`\`\`
+inside:: ignored
+\`\`\`
+after:: b`;
+			const result = InlineFieldParser.parseInlineFields(content);
+
+			expect(result.get("before")).toEqual(new Set(["a"]));
+			expect(result.has("inside")).toBe(false);
+			expect(result.get("after")).toEqual(new Set(["b"]));
+		});
+
+		it("closes a fence with a longer run of backticks (CommonMark >=)", () => {
+			const content = `
+\`\`\`
+inside:: ignored
+\`\`\`\`\`
+after:: b`;
+			const result = InlineFieldParser.parseInlineFields(content);
+
+			expect(result.has("inside")).toBe(false);
+			expect(result.get("after")).toEqual(new Set(["b"]));
+		});
+	});
+
+	describe("ReDoS resistance", () => {
+		// Regression guard for the super-linear backtracking that the old
+		// FENCED_CODE_BLOCK_REGEX exhibited. The linear line scanner finishes
+		// pathological input in well under a millisecond; the old regex took
+		// ~10s on 64KB and grew quadratically, so a generous budget keeps the
+		// test non-flaky while still failing hard on any regression.
+		const BUDGET_MS = 1500;
+
+		it(
+			"strips an unclosed fence + long whitespace run in linear time",
+			() => {
+				const content = "```\n" + " ".repeat(100_000);
+				const start = performance.now();
+				InlineFieldParser.parseInlineFields(content);
+				const elapsed = performance.now() - start;
+
+				expect(elapsed).toBeLessThan(BUDGET_MS);
+			},
+			20_000,
+		);
+
+		it(
+			"parses a long whitespace-led line with no field in linear time",
+			() => {
+				// No fence at all: this exercises INLINE_FIELD_REGEX directly.
+				// A long run of leading whitespace with no `::` made the old
+				// `[ \t]*([^:\n\r]+?)::` overlap backtrack quadratically.
+				const content = " ".repeat(200_000);
+				const start = performance.now();
+				const result = InlineFieldParser.parseInlineFields(content);
+				const elapsed = performance.now() - start;
+
+				expect(result.size).toBe(0);
+				expect(elapsed).toBeLessThan(BUDGET_MS);
+			},
+			20_000,
+		);
+
+		it(
+			"handles many never-closed fence-open lines in linear time",
+			() => {
+				// Each line looks like an opening fence with an info string, so
+				// none of them is a valid closing fence. The old regex retried
+				// from every opener (an O(n^2) outer scan on top of the inner
+				// backtracking); the scanner visits each line once.
+				const content = Array.from(
+					{ length: 50_000 },
+					() => "```info",
+				).join("\n");
+				const start = performance.now();
+				InlineFieldParser.parseInlineFields(content);
+				const elapsed = performance.now() - start;
+
+				expect(elapsed).toBeLessThan(BUDGET_MS);
+			},
+			20_000,
+		);
+	});
 });
