@@ -1,5 +1,24 @@
-import { describe, expect, it } from "vitest";
-import { renderVideoAttachments } from "./UpdateModal";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getReleaseNotesAfter, renderVideoAttachments } from "./UpdateModal";
+
+const requestUrlMock = vi.hoisted(() => vi.fn());
+
+// Keep the obsidian stub (Modal, Component, MarkdownRenderer, ...) intact - only
+// override requestUrl so getReleaseNotesAfter can be driven with crafted bodies.
+vi.mock("obsidian", async (importOriginal) => {
+	const actual = await importOriginal<Record<string, unknown>>();
+	return { ...actual, requestUrl: requestUrlMock };
+});
+
+function mockResponse(status: number, json: unknown): void {
+	requestUrlMock.mockResolvedValue({
+		status,
+		headers: {},
+		arrayBuffer: new ArrayBuffer(0),
+		json,
+		text: typeof json === "string" ? json : JSON.stringify(json),
+	});
+}
 
 const VIDEO_URL =
 	"https://github.com/user-attachments/assets/27712a0b-a26d-4a69-ac21-a7b4af6c5616";
@@ -117,5 +136,48 @@ describe("renderVideoAttachments", () => {
 	it("leaves bodies without video attachments untouched", () => {
 		const body = "## Features\n\n- something new\n";
 		expect(renderVideoAttachments(body)).toBe(body);
+	});
+});
+
+describe("getReleaseNotesAfter", () => {
+	beforeEach(() => {
+		requestUrlMock.mockReset();
+	});
+
+	it("degrades to 'Unknown error' when the body is a literal null (status 200)", async () => {
+		mockResponse(200, null);
+		// Before the guard this threw `Cannot read properties of null (reading
+		// 'message')`, masking the real failure; now it is a clean message.
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
+			"Failed to fetch releases: Unknown error",
+		);
+	});
+
+	it("degrades to 'Unknown error' when an error body is null (status 500)", async () => {
+		mockResponse(500, null);
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
+			"Failed to fetch releases: Unknown error",
+		);
+	});
+
+	it("surfaces GitHub's error message for a non-array body", async () => {
+		mockResponse(403, { message: "API rate limit exceeded" });
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
+			"Failed to fetch releases: API rate limit exceeded",
+		);
+	});
+
+	it("degrades to 'Unknown error' for a non-array body with a non-string message", async () => {
+		mockResponse(500, { message: 42 });
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
+			"Failed to fetch releases: Unknown error",
+		);
+	});
+
+	it("throws a clear error when the start tag is absent from the releases array", async () => {
+		mockResponse(200, [{ tag_name: "9.9.9", body: "", draft: false, prerelease: false }]);
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
+			"Could not find release with tag 1.0.0",
+		);
 	});
 });
