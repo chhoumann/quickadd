@@ -141,6 +141,29 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		);
 	}
 
+	// Reject internally-inconsistent choices at the untrusted-input boundary. The
+	// same choice id can appear in MORE than one place in a package: as a flat
+	// `pkg.choices` entry AND inline inside a Multi's `choices` array (or as a
+	// NestedChoice/Conditional-branch embedded choice). The preview and the writer
+	// each pick ONE of those copies and assume the others are identical:
+	// buildPackagePreview's walk SKIPS an inline Multi child whose id is also an
+	// entry (trusting the entry's walk to cover it), while applyPackageImport's
+	// remapChoiceTree INSTALLS the inline copy and drops the standalone entry. A
+	// crafted package can make those copies DIVERGE — a benign top-level entry that
+	// the preview discloses, paired with a malicious inline child (e.g.
+	// runOnStartup:true) that actually installs — suppressing the capability
+	// disclosure and acknowledgement gate entirely. The structural validator
+	// (isQuickAddPackage) never checks this. A legitimately-exported package always
+	// clones every appearance of an id from one source choice, so all appearances
+	// are identical; divergence implies tampering. Fail closed so the copy the user
+	// reviews is provably the copy that installs.
+	const divergentChoiceId = findDivergentChoiceId(parsed.choices);
+	if (divergentChoiceId !== null) {
+		throw new Error(
+			`Package contains conflicting definitions for choice "${divergentChoiceId}". Each choice id must describe the same choice everywhere it appears.`,
+		);
+	}
+
 	return parsed;
 }
 
@@ -159,6 +182,105 @@ function findDuplicateAssetPath(
 		seen.add(key);
 	}
 	return null;
+}
+
+/**
+ * The id of the first choice that appears more than once in the package with
+ * DIFFERENT content, or null if every id is internally consistent.
+ *
+ * Walks every choice node anywhere in the package — flat `pkg.choices` entries
+ * plus all descendants reachable via Multi `choices`, Macro-command
+ * `NestedChoice` embedded choices, and Conditional then/else branches — keyed by
+ * `choice.id`, and compares a canonical serialization of each appearance. The
+ * comparison is over the FULL subtree (a divergence deep inside is caught at both
+ * the inner id and every enclosing id), key-order-insensitive (so it never
+ * false-rejects a re-serialized-but-equal package), and array-order-sensitive (so
+ * a reordered command list — which changes behavior — counts as divergent).
+ */
+function findDivergentChoiceId(
+	choices: QuickAddPackage["choices"],
+): string | null {
+	const canonicalById = new Map<string, string>();
+	let divergentId: string | null = null;
+
+	const visit = (choice: IChoice | null | undefined): void => {
+		if (divergentId !== null) return;
+		if (!choice || typeof choice !== "object") return;
+
+		const id = (choice as { id?: unknown }).id;
+		if (typeof id === "string") {
+			const canonical = canonicalizeJsonValue(choice);
+			const prior = canonicalById.get(id);
+			if (prior === undefined) {
+				canonicalById.set(id, canonical);
+			} else if (prior !== canonical) {
+				divergentId = id;
+				return;
+			}
+		}
+
+		if (choice.type === "Multi") {
+			const multi = choice as IMultiChoice;
+			if (Array.isArray(multi.choices)) {
+				for (const child of multi.choices) visit(child);
+			}
+		}
+
+		if (choice.type === "Macro") {
+			const macro = choice as IMacroChoice;
+			visitNestedChoicesInCommands(macro.macro?.commands, visit);
+		}
+	};
+
+	for (const entry of choices) {
+		if (divergentId !== null) break;
+		visit(entry?.choice);
+	}
+
+	return divergentId;
+}
+
+function visitNestedChoicesInCommands(
+	commands: ICommand[] | undefined,
+	visit: (choice: IChoice | null | undefined) => void,
+): void {
+	if (!Array.isArray(commands)) return;
+	for (const command of commands) {
+		if (!command) continue;
+		if (command.type === CommandType.NestedChoice) {
+			visit((command as INestedChoiceCommand).choice);
+		} else if (command.type === CommandType.Conditional) {
+			const conditional = command as IConditionalCommand;
+			visitNestedChoicesInCommands(conditional.thenCommands, visit);
+			visitNestedChoicesInCommands(conditional.elseCommands, visit);
+		}
+	}
+}
+
+/**
+ * Deterministic, lossless serialization of a JSON value (the parsed package only
+ * ever holds JSON primitives, arrays, and plain objects). Object keys are sorted
+ * so two appearances that differ only in key order compare equal, while array
+ * order is preserved so a reordered list compares unequal. `JSON.parse` exposes a
+ * payload `__proto__` as an OWN enumerable property (it does not pollute the
+ * prototype), so `Object.keys` includes it and divergence there is still caught.
+ */
+function canonicalizeJsonValue(value: unknown): string {
+	if (value === null || typeof value !== "object") {
+		const serialized = JSON.stringify(value);
+		// `undefined` (not valid JSON, never produced by JSON.parse) stringifies to
+		// the JS value `undefined`; encode it distinctly so it can't collide with a
+		// real value.
+		return serialized === undefined ? " undefined" : serialized;
+	}
+	if (Array.isArray(value)) {
+		return `[${value.map(canonicalizeJsonValue).join(",")}]`;
+	}
+	const record = value as Record<string, unknown>;
+	const keys = Object.keys(record).sort();
+	return `{${keys
+		.map((key) => `${JSON.stringify(key)}:${canonicalizeJsonValue(record[key])}`)
+		.join(",")}}`;
 }
 
 export async function analysePackage(

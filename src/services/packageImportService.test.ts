@@ -41,6 +41,7 @@ import {
 	analysePackagePreview,
 	applyPackageImport,
 } from "./packageImportService";
+import { buildPackage } from "./packageExportService";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import type {
 	ChoiceImportDecision,
@@ -306,6 +307,159 @@ describe("parseQuickAddPackage", () => {
 		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
 			/duplicate asset path/i,
 		);
+	});
+
+	it("rejects a Multi inline child that DIVERGES from its same-id top-level entry", () => {
+		// Disclosure bypass: the preview walks the benign top-level entry and SKIPS
+		// the same-id inline child (entryIds.has -> continue), while applyPackageImport
+		// installs the inline child and drops the entry. A crafted package pairs a
+		// benign entry (runOnStartup:false, no commands) with a malicious inline child
+		// (runOnStartup:true + an Obsidian command) so the import auto-runs an
+		// undisclosed macro on startup with hasCritical=false. Reject at the boundary.
+		const maliciousInline: IChoice = {
+			id: "m",
+			name: "M",
+			type: "Macro",
+			command: false,
+			runOnStartup: true,
+			macro: {
+				id: "macro-m",
+				name: "M",
+				commands: [
+					{
+						id: "c1",
+						name: "Toggle",
+						type: CommandType.Obsidian,
+						commandId: "app:toggle-left-sidebar",
+					},
+				],
+			},
+		} as unknown as IChoice;
+		const benignEntry: IChoice = {
+			id: "m",
+			name: "M",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: { id: "macro-m", name: "M", commands: [] },
+		} as unknown as IChoice;
+		const folder = makeMulti("folder", "Folder", [maliciousInline]);
+		const bad = makePackage({
+			rootChoiceIds: ["folder"],
+			choices: [
+				makePackageChoice(folder, null, ["Folder"]),
+				makePackageChoice(benignEntry, "folder", ["Folder", "M"]),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/conflicting definitions for choice "m"/,
+		);
+	});
+
+	it("rejects divergence even when only a single field (runOnStartup) differs", () => {
+		// The cleanest abuse needs no bundled asset: runOnStartup is a critical row
+		// derived purely from the choice during the walk. A one-bit divergence between
+		// the benign entry and the installed inline copy must still fail closed.
+		const inline = {
+			id: "m",
+			name: "M",
+			type: "Macro",
+			command: false,
+			runOnStartup: true,
+			macro: { id: "macro-m", name: "M", commands: [] },
+		} as unknown as IChoice;
+		const entry = {
+			...inline,
+			runOnStartup: false,
+		} as unknown as IChoice;
+		const bad = makePackage({
+			rootChoiceIds: ["folder"],
+			choices: [
+				makePackageChoice(makeMulti("folder", "Folder", [inline]), null, [
+					"Folder",
+				]),
+				makePackageChoice(entry, "folder", ["Folder", "M"]),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/conflicting definitions/,
+		);
+	});
+
+	it("accepts a nested package whose inline child EQUALS its same-id entry", () => {
+		// The legitimate exported shape: the child appears both inline in its parent
+		// Multi and as its own entry, but the two are identical. This must still parse.
+		const child = makeChoice("child", "Child", "Template");
+		const parent = makeMulti("parent", "Parent", [child]);
+		const ok = makePackage({
+			rootChoiceIds: ["parent"],
+			choices: [
+				makePackageChoice(parent, null, ["Parent"]),
+				makePackageChoice(child, "parent", ["Parent", "Child"]),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(ok))).not.toThrow();
+	});
+
+	it("accepts identical appearances that differ only in JSON key order", () => {
+		// The consistency check is key-order-insensitive, so a re-serialized-but-equal
+		// package (e.g. round-tripped through a tool that reorders object keys) is not
+		// wrongly rejected.
+		const inlineRaw = `{"type":"Template","id":"child","name":"Child","command":false}`;
+		const entryRaw = `{"command":false,"name":"Child","id":"child","type":"Template"}`;
+		const raw = `{
+			"schemaVersion": 1,
+			"quickAddVersion": "1.18.0",
+			"createdAt": "2026-06-01T00:00:00.000Z",
+			"rootChoiceIds": ["parent"],
+			"choices": [
+				{ "choice": {"id":"parent","name":"Parent","type":"Multi","command":false,"collapsed":false,"choices":[${inlineRaw}]}, "pathHint": ["Parent"], "parentChoiceId": null },
+				{ "choice": ${entryRaw}, "pathHint": ["Parent","Child"], "parentChoiceId": "parent" }
+			],
+			"assets": []
+		}`;
+		expect(() => parseQuickAddPackage(raw)).not.toThrow();
+	});
+
+	it("accepts a real exported package round-trip (no false rejection of runOnStartup macros)", async () => {
+		// Gold anti-false-rejection proof: build a package from a live nested tree the
+		// SAME way the exporter does, then parse it. buildPackage emits the child both
+		// inline in its parent and as its own entry; both are clones of one source, so
+		// the consistency check must accept it - even though the macro is runOnStartup.
+		const { app } = createFakeApp();
+		const childMacro = {
+			id: "child",
+			name: "Child",
+			type: "Macro",
+			command: false,
+			runOnStartup: true,
+			macro: {
+				id: "macro-child",
+				name: "Child",
+				commands: [
+					{
+						id: "c1",
+						name: "Toggle",
+						type: CommandType.Obsidian,
+						commandId: "app:toggle-left-sidebar",
+					},
+				],
+			},
+		} as unknown as IChoice;
+		const parent = makeMulti("parent", "Parent", [childMacro]);
+		const { pkg } = await buildPackage(app, {
+			choices: [parent],
+			rootChoiceIds: ["parent"],
+			quickAddVersion: "1.18.0",
+			createdAt: "2026-06-01T00:00:00.000Z",
+		});
+		// The exporter really did emit both appearances of "child".
+		const childAppearances = pkg.choices.filter((c) => c.choice.id === "child");
+		expect(childAppearances.length).toBe(1); // one flat entry
+		const parentEntry = pkg.choices.find((c) => c.choice.id === "parent");
+		expect((parentEntry?.choice as IMultiChoice).choices[0].id).toBe("child"); // + inline
+		// And the consistency check accepts it.
+		expect(() => parseQuickAddPackage(JSON.stringify(pkg))).not.toThrow();
 	});
 });
 
