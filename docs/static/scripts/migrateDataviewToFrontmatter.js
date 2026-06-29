@@ -107,9 +107,10 @@ async function start(params, settings) {
 
                 // Handle special property names (Obsidian reserved fields)
                 // "tags" must be lowercase and tag values should not have "#" prefix
-                const normalizedFieldName = fieldName.toLowerCase() === 'tags' ? 'tags' : fieldName;
+                const isTags = fieldName.toLowerCase() === 'tags';
+                const normalizedFieldName = isTags ? 'tags' : fieldName;
 
-                if (normalizedFieldName === 'tags') {
+                if (isTags) {
                     // Strip "#" from tag values
                     valuesArray = valuesArray.map(tag => {
                         // Remove leading "#" if present
@@ -117,8 +118,25 @@ async function start(params, settings) {
                     });
                 }
 
-                // Merge with existing frontmatter values instead of overwriting
-                const existingValue = frontmatter[normalizedFieldName];
+                // Frontmatter property names behave case-insensitively in Obsidian,
+                // so find an existing key that matches case-insensitively to merge
+                // into rather than creating a near-duplicate (e.g. both "Reference"
+                // and "reference").
+                const existingKey = Object.keys(frontmatter).find(
+                    key => key.toLowerCase() === normalizedFieldName.toLowerCase()
+                );
+
+                // The reserved "tags" property must be stored lowercase, so always
+                // target "tags"; other properties reuse the existing key's case (or
+                // the field name) so we never strand a duplicate behind.
+                const targetKey = isTags ? 'tags' : (existingKey ?? normalizedFieldName);
+
+                // Read the existing value from wherever it currently lives, and drop
+                // a wrong-cased key so the merge does not leave a duplicate.
+                const existingValue = existingKey !== undefined ? frontmatter[existingKey] : undefined;
+                if (existingKey !== undefined && existingKey !== targetKey) {
+                    delete frontmatter[existingKey];
+                }
 
                 if (existingValue !== undefined && existingValue !== null) {
                     // Property already exists - merge the values
@@ -126,20 +144,30 @@ async function start(params, settings) {
                         ? existingValue
                         : [existingValue];
 
-                    // Combine existing and new values, then deduplicate
+                    // Combine, then deduplicate by string form WITHOUT coercing the
+                    // stored values - keep the original typed values (numbers,
+                    // booleans) so an existing "rating: 5" stays a number.
                     const combined = [...existingArray, ...valuesArray];
-                    const deduplicated = [...new Set(combined.map(v => String(v)))];
+                    const seen = new Set();
+                    const deduplicated = [];
+                    for (const value of combined) {
+                        const key = String(value);
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            deduplicated.push(value);
+                        }
+                    }
 
                     // Store as string or array depending on count
-                    frontmatter[normalizedFieldName] = deduplicated.length === 1
+                    frontmatter[targetKey] = deduplicated.length === 1
                         ? deduplicated[0]
                         : deduplicated;
                 } else {
                     // Property doesn't exist - add it
                     if (valuesArray.length === 1) {
-                        frontmatter[normalizedFieldName] = valuesArray[0];
+                        frontmatter[targetKey] = valuesArray[0];
                     } else if (valuesArray.length > 1) {
-                        frontmatter[normalizedFieldName] = valuesArray;
+                        frontmatter[targetKey] = valuesArray;
                     }
                 }
             });
@@ -193,10 +221,13 @@ function parseInlineFieldsWithWikilinks(content, allowedProperties = [], migrate
 
     // Track the currently open fenced code block, if any. fenceDepth is the
     // blockquote nesting level the fence opened at (0 = top level), so a fence
-    // inside "> ..." is closed by a closer at the same quote depth.
+    // inside "> ..." is closed by a closer at the same quote depth. fenceListIndent
+    // is the list-item content indent the fence opened at (0 = not in a list), so a
+    // fence opened by "- ```" has its body and closing fence tracked at that indent.
     let fenceChar = null; // '`' or '~'
     let fenceLen = 0;
     let fenceDepth = 0;
+    let fenceListIndent = 0;
 
     for (let i = 0; i < bodyLines.length; i++) {
         const line = bodyLines[i];
@@ -208,35 +239,59 @@ function parseInlineFieldsWithWikilinks(content, allowedProperties = [], migrate
             // non-fence so a real field after the block still migrates.
             const { depth, content } = stripBlockquote(line, fenceDepth);
             if (depth >= fenceDepth) {
-                // Still inside the block: preserve verbatim, never migrate. Only a
-                // matching closing fence (same marker, long enough, no info string)
-                // at the same quote depth ends it.
-                if (isClosingFence(content, fenceChar, fenceLen)) {
+                // If the fence opened inside a list item, its body and closing fence
+                // sit at the list's content indent - strip that before matching the
+                // closer. For a non-list fence fenceListIndent is 0, so this is a
+                // no-op and behaviour is identical to a plain top-level fence.
+                const { rest, indent } = stripLeadingSpaces(content, fenceListIndent);
+                if (fenceListIndent > 0 && indent < fenceListIndent && rest.trim() !== '') {
+                    // A non-blank line indented LESS than the list content has left
+                    // the list item, so per CommonMark the (unclosed) fence ends
+                    // here. Exit and fall through to reprocess the line - it may be a
+                    // real field or a NEW top-level fence (e.g. a bare ``` that would
+                    // otherwise be mistaken for this fence's closer). Blank lines stay
+                    // in the block.
                     fenceChar = null;
                     fenceLen = 0;
                     fenceDepth = 0;
+                    fenceListIndent = 0;
+                } else {
+                    // Still inside the block: preserve verbatim, never migrate. Only a
+                    // matching closing fence (same marker, long enough, no info string)
+                    // at the same quote + list depth ends it.
+                    if (isClosingFence(rest, fenceChar, fenceLen)) {
+                        fenceChar = null;
+                        fenceLen = 0;
+                        fenceDepth = 0;
+                        fenceListIndent = 0;
+                    }
+                    cleanedBodyLines.push(line);
+                    protectedFlags.push(true);
+                    continue;
                 }
-                cleanedBodyLines.push(line);
-                protectedFlags.push(true);
-                continue;
+            } else {
+                // Blockquote container exited: end the fence and fall through so this
+                // line is handled normally.
+                fenceChar = null;
+                fenceLen = 0;
+                fenceDepth = 0;
+                fenceListIndent = 0;
             }
-            // Blockquote container exited: end the fence and fall through so this
-            // line is handled normally.
-            fenceChar = null;
-            fenceLen = 0;
-            fenceDepth = 0;
         }
 
-        // Not inside a code block: an opening fence (top-level or blockquoted)
-        // starts one. Detect it on the blockquote-stripped content and remember the
-        // quote depth so the matching closer is recognised.
+        // Not inside a code block: an opening fence (top-level, blockquoted, or as
+        // the first content of a list item) starts one. Detect it on the
+        // blockquote-stripped content, after optionally stripping a list marker, and
+        // remember the quote depth + list indent so the matching closer is found.
         {
             const { depth, content } = stripBlockquote(line, Infinity);
-            const fence = openingFence(content);
+            const { rest, indent } = stripListMarker(content);
+            const fence = openingFence(rest);
             if (fence) {
                 fenceChar = fence.char;
                 fenceLen = fence.len;
                 fenceDepth = depth;
+                fenceListIndent = indent;
                 cleanedBodyLines.push(line);
                 protectedFlags.push(true);
                 continue;
@@ -349,23 +404,46 @@ function stripBlockquote(line, max) {
 }
 
 /**
- * Detect an opening code fence (``` or ~~~) on a line whose blockquote markers
- * have already been stripped. Per CommonMark a fence may be indented 0-3 spaces
- * (4+ is an indented code block) and may carry an info string. Returns
+ * Strip an optional leading list-item marker ("- ", "* ", "+ ", "1. ", "1) ")
+ * from a line whose blockquote markers have already been removed. Returns the
+ * remaining text and the number of columns the marker consumed (the list content
+ * indent). This lets a code fence that opens as the first content of a list item
+ * (e.g. "- ```") be recognised, with its body and closing fence tracked at that
+ * indent. A list marker is an unambiguous block container, so detecting it here is
+ * safe - unlike a bare indent, it cannot be confused with ordinary text.
+ */
+function stripListMarker(content) {
+    const match = content.match(/^ {0,3}(?:[-*+]|\d{1,9}[.)])\s+/);
+    if (!match) return { rest: content, indent: 0 };
+    return { rest: content.slice(match[0].length), indent: match[0].length };
+}
+
+/**
+ * Strip up to `max` leading spaces from a line. Returns the remaining text and the
+ * number of spaces actually removed.
+ */
+function stripLeadingSpaces(content, max) {
+    let indent = 0;
+    while (indent < max && content[indent] === ' ') indent += 1;
+    return { rest: content.slice(indent), indent };
+}
+
+/**
+ * Detect an opening code fence (``` or ~~~) on a line whose blockquote and list
+ * markers have already been stripped. Per CommonMark a fence may be indented 0-3
+ * spaces (4+ is an indented code block) and may carry an info string. Returns
  * { char, len } for the marker, or null.
  *
  * Out of scope - 4-space INDENTED code blocks are not detected. Telling a genuine
- * indented code block apart from list-continuation text needs list/paragraph block
- * context (CommonMark: indented code cannot interrupt a paragraph, a 4-space indent
- * under a list item is list content rather than code, and loose lists even put a
- * blank line before such continuation). A line-based script lacks that context, and
- * a partial heuristic would either reintroduce data loss (deleting indented code)
- * or cause the opposite bug - silently skipping a real inline field merely indented
- * under a list (Dataview parses those as fields, so users expect them to migrate).
- * Only indented code at the very start of the body is unambiguous, which is too
- * narrow to justify a separate indented-block parser. Fenced code (top-level and
- * blockquoted) and inline code ARE detected without that context and are preserved;
- * an inline-field-like line inside a genuine indented code block may still migrate.
+ * indented code block apart from indented text needs paragraph block context
+ * (CommonMark: indented code cannot interrupt a paragraph, and a 4-space indent
+ * under a list item is list content rather than code). A line-based script lacks
+ * that context, and a partial heuristic would either reintroduce data loss
+ * (deleting indented code) or cause the opposite bug - silently skipping a real
+ * inline field merely indented under a list (Dataview parses those as fields, so
+ * users expect them to migrate). Fenced code (top-level, blockquoted, AND list-
+ * nested) and inline code ARE detected and preserved; only an inline-field-like
+ * line inside a genuine INDENTED code block may still migrate.
  */
 function openingFence(line) {
     const match = line.match(/^ {0,3}(`{3,}|~{3,})/);
