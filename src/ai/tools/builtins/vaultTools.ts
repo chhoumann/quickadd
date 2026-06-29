@@ -104,6 +104,12 @@ export function createVaultTools(
 					.filter((f) => isWithinAllowedRoots(f.path, roots));
 				const results: Array<{ path: string; snippet?: string }> = [];
 				let scanned = 0;
+				// True once the content-scan cap forces us to skip a file we WOULD have
+				// scanned. Without this, a search whose only match sits past the 400th file
+				// returns truncated:false — telling the agent the term is absent when scanning
+				// silently stopped. Name matches are exhaustive (no scan cap), so the flag is
+				// only ever set on the content path.
+				let scanCapHit = false;
 				for (const f of files) {
 					if (results.length >= cap) break;
 					const nameHit = scope !== "content" && f.basename.toLowerCase().includes(q);
@@ -111,7 +117,11 @@ export function createVaultTools(
 						results.push({ path: f.path });
 						continue;
 					}
-					if (scope !== "name" && scanned < MAX_SEARCH_FILE_SCAN) {
+					if (scope !== "name") {
+						if (scanned >= MAX_SEARCH_FILE_SCAN) {
+							scanCapHit = true;
+							continue;
+						}
 						scanned++;
 						const text = await app.vault.cachedRead(f);
 						const idx = text.toLowerCase().indexOf(q);
@@ -120,7 +130,11 @@ export function createVaultTools(
 						}
 					}
 				}
-				return { results, scannedFiles: scanned, truncated: results.length >= cap };
+				return {
+					results,
+					scannedFiles: scanned,
+					truncated: results.length >= cap || scanCapHit,
+				};
 			},
 		}),
 
