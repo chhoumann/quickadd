@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { itPerf } from '../../../tests/perfUtils';
 import { FileIndex } from './FileIndex';
 import { normalizeForSearch } from './utils';
-import type { App, TFile, Vault, MetadataCache, Workspace } from 'obsidian';
+import { TFile } from 'obsidian';
+import type { App, Vault, MetadataCache, Workspace } from 'obsidian';
 
 // Test-specific subclass that allows resetting the singleton
 class TestableFileIndex extends FileIndex {
@@ -653,5 +654,158 @@ describe('FileIndex recency accessors (note-picker seam)', () => {
 		expect(lruKeys()).toEqual(['A.md', 'B.md', 'C.md']);
 		// And openedAt values survive the reindex unchanged.
 		expect(typeof fileIndex.getFile('A.md')?.openedAt).toBe('number');
+	});
+});
+
+describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
+	let mockApp: App;
+	let fileIndex: FileIndex;
+	// Captured vault event handlers (create/delete/rename) so a test can fire a
+	// mutation at a controlled moment: mid-reindex, between batch yields.
+	let vaultHandlers: Record<string, (file: TFile, oldPath?: string) => void>;
+
+	// A real TFile instance (not a cast): the create/delete/rename handlers guard
+	// with `instanceof TFile`, so a plain object would be silently ignored.
+	const mdFile = (path: string): TFile =>
+		Object.assign(new TFile(), {
+			path,
+			basename: (path.replace(/\.md$/, '').split('/').pop() ?? path),
+			extension: 'md',
+			parent: { path: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '' },
+			stat: { mtime: 1 },
+		});
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vaultHandlers = {};
+		TestableFileIndex.reset();
+		mockApp = createMockApp();
+		// Capture the vault listeners the index registers during construction.
+		(mockApp.vault.on as unknown as ReturnType<typeof vi.fn>) = vi.fn(
+			(event: string, handler: (file: TFile, oldPath?: string) => void) => {
+				vaultHandlers[event] = handler;
+				return {} as never;
+			},
+		);
+		mockApp.metadataCache.getFileCache = vi.fn(() => ({
+			frontmatter: {},
+			headings: [],
+			tags: [],
+		}));
+		const mockPlugin = { registerEvent: vi.fn((ref) => ref) } as any;
+		fileIndex = FileIndex.getInstance(mockApp, mockPlugin);
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	// Drives performReindex() to the point where it has snapshotted the vault and
+	// is parked on its first setTimeout(0) yield, then runs `duringWindow` (the
+	// concurrent mutation), then flushes the remaining yields and the swap+replay.
+	const reindexWith = async (
+		initial: TFile[],
+		duringWindow: () => void,
+	): Promise<void> => {
+		(mockApp.vault.getMarkdownFiles as any).mockReturnValue(initial);
+		const done = fileIndex.ensureIndexed(); // runs synchronously up to first yield
+		duringWindow();
+		await vi.runAllTimersAsync();
+		await done;
+	};
+
+	it('keeps a file CREATED during the async reindex window', async () => {
+		await reindexWith([mdFile('a.md'), mdFile('b.md')], () => {
+			vaultHandlers.create(mdFile('c.md'));
+		});
+
+		// Without the fix the create mutated the about-to-be-discarded old map and
+		// was suppressed by the isIndexing guard, so c.md vanished from the index.
+		expect(fileIndex.getFile('c.md')).toBeDefined();
+		expect(fileIndex.getIndexedFileCount()).toBe(3);
+	});
+
+	it('drops a file DELETED during the async reindex window', async () => {
+		await reindexWith([mdFile('a.md'), mdFile('b.md')], () => {
+			vaultHandlers.delete(mdFile('b.md'));
+		});
+
+		// Without the fix b.md was already in the snapshot/newFileMap and the
+		// concurrent delete was lost, leaving a stale ghost entry in the picker.
+		expect(fileIndex.getFile('b.md')).toBeUndefined();
+		expect(fileIndex.getIndexedFileCount()).toBe(1);
+	});
+
+	it('reflects a RENAME that lands during the async reindex window', async () => {
+		await reindexWith([mdFile('old.md'), mdFile('keep.md')], () => {
+			vaultHandlers.rename(mdFile('new.md'), 'old.md');
+		});
+
+		expect(fileIndex.getFile('old.md')).toBeUndefined();
+		expect(fileIndex.getFile('new.md')).toBeDefined();
+		expect(fileIndex.getIndexedFileCount()).toBe(2);
+	});
+
+	it('survives mutations fired between intermediate reindex batches (>50 files)', async () => {
+		// 60 files => 2 batches => a genuine intermediate setTimeout(0) yield, so
+		// the mutations land mid-build rather than only at the final yield.
+		const many = Array.from({ length: 60 }, (_, i) => mdFile(`f${i}.md`));
+		await reindexWith(many, () => {
+			vaultHandlers.create(mdFile('mid.md'));
+			vaultHandlers.delete(many[3]); // delete an already-snapshotted file
+		});
+
+		expect(fileIndex.getFile('mid.md')).toBeDefined();
+		expect(fileIndex.getFile('f3.md')).toBeUndefined();
+		expect(fileIndex.getIndexedFileCount()).toBe(60); // 60 - 1 deleted + 1 created
+	});
+
+	it('keeps a mid-build create even when the reindex itself throws', async () => {
+		// 60 files so the throw happens in the SECOND batch, after a real yield.
+		const files = Array.from({ length: 60 }, (_, i) => mdFile(`f${i}.md`));
+		(mockApp.vault.getMarkdownFiles as any).mockReturnValue(files);
+		mockApp.metadataCache.getFileCache = vi.fn((file: TFile) => {
+			if (file.path === 'f55.md') throw new Error('boom'); // build fails post-yield
+			return { frontmatter: {}, headings: [], tags: [] };
+		});
+
+		const done = fileIndex.ensureIndexed();
+		const settled = expect(done).rejects.toThrow('boom');
+		vaultHandlers.create(mdFile('rescued.md')); // fires during the first yield
+		await vi.runAllTimersAsync();
+		await settled;
+
+		// The reindex failed and never swapped, but because the handler applied to
+		// the still-live map (not only the discarded buffer), the concurrent create
+		// is not lost - and buffering is disarmed so later mutations resume normally.
+		expect(fileIndex.getFile('rescued.md')).toBeDefined();
+		expect(
+			(fileIndex as unknown as { reindexBuffer: unknown }).reindexBuffer,
+		).toBeNull();
+	});
+
+	it('coalesces a create-then-delete within the window to nothing', async () => {
+		await reindexWith([mdFile('a.md')], () => {
+			vaultHandlers.create(mdFile('tmp.md'));
+			vaultHandlers.delete(mdFile('tmp.md'));
+		});
+
+		expect(fileIndex.getFile('tmp.md')).toBeUndefined();
+		expect(fileIndex.getIndexedFileCount()).toBe(1);
+	});
+
+	it('leaves no buffer behind after the reindex completes (normal path resumes)', async () => {
+		await reindexWith([mdFile('a.md')], () => {});
+
+		const internals = fileIndex as unknown as {
+			reindexBuffer: unknown;
+			pendingFuseUpdates: Map<string, unknown>;
+		};
+		expect(internals.reindexBuffer).toBeNull();
+
+		// A post-reindex create now takes the normal incremental path again.
+		vaultHandlers.create(mdFile('later.md'));
+		expect(internals.pendingFuseUpdates.has('later.md')).toBe(true);
+		expect(fileIndex.getFile('later.md')).toBeDefined();
 	});
 });
