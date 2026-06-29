@@ -121,6 +121,12 @@ export class FileIndex {
 	private reindexTimeout: number | null = null;
 	private fuseUpdateTimeout: number | null = null;
 	private pendingFuseUpdates: Map<string, 'add' | 'update' | 'remove'> = new Map();
+	// Vault mutations (create/rename/delete/metadata-change) captured while a full
+	// reindex is building the replacement map. Non-null ONLY during
+	// performReindex(): the mutation handlers record into it (in addition to their
+	// normal work) so performReindex() can replay them onto the new map before
+	// rebuilding Fuse. See performReindex() for the full rationale.
+	private reindexBuffer: Map<string, { op: 'upsert' | 'remove'; file?: TFile }> | null = null;
 	private effectiveWeights: SearchWeightsConfig = SearchWeights;
 
 	protected constructor(app: App, plugin: Plugin) {
@@ -278,29 +284,67 @@ export class FileIndex {
 	}
 
 	private async performReindex(): Promise<void> {
-		const files = this.app.vault.getMarkdownFiles();
-		const newFileMap = new Map<string, IndexedFile>();
+		// Record vault mutations (create/rename/delete/metadata-change) that fire
+		// while we yield to the event loop below, so we can replay them onto the
+		// replacement map after the swap. The handlers keep mutating the live
+		// (old) map too: on success the old map is discarded and only the replay
+		// matters, but if the build throws before the swap the old map - still
+		// live - already holds them, so nothing is lost on the error path either.
+		// Without this, a file created/deleted mid-build vanished at the swap
+		// (scheduleFuseUpdate also suppresses incremental updates while indexing).
+		const buffer = new Map<string, { op: 'upsert' | 'remove'; file?: TFile }>();
+		this.reindexBuffer = buffer;
+		try {
+			const files = this.app.vault.getMarkdownFiles();
+			const newFileMap = new Map<string, IndexedFile>();
 
-		// Use requestIdleCallback for better performance if available
-		const processInBatches = async (items: TFile[], batchSize = 50) => {
-			for (let i = 0; i < items.length; i += batchSize) {
-				const batch = items.slice(i, i + batchSize);
-				
-				for (const file of batch) {
-					const indexedFile = this.createIndexedFile(file);
-					newFileMap.set(file.path, indexedFile);
+			// Use requestIdleCallback for better performance if available
+			const processInBatches = async (items: TFile[], batchSize = 50) => {
+				for (let i = 0; i < items.length; i += batchSize) {
+					const batch = items.slice(i, i + batchSize);
+
+					for (const file of batch) {
+						const indexedFile = this.createIndexedFile(file);
+						newFileMap.set(file.path, indexedFile);
+					}
+
+					// Yield control back to the event loop
+					await new Promise(resolve => window.setTimeout(resolve, 0));
 				}
+			};
 
-				// Yield control back to the event loop
-				await new Promise(resolve => window.setTimeout(resolve, 0));
+			await processInBatches(files);
+
+			this.fileMap = newFileMap;
+			// Replay concurrent mutations onto the fresh map BEFORE rebuilding
+			// Fuse, coalesced last-write-wins per path (an add-then-delete
+			// collapses to a delete; a rename's remove+add lands as both). The
+			// subsequent updateFuseIndex() rebuilds Fuse from the corrected map.
+			for (const [path, mutation] of buffer) {
+				if (mutation.op === 'remove') {
+					this.fileMap.delete(path);
+				} else if (mutation.file) {
+					this.fileMap.set(path, this.createIndexedFile(mutation.file));
+				}
 			}
-		};
-
-		await processInBatches(files);
-
-		this.fileMap = newFileMap;
-		this.updateFuseIndex();
-		this.updateUnresolvedLinks();
+			this.updateFuseIndex();
+			this.updateUnresolvedLinks();
+		} catch (error) {
+			// The build threw before the Fuse rebuild above. The mutation handlers
+			// applied their changes to the still-live fileMap, but their incremental
+			// Fuse updates were suppressed while indexing - so reconcile Fuse with
+			// fileMap now. Otherwise fuzzy search (which queries Fuse) would diverge
+			// from the exact/prefix tiers (which scan fileMap) until the next
+			// reindex. Best-effort: never let this mask the original failure.
+			try {
+				this.updateFuseIndex();
+			} catch {
+				/* leave Fuse as-is; the original error is what matters */
+			}
+			throw error;
+		} finally {
+			this.reindexBuffer = null;
+		}
 	}
 
 	private extractAliases(frontmatter?: Record<string, unknown>): string[] {
@@ -385,6 +429,8 @@ export class FileIndex {
 		const indexedFile = this.createIndexedFile(file);
 		this.fileMap.set(file.path, indexedFile);
 		this.scheduleFuseUpdate(file.path, 'add');
+		// Mid-reindex: also remember this so it survives the upcoming map swap.
+		this.reindexBuffer?.set(file.path, { op: 'upsert', file });
 	}
 
 	private updateFile(file: TFile): void {
@@ -393,6 +439,7 @@ export class FileIndex {
 		this.fileMap.set(file.path, indexedFile);
 		this.scheduleFuseUpdate(file.path, 'update');
 		this.unresolvedLinksDirty = true;
+		this.reindexBuffer?.set(file.path, { op: 'upsert', file });
 	}
 
 	private removeFile(file: TFile): void {
@@ -402,6 +449,7 @@ export class FileIndex {
 	private removeFileByPath(path: string): void {
 		this.fileMap.delete(path);
 		this.scheduleFuseUpdate(path, 'remove');
+		this.reindexBuffer?.set(path, { op: 'remove' });
 	}
 
 	private updateFuseIndex(): void {

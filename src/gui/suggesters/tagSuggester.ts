@@ -1,17 +1,15 @@
-import Fuse from "fuse.js";
 import type { App } from "obsidian";
 import { TAG_REGEX } from "../../constants";
 import { TextInputSuggest } from "./suggest";
 import { replaceRange } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
+import { TagIndex } from "./TagIndex";
 
 export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputStart = 0;
 	private lastInputLength = 0;
-	private tagSet: Set<string>;
-	private sortedTags: string[];
-	private fuse: Fuse<string>;
+	private tagIndex: TagIndex;
 
 	constructor(
 		public app: App,
@@ -19,37 +17,15 @@ export class TagSuggester extends TextInputSuggest<string> {
 	) {
 		super(app, inputEl);
 
-		this.refreshTagIndex();
-
-		// Listen to metadata cache changes to refresh tag index
-		// Using registerEvent for automatic cleanup when plugin unloads
-		getQuickAddInstance().registerEvent(
-			this.app.metadataCache.on("resolved", () => this.refreshTagIndex())
-		);
-	}
-
-	private refreshTagIndex(): void {
-		// Build and sort the tag list once
-		// @ts-expect-error - getTags is available but not in the type definitions
-		const tagObj = this.app.metadataCache.getTags();
-		const tags = Object.keys(tagObj);
-
-		this.tagSet = new Set(tags);
-
-		// Sort tags: prefer shorter tags first, then alphabetically
-		this.sortedTags = tags.sort((a, b) => {
-			if (a.length !== b.length) {
-				return a.length - b.length;
-			}
-			return a.localeCompare(b);
-		});
-
-		// Setup Fuse for fuzzy search
-		this.fuse = new Fuse(this.sortedTags, {
-			threshold: 0.4,
-			includeScore: true,
-			keys: [""],
-		});
+		// Read from the shared, vault-wide tag index instead of building a
+		// per-instance Fuse index and registering a per-instance, plugin-lifetime
+		// metadataCache listener. The latter leaked one TagSuggester per opened
+		// prompt and amplified every 'resolved' event into a redundant rebuild.
+		this.tagIndex = TagIndex.getInstance(app, getQuickAddInstance());
+		// Refresh on open so this prompt sees the current tags even if no
+		// 'resolved' event has fired since the vault's tags last changed -
+		// preserving the old per-prompt freshness, now with one shared listener.
+		this.tagIndex.refresh();
 	}
 
 	getSuggestions(inputStr: string): string[] {
@@ -79,13 +55,19 @@ export class TagSuggester extends TextInputSuggest<string> {
 		this.lastInputStart = tagMatch.index;
 		this.lastInputLength = tagMatch[0].length;
 
-		// Prefix matches first
-		const prefixMatches = this.sortedTags.filter(tag =>
-			tag.toLowerCase().startsWith(tagInput.toLowerCase())
+		const sortedTags = this.tagIndex.getSortedTags();
+
+		// Prefix matches first. getTags() keys carry a leading '#' but the query
+		// (the TAG_REGEX capture) does not, so compare against the tag with its
+		// '#' stripped - otherwise the prefix path never matches and the intended
+		// prefix-first, shortest-first ordering silently degrades to Fuse's order.
+		const tagInputLower = tagInput.toLowerCase();
+		const prefixMatches = sortedTags.filter(tag =>
+			tag.replace(/^#/, "").toLowerCase().startsWith(tagInputLower)
 		).slice(0, 5);
 
 		// Then fuzzy matches
-		const fuzzyResults = this.fuse.search(tagInput)
+		const fuzzyResults = this.tagIndex.search(tagInput)
 			.filter(result => result.score !== undefined && result.score < 0.8)
 			.map(result => result.item)
 			.slice(0, 10);

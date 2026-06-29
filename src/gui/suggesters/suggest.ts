@@ -228,6 +228,13 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			existingOfSameClass.destroy();
 		}
 
+		// destroy() above removes the replaced instance from instanceMap, and if it
+		// was this input's last entry it deletes the whole per-input map - detaching
+		// our local `byClass`. Re-attach before registering ourselves so this
+		// instance stays discoverable for the next same-class dedup; otherwise a
+		// later suggester misses it and never tears it down, leaking its input
+		// listeners and spawning duplicate popups.
+		instanceMap.set(inputEl, byClass);
 		byClass.set(classKey, this);
 
 		this.app = app;
