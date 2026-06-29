@@ -78,7 +78,7 @@ const FLAG_META: Record<PreviewFlag, FlagMeta> = {
 	"bundled-script": {
 		severity: "critical",
 		label: "SCRIPT FILE",
-		description: "Bundles a JavaScript file that will be written to your vault and can be run as code.",
+		description: "Bundles a file that will be written to your vault and can be run as code.",
 	},
 	"run-on-startup": {
 		severity: "critical",
@@ -169,16 +169,19 @@ function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
 	return kind === "user-script" || kind === "conditional-script";
 }
 
-// A bundled asset that can be executed as code: a declared script kind, OR
-// any file with a `.js` destination path — because `kind` is an untrusted
-// hint and a macro (in this package or already in the vault) will load any
-// `.js` at its path as a user script. Path-only check keeps this App-free.
-const EXECUTABLE_ASSET_PATH_REGEX = /\.js$/i;
+// A bundled asset that can be executed as code: a declared script kind, OR any
+// non-`.md` file — because `kind` is an untrusted hint and a macro (in this
+// package or already in the vault) loads it via the user-script loader, which
+// runs the RAW bytes of ANY non-`.md` file as JavaScript (src/utils/userScript.ts:
+// only `.md` is special-cased, to extract its first ```js fence). A `.js`-only
+// check under-discloses: a payload at `scripts/x.txt`, `x.cjs`, or no extension
+// runs identically. `.md` notes are handled by markdownAssetIsExecutable so plain
+// templates stay un-flagged. Path-only check keeps this App-free.
 function isExecutableBundledAsset(
 	kind: QuickAddPackageAssetKind,
 	originalPath: string,
 ): boolean {
-	return isScriptKind(kind) || EXECUTABLE_ASSET_PATH_REGEX.test(originalPath);
+	return isScriptKind(kind) || !MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath);
 }
 
 // Since #1065 a `.md` note is loadable as a user script (its first ```js fence
@@ -816,18 +819,19 @@ export function buildPackagePreview(
 		});
 	}
 
-	// A bundled script file is written to disk and can be executed by any macro
-	// that points at its path (in this package OR already in the user's vault),
-	// so it must be reviewed even when no choice in THIS package references it.
-	// isExecutableBundledAsset covers both declared script kinds AND `.js`-path
-	// assets that lie about their `kind`.
+	// A bundled file written to disk can be executed by any macro that points at
+	// its path (in this package OR already in the user's vault), so it must be
+	// reviewed even when no choice in THIS package references it.
+	// isExecutableBundledAsset covers declared script kinds AND every non-`.md`
+	// path (the loader runs the raw bytes of any non-`.md` file), regardless of
+	// what `kind` the package claims.
 	for (const file of files) {
 		if (!file.requiresReview) continue;
 		if (file.executable) continue; // already a critical user-script/mislabeled row + in criticalScriptPaths
 		capabilityRows.push({
 			flag: "bundled-script",
 			severity: "critical",
-			title: "Bundles a script file that will be written to your vault",
+			title: "Bundles a file that will be written to your vault and can be run as code",
 			detail: file.originalPath,
 			scriptPath: file.originalPath,
 		});

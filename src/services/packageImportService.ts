@@ -129,7 +129,36 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		);
 	}
 
+	// Reject duplicate asset paths at the untrusted-input boundary. The writer is
+	// last-write-wins per destination while the review pane resolves the FIRST
+	// match (decodeAssetPreview), so two assets at one path could show benign bytes
+	// in review while malicious bytes land on disk — a silent review-gate desync.
+	// Failing closed here keeps reviewed bytes identical to written bytes.
+	const duplicateAssetPath = findDuplicateAssetPath(parsed.assets);
+	if (duplicateAssetPath !== null) {
+		throw new Error(
+			`Package contains duplicate asset path "${duplicateAssetPath}". Each asset must have a unique path.`,
+		);
+	}
+
 	return parsed;
+}
+
+function findDuplicateAssetPath(
+	assets: QuickAddPackage["assets"],
+): string | null {
+	const seen = new Set<string>();
+	for (const asset of assets) {
+		// Key on the normalized destination the writer collides on (so "scripts//x.js"
+		// and "scripts/x.js" — distinct strings, one on-disk file — are caught too),
+		// not the raw string. normalizePath only collapses slashes/whitespace; it does
+		// not resolve "..", so escaping paths still compare honestly (and the write
+		// path rejects them regardless).
+		const key = normalizePath(asset.originalPath ?? "");
+		if (seen.has(key)) return asset.originalPath;
+		seen.add(key);
+	}
+	return null;
 }
 
 export async function analysePackage(
@@ -502,6 +531,40 @@ export async function applyPackageImport(
 		return { asset, destinationPath };
 	});
 
+	// Resolved-destination uniqueness, as a PRE-PASS before any write: two assets
+	// can carry DISTINCT originalPaths yet resolve to ONE on-disk destination — the
+	// import modal defaults every template/capture asset to
+	// `<templateFolder>/<basename>`, so "A/x.md" and "B/x.md" both land at
+	// "Templates/x.md". Parse-time dedup keys on originalPath and can't see that.
+	// Writing them in sequence is silent last-write-wins: the user reviewed two
+	// files but only one set of bytes survives, and a choice rewired to that path
+	// (applyAssetPathOverrides) then runs the surviving bytes — breaking the
+	// "what you reviewed is what lands" gate. Refuse the whole import instead.
+	// Skipped assets never write, so they cannot collide.
+	// Fold case ONLY on a case-insensitive vault (macOS/Windows), where
+	// "Scripts/x.js" and "scripts/x.js" are ONE physical file. On a case-sensitive
+	// vault they are distinct files a legitimate package may ship, so comparing
+	// folded would wrongly reject a valid import.
+	const foldCase = await isVaultCaseInsensitive(app);
+	const destinationOwners = new Map<
+		string,
+		{ originalPath: string; destinationPath: string }
+	>();
+	for (const { asset, destinationPath } of resolvedAssetDestinations) {
+		if (assetDecisionMap.get(asset.originalPath)?.mode === "skip") continue;
+		const key = foldCase ? destinationPath.toLowerCase() : destinationPath;
+		const prior = destinationOwners.get(key);
+		if (prior) {
+			throw new Error(
+				`Refusing to import: assets "${prior.originalPath}" and "${asset.originalPath}" resolve to the same destination ("${destinationPath}"). Rename one so each imported file is unique.`,
+			);
+		}
+		destinationOwners.set(key, {
+			originalPath: asset.originalPath,
+			destinationPath,
+		});
+	}
+
 	// Symlink/realpath containment, as a PRE-PASS before any write: if a
 	// destination resolves through a pre-existing in-vault symlink to outside the
 	// vault, abort the whole import before touching disk. Every destination is
@@ -580,6 +643,27 @@ function buildSecretOptionNamesByPath(
 async function assetExists(app: App, path: string): Promise<boolean> {
 	try {
 		return await app.vault.adapter.exists(path);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Probe whether the vault filesystem is case-insensitive (macOS/Windows). A
+ * case-swapped variant of the always-present config dir resolves to the same
+ * entry only when the filesystem ignores case. Used to decide whether two
+ * destination paths that differ only by case denote one physical file.
+ */
+async function isVaultCaseInsensitive(app: App): Promise<boolean> {
+	const configDir = app.vault.configDir;
+	if (!configDir) return false;
+	const swapped =
+		configDir === configDir.toLowerCase()
+			? configDir.toUpperCase()
+			: configDir.toLowerCase();
+	if (swapped === configDir) return false;
+	try {
+		return await app.vault.adapter.exists(swapped);
 	} catch {
 		return false;
 	}
