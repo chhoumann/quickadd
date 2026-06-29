@@ -288,6 +288,14 @@ export default class GenericWideInputPrompt extends Modal {
 		this.persistDraft();
 		this.resolveInput();
 		this.removeInputListener();
+		// Tear down the suggesters deterministically. close() intentionally keeps
+		// each suggester's input/focus/blur listeners and its instanceMap entry
+		// alive so typing can reopen the dropdown; destroy() removes those and,
+		// via close(), the popper plus the global document/window listeners - so
+		// nothing lingers past the modal (and nothing leaks if the dropdown was
+		// still open at teardown). Optional-chained for the constructor-throw path.
+		this.fileSuggester?.destroy();
+		this.tagSuggester?.destroy();
 		super.onClose();
 	}
 }
