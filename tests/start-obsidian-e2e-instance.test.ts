@@ -208,15 +208,16 @@ function u32(n: number): Buffer {
 
 // Build a spec-correct asar (matching the real Pickle layout: [size pickle][header
 // pickle][file data], with the header JSON 4-byte aligned inside the header
-// pickle). `extraJsonPad` widens the header JSON so its length lands on a chosen
-// 4-byte residue, exercising the alignment padding that a naive `16 + jsonLength`
+// pickle). `extraJsonPad` widens the header JSON by EXACTLY that many bytes (the
+// `_pad` key is always present, so each +1 shifts the length to the next 4-byte
+// residue) — exercising the alignment padding that a naive `16 + jsonLength`
 // reader gets wrong.
 function buildAsar(version: string, extraJsonPad = 0): Buffer {
 	const pkg = Buffer.from(JSON.stringify({ version }), "utf8");
 	const files: Record<string, unknown> = {
 		"package.json": { offset: "0", size: pkg.length },
+		_pad: "x".repeat(extraJsonPad),
 	};
-	if (extraJsonPad > 0) files._pad = "x".repeat(extraJsonPad);
 	const json = Buffer.from(JSON.stringify({ files }), "utf8");
 	const aligned = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4)]);
 	const headerPayload = Buffer.concat([u32(json.length), aligned]);
@@ -303,18 +304,22 @@ describe("resolveObsidianAppVersion", () => {
 		// Real asar headers are arbitrary lengths; the parser must not assume the
 		// header JSON is 4-byte aligned. Cover all four residues — a reader that uses
 		// `16 + jsonLength` instead of the header pickle size misreads 3 of these.
+		const residues = new Set<number>();
 		for (let pad = 0; pad < 4; pad++) {
+			const asar = buildAsar("1.13.0", pad);
+			// Header JSON length lives at byte 12 (raw, pre-alignment) in the layout.
+			residues.add(asar.readUInt32LE(12) % 4);
 			const dir = await makeTempDir("asar-align");
-			await fs.writeFile(
-				path.join(dir, "obsidian-1.13.0.asar"),
-				buildAsar("1.13.0", pad),
-			);
+			await fs.writeFile(path.join(dir, "obsidian-1.13.0.asar"), asar);
 			const resolved = await resolveObsidianAppVersion({
 				obsidianConfigDir: dir,
 				bundledAsarCandidates: [],
 			});
 			expect(resolved.appVersion, `pad=${pad}`).toBe("1.13.0");
 		}
+		// Guard the guard: prove the four builds really span all four residues, so a
+		// future tweak can't silently collapse coverage (as an earlier version did).
+		expect(residues).toEqual(new Set([0, 1, 2, 3]));
 	});
 });
 
