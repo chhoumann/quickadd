@@ -3,12 +3,15 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+	assertObsidianMeetsMinAppVersion,
 	assertSecureDirIfPresent,
+	compareObsidianVersions,
 	ensureSecureDir,
 	INSTANCE_MARKER_FILE,
 	parseArgs,
 	prepareObsidianProfile,
 	resolveInstanceOptions,
+	resolveObsidianAppVersion,
 	toInstanceShellExports,
 } from "../scripts/start-obsidian-e2e-instance.mjs";
 
@@ -194,6 +197,142 @@ describe("assertSecureDirIfPresent", () => {
 		await expect(assertSecureDirIfPresent(link)).rejects.toThrow(
 			/symlink or not a regular directory/,
 		);
+	});
+});
+
+// Build a minimal asar archive whose package.json carries `version`, laid out to
+// match readAsarPackageVersion's parser (header size at byte 12, header at 16,
+// file data at 16 + headerSize + offset).
+function buildAsar(version: string): Buffer {
+	const pkg = Buffer.from(JSON.stringify({ version }), "utf8");
+	const header = Buffer.from(
+		JSON.stringify({ files: { "package.json": { offset: "0", size: pkg.length } } }),
+		"utf8",
+	);
+	const prefix = Buffer.alloc(16);
+	prefix.writeUInt32LE(4, 0);
+	prefix.writeUInt32LE(header.length + 8, 4);
+	prefix.writeUInt32LE(header.length + 4, 8);
+	prefix.writeUInt32LE(header.length, 12);
+	return Buffer.concat([prefix, header, pkg]);
+}
+
+async function makeConfigDir(versions: string[]): Promise<string> {
+	const dir = await makeTempDir("obsidian-config");
+	// Real asars (carrying their own package.json version), so the resolver reads
+	// the same code path it does against a live config dir, not a filename shortcut.
+	await Promise.all(
+		versions.map((v) => fs.writeFile(path.join(dir, `obsidian-${v}.asar`), buildAsar(v))),
+	);
+	return dir;
+}
+
+async function makeWorktreeWithManifest(minAppVersion: string): Promise<string> {
+	const dir = await makeTempDir("quickadd-worktree");
+	await fs.writeFile(
+		path.join(dir, "manifest.json"),
+		JSON.stringify({ id: "quickadd", minAppVersion }),
+	);
+	return dir;
+}
+
+describe("compareObsidianVersions", () => {
+	it("orders by major, minor, then patch and ignores suffixes", () => {
+		expect(compareObsidianVersions("1.13.0", "1.13.0")).toBe(0);
+		expect(compareObsidianVersions("1.13.1", "1.13.0")).toBeGreaterThan(0);
+		expect(compareObsidianVersions("1.12.7", "1.13.0")).toBeLessThan(0);
+		expect(compareObsidianVersions("1.13.0-insider", "1.13.0")).toBe(0);
+		expect(compareObsidianVersions("2.0.0", "1.99.99")).toBeGreaterThan(0);
+	});
+});
+
+describe("resolveObsidianAppVersion", () => {
+	it("picks the newest installed asar in the config dir", async () => {
+		const configDir = await makeConfigDir(["1.12.7", "1.13.0"]);
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [],
+		});
+		expect(resolved.appVersion).toBe("1.13.0");
+		expect(resolved.cachedVersions.sort()).toEqual(["1.12.7", "1.13.0"]);
+	});
+
+	it("floors at the bundled installer asar when the config dir is empty", async () => {
+		const configDir = await makeConfigDir([]);
+		const bundled = path.join(await makeTempDir("obsidian-app"), "obsidian.asar");
+		await fs.writeFile(bundled, buildAsar("1.12.7"));
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [bundled],
+		});
+		expect(resolved.appVersion).toBe("1.12.7");
+		expect(resolved.installerVersion).toBe("1.12.7");
+	});
+
+	it("returns null appVersion when nothing can be determined", async () => {
+		const configDir = await makeConfigDir([]);
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [path.join(configDir, "does-not-exist.asar")],
+		});
+		expect(resolved.appVersion).toBeNull();
+	});
+
+	it("skips a partial/corrupt cached asar instead of trusting its filename", async () => {
+		// A half-downloaded obsidian-1.13.0.asar (truncated/garbage) must NOT count as
+		// a runnable 1.13.0 — Obsidian would fall back to the valid 1.12.7 build.
+		const configDir = await makeConfigDir(["1.12.7"]);
+		await fs.writeFile(path.join(configDir, "obsidian-1.13.0.asar"), "not-a-real-asar");
+		const resolved = await resolveObsidianAppVersion({
+			obsidianConfigDir: configDir,
+			bundledAsarCandidates: [],
+		});
+		expect(resolved.appVersion).toBe("1.12.7");
+		expect(resolved.cachedVersions).toEqual(["1.12.7"]);
+	});
+});
+
+describe("assertObsidianMeetsMinAppVersion", () => {
+	it("passes when the running app meets minAppVersion (green)", async () => {
+		const worktreePath = await makeWorktreeWithManifest("1.13.0");
+		const configDir = await makeConfigDir(["1.12.7", "1.13.0"]);
+		await expect(
+			assertObsidianMeetsMinAppVersion({
+				worktreePath,
+				obsidianConfigDir: configDir,
+				bundledAsarCandidates: [],
+			}),
+		).resolves.toEqual({
+			appVersion: "1.13.0",
+			installerVersion: null,
+			minAppVersion: "1.13.0",
+		});
+	});
+
+	it("fails loudly when Obsidian fell back below minAppVersion (red)", async () => {
+		const worktreePath = await makeWorktreeWithManifest("1.13.0");
+		// Only a sub-minimum 1.12.7 build installed — the exact fallback that made
+		// setDestructive look "absent on 1.13.0".
+		const configDir = await makeConfigDir(["1.12.7"]);
+		await expect(
+			assertObsidianMeetsMinAppVersion({
+				worktreePath,
+				obsidianConfigDir: configDir,
+				bundledAsarCandidates: [],
+			}),
+		).rejects.toThrow(/1\.12\.7 is BELOW the plugin's minAppVersion 1\.13\.0/);
+	});
+
+	it("refuses to run when the app version cannot be determined", async () => {
+		const worktreePath = await makeWorktreeWithManifest("1.13.0");
+		const configDir = await makeConfigDir([]);
+		await expect(
+			assertObsidianMeetsMinAppVersion({
+				worktreePath,
+				obsidianConfigDir: configDir,
+				bundledAsarCandidates: [],
+			}),
+		).rejects.toThrow(/Could not determine the running Obsidian app version/);
 	});
 });
 

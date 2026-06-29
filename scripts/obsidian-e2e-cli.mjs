@@ -5,6 +5,7 @@ import process from "node:process";
 import { promisify } from "node:util";
 import { provisionVault } from "./provision-obsidian-e2e-vault.mjs";
 import {
+	assertObsidianMeetsMinAppVersion,
 	ensureSecureDir,
 	launchObsidianInstance,
 	parseArgs as parseInstanceArgs,
@@ -124,6 +125,17 @@ export async function ensureObsidianInstance(options) {
 	const provisionResult = await provisionVault(options);
 	const profileResult = await prepareObsidianProfile(options);
 	options.userDataPath = profileResult.userDataPath;
+
+	// Assert the Obsidian app-code version BEFORE launching or reusing an instance:
+	// a build below minAppVersion makes every "missing API" e2e failure a false
+	// signal, so abort with a clear version error instead of spawning (or trusting
+	// a reused) sub-minimum instance. Stderr keeps the note off command stdout.
+	const compatibility = await assertObsidianMeetsMinAppVersion(options);
+	console.error(
+		`Obsidian app ${compatibility.appVersion}` +
+			`${compatibility.installerVersion ? ` (installer ${compatibility.installerVersion})` : ""}` +
+			`, plugin minAppVersion ${compatibility.minAppVersion}`,
+	);
 
 	if (!(await isInstanceReady(options))) {
 		await launchObsidianInstance(options);
