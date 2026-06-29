@@ -174,6 +174,17 @@ describe("getReleaseNotesAfter", () => {
 		);
 	});
 
+	it("rejects an error status even when the body is an array (no bogus release notes)", async () => {
+		// An intermediary could pair a 5xx with a stale array body; an error status
+		// must be a failure regardless of body shape, never surfaced as releases.
+		mockResponse(503, [
+			{ tag_name: "9.9.9", body: "stale", draft: false, prerelease: false },
+		]);
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
+			"Failed to fetch releases: Unknown error",
+		);
+	});
+
 	it("throws a clear error when the start tag is absent from the releases array", async () => {
 		mockResponse(200, [{ tag_name: "9.9.9", body: "", draft: false, prerelease: false }]);
 		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(

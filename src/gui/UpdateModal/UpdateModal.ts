@@ -39,13 +39,15 @@ export async function getReleaseNotesAfter(
 
 	const body: unknown = response.json;
 
-	if (!Array.isArray(body)) {
-		// A non-array body means there are no releases to page through: GitHub's
-		// error shape is `{ message }`, but an intermediary can also return a
-		// literal `null`/primitive. Read `.message` only when it's actually a
-		// string, so a null/primitive body degrades to "Unknown error" instead of
-		// throwing a TypeError (`null.message` / `"message" in null`) that would
-		// mask the real failure.
+	// Treat any error status OR a non-array body as a failure. GitHub returns the
+	// release list (a JSON array) only on success and a `{ message }` object on
+	// error, but with `throw: false` an error status still reaches here - and an
+	// intermediary can return an error status alongside a stale array or a literal
+	// `null`/primitive. Read `.message` only when it's actually a string, so a
+	// null/primitive body degrades to "Unknown error" instead of throwing a
+	// TypeError (`null.message` / `"message" in null`) that would mask the real
+	// failure.
+	if (response.status >= 400 || !Array.isArray(body)) {
 		const message =
 			typeof body === "object" &&
 			body !== null &&
