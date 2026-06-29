@@ -12,6 +12,7 @@
 import { type App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "../../../utilityObsidian";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
+import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
 import type { JSONSchema } from "../NormalizedTools";
@@ -30,14 +31,13 @@ export function createVaultTools(
 	options: BuiltinGroupOptions = {},
 ): ToolSetMap {
 	const roots = options.allowedRoots;
-	const withinRoots = (path: string) => {
-		try {
-			sanitizeVaultPath(path, { allowedRoots: roots });
-			return true;
-		} catch {
-			return false;
-		}
-	};
+	// The read tools below confine results to the allowedRoots fence by filtering each
+	// app-owned TFile.path through isWithinAllowedRoots — the SAME identity-preserving
+	// predicate the workspace group uses (#1432). A TFile.path is an identity, so it is
+	// compared NFC-only and never trimmed/re-spelled; that is what stops a sibling folder
+	// named " AI" from masquerading as the allowed root "AI". sanitizeVaultPath is kept
+	// only for MODEL-CHOSEN inputs (read_note's path and the folder args), where trimming
+	// and structural validation are correct. Absent/all-blank roots ⇒ vault-wide.
 
 	const tools: ToolSetMap = {
 		read_note: tool({
@@ -74,7 +74,7 @@ export function createVaultTools(
 				const base = folder ? sanitizeVaultPath(String(folder), { allowedRoots: roots }) : "";
 				const cap = clamp(toInt(limit, DEFAULT_LIST), 1, MAX_LIST);
 				const files = getMarkdownFilesInFolder(app, base).filter((f) =>
-					roots ? withinRoots(f.path) : true,
+					isWithinAllowedRoots(f.path, roots),
 				);
 				return {
 					total: files.length,
@@ -101,9 +101,15 @@ export function createVaultTools(
 				const cap = clamp(toInt(limit, DEFAULT_SEARCH), 1, MAX_SEARCH);
 				const files = app.vault
 					.getMarkdownFiles()
-					.filter((f) => (roots ? withinRoots(f.path) : true));
+					.filter((f) => isWithinAllowedRoots(f.path, roots));
 				const results: Array<{ path: string; snippet?: string }> = [];
 				let scanned = 0;
+				// True once the content-scan cap forces us to skip a file we WOULD have
+				// scanned. Without this, a search whose only match sits past the 400th file
+				// returns truncated:false — telling the agent the term is absent when scanning
+				// silently stopped. Name matches are exhaustive (no scan cap), so the flag is
+				// only ever set on the content path.
+				let scanCapHit = false;
 				for (const f of files) {
 					if (results.length >= cap) break;
 					const nameHit = scope !== "content" && f.basename.toLowerCase().includes(q);
@@ -111,7 +117,11 @@ export function createVaultTools(
 						results.push({ path: f.path });
 						continue;
 					}
-					if (scope !== "name" && scanned < MAX_SEARCH_FILE_SCAN) {
+					if (scope !== "name") {
+						if (scanned >= MAX_SEARCH_FILE_SCAN) {
+							scanCapHit = true;
+							continue;
+						}
 						scanned++;
 						const text = await app.vault.cachedRead(f);
 						const idx = text.toLowerCase().indexOf(q);
@@ -120,7 +130,11 @@ export function createVaultTools(
 						}
 					}
 				}
-				return { results, scannedFiles: scanned, truncated: results.length >= cap };
+				return {
+					results,
+					scannedFiles: scanned,
+					truncated: results.length >= cap || scanCapHit,
+				};
 			},
 		}),
 
@@ -136,7 +150,7 @@ export function createVaultTools(
 				const base = folder ? sanitizeVaultPath(String(folder), { allowedRoots: roots }) : "";
 				const files = (
 					folder ? getMarkdownFilesInFolder(app, base) : app.vault.getMarkdownFiles()
-				).filter((f) => (roots ? withinRoots(f.path) : true));
+				).filter((f) => isWithinAllowedRoots(f.path, roots));
 				const values = new Set<string>();
 				for (const f of files) {
 					const fm = app.metadataCache.getFileCache(f)?.frontmatter;

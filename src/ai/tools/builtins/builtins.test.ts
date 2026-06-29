@@ -223,3 +223,124 @@ describe("workspace tools — allowedRoots confinement", () => {
 		});
 	});
 });
+
+// allowedRoots confinement for the vault READ group (#714, other-confinement-bypass).
+// list_notes/search_notes/get_property_values filter app-owned TFile.path against the
+// fence. A TFile.path is an IDENTITY, so the filter must compare it without trimming or
+// re-spelling — otherwise a sibling folder named " AI" (leading space) trims to "AI" and
+// masquerades as the allowed root, leaking out-of-fence paths/snippets/frontmatter into
+// the LLM transcript. (Same class the workspace group fixed in #1432; a leading-space
+// folder is creatable in Obsidian and getMarkdownFiles() preserves the space — verified
+// live.)
+describe("vault read tools — allowedRoots confinement is identity-preserving", () => {
+	const ctx = (name: string) => ({ toolCallId: "c", toolName: name });
+
+	// A real leading-space sibling folder " AI" alongside the allowed root "AI".
+	const SIBLING = fileLike(" AI/secret.md", "secret");
+	const INROOT = fileLike("AI/ok.md", "ok");
+
+	it("list_notes (no folder) excludes a leading-space sibling of the root", async () => {
+		const app = makeApp({ vault: { getMarkdownFiles: () => [SIBLING, INROOT] } });
+		const tools = createVaultTools(app, { allowedRoots: ["AI"] });
+		const res = (await tools.list_notes.execute({}, ctx("list_notes"))) as {
+			total: number;
+			notes: Array<{ path: string }>;
+		};
+		expect(res.notes.map((n) => n.path)).toEqual(["AI/ok.md"]);
+		expect(res.total).toBe(1);
+	});
+
+	it("search_notes excludes a leading-space sibling of the root", async () => {
+		const cachedRead = vi.fn(async (f: TFile) => (f.path === " AI/secret.md" ? "needle" : "haystack"));
+		const app = makeApp({ vault: { getMarkdownFiles: () => [SIBLING, INROOT], cachedRead } });
+		const tools = createVaultTools(app, { allowedRoots: ["AI"] });
+		const res = (await tools.search_notes.execute(
+			{ query: "needle", in: "content" },
+			ctx("search_notes"),
+		)) as { results: Array<{ path: string }> };
+		expect(res.results.map((r) => r.path)).toEqual([]);
+		// The out-of-fence sibling must never be read for content.
+		expect(cachedRead).not.toHaveBeenCalledWith(SIBLING);
+	});
+
+	it("get_property_values (no folder) excludes a leading-space sibling of the root", async () => {
+		const getFileCache = vi.fn((f: TFile) => ({
+			frontmatter: { status: f.path === " AI/secret.md" ? "LEAKED" : "ok" },
+		}));
+		const app = makeApp({
+			vault: { getMarkdownFiles: () => [SIBLING, INROOT] },
+			metadataCache: { getFileCache },
+		});
+		const tools = createVaultTools(app, { allowedRoots: ["AI"] });
+		const res = (await tools.get_property_values.execute(
+			{ field: "status" },
+			ctx("get_property_values"),
+		)) as { values: string[] };
+		expect(res.values).toEqual(["ok"]);
+	});
+
+	it("default (no roots) lists every folder unchanged", async () => {
+		const app = makeApp({ vault: { getMarkdownFiles: () => [SIBLING, INROOT] } });
+		const tools = createVaultTools(app);
+		const res = (await tools.list_notes.execute({}, ctx("list_notes"))) as {
+			notes: Array<{ path: string }>;
+		};
+		expect(res.notes.map((n) => n.path).sort()).toEqual([" AI/secret.md", "AI/ok.md"]);
+	});
+});
+
+// search_notes completeness flag (#714, other-logic-bug). Content scanning is capped at
+// MAX_SEARCH_FILE_SCAN (400). When that cap is hit while files remain, `truncated` must
+// be true so the agent knows coverage was partial — returning truncated:false would tell
+// the agent the term is absent / the search was exhaustive when it silently stopped.
+describe("search_notes — content-scan cap reports truncated", () => {
+	const ctx = (name: string) => ({ toolCallId: "c", toolName: name });
+
+	it("flags truncated when the >400th file (the only match) is never scanned", async () => {
+		// 401 markdown files. Only the LAST one contains the query; the first 400 do not.
+		const files: TFile[] = [];
+		for (let i = 0; i < 400; i++) files.push(fileLike(`big/note${i}.md`, `note${i}`));
+		files.push(fileLike("big/match.md", "match"));
+		const cachedRead = vi.fn(async (f: TFile) => (f.path === "big/match.md" ? "the needle is here" : "no hit"));
+		const app = makeApp({ vault: { getMarkdownFiles: () => files, cachedRead } });
+		const tools = createVaultTools(app);
+		const res = (await tools.search_notes.execute(
+			{ query: "needle", in: "content" },
+			ctx("search_notes"),
+		)) as { results: unknown[]; scannedFiles: number; truncated: boolean };
+		expect(res.results).toEqual([]);
+		expect(res.scannedFiles).toBe(400);
+		// The match in file #401 was silently skipped — coverage was NOT exhaustive.
+		expect(res.truncated).toBe(true);
+	});
+
+	it("does NOT over-report truncated for a small fully-scanned vault", async () => {
+		const files = [fileLike("a.md", "a"), fileLike("b.md", "b")];
+		const cachedRead = vi.fn(async () => "nothing here");
+		const app = makeApp({ vault: { getMarkdownFiles: () => files, cachedRead } });
+		const tools = createVaultTools(app);
+		const res = (await tools.search_notes.execute(
+			{ query: "zzz", in: "content" },
+			ctx("search_notes"),
+		)) as { results: unknown[]; truncated: boolean };
+		expect(res.results).toEqual([]);
+		expect(res.truncated).toBe(false);
+	});
+
+	it("does NOT over-report truncated at exactly the scan cap (every file scanned)", async () => {
+		// Exactly 400 content-eligible files: all are scanned, none is skipped, so the
+		// cap is reached but never EXCEEDED — coverage is complete, truncated must be false.
+		const files: TFile[] = [];
+		for (let i = 0; i < 400; i++) files.push(fileLike(`big/note${i}.md`, `note${i}`));
+		const cachedRead = vi.fn(async () => "no hit");
+		const app = makeApp({ vault: { getMarkdownFiles: () => files, cachedRead } });
+		const tools = createVaultTools(app);
+		const res = (await tools.search_notes.execute(
+			{ query: "zzz", in: "content" },
+			ctx("search_notes"),
+		)) as { scannedFiles: number; truncated: boolean };
+		expect(res.scannedFiles).toBe(400);
+		expect(res.truncated).toBe(false);
+		expect(cachedRead).toHaveBeenCalledTimes(400);
+	});
+});
