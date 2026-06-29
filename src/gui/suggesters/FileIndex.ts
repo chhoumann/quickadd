@@ -329,6 +329,19 @@ export class FileIndex {
 			}
 			this.updateFuseIndex();
 			this.updateUnresolvedLinks();
+		} catch (error) {
+			// The build threw before the Fuse rebuild above. The mutation handlers
+			// applied their changes to the still-live fileMap, but their incremental
+			// Fuse updates were suppressed while indexing - so reconcile Fuse with
+			// fileMap now. Otherwise fuzzy search (which queries Fuse) would diverge
+			// from the exact/prefix tiers (which scan fileMap) until the next
+			// reindex. Best-effort: never let this mask the original failure.
+			try {
+				this.updateFuseIndex();
+			} catch {
+				/* leave Fuse as-is; the original error is what matters */
+			}
+			throw error;
 		} finally {
 			this.reindexBuffer = null;
 		}

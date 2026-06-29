@@ -782,6 +782,14 @@ describe('FileIndex reindex atomicity (concurrent vault mutations)', () => {
 		expect(
 			(fileIndex as unknown as { reindexBuffer: unknown }).reindexBuffer,
 		).toBeNull();
+
+		// And the error path reconciled Fuse with fileMap: a fuzzy-only query (one
+		// the exact/prefix/substring tiers miss) still finds the rescued file, so
+		// fuzzy search does not diverge from the fileMap-scanning tiers.
+		const fuzzyHit = fileIndex
+			.search('rescd')
+			.some((r) => r.file.path === 'rescued.md');
+		expect(fuzzyHit).toBe(true);
 	});
 
 	it('coalesces a create-then-delete within the window to nothing', async () => {

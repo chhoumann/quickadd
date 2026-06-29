@@ -57,9 +57,13 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 		const sortedTags = this.tagIndex.getSortedTags();
 
-		// Prefix matches first
+		// Prefix matches first. getTags() keys carry a leading '#' but the query
+		// (the TAG_REGEX capture) does not, so compare against the tag with its
+		// '#' stripped - otherwise the prefix path never matches and the intended
+		// prefix-first, shortest-first ordering silently degrades to Fuse's order.
+		const tagInputLower = tagInput.toLowerCase();
 		const prefixMatches = sortedTags.filter(tag =>
-			tag.toLowerCase().startsWith(tagInput.toLowerCase())
+			tag.replace(/^#/, "").toLowerCase().startsWith(tagInputLower)
 		).slice(0, 5);
 
 		// Then fuzzy matches
