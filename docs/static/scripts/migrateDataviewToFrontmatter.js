@@ -471,7 +471,8 @@ function isClosingFence(line, fenceChar, fenceLen) {
  * (`code`, ``co`de``). Character positions are preserved so the caller can slice
  * the original line by offsets computed on the masked line.
  *
- * Implemented as a single linear pass over the backtick runs. The earlier regex
+ * Implemented as a linear-time scan over the indexed backtick runs (no
+ * backtracking; it indexes the runs, then walks them once). The earlier regex
  * /(`+)(?:(?!\1)[\s\S])*?\1/g combined a backreferenced opener, a lazy body, and a
  * negative lookahead, which backtracks super-linearly (seconds of main-thread
  * freeze) on a long backtick run with no matching-length closer - reachable from a
