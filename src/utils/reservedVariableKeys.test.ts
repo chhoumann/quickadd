@@ -14,6 +14,14 @@ describe("isReservedVariableKey", () => {
 		expect(isReservedVariableKey("__qa.")).toBe(true);
 	});
 
+	// QuickAdd resolves variable names case-insensitively, so the guard must too -
+	// otherwise a value-__QA.captureTargetFilePath variant would slip past it.
+	it("flags reserved keys case-insensitively", () => {
+		expect(isReservedVariableKey("__QA.captureTargetFilePath")).toBe(true);
+		expect(isReservedVariableKey("__Qa.captureTargetFilePath")).toBe(true);
+		expect(isReservedVariableKey("__qA.somethingNew")).toBe(true);
+	});
+
 	it("does not flag ordinary user variable names", () => {
 		expect(isReservedVariableKey("value")).toBe(false);
 		expect(isReservedVariableKey("title")).toBe(false);

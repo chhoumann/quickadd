@@ -9,7 +9,11 @@ import { RESERVED_VARIABLE_PREFIX } from "../constants";
  *
  * Single source of truth shared by every untrusted-input boundary so a future
  * reserved key cannot regress one guard while the others still allow it.
+ *
+ * Matched case-INSENSITIVELY because QuickAdd resolves variable names that way
+ * (resolveExistingVariableKey -> findCaseInsensitiveMatch), so a `__QA.` variant
+ * must be rejected just like `__qa.`.
  */
 export function isReservedVariableKey(name: string): boolean {
-	return name.startsWith(RESERVED_VARIABLE_PREFIX);
+	return name.toLowerCase().startsWith(RESERVED_VARIABLE_PREFIX);
 }

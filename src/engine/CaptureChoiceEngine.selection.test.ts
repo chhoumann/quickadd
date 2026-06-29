@@ -1932,4 +1932,76 @@ describe("CaptureChoiceEngine reserved capture-target variable (security)", () =
 		expect(result).toBe("Work/A.md");
 		expect(suggestSpy).not.toHaveBeenCalled();
 	});
+
+	// With "create if it doesn't exist" on, a filter scope allows a NEW note name
+	// (the picker's "type to create"), so a preselected non-existing path is kept.
+	it("honours a preselected NEW note for a filter scope (create on)", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([
+			{ path: "Work/A.md" } as any,
+		]);
+		const app = createApp();
+		(app.vault.getAbstractFileByPath as any) = vi.fn(() => null); // nothing exists yet
+		const executor = createExecutor();
+		executor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Work/Fresh.md",
+		);
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "tag:work",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			executor,
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Work/Fresh.md");
+	});
+
+	// But it must NOT let an injected value append to an EXISTING note the filter
+	// does not match - the interactive picker suppresses that, and it is the
+	// arbitrary-note redirect this fix exists to prevent.
+	it("rejects a preselected EXISTING unmatched note for a filter scope (create on)", async () => {
+		vi.mocked(getMarkdownFilesMatchingFilter).mockReturnValue([
+			{ path: "Work/A.md" } as any,
+		]);
+		const app = createApp();
+		// The injected target already exists but is NOT in the matched set.
+		(app.vault.getAbstractFileByPath as any) = vi.fn((p: string) =>
+			p === "Secrets/Dangerous.md" ? ({ path: p } as any) : null,
+		);
+		const suggestSpy = vi.fn(async () => "Work/A.md");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const executor = createExecutor();
+		executor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Secrets/Dangerous.md",
+		);
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({
+				captureTo: "tag:work",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			executor,
+		);
+
+		const result = await (engine as any).getFormattedPathToCaptureTo(false);
+
+		expect(result).toBe("Work/A.md");
+		expect(result).not.toBe("Secrets/Dangerous.md");
+		expect(suggestSpy).toHaveBeenCalled();
+	});
 });

@@ -990,9 +990,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	 * "Capture to" scope:
 	 *  - folder: re-prefixed into the folder, mirroring {@link selectFileInFolder}
 	 *    (an empty folderPathSlash is the whole-vault scope, so no confinement).
-	 *  - filter/property/tag with creation OFF: must be one of the matched files.
-	 *  - filter/property/tag with creation ON: any in-vault path (a new note is
-	 *    allowed, matching the runtime picker's "type to create" affordance).
+	 *  - filter/property/tag: a note the scope already matches is always allowed.
+	 *    With creation OFF nothing else is (the picker only offers matched notes);
+	 *    with creation ON a NEW name is allowed too, but an EXISTING note the scope
+	 *    does not match is rejected - the picker suppresses it (InputSuggester
+	 *    getSuggestions, valueExists), and honouring it would let an injected value
+	 *    append to an arbitrary existing note.
 	 * Returns `null` when the value is outside the scope; the caller then falls back
 	 * to the normal picker/resolution instead of honouring it.
 	 */
@@ -1009,14 +1012,28 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				: stripped;
 		}
 
-		const allowCreate =
-			this.choice.createFileIfItDoesntExist?.enabled ?? false;
-		if (allowCreate) {
+		const matched = this.resolveScopeFiles(scope);
+		if (matched.some((file) => file.path === stripped)) {
 			return stripped;
 		}
 
-		const matched = this.resolveScopeFiles(scope);
-		return matched.some((file) => file.path === stripped) ? stripped : null;
+		const allowCreate =
+			this.choice.createFileIfItDoesntExist?.enabled ?? false;
+		if (!allowCreate) {
+			return null;
+		}
+
+		// Creation is on: the picker offers a new name, but never an existing
+		// unmatched note, so honour the value only when it does not already exist.
+		return this.captureTargetPathExists(stripped) ? null : stripped;
+	}
+
+	/** Whether a vault-relative path resolves to an existing note (with or without a markdown/canvas extension). */
+	private captureTargetPathExists(path: string): boolean {
+		const base = path.replace(/\.(md|canvas)$/i, "");
+		return [path, `${base}.md`, `${base}.canvas`].some(
+			(candidate) => !!this.app.vault.getAbstractFileByPath(candidate),
+		);
 	}
 
 	/** The notes a tag/filter/property capture scope currently matches. */
