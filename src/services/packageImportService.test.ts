@@ -91,6 +91,9 @@ function createFakeApp(initialExisting: string[] = []): {
 	const app = {
 		vault: {
 			adapter,
+			// isVaultCaseInsensitive probes a case-swapped variant of configDir;
+			// seed ".OBSIDIAN" into existing paths to simulate a case-insensitive vault.
+			configDir: ".obsidian",
 			createFolder: vi.fn(async (path: string) => {
 				state.createdFolders.push(path);
 				state.existingPaths.add(path);
@@ -227,6 +230,81 @@ describe("parseQuickAddPackage", () => {
 		} as unknown as Partial<QuickAddPackage>);
 		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
 			/not a valid QuickAdd package/,
+		);
+	});
+
+	it("rejects a package with duplicate asset originalPaths", () => {
+		// Two assets at the same path is last-write-wins on disk while the review
+		// pane resolves the FIRST match (decodeAssetPreview): a crafted package could
+		// show benign content while malicious content lands on disk. Reject at the
+		// untrusted-input boundary so reviewed bytes always equal written bytes.
+		const bad = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "scripts/x.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => 'benign';"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "scripts/x.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => exfiltrate();"),
+				},
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
+		);
+	});
+
+	it("rejects assets whose paths differ only by slash normalization", () => {
+		// "scripts//x.js" and "scripts/x.js" are distinct strings but normalize to one
+		// on-disk destination, so they still collide last-write-wins. Key the dedup on
+		// the normalized path the writer uses, not the raw string.
+		const bad = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "scripts/x.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => 'benign';"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "scripts//x.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => exfiltrate();"),
+				},
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
+		);
+	});
+
+	it("rejects duplicate EMPTY asset paths (falsy path must still fail closed)", () => {
+		// isPackageAsset accepts originalPath: "" (string), so two empty paths must not
+		// slip the duplicate gate via a truthiness check on the returned path.
+		const bad = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "",
+					contentEncoding: "base64",
+					content: encodeToBase64("benign"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "",
+					contentEncoding: "base64",
+					content: encodeToBase64("evil"),
+				},
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
 		);
 	});
 });
@@ -495,6 +573,170 @@ describe("asset write containment (security)", () => {
 			app,
 			"scripts/escapes.js",
 		);
+	});
+
+	it("refuses two assets that resolve to the same on-disk destination", async () => {
+		// The import modal defaults every template/capture asset to
+		// `<templateFolder>/<basename>`, so two DISTINCT originalPaths sharing a
+		// basename collide on ONE file. Parse-time originalPath dedup can't see this
+		// (the paths differ); writing them in order is silent last-write-wins, so the
+		// bytes the user reviewed are not the bytes that land. The writer must refuse.
+		const { app, state } = createFakeApp();
+		const pkg = makePackage({
+			assets: [
+				{
+					kind: "template",
+					originalPath: "A/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => 'benign';"),
+				},
+				{
+					kind: "template",
+					originalPath: "B/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => exfiltrate();"),
+				},
+			],
+		});
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				// Mirrors defaultAssetDestination: both basenames land in one folder.
+				assetDecisions: [
+					{
+						originalPath: "A/payload.js",
+						destinationPath: "Templates/payload.js",
+						mode: "write",
+					},
+					{
+						originalPath: "B/payload.js",
+						destinationPath: "Templates/payload.js",
+						mode: "write",
+					},
+				],
+			}),
+		).rejects.toThrow(/resolve to the same destination/);
+
+		// All-or-nothing: nothing is written, so no silent last-write-wins.
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("refuses two assets that collide only by case (case-insensitive vaults)", async () => {
+		// macOS/Windows vaults are case-insensitive, so "Scripts/x.js" and
+		// "scripts/x.js" are ONE physical file even though their normalized strings
+		// differ. Seed the case-swapped configDir so the case-sensitivity probe
+		// reports insensitive; the collision key then folds and refuses the import.
+		const { app, state } = createFakeApp([".OBSIDIAN"]);
+		const pkg = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "Scripts/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => 'benign';"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "scripts/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("module.exports = () => exfiltrate();"),
+				},
+			],
+		});
+
+		await expect(
+			applyPackageImport({
+				app,
+				existingChoices: [],
+				pkg,
+				choiceDecisions: [],
+				assetDecisions: [],
+			}),
+		).rejects.toThrow(/resolve to the same destination/);
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("allows two case-distinct destinations on a case-sensitive vault", async () => {
+		// On Linux/case-sensitive vaults "Scripts/x.js" and "scripts/x.js" are TWO
+		// distinct files a legitimate package may ship. With the probe reporting
+		// case-sensitive (no swapped configDir seeded), both must import, not throw.
+		const { app, state } = createFakeApp();
+		const pkg = makePackage({
+			assets: [
+				{
+					kind: "user-script",
+					originalPath: "Scripts/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("benign"),
+				},
+				{
+					kind: "user-script",
+					originalPath: "scripts/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("other"),
+				},
+			],
+		});
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [],
+			assetDecisions: [],
+		});
+
+		expect(result.writtenAssets).toContain("Scripts/payload.js");
+		expect(result.writtenAssets).toContain("scripts/payload.js");
+		expect(state.writes.size).toBe(2);
+	});
+
+	it("allows a destination collision when the colliding asset is skipped", async () => {
+		// A skipped asset never writes, so it cannot collide. Only the surviving
+		// (non-skipped) asset lands; no false rejection.
+		const { app, state } = createFakeApp();
+		const pkg = makePackage({
+			assets: [
+				{
+					kind: "template",
+					originalPath: "A/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("benign"),
+				},
+				{
+					kind: "template",
+					originalPath: "B/payload.js",
+					contentEncoding: "base64",
+					content: encodeToBase64("evil"),
+				},
+			],
+		});
+
+		await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [],
+			assetDecisions: [
+				{
+					originalPath: "A/payload.js",
+					destinationPath: "Templates/payload.js",
+					mode: "write",
+				},
+				{
+					originalPath: "B/payload.js",
+					destinationPath: "Templates/payload.js",
+					mode: "skip",
+				},
+			],
+		});
+
+		expect(state.writes.get("Templates/payload.js")).toBe("benign");
+		expect(state.writes.size).toBe(1);
 	});
 
 	it("aborts on a vault-escaping destination even when that asset is marked skip", async () => {

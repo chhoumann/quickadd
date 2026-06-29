@@ -738,10 +738,13 @@ export function getFrontMatterInfo(content: string): FrontMatterInfo {
   };
 }
 
-// Minimal normalizePath for tests: convert Windows separators to POSIX
+// Minimal normalizePath for tests: convert Windows separators to POSIX and
+// collapse repeated slashes, matching the parts of Obsidian's normalizePath that
+// callers rely on ("a//b" and "a/b" denote one path). (Real Obsidian also trims
+// edge slashes and NFC-normalizes; those are not modelled here.)
 export function normalizePath(p: string): string {
   if (typeof p !== 'string') return '' as unknown as string;
-  return p.replace(/\\/g, '/');
+  return p.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
 
 // Minimal debounce for tests: execute immediately.
