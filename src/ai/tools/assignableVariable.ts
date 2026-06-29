@@ -1,7 +1,10 @@
+import { isReservedVariableKey } from "../../utils/reservedVariableKeys";
+
 /**
  * Guard for the `assignToVariable` option shared by ai.agent and ai.prompt/chunkedPrompt (#714).
- * Rejects names that the formatter treats specially (so they cannot be hijacked) or
- * that are unreachable by the {{VALUE:name}} grammar.
+ * Rejects names that the formatter treats specially (so they cannot be hijacked),
+ * that are reserved for QuickAdd internal plumbing, or that are unreachable by the
+ * {{VALUE:name}} grammar.
  */
 export function assertAssignableVariableName(name: string): void {
 	const trimmed = name.trim();
@@ -18,7 +21,14 @@ export function assertAssignableVariableName(name: string): void {
 			`assignToVariable "${trimmed}" cannot end with "-quoted" (collides with the quoted output variable).`,
 		);
 	}
-	if (/[|,]/.test(trimmed) || trimmed.startsWith("__qa.")) {
+	// Reserved internal namespace (shared with the URI/CLI boundaries) and the
+	// pipe/comma characters the {{VALUE:name}} grammar cannot reference.
+	if (isReservedVariableKey(trimmed)) {
+		throw new Error(
+			`assignToVariable "${trimmed}" uses the reserved "__qa." prefix for QuickAdd internal variables.`,
+		);
+	}
+	if (/[|,]/.test(trimmed)) {
 		throw new Error(
 			`assignToVariable "${trimmed}" contains characters unreachable by {{VALUE:name}}.`,
 		);

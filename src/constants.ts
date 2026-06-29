@@ -263,9 +263,11 @@ export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 
 // == Internal (reserved) variable keys == //
-// Keys starting with "__qa." are reserved for QuickAdd internal preflight/runtime plumbing.
-export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH =
-	"__qa.captureTargetFilePath";
+// Keys starting with this prefix are reserved for QuickAdd internal
+// preflight/runtime plumbing and must never be settable from across a trust
+// boundary (obsidian:// URI, CLI, AI tool output). See isReservedVariableKey.
+export const RESERVED_VARIABLE_PREFIX = "__qa.";
+export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH = `${RESERVED_VARIABLE_PREFIX}captureTargetFilePath`;
 
 // == MISC == //
 export const WIKI_LINK_REGEX = new RegExp(/\[\[([^\]]*)\]\]/);

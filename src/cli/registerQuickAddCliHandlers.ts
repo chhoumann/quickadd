@@ -170,6 +170,15 @@ function parseVarsJson(value: string): Record<string, unknown> {
 	return parsed as Record<string, unknown>;
 }
 
+// Unlike the obsidian:// URI boundary, the CLI intentionally does NOT drop the
+// reserved "__qa." prefix here: `value-__qa.captureTargetFilePath` is the
+// documented way to pick a capture target non-interactively for a folder/tag/
+// property-scoped Capture choice (see collectChoiceRequirements + the
+// missingFlags hint). That stays safe because the capture engine only honours a
+// preselected target within the configured scope (CaptureChoiceEngine
+// getFormattedPathToCaptureTo), and CLI access already grants arbitrary code
+// execution (quickadd:run can run a Macro choice), so this is not an escalation
+// boundary.
 function extractVariables(
 	params: CliData,
 	reservedKeys: Set<string>,
