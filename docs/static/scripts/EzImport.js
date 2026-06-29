@@ -28,7 +28,14 @@ function getReadwiseCache() {
 	if (!window.localStorage) return null;
 	const cacheStr = window.localStorage.getItem(READWISE_CACHE_KEY);
 	if (!cacheStr) return null;
-	return JSON.parse(cacheStr);
+	try {
+		return JSON.parse(cacheStr);
+	} catch (e) {
+		// A corrupt cache (e.g. a partial write or a bad sync) must not crash the
+		// import with a raw SyntaxError - ignore it and rebuild from scratch.
+		new Notice("EzImport: Readwise cache was corrupt and has been ignored.", 10000);
+		return null;
+	}
 }
 
 function getCacheItem(itemKey) {
@@ -119,7 +126,15 @@ async function start(params, settings, type) {
 
 async function getReadwiseHighlights(type) {
 	const results = await getHighlightsByCategory(type);
-	if (!results || results.length === 0) {
+	if (!Array.isArray(results)) {
+		// An error/rate-limit body (e.g. `{ detail: "Request was throttled." }`)
+		// has no results array - surface that instead of a misleading "no
+		// highlights" message or a raw crash downstream.
+		LogAndThrowError(
+			"Could not read highlights from Readwise (the API may be rate-limited or returned an error). Please try again.",
+		);
+	}
+	if (results.length === 0) {
 		LogAndThrowError("No highlights found.");
 	}
 
@@ -223,13 +238,25 @@ async function getReadwiseHighlights(type) {
 }
 
 async function handleAddToExistingFile(file, item) {
-	const lastHighlightAt =
-		QuickAdd.app.metadataCache.getFileCache(file).frontmatter.lastHighlightAt;
+	// The matched file is found purely by path, so it may be a pre-existing note
+	// that this script never created (no frontmatter) or one Obsidian hasn't
+	// indexed yet (getFileCache returns null). Optional-chain both so the friendly
+	// guard below runs instead of a raw TypeError.
+	const fileCache = QuickAdd.app.metadataCache.getFileCache(file);
+	const lastHighlightAt = fileCache?.frontmatter?.lastHighlightAt;
 	if (!lastHighlightAt) {
 		LogAndThrowError("File does not have a lastHighlightAt property.");
 	}
 
 	const resolve = await getHighlightsAfterDateForItem(item, lastHighlightAt);
+	if (!Array.isArray(resolve?.results)) {
+		// Readwise resolves the fetch even on an error/rate-limit response (e.g. a
+		// 429 returns `{ detail: "Request was throttled." }`), so require an actual
+		// results array before reading it instead of crashing with a raw TypeError.
+		LogAndThrowError(
+			"Could not read highlights from Readwise (the API may be rate-limited or returned an error). Please try again.",
+		);
+	}
 	const highlights = resolve.results.reverse();
 
 	if (highlights.length > 0) {
@@ -255,8 +282,12 @@ async function handleCreateSourceFile(item) {
 	if (item.title === MANUAL_ENTRY) return;
 
 	const resolve = await getHighlightsForItem(item);
-	if (!resolve) {
-		LogAndThrowError("No highlights found.");
+	// `{ detail: ... }` error bodies are truthy, so require an actual results array
+	// rather than just a truthy response object.
+	if (!Array.isArray(resolve?.results)) {
+		LogAndThrowError(
+			"Could not read highlights from Readwise (the API may be rate-limited or returned an error). Please try again.",
+		);
 	}
 
 	const highlights = resolve.results.reverse();

@@ -285,22 +285,24 @@ function parseCommaSeparatedWithWikilinks(value) {
 }
 ```
 
-### Race Condition Prevention
+### How the write works (and a concurrency caveat)
 
-The script uses `processFrontMatter` to update the frontmatter, then re-reads the file before removing inline properties. This prevents race conditions where the frontmatter changes might be overwritten:
+The script updates the frontmatter with `processFrontMatter`, then strips the migrated inline properties from the body inside an `app.vault.process` callback. Using `process` for the body rewrite (rather than a separate `read` + `modify`) means the body's read-and-rewrite happens in one callback, so it does not clobber an unrelated concurrent edit elsewhere in the body:
 
 ```javascript
-// Update frontmatter first
+// Update the frontmatter first
 await app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
     // Add properties to frontmatter
 });
 
-// Re-read the file to get updated frontmatter
-const updatedContent = await app.vault.read(activeFile);
-
-// Then remove inline properties
-await app.vault.modify(activeFile, cleanedContent);
+// Then strip the migrated inline properties from the body
+await app.vault.process(activeFile, (data) => {
+    const { cleanedContent } = parseInlineFieldsWithWikilinks(data, propertiesToMigrate, migrateAll);
+    return cleanedContent;
+});
 ```
+
+These are still two separate steps. The frontmatter is written from the file as it was first read, while the body is re-scanned at rewrite time. If another device or window adds a *new* inline field to the same note in the brief window between the two steps, that field can be removed from the body without being captured in frontmatter. This is why the Tips above matter: avoid running a bulk migration on a note that is being edited or synced at the same time, and keep a backup.
 
 ## Tips
 
@@ -316,7 +318,11 @@ await app.vault.modify(activeFile, cleanedContent);
 **Properties not migrating:**
 - Check that the property names are spelled correctly in the settings
 - Ensure the inline properties use `::` syntax (two colons)
-- Verify that the properties aren't inside code blocks or task checkboxes
+- Verify that the properties aren't inside fenced/inline code or task checkboxes (these are intentionally skipped - see "Code blocks" below)
+
+- Inline-field-shaped lines inside fenced code blocks (` ``` ` or `~~~`) and inline code spans (`` `...` ``) are detected and left untouched, so they are never migrated or removed. This holds for fences at the top level, inside blockquotes, and nested in a list item (for example a ` ``` ` fence whose opener sits on the same line as a `-` bullet).
+- 4-space *indented* code blocks are **not** detected. A line shaped like `name:: value` inside an indented code block can still be migrated and removed from the body. Distinguishing a genuine indented code block from ordinary indented list or paragraph text requires block context that a single-pass line scanner does not have, and a partial heuristic would either delete real indented code or silently skip a genuine inline field that is merely indented under a list (which Dataview *does* treat as a field). The script therefore favors migrating real fields over silently skipping them - so use a fenced code block (` ``` `) rather than 4-space indentation for any code you want to protect.
+- As a general safety net, prefer migrating a specific property list over "Migrate All Properties", and follow the Tips above - test on a copy and keep your vault under version control before a bulk migration.
 
 **Commas not handled correctly:**
 - Make sure wikilinks use proper `[[` and `]]` syntax
