@@ -27,7 +27,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/svelte": "^5.4.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^26.0.0",
+    "@types/node": "^26.0.1",
     "@typescript-eslint/eslint-plugin": "^8.62.0",
     "@typescript-eslint/parser": "^8.62.0",
     "@vitest/coverage-v8": "4.1.9",
@@ -47,7 +47,7 @@
     "svelte-preprocess": "^6.0.5",
     "tslib": "^2.8.1",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16",
+    "vite": "^8.1.0",
     "vitest": "^4.1.9"
   },
   "dependencies": {
