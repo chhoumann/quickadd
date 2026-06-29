@@ -200,21 +200,29 @@ describe("assertSecureDirIfPresent", () => {
 	});
 });
 
-// Build a minimal asar archive whose package.json carries `version`, laid out to
-// match readAsarPackageVersion's parser (header size at byte 12, header at 16,
-// file data at 16 + headerSize + offset).
-function buildAsar(version: string): Buffer {
+function u32(n: number): Buffer {
+	const b = Buffer.alloc(4);
+	b.writeUInt32LE(n, 0);
+	return b;
+}
+
+// Build a spec-correct asar (matching the real Pickle layout: [size pickle][header
+// pickle][file data], with the header JSON 4-byte aligned inside the header
+// pickle). `extraJsonPad` widens the header JSON so its length lands on a chosen
+// 4-byte residue, exercising the alignment padding that a naive `16 + jsonLength`
+// reader gets wrong.
+function buildAsar(version: string, extraJsonPad = 0): Buffer {
 	const pkg = Buffer.from(JSON.stringify({ version }), "utf8");
-	const header = Buffer.from(
-		JSON.stringify({ files: { "package.json": { offset: "0", size: pkg.length } } }),
-		"utf8",
-	);
-	const prefix = Buffer.alloc(16);
-	prefix.writeUInt32LE(4, 0);
-	prefix.writeUInt32LE(header.length + 8, 4);
-	prefix.writeUInt32LE(header.length + 4, 8);
-	prefix.writeUInt32LE(header.length, 12);
-	return Buffer.concat([prefix, header, pkg]);
+	const files: Record<string, unknown> = {
+		"package.json": { offset: "0", size: pkg.length },
+	};
+	if (extraJsonPad > 0) files._pad = "x".repeat(extraJsonPad);
+	const json = Buffer.from(JSON.stringify({ files }), "utf8");
+	const aligned = Buffer.concat([json, Buffer.alloc((4 - (json.length % 4)) % 4)]);
+	const headerPayload = Buffer.concat([u32(json.length), aligned]);
+	const headerPickle = Buffer.concat([u32(headerPayload.length), headerPayload]);
+	const sizePickle = Buffer.concat([u32(4), u32(headerPickle.length)]);
+	return Buffer.concat([sizePickle, headerPickle, pkg]);
 }
 
 async function makeConfigDir(versions: string[]): Promise<string> {
@@ -289,6 +297,24 @@ describe("resolveObsidianAppVersion", () => {
 		});
 		expect(resolved.appVersion).toBe("1.12.7");
 		expect(resolved.cachedVersions).toEqual(["1.12.7"]);
+	});
+
+	it("reads the asar version at every header-length 4-byte alignment residue", async () => {
+		// Real asar headers are arbitrary lengths; the parser must not assume the
+		// header JSON is 4-byte aligned. Cover all four residues — a reader that uses
+		// `16 + jsonLength` instead of the header pickle size misreads 3 of these.
+		for (let pad = 0; pad < 4; pad++) {
+			const dir = await makeTempDir("asar-align");
+			await fs.writeFile(
+				path.join(dir, "obsidian-1.13.0.asar"),
+				buildAsar("1.13.0", pad),
+			);
+			const resolved = await resolveObsidianAppVersion({
+				obsidianConfigDir: dir,
+				bundledAsarCandidates: [],
+			});
+			expect(resolved.appVersion, `pad=${pad}`).toBe("1.13.0");
+		}
 	});
 });
 

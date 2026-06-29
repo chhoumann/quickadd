@@ -465,18 +465,28 @@ export function compareObsidianVersions(a, b) {
 // Read the `version` from an asar archive's package.json without unpacking it.
 // Returns null on any malformed/missing input (never throws) so a stray file in
 // the config dir cannot break the guard.
+//
+// asar layout: [size pickle (8 bytes)] [header pickle] [file data]. The size
+// pickle's payload (byte 4, UInt32LE) is the header pickle's byte length, so file
+// data begins at 8 + headerPickleLength. The header pickle wraps a Pickle string:
+// its raw length is at byte 12 and its JSON bytes start at byte 16. Pickle
+// 4-byte-aligns the string, so the data base must come from the header pickle
+// length, NOT `16 + jsonLength` (which lands in the alignment padding when the
+// JSON length is not a multiple of 4).
 async function readAsarPackageVersion(asarPath) {
 	let handle;
 	try {
 		handle = await fs.open(asarPath, "r");
 		const head = Buffer.alloc(16);
 		await handle.read(head, 0, 16, 0);
-		const headerSize = head.readUInt32LE(12);
-		if (!Number.isInteger(headerSize) || headerSize <= 0 || headerSize > 64 * 1024 * 1024) {
+		const headerPickleLength = head.readUInt32LE(4);
+		const jsonLength = head.readUInt32LE(12);
+		if (!Number.isInteger(jsonLength) || jsonLength <= 0 || jsonLength > 64 * 1024 * 1024) {
 			return null;
 		}
-		const headerBuf = Buffer.alloc(headerSize);
-		await handle.read(headerBuf, 0, headerSize, 16);
+		const dataBase = 8 + headerPickleLength;
+		const headerBuf = Buffer.alloc(jsonLength);
+		await handle.read(headerBuf, 0, jsonLength, 16);
 		const header = JSON.parse(headerBuf.toString("utf8"));
 		const entry = header?.files?.["package.json"];
 		if (!entry) return null;
@@ -484,7 +494,7 @@ async function readAsarPackageVersion(asarPath) {
 		const offset = Number(entry.offset);
 		if (!Number.isFinite(size) || !Number.isFinite(offset) || size <= 0) return null;
 		const fileBuf = Buffer.alloc(size);
-		await handle.read(fileBuf, 0, size, 16 + headerSize + offset);
+		await handle.read(fileBuf, 0, size, dataBase + offset);
 		const version = JSON.parse(fileBuf.toString("utf8"))?.version;
 		return typeof version === "string" ? version : null;
 	} catch {
