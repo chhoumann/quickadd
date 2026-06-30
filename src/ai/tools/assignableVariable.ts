@@ -11,12 +11,19 @@ export function assertAssignableVariableName(name: string): void {
 	if (!trimmed) throw new Error("assignToVariable cannot be empty.");
 	// `value` (the programmatic {{VALUE}} slot) and `title` (file-name title) are
 	// formatter-reserved; assigning them would silently hijack those tokens.
-	if (new Set(["value", "title", "text", "meta"]).has(trimmed)) {
+	// Matched case-INSENSITIVELY because the formatter resolves {{VALUE:name}}
+	// that way (resolveExistingVariableKey -> findCaseInsensitiveMatch), so a
+	// `Value`/`TITLE` variant would otherwise slip the guard and still hijack the
+	// built-in token - consistent with isReservedVariableKey below.
+	if (new Set(["value", "title", "text", "meta"]).has(trimmed.toLowerCase())) {
 		throw new Error(
 			`assignToVariable "${trimmed}" is reserved (it would hijack a built-in formatter token).`,
 		);
 	}
-	if (trimmed.endsWith("-quoted")) {
+	// Case-insensitive for the same reason as the reserved-name set above: the
+	// formatter resolves {{VALUE:name}} case-insensitively, so `summary-Quoted`
+	// would still collide with the auto-generated `${key}-quoted` companion.
+	if (trimmed.toLowerCase().endsWith("-quoted")) {
 		throw new Error(
 			`assignToVariable "${trimmed}" cannot end with "-quoted" (collides with the quoted output variable).`,
 		);
