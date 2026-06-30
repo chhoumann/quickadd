@@ -103,6 +103,91 @@ describe("FieldValueProcessor", () => {
 		});
 	});
 
+	describe("unresolved field-token filtering", () => {
+		it("drops collected values that are themselves unresolved {{FIELD:...}} tokens", () => {
+			// A note whose frontmatter literally holds an unexpanded token must not
+			// be offered back as a suggestion (with or without a |filters tail).
+			const rawValues = new Set([
+				"Active",
+				"{{FIELD:status}}",
+				"{{FIELD:status|default:done}}",
+				"Done",
+			]);
+
+			const result = FieldValueProcessor.processValues(rawValues, {});
+
+			expect(result.values).toEqual(["Active", "Done"]);
+		});
+
+		it("keeps real values that merely contain a {{FIELD substring", () => {
+			// The membership test is anchored, so a value that embeds the prefix but
+			// is not exactly a token survives.
+			const rawValues = new Set([
+				"see {{FIELD:status}} for details",
+				"{{FIELD:status}} trailing",
+			]);
+
+			const result = FieldValueProcessor.processValues(rawValues, {});
+
+			expect(result.values.sort()).toEqual(
+				[
+					"see {{FIELD:status}} for details",
+					"{{FIELD:status}} trailing",
+				].sort(),
+			);
+		});
+
+		describe("ReDoS resistance", () => {
+			// Regression guard for the quadratic backtracking of the old
+			// `{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}` membership regex: the two groups
+			// both matched `|`, so `{{FIELD:` + a long unterminated run of `|` drove
+			// O(n^2) backtracking (~4.8s at 32K, freezing the main thread). The
+			// de-overlapped regex finishes in sub-millisecond; a generous budget
+			// stays non-flaky while failing hard on any regression.
+			const BUDGET_MS = 1500;
+
+			it(
+				"processes a pathological {{FIELD: + long pipe run in linear time",
+				() => {
+					// The exact attacker payload: a synced/imported note whose field
+					// value is the token prefix followed by 200K pipes and no close.
+					const malicious = "{{FIELD:" + "|".repeat(200_000);
+					const rawValues = new Set(["Active", malicious, "Done"]);
+
+					const start = performance.now();
+					const result = FieldValueProcessor.processValues(rawValues, {});
+					const elapsed = performance.now() - start;
+
+					// It does not match the anchored token (no closing `}}`), so it is
+					// retained as an ordinary value rather than filtered out.
+					expect(result.values).toContain(malicious);
+					expect(elapsed).toBeLessThan(BUDGET_MS);
+				},
+				20_000,
+			);
+
+			it(
+				"processes a {{FIELD:-prefix flood in linear time",
+				() => {
+					// A distinct quadratic vector (a long run of `{{FIELD:` token-opens
+					// with no close) is quadratic in the formatter's UNanchored exec
+					// loop, but the membership test here is anchored (`^...$`), so the
+					// engine only ever tries a single start position and stays linear.
+					const malicious = "{{FIELD:".repeat(200_000);
+					const rawValues = new Set(["Active", malicious]);
+
+					const start = performance.now();
+					const result = FieldValueProcessor.processValues(rawValues, {});
+					const elapsed = performance.now() - start;
+
+					expect(result.values).toContain(malicious);
+					expect(elapsed).toBeLessThan(BUDGET_MS);
+				},
+				20_000,
+			);
+		});
+	});
+
 	describe("getSmartDefaults", () => {
 		it("should return common defaults for known field names", () => {
 			const statusDefaults = FieldValueProcessor.getSmartDefaults("status", []);

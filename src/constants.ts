@@ -147,8 +147,16 @@ export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
 // Prefix used to namespace FIELD variable values in the variables map,
 // keeping them separate from plain VALUE variables with the same name.
 export const FIELD_VARIABLE_PREFIX = "FIELD:";
+// Group 1 captures the field name (no `|`), group 2 the optional `|filters`
+// tail. The name class excludes `|` so the two quantified groups no longer
+// overlap: the original `([^\n\r}]*)(\|[^\n\r}]*)?` let both groups match `|`,
+// which is quadratic on `{{FIELD:` + a long unterminated run of `|` (the outer
+// star backtracks O(n) positions and the optional group re-scans the tail at
+// each), freezing the main thread when that run reaches the anchored membership
+// test in FieldValueProcessor or the formatter's exec loop. De-overlapping keeps
+// the matched language and the name+filters concatenation identical, but linear.
 export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(
-	/{{FIELD:([^\n\r}]*)(\|[^\n\r}]*)?}}/i,
+	/{{FIELD:([^\n\r}|]*)(\|[^\n\r}]*)?}}/i,
 );
 // {{FILE:<folder>|...}} — pick a file from a folder. `{` is excluded from the
 // interior so a malformed nested token (e.g. {{FILE:{{VALUE:x}}}}) cannot
