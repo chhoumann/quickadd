@@ -27,6 +27,7 @@ import {
 } from "../utils/userScriptSecrets";
 import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
 import { log } from "../logger/logManager";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 	Template: TemplateChoice,
@@ -148,6 +149,12 @@ async function buildSecretOptionNamesByPath(
 
 	for (const path of paths) {
 		try {
+			// A Macro choice's userscript path comes from data.json, which is untrusted
+			// on a synced/shared/imported vault. Never stat or read an out-of-vault path
+			// (e.g. "../../../etc/passwd"); treat it as not-present, mirroring the package
+			// import probes (escapesVaultBoundary, #1434).
+			if (escapesVaultBoundary(path)) continue;
+
 			const exists = await app.vault.adapter.exists(path);
 			if (!exists) continue;
 

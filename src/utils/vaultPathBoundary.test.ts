@@ -24,6 +24,24 @@ describe("escapesVaultBoundary", () => {
 		expect(escapesVaultBoundary("..\\..\\escape.md")).toBe(true);
 	});
 
+	it("rejects the Windows trailing-dot/space '..' collapse", () => {
+		// Win32 strips trailing spaces/dots per component, so ".. " / "..." resolve
+		// to the parent "..". A lexical "=== '..'" check would miss them.
+		expect(escapesVaultBoundary(".. /x.md")).toBe(true);
+		expect(escapesVaultBoundary("a/.. /b.md")).toBe(true);
+		expect(escapesVaultBoundary("...")).toBe(true);
+		expect(escapesVaultBoundary(".. ")).toBe(true);
+		expect(escapesVaultBoundary("..\\..  \\escape.md")).toBe(true);
+	});
+
+	it("does not over-reject ordinary names that merely contain dots", () => {
+		// Only a segment that is ".." + trailing dots/spaces is traversal; real
+		// filenames with leading/trailing dots stay in-vault.
+		expect(escapesVaultBoundary("..evil.md")).toBe(false);
+		expect(escapesVaultBoundary("evil...md")).toBe(false);
+		expect(escapesVaultBoundary("notes/v1.2.3/file.md")).toBe(false);
+	});
+
 	it("allows in-vault relative paths, including dot/config dirs", () => {
 		expect(escapesVaultBoundary("templates/note.md")).toBe(false);
 		expect(escapesVaultBoundary("scripts/run.js")).toBe(false);

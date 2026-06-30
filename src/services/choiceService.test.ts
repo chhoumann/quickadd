@@ -296,6 +296,31 @@ describe("choiceService", () => {
 			expect(JSON.stringify(copy)).not.toContain("__quickaddSecret");
 		});
 
+		it("never reads an out-of-vault userscript path when duplicating a synced macro", async () => {
+			// Security: a Macro command's `path` comes from data.json, untrusted on a
+			// synced/shared/imported vault. An escaping path must not reach adapter.read.
+			const original = createChoice("Macro", "Mac") as IMacroChoice;
+			original.macro.commands.push({
+				id: "cmd-evil",
+				name: "Run script",
+				type: "UserScript",
+				path: "../../../etc/passwd",
+				settings: { "API Key": "legacy-secret" },
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+
+			const exists = vi.fn().mockResolvedValue(true);
+			const read = vi.fn().mockResolvedValue("module.exports = {};");
+			const app = {
+				vault: { adapter: { exists, read } },
+			} as unknown as App;
+
+			await duplicateChoiceWithUserScriptSecretSanitization(original, app);
+
+			// The out-of-vault path is skipped before any filesystem touch.
+			expect(exists).not.toHaveBeenCalled();
+			expect(read).not.toHaveBeenCalled();
+		});
+
 		it("recursively duplicates nested Multi choices and preserves placeholder/collapsed", () => {
 			const inner = createChoice("Template", "Inner");
 			const nestedMulti = createChoice("Multi", "Nested") as IMultiChoice;
