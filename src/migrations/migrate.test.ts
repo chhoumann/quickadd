@@ -8,6 +8,7 @@ vi.mock("src/logger/logManager", () => ({
 	log: {
 		logMessage: vi.fn(),
 		logError: vi.fn(),
+		logWarning: vi.fn(),
 	},
 }));
 
@@ -576,5 +577,202 @@ describe("Migration Re-entrance Safety", () => {
 			expect(choice.macro.name).toBe("Custom Macro");
 			expect(choice.macroId).toBeUndefined();
 		});
+	});
+});
+
+/**
+ * Regression coverage for the secret-hygiene bug: a migration that could not
+ * complete its work (e.g. SecretStorage was unavailable on this launch) must
+ * NOT be permanently marked done. Otherwise legacy plaintext API keys are left
+ * in data.json forever and never retried once SecretStorage becomes available.
+ */
+describe("Migration completeness signal (retry on incomplete)", () => {
+	function allOtherMigrationsComplete(
+		except: keyof typeof DEFAULT_SETTINGS.migrations,
+	) {
+		const flags = Object.fromEntries(
+			Object.keys(DEFAULT_SETTINGS.migrations).map((key) => [key, true]),
+		) as typeof DEFAULT_SETTINGS.migrations;
+		flags[except] = false;
+		return flags;
+	}
+
+	function mapBackedSecretStorage() {
+		const store = new Map<string, string>();
+		return {
+			store,
+			secretStorage: {
+				getSecret: (id: string) => store.get(id) ?? null,
+				setSecret: (id: string, value: string) => {
+					store.set(id, value);
+				},
+			},
+		};
+	}
+
+	function seedLegacyProvider(apiKey: string) {
+		return {
+			...structuredClone(DEFAULT_SETTINGS),
+			ai: {
+				...structuredClone(DEFAULT_SETTINGS.ai),
+				providers: [
+					{
+						name: "OpenAI",
+						endpoint: "https://api.openai.com/v1",
+						apiKey,
+						models: [],
+						modelSource: "providerApi" as const,
+					},
+				],
+			},
+			migrations: allOtherMigrationsComplete(
+				"migrateProviderApiKeysToSecretStorage",
+			),
+		};
+	}
+
+	beforeEach(() => {
+		settingsStore.replaceState(structuredClone(DEFAULT_SETTINGS));
+	});
+
+	afterEach(() => {
+		settingsStore.replaceState(structuredClone(DEFAULT_SETTINGS));
+	});
+
+	it("leaves the secret migration pending when SecretStorage is unavailable, then completes on a later SecretStorage-capable launch", async () => {
+		const loaded = seedLegacyProvider("sk-legacy-plaintext");
+
+		// Launch 1: old Obsidian / mobile - no SecretStorage.
+		settingsStore.replaceState(structuredClone(loaded));
+		const launch1: any = {
+			app: {},
+			settings: structuredClone(loaded),
+			saveSettings: vi.fn(),
+		};
+		await migrate(launch1);
+
+		// The plaintext key cannot be moved, so the migration must stay pending
+		// and the key must remain intact (still resolvable via the fallback).
+		expect(
+			launch1.settings.migrations.migrateProviderApiKeysToSecretStorage,
+		).toBe(false);
+		expect(launch1.settings.ai.providers[0].apiKey).toBe(
+			"sk-legacy-plaintext",
+		);
+
+		// Launch 2: user upgraded / opened on desktop - SecretStorage now exists.
+		const { store, secretStorage } = mapBackedSecretStorage();
+		settingsStore.replaceState(structuredClone(launch1.settings));
+		const launch2: any = {
+			app: { secretStorage },
+			settings: structuredClone(launch1.settings),
+			saveSettings: vi.fn(),
+		};
+		await migrate(launch2);
+
+		const migratedProvider = launch2.settings.ai.providers[0];
+		expect(
+			launch2.settings.migrations.migrateProviderApiKeysToSecretStorage,
+		).toBe(true);
+		expect(migratedProvider.apiKey).toBe("");
+		expect(migratedProvider.apiKeyRef).toBeTruthy();
+		expect(store.get(migratedProvider.apiKeyRef)).toBe("sk-legacy-plaintext");
+	});
+
+	it("leaves the secret migration pending when a provider key fails to move", async () => {
+		const loaded = seedLegacyProvider("sk-legacy-plaintext");
+		settingsStore.replaceState(structuredClone(loaded));
+
+		const secretStorage = {
+			getSecret: vi.fn().mockReturnValue(null),
+			setSecret: vi.fn(() => {
+				throw new Error("write failed");
+			}),
+		};
+		const plugin: any = {
+			app: { secretStorage },
+			settings: structuredClone(loaded),
+			saveSettings: vi.fn(),
+		};
+
+		await migrate(plugin);
+
+		expect(
+			plugin.settings.migrations.migrateProviderApiKeysToSecretStorage,
+		).toBe(false);
+		expect(plugin.settings.ai.providers[0].apiKey).toBe("sk-legacy-plaintext");
+	});
+
+	it("completes the secret migration on a SecretStorage-less build when there is nothing to migrate", async () => {
+		const loaded = {
+			...structuredClone(DEFAULT_SETTINGS),
+			ai: {
+				...structuredClone(DEFAULT_SETTINGS.ai),
+				providers: [
+					{
+						name: "OpenAI",
+						endpoint: "https://api.openai.com/v1",
+						apiKey: "",
+						apiKeyRef: "quickadd-ai-openai",
+						models: [],
+						modelSource: "providerApi" as const,
+					},
+				],
+			},
+			migrations: allOtherMigrationsComplete(
+				"migrateProviderApiKeysToSecretStorage",
+			),
+		};
+		settingsStore.replaceState(structuredClone(loaded));
+
+		// No SecretStorage AND no plaintext key: the goal already holds, so the
+		// migration should drain instead of re-running forever.
+		const plugin: any = {
+			app: {},
+			settings: structuredClone(loaded),
+			saveSettings: vi.fn(),
+		};
+
+		await migrate(plugin);
+
+		expect(
+			plugin.settings.migrations.migrateProviderApiKeysToSecretStorage,
+		).toBe(true);
+	});
+
+	it("marks the secret migration complete when there are no plaintext keys to move", async () => {
+		const loaded = {
+			...structuredClone(DEFAULT_SETTINGS),
+			ai: {
+				...structuredClone(DEFAULT_SETTINGS.ai),
+				providers: [
+					{
+						name: "OpenAI",
+						endpoint: "https://api.openai.com/v1",
+						apiKey: "",
+						apiKeyRef: "quickadd-ai-openai",
+						models: [],
+						modelSource: "providerApi" as const,
+					},
+				],
+			},
+			migrations: allOtherMigrationsComplete(
+				"migrateProviderApiKeysToSecretStorage",
+			),
+		};
+		settingsStore.replaceState(structuredClone(loaded));
+
+		const { secretStorage } = mapBackedSecretStorage();
+		const plugin: any = {
+			app: { secretStorage },
+			settings: structuredClone(loaded),
+			saveSettings: vi.fn(),
+		};
+
+		await migrate(plugin);
+
+		expect(
+			plugin.settings.migrations.migrateProviderApiKeysToSecretStorage,
+		).toBe(true);
 	});
 });

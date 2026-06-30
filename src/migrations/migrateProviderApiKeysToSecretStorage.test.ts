@@ -150,4 +150,53 @@ describe("migrateProviderApiKeysToSecretStorage migration", () => {
 		expect(readProviders()[0].apiKeyRef).toBeUndefined();
 		expect(logWarningMock).toHaveBeenCalled();
 	});
+
+	it("signals incomplete when SecretStorage is unavailable", async () => {
+		const plugin = setup([createProvider({ apiKey: "fake-test-key" })], undefined);
+
+		const result = await migration.default.migrate(plugin);
+
+		expect(result).toEqual({ complete: false });
+	});
+
+	it("completes without warning when SecretStorage is unavailable but no legacy key is waiting", async () => {
+		const plugin = setup(
+			[createProvider({ apiKey: "", apiKeyRef: "provider-secret" })],
+			undefined,
+		);
+
+		const result = await migration.default.migrate(plugin);
+
+		// Nothing to migrate, so the invariant already holds - do not stay
+		// pending (and re-save) on every launch, and do not cry wolf.
+		expect(result).toBeUndefined();
+		expect(logWarningMock).not.toHaveBeenCalled();
+	});
+
+	it("signals incomplete when a legacy key cannot be moved", async () => {
+		const getSecret = vi.fn().mockResolvedValue(null);
+		const setSecret = vi.fn().mockRejectedValue(new Error("write failed"));
+		const plugin = setup(
+			[createProvider({ name: "OpenAI", apiKey: "fake-test-key" })],
+			{ getSecret, setSecret },
+		);
+
+		const result = await migration.default.migrate(plugin);
+
+		expect(result).toEqual({ complete: false });
+	});
+
+	it("signals complete once every legacy key has been moved", async () => {
+		const getSecret = vi.fn().mockResolvedValue(null);
+		const setSecret = vi.fn().mockResolvedValue(undefined);
+		const plugin = setup(
+			[createProvider({ name: "OpenAI", apiKey: "fake-test-key" })],
+			{ getSecret, setSecret },
+		);
+
+		const result = await migration.default.migrate(plugin);
+
+		expect(result).toBeUndefined();
+		expect(readProviders()[0].apiKey).toBe("");
+	});
 });
