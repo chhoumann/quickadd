@@ -28,7 +28,7 @@ import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { parseSemver } from "./utils/semver";
-import { resolveChoiceIcon } from "./utils/choiceUtils";
+import { dedupeChoicesById, resolveChoiceIcon } from "./utils/choiceUtils";
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
@@ -452,6 +452,18 @@ export default class QuickAdd extends Plugin {
 
 		if (typeof settings.announceUpdates === "boolean") {
 			settings.announceUpdates = settings.announceUpdates ? "all" : "none";
+		}
+
+		// Heal duplicate choice ids (#1451): a repeated id makes the settings tab's
+		// keyed {#each} throw each_key_duplicate and render blank (commands keep
+		// working, so it looks like "corrupted data"). Cheap and idempotent, so it
+		// runs every load; the next ordinary save rewrites data.json cleaned. No
+		// data is lost - see dedupeChoicesById. Only touch a real array: a missing
+		// `choices` already defaults to [] via the merge above, and a null/corrupt
+		// value is left exactly as-is rather than being silently replaced with []
+		// (which a later save would persist, destroying recoverable data).
+		if (Array.isArray(settings.choices)) {
+			settings.choices = dedupeChoicesById(settings.choices);
 		}
 
 		this.settings = settings;

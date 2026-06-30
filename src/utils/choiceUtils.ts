@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type IChoice from "../types/choices/IChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
@@ -66,6 +67,65 @@ export function flattenChoices(choices: IChoice[]): IChoice[] {
 
 	choices.forEach(walk);
 	return result;
+}
+
+/**
+ * Returns the choice tree with every id made globally unique, without losing any
+ * data. Walks pre-order; the first occurrence of an id is kept, and a later
+ * choice whose id was already seen is either dropped (when byte-identical to the
+ * first, so it is a true duplicate) or kept under a fresh id (when its content
+ * differs, so a genuinely distinct choice that merely collided survives whole,
+ * children and all).
+ *
+ * Why this exists: the settings tab renders choices in a keyed Svelte
+ * `{#each ... (choice.id)}` (ChoiceList.svelte). Svelte 5 throws
+ * `each_key_duplicate` on a repeated key, which aborts the settings-tab mount and
+ * leaves it blank (#1451) - while the command palette keeps working because
+ * commands register by plain recursion (so the symptom reads as "corrupted
+ * data"). Choice ids are v4 UUIDs (Choice.ts), so global uniqueness is the real
+ * invariant (the command registry is keyed on `choice:<id>` too); a repeat only
+ * comes from external corruption - e.g. Obsidian Sync freezing a transient
+ * duplicate and propagating it via whole-file last-write-wins (no JSON/array
+ * merge) - never from a legitimately distinct choice.
+ *
+ * Called once where data enters the app (loadSettings): the cleaned tree renders
+ * and registers commands correctly, and the next ordinary settings save rewrites
+ * data.json cleaned. Pure - never mutates its input.
+ */
+export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
+	// id -> first kept choice with that id (the original object, for comparison).
+	const firstById = new Map<string, IChoice>();
+
+	const walk = (list: IChoice[]): IChoice[] => {
+		const out: IChoice[] = [];
+		for (const choice of list) {
+			let current = choice;
+			const prior = firstById.get(current.id);
+			if (prior) {
+				// Compare the whole choice (incl. nested children) to the first
+				// occurrence: equal => true duplicate, drop it; otherwise a real id
+				// collision, so keep it under a fresh id (nothing lost).
+				if (JSON.stringify(current) === JSON.stringify(prior)) {
+					continue;
+				}
+				current = { ...current, id: uuidv4() };
+			}
+			firstById.set(current.id, current);
+			// Recurse only into a real children array; a malformed Multi (missing or
+			// non-array children) is kept exactly as-is, never given a fabricated [].
+			if (isMultiChoice(current) && Array.isArray(current.choices)) {
+				const repaired: IMultiChoice = {
+					...current,
+					choices: walk(current.choices),
+				};
+				current = repaired;
+			}
+			out.push(current);
+		}
+		return out;
+	};
+
+	return walk(choices);
 }
 
 export interface FlatChoicePathEntry {

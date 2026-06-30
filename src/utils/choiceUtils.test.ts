@@ -3,6 +3,7 @@ import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import {
+	dedupeChoicesById,
 	defaultIconForChoiceType,
 	flattenChoices,
 	flattenChoicesWithPath,
@@ -83,6 +84,120 @@ describe("flattenChoicesWithPath", () => {
 		const broken = multi("Broken", undefined as unknown as IChoice[]);
 
 		expect(flattenChoicesWithPath([broken])).toHaveLength(1);
+	});
+});
+
+describe("dedupeChoicesById", () => {
+	function withId(id: string, name = id): IChoice {
+		return { name, id, type: "Template", command: false };
+	}
+	function multiWithId(
+		id: string,
+		children: IChoice[],
+		name = id,
+	): IMultiChoice {
+		return {
+			name,
+			id,
+			type: "Multi",
+			command: false,
+			choices: children,
+			collapsed: false,
+		};
+	}
+
+	const UUID_RE =
+		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+	it("leaves a tree with no duplicates unchanged", () => {
+		const tree = [withId("a"), multiWithId("m", [withId("b"), withId("c")])];
+		expect(flattenChoices(dedupeChoicesById(tree)).map((c) => c.id)).toEqual([
+			"a",
+			"m",
+			"b",
+			"c",
+		]);
+	});
+
+	it("drops a byte-identical later duplicate (no data lost)", () => {
+		const result = dedupeChoicesById([withId("dup"), withId("x"), withId("dup")]);
+		expect(result.map((c) => c.id)).toEqual(["dup", "x"]);
+	});
+
+	it("drops a byte-identical duplicate nested inside a Multi (the #1451 signature)", () => {
+		// Two byte-identical children sharing one id inside a folder - exactly what
+		// blanks the settings tab via the keyed {#each}.
+		const dup = (): IChoice => withId("d", "supprimer taches dones");
+		const folder = multiWithId("folder", [withId("a"), dup(), dup()]);
+		const deduped = dedupeChoicesById([folder])[0] as IMultiChoice;
+		expect(deduped.choices.map((c) => c.id)).toEqual(["a", "d"]);
+	});
+
+	it("re-ids a DIVERGENT same-id choice instead of dropping it (no data lost)", () => {
+		const result = dedupeChoicesById([
+			withId("dup", "first"),
+			withId("dup", "second"), // same id, different content
+		]);
+		expect(result).toHaveLength(2);
+		expect(result[0].name).toBe("first");
+		expect(result[0].id).toBe("dup");
+		expect(result[1].name).toBe("second"); // kept, content intact
+		expect(result[1].id).not.toBe("dup");
+		expect(result[1].id).toMatch(UUID_RE);
+	});
+
+	it("re-ids a divergent duplicated Multi and PRESERVES its unique children", () => {
+		// A naive drop-by-id would delete the second folder and lose child2.
+		// Re-id-ing keeps both folders and all children.
+		const first = multiWithId("m", [withId("child1")], "first folder");
+		const second = multiWithId("m", [withId("child2")], "second folder");
+		const result = dedupeChoicesById([first, second]);
+
+		expect(result).toHaveLength(2);
+		expect(result[0].id).toBe("m");
+		const rebuilt = result[1] as IMultiChoice;
+		expect(rebuilt.id).not.toBe("m");
+		expect(rebuilt.id).toMatch(UUID_RE);
+		expect(rebuilt.choices.map((c) => c.id)).toEqual(["child2"]); // not lost
+	});
+
+	it("de-dups globally across nesting levels (identical child re-using a top id -> dropped)", () => {
+		const folder = dedupeChoicesById([
+			withId("shared"),
+			multiWithId("m", [withId("shared"), withId("ok")]),
+		])[1] as IMultiChoice;
+		expect(folder.choices.map((c) => c.id)).toEqual(["ok"]);
+	});
+
+	it("produces a fully unique id set when there were collisions", () => {
+		const result = dedupeChoicesById([
+			withId("a", "a1"),
+			withId("a", "a2"), // divergent -> re-id
+			multiWithId("a", [withId("a", "deep")], "folderA"), // divergent -> re-id
+		]);
+		const ids = flattenChoices(result).map((c) => c.id);
+		expect(new Set(ids).size).toBe(ids.length); // all unique
+	});
+
+	it("does not mutate the input tree", () => {
+		const folder = multiWithId("m", [withId("d"), withId("d")]);
+		const input = [folder];
+		dedupeChoicesById(input);
+
+		expect(input[0]).toBe(folder);
+		expect((input[0] as IMultiChoice).choices).toHaveLength(2); // original intact
+	});
+
+	it("leaves a Multi with a missing children array exactly as-is (no fabricated [])", () => {
+		const broken = multiWithId("m", undefined as unknown as IChoice[]);
+		const result = dedupeChoicesById([broken]);
+		expect(result).toHaveLength(1);
+		expect(result[0]).toBe(broken); // untouched - not rebuilt with choices: []
+		expect((result[0] as IMultiChoice).choices).toBeUndefined();
+	});
+
+	it("handles an empty list", () => {
+		expect(dedupeChoicesById([])).toEqual([]);
 	});
 });
 
