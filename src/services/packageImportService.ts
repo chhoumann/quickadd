@@ -94,6 +94,19 @@ export async function readQuickAddPackage(
 	app: App,
 	packagePath: string,
 ): Promise<LoadedQuickAddPackage> {
+	// Containment guard at the single read entry point, before any filesystem
+	// touch. `packagePath` is untrusted (the CLI `path=` flag, the GUI file
+	// picker): `normalizePath` collapses slashes but does NOT resolve "..", so a
+	// path like "../../../etc/passwd" (or an absolute/drive path) would otherwise
+	// reach `adapter.read` and disclose a file OUTSIDE the vault. The sibling
+	// analysePackage/analysePackagePreview probes already guard with this; the read
+	// path must too, so every current and future caller inherits the protection.
+	if (escapesVaultBoundary(packagePath)) {
+		throw new Error(
+			`Refusing to read a package outside the vault: "${packagePath}".`,
+		);
+	}
+
 	const normalized = normalizePath(packagePath.trim());
 	if (!normalized) throw new Error("Package path cannot be empty.");
 
