@@ -25,7 +25,10 @@ import {
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
-import { classifyCaptureTargetScope } from "src/engine/helpers/captureTargetScope";
+import {
+	classifyCaptureTargetScope,
+	markdownFilePathForFolderCandidate,
+} from "src/engine/helpers/captureTargetScope";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
@@ -333,7 +336,13 @@ async function collectForCaptureChoice(
 	// collector on the same classification guarantees a preselected pick is honoured
 	// exactly when it was legitimately collected, never silently dropped or hijacked.
 	const captureScope = classifyCaptureTargetScope(
-		{ isFolder: (path) => isFolder(app, path) },
+		{
+			isFolder: (path) => isFolder(app, path),
+			markdownFileExists: (path) =>
+				!!app.vault.getAbstractFileByPath(
+					markdownFilePathForFolderCandidate(path),
+				),
+		},
 		choice.captureTo ?? "",
 		choice.captureToActiveFile,
 	);

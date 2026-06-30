@@ -58,6 +58,7 @@ import {
 } from "./helpers/captureTargetResolution";
 import {
 	classifyCaptureTargetScope,
+	markdownFilePathForFolderCandidate,
 	type CaptureTargetScope,
 } from "./helpers/captureTargetScope";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
@@ -928,7 +929,13 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const preselected = this.getPreselectedCaptureTargetPath();
 		if (preselected !== undefined) {
 			const scope = classifyCaptureTargetScope(
-				{ isFolder: (path) => isFolder(this.app, path) },
+				{
+					isFolder: (path) => isFolder(this.app, path),
+					markdownFileExists: (path) =>
+						!!this.app.vault.getAbstractFileByPath(
+							markdownFilePathForFolderCandidate(path),
+						),
+				},
 				this.choice.captureTo ?? "",
 				false,
 			);

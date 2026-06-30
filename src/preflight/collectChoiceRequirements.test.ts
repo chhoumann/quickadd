@@ -784,7 +784,11 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 
 describe("collectChoiceRequirements - capture targets", () => {
 	const getFileCacheMock = vi.fn();
+	const getAbstractFileByPathMock = vi.fn();
 	const app = {
+		vault: {
+			getAbstractFileByPath: getAbstractFileByPathMock,
+		},
 		metadataCache: {
 			getFileCache: getFileCacheMock,
 		},
@@ -812,6 +816,8 @@ describe("collectChoiceRequirements - capture targets", () => {
 		getMarkdownFilesMatchingFilterMock.mockReturnValue([]);
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
 		getMarkdownFilesWithPropertyMock.mockReturnValue([]);
+		getAbstractFileByPathMock.mockReset();
+		getAbstractFileByPathMock.mockReturnValue(null);
 		getFileCacheMock.mockReset();
 		getFileCacheMock.mockImplementation((file: { path: string }) => {
 			if (file.path === "Goals/Alpha.md") {
@@ -824,20 +830,81 @@ describe("collectChoiceRequirements - capture targets", () => {
 		});
 	});
 
-	it("normalizes capture folder paths ending in .md", async () => {
+	it("treats a definite .md target as a file even when a same-named folder exists", async () => {
+		// A `.md` (or `.canvas`) extension is a definite file - exactly how the
+		// write-path resolver (resolveCaptureTarget) and the docs ("a value ending
+		// in a supported file extension ... targets that file path directly")
+		// behave. So even with a colliding folder `Projects`, no runtime file pick
+		// is required: the folder is never enumerated and no capture-target
+		// requirement is emitted. (Regression guard for the #1448 follow-up: a
+		// definite-file target must not be misrouted to a folder scope, which would
+		// both spuriously prompt AND honour an injected __qa.captureTargetFilePath.)
 		isFolderMock.mockReturnValue(true);
 
-		await collectChoiceRequirements(
+		const requirements = await collectChoiceRequirements(
 			app,
 			plugin,
 			choiceExecutor,
 			createCaptureChoice("Projects.md"),
 		);
 
-		expect(getMarkdownFilesInFolderMock).toHaveBeenCalledWith(
-			app,
-			"Projects/",
+		expect(getMarkdownFilesInFolderMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(false);
+	});
+
+	it("treats a bare name as a file when both the folder and a same-named note exist", async () => {
+		// resolveCaptureTarget disambiguates `Projects` (folder `Projects/` AND note
+		// `Projects.md` both exist) to the note. The collector must agree: no folder
+		// enumeration, no capture-target requirement - otherwise it would prompt for
+		// a pick AND let the engine honour an injected pick for a target the write
+		// path resolves to a definite file.
+		isFolderMock.mockReturnValue(true);
+		getAbstractFileByPathMock.mockImplementation((path: string) =>
+			path === "Projects.md" ? ({ path } as unknown) : null,
 		);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("Projects"),
+		);
+
+		expect(getMarkdownFilesInFolderMock).not.toHaveBeenCalled();
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(false);
+	});
+
+	it("forces the capture target dropdown for a bare folder name with no same-named note", async () => {
+		// Folder exists but NO `Projects.md` - a genuine folder scope, so the pick
+		// requirement IS emitted (regression guard that the same-name-note probe did
+		// not over-suppress the legitimate folder picker).
+		isFolderMock.mockReturnValue(true);
+		getAbstractFileByPathMock.mockReturnValue(null);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("Projects"),
+		);
+
+		expect(getMarkdownFilesInFolderMock).toHaveBeenCalledWith(app, "Projects/");
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(true);
 	});
 
 	it("does not force capture target dropdown for tokenized file paths", async () => {

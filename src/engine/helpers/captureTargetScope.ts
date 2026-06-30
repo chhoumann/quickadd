@@ -1,7 +1,23 @@
+import {
+	BASE_FILE_EXTENSION_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "../../constants";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { parsePropertyTarget } from "../../utils/propertyTarget";
 import { parseCaptureFileFilterTarget } from "../../utils/captureFileFilterTarget";
 import type { FieldFilter } from "../../utils/FieldSuggestionParser";
+
+/**
+ * The vault path of the Markdown note a bare folder-candidate path would collide
+ * with, i.e. {@link QuickAddEngine.normalizeMarkdownFilePath}`("", candidate)`.
+ * Callers bind {@link CaptureTargetScopeDeps.markdownFileExists} by probing the
+ * vault for exactly this path, so the classifier's folder-vs-file disambiguation
+ * matches resolveCaptureTarget's (which uses the same normalize) byte-for-byte.
+ */
+export function markdownFilePathForFolderCandidate(candidate: string): string {
+	return `${candidate.replace(/^\/+/, "").replace(MARKDOWN_FILE_EXTENSION_REGEX, "")}.md`;
+}
 
 /**
  * The runtime "pick a destination" scope a Capture choice's "Capture to" string
@@ -20,6 +36,15 @@ export type CaptureTargetScope =
 export interface CaptureTargetScopeDeps {
 	/** Whether the given vault-relative path is an existing folder. */
 	isFolder(path: string): boolean;
+	/**
+	 * Whether a same-named Markdown note exists for a bare folder-candidate path,
+	 * i.e. whether {@link markdownFilePathForFolderCandidate}`(path)` resolves to an
+	 * existing file. Mirrors the disambiguation resolveCaptureTarget performs (a
+	 * bare name targets a folder only when the folder exists AND no same-name note
+	 * does), so the classifier never offers a folder pick for a bare name the write
+	 * path would resolve to a definite file.
+	 */
+	markdownFileExists(path: string): boolean;
 }
 
 /**
@@ -70,14 +95,44 @@ export function classifyCaptureTargetScope(
 		!fileFilterTarget &&
 		normalizedTarget.startsWith("#");
 
-	const trimmedPath = normalizedTarget.replace(/\/$|\.md$/g, "");
+	const endsWithSlash = normalizedTarget.endsWith("/");
+
+	// A target carrying a recognized file extension with no trailing slash is never
+	// a runtime-pick scope. This mirrors resolveCaptureTarget, which tests the
+	// extension BEFORE the folder-ambiguity check, so an extensioned target that
+	// happens to collide with a same-named folder is NOT misrouted to that folder
+	// in either classifier. `.md`/`.canvas` are definite files; `.base` is
+	// unsupported (the resolver throws on it downstream) - in all three cases the
+	// engine must NOT honour an injected `__qa.captureTargetFilePath`, so returning
+	// `null` here both stops the spurious folder prompt AND preserves the #1448
+	// reserved-key confinement for a configured definite/unsupported file target.
+	const hasRecognizedFileExtension =
+		!isTagTarget &&
+		!isPropertyTarget &&
+		!isFilterTarget &&
+		!endsWithSlash &&
+		(MARKDOWN_FILE_EXTENSION_REGEX.test(normalizedTarget) ||
+			CANVAS_FILE_EXTENSION_REGEX.test(normalizedTarget) ||
+			BASE_FILE_EXTENSION_REGEX.test(normalizedTarget));
+
+	const folderProbePath = normalizedTarget.replace(/\/+$/, "");
+	// A bare name targets a folder only when the folder exists AND no same-name
+	// note does (resolveCaptureTarget's disambiguation; docs: "if both Projects/
+	// and Projects.md exist, Projects targets Projects.md"). Probing for the note
+	// keeps the classifier from offering a folder pick - and honouring an injected
+	// pick - for a bare name the write path resolves to a definite file. An empty
+	// target is the whole-vault scope and needs no probe. A trailing-slash target
+	// forces the folder regardless (handled by looksLikeFolderBySuffix below).
 	const isFolderTarget =
 		!isTagTarget &&
 		!isPropertyTarget &&
 		!isFilterTarget &&
-		(normalizedTarget === "" || deps.isFolder(trimmedPath));
+		!hasRecognizedFileExtension &&
+		(normalizedTarget === "" ||
+			(deps.isFolder(folderProbePath) &&
+				!deps.markdownFileExists(folderProbePath)));
 	const looksLikeFolderBySuffix =
-		!isPropertyTarget && !isFilterTarget && normalizedTarget.endsWith("/");
+		!isPropertyTarget && !isFilterTarget && endsWithSlash;
 
 	if (isPropertyTarget && propertyTarget) {
 		return {
@@ -94,9 +149,12 @@ export function classifyCaptureTargetScope(
 		return { kind: "tag", tag: normalizedTarget };
 	}
 	if (isFolderTarget || looksLikeFolderBySuffix) {
-		const folder = normalizedTarget.replace(/(?:\/|\.md)+$/g, "");
-		const folderPathSlash =
-			folder === "" ? "" : folder.endsWith("/") ? folder : `${folder}/`;
+		// Strip only trailing slashes (NOT `.md`): a `.md` target is already
+		// short-circuited to a definite file above, so a folder named `X.md`
+		// reached via a trailing slash (`X.md/`) must keep its name - matching
+		// resolveCaptureTarget's folder branch (`replace(/\/+$/, "")`).
+		const folder = folderProbePath;
+		const folderPathSlash = folder === "" ? "" : `${folder}/`;
 		return { kind: "folder", folderPathSlash };
 	}
 
