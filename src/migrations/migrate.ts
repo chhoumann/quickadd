@@ -56,16 +56,26 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 		const storeBeforeMigration = settingsStore.getState();
 
 		try {
-			await migrations[migration].migrate(plugin);
+			const result = await migrations[migration].migrate(plugin);
 
 			if (settingsStore.getState() !== storeBeforeMigration) {
 				plugin.settings = deepClone(settingsStore.getState());
 			}
 
-			plugin.settings.migrations[migration] = true;
+			// A migration may report that it could not finish (e.g. a required
+			// capability was unavailable this launch). Persist any partial
+			// progress it made, but leave the flag unset so it retries later.
+			const incomplete = result?.complete === false;
+			if (!incomplete) {
+				plugin.settings.migrations[migration] = true;
+			}
 			settingsStore.replaceState(deepClone(plugin.settings));
 
-			log.logMessage(`Migration ${migration} successful.`);
+			log.logMessage(
+				incomplete
+					? `Migration ${migration} incomplete; will retry on a later launch.`
+					: `Migration ${migration} successful.`
+			);
 		} catch (error) {
 			log.logError(
 				`Migration '${migration}' was unsuccessful. Please create an issue with the following error message: \n\n${error as string}\n\nQuickAdd will now revert to backup.`
