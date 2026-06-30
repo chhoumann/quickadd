@@ -90,7 +90,13 @@ function tokenizeSegment(segment: string): string[] {
 	let s = segment;
 
 	// Split typical acronym+word boundaries (XMLHttp -> XML Http).
-	s = s.replace(/([\p{Lu}]+)([\p{Lu}][\p{Ll}])/gu, "$1 $2");
+	// Match a SINGLE uppercase before an Upper+lower pair rather than a `+` run:
+	// the unbounded `[\p{Lu}]+` is quadratic on a long all-caps segment (each /g
+	// start position re-consumes the whole run then backtracks char-by-char looking
+	// for the never-present trailing lowercase), freezing the main thread on a
+	// crafted `{{VALUE|case:...}}` value. The single-char form is byte-identical
+	// (only the last uppercase of an acronym run ever leads the split) but linear.
+	s = s.replace(/([\p{Lu}])([\p{Lu}][\p{Ll}])/gu, "$1 $2");
 	// Split lower/digit -> upper boundaries (myNew -> my New).
 	s = s.replace(/([\p{Ll}\p{N}])([\p{Lu}])/gu, "$1 $2");
 
