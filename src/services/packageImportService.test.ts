@@ -461,6 +461,57 @@ describe("parseQuickAddPackage", () => {
 		// And the consistency check accepts it.
 		expect(() => parseQuickAddPackage(JSON.stringify(pkg))).not.toThrow();
 	});
+
+	it("rejects an importable child its declared parent does not carry inline", () => {
+		// applyPackageImport skips a parented child (trusting the parent's subtree to
+		// install it) but remapChoiceTree only keeps children listed INLINE in the
+		// parent. A hand-edited package where entry "child" names parentChoiceId="parent"
+		// while "parent".choices omits it would import "child" nowhere — silently
+		// dropped while the modal listed it and reported success. Fail closed here.
+		const parent = makeMulti("parent", "Parent", []); // does NOT list "child"
+		const child = makeChoice("child", "Child", "Template");
+		const bad = makePackage({
+			rootChoiceIds: ["parent"],
+			choices: [
+				makePackageChoice(parent, null, ["Parent"]),
+				makePackageChoice(child, "parent", ["Parent", "Child"]),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/names a parent that does not list it/i,
+		);
+	});
+
+	it("rejects a child whose declared parent entry is not a Multi", () => {
+		// parentChoiceId pointing at a non-container (e.g. a Template) is the same
+		// silent-drop shape: the importer skips the child as "parent-carried" but a
+		// Template has no inline choices to carry it.
+		const parent = makeChoice("parent", "Parent", "Template");
+		const child = makeChoice("child", "Child", "Template");
+		const bad = makePackage({
+			rootChoiceIds: ["parent"],
+			choices: [
+				makePackageChoice(parent, null, ["Parent"]),
+				makePackageChoice(child, "parent", ["Parent", "Child"]),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/names a parent that does not list it/i,
+		);
+	});
+
+	it("accepts a child whose declared parent is NOT in the package", () => {
+		// The legit excluded-parent shape: the parent Multi was excluded from the
+		// export while the child was pulled in (e.g. as a macro dependency). The
+		// importer routes such a child to its existing-vault parent / root, so it must
+		// not be rejected at the boundary.
+		const child = makeChoice("child", "Child", "Template");
+		const ok = makePackage({
+			rootChoiceIds: ["child"],
+			choices: [makePackageChoice(child, "missing-parent", ["Missing", "Child"])],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(ok))).not.toThrow();
+	});
 });
 
 // --- readQuickAddPackage ----------------------------------------------------

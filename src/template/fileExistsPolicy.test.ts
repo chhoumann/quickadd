@@ -239,3 +239,67 @@ describe("fileExistsPolicy collision naming", () => {
 		).resolves.toBe("tt0780504 (1).md");
 	});
 });
+
+describe("fileExistsPolicy collision naming terminates on large trailing numbers", () => {
+	// 2^53 (Number.MAX_SAFE_INTEGER + 1): the IEEE-754 ceiling where the old
+	// `parseInt(n, 10) + 1` arithmetic became a no-op. The recursive resolvers then
+	// computed a "next" path identical to the current one, so `exists` stayed true
+	// and they spun forever. A filename like `Foo9007199254740992` is only 19 chars
+	// and trivially constructible from a {{VALUE}}/CLI/URI-derived target, and a
+	// synced vault can already contain such a note - so this was reachable.
+	const TWO_POW_53 = "9007199254740992";
+
+	// Returns false for any path not in `existing`, and throws if probed more than
+	// `cap` times so a regression (the old infinite loop) fails loudly instead of
+	// hanging the whole suite.
+	const boundedExists = (existing: Iterable<string>, cap = 1000) => {
+		const present = new Set(existing);
+		let calls = 0;
+		return vi.fn(async (path: string) => {
+			if (++calls > cap) {
+				throw new Error(
+					`collision resolver did not terminate: ${calls} exists() probes`,
+				);
+			}
+			return present.has(path);
+		});
+	};
+
+	it("increments past 2^53 instead of looping forever on an identical path", async () => {
+		const exists = boundedExists([`Note${TWO_POW_53}.md`]);
+
+		await expect(
+			resolveIncrementedCollisionPath(`Note${TWO_POW_53}.md`, exists),
+		).resolves.toBe("Note9007199254740993.md");
+		expect(exists.mock.calls.length).toBeLessThanOrEqual(2);
+	});
+
+	it("increments a duplicate suffix past 2^53 instead of looping forever", async () => {
+		const exists = boundedExists([`Note (${TWO_POW_53}).md`]);
+
+		await expect(
+			resolveDuplicateSuffixCollisionPath(`Note (${TWO_POW_53}).md`, exists),
+		).resolves.toBe("Note (9007199254740993).md");
+		expect(exists.mock.calls.length).toBeLessThanOrEqual(2);
+	});
+
+	it("walks a chain of >=2^53 collisions to the first free name", async () => {
+		const exists = boundedExists([
+			"Note9007199254740992.md",
+			"Note9007199254740993.md",
+			"Note9007199254740994.md",
+		]);
+
+		await expect(
+			resolveIncrementedCollisionPath("Note9007199254740992.md", exists),
+		).resolves.toBe("Note9007199254740995.md");
+	});
+
+	it("grows the width when a fully-padded number rolls over (999 -> 1000)", async () => {
+		const exists = boundedExists(["Note999.md"]);
+
+		await expect(
+			resolveIncrementedCollisionPath("Note999.md", exists),
+		).resolves.toBe("Note1000.md");
+	});
+});

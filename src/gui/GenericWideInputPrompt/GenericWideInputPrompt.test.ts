@@ -1,126 +1,114 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Modal } from "obsidian";
+import type QuickAdd from "../../main";
+import { setQuickAddInstance } from "../../quickAddInstance";
+import GenericWideInputPrompt from "./GenericWideInputPrompt";
 
-// Test helper to access the private escapeBackslashes method
-class TestableGenericWideInputPrompt {
-	escapeBackslashes(input: string): string {
-		return input.replace(/\\/g, "\\\\");
-	}
+// The obsidian-stub Modal does not implement onOpen/onClose; the prompt calls
+// super.onOpen()/super.onClose(). Provide no-ops so construction and close do not
+// throw. Guarded so a richer stub still wins. (Mirrors the suggester-cleanup test.)
+const modalProto = Modal.prototype as unknown as {
+	onOpen?: unknown;
+	onClose?: unknown;
+};
+if (typeof modalProto.onOpen !== "function") modalProto.onOpen = () => {};
+if (typeof modalProto.onClose !== "function") modalProto.onClose = () => {};
+
+const htmlProto = HTMLElement.prototype as unknown as {
+	toggleClass?: unknown;
+	setAttr?: unknown;
+};
+if (typeof htmlProto.toggleClass !== "function") {
+	htmlProto.toggleClass = function toggleClass(
+		this: Element,
+		cls: string,
+		value: boolean,
+	) {
+		this.classList.toggle(cls, value);
+	};
+}
+if (typeof htmlProto.setAttr !== "function") {
+	htmlProto.setAttr = function setAttr(
+		this: Element,
+		name: string,
+		value: string | number | boolean | null,
+	) {
+		if (value === null || value === false) this.removeAttribute(name);
+		else this.setAttribute(name, String(value));
+	};
 }
 
-describe("GenericWideInputPrompt - Escape Backslashes", () => {
-	let prompt: TestableGenericWideInputPrompt;
+function makeFakeApp() {
+	return {
+		dom: { appContainerEl: document.body },
+		keymap: { pushScope: () => {}, popScope: () => {} },
+		workspace: { on: () => ({}), getActiveFile: () => null },
+		metadataCache: {
+			on: () => ({}),
+			getTags: () => ({}),
+			getFileCache: () => undefined,
+			isUserIgnored: () => false,
+			unresolvedLinks: {},
+		},
+		vault: {
+			on: () => ({}),
+			getMarkdownFiles: () => [],
+			getAllLoadedFiles: () => [],
+			getFiles: () => [],
+			getAbstractFileByPath: () => null,
+		},
+		fileManager: { getNewFileParent: () => ({ path: "" }) },
+	};
+}
 
+/**
+ * Drives the REAL wide prompt through its PUBLIC contract: open it via the static
+ * Prompt(), type into the rendered textarea, fire the documented ctrl+Enter submit
+ * gesture, and resolve the value the formatter / quickAddApi.wideInputPrompt()
+ * consumer receives. `typed` is the literal text the user keys in (so "C:\\temp" in
+ * source is the on-screen `C:\temp`).
+ */
+function submitWideValue(typed: string): Promise<string> {
+	const waitForClose = GenericWideInputPrompt.Prompt(fakeApp as never, "Header");
+	const textarea = document.querySelector(
+		"textarea.wideInputPromptInputEl",
+	) as HTMLTextAreaElement;
+	textarea.value = typed;
+	textarea.dispatchEvent(
+		new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }),
+	);
+	return waitForClose;
+}
+
+let fakeApp: ReturnType<typeof makeFakeApp>;
+
+describe("GenericWideInputPrompt returns the user's input verbatim", () => {
 	beforeEach(() => {
-		prompt = new TestableGenericWideInputPrompt();
+		fakeApp = makeFakeApp();
+		setQuickAddInstance({
+			app: fakeApp,
+			registerEvent: () => {},
+		} as unknown as QuickAdd);
 	});
 
-	describe("Basic escape sequences", () => {
-		it("should escape single backslash-n sequence", () => {
-			const input = 'let str = "aa\\nbb";';
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe('let str = "aa\\\\nbb";');
-		});
-
-		it("should escape multiple backslash-n sequences", () => {
-			const input = "Line1\\nLine2\\nLine3";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("Line1\\\\nLine2\\\\nLine3");
-		});
-
-		it("should escape backslash-t sequences", () => {
-			const input = "Column1\\tColumn2";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("Column1\\\\tColumn2");
-		});
-
-		it("should handle text without backslashes", () => {
-			const input = "No escapes here";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("No escapes here");
-		});
+	afterEach(() => {
+		for (const el of Array.from(document.body.children)) el.remove();
 	});
 
-	describe("Already escaped backslashes", () => {
-		it("should double-escape already escaped backslashes", () => {
-			const input = "Path\\\\to\\\\file";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("Path\\\\\\\\to\\\\\\\\file");
-		});
-
-		it("should handle mixed escape patterns", () => {
-			const input = "Line1\\nLine2\\\\nLine3";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("Line1\\\\nLine2\\\\\\\\nLine3");
-		});
+	it("preserves a literal backslash-n in code (issue #799)", async () => {
+		// #799's intent — keep a typed `\n` from corrupting code — is met without
+		// doubling: a typed `\n` stays literal (not "\\n", not a real newline) because
+		// the substituted value is never linebreak-expanded downstream.
+		const typed = 'let s = "aa\\nbb";';
+		await expect(submitWideValue(typed)).resolves.toBe(typed);
 	});
 
-	describe("Real-world code examples", () => {
-		it("should preserve JavaScript string escape sequences", () => {
-			const input = `function test() {
-  let str = "aa\\nbb";
-  return str;
-}`;
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe(`function test() {
-  let str = "aa\\\\nbb";
-  return str;
-}`);
-		});
-
-		it("should preserve regex patterns with backslashes", () => {
-			const input = 'const regex = /\\d+\\s+\\w+/;';
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("const regex = /\\\\d+\\\\s+\\\\w+/;");
-		});
-
-		it("should preserve path separators", () => {
-			const input = "C:\\Users\\Documents\\file.txt";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("C:\\\\Users\\\\Documents\\\\file.txt");
-		});
-	});
-
-	describe("Edge cases", () => {
-		it("should handle empty string", () => {
-			const input = "";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("");
-		});
-
-		it("should handle single backslash", () => {
-			const input = "\\";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("\\\\");
-		});
-
-		it("should handle trailing backslash", () => {
-			const input = "Some text\\";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("Some text\\\\");
-		});
-
-		it("should not affect actual newlines", () => {
-			const input = "Line1\nLine2\nLine3";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("Line1\nLine2\nLine3");
-		});
-
-		it("should not affect literal tab characters (issue #764)", () => {
-			// A real tab (0x09) inserted via Tab is not a backslash, so it passes
-			// through untouched and renders as indentation in the capture.
-			const input = "- item\n\tsub-item";
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe("- item\n\tsub-item");
-		});
-	});
-
-	describe("Issue #799 test case", () => {
-		it("should preserve backslash-n in JavaScript code from issue", () => {
-			const input = `let str = "aa\\nbb";
-let d = 1;`;
-			const result = prompt.escapeBackslashes(input);
-			expect(result).toBe(`let str = "aa\\\\nbb";
-let d = 1;`);
-		});
+	it("is an identity transform like the single-line prompt (Windows path + real newline)", async () => {
+		// Backslashes survive un-doubled ("C:\x", not "C:\\x") and a real newline
+		// passes through, so the same {{VALUE}} token stores identical bytes whether
+		// the user is on the wide or single-line prompt.
+		await expect(submitWideValue("C:\\temp\nC:\\x")).resolves.toBe(
+			"C:\\temp\nC:\\x",
+		);
 	});
 });

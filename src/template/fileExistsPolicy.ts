@@ -204,47 +204,39 @@ export async function resolveIncrementedCollisionPath(
 	filePath: string,
 	exists: ExistsFn,
 ): Promise<string> {
-	if (!(await exists(filePath))) {
-		return filePath;
+	// Iterate (never recurse) and bump the trailing number with BigInt so the
+	// candidate always advances by exactly one - even past 2^53, where the old
+	// `parseInt(n, 10) + 1` became a no-op (the computed "next" path equalled the
+	// current one, `exists` stayed true, and the recursion spun forever). The
+	// numeric part strictly increases, so no name repeats and a finite vault
+	// guarantees `exists` eventually returns false. BigInt swaps in for parseInt
+	// with no other change, so this is byte-for-byte identical below 2^53.
+	let candidate = filePath;
+	while (await exists(candidate)) {
+		const { basename, extension } = splitCollisionFileName(candidate);
+		const match = basename.match(/^(.*?)(\d+)$/);
+		const nextBasename = match
+			? `${match[1]}${String(BigInt(match[2]) + 1n).padStart(match[2].length, "0")}`
+			: `${basename}1`;
+		candidate = `${nextBasename}${extension}`;
 	}
-
-	const { basename, extension } = splitCollisionFileName(filePath);
-	const match = basename.match(/^(.*?)(\d+)$/);
-	const nextBasename = match
-		? `${match[1]}${String(parseInt(match[2], 10) + 1).padStart(
-				match[2].length,
-				"0",
-			)}`
-		: `${basename}1`;
-	const nextFilePath = `${nextBasename}${extension}`;
-
-	if (await exists(nextFilePath)) {
-		return await resolveIncrementedCollisionPath(nextFilePath, exists);
-	}
-
-	return nextFilePath;
+	return candidate;
 }
 
 export async function resolveDuplicateSuffixCollisionPath(
 	filePath: string,
 	exists: ExistsFn,
 ): Promise<string> {
-	if (!(await exists(filePath))) {
-		return filePath;
+	let candidate = filePath;
+	while (await exists(candidate)) {
+		const { basename, extension } = splitCollisionFileName(candidate);
+		const match = basename.match(/^(.*) \((\d+)\)$/);
+		const nextBasename = match
+			? `${match[1]} (${String(BigInt(match[2]) + 1n)})`
+			: `${basename} (1)`;
+		candidate = `${nextBasename}${extension}`;
 	}
-
-	const { basename, extension } = splitCollisionFileName(filePath);
-	const match = basename.match(/^(.*) \((\d+)\)$/);
-	const nextBasename = match
-		? `${match[1]} (${parseInt(match[2], 10) + 1})`
-		: `${basename} (1)`;
-	const nextFilePath = `${nextBasename}${extension}`;
-
-	if (await exists(nextFilePath)) {
-		return await resolveDuplicateSuffixCollisionPath(nextFilePath, exists);
-	}
-
-	return nextFilePath;
+	return candidate;
 }
 
 function splitCollisionFileName(filePath: string) {

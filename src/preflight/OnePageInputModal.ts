@@ -637,18 +637,17 @@ export class OnePageInputModal extends Modal {
 				if (!requirement.optional || hasParseError) return;
 			}
 
-			out[k] =
-				requirement?.type === "textarea"
-					? this.escapeBackslashes(v)
-					: v;
+			// Store the field value verbatim. A textarea value used to be
+			// backslash-doubled here; nothing downstream un-doubled it (the formatter
+			// substitutes a {{VALUE}} verbatim and never linebreak-processes it), so
+			// the doubling corrupted paths/regex/code — and compounded with the
+			// |type:text YAML quoter, which escapes backslashes again. Keep it literal,
+			// matching the wide and single-line prompts.
+			out[k] = v;
 		});
 		this.settled = true;
 		this.close();
 		this.resolvePromise(out);
-	}
-
-	private escapeBackslashes(input: string): string {
-		return input.replace(/\\/g, "\\\\");
 	}
 
 	private cancel() {
