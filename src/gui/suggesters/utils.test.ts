@@ -121,6 +121,78 @@ describe("Suggester Utils", () => {
 			renderExactHighlight(el, "R&D", "&");
 			expect(el.textContent).toBe("R&D");
 		});
+
+		// Regression: U+0130 'İ' lowercases to 'i' + combining dot (two UTF-16
+		// code units), so a match found in the lowercased text lands one code
+		// unit past where it sits in the original string. The mark must still
+		// wrap the original "Hello", not the shifted "ello".
+		it("aligns the mark after a length-changing lowercase (U+0130)", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "İHello", "hello");
+			expect(el.innerHTML).toBe(
+				'İ<mark class="qa-highlight">Hello</mark>',
+			);
+			expect(el.textContent).toBe("İHello");
+		});
+
+		// Two matches after the same length-changing character: every slice
+		// boundary (pre-text, marks, gaps) must stay aligned through the loop.
+		it("keeps multiple matches aligned after U+0130", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "İa-a", "a");
+			expect(el.innerHTML).toBe(
+				'İ<mark class="qa-highlight">a</mark>-<mark class="qa-highlight">a</mark>',
+			);
+			expect(el.textContent).toBe("İa-a");
+		});
+
+		// Typing 'i' matches the 'i' that 'İ' lowercases into; the mark must wrap
+		// the whole 'İ' grapheme, never collapse into an empty <mark></mark>.
+		it("wraps the whole grapheme when the query matches inside a U+0130 expansion", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "İstanbul", "i");
+			expect(el.innerHTML).toBe(
+				'<mark class="qa-highlight">İ</mark>stanbul',
+			);
+			expect(el.textContent).toBe("İstanbul");
+		});
+
+		it("highlights both a plain and a decomposing match without an empty mark", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "Diary İstanbul", "i");
+			expect(el.innerHTML).toBe(
+				'D<mark class="qa-highlight">i</mark>ary <mark class="qa-highlight">İ</mark>stanbul',
+			);
+			expect(el.textContent).toBe("Diary İstanbul");
+		});
+
+		// Whole-string toLowerCase folds a word-final Σ to ς ("ΣΣ" -> "σς"), which
+		// disagrees with per-character lowercasing of the text; the query must be
+		// folded the same way so an exact match still highlights.
+		it("highlights a Greek capital-sigma match (symmetric case folding)", () => {
+			const el = document.createElement("div");
+			renderExactHighlight(el, "ΣΣ", "ΣΣ");
+			expect(el.innerHTML).toBe('<mark class="qa-highlight">ΣΣ</mark>');
+			expect(el.textContent).toBe("ΣΣ");
+		});
+
+		it("never emits an empty <mark> for length-changing lowercase inputs", () => {
+			for (const [text, query] of [
+				["İ", "i"],
+				["İİ", "i"],
+				["aİb", "i"],
+				["İstanbul", "ı"],
+				["İHi", "i"],
+			] as const) {
+				const el = document.createElement("div");
+				renderExactHighlight(el, text, query);
+				// No degenerate empty highlight spans, and no characters lost.
+				for (const mark of Array.from(el.querySelectorAll("mark"))) {
+					expect(mark.textContent).not.toBe("");
+				}
+				expect(el.textContent).toBe(text);
+			}
+		});
 	});
 
 	describe("renderFuzzyHighlight", () => {
