@@ -221,15 +221,19 @@ export default class GenericWideInputPrompt extends Modal {
 		}
 	};
 
-	private escapeBackslashes(input: string): string {
-		return input.replace(/\\/g, "\\\\");
-	}
-
 	private submit() {
 		if (this.didSubmit) return;
+		// Resolve the textarea value verbatim — identical to the single-line
+		// GenericInputPrompt (whose transformInputOnSubmit is the identity). The
+		// substituted {{VALUE}} is never linebreak-processed (the formatter's
+		// expandLinebreakEscapesOutsideTokens runs on the template before
+		// substitution and skips token spans), and the only un-doubler
+		// replaceLinebreakInString has no production callers, so any transform here
+		// would corrupt the value with no downstream reversal (issue: a typed
+		// "C:\temp" must reach the note and quickAddApi.wideInputPrompt() as
+		// "C:\temp", not "C:\\temp").
 		this.input = this.inputComponent?.inputEl?.value ?? this.input;
 		this.didSubmit = true;
-		this.input = this.escapeBackslashes(this.input);
 
 		this.close();
 	}

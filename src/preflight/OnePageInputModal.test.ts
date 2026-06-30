@@ -264,6 +264,32 @@ describe("OnePageInputModal", () => {
 		});
 	});
 
+	it("returns a textarea field value verbatim, without doubling backslashes", async () => {
+		// A |type:multiline ({{VALUE}}) field used to backslash-double its value here;
+		// nothing downstream un-doubled it, so "C:\temp" became "C:\\temp" in the note
+		// (and compounded with the |type:text YAML quoter). Keep it literal.
+		const requirements: FieldRequirement[] = [
+			{ id: "body", label: "Body", type: "textarea" },
+		];
+		const typed = 'C:\\temp\nlet s = "a\\nb";';
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const textarea = (modal as any).contentEl.querySelector(
+			"textarea",
+		) as HTMLTextAreaElement;
+		textarea.value = typed;
+		textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({ body: typed });
+	});
+
 	it("normalizes stale initial dropdown values to the first raw option", async () => {
 		const id = "#BF616A,#8CC570,#42A5F5";
 		const requirements: FieldRequirement[] = [
