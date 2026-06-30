@@ -164,6 +164,23 @@ export function parseQuickAddPackage(raw: string): QuickAddPackage {
 		);
 	}
 
+	// Reject a parented choice whose declared parent does not actually carry it
+	// inline. applyPackageImport installs a child SOLELY through its parent Multi's
+	// inline `choices` (remapChoiceTree keeps only the children listed there) and,
+	// in the insertion loop, SKIPS the child's own flat entry assuming the parent
+	// will carry it. So a hand-edited/cross-version package where entry X names
+	// parentChoiceId=M (M an importable entry) while M does not list X inline would
+	// import X nowhere — silently dropped while the preview still listed X and the
+	// import reports success. A legitimately exported package always inlines a
+	// parented child as a direct member of its parent Multi, so failing closed here
+	// keeps the previewed set of choices identical to the installed set.
+	const uncarriedChildId = findUncarriedChildChoiceId(parsed.choices);
+	if (uncarriedChildId !== null) {
+		throw new Error(
+			`Package choice "${uncarriedChildId}" names a parent that does not list it as a child. Each parented choice must appear inside its parent.`,
+		);
+	}
+
 	return parsed;
 }
 
@@ -281,6 +298,47 @@ function canonicalizeJsonValue(value: unknown): string {
 	return `{${keys
 		.map((key) => `${JSON.stringify(key)}:${canonicalizeJsonValue(record[key])}`)
 		.join(",")}}`;
+}
+
+/**
+ * The id of the first flat entry whose declared parent is also a package entry but
+ * does NOT carry it inline, or null if every parented entry is carried.
+ *
+ * Mirrors {@link applyPackageImport}'s carry rule EXACTLY: a parented child is
+ * installed only as a DIRECT member of its parent Multi's `choices` array (that is
+ * the single level {@link remapChoiceTree} keeps and the same level the insertion
+ * loop skips the child's own entry for). `parentChoiceId` in any real export is
+ * always the direct Multi parent (buildChoiceCatalog only assigns it via Multi
+ * recursion; macro/NestedChoice embedded choices are never their own entries), so
+ * a direct-membership check neither false-rejects a legitimate package nor
+ * false-accepts a child buried under a non-importable grandchild (which the import
+ * would still drop). Entries whose `parentChoiceId` is not itself an entry are
+ * exempt — the importer routes those to the existing-vault parent or root, so they
+ * are never dropped.
+ */
+function findUncarriedChildChoiceId(
+	choices: QuickAddPackage["choices"],
+): string | null {
+	const entryById = new Map(choices.map((entry) => [entry.choice.id, entry]));
+
+	for (const entry of choices) {
+		const parentId = entry.parentChoiceId;
+		if (parentId === null) continue;
+
+		const parentEntry = entryById.get(parentId);
+		if (!parentEntry) continue;
+
+		const parent = parentEntry.choice;
+		const carriedInline =
+			parent.type === "Multi" &&
+			Array.isArray((parent as IMultiChoice).choices) &&
+			(parent as IMultiChoice).choices.some(
+				(child) => child?.id === entry.choice.id,
+			);
+		if (!carriedInline) return entry.choice.id;
+	}
+
+	return null;
 }
 
 export async function analysePackage(
@@ -587,7 +645,11 @@ export async function applyPackageImport(
 				: null;
 
 		if (parentImported) {
-			// Parent will be handled separately; avoid double-inserting children.
+			// Parent carries this child inline, so skip its own entry to avoid
+			// double-inserting. This trusts the parent to actually list the child
+			// inline (remapChoiceTree keeps only direct inline children); a package
+			// where it does not is rejected up front by findUncarriedChildChoiceId in
+			// parseQuickAddPackage, so a parsed import never silently drops it here.
 			handledChoices.add(originalId);
 			continue;
 		}
