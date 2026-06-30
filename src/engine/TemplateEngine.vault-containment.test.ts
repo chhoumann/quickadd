@@ -91,9 +91,13 @@ describe("normalizeTemplateFilePath vault containment", () => {
 		);
 	});
 
-	it("refuses traversal that appears only in the assembled file name", () => {
-		// Defense in depth: even a folder of "" with a traversal that slipped past
-		// the name normalizer must not assemble an escaping path.
-		expect(() => engine.normalize("Projects", "..\\..\\evil", "t.md")).toThrow();
+	it("refuses an escape that appears only in the assembled file name", () => {
+		// Defense in depth via the assembled-path guard specifically: a drive path
+		// passes normalizeGeneratedFilePath (which leaves absolute/drive forms for the
+		// boundary check), so this reaches escapesVaultBoundary(assembledPath) rather
+		// than throwing earlier in name normalization.
+		expect(() => engine.normalize("", "C:\\evil", "t.md")).toThrow(
+			/outside the vault/,
+		);
 	});
 });
