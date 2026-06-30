@@ -1,5 +1,5 @@
-import type { App, TFile } from "obsidian";
-import { MarkdownView } from "obsidian";
+import type { App } from "obsidian";
+import { MarkdownView, TFile } from "obsidian";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
@@ -25,7 +25,10 @@ import {
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
-import { classifyCaptureTargetScope } from "src/engine/helpers/captureTargetScope";
+import {
+	classifyCaptureTargetScope,
+	markdownFilePathForFolderCandidate,
+} from "src/engine/helpers/captureTargetScope";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
@@ -333,7 +336,13 @@ async function collectForCaptureChoice(
 	// collector on the same classification guarantees a preselected pick is honoured
 	// exactly when it was legitimately collected, never silently dropped or hijacked.
 	const captureScope = classifyCaptureTargetScope(
-		{ isFolder: (path) => isFolder(app, path) },
+		{
+			isFolder: (path) => isFolder(app, path),
+			markdownFileExists: (path) =>
+				app.vault.getAbstractFileByPath(
+					markdownFilePathForFolderCandidate(path),
+				) instanceof TFile,
+		},
 		choice.captureTo ?? "",
 		choice.captureToActiveFile,
 	);

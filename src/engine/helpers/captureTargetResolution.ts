@@ -1,4 +1,4 @@
-import type { TAbstractFile } from "obsidian";
+import { TFile, type TAbstractFile } from "obsidian";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,
@@ -112,10 +112,14 @@ export function resolveCaptureTarget(
 		return { kind: "file", path: normalizedCaptureTo };
 	}
 
-	// Guard against ambiguity where a folder and file share the same name.
+	// Guard against ambiguity where a folder and file share the same name. Only a
+	// real NOTE (TFile) at the candidate path makes the bare name a definite file;
+	// a folder that merely happens to be named `X.md` is NOT a note, so the bare
+	// name stays a folder scope (otherwise we would resolve to a file path that is
+	// itself a folder and fail the write).
 	const fileCandidatePath = deps.normalizeMarkdownFilePath("", folderPath);
 	const fileCandidate = deps.getAbstractFileByPath(fileCandidatePath);
-	const fileExists = !!fileCandidate;
+	const fileExists = fileCandidate instanceof TFile;
 
 	if (deps.isFolder(folderPath) && !fileExists) {
 		return { kind: "folder", folder: folderPath };
