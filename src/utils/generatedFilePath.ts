@@ -16,7 +16,17 @@ export function normalizeGeneratedFilePath(
 	path: string,
 	label = "File path",
 ): string {
-	const segments = path.split("/");
+	// Treat a backslash as a path separator BEFORE the per-segment "." / ".."
+	// rejection below. Obsidian's own `normalizePath` converts "\\" -> "/" before
+	// any path is touched on disk, so a formatted name like "..\\..\\..\\evil"
+	// would otherwise survive this guard as ONE non-".." segment yet still be
+	// written by `vault.create` as the traversal "../../../evil" — an out-of-vault
+	// write. Converting here makes the guard see the real segments (so "..\\" is
+	// rejected) and keeps this normalizer's view of the path identical to what
+	// Obsidian writes. The vault-containment assertion at the create sink
+	// (createFileWithInput -> escapesVaultBoundary) is the authoritative boundary
+	// for absolute / drive / UNC paths.
+	const segments = path.replace(/\\/g, "/").split("/");
 	return segments
 		.map((segment, index) => {
 			if (

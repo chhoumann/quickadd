@@ -26,6 +26,7 @@ import {
 } from "../constants";
 import { reportError } from "../utils/errorUtils";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import {
 	INVALID_FOLDER_CHARS_REGEX,
@@ -551,7 +552,21 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				"File name is empty after formatting. Make sure the tokens in the file name format produce a value (an optional token left empty can cause this)."
 			);
 		}
-		return `${actualFolderPath}${formattedFileName}${extension}`;
+		const assembledPath = `${actualFolderPath}${formattedFileName}${extension}`;
+		// Contain the assembled target at this shared chokepoint. The file NAME is run
+		// through normalizeGeneratedFilePath above, but the FOLDER portion is only
+		// stripLeadingSlash'd — so a folder like "../../../evil" (from an untrusted,
+		// synced Template choice resolved via formatFolderPath) would assemble an
+		// out-of-vault path. Both callers act on it without a sink guard: the relocation
+		// flow (computeChoiceTargetPath -> createFolder + fileManager.renameFile) would
+		// otherwise move the active note OUTSIDE the vault. Reject any escape here so
+		// every caller of this assembler is contained.
+		if (escapesVaultBoundary(assembledPath)) {
+			throw new Error(
+				`Refusing to build a file path outside the vault: "${assembledPath}".`,
+			);
+		}
+		return assembledPath;
 	}
 
 	protected async createFileWithTemplate(

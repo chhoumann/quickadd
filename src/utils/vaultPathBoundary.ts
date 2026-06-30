@@ -39,10 +39,24 @@ function isAbsoluteVaultPath(slashedPath: string): boolean {
 	return slashedPath.startsWith("/") || /^[a-zA-Z]:/.test(slashedPath);
 }
 
-/** True if any '/'-separated segment is exactly "..", i.e. a path-traversal
- * segment at any depth. ("..%2fevil.md" is a single literal segment, NOT "..".) */
+/** True if any '/'-separated segment is a parent-traversal "..", INCLUDING the
+ * Windows trailing-dot/space collapse: the Win32 filesystem strips trailing spaces
+ * and dots from each path component before opening it, so a segment like ".. " or
+ * "..." resolves to the parent ".." at file-open even though it is not literally "..".
+ * A lexical "=== '..'" check (and Node's own path math) would miss those, so match
+ * any segment that is ".." followed only by spaces/dots. ("..%2fevil.md" is a single
+ * literal segment, NOT "..", and "..evil" / "evil.." are ordinary names.)
+ *
+ * This deliberately also rejects exotic pure-dot names like "..." / "...." even on
+ * POSIX (where they are valid distinct directory names) — fail CLOSED toward
+ * Windows safety. The cost is nil in practice: QuickAdd's own folder validator
+ * already rejects any segment ending in a period/space (INVALID_FOLDER_TRAILING_CHARS),
+ * so such names are not creatable in-vault through the UI anyway. Do NOT narrow this
+ * to "spaces only" — that would reopen the Win32 trailing-dot collapse. */
 function hasTraversalSegment(slashedPath: string): boolean {
-	return slashedPath.split("/").some((segment) => segment === "..");
+	return slashedPath
+		.split("/")
+		.some((segment) => /^\.\.[. ]*$/u.test(segment));
 }
 
 /**

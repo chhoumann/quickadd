@@ -545,6 +545,30 @@ describe("readQuickAddPackage", () => {
 		expect(loaded.path).toBe("packages/p.json");
 		expect(loaded.pkg.choices[0].choice.id).toBe("a");
 	});
+
+	// Security: the read entry point is reached with an untrusted `path` (the CLI
+	// `path=` flag, the GUI file picker). It must reject any path that escapes the
+	// vault BEFORE touching the filesystem, so a crafted "../../../etc/passwd" can
+	// never disclose an out-of-vault file. normalizePath does not resolve "..".
+	it.each([
+		"../../../etc/passwd",
+		"../secret.json",
+		"packages/../../escape.json",
+		"/etc/passwd",
+		"C:/secret.json",
+		"C:\\secret.json",
+		"..\\..\\..\\etc\\passwd",
+		"\\\\server\\share\\secret.json",
+	])("refuses to read an out-of-vault package path: %s", async (escaping) => {
+		const { app, adapter } = createFakeApp();
+		await expect(readQuickAddPackage(app, escaping)).rejects.toThrow(
+			/Refusing to read a package outside the vault/,
+		);
+		// No filesystem touch at all. `adapter.exists` is the first adapter call and
+		// the read only runs after a successful existence check, so exists-not-called
+		// proves adapter.read never ran either.
+		expect(adapter.exists).not.toHaveBeenCalled();
+	});
 });
 
 // --- analysePackage ---------------------------------------------------------

@@ -68,6 +68,7 @@ import {
 	getAppendLinkDestinationFile,
 } from "../utils/fileLinks";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
@@ -1535,6 +1536,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		if (!basename.trim()) {
 			throw new ChoiceAbortError(
 				`Capture target file name is empty after formatting ('${finalPath}'). Make sure the tokens in 'Capture to' produce a value.`,
+			);
+		}
+
+		// Contain the assembled target at assembly — BEFORE the run() existence probe
+		// (`fileExists(filePath)`) that precedes the create sink. normalizeGeneratedFilePath
+		// intentionally leaves absolute/drive/UNC paths for the boundary check, so without
+		// this a 'Capture to' formatting to e.g. "C:/secret.md" would reach adapter.exists
+		// out-of-vault on Windows before createFileWithInput could reject it. Mirrors the
+		// Template path's normalizeTemplateFilePath guard.
+		if (escapesVaultBoundary(finalPath)) {
+			throw new ChoiceAbortError(
+				`Refusing to capture to a file outside the vault: "${finalPath}".`,
 			);
 		}
 

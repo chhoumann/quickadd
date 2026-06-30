@@ -780,6 +780,31 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(result).toBe("Boards/Map.CANVAS");
 	});
 
+	// Security: a drive/absolute 'Capture to' must be rejected at path assembly,
+	// BEFORE run()'s `fileExists(filePath)` existence probe — otherwise on Windows
+	// the probe would stat an out-of-vault path. normalizeGeneratedFilePath passes
+	// drive paths through to the boundary check, so this exercises that guard.
+	it("refuses a drive/absolute capture target before the existence probe", async () => {
+		// A leading-slash "/etc/secret.md" is stripped to the in-vault "etc/secret.md"
+		// (root-relative convention), so the escapes that reach this guard are the
+		// drive forms that normalizeGeneratedFilePath passes through.
+		for (const captureTo of ["C:/secret.md", "C:\\secret.md"]) {
+			const app = createApp();
+			const engine = new CaptureChoiceEngine(
+				app,
+				{ settings: { useSelectionAsCaptureValue: false } } as any,
+				createChoice({ captureTo }),
+				createExecutor(),
+			);
+
+			await expect(
+				(engine as any).getFormattedPathToCaptureTo(false),
+			).rejects.toBeInstanceOf(ChoiceAbortError);
+			// The out-of-vault path never reached an existence probe.
+			expect(app.vault.adapter.exists).not.toHaveBeenCalled();
+		}
+	});
+
 	it("builds a single-slash path for a typed custom filename in a folder capture", async () => {
 		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
 			{ path: "Inbox/Existing.md" } as any,
