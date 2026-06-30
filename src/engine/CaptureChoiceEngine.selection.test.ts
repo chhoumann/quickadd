@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, TFile, type App } from "obsidian";
+import { Notice, TFile, TFolder, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -553,10 +553,14 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(result).toEqual({ kind: "folder", folder: "journals" });
 	});
 
-	it("treats folder path as file when a file exists", () => {
+	it("treats folder path as file when a same-name note exists", () => {
 		const app = createApp();
 		vi.mocked(isFolder).mockReturnValue(true);
-		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue({} as any);
+		// A real note (TFile) at `journals.md`, not just any abstract file - a
+		// folder that merely shares the name must NOT count (see the TFolder case).
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(
+			Object.assign(new TFile(), { path: "journals.md" }),
+		);
 
 		const engine = new CaptureChoiceEngine(
 			app,
@@ -568,6 +572,27 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const result = (engine as any).resolveCaptureTarget("journals");
 
 		expect(result).toEqual({ kind: "file", path: "journals" });
+	});
+
+	it("treats folder path as folder when a same-name FOLDER (not a note) exists", () => {
+		const app = createApp();
+		vi.mocked(isFolder).mockReturnValue(true);
+		// `journals.md` is a folder, not a note -> the bare name stays a folder
+		// scope; resolving to the file path would target a folder and fail the write.
+		vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(
+			Object.assign(new TFolder(), { path: "journals.md" }),
+		);
+
+		const engine = new CaptureChoiceEngine(
+			app,
+			{ settings: { useSelectionAsCaptureValue: false } } as any,
+			createChoice({ captureTo: "journals" }),
+			createExecutor(),
+		);
+
+		const result = (engine as any).resolveCaptureTarget("journals");
+
+		expect(result).toEqual({ kind: "folder", folder: "journals" });
 	});
 
 	it("resolves a property:field=value target", () => {

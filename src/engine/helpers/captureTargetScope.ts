@@ -37,12 +37,13 @@ export interface CaptureTargetScopeDeps {
 	/** Whether the given vault-relative path is an existing folder. */
 	isFolder(path: string): boolean;
 	/**
-	 * Whether a same-named Markdown note exists for a bare folder-candidate path,
+	 * Whether a same-named Markdown NOTE exists for a bare folder-candidate path,
 	 * i.e. whether {@link markdownFilePathForFolderCandidate}`(path)` resolves to an
-	 * existing file. Mirrors the disambiguation resolveCaptureTarget performs (a
-	 * bare name targets a folder only when the folder exists AND no same-name note
-	 * does), so the classifier never offers a folder pick for a bare name the write
-	 * path would resolve to a definite file.
+	 * existing file (a `TFile`, NOT a folder that merely shares the `X.md` name).
+	 * Mirrors the disambiguation resolveCaptureTarget performs (a bare name targets
+	 * a folder only when the folder exists AND no same-name note does), so the
+	 * classifier never offers a folder pick for a bare name the write path would
+	 * resolve to a definite file.
 	 */
 	markdownFileExists(path: string): boolean;
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import { TFile, TFolder, type App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
@@ -865,7 +865,9 @@ describe("collectChoiceRequirements - capture targets", () => {
 		// path resolves to a definite file.
 		isFolderMock.mockReturnValue(true);
 		getAbstractFileByPathMock.mockImplementation((path: string) =>
-			path === "Projects.md" ? ({ path } as unknown) : null,
+			path === "Projects.md"
+				? Object.assign(new TFile(), { path })
+				: null,
 		);
 
 		const requirements = await collectChoiceRequirements(
@@ -882,6 +884,33 @@ describe("collectChoiceRequirements - capture targets", () => {
 					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 			),
 		).toBe(false);
+	});
+
+	it("still forces the dropdown when a same-named FOLDER (not a note) shares the X.md name", async () => {
+		// A folder named `Projects.md` is NOT a note, so it must not suppress the
+		// folder scope for bare `Projects` - otherwise the run resolves to the file
+		// path `Projects.md`, which is itself a folder, and the write fails.
+		isFolderMock.mockReturnValue(true);
+		getAbstractFileByPathMock.mockImplementation((path: string) =>
+			path === "Projects.md"
+				? Object.assign(new TFolder(), { path })
+				: null,
+		);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createCaptureChoice("Projects"),
+		);
+
+		expect(getMarkdownFilesInFolderMock).toHaveBeenCalledWith(app, "Projects/");
+		expect(
+			requirements.some(
+				(requirement) =>
+					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			),
+		).toBe(true);
 	});
 
 	it("forces the capture target dropdown for a bare folder name with no same-named note", async () => {

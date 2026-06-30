@@ -1,15 +1,25 @@
 import { describe, it, expect } from "vitest";
-import type { TAbstractFile } from "obsidian";
+import { TFile, TFolder, type TAbstractFile } from "obsidian";
 import {
 	resolveCaptureTarget,
 	type CaptureTargetDeps,
 } from "./captureTargetResolution";
 import { ChoiceAbortError } from "../../errors/ChoiceAbortError";
 
-function deps(opts: { isFolder?: boolean; fileExists?: boolean } = {}): CaptureTargetDeps {
+function deps(
+	opts: {
+		isFolder?: boolean;
+		fileExists?: boolean;
+		fileIsFolder?: boolean;
+	} = {},
+): CaptureTargetDeps {
 	return {
-		getAbstractFileByPath: () =>
-			opts.fileExists ? ({} as TAbstractFile) : null,
+		getAbstractFileByPath: (): TAbstractFile | null => {
+			// A real note is a TFile; a folder that merely shares the `X.md` name is
+			// a TFolder and must NOT count as the same-name note.
+			if (opts.fileIsFolder) return new TFolder() as unknown as TAbstractFile;
+			return opts.fileExists ? (new TFile() as unknown as TAbstractFile) : null;
+		},
 		isFolder: () => !!opts.isFolder,
 		// Faithful to QuickAddEngine.normalizeMarkdownFilePath for the ""+folderPath call.
 		normalizeMarkdownFilePath: (folderPath, fileName) => {
@@ -58,6 +68,14 @@ describe("resolveCaptureTarget", () => {
 		expect(
 			resolveCaptureTarget("journals", deps({ isFolder: false })),
 		).toEqual({ kind: "file", path: "journals" });
+		// a FOLDER named `journals.md` is NOT a note, so the bare name stays a folder
+		// scope (resolving to a file would target a path that is itself a folder).
+		expect(
+			resolveCaptureTarget(
+				"journals",
+				deps({ isFolder: true, fileIsFolder: true }),
+			),
+		).toEqual({ kind: "folder", folder: "journals" });
 	});
 
 	it("routes property:<field>[=<value>] to the property picker before any file/folder branch", () => {

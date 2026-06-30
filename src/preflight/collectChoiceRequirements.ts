@@ -1,5 +1,5 @@
-import type { App, TFile } from "obsidian";
-import { MarkdownView } from "obsidian";
+import type { App } from "obsidian";
+import { MarkdownView, TFile } from "obsidian";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
@@ -339,9 +339,9 @@ async function collectForCaptureChoice(
 		{
 			isFolder: (path) => isFolder(app, path),
 			markdownFileExists: (path) =>
-				!!app.vault.getAbstractFileByPath(
+				app.vault.getAbstractFileByPath(
 					markdownFilePathForFolderCandidate(path),
-				),
+				) instanceof TFile,
 		},
 		choice.captureTo ?? "",
 		choice.captureToActiveFile,

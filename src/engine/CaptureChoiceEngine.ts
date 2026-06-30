@@ -932,9 +932,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				{
 					isFolder: (path) => isFolder(this.app, path),
 					markdownFileExists: (path) =>
-						!!this.app.vault.getAbstractFileByPath(
+						this.app.vault.getAbstractFileByPath(
 							markdownFilePathForFolderCandidate(path),
-						),
+						) instanceof TFile,
 				},
 				this.choice.captureTo ?? "",
 				false,
