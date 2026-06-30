@@ -209,4 +209,51 @@ describe("Formatter FIELD and TITLE namespace handling", () => {
 		expect(output).toBe("---\ntopics:\n  - \"[]\"\n---\n");
 		expect(vars.get("topics")).toEqual(["Alpha", "Beta"]);
 	});
+
+	describe("ReDoS resistance (replaceFieldVarInString exec loop)", () => {
+		// The formatter runs FIELD_VAR_REGEX_WITH_FILTERS UNanchored over template
+		// content (attacker-controllable via an imported/synced template). Before
+		// the interior excluded `{`, a template that was a long run of unterminated
+		// openers drove O(n^2) backtracking: at every `{{FIELD:` opener the greedy
+		// interior ate the rest of the string before failing (~38s at 100K openers,
+		// freezing the main thread). Excluding `{` from both interior classes stops
+		// each attempt at the next opener, so the scan is linear. Generous budget
+		// keeps the test non-flaky while failing hard on any regression.
+		const BUDGET_MS = 1500;
+
+		it(
+			"resolves a {{FIELD: opener flood in linear time",
+			async () => {
+				const input = "lead " + "{{FIELD:".repeat(200_000) + " tail";
+				const start = performance.now();
+				const result = await formatter.runFormat(input);
+				const elapsed = performance.now() - start;
+
+				// No opener is ever closed, so nothing matches and the template is
+				// returned verbatim without a single suggestForField call.
+				expect(result).toBe(input);
+				expect(formatter.fieldCalls).toEqual([]);
+				expect(elapsed).toBeLessThan(BUDGET_MS);
+			},
+			20_000,
+		);
+
+		it(
+			"resolves a {{FIELD:| opener flood in linear time",
+			async () => {
+				// The pipe-prefixed variant: closing only group 1's `{` exclusion
+				// would still let group 2 (`|filters`) span openers, so both classes
+				// must exclude `{`.
+				const input = "{{FIELD:|".repeat(200_000);
+				const start = performance.now();
+				const result = await formatter.runFormat(input);
+				const elapsed = performance.now() - start;
+
+				expect(result).toBe(input);
+				expect(formatter.fieldCalls).toEqual([]);
+				expect(elapsed).toBeLessThan(BUDGET_MS);
+			},
+			20_000,
+		);
+	});
 });

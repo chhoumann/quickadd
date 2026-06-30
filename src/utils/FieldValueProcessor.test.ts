@@ -169,10 +169,10 @@ describe("FieldValueProcessor", () => {
 			it(
 				"processes a {{FIELD:-prefix flood in linear time",
 				() => {
-					// A distinct quadratic vector (a long run of `{{FIELD:` token-opens
-					// with no close) is quadratic in the formatter's UNanchored exec
-					// loop, but the membership test here is anchored (`^...$`), so the
-					// engine only ever tries a single start position and stays linear.
+					// A distinct quadratic vector: a long run of `{{FIELD:` token-opens
+					// with no close. The interior now excludes `{`, so the formatter's
+					// UNanchored exec loop stays linear too; this anchored membership
+					// test was already immune (the `^` forces a single start position).
 					const malicious = "{{FIELD:".repeat(200_000);
 					const rawValues = new Set(["Active", malicious]);
 
