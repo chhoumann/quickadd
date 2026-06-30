@@ -141,21 +141,65 @@ export function renderExactHighlight(el: HTMLElement, text: string, query: strin
 		return;
 	}
 
-	const lower = text.toLowerCase();
-	const q = query.toLowerCase();
-	let from = 0;
-	let idx = lower.indexOf(q, from);
+	// Lowercase `text` by code point, recording for every lowercased code unit
+	// the [start, end) span of the ORIGINAL character it came from. toLowerCase()
+	// can change UTF-16 length (e.g. U+0130 'İ' -> 'i' + combining dot), so an
+	// index found in the lowercased domain does not line up with `text`; mapping
+	// it back through these spans keeps the <mark> on the right characters.
+	// Iterating by code point (for..of) also lowercases astral cased characters
+	// correctly. A match can begin or end partway through one character's
+	// expansion (typing 'i' matches the 'i' inside 'İ'); using the start of the
+	// character that holds the FIRST matched unit and the end of the character
+	// that holds the LAST one makes the mark wrap those whole characters instead
+	// of collapsing to an empty span.
+	let lower = "";
+	const startInText: number[] = [];
+	const endInText: number[] = [];
+	let cursor = 0;
+	for (const ch of text) {
+		const lc = ch.toLowerCase();
+		const start = cursor;
+		const end = cursor + ch.length;
+		for (let i = 0; i < lc.length; i++) {
+			startInText.push(start);
+			endInText.push(end);
+		}
+		lower += lc;
+		cursor = end;
+	}
+
+	// Lowercase the query by code point too, so the search domain is symmetric
+	// with `lower`. Whole-string toLowerCase() applies context-sensitive folding
+	// (Greek final sigma: "ΣΣ".toLowerCase() === "σς") that the per-character
+	// `lower` does not, which would otherwise drop the highlight even when the
+	// query equals the text exactly.
+	let q = "";
+	for (const ch of query) q += ch.toLowerCase();
+
+	let from = 0; // cursor in the original `text`
+	let lowerFrom = 0; // cursor in the lowercased domain
+	let idx = lower.indexOf(q, lowerFrom);
 
 	while (idx !== -1) {
-		if (idx > from) el.append(createOwnedTextNode(el, text.slice(from, idx)));
+		// Clamp the start to `from` so two matches landing inside one character's
+		// expansion can never emit a backward or duplicated slice; this keeps the
+		// concatenated output byte-identical to the original `text`.
+		const matchStart = Math.max(from, startInText[idx]);
+		const matchEnd = endInText[idx + q.length - 1];
 
-		const mark = createOwnedElement(el, 'mark');
-		mark.className = 'qa-highlight';
-		mark.textContent = text.slice(idx, idx + query.length);
-		el.append(mark);
+		if (matchEnd > matchStart) {
+			if (matchStart > from) el.append(createOwnedTextNode(el, text.slice(from, matchStart)));
 
-		from = idx + query.length;
-		idx = lower.indexOf(q, from);
+			const mark = createOwnedElement(el, 'mark');
+			mark.className = 'qa-highlight';
+			mark.textContent = text.slice(matchStart, matchEnd);
+			el.append(mark);
+
+			from = matchEnd;
+		}
+
+		lowerFrom = idx + q.length;
+		idx = lower.indexOf(q, lowerFrom);
 	}
 
 	if (from < text.length) el.append(createOwnedTextNode(el, text.slice(from)));
