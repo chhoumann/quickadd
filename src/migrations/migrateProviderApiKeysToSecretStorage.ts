@@ -8,20 +8,30 @@ import { storeProviderApiKeyInSecretStorage } from "src/ai/providerSecrets";
 const migrateProviderApiKeysToSecretStorage: Migration = {
 	description: "Move AI provider API keys into Obsidian SecretStorage",
 	migrate: async (plugin: QuickAdd) => {
+		const providers = settingsStore.getState().ai.providers ?? [];
+		// The migration's single invariant: it is complete iff no provider
+		// still holds a plaintext apiKey. SecretStorage availability only
+		// decides whether we can act to reach that state, not whether we are
+		// done.
+		const hasPlaintextKey = () =>
+			providers.some(
+				(provider) => (provider.apiKey?.trim() ?? "") !== "",
+			);
+
 		const secretStorage = plugin.app?.secretStorage;
 		if (!secretStorage?.getSecret || !secretStorage?.setSecret) {
-			// SecretStorage does not exist on this build (old Obsidian / mobile).
-			// Stay pending so the keys are migrated once it becomes available,
-			// rather than marking the migration done and leaving them in
-			// plaintext forever.
+			// SecretStorage does not exist on this build (old Obsidian / mobile),
+			// so we cannot move keys now. Stay pending only while a plaintext key
+			// is actually waiting, so it migrates once SecretStorage becomes
+			// available instead of being stranded in plaintext forever. With
+			// nothing to migrate the invariant already holds, so complete.
+			if (!hasPlaintextKey()) return;
 			log.logWarning(
 				"SecretStorage unavailable; deferring AI provider API key migration until it is available.",
 			);
 			return { complete: false };
 		}
 
-		const currentSettings = settingsStore.getState();
-		const providers = currentSettings.ai.providers ?? [];
 		let updated = false;
 
 		for (const provider of providers) {
@@ -81,14 +91,10 @@ const migrateProviderApiKeysToSecretStorage: Migration = {
 			}));
 		}
 
-		// The migration's goal is that no provider keeps a plaintext apiKey.
 		// If any key is still present, a move failed (write error, read error,
 		// helper returned null) - stay pending so it is retried on a later
 		// launch instead of being silently marked complete.
-		const hasRemainingPlaintextKey = providers.some(
-			(provider) => (provider.apiKey?.trim() ?? "") !== "",
-		);
-		if (hasRemainingPlaintextKey) {
+		if (hasPlaintextKey()) {
 			return { complete: false };
 		}
 	},

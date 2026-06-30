@@ -703,6 +703,43 @@ describe("Migration completeness signal (retry on incomplete)", () => {
 		expect(plugin.settings.ai.providers[0].apiKey).toBe("sk-legacy-plaintext");
 	});
 
+	it("completes the secret migration on a SecretStorage-less build when there is nothing to migrate", async () => {
+		const loaded = {
+			...structuredClone(DEFAULT_SETTINGS),
+			ai: {
+				...structuredClone(DEFAULT_SETTINGS.ai),
+				providers: [
+					{
+						name: "OpenAI",
+						endpoint: "https://api.openai.com/v1",
+						apiKey: "",
+						apiKeyRef: "quickadd-ai-openai",
+						models: [],
+						modelSource: "providerApi" as const,
+					},
+				],
+			},
+			migrations: allOtherMigrationsComplete(
+				"migrateProviderApiKeysToSecretStorage",
+			),
+		};
+		settingsStore.replaceState(structuredClone(loaded));
+
+		// No SecretStorage AND no plaintext key: the goal already holds, so the
+		// migration should drain instead of re-running forever.
+		const plugin: any = {
+			app: {},
+			settings: structuredClone(loaded),
+			saveSettings: vi.fn(),
+		};
+
+		await migrate(plugin);
+
+		expect(
+			plugin.settings.migrations.migrateProviderApiKeysToSecretStorage,
+		).toBe(true);
+	});
+
 	it("marks the secret migration complete when there are no plaintext keys to move", async () => {
 		const loaded = {
 			...structuredClone(DEFAULT_SETTINGS),

@@ -159,6 +159,20 @@ describe("migrateProviderApiKeysToSecretStorage migration", () => {
 		expect(result).toEqual({ complete: false });
 	});
 
+	it("completes without warning when SecretStorage is unavailable but no legacy key is waiting", async () => {
+		const plugin = setup(
+			[createProvider({ apiKey: "", apiKeyRef: "provider-secret" })],
+			undefined,
+		);
+
+		const result = await migration.default.migrate(plugin);
+
+		// Nothing to migrate, so the invariant already holds - do not stay
+		// pending (and re-save) on every launch, and do not cry wolf.
+		expect(result).toBeUndefined();
+		expect(logWarningMock).not.toHaveBeenCalled();
+	});
+
 	it("signals incomplete when a legacy key cannot be moved", async () => {
 		const getSecret = vi.fn().mockResolvedValue(null);
 		const setSecret = vi.fn().mockRejectedValue(new Error("write failed"));
