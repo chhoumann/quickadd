@@ -40,7 +40,7 @@ module.exports = async function togglManager(params) {
     quickAddApi = params.quickAddApi;
     projects = await togglApi.getProjects();
 
-    openMainMenu(menu);
+    await openMainMenu(menu);
 }
 
 const dateInSeconds = (date) => {
@@ -74,7 +74,11 @@ async function openSubMenu(project) {
     }
 
     const entryName = project.menuOptions[choice];
-    const projectID = projects.find(p => p.name === project.togglProjectName).id;
+    const togglProject = projects.find(p => p.name === project.togglProjectName);
+    if (!togglProject) {
+        new Notice(`Toggl project "${project.togglProjectName}" not found. Edit the menu in togglManager.js to match your Toggl projects.`, 5000);
+        return;
+    }
 
-    startTimer(entryName, projectID);
+    await startTimer(entryName, togglProject.id);
 }
