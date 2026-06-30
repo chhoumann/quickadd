@@ -54,8 +54,4 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 		this.inputEl.dispatchEvent(event);
 		this.close();
 	}
-
-	private escapeRegex(s: string): string {
-		return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	}
 }
