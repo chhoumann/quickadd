@@ -68,4 +68,23 @@ describe("normalizeGeneratedFilePath", () => {
 			'File path cannot contain "." or ".." path segments.',
 		);
 	});
+
+	it("rejects backslash traversal (Windows-style ..\\) that the slash-only split missed", () => {
+		// Regression for the path-traversal finding: a backslash is a real path
+		// separator to Obsidian's vault.create, so "..\\..\\..\\evil" must be
+		// rejected, not preserved as a single non-".." segment.
+		expect(() => normalizeGeneratedFilePath("..\\..\\..\\evil")).toThrow(
+			'File path cannot contain "." or ".." path segments.',
+		);
+		expect(() => normalizeGeneratedFilePath("Folder\\..\\Note")).toThrow(
+			'File path cannot contain "." or ".." path segments.',
+		);
+	});
+
+	it("treats a backslash as a folder separator, mirroring Obsidian's normalizePath", () => {
+		expect(normalizeGeneratedFilePath("Folder\\Note")).toBe("Folder/Note");
+		expect(normalizeGeneratedFilePath("a\\b\\Line\nBreak")).toBe(
+			"a/b/Line Break",
+		);
+	});
 });

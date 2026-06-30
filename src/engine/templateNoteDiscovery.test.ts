@@ -152,6 +152,23 @@ describe("template note discovery", () => {
 		);
 	});
 
+	it("drops unresolved-link candidates that escape the vault boundary", () => {
+		// Security: unresolvedLinks is derived from note content, untrusted on a
+		// synced/shared vault. A planted [[..\..\..\evil]] (or absolute/drive path)
+		// must never surface as a selectable "create" target.
+		expect(testExports.normalizeUnresolvedTarget("..\\..\\..\\evil")).toBeNull();
+		expect(testExports.normalizeUnresolvedTarget("../../escape")).toBeNull();
+		expect(testExports.normalizeUnresolvedTarget("/etc/passwd")).toBeNull();
+		expect(testExports.normalizeUnresolvedTarget("C:/secret")).toBeNull();
+		// Ordinary in-vault titles still pass through unchanged.
+		expect(testExports.normalizeUnresolvedTarget("Projects/Missing Roadmap")).toBe(
+			"Projects/Missing Roadmap",
+		);
+		expect(testExports.normalizeUnresolvedTarget("Missing Project")).toBe(
+			"Missing Project",
+		);
+	});
+
 	it("excludes the selected literal template file from existing-note candidates", () => {
 		const template = file("Templates/Project.md");
 		const alice = file("Existing/Alice.md");

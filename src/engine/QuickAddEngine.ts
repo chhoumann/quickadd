@@ -3,6 +3,7 @@ import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
 import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 
 export abstract class QuickAddEngine {
 	public app: App;
@@ -66,6 +67,20 @@ export abstract class QuickAddEngine {
 		fileContent: string,
 		opts: { suppressTemplaterOnCreate?: boolean } = {},
 	): Promise<TFile> {
+		// Authoritative vault-containment boundary for every new-file write (Template
+		// and Capture both funnel through here). `filePath` is assembled from formatted
+		// names that can be seeded by untrusted input — an obsidian:// URI, the CLI, or
+		// `{{VALUE}}` resolved from synced note content. A traversal/absolute/drive/UNC
+		// path (e.g. "..\\..\\..\\evil.md" or "C:/evil.md") would make `vault.create`
+		// AND the folder pre-creation below resolve OUTSIDE the vault root. Reject it
+		// here, before any filesystem touch, so the sink can never escape even if an
+		// upstream normalizer is bypassed. Mirrors the package-import write guard (#1434).
+		if (escapesVaultBoundary(filePath)) {
+			throw new Error(
+				`Refusing to create a file outside the vault: "${filePath}".`,
+			);
+		}
+
 		const dirMatch = filePath.match(/(.*)[/\\]/);
 		let dirName = "";
 		if (dirMatch) dirName = dirMatch[1];

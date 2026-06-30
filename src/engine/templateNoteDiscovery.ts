@@ -6,6 +6,7 @@ import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { isCancellationError } from "src/utils/errorUtils";
 import { UserCancelError } from "src/errors/UserCancelError";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
+import { escapesVaultBoundary } from "src/utils/vaultPathBoundary";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 
 export {
@@ -113,6 +114,11 @@ function normalizeUnresolvedTarget(raw: string): string | null {
 	const withoutSubpath = withoutAlias.split("#")[0]?.trim() ?? "";
 	const withoutExtension = withoutSubpath.replace(/\.md$/i, "").trim();
 	if (!withoutExtension || withoutExtension === "/") return null;
+	// Unresolved-link candidates come from note content (metadataCache.unresolvedLinks),
+	// which is untrusted on a synced/shared vault: a planted [[..\\..\\..\\evil]] would
+	// otherwise surface as a selectable "create" target that resolves outside the vault.
+	// Drop anything that escapes the boundary so it never appears as a traversal lure.
+	if (escapesVaultBoundary(withoutExtension)) return null;
 	return withoutExtension;
 }
 
