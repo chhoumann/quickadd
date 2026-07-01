@@ -30,6 +30,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
 	// without `ui`) flip this to false so engine prompts abort instead of hanging.
 	public interactive = true;
+	// User-script modules loaded by requirement collection (preflight / CLI),
+	// consumed once by MacroChoiceEngine so a script's top-level code runs a
+	// single time per trigger instead of once for introspection plus once for
+	// execution (see IChoiceExecutor.preloadedUserScripts).
+	public readonly preloadedUserScripts = new Map<string, unknown>();
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
 	private pendingAbort: MacroAbortError | null = null;
@@ -290,7 +295,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			macroChoice,
 			this,
 			this.variables,
-			undefined,
+			this.preloadedUserScripts,
 			undefined,
 			originLeaf,
 		);

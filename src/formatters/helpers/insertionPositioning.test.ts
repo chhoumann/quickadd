@@ -216,6 +216,44 @@ describe("insertTextAfterPositionInBody", () => {
 		const r = insertTextAfterPositionInBody("- x\n", body, 0, false);
 		expect(r.content).toBe("## Log\n- x\n\n- after");
 	});
+
+	// Text without a trailing newline used to be glued straight onto the next
+	// line's content ("## Log\nnew- existing"), corrupting it — the default
+	// no-format capture ({{value}} = raw selection/clipboard) and any format
+	// not ending in \n hit this whenever the anchor is directly followed by
+	// content. Mirrors insertTextBeforePositionInBody's separator guard.
+	describe("separator guard for text without a trailing newline", () => {
+		it("does not glue onto the following content line", () => {
+			const body = "## Log\n- existing";
+			const r = insertTextAfterPositionInBody("new", body, 0, false);
+			expect(r.content).toBe("## Log\nnew\n- existing");
+			// Cursor lands at the end of the inserted text, before the separator.
+			expect(r.insertedEndOffset).toBe("## Log\n".length + "new".length);
+		});
+		it("does not glue a section-end insert onto the next heading", () => {
+			const body = "## A\n- item\n## B";
+			const r = insertTextAfterPositionInBody("x", body, 1, false);
+			expect(r.content).toBe("## A\n- item\nx\n## B");
+		});
+		it("adds nothing at end-of-file (no following content)", () => {
+			const r = insertTextAfterPositionInBody("x", "a\nb", 1, false);
+			expect(r.content).toBe("a\nb\nx");
+		});
+		it("does not treat the EOF newline artifact as content", () => {
+			const r = insertTextAfterPositionInBody("x", "a\n", 0, false);
+			expect(r.content).toBe("a\nx");
+		});
+		it("lets a blank line below absorb the text (no doubled blank)", () => {
+			const body = "## Log\n\n- after";
+			const r = insertTextAfterPositionInBody("new", body, 0, false);
+			expect(r.content).toBe("## Log\nnew\n- after");
+		});
+		it("keeps the #312 task drop intact (no separator re-added)", () => {
+			const body = "## Log\n \n- after"; // whitespace-only blank below
+			const r = insertTextAfterPositionInBody("- task\n", body, 0, true);
+			expect(r.content).toBe("## Log\n- task \n- after");
+		});
+	});
 });
 
 describe("insertTextBeforePositionInBody", () => {

@@ -23,6 +23,27 @@ describe("dateAliases", () => {
 		expect(result).toBe("next friday");
 	});
 
+	it("does not resolve Object.prototype members as aliases", () => {
+		// A bare bracket lookup on the plain-object alias map walked the
+		// prototype chain: "constructor" resolved to the Object function (a
+		// truthy non-string) instead of falling through to the raw input.
+		expect(normalizeDateInput("constructor", { tm: "tomorrow" })).toBe(
+			"constructor",
+		);
+		expect(normalizeDateInput("__proto__", { tm: "tomorrow" })).toBe(
+			"__proto__",
+		);
+		expect(normalizeDateInput("constructor 5pm", { tm: "tomorrow" })).toBe(
+			"constructor 5pm",
+		);
+	});
+
+	it("still resolves a user-defined alias that shadows a magic name", () => {
+		expect(
+			normalizeDateInput("constructor", { constructor: "tomorrow" }),
+		).toBe("tomorrow");
+	});
+
 	it("parses alias lines into a map", () => {
 		const parsed = parseDateAliasLines("tm = tomorrow\n# comment\nyd=yesterday");
 		expect(parsed).toEqual({ tm: "tomorrow", yd: "yesterday" });

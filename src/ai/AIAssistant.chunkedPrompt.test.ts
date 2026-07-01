@@ -247,6 +247,110 @@ describe("ChunkedPrompt", () => {
 		expect(calls).toBeLessThan(501);
 	});
 
+	// The merge path used to reassemble chunks with `combinedChunk += chunk`,
+	// dropping the separator that split() consumed — "Line one\nLine two"
+	// reached the model as "Line oneLine two" (words glued across every line
+	// boundary) on the DEFAULT shouldMerge path. The consumed separators are
+	// now retained and re-inserted between merged chunks.
+	it("re-inserts the consumed separator between merged chunks", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "Line one\nLine two",
+				shouldMerge: true,
+				chunkSeparator: /\n/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: Line one\nLine two"]);
+	});
+
+	it("preserves paragraph boundaries (empty chunks) when merging", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "A\n\nB",
+				shouldMerge: true,
+				chunkSeparator: /\n/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: A\n\nB"]);
+	});
+
+	it("re-inserts a custom string separator between merged chunks", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "first---second",
+				shouldMerge: true,
+				chunkSeparator: "---" as unknown as RegExp,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: first---second"]);
+	});
+
+	// A separator with capturing groups already interleaves its captures into
+	// the chunk list (historical String.split behavior); no extra boundary must
+	// be re-inserted on top of that.
+	it("keeps capture-group separators unchanged (captures already survive as chunks)", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "a\nb",
+				shouldMerge: true,
+				chunkSeparator: /(\n)/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: a\nb"]);
+	});
+
+	// The boundary between two MERGED REQUESTS is genuinely consumed: the
+	// separator belongs to neither request. Grouping (request count) must be
+	// unchanged by separator retention.
+	it("does not leak a separator across a merge-group boundary", async () => {
+		// budget 8 tokens ≈ 32 chars per merged group; each line is 20 chars, so
+		// exactly one line fits per group → 3 requests, none starting with \n.
+		const line = "aaaaaaaaaaaaaaaaaaaa";
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: [line, line, line].join("\n"),
+				maxChunkTokens: 8,
+				shouldMerge: true,
+				chunkSeparator: /\n/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual([
+			`Chunk: ${line}`,
+			`Chunk: ${line}`,
+			`Chunk: ${line}`,
+		]);
+	});
+
 	// Iter-2 consensus regression: VALUE modifiers (e.g. case:upper) must apply to
 	// the real chunk value — the previous sentinel approach sent the placeholder.
 	it("applies VALUE modifiers to each chunk's real text", async () => {

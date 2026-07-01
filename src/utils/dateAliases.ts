@@ -12,6 +12,17 @@ export const DEFAULT_DATE_ALIASES: DateAliasMap = {
 	ly: "last year",
 };
 
+// The alias map is a plain object literal, so a bare bracket lookup walks the
+// prototype chain: an input of "constructor" or "__proto__" (never defined as
+// an alias) would resolve to an inherited built-in instead of falling through
+// to the raw input. Own-property membership keeps magic names deterministic
+// (same guard as the #1442 FIELD-default / legacy-mode lookups).
+function lookupAlias(aliases: DateAliasMap, key: string): string | undefined {
+	return Object.prototype.hasOwnProperty.call(aliases, key)
+		? aliases[key]
+		: undefined;
+}
+
 export function normalizeDateInput(
 	input: string,
 	aliases: DateAliasMap = DEFAULT_DATE_ALIASES,
@@ -19,11 +30,11 @@ export function normalizeDateInput(
 	const trimmed = input.trim();
 	if (!trimmed) return input;
 
-	const direct = aliases[trimmed.toLowerCase()];
+	const direct = lookupAlias(aliases, trimmed.toLowerCase());
 	if (direct) return direct;
 
 	const [first, ...rest] = trimmed.split(/\s+/);
-	const replacement = aliases[first.toLowerCase()];
+	const replacement = lookupAlias(aliases, first.toLowerCase());
 	if (!replacement) return input;
 
 	return [replacement, ...rest].join(" ");

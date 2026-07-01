@@ -658,24 +658,89 @@ function appendSplitToBudget(
 	}
 }
 
+function countRegExpGroups(re: RegExp): number {
+	// Appending "|" makes the pattern match empty at position 0, so exec always
+	// returns a result whose length is 1 + the number of capturing groups.
+	return (new RegExp(re.source + "|").exec("") as RegExpExecArray).length - 1;
+}
+
+/**
+ * Split `text` like `text.split(separator)` while RETAINING each consumed
+ * separator, so the merge path can re-insert the boundary it split on —
+ * otherwise merged lines/paragraphs reach the model glued together
+ * ("A\nB" → "AB"). Wrapping the pattern in one capturing group makes split()
+ * interleave the matched separators without changing the chunk substrings.
+ *
+ * A separator regex that already has capturing groups keeps the historical
+ * split behavior unchanged (its captures interleave into the chunk list, so
+ * the captured text is preserved as chunks); `separators` is null there and
+ * no boundary is re-inserted, exactly as before.
+ */
+function splitTextRetainingSeparators(
+	text: string,
+	separator: RegExp | string
+): { chunks: string[]; separators: string[] | null } {
+	if (typeof separator === "string") {
+		const chunks = text.split(separator);
+		return {
+			chunks,
+			separators: new Array(Math.max(0, chunks.length - 1)).fill(separator),
+		};
+	}
+
+	if (countRegExpGroups(separator) > 0) {
+		return { chunks: text.split(separator), separators: null };
+	}
+
+	const wrapped = new RegExp(`(${separator.source})`, separator.flags);
+	const parts = text.split(wrapped);
+	const chunks: string[] = [];
+	const separators: string[] = [];
+	for (let i = 0; i < parts.length; i++) {
+		if (i % 2 === 0) chunks.push(parts[i]);
+		else separators.push(parts[i]);
+	}
+	return { chunks, separators };
+}
+
+interface PreparedChunk {
+	text: string;
+	/** The separator that preceded this chunk in the original text ("" for the
+	 * first chunk and for continuation pieces cut out of one oversized chunk). */
+	joiner: string;
+}
+
 function buildEstimatedPromptChunks(
 	chunks: string[],
+	separators: string[] | null,
 	maxEstimatedChunkTokens: number,
 	shouldMerge: boolean
 ): string[] {
-	const preparedChunks: string[] = [];
-	for (const chunk of chunks) {
-		appendSplitToBudget(chunk, maxEstimatedChunkTokens, preparedChunks);
-	}
+	const preparedChunks: PreparedChunk[] = [];
+	chunks.forEach((chunk, index) => {
+		const pieces: string[] = [];
+		appendSplitToBudget(chunk, maxEstimatedChunkTokens, pieces);
+		pieces.forEach((piece, pieceIndex) => {
+			preparedChunks.push({
+				text: piece,
+				// Only the first piece of a raw chunk was preceded by a real
+				// separator; later pieces were cut mid-text by the budget split.
+				joiner:
+					pieceIndex === 0 && index > 0
+						? (separators?.[index - 1] ?? "")
+						: "",
+			});
+		});
+	});
 
-	if (!shouldMerge) return preparedChunks;
+	if (!shouldMerge) return preparedChunks.map((chunk) => chunk.text);
 
 	const output: string[] = [];
 	let combinedChunk = "";
 	let combinedChunkSize = 0;
 
 	for (const chunk of preparedChunks) {
-		const strSize = estimateTokenCount(chunk) + 1; // +1 for the separator consumed by split().
+		const strSize = estimateTokenCount(chunk.text) + 1; // +1 for the separator consumed by split().
 
 		if (
 			combinedChunk !== "" &&
@@ -686,7 +751,11 @@ function buildEstimatedPromptChunks(
 			combinedChunkSize = 0;
 		}
 
-		combinedChunk += chunk;
+		// Re-insert the separator the text was split on so merged chunks keep
+		// their original boundaries; a chunk that opens a new request drops its
+		// leading separator (it IS the request boundary).
+		combinedChunk +=
+			combinedChunk === "" ? chunk.text : chunk.joiner + chunk.text;
 		combinedChunkSize += strSize;
 	}
 
@@ -754,7 +823,10 @@ export async function ChunkedPrompt(
 		);
 
 		const chunkSeparator = settings.chunkSeparator || /\n/g;
-		const rawChunks = text.split(chunkSeparator);
+		const { chunks: rawChunks, separators } = splitTextRetainingSeparators(
+			text,
+			chunkSeparator
+		);
 
 		// Estimate the static prompt overhead by rendering the template once with a
 		// probe chunk value. This also validates dynamic expansions: templates,
@@ -803,6 +875,7 @@ export async function ChunkedPrompt(
 
 		const chunkedText = buildEstimatedPromptChunks(
 			rawChunks,
+			separators,
 			maxEstimatedChunkTokens,
 			shouldMerge
 		);
