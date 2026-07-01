@@ -44,6 +44,19 @@ describe("dateAliases", () => {
 		).toBe("tomorrow");
 	});
 
+	it("round-trips a '__proto__' alias line through parse and lookup", () => {
+		// The old `result[key] = value` write hit the Object.prototype accessor
+		// for this key: no own property was created and the alias silently
+		// vanished from the settings textarea on the next open.
+		const parsed = parseDateAliasLines("__proto__ = tomorrow");
+		expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(
+			true,
+		);
+		expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
+		expect(formatDateAliasLines(parsed)).toBe("__proto__ = tomorrow");
+		expect(normalizeDateInput("__proto__", parsed)).toBe("tomorrow");
+	});
+
 	it("parses alias lines into a map", () => {
 		const parsed = parseDateAliasLines("tm = tomorrow\n# comment\nyd=yesterday");
 		expect(parsed).toEqual({ tm: "tomorrow", yd: "yesterday" });

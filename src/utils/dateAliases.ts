@@ -55,7 +55,18 @@ export function parseDateAliasLines(text: string): DateAliasMap {
 		const value = trimmed.slice(separatorIndex + 1).trim();
 
 		if (!key || !value) continue;
-		result[key] = value;
+		// defineProperty, not `result[key] = value`: a bare assignment for the
+		// key "__proto__" hits the Object.prototype accessor instead of creating
+		// an own property, so that alias silently vanished on the next settings
+		// round-trip. defineProperty always creates the own (enumerable,
+		// serializable) entry, which the hasOwnProperty-guarded lookup then
+		// resolves like any other alias.
+		Object.defineProperty(result, key, {
+			value,
+			enumerable: true,
+			writable: true,
+			configurable: true,
+		});
 	}
 
 	return result;

@@ -89,6 +89,13 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		if (this.executionDepth === 0) {
 			this.focusedProperty = null;
 			this.triggerContext = null;
+			// Preloaded script modules are scoped to ONE outermost execution: a
+			// cancelled/aborted run must not strand its entries, or a later
+			// trigger on a long-lived executor (api.executeChoice callers reuse
+			// one) would consume a module loaded before the user's latest edits.
+			// Cleared at the END so the CLI's collect-then-execute handoff (which
+			// populates the map before execute() begins) still works.
+			this.preloadedUserScripts.clear();
 		}
 	}
 

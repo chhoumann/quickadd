@@ -218,7 +218,7 @@ describe("insertTextAfterPositionInBody", () => {
 	});
 
 	// Text without a trailing newline used to be glued straight onto the next
-	// line's content ("## Log\nnew- existing"), corrupting it — the default
+	// line's content ("## Log\nnew- existing"), corrupting it - the default
 	// no-format capture ({{value}} = raw selection/clipboard) and any format
 	// not ending in \n hit this whenever the anchor is directly followed by
 	// content. Mirrors insertTextBeforePositionInBody's separator guard.

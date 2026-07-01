@@ -227,11 +227,11 @@ export function buildSectionSubpath(
 
 /**
  * Every heading's ancestor-chain key (lowercased), computed in one forward
- * pass with the standard outline parent stack — each heading's chain is its
+ * pass with the standard outline parent stack - each heading's chain is its
  * stack-parent's chain plus itself, matching ancestorChain()'s backward walk.
  * Replaces calling the O(index) ancestorChain inside a .some() over all
  * headings, which was O(H^2) on a note flooded with duplicate headings
- * (chains are at most 6 deep — heading levels — so this is linear).
+ * (chains are at most 6 deep - heading levels - so this is linear).
  */
 function buildAllChainKeysLower(headings: SimpleHeading[]): string[] {
 	const chains: string[][] = new Array(headings.length);

@@ -660,13 +660,25 @@ function appendSplitToBudget(
 
 function countRegExpGroups(re: RegExp): number {
 	// Appending "|" makes the pattern match empty at position 0, so exec always
-	// returns a result whose length is 1 + the number of capturing groups.
-	return (new RegExp(re.source + "|").exec("") as RegExpExecArray).length - 1;
+	// returns a result whose length is 1 + the number of capturing groups. The
+	// probe must keep the source's own flags (minus the match-position ones,
+	// g/y): u- or v-only syntax like /[\u{4E00}-\u{9FFF}]/gu does not parse
+	// flagless and would throw here instead of splitting.
+	const probeFlags = re.flags.replace(/[gy]/g, "");
+	return (
+		new RegExp(re.source + "|", probeFlags).exec("") as RegExpExecArray
+	).length - 1;
 }
+
+// An unescaped `\1`-`\9` in a group-FREE pattern is a legacy octal escape;
+// wrapping the source in a capture group would silently turn it into a
+// BACKREFERENCE and change what it matches. Such separators stay on the
+// historical (separator-discarding) path.
+const UNESCAPED_DIGIT_ESCAPE_RE = /(?:^|[^\\])(?:\\\\)*\\[1-9]/;
 
 /**
  * Split `text` like `text.split(separator)` while RETAINING each consumed
- * separator, so the merge path can re-insert the boundary it split on —
+ * separator, so the merge path can re-insert the boundary it split on -
  * otherwise merged lines/paragraphs reach the model glued together
  * ("A\nB" → "AB"). Wrapping the pattern in one capturing group makes split()
  * interleave the matched separators without changing the chunk substrings.
@@ -688,7 +700,10 @@ function splitTextRetainingSeparators(
 		};
 	}
 
-	if (countRegExpGroups(separator) > 0) {
+	if (
+		countRegExpGroups(separator) > 0 ||
+		UNESCAPED_DIGIT_ESCAPE_RE.test(separator.source)
+	) {
 		return { chunks: text.split(separator), separators: null };
 	}
 
@@ -740,7 +755,14 @@ function buildEstimatedPromptChunks(
 	let combinedChunkSize = 0;
 
 	for (const chunk of preparedChunks) {
-		const strSize = estimateTokenCount(chunk.text) + 1; // +1 for the separator consumed by split().
+		// Budget the separator that is actually re-inserted, floored at the
+		// historical +1 so grouping is unchanged for the default "\n"
+		// (estimateTokenCount("\n") === 1) and for joiner-less pieces. Without
+		// this, a long custom separator (e.g. "\n\n===CHUNK===\n\n") would be
+		// re-inserted uncounted and push a merged request far over the budget.
+		const strSize =
+			estimateTokenCount(chunk.text) +
+			Math.max(1, estimateTokenCount(chunk.joiner));
 
 		if (
 			combinedChunk !== "" &&

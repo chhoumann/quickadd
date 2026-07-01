@@ -24,6 +24,7 @@ import {
 	isFolder,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
+import { getUserScriptPreloadKey } from "src/utils/userScript";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
 import {
 	classifyCaptureTargetScope,
@@ -212,7 +213,7 @@ async function scanContentWithTemplateIncludes(
 		// Skip a template already fully scanned at an equal-or-shallower depth:
 		// same content, and its children were explored at least as deep, so a
 		// re-scan can only repeat work (the per-path `templateStack` alone lets
-		// a dense DAG re-scan each template once per PATH — up to
+		// a dense DAG re-scan each template once per PATH - up to
 		// branching^depth invocations). A ref first seen NEAR the depth cap is
 		// re-scanned if met again shallower, so the memo never truncates a
 		// subtree the old walk would have explored.
@@ -461,7 +462,9 @@ async function collectMacroScriptRequirements(
 			// Reuse an already-loaded module (loading executes the script's
 			// top-level code); cache what we load so the runtime engine consumes
 			// this execution instead of running the module body a second time.
-			const cacheKey = userScriptCommand.path ?? userScriptCommand.id;
+			// The key is member-aware (path + `::` drill) because getUserScript
+			// returns the drilled export.
+			const cacheKey = getUserScriptPreloadKey(userScriptCommand);
 			let exported =
 				cacheKey !== undefined
 					? preloadedUserScripts?.get(cacheKey)

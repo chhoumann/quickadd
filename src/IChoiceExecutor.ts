@@ -82,7 +82,7 @@ export interface IChoiceExecutor {
 	 */
 	consumeAbortSignal?(): MacroAbortError | null;
 	/**
-	 * User-script modules already loaded (and therefore already EXECUTED — loading
+	 * User-script modules already loaded (and therefore already EXECUTED - loading
 	 * a CommonJS user script runs its top-level code) by a requirement-collection
 	 * pass, keyed by `command.path ?? command.id`. MacroChoiceEngine consumes an
 	 * entry (delete-on-use) instead of re-loading the script, so introspecting

@@ -355,7 +355,7 @@ export function insertTextAfterPositionInBody(
 
 	// `post` starts with the following line's CONTENT (join adds no leading
 	// "\n"), so a `text` without a trailing newline would be glued straight
-	// onto it — "## Log\n- existing" + "new" became "## Log\nnew- existing".
+	// onto it - "## Log\n- existing" + "new" became "## Log\nnew- existing".
 	// Mirror insertTextBeforePositionInBody's separator guard. Only a
 	// non-blank line below needs the separator: a blank/whitespace-only line
 	// absorbs the text instead (the #312 task-newline drop above relies on

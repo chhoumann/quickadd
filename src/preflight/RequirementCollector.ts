@@ -81,7 +81,7 @@ export class RequirementCollector extends Formatter {
 	 * Cross-branch memo for the template-inclusion walk: template ref → the
 	 * shallowest depth it was fully scanned at during this collection.
 	 * Requirements dedupe by id, so re-scanning a template reachable through
-	 * many distinct paths adds nothing — without this memo a dense template
+	 * many distinct paths adds nothing - without this memo a dense template
 	 * DAG fans out as branching^depth (~1M scans at 4×10), freezing the UI.
 	 */
 	public readonly scannedTemplateRefDepths = new Map<string, number>();
