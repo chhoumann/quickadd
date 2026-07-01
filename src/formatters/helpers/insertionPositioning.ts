@@ -158,7 +158,12 @@ export function findMultiLineRange(
 }
 
 function stripTrailingWhitespace(line: string): string {
-	return line.replace(/\s+$/, "");
+	// trimEnd() strips exactly the same character set as the historical
+	// /\s+$/ replace (ECMAScript WhiteSpace + LineTerminator) but in linear
+	// time. The unanchored regex backtracked quadratically on a note line
+	// holding a long interior whitespace run (" ".repeat(n) + "x"), freezing
+	// the UI during a multi-line insert-after/-before capture search.
+	return line.trimEnd();
 }
 
 /**

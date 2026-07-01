@@ -77,6 +77,25 @@ describe("sanitizeVaultPath", () => {
 			expect(() => sanitizeVaultPath("CON/x.md")).toThrow(UnsafeVaultPathError);
 			expect(() => sanitizeVaultPath("Notes/NUL.md")).toThrow(UnsafeVaultPathError);
 		});
+		it("still derives the device-name base from the first dot", () => {
+			// NUL.tar.gz → base "NUL" must still be rejected now that the
+			// (provably no-op) trailing-dot/space replace is gone.
+			expect(() => sanitizeVaultPath("Notes/NUL.tar.gz")).toThrow(
+				UnsafeVaultPathError,
+			);
+		});
+		// The basename extraction used `.replace(/[. ]+$/u, "")` - a guaranteed
+		// no-op (the trailing-char guard above already rejected such segments)
+		// that still backtracked quadratically on a long interior dot run:
+		// ~2.8s at 80k chars, reachable from the auto-run (no-approval) read
+		// tools with a model-chosen path. This pins linear behavior; the budget
+		// is generous to stay non-flaky while failing hard on any regression.
+		it("validates a segment with a long interior dot run in linear time", () => {
+			const path = "a" + ".".repeat(200_000) + "b";
+			const start = performance.now();
+			expect(sanitizeVaultPath(path)).toBe(path);
+			expect(performance.now() - start).toBeLessThan(1000);
+		}, 20_000);
 		it("rejects empty input", () => {
 			expect(() => sanitizeVaultPath("   ")).toThrow(UnsafeVaultPathError);
 			expect(() => sanitizeVaultPath("///")).toThrow(UnsafeVaultPathError);
