@@ -72,6 +72,22 @@ describe("findMultiLineRange", () => {
 			end: -1,
 		});
 	});
+
+	// The old stripTrailingWhitespace used /\s+$/, which backtracks
+	// quadratically on a line holding a long interior whitespace run
+	// (" ".repeat(n) + "x"): ~3.2s at n=80k, frozen UI during a multi-line
+	// insert-after capture over an untrusted (synced/pasted/AI-written) note.
+	// trimEnd() is linear; the budget is generous to stay non-flaky while
+	// failing hard on any quadratic regression.
+	it("normalizes a pathological whitespace-run line in linear time", () => {
+		const lines = [" ".repeat(200_000) + "x", "## D", "**Tasks**"];
+		const start = performance.now();
+		expect(findMultiLineRange(lines, ["## D", "**Tasks**"])).toEqual({
+			start: 1,
+			end: 2,
+		});
+		expect(performance.now() - start).toBeLessThan(1000);
+	}, 20_000);
 });
 
 describe("findInsertAfterRange", () => {
