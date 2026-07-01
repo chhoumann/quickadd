@@ -176,8 +176,28 @@ export const FIELD_VAR_REGEX_WITH_FILTERS = new RegExp(
 // mis-consume; nested tokens inside the folder arg are unsupported. The required
 // `:` means this never matches {{FILENAMECURRENT}} (no colon after FILE).
 export const FILE_REGEX = new RegExp(/{{FILE:([^\n\r{}]*)}}/i);
+// {{VDATE:<name>, <format>|<options>}} - group 1 is the variable name, group 2
+// the optional date format (after the first comma), group 3 the optional
+// |options tail. Two ReDoS defenses mirror FIELD_VAR_REGEX_WITH_FILTERS (#1455):
+//   1. The comma arm is `,([^\n\r}|]*)`, not `,\s*([^\n\r}|]*)`. The old `\s*`
+//      and the capture class both matched space/tab, so the two adjacent
+//      quantifiers overlapped, going quadratic on `{{VDATE:a,` followed by a long
+//      unterminated whitespace run (every split of the run is retried before the
+//      missing `}}` fails). The capture class already accepts leading spaces and
+//      every consumer trims group 2 (formatter.ts, RequirementCollector.ts, and
+//      the two display formatters), so dropping `\s*` is output-identical for a
+//      single-line token. A token literally spanning a newline after the comma no
+//      longer matches, but group 1 and group 3 already excluded `\n\r`, so the
+//      token was single-line everywhere except that artifact.
+//   2. All three interior classes exclude `{`, so a match attempt cannot consume
+//      across a following token opener. Without this the unanchored exec loop in
+//      replaceDateVariableInString is quadratic on a long run of unterminated
+//      `{{VDATE:` openers (each opener greedily eats the rest before failing).
+//      A date format escapes literals with `[...]` and never contains `{`, and a
+//      variable name never contains `{`, so this only changes already-malformed
+//      `{`-bearing (nested-token) interiors, exactly like FIELD/FILE.
 export const DATE_VARIABLE_REGEX = new RegExp(
-	/{{VDATE:([^\n\r},|]*)(?:,\s*([^\n\r}|]*))?(?:\|([^\n\r}]*))?}}/i,
+	/{{VDATE:([^\n\r},|{]*)(?:,([^\n\r}|{]*))?(?:\|([^\n\r}{]*))?}}/i,
 );
 export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 // {{LINKSECTION}} resolves to a link to the current file at the heading the
