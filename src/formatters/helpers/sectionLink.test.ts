@@ -115,6 +115,99 @@ describe("buildSectionSubpath", () => {
 		];
 		expect(buildSectionSubpath(twins, 9)).toBeNull();
 	});
+
+	// The chain-collision check now precomputes every heading's chain key with a
+	// forward outline-parent stack instead of re-walking ancestorChain inside a
+	// .some() (O(H^2) on duplicate-flooded notes). This property test pins the
+	// stack-based chains to the original backward-walk semantics.
+	it("matches the backward-walk reference on randomized outlines", () => {
+		// Reference: the pre-optimization ancestorChain, verbatim.
+		const referenceChain = (headings: SimpleHeading[], index: number) => {
+			const segments: string[] = [];
+			const self = sanitizeHeadingForSubpath(headings[index].heading);
+			if (self) segments.push(self);
+			let level = headings[index].level;
+			for (let i = index - 1; i >= 0 && level > 1; i--) {
+				if (headings[i].level < level) {
+					level = headings[i].level;
+					const seg = sanitizeHeadingForSubpath(headings[i].heading);
+					if (seg) segments.unshift(seg);
+				}
+			}
+			return segments;
+		};
+		const referenceSubpath = (
+			headings: SimpleHeading[],
+			cursorLine: number,
+		): string | null => {
+			if (headings.length === 0) return null;
+			let targetIndex = -1;
+			for (let i = 0; i < headings.length; i++) {
+				if (headings[i].line <= cursorLine) targetIndex = i;
+				else break;
+			}
+			if (targetIndex === -1) return null;
+			const targetText = sanitizeHeadingForSubpath(
+				headings[targetIndex].heading,
+			);
+			if (!targetText) return null;
+			const targetKey = targetText.toLowerCase();
+			const isUniqueText = !headings.some(
+				(h, i) =>
+					i !== targetIndex &&
+					sanitizeHeadingForSubpath(h.heading).toLowerCase() === targetKey,
+			);
+			if (isUniqueText) return `#${targetText}`;
+			const chain = referenceChain(headings, targetIndex);
+			if (chain.length < 2) return null;
+			const chainKey = chain.join("#");
+			const chainKeyLower = chainKey.toLowerCase();
+			const isUniqueChain = !headings.some(
+				(_h, i) =>
+					i !== targetIndex &&
+					referenceChain(headings, i).join("#").toLowerCase() ===
+						chainKeyLower,
+			);
+			if (!isUniqueChain) return null;
+			return `#${chainKey}`;
+		};
+
+		// Deterministic PRNG so failures reproduce.
+		let seed = 0x5eed;
+		const rand = () => {
+			seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+			return seed / 0x7fffffff;
+		};
+		const NAMES = ["Notes", "notes", "Log", "#", "A", "B", ""];
+		for (let round = 0; round < 2000; round++) {
+			const count = 1 + Math.floor(rand() * 12);
+			const headings: SimpleHeading[] = [];
+			for (let i = 0; i < count; i++) {
+				headings.push({
+					heading: NAMES[Math.floor(rand() * NAMES.length)],
+					level: 1 + Math.floor(rand() * 4),
+					line: i * 2,
+				});
+			}
+			const cursorLine = Math.floor(rand() * (count * 2 + 2));
+			expect(buildSectionSubpath(headings, cursorLine)).toBe(
+				referenceSubpath(headings, cursorLine),
+			);
+		}
+	});
+
+	it("resolves duplicates on a heading-flooded note in linear time", () => {
+		// 30k duplicate headings: the old O(H^2) collision check took minutes
+		// here; the stack-based precompute stays well under the budget.
+		const flood: SimpleHeading[] = [];
+		for (let i = 0; i < 15_000; i++) {
+			flood.push({ heading: `Parent ${i}`, level: 1, line: i * 4 });
+			flood.push({ heading: "Notes", level: 2, line: i * 4 + 2 });
+		}
+		const start = performance.now();
+		expect(buildSectionSubpath(flood, 42)).toBe("#Parent 10#Notes");
+		expect(performance.now() - start).toBeLessThan(1000);
+	}, 20_000);
 });
 
 describe("sanitizeHeadingForSubpath (mirrors Obsidian's anchor normalizer)", () => {

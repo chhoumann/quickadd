@@ -50,6 +50,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
+import { getUserScriptPreloadKey } from "../utils/userScript";
 import {
 	migrateUserScriptSecretSettings,
 	resolveUserScriptSettings,
@@ -325,7 +326,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	// Slightly modified from Templater's user script engine:
 	// https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
 	protected async executeUserScript(command: IUserScript) {
-		const cacheKey = command.path ?? command.id;
+		// Member-aware key: preloaded values are DRILLED exports, so a command
+		// drilling a different `::` member of the same file must never consume
+		// another command's entry (see getUserScriptPreloadKey).
+		const cacheKey = getUserScriptPreloadKey(command);
 		let userScript: unknown;
 		if (cacheKey !== undefined) {
 			const cached = this.preloadedUserScripts.get(cacheKey);

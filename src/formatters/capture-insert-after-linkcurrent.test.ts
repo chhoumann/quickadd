@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LINK_TO_CURRENT_FILE_REGEX, TITLE_REGEX } from '../constants';
+import * as positioning from './helpers/insertionPositioning';
 
 // Local helper mirroring Formatter.replaceLinkToCurrentFileInString,
 // but without importing Formatter (to avoid obsidian deps in tests).
@@ -52,12 +53,12 @@ function findInsertAfterIndex(lines: string[], rawTarget: string): number {
   return partialIndex;
 }
 
+// Thin adapter over the PRODUCTION splice helper (non-task path), so these
+// simulation tests exercise the real semantics instead of a frozen local copy
+// (which had already drifted: it lacked the separator guard for text without
+// a trailing newline). Every target here is found, so pos is always >= 0.
 function insertTextAfterPositionInBody(text: string, body: string, pos: number): string {
-  if (pos === -1) return `${text}\n${body}`;
-  const split = body.split('\n');
-  const pre = split.slice(0, pos + 1).join('\n');
-  const post = split.slice(pos + 1).join('\n');
-  return `${pre}\n${text}${post}`;
+  return positioning.insertTextAfterPositionInBody(text, body, pos, false).content;
 }
 
 describe('Insert after — {{linkcurrent}} resolution', () => {

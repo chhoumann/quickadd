@@ -21,6 +21,25 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 	};
 }
 
+/**
+ * Cache key for a preloaded user-script module (the map shared between the
+ * requirement collector and MacroChoiceEngine). It must include the `::`
+ * member drill from `command.name`, because getUserScript returns the
+ * DRILLED value: two commands sharing one path but drilling different
+ * members (`lib::foo` vs `lib::bar`) hold different functions and must
+ * never consume each other's preloaded entry.
+ */
+export function getUserScriptPreloadKey(
+	command: IUserScript,
+): string | undefined {
+	const base = command.path ?? command.id;
+	if (base === undefined) return undefined;
+	const { memberAccess } = getUserScriptMemberAccess(command.name ?? "");
+	return memberAccess && memberAccess.length > 0
+		? `${base}::${memberAccess.join("::")}`
+		: base;
+}
+
 // Slightly modified version of Templater's user script import implementation
 // Source: https://github.com/SilentVoid13/Templater
 export async function getUserScript(command: IUserScript, app: App) {

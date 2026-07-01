@@ -581,6 +581,85 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			]),
 		);
 	});
+
+	// The walk was guarded only by the per-PATH cycle stack, so a template
+	// reachable through many distinct paths was re-scanned once per path - a
+	// dense layered DAG fans out as branching^depth (3^6 = 729 reads here;
+	// ~1M at 4×10), freezing the UI. The cross-branch memo makes the walk
+	// linear in distinct templates while still collecting every requirement.
+	it("scans a dense template DAG once per template, not once per path", async () => {
+		const LAYERS = 6;
+		const WIDTH = 3;
+		const refsTo = (layer: number) =>
+			Array.from(
+				{ length: WIDTH },
+				(_, i) => `{{TEMPLATE:Templates/L${layer}-${i}.md}}`,
+			).join(" ");
+		for (let layer = 0; layer < LAYERS; layer++) {
+			for (let i = 0; i < WIDTH; i++) {
+				const body =
+					layer === LAYERS - 1
+						? "leaf {{VALUE:leafValue}}"
+						: refsTo(layer + 1);
+				templateBodies.set(`Templates/L${layer}-${i}.md`, body);
+			}
+		}
+		templateBodies.set("Templates/Root.md", refsTo(0));
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createTemplateChoice("Templates/Root.md"),
+		);
+
+		// Completeness: the deepest layer's requirement is still collected.
+		expect(requirements).toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "leafValue" })]),
+		);
+		// One read per distinct template (root + 18), not 3^6 per-path reads.
+		expect(cachedReadMock.mock.calls.length).toBeLessThan(2 * LAYERS * WIDTH);
+	});
+
+	it("re-scans a template met again at a shallower depth (memo must not truncate)", async () => {
+		// Chain T1→…→T10 exhausts the inclusion depth cap, so T10's child T11 is
+		// NOT scanned on that path. The root also references T10 directly; the
+		// depth-aware memo must re-scan it there so T11's requirement surfaces -
+		// a naive "already seen" set would silently drop it.
+		for (let i = 1; i < 10; i++) {
+			templateBodies.set(
+				`Templates/T${i}.md`,
+				`{{TEMPLATE:Templates/T${i + 1}.md}}`,
+			);
+		}
+		templateBodies.set("Templates/T10.md", "{{TEMPLATE:Templates/T11.md}}");
+		templateBodies.set("Templates/T11.md", "deep {{VALUE:deepEleven}}");
+		templateBodies.set(
+			"Templates/Root.md",
+			"{{TEMPLATE:Templates/T1.md}} {{TEMPLATE:Templates/T10.md}}",
+		);
+		const choiceExecutor: IChoiceExecutor = {
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createTemplateChoice("Templates/Root.md"),
+		);
+
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "deepEleven" }),
+			]),
+		);
+	});
 });
 
 describe("collectChoiceRequirements - macro script metadata", () => {
@@ -635,6 +714,90 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 					label: "Project",
 					source: "script",
 				}),
+			]),
+		);
+	});
+
+	// Loading a user script to read quickadd.inputs EXECUTES its module body
+	// (getUserScript runs the CommonJS wrapper). The collector must cache the
+	// loaded module in the caller's preloadedUserScripts map - and reuse an
+	// existing entry - so a single trigger never runs a script's top-level
+	// side effects twice (introspection + MacroChoiceEngine execution).
+	it("caches loaded modules in preloadedUserScripts and reuses existing entries", async () => {
+		const exported = {
+			quickadd: {
+				inputs: [{ id: "project", type: "text", label: "Project" }],
+			},
+		};
+		getUserScriptMock.mockResolvedValue(exported);
+		const preloadedUserScripts = new Map<string, unknown>();
+
+		await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createMacroChoice(scriptCommand),
+			{ preloadedUserScripts },
+		);
+
+		expect(getUserScriptMock).toHaveBeenCalledTimes(1);
+		expect(preloadedUserScripts.get("script.js")).toBe(exported);
+
+		// A second collection pass (e.g. CLI collect followed by the one-page
+		// preflight) must reuse the cached module, not execute it again.
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			createMacroChoice(scriptCommand),
+			{ preloadedUserScripts },
+		);
+
+		expect(getUserScriptMock).toHaveBeenCalledTimes(1);
+		expect(requirements).toEqual(
+			expect.arrayContaining([expect.objectContaining({ id: "project" })]),
+		);
+	});
+
+	// getUserScript returns the `::`-member-DRILLED export, so the cache key
+	// must include the drill: two commands sharing a path but drilling
+	// different members hold different functions with different inputs, and
+	// caching by path alone made the second command reuse the first member's
+	// export (its inputs were never collected, and at runtime the wrong
+	// function could be consumed).
+	it("keys the preload cache by member drill, not just path", async () => {
+		const fooExport = {
+			quickadd: { inputs: [{ id: "fooInput", type: "text", label: "Foo" }] },
+		};
+		const barExport = {
+			quickadd: { inputs: [{ id: "barInput", type: "text", label: "Bar" }] },
+		};
+		getUserScriptMock
+			.mockResolvedValueOnce(fooExport)
+			.mockResolvedValueOnce(barExport);
+		const preloadedUserScripts = new Map<string, unknown>();
+
+		const macroChoice = createMacroChoice(scriptCommand);
+		macroChoice.macro.commands = [
+			{ ...scriptCommand, name: "Script 1::foo" },
+			{ ...scriptCommand, id: "script-2", name: "Script 1::bar" },
+		];
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			choiceExecutor,
+			macroChoice,
+			{ preloadedUserScripts },
+		);
+
+		expect(getUserScriptMock).toHaveBeenCalledTimes(2);
+		expect(preloadedUserScripts.get("script.js::foo")).toBe(fooExport);
+		expect(preloadedUserScripts.get("script.js::bar")).toBe(barExport);
+		expect(requirements).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: "fooInput" }),
+				expect.objectContaining({ id: "barInput" }),
 			]),
 		);
 	});

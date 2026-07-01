@@ -87,7 +87,13 @@ export async function runOnePagePreflight(
 			plugin,
 			choiceExecutor,
 			choice,
-			{ seedCaptureSelectionAsValue: true },
+			{
+				seedCaptureSelectionAsValue: true,
+				// Hand loaded user-script modules to the executor so the runtime
+				// engine consumes THIS load instead of executing each script's
+				// top-level code a second time.
+				preloadedUserScripts: choiceExecutor.preloadedUserScripts,
+			},
 		);
 		if (requirements.length === 0) return false; // Nothing to collect
 

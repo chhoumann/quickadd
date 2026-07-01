@@ -333,6 +333,10 @@ async function runResolvedChoice(
 				plugin,
 				choiceExecutor,
 				choice,
+				// Loading a user script to read quickadd.inputs executes its module
+				// body; cache it on the executor so the run below consumes this
+				// load instead of executing every script's top level twice.
+				{ preloadedUserScripts: choiceExecutor.preloadedUserScripts },
 			);
 			const unresolved = getUnresolvedRequirements(
 				requirements,

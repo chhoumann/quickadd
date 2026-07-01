@@ -24,6 +24,7 @@ import {
 	isFolder,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
+import { getUserScriptPreloadKey } from "src/utils/userScript";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
 import {
 	classifyCaptureTargetScope,
@@ -42,6 +43,16 @@ import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntax";
 
 interface CollectChoiceRequirementsOptions {
 	seedCaptureSelectionAsValue?: boolean;
+	/**
+	 * When provided, user-script modules loaded to read `quickadd.inputs` are
+	 * cached here (keyed via `getUserScriptPreloadKey`: `command.path ??
+	 * command.id` plus any `::` member-drill suffix) and reused across
+	 * collection passes. Loading a CommonJS user script EXECUTES its top-level
+	 * code, so without this cache a single trigger runs every script's module
+	 * body twice: once here for introspection and once in MacroChoiceEngine.
+	 * The engine consumes these entries instead of re-loading (delete-on-use).
+	 */
+	preloadedUserScripts?: Map<string, unknown>;
 }
 
 const VALID_FIELD_TYPES: FieldType[] = [
@@ -200,6 +211,16 @@ async function scanContentWithTemplateIncludes(
 
 	for (const ref of nested) {
 		if (templateStack.has(ref)) continue;
+		// Skip a template already fully scanned at an equal-or-shallower depth:
+		// same content, and its children were explored at least as deep, so a
+		// re-scan can only repeat work (the per-path `templateStack` alone lets
+		// a dense DAG re-scan each template once per PATH - up to
+		// branching^depth invocations). A ref first seen NEAR the depth cap is
+		// re-scanned if met again shallower, so the memo never truncates a
+		// subtree the old walk would have explored.
+		const scannedDepth = collector.scannedTemplateRefDepths.get(ref);
+		if (scannedDepth !== undefined && scannedDepth <= depth) continue;
+		collector.scannedTemplateRefDepths.set(ref, depth);
 		templateStack.add(ref);
 		try {
 			await scanContentWithTemplateIncludes(
@@ -430,6 +451,7 @@ async function collectForCaptureChoice(
 async function collectMacroScriptRequirements(
 	app: App,
 	choice: IMacroChoice,
+	preloadedUserScripts?: Map<string, unknown>,
 ): Promise<FieldRequirement[]> {
 	const requirements: FieldRequirement[] = [];
 	const commands: ICommand[] = choice?.macro?.commands ?? [];
@@ -438,7 +460,22 @@ async function collectMacroScriptRequirements(
 		if (command?.type !== CommandType.UserScript) continue;
 		const userScriptCommand = command as IUserScript;
 		try {
-			const exported = await getUserScript(userScriptCommand, app);
+			// Reuse an already-loaded module (loading executes the script's
+			// top-level code); cache what we load so the runtime engine consumes
+			// this execution instead of running the module body a second time.
+			// The key is member-aware (path + `::` drill) because getUserScript
+			// returns the drilled export.
+			const cacheKey = getUserScriptPreloadKey(userScriptCommand);
+			let exported =
+				cacheKey !== undefined
+					? preloadedUserScripts?.get(cacheKey)
+					: undefined;
+			if (exported === undefined) {
+				exported = await getUserScript(userScriptCommand, app);
+				if (cacheKey !== undefined && exported !== undefined) {
+					preloadedUserScripts?.set(cacheKey, exported);
+				}
+			}
 			const scriptInputs = getQuickAddScriptInputs(exported);
 			for (const input of scriptInputs) {
 				const requirement = toFieldRequirement(input);
@@ -486,6 +523,7 @@ export async function collectChoiceRequirements(
 		scriptRequirements = await collectMacroScriptRequirements(
 			app,
 			choice as IMacroChoice,
+			options?.preloadedUserScripts,
 		);
 	} else {
 		return [];

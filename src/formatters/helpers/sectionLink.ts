@@ -217,12 +217,37 @@ export function buildSectionSubpath(
 
 	const chainKey = chain.join("#");
 	const chainKeyLower = chainKey.toLowerCase();
-	const isUniqueChain = !headings.some(
-		(_h, i) =>
-			i !== targetIndex &&
-			ancestorChain(headings, i).join("#").toLowerCase() === chainKeyLower,
+	const isUniqueChain = !buildAllChainKeysLower(headings).some(
+		(key, i) => i !== targetIndex && key === chainKeyLower,
 	);
 	if (!isUniqueChain) return null; // unresolvable → whole-file fallback
 
 	return `#${chainKey}`;
+}
+
+/**
+ * Every heading's ancestor-chain key (lowercased), computed in one forward
+ * pass with the standard outline parent stack - each heading's chain is its
+ * stack-parent's chain plus itself, matching ancestorChain()'s backward walk.
+ * Replaces calling the O(index) ancestorChain inside a .some() over all
+ * headings, which was O(H^2) on a note flooded with duplicate headings
+ * (chains are at most 6 deep - heading levels - so this is linear).
+ */
+function buildAllChainKeysLower(headings: SimpleHeading[]): string[] {
+	const chains: string[][] = new Array(headings.length);
+	const stack: number[] = []; // indices with strictly increasing levels
+	for (let i = 0; i < headings.length; i++) {
+		while (
+			stack.length > 0 &&
+			headings[stack[stack.length - 1]].level >= headings[i].level
+		) {
+			stack.pop();
+		}
+		const parentChain =
+			stack.length > 0 ? chains[stack[stack.length - 1]] : [];
+		const seg = sanitizeHeadingForSubpath(headings[i].heading);
+		chains[i] = seg ? [...parentChain, seg] : parentChain;
+		stack.push(i);
+	}
+	return chains.map((chain) => chain.join("#").toLowerCase());
 }

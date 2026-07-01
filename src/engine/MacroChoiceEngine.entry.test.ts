@@ -193,6 +193,74 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		expect(engine["output"]).toBe("entry-result");
 	});
 
+	// Requirement collection (one-page preflight / non-interactive CLI) already
+	// loaded - and thereby executed - the script's module body; the engine must
+	// consume that module instead of loading it again, and must consume it only
+	// ONCE so a later run of the same command loads fresh.
+	it("consumes a preloaded user-script module instead of re-loading it", async () => {
+		const entryFn = vi.fn().mockResolvedValue("entry-result");
+		const preloaded = new Map<string, unknown>([
+			["script.js", { entry: entryFn }],
+		]);
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+			preloaded,
+		);
+
+		await engine["executeUserScript"](userScriptCommand);
+
+		expect(mockGetUserScript).not.toHaveBeenCalled();
+		expect(entryFn).toHaveBeenCalledTimes(1);
+		// Delete-on-use: the preloaded execution is spent.
+		expect(preloaded.has("script.js")).toBe(false);
+
+		// A second execution of the same command loads (and thus runs) fresh.
+		mockGetUserScript.mockResolvedValue({ entry: entryFn });
+		await engine["executeUserScript"](userScriptCommand);
+		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+	});
+
+	// Preloaded values are member-DRILLED exports, so a command drilling a
+	// different `::` member of the same file must NOT consume another
+	// member's entry (path-only keying executed the wrong function).
+	it("does not consume a preloaded entry cached for a different :: member", async () => {
+		const fooEntry = vi.fn().mockResolvedValue("foo-result");
+		const barEntry = vi.fn().mockResolvedValue("bar-result");
+		const preloaded = new Map<string, unknown>([
+			["script.js::foo", { entry: fooEntry }],
+		]);
+		mockGetUserScript.mockResolvedValue({ entry: barEntry });
+
+		const engine = new MacroChoiceEngine(
+			app,
+			plugin,
+			macroChoice,
+			choiceExecutor,
+			variables,
+			preloaded,
+		);
+
+		const barCommand = { ...userScriptCommand, name: "Script::bar" };
+		await engine["executeUserScript"](barCommand);
+
+		// bar must load fresh (and run barEntry), leaving foo's entry intact.
+		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(barEntry).toHaveBeenCalledTimes(1);
+		expect(fooEntry).not.toHaveBeenCalled();
+		expect(preloaded.has("script.js::foo")).toBe(true);
+
+		const fooCommand = { ...userScriptCommand, name: "Script::foo" };
+		await engine["executeUserScript"](fooCommand);
+		expect(fooEntry).toHaveBeenCalledTimes(1);
+		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(preloaded.has("script.js::foo")).toBe(false);
+	});
+
 	it("initializes user script settings only from object-shaped settings exports", async () => {
 		const entryFn = vi.fn().mockResolvedValue("entry-result");
 		const settings = {

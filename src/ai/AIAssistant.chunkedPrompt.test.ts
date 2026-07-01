@@ -247,6 +247,190 @@ describe("ChunkedPrompt", () => {
 		expect(calls).toBeLessThan(501);
 	});
 
+	// The merge path used to reassemble chunks with `combinedChunk += chunk`,
+	// dropping the separator that split() consumed - "Line one\nLine two"
+	// reached the model as "Line oneLine two" (words glued across every line
+	// boundary) on the DEFAULT shouldMerge path. The consumed separators are
+	// now retained and re-inserted between merged chunks.
+	it("re-inserts the consumed separator between merged chunks", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "Line one\nLine two",
+				shouldMerge: true,
+				chunkSeparator: /\n/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: Line one\nLine two"]);
+	});
+
+	it("preserves paragraph boundaries (empty chunks) when merging", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "A\n\nB",
+				shouldMerge: true,
+				chunkSeparator: /\n/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: A\n\nB"]);
+	});
+
+	it("re-inserts a custom string separator between merged chunks", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "first---second",
+				shouldMerge: true,
+				chunkSeparator: "---" as unknown as RegExp,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: first---second"]);
+	});
+
+	// A separator with capturing groups already interleaves its captures into
+	// the chunk list (historical String.split behavior); no extra boundary must
+	// be re-inserted on top of that.
+	it("keeps capture-group separators unchanged (captures already survive as chunks)", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "a\nb",
+				shouldMerge: true,
+				chunkSeparator: /(\n)/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual(["Chunk: a\nb"]);
+	});
+
+	// The group-count probe must carry the separator's own flags: u-only
+	// syntax like a code-point class range parses ONLY under /u, and a
+	// flagless probe would throw a SyntaxError that fails the whole chunked
+	// prompt for previously-working separators.
+	it("supports u-flag-only separator syntax", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "one\u{1F600}two",
+				shouldMerge: true,
+				chunkSeparator: /[\u{1F600}-\u{1F64F}]/gu,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		// The emoji separator is retained and re-inserted between merged chunks.
+		expect(sentPrompts).toEqual(["Chunk: one\u{1F600}two"]);
+	});
+
+	// A `\1` in a group-free pattern is a legacy octal escape (matches U+0001);
+	// wrapping it in a capture group would turn it into a backreference and
+	// change the split points. Such separators stay on the historical
+	// separator-discarding path, keeping chunk boundaries identical to split().
+	it("keeps octal-escape separators on the historical path", async () => {
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: "z a\x01z tail",
+				shouldMerge: true,
+				// Built via the constructor: TS rejects the /a\1/ literal form
+				// (TS1534) for exactly the ambiguity this test pins down.
+				chunkSeparator: new RegExp("a\\1", "g"),
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		// Same chunks as "z a\x01z tail".split(/a\1/g) = ["z ", "z tail"],
+		// merged without separator re-insertion (historical behavior).
+		expect(sentPrompts).toEqual(["Chunk: z z tail"]);
+	});
+
+	// Re-inserted joiners must be budgeted at their real estimated size (the
+	// historical flat +1 only covered the default "\n"): a long separator
+	// would otherwise be re-inserted uncounted and blow a merged request far
+	// past maxChunkTokens.
+	it("budgets long re-inserted separators instead of a flat +1", async () => {
+		// Each line is 20 chars (~5 tokens); the separator is 27 chars (7
+		// tokens). Budget 16: one line + one separator + one line = 5+7+5 = 17
+		// > 16, so each line must go in its OWN request. Under the old flat +1
+		// accounting two lines merged (6+6 = 12 < 16) and the request carried
+		// ~17 estimated tokens against the 16-token budget.
+		const line = "aaaaaaaaaaaaaaaaaaaa";
+		const sep = "\n===CHUNK-BOUNDARY===\n\n\n\n\n\n";
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: [line, line, line].join(sep),
+				maxChunkTokens: 16,
+				shouldMerge: true,
+				chunkSeparator: sep as unknown as RegExp,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual([
+			`Chunk: ${line}`,
+			`Chunk: ${line}`,
+			`Chunk: ${line}`,
+		]);
+	});
+
+	// The boundary between two MERGED REQUESTS is genuinely consumed: the
+	// separator belongs to neither request. Grouping (request count) must be
+	// unchanged by separator retention.
+	it("does not leak a separator across a merge-group boundary", async () => {
+		// budget 8 tokens ≈ 32 chars per merged group; each line is 20 chars, so
+		// exactly one line fits per group → 3 requests, none starting with \n.
+		const line = "aaaaaaaaaaaaaaaaaaaa";
+		await ChunkedPrompt(
+			makeApp(),
+			makeSettings({
+				text: [line, line, line].join("\n"),
+				maxChunkTokens: 8,
+				shouldMerge: true,
+				chunkSeparator: /\n/g,
+			}),
+			chunkFormatter
+		);
+
+		const sentPrompts = mocks.makeRequest.mock.calls.map(
+			([prompt]) => prompt as string
+		);
+		expect(sentPrompts).toEqual([
+			`Chunk: ${line}`,
+			`Chunk: ${line}`,
+			`Chunk: ${line}`,
+		]);
+	});
+
 	// Iter-2 consensus regression: VALUE modifiers (e.g. case:upper) must apply to
 	// the real chunk value — the previous sentinel approach sent the placeholder.
 	it("applies VALUE modifiers to each chunk's real text", async () => {
