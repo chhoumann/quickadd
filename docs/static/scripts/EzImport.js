@@ -314,7 +314,11 @@ function formatHighlights(highlights) {
 		.join("\n\n");
 }
 
-function textFormatter(sourceText, sourceNote) {
+function textFormatter(sourceText, rawSourceNote) {
+	// Readwise can return a highlight without a note (null/undefined rather
+	// than ""); normalize once so the .includes probes below can't throw and
+	// abort the whole import on a single note-less highlight.
+	const sourceNote = rawSourceNote ?? "";
 	const quote = sourceText
 		.split("\n")
 		.filter((line) => line !== "")

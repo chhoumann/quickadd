@@ -185,7 +185,11 @@ function formatDailyQuote(sourceText, sourceItem) {
 	return `${quote}${attr}`;
 }
 
-function textFormatter(sourceText, sourceNote) {
+function textFormatter(sourceText, rawSourceNote) {
+	// Readwise can return a highlight without a note (null/undefined rather
+	// than ""); normalize once so the .includes probe below can't throw and
+	// abort the whole import on a single note-less highlight.
+	const sourceNote = rawSourceNote ?? "";
 	let quote = sourceText
 		.split("\n")
 		.filter((line) => line != "")

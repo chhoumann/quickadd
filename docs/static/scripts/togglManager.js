@@ -36,7 +36,14 @@ const menu = {
 };
 
 module.exports = async function togglManager(params) {
-    togglApi = params.app.plugins.plugins["obsidian-toggl-integration"].toggl._apiManager;
+    // Guard the plugin lookup (mirrors citationsManager.js): without it, a
+    // missing/disabled Toggl integration throws an opaque TypeError here.
+    const togglPlugin = params.app.plugins.plugins["obsidian-toggl-integration"];
+    if (!togglPlugin || !togglPlugin.toggl || !togglPlugin.toggl._apiManager) {
+        new Notice("Toggl Track integration plugin is not installed, enabled, or connected to your Toggl account.", 5000);
+        throw new Error("Toggl Track integration plugin not found.");
+    }
+    togglApi = togglPlugin.toggl._apiManager;
     quickAddApi = params.quickAddApi;
     projects = await togglApi.getProjects();
 

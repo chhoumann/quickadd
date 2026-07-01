@@ -332,8 +332,15 @@ function parseInlineFieldsWithWikilinks(content, allowedProperties = [], migrate
 
                     if (fieldName && fieldValue) {
                         const fieldNameLower = fieldName.toLowerCase();
-                        const shouldMigrate = migrateAll ||
-                            (allowedPropertiesLower.length > 0 && allowedPropertiesLower.includes(fieldNameLower));
+                        // `frontmatter['__proto__'] = value` hits the Object.prototype
+                        // accessor instead of creating an own property, so the value
+                        // would be silently dropped while the body line is deleted -
+                        // data loss. Leave such a line in the body verbatim instead
+                        // (mirrors the core plugin's dunder-key guard, which blocks
+                        // __proto__ in any position).
+                        const isUnwritableName = fieldName === '__proto__';
+                        const shouldMigrate = !isUnwritableName && (migrateAll ||
+                            (allowedPropertiesLower.length > 0 && allowedPropertiesLower.includes(fieldNameLower)));
 
                         if (shouldMigrate) {
                             // This line should be removed (moved to frontmatter).
