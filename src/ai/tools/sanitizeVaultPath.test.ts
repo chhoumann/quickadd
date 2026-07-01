@@ -84,7 +84,7 @@ describe("sanitizeVaultPath", () => {
 				UnsafeVaultPathError,
 			);
 		});
-		// The basename extraction used `.replace(/[. ]+$/u, "")` — a guaranteed
+		// The basename extraction used `.replace(/[. ]+$/u, "")` - a guaranteed
 		// no-op (the trailing-char guard above already rejected such segments)
 		// that still backtracked quadratically on a long interior dot run:
 		// ~2.8s at 80k chars, reachable from the auto-run (no-approval) read

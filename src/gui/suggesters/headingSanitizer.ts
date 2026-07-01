@@ -32,7 +32,7 @@ function isWhitespaceCodeUnit(text: string, index: number): boolean {
 }
 
 /**
- * Pass 1 — remove image embeds. Equivalent to
+ * Pass 1 - remove image embeds. Equivalent to
  * `replace(/!\[\[[^\]]*\]\]/g, "")`: at each `![[`, the greedy `[^\]]*` runs to
  * the FIRST `]`, which must start a `]]` pair for the whole embed to match.
  * `close` only ever moves forward, so failed openers sharing one long
@@ -64,7 +64,7 @@ function stripImageEmbeds(text: string): string {
 }
 
 /**
- * Pass 2 — resolve wikilinks to their alias (or target). Equivalent to
+ * Pass 2 - resolve wikilinks to their alias (or target). Equivalent to
  * `replace(/\[\[([^\]|]*?)(\|([^\]]*?))?\]\]/g, (_, p1, _p2, alias) => alias ?? p1)`:
  * after `[[`, the target runs to the first `]` or `|`; a `]` must start `]]`
  * (emit the target), a `|` starts an alias that runs to the first `]`, which
@@ -113,10 +113,10 @@ function resolveWikiLinks(text: string): string {
 }
 
 /**
- * Pass 4 — strip ATX heading markers. Equivalent to
+ * Pass 4 - strip ATX heading markers. Equivalent to
  * `replace(/^#+\s*|\s*#+$/g, "")`: a leading `#` run plus following whitespace,
  * and (independently, on what remains) a trailing `#` run plus the whitespace
- * run directly before it — the trailing alternative only fires when the string
+ * run directly before it - the trailing alternative only fires when the string
  * actually ENDS with `#`. The old regex backtracked quadratically on interior
  * `#`/whitespace runs ("x" + "#".repeat(n) + "y").
  */
@@ -137,7 +137,7 @@ function trimAtxHashMarkers(text: string): string {
 }
 
 /**
- * Pass 5 — drop stray `[[` / `]]` pairs left by unmatched links. Equivalent to
+ * Pass 5 - drop stray `[[` / `]]` pairs left by unmatched links. Equivalent to
  * `replace(/\[\[|\]\]/g, "")` (leftmost, non-overlapping).
  */
 function stripStrayBrackets(text: string): string {
@@ -158,7 +158,7 @@ function stripStrayBrackets(text: string): string {
 	return out;
 }
 
-// Pass 3 — a bare single-character class has no quantifier to backtrack, so
+// Pass 3 - a bare single-character class has no quantifier to backtrack, so
 // this one regex pass is already linear and stays.
 const MD_CHARS_RE = /[*_`~]/g;
 

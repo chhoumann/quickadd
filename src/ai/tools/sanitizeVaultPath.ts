@@ -129,7 +129,7 @@ function validateSegment(segment: string, fullPath: string): void {
 	}
 	// No trailing-dot/space trim is needed here: the guard above already threw
 	// for any segment ending in '.' or ' ', so the historical
-	// `.replace(/[. ]+$/u, "")` was a guaranteed no-op — while still costing
+	// `.replace(/[. ]+$/u, "")` was a guaranteed no-op - while still costing
 	// quadratic backtracking on a long interior dot/space run reachable from
 	// the auto-run (no-approval) read tools.
 	const base = segment.split(".")[0] ?? "";

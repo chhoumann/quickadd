@@ -355,8 +355,12 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			);
 		}
 
-		const normalized = segment.replace(/[. ]+$/u, "");
-		const base = normalized.split(".")[0] ?? "";
+		// No trailing-dot/space trim is needed here: the guard above already
+		// threw for any segment ending in '.' or ' ', so the historical
+		// `.replace(/[. ]+$/u, "")` was a guaranteed no-op - while still costing
+		// quadratic backtracking on a long interior dot/space run in a
+		// format-resolved folder name (same shape as sanitizeVaultPath's).
+		const base = segment.split(".")[0] ?? "";
 		if (base && isReservedWindowsDeviceName(base)) {
 			throw new InvalidFolderPathError(
 				"Folder name cannot be a reserved name like CON, PRN, AUX, NUL, COM1-9, or LPT1-9.",

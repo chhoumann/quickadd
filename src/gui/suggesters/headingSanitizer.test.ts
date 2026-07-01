@@ -70,7 +70,7 @@ describe('sanitizeHeading', () => {
 
 	// The old chained regexes backtracked quadratically on adversarial headings
 	// (any single `#`-prefixed note line, unbounded length, reaches this via
-	// FileIndex.createIndexedFile for every heading of every file — full reindex
+	// FileIndex.createIndexedFile for every heading of every file - full reindex
 	// AND every metadataCache 'changed' event). wikiRE was O(n^2) on a "["
 	// flood, imgRE on a "![[" flood, and trimHashRE on interior "#"/whitespace
 	// runs. The linear scanners stay in single-digit milliseconds at these

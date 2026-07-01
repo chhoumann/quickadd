@@ -87,4 +87,28 @@ describe("normalizeGeneratedFilePath", () => {
 			"a/b/Line Break",
 		);
 	});
+
+	// The historical control-run collapse (` *[<control>]+ *` global) and the
+	// two trailing trims (/ +$/u, /[. ]+$/u) all backtracked quadratically on
+	// long interior space/dot runs - and these names embed untrusted format
+	// output ({{VALUE}}/{{CLIPBOARD}}). The linear scanners were proven
+	// byte-identical by a 3.36M-case differential fuzz (incl. exhaustive
+	// coverage of all strings up to length 6 over the control/space/dot
+	// alphabet, comparing thrown messages too). These pin the linear-time
+	// behavior; budgets are generous to stay non-flaky (the old code took
+	// seconds at these sizes).
+	describe("ReDoS resistance", () => {
+		const BUDGET_MS = 1000;
+		const N = 200_000;
+
+		it.each([
+			["interior space run", "a" + " ".repeat(N) + "b"],
+			["interior dot run", "a" + ".".repeat(N) + "b"],
+			["interior dot/space mix", "a" + ". ".repeat(N / 2) + "b"],
+		])("normalizes a %s in linear time", (_name, input) => {
+			const start = performance.now();
+			expect(normalizeGeneratedFilePath(input)).toBe(input);
+			expect(performance.now() - start).toBeLessThan(BUDGET_MS);
+		}, 20_000);
+	});
 });

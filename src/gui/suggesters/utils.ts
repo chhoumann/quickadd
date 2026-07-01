@@ -232,6 +232,6 @@ export function renderFuzzyHighlight(el: HTMLElement, text: string, query: strin
 }
 
 // Single-source heading sanitizer; lives in its own dependency-free module
-// (linear scanners — the old chained regexes were quadratic on adversarial
+// (linear scanners - the old chained regexes were quadratic on adversarial
 // headings). Re-exported here so existing imports keep working.
 export { sanitizeHeading } from "./headingSanitizer";
