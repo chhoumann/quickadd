@@ -39,7 +39,12 @@ function isWhitespaceCodeUnit(text: string, index: number): boolean {
  * bracket-free tail cost O(n) total instead of O(n) each.
  */
 function stripImageEmbeds(text: string): string {
+	// Fast path: without an opener nothing can match, and the output is the
+	// input verbatim (headings are unbounded note content on the index hot
+	// path, so a large PLAIN heading must not pay for a rebuild).
+	if (!text.includes("![[")) return text;
 	let out = "";
+	let copyFrom = 0; // start of the pending verbatim span
 	let i = 0;
 	let close = 0;
 	while (i < text.length) {
@@ -53,14 +58,15 @@ function stripImageEmbeds(text: string): string {
 				close++;
 			}
 			if (close < text.length && text.charCodeAt(close + 1) === CLOSE) {
+				out += text.slice(copyFrom, i); // flush the verbatim span
 				i = close + 2; // drop the whole ![[...]] embed
+				copyFrom = i;
 				continue;
 			}
 		}
-		out += text[i];
 		i++;
 	}
-	return out;
+	return out + text.slice(copyFrom);
 }
 
 /**
@@ -72,7 +78,10 @@ function stripImageEmbeds(text: string): string {
  * Both search cursors are monotonic, keeping the scan linear on opener floods.
  */
 function resolveWikiLinks(text: string): string {
+	// Fast path: no opener, no match, output verbatim.
+	if (!text.includes("[[")) return text;
 	let out = "";
+	let copyFrom = 0; // start of the pending verbatim span
 	let i = 0;
 	let stop = 0; // first `]` or `|` at/after the link target
 	let close = 0; // first `]` at/after the alias
@@ -89,8 +98,10 @@ function resolveWikiLinks(text: string): string {
 			}
 			if (stop < text.length && text.charCodeAt(stop) === CLOSE) {
 				if (text.charCodeAt(stop + 1) === CLOSE) {
-					out += text.slice(i + 2, stop); // [[target]] → target
+					// [[target]] → target
+					out += text.slice(copyFrom, i) + text.slice(i + 2, stop);
 					i = stop + 2;
+					copyFrom = i;
 					continue;
 				}
 			} else if (stop < text.length) {
@@ -100,16 +111,17 @@ function resolveWikiLinks(text: string): string {
 					close++;
 				}
 				if (close < text.length && text.charCodeAt(close + 1) === CLOSE) {
-					out += text.slice(stop + 1, close); // [[target|alias]] → alias
+					// [[target|alias]] → alias
+					out += text.slice(copyFrom, i) + text.slice(stop + 1, close);
 					i = close + 2;
+					copyFrom = i;
 					continue;
 				}
 			}
 		}
-		out += text[i];
 		i++;
 	}
-	return out;
+	return out + text.slice(copyFrom);
 }
 
 /**
@@ -141,7 +153,10 @@ function trimAtxHashMarkers(text: string): string {
  * `replace(/\[\[|\]\]/g, "")` (leftmost, non-overlapping).
  */
 function stripStrayBrackets(text: string): string {
+	// Fast path: neither pair present, output verbatim.
+	if (!text.includes("[[") && !text.includes("]]")) return text;
 	let out = "";
+	let copyFrom = 0; // start of the pending verbatim span
 	let i = 0;
 	while (i < text.length) {
 		const code = text.charCodeAt(i);
@@ -149,13 +164,14 @@ function stripStrayBrackets(text: string): string {
 			(code === OPEN && text.charCodeAt(i + 1) === OPEN) ||
 			(code === CLOSE && text.charCodeAt(i + 1) === CLOSE)
 		) {
+			out += text.slice(copyFrom, i); // flush the verbatim span
 			i += 2;
+			copyFrom = i;
 			continue;
 		}
-		out += text[i];
 		i++;
 	}
-	return out;
+	return out + text.slice(copyFrom);
 }
 
 // Pass 3 - a bare single-character class has no quantifier to backtrack, so
