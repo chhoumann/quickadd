@@ -45,7 +45,8 @@ interface CollectChoiceRequirementsOptions {
 	seedCaptureSelectionAsValue?: boolean;
 	/**
 	 * When provided, user-script modules loaded to read `quickadd.inputs` are
-	 * cached here (keyed by `command.path ?? command.id`) and reused across
+	 * cached here (keyed via `getUserScriptPreloadKey`: `command.path ??
+	 * command.id` plus any `::` member-drill suffix) and reused across
 	 * collection passes. Loading a CommonJS user script EXECUTES its top-level
 	 * code, so without this cache a single trigger runs every script's module
 	 * body twice: once here for introspection and once in MacroChoiceEngine.

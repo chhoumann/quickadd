@@ -84,11 +84,14 @@ export interface IChoiceExecutor {
 	/**
 	 * User-script modules already loaded (and therefore already EXECUTED - loading
 	 * a CommonJS user script runs its top-level code) by a requirement-collection
-	 * pass, keyed by `command.path ?? command.id`. MacroChoiceEngine consumes an
-	 * entry (delete-on-use) instead of re-loading the script, so introspecting
-	 * `quickadd.inputs` in the one-page preflight / non-interactive CLI does not
-	 * make a script's top-level side effects run twice per trigger. Optional so
-	 * existing stubs are unaffected; absent means "no preloaded modules".
+	 * pass, keyed by `getUserScriptPreloadKey` (`command.path ?? command.id` plus
+	 * any `::` member-drill suffix - stored values are DRILLED exports, so keying
+	 * by path alone would collide different members of one file). MacroChoiceEngine
+	 * consumes an entry (delete-on-use) instead of re-loading the script, so
+	 * introspecting `quickadd.inputs` in the one-page preflight / non-interactive
+	 * CLI does not make a script's top-level side effects run twice per trigger.
+	 * Optional so existing stubs are unaffected; absent means "no preloaded
+	 * modules".
 	 */
 	preloadedUserScripts?: Map<string, unknown>;
 }

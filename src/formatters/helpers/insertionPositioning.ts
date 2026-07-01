@@ -342,12 +342,13 @@ export function insertTextAfterPositionInBody(
 	// must not trigger the drop; a body WITHOUT a trailing newline has no such
 	// artifact, so its final slot is a genuine (possibly blank) last line.
 	const lineBelow = splitContent[pos + 1];
+	const lineBelowTrimmed = (lineBelow ?? "").trim();
 	const isTrailingNewlineArtifact =
 		body.endsWith("\n") && pos + 1 === splitContent.length - 1;
 	const blankLineDirectlyBelow =
 		pos + 1 < splitContent.length &&
 		!isTrailingNewlineArtifact &&
-		(lineBelow ?? "").trim() === "";
+		lineBelowTrimmed === "";
 	const text =
 		isTask && rawText.endsWith("\n") && blankLineDirectlyBelow
 			? rawText.slice(0, -1)
@@ -361,7 +362,7 @@ export function insertTextAfterPositionInBody(
 	// absorbs the text instead (the #312 task-newline drop above relies on
 	// exactly that), and the EOF artifact slot is not content.
 	const separator =
-		!text.endsWith("\n") && (lineBelow ?? "").trim() !== "" ? "\n" : "";
+		!text.endsWith("\n") && lineBelowTrimmed !== "" ? "\n" : "";
 
 	return {
 		content: `${pre}\n${text}${separator}${post}`,
