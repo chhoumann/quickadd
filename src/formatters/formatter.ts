@@ -78,6 +78,65 @@ export interface TemplateInclusionState {
 
 export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;
 
+const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
+
+/**
+ * Locates every inline script fence (```js quickadd ... ```) in the input so
+ * escape expansion can copy those spans verbatim. Single-pass replica of
+ * INLINE_JAVASCRIPT_REGEX (see constants.ts): an opener is a run of 3+
+ * backticks immediately followed by "js quickadd", and the first following
+ * run of 3+ backticks closes it (consumed whole, like the regex's greedy
+ * closer). The lazy regex is quadratic on backtick floods, and this runs on
+ * every keystroke of the format-editor preview — hence the linear scan.
+ * Span-for-span equivalence with the regex is pinned by a fuzz test in
+ * captureChoiceFormatter-linebreak.test.ts.
+ */
+export function findInlineScriptSpans(
+	input: string,
+): Array<{ start: number; end: number }> {
+	const spans: Array<{ start: number; end: number }> = [];
+	const n = input.length;
+	let i = 0;
+
+	while (i < n) {
+		const runStart = input.indexOf("`", i);
+		if (runStart === -1) break;
+		let runEnd = runStart;
+		while (runEnd < n && input[runEnd] === "`") runEnd++;
+
+		if (
+			runEnd - runStart < 3 ||
+			!input.startsWith(INLINE_SCRIPT_FENCE_LANG, runEnd)
+		) {
+			i = runEnd;
+			continue;
+		}
+
+		// Opener found — the next 3+ backtick run closes it. If none exists,
+		// no later opener can match either (its backticks would have served
+		// as this fence's closer), so scanning is done.
+		let j = runEnd + INLINE_SCRIPT_FENCE_LANG.length;
+		let end = -1;
+		while (j < n) {
+			const tick = input.indexOf("`", j);
+			if (tick === -1) break;
+			let tickRunEnd = tick;
+			while (tickRunEnd < n && input[tickRunEnd] === "`") tickRunEnd++;
+			if (tickRunEnd - tick >= 3) {
+				end = tickRunEnd;
+				break;
+			}
+			j = tickRunEnd;
+		}
+		if (end === -1) break;
+
+		spans.push({ start: runStart, end });
+		i = end;
+	}
+
+	return spans;
+}
+
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
@@ -1385,19 +1444,52 @@ export abstract class Formatter {
 	}
 
 	/**
-		* Like replaceLinebreakInString, but leaves `{{...}}` token spans untouched.
-		* Format-token regexes cannot match across real linebreaks (see constants.ts),
-		* so expanding `\n` inside token options (e.g. `{{VALUE:x|default:a\nb}}`)
-		* would render the token unparseable and dump it literally into the output.
+		* Like replaceLinebreakInString, but leaves `{{...}}` token spans and inline
+		* script fences untouched. Format-token regexes cannot match across real
+		* linebreaks (see constants.ts), so expanding `\n` inside token options
+		* (e.g. `{{VALUE:x|default:a\nb}}`) would render the token unparseable and
+		* dump it literally into the output. Inline script fences are verbatim
+		* JavaScript source: expanding `\n` there puts a raw newline inside string
+		* literals and the script dies with "Invalid or unexpected token" (#1467).
 		*/
 	protected expandLinebreakEscapesOutsideTokens(input: string): string {
+		const scriptSpans = findInlineScriptSpans(input);
 		let output = "";
 		let i = 0;
+		let spanIdx = 0;
 
 		while (i < input.length) {
+			while (spanIdx < scriptSpans.length && scriptSpans[spanIdx].end <= i) {
+				spanIdx++;
+			}
+			const nextSpan = scriptSpans[spanIdx];
+			if (nextSpan && nextSpan.start === i) {
+				output += input.slice(nextSpan.start, nextSpan.end);
+				i = nextSpan.end;
+				continue;
+			}
+
 			if (input[i] === "{" && input[i + 1] === "{") {
 				const close = input.indexOf("}}", i + 2);
+				// A `}}` that sits inside a script fence belongs to the script's
+				// code, not to this token — the fence wins and the `{{` is plain
+				// text. Otherwise the token skip would end mid-fence and the rest
+				// of the script would get its `\n` escapes expanded. Any fence can
+				// be the victim (the first `}}` may fall in a later fence), so
+				// check every span the skip could end inside of.
+				let cutsIntoScript = false;
 				if (close !== -1) {
+					const skipEnd = close + 2;
+					for (let k = spanIdx; k < scriptSpans.length; k++) {
+						const span = scriptSpans[k];
+						if (span.start >= skipEnd) break;
+						if (skipEnd < span.end && skipEnd > span.start) {
+							cutsIntoScript = true;
+							break;
+						}
+					}
+				}
+				if (close !== -1 && !cutsIntoScript) {
 					output += input.slice(i, close + 2);
 					i = close + 2;
 					continue;
