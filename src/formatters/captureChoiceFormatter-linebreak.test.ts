@@ -52,12 +52,15 @@ vi.mock("../gui/MathModal", () => ({
 	},
 }));
 
+const inlineScriptCalls = vi.hoisted(() => [] as string[]);
+
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	__esModule: true,
 	SingleInlineScriptEngine: class {
 		public params = { variables: {} as Record<string, unknown> };
 		constructor() {}
-		async runAndGetOutput() {
+		async runAndGetOutput(code: string) {
+			inlineScriptCalls.push(code);
 			return "";
 		}
 	},
@@ -107,6 +110,8 @@ vi.mock("../main", () => ({
 }));
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
+import { findInlineScriptSpans } from "./formatter";
+import { INLINE_JAVASCRIPT_REGEX } from "../constants";
 
 const createChoice = (
 	overrides: Partial<ICaptureChoice> = {},
@@ -368,6 +373,107 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			);
 
 			expect(result).toBe("\\n{{DATE}}{{TIME}}\n");
+		});
+	});
+
+	describe("inline script fences (issue #1467)", () => {
+		const fence =
+			'```js quickadd\nconst parts = "one\\ntwo".split("\\n");\nreturn parts.length;\n```';
+
+		it("leaves inline script fences verbatim while expanding around them", () => {
+			const formatter = createFormatter(null);
+
+			const result = formatter.expandOutsideTokens(
+				`before\\n${fence}\\nafter\\n`,
+			);
+
+			expect(result).toBe(`before\n${fence}\nafter\n`);
+		});
+
+		it("does not let an unclosed {{ swallow the start of a script fence", () => {
+			const formatter = createFormatter(null);
+			const fenceWithBraces =
+				'```js quickadd\nconst map = {a: {b: 1}};\nreturn "x\\ny".split("\\n").length;\n```';
+
+			const result = formatter.expandOutsideTokens(
+				`{{oops \\n${fenceWithBraces}`,
+			);
+
+			expect(result).toBe(`{{oops \n${fenceWithBraces}`);
+		});
+
+		it("passes uncorrupted script source to the inline script engine", async () => {
+			inlineScriptCalls.length = 0;
+			const formatter = createFormatter(null);
+
+			await formatter.formatContentOnly(`${fence}\\n`);
+
+			expect(inlineScriptCalls).toHaveLength(1);
+			expect(inlineScriptCalls[0]).toBe(
+				'const parts = "one\\ntwo".split("\\n");\nreturn parts.length;',
+			);
+		});
+
+		it("does not let an unclosed {{ whose first }} sits in a LATER fence cut that fence open", () => {
+			const formatter = createFormatter(null);
+			const fenceOne = '```js quickadd\nconst first = "a\\nb";\n```';
+			const fenceTwo =
+				'```js quickadd\nconst map = {a: {b: 1}};\nreturn "x\\ny".split("\\n").length;\n```';
+			const input = `{{oops \\n${fenceOne}\\n${fenceTwo}`;
+
+			const result = formatter.expandOutsideTokens(input);
+
+			expect(result).toBe(`{{oops \n${fenceOne}\n${fenceTwo}`);
+		});
+
+		it("finds spans identical to INLINE_JAVASCRIPT_REGEX (fuzz)", () => {
+			const regexSpans = (input: string) => {
+				const re = new RegExp(INLINE_JAVASCRIPT_REGEX.source, "g");
+				const out: string[] = [];
+				let m: RegExpExecArray | null;
+				while ((m = re.exec(input)) !== null) {
+					out.push(`${m.index}:${m.index + m[0].length}`);
+				}
+				return out.join(",");
+			};
+			const scanSpans = (input: string) =>
+				findInlineScriptSpans(input)
+					.map((s) => `${s.start}:${s.end}`)
+					.join(",");
+
+			// Deterministic LCG so failures reproduce.
+			let seed = 42;
+			const rnd = (max: number) => {
+				seed = (seed * 1103515245 + 12345) % 2147483648;
+				return seed % max;
+			};
+			const alphabet = [
+				"`",
+				"``",
+				"```",
+				"````",
+				"js quickadd",
+				"```js quickadd",
+				"j",
+				"s",
+				" ",
+				"\n",
+				"\\n",
+				"x",
+				"{{",
+				"}}",
+			];
+
+			for (let t = 0; t < 5000; t++) {
+				let input = "";
+				const len = rnd(30);
+				for (let k = 0; k < len; k++) {
+					input += alphabet[rnd(alphabet.length)];
+				}
+				expect(scanSpans(input), JSON.stringify(input)).toBe(
+					regexSpans(input),
+				);
+			}
 		});
 	});
 });
