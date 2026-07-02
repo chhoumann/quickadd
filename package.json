@@ -38,7 +38,7 @@
     "globals": "17",
     "jsdom": "29",
     "moment": "2.30.1",
-    "obsidian": "1.13.0",
+    "obsidian": "1.13.1",
     "obsidian-e2e": "0.6.0",
     "semantic-release": "^25.0.5",
     "svelte": "^5",
