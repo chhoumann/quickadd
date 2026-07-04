@@ -39,7 +39,12 @@ export interface PromptProvider {
 	): Promise<string>;
 	datePrompt(
 		header: string,
-		options?: { placeholder?: string; defaultValue?: string; dateFormat?: string },
+		options?: {
+			placeholder?: string;
+			defaultValue?: string;
+			dateFormat?: string;
+			withTime?: boolean;
+		},
 	): Promise<string>;
 	yesNoPrompt(header: string, text?: string): Promise<boolean>;
 	checkboxPrompt(
@@ -120,7 +125,12 @@ export class RemotePromptProvider implements PromptProvider {
 
 	async datePrompt(
 		header: string,
-		options?: { placeholder?: string; defaultValue?: string; dateFormat?: string },
+		options?: {
+			placeholder?: string;
+			defaultValue?: string;
+			dateFormat?: string;
+			withTime?: boolean;
+		},
 	): Promise<string> {
 		const answer = await this.server.emitPrompt(this.sessionId, {
 			type: "date",
@@ -128,14 +138,17 @@ export class RemotePromptProvider implements PromptProvider {
 			placeholder: options?.placeholder,
 			defaultValue: options?.defaultValue,
 			dateFormat: options?.dateFormat,
+			withTime: options?.withTime,
 		});
-		const iso = String(answer ?? "");
-		if (!iso) return "";
-		// Match VDateInputPrompt's output: format the picked ISO date with the
-		// requested format, falling back to the date part of the ISO string.
+		const raw = String(answer ?? "");
+		if (!raw) return "";
+		// The client may send a bare ISO or an `@date:ISO`; normalize to the ISO.
+		const iso = raw.startsWith("@date:") ? raw.slice(6) : raw;
+		// Match QuickAddApi.datePrompt exactly: format with the requested format,
+		// else return the full ISO string (not just its date part).
 		const format = options?.dateFormat;
 		const formatted = format ? formatISODate(iso, format) : null;
-		return formatted ?? (iso.length >= 10 ? iso.slice(0, 10) : iso);
+		return formatted ?? iso;
 	}
 
 	async yesNoPrompt(header: string, text?: string): Promise<boolean> {
@@ -201,9 +214,19 @@ export class RemotePromptProvider implements PromptProvider {
 			fields: formFields,
 		});
 		if (!answer || typeof answer !== "object") return {};
+		// Date fields must come back as `@date:ISO`, matching OnePageInputModal, so
+		// QuickAddApi.requestInputs' shared post-processing stores the raw ISO and
+		// applies dateFormat identically to the in-app path.
+		const dateFieldIds = new Set(
+			fields.filter((field) => field.type === "date").map((field) => field.id),
+		);
 		const result: Record<string, string> = {};
 		for (const [key, value] of Object.entries(answer as Record<string, unknown>)) {
-			result[key] = value == null ? "" : String(value);
+			let str = value == null ? "" : String(value);
+			if (str && dateFieldIds.has(key) && !str.startsWith("@date:")) {
+				str = `@date:${str}`;
+			}
+			result[key] = str;
 		}
 		return result;
 	}

@@ -1499,3 +1499,55 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		);
 	});
 });
+
+describe("CompleteFormatter - remote prompt provider routing", () => {
+	// An interactive run driven by a remote provider (Raycast): token prompts the
+	// requirement collector didn't pre-satisfy must go to the provider, not a modal.
+	const providerFormatter = (
+		provider: Record<string, unknown>,
+		variables: Map<string, unknown> = new Map(),
+	) => {
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const plugin = makePlugin({});
+		return new CompleteFormatter(app as any, plugin as any, {
+			variables,
+			interactive: true,
+			promptProvider: provider,
+			execute: vi.fn(),
+		} as any);
+	};
+
+	it("routes {{VALUE:opts}} to the provider's suggester, not the Obsidian modal", async () => {
+		mocks.genericSuggesterSuggest.mockResolvedValue("a"); // modal answer (should be unused)
+		const suggester = vi.fn(async () => "b");
+		const f = providerFormatter({ suggester });
+		await expect(f.formatFolderPath("{{VALUE:a,b,c}}")).resolves.toBe("b");
+		expect(suggester).toHaveBeenCalledWith(
+			["a", "b", "c"],
+			["a", "b", "c"],
+			undefined,
+			false,
+		);
+		expect(mocks.genericSuggesterSuggest).not.toHaveBeenCalled();
+	});
+
+	it("routes anonymous {{VALUE}} to the provider's inputPrompt", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("modal");
+		const inputPrompt = vi.fn(async () => "remote");
+		const f = providerFormatter({ inputPrompt });
+		await expect(f.formatFolderPath("{{VALUE}}")).resolves.toBe("remote");
+		expect(inputPrompt).toHaveBeenCalled();
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("routes named {{VALUE:name}} to the provider's inputPrompt", async () => {
+		mocks.inputPromptPrompt.mockResolvedValue("modal");
+		const inputPrompt = vi.fn(async () => "remote-name");
+		const f = providerFormatter({ inputPrompt });
+		await expect(f.formatFolderPath("{{VALUE:name}}")).resolves.toBe(
+			"remote-name",
+		);
+		expect(inputPrompt).toHaveBeenCalled();
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+});

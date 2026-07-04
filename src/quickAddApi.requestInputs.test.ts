@@ -83,4 +83,44 @@ describe("QuickAddApi.requestInputs", () => {
 		expect(result["raw-date"]).toBe("@date:2025-12-10T15:41:11.393Z");
 		expect(choiceExecutor.variables.get("raw-date")).toBe("@date:2025-12-10T15:41:11.393Z");
 	});
+
+	it("routes to a remote prompt provider instead of the modal when one is set", async () => {
+		// The modal would return {} (empty) here; the provider returns rating=8, so
+		// seeing 8 proves the provider path ran, not the modal.
+		modalReturnValue = {};
+		const providerRequestInputs = vi.fn(
+			async (_fields: Array<Record<string, unknown>>) => ({ rating: "8" }),
+		);
+		(choiceExecutor as IChoiceExecutor).promptProvider = {
+			requestInputs: providerRequestInputs,
+		} as unknown as IChoiceExecutor["promptProvider"];
+
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const result = await api.requestInputs([
+			{ id: "rating", type: "suggester", options: ["10", "9", "8"] },
+		]);
+
+		expect(providerRequestInputs).toHaveBeenCalledTimes(1);
+		expect(providerRequestInputs.mock.calls[0][0][0]).toMatchObject({
+			id: "rating",
+			type: "suggester",
+			options: ["10", "9", "8"],
+		});
+		expect(result.rating).toBe("8");
+		expect(choiceExecutor.variables.get("rating")).toBe("8");
+	});
+
+	it("does not re-ask (nor call the provider) for inputs already in variables", async () => {
+		const providerRequestInputs = vi.fn(async () => ({ x: "asked" }));
+		(choiceExecutor as IChoiceExecutor).promptProvider = {
+			requestInputs: providerRequestInputs,
+		} as unknown as IChoiceExecutor["promptProvider"];
+		choiceExecutor.variables.set("x", "preset");
+
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const result = await api.requestInputs([{ id: "x", type: "text" }]);
+
+		expect(providerRequestInputs).not.toHaveBeenCalled();
+		expect(result.x).toBe("preset");
+	});
 });

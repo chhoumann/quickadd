@@ -757,6 +757,41 @@ async function interactiveHandler(
 		// this handler must not await it.
 		void (async () => {
 			try {
+				// Template/Capture engines can swallow a runtime failure on the void
+				// execute() path, so use the verified-outcome path (mirrors run-choice)
+				// to avoid reporting a failed file create as success.
+				if (
+					(choice.type === "Template" || choice.type === "Capture") &&
+					typeof choiceExecutor.executeWithOutcome === "function"
+				) {
+					const outcome = await choiceExecutor.executeWithOutcome(
+						choice as ITemplateChoice | ICaptureChoice,
+					);
+					if (outcome.status === "success") {
+						interactivePromptServer.finish(sessionId, {
+							kind: "done",
+							result: {
+								ok: true,
+								choice: describeChoice(choice),
+								file: outcome.file?.path,
+								verified: true,
+							},
+						});
+						return;
+					}
+					interactivePromptServer.finish(sessionId, {
+						kind: "error",
+						error:
+							outcome.status === "cancelled"
+								? outcome.reason ||
+									(outcome.cancelKind === "user"
+										? "Execution cancelled by user"
+										: "Execution aborted")
+								: "Choice execution failed; no file was created.",
+					});
+					return;
+				}
+
 				await choiceExecutor.execute(choice);
 				const aborted = choiceExecutor.consumeAbortSignal?.();
 				if (aborted) {

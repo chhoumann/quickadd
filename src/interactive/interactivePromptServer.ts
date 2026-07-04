@@ -18,6 +18,14 @@
  */
 
 import type { Server, IncomingMessage, ServerResponse } from "http";
+import { UserCancelError } from "../errors/UserCancelError";
+
+/** The sliver of Node's `http` module we use (required lazily, desktop only). */
+type HttpModule = {
+	createServer: (
+		listener: (req: IncomingMessage, res: ServerResponse) => void,
+	) => Server;
+};
 
 export interface SuggesterItem {
 	/** Text shown to the user. */
@@ -83,6 +91,8 @@ export type PromptSpec =
 			placeholder?: string;
 			defaultValue?: string;
 			dateFormat?: string;
+			/** Render a date *and time* picker (VDATE `|time`/`|datetime`). */
+			withTime?: boolean;
 	  }
 	| { type: "confirm"; header: string; text?: string }
 	| { type: "checkbox"; header?: string; items: CheckboxItem[] }
@@ -157,9 +167,14 @@ function nodeRequire<T>(mod: string): T | null {
 function randomId(): string {
 	const c = (globalThis as { crypto?: Crypto }).crypto;
 	if (c?.randomUUID) return c.randomUUID();
-	// Fallback: two random segments (localhost-only, non-cryptographic use is fine).
-	return (
-		Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
+	// The bearer token is the only local auth secret, so never fall back to a
+	// non-cryptographic source: use getRandomValues, else fail closed.
+	if (c?.getRandomValues) {
+		const bytes = c.getRandomValues(new Uint8Array(16));
+		return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+	}
+	throw new Error(
+		"Interactive prompts require a secure random source (crypto), which is unavailable here.",
 	);
 }
 
@@ -167,24 +182,42 @@ class InteractivePromptServer {
 	private server: Server | null = null;
 	private port = 0;
 	private readonly sessions = new Map<string, Session>();
+	// Memoized so concurrent ensureStarted() calls share one listen (no leaked
+	// duplicate servers on a race between two interactive runs).
+	private startPromise: Promise<number> | null = null;
+	// Bumped by stop(). A listen() callback that resolves after a stop() belongs
+	// to a torn-down generation and must discard its server, never install it —
+	// otherwise unloading QuickAdd mid-startup leaves a live listener behind.
+	private generation = 0;
 
 	/** Start the server if needed and return the bound port. */
 	async ensureStarted(): Promise<number> {
 		if (this.server) return this.port;
-		const http = nodeRequire<typeof import("http")>("http");
+		if (this.startPromise) return this.startPromise;
+		const http = nodeRequire<HttpModule>("http");
 		if (!http) {
 			throw new Error(
 				"Interactive prompts require desktop Obsidian (Node http is unavailable).",
 			);
 		}
-		return await new Promise<number>((resolve, reject) => {
+		const generation = this.generation;
+		this.startPromise = new Promise<number>((resolve, reject) => {
 			const server = http.createServer(
 				(req: IncomingMessage, res: ServerResponse) =>
 					void this.handle(req, res),
 			);
-			server.on("error", reject);
+			server.on("error", (error) => {
+				if (this.generation === generation) this.startPromise = null;
+				reject(error);
+			});
 			// Port 0 → OS picks a free port. Bind to loopback only.
 			server.listen(0, "127.0.0.1", () => {
+				if (this.generation !== generation) {
+					// stop() ran while we were binding — discard this listener.
+					server.close();
+					reject(new Error("Interactive server stopped during startup."));
+					return;
+				}
 				const address = server.address();
 				this.port =
 					typeof address === "object" && address ? address.port : 0;
@@ -192,6 +225,7 @@ class InteractivePromptServer {
 				resolve(this.port);
 			});
 		});
+		return this.startPromise;
 	}
 
 	createSession(): { id: string; token: string } {
@@ -228,6 +262,12 @@ class InteractivePromptServer {
 	emitPrompt(sessionId: string, prompt: PromptSpec): Promise<unknown> {
 		const session = this.sessions.get(sessionId);
 		if (!session) return Promise.reject(new Error("Unknown session"));
+		// A prompt raised after the session ended (e.g. the no-attach timeout
+		// already fired finish()) must reject, not park forever, so the executor
+		// aborts instead of hanging.
+		if (session.finished) {
+			return Promise.reject(new Error("Interactive session ended"));
+		}
 		const requestId = randomId();
 		return new Promise<unknown>((resolve, reject) => {
 			session.pending.set(requestId, { resolve, reject });
@@ -260,6 +300,9 @@ class InteractivePromptServer {
 
 	/** Stop the server and drop all sessions (plugin unload). */
 	stop(): void {
+		// Invalidate any in-flight ensureStarted() so its listen() callback
+		// discards the server instead of installing it after unload.
+		this.generation++;
 		for (const session of this.sessions.values()) {
 			if (session.waiterTimer) clearTimeout(session.waiterTimer);
 			if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
@@ -272,6 +315,7 @@ class InteractivePromptServer {
 		this.server?.close();
 		this.server = null;
 		this.port = 0;
+		this.startPromise = null;
 	}
 
 	private push(session: Session, event: ServerEvent): void {
@@ -292,11 +336,18 @@ class InteractivePromptServer {
 		if (session.waiterTimer) clearTimeout(session.waiterTimer);
 		if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
 		if (session.attachTimer) clearTimeout(session.attachTimer);
+		// Reject any still-pending prompt so a caller awaiting it aborts rather
+		// than hanging (finish() normally clears these, but be defensive).
+		for (const [, pending] of session.pending) {
+			pending.reject(new Error("Interactive session ended"));
+		}
+		session.pending.clear();
 		this.sessions.delete(session.id);
 		if (this.sessions.size === 0) {
 			this.server?.close();
 			this.server = null;
 			this.port = 0;
+			this.startPromise = null;
 		}
 	}
 
@@ -334,7 +385,11 @@ class InteractivePromptServer {
 		const pending = session.pending.get(requestId);
 		if (!pending) return false;
 		session.pending.delete(requestId);
-		if (cancelled) pending.reject(new Error("Prompt cancelled"));
+		// A remote cancel must abort the run exactly like dismissing the Obsidian
+		// modal: reject with UserCancelError so downstream abort handling classifies
+		// it as a user cancellation (x-cancel, suppressed notice) rather than an error.
+		if (cancelled)
+			pending.reject(new UserCancelError("Input cancelled by user"));
 		else pending.resolve(value);
 		return true;
 	}
@@ -389,8 +444,15 @@ class InteractivePromptServer {
 					value?: unknown;
 					cancelled?: boolean;
 				};
-				this.handleReply(session, body);
-				this.send(res, 200, { ok: true });
+				const accepted = this.handleReply(session, body);
+				// A missing/stale requestId matched no pending prompt: tell the
+				// client so it doesn't believe a blocked run was answered.
+				if (accepted) this.send(res, 200, { ok: true });
+				else
+					this.send(res, 409, {
+						ok: false,
+						error: "No pending prompt for that requestId",
+					});
 				return;
 			}
 
@@ -417,15 +479,27 @@ class InteractivePromptServer {
 			this.send(res, 200, queued);
 			return;
 		}
+		// Only one poll may park at a time. A concurrent/overlapping poll (a
+		// misbehaving or double-mounted client) gets an immediate idle instead
+		// of overwriting - and cross-wiring - the parked waiter.
+		if (session.waiter) {
+			this.send(res, 200, { kind: "idle" } satisfies ServerEvent);
+			return;
+		}
 		// Long-poll: hold the request until the next event or a keepalive timeout.
-		session.waiter = (event) => this.send(res, 200, event);
+		// The identity checks below ensure a stale timeout/close only clears the
+		// waiter it created, never a newer one.
+		const waiter = (event: ServerEvent) => this.send(res, 200, event);
+		session.waiter = waiter;
 		session.waiterTimer = setTimeout(() => {
+			if (session.waiter !== waiter) return;
 			session.waiter = null;
 			session.waiterTimer = null;
 			this.send(res, 200, { kind: "idle" } satisfies ServerEvent);
 		}, LONG_POLL_MS);
 		res.on("close", () => {
 			// Client hung up mid-poll; drop the waiter so we don't write to a dead socket.
+			if (session.waiter !== waiter) return;
 			if (session.waiterTimer) clearTimeout(session.waiterTimer);
 			session.waiter = null;
 			session.waiterTimer = null;
@@ -435,9 +509,14 @@ class InteractivePromptServer {
 	private handleReply(
 		session: Session,
 		body: { requestId?: string; value?: unknown; cancelled?: boolean },
-	): void {
-		if (!body.requestId) return;
-		this.submitReply(session.id, body.requestId, body.value, body.cancelled);
+	): boolean {
+		if (!body.requestId) return false;
+		return this.submitReply(
+			session.id,
+			body.requestId,
+			body.value,
+			body.cancelled,
+		);
 	}
 }
 

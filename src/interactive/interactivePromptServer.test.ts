@@ -4,6 +4,7 @@ import {
 	isLoopbackClient,
 	safeEqual,
 } from "./interactivePromptServer";
+import { UserCancelError } from "../errors/UserCancelError";
 
 describe("safeEqual", () => {
 	it("matches equal strings and rejects different or different-length ones", () => {
@@ -24,6 +25,44 @@ describe("isLoopbackClient", () => {
 		expect(isLoopbackClient({ host: "127.0.0.1:5000", referer: "https://evil.test/x" })).toBe(false);
 		expect(isLoopbackClient({ host: "evil.test:5000" })).toBe(false);
 		expect(isLoopbackClient({})).toBe(false);
+	});
+});
+
+describe("interactivePromptServer long-poll waiter", () => {
+	it("parks a single waiter and hands a concurrent poll an immediate idle", async () => {
+		const s = interactivePromptServer.createSession();
+		const srv = interactivePromptServer as unknown as {
+			handlePoll(session: unknown, res: unknown): void;
+			sessions: Map<string, unknown>;
+		};
+		const session = srv.sessions.get(s.id);
+
+		const first = fakeRes();
+		const second = fakeRes();
+
+		// First poll parks (nothing queued yet) — no response written.
+		srv.handlePoll(session, first.res);
+		expect(first.events).toHaveLength(0);
+
+		// A concurrent/overlapping poll must not overwrite the parked waiter;
+		// it gets an immediate idle so the client simply re-polls.
+		srv.handlePoll(session, second.res);
+		expect(second.events).toEqual([{ kind: "idle" }]);
+
+		// Emitting a prompt fires the *parked* (first) waiter, not the second.
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "confirm",
+			header: "Proceed?",
+		});
+		expect(first.events).toHaveLength(1);
+		expect((first.events[0] as { kind: string }).kind).toBe("prompt");
+
+		// A stale close from the already-fired first poll must not disturb state.
+		first.close();
+
+		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
+		await expect(prompt).resolves.toBe(true);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
 });
 
@@ -72,6 +111,33 @@ describe("interactivePromptServer session multiplexing", () => {
 		await expect(prompt).rejects.toThrow(/ended/i);
 	});
 
+	it("rejects a prompt raised after the session already finished (no hang)", async () => {
+		const s = interactivePromptServer.createSession();
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+		// Without the finished-guard this promise would park forever.
+		await expect(
+			interactivePromptServer.emitPrompt(s.id, {
+				type: "confirm",
+				header: "Late?",
+			}),
+		).rejects.toThrow(/ended/i);
+	});
+
+	it("rejects a cancelled reply with UserCancelError so the run aborts as a user cancel", async () => {
+		const s = interactivePromptServer.createSession();
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "input",
+			header: "Name",
+			multiline: false,
+		});
+		const rid = pendingRequestId(s.id);
+		expect(
+			interactivePromptServer.submitReply(s.id, rid, undefined, true),
+		).toBe(true);
+		await expect(prompt).rejects.toBeInstanceOf(UserCancelError);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
 	it("caps the number of concurrent sessions", () => {
 		const created: string[] = [];
 		try {
@@ -86,6 +152,31 @@ describe("interactivePromptServer session multiplexing", () => {
 		}
 	});
 });
+
+/** Minimal ServerResponse stand-in capturing what `send()` writes. */
+function fakeRes(): {
+	res: unknown;
+	events: unknown[];
+	close: () => void;
+} {
+	const events: unknown[] = [];
+	let closeHandler: (() => void) | null = null;
+	return {
+		res: {
+			writeHead() {},
+			end(payload?: string) {
+				if (payload) events.push(JSON.parse(payload));
+			},
+			on(event: string, cb: () => void) {
+				if (event === "close") closeHandler = cb;
+			},
+		},
+		events,
+		close() {
+			closeHandler?.();
+		},
+	};
+}
 
 /** Reads the single pending requestId for a session (test helper). */
 function pendingRequestId(sessionId: string): string {

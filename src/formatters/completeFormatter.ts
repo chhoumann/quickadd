@@ -520,6 +520,9 @@ export class CompleteFormatter extends Formatter {
 					{
 						defaultValue: context.defaultValue,
 						dateFormat: context.dateFormat ?? "YYYY-MM-DD",
+						// Carry |time/|datetime so the remote client renders a time
+						// picker; otherwise the picked time is silently dropped.
+						withTime: context.withTime,
 					},
 				);
 			}
