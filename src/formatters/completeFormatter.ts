@@ -397,13 +397,15 @@ export class CompleteFormatter extends Formatter {
 				// mirroring promptForVariable's named {{VALUE:x|type:checkbox}} path.
 				const checkboxProvider = this.choiceExecutor?.promptProvider;
 				if (checkboxProvider) {
-					this.value = await checkboxProvider.suggester(
-						["true", "false"],
-						["true", "false"],
-						this.valuePromptContext.description ??
-							this.valueHeader ??
-							"Choose value",
-						false,
+					this.value = String(
+						await checkboxProvider.suggester(
+							["true", "false"],
+							["true", "false"],
+							this.valuePromptContext.description ??
+								this.valueHeader ??
+								"Choose value",
+							false,
+						),
 					);
 					return this.value;
 				}
@@ -541,11 +543,13 @@ export class CompleteFormatter extends Formatter {
 				);
 			}
 			if (context?.inputTypeOverride === "checkbox") {
-				return await provider.suggester(
-					["true", "false"],
-					["true", "false"],
-					context.description ?? header ?? context.label ?? "Choose value",
-					false,
+				return String(
+					await provider.suggester(
+						["true", "false"],
+						["true", "false"],
+						context.description ?? header ?? context.label ?? "Choose value",
+						false,
+					),
 				);
 			}
 			return await provider.inputPrompt(
@@ -637,11 +641,15 @@ export class CompleteFormatter extends Formatter {
 		// (e.g. a rating field) that the requirement collector didn't pre-satisfy.
 		const provider = this.choiceExecutor?.promptProvider;
 		if (provider) {
-			return await provider.suggester(
-				context?.displayValues ?? suggestedValues,
-				suggestedValues,
-				context?.placeholder,
-				allowCustomInput,
+			// Formatter tokens resolve to strings; the provider hands back the
+			// selected actualItems entry (here always a string) or a custom value.
+			return String(
+				await provider.suggester(
+					context?.displayValues ?? suggestedValues,
+					suggestedValues,
+					context?.placeholder,
+					allowCustomInput,
+				),
 			);
 		}
 		this.assertInteractivePrompt(

@@ -141,7 +141,9 @@ background. Attach to the session and drive it:
 
 Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
-acknowledgement. The run's outcome arrives as the `done`/`error` poll event.
+acknowledgement, `form` → an object mapping each field's `id` to its string
+value (date fields use the `@date:ISO` format). The run's outcome arrives as the
+`done`/`error` poll event.
 
 Notes:
 

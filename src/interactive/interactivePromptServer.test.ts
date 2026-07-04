@@ -92,6 +92,11 @@ describe("interactivePromptServer long-poll waiter", () => {
 		await vi.advanceTimersByTimeAsync(75_000 + 10);
 		await rejected;
 		expect(srv.sessions.get(s.id)?.finished).toBe(true);
+
+		// finish() scheduled a cleanup timeout; flush it so the session doesn't
+		// linger in the map (and leak into later tests) once real timers resume.
+		await vi.advanceTimersByTimeAsync(60_000);
+		expect(srv.sessions.has(s.id)).toBe(false);
 	});
 });
 

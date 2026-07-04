@@ -79,3 +79,43 @@ describe("RemotePromptProvider date marshaling", () => {
 		expect(out.d).toBe("@date:2025-12-10T15:41:11.393Z");
 	});
 });
+
+describe("RemotePromptProvider suggester marshaling", () => {
+	it("returns the original actualItems entry (object identity), not a stringified copy", async () => {
+		const file = { basename: "note", path: "a/note.md" };
+		const other = { basename: "x", path: "x.md" };
+		let sentItems: { title: string; value: string }[] = [];
+		const server = {
+			emitPrompt: vi.fn(async (_id: string, spec: unknown) => {
+				sentItems = (spec as { items: { title: string; value: string }[] })
+					.items;
+				// Client selects the first item by its opaque wire token.
+				return sentItems[0].value;
+			}),
+		} as unknown as ServerLike;
+		const provider = new RemotePromptProvider("s", server);
+
+		const result = await provider.suggester(
+			(f: unknown) => (f as { basename: string }).basename,
+			[file, other] as unknown as string[],
+			undefined,
+			false,
+		);
+
+		// Same object reference back, exactly like GenericSuggester.
+		expect(result).toBe(file);
+		// Display function drives the title; the wire value is an opaque token,
+		// never the stringified object.
+		expect(sentItems[0].title).toBe("note");
+		expect(sentItems[0].value).not.toBe("[object Object]");
+	});
+
+	it("returns a custom-typed value verbatim when allowCustomInput is set", async () => {
+		const provider = new RemotePromptProvider(
+			"s",
+			fakeServer("typed custom"),
+		);
+		const result = await provider.suggester(["a"], ["a"], undefined, true);
+		expect(result).toBe("typed custom");
+	});
+});

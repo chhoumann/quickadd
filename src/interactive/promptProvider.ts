@@ -16,6 +16,13 @@ import {
 	interactivePromptServer,
 } from "./interactivePromptServer";
 
+/**
+ * Prefix for the opaque token a suggester reply carries for a *selected* item
+ * (as opposed to a custom-typed value). The NUL char makes a collision with real
+ * user input effectively impossible.
+ */
+const SUGGESTER_INDEX_PREFIX = "\u0000qa-idx:";
+
 export interface PromptProvider {
 	/** Batch multi-field prompt (`quickAddApi.requestInputs`). Returns id -> value. */
 	requestInputs(fields: FieldRequirement[]): Promise<Record<string, string>>;
@@ -26,7 +33,7 @@ export interface PromptProvider {
 		actualItems: string[],
 		placeholder?: string,
 		allowCustomInput?: boolean,
-	): Promise<string>;
+	): Promise<unknown>;
 	inputPrompt(
 		header: string,
 		placeholder?: string,
@@ -69,7 +76,7 @@ export class RemotePromptProvider implements PromptProvider {
 		actualItems: string[],
 		placeholder?: string,
 		allowCustomInput = false,
-	): Promise<string> {
+	): Promise<unknown> {
 		const displays =
 			typeof displayItems === "function"
 				? actualItems.map((value, index, arr) =>
@@ -77,9 +84,12 @@ export class RemotePromptProvider implements PromptProvider {
 					)
 				: displayItems.map((label) => String(label));
 
+		// Wire the reply as an opaque index token so we can map it back to the
+		// ORIGINAL actualItems entry, preserving object identity exactly like
+		// GenericSuggester (scripts that suggest TFiles/records read .basename etc.).
 		const items = actualItems.map((value, index) => ({
 			title: displays[index] ?? String(value),
-			value: String(value),
+			value: `${SUGGESTER_INDEX_PREFIX}${index}`,
 		}));
 
 		const answer = await this.server.emitPrompt(this.sessionId, {
@@ -88,7 +98,16 @@ export class RemotePromptProvider implements PromptProvider {
 			allowCustomInput,
 			items,
 		});
-		return answer == null ? "" : String(answer);
+		if (answer == null) return "";
+		const raw = String(answer);
+		if (raw.startsWith(SUGGESTER_INDEX_PREFIX)) {
+			const index = Number(raw.slice(SUGGESTER_INDEX_PREFIX.length));
+			if (Number.isInteger(index) && index >= 0 && index < actualItems.length) {
+				return actualItems[index];
+			}
+		}
+		// A custom-typed value (allowCustomInput) is returned verbatim.
+		return raw;
 	}
 
 	async inputPrompt(
