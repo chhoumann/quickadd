@@ -32,6 +32,29 @@ export interface CheckboxItem {
 	checked: boolean;
 }
 
+/** One field of a batch `requestInputs` form (a subset of QuickAdd's FieldRequirement). */
+export interface FormField {
+	id: string;
+	label: string;
+	type:
+		| "text"
+		| "number"
+		| "textarea"
+		| "dropdown"
+		| "date"
+		| "suggester"
+		| "slider"
+		| "field-suggest";
+	placeholder?: string;
+	defaultValue?: string;
+	description?: string;
+	options?: string[];
+	dateFormat?: string;
+	optional?: boolean;
+	numericConfig?: { min?: number; max?: number; step?: number };
+	suggesterConfig?: { allowCustomInput?: boolean; multiSelect?: boolean };
+}
+
 /**
  * A prompt the running script is blocked on. Mirrors the QuickAdd API prompt
  * seam (suggester / inputPrompt / wideInputPrompt / datePrompt / yesNoPrompt /
@@ -63,7 +86,8 @@ export type PromptSpec =
 	  }
 	| { type: "confirm"; header: string; text?: string }
 	| { type: "checkbox"; header?: string; items: CheckboxItem[] }
-	| { type: "info"; header: string; text: string[] };
+	| { type: "info"; header: string; text: string[] }
+	| { type: "form"; fields: FormField[] };
 
 /** Events streamed to the polling client. */
 type ServerEvent =

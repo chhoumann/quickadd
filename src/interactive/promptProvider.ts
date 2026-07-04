@@ -10,9 +10,15 @@
  */
 
 import { formatISODate } from "../utils/dateParser";
-import { interactivePromptServer } from "./interactivePromptServer";
+import type { FieldRequirement } from "../preflight/RequirementCollector";
+import {
+	type FormField,
+	interactivePromptServer,
+} from "./interactivePromptServer";
 
 export interface PromptProvider {
+	/** Batch multi-field prompt (`quickAddApi.requestInputs`). Returns id -> value. */
+	requestInputs(fields: FieldRequirement[]): Promise<Record<string, string>>;
 	suggester(
 		displayItems:
 			| string[]
@@ -165,5 +171,40 @@ export class RemotePromptProvider implements PromptProvider {
 			header,
 			text: Array.isArray(text) ? text : [text],
 		});
+	}
+
+	async requestInputs(
+		fields: FieldRequirement[],
+	): Promise<Record<string, string>> {
+		const formFields: FormField[] = fields.map((field) => ({
+			id: field.id,
+			label: field.label ?? field.id,
+			type:
+				field.type === "file-picker" ? "suggester" : (field.type as FormField["type"]),
+			placeholder: field.placeholder,
+			defaultValue: field.defaultValue,
+			description: field.description,
+			options: field.options,
+			dateFormat: field.dateFormat,
+			optional: field.optional,
+			numericConfig: field.numericConfig,
+			suggesterConfig: field.suggesterConfig
+				? {
+						allowCustomInput: field.suggesterConfig.allowCustomInput,
+						multiSelect: field.suggesterConfig.multiSelect,
+					}
+				: undefined,
+		}));
+
+		const answer = await this.server.emitPrompt(this.sessionId, {
+			type: "form",
+			fields: formFields,
+		});
+		if (!answer || typeof answer !== "object") return {};
+		const result: Record<string, string> = {};
+		for (const [key, value] of Object.entries(answer as Record<string, unknown>)) {
+			result[key] = value == null ? "" : String(value);
+		}
+		return result;
 	}
 }

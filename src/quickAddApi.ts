@@ -222,16 +222,28 @@ export class QuickAddApi {
 
 				let collected: Record<string, string> = {};
 				if (missing.length > 0) {
-					const modal = new OnePageInputModal(
-						app,
-						missing,
-						choiceExecutor.variables,
-					);
-					try {
-						collected = await modal.waitForClose;
-					} catch (error) {
-						throwIfPromptCancelled(error);
-						throw error;
+					// Route the batch form to a remote interactive session (Raycast)
+					// when one is driving this run; otherwise open the Obsidian modal.
+					const provider = choiceExecutor?.promptProvider;
+					if (provider) {
+						try {
+							collected = await provider.requestInputs(missing);
+						} catch (error) {
+							throwIfPromptCancelled(error);
+							throw error;
+						}
+					} else {
+						const modal = new OnePageInputModal(
+							app,
+							missing,
+							choiceExecutor.variables,
+						);
+						try {
+							collected = await modal.waitForClose;
+						} catch (error) {
+							throwIfPromptCancelled(error);
+							throw error;
+						}
 					}
 				}
 
