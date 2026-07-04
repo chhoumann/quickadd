@@ -9,6 +9,7 @@ import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
 } from "../preflight/collectChoiceRequirements";
+import type { FieldRequirement } from "../preflight/RequirementCollector";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -70,6 +71,10 @@ const RUN_FLAGS: CliFlags = {
 	ui: {
 		description: "Allow interactive prompts",
 	},
+	verify: {
+		description:
+			"Report the verified outcome for Template/Capture choices (file path on success, honest failure when the engine swallows an error)",
+	},
 };
 
 const LIST_FLAGS: CliFlags = {
@@ -109,6 +114,10 @@ const CHECK_FLAGS: CliFlags = {
 		value: "<json>",
 		description: "Variables object as JSON",
 	},
+	fields: {
+		description:
+			"Include full field metadata (options, defaults, widget config)",
+	},
 };
 
 const PREVIEW_FLAGS: CliFlags = {
@@ -121,9 +130,15 @@ const PREVIEW_FLAGS: CliFlags = {
 	},
 };
 
-const RESERVED_RUN_PARAMS = new Set<string>(["choice", "id", "vars", "ui"]);
+const RESERVED_RUN_PARAMS = new Set<string>([
+	"choice",
+	"id",
+	"vars",
+	"ui",
+	"verify",
+]);
 const RESERVED_RUN_TEMPLATE_PARAMS = new Set<string>(["path", "vars", "ui"]);
-const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars"]);
+const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars", "fields"]);
 
 const CLI_COMMANDS = {
 	runDefault: "quickadd",
@@ -243,16 +258,7 @@ function resolveChoiceFromParams(plugin: QuickAdd, params: CliData): IChoice {
 	throw new Error("Missing choice selector. Provide either choice=<name> or id=<id>");
 }
 
-function toMissingFieldSummary(requirement: {
-	id: string;
-	label: string;
-	type: string;
-	placeholder?: string;
-	defaultValue?: string;
-	description?: string;
-	source?: string;
-	options?: string[];
-}) {
+function toMissingFieldSummary(requirement: FieldRequirement) {
 	return {
 		id: requirement.id,
 		label: requirement.label,
@@ -262,6 +268,28 @@ function toMissingFieldSummary(requirement: {
 		defaultValue: requirement.defaultValue,
 		description: requirement.description,
 		optionCount: requirement.options?.length ?? 0,
+	};
+}
+
+/**
+ * Full field metadata for external front ends (Raycast, scripts) that render
+ * their own input controls instead of QuickAdd's modals. Superset of
+ * toMissingFieldSummary; opt-in via the `fields` flag so the default envelope
+ * stays compact (a file-picker's options can span a whole folder).
+ */
+function toDetailedFieldSummary(requirement: FieldRequirement) {
+	return {
+		...toMissingFieldSummary(requirement),
+		options: requirement.options,
+		displayOptions: requirement.displayOptions,
+		dateFormat: requirement.dateFormat,
+		withTime: requirement.withTime,
+		optional: requirement.optional,
+		runtimeOnly: requirement.runtimeOnly,
+		multiEmit: requirement.multiEmit,
+		numericConfig: requirement.numericConfig,
+		sliderConfig: requirement.sliderConfig,
+		suggesterConfig: requirement.suggesterConfig,
 	};
 }
 
@@ -463,6 +491,10 @@ async function runChoiceHandler(
 		command,
 		choice,
 		RESERVED_RUN_PARAMS,
+		// Opt-in (`verify`) so existing scripts keying off the legacy envelope
+		// keep their behavior; run-template made the outcome path the default
+		// from the start, quickadd:run could not.
+		/* useOutcome */ isTruthy(params.verify),
 	);
 }
 
@@ -622,6 +654,9 @@ async function checkChoiceHandler(
 			requirements,
 			choiceExecutor.variables,
 		);
+		const summarize = isTruthy(params.fields)
+			? toDetailedFieldSummary
+			: toMissingFieldSummary;
 
 		return serialize({
 			ok: unresolved.length === 0,
@@ -629,7 +664,7 @@ async function checkChoiceHandler(
 			choice: describeChoice(choice),
 			requiredInputCount: requirements.length,
 			missingInputCount: unresolved.length,
-			missing: unresolved.map(toMissingFieldSummary),
+			missing: unresolved.map(summarize),
 			missingFlags: unresolved.map(
 				(requirement) => `value-${requirement.id}=<value>`,
 			),

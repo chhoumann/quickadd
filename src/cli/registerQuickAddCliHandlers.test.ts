@@ -207,6 +207,49 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(executors[0].variables.get("team")).toBe("Core");
 	});
 
+	it("routes quickadd:run through executeWithOutcome when the verify flag is set", async () => {
+		const { plugin, handlers } = createPlugin([templateChoice]);
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find(
+			(handler) => handler.command === "quickadd:run",
+		);
+		expect(run).toBeDefined();
+
+		const verified = JSON.parse(
+			String(
+				await Promise.resolve(
+					run!.handler({
+						choice: templateChoice.name,
+						verify: "true",
+					}),
+				),
+			),
+		);
+		expect(verified.ok).toBe(true);
+		expect(verified.verified).toBe(true);
+		expect(verified.file).toBe("Created Note.md");
+		expect(executors[0].executeWithOutcome).toHaveBeenCalledWith(
+			templateChoice,
+		);
+		expect(executors[0].execute).not.toHaveBeenCalled();
+		// The verify flag must not leak into the executor's variables.
+		expect(executors[0].variables.has("verify")).toBe(false);
+
+		const legacy = JSON.parse(
+			String(
+				await Promise.resolve(
+					run!.handler({
+						choice: templateChoice.name,
+					}),
+				),
+			),
+		);
+		expect(legacy.ok).toBe(true);
+		expect(legacy.verified).toBe(false);
+		expect(legacy.file).toBeUndefined();
+		expect(executors[1].execute).toHaveBeenCalledWith(templateChoice);
+	});
+
 	it("returns missing inputs for non-interactive runs", async () => {
 		const { plugin, handlers } = createPlugin([
 			templateChoice,
@@ -600,5 +643,72 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.requiredInputCount).toBe(1);
 		expect(payload.missingInputCount).toBe(1);
 		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("includes full field metadata in quickadd:check when the fields flag is set", async () => {
+		const { plugin, handlers } = createPlugin([templateChoice]);
+		registerQuickAddCliHandlers(plugin);
+		const check = handlers.find(
+			(handler) => handler.command === "quickadd:check",
+		);
+		expect(check).toBeDefined();
+
+		const requirement = {
+			id: "priority",
+			label: "Priority",
+			type: "dropdown",
+			options: ["low", "medium", "high"],
+			displayOptions: ["Low", "Medium", "High"],
+			defaultValue: "medium",
+			optional: true,
+			suggesterConfig: {
+				allowCustomInput: false,
+				caseSensitive: false,
+				multiSelect: false,
+			},
+		};
+		collectChoiceRequirementsMock.mockResolvedValue([requirement]);
+		getUnresolvedRequirementsMock.mockReturnValue([requirement]);
+
+		const withFields = JSON.parse(
+			String(
+				await Promise.resolve(
+					check!.handler({
+						choice: templateChoice.name,
+						fields: "true",
+					}),
+				),
+			),
+		);
+		expect(withFields.missing).toEqual([
+			expect.objectContaining({
+				id: "priority",
+				type: "dropdown",
+				optionCount: 3,
+				options: ["low", "medium", "high"],
+				displayOptions: ["Low", "Medium", "High"],
+				defaultValue: "medium",
+				optional: true,
+				suggesterConfig: {
+					allowCustomInput: false,
+					caseSensitive: false,
+					multiSelect: false,
+				},
+			}),
+		]);
+		// The fields flag must not leak into the executor's variables.
+		expect(executors[0].variables.has("fields")).toBe(false);
+
+		const withoutFields = JSON.parse(
+			String(
+				await Promise.resolve(
+					check!.handler({
+						choice: templateChoice.name,
+					}),
+				),
+			),
+		);
+		expect(withoutFields.missing[0].options).toBeUndefined();
+		expect(withoutFields.missing[0].optionCount).toBe(3);
 	});
 });
