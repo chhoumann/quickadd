@@ -136,3 +136,59 @@ describe("AIAssistantCommandSettingsModal Model dropdown missing-model handling"
 		modal.close();
 	});
 });
+
+function getPromptTemplateControls(modal: AIAssistantCommandSettingsModal): {
+	toggle: HTMLInputElement;
+	text: HTMLInputElement;
+} {
+	// The stub's Setting has no CSS classes: nameEl (a <div> whose textContent is
+	// exactly the setting name) sits under infoEl under settingEl (which also holds
+	// controlEl with the toggle + text input).
+	const nameEl = Array.from(
+		modal.contentEl.querySelectorAll<HTMLElement>("div")
+	).find(
+		(el) => el.children.length === 0 && el.textContent === "Prompt Template"
+	);
+	const settingEl = nameEl?.parentElement?.parentElement;
+	if (!settingEl) throw new Error("Prompt Template setting not found");
+	const toggle = settingEl.querySelector<HTMLInputElement>(
+		'input[type="checkbox"]'
+	);
+	const text = settingEl.querySelector<HTMLInputElement>(
+		'input:not([type="checkbox"])'
+	);
+	if (!toggle || !text) throw new Error("Prompt Template controls not found");
+	return { toggle, text };
+}
+
+function clickSave(modal: AIAssistantCommandSettingsModal): void {
+	const save = Array.from(
+		modal.contentEl.querySelectorAll<HTMLButtonElement>("button")
+	).find((b) => b.textContent === "Save");
+	if (!save) throw new Error("Save button not found");
+	save.click();
+}
+
+describe("AIAssistantCommandSettingsModal prompt-template persistence", () => {
+	beforeAll(() => {
+		const modalProto = Object.getPrototypeOf(
+			AIAssistantCommandSettingsModal.prototype
+		) as { onClose?: () => void };
+		modalProto.onClose ??= function onClose() {};
+	});
+
+	it("persists an enabled prompt template through Save", () => {
+		const command = makeCommand("gpt-test");
+		const modal = new AIAssistantCommandSettingsModal(testApp(), command);
+
+		const { toggle, text } = getPromptTemplateControls(modal);
+		toggle.click(); // enable
+		text.value = "MyTemplate.md";
+		text.dispatchEvent(new Event("input"));
+
+		clickSave(modal);
+
+		expect(command.promptTemplate.enable).toBe(true);
+		expect(command.promptTemplate.name).toBe("MyTemplate.md");
+	});
+});
