@@ -695,6 +695,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				showAssistantMessages: aiSettings.showAssistant,
 				modelOptions: command.modelParameters,
 				interactive: this.choiceExecutor.interactive,
+				promptProvider: this.choiceExecutor.promptProvider,
 			},
 			async (input: string) => {
 				return formatter.formatFileContent(input);

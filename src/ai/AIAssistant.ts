@@ -3,6 +3,7 @@ import { TFile } from "obsidian";
 import { UserCancelError } from "src/errors/UserCancelError";
 import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
+import type { PromptProvider } from "src/interactive/promptProvider";
 import { settingsStore } from "src/settingsStore";
 import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import invariant from "src/utils/invariant";
@@ -178,7 +179,8 @@ async function getTargetPromptTemplate(
 	app: App,
 	userDefinedPromptTemplate: Params["promptTemplate"],
 	promptTemplates: TFile[],
-	interactive = true
+	interactive = true,
+	promptProvider?: PromptProvider
 ): Promise<[string, string]> {
 	let targetFile;
 
@@ -187,22 +189,31 @@ async function getTargetPromptTemplate(
 			item.path.endsWith(userDefinedPromptTemplate.name)
 		);
 	} else {
-		// Non-interactive run (CLI without `ui`): the prompt-template picker has no
-		// one to answer it, so opening it would hang. Abort with an actionable error.
-		if (!interactive) {
+		const basenames = promptTemplates.map((f) => f.basename);
+
+		if (promptProvider) {
+			// Route the picker to a remote interactive session (Raycast). The
+			// suggester returns the selected actualItems entry (the TFile).
+			targetFile = (await promptProvider.suggester(
+				basenames,
+				promptTemplates as unknown as string[],
+				"Select a prompt template"
+			)) as TFile | undefined;
+		} else if (!interactive) {
+			// Non-interactive run (CLI without `ui`): the prompt-template picker has
+			// no one to answer it, so opening it would hang. Abort with an actionable
+			// error.
 			throw new ChoiceAbortError(
 				"This AI command asks which prompt template to use, but this run is non-interactive. " +
 					"Enable a specific prompt template in the command, or re-run with the ui flag."
 			);
+		} else {
+			targetFile = await GenericSuggester.Suggest(
+				app,
+				basenames,
+				promptTemplates
+			);
 		}
-
-		const basenames = promptTemplates.map((f) => f.basename);
-
-		targetFile = await GenericSuggester.Suggest(
-			app,
-			basenames,
-			promptTemplates
-		);
 	}
 
 	invariant(targetFile, "Prompt template does not exist");
@@ -235,6 +246,11 @@ interface Params {
 	 * (api.ai) are unaffected.
 	 */
 	interactive?: boolean;
+	/**
+	 * When set (a remote interactive session, e.g. Raycast), the prompt-template
+	 * picker is forwarded to it instead of opening an Obsidian modal.
+	 */
+	promptProvider?: PromptProvider;
 }
 
 export async function runAIAssistant(
@@ -266,7 +282,8 @@ export async function runAIAssistant(
 			app,
 			promptTemplate,
 			promptTemplates,
-			settings.interactive ?? true
+			settings.interactive ?? true,
+			settings.promptProvider
 		);
 
 		notice.setMessage(
