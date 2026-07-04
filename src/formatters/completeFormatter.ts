@@ -696,13 +696,21 @@ export class CompleteFormatter extends Formatter {
 			optional?: boolean;
 		},
 	): Promise<string[]> {
+		const displayValues = context?.displayValues ?? suggestedValues;
+		// Route to a remote interactive session (Raycast) when one is driving.
+		const provider = this.choiceExecutor?.promptProvider;
+		if (provider) {
+			return await provider.suggesterMulti(displayValues, suggestedValues, {
+				placeholder: context?.placeholder,
+				allowCustomInput,
+			});
+		}
 		this.assertInteractivePrompt(
 			context?.variableKey
 				? `{{VALUE:${context.variableKey}}}`
 				: "a multi-select value",
 		);
 		try {
-			const displayValues = context?.displayValues ?? suggestedValues;
 			return await MultiSuggester.Suggest(
 				this.app,
 				displayValues,
@@ -725,6 +733,9 @@ export class CompleteFormatter extends Formatter {
 
 	protected async suggestForField(fieldInput: string): Promise<string | string[]> {
 		this.assertInteractivePrompt(`{{FIELD:${fieldInput}}}`);
+		// Route the final picker to a remote interactive session (Raycast) when one
+		// is driving; the vault-side value collection below still runs unchanged.
+		const provider = this.choiceExecutor?.promptProvider;
 		try {
 			// Parse the field input to extract field name and filters. Do NOT warn
 			// on unknown keys here: the field replacer in formatter.ts already parses
@@ -822,6 +833,15 @@ export class CompleteFormatter extends Formatter {
 									filters.caseSensitive,
 								),
 							);
+				// Route to a remote interactive session (Raycast) when one is driving.
+				if (provider) {
+					return await provider.suggesterMulti(multiValues, multiValues, {
+						placeholder,
+						allowCustomInput: true,
+						preselected:
+							preselected && preselected.length > 0 ? preselected : undefined,
+					});
+				}
 				return await MultiSuggester.Suggest(this.app, multiValues, multiValues, {
 					placeholder,
 					allowCustomValue: true,
@@ -846,6 +866,12 @@ export class CompleteFormatter extends Formatter {
 					}
 				}
 
+				if (provider) {
+					return await provider.inputPrompt(
+						`Enter value for ${fieldName}`,
+						fallbackPrompt,
+					);
+				}
 				return await GenericInputPrompt.PromptWithContext(
 					this.app,
 					`Enter value for ${fieldName}`,
@@ -855,6 +881,11 @@ export class CompleteFormatter extends Formatter {
 				);
 			}
 
+			if (provider) {
+				return String(
+					await provider.suggester(values, values, placeholder, true),
+				);
+			}
 			return await InputSuggester.Suggest(this.app, values, values, {
 				placeholder,
 			});
@@ -874,6 +905,9 @@ export class CompleteFormatter extends Formatter {
 		this.assertInteractivePrompt(
 			`{{FILE}} (pick a file from ${parsed.folderPath})`,
 		);
+		// Route the final picker to a remote interactive session (Raycast) when one
+		// is driving; the vault-side file filtering below still runs unchanged.
+		const provider = this.choiceExecutor?.promptProvider;
 		try {
 			const files = EnhancedFieldSuggestionFileFilter.filterFiles(
 				this.app.vault.getMarkdownFiles(),
@@ -888,14 +922,17 @@ export class CompleteFormatter extends Formatter {
 			// dead-ends, mirroring suggestForField. A typed value is stored as custom
 			// (never resolved to a real file); an empty/skip stays "".
 			if (files.length === 0) {
-				const typed = await GenericInputPrompt.Prompt(
-					this.app,
-					placeholder,
-					`No markdown files found in "${parsed.folderPath}". Type a value or leave empty.`,
-					undefined,
-					undefined,
-					parsed.optional ? { optional: true } : undefined,
-				);
+				const description = `No markdown files found in "${parsed.folderPath}". Type a value or leave empty.`;
+				const typed = provider
+					? await provider.inputPrompt(placeholder, description)
+					: await GenericInputPrompt.Prompt(
+							this.app,
+							placeholder,
+							description,
+							undefined,
+							undefined,
+							parsed.optional ? { optional: true } : undefined,
+						);
 				if (parsed.multiSelect) {
 					return typed ? [`${FILE_CUSTOM_PREFIX}${typed}`] : [];
 				}
@@ -909,19 +946,34 @@ export class CompleteFormatter extends Formatter {
 			const items = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
 
 			if (parsed.multiSelect) {
-				const result = await MultiSuggester.Suggest(
-					this.app,
-					displayItems,
-					items,
-					{
-						placeholder,
-						allowCustomValue: parsed.allowCustomInput,
-						...(parsed.optional ? { skippable: true } : {}),
-					},
-				);
+				const result = provider
+					? await provider.suggesterMulti(displayItems, items, {
+							placeholder,
+							allowCustomInput: parsed.allowCustomInput,
+						})
+					: await MultiSuggester.Suggest(this.app, displayItems, items, {
+							placeholder,
+							allowCustomValue: parsed.allowCustomInput,
+							...(parsed.optional ? { skippable: true } : {}),
+						});
 				return result.map((item) =>
 					items.includes(item) ? item : `${FILE_CUSTOM_PREFIX}${item}`,
 				);
+			}
+
+			if (provider) {
+				const result = String(
+					await provider.suggester(
+						displayItems,
+						items,
+						placeholder,
+						parsed.allowCustomInput,
+					),
+				);
+				if (!result) return "";
+				return items.includes(result)
+					? result
+					: `${FILE_CUSTOM_PREFIX}${result}`;
 			}
 
 			if (parsed.allowCustomInput) {

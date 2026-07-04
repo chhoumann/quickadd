@@ -1551,6 +1551,19 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 
+	it("routes {{VALUE:a,b,c|multi}} to the provider's suggesterMulti, not the Obsidian modal", async () => {
+		const suggesterMulti = vi.fn(
+			async (_display: string[], _actual: string[]) => ["a", "c"],
+		);
+		const f = providerFormatter({ suggesterMulti });
+		const out = await f.formatFileContent("{{VALUE:a,b,c|multi}}");
+		expect(suggesterMulti).toHaveBeenCalledTimes(1);
+		expect(suggesterMulti.mock.calls[0][0]).toEqual(["a", "b", "c"]);
+		expect(suggesterMulti.mock.calls[0][1]).toEqual(["a", "b", "c"]);
+		expect(out).toContain("a");
+		expect(out).toContain("c");
+	});
+
 	it("routes anonymous {{VALUE|type:checkbox}} to the provider's suggester, not the Obsidian modal", async () => {
 		mocks.genericSuggesterSuggest.mockResolvedValue("false"); // modal answer (should be unused)
 		const suggester = vi.fn(async () => "true");

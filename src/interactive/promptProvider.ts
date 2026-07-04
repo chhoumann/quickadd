@@ -34,6 +34,19 @@ export interface PromptProvider {
 		placeholder?: string,
 		allowCustomInput?: boolean,
 	): Promise<unknown>;
+	/**
+	 * Multi-select over a fixed list (`{{VALUE:a,b|multi}}`, `{{FIELD|multi}}`,
+	 * `{{FILE|multi}}`). Returns the selected `actualItems` entries in list order.
+	 */
+	suggesterMulti(
+		displayItems: string[],
+		actualItems: string[],
+		options?: {
+			placeholder?: string;
+			allowCustomInput?: boolean;
+			preselected?: string[];
+		},
+	): Promise<string[]>;
 	inputPrompt(
 		header: string,
 		placeholder?: string,
@@ -108,6 +121,51 @@ export class RemotePromptProvider implements PromptProvider {
 		}
 		// A custom-typed value (allowCustomInput) is returned verbatim.
 		return raw;
+	}
+
+	async suggesterMulti(
+		displayItems: string[],
+		actualItems: string[],
+		options?: {
+			placeholder?: string;
+			allowCustomInput?: boolean;
+			preselected?: string[];
+		},
+	): Promise<string[]> {
+		const items = actualItems.map((value, index) => ({
+			title: displayItems[index] ?? String(value),
+			value: `${SUGGESTER_INDEX_PREFIX}${index}`,
+		}));
+		// Map preselected actual values to their wire tokens so the client can
+		// pre-check them.
+		const preselected = (options?.preselected ?? [])
+			.map((value) => actualItems.indexOf(value))
+			.filter((index) => index >= 0)
+			.map((index) => `${SUGGESTER_INDEX_PREFIX}${index}`);
+
+		const answer = await this.server.emitPrompt(this.sessionId, {
+			type: "multiselect",
+			placeholder: options?.placeholder,
+			allowCustomInput: options?.allowCustomInput ?? false,
+			items,
+			preselected,
+		});
+		if (!Array.isArray(answer)) return [];
+		return answer.map((raw) => {
+			const value = String(raw);
+			if (value.startsWith(SUGGESTER_INDEX_PREFIX)) {
+				const index = Number(value.slice(SUGGESTER_INDEX_PREFIX.length));
+				if (
+					Number.isInteger(index) &&
+					index >= 0 &&
+					index < actualItems.length
+				) {
+					return actualItems[index];
+				}
+			}
+			// A custom-typed value (allowCustomInput) is returned verbatim.
+			return value;
+		});
 	}
 
 	async inputPrompt(
