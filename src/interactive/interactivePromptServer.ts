@@ -17,14 +17,31 @@
  * session is cleaned up, so nothing listens when no interactive run is active.
  */
 
-import type { Server, IncomingMessage, ServerResponse } from "http";
 import { UserCancelError } from "../errors/UserCancelError";
 
-/** The sliver of Node's `http` module we use (required lazily, desktop only). */
+// Minimal structural types for the slice of Node's `http` we use, declared
+// locally so this module never statically imports a Node builtin (keeps the
+// mobile bundle clean; `http` is required lazily on desktop only).
+interface HttpServer {
+	on(event: "error", listener: (error: Error) => void): void;
+	listen(port: number, host: string, callback: () => void): void;
+	address(): { port: number } | string | null;
+	close(): void;
+}
+interface HttpIncomingMessage extends AsyncIterable<Buffer> {
+	url?: string;
+	method?: string;
+	headers: { origin?: string; referer?: string; host?: string };
+}
+interface HttpServerResponse {
+	writeHead(status: number, headers: Record<string, string>): void;
+	end(payload?: string): void;
+	on(event: "close", listener: () => void): void;
+}
 type HttpModule = {
 	createServer: (
-		listener: (req: IncomingMessage, res: ServerResponse) => void,
-	) => Server;
+		listener: (req: HttpIncomingMessage, res: HttpServerResponse) => void,
+	) => HttpServer;
 };
 
 export interface SuggesterItem {
@@ -119,19 +136,19 @@ interface Session {
 	token: string;
 	queue: ServerEvent[];
 	waiter: ((event: ServerEvent) => void) | null;
-	waiterTimer: ReturnType<typeof setTimeout> | null;
+	waiterTimer: number | null;
 	pending: Map<
 		string,
 		{ resolve: (value: unknown) => void; reject: (error: Error) => void }
 	>;
 	finished: boolean;
-	cleanupTimer: ReturnType<typeof setTimeout> | null;
+	cleanupTimer: number | null;
 	/** True once a client has polled at least once. */
 	attached: boolean;
 	/** Aborts the run if no client attaches in time (avoids a hung executor). */
-	attachTimer: ReturnType<typeof setTimeout> | null;
+	attachTimer: number | null;
 	/** Aborts the run if an attached client stops polling (disconnect/crash). */
-	pollWatchdog: ReturnType<typeof setTimeout> | null;
+	pollWatchdog: number | null;
 }
 
 const LONG_POLL_MS = 25_000;
@@ -182,7 +199,7 @@ function nodeRequire<T>(mod: string): T | null {
 }
 
 function randomId(): string {
-	const c = (globalThis as { crypto?: Crypto }).crypto;
+	const c = (window as { crypto?: Crypto }).crypto;
 	if (c?.randomUUID) return c.randomUUID();
 	// The bearer token is the only local auth secret, so never fall back to a
 	// non-cryptographic source: use getRandomValues, else fail closed.
@@ -196,7 +213,7 @@ function randomId(): string {
 }
 
 class InteractivePromptServer {
-	private server: Server | null = null;
+	private server: HttpServer | null = null;
 	private port = 0;
 	private readonly sessions = new Map<string, Session>();
 	// Memoized so concurrent ensureStarted() calls share one listen (no leaked
@@ -220,7 +237,7 @@ class InteractivePromptServer {
 		const generation = this.generation;
 		this.startPromise = new Promise<number>((resolve, reject) => {
 			const server = http.createServer(
-				(req: IncomingMessage, res: ServerResponse) =>
+				(req: HttpIncomingMessage, res: HttpServerResponse) =>
 					void this.handle(req, res),
 			);
 			server.on("error", (error) => {
@@ -264,7 +281,7 @@ class InteractivePromptServer {
 			attachTimer: null,
 			pollWatchdog: null,
 		};
-		session.attachTimer = setTimeout(() => {
+		session.attachTimer = window.setTimeout(() => {
 			if (!session.attached && !session.finished) {
 				this.finish(session.id, {
 					kind: "error",
@@ -302,11 +319,11 @@ class InteractivePromptServer {
 		if (!session || session.finished) return;
 		session.finished = true;
 		if (session.attachTimer) {
-			clearTimeout(session.attachTimer);
+			window.clearTimeout(session.attachTimer);
 			session.attachTimer = null;
 		}
 		if (session.pollWatchdog) {
-			clearTimeout(session.pollWatchdog);
+			window.clearTimeout(session.pollWatchdog);
 			session.pollWatchdog = null;
 		}
 		for (const [, pending] of session.pending) {
@@ -314,7 +331,7 @@ class InteractivePromptServer {
 		}
 		session.pending.clear();
 		this.push(session, event);
-		session.cleanupTimer = setTimeout(
+		session.cleanupTimer = window.setTimeout(
 			() => this.destroySession(session),
 			SESSION_TTL_MS,
 		);
@@ -326,10 +343,10 @@ class InteractivePromptServer {
 		// discards the server instead of installing it after unload.
 		this.generation++;
 		for (const session of this.sessions.values()) {
-			if (session.waiterTimer) clearTimeout(session.waiterTimer);
-			if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
-			if (session.attachTimer) clearTimeout(session.attachTimer);
-			if (session.pollWatchdog) clearTimeout(session.pollWatchdog);
+			if (session.waiterTimer) window.clearTimeout(session.waiterTimer);
+			if (session.cleanupTimer) window.clearTimeout(session.cleanupTimer);
+			if (session.attachTimer) window.clearTimeout(session.attachTimer);
+			if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
 			for (const [, pending] of session.pending) {
 				pending.reject(new Error("QuickAdd unloaded"));
 			}
@@ -353,7 +370,7 @@ class InteractivePromptServer {
 			const waiter = session.waiter;
 			session.waiter = null;
 			if (session.waiterTimer) {
-				clearTimeout(session.waiterTimer);
+				window.clearTimeout(session.waiterTimer);
 				session.waiterTimer = null;
 			}
 			waiter(event);
@@ -363,10 +380,10 @@ class InteractivePromptServer {
 	}
 
 	private destroySession(session: Session): void {
-		if (session.waiterTimer) clearTimeout(session.waiterTimer);
-		if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
-		if (session.attachTimer) clearTimeout(session.attachTimer);
-		if (session.pollWatchdog) clearTimeout(session.pollWatchdog);
+		if (session.waiterTimer) window.clearTimeout(session.waiterTimer);
+		if (session.cleanupTimer) window.clearTimeout(session.cleanupTimer);
+		if (session.attachTimer) window.clearTimeout(session.attachTimer);
+		if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
 		// Reject any still-pending prompt so a caller awaiting it aborts rather
 		// than hanging (finish() normally clears these, but be defensive).
 		for (const [, pending] of session.pending) {
@@ -392,7 +409,7 @@ class InteractivePromptServer {
 	 * (DNS-rebinding). The server is bound to loopback, but these headers are the
 	 * cheap defence against a drive-by page probing the port.
 	 */
-	private originAllowed(req: IncomingMessage): boolean {
+	private originAllowed(req: HttpIncomingMessage): boolean {
 		return isLoopbackClient({
 			origin: req.headers.origin,
 			referer: req.headers.referer,
@@ -425,7 +442,7 @@ class InteractivePromptServer {
 		return true;
 	}
 
-	private send(res: ServerResponse, status: number, body: unknown): void {
+	private send(res: HttpServerResponse, status: number, body: unknown): void {
 		const payload = JSON.stringify(body);
 		res.writeHead(status, {
 			"content-type": "application/json",
@@ -434,7 +451,7 @@ class InteractivePromptServer {
 		res.end(payload);
 	}
 
-	private async readBody(req: IncomingMessage): Promise<unknown> {
+	private async readBody(req: HttpIncomingMessage): Promise<unknown> {
 		const chunks: Buffer[] = [];
 		let size = 0;
 		for await (const chunk of req) {
@@ -447,7 +464,7 @@ class InteractivePromptServer {
 		return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 	}
 
-	private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+	private async handle(req: HttpIncomingMessage, res: HttpServerResponse): Promise<void> {
 		try {
 			if (!this.originAllowed(req)) {
 				this.send(res, 403, { ok: false, error: "Forbidden" });
@@ -496,20 +513,20 @@ class InteractivePromptServer {
 		}
 	}
 
-	private handlePoll(session: Session, res: ServerResponse): void {
+	private handlePoll(session: Session, res: HttpServerResponse): void {
 		// First poll = the caller attached; cancel the no-attach abort.
 		if (!session.attached) {
 			session.attached = true;
 			if (session.attachTimer) {
-				clearTimeout(session.attachTimer);
+				window.clearTimeout(session.attachTimer);
 				session.attachTimer = null;
 			}
 		}
 		// Reset the disconnect watchdog on every poll: while the client keeps
 		// polling the run stays alive; if it goes silent, abort so a pending
 		// prompt doesn't hang the executor and leak the session.
-		if (session.pollWatchdog) clearTimeout(session.pollWatchdog);
-		session.pollWatchdog = setTimeout(() => {
+		if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
+		session.pollWatchdog = window.setTimeout(() => {
 			this.finish(session.id, {
 				kind: "error",
 				error: "Interactive client disconnected.",
@@ -532,7 +549,7 @@ class InteractivePromptServer {
 		// waiter it created, never a newer one.
 		const waiter = (event: ServerEvent) => this.send(res, 200, event);
 		session.waiter = waiter;
-		session.waiterTimer = setTimeout(() => {
+		session.waiterTimer = window.setTimeout(() => {
 			if (session.waiter !== waiter) return;
 			session.waiter = null;
 			session.waiterTimer = null;
@@ -541,7 +558,7 @@ class InteractivePromptServer {
 		res.on("close", () => {
 			// Client hung up mid-poll; drop the waiter so we don't write to a dead socket.
 			if (session.waiter !== waiter) return;
-			if (session.waiterTimer) clearTimeout(session.waiterTimer);
+			if (session.waiterTimer) window.clearTimeout(session.waiterTimer);
 			session.waiter = null;
 			session.waiterTimer = null;
 		});

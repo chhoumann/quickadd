@@ -279,8 +279,7 @@ export class RemotePromptProvider implements PromptProvider {
 		const formFields: FormField[] = fields.map((field) => ({
 			id: field.id,
 			label: field.label ?? field.id,
-			type:
-				field.type === "file-picker" ? "suggester" : (field.type as FormField["type"]),
+			type: field.type === "file-picker" ? "suggester" : field.type,
 			placeholder: field.placeholder,
 			defaultValue: field.defaultValue,
 			description: field.description,
