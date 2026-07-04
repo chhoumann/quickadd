@@ -113,3 +113,43 @@ Use `ui` to allow interactive prompts:
 ```bash
 obsidian vault=dev quickadd choice="Daily log" ui
 ```
+
+## Interactive runs (`quickadd:interactive`)
+
+Some choices prompt at *run time* for inputs that can't be collected up front -
+a macro's `quickAddApi.suggester` over data it just fetched, an `inputPrompt`,
+`yesNoPrompt`, `checkboxPrompt`, and so on. `quickadd:interactive` runs a choice
+and **forwards those prompts to you over a local HTTP bridge** so an external
+front end (Raycast, a script) can render them and answer, instead of the prompts
+opening in Obsidian.
+
+```bash
+obsidian vault=dev quickadd:interactive choice="Import from Readwise"
+# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…"}
+```
+
+The command returns connection details immediately and runs the choice in the
+background. Attach to the session and drive it:
+
+- `GET  http://127.0.0.1:<port>/poll?session=<id>&token=<token>` - long-polls for
+  the next event: `{"kind":"prompt","requestId":…,"prompt":{…}}`,
+  `{"kind":"done","result":…}`, `{"kind":"error","error":…}`, or a periodic
+  `{"kind":"idle"}` keepalive (just poll again).
+- `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body
+  `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}`
+  to cancel (which aborts the run).
+
+Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
+string, `confirm` → boolean, `checkbox` → string array, `info` →
+acknowledgement. The run's outcome arrives as the `done`/`error` poll event.
+
+Notes:
+
+- **Desktop only.** The bridge binds to `127.0.0.1`, is gated by the per-session
+  `token`, rejects browser (`Origin`/`Referer`) and non-loopback `Host`
+  requests, and the server is ephemeral - it starts on the first session and
+  stops when the last one ends.
+- **Concurrency.** Each run gets its own `sessionId` + `token`; many can run at
+  once without interfering.
+- If no client attaches within ~30s the run is aborted so a prompt can't hang
+  forever.

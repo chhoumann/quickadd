@@ -279,6 +279,8 @@ export class QuickAddApi {
 				value?: string,
 				options?: InputPromptOptions,
 			) => {
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) return provider.inputPrompt(header, placeholder, value);
 				return QuickAddApi.inputPrompt(app, header, placeholder, value, options);
 			},
 			datePrompt: (
@@ -289,6 +291,8 @@ export class QuickAddApi {
 					dateFormat?: string;
 				},
 			) => {
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) return provider.datePrompt(header, options);
 				return QuickAddApi.datePrompt(app, header, options);
 			},
 			wideInputPrompt: (
@@ -297,6 +301,8 @@ export class QuickAddApi {
 				value?: string,
 				options?: InputPromptOptions,
 			) => {
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) return provider.wideInputPrompt(header, placeholder, value);
 				return QuickAddApi.wideInputPrompt(
 					app,
 					header,
@@ -306,9 +312,13 @@ export class QuickAddApi {
 				);
 			},
 			yesNoPrompt: (header: string, text?: string) => {
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) return provider.yesNoPrompt(header, text);
 				return QuickAddApi.yesNoPrompt(app, header, text);
 			},
 			infoDialog: (header: string, text: string[] | string) => {
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) return provider.infoDialog(header, text);
 				return QuickAddApi.infoDialog(app, header, text);
 			},
 			suggester: (
@@ -345,6 +355,10 @@ export class QuickAddApi {
 				selectedItems?: string[],
 				header?: string,
 			) => {
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) {
+					return provider.checkboxPrompt(items, selectedItems, header);
+				}
 				return QuickAddApi.checkboxPrompt(
 					app,
 					items,

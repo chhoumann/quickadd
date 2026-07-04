@@ -26,13 +26,44 @@ export interface SuggesterItem {
 	value: string;
 }
 
-/** A prompt the running script is blocked on. Extend with new `type`s over time. */
-export type PromptSpec = {
-	type: "suggester";
-	placeholder?: string;
-	allowCustomInput: boolean;
-	items: SuggesterItem[];
-};
+export interface CheckboxItem {
+	title: string;
+	value: string;
+	checked: boolean;
+}
+
+/**
+ * A prompt the running script is blocked on. Mirrors the QuickAdd API prompt
+ * seam (suggester / inputPrompt / wideInputPrompt / datePrompt / yesNoPrompt /
+ * checkboxPrompt / infoDialog). The reply `value` type per prompt:
+ *  - suggester/input/date -> string   - confirm -> boolean
+ *  - checkbox -> string[]             - info -> acknowledgement (any)
+ */
+export type PromptSpec =
+	| {
+			type: "suggester";
+			placeholder?: string;
+			allowCustomInput: boolean;
+			items: SuggesterItem[];
+	  }
+	| {
+			type: "input";
+			header: string;
+			placeholder?: string;
+			defaultValue?: string;
+			/** Render a multi-line field (wideInputPrompt). */
+			multiline: boolean;
+	  }
+	| {
+			type: "date";
+			header: string;
+			placeholder?: string;
+			defaultValue?: string;
+			dateFormat?: string;
+	  }
+	| { type: "confirm"; header: string; text?: string }
+	| { type: "checkbox"; header?: string; items: CheckboxItem[] }
+	| { type: "info"; header: string; text: string[] };
 
 /** Events streamed to the polling client. */
 type ServerEvent =
@@ -53,11 +84,41 @@ interface Session {
 	>;
 	finished: boolean;
 	cleanupTimer: ReturnType<typeof setTimeout> | null;
+	/** True once a client has polled at least once. */
+	attached: boolean;
+	/** Aborts the run if no client attaches in time (avoids a hung executor). */
+	attachTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const LONG_POLL_MS = 25_000;
 /** Keep a finished session around briefly so the client can still poll its final event. */
 const SESSION_TTL_MS = 60_000;
+/** Abort a run whose caller never attached, so a prompt can't park forever. */
+const ATTACH_TIMEOUT_MS = 30_000;
+/** Bound concurrent sessions so a runaway caller can't exhaust memory. */
+const MAX_SESSIONS = 32;
+
+/** Length-independent, constant-time string comparison (localhost, but cheap to be safe). */
+export function safeEqual(a: string, b: string): boolean {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	return diff === 0;
+}
+
+/**
+ * True only for a request that looks like our own loopback client: no browser
+ * Origin/Referer, and a Host of 127.0.0.1/localhost (DNS-rebinding guard).
+ */
+export function isLoopbackClient(headers: {
+	origin?: string;
+	referer?: string;
+	host?: string;
+}): boolean {
+	if (headers.origin || headers.referer) return false;
+	const hostname = (headers.host ?? "").split(":")[0];
+	return hostname === "127.0.0.1" || hostname === "localhost";
+}
 
 function nodeRequire<T>(mod: string): T | null {
 	try {
@@ -110,9 +171,12 @@ class InteractivePromptServer {
 	}
 
 	createSession(): { id: string; token: string } {
+		if (this.sessions.size >= MAX_SESSIONS) {
+			throw new Error("Too many active interactive sessions.");
+		}
 		const id = randomId();
 		const token = randomId() + randomId();
-		this.sessions.set(id, {
+		const session: Session = {
 			id,
 			token,
 			queue: [],
@@ -121,7 +185,18 @@ class InteractivePromptServer {
 			pending: new Map(),
 			finished: false,
 			cleanupTimer: null,
-		});
+			attached: false,
+			attachTimer: null,
+		};
+		session.attachTimer = setTimeout(() => {
+			if (!session.attached && !session.finished) {
+				this.finish(session.id, {
+					kind: "error",
+					error: "No client attached to the interactive session.",
+				});
+			}
+		}, ATTACH_TIMEOUT_MS);
+		this.sessions.set(id, session);
 		return { id, token };
 	}
 
@@ -144,6 +219,10 @@ class InteractivePromptServer {
 		const session = this.sessions.get(sessionId);
 		if (!session || session.finished) return;
 		session.finished = true;
+		if (session.attachTimer) {
+			clearTimeout(session.attachTimer);
+			session.attachTimer = null;
+		}
 		for (const [, pending] of session.pending) {
 			pending.reject(new Error("Interactive session ended"));
 		}
@@ -160,6 +239,7 @@ class InteractivePromptServer {
 		for (const session of this.sessions.values()) {
 			if (session.waiterTimer) clearTimeout(session.waiterTimer);
 			if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
+			if (session.attachTimer) clearTimeout(session.attachTimer);
 			for (const [, pending] of session.pending) {
 				pending.reject(new Error("QuickAdd unloaded"));
 			}
@@ -187,6 +267,7 @@ class InteractivePromptServer {
 	private destroySession(session: Session): void {
 		if (session.waiterTimer) clearTimeout(session.waiterTimer);
 		if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
+		if (session.attachTimer) clearTimeout(session.attachTimer);
 		this.sessions.delete(session.id);
 		if (this.sessions.size === 0) {
 			this.server?.close();
@@ -196,7 +277,42 @@ class InteractivePromptServer {
 	}
 
 	private authed(session: Session | undefined, token: string | null): session is Session {
-		return !!session && !!token && session.token === token;
+		return !!session && !!token && safeEqual(session.token, token);
+	}
+
+	/**
+	 * Reject anything that doesn't look like our own loopback client: a browser
+	 * (sends Origin/Referer) or a Host header that isn't 127.0.0.1/localhost
+	 * (DNS-rebinding). The server is bound to loopback, but these headers are the
+	 * cheap defence against a drive-by page probing the port.
+	 */
+	private originAllowed(req: IncomingMessage): boolean {
+		return isLoopbackClient({
+			origin: req.headers.origin,
+			referer: req.headers.referer,
+			host: req.headers.host,
+		});
+	}
+
+	/**
+	 * Deliver an answer (or a cancel) to the prompt a session is blocked on.
+	 * Public so the HTTP layer and tests share one path. Returns true if a
+	 * matching pending prompt was found.
+	 */
+	submitReply(
+		sessionId: string,
+		requestId: string,
+		value: unknown,
+		cancelled = false,
+	): boolean {
+		const session = this.sessions.get(sessionId);
+		if (!session) return false;
+		const pending = session.pending.get(requestId);
+		if (!pending) return false;
+		session.pending.delete(requestId);
+		if (cancelled) pending.reject(new Error("Prompt cancelled"));
+		else pending.resolve(value);
+		return true;
 	}
 
 	private send(res: ServerResponse, status: number, body: unknown): void {
@@ -223,6 +339,10 @@ class InteractivePromptServer {
 
 	private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
 		try {
+			if (!this.originAllowed(req)) {
+				this.send(res, 403, { ok: false, error: "Forbidden" });
+				return;
+			}
 			const url = new URL(req.url ?? "/", "http://127.0.0.1");
 			const sessionId = url.searchParams.get("session");
 			const token = url.searchParams.get("token");
@@ -260,6 +380,14 @@ class InteractivePromptServer {
 	}
 
 	private handlePoll(session: Session, res: ServerResponse): void {
+		// First poll = the caller attached; cancel the no-attach abort.
+		if (!session.attached) {
+			session.attached = true;
+			if (session.attachTimer) {
+				clearTimeout(session.attachTimer);
+				session.attachTimer = null;
+			}
+		}
 		const queued = session.queue.shift();
 		if (queued) {
 			this.send(res, 200, queued);
@@ -285,14 +413,7 @@ class InteractivePromptServer {
 		body: { requestId?: string; value?: unknown; cancelled?: boolean },
 	): void {
 		if (!body.requestId) return;
-		const pending = session.pending.get(body.requestId);
-		if (!pending) return;
-		session.pending.delete(body.requestId);
-		if (body.cancelled) {
-			pending.reject(new Error("Prompt cancelled"));
-		} else {
-			pending.resolve(body.value);
-		}
+		this.submitReply(session.id, body.requestId, body.value, body.cancelled);
 	}
 }
 

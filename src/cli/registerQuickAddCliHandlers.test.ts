@@ -169,6 +169,7 @@ describe("registerQuickAddCliHandlers", () => {
 			"quickadd:list",
 			"quickadd:check",
 			"quickadd:package-preview",
+			"quickadd:interactive",
 		]);
 	});
 
