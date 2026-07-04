@@ -414,6 +414,16 @@ export class CompleteFormatter extends Formatter {
 					throw error;
 				}
 			}
+			// Route to a remote interactive session (Raycast) when one is driving.
+			const valueProvider = this.choiceExecutor?.promptProvider;
+			if (valueProvider) {
+				this.value = await valueProvider.inputPrompt(
+					this.valueHeader ?? "Enter value",
+					this.valuePromptContext?.placeholder,
+					this.valuePromptContext?.defaultValue,
+				);
+				return this.value;
+			}
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
@@ -501,6 +511,32 @@ export class CompleteFormatter extends Formatter {
 		header?: string,
 		context?: PromptContext,
 	): Promise<string> {
+		// Route to a remote interactive session (Raycast) when one is driving.
+		const provider = this.choiceExecutor?.promptProvider;
+		if (provider) {
+			if (context?.type === "VDATE") {
+				return await provider.datePrompt(
+					header ?? context.label ?? "Enter date",
+					{
+						defaultValue: context.defaultValue,
+						dateFormat: context.dateFormat ?? "YYYY-MM-DD",
+					},
+				);
+			}
+			if (context?.inputTypeOverride === "checkbox") {
+				return await provider.suggester(
+					["true", "false"],
+					["true", "false"],
+					context.description ?? header ?? context.label ?? "Choose value",
+					false,
+				);
+			}
+			return await provider.inputPrompt(
+				header ?? context?.label ?? "Enter value",
+				context?.placeholder,
+				context?.defaultValue,
+			);
+		}
 		this.assertInteractivePrompt(
 			header ? `{{VALUE:${header}}}` : "a template variable",
 		);
@@ -554,6 +590,10 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async promptForMathValue(): Promise<string> {
+		const provider = this.choiceExecutor?.promptProvider;
+		if (provider) {
+			return await provider.inputPrompt("Enter a math expression");
+		}
 		this.assertInteractivePrompt("a {{MATH}} expression");
 		try {
 			return await MathModal.Prompt();
@@ -575,6 +615,18 @@ export class CompleteFormatter extends Formatter {
 			optional?: boolean;
 		},
 	) {
+		// Route to a remote interactive session (Raycast) when one is driving this
+		// run - covers `{{VALUE:a,b,c}}` option lists in a template/capture format
+		// (e.g. a rating field) that the requirement collector didn't pre-satisfy.
+		const provider = this.choiceExecutor?.promptProvider;
+		if (provider) {
+			return await provider.suggester(
+				context?.displayValues ?? suggestedValues,
+				suggestedValues,
+				context?.placeholder,
+				allowCustomInput,
+			);
+		}
 		this.assertInteractivePrompt(
 			context?.variableKey ? `{{VALUE:${context.variableKey}}}` : "a value choice",
 		);
