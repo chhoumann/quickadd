@@ -634,21 +634,28 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const options = getModelNames();
 		let modelName: string;
 		if (command.model === "Ask me") {
-			// Non-interactive run (CLI without `ui`): the "Ask me" model picker has no
-			// one to answer it. Abort with an actionable error instead of hanging.
-			if (this.choiceExecutor.interactive === false) {
+			// Route to a remote interactive session (Raycast) when one is driving.
+			const provider = this.choiceExecutor.promptProvider;
+			if (provider) {
+				modelName = String(
+					await provider.suggester(options, options, "Select a model"),
+				);
+			} else if (this.choiceExecutor.interactive === false) {
+				// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
+				// no one to answer it. Abort with an actionable error instead of hanging.
 				throw new ChoiceAbortError(
 					"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
 						"Pick a specific model in the command, or re-run with the ui flag.",
 				);
-			}
-			try {
-				modelName = await GenericSuggester.Suggest(this.app, options, options);
-			} catch (error) {
-				if (isCancellationError(error)) {
-					throw new UserCancelError("Input cancelled by user");
+			} else {
+				try {
+					modelName = await GenericSuggester.Suggest(this.app, options, options);
+				} catch (error) {
+					if (isCancellationError(error)) {
+						throw new UserCancelError("Input cancelled by user");
+					}
+					throw error;
 				}
-				throw error;
 			}
 		} else {
 			modelName = command.model;
