@@ -85,6 +85,20 @@ obsidian vault=dev quickadd \
 
 Values are passed through exactly as provided. If a choice should ignore accidental leading or trailing whitespace for a specific token, use `|trim` in that format string, for example `{{VALUE:project|trim}}`.
 
+### Reserved flag names
+
+The bare `key=value` form (pattern 2) ignores names that a command already uses
+as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify` (on `quickadd` /
+`quickadd:run`), `fields` (on `quickadd:check`), and `path` (on
+`quickadd:run-template`). If a choice has a variable named after one of these
+(for example `{{VALUE:verify}}`), pass it with the `value-` prefix or via `vars`
+instead, both of which are never treated as flags:
+
+```bash
+obsidian vault=dev quickadd choice="My choice" value-verify="a value"
+obsidian vault=dev quickadd choice="My choice" vars='{"verify":"a value"}'
+```
+
 ## Non-interactive behavior
 
 By default, `quickadd` and `quickadd:run` are non-interactive. If QuickAdd

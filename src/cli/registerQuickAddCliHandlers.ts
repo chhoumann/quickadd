@@ -130,6 +130,12 @@ const PREVIEW_FLAGS: CliFlags = {
 	},
 };
 
+// Reserved param names are consumed as command flags/selectors and NOT passed
+// through as choice variables (extractVariables skips them). A choice whose
+// variable is literally named after a flag (e.g. `{{VALUE:verify}}`,
+// `{{VALUE:fields}}`, `{{VALUE:ui}}`) can't receive it via the bare
+// `name=value` form; supply it with the unreserved `value-<name>=...` prefix or
+// `vars=<json>` instead (see docs/docs/Advanced/CLI.md#reserved-flag-names).
 const RESERVED_RUN_PARAMS = new Set<string>([
 	"choice",
 	"id",
@@ -287,6 +293,7 @@ function toDetailedFieldSummary(requirement: FieldRequirement) {
 		optional: requirement.optional,
 		runtimeOnly: requirement.runtimeOnly,
 		multiEmit: requirement.multiEmit,
+		filters: requirement.filters,
 		numericConfig: requirement.numericConfig,
 		sliderConfig: requirement.sliderConfig,
 		suggesterConfig: requirement.suggesterConfig,

@@ -661,6 +661,7 @@ describe("registerQuickAddCliHandlers", () => {
 			displayOptions: ["Low", "Medium", "High"],
 			defaultValue: "medium",
 			optional: true,
+			filters: "tags:#project",
 			suggesterConfig: {
 				allowCustomInput: false,
 				caseSensitive: false,
@@ -689,6 +690,7 @@ describe("registerQuickAddCliHandlers", () => {
 				displayOptions: ["Low", "Medium", "High"],
 				defaultValue: "medium",
 				optional: true,
+				filters: "tags:#project",
 				suggesterConfig: {
 					allowCustomInput: false,
 					caseSensitive: false,
