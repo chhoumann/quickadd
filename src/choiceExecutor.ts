@@ -8,6 +8,7 @@ import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
 import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
+import type { PromptProvider } from "./interactive/promptProvider";
 import type IMultiChoice from "./types/choices/IMultiChoice";
 import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
 import { settingsStore } from "./settingsStore";
@@ -30,6 +31,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
 	// without `ui`) flip this to false so engine prompts abort instead of hanging.
 	public interactive = true;
+	// When set, script prompts route to this remote provider (interactive session
+	// driven by an external front end) instead of Obsidian modals. See
+	// IChoiceExecutor.promptProvider.
+	public promptProvider?: PromptProvider;
 	// User-script modules loaded by requirement collection (preflight / CLI),
 	// consumed once by MacroChoiceEngine so a script's top-level code runs a
 	// single time per trigger instead of once for introspection plus once for

@@ -27,6 +27,7 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { CommandType } from "./types/macros/CommandType";
 import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
 import { dedupeChoicesById, resolveChoiceIcon } from "./utils/choiceUtils";
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
@@ -438,6 +439,10 @@ export default class QuickAdd extends Plugin {
 		// Clean up field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
 		cache.destroy();
+
+		// Stop the interactive-prompt bridge (closes the localhost server and drops
+		// any in-flight sessions) so nothing keeps listening after unload.
+		interactivePromptServer.stop();
 	}
 
 	async loadSettings() {

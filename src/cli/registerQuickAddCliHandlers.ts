@@ -10,6 +10,8 @@ import {
 	getUnresolvedRequirements,
 } from "../preflight/collectChoiceRequirements";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
+import { interactivePromptServer } from "../interactive/interactivePromptServer";
+import { RemotePromptProvider } from "../interactive/promptProvider";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -120,6 +122,21 @@ const CHECK_FLAGS: CliFlags = {
 	},
 };
 
+const INTERACTIVE_FLAGS: CliFlags = {
+	choice: {
+		value: "<name>",
+		description: "Choice name",
+	},
+	id: {
+		value: "<id>",
+		description: "Choice id",
+	},
+	vars: {
+		value: "<json>",
+		description: "Variables object as JSON (pre-seeded inputs)",
+	},
+};
+
 const PREVIEW_FLAGS: CliFlags = {
 	path: {
 		value: "<vault-path>",
@@ -145,6 +162,7 @@ const RESERVED_RUN_PARAMS = new Set<string>([
 ]);
 const RESERVED_RUN_TEMPLATE_PARAMS = new Set<string>(["path", "vars", "ui"]);
 const RESERVED_CHECK_PARAMS = new Set<string>(["choice", "id", "vars", "fields"]);
+const RESERVED_INTERACTIVE_PARAMS = new Set<string>(["choice", "id", "vars"]);
 
 const CLI_COMMANDS = {
 	runDefault: "quickadd",
@@ -153,6 +171,7 @@ const CLI_COMMANDS = {
 	list: "quickadd:list",
 	check: "quickadd:check",
 	preview: "quickadd:package-preview",
+	interactive: "quickadd:interactive",
 } as const;
 
 const SUPPORTED_LIST_TYPES = new Set(["template", "capture", "macro", "multi"]);
@@ -685,6 +704,98 @@ async function checkChoiceHandler(
 	}
 }
 
+/**
+ * Starts an *interactive* run: the choice executes immediately with a remote
+ * prompt provider, and any runtime prompt (currently `quickAddApi.suggester`) is
+ * forwarded to the caller over the interactive server instead of an Obsidian
+ * modal. Returns the connection details right away — {port, sessionId, token} —
+ * so the caller can attach and drive the prompts; the run's final outcome is
+ * delivered over the server (a `done`/`error` poll event), not this response.
+ */
+async function interactiveHandler(
+	plugin: QuickAdd,
+	params: CliData,
+): Promise<string> {
+	const command = CLI_COMMANDS.interactive;
+	let choice: IChoice;
+	try {
+		choice = resolveChoiceFromParams(plugin, params);
+	} catch (error) {
+		return serialize({
+			ok: false,
+			command,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+
+	if (choice.type === "Multi") {
+		return serialize({
+			ok: false,
+			command,
+			error: "Multi choices cannot be run interactively via CLI.",
+			choice: describeChoice(choice),
+		});
+	}
+
+	try {
+		const port = await interactivePromptServer.ensureStarted();
+		const { id: sessionId, token } = interactivePromptServer.createSession();
+
+		const choiceExecutor = new ChoiceExecutor(
+			plugin.app,
+			plugin,
+		) as IChoiceExecutor;
+		setExecutorVariables(
+			choiceExecutor,
+			extractVariables(params, RESERVED_INTERACTIVE_PARAMS),
+		);
+		choiceExecutor.interactive = true;
+		choiceExecutor.promptProvider = new RemotePromptProvider(sessionId);
+
+		// Fire-and-forget: the run proceeds while the caller attaches and answers
+		// prompts. Its result/error is delivered to the caller via the server, so
+		// this handler must not await it.
+		void (async () => {
+			try {
+				await choiceExecutor.execute(choice);
+				const aborted = choiceExecutor.consumeAbortSignal?.();
+				if (aborted) {
+					interactivePromptServer.finish(sessionId, {
+						kind: "error",
+						error: aborted.message || "Choice execution aborted",
+					});
+					return;
+				}
+				interactivePromptServer.finish(sessionId, {
+					kind: "done",
+					result: { ok: true, choice: describeChoice(choice) },
+				});
+			} catch (error) {
+				interactivePromptServer.finish(sessionId, {
+					kind: "error",
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}
+		})();
+
+		return serialize({
+			ok: true,
+			command,
+			choice: describeChoice(choice),
+			host: "127.0.0.1",
+			port,
+			sessionId,
+			token,
+		});
+	} catch (error) {
+		return serialize({
+			ok: false,
+			command,
+			error: error instanceof Error ? error.message : String(error),
+		});
+	}
+}
+
 async function previewPackageHandler(
 	plugin: QuickAdd,
 	params: CliData,
@@ -777,6 +888,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Preview a QuickAdd package before importing (files + capabilities)",
 		PREVIEW_FLAGS,
 		(params: CliData) => previewPackageHandler(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.interactive,
+		"Run a choice interactively: forwards its runtime prompts to the caller over a local server (returns host/port/sessionId/token to attach)",
+		INTERACTIVE_FLAGS,
+		(params: CliData) => interactiveHandler(plugin, params),
 	);
 
 	log.logMessage("Registered QuickAdd CLI handlers.");

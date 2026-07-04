@@ -5,6 +5,7 @@ import type { MacroAbortError } from "./errors/MacroAbortError";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
+import type { PromptProvider } from "./interactive/promptProvider";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
@@ -46,6 +47,14 @@ export interface IChoiceExecutor {
 	 * on an unanswerable modal.
 	 */
 	interactive?: boolean;
+	/**
+	 * When set, runtime prompts a script raises (`quickAddApi.suggester` and, over
+	 * time, the rest of the prompt seam) are routed to this provider — a remote
+	 * interactive session driven by an external front end (Raycast) — instead of
+	 * opening an Obsidian modal. Absent means the normal in-app prompt behaviour.
+	 * Independent of {@link interactive}, which still gates engine-level prompts.
+	 */
+	promptProvider?: PromptProvider;
 	/**
 	 * Frontmatter property value focused when the outermost choice execution began.
 	 * Append Link uses this to avoid the stale CodeMirror cursor Obsidian reports

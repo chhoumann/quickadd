@@ -320,6 +320,17 @@ export class QuickAddApi {
 				allowCustomInput = false,
 				options?: { renderItem?: (value: string, el: HTMLElement) => void; },
 			) => {
+				// Route to a remote interactive session (Raycast) when one is driving
+				// this execution; otherwise open the Obsidian suggester modal.
+				const provider = choiceExecutor?.promptProvider;
+				if (provider) {
+					return provider.suggester(
+						displayItems,
+						actualItems,
+						placeholder,
+						allowCustomInput,
+					);
+				}
 				return QuickAddApi.suggester(
 					app,
 					displayItems,
