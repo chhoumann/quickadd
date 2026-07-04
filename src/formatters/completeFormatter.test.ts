@@ -1550,4 +1550,20 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		expect(inputPrompt).toHaveBeenCalled();
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
+
+	it("routes anonymous {{VALUE|type:checkbox}} to the provider's suggester, not the Obsidian modal", async () => {
+		mocks.genericSuggesterSuggest.mockResolvedValue("false"); // modal answer (should be unused)
+		const suggester = vi.fn(async () => "true");
+		const f = providerFormatter({ suggester });
+		await expect(
+			f.formatFileContent("[{{VALUE|type:checkbox}}]"),
+		).resolves.toBe("[true]");
+		expect(suggester).toHaveBeenCalledWith(
+			["true", "false"],
+			["true", "false"],
+			expect.anything(),
+			false,
+		);
+		expect(mocks.genericSuggesterSuggest).not.toHaveBeenCalled();
+	});
 });

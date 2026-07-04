@@ -393,6 +393,20 @@ export class CompleteFormatter extends Formatter {
 			// Anonymous {{VALUE|type:checkbox}} gets the same forced true/false
 			// picker as the named form (resolved before the InputPrompt factory).
 			if (this.valuePromptContext?.inputTypeOverride === "checkbox") {
+				// Route to a remote interactive session (Raycast) when one is driving,
+				// mirroring promptForVariable's named {{VALUE:x|type:checkbox}} path.
+				const checkboxProvider = this.choiceExecutor?.promptProvider;
+				if (checkboxProvider) {
+					this.value = await checkboxProvider.suggester(
+						["true", "false"],
+						["true", "false"],
+						this.valuePromptContext.description ??
+							this.valueHeader ??
+							"Choose value",
+						false,
+					);
+					return this.value;
+				}
 				try {
 					this.value = await GenericSuggester.Suggest(
 						this.app,

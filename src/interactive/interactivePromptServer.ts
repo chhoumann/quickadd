@@ -122,6 +122,8 @@ interface Session {
 	attached: boolean;
 	/** Aborts the run if no client attaches in time (avoids a hung executor). */
 	attachTimer: ReturnType<typeof setTimeout> | null;
+	/** Aborts the run if an attached client stops polling (disconnect/crash). */
+	pollWatchdog: ReturnType<typeof setTimeout> | null;
 }
 
 const LONG_POLL_MS = 25_000;
@@ -129,6 +131,13 @@ const LONG_POLL_MS = 25_000;
 const SESSION_TTL_MS = 60_000;
 /** Abort a run whose caller never attached, so a prompt can't park forever. */
 const ATTACH_TIMEOUT_MS = 30_000;
+/**
+ * Abort a run whose attached client stopped polling. A healthy client re-polls
+ * at least every LONG_POLL_MS (25s), so this generous multiple only fires on a
+ * genuine disconnect/crash — otherwise a prompt awaiting a reply would hang the
+ * executor and leak the session forever.
+ */
+const POLL_TIMEOUT_MS = 75_000;
 /** Bound concurrent sessions so a runaway caller can't exhaust memory. */
 const MAX_SESSIONS = 32;
 
@@ -245,6 +254,7 @@ class InteractivePromptServer {
 			cleanupTimer: null,
 			attached: false,
 			attachTimer: null,
+			pollWatchdog: null,
 		};
 		session.attachTimer = setTimeout(() => {
 			if (!session.attached && !session.finished) {
@@ -287,6 +297,10 @@ class InteractivePromptServer {
 			clearTimeout(session.attachTimer);
 			session.attachTimer = null;
 		}
+		if (session.pollWatchdog) {
+			clearTimeout(session.pollWatchdog);
+			session.pollWatchdog = null;
+		}
 		for (const [, pending] of session.pending) {
 			pending.reject(new Error("Interactive session ended"));
 		}
@@ -307,8 +321,16 @@ class InteractivePromptServer {
 			if (session.waiterTimer) clearTimeout(session.waiterTimer);
 			if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
 			if (session.attachTimer) clearTimeout(session.attachTimer);
+			if (session.pollWatchdog) clearTimeout(session.pollWatchdog);
 			for (const [, pending] of session.pending) {
 				pending.reject(new Error("QuickAdd unloaded"));
+			}
+			// Close any parked long-poll response so it isn't orphaned after
+			// server.close() (which won't terminate in-flight connections).
+			if (session.waiter) {
+				const waiter = session.waiter;
+				session.waiter = null;
+				waiter({ kind: "error", error: "QuickAdd unloaded" });
 			}
 		}
 		this.sessions.clear();
@@ -336,6 +358,7 @@ class InteractivePromptServer {
 		if (session.waiterTimer) clearTimeout(session.waiterTimer);
 		if (session.cleanupTimer) clearTimeout(session.cleanupTimer);
 		if (session.attachTimer) clearTimeout(session.attachTimer);
+		if (session.pollWatchdog) clearTimeout(session.pollWatchdog);
 		// Reject any still-pending prompt so a caller awaiting it aborts rather
 		// than hanging (finish() normally clears these, but be defensive).
 		for (const [, pending] of session.pending) {
@@ -474,6 +497,16 @@ class InteractivePromptServer {
 				session.attachTimer = null;
 			}
 		}
+		// Reset the disconnect watchdog on every poll: while the client keeps
+		// polling the run stays alive; if it goes silent, abort so a pending
+		// prompt doesn't hang the executor and leak the session.
+		if (session.pollWatchdog) clearTimeout(session.pollWatchdog);
+		session.pollWatchdog = setTimeout(() => {
+			this.finish(session.id, {
+				kind: "error",
+				error: "Interactive client disconnected.",
+			});
+		}, POLL_TIMEOUT_MS);
 		const queued = session.queue.shift();
 		if (queued) {
 			this.send(res, 200, queued);

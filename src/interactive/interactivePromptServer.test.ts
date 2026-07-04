@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	interactivePromptServer,
 	isLoopbackClient,
 	safeEqual,
 } from "./interactivePromptServer";
 import { UserCancelError } from "../errors/UserCancelError";
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 describe("safeEqual", () => {
 	it("matches equal strings and rejects different or different-length ones", () => {
@@ -63,6 +67,31 @@ describe("interactivePromptServer long-poll waiter", () => {
 		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
 		await expect(prompt).resolves.toBe(true);
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	it("aborts the run when an attached client stops polling (disconnect watchdog)", async () => {
+		vi.useFakeTimers();
+		const s = interactivePromptServer.createSession();
+		const srv = interactivePromptServer as unknown as {
+			handlePoll(session: unknown, res: unknown): void;
+			sessions: Map<string, { finished: boolean }>;
+		};
+		const session = srv.sessions.get(s.id);
+
+		// Client attaches (arms the watchdog), receives a prompt, then goes silent.
+		srv.handlePoll(session, fakeRes().res);
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "confirm",
+			header: "Proceed?",
+		});
+		// Attach the rejection handler before advancing timers so the abort isn't
+		// briefly seen as an unhandled rejection.
+		const rejected = expect(prompt).rejects.toThrow(/ended/i);
+
+		// No further polls: the watchdog must fire and abort the awaiting prompt.
+		await vi.advanceTimersByTimeAsync(75_000 + 10);
+		await rejected;
+		expect(srv.sessions.get(s.id)?.finished).toBe(true);
 	});
 });
 
