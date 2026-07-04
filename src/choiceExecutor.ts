@@ -247,8 +247,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// One-page preflight honoring per-choice override.
 		const globalEnabled = settingsStore.getState().onePageInputEnabled;
 		const override = choice.onePageInput;
+		// A remote interactive run (Raycast) has no in-app modal fallback, so it must
+		// collect a choice's declared inputs up front via the provider regardless of
+		// the global one-page setting - otherwise those inputs are never gathered and
+		// the run proceeds with them empty.
+		const remote = this.promptProvider != null;
 		const shouldUseOnePager =
-			override === "always" || (override !== "never" && globalEnabled);
+			override === "always" ||
+			(override !== "never" && (globalEnabled || remote));
 		if (
 			shouldUseOnePager &&
 			(choice.type === "Template" ||

@@ -166,6 +166,28 @@ describe("runOnePagePreflight selection-as-value", () => {
 		expect(modalOpenMock).not.toHaveBeenCalled();
 	});
 
+	it("collects via the promptProvider (not the Obsidian modal) for a remote run", async () => {
+		const choice = createChoice();
+		const executor = createExecutor();
+		const requestInputs = vi.fn(async () => ({ value: "from raycast" }));
+		(executor as IChoiceExecutor).promptProvider = {
+			requestInputs,
+		} as unknown as IChoiceExecutor["promptProvider"];
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: false,
+			},
+		} as any;
+
+		await runOnePagePreflight(createApp(null), plugin, executor, choice);
+
+		expect(requestInputs).toHaveBeenCalledTimes(1);
+		expect(modalOpenMock).not.toHaveBeenCalled();
+		expect(executor.variables.get("value")).toBe("from raycast");
+	});
+
 	it("does not prefill when selection usage is disabled", async () => {
 		const choice = createChoice();
 		const executor = createExecutor();

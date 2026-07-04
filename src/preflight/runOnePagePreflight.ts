@@ -135,13 +135,24 @@ export async function runOnePagePreflight(
 			}
 		};
 
-		const modal = new OnePageInputModal(
-			app,
-			modalRequirements,
-			choiceExecutor.variables,
-			computePreview,
-		);
-		const values = await modal.waitForClose;
+		// A remote interactive session (Raycast) collects the batch form through the
+		// provider instead of the Obsidian modal; the values come back in the same
+		// id -> string shape, so the post-processing below is unchanged (the modal's
+		// per-pick multi-select map is simply absent, falling back to string parsing).
+		const provider = choiceExecutor.promptProvider;
+		let modal: OnePageInputModal | null = null;
+		let values: Record<string, string>;
+		if (provider) {
+			values = await provider.requestInputs(modalRequirements);
+		} else {
+			modal = new OnePageInputModal(
+				app,
+				modalRequirements,
+				choiceExecutor.variables,
+				computePreview,
+			);
+			values = await modal.waitForClose;
+		}
 
 		// Date inputs already store @date:ISO. FILE inputs need canonicalizing: the
 		// generic suggester stores raw typed text, so a value that isn't one of the
@@ -187,7 +198,7 @@ export async function runOnePagePreflight(
 				// Prefer the modal's unambiguous per-pick selection (survives the
 				// "a"+"b" vs literal "a, b" collision); fall back to parsing the
 				// ", "-joined text when the user manually edited the field.
-				const pickedLabels = modal.multiSelections.get(k);
+				const pickedLabels = modal?.multiSelections.get(k);
 				const items = (
 					pickedLabels ??
 					splitMultiSelectLabels(String(v), multiInfo.displayToValue)
