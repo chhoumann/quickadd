@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import { runOnePagePreflight } from "./runOnePagePreflight";
+import { UserCancelError } from "../errors/UserCancelError";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -186,6 +187,28 @@ describe("runOnePagePreflight selection-as-value", () => {
 		expect(requestInputs).toHaveBeenCalledTimes(1);
 		expect(modalOpenMock).not.toHaveBeenCalled();
 		expect(executor.variables.get("value")).toBe("from raycast");
+	});
+
+	it("propagates a remote form cancellation instead of continuing", async () => {
+		const choice = createChoice();
+		const executor = createExecutor();
+		const requestInputs = vi.fn(async () => {
+			throw new UserCancelError("Input cancelled by user");
+		});
+		(executor as IChoiceExecutor).promptProvider = {
+			requestInputs,
+		} as unknown as IChoiceExecutor["promptProvider"];
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: false,
+			},
+		} as any;
+
+		await expect(
+			runOnePagePreflight(createApp(null), plugin, executor, choice),
+		).rejects.toBeInstanceOf(UserCancelError);
 	});
 
 	it("does not prefill when selection usage is disabled", async () => {

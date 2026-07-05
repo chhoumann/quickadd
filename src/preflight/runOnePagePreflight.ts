@@ -5,6 +5,7 @@ import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { VALUE_SYNTAX } from "src/constants";
+import { MacroAbortError } from "src/errors/MacroAbortError";
 import { OnePageInputModal } from "./OnePageInputModal";
 import {
 	canonicalizeOnePageFileValue,
@@ -227,8 +228,11 @@ export async function runOnePagePreflight(
 
 		return true;
 	} catch (error) {
-		// If user explicitly cancelled, propagate it
-		if (error === "cancelled") {
+		// Propagate an explicit cancellation/abort so the run stops instead of
+		// continuing with the inputs missing. The native modal throws the string
+		// "cancelled"; a remote provider rejects with UserCancelError (a
+		// MacroAbortError subclass).
+		if (error === "cancelled" || error instanceof MacroAbortError) {
 			throw error;
 		}
 		// For other errors, silently fail and continue
