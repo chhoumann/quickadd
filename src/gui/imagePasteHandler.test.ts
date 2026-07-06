@@ -107,11 +107,6 @@ describe("attachImagePasteHandler", () => {
 		await flushSaves(handle);
 
 		expect(createBinary).toHaveBeenCalledTimes(1);
-		expect(input.value).toBe(
-			"before ![[attachments/Clipboard image" +
-				input.value.slice("before ![[attachments/Clipboard image".length, input.value.indexOf("]]") + 2) +
-				"after",
-		);
 		expect(input.value).toMatch(
 			/^before !\[\[attachments\/Clipboard image .*\.png\]\]after$/,
 		);
