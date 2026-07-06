@@ -79,7 +79,7 @@ Model source: Provider /v1/models
 Models: import from the running Ollama server, or add the model name manually
 ```
 
-Leaving the API key blank sends no `Authorization` header. If your local server requires any bearer token, create a SecretStorage entry and select it.
+Leaving the API key blank works for Ollama. Model import from `/v1/models` sends no `Authorization` header when the key is blank. Regular OpenAI-compatible chat requests still include an empty `Bearer` header. If your local server rejects that, configure the server to allow it or select a SecretStorage entry with the token it expects.
 
 When adding a model manually, the model name must match the id your server expects, such as `mistral` or `llama3.1`. The **Max Tokens** value is the model's context window. See [Model settings and token budgets](#model-settings-and-token-budgets).
 
@@ -352,7 +352,7 @@ Check that the local server is running and that the endpoint includes the right 
 http://localhost:11434/v1
 ```
 
-If the server requires auth, select an API key secret. If the API key is blank, QuickAdd sends no `Authorization` header.
+If the server requires auth, select an API key secret. If the API key is blank, model import sends no `Authorization` header, while OpenAI-compatible chat requests include an empty `Bearer` header.
 
 ### Max Tokens is confusing
 
