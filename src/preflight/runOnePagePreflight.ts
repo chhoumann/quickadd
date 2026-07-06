@@ -240,11 +240,16 @@ export async function runOnePagePreflight(
 		// fallback is safe, but it must not be silent: a regression here would
 		// otherwise disable the one-page form for a choice shape with no trace
 		// (and if the form was already submitted, the user gets re-asked).
-		log.logWarning(
-			`One-page input failed for choice "${choice.name}"; falling back to step-by-step prompts: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
+		// Remote runs are exempt: session teardown rejects the pending form with
+		// a plain Error, and "falling back to step-by-step prompts" would mislead
+		// there - the session error already surfaces to the remote client.
+		if (!choiceExecutor.promptProvider) {
+			log.logWarning(
+				`One-page input failed for choice "${choice.name}"; falling back to step-by-step prompts: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
 		return false;
 	}
 }

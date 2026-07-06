@@ -130,6 +130,28 @@ describe("ChoiceExecutor one-page preflight gate", () => {
 		).rejects.toThrow(UserCancelError);
 	});
 
+	it("execute() runs the gate before any engine, with the executor and choice", async () => {
+		// Pin the wiring, not just the gate logic: a refactor that drops the
+		// runOnePagePreflightIfEnabled call from execute() must fail here. The
+		// preflight rejects with the modal's cancellation value, so execution
+		// stops at the gate and no engine is ever constructed.
+		onePageInputEnabled = true;
+		runOnePagePreflight.mockRejectedValue("cancelled");
+		const executor = makeExecutor() as unknown as InstanceType<
+			typeof ChoiceExecutor
+		>;
+		const templateChoice = choice("Template");
+		await expect(
+			executor.execute(templateChoice as never),
+		).rejects.toThrow(UserCancelError);
+		expect(runOnePagePreflight).toHaveBeenCalledWith(
+			expect.anything(),
+			expect.anything(),
+			executor,
+			templateChoice,
+		);
+	});
+
 	it("rethrows non-cancellation preflight errors unchanged", async () => {
 		onePageInputEnabled = true;
 		const boom = new Error("collection exploded");
