@@ -471,7 +471,9 @@ async function collectMacroScriptRequirements(
 					? preloadedUserScripts?.get(cacheKey)
 					: undefined;
 			if (exported === undefined) {
-				exported = await getUserScript(userScriptCommand, app);
+				exported = await getUserScript(userScriptCommand, app, {
+					reportLoadErrors: false,
+				});
 				if (cacheKey !== undefined && exported !== undefined) {
 					preloadedUserScripts?.set(cacheKey, exported);
 				}
