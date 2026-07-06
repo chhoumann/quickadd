@@ -6,7 +6,7 @@ For the current step-by-step daily-note setup, use [Capture: Add entries to your
 
 Compact reference for the journal entry format:
 
-- **File path / format**: `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`
+- **File path / format**: `bins/daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md`
 - **Write position**: **After line...**
 - **Insert after**: `## What did I do today?`
 - **Capture format**:
