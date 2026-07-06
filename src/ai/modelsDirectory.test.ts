@@ -3,6 +3,8 @@ import {
 	mapEndpointToModelsDevKey,
 	mapModelsDevToQuickAdd,
 	dedupeModels,
+	isChatCapableDirectoryModel,
+	mergeModels,
 	type ModelsDevModel,
 } from "./modelsDirectory";
 
@@ -111,6 +113,131 @@ describe("dedupeModels", () => {
 		expect(dedupeModels(existing, incoming)).toEqual([
 			{ name: "a", maxTokens: 1 },
 			{ name: "b", maxTokens: 3 },
+		]);
+	});
+});
+
+describe("mapModelsDevToQuickAdd metadata", () => {
+	it("carries output caps and sampling support from the directory", () => {
+		const models: ModelsDevModel[] = [
+			{
+				id: "gpt-5.5",
+				temperature: false,
+				modalities: { output: ["text"] },
+				limit: { context: 1050000, output: 128000 },
+			},
+			{
+				id: "gpt-4o",
+				temperature: true,
+				modalities: { output: ["text"] },
+				limit: { context: 128000, output: 16384 },
+			},
+		];
+		expect(mapModelsDevToQuickAdd(models)).toEqual([
+			{
+				name: "gpt-5.5",
+				maxTokens: 1050000,
+				maxOutputTokens: 128000,
+				supportsTemperature: false,
+			},
+			{
+				name: "gpt-4o",
+				maxTokens: 128000,
+				maxOutputTokens: 16384,
+				supportsTemperature: true,
+			},
+		]);
+	});
+
+	it("filters out non-chat entries", () => {
+		const models: ModelsDevModel[] = [
+			// Image generator: no context window (real shape from models.dev).
+			{
+				id: "gpt-image-2",
+				modalities: { output: ["image"] },
+				limit: { context: 0, output: 0 },
+			},
+			// TTS: no text output.
+			{
+				id: "gemini-2.5-flash-preview-tts",
+				modalities: { output: ["audio"] },
+				limit: { context: 8192, output: 16384 },
+			},
+			// Embeddings: text output but an embedding family / vector-dim output.
+			{
+				id: "text-embedding-3-small",
+				family: "text-embedding",
+				modalities: { output: ["text"] },
+				limit: { context: 8191, output: 1536 },
+			},
+			{
+				id: "gemini-embedding-001",
+				family: "gemini",
+				modalities: { output: ["text"] },
+				limit: { context: 2048, output: 1 },
+			},
+			// A normal chat model survives.
+			{
+				id: "claude-fable-5",
+				modalities: { output: ["text"] },
+				limit: { context: 1000000, output: 128000 },
+			},
+		];
+		expect(mapModelsDevToQuickAdd(models).map((m) => m.name)).toEqual([
+			"claude-fable-5",
+		]);
+	});
+
+	it("keeps unknown shapes (no positive evidence of being non-chat)", () => {
+		expect(isChatCapableDirectoryModel({ id: "mystery" })).toBe(true);
+	});
+});
+
+describe("mergeModels", () => {
+	it("appends new models and refreshes metadata on existing ones", () => {
+		const existing = [
+			{ name: "gpt-4o", maxTokens: 4096 },
+			{ name: "my-custom", maxTokens: 999 },
+		];
+		const incoming = [
+			{
+				name: "gpt-4o",
+				maxTokens: 128000,
+				maxOutputTokens: 16384,
+				supportsTemperature: true,
+			},
+			{ name: "gpt-5.5", maxTokens: 1050000, supportsTemperature: false },
+		];
+		expect(mergeModels(existing, incoming)).toEqual([
+			{
+				name: "gpt-4o",
+				maxTokens: 128000,
+				maxOutputTokens: 16384,
+				supportsTemperature: true,
+			},
+			{ name: "my-custom", maxTokens: 999 },
+			{ name: "gpt-5.5", maxTokens: 1050000, supportsTemperature: false },
+		]);
+	});
+
+	it("keeps existing metadata when the incoming entry lacks it", () => {
+		const existing = [
+			{
+				name: "claude-sonnet-5",
+				maxTokens: 200000,
+				maxOutputTokens: 128000,
+				supportsTemperature: false,
+			},
+		];
+		// Anthropic's native models endpoint reports names only.
+		const incoming = [{ name: "claude-sonnet-5", maxTokens: 1000000 }];
+		expect(mergeModels(existing, incoming)).toEqual([
+			{
+				name: "claude-sonnet-5",
+				maxTokens: 1000000,
+				maxOutputTokens: 128000,
+				supportsTemperature: false,
+			},
 		]);
 	});
 });

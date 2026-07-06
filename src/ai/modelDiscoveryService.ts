@@ -1,6 +1,8 @@
 import { requestUrl } from "obsidian";
 import type { AIProvider, Model, ModelDiscoveryMode } from "./Provider";
+import { getProviderKind } from "./Provider";
 import {
+	enrichModelsWithDirectoryMetadata,
 	fetchModelsDevDirectory,
 	mapEndpointToModelsDevKey,
 	mapModelsDevToQuickAdd,
@@ -85,16 +87,33 @@ async function fetchViaProviderApi(
 	if (!provider.endpoint) {
 		throw new Error("Provider is missing an endpoint URL.");
 	}
-	const base = provider.endpoint.replace(/\/+$/, "");
-	const url = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
-
-	const headers: Record<string, string> = {};
 	const apiKey = apiKeyOverride ?? provider.apiKey ?? "";
-	if (apiKey) {
-		headers.Authorization = `Bearer ${apiKey}`;
+
+	// Each wire protocol has its own models endpoint AND its own auth scheme.
+	// A Bearer header on Anthropic or Gemini is a guaranteed 401 (verified live),
+	// so route by provider kind — exactly like the chat request layer does.
+	const kind = getProviderKind(provider);
+	const models =
+		kind === "anthropic"
+			? await fetchAnthropicModels(provider, apiKey)
+			: kind === "gemini"
+				? await fetchGeminiModels(provider, apiKey)
+				: await fetchOpenAICompatibleModels(provider, apiKey);
+
+	if (!models.length) {
+		throw new Error("The provider's models endpoint did not include any usable models.");
 	}
 
-	let data: ProviderApiResponse;
+	// The native endpoints rarely report output caps or sampling support;
+	// overlay models.dev metadata for ids it knows (best effort).
+	return enrichModelsWithDirectoryMetadata(provider.endpoint, models);
+}
+
+async function requestProviderJson<T>(
+	provider: AIProvider,
+	url: string,
+	headers: Record<string, string>,
+): Promise<T> {
 	try {
 		// Use `throw: false` so we can read the response body ourselves and turn
 		// any 4xx/5xx into a structured provider error (e.g. "invalid api key")
@@ -107,11 +126,25 @@ async function fetchViaProviderApi(
 		if (response.status >= 400) {
 			throw buildProviderError(provider.name, response);
 		}
-		data = (await response.json) as ProviderApiResponse;
+		return (await response.json) as T;
 	} catch (err) {
-		throw new Error(`Provider rejected /v1/models request: ${(err as Error).message}`);
+		throw new Error(`Provider rejected the models request: ${(err as Error).message}`);
+	}
+}
+
+async function fetchOpenAICompatibleModels(
+	provider: AIProvider,
+	apiKey: string,
+): Promise<Model[]> {
+	const base = provider.endpoint.replace(/\/+$/, "");
+	const url = base.endsWith("/v1") ? `${base}/models` : `${base}/v1/models`;
+
+	const headers: Record<string, string> = {};
+	if (apiKey) {
+		headers.Authorization = `Bearer ${apiKey}`;
 	}
 
+	const data = await requestProviderJson<ProviderApiResponse>(provider, url, headers);
 	const entries = extractModelsArray(data);
 	const models: Model[] = [];
 	for (const entry of entries) {
@@ -120,11 +153,104 @@ async function fetchViaProviderApi(
 			models.push(model);
 		}
 	}
+	return models;
+}
 
-	if (!models.length) {
-		throw new Error("Provider /v1/models response did not include any usable models.");
+type AnthropicModelsResponse = {
+	data?: Array<{ id?: string; type?: string }>;
+	has_more?: boolean;
+	last_id?: string | null;
+};
+
+async function fetchAnthropicModels(
+	provider: AIProvider,
+	apiKey: string,
+): Promise<Model[]> {
+	const base = provider.endpoint.replace(/\/+$/, "");
+	const headers: Record<string, string> = {
+		"anthropic-version": "2023-06-01",
+	};
+	if (apiKey) {
+		headers["x-api-key"] = apiKey;
 	}
 
+	// Paginated; page size maxes out at 1000 which is far beyond the catalog,
+	// but follow `has_more` anyway so we never silently truncate.
+	const models: Model[] = [];
+	let afterId: string | null = null;
+	for (let page = 0; page < 10; page++) {
+		const url: string =
+			`${base}/v1/models?limit=1000` +
+			(afterId ? `&after_id=${encodeURIComponent(afterId)}` : "");
+		const data: AnthropicModelsResponse =
+			await requestProviderJson<AnthropicModelsResponse>(
+				provider,
+				url,
+				headers,
+			);
+		for (const entry of data.data ?? []) {
+			if (entry.id) {
+				models.push({ name: entry.id, maxTokens: DEFAULT_MAX_TOKENS });
+			}
+		}
+		if (!data.has_more || !data.last_id) break;
+		afterId = data.last_id;
+	}
+	return models;
+}
+
+type GeminiModelsResponse = {
+	models?: Array<{
+		name?: string;
+		inputTokenLimit?: number;
+		outputTokenLimit?: number;
+		supportedGenerationMethods?: string[];
+	}>;
+	nextPageToken?: string;
+};
+
+async function fetchGeminiModels(
+	provider: AIProvider,
+	apiKey: string,
+): Promise<Model[]> {
+	const base = provider.endpoint.replace(/\/+$/, "");
+	const models: Model[] = [];
+	let pageToken: string | null = null;
+	for (let page = 0; page < 10; page++) {
+		const url: string =
+			`${base}/v1beta/models?pageSize=1000` +
+			(apiKey ? `&key=${encodeURIComponent(apiKey)}` : "") +
+			(pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
+		const data: GeminiModelsResponse =
+			await requestProviderJson<GeminiModelsResponse>(provider, url, {});
+		for (const entry of data.models ?? []) {
+			if (!entry.name) continue;
+			// Only models that can serve generateContent belong in a chat model
+			// list — the catalog also carries embedding/TTS/image entries.
+			const methods = entry.supportedGenerationMethods;
+			if (Array.isArray(methods) && !methods.includes("generateContent")) {
+				continue;
+			}
+			const model: Model = {
+				// The API name is "models/gemini-2.5-flash"; requests take the bare id.
+				name: entry.name.replace(/^models\//, ""),
+				maxTokens:
+					typeof entry.inputTokenLimit === "number" &&
+					entry.inputTokenLimit > 0
+						? entry.inputTokenLimit
+						: DEFAULT_MAX_TOKENS,
+			};
+			if (
+				typeof entry.outputTokenLimit === "number" &&
+				entry.outputTokenLimit > 0
+			) {
+				model.maxOutputTokens = entry.outputTokenLimit;
+			}
+			models.push(model);
+		}
+		if (!data.nextPageToken) break;
+		pageToken = data.nextPageToken;
+	}
 	return models;
 }
 
@@ -135,7 +261,7 @@ function extractModelsArray(payload: ProviderApiResponse): ProviderApiModel[] {
 	if (payload && typeof payload === "object" && Array.isArray(payload.data)) {
 		return payload.data;
 	}
-	throw new Error("Provider /v1/models response was not a list.");
+	throw new Error("The provider's models response was not a list.");
 }
 
 function mapProviderEntry(entry: ProviderApiModel): Model | null {

@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
 	fetchModelsDevDirectoryMock: vi.fn(),
 	mapEndpointToModelsDevKeyMock: vi.fn(),
 	mapModelsDevToQuickAddMock: vi.fn(),
+	// Pass-through: enrichment has its own unit tests.
+	enrichModelsWithDirectoryMetadataMock: vi.fn(
+		async (_endpoint: string, models: unknown[]) => models,
+	),
 }));
 
 vi.mock("obsidian", () => ({
@@ -20,6 +24,7 @@ vi.mock("./modelsDirectory", () => ({
 	fetchModelsDevDirectory: mocks.fetchModelsDevDirectoryMock,
 	mapEndpointToModelsDevKey: mocks.mapEndpointToModelsDevKeyMock,
 	mapModelsDevToQuickAdd: mocks.mapModelsDevToQuickAddMock,
+	enrichModelsWithDirectoryMetadata: mocks.enrichModelsWithDirectoryMetadataMock,
 }));
 
 vi.mock("src/settingsStore", () => ({

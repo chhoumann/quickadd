@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
 	fetchModelsDevDirectoryMock: vi.fn(),
 	mapEndpointToModelsDevKeyMock: vi.fn(),
 	mapModelsDevToQuickAddMock: vi.fn(),
+	// Pass-through by default: enrichment is exercised by its own unit tests.
+	enrichModelsWithDirectoryMetadataMock: vi.fn(
+		async (_endpoint: string, models: unknown[]) => models,
+	),
 }));
 
 vi.mock("obsidian", () => ({
@@ -20,6 +24,7 @@ vi.mock("./modelsDirectory", () => ({
 	fetchModelsDevDirectory: mocks.fetchModelsDevDirectoryMock,
 	mapEndpointToModelsDevKey: mocks.mapEndpointToModelsDevKeyMock,
 	mapModelsDevToQuickAdd: mocks.mapModelsDevToQuickAddMock,
+	enrichModelsWithDirectoryMetadata: mocks.enrichModelsWithDirectoryMetadataMock,
 }));
 
 vi.mock("src/settingsStore", () => ({
@@ -220,6 +225,116 @@ beforeEach(() => {
 
 		expect(models).toEqual([{ name: "model-1", maxTokens: 42 }]);
 		expect(requestUrlMock).not.toHaveBeenCalled();
+	});
+
+	it("uses x-api-key + anthropic-version for Anthropic providers (Bearer is a 401)", async () => {
+		requestUrlMock.mockResolvedValue({
+			status: 200,
+			json: Promise.resolve({
+				data: [{ id: "claude-sonnet-5", type: "model" }],
+				has_more: false,
+			}),
+		});
+
+		const models = await discoverProviderModels({
+			name: "Anthropic",
+			endpoint: "https://api.anthropic.com",
+			kind: "anthropic",
+			apiKey: "sk-ant-test",
+			models: [],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		});
+
+		expect(models.map((m) => m.name)).toEqual(["claude-sonnet-5"]);
+		expect(requestUrlMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				url: "https://api.anthropic.com/v1/models?limit=1000",
+				headers: expect.objectContaining({
+					"x-api-key": "sk-ant-test",
+					"anthropic-version": expect.any(String),
+				}),
+			}),
+		);
+		const headers = requestUrlMock.mock.calls[0][0].headers;
+		expect(headers.Authorization).toBeUndefined();
+	});
+
+	it("follows Anthropic pagination via has_more/last_id", async () => {
+		requestUrlMock
+			.mockResolvedValueOnce({
+				status: 200,
+				json: Promise.resolve({
+					data: [{ id: "claude-a" }],
+					has_more: true,
+					last_id: "claude-a",
+				}),
+			})
+			.mockResolvedValueOnce({
+				status: 200,
+				json: Promise.resolve({
+					data: [{ id: "claude-b" }],
+					has_more: false,
+				}),
+			});
+
+		const models = await discoverProviderModels({
+			name: "Anthropic",
+			endpoint: "https://api.anthropic.com",
+			kind: "anthropic",
+			apiKey: "k",
+			models: [],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		});
+
+		expect(models.map((m) => m.name)).toEqual(["claude-a", "claude-b"]);
+		expect(requestUrlMock).toHaveBeenCalledTimes(2);
+		expect(requestUrlMock.mock.calls[1][0].url).toContain(
+			"after_id=claude-a",
+		);
+	});
+
+	it("uses the Gemini ListModels endpoint with key param and filters non-chat models", async () => {
+		requestUrlMock.mockResolvedValue({
+			status: 200,
+			json: Promise.resolve({
+				models: [
+					{
+						name: "models/gemini-2.5-flash",
+						inputTokenLimit: 1048576,
+						outputTokenLimit: 65536,
+						supportedGenerationMethods: ["generateContent", "countTokens"],
+					},
+					{
+						name: "models/gemini-embedding-001",
+						inputTokenLimit: 2048,
+						supportedGenerationMethods: ["embedContent"],
+					},
+				],
+			}),
+		});
+
+		const models = await discoverProviderModels({
+			name: "Gemini",
+			endpoint: "https://generativelanguage.googleapis.com",
+			kind: "gemini",
+			apiKey: "g-key",
+			models: [],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		});
+
+		expect(models).toEqual([
+			{
+				name: "gemini-2.5-flash",
+				maxTokens: 1048576,
+				maxOutputTokens: 65536,
+			},
+		]);
+		expect(requestUrlMock.mock.calls[0][0].url).toBe(
+			"https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=g-key",
+		);
 	});
 
 	it("respects disableOnlineFeatures by throwing early", async () => {

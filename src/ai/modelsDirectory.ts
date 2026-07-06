@@ -5,6 +5,10 @@ import { settingsStore } from "src/settingsStore";
 export type ModelsDevModel = {
   id: string;
   name?: string;
+  family?: string;
+  /** False when the model rejects sampling parameters (temperature/top_p). */
+  temperature?: boolean;
+  modalities?: { input?: string[]; output?: string[] };
   limit?: { context?: number; output?: number };
 };
 
@@ -91,6 +95,7 @@ export function mapEndpointToModelsDevKey(endpoint: string): string | null {
   if (hostMatches("inference.net")) return "inference";
   if (hostMatches("z.ai") || url.includes("zhipu")) return "zhipuai";
   if (hostMatches("deepseek.com")) return "deepseek";
+  if (hostMatches("mistral.ai")) return "mistral";
   if (url.includes("cerebras")) return "cerebras";
   if (hostMatches("venice.ai")) return "venice";
   if (hostMatches("upstage.ai")) return "upstage";
@@ -104,15 +109,121 @@ export function mapEndpointToModelsDevKey(endpoint: string): string | null {
   return null;
 }
 
+/**
+ * Keep only models a chat completion can actually run on. The directory also
+ * lists image generators (context 0), TTS voices (no text output), and
+ * embedding models (an "output" that is a vector dimension, plus an
+ * embedding family/id) — importing those into a chat model dropdown only
+ * produces hard failures. Unknown shapes are kept: this filter drops entries
+ * only on positive evidence.
+ */
+export function isChatCapableDirectoryModel(model: ModelsDevModel): boolean {
+  const output = model.modalities?.output;
+  if (Array.isArray(output) && !output.includes("text")) return false;
+
+  const limit = model.limit ?? {};
+  if (typeof limit.context === "number" && limit.context <= 0) return false;
+  if (typeof limit.output === "number" && limit.output <= 1) return false;
+
+  const family = (model.family ?? "").toLowerCase();
+  const id = model.id.toLowerCase();
+  if (family.includes("embedding") || id.includes("embedding")) return false;
+
+  return true;
+}
+
 export function mapModelsDevToQuickAdd(models: ModelsDevModel[]): Model[] {
-  return models.map((m) => ({
-    name: m.id,
-    maxTokens: Math.max(1, Math.floor(m.limit?.context ?? 128000)),
-  }));
+  return models.filter(isChatCapableDirectoryModel).map((m) => {
+    const model: Model = {
+      name: m.id,
+      maxTokens: Math.max(1, Math.floor(m.limit?.context ?? 128000)),
+    };
+    if (typeof m.limit?.output === "number" && m.limit.output > 0) {
+      model.maxOutputTokens = Math.floor(m.limit.output);
+    }
+    if (typeof m.temperature === "boolean") {
+      model.supportsTemperature = m.temperature;
+    }
+    return model;
+  });
+}
+
+/**
+ * Best-effort metadata overlay for models discovered via a provider's own
+ * models endpoint (which rarely reports output caps or sampling support).
+ * When the endpoint maps to a models.dev provider, matching ids inherit the
+ * directory's context/output/sampling metadata. Directory unavailability is
+ * not an error — the models are still usable without the extra metadata.
+ */
+export async function enrichModelsWithDirectoryMetadata(
+  endpoint: string,
+  models: Model[],
+): Promise<Model[]> {
+  const key = mapEndpointToModelsDevKey(endpoint);
+  if (!key) return models;
+
+  let directory: ModelsDevDirectory;
+  try {
+    directory = await fetchModelsDevDirectory();
+  } catch {
+    return models;
+  }
+  const entries = directory[key]?.models;
+  if (!entries) return models;
+
+  return models.map((model) => {
+    const entry = entries[model.name];
+    if (!entry) return model;
+    const enriched: Model = { ...model };
+    if (typeof entry.limit?.context === "number" && entry.limit.context > 0) {
+      enriched.maxTokens = Math.floor(entry.limit.context);
+    }
+    if (
+      enriched.maxOutputTokens === undefined &&
+      typeof entry.limit?.output === "number" &&
+      entry.limit.output > 0
+    ) {
+      enriched.maxOutputTokens = Math.floor(entry.limit.output);
+    }
+    if (
+      enriched.supportsTemperature === undefined &&
+      typeof entry.temperature === "boolean"
+    ) {
+      enriched.supportsTemperature = entry.temperature;
+    }
+    return enriched;
+  });
 }
 
 export function dedupeModels(existing: Model[], incoming: Model[]): Model[] {
   const existingNames = new Set(existing.map((m) => m.name));
   const filtered = incoming.filter((m) => !existingNames.has(m.name));
   return existing.concat(filtered);
+}
+
+/**
+ * Sync merge: append models the provider doesn't have yet AND refresh the
+ * metadata (context window, output cap, sampling support) of the ones it does.
+ * Token estimation and chunk sizing read these fields, so a sync must carry
+ * forward corrected limits — append-only dedupe would pin stale assumptions
+ * forever. Never removes anything: users may rely on manually added entries.
+ */
+export function mergeModels(existing: Model[], incoming: Model[]): Model[] {
+  const incomingByName = new Map(incoming.map((m) => [m.name, m]));
+
+  const refreshed = existing.map((model) => {
+    const update = incomingByName.get(model.name);
+    if (!update) return model;
+    return {
+      ...model,
+      maxTokens: update.maxTokens,
+      maxOutputTokens: update.maxOutputTokens ?? model.maxOutputTokens,
+      supportsTemperature:
+        update.supportsTemperature ?? model.supportsTemperature,
+    };
+  });
+
+  const existingNames = new Set(existing.map((m) => m.name));
+  const added = incoming.filter((m) => !existingNames.has(m.name));
+  return refreshed.concat(added);
 }
