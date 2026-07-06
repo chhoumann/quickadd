@@ -82,7 +82,7 @@ Appending to today's note is a Capture choice with a date-formatted target path 
 - **Insert after**: `## Log`, with **Create line if not found**
 - **Capture format**: `- {{VALUE}}`
 
-Running it and typing `did a thing` creates today's note (say, `Daily/2026-07-06.md`) from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](./Examples/Capture_ToDailyNote.md); [Capture choices](./Choices/CaptureChoice.md) covers every target and position option.
+Say today is 2026-07-06: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](./Examples/Capture_ToDailyNote.md); [Capture choices](./Choices/CaptureChoice.md) covers every target and position option.
 
 ## Templates chosen by folder
 
@@ -104,7 +104,7 @@ Due: {{VDATE:due,YYYY-MM-DD}}
 Week: {{VDATE:due,gggg-[W]WW}}
 ```
 
-Typing `tomorrow` fills both lines from one prompt - on 2026-07-06 that gives `Due: 2026-07-07` and `Week: 2026-W28`.
+Typing `tomorrow` fills both lines from one prompt - with 2026-07-06 as today, that's `Due: 2026-07-07` and `Week: 2026-W28`.
 
 There is no token for a file's creation or modification date - reach for a [script](#run-scripts) if you need those.
 
