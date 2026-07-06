@@ -2,9 +2,9 @@
 title: "Capture: Add entries to your daily note"
 ---
 
-Use this cookbook when you want one QuickAdd choice to add text to today's daily note, even if the note or target heading does not exist yet.
+This cookbook gives you one QuickAdd choice that adds text to today's daily note - even when the note or the target heading doesn't exist yet.
 
-All recipes start from the same Capture choice. Change the **Capture format** and the target heading for the result you want.
+Every recipe starts from the same base Capture choice; you only change the **Capture format** and the target heading.
 
 ## Base setup
 
@@ -42,7 +42,7 @@ Produces:
 - 18:55 second journal entry
 ```
 
-End non-task line formats with `\n` so the capture is an explicit complete Markdown line.
+End non-task formats with `\n` so each capture lands as its own complete line.
 
 ### Task line
 
