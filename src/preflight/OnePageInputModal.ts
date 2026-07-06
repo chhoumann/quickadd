@@ -23,6 +23,8 @@ type CompletionInputEvent = Event & {
 };
 
 import type { FieldRequirement } from "./RequirementCollector";
+import type { ImagePasteHandle } from "src/gui/imagePasteHandler";
+import { attachImagePasteHandler } from "src/gui/imagePasteHandler";
 import {
 	mapMappedSuggesterValue,
 	resolveDropdownInitialValue,
@@ -52,6 +54,7 @@ export class OnePageInputModal extends Modal {
 	private previewContainerEl: HTMLElement | null = null;
 	private updatePreviewDebounced: () => void;
 	private settled = false;
+	private readonly imagePasteHandles: ImagePasteHandle[] = [];
 
 	public waitForClose: Promise<Record<string, string>>;
 	private resolvePromise!: (values: Record<string, string>) => void;
@@ -171,6 +174,7 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				input.inputEl.addClass("qa-onepage-textarea");
+				this.enableImagePaste(req, input.inputEl);
 				break;
 			}
 			case "text": {
@@ -183,6 +187,7 @@ export class OnePageInputModal extends Modal {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
+				this.enableImagePaste(req, input.inputEl);
 				break;
 			}
 			case "number": {
@@ -572,11 +577,28 @@ export class OnePageInputModal extends Modal {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
+				this.enableImagePaste(req, input.inputEl);
 			}
 		}
 
 		// Initialize stored value for empty inputs to ensure presence
 		if (!this.result.has(req.id)) this.result.set(req.id, starting);
+	}
+
+	/**
+	 * Free-text fields accept clipboard-image paste UNLESS any scanned
+	 * occurrence of the variable was path context (file name, folder, capture
+	 * target, location target, template path) - an embed link would corrupt a
+	 * path (issue #1484). The destination is unresolved at preflight time, so
+	 * the saver runs with "" (vault-root placement and links that resolve
+	 * from anywhere).
+	 */
+	private enableImagePaste(
+		req: FieldRequirement,
+		inputEl: HTMLInputElement | HTMLTextAreaElement,
+	): void {
+		if (req.pathContext) return;
+		this.imagePasteHandles.push(attachImagePasteHandler(this.app, inputEl, {}));
 	}
 
 	private decorateLabel(req: FieldRequirement): string | DocumentFragment {
@@ -594,6 +616,16 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private submit() {
+		if (this.settled) return;
+		// A pasted image may still be saving in one of the fields; defer so
+		// paste-then-Mod+Enter submits WITH the embed link.
+		const busyHandle = this.imagePasteHandles.find((handle) =>
+			handle.isBusy(),
+		);
+		if (busyHandle) {
+			void busyHandle.whenIdle().then(() => this.submit());
+			return;
+		}
 		const out: Record<string, string> = {};
 		const requirementsById = new Map(
 			this.requirements.map((req) => [req.id, req]),
@@ -657,6 +689,8 @@ export class OnePageInputModal extends Modal {
 	}
 
 	onClose() {
+		for (const handle of this.imagePasteHandles) handle.detach();
+		this.imagePasteHandles.length = 0;
 		// Esc (or any close that isn't submit/cancel) must settle the promise,
 		// otherwise the choice execution hangs forever on waitForClose.
 		if (!this.settled) {

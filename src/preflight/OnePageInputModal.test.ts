@@ -4,6 +4,18 @@ import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 
+const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
+	attachImagePasteHandlerMock: vi.fn(() => ({
+		isBusy: (): boolean => false,
+		whenIdle: () => Promise.resolve(),
+		detach: vi.fn(),
+	})),
+}));
+
+vi.mock("src/gui/imagePasteHandler", () => ({
+	attachImagePasteHandler: attachImagePasteHandlerMock,
+}));
+
 vi.mock("obsidian", () => {
 	class Modal {
 		containerEl: HTMLElement;
@@ -758,5 +770,103 @@ describe("OnePageInputModal", () => {
 			modal.onClose();
 			await expect(modal.waitForClose).resolves.toEqual({ note: "" });
 		});
+	});
+});
+
+describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
+	beforeEach(() => {
+		ensureObsidianDomPolyfills();
+		attachImagePasteHandlerMock.mockClear();
+	});
+
+	it("wires image paste for content text and textarea fields", () => {
+		const requirements: FieldRequirement[] = [
+			{ id: "body", label: "Body", type: "textarea" },
+			{ id: "note", label: "Note", type: "text" },
+		];
+
+		new OnePageInputModal({} as App, requirements, new Map());
+
+		expect(attachImagePasteHandlerMock).toHaveBeenCalledTimes(2);
+	});
+
+	it("never wires image paste for path-context fields", () => {
+		const requirements: FieldRequirement[] = [
+			{ id: "topic", label: "Topic", type: "text", pathContext: true },
+			{ id: "body", label: "Body", type: "textarea" },
+		];
+
+		new OnePageInputModal({} as App, requirements, new Map());
+
+		expect(attachImagePasteHandlerMock).toHaveBeenCalledTimes(1);
+	});
+
+	it("skips non-free-text field types", () => {
+		const requirements: FieldRequirement[] = [
+			{ id: "n", label: "N", type: "number" },
+			{
+				id: "pick",
+				label: "Pick",
+				type: "dropdown",
+				options: ["a", "b"],
+			},
+		];
+
+		new OnePageInputModal({} as App, requirements, new Map());
+
+		expect(attachImagePasteHandlerMock).not.toHaveBeenCalled();
+	});
+
+	it("detaches all paste handlers on close", () => {
+		const detach = vi.fn();
+		attachImagePasteHandlerMock.mockReturnValueOnce({
+			isBusy: () => false,
+			whenIdle: () => Promise.resolve(),
+			detach,
+		});
+		const requirements: FieldRequirement[] = [
+			{ id: "body", label: "Body", type: "text" },
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		modal.waitForClose.catch(() => {}); // close-without-submit rejects
+		modal.onClose();
+
+		expect(detach).toHaveBeenCalled();
+	});
+
+	it("defers submit while a pasted image is still saving", async () => {
+		let resolveIdle: () => void = () => {};
+		const idle = new Promise<void>((resolve) => {
+			resolveIdle = resolve;
+		});
+		let busy = true;
+		attachImagePasteHandlerMock.mockReturnValueOnce({
+			isBusy: () => busy,
+			whenIdle: () => idle,
+			detach: vi.fn(),
+		});
+		const requirements: FieldRequirement[] = [
+			{ id: "body", label: "Body", type: "text" },
+		];
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const submitButton = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"button",
+			) as NodeListOf<HTMLButtonElement>,
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+
+		submitButton.click();
+		// Not settled yet: the submit deferred on the busy handle.
+		let settled = false;
+		void modal.waitForClose.then(() => {
+			settled = true;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(settled).toBe(false);
+
+		busy = false;
+		resolveIdle();
+		await expect(modal.waitForClose).resolves.toEqual({ body: "" });
 	});
 });

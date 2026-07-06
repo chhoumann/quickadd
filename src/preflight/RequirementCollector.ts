@@ -4,6 +4,7 @@ import {
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
 	GLOBAL_VAR_REGEX,
+	NAME_VALUE_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
@@ -57,6 +58,14 @@ export interface FieldRequirement {
 	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
 	filters?: string; // serialized filters for FIELD variables
 	source?: "collected" | "script"; // provenance for UX badges
+	/**
+	 * True when ANY scanned occurrence of the variable sits in a path-context
+	 * string (file name format, folder path, capture target, insert-after/
+	 * before targets, template path). Sticky: one path usage disables
+	 * image paste for the field - an embed link in a path would corrupt it
+	 * (issue #1484). Content-only fields stay unset.
+	 */
+	pathContext?: boolean;
 	/** Prompt at runtime instead of the one-page form when the form has no safe widget. */
 	runtimeOnly?: boolean;
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
@@ -101,15 +110,42 @@ export class RequirementCollector extends Formatter {
 		}
 	}
 
+	/**
+	 * True while the current scanString walks a path-context string. Flows
+	 * into FieldRequirement.pathContext (sticky across occurrences).
+	 */
+	private scanningPathContext = false;
+
 	// Entry points -------------------------------------------------------------
-	public async scanString(input: string): Promise<void> {
-		// Expand global variables first so we can detect inner requirements
-		const expanded = await this.replaceGlobalVarInString(input);
-		// Run a safe formatting pass that collects variables but avoids side-effects
-		this.scanVariableTokens(expanded);
-		this.scanDateTokens(expanded);
-		this.scanFileTokens(expanded);
-		await this.format(expanded);
+	public async scanString(input: string, pathContext = false): Promise<void> {
+		const previousContext = this.scanningPathContext;
+		this.scanningPathContext = pathContext;
+		try {
+			// Expand global variables first so we can detect inner requirements
+			const expanded = await this.replaceGlobalVarInString(input);
+			// Run a safe formatting pass that collects variables but avoids side-effects
+			this.scanVariableTokens(expanded);
+			this.scanDateTokens(expanded);
+			this.scanFileTokens(expanded);
+			// Anonymous {{VALUE}}/{{NAME}} resolution is cached, so the
+			// promptForValue hook fires once per collector; a path string
+			// scanned AFTER a content string that already registered "value"
+			// must still taint it (named variables get per-occurrence marking
+			// in scanVariableTokens; the anonymous token needs this textual
+			// re-check).
+			if (pathContext && new RegExp(NAME_VALUE_REGEX.source, "i").test(expanded)) {
+				const anonymousValue = this.requirements.get("value");
+				if (anonymousValue) anonymousValue.pathContext = true;
+			}
+			await this.format(expanded);
+		} finally {
+			this.scanningPathContext = previousContext;
+		}
+	}
+
+	/** Sticky path-context marking: one path occurrence taints the field. */
+	private markScanContext(req: FieldRequirement): void {
+		if (this.scanningPathContext) req.pathContext = true;
 	}
 
 	protected async format(input: string): Promise<string> {
@@ -237,9 +273,11 @@ export class RequirementCollector extends Formatter {
 					req.sliderConfig = parsed.sliderConfig;
 				}
 				if (defaultValue) req.defaultValue = defaultValue;
+				this.markScanContext(req);
 				this.requirements.set(requirementId, req);
 			} else {
 				const existing = this.requirements.get(requirementId)!;
+				this.markScanContext(existing);
 				// Order-independent named reuse: when a later occurrence carries
 				// the option list ({{VALUE:a,b|name:x}}) but the requirement was
 				// first recorded option-less (a bare {{VALUE:x}} reuse seen
@@ -404,6 +442,12 @@ export class RequirementCollector extends Formatter {
 				optional: this.valuePromptContext?.optional,
 			});
 		}
+		// This hook fires once per collector ({{VALUE}} resolution is cached),
+		// but path strings are always scanned before content strings by the
+		// per-choice collectors, so a dual-use anonymous VALUE is first seen -
+		// and marked - in path context. The sticky mark below also covers the
+		// already-registered case for safety.
+		this.markScanContext(this.requirements.get(key)!);
 		return ""; // return inert value to keep scanning
 	}
 
@@ -466,6 +510,7 @@ export class RequirementCollector extends Formatter {
 			if (context?.defaultValue) req.defaultValue = context.defaultValue;
 			this.requirements.set(key, req);
 		}
+		this.markScanContext(this.requirements.get(key)!);
 
 		return context?.defaultValue ?? "";
 	}

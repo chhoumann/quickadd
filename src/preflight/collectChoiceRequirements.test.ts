@@ -1432,3 +1432,166 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 		expect(getTemplateFileMock).not.toHaveBeenCalled();
 	});
 });
+
+describe("collectChoiceRequirements - image-paste path-context provenance (issue #1484)", () => {
+	const templateBodies = new Map<string, string>();
+	const app = {
+		vault: {
+			cachedRead: vi.fn(
+				async (file: { path: string }) => templateBodies.get(file.path) ?? "",
+			),
+		},
+		metadataCache: { getFileCache: vi.fn(() => null) },
+	} as unknown as App;
+	const plugin = {
+		settings: {
+			inputPrompt: "single-line",
+			globalVariables: {},
+			useSelectionAsCaptureValue: true,
+		},
+	} as any;
+
+	beforeEach(() => {
+		templateBodies.clear();
+		getTemplateFileMock.mockReset();
+		getTemplateFileMock.mockImplementation((_app: App, path: string) =>
+			templateBodies.has(path) ? ({ path } as never) : null,
+		);
+	});
+
+	function executor(): IChoiceExecutor {
+		return { execute: vi.fn(), variables: new Map<string, unknown>() };
+	}
+
+	async function collect(choice: ICaptureChoice | ITemplateChoice) {
+		return collectChoiceRequirements(app, plugin, executor(), choice);
+	}
+
+	function byId(
+		requirements: Awaited<ReturnType<typeof collectChoiceRequirements>>,
+		id: string,
+	) {
+		const requirement = requirements.find((req) => req.id === id);
+		if (!requirement) throw new Error(`requirement '${id}' not collected`);
+		return requirement;
+	}
+
+	it("marks variables used in the capture target as path context", async () => {
+		const choice = {
+			...createCaptureChoice("Journal/{{VALUE:topic}}.md"),
+			format: { enabled: true, format: "{{VALUE:body}}" },
+		} as ICaptureChoice;
+
+		const requirements = await collect(choice);
+
+		expect(byId(requirements, "topic").pathContext).toBe(true);
+		expect(byId(requirements, "body").pathContext).toBeUndefined();
+	});
+
+	it("keeps a dual-use variable path-tainted regardless of scan order", async () => {
+		// insertAfter is scanned AFTER the content format; the sticky mark must
+		// still taint a variable first seen in content.
+		const choice = {
+			...createCaptureChoice("Inbox.md"),
+			format: { enabled: true, format: "{{VALUE:section}}" },
+			insertAfter: {
+				enabled: true,
+				after: "## {{VALUE:section}}",
+				insertAtEnd: false,
+				considerSubsections: false,
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collect(choice);
+
+		expect(byId(requirements, "section").pathContext).toBe(true);
+	});
+
+	it("taints the anonymous VALUE when it also appears in a later path string", async () => {
+		const choice = {
+			...createCaptureChoice("Inbox.md"),
+			format: { enabled: true, format: "note: {{VALUE}}" },
+			insertBefore: {
+				enabled: true,
+				before: "{{VALUE}} marker",
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collect(choice);
+
+		expect(byId(requirements, "value").pathContext).toBe(true);
+	});
+
+	it("marks template file-name and folder variables as path context, body as content", async () => {
+		templateBodies.set("Templates/Note.md", "Body: {{VALUE:body}}");
+		const choice = {
+			id: "template-choice",
+			name: "Template Choice",
+			type: "Template",
+			command: false,
+			templatePath: "Templates/Note.md",
+			fileNameFormat: { enabled: true, format: "{{VALUE:name}}" },
+			folder: {
+				enabled: true,
+				folders: ["Projects/{{VALUE:area}}"],
+				chooseWhenCreatingNote: false,
+				createInSameFolderAsActiveFile: false,
+				chooseFromSubfolders: false,
+			},
+			appendLink: false,
+			openFile: false,
+			fileOpening: {
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: true,
+			},
+			fileExistsBehavior: { kind: "prompt" },
+		} as unknown as ITemplateChoice;
+
+		const requirements = await collect(choice);
+
+		expect(byId(requirements, "name").pathContext).toBe(true);
+		expect(byId(requirements, "area").pathContext).toBe(true);
+		expect(byId(requirements, "body").pathContext).toBeUndefined();
+	});
+
+	it("propagates path context into templates included from a path string", async () => {
+		templateBodies.set("Templates/NamePart.md", "{{VALUE:part}}");
+		const choice = {
+			...createCaptureChoice("Inbox.md"),
+			format: { enabled: true, format: "ok" },
+			insertAfter: {
+				enabled: true,
+				after: "{{TEMPLATE:Templates/NamePart.md}}",
+				insertAtEnd: false,
+				considerSubsections: false,
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collect(choice);
+
+		expect(byId(requirements, "part").pathContext).toBe(true);
+	});
+
+	it("keeps template-include variables in CONTENT strings unmarked", async () => {
+		templateBodies.set("Templates/Snippet.md", "{{VALUE:snippetValue}}");
+		const choice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/Snippet.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collect(choice);
+
+		expect(byId(requirements, "snippetValue").pathContext).toBeUndefined();
+	});
+});

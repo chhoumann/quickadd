@@ -199,12 +199,13 @@ async function scanContentWithTemplateIncludes(
 	content: string,
 	templateStack = new Set<string>(),
 	depth = 0,
+	pathContext = false,
 ): Promise<void> {
 	// templatesToScan is a queue for this content scan. Clear it before and
 	// after scanning so refs from unrelated strings are not drained together.
 	const rawTemplateRefs = getRawTemplateRefs(content);
 	collector.templatesToScan.clear();
-	await collector.scanString(content);
+	await collector.scanString(content, pathContext);
 	const nested = [...collector.templatesToScan].filter((ref) =>
 		rawTemplateRefs.has(ref),
 	);
@@ -232,6 +233,9 @@ async function scanContentWithTemplateIncludes(
 				await readTemplate(app, ref),
 				templateStack,
 				depth + 1,
+				// A template included FROM a path string is spliced into that
+				// path at runtime, so its tokens are path context too.
+				pathContext,
 			);
 		} finally {
 			templateStack.delete(ref);
@@ -255,7 +259,8 @@ async function scanTemplateSource(
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
-	await collector.scanString(templatePath);
+	// The template PATH is path context; the template BODY below is content.
+	await collector.scanString(templatePath, true);
 
 	if (hasTemplatePathSyntax(templatePath)) {
 		log.logMessage(
@@ -285,12 +290,22 @@ async function collectForTemplateChoice(
 			app,
 			collector,
 			choice.fileNameFormat.format,
+			undefined,
+			0,
+			true, // file name = path context
 		);
 	}
 
 	if (choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
-			await scanContentWithTemplateIncludes(app, collector, folder);
+			await scanContentWithTemplateIncludes(
+				app,
+				collector,
+				folder,
+				undefined,
+				0,
+				true, // folder = path context
+			);
 		}
 	}
 
@@ -316,7 +331,14 @@ async function collectForCaptureChoice(
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
-	await scanContentWithTemplateIncludes(app, collector, choice.captureTo);
+	await scanContentWithTemplateIncludes(
+		app,
+		collector,
+		choice.captureTo,
+		undefined,
+		0,
+		true, // capture target = path context (scanned BEFORE content so a dual-use {{VALUE}} is marked)
+	);
 
 	if (choice.format?.enabled) {
 		await scanContentWithTemplateIncludes(
@@ -331,6 +353,9 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.insertAfter.after,
+			undefined,
+			0,
+			true, // location target = path context (an embed link can never match a line)
 		);
 	}
 
@@ -339,6 +364,9 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.insertBefore.before,
+			undefined,
+			0,
+			true, // location target = path context
 		);
 	}
 
