@@ -39,12 +39,12 @@ function reportAndThrowUserScriptLoadError(
 	message: string,
 	options: GetUserScriptOptions,
 ): never {
+	const error = new UserScriptLoadError(message);
 	if (options.reportLoadErrors !== false) {
-		new Notice(message);
-		log.logError(message);
+		log.logError(error);
 	}
 
-	throw new UserScriptLoadError(message);
+	throw error;
 }
 
 function savedWebpageMessage(path: string): string {

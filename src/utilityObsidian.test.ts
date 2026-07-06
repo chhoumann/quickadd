@@ -274,10 +274,6 @@ describe("getUserScript", () => {
 	});
 
 	it("explains when a .js file is a saved webpage instead of raw JavaScript", async () => {
-		const noticeStub = Notice as unknown as {
-			instances: Array<{ message: string }>;
-		};
-		const before = noticeStub.instances.length;
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const app = createUserScriptApp(
 			[
@@ -292,11 +288,10 @@ describe("getUserScript", () => {
 			"saved webpage",
 		);
 
-		const added = noticeStub.instances.slice(before);
-		expect(added).toHaveLength(1);
-		expect(added[0].message).toContain("use the Raw button");
-		expect(added[0].message).toContain("download the .js file");
-		expect(logError).toHaveBeenCalledWith(added[0].message);
+		expect(logError).toHaveBeenCalledTimes(1);
+		const reported = logError.mock.calls[0][0] as Error;
+		expect(reported.message).toContain("use the Raw button");
+		expect(reported.message).toContain("download the .js file");
 		logError.mockRestore();
 	});
 
@@ -317,10 +312,6 @@ describe("getUserScript", () => {
 	});
 
 	it("explains when an explicit default export is not runnable", async () => {
-		const noticeStub = Notice as unknown as {
-			instances: Array<{ message: string }>;
-		};
-		const before = noticeStub.instances.length;
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const app = createUserScriptApp(
 			[
@@ -336,11 +327,10 @@ describe("getUserScript", () => {
 			"default export is not a function",
 		);
 
-		const added = noticeStub.instances.slice(before);
-		expect(added).toHaveLength(1);
-		expect(added[0].message).toContain("module.exports = async");
-		expect(added[0].message).toContain("exports.default = async");
-		expect(logError).toHaveBeenCalledWith(added[0].message);
+		expect(logError).toHaveBeenCalledTimes(1);
+		const reported = logError.mock.calls[0][0] as Error;
+		expect(reported.message).toContain("module.exports = async");
+		expect(reported.message).toContain("exports.default = async");
 		logError.mockRestore();
 	});
 
@@ -348,10 +338,6 @@ describe("getUserScript", () => {
 		const previousRequire = (window as unknown as {
 			require?: (moduleName: string) => unknown;
 		}).require;
-		const noticeStub = Notice as unknown as {
-			instances: Array<{ message: string }>;
-		};
-		const before = noticeStub.instances.length;
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const missingModule = new Error("Cannot find module './Helper.js'");
 		(missingModule as Error & { code: string }).code = "MODULE_NOT_FOUND";
@@ -371,11 +357,10 @@ describe("getUserScript", () => {
 				getUserScript(createUserScriptCommand(), app),
 			).rejects.toThrow("could not find the required module");
 
-			const added = noticeStub.instances.slice(before);
-			expect(added).toHaveLength(1);
-			expect(added[0].message).toContain("./Helper.js");
-			expect(added[0].message).toContain("capitalization");
-			expect(logError).toHaveBeenCalledWith(added[0].message);
+			expect(logError).toHaveBeenCalledTimes(1);
+			const reported = logError.mock.calls[0][0] as Error;
+			expect(reported.message).toContain("./Helper.js");
+			expect(reported.message).toContain("capitalization");
 		} finally {
 			(window as unknown as { require?: (moduleName: string) => unknown }).require =
 				previousRequire;
