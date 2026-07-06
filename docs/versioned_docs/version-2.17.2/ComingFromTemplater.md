@@ -29,16 +29,16 @@ The left column names the job; the middle names the Templater expression you may
 | --- | --- | --- |
 | Insert the note's title | `tp.file.title` | [`{{TITLE}}`](./FormatSyntax.md#title) |
 | Today's date, any format | `tp.date.now` | [`{{DATE:YYYY-MM-DD}}`](./FormatSyntax.md#date-format), offsets like `{{DATE+7}}` |
-| Ask for a date in plain language | `tp.system.prompt` + a date parser | [`{{VDATE:due,YYYY-MM-DD}}`](./FormatSyntax.md#vdate) - natural language built in |
+| Ask for a date in plain language | `tp.system.prompt` | [`{{VDATE:due,YYYY-MM-DD}}`](./FormatSyntax.md#vdate) - natural language built in |
 | Prompt for text | `tp.system.prompt` | [`{{VALUE:name}}`](./FormatSyntax.md#named-value) |
 | Pick from a list | `tp.system.suggester` | [`{{VALUE:Option A,Option B}}`](./FormatSyntax.md#named-value), [`{{FIELD:...}}`](./FormatSyntax.md#field), [`{{FILE:...}}`](./FormatSyntax.md#file) |
 | Include one template in another | `tp.file.include` | [`{{TEMPLATE:Templates/Partial.md}}`](./FormatSyntax.md#template) |
 | Apply a template to an existing note | manual workarounds | [Apply template to active note](./ApplyTemplateToNote.md) |
 | Insert the clipboard | `tp.system.clipboard` | [`{{CLIPBOARD}}`](./FormatSyntax.md#clipboard) |
 | Insert the selected text | `tp.selection` | [`{{selected}}`](./FormatSyntax.md#selected) |
-| Reuse a property from the note you're in | `tp.frontmatter` | [`{{FIELD:project\|default-from:active}}`](./FormatSyntax.md#field-default-from-active) |
-| Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](./FormatSyntax.md#linkcurrent), [`{{FILENAMECURRENT}}`](./FormatSyntax.md#filenamecurrent), [`{{LINKSECTION}}`](./FormatSyntax.md#linksection) |
-| Run JavaScript | `tp.user` scripts, `<%* ... %>` | [Inline scripts](./InlineScripts.md), [user scripts in macros](./Choices/MacroChoice.md), [`{{MACRO:...}}`](./FormatSyntax.md#macro) |
+| Reuse a property from the note you're in | `tp.frontmatter` | [`{{FIELD:project\|default-from:active}}`](./FormatSyntax.md#field-default-from-active); to re-render a value you prompted for, just [repeat `{{VALUE:name}}`](#prompt-once-reuse-everywhere) |
+| Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](./FormatSyntax.md#linkcurrent) (wiki-link), [`{{FILENAMECURRENT}}`](./FormatSyntax.md#filenamecurrent) (raw name, for embeds like `![[{{FILENAMECURRENT}}#Heading]]`), [`{{LINKSECTION}}`](./FormatSyntax.md#linksection) (link to the heading you're in) |
+| Run JavaScript | `tp.user` | [Inline scripts](./InlineScripts.md), [user scripts in macros](./Choices/MacroChoice.md), [`{{MACRO:...}}`](./FormatSyntax.md#macro) |
 | Folder templates | folder templates | No automatic equivalent - see [Templates chosen by folder](#templates-chosen-by-folder) |
 | Cursor marker in a template | `tp.file.cursor` | No direct equivalent - see [Where the cursor lands](#where-the-cursor-lands) |
 
@@ -69,7 +69,7 @@ You are asked for `topic` once; the answer becomes the file name and fills the b
 Keep one template file and use it both ways - no parallel template sets:
 
 - **New notes**: point a Template choice at it, or include it inside a bigger template with [`{{TEMPLATE:Templates/Partial.md}}`](./FormatSyntax.md#template).
-- **Existing notes**: run **QuickAdd: Apply template to active note** (also in a file's right-click menu). You pick the template and where it goes - cursor, top, bottom, or replace - and the template's frontmatter is merged into the note's existing frontmatter, with the note's own values winning. See [Apply Template to Note](./ApplyTemplateToNote.md).
+- **Existing notes**: run **QuickAdd: Apply template to active note** (also in a file's right-click menu). You pick the template and where it goes - cursor, top, bottom, or replace. For the insert modes, the template's frontmatter is merged into the note's existing frontmatter, with the note's own values winning (replace overwrites the whole note, frontmatter included). See [Apply Template to Note](./ApplyTemplateToNote.md).
 
 A [Capture choice](./Choices/CaptureChoice.md) whose format is `{{TEMPLATE:Templates/Partial.md}}` also inserts that shared content into a target note. Prefer it for body-only snippets: a capture inserts the template text as-is, so a template that starts with its own `---` frontmatter block ends up as a literal second block instead of being merged. When the shared content carries frontmatter, use **Apply template to active note**.
 
@@ -80,8 +80,9 @@ Appending to today's note is a Capture choice with a date-formatted target path 
 - **Capture to**: `Daily/{{DATE}}.md`
 - **Create file if it doesn't exist**, with your daily template
 - **Insert after**: `## Log`, with **Create line if not found**
+- **Capture format**: `- {{VALUE}}`
 
-Running it with input `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. See [Capture choices](./Choices/CaptureChoice.md) for every target and position option.
+Running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. See [Capture choices](./Choices/CaptureChoice.md) for every target and position option.
 
 ## Templates chosen by folder
 
@@ -89,7 +90,7 @@ QuickAdd does not watch folders: nothing runs automatically when a note appears 
 
 - **One Template choice per destination.** Set **New note location** to **In a specific folder** and name the choice after the destination ("New person", "New project"). Each gets its own command and can get its own hotkey.
 - **One choice, several folders.** List multiple folders on the choice (optionally **Include subfolders**) and QuickAdd asks which one at run time.
-- **Dynamic paths.** Both the template path and the folder path accept [format syntax](./FormatSyntax.md): a template path of `Templates/{{VALUE:Person,Project,Meeting}} Template.md` picks the template from one prompt, and a folder path of `Projects/{{VALUE:client}}` files the note by answer.
+- **Dynamic paths.** Both the template path and the folder path accept [format syntax](./FormatSyntax.md), and one named value can drive both. A choice with template path `Templates/{{VALUE:kind}}.md` and folder path `{{VALUE:kind}}s` asks for `kind` once - answering `Person` creates the note from `Templates/Person.md` in the `Persons` folder, keeping the whole folder-to-template mapping in a single choice.
 - **No setup at all**: the **New note from template** command picks any template from your template folder and creates the note in Obsidian's default location.
 
 ## Dates without another plugin
@@ -122,9 +123,9 @@ To gather every prompt on a single form up front instead of one dialog at a time
 
 ## Where the cursor lands
 
-QuickAdd has no in-template cursor marker - you can't mark an arbitrary spot in a template and land there. What you can control:
+QuickAdd has no in-template cursor marker of its own - you can't mark an arbitrary spot in a template and land there. What you can control:
 
-- **Captures follow the insertion.** With **Capture to active file**, the cursor ends up right after the inserted text; with **Open** enabled on other targets, QuickAdd opens the note and places the cursor at the end of what it captured.
+- **Captures follow the insertion.** With **Capture to active file**, the cursor ends up right after the inserted text; with **Open** enabled on other targets, QuickAdd opens the note and places the cursor immediately after the inserted text.
 - **Apply template to active note** offers an **Insert at cursor** mode, so content lands where you already are.
 - **After creating a note**, a Template choice with **Open** leaves the cursor at the top of the note body. To end at the bottom instead, wrap the Template choice in a [Macro choice](./Choices/MacroChoice.md) and add the **Move cursor to file end** editor command as the next step (file start and line start/end variants exist too).
 
@@ -143,4 +144,4 @@ These are the classic symptoms of splitting one template between two engines - e
 
 - **You get prompted twice.** QuickAdd resolves all of its prompts before the file is created. If another engine prompts in the same template, you answer twice - once per engine. Let QuickAdd own the prompt with `{{VALUE:name}}` and reuse the answer everywhere it's needed.
 - **Template syntax shows up unrendered.** QuickAdd renders QuickAdd tokens; another engine's syntax is only rendered by that engine. If it isn't installed or doesn't run on the file, its markup stays behind as literal text. Port the line to the matching token from [the map](#the-quick-map).
-- **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line in the template that created the note.
+- **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line to a QuickAdd token and let QuickAdd create the note so the token renders - a Capture with **Create file if it doesn't exist** plus that template does both (see [Today's daily note](#todays-daily-note)).

@@ -544,7 +544,7 @@ If the capture format is long, put the full format in a template file and use a 
 {{TEMPLATE:Templates/Capture Format.md}}
 ```
 
-QuickAdd replaces the token with the template file contents, then processes the result through the normal capture formatter. The referenced file can contain the same format syntax you would otherwise type inline, such as `{{VALUE}}`, `{{DATE}}`, `{{MACRO:...}}`, inline scripts, and additional `{{TEMPLATE:...}}` includes. Include the file extension in the token; template includes support `.md`, `.canvas`, and `.base` files.
+QuickAdd replaces the token with the template file contents, then processes the result through the normal capture formatter. The referenced file can contain the same format syntax you would otherwise type inline, such as `{{VALUE}}`, `{{DATE}}`, `{{MACRO:...}}`, inline scripts, and additional `{{TEMPLATE:...}}` includes. Include the file extension in the token; template includes support `.md`, `.canvas`, and `.base` files. Note that a capture inserts the included content as-is: if the referenced template starts with its own `---` frontmatter block and the target note already has one, the capture adds a literal second block rather than merging properties - use [Apply Template to Note](../ApplyTemplateToNote.md) when frontmatter should merge.
 
 One-page input preflight and `quickadd:check` scan the referenced template files too, so prompts inside a file-backed capture format appear up front like inline capture format prompts.
 
