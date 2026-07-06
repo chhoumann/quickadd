@@ -22,7 +22,7 @@ Before you automate a choice:
 3. Keep prompts out of scheduled jobs where possible. Scheduled jobs work best
    when every required value is passed up front.
 
-You can list choices from the CLI to confirm names and IDs:
+Using the Obsidian CLI, you can list choices to confirm names and IDs:
 
 ```bash
 obsidian vault="My Vault" quickadd:list
@@ -58,7 +58,8 @@ example `{{VALUE:entry|trim}}`.
 Unnamed values such as bare `{{VALUE}}`, `{{NAME}}`, and `{{MVALUE}}` cannot be
 filled by URI parameters. QuickAdd prompts for them inside Obsidian as usual.
 
-For callback URLs such as `x-success` and `x-error`, see
+For the full URI reference, including callback URLs such as `x-success` and
+`x-error`, see
 [Open QuickAdd from a URI](./ObsidianUri.md). Callback support is opt-in and has
 extra restrictions that ordinary triggers do not need.
 
@@ -97,13 +98,21 @@ Use `xdg-open` from a desktop session:
 xdg-open 'obsidian://quickadd?vault=My%20Vault&choice=Daily%20log'
 ```
 
-For a `.desktop` launcher, put the command in a small shell script and point the
-launcher at that script. This avoids desktop-file escaping problems with the
-percent signs in URL-encoded values.
+For a `.desktop` launcher, put the command in a small shell script and point
+`Exec` at that script. This avoids desktop-file escaping problems with the
+percent signs in URL-encoded values:
 
 ```sh
 #!/usr/bin/env sh
 xdg-open 'obsidian://quickadd?vault=My%20Vault&choice=Daily%20log'
+```
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=Daily log
+Exec=/home/alice/bin/quickadd-daily-log
+Terminal=false
 ```
 
 ## Run QuickAdd on a schedule
@@ -120,7 +129,7 @@ obsidian vault="My Vault" quickadd:run choice="Daily log" value-entry="Scheduled
 By default, `quickadd:run` is non-interactive. If the choice is missing required
 inputs, QuickAdd returns JSON with `missingFlags` instead of opening prompts.
 Run `quickadd:check` while building the automation to see what still needs to be
-passed:
+passed. See [QuickAdd CLI](./CLI.md) for the full command reference.
 
 ```bash
 obsidian vault="My Vault" quickadd:check choice="Daily log"
@@ -203,9 +212,9 @@ Plain Markdown links work well for dashboard notes:
 
 Clicking the link runs the choice.
 
-If you want a styled button, configure the button tool to open the same
+If you use a button plugin for styling, configure it to open the same
 `obsidian://quickadd` URI. Another QuickAdd-native option is to enable the
-command toggle on the choice, then have the button tool run the generated
+command toggle on the choice, then configure the button to run the generated
 Obsidian command for that choice.
 
 ## Troubleshooting
@@ -214,8 +223,9 @@ Obsidian command for that choice.
   the choice name is encoded and spelled exactly.
 - The wrong choice runs: rename choices so the externally triggered choice name
   is unique.
-- A schedule returns missing input JSON: copy the returned `missingFlags` into
-  the scheduled command and replace `<value>` with the value you want to pass.
+- A schedule returns missing input JSON: check the `missing` list, then copy the
+  returned `missingFlags` into the scheduled command and replace `<value>` with
+  the value you want to pass.
 - The command works in a terminal but not from a scheduler: use the full path to
   the Obsidian CLI and make sure the job runs in your user desktop session.
 - An older thread suggests `obsidian://advanced-uri?...`: replace it with

@@ -201,13 +201,13 @@ const sidebars = {
 				},
 				{
 					type: "doc",
-					id: "Advanced/TriggerQuickAddFromOutsideObsidian",
-					label: "Trigger QuickAdd Externally",
+					id: "Advanced/CLI",
+					label: "QuickAdd CLI",
 				},
 				{
 					type: "doc",
-					id: "Advanced/CLI",
-					label: "QuickAdd CLI",
+					id: "Advanced/TriggerQuickAddFromOutsideObsidian",
+					label: "Trigger QuickAdd from outside Obsidian",
 				},
 			],
 		},
