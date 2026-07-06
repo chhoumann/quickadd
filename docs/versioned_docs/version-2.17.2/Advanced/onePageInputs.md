@@ -1,21 +1,19 @@
 ---
 sidebar_position: 50
 title: One-page Inputs
-description: Collect all QuickAdd inputs in a single dynamic form (Beta)
+description: Collect all QuickAdd inputs in a single dynamic form
 ---
 
 # One-page Inputs
 
 QuickAdd can collect all inputs in a single, dynamic form before running your choice.
-This feature is currently in Beta.
 
 ## Enable
 - Settings → QuickAdd → toggle “One-page input for choices”.
-- Works with Template and Capture choices. Macros get partial support (see User Scripts below).
- - Note: Beta – please report issues and edge cases.
+- Works with Template, Capture, and Macro choices. For Macros, only script-declared inputs are collected (see User Scripts below).
 
 ## Per-choice override
-Each choice builder has a **One-page input override** dropdown that lets you override the global setting for that choice:
+Template and Capture choice builders have a **One-page input override** dropdown that lets you override the global setting for that choice:
 - **Follow global setting** – use whatever the global toggle is set to (default).
 - **Always** – force the one-page modal for this choice even if disabled globally.
 - **Never** – disable the one-page modal for this choice even if enabled globally.
@@ -52,7 +50,8 @@ Each choice builder has a **One-page input override** dropdown that lets you ove
 Note: For **required** date fields with a default, leaving the input blank will apply the default automatically at submit time. A **required** date field left blank without a usable default is re-asked by the sequential date prompt after submit. Optional date fields left blank stay empty.
 
 ### Cancel behavior
-- If you press Cancel in the one-page modal, the preflight is aborted and the choice proceeds with the standard step-by-step prompts at runtime.
+- Cancelling the one-page modal (Cancel button or Esc) cancels the whole run. QuickAdd does not fall back to the step-by-step prompts.
+- If the form fails to open for another reason (for example, a requirement could not be collected), QuickAdd logs a warning and the choice runs with the standard step-by-step prompts instead.
 
 ### Internals and reserved variables
 - QuickAdd uses reserved variable ids prefixed with `__qa.` for internal wiring during preflight/runtime.
@@ -204,4 +203,4 @@ Behavior:
 - Preflight may import user script modules to statically read `quickadd.inputs`. This can execute module top-level code.
 - Inline scripts aren’t scanned for input declarations yet.
 - If needed, you can still prompt ad-hoc (e.g., using inputPrompt or suggester) and those values will skip future one-page prompts due to being prefilled.
-- Closing the modal without submitting triggers `MacroAbortError("Input cancelled by user")`, which stops the macro unless you catch it.
+- Closing the `requestInputs` modal without submitting rejects with `MacroAbortError("Input cancelled by user")`, which stops the macro unless you catch it.
