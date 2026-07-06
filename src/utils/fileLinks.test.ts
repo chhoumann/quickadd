@@ -408,3 +408,63 @@ describe("file link helpers", () => {
 		).rejects.toThrow("Append link target file not found");
 	});
 });
+
+describe("prepareLinkAlias whitespace handling (via buildFileLinkText)", () => {
+	function createWikiApp(): App {
+		return {
+			fileManager: {
+				generateMarkdownLink: vi.fn(
+					(
+						file: TFile,
+						_sourcePath: string,
+						_subpath?: string,
+						alias?: string,
+					) =>
+						alias === undefined
+							? `[[${file.basename}]]`
+							: `[[${file.basename}|${alias}]]`,
+				),
+			},
+			metadataCache: { fileToLinktext: vi.fn(() => "Created Note") },
+			vault: { getConfig: vi.fn(() => false) },
+		} as unknown as App;
+	}
+
+	function aliasFor(raw: string): string {
+		const app = createWikiApp();
+		const file = {
+			basename: "Created Note",
+			path: "Projects/Created Note.md",
+		} as TFile;
+		return buildFileLinkText(app, file, {
+			sourcePath: "Daily.md",
+			linkType: "link",
+			alias: raw,
+		});
+	}
+
+	it("collapses CRLF/CR/LF runs with surrounding spaces to one space", () => {
+		expect(aliasFor("a  \r\n\t b")).toBe("[[Created Note|a b]]");
+		expect(aliasFor("a\rb\nc")).toBe("[[Created Note|a b c]]");
+	});
+
+	it("keeps interior horizontal whitespace runs intact", () => {
+		expect(aliasFor("a  \t  b")).toBe("[[Created Note|a  \t  b]]");
+	});
+
+	it(
+		"handles a long newline-free horizontal-whitespace run in linear time",
+		() => {
+			// Opener-flood ReDoS shape (#1444/#1455/#1462): a long run of spaces
+			// with no newline must not backtrack quadratically.
+			const input = `a${" ".repeat(200_000)}b`;
+			const start = performance.now();
+			const result = aliasFor(input);
+			const elapsed = performance.now() - start;
+
+			expect(result).toBe(`[[Created Note|${input}]]`);
+			expect(elapsed).toBeLessThan(1_000);
+		},
+		20_000,
+	);
+});

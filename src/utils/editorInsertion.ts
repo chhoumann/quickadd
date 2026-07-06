@@ -219,6 +219,7 @@ export async function insertLinkWithPlacement(
 	//////////////////////////////////////////////////////////////////
 	if (
 		textForSelection &&
+		selections.length > 0 &&
 		(mode === "replaceSelection" || mode === "afterSelection")
 	) {
 		insertPerSelection(editor, selections, mode, textForSelection);
@@ -314,7 +315,10 @@ export async function insertFileLinkToActiveView(
 
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view || !view.file) {
-		if (normalized.requireActiveFile) {
+		// Read the guard from the RAW options: normalization defaults a missing
+		// requireActiveFile to true, which would turn a raw caller's previous
+		// silent skip into a throw.
+		if (linkOptions.requireActiveFile) {
 			throw new Error("Cannot append link because no active Markdown view is available.");
 		}
 		return false;

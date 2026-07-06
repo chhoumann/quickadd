@@ -105,13 +105,14 @@ function nextOptions(overrides: Partial<AppendLinkOptions>): AppendLinkOptions {
 	// Forced back to "none" when the conditions no longer hold — intentionally
 	// as lossy as the linkType reset above (switching placement away and back
 	// discards the stored preference).
+	// Falls back to the NORMALIZED value (not the raw stored one) so a
+	// malformed/unknown stored displayText is not written back on unrelated
+	// dropdown changes — the UI persists what it displays.
 	const displayText =
 		destination.type === "activeFile" &&
 		placementSupportsSelectionAlias(placement) &&
 		linkType === "link"
-			? overrides.displayText ??
-				currentOptions.displayText ??
-				normalizedDisplayText
+			? overrides.displayText ?? normalizedDisplayText
 			: "none";
 
 	return {

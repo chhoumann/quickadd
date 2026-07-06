@@ -527,3 +527,46 @@ describe("insertFileLinkToActiveView displayText", () => {
 		expect(harness.editor.transaction).not.toHaveBeenCalled();
 	});
 });
+
+describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
+	it("skips silently when a partial options object omits requireActiveFile and no view is active", async () => {
+		const app = {
+			workspace: { getActiveViewOfType: vi.fn(() => null) },
+		} as unknown as App;
+
+		// No "placement" key: normalization would treat this as a legacy value
+		// and default requireActiveFile to true. The guard must keep reading the
+		// raw value so this stays a silent skip, as before the displayText work.
+		await expect(
+			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+				enabled: true,
+			} as never),
+		).resolves.toBe(false);
+	});
+
+	it("still throws for strict callers when no view is active", async () => {
+		const app = {
+			workspace: { getActiveViewOfType: vi.fn(() => null) },
+		} as unknown as App;
+
+		await expect(
+			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+			}),
+		).rejects.toThrow(/no active Markdown view/);
+	});
+
+	it("falls back to the plain replaceSelection insert when there are no selections", async () => {
+		const harness = createSelectionEditor("doc", []);
+		const app = createSelectionApp(harness);
+
+		await insertLinkWithPlacement(app, "[[X]]", "replaceSelection", {
+			textForSelection: () => "[[never]]",
+		});
+
+		expect(harness.editor.replaceSelection).toHaveBeenCalledWith("[[X]]");
+		expect(harness.editor.transaction).not.toHaveBeenCalled();
+	});
+});
