@@ -18,6 +18,10 @@ class UserScriptLoadError extends Error {
 	}
 }
 
+export function isUserScriptLoadError(error: unknown): error is Error {
+	return error instanceof UserScriptLoadError;
+}
+
 function stripByteOrderMark(value: string): string {
 	return value.charCodeAt(0) === 0xfeff ? value.slice(1) : value;
 }
@@ -190,13 +194,6 @@ export async function getUserScript(
 
 			fn(req, mod, exp);
 		} catch (error) {
-			if (looksLikeHtmlPayload(scriptSource)) {
-				reportAndThrowUserScriptLoadError(
-					savedWebpageMessage(command.path),
-					options,
-				);
-			}
-
 			if (isMissingModuleError(error)) {
 				reportAndThrowUserScriptLoadError(
 					missingModuleMessage(
