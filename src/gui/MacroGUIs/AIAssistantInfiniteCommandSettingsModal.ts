@@ -5,14 +5,9 @@ import { getQuickAddInstance } from "src/quickAddInstance";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
-import {
-	DEFAULT_FREQUENCY_PENALTY,
-	DEFAULT_PRESENCE_PENALTY,
-	DEFAULT_TEMPERATURE,
-	DEFAULT_TOP_P,
-} from "src/ai/OpenAIModelParameters";
 import { estimateTokenCount } from "src/ai/tokenEstimator";
 import { getMaxChunkTokensUpperBound, getModelNames } from "src/ai/aiHelpers";
+import { addSamplingParamSettings } from "./samplingParamSettings";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IInfiniteAIAssistantCommand>;
@@ -90,10 +85,12 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		if (this.showAdvancedSettings) {
 			if (!this.settings.modelParameters)
 				this.settings.modelParameters = {};
-			this.addTemperatureSetting(this.contentEl);
-			this.addTopPSetting(this.contentEl);
-			this.addFrequencyPenaltySetting(this.contentEl);
-			this.addPresencePenaltySetting(this.contentEl);
+			addSamplingParamSettings(
+				this.contentEl,
+				this.settings.modelParameters,
+				this.settings.model,
+				() => this.reload()
+			);
 		}
 
 		this.addSystemPromptSetting(this.contentEl);
@@ -212,84 +209,13 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		new Setting(container)
 			.setName("Show advanced settings")
 			.setDesc(
-				"Show advanced settings such as temperature, top p, and frequency penalty."
+				"Sampling settings such as temperature and top p. Untouched settings use the provider's defaults."
 			)
 			.addToggle((toggle) => {
 				toggle.setValue(this.showAdvancedSettings);
 				toggle.onChange((value) => {
 					this.showAdvancedSettings = value;
 					this.reload();
-				});
-			});
-	}
-
-	addTemperatureSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Temperature")
-			.setDesc(
-				"Sampling temperature. Higher values like 0.8 makes the output more random, whereas lower values like 0.2 will make it more focused and deterministic. The default is 1."
-			)
-			.addSlider((slider) => {
-				slider.setLimits(0, 1, 0.1);
-				slider.setValue(
-					this.settings.modelParameters.temperature ??
-						DEFAULT_TEMPERATURE
-				);
-				slider.onChange((value) => {
-					this.settings.modelParameters.temperature = value;
-				});
-			});
-	}
-
-	addTopPSetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Top P")
-			.setDesc(
-				"Nucleus sampling - consider this an alternative to temperature. The model considers the results of the tokens with top_p probability mass. 0.1 means only tokens compromising the top 10% probability mass are considered. The default is 1."
-			)
-			.addSlider((slider) => {
-				slider.setLimits(0, 1, 0.1);
-				slider.setValue(
-					this.settings.modelParameters.top_p ?? DEFAULT_TOP_P
-				);
-				slider.onChange((value) => {
-					this.settings.modelParameters.top_p = value;
-				});
-			});
-	}
-
-	addFrequencyPenaltySetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Frequency Penalty")
-			.setDesc(
-				"Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim. The default is 0."
-			)
-			.addSlider((slider) => {
-				slider.setLimits(0, 2, 0.1);
-				slider.setValue(
-					this.settings.modelParameters.frequency_penalty ??
-						DEFAULT_FREQUENCY_PENALTY
-				);
-				slider.onChange((value) => {
-					this.settings.modelParameters.frequency_penalty = value;
-				});
-			});
-	}
-
-	addPresencePenaltySetting(container: HTMLElement) {
-		new Setting(container)
-			.setName("Presence Penalty")
-			.setDesc(
-				"Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics. The default is 0."
-			)
-			.addSlider((slider) => {
-				slider.setLimits(0, 2, 0.1);
-				slider.setValue(
-					this.settings.modelParameters.presence_penalty ??
-						DEFAULT_PRESENCE_PENALTY
-				);
-				slider.onChange((value) => {
-					this.settings.modelParameters.presence_penalty = value;
 				});
 			});
 	}

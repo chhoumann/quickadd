@@ -3,7 +3,6 @@ import { CommandType } from "../CommandType";
 import type { IAIAssistantCommand } from "./IAIAssistantCommand";
 import { settingsStore } from "src/settingsStore";
 import type { OpenAIModelParameters } from "src/ai/OpenAIModelParameters";
-import { DEFAULT_FREQUENCY_PENALTY, DEFAULT_PRESENCE_PENALTY, DEFAULT_TEMPERATURE, DEFAULT_TOP_P } from "src/ai/OpenAIModelParameters";
 
 export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 	declare id: string;
@@ -28,11 +27,9 @@ export class AIAssistantCommand extends Command implements IAIAssistantCommand {
 		this.systemPrompt = defaults.defaultSystemPrompt;
 		this.outputVariableName = "output";
 		this.promptTemplate = { enable: false, name: "" };
-		this.modelParameters = {
-			temperature: DEFAULT_TEMPERATURE,
-			top_p: DEFAULT_TOP_P,
-			frequency_penalty: DEFAULT_FREQUENCY_PENALTY,
-			presence_penalty: DEFAULT_PRESENCE_PENALTY,
-		};
+		// Empty on purpose: only sampling parameters the user explicitly sets are
+		// ever sent. Baking in "defaults" (temperature 1 etc.) made every new
+		// command carry params that current frontier models reject with a 400.
+		this.modelParameters = {};
 	}
 }

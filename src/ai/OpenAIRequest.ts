@@ -1,6 +1,13 @@
 import type { App } from "obsidian";
-import { requestUrl } from "obsidian";
+import { Notice, requestUrl } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
+import {
+	applySamplingSupport,
+	describeSamplingParams,
+	isUnsupportedSamplingParamError,
+	sentSamplingParams,
+	stripSamplingParams,
+} from "./samplingParams";
 import { settingsStore } from "src/settingsStore";
 import {
 	beginAIRequestLogEntry,
@@ -199,13 +206,21 @@ async function makeOpenAIRequest(
 	);
 }
 
-// Conservative Anthropic output budget. The Messages API REQUIRES max_tokens and
-// REJECTS (400) any value above a model's OUTPUT cap — and model.maxTokens is the
-// *context window*, not the output cap. So default to 4096, which is at or below the
-// output limit of every current Claude model (incl. Claude 3 Haiku's 4096), matching
-// the long-standing pre-#714 default. Callers needing more pass maxOutputTokens
-// explicitly (honored uncapped). A dedicated per-model output field is a future refinement.
+// Anthropic output budget. The Messages API REQUIRES max_tokens and REJECTS (400)
+// any value above a model's OUTPUT cap — and model.maxTokens is the *context
+// window*, not the output cap. Prefer the model's real output cap when the model
+// list carries it (models.dev / provider sync metadata; full caps verified live
+// non-streaming). Without metadata, fall back to 4096 — at or below the output
+// limit of every Claude model, matching the long-standing pre-#714 default.
+// Callers needing more pass maxOutputTokens explicitly (honored uncapped).
 export function anthropicMaxTokens(model: Model): number {
+	if (
+		typeof model.maxOutputTokens === "number" &&
+		Number.isFinite(model.maxOutputTokens) &&
+		model.maxOutputTokens > 0
+	) {
+		return Math.floor(model.maxOutputTokens);
+	}
 	const ceiling = 4096;
 	return Number.isFinite(model.maxTokens) && model.maxTokens > 0
 		? Math.min(ceiling, model.maxTokens)
@@ -230,6 +245,16 @@ async function makeAnthropicRequest(
 	// inside `messages`). Previously dropped entirely — this is a real behaviour fix.
 	if (systemPrompt && systemPrompt.trim().length > 0) {
 		body.system = systemPrompt;
+	}
+	// Forward the user's sampling settings — previously ignored here, so a
+	// configured Temperature silently did nothing on Claude models that accept
+	// one. Only the params the Messages API knows; the OpenAI-specific penalty
+	// params would be rejected as unknown fields.
+	if (typeof modelParams.temperature === "number") {
+		body.temperature = modelParams.temperature;
+	}
+	if (typeof modelParams.top_p === "number") {
+		body.top_p = modelParams.top_p;
 	}
 
 	return dispatchProviderRequest<AnthropicResponse>(
@@ -376,46 +401,92 @@ export function OpenAIRequest(
 		try {
 			const restoreCursor = preventCursorChange(app);
 
-			let response: CommonResponse;
 			// Route on the provider KIND (not the display name) so a custom-named
 			// Anthropic/Gemini provider — e.g. { name: "Claude Proxy", kind: "anthropic" } —
 			// gets the right wire shape here too, matching the ai.agent chat path.
 			// getProviderKind falls back to name inference, so the built-in
 			// "Anthropic"/"Gemini" providers are unchanged.
 			const providerKind = getProviderKind(modelProvider);
-			if (providerKind === "anthropic") {
-				const anthropicResponse = await makeAnthropicRequest(
-					apiKey,
-					model,
-					modelProvider,
-					systemPrompt,
-					modelParams,
-					prompt,
-					restoreCursor
+			const attempt = async (
+				params: Partial<OpenAIModelParameters>
+			): Promise<CommonResponse> => {
+				if (providerKind === "anthropic") {
+					return mapAnthropicResponseToCommon(
+						await makeAnthropicRequest(
+							apiKey,
+							model,
+							modelProvider,
+							systemPrompt,
+							params,
+							prompt,
+							restoreCursor
+						)
+					);
+				}
+				if (providerKind === "gemini") {
+					return mapGeminiResponseToCommon(
+						await makeGeminiRequest(
+							apiKey,
+							model,
+							modelProvider,
+							systemPrompt,
+							params,
+							prompt,
+							restoreCursor
+						)
+					);
+				}
+				return mapOpenAIResponseToCommon(
+					await makeOpenAIRequest(
+						apiKey,
+						model,
+						modelProvider,
+						systemPrompt,
+						params,
+						prompt,
+						restoreCursor
+					)
 				);
-				response = mapAnthropicResponseToCommon(anthropicResponse);
-			} else if (providerKind === "gemini") {
-				const geminiResponse = await makeGeminiRequest(
-					apiKey,
-					model,
-					modelProvider,
-					systemPrompt,
-					modelParams,
-					prompt,
-					restoreCursor
+			};
+
+			// Proactive: models whose metadata marks sampling as unsupported never
+			// get the params. Reactive: when a provider rejects a sampling param we
+			// DID send, retry once without them and say so — a settings slider must
+			// never be a hard failure on a current model.
+			const initialParams = applySamplingSupport(model, modelParams);
+			const sentKeys = sentSamplingParams(initialParams);
+			if (
+				sentKeys.length === 0 &&
+				sentSamplingParams(modelParams).length > 0
+			) {
+				log.logMessage(
+					`[AI Request ${requestLogId}] ${model.name} uses fixed sampling; not sending ${describeSamplingParams(sentSamplingParams(modelParams))}.`
 				);
-				response = mapGeminiResponseToCommon(geminiResponse);
-			} else {
-				const openaiResponse = await makeOpenAIRequest(
-					apiKey,
-					model,
-					modelProvider,
-					systemPrompt,
-					modelParams,
-					prompt,
-					restoreCursor
+			}
+
+			let response: CommonResponse;
+			try {
+				response = await attempt(initialParams);
+			} catch (error) {
+				const errorText =
+					(error as { message?: string }).message ?? String(error);
+				if (!isUnsupportedSamplingParamError(errorText, sentKeys)) {
+					throw error;
+				}
+				const labels = describeSamplingParams(sentKeys);
+				log.logMessage(
+					`[AI Request ${requestLogId}] ${modelProvider.name} rejected ${labels}; retrying without sampling parameters.`
 				);
-				response = mapOpenAIResponseToCommon(openaiResponse);
+				new Notice(
+					`${model.name} doesn't accept the ${labels} setting${
+						sentKeys.length > 1 ? "s" : ""
+					}, so QuickAdd retried without ${
+						sentKeys.length > 1 ? "them" : "it"
+					}. You can remove ${
+						sentKeys.length > 1 ? "them" : "it"
+					} from this command's advanced settings.`
+				);
+				response = await attempt(stripSamplingParams(initialParams));
 			}
 
 			const durationMs = Date.now() - requestStart;
@@ -538,7 +609,21 @@ export async function chatRequest(
 		throw new Error(`Model ${model.name} not found with any provider.`);
 	}
 	const kind = getProviderKind(modelProvider);
-	const body = buildChatBody(kind, model.name, request, anthropicMaxTokens(model));
+	// Same sampling safety as the single-prompt path: drop params the model's
+	// metadata marks unsupported, and keep the sent set for the reactive retry.
+	const effectiveRequest: NormalizedChatRequest = {
+		...request,
+		modelParams: applySamplingSupport(model, request.modelParams ?? {}),
+	};
+	const samplingKeysSent = sentSamplingParams(
+		effectiveRequest.modelParams ?? {},
+	);
+	const body = buildChatBody(
+		kind,
+		model.name,
+		effectiveRequest,
+		anthropicMaxTokens(model),
+	);
 
 	// Compact log summary — never dump the whole transcript / tool data into the log.
 	const systemMsg = request.messages.find((m) => m.role === "system");
@@ -557,14 +642,55 @@ export async function chatRequest(
 	});
 
 	try {
-		const json = await dispatchChat(
-			kind,
-			apiKey,
-			modelProvider,
-			model,
-			body,
-			afterRequestCallback,
-		);
+		let json: Record<string, unknown>;
+		try {
+			json = await dispatchChat(
+				kind,
+				apiKey,
+				modelProvider,
+				model,
+				body,
+				afterRequestCallback,
+			);
+		} catch (error) {
+			// Same recovery as the single-prompt path: a rejected sampling param
+			// gets ONE retry without sampling params, plus an explanation.
+			const errorText =
+				(error as { message?: string }).message ?? String(error);
+			if (!isUnsupportedSamplingParamError(errorText, samplingKeysSent)) {
+				throw error;
+			}
+			const labels = describeSamplingParams(samplingKeysSent);
+			log.logMessage(
+				`[AI Chat ${requestLogId}] ${modelProvider.name} rejected ${labels}; retrying without sampling parameters.`,
+			);
+			new Notice(
+				`${model.name} doesn't accept the ${labels} setting${
+					samplingKeysSent.length > 1 ? "s" : ""
+				}, so QuickAdd retried without ${
+					samplingKeysSent.length > 1 ? "them" : "it"
+				}.`,
+			);
+			const strippedBody = buildChatBody(
+				kind,
+				model.name,
+				{
+					...effectiveRequest,
+					modelParams: stripSamplingParams(
+						effectiveRequest.modelParams ?? {},
+					),
+				},
+				anthropicMaxTokens(model),
+			);
+			json = await dispatchChat(
+				kind,
+				apiKey,
+				modelProvider,
+				model,
+				strippedBody,
+				afterRequestCallback,
+			);
+		}
 		const parsed = parseChatResponse(kind, json);
 		const durationMs = Date.now() - requestStart;
 		finishAIRequestLogEntry(requestLogId, {
