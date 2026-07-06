@@ -12,6 +12,9 @@ import {
 	FILENAMECURRENT_SYNTAX,
 	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
 	FILE_SYNTAX_SUGGEST_REGEX,
+	FOLDERCURRENT_SYNTAX,
+	FOLDERCURRENT_NAME_SYNTAX,
+	FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
 	FOLDER_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX,
@@ -48,6 +51,7 @@ enum FormatSyntaxToken {
 	LinkCurrent,
 	LinkSection,
 	FilenameCurrent,
+	FolderCurrent,
 	FolderTarget,
 	Macro,
 	Template,
@@ -165,6 +169,14 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			token: FormatSyntaxToken.FilenameCurrent,
 			suggestion: FILENAMECURRENT_SYNTAX
 		},
+		// Offered in the contextual set because it serves BOTH format bodies and
+		// the capture "Capture to" field (which constructs this suggester without
+		// suggestForFileNames) — the field the token was built for (#1480).
+		{
+			regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.FolderCurrent,
+			suggestion: FOLDERCURRENT_SYNTAX
+		},
 		{
 			regex: TITLE_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.Title,
@@ -203,6 +215,15 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
 			token: FormatSyntaxToken.FilenameCurrent,
 			suggestion: FILENAMECURRENT_SYNTAX,
+		},
+		// Same |name-only rationale as {{folder|name}} above: with a configured
+		// target folder, a full-path expansion in a Template file name nests under
+		// it ("Notes/Projects/Alpha/Note.md"); the leaf form avoids that footgun.
+		// The full {{foldercurrent}} remains available in the contextual set.
+		{
+			regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
+			token: FormatSyntaxToken.FolderCurrent,
+			suggestion: FOLDERCURRENT_NAME_SYNTAX,
 		},
 	];
 

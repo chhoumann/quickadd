@@ -13,6 +13,7 @@ import {
 	getCurrentFileLinkPreview,
 	getCurrentFileLinkToSectionPreview,
 	getCurrentFileNamePreview,
+	getCurrentFolderPathPreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
@@ -47,13 +48,15 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceClipboardInString(output);
 			output = await this.replaceDateVariableInString(output);
 			output = await this.replaceVariableInString(output);
-			// Links + {{filenamecurrent}} + {{folder}} in one pass so no token
-			// re-scans another's output (#1358). ({{title}} has never been resolved
-			// in this preview formatter — preserved by omitting it.)
+			// Links + {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one
+			// pass so no token re-scans another's output (#1358). ({{title}} has
+			// never been resolved in this preview formatter — preserved by omitting
+			// it.) The preview resolver never returns null, so no throw here.
 			output = this.replaceCurrentFileTokensInString(output, {
 				links: true,
 				fileName: true,
 				folder: true,
+				activeFolder: "content",
 			});
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);
@@ -110,6 +113,11 @@ export class FormatDisplayFormatter extends Formatter {
 	protected getCurrentFileName(): string | null {
 		if (!this.app) return "current_filename";
 		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
+	}
+
+	protected getCurrentFolderPath(): string | null {
+		if (!this.app) return "current_folder";
+		return getCurrentFolderPathPreview(this.app.workspace.getActiveFile());
 	}
 
 	protected suggestForValue(

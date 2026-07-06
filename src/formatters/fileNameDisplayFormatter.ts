@@ -10,6 +10,7 @@ import {
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
 	getCurrentFileNamePreview,
+	getCurrentFolderPathPreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
@@ -45,11 +46,13 @@ export class FileNameDisplayFormatter extends Formatter {
 			output = await this.replaceVariableInString(output);
 			output = await this.replaceFieldVarInString(output);
 			output = await this.replaceFileInString(output);
-			// {{filenamecurrent}} + {{folder}} in one pass so neither re-scans the
-			// other's output (#1358).
+			// {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one pass so no
+			// token re-scans another's output (#1358). The preview resolver below
+			// never returns null, so "path" mode cannot throw here.
 			output = this.replaceCurrentFileTokensInString(output, {
 				fileName: true,
 				folder: true,
+				activeFolder: "path",
 			});
 			output = this.replaceRandomInString(output);
 		} catch {
@@ -95,6 +98,11 @@ export class FileNameDisplayFormatter extends Formatter {
 	protected getCurrentFileName(): string | null {
 		if (!this.app) return "current_filename";
 		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
+	}
+
+	protected getCurrentFolderPath(): string | null {
+		if (!this.app) return "current_folder";
+		return getCurrentFolderPathPreview(this.app.workspace.getActiveFile());
 	}
 
 	protected suggestForValue(

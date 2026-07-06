@@ -107,6 +107,20 @@ export function getCurrentFileNamePreview(activeFile?: {basename: string} | null
 }
 
 /**
+ * Gets a {{foldercurrent}} preview: the active file's folder path. Obsidian's
+ * root TFolder has path "/", which the runtime resolver collapses to "" - the
+ * preview shows the same truthful empty string. Never null, so the preview
+ * pass can never hit the runtime's missing-active-file throw.
+ */
+export function getCurrentFolderPathPreview(
+	activeFile?: { parent?: { path: string } | null } | null,
+): string {
+	if (!activeFile) return "current_folder";
+	const parentPath = activeFile.parent?.path ?? "";
+	return parentPath === "/" ? "" : parentPath;
+}
+
+/**
  * Enhanced date format preview generator with comprehensive pattern support
  */
 export class DateFormatPreviewGenerator {
