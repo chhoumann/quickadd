@@ -119,7 +119,7 @@ That sharing spans [Macro choice](./Choices/MacroChoice.md) steps too. A classic
 
 You type the task name once. Scripts join the same pool: anything a script assigns to `params.variables.task` is what `{{VALUE:task}}` resolves to in later steps - see the [scripting guide](./Advanced/ScriptingGuide.md).
 
-To gather every prompt on a single form up front instead of one dialog at a time, enable [one-page input](./Advanced/onePageInputs.md).
+To gather every prompt on a single form up front instead of one dialog at a time, enable [one-page input](./Advanced/onePageInputs.md) - and see [Controlling Prompts](./ControllingPrompts.md) for everything about prompt order, labels, defaults, and skipping.
 
 ## Where the cursor lands
 
