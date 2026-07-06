@@ -86,6 +86,8 @@ of the value, and list properties receive a new list item.
 
 **Link type**. Shown for any **Current note** body placement — **Replace selection**, **After selection**, **End of line**, and **New line**. Choose whether QuickAdd inserts a **Link** (`[[Note]]`) or an **Embed** (`![[Note]]`). An embed transcludes the linked note's contents at the placement position, so for example **New line** + **Embed** drops `![[Note]]` on its own line. The inline placements (**After selection**, **End of line**) insert the embed inline on the same line. The **In frontmatter property** placement and the **Specified note** destination stay link-only.
 
+**Link display text**. Shown for the selection placements (**Replace selection**, **After selection**) with the **Link** type. Chooses what the inserted link displays. **Selected text** keeps the highlighted text as the link's display text: select `Meeting with Mark`, run a Template choice whose file name format is `20240101 {{selected}}`, and the selection becomes `[[20240101 Meeting with Mark|Meeting with Mark]]` instead of a bare `[[20240101 Meeting with Mark]]`. With nothing selected (or when the selection can't be represented safely inside a link), QuickAdd inserts the plain link instead. Multi-line selections are collapsed to a single line for the display text, and vaults using Markdown-style links get `[Meeting with Mark](20240101%20Meeting%20with%20Mark.md)`.
+
 For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
 
 **Copy link to clipboard**. Copies a link to the created file after the Template

@@ -237,6 +237,8 @@ The Capture builder is grouped into sections: **Location**, **Position**, **Link
 
     For any **Current note** body placement — **Replace selection**, **After selection**, **End of line**, and **New line** — an extra _Link type_ dropdown appears, letting you choose **Link** (`[[Note]]`) or **Embed** (`![[Note]]`). An embed transcludes the linked note's contents at the placement position (for example **New line** + **Embed** drops `![[Note]]` on its own line; the inline placements insert it on the same line). The **In frontmatter property** placement and the **Specified note** destination stay link-only.
 
+    For the selection placements (**Replace selection**, **After selection**) with the **Link** type, a _Link display text_ dropdown chooses what the inserted link displays. **Selected text** keeps the highlighted text as the link's display text — selecting `Meeting with Mark` and capturing to `20240101 Meeting with Mark` inserts `[[20240101 Meeting with Mark|Meeting with Mark]]`. With nothing selected (or when the selection can't be represented safely inside a link), QuickAdd inserts the plain link instead. Multi-line selections are collapsed to a single line for the display text, and vaults using Markdown-style links get `[Meeting with Mark](20240101%20Meeting%20with%20Mark.md)`.
+
     For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file after each successful capture. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
 
 -   _Copy link to clipboard_ copies a link to the captured file after the Capture
