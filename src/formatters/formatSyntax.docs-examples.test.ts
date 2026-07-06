@@ -32,6 +32,8 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"Notes from {{FILENAMECURRENT}}",
 	"Filed under {{FOLDER}}",
 	"{{FOLDER|name}} - {{VALUE:title}}",
+	"{{FOLDERCURRENT}}/Project Tasks.md",
+	"Tasks for {{FOLDERCURRENT|name}}",
 	"{{MACRO:Generate summary}}",
 	"{{MACRO:Choose project|label:Project}}",
 	"{{TEMPLATE:Templates/Meeting.md}}",
@@ -152,6 +154,9 @@ class DocsExampleFormatter extends Formatter {
 		output = this.replaceLinkToCurrentSectionInString(output);
 		output = await this.replaceCurrentFileNameInString(output);
 		output = this.replaceTargetFolderInString(output);
+		output = this.replaceCurrentFileTokensInString(output, {
+			activeFolder: "content",
+		});
 		output = this.replaceRandomInString(output);
 		output = this.replaceTitleInString(output);
 		return output;
@@ -180,6 +185,10 @@ class DocsExampleFormatter extends Formatter {
 
 	protected getCurrentFileName(): string {
 		return "Current Note";
+	}
+
+	protected getCurrentFolderPath(): string {
+		return "Projects/Alpha";
 	}
 
 	protected getVariableValue(variableName: string): string {

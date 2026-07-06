@@ -317,9 +317,31 @@ The basename (without extension) of the file from which the template or capture 
 
 Example: `Notes from {{FILENAMECURRENT}}`.
 
+## `{{FOLDERCURRENT}}` {#foldercurrent}
+
+The folder of the file from which the template or capture was triggered (the active file), as a vault-relative path with no trailing slash. For an active file at the vault root it resolves to an empty string. Not to be confused with `{{FOLDER}}` below, which is the folder the *new* note is being created in.
+
+This makes per-project captures work without a macro: with **Capture To** set to
+
+```
+{{FOLDERCURRENT}}/Project Tasks.md
+```
+
+running the capture from any note inside `Projects/Alpha` targets `Projects/Alpha/Project Tasks.md`, from `Projects/Beta` it targets `Projects/Beta/Project Tasks.md`, and so on. A trailing slash (`{{FOLDERCURRENT}}/`) instead opens a file picker confined to the active file's folder.
+
+Where it resolves: capture targets and file name formats, note bodies/capture formats, and Template choice folder paths (e.g. `{{FOLDERCURRENT}}/Subnotes`).
+
+**No active file:** in paths (capture targets, file names, folder paths) a missing active file always stops the run with a clear error - it never falls back to the vault root. In note bodies it honors the same **required/optional** behavior as `{{LINKCURRENT}}` (optional resolves to an empty string).
+
+### `{{FOLDERCURRENT|name}}` - just the folder name
+
+Add the `|name` modifier to get only the last path segment: for an active file in `Projects/Acme`, `{{FOLDERCURRENT}}` is `Projects/Acme` while `{{FOLDERCURRENT|name}}` is `Acme`. Use `|name` when you want the folder's name inside a file name or note body rather than a path.
+
+Examples: `{{FOLDERCURRENT}}/Project Tasks.md`, `Tasks for {{FOLDERCURRENT|name}}`.
+
 ## `{{FOLDER}}` {#folder}
 
-The folder the note is being created in, as a vault-relative path (no trailing slash). For a note created at the vault root this resolves to an empty string.
+The folder the note is being created in, as a vault-relative path (no trailing slash). For a note created at the vault root this resolves to an empty string. (For the *active* file's folder, use `{{FOLDERCURRENT}}` above.)
 
 Where it has a value:
 
