@@ -109,7 +109,7 @@ const sidebars = {
 				{
 					type: "doc",
 					id: "AIAssistant",
-					label: "AI Assistant",
+					label: "AI Assistant Reference",
 				},
 				{
 					type: "doc",

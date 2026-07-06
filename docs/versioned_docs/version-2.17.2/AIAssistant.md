@@ -1,197 +1,400 @@
 ---
-title: AI Assistant
+title: AI Assistant Reference
 ---
 
-# AI Assistant
+# AI Assistant Reference
 
-The AI Assistant in QuickAdd leverages the power of Large Language Models (LLMs) to act as your personal AI assistant within Obsidian. It can streamline your workflows by automating routine tasks and providing intellectual support. To use this feature, you need the QuickAdd plugin and a provider you'd like to use.
+QuickAdd's AI Assistant sends formatted prompts from Obsidian to your configured model provider. Use it from Macro commands when you want a prompt step in a workflow, or from User Scripts when you need structured output, tool calling, or custom control flow.
 
-## How to Setup the AI Assistant
+On this page:
 
-To set up the AI Assistant, follow these steps:
+- [Setup](#setup)
+- [Providers and local models](#providers-and-local-models)
+- [Model settings and token budgets](#model-settings-and-token-budgets)
+- [Macro output variables](#macro-output-variables)
+- [Structured JSON output](#structured-json-output)
+- [Tool and function calling](#tool-and-function-calling)
+- [Troubleshooting](#troubleshooting)
 
-1. In Obsidian, create a new folder dedicated to AI prompt templates, e.g. `bins/ai_prompts`.
-2. Open QuickAdd settings and, in the choice list, click the **Configure AI Assistant** icon button (the sparkles icon at the bottom of the list). This opens the **AI Assistant Settings** modal.
+:::note
+The AI settings button and AI requests are available only when **Disable AI & Online features** is turned off in QuickAdd settings.
+:::
 
-   :::note
-   The Configure AI Assistant button is only shown when "Disable AI & Online features" is turned off in QuickAdd settings.
-   :::
-3. In the **AI Assistant Settings** modal, set **Prompt Template Folder Path** to the folder you created in step 1, then click **Edit Providers** to add a provider. If you are using OpenAI, you will need to add your API key in the [provider](#providers) settings. The video below is from an older version, but the process is similar.
+## Setup
+
+1. Create a folder for AI prompt templates, for example `bins/ai_prompts`.
+2. Open QuickAdd settings.
+3. In the choice list, click the **Configure AI Assistant** icon button. It uses the sparkles icon at the bottom of the list.
+4. Set **Prompt Template Folder Path** to the folder you created.
+5. Click **Edit Providers** and configure at least one provider and model.
+6. Choose a **Default Model**, or leave it as **Ask me** to pick a model each run.
 
 ![AI Assistant Setup](./Images/AI_Assistant_Setup.gif)
 
-That's really it. You're now ready to use the AI Assistant.
+Prompt templates are Markdown notes in your prompt template folder. They can use QuickAdd [Format Syntax](./FormatSyntax.md), including values collected earlier in the same macro.
 
-The basic idea is that you set up a QuickAdd Macro, which will trigger the AI Assistant.
-The AI Assistant will then use the prompt template you specify to generate a prompt, which it will then send to your selected provider.
-The provider will then return a response, which the AI Assistant passes on to the QuickAdd Macro.
-You can then use the response in subsequent steps in the macro, e.g. to capture to a note, or create a new note.
-
-**Creating prompt templates is simple: just create a note in your prompt templates folder.**
-
-Creating prompt templates is as simple as creating a note within your prompt templates folder. These templates can utilize QuickAdd's [Format Syntax](./FormatSyntax.md) or [Inline Scripts](./InlineScripts.md).
-
-Here's an example of how you can set up a prompt template:
+After setup, add an **AI Assistant** command to a Macro. The command formats the selected prompt template, sends it to the selected model, then stores the response as macro variables for later steps.
 
 ![AI Assistant Macro](./Images/AI_Assistant_Macro.gif)
 
-You can also use AI Assistant features from within the [API](./QuickAddAPI.md).
+## Providers and local models
 
-## Providers
+QuickAdd supports OpenAI-compatible providers, Google Gemini, and Anthropic. Custom or unknown providers use the OpenAI-compatible request shape by default.
 
-QuickAdd supports multiple providers for LLMs.
-QuickAdd works with OpenAI-compatible APIs and also supports Google Gemini.
+Built-in provider cards are available for:
 
-Here are a few providers that are known to work with QuickAdd:
+- OpenAI
+- Gemini
+- Anthropic
+- Groq
+- TogetherAI
+- OpenRouter
+- Hugging Face
+- Mistral
+- DeepSeek
 
--   [OpenAI](https://openai.com)
--   [Gemini (Google AI)](https://ai.google.dev)
--   [TogetherAI](https://www.together.ai)
--   [Groq](https://groq.com)
--   [Ollama (local)](https://ollama.com)
+Provider API keys are stored through Obsidian SecretStorage. QuickAdd stores the secret reference in settings, not the key value. Older plaintext provider keys are migrated to SecretStorage.
 
-Paid providers expose their own API, which you can use with QuickAdd. Free providers, such as Ollama, are also supported.
+### Add a provider
 
-By default, QuickAdd will add the OpenAI and Gemini providers. To manage providers, open the **AI Assistant Settings** modal (see [How to Setup the AI Assistant](#how-to-setup-the-ai-assistant)) and click **Edit Providers** next to the **Providers** setting. This opens the **Providers** modal, where each existing provider has **Edit** and delete (trash) buttons.
+1. Open **AI Assistant Settings**.
+2. Click **Edit Providers**.
+3. Click **Add Provider**.
+4. Pick a provider card, select a SecretStorage entry for the API key, then click **Connect**.
+5. Click **Edit** on the provider and add or import models.
 
-To add a provider, click the **Add Provider** button at the top of the **Providers** modal. This opens the **Add a provider** picker with cards for common providers (OpenAI, Gemini, Groq, Together, OpenRouter, etc.). For the provider you want, select or create a SecretStorage entry for your API key and click **Connect** to add it. You can also use **Add custom...** under **Custom provider** to create any custom endpoint.
+For a provider that is not listed, click **Add custom...** under **Custom provider**. Set the provider name, endpoint, API key secret if needed, model source, and models manually.
 
-QuickAdd stores provider API keys in Obsidian's SecretStorage. The provider settings only keep the secret name, not the key itself.
-Existing provider API keys are migrated into SecretStorage automatically.
+### Local models and Ollama
 
-Here's a video showcasing adding Groq as a provider:
+Use **Custom provider** for Ollama and most local OpenAI-compatible servers.
 
-<video controls style={{width: "100%"}}>
+For Ollama:
 
-  <source src="https://github.com/chhoumann/quickadd/assets/29108628/493b556a-a8cd-4445-aa39-054d379c7bb9" type="video/mp4"/>
-</video>
-
-### Local LLMs
-
-You can use your own machine to run LLMs. This is useful if you want to keep your data private, or if you want to use a specific model that isn't available on the cloud.
-To use a local LLM, you need to set up a server that can run the model.
-You can then add the server as a provider in QuickAdd.
-
-One such server is [Ollama](https://ollama.com). Ollama is a free, open-source, and self-hosted LLM server. You can set up Ollama on your own machine, and then use it as a provider in QuickAdd.
-You can find the [quick start documentation here](https://github.com/ollama/ollama/blob/main/README.md#quickstart).
-Ollama binds to the port `11434` ([src](https://github.com/ollama/ollama/blob/main/docs/faq.md#how-can-i-expose-ollama-on-my-network)), so your provider settings would be as follows:
-
-```
+```text
 Name: Ollama
-URL: http://localhost:11434/v1
-API Key secret: (empty)
+Endpoint: http://localhost:11434/v1
+API Key: leave blank
+Model source: Provider /v1/models
+Models: import from the running Ollama server, or add the model name manually
 ```
 
-And that's it! You can now use Ollama as a provider in QuickAdd.
-Make sure you add the model you want to use. [mistral](https://ollama.com/library/mistral) is great.
+Leaving the API key blank sends no `Authorization` header. If your local server requires any bearer token, create a SecretStorage entry and select it.
 
-### Gemini (Google AI)
+When adding a model manually, the model name must match the id your server expects, such as `mistral` or `llama3.1`. The **Max Tokens** value is the model's context window. See [Model settings and token budgets](#model-settings-and-token-budgets).
 
-Gemini is supported out of the box.
+### Model source
 
+Each provider has a **Model source** setting:
+
+- **Provider /v1/models** asks the provider endpoint for its model list. This is the usual choice for local providers like Ollama when the server is running.
+- **models.dev directory** imports from the public models.dev directory when that directory knows the provider.
+- **Automatic** tries the provider first and falls back to models.dev when QuickAdd can map the endpoint.
+
+If model import fails, you can still add models manually. Use the provider's exact model id and the model's context-window token count.
+
+## Model settings and token budgets
+
+### Max Tokens
+
+In the provider model list, **Max Tokens** means the model's context window. It is the total amount of prompt plus response context the model can handle, according to the configured provider metadata or the value you entered manually.
+
+QuickAdd uses this value for local estimates, model lookup, and chunk sizing. It does not mean "make the answer this long", and setting it higher than the provider actually supports does not increase the provider's real limit.
+
+QuickAdd's token counts are local estimates. Providers enforce the exact limits. For single AI Assistant prompts, QuickAdd logs when the local prompt estimate is above the configured context value, but it still sends the request. The provider may accept it or reject it with a context-window error.
+
+Use these rules when choosing a value:
+
+- For `gpt-4o-mini`, enter `128000`, not a smaller output limit.
+- For a local model, use the context window configured for that local model.
+- If you do not know the value, import models from the provider if possible, or use the provider's model documentation.
+
+### Max Chunk Tokens
+
+The chunked AI prompt flow has a separate **Max Chunk Tokens** setting. It controls the estimated token budget for the text inserted into `{{VALUE:chunk}}` for each chunk.
+
+The system prompt and prompt template are counted separately. Values above the selected model's estimated input budget are capped automatically.
+
+### Output length
+
+The regular Macro AI Assistant command does not have a separate output-length field.
+
+In scripts, `quickAddApi.ai.agent()` accepts `maxOutputTokens` in the agent config or per `generate()` call. QuickAdd maps that option to the provider-specific output field where the provider supports one.
+
+Anthropic requests always require an output token budget. When no explicit `maxOutputTokens` is set, QuickAdd uses a conservative default of `4096`, or the configured model context if it is smaller.
+
+### Advanced sampling settings
+
+AI Assistant commands expose advanced model parameters:
+
+- **Temperature** controls randomness. Lower values are more focused. Higher values are more varied.
+- **Top P** controls nucleus sampling.
+- **Frequency Penalty** reduces repeated wording on providers that support it.
+- **Presence Penalty** encourages new topics on providers that support it.
+
+Gemini requests use temperature and top P. QuickAdd does not send frequency or presence penalties to Gemini.
+
+OpenAI reasoning models and some other providers reject certain sampling parameters. If a provider rejects a request, remove advanced parameters first and retry with the provider defaults.
+
+## Macro output variables
+
+An AI Assistant Macro command stores the model response in the command's **Output variable name**. The default name is `output`.
+
+If **Output variable name** is `summary`, QuickAdd writes:
+
+- `summary`: the response text
+- `summary-quoted`: the same response formatted as a Markdown blockquote, with each line prefixed by `> `
+
+Later commands in the same Macro can use those values:
+
+```markdown
+{{VALUE:summary}}
+
+{{VALUE:summary-quoted}}
 ```
-Name: Gemini
-URL: https://generativelanguage.googleapis.com
-API Key secret: (AI Studio API key)
-Models (add one or more — use Browse models for the exact current IDs):
-  - gemini-3-pro (Max Tokens: 1000000)
-  - gemini-3-flash (Max Tokens: 1000000)
-```
 
-Notes:
+The variables are scoped to that Macro run. A separate QuickAdd choice run does not receive them.
 
-- Use only supported parameters for Gemini (temperature, top_p). Frequency/presence penalties are not sent to Gemini.
-- Make sure "Disable AI & Online features" is turned off in QuickAdd settings to enable requests.
+### Example: AI-generated note title
 
-### Importing and syncing models
+Use a Macro with two steps:
 
-- Use the **Model source** dropdown inside each provider to choose where QuickAdd discovers models: your provider's `/v1/models` endpoint, the public models.dev directory, or an automatic mode that tries the provider first and falls back to models.dev.
-- The "Browse models" button pulls from whichever source you selected, letting you search and multi-select models even for custom OpenAI-compatible endpoints that models.dev does not list.
-- Choose Add-only to merge or Replace to overwrite the provider's model list.
-- Enable Auto-sync to keep your model list updated; use Sync now for a manual refresh. Auto-sync honors the same model source you picked.
+1. **AI Assistant** command
+   - Prompt template: `Generate a short filename-safe title for this text. Reply with only the title. Text: {{VALUE}}`
+   - Output variable name: `aiTitle`
+   - Use a low temperature if you want more repeatable titles.
+2. **Template** command
+   - File Name Format: `{{VALUE:aiTitle}}`
+   - Template body can also include `{{VALUE:aiTitle}}`.
 
-## AI Assistant Settings
+The same pattern works with Capture choices and User Script commands that run after the AI step.
 
-In the **AI Assistant Settings** modal (opened via the **Configure AI Assistant** icon button in the QuickAdd choice list), you can configure the following options:
+### Read the result in a script
 
--   **Providers**: The providers for the AI Assistant. Click **Edit Providers** to manage endpoints and API key secrets (SecretStorage).
--   **Default Model**: The default model for the AI Assistant. The list of models is built from the models you have added across your configured providers, plus an "Ask me" option that prompts you to pick a model each time.
--   **Prompt Template Folder Path**: Path to your folder with prompt templates.
--   **Show Assistant**: Show status messages from the AI Assistant.
--   **Default System Prompt**: The default system prompt for the AI Assistant. Sets the behavior of the model.
--   **Confirm AI tool calls**: When an AI agent runs a tool (see *Tool / function calling* below), whether to ask first. *Destructive tools only* (default) confirms any tool not marked read-only; *Always* confirms every tool; *Never* defers to each tool's own setting. A tool that requires approval is always confirmed regardless.
-
-For each individual AI Assistant command in your macros, you can set these options:
-
--   **Prompt Template**: Determines the prompt template to use.
--   **Model**: The model the AI Assistant will use, overriding the default model.
--   **Output variable name**: Sets the variable name for the AI Assistant’s output.
--   **System Prompt**: Determines the model's behavior, overriding the default system prompt.
-
-You can also tweak model parameters in advanced settings:
-
--   **temperature:** Allows you to adjust the sampling temperature between 0 and 2. Higher values result in more random outputs, while lower values make the output more focused and deterministic.
--   **top_p:** This parameter relates to nucleus sampling. The model considers only the tokens comprising the top 'p' probability mass. For example, 0.1 means only tokens from the top 10% probability mass are considered.
--   **frequency_penalty:** A parameter ranging between -2.0 and 2.0. Positive values penalize new tokens based on their frequency in the existing text, reducing the model's tendency to repeat the same lines. (Not applicable to Gemini.)
--   **presence_penalty:** Also ranging between -2.0 and 2.0, positive values penalize new tokens based on their presence in the existing text, encouraging the model to introduce new topics. (Not applicable to Gemini.)
-
-## Tool / function calling (scripts)
-
-Beyond one-shot prompts, the AI Assistant can act as a small **agent**: you give the model a
-prompt plus a set of *tools* (JavaScript functions), and it decides which to call, in a bounded
-multi-step loop, until it has an answer. This is available from the [script API](./QuickAddAPI.md)
-only — tools are JS functions, so they live in a User Script (a macro), not in a stored choice.
+When a User Script runs later in the same Macro, read the same variable from `params.variables`:
 
 ```js
-module.exports = async ({ quickAddApi, app }) => {
-  const agent = quickAddApi.ai.agent({
-    model: "gpt-5",
-    system: "You are a vault librarian. Ground every claim in the user's notes.",
-    tools: { ...quickAddApi.ai.tools.vault({ only: ["read_note", "search_notes"] }) },
-  });
-  const { text } = await agent.generate({ prompt: "What do my notes say about gardening?" });
-  return text;
+module.exports = async (params) => {
+  const description = params.variables.description;
+  console.log(description);
 };
 ```
 
-QuickAdd ships **built-in tools** you can opt into (`quickAddApi.ai.tools.vault/workspace/system`),
-and you can declare your own with `quickAddApi.ai.tool({ description, inputSchema, execute })`. See the
-[API reference](./QuickAddAPI.md) for the full surface (agents, tools, structured output via a `schema`).
+If this is empty, check the AI Assistant command's **Output variable name**. It must be `description`, or your script must read the default `output`.
 
-:::warning Tool calls run your code with model-chosen arguments
-Tool handlers run with full vault and network access. The **model** decides which tool to call and
-with what arguments — possibly influenced by note content it reads. Treat tool results and note
-content as untrusted data, validate the arguments your handlers receive, never pass them to
-`format()`/`eval`/a shell, and never put secrets in a tool's description or arguments. Destructive
-tools ask for confirmation by default (the **Confirm AI tool calls** setting); read-only tools run
-automatically.
-:::
+### Script API assignment is explicit
 
-## AI-Powered Workflows
+`quickAddApi.ai.prompt()` and `quickAddApi.ai.chunkedPrompt()` return an object with the response variables. They write those variables into later Macro steps only when you set `shouldAssignVariables: true` or `assignToVariable`.
 
-You can create powerful workflows utilizing the AI Assistant. Some examples are:
-
--   **Generating Writing Prompts:** Using links to related notes to generate writing prompts.
--   **Summarizer:** Create summaries of selected text.
--   **Transform Selected:** Transform selected text based on provided instructions.
--   **Flashcard Creator:** Generate flashcards based on selected text.
--   **Get Me Started Writing About…:** Generate points to kickstart your writing on a given topic.
--   **Manual Prompt:** Provide a manual prompt to the AI assistant.
--   **Alternative Viewpoints:** Obtain alternative perspectives and improvements on your draft.
--   **Prompt Chaining:** Chain multiple prompts together, with each prompt using the output of the previous one.
-
-All of these examples, and more, can be found in [Christian's blog post about the AI Assistant](https://bagerbach.com/blog/obsidian-ai).
-
-Please note, using the AI Assistant will incur costs depending on the API usage. Set spending limits on your OpenAI account to avoid unexpected expenses. Play around with different models to find the one that best suits your needs.
-
-### Example: Summarizer
-
-Here’s a simple prompt where you select some text, and then use the assistant with that prompt.
-Then it’ll spit out an AI-generated summary:
-
-```markdown
-Please summarize the following text. Use only the text itself as material for summarization, and do not add anything new. Rewrite this for brevity, in outline form:
-{{value}}
+```js
+module.exports = async ({ quickAddApi }) => {
+  await quickAddApi.ai.prompt("Summarize the current selection.", "gpt-4o-mini", {
+    assignToVariable: "summary",
+  });
+};
 ```
 
-You can use the getting-started demonstration shown earlier to set this up.
+`assignToVariable` also writes `summary-quoted`. Avoid names that are reserved by the formatter or variable plumbing: `value`, `title`, `text`, `meta`, names ending in `-quoted`, names starting with `__qa.`, and names containing `|` or `,`.
+
+## Structured JSON output
+
+Use structured output when you want separate fields from one model response, such as title, summary, and tags. This is a User Script workflow, not the plain Macro AI Assistant command.
+
+The pattern is:
+
+1. User Script calls `quickAddApi.ai.agent().generate({ prompt, schema })`.
+2. The script checks `result.object`.
+3. The script assigns fields to `params.variables`.
+4. A later Template or Capture step uses `{{VALUE:name}}` where each field belongs.
+
+```js
+module.exports = async ({ quickAddApi, variables }) => {
+  const selectedText = quickAddApi.utility.getSelection();
+  if (!selectedText) {
+    throw new Error("Select text before running this macro.");
+  }
+
+  const result = await quickAddApi.ai.agent({ model: "gpt-4o-mini" }).generate({
+    prompt: `Extract a title, a short summary, and up to five tags from this text:\n\n${selectedText}`,
+    schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        summary: { type: "string" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+      required: ["title", "summary", "tags"],
+    },
+  });
+
+  const data = result.object;
+  if (!data || typeof data !== "object") {
+    throw new Error("The AI response did not match the expected JSON shape.");
+  }
+
+  const fields = data;
+  variables.aiTitle = String(fields.title ?? "");
+  variables.aiSummary = String(fields.summary ?? "");
+  variables.aiTags = Array.isArray(fields.tags)
+    ? fields.tags.map(String).join(", ")
+    : "";
+};
+```
+
+Then use a Template step after the script:
+
+```markdown
+# {{VALUE:aiTitle}}
+
+{{VALUE:aiSummary}}
+
+Tags: {{VALUE:aiTags}}
+```
+
+Structured output supports a small JSON Schema subset: `type`, `properties`, `required`, `items`, `enum`, `const`, `description`, and `title`. Avoid provider-specific schema keywords such as `minLength`, `pattern`, `$ref`, `format`, `anyOf`, and `allOf` in QuickAdd examples.
+
+If the model response does not parse or does not validate, QuickAdd makes one repair attempt. If that still fails, `result.object` is `undefined`, so scripts should handle that as shown above.
+
+## Tool and function calling
+
+QuickAdd 2.14.0 added a script API for tool and function calling:
+
+- `quickAddApi.ai.agent(config)` creates an agent.
+- `agent.generate({ prompt })` runs a bounded multi-step loop.
+- `quickAddApi.ai.tool(def)` declares a JavaScript function the model may call.
+- `quickAddApi.ai.tools.vault()`, `workspace()`, and `system()` provide opt-in built-in tools.
+
+Tools are available from User Scripts. They are JavaScript functions, so they do not live inside a stored AI Assistant Macro command.
+
+```js
+module.exports = async ({ quickAddApi }) => {
+  const agent = quickAddApi.ai.agent({
+    model: "gpt-4o-mini",
+    system: "Answer from the user's vault when possible.",
+    tools: {
+      ...quickAddApi.ai.tools.vault({
+        only: ["read_note", "search_notes"],
+      }),
+      word_count: quickAddApi.ai.tool({
+        description: "Count words in a text string.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            text: { type: "string" },
+          },
+          required: ["text"],
+        },
+        readOnly: true,
+        execute: ({ text }) => {
+          const words = String(text ?? "")
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          return { count: words.length };
+        },
+      }),
+    },
+    maxSteps: 12,
+  });
+
+  const result = await agent.generate({
+    prompt: "What do my notes say about project planning?",
+    assignToVariable: "answer",
+  });
+
+  return result.text;
+};
+```
+
+Agent results include:
+
+- `text`: final assistant text
+- `object`: structured result, only when `schema` was passed
+- `steps`: tool-loop steps
+- `toolCalls` and `toolResults`: calls and results from the last step
+- `usage`: input, output, and total token counts
+- `finishReason`: why the run stopped
+
+By default, agents use up to 20 steps. `maxSteps` is capped at 100.
+
+### Tool approval and safety
+
+The global **Confirm AI tool calls** setting defaults to **Destructive tools only (recommended)**:
+
+- `readOnly: true` tools run automatically under the default setting.
+- Tools that are not read-only ask for confirmation under the default setting.
+- `needsApproval: true` always asks for confirmation.
+- **Always confirm every tool** asks for every tool.
+- **Never** defers to each tool's own `needsApproval`.
+
+Tool handlers run with the same privileges as your script. The model chooses tool names and arguments. Treat those arguments as untrusted input. Validate paths and values, never pass tool input to `quickAddApi.format()`, `eval`, a shell, or a network request without your own checks, and do not put secrets in tool descriptions or arguments because those are sent to the provider.
+
+For the full script API surface, see the [QuickAdd API reference](./QuickAddAPI.md#ai-module).
+
+## Troubleshooting
+
+### The AI settings button is missing
+
+Turn off **Disable AI & Online features** in QuickAdd settings. The AI settings button is hidden while AI and online features are disabled.
+
+### My model is not listed
+
+Open **AI Assistant Settings** > **Edit Providers** > your provider > **Edit**. Import models, sync models, or add the model manually. The model name must exactly match what the provider expects.
+
+### A local provider does not respond
+
+Check that the local server is running and that the endpoint includes the right base path. For Ollama, use:
+
+```text
+http://localhost:11434/v1
+```
+
+If the server requires auth, select an API key secret. If the API key is blank, QuickAdd sends no `Authorization` header.
+
+### Max Tokens is confusing
+
+Use the model's context-window size. Do not use the model's advertised output limit. If a request is rejected for context length, shorten the prompt, pick a model with a larger context window, or use chunked prompting.
+
+### A later Macro step cannot read the AI result
+
+Check these in order:
+
+1. The AI Assistant command and the later command must be steps in the same Macro.
+2. The later step must use the AI command's **Output variable name**.
+3. If you did not set a name, read `{{VALUE:output}}`.
+4. In a script step, inspect `Object.keys(params.variables)` to see what arrived.
+5. If you called `quickAddApi.ai.prompt()` from a script, set `shouldAssignVariables: true` or `assignToVariable`.
+
+### My script does nothing
+
+QuickAdd User Scripts must export a function. Put your code inside `module.exports`:
+
+```js
+module.exports = async ({ quickAddApi, variables }) => {
+  const result = await quickAddApi.ai.prompt("Say hello.", "gpt-4o-mini");
+  variables.output = result.output;
+};
+```
+
+See the [User Scripts Reference](./UserScripts.md).
+
+### Structured output returned no object
+
+`result.object` can be `undefined` when the model fails to return JSON that matches the schema after QuickAdd's repair attempt. Keep the schema simple, use a current model that supports structured output, and handle the missing object in your script.
+
+### A tool run is waiting forever
+
+The tool probably opened a confirmation modal. In unattended CLI runs, use only `readOnly: true` tools, change **Confirm AI tool calls** for that vault, or design your script so `needsApproval` is not required for that path.
+
+## Workflow ideas
+
+- **Summarizer:** summarize selected text and capture it to a note.
+- **Transform Selected:** rewrite the active selection with a prompt template.
+- **AI title:** generate a filename-safe title, then use it in a Template step.
+- **Structured note:** extract fields with `agent.generate({ schema })`, then place them in an output template.
+- **Vault Q&A:** use `ai.agent()` with read-only vault tools to answer from notes.
+
+All provider usage may incur provider costs. Use provider-side spending limits where available.
