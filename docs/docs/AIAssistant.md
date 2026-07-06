@@ -263,11 +263,10 @@ module.exports = async ({ quickAddApi, variables }) => {
     throw new Error("The AI response did not match the expected JSON shape.");
   }
 
-  const fields = data;
-  variables.aiTitle = String(fields.title ?? "");
-  variables.aiSummary = String(fields.summary ?? "");
-  variables.aiTags = Array.isArray(fields.tags)
-    ? fields.tags.map(String).join(", ")
+  variables.aiTitle = String(data.title ?? "");
+  variables.aiSummary = String(data.summary ?? "");
+  variables.aiTags = Array.isArray(data.tags)
+    ? data.tags.map(String).join(", ")
     : "";
 };
 ```
