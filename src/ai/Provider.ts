@@ -16,7 +16,7 @@ export interface AIProvider {
 	/** Legacy plaintext API key stored in settings (migrated to SecretStorage). */
 	apiKey: string;
 	models: Model[];
-	/** If true, QuickAdd may auto-sync models from models.dev for this provider. */
+	/** If true, QuickAdd may auto-sync models from the provider's model source. */
 	autoSyncModels?: boolean;
 	/** Controls how QuickAdd discovers browseable models for this provider. */
 	modelSource: ModelDiscoveryMode;
@@ -67,7 +67,78 @@ function endpointHost(endpoint?: string): string {
 
 export interface Model {
 	name: string;
+	/** Context window (total input budget) in tokens. Historical field name. */
 	maxTokens: number;
+	/** Output cap (max completion tokens), when known from model metadata. */
+	maxOutputTokens?: number;
+	/**
+	 * False when the model rejects sampling parameters (temperature/top_p/…)
+	 * outright — e.g. OpenAI reasoning models and Anthropic's current generation.
+	 * Undefined means unknown; the request layer then relies on its automatic
+	 * unsupported-parameter recovery instead.
+	 */
+	supportsTemperature?: boolean;
+}
+
+/**
+ * Shipped model seeds, keyed by models.dev provider id. These exist ONLY as an
+ * offline fallback: live discovery (models.dev / the provider's models endpoint)
+ * is the source of truth, and auto-sync keeps lists current without plugin
+ * releases. Each entry below was verified live (directory metadata + a real
+ * completion) on 2026-07-07. When touching this table, re-verify against
+ * https://models.dev/api.json and the provider APIs — never add ids from memory.
+ */
+export const CURRENT_MODEL_SEEDS: Record<
+	"openai" | "google" | "anthropic",
+	Model[]
+> = {
+	openai: [
+		{ name: "gpt-5.5", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.4", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.4-mini", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.4-nano", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-4.1", maxTokens: 1_047_576, maxOutputTokens: 32_768, supportsTemperature: true },
+		{ name: "gpt-4.1-mini", maxTokens: 1_047_576, maxOutputTokens: 32_768, supportsTemperature: true },
+		{ name: "gpt-4o", maxTokens: 128_000, maxOutputTokens: 16_384, supportsTemperature: true },
+		{ name: "gpt-4o-mini", maxTokens: 128_000, maxOutputTokens: 16_384, supportsTemperature: true },
+		{ name: "o3", maxTokens: 200_000, maxOutputTokens: 100_000, supportsTemperature: false },
+		{ name: "o4-mini", maxTokens: 200_000, maxOutputTokens: 100_000, supportsTemperature: false },
+	],
+	google: [
+		{ name: "gemini-3.5-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.1-pro-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.1-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3-pro-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3-flash-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-2.5-pro", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-2.5-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-2.5-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+	],
+	anthropic: [
+		{ name: "claude-fable-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "claude-sonnet-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "claude-opus-4-8", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "claude-opus-4-5", maxTokens: 200_000, maxOutputTokens: 64_000, supportsTemperature: true },
+		{ name: "claude-haiku-4-5", maxTokens: 200_000, maxOutputTokens: 64_000, supportsTemperature: true },
+	],
+};
+
+/**
+ * Previously shipped seed models that are retired upstream (verified live
+ * 2026-07-07: OpenAI returns 404 model_not_found, Gemini 404s the whole 1.5
+ * family). The refresh migration removes exactly these — nothing else — from
+ * providers on the official endpoints.
+ */
+export const RETIRED_SEED_MODELS: Record<"openai" | "google", string[]> = {
+	openai: ["gpt-4-32k", "gpt-4-1106-preview"],
+	google: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b"],
+};
+
+/** Copy of a seed list so consumers can never mutate the shared catalog. */
+export function cloneModelSeeds(
+	key: keyof typeof CURRENT_MODEL_SEEDS,
+): Model[] {
+	return CURRENT_MODEL_SEEDS[key].map((model) => ({ ...model }));
 }
 
 const OpenAIProvider: AIProvider = {
@@ -75,45 +146,8 @@ const OpenAIProvider: AIProvider = {
 	endpoint: "https://api.openai.com/v1",
 	kind: "openai",
 	apiKey: "",
-	models: [
-		{
-			name: "gpt-3.5-turbo",
-			maxTokens: 4096,
-		},
-		{
-			name: "gpt-3.5-turbo-16k",
-			maxTokens: 16384,
-		},
-		{
-			name: "gpt-3.5-turbo-1106",
-			maxTokens: 16385,
-		},
-		{
-			name: "gpt-4",
-			maxTokens: 8192,
-		},
-		{
-			name: "gpt-4-32k",
-			maxTokens: 32768,
-		},
-		{
-			name: "gpt-4-1106-preview",
-			maxTokens: 128000,
-		},
-		{
-			name: "gpt-4-turbo",
-			maxTokens: 128000,
-		},
-		{
-			name: "gpt-4o",
-			maxTokens: 128000,
-		},
-		{
-			name: "gpt-4o-mini",
-			maxTokens: 128000,
-		},
-	],
-	autoSyncModels: false,
+	models: cloneModelSeeds("openai"),
+	autoSyncModels: true,
 	modelSource: "modelsDev",
 };
 
@@ -122,26 +156,12 @@ const GeminiProvider: AIProvider = {
 	endpoint: "https://generativelanguage.googleapis.com",
 	kind: "gemini",
 	apiKey: "",
-	models: [
-        {
-            name: "gemini-1.5-pro",
-            maxTokens: 1000000,
-        },
-        {
-            name: "gemini-1.5-flash",
-            maxTokens: 1000000,
-        },
-        {
-            name: "gemini-1.5-flash-8b",
-            maxTokens: 1000000,
-        },
-	],
-	autoSyncModels: false,
+	models: cloneModelSeeds("google"),
+	autoSyncModels: true,
 	modelSource: "modelsDev",
 };
 
-
 export const DefaultProviders: AIProvider[] = [
-    OpenAIProvider,
-    GeminiProvider,
+	OpenAIProvider,
+	GeminiProvider,
 ];

@@ -70,6 +70,8 @@ export interface QuickAddSettings {
 		promptTemplatesFolderPath: string;
 		showAssistant: boolean;
 		providers: AIProvider[];
+		/** Epoch ms of the last background model auto-sync (throttles to daily). */
+		lastModelAutoSyncAt?: number;
 		/**
 		 * When AI tool calling (#714) runs a script-defined or built-in tool, ask
 		 * before executing. 'destructive' (default) confirms any tool not marked
@@ -93,6 +95,7 @@ export interface QuickAddSettings {
 		setProviderModelDiscoveryMode: boolean;
 		migrateProviderApiKeysToSecretStorage: boolean;
 		migrateToMultipleTemplateFolders: boolean;
+		refreshStaleDefaultModelSeeds: boolean;
 	};
 }
 
@@ -146,5 +149,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		setProviderModelDiscoveryMode: false,
 		migrateProviderApiKeysToSecretStorage: false,
 		migrateToMultipleTemplateFolders: false,
+		refreshStaleDefaultModelSeeds: false,
 	},
 };
