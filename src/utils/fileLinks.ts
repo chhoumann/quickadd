@@ -15,7 +15,58 @@ type FileLinkTextOptions = {
 	sourcePath?: string;
 	linkType?: LinkType;
 	placement?: LinkPlacement;
+	/**
+	 * Desired display text (alias) for the link, as raw user text (e.g. the
+	 * editor selection). buildFileLinkText owns making it link-safe; text that
+	 * cannot be represented safely degrades to a plain, alias-less link.
+	 * Ignored for embeds.
+	 */
+	alias?: string;
 };
+
+function usesMarkdownLinks(app: App): boolean {
+	// vault.getConfig is the de-facto (untyped) plugin API for editor settings.
+	// Inferring the mode from a generated link's shape instead would misdetect
+	// markdown-link vaults whose note basename starts with "[".
+	const vault = app.vault as App["vault"] & {
+		getConfig?: (key: string) => unknown;
+	};
+	return vault.getConfig?.("useMarkdownLinks") === true;
+}
+
+/**
+ * Makes raw user text (e.g. an editor selection) safe to use as a link alias,
+ * or returns undefined when no (safe) alias can be produced. Obsidian's
+ * generateMarkdownLink performs no alias sanitization, so this is QuickAdd's
+ * job. Rules verified against Obsidian 1.13's own metadataCache parses:
+ *
+ * - Newlines never survive inside a link; runs collapse to a single space.
+ * - Markdown mode: "\", "[", "]" are escaped (backslash first). Escapes render
+ *   display-faithfully, so every alias is representable.
+ * - Wiki mode: backslash is NOT an escape character, so unsafe text cannot be
+ *   escaped. Single "[", "]", "|" are safe (pipes render literally in the
+ *   display). An alias containing "]]" or "[[" (a nested "[[Other]]" hijacks
+ *   the outer link's target entirely) or ending with "]" (forms "]]" with the
+ *   closing delimiter) is unrepresentable; rather than mutate the user's text,
+ *   the alias is dropped and the link stays plain.
+ */
+function prepareLinkAlias(app: App, rawAlias: string): string | undefined {
+	const alias = rawAlias.replace(/[^\S\r\n]*(?:\r\n|\r|\n)\s*/g, " ").trim();
+	if (!alias) return undefined;
+
+	if (usesMarkdownLinks(app)) {
+		return alias
+			.replace(/\\/g, "\\\\")
+			.replace(/\[/g, "\\[")
+			.replace(/\]/g, "\\]");
+	}
+
+	if (alias.includes("]]") || alias.includes("[[") || alias.endsWith("]")) {
+		return undefined;
+	}
+
+	return alias;
+}
 
 export function buildPortableFileLinkText(file: TFile): string {
 	const path = file.path.replace(/\.md$/i, "");
@@ -42,7 +93,20 @@ export function buildFileLinkText(
 	}
 
 	// Regular links honor the vault's "New link format" + markdown/wiki setting.
-	return app.fileManager.generateMarkdownLink(file, sourcePath);
+	// When the alias equals the generated link text, Obsidian omits it.
+	const alias =
+		options.alias === undefined
+			? undefined
+			: prepareLinkAlias(app, options.alias);
+	if (alias === undefined) {
+		return app.fileManager.generateMarkdownLink(file, sourcePath);
+	}
+	return app.fileManager.generateMarkdownLink(
+		file,
+		sourcePath,
+		undefined,
+		alias,
+	);
 }
 
 export function normalizeAppendLinkDestinationPath(rawPath: string): string {

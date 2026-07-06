@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import {
 	insertFileLinkToActiveView,
+	insertLinkWithPlacement,
 	setMarkdownCursorAtOffset,
 } from "./editorInsertion";
 
@@ -242,5 +243,287 @@ describe("insertFileLinkToActiveView", () => {
 				frontmatterHandling: "error",
 			}),
 		).rejects.toThrow(/does not exist/);
+	});
+});
+
+type Pos = { line: number; ch: number };
+
+/**
+ * Minimal real text-model editor: positions are {line, ch} over a string
+ * document, transaction() applies pre-edit-coordinate changes atomically,
+ * setSelections() records the resulting cursors.
+ */
+function createSelectionEditor(
+	initial: string,
+	initialSelections: Array<{ anchor: Pos; head: Pos }>,
+) {
+	let content = initial;
+	let selections = initialSelections.map((sel) => ({
+		anchor: { ...sel.anchor },
+		head: { ...sel.head },
+	}));
+
+	const posToOffset = ({ line, ch }: Pos): number => {
+		const lines = content.split("\n");
+		let offset = 0;
+		for (let i = 0; i < line; i++) offset += lines[i].length + 1;
+		return offset + ch;
+	};
+	const offsetToPos = (offset: number): Pos => {
+		const lines = content.split("\n");
+		let line = 0;
+		while (line < lines.length && offset > lines[line].length) {
+			offset -= lines[line].length + 1;
+			line++;
+		}
+		return { line, ch: offset };
+	};
+
+	const transaction = vi.fn(
+		({ changes }: { changes: Array<{ from: Pos; to?: Pos; text: string }> }) => {
+			const resolved = changes
+				.map((change) => ({
+					from: posToOffset(change.from),
+					to: posToOffset(change.to ?? change.from),
+					text: change.text,
+				}))
+				.sort((a, b) => b.from - a.from);
+			for (const change of resolved) {
+				content =
+					content.slice(0, change.from) +
+					change.text +
+					content.slice(change.to);
+			}
+		},
+	);
+
+	const editor = {
+		listSelections: vi.fn(() => selections),
+		getRange: vi.fn((from: Pos, to: Pos) =>
+			content.slice(posToOffset(from), posToOffset(to)),
+		),
+		getLine: vi.fn((line: number) => content.split("\n")[line] ?? ""),
+		posToOffset: vi.fn(posToOffset),
+		offsetToPos: vi.fn(offsetToPos),
+		transaction,
+		setSelections: vi.fn(
+			(ranges: Array<{ anchor: Pos; head?: Pos }>) => {
+				selections = ranges.map((range) => ({
+					anchor: { ...range.anchor },
+					head: { ...(range.head ?? range.anchor) },
+				}));
+			},
+		),
+		replaceSelection: vi.fn(),
+		replaceRange: vi.fn(),
+	};
+
+	return {
+		editor,
+		getContent: () => content,
+		getSelections: () => selections,
+	};
+}
+
+function createSelectionApp(
+	harness: ReturnType<typeof createSelectionEditor>,
+	{ path = "Daily.md" } = {},
+) {
+	return {
+		workspace: {
+			getActiveViewOfType: vi.fn(() => ({
+				file: { path },
+				editor: harness.editor,
+			})),
+		},
+		fileManager: {
+			generateMarkdownLink: vi.fn(
+				(
+					_file: TFile,
+					_sourcePath: string,
+					_subpath?: string,
+					alias?: string,
+				) => (alias === undefined ? "[[Created]]" : `[[Created|${alias}]]`),
+			),
+		},
+		metadataCache: {
+			fileToLinktext: vi.fn(() => "Created"),
+		},
+		vault: {
+			getConfig: vi.fn(() => false),
+		},
+	} as unknown as App;
+}
+
+describe("insertLinkWithPlacement with textForSelection", () => {
+	const linkFor = (selectedText: string) => `[[X|${selectedText}]]`;
+
+	it("replaces a single selection with its own text and collapses the cursor after the link", async () => {
+		const harness = createSelectionEditor("see Meeting with Mark today", [
+			{ anchor: { line: 0, ch: 4 }, head: { line: 0, ch: 21 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await insertLinkWithPlacement(app, "[[X]]", "replaceSelection", {
+			textForSelection: linkFor,
+		});
+
+		expect(harness.getContent()).toBe("see [[X|Meeting with Mark]] today");
+		expect(harness.editor.replaceSelection).not.toHaveBeenCalled();
+		expect(harness.editor.transaction).toHaveBeenCalledTimes(1);
+		expect(harness.getSelections()).toEqual([
+			{
+				anchor: { line: 0, ch: "see [[X|Meeting with Mark]]".length },
+				head: { line: 0, ch: "see [[X|Meeting with Mark]]".length },
+			},
+		]);
+	});
+
+	it("gives every cursor its own alias in one atomic transaction", async () => {
+		const harness = createSelectionEditor("alpha beta\ngamma delta", [
+			{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 5 } },
+			{ anchor: { line: 1, ch: 6 }, head: { line: 1, ch: 11 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await insertLinkWithPlacement(app, "[[X]]", "replaceSelection", {
+			textForSelection: linkFor,
+		});
+
+		expect(harness.getContent()).toBe("[[X|alpha]] beta\ngamma [[X|delta]]");
+		expect(harness.editor.transaction).toHaveBeenCalledTimes(1);
+		expect(harness.getSelections()).toEqual([
+			{
+				anchor: { line: 0, ch: "[[X|alpha]]".length },
+				head: { line: 0, ch: "[[X|alpha]]".length },
+			},
+			{
+				anchor: { line: 1, ch: "gamma [[X|delta]]".length },
+				head: { line: 1, ch: "gamma [[X|delta]]".length },
+			},
+		]);
+	});
+
+	it("handles reversed selections (head before anchor)", async () => {
+		const harness = createSelectionEditor("pick me now", [
+			{ anchor: { line: 0, ch: 7 }, head: { line: 0, ch: 5 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await insertLinkWithPlacement(app, "[[X]]", "replaceSelection", {
+			textForSelection: linkFor,
+		});
+
+		expect(harness.getContent()).toBe("pick [[X|me]] now");
+	});
+
+	it("passes an empty string for collapsed cursors", async () => {
+		const harness = createSelectionEditor("cursor here", [
+			{ anchor: { line: 0, ch: 6 }, head: { line: 0, ch: 6 } },
+		]);
+		const app = createSelectionApp(harness);
+		const textForSelection = vi.fn(() => "[[X]]");
+
+		await insertLinkWithPlacement(app, "[[X]]", "replaceSelection", {
+			textForSelection,
+		});
+
+		expect(textForSelection).toHaveBeenCalledWith("");
+		expect(harness.getContent()).toBe("cursor[[X]] here");
+	});
+
+	it("keeps the selected text and appends the aliased link for afterSelection", async () => {
+		const harness = createSelectionEditor("keep Meeting with Mark here", [
+			{ anchor: { line: 0, ch: 5 }, head: { line: 0, ch: 22 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await insertLinkWithPlacement(app, "[[X]]", "afterSelection", {
+			textForSelection: linkFor,
+		});
+
+		expect(harness.getContent()).toBe(
+			"keep Meeting with Mark[[X|Meeting with Mark]] here",
+		);
+		// afterSelection keeps the editor's default selection mapping, matching
+		// the existing replaceRange path.
+		expect(harness.editor.setSelections).not.toHaveBeenCalled();
+	});
+
+	it("leaves the plain replaceSelection path untouched when textForSelection is absent", async () => {
+		const harness = createSelectionEditor("some text", [
+			{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 4 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await insertLinkWithPlacement(app, "[[X]]", "replaceSelection", {});
+
+		expect(harness.editor.replaceSelection).toHaveBeenCalledWith("[[X]]");
+		expect(harness.editor.transaction).not.toHaveBeenCalled();
+	});
+});
+
+describe("insertFileLinkToActiveView displayText", () => {
+	it("keeps the selection as the link alias when displayText is 'selection'", async () => {
+		const harness = createSelectionEditor("Meeting with Mark", [
+			{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 17 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await expect(
+			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "link",
+				displayText: "selection",
+				destination: { type: "activeFile" },
+			}),
+		).resolves.toBe(true);
+
+		expect(harness.getContent()).toBe("[[Created|Meeting with Mark]]");
+	});
+
+	it("inserts a plain link when displayText is omitted (legacy behavior)", async () => {
+		const harness = createSelectionEditor("Meeting with Mark", [
+			{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 17 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await expect(
+			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "link",
+				destination: { type: "activeFile" },
+			}),
+		).resolves.toBe(true);
+
+		expect(harness.editor.replaceSelection).toHaveBeenCalledWith("[[Created]]");
+		expect(harness.editor.transaction).not.toHaveBeenCalled();
+	});
+
+	it("normalizes displayText away for embeds even when requested", async () => {
+		const harness = createSelectionEditor("Meeting with Mark", [
+			{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 17 } },
+		]);
+		const app = createSelectionApp(harness);
+
+		await expect(
+			insertFileLinkToActiveView(app, { path: "Created.md" } as TFile, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "embed",
+				displayText: "selection",
+				destination: { type: "activeFile" },
+			}),
+		).resolves.toBe(true);
+
+		expect(harness.editor.replaceSelection).toHaveBeenCalledWith(
+			"![[Created]]",
+		);
+		expect(harness.editor.transaction).not.toHaveBeenCalled();
 	});
 });

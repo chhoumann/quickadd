@@ -1,8 +1,9 @@
-import type { App, TFile } from "obsidian";
+import type { App, Editor, EditorPosition, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import { log } from "../logger/logManager";
 import {
 	DEFAULT_FRONTMATTER_HANDLING,
+	normalizeAppendLinkOptions,
 	type AppendLinkOptions,
 	type FrontmatterHandling,
 	type LinkPlacement,
@@ -90,6 +91,60 @@ export function insertOnNewLineBelow(toInsert: string, app: App): boolean {
 }
 
 /**
+ * Applies one text per selection in a single atomic transaction (one undo
+ * step). replaceSelection collapses each cursor after its inserted text —
+ * matching editor.replaceSelection — because CodeMirror's default change
+ * mapping would otherwise leave the inserted text selected and the next
+ * keystroke would destroy it. afterSelection keeps the default mapping,
+ * matching the plain replaceRange path.
+ */
+function insertPerSelection(
+	editor: Editor,
+	selections: { anchor: EditorPosition; head: EditorPosition }[],
+	mode: "replaceSelection" | "afterSelection",
+	textForSelection: (selectedText: string) => string,
+): void {
+	const asIndex = (pos: EditorPosition) => editor.posToOffset(pos);
+
+	// Pre-edit coordinates, ordered top-to-bottom so post-edit cursor offsets
+	// can be computed by accumulating each earlier change's length delta.
+	const edits = selections
+		.map((sel) => {
+			const [from, to] =
+				asIndex(sel.anchor) <= asIndex(sel.head)
+					? [sel.anchor, sel.head]
+					: [sel.head, sel.anchor];
+			return { from, to, text: textForSelection(editor.getRange(from, to)) };
+		})
+		.sort((a, b) => asIndex(a.from) - asIndex(b.from));
+
+	const changes = edits.map(({ from, to, text }) =>
+		mode === "replaceSelection" ? { from, to, text } : { from: to, text },
+	);
+
+	// Post-edit cursor offsets must be derived from pre-edit offsets BEFORE
+	// the transaction mutates the document.
+	const cursorOffsets: number[] = [];
+	if (mode === "replaceSelection") {
+		let delta = 0;
+		for (const { from, to, text } of edits) {
+			cursorOffsets.push(asIndex(from) + delta + text.length);
+			delta += text.length - (asIndex(to) - asIndex(from));
+		}
+	}
+
+	editor.transaction({ changes });
+
+	if (mode === "replaceSelection") {
+		editor.setSelections(
+			cursorOffsets.map((offset) => ({
+				anchor: editor.offsetToPos(offset),
+			})),
+		);
+	}
+}
+
+/**
  * Core routine that inserts a link (or any text) in the active markdown
  * editor according to the chosen placement mode.
  *
@@ -106,12 +161,20 @@ export async function insertLinkWithPlacement(
 		requireActiveView?: boolean;
 		frontmatterProperty?: string;
 		frontmatterHandling?: FrontmatterHandling;
+		/**
+		 * When set, the selection-anchored placements (replaceSelection,
+		 * afterSelection) derive the inserted text per selection from that
+		 * selection's own text (e.g. to keep it as the link's display alias).
+		 * Other placements ignore it and insert `text`.
+		 */
+		textForSelection?: (selectedText: string) => string;
 	} = {},
 ): Promise<void> {
 	const {
 		requireActiveView = true,
 		frontmatterProperty,
 		frontmatterHandling = DEFAULT_FRONTMATTER_HANDLING,
+		textForSelection,
 	} = options;
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) {
@@ -150,6 +213,17 @@ export async function insertLinkWithPlacement(
 			anchor: { ...sel.anchor },
 			head: { ...sel.head },
 		}));
+
+	//////////////////////////////////////////////////////////////////
+	//  SELECTION-ANCHORED MODES WITH PER-SELECTION TEXT
+	//////////////////////////////////////////////////////////////////
+	if (
+		textForSelection &&
+		(mode === "replaceSelection" || mode === "afterSelection")
+	) {
+		insertPerSelection(editor, selections, mode, textForSelection);
+		return;
+	}
 
 	//////////////////////////////////////////////////////////////////
 	//  REPLACE-SELECTION
@@ -233,9 +307,14 @@ export async function insertFileLinkToActiveView(
 ): Promise<boolean> {
 	if (!linkOptions?.enabled) return false;
 
+	// Re-normalizing here is idempotent for the engine callers and guarantees
+	// the cross-field sanitization (linkType, displayText) cannot be bypassed
+	// by raw options from scripts or third-party callers.
+	const normalized = normalizeAppendLinkOptions(linkOptions);
+
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view || !view.file) {
-		if (linkOptions.requireActiveFile) {
+		if (normalized.requireActiveFile) {
 			throw new Error("Cannot append link because no active Markdown view is available.");
 		}
 		return false;
@@ -244,18 +323,32 @@ export async function insertFileLinkToActiveView(
 	const sourcePath = view.file.path;
 	const linkText = buildFileLinkText(app, file, {
 		sourcePath,
-		linkType: linkOptions.linkType,
-		placement: linkOptions.placement,
+		linkType: normalized.linkType,
+		placement: normalized.placement,
 	});
+
+	// Normalization guarantees "selection" only for selection-anchored
+	// placements with a plain link into the active note.
+	const textForSelection =
+		normalized.displayText === "selection"
+			? (selectedText: string) =>
+					buildFileLinkText(app, file, {
+						sourcePath,
+						linkType: normalized.linkType,
+						placement: normalized.placement,
+						alias: selectedText,
+					})
+			: undefined;
 
 	await insertLinkWithPlacement(
 		app,
 		linkText,
-		linkOptions.placement,
+		normalized.placement,
 		{
 			requireActiveView: false,
-			frontmatterProperty: linkOptions.frontmatterProperty,
-			frontmatterHandling: linkOptions.frontmatterHandling,
+			frontmatterProperty: normalized.frontmatterProperty,
+			frontmatterHandling: normalized.frontmatterHandling,
+			textForSelection,
 		},
 	);
 
