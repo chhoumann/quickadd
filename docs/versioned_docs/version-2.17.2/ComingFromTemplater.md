@@ -82,7 +82,7 @@ Appending to today's note is a Capture choice with a date-formatted target path 
 - **Insert after**: `## Log`, with **Create line if not found**
 - **Capture format**: `- {{VALUE}}`
 
-Running it and typing `did a thing` creates today's note (say, `Daily/2026-07-06.md`) from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. See [Capture choices](./Choices/CaptureChoice.md) for every target and position option.
+Running it and typing `did a thing` creates today's note (say, `Daily/2026-07-06.md`) from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](./Examples/Capture_ToDailyNote.md); [Capture choices](./Choices/CaptureChoice.md) covers every target and position option.
 
 ## Templates chosen by folder
 
