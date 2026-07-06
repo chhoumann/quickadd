@@ -120,7 +120,7 @@ const values = await quickAddApi.requestInputs([
 const tagArray = values.tags.split(', ').filter(Boolean);
 ```
 
-### `inputPrompt(header: string, placeholder?: string, value?: string, options?: { cursorAtEnd?: boolean }): Promise<string>`
+### `inputPrompt(header: string, placeholder?: string, value?: string, options?: { cursorAtEnd?: boolean, imagePaste?: { sourcePath?: string } }): Promise<string>`
 Opens a prompt that asks for text input.
 
 **Parameters:**
@@ -128,6 +128,7 @@ Opens a prompt that asks for text input.
 - `placeholder`: (Optional) Placeholder text in the input field
 - `value`: (Optional) Default value
 - `options.cursorAtEnd`: (Optional) When `true`, places the caret after the default value instead of selecting it
+- `options.imagePaste`: (Optional) Accept clipboard-image paste: the image is saved as a vault attachment (per Obsidian's attachment settings) and an embed link is inserted at the caret. Clipboard text always wins over an image. Only enable this when the value flows into note content - an embed link in a file name or path would corrupt it. `sourcePath` is the note path the link will live in when known; omit it to get vault-root links that resolve from anywhere.
 
 **Returns:** Promise resolving to the entered string.
 

@@ -94,6 +94,8 @@ Combines with a default and `optional` in any order: `{{VDATE:meeting,YYYY-MM-DD
 
 Interchangeable. Represents the value given in an input prompt. If text is selected in the current editor, it will be used as the value. For Capture choices, selection-as-value can be disabled globally or per-capture. When using the QuickAdd API, this can be passed programmatically using the reserved variable name 'value'.
 
+**Image paste:** value prompts whose answer lands in note content accept a clipboard image. Paste (Ctrl/Cmd+V) a screenshot or a copied image into the prompt: QuickAdd saves it using Obsidian's attachment location settings and inserts an embedded attachment link at the cursor - you can mix typed text and pasted images in one value, and paste more than one image. Clipboard text always takes precedence over an image (copying a FILE from a file manager usually pastes its path as text). Prompts for file names, folders, capture targets, and insert-after/before targets never accept image paste, since an embed link would break the path. Pasted attachments are ordinary vault files; cancelling the prompt afterwards does not delete them.
+
 **Inline script note:** For `js quickadd` blocks, prefer the QuickAdd API (`this.quickAddApi.inputPrompt(...)`) and `this.variables` for transformation flows. Do not rely on `{{VALUE}}` inside JavaScript string literals. See [Inline scripts](./InlineScripts.md#execution-order-and-value).
 
 **Macro note:** `{{VALUE}}` / `{{NAME}}` are scoped per template step, so each template in a macro prompts independently. Use `{{VALUE:sharedName}}` when you want one prompt reused across the macro.
@@ -555,6 +557,8 @@ Example: `> {{selected}}`.
 The current clipboard content. Will be empty if clipboard access fails due to permissions or security restrictions.
 
 In Capture choice content, if the clipboard has no text but contains a supported image, QuickAdd saves the image using Obsidian's attachment location settings and inserts an embedded attachment link. Clipboard text takes precedence when both text and an image are available.
+
+You can also paste an image directly into a [value prompt](#value) while typing - no token required.
 
 Example: `Copied: {{CLIPBOARD}}`.
 
