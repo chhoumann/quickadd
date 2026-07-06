@@ -211,6 +211,7 @@ const sidebars = {
 			label: "Other",
 			collapsed: true,
 			items: [
+				"FAQ",
 				{
 					type: "doc",
 					id: "ManualInstallation",
