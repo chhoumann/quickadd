@@ -10,6 +10,14 @@ export type LinkPlacement =
 
 export type LinkType = "link" | "embed";
 
+/**
+ * What the inserted link displays. "none" adds no explicit alias (Obsidian
+ * renders its default link text); "selection" keeps the selected text as the
+ * link's display text for selection-based placements. Reserved future values
+ * ("title", "custom") extend this enum without a schema break.
+ */
+export type LinkDisplayText = "none" | "selection";
+
 export type AppendLinkDestination =
 	| { type: "activeFile" }
 	| { type: "specifiedFile"; path: string };
@@ -48,6 +56,25 @@ export function placementSupportsFrontmatter(
 	return placement === "inFrontmatter";
 }
 
+/**
+ * Placements whose insertion is anchored to the editor selection, so the
+ * selected text can meaningfully become the link's display text (alias).
+ * "endOfLine"/"newLine" are cursor-anchored, not selection-anchored, and
+ * "inFrontmatter" has no selection concept at the destination.
+ *
+ * A new placement is NOT selection-alias-capable until deliberately added here.
+ */
+const SELECTION_ALIAS_CAPABLE_PLACEMENTS: ReadonlySet<LinkPlacement> = new Set([
+	"replaceSelection",
+	"afterSelection",
+]);
+
+export function placementSupportsSelectionAlias(
+	placement: LinkPlacement,
+): boolean {
+	return SELECTION_ALIAS_CAPABLE_PLACEMENTS.has(placement);
+}
+
 function sanitizeLinkType(
 	linkType: LinkType | undefined,
 	placement: LinkPlacement,
@@ -58,6 +85,26 @@ function sanitizeLinkType(
 		placementSupportsEmbed(placement)
 		? "embed"
 		: "link";
+}
+
+/**
+ * Strict allowlist: "selection" survives only when every condition for a
+ * selection-derived alias holds. Anything else — undefined, "", legacy boolean
+ * configs, unknown values from imported settings or third-party scripts, and
+ * future values this version doesn't know — normalizes to "none".
+ */
+function sanitizeDisplayText(
+	displayText: LinkDisplayText | undefined,
+	placement: LinkPlacement,
+	destination: AppendLinkDestination,
+	linkType: LinkType,
+): LinkDisplayText {
+	return displayText === "selection" &&
+		destination.type === "activeFile" &&
+		placementSupportsSelectionAlias(placement) &&
+		linkType === "link"
+		? "selection"
+		: "none";
 }
 
 function normalizeAppendLinkDestination(
@@ -96,6 +143,15 @@ export interface AppendLinkOptions {
 	 */
 	linkType?: LinkType;
 	/**
+	 * What the inserted link displays. "selection" keeps the selected text as
+	 * the link's alias for the selection-based placements (replaceSelection,
+	 * afterSelection) when inserting a plain link into the active note.
+	 * Normalized to "none" everywhere else (embeds, frontmatter,
+	 * endOfLine/newLine, specified-note destinations). Defaults to "none" for
+	 * legacy settings.
+	 */
+	displayText?: LinkDisplayText;
+	/**
 	 * Where the generated link should be written. Omitted legacy settings target
 	 * the active Markdown editor.
 	 */
@@ -131,16 +187,23 @@ export function isAppendLinkOptions(appendLink: boolean | AppendLinkOptions): ap
  * @param appendLink - Legacy boolean or new options format
  * @returns Normalized AppendLinkOptions
  */
-export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions & { linkType: LinkType; destination: AppendLinkDestination } {
+export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptions): AppendLinkOptions & { linkType: LinkType; destination: AppendLinkDestination; displayText: LinkDisplayText } {
 	if (isAppendLinkOptions(appendLink)) {
 		const placement = appendLink.placement ?? "replaceSelection";
 		const destination = normalizeAppendLinkDestination(appendLink.destination);
+		const linkType = sanitizeLinkType(appendLink.linkType, placement, destination);
 
 		return {
 			enabled: appendLink.enabled,
 			placement,
 			requireActiveFile: appendLink.requireActiveFile ?? true,
-			linkType: sanitizeLinkType(appendLink.linkType, placement, destination),
+			linkType,
+			displayText: sanitizeDisplayText(
+				appendLink.displayText,
+				placement,
+				destination,
+				linkType,
+			),
 			destination,
 			frontmatterProperty: appendLink.frontmatterProperty,
 			frontmatterHandling:
@@ -156,6 +219,7 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 		placement: "replaceSelection", // Default placement for backward compatibility
 		requireActiveFile: appendLink ? true : false,
 		linkType: "link",
+		displayText: "none",
 		destination: { type: "activeFile" },
 	};
 }

@@ -7,6 +7,7 @@ import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 	placementSupportsFrontmatter,
+	placementSupportsSelectionAlias,
 } from "./linkPlacement";
 
 describe("LinkPlacement", () => {
@@ -42,6 +43,7 @@ describe("LinkPlacement", () => {
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
 				linkType: "link",
+				displayText: "none",
 				destination: { type: "activeFile" },
 			});
 		});
@@ -53,6 +55,7 @@ describe("LinkPlacement", () => {
 				placement: "replaceSelection",
 				requireActiveFile: true,
 				linkType: "link",
+				displayText: "none",
 				destination: { type: "activeFile" },
 			});
 		});
@@ -64,6 +67,7 @@ describe("LinkPlacement", () => {
 				placement: "replaceSelection",
 				requireActiveFile: false,
 				linkType: "link",
+				displayText: "none",
 				destination: { type: "activeFile" },
 			});
 		});
@@ -77,7 +81,10 @@ describe("LinkPlacement", () => {
 				destination: { type: "activeFile" },
 			};
 
-			expect(normalizeAppendLinkOptions(options)).toEqual(options);
+			expect(normalizeAppendLinkOptions(options)).toEqual({
+				...options,
+				displayText: "none",
+			});
 		});
 
 		it("preserves embed linkType for every active-note body placement", () => {
@@ -134,6 +141,7 @@ describe("LinkPlacement", () => {
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
 				linkType: "link",
+				displayText: "none",
 				destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
 			});
 		});
@@ -150,6 +158,7 @@ describe("LinkPlacement", () => {
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
 				linkType: "link",
+				displayText: "none",
 				destination: { type: "specifiedFile", path: "Index.md" },
 			});
 		});
@@ -167,6 +176,7 @@ describe("LinkPlacement", () => {
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
 				linkType: "link",
+				displayText: "none",
 				destination: { type: "activeFile" },
 			});
 		});
@@ -249,6 +259,97 @@ describe("LinkPlacement", () => {
 			expect(placementSupportsFrontmatter("afterSelection")).toBe(false);
 			expect(placementSupportsFrontmatter("endOfLine")).toBe(false);
 			expect(placementSupportsFrontmatter("newLine")).toBe(false);
+		});
+	});
+
+	describe("placementSupportsSelectionAlias", () => {
+		it("returns true only for selection-anchored placements", () => {
+			expect(placementSupportsSelectionAlias("replaceSelection")).toBe(true);
+			expect(placementSupportsSelectionAlias("afterSelection")).toBe(true);
+			expect(placementSupportsSelectionAlias("endOfLine")).toBe(false);
+			expect(placementSupportsSelectionAlias("newLine")).toBe(false);
+			expect(placementSupportsSelectionAlias("inFrontmatter")).toBe(false);
+		});
+	});
+
+	describe("displayText normalization", () => {
+		const base: AppendLinkOptions = {
+			enabled: true,
+			placement: "replaceSelection",
+			requireActiveFile: true,
+		};
+
+		it("keeps 'selection' for selection placements with a plain link into the active file", () => {
+			for (const placement of ["replaceSelection", "afterSelection"] as LinkPlacement[]) {
+				const normalized = normalizeAppendLinkOptions({
+					...base,
+					placement,
+					displayText: "selection",
+				});
+				expect(normalized.displayText).toBe("selection");
+			}
+		});
+
+		it("defaults to 'none' when displayText is omitted", () => {
+			expect(normalizeAppendLinkOptions(base).displayText).toBe("none");
+		});
+
+		it("normalizes legacy boolean configs to 'none'", () => {
+			expect(normalizeAppendLinkOptions(true).displayText).toBe("none");
+			expect(normalizeAppendLinkOptions(false).displayText).toBe("none");
+		});
+
+		it("normalizes malformed and unknown values to 'none' (strict allowlist)", () => {
+			for (const value of ["", "SELECTION", "title", "custom", 1, true, null]) {
+				const normalized = normalizeAppendLinkOptions({
+					...base,
+					displayText: value as AppendLinkOptions["displayText"],
+				});
+				expect(normalized.displayText).toBe("none");
+			}
+		});
+
+		it("sanitizes 'selection' away for cursor-anchored and frontmatter placements", () => {
+			for (const placement of ["endOfLine", "newLine", "inFrontmatter"] as LinkPlacement[]) {
+				const normalized = normalizeAppendLinkOptions({
+					...base,
+					placement,
+					displayText: "selection",
+				});
+				expect(normalized.displayText).toBe("none");
+			}
+		});
+
+		it("sanitizes 'selection' away for embeds", () => {
+			const normalized = normalizeAppendLinkOptions({
+				...base,
+				linkType: "embed",
+				displayText: "selection",
+			});
+			expect(normalized.linkType).toBe("embed");
+			expect(normalized.displayText).toBe("none");
+		});
+
+		it("sanitizes 'selection' away for specified-file destinations", () => {
+			const normalized = normalizeAppendLinkOptions({
+				...base,
+				displayText: "selection",
+				destination: { type: "specifiedFile", path: "Index.md" },
+			});
+			expect(normalized.displayText).toBe("none");
+		});
+
+		it("still sanitizes 'selection' when an embed request is downgraded by a specified-file destination", () => {
+			// linkType embed + specifiedFile normalizes linkType to "link", but the
+			// specified-file destination still rules out a selection alias.
+			const normalized = normalizeAppendLinkOptions({
+				...base,
+				linkType: "embed",
+				displayText: "selection",
+				destination: { type: "specifiedFile", path: "Index.md" },
+			});
+			expect(normalized.linkType).toBe("link");
+			expect(normalized.displayText).toBe("none");
 		});
 	});
 });
