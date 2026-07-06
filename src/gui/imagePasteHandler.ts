@@ -75,12 +75,14 @@ export function attachImagePasteHandler(
 			);
 			return;
 		}
+		// saveAndInsert never rejects (both phases catch), so pendingSave and
+		// the whenIdle()-deferred submits can never be dropped by a rejection.
 		pendingSave = saveAndInsert(images).finally(() => {
 			pendingSave = null;
 		});
 	};
 
-	async function saveAndInsert(images: File[]): Promise<void> {
+	async function saveAndInsert(images: PastedImage[]): Promise<void> {
 		// Freeze the input during the save so the caret cannot go stale from
 		// typing; the embed is inserted at the LIVE selection afterwards.
 		const wasReadOnly = inputEl.readOnly;
@@ -90,14 +92,14 @@ export function attachImagePasteHandler(
 
 		const links: string[] = [];
 		try {
-			// Strictly sequential: the attachment-path dedupe only sees files
-			// whose createBinary landed, so parallel same-second saves collide.
+			// Strictly sequential AND globally queued: the attachment-path
+			// dedupe only sees files whose createBinary landed, so concurrent
+			// same-second saves (multi-image paste, or pastes into two fields
+			// of the one-page form) would resolve the same path and collide.
 			for (const image of images) {
-				const file = await saveClipboardImageToVault(
-					app,
-					await image.arrayBuffer(),
-					image.type,
-					sourcePath,
+				const data = await image.file.arrayBuffer();
+				const file = await enqueueVaultSave(() =>
+					saveClipboardImageToVault(app, data, image.mimeType, sourcePath),
 				);
 				links.push(buildImageEmbedLink(app, file, sourcePath));
 			}
@@ -115,10 +117,20 @@ export function attachImagePasteHandler(
 		}
 
 		if (links.length === 0 || detached) return;
-		insertAtSelection(
-			inputEl,
-			links.join(inputEl.tagName === "TEXTAREA" ? "\n" : " "),
-		);
+		try {
+			insertAtSelection(
+				inputEl,
+				links.join(inputEl.tagName === "TEXTAREA" ? "\n" : " "),
+			);
+		} catch (error) {
+			// The files exist and are usable; only the text insertion failed.
+			log.logError(
+				`Failed to insert pasted image link: ${error instanceof Error ? error.message : String(error)}`,
+			);
+			new Notice(
+				"QuickAdd: saved the pasted image but could not insert its link.",
+			);
+		}
 	}
 
 	inputEl.addEventListener("paste", onPaste);
@@ -137,20 +149,46 @@ export function attachImagePasteHandler(
 	};
 }
 
-function collectImageFiles(data: DataTransfer): File[] {
-	const images: File[] = [];
+interface PastedImage {
+	file: File;
+	/**
+	 * MIME from the DataTransferItem (or File) that matched the supported
+	 * map - carried separately because getAsFile() can return a File whose
+	 * .type is empty or differs from the item's.
+	 */
+	mimeType: string;
+}
+
+/**
+ * Serializes all clipboard-image vault writes in this window: the attachment
+ * path dedupe only sees landed files, so two same-second saves racing (e.g.
+ * pastes into two one-page fields) would resolve the same path.
+ */
+let vaultSaveQueue: Promise<unknown> = Promise.resolve();
+function enqueueVaultSave<T>(work: () => Promise<T>): Promise<T> {
+	const result = vaultSaveQueue.then(work, work);
+	vaultSaveQueue = result.catch(() => undefined);
+	return result;
+}
+
+function isSupportedImageMime(type: string): boolean {
+	return Object.hasOwn(IMAGE_CLIPBOARD_MIME_EXTENSIONS, type);
+}
+
+function collectImageFiles(data: DataTransfer): PastedImage[] {
+	const images: PastedImage[] = [];
 	for (const item of Array.from(data.items ?? [])) {
 		if (item.kind !== "file") continue;
-		if (IMAGE_CLIPBOARD_MIME_EXTENSIONS[item.type] === undefined) continue;
+		if (!isSupportedImageMime(item.type)) continue;
 		const file = item.getAsFile();
-		if (file) images.push(file);
+		if (file) images.push({ file, mimeType: item.type });
 	}
 	if (images.length > 0) return images;
 
 	// Some webviews only populate .files.
 	for (const file of Array.from(data.files ?? [])) {
-		if (IMAGE_CLIPBOARD_MIME_EXTENSIONS[file.type] !== undefined) {
-			images.push(file);
+		if (isSupportedImageMime(file.type)) {
+			images.push({ file, mimeType: file.type });
 		}
 	}
 	return images;

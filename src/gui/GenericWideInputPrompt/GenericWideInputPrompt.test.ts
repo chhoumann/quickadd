@@ -112,3 +112,119 @@ describe("GenericWideInputPrompt returns the user's input verbatim", () => {
 		);
 	});
 });
+
+describe("image paste submit/cancel races (issue #1484)", () => {
+	beforeEach(() => {
+		fakeApp = makeFakeApp();
+		setQuickAddInstance({
+			app: fakeApp,
+			registerEvent: () => {},
+		} as unknown as QuickAdd);
+	});
+
+	afterEach(() => {
+		for (const el of Array.from(document.body.children)) el.remove();
+	});
+
+	function makePasteApp() {
+		let resolveCreate: () => void = () => {};
+		const created = new Promise<{ path: string }>((resolve) => {
+			resolveCreate = () => resolve({ path: "img.png" });
+		});
+		let createCalled = false;
+		const app = {
+			...makeFakeApp(),
+			fileManager: {
+				getNewFileParent: () => ({ path: "" }),
+				getAvailablePathForAttachment: async () => "img.png",
+				generateMarkdownLink: (file: { path: string }) => `![[${file.path}]]`,
+			},
+			vault: {
+				...makeFakeApp().vault,
+				createBinary: () => {
+					createCalled = true;
+					return created;
+				},
+			},
+		};
+		return {
+			app,
+			resolveCreate,
+			createStarted: () => createCalled,
+		};
+	}
+
+	function openPromptWithPaste(app: unknown) {
+		const waitForClose = GenericWideInputPrompt.Prompt(
+			app as never,
+			"Header",
+			undefined,
+			undefined,
+			undefined,
+			{ imagePaste: {} },
+		);
+		const textarea = document.querySelector(
+			"textarea.wideInputPromptInputEl",
+		) as HTMLTextAreaElement;
+		return { waitForClose, textarea };
+	}
+
+	function dispatchImagePaste(textarea: HTMLTextAreaElement) {
+		const file = new File([new Uint8Array([1, 2, 3])], "img.png", {
+			type: "image/png",
+		});
+		const clipboardData = {
+			getData: () => "",
+			items: [{ kind: "file", type: "image/png", getAsFile: () => file }],
+			files: [file],
+		};
+		const event = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(event, "clipboardData", { value: clipboardData });
+		textarea.dispatchEvent(event);
+	}
+
+	async function waitFor(predicate: () => boolean) {
+		for (let i = 0; i < 200 && !predicate(); i++) {
+			await new Promise((resolve) => setTimeout(resolve, 5));
+		}
+		expect(predicate()).toBe(true);
+	}
+
+	it("a ctrl+Enter during the save defers and submits WITH the embed link", async () => {
+		const { app, resolveCreate, createStarted } = makePasteApp();
+		const { waitForClose, textarea } = openPromptWithPaste(app);
+
+		dispatchImagePaste(textarea);
+		await waitFor(createStarted);
+		textarea.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }),
+		);
+		resolveCreate();
+
+		await expect(waitForClose).resolves.toBe("![[img.png]]");
+	});
+
+	it("cancel during an in-flight save never fires the deferred submit", async () => {
+		const { app, resolveCreate, createStarted } = makePasteApp();
+		const { waitForClose, textarea } = openPromptWithPaste(app);
+
+		dispatchImagePaste(textarea);
+		await waitFor(createStarted);
+		// Enter queues a deferred submit behind the pending save...
+		textarea.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }),
+		);
+		// ...then the user cancels before the save lands.
+		const cancelButton = Array.from(
+			document.querySelectorAll("button"),
+		).find((button) => button.textContent === "Cancel") as HTMLButtonElement;
+		cancelButton.click();
+
+		await expect(waitForClose).rejects.toBe("No input given.");
+
+		// The save landing later must NOT resurrect the submit on the closed
+		// modal (deferred submit is guarded by didClose).
+		resolveCreate();
+		await new Promise((resolve) => setTimeout(resolve, 20));
+	});
+});

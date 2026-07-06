@@ -1595,3 +1595,96 @@ describe("collectChoiceRequirements - image-paste path-context provenance (issue
 		expect(byId(requirements, "snippetValue").pathContext).toBeUndefined();
 	});
 });
+
+describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)", () => {
+	const templateBodies = new Map<string, string>();
+	const app = {
+		vault: {
+			cachedRead: vi.fn(
+				async (file: { path: string }) => templateBodies.get(file.path) ?? "",
+			),
+		},
+		metadataCache: { getFileCache: vi.fn(() => null) },
+	} as unknown as App;
+	const plugin = {
+		settings: {
+			inputPrompt: "single-line",
+			globalVariables: {},
+			useSelectionAsCaptureValue: true,
+		},
+	} as any;
+
+	beforeEach(() => {
+		templateBodies.clear();
+		getTemplateFileMock.mockReset();
+		getTemplateFileMock.mockImplementation((_app: App, path: string) =>
+			templateBodies.has(path) ? ({ path } as never) : null,
+		);
+	});
+
+	it("re-taints a template first scanned from content when a path string includes it too", async () => {
+		// The template-inclusion memo must be keyed per context: the capture
+		// FORMAT (content) is scanned before insert-after (path), so a
+		// ref-only memo would skip the second walk and leave `part` pastable.
+		templateBodies.set("Templates/Shared.md", "{{VALUE:part}}");
+		const choice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates/Shared.md}}",
+			},
+			insertAfter: {
+				enabled: true,
+				after: "{{TEMPLATE:Templates/Shared.md}}",
+				insertAtEnd: false,
+				considerSubsections: false,
+				createIfNotFound: false,
+				createIfNotFoundLocation: "",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			{ execute: vi.fn(), variables: new Map<string, unknown>() },
+			choice,
+		);
+
+		const part = requirements.find((req) => req.id === "part");
+		expect(part?.pathContext).toBe(true);
+	});
+
+	it("taints {{MVALUE}} used in a capture target", async () => {
+		const choice = {
+			...createCaptureChoice("Math/{{MVALUE}}.md"),
+			format: { enabled: true, format: "{{MVALUE}}" },
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			{ execute: vi.fn(), variables: new Map<string, unknown>() },
+			choice,
+		);
+
+		const mvalue = requirements.find((req) => req.id === "mvalue");
+		expect(mvalue?.pathContext).toBe(true);
+	});
+
+	it("keeps {{MVALUE}} used only in content pastable", async () => {
+		const choice = {
+			...createCaptureChoice("Inbox.md"),
+			format: { enabled: true, format: "{{MVALUE}}" },
+		} as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			{ execute: vi.fn(), variables: new Map<string, unknown>() },
+			choice,
+		);
+
+		const mvalue = requirements.find((req) => req.id === "mvalue");
+		expect(mvalue?.pathContext).toBeUndefined();
+	});
+});

@@ -7,14 +7,17 @@ import { escapesVaultBoundary } from "./vaultPathBoundary";
  * (PR #1393) and direct image paste into prompt inputs (issue #1484) so both
  * surfaces accept exactly the same formats.
  */
-export const IMAGE_CLIPBOARD_MIME_EXTENSIONS: Record<string, string> = {
-	"image/png": "png",
-	"image/jpeg": "jpg",
-	"image/jpg": "jpg",
-	"image/gif": "gif",
-	"image/webp": "webp",
-	"image/svg+xml": "svg",
-};
+// Null prototype so a hostile MIME like "constructor" can never hit an
+// inherited Object.prototype member in the index lookups below.
+export const IMAGE_CLIPBOARD_MIME_EXTENSIONS: Record<string, string> =
+	Object.assign(Object.create(null) as Record<string, string>, {
+		"image/png": "png",
+		"image/jpeg": "jpg",
+		"image/jpg": "jpg",
+		"image/gif": "gif",
+		"image/webp": "webp",
+		"image/svg+xml": "svg",
+	});
 
 export function formatClipboardAttachmentTimestamp(date: Date): string {
 	const pad = (value: number) => String(value).padStart(2, "0");

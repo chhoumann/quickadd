@@ -16,6 +16,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private resolvePromise: (input: string) => void;
 	private rejectPromise: (reason?: unknown) => void;
 	private didSubmit = false;
+	private didClose = false;
 	private inputComponent: TextAreaComponent;
 	private input: string;
 	private readonly placeholder: string;
@@ -233,7 +234,10 @@ export default class GenericWideInputPrompt extends Modal {
 	};
 
 	private submit() {
-		if (this.didSubmit) return;
+		// didClose guards the deferred path below: cancel/Esc while a paste
+		// save is in flight must not let the queued submit fire on the closed
+		// modal (re-resolving the rejected promise, double onClose).
+		if (this.didSubmit || this.didClose) return;
 		// A pasted image may still be saving; defer so ctrl/cmd+Enter right
 		// after Ctrl+V submits WITH the embed link instead of racing the save.
 		if (this.imagePasteHandle?.isBusy()) {
@@ -304,6 +308,7 @@ export default class GenericWideInputPrompt extends Modal {
 	}
 
 	onClose() {
+		this.didClose = true;
 		if (!this.didSubmit) {
 			this.syncInputFromEl();
 		}

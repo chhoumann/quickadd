@@ -222,9 +222,13 @@ async function scanContentWithTemplateIncludes(
 		// branching^depth invocations). A ref first seen NEAR the depth cap is
 		// re-scanned if met again shallower, so the memo never truncates a
 		// subtree the old walk would have explored.
-		const scannedDepth = collector.scannedTemplateRefDepths.get(ref);
+		// The memo is keyed per CONTEXT: a template first scanned from content
+		// must be re-scanned when later reached from a path string, or its
+		// variables would keep image paste despite feeding a path (#1484).
+		const memoKey = `${pathContext ? "path" : "content"}:${ref}`;
+		const scannedDepth = collector.scannedTemplateRefDepths.get(memoKey);
 		if (scannedDepth !== undefined && scannedDepth <= depth) continue;
-		collector.scannedTemplateRefDepths.set(ref, depth);
+		collector.scannedTemplateRefDepths.set(memoKey, depth);
 		templateStack.add(ref);
 		try {
 			await scanContentWithTemplateIncludes(

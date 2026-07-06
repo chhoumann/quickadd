@@ -360,3 +360,92 @@ describe("attachImagePasteHandler", () => {
 		).toBe("Journal/today.md");
 	});
 });
+
+describe("attachImagePasteHandler - review hardening (issue #1484)", () => {
+	it("uses the DataTransferItem MIME when the File reports an empty type", async () => {
+		const { app, getAvailablePathForAttachment } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		// getAsFile() can return a File whose .type is empty; the item's
+		// declared MIME must drive the extension.
+		const bare = new File([new Uint8Array([1])], "img", { type: "" });
+		const data = {
+			getData: () => "",
+			items: [{ kind: "file", type: "image/png", getAsFile: () => bare }],
+			files: [],
+		} as unknown as DataTransfer;
+		dispatchPaste(input, data);
+		await flushSaves(handle);
+
+		expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+			expect.stringMatching(/\.png$/),
+			undefined,
+		);
+		expect(input.value).toMatch(/!\[\[.*\.png\]\]/);
+	});
+
+	it("ignores Object.prototype member names masquerading as MIME types", async () => {
+		const { app, createBinary } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		const event = dispatchPaste(
+			input,
+			makeClipboardData([makeImageFile("evil", "constructor")]),
+		);
+		await flushSaves(handle);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(createBinary).not.toHaveBeenCalled();
+	});
+
+	it("keeps whenIdle resolved (never rejected) when link insertion fails", async () => {
+		const { app } = makeApp();
+		const input = makeInput();
+		const setRangeText = input.setRangeText.bind(input);
+		input.setRangeText = () => {
+			throw new Error("insertion blew up");
+		};
+		const handle = attachImagePasteHandler(app, input, {});
+
+		dispatchPaste(input, makeClipboardData([makeImageFile()]));
+		await expect(handle.whenIdle()).resolves.toBeUndefined();
+		await flushSaves(handle);
+
+		expect(Notice).toHaveBeenCalledWith(
+			expect.stringContaining("could not insert its link"),
+		);
+		expect(handle.isBusy()).toBe(false);
+		input.setRangeText = setRangeText;
+	});
+
+	it("serializes saves across two handlers (one-page cross-field pastes)", async () => {
+		const { app, created } = makeApp();
+		let inFlight = 0;
+		let maxInFlight = 0;
+		const realCreate = app.vault.createBinary as ReturnType<typeof vi.fn>;
+		realCreate.mockImplementation(async (path: string) => {
+			inFlight++;
+			maxInFlight = Math.max(maxInFlight, inFlight);
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			inFlight--;
+			created.push(path);
+			return { path } as TFile;
+		});
+		const inputA = makeInput();
+		const inputB = makeInput();
+		const handleA = attachImagePasteHandler(app, inputA, {});
+		const handleB = attachImagePasteHandler(app, inputB, {});
+
+		dispatchPaste(inputA, makeClipboardData([makeImageFile("a.png")]));
+		dispatchPaste(inputB, makeClipboardData([makeImageFile("b.png")]));
+		await flushSaves(handleA);
+		await flushSaves(handleB);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(created).toHaveLength(2);
+		expect(new Set(created).size).toBe(2);
+		expect(maxInFlight).toBe(1);
+	});
+});

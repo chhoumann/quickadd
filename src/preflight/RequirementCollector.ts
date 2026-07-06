@@ -4,6 +4,7 @@ import {
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
 	GLOBAL_VAR_REGEX,
+	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
@@ -87,11 +88,14 @@ export class RequirementCollector extends Formatter {
 	public readonly requirements = new Map<string, FieldRequirement>();
 	public readonly templatesToScan = new Set<string>();
 	/**
-	 * Cross-branch memo for the template-inclusion walk: template ref → the
-	 * shallowest depth it was fully scanned at during this collection.
-	 * Requirements dedupe by id, so re-scanning a template reachable through
-	 * many distinct paths adds nothing - without this memo a dense template
-	 * DAG fans out as branching^depth (~1M scans at 4×10), freezing the UI.
+	 * Cross-branch memo for the template-inclusion walk: `<context>:<ref>`
+	 * (context = "path" | "content") → the shallowest depth the template was
+	 * fully scanned at during this collection. Requirements dedupe by id, so
+	 * re-scanning a template reachable through many distinct paths adds
+	 * nothing - without this memo a dense template DAG fans out as
+	 * branching^depth (~1M scans at 4×10), freezing the UI. Keyed per context
+	 * because a content-scanned template reached again from a path string
+	 * must be re-walked to taint its variables as path context (#1484).
 	 */
 	public readonly scannedTemplateRefDepths = new Map<string, number>();
 
@@ -127,15 +131,21 @@ export class RequirementCollector extends Formatter {
 			this.scanVariableTokens(expanded);
 			this.scanDateTokens(expanded);
 			this.scanFileTokens(expanded);
-			// Anonymous {{VALUE}}/{{NAME}} resolution is cached, so the
-			// promptForValue hook fires once per collector; a path string
-			// scanned AFTER a content string that already registered "value"
-			// must still taint it (named variables get per-occurrence marking
-			// in scanVariableTokens; the anonymous token needs this textual
-			// re-check).
-			if (pathContext && new RegExp(NAME_VALUE_REGEX.source, "i").test(expanded)) {
-				const anonymousValue = this.requirements.get("value");
-				if (anonymousValue) anonymousValue.pathContext = true;
+			// Anonymous {{VALUE}}/{{NAME}} and {{MVALUE}} resolutions are
+			// cached, so their prompt hooks fire once per collector; a path
+			// string scanned AFTER a content string that already registered
+			// them must still taint them (named variables get per-occurrence
+			// marking in scanVariableTokens; these singleton tokens need this
+			// textual re-check).
+			if (pathContext) {
+				if (new RegExp(NAME_VALUE_REGEX.source, "i").test(expanded)) {
+					const anonymousValue = this.requirements.get("value");
+					if (anonymousValue) anonymousValue.pathContext = true;
+				}
+				if (new RegExp(MATH_VALUE_REGEX.source, "i").test(expanded)) {
+					const mathValue = this.requirements.get("mvalue");
+					if (mathValue) mathValue.pathContext = true;
+				}
 			}
 			await this.format(expanded);
 		} finally {
@@ -525,6 +535,10 @@ export class RequirementCollector extends Formatter {
 				placeholder: "e.g., 2+2*3",
 			});
 		}
+		// {{MVALUE}} is legal in path strings too; taint like the VALUE hooks
+		// so its free-text field never offers image paste there (#1484). This
+		// hook fires once per collector, but path strings are scanned first.
+		this.markScanContext(this.requirements.get(key)!);
 		return "";
 	}
 
